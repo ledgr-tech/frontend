@@ -86,6 +86,20 @@ describe("ConciliacaoPage", () => {
     ).toBeInTheDocument();
   });
 
+  it("closes the month when Fechar mês is clicked", async () => {
+    buscarConciliacao.mockReturnValue(conciliacaoEmAndamento);
+    fecharConciliacao.mockReturnValue({ ...conciliacaoEmAndamento, status: "fechada" });
+    const user = userEvent.setup();
+    render(<ConciliacaoPage />);
+
+    await user.click(await screen.findByText("Fechar mês"));
+
+    expect(fecharConciliacao).toHaveBeenCalledWith("conc-1");
+    expect(
+      await screen.findByText("Setembro 2026 fechado com 1 item revisado.")
+    ).toBeInTheDocument();
+  });
+
   it("shows not found message when conciliação does not exist", async () => {
     buscarConciliacao.mockReturnValue(null);
     render(<ConciliacaoPage />);

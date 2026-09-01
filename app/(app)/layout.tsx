@@ -14,6 +14,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       router.replace("/login");
       return;
     }
+    // localStorage is only readable client-side; this is the standard pattern for
+    // deferring a client-only read out of the render phase.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setAutorizado(true);
   }, [router]);
 

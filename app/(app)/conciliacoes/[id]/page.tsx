@@ -24,6 +24,9 @@ export default function ConciliacaoPage() {
   const [linhaAberta, setLinhaAberta] = useState<LinhaComparacao | null>(null);
 
   useEffect(() => {
+    // localStorage is only readable client-side; this is the standard pattern for
+    // deferring a client-only read out of the render phase.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setConciliacao(buscarConciliacao(params.id));
   }, [params.id]);
 
