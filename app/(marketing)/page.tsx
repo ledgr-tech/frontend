@@ -101,7 +101,14 @@ export default function LandingPage() {
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <Image src="/mascotes/logo-barras.png" alt="Ledgr" width={2400} height={1952} style={{ height: 26, width: "auto" }} />
+            <Image
+              src="/mascotes/logo-barras.png"
+              alt="Ledgr"
+              width={2400}
+              height={1952}
+              priority
+              style={{ height: 26, width: "auto" }}
+            />
             <span style={{ fontFamily: "var(--font-heading)", fontSize: 23, fontWeight: 600 }}>Ledgr</span>
             <span
               style={{
@@ -293,6 +300,7 @@ export default function LandingPage() {
               alt="Mascote Ledgr com prancheta de conciliação e dinheiro"
               width={824}
               height={720}
+              priority
               style={{ position: "relative", zIndex: 1, width: "96%", maxWidth: 440, height: "auto" }}
             />
             <div
