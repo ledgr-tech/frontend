@@ -530,19 +530,37 @@ export default function LandingPage() {
               border: "1px solid var(--color-accent)",
               borderRadius: "var(--radius-md)",
               padding: "42px 46px",
+              display: "flex",
+              flexWrap: "wrap",
+              gap: "28px 40px",
+              alignItems: "center",
             }}
           >
-            <h6 style={{ margin: "0 0 10px", color: "var(--color-accent-700)" }}>
-              Regra de ouro
-            </h6>
-            <h2 style={{ margin: "0 0 12px", fontSize: 34, fontWeight: 400 }}>
-              O extrato do banco é sempre a fonte da verdade.
-            </h2>
-            <p style={{ margin: 0, fontSize: 15.5, lineHeight: 1.75, maxWidth: "68ch" }}>
-              Toda divergência é reportada na mesma direção: o sistema diverge do banco, nunca o
-              contrário. Isso encerra a discussão sobre qual número vale e deixa claro o que
-              precisa ser corrigido no seu sistema de gestão.
-            </p>
+            <div
+              style={{
+                flex: "none",
+                fontFamily: "var(--font-heading)",
+                fontSize: 82,
+                fontWeight: 400,
+                lineHeight: 1,
+                color: "var(--color-accent)",
+              }}
+            >
+              §
+            </div>
+            <div style={{ flex: "1 1 360px", minWidth: 0 }}>
+              <h6 style={{ margin: "0 0 10px", color: "var(--color-accent-700)" }}>
+                Regra de ouro
+              </h6>
+              <h2 style={{ margin: "0 0 12px", fontSize: 34, fontWeight: 400 }}>
+                O extrato do banco é sempre a fonte da verdade.
+              </h2>
+              <p style={{ margin: 0, fontSize: 15.5, lineHeight: 1.75, maxWidth: "68ch" }}>
+                Toda divergência é reportada na mesma direção: o sistema diverge do banco, nunca o
+                contrário. Isso encerra a discussão sobre qual número vale e deixa claro o que
+                precisa ser corrigido no seu sistema de gestão.
+              </p>
+            </div>
           </div>
         </div>
       </section>
