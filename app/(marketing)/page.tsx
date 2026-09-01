@@ -56,10 +56,16 @@ const PERGUNTAS = [
 ];
 
 const PLANOS = [
-  { nome: "Essencial", preco: "R$ 49,90", limite: "até 100 lançamentos por mês", destaque: false },
-  { nome: "Padrão", preco: "R$ 79,90", limite: "até 200 lançamentos por mês", destaque: true },
-  { nome: "Avançado", preco: "R$ 99,90", limite: "até 350 lançamentos por mês", destaque: false },
-  { nome: "Volume", preco: "Sob consulta", limite: "acima de 350 — indústria e multi-banco", destaque: false },
+  { nome: "Essencial", preco: "R$ 49,90", limite: "até 100 lançamentos por mês", destaque: false, contato: false },
+  { nome: "Padrão", preco: "R$ 79,90", limite: "até 200 lançamentos por mês", destaque: true, contato: false },
+  { nome: "Avançado", preco: "R$ 99,90", limite: "até 350 lançamentos por mês", destaque: false, contato: false },
+  {
+    nome: "Volume",
+    preco: "Sob consulta",
+    limite: "acima de 350 — indústria e multi-banco",
+    destaque: false,
+    contato: true,
+  },
 ];
 
 const RODAPE_LINKS = [
@@ -149,6 +155,18 @@ export default function LandingPage() {
           }}
         />
         <div
+          aria-hidden="true"
+          style={{
+            position: "absolute",
+            inset: 0,
+            pointerEvents: "none",
+            backgroundImage:
+              "linear-gradient(to right, var(--color-divider) 1px, transparent 1px)",
+            backgroundSize: "25% 100%",
+            opacity: 0.55,
+          }}
+        />
+        <div
           style={{
             position: "relative",
             maxWidth: 1180,
@@ -161,20 +179,42 @@ export default function LandingPage() {
           }}
         >
           <div>
-            <span
+            <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 28 }}>
+              <span
+                style={{
+                  fontSize: 12,
+                  letterSpacing: "0.14em",
+                  textTransform: "uppercase",
+                  color: "var(--color-accent-700)",
+                }}
+              >
+                Cap. I · O fechamento do mês
+              </span>
+              <span style={{ flex: 1, maxWidth: 120, height: 1, background: "var(--color-divider)" }} />
+            </div>
+            <h1
               style={{
-                fontSize: 12,
-                letterSpacing: "0.14em",
-                textTransform: "uppercase",
-                color: "var(--color-accent-700)",
+                margin: "0 0 24px",
+                fontSize: 72,
+                fontWeight: 400,
+                lineHeight: 1.02,
+                letterSpacing: "-0.022em",
+                textWrap: "balance",
               }}
             >
-              Cap. I · O fechamento do mês
-            </span>
-            <h1 style={{ margin: "24px 0", fontSize: 56, fontWeight: 400, lineHeight: 1.05 }}>
               Pare de conciliar extrato à mão.
             </h1>
-            <p style={{ margin: "0 0 34px", fontSize: 17.5, lineHeight: 1.72, maxWidth: "44ch" }}>
+            <div style={{ width: 84, height: 1, background: "var(--color-accent)", marginBottom: 26 }} />
+            <p
+              style={{
+                margin: "0 0 34px",
+                fontSize: 17.5,
+                lineHeight: 1.72,
+                maxWidth: "44ch",
+                textAlign: "justify",
+                hyphens: "auto",
+              }}
+            >
               Suba o extrato do banco e o extrato do seu sistema de gestão. Em minutos você recebe o
               relatório do que bate e do que não bate — lançamento por lançamento, sem planilha no
               meio.
@@ -288,6 +328,18 @@ export default function LandingPage() {
                   conciliado
                 </span>
               </div>
+              <div
+                style={{
+                  height: 5,
+                  border: "1px solid var(--color-divider)",
+                  borderRadius: "var(--radius-sm)",
+                  overflow: "hidden",
+                  display: "flex",
+                }}
+              >
+                <div style={{ width: "96.3%", background: "var(--color-neutral-300)" }} />
+                <div style={{ flex: 1, background: "var(--color-accent)" }} />
+              </div>
               <div style={{ marginTop: 8, fontSize: 12.5, color: "color-mix(in srgb, var(--color-text) 60%, transparent)" }}>
                 157 de 4.218 para revisar
               </div>
@@ -326,6 +378,10 @@ export default function LandingPage() {
           >
             <span style={{ fontSize: 12, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--color-accent-300)" }}>
               Em números
+            </span>
+            <span style={{ fontSize: 14, lineHeight: 1.6, maxWidth: "46ch", color: "var(--color-neutral-400)" }}>
+              Um mês de indústria conciliado no Ledgr: R$ 7 milhões de faturamento, quatro bancos e o
+              razão do Cigam.
             </span>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: "28px 0" }}>
@@ -375,7 +431,16 @@ export default function LandingPage() {
                 Duas telas abertas, um dedo em cada linha.
               </h2>
             </div>
-            <p style={{ margin: 0, alignSelf: "end", fontSize: 15.5, lineHeight: 1.75 }}>
+            <p
+              style={{
+                margin: 0,
+                alignSelf: "end",
+                fontSize: 15.5,
+                lineHeight: 1.75,
+                textAlign: "justify",
+                hyphens: "auto",
+              }}
+            >
               Conferir o extrato do banco contra o extrato do sistema de gestão linha a linha é lento,
               cansa e deixa passar erro. Quanto maior o volume de lançamentos, pior fica — e o mês
               fecha sempre no aperto.
@@ -515,7 +580,9 @@ export default function LandingPage() {
                 <div style={{ fontFamily: "var(--font-heading)", fontSize: 22, fontWeight: 600, lineHeight: 1.2 }}>
                   {passo.titulo}
                 </div>
-                <div style={{ fontSize: 15, lineHeight: 1.72 }}>{passo.texto}</div>
+                <div style={{ fontSize: 15, lineHeight: 1.72, textAlign: "justify", hyphens: "auto" }}>
+                  {passo.texto}
+                </div>
               </div>
             ))}
           </div>
@@ -555,7 +622,16 @@ export default function LandingPage() {
               <h2 style={{ margin: "0 0 12px", fontSize: 34, fontWeight: 400 }}>
                 O extrato do banco é sempre a fonte da verdade.
               </h2>
-              <p style={{ margin: 0, fontSize: 15.5, lineHeight: 1.75, maxWidth: "68ch" }}>
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: 15.5,
+                  lineHeight: 1.75,
+                  maxWidth: "68ch",
+                  textAlign: "justify",
+                  hyphens: "auto",
+                }}
+              >
                 Toda divergência é reportada na mesma direção: o sistema diverge do banco, nunca o
                 contrário. Isso encerra a discussão sobre qual número vale e deixa claro o que
                 precisa ser corrigido no seu sistema de gestão.
@@ -590,13 +666,31 @@ export default function LandingPage() {
             <h2 style={{ margin: "0 0 16px", fontSize: 32, fontWeight: 400, lineHeight: 1.12 }}>
               Estamos abrindo o Ledgr para um grupo pequeno de empresas.
             </h2>
-            <p style={{ margin: "0 0 18px", fontSize: 15.5, lineHeight: 1.75, maxWidth: "66ch" }}>
+            <p
+              style={{
+                margin: "0 0 18px",
+                fontSize: 15.5,
+                lineHeight: 1.75,
+                maxWidth: "66ch",
+                textAlign: "justify",
+                hyphens: "auto",
+              }}
+            >
               Construímos o Ledgr em cima de um problema específico: indústrias e comércios que
               movimentam vários bancos e fecham o mês conferindo linha por linha. O motor de
               conciliação já roda sobre volumes reais desse porte — quatro bancos, milhares de
               lançamentos, um único relatório no fim.
             </p>
-            <p style={{ margin: "0 0 22px", fontSize: 15.5, lineHeight: 1.75, maxWidth: "66ch" }}>
+            <p
+              style={{
+                margin: "0 0 22px",
+                fontSize: 15.5,
+                lineHeight: 1.75,
+                maxWidth: "66ch",
+                textAlign: "justify",
+                hyphens: "auto",
+              }}
+            >
               Nesta primeira turma, o primeiro fechamento é por nossa conta e a implantação é feita
               com a gente do lado — mapeamos as colunas do seu ERP, rodamos o seu mês e você compara
               com o que sua equipe fez à mão.
@@ -703,14 +797,17 @@ export default function LandingPage() {
           <h2
             style={{
               margin: 0,
-              fontSize: 42,
+              fontSize: 50,
               fontWeight: 400,
+              lineHeight: 1.06,
               maxWidth: "26ch",
+              textWrap: "balance",
               color: "var(--ledgr-tinta)",
             }}
           >
             Preço fechado, por volume.
           </h2>
+          <div style={{ width: 84, height: 1, background: "var(--color-accent)" }} />
           <p style={{ margin: 0, fontSize: 16.5, lineHeight: 1.72, maxWidth: "52ch", color: "var(--color-neutral-300)" }}>
             Você paga pelo tanto de lançamento que conferir no mês. Sem fidelidade, sem taxa de
             implantação, sem cobrar por usuário.
@@ -734,7 +831,11 @@ export default function LandingPage() {
                   flexDirection: "column",
                   gap: 8,
                   padding: "22px 20px",
-                  border: `1px solid ${plano.destaque ? "var(--color-accent)" : "var(--color-accent-800)"}`,
+                  border: plano.destaque
+                    ? "1px solid var(--color-accent)"
+                    : plano.contato
+                      ? "1px dashed var(--color-accent-800)"
+                      : "1px solid var(--color-accent-800)",
                   borderRadius: "var(--radius-md)",
                 }}
               >
