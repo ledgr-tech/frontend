@@ -85,4 +85,18 @@ describe("ConciliacaoPage", () => {
       await screen.findByText("Setembro 2026 fechou sem divergência pendente.")
     ).toBeInTheDocument();
   });
+
+  it("shows not found message when conciliação does not exist", async () => {
+    buscarConciliacao.mockReturnValue(null);
+    render(<ConciliacaoPage />);
+    expect(
+      await screen.findByText("Conciliação não encontrada.")
+    ).toBeInTheDocument();
+  });
+
+  it("renders nothing while loading conciliação", () => {
+    buscarConciliacao.mockReturnValue(undefined);
+    const { container } = render(<ConciliacaoPage />);
+    expect(container.firstChild).toBeNull();
+  });
 });
