@@ -248,6 +248,45 @@ export default function LandingPage() {
               borderLeft: "1px solid var(--color-divider)",
             }}
           >
+            <div
+              aria-hidden="true"
+              style={{
+                position: "absolute",
+                zIndex: 0,
+                top: -30,
+                right: -10,
+                width: 210,
+                height: 90,
+                borderRadius: 45,
+                background: "var(--color-neutral-200)",
+              }}
+            />
+            <div
+              aria-hidden="true"
+              style={{
+                position: "absolute",
+                zIndex: 0,
+                top: 70,
+                right: 30,
+                width: 170,
+                height: 80,
+                borderRadius: 40,
+                background: "var(--color-neutral-200)",
+              }}
+            />
+            <div
+              aria-hidden="true"
+              style={{
+                position: "absolute",
+                zIndex: 0,
+                top: 220,
+                right: -30,
+                width: 190,
+                height: 110,
+                borderRadius: 55,
+                background: "var(--color-neutral-200)",
+              }}
+            />
             <Image
               src="/mascotes/mascote-apresentando.png"
               alt="Mascote Ledgr com prancheta de conciliação e dinheiro"
