@@ -112,7 +112,12 @@ function novaConciliacao(): Conciliacao {
 function lerConciliacoes(): Conciliacao[] {
   if (typeof window === "undefined") return [];
   const raw = window.localStorage.getItem(STORAGE_KEY);
-  return raw ? (JSON.parse(raw) as Conciliacao[]) : [];
+  if (!raw) return [];
+  try {
+    return JSON.parse(raw) as Conciliacao[];
+  } catch {
+    return [];
+  }
 }
 
 function salvarConciliacoes(lista: Conciliacao[]): void {

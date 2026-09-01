@@ -20,4 +20,9 @@ describe("auth mock", () => {
     logout();
     expect(getSession()).toBeNull();
   });
+
+  it("returns null when localStorage contains malformed JSON", () => {
+    window.localStorage.setItem("ledgr_session", "not valid json {]");
+    expect(getSession()).toBeNull();
+  });
 });

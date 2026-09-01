@@ -15,7 +15,12 @@ export function login(email: string): Session {
 export function getSession(): Session | null {
   if (typeof window === "undefined") return null;
   const raw = window.localStorage.getItem(SESSION_KEY);
-  return raw ? (JSON.parse(raw) as Session) : null;
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as Session;
+  } catch {
+    return null;
+  }
 }
 
 export function logout(): void {

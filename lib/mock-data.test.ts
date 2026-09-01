@@ -41,4 +41,9 @@ describe("mock-data store", () => {
     expect(formatado).toContain("R$");
     expect(formatado).toContain("12.640,00");
   });
+
+  it("returns empty array when localStorage contains malformed JSON", () => {
+    window.localStorage.setItem("ledgr_conciliacoes", "not valid json {]");
+    expect(listarConciliacoes()).toEqual([]);
+  });
 });
