@@ -1,37 +1,94 @@
 import Image from "next/image";
 import Link from "next/link";
 
-import { BarraConciliada, MotionRoot, NumeroAnimado, PlanCard, Reveal } from "./reveal";
+import { ExtratoComparacao, type LinhaExtrato } from "./comparacao";
+import { InkHover, MotionRoot, PlanCard, Reveal } from "./reveal";
 
 const PROVAS_HERO = [
   { valor: "4+", rotulo: "bancos processados num só relatório" },
-  { valor: "milhares", rotulo: "de lançamentos conferidos por mês" },
+  { valor: "Alto volume", rotulo: "de lançamentos conferidos por mês, sem esforço extra" },
   { valor: "4", rotulo: "categorias de divergência, sempre nomeadas" },
 ];
 
 const NUMEROS = [
-  { valor: "96,3%", rotulo: "dos lançamentos casados automaticamente, sem intervenção manual" },
+  { valor: "Automático", rotulo: "a maior parte dos lançamentos casa sem precisar mexer em nada" },
   { valor: "minutos", rotulo: "para ter o relatório pronto após subir os arquivos" },
-  { valor: "zero", rotulo: "configuração — funciona com qualquer banco e qualquer ERP" },
+  { valor: "Sem instalar nada", rotulo: "nenhuma integração bancária pra configurar" },
 ];
 
-const EXTRATO_BANCO = [
-  { data: "04/10", desc: "Pagamento fornecedor #1082", valor: "R$ 12.640,00" },
-  { data: "05/10", desc: "Crédito cartão D+30", valor: "R$ 7.912,45" },
-  { data: "11/10", desc: "Aluguel sede outubro", valor: "R$ 9.800,00" },
+// Lançamentos que aparecem, com os mesmos valores, nos dois extratos.
+// Agosto/2026: mês já fechado (hoje é setembro/2026), coerente com o rótulo do hero.
+const TRANSACOES_CASADAS: LinhaExtrato[] = [
+  {
+    data: "03/08",
+    desc: "Recebimento cliente Alfa Comércio",
+    valorBanco: "R$ 3.250,00",
+    valorSistema: "R$ 3.250,00",
+    status: "Batido",
+    explicacao: null,
+  },
+  {
+    data: "04/08",
+    desc: "Pagamento fornecedor #1082",
+    valorBanco: "R$ 12.640,00",
+    valorSistema: "R$ 12.604,00",
+    status: "Valor divergente",
+    explicacao:
+      "O banco descontou R$ 36,00 de juros por atraso no boleto; o sistema ainda mostra o valor original da emissão.",
+  },
+  {
+    data: "05/08",
+    desc: "Crédito cartão D+30",
+    valorBanco: "R$ 7.912,45",
+    valorSistema: "R$ 7.912,40",
+    status: "Valor divergente",
+    explicacao: "Diferença de R$ 0,05 — taxa de arredondamento aplicada pela operadora do cartão.",
+  },
 ];
 
-const EXTRATO_SISTEMA = [
-  { data: "04/10", desc: "Pagamento fornecedor #1082", valor: "R$ 12.604,00" },
-  { data: "05/10", desc: "Crédito cartão D+30", valor: "R$ 7.912,40" },
-  { data: "12/10", desc: "Aluguel sede outubro", valor: "R$ 9.800,00" },
-];
+// Mesma descrição e mesmo valor dos dois lados, só que em dias diferentes —
+// por isso os dois aparecem com o status "Data divergente", não como ausência.
+const ALUGUEL_EXPLICACAO =
+  "O banco debitou em 11/08; o sistema lançou a mesma despesa em 12/08. Mesmo valor, datas diferentes — o Ledgr não junta as duas automaticamente.";
+
+const ALUGUEL_BANCO: LinhaExtrato = {
+  data: "11/08",
+  desc: "Aluguel sede agosto",
+  valorBanco: "R$ 9.800,00",
+  valorSistema: "R$ 9.800,00",
+  status: "Data divergente",
+  explicacao: ALUGUEL_EXPLICACAO,
+};
+
+const ALUGUEL_SISTEMA: LinhaExtrato = {
+  data: "12/08",
+  desc: "Aluguel sede agosto",
+  valorBanco: "R$ 9.800,00",
+  valorSistema: "R$ 9.800,00",
+  status: "Data divergente",
+  explicacao: ALUGUEL_EXPLICACAO,
+};
+
+// Lançamento só do lado do banco, sem par no sistema — ilustra a categoria
+// "Sem correspondente" (que não tem exemplo entre as transações casadas acima).
+const TARIFA_BANCO: LinhaExtrato = {
+  data: "06/08",
+  desc: "Tarifa de manutenção da conta",
+  valorBanco: "R$ 45,00",
+  valorSistema: null,
+  status: "Sem correspondente",
+  explicacao: "O banco cobrou essa tarifa em 06/08; ainda não há lançamento correspondente no sistema.",
+};
+
+const EXTRATO_BANCO: LinhaExtrato[] = [...TRANSACOES_CASADAS, TARIFA_BANCO, ALUGUEL_BANCO];
+const EXTRATO_SISTEMA: LinhaExtrato[] = [...TRANSACOES_CASADAS, ALUGUEL_SISTEMA];
 
 const PASSOS = [
   {
     num: "I",
-    titulo: "Suba o extrato do banco",
-    texto: "OFX ou CSV, direto do internet banking. É ele que define a verdade da conciliação.",
+    titulo: "Suba os extratos dos bancos",
+    texto:
+      "OFX ou CSV, direto do internet banking — de quantos bancos você usar. O Ledgr consolida tudo num só relatório; é ele que define a verdade da conciliação.",
   },
   {
     num: "II",
@@ -47,6 +104,16 @@ const PASSOS = [
 
 const PERGUNTAS = [
   {
+    pergunta: "Preciso instalar algo no meu banco?",
+    resposta:
+      "Não. O Ledgr lê o arquivo que o internet banking já exporta — OFX ou CSV. Nenhuma credencial bancária é pedida.",
+  },
+  {
+    pergunta: "E se o meu ERP não estiver na lista?",
+    resposta:
+      "Funciona também — é a única exceção que pede um passo a mais: na importação você aponta qual coluna é data, descrição e valor, uma única vez.",
+  },
+  {
     pergunta: "Quem decide o que é divergência?",
     resposta:
       "Você. O Ledgr aponta, nomeia e explica cada caso; aceitar o valor do banco ou corrigir no sistema é sempre uma decisão sua.",
@@ -61,19 +128,41 @@ const PLANOS = [
   { nome: "Essencial", preco: "R$ 49,90", limite: "até 100 lançamentos por mês", destaque: false, contato: false },
   { nome: "Padrão", preco: "R$ 79,90", limite: "até 200 lançamentos por mês", destaque: true, contato: false },
   { nome: "Avançado", preco: "R$ 99,90", limite: "até 350 lançamentos por mês", destaque: false, contato: false },
+  { nome: "Escala", preco: "R$ 149,90", limite: "até 5.000 lançamentos por mês", destaque: false, contato: false },
   {
     nome: "Volume",
     preco: "Sob consulta",
-    limite: "acima de 350 — indústria e multi-banco",
+    limite: "acima de 5.000 — indústria e multi-banco",
     destaque: false,
     contato: true,
   },
 ];
 
-const RODAPE_LINKS = [
-  { rotulo: "Como funciona", href: "#como" },
-  { rotulo: "Regra de ouro", href: "#regra" },
-  { rotulo: "Assinatura", href: "#preco" },
+const RODAPE_COLUNAS = [
+  {
+    titulo: "Produto",
+    itens: [
+      { rotulo: "Como funciona", href: "#como" },
+      { rotulo: "Regra de ouro", href: "#regra" },
+      { rotulo: "Perguntas", href: "#perguntas" },
+    ],
+  },
+  {
+    titulo: "Empresa",
+    itens: [
+      { rotulo: "Assinatura", href: "#preco" },
+      { rotulo: "Contato", href: "mailto:ola@ledgr.com.br" },
+      { rotulo: "Segurança", href: "#regra" },
+    ],
+  },
+  {
+    titulo: "Legal",
+    itens: [
+      { rotulo: "Termos de uso", href: "#preco" },
+      { rotulo: "Privacidade", href: "#preco" },
+      { rotulo: "LGPD", href: "#preco" },
+    ],
+  },
 ];
 
 export default function LandingPage() {
@@ -177,13 +266,13 @@ export default function LandingPage() {
           }}
         />
         <div
+          className="hero-grid"
           style={{
             position: "relative",
             maxWidth: 1440,
             margin: "0 auto",
             padding: "84px clamp(16px, 3.5vw, 40px) 72px",
             display: "grid",
-            gridTemplateColumns: "minmax(0, 1.06fr) minmax(0, 0.94fr)",
             gap: 56,
             alignItems: "center",
           }}
@@ -243,13 +332,13 @@ export default function LandingPage() {
                   color: "color-mix(in srgb, var(--color-text) 55%, transparent)",
                 }}
               >
-                OFX ou CSV · sem cartão de crédito
+                OFX ou CSV, direto do internet banking
               </span>
             </div>
             <div
+              className="hero-provas-grid"
               style={{
                 display: "grid",
-                gridTemplateColumns: "repeat(3, 1fr)",
                 borderTop: "1px solid var(--color-divider)",
               }}
             >
@@ -287,18 +376,17 @@ export default function LandingPage() {
               ))}
             </div>
           </div>
-          <div
+          <InkHover
+            clip={false}
+            className="hero-illustration"
             style={{
-              position: "relative",
               display: "flex",
               justifyContent: "center",
               alignItems: "flex-end",
-              paddingLeft: 30,
-              borderLeft: "1px solid var(--color-divider)",
             }}
           >
             <Image
-              src="/mascotes/mascote-apresentando.png"
+              src="/mascotes/mascote-apresenta.png"
               alt="Mascote Ledgr com prancheta de conciliação e dinheiro"
               width={824}
               height={720}
@@ -328,11 +416,11 @@ export default function LandingPage() {
                   marginBottom: 8,
                 }}
               >
-                Outubro · Demonstração
+                Agosto · 2026
               </div>
               <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 8 }}>
                 <span style={{ fontFamily: "var(--font-heading)", fontSize: 38, fontWeight: 600, lineHeight: 1 }}>
-                  <NumeroAnimado valor={96.3} />
+                  96,3%
                 </span>
                 <span style={{ fontSize: 13.5, color: "color-mix(in srgb, var(--color-text) 62%, transparent)" }}>
                   conciliado
@@ -347,14 +435,14 @@ export default function LandingPage() {
                   display: "flex",
                 }}
               >
-                <BarraConciliada percentual={96.3} />
+                <div style={{ width: "96.3%", background: "var(--color-neutral-300)" }} />
                 <div style={{ flex: 1, background: "var(--color-accent)" }} />
               </div>
               <div style={{ marginTop: 8, fontSize: 12.5, color: "color-mix(in srgb, var(--color-text) 60%, transparent)" }}>
                 157 de 4.218 para revisar
               </div>
             </div>
-          </div>
+          </InkHover>
         </div>
       </section>
 
@@ -376,23 +464,26 @@ export default function LandingPage() {
           style={{ position: "absolute", bottom: -90, left: 40, width: 300, height: "auto", opacity: 0.08, pointerEvents: "none" }}
         />
         <div style={{ position: "relative", maxWidth: 1440, margin: "0 auto", padding: "54px clamp(16px, 3.5vw, 40px)" }}>
-          <Reveal
-            style={{
-              display: "flex",
-              flexWrap: "wrap",
-              alignItems: "baseline",
-              justifyContent: "space-between",
-              gap: "12px 28px",
-              marginBottom: 30,
-            }}
-          >
-            <span style={{ fontSize: 12, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--color-accent-300)" }}>
-              Em números
-            </span>
-            <span style={{ fontSize: 14, lineHeight: 1.6, maxWidth: "46ch", color: "var(--color-neutral-400)" }}>
-              O Ledgr cruza extrato do banco com o razão do ERP e entrega um relatório categorizado
-              — sem planilha, sem conferência manual linha por linha.
-            </span>
+          <Reveal>
+            <InkHover
+              tone="light"
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                alignItems: "baseline",
+                justifyContent: "space-between",
+                gap: "12px 28px",
+                marginBottom: 30,
+              }}
+            >
+              <span style={{ fontSize: 12, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--color-accent-300)" }}>
+                Em números
+              </span>
+              <span style={{ fontSize: 14, lineHeight: 1.6, maxWidth: "46ch", color: "var(--color-neutral-400)" }}>
+                O Ledgr cruza extrato do banco com o razão do ERP e entrega um relatório categorizado
+                — sem planilha, sem conferência manual linha por linha.
+              </span>
+            </InkHover>
           </Reveal>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: "28px 0" }}>
             {NUMEROS.map((numero, i) => (
@@ -428,95 +519,39 @@ export default function LandingPage() {
       {/* o problema */}
       <section id="problema" style={{ borderTop: "1px solid var(--color-divider)" }}>
         <div style={{ maxWidth: 1440, margin: "0 auto", padding: "72px clamp(16px, 3.5vw, 40px)" }}>
-          <Reveal
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
-              gap: "24px 48px",
-              marginBottom: 42,
-            }}
-          >
-            <div>
-              <h6 style={{ margin: "0 0 12px", color: "var(--color-accent-700)" }}>Cap. II · O jeito de hoje</h6>
-              <h2 style={{ margin: 0, fontSize: "clamp(30px, 2.8vw, 46px)", fontWeight: 400, lineHeight: 1.08 }}>
-                Duas telas abertas, um dedo em cada linha.
-              </h2>
-            </div>
-            <p
+          <Reveal>
+            <InkHover
               style={{
-                margin: 0,
-                alignSelf: "end",
-                fontSize: 15.5,
-                lineHeight: 1.75,
-                textAlign: "justify",
-                hyphens: "auto",
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
+                gap: "24px 48px",
+                marginBottom: 42,
               }}
             >
-              Conferir o extrato do banco contra o extrato do sistema de gestão linha a linha é lento,
-              cansa e deixa passar erro. Quanto maior o volume de lançamentos, pior fica — e o mês
-              fecha sempre no aperto.
-            </p>
+              <div>
+                <h6 style={{ margin: "0 0 12px", color: "var(--color-accent-700)" }}>Cap. II · O jeito de hoje</h6>
+                <h2 style={{ margin: 0, fontSize: "clamp(30px, 2.8vw, 46px)", fontWeight: 400, lineHeight: 1.08 }}>
+                  Duas telas abertas, um dedo em cada linha.
+                </h2>
+              </div>
+              <p
+                style={{
+                  margin: 0,
+                  alignSelf: "end",
+                  fontSize: 15.5,
+                  lineHeight: 1.75,
+                  textAlign: "justify",
+                  hyphens: "auto",
+                }}
+              >
+                Conferir o extrato do banco contra o extrato do sistema de gestão linha a linha é lento,
+                cansa e deixa passar erro. Quanto maior o volume de lançamentos, pior fica — e o mês
+                fecha sempre no aperto.
+              </p>
+            </InkHover>
           </Reveal>
-          <Reveal delay={0.1} style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto minmax(0, 1fr)", gap: 28, alignItems: "stretch" }}>
-            <div style={{ border: "1px solid var(--color-divider)", borderRadius: "var(--radius-md)", background: "var(--color-surface)", overflow: "hidden" }}>
-              <div
-                style={{
-                  padding: "13px 18px",
-                  borderBottom: "1px solid var(--color-divider)",
-                  display: "flex",
-                  alignItems: "baseline",
-                  justifyContent: "space-between",
-                  gap: 12,
-                }}
-              >
-                <span style={{ fontFamily: "var(--font-heading)", fontSize: 17, fontWeight: 600 }}>Extrato do banco</span>
-                <span style={{ fontSize: 12, color: "color-mix(in srgb, var(--color-text) 50%, transparent)" }}>extrato-09.ofx</span>
-              </div>
-              {EXTRATO_BANCO.map((linha) => (
-                <div
-                  key={linha.desc}
-                  style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 18px", borderBottom: "1px solid var(--color-divider)" }}
-                >
-                  <span style={{ flex: "none", fontSize: 13, color: "color-mix(in srgb, var(--color-text) 50%, transparent)" }}>{linha.data}</span>
-                  <span style={{ flex: 1, minWidth: 0, fontSize: 15, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {linha.desc}
-                  </span>
-                  <span style={{ flex: "none", fontFamily: "var(--font-heading)", fontSize: 16.5, fontWeight: 600 }}>{linha.valor}</span>
-                </div>
-              ))}
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12 }}>
-              <div style={{ width: 1, flex: 1, background: "var(--color-divider)" }} />
-              <div style={{ fontFamily: "var(--font-heading)", fontSize: 28, color: "var(--color-accent)" }}>≠</div>
-              <div style={{ width: 1, flex: 1, background: "var(--color-divider)" }} />
-            </div>
-            <div style={{ border: "1px solid var(--color-divider)", borderRadius: "var(--radius-md)", background: "var(--color-surface)", overflow: "hidden" }}>
-              <div
-                style={{
-                  padding: "13px 18px",
-                  borderBottom: "1px solid var(--color-divider)",
-                  display: "flex",
-                  alignItems: "baseline",
-                  justifyContent: "space-between",
-                  gap: 12,
-                }}
-              >
-                <span style={{ fontFamily: "var(--font-heading)", fontSize: 17, fontWeight: 600 }}>Extrato do sistema</span>
-                <span style={{ fontSize: 12, color: "color-mix(in srgb, var(--color-text) 50%, transparent)" }}>razao-09.csv</span>
-              </div>
-              {EXTRATO_SISTEMA.map((linha) => (
-                <div
-                  key={linha.desc}
-                  style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 18px", borderBottom: "1px solid var(--color-divider)" }}
-                >
-                  <span style={{ flex: "none", fontSize: 13, color: "color-mix(in srgb, var(--color-text) 50%, transparent)" }}>{linha.data}</span>
-                  <span style={{ flex: 1, minWidth: 0, fontSize: 15, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {linha.desc}
-                  </span>
-                  <span style={{ flex: "none", fontFamily: "var(--font-heading)", fontSize: 16.5, fontWeight: 600 }}>{linha.valor}</span>
-                </div>
-              ))}
-            </div>
+          <Reveal delay={0.1}>
+            <ExtratoComparacao banco={EXTRATO_BANCO} sistema={EXTRATO_SISTEMA} />
           </Reveal>
         </div>
       </section>
@@ -529,32 +564,34 @@ export default function LandingPage() {
           aria-hidden="true"
           width={1920}
           height={1920}
-          style={{ position: "absolute", top: 30, right: -40, width: 420, height: "auto", opacity: 0.07, pointerEvents: "none" }}
+          style={{ position: "absolute", top: 30, right: -40, width: 470, height: "auto", opacity: 0.07, pointerEvents: "none" }}
         />
         <div style={{ position: "relative", maxWidth: 1440, margin: "0 auto", padding: "72px clamp(16px, 3.5vw, 40px)" }}>
-          <Reveal
-            style={{
-              display: "flex",
-              flexWrap: "wrap",
-              alignItems: "flex-end",
-              justifyContent: "space-between",
-              gap: "24px 48px",
-              marginBottom: 42,
-            }}
-          >
-            <div style={{ flex: "1 1 360px", minWidth: 0 }}>
-              <h6 style={{ margin: "0 0 12px", color: "var(--color-accent-700)" }}>Cap. III · Como funciona</h6>
-              <h2 style={{ margin: 0, fontSize: "clamp(30px, 2.8vw, 46px)", fontWeight: 400, lineHeight: 1.08 }}>
-                Três passos, nenhum deles manual.
-              </h2>
-            </div>
-            <Image
-              src="/mascotes/mascote-explicando.png"
-              alt="Mascote Ledgr explicando"
-              width={1920}
-              height={1920}
-              style={{ flex: "none", width: 210, height: "auto" }}
-            />
+          <Reveal>
+            <InkHover
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                alignItems: "flex-end",
+                justifyContent: "space-between",
+                gap: "24px 48px",
+                marginBottom: 42,
+              }}
+            >
+              <div style={{ flex: "1 1 360px", minWidth: 0 }}>
+                <h6 style={{ margin: "0 0 12px", color: "var(--color-accent-700)" }}>Cap. III · Como funciona</h6>
+                <h2 style={{ margin: 0, fontSize: "clamp(30px, 2.8vw, 46px)", fontWeight: 400, lineHeight: 1.08 }}>
+                  Três passos, sem cruzar linha por linha.
+                </h2>
+              </div>
+              <Image
+                src="/mascotes/mascote-explicando.png"
+                alt="Mascote Ledgr explicando"
+                width={1920}
+                height={1920}
+                style={{ flex: "none", width: 240, height: "auto" }}
+              />
+            </InkHover>
           </Reveal>
           <div
             style={{
@@ -604,59 +641,67 @@ export default function LandingPage() {
       {/* regra de ouro */}
       <section id="regra" style={{ borderTop: "1px solid var(--color-divider)" }}>
         <div style={{ maxWidth: 1440, margin: "0 auto", padding: "72px clamp(16px, 3.5vw, 40px)" }}>
-          <Reveal
-            style={{
-              border: "1px solid var(--color-accent)",
-              borderRadius: "var(--radius-md)",
-              padding: "42px 46px",
-              display: "flex",
-              flexWrap: "wrap",
-              gap: "28px 40px",
-              alignItems: "center",
-            }}
-          >
-            <div
+          <Reveal>
+            <InkHover
               style={{
-                flex: "none",
-                fontFamily: "var(--font-heading)",
-                fontSize: 82,
-                fontWeight: 400,
-                lineHeight: 1,
-                color: "var(--color-accent)",
+                border: "1px solid var(--color-accent)",
+                borderRadius: "var(--radius-md)",
+                padding: "42px 46px",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                textAlign: "center",
+                gap: 16,
               }}
             >
-              §
-            </div>
-            <div style={{ flex: "1 1 360px", minWidth: 0 }}>
-              <h6 style={{ margin: "0 0 10px", color: "var(--color-accent-700)" }}>
-                Regra de ouro
-              </h6>
-              <h2 style={{ margin: "0 0 12px", fontSize: "clamp(26px, 2.4vw, 42px)", fontWeight: 400 }}>
-                O extrato do banco é sempre a fonte da verdade.
-              </h2>
-              <p
+              <div
                 style={{
-                  margin: 0,
-                  fontSize: 15.5,
-                  lineHeight: 1.75,
-                  maxWidth: "68ch",
-                  textAlign: "justify",
-                  hyphens: "auto",
+                  fontFamily: "var(--font-heading)",
+                  fontSize: 82,
+                  fontWeight: 400,
+                  lineHeight: 1,
+                  color: "var(--color-accent)",
                 }}
               >
-                Toda divergência é reportada na mesma direção: o sistema diverge do banco, nunca o
-                contrário. Isso encerra a discussão sobre qual número vale e deixa claro o que
-                precisa ser corrigido no seu sistema de gestão.
-              </p>
-            </div>
+                §
+              </div>
+              <div style={{ maxWidth: "68ch" }}>
+                <h6 style={{ margin: "0 0 10px", color: "var(--color-accent-700)" }}>
+                  Regra de ouro
+                </h6>
+                <h2 style={{ margin: "0 0 12px", fontSize: "clamp(26px, 2.4vw, 42px)", fontWeight: 400 }}>
+                  O extrato do banco é sempre a fonte da verdade.
+                </h2>
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize: 15.5,
+                    lineHeight: 1.75,
+                  }}
+                >
+                  Toda divergência é reportada na mesma direção: o sistema diverge do banco, nunca o
+                  contrário. Isso encerra a discussão sobre qual número vale e deixa claro o que
+                  precisa ser corrigido no seu sistema de gestão.
+                </p>
+              </div>
+            </InkHover>
           </Reveal>
         </div>
       </section>
 
       {/* convite */}
-      <section style={{ borderTop: "1px solid var(--color-divider)", background: "var(--color-surface)" }}>
+      <section style={{ position: "relative", overflow: "hidden", borderTop: "1px solid var(--color-divider)", background: "var(--color-surface)" }}>
+        <Image
+          src="/mascotes/mascote-sentado.png"
+          alt=""
+          aria-hidden="true"
+          width={1920}
+          height={1920}
+          style={{ position: "absolute", bottom: -70, right: -30, width: 360, height: "auto", opacity: 0.07, pointerEvents: "none" }}
+        />
         <div
           style={{
+            position: "relative",
             maxWidth: 1440,
             margin: "0 auto",
             padding: "72px clamp(16px, 3.5vw, 40px)",
@@ -666,13 +711,15 @@ export default function LandingPage() {
             alignItems: "center",
           }}
         >
-          <Image
-            src="/mascotes/mascote-sentado.png"
-            alt="Mascote Ledgr sentado lendo um panfleto"
-            width={1920}
-            height={1920}
-            style={{ flex: "none", width: 196, height: "auto" }}
-          />
+          <InkHover style={{ flex: "none" }}>
+            <Image
+              src="/mascotes/mascote-sentado.png"
+              alt="Mascote Ledgr sentado lendo um panfleto"
+              width={1920}
+              height={1920}
+              style={{ width: 220, height: "auto", display: "block" }}
+            />
+          </InkHover>
           <Reveal delay={0.1} style={{ flex: "1 1 420px", minWidth: 0, paddingLeft: 32, borderLeft: "1px solid var(--color-accent)" }}>
             <h6 style={{ margin: "0 0 12px", color: "var(--color-accent-700)" }}>Sem configuração</h6>
             <h2 style={{ margin: "0 0 16px", fontSize: "clamp(26px, 2.4vw, 40px)", fontWeight: 400, lineHeight: 1.12 }}>
@@ -690,7 +737,7 @@ export default function LandingPage() {
             >
               O Ledgr aceita OFX e CSV de qualquer banco. Suba o extrato do banco, suba o razão do
               seu ERP ou sistema de gestão no mesmo período e receba o relatório categorizado —
-              nenhuma planilha, nenhum mapeamento prévio.
+              sem integração pra configurar, sem instalar nada.
             </p>
             <p
               style={{
@@ -702,9 +749,9 @@ export default function LandingPage() {
                 hyphens: "auto",
               }}
             >
-              Cada divergência vem nomeada: sem correspondente no banco, valor diferente, data
-              diferente, duplicidade. Você vê o problema, decide o que corrigir no sistema e fecha
-              o mês com segurança.
+              Cada divergência vem nomeada: sem correspondente, valor divergente, data divergente,
+              duplicidade. Você vê o problema, decide o que corrigir no sistema e fecha o mês com
+              segurança.
             </p>
             <Link href="/login" className="btn btn-primary">
               Testar agora, gratuito
@@ -714,7 +761,7 @@ export default function LandingPage() {
       </section>
 
       {/* perguntas */}
-      <section style={{ borderTop: "1px solid var(--color-divider)" }}>
+      <section id="perguntas" style={{ borderTop: "1px solid var(--color-divider)" }}>
         <div style={{ maxWidth: 1440, margin: "0 auto", padding: "72px clamp(16px, 3.5vw, 40px)" }}>
           <Reveal
             style={{
@@ -742,21 +789,21 @@ export default function LandingPage() {
             }}
           >
             {PERGUNTAS.map((item, i) => (
-              <Reveal
-                key={item.pergunta}
-                delay={i * 0.08}
-                style={{
-                  padding: "22px 0",
-                  borderBottom: "1px solid var(--color-divider)",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 8,
-                }}
-              >
-                <span style={{ fontFamily: "var(--font-heading)", fontSize: 19, fontWeight: 600, lineHeight: 1.26 }}>
-                  {item.pergunta}
-                </span>
-                <span style={{ fontSize: 15, lineHeight: 1.72 }}>{item.resposta}</span>
+              <Reveal key={item.pergunta} delay={i * 0.08}>
+                <InkHover
+                  style={{
+                    padding: "22px 0",
+                    borderBottom: "1px solid var(--color-divider)",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 8,
+                  }}
+                >
+                  <span style={{ fontFamily: "var(--font-heading)", fontSize: 19, fontWeight: 600, lineHeight: 1.26 }}>
+                    {item.pergunta}
+                  </span>
+                  <span style={{ fontSize: 15, lineHeight: 1.72 }}>{item.resposta}</span>
+                </InkHover>
               </Reveal>
             ))}
           </div>
@@ -827,10 +874,10 @@ export default function LandingPage() {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))",
+              gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
               gap: 16,
               width: "100%",
-              maxWidth: 860,
+              maxWidth: 1180,
               marginTop: 14,
               textAlign: "left",
             }}
@@ -838,7 +885,6 @@ export default function LandingPage() {
             {PLANOS.map((plano, i) => (
               <PlanCard
                 key={plano.nome}
-                index={i}
                 delay={0.1 + i * 0.07}
                 style={{
                   display: "flex",
@@ -874,7 +920,7 @@ export default function LandingPage() {
                 color: "var(--color-accent-300)",
               }}
             >
-              Subir meus extratos
+              Começar agora
             </Link>
             <Link href="/login" className="btn btn-ghost" style={{ fontSize: 15, color: "var(--color-neutral-300)" }}>
               Ver o sistema por dentro
@@ -906,16 +952,18 @@ export default function LandingPage() {
               Fundo, RS.
             </span>
           </div>
-          <div style={{ flex: "0 1 170px", display: "flex", flexDirection: "column", gap: 10 }}>
-            <span style={{ fontSize: 12, letterSpacing: "0.12em", textTransform: "uppercase", color: "color-mix(in srgb, var(--color-text) 50%, transparent)" }}>
-              Nesta página
-            </span>
-            {RODAPE_LINKS.map((link) => (
-              <a key={link.href} href={link.href} style={{ fontSize: 14.5 }}>
-                {link.rotulo}
-              </a>
-            ))}
-          </div>
+          {RODAPE_COLUNAS.map((coluna) => (
+            <div key={coluna.titulo} style={{ flex: "0 1 170px", display: "flex", flexDirection: "column", gap: 10 }}>
+              <span style={{ fontSize: 12, letterSpacing: "0.12em", textTransform: "uppercase", color: "color-mix(in srgb, var(--color-text) 50%, transparent)" }}>
+                {coluna.titulo}
+              </span>
+              {coluna.itens.map((link) => (
+                <a key={link.rotulo} href={link.href} style={{ fontSize: 14.5 }}>
+                  {link.rotulo}
+                </a>
+              ))}
+            </div>
+          ))}
         </div>
         <div style={{ maxWidth: 1440, margin: "0 auto", padding: "18px clamp(16px, 3.5vw, 40px) 40px" }}>
           <div

@@ -120,6 +120,21 @@ a { color: var(--color-accent); text-underline-offset: 3px; }
   padding: var(--space-3); border-radius: var(--radius-md); background: transparent; border: 1px solid var(--color-divider);
 }
 
+.ink-drop {
+  position: absolute; z-index: 0; pointer-events: none;
+  height: 2.5px;
+  border-radius: 999px;
+  background: linear-gradient(to right, transparent, var(--color-accent-800), transparent);
+  animation: ink-fade 650ms ease-out forwards;
+}
+.ink-drop-light {
+  background: linear-gradient(to right, transparent, var(--color-accent-300), transparent);
+}
+@keyframes ink-fade {
+  from { opacity: 0.65; }
+  to { opacity: 0; }
+}
+
 .tag {
   display: inline-flex; align-items: center; font-size: 11px;
   letter-spacing: 0.02em; padding: 3px 10px;
@@ -168,3 +183,20 @@ a { color: var(--color-accent); text-underline-offset: 3px; }
 }
 .dialog-body { font-size: 14px; opacity: 0.85; }
 .dialog-actions { display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-2); }
+
+/* Landing page: grids that split into fixed-ratio columns and need to
+   stack on narrow screens instead of squeezing every column down to a
+   sliver (auto-fit/minmax already handles the other landing grids). */
+.hero-grid { grid-template-columns: minmax(0, 1.06fr) minmax(0, 0.94fr); }
+.hero-provas-grid { grid-template-columns: repeat(3, 1fr); }
+.extrato-grid { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); }
+.extrato-divider { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; }
+.extrato-divider-line { width: 1px; flex: 1; background: var(--color-divider); }
+.hero-illustration { border-left: 1px solid var(--color-divider); padding-left: 30px; }
+
+@media (max-width: 680px) {
+  .hero-grid, .hero-provas-grid, .extrato-grid { grid-template-columns: 1fr; }
+  .hero-illustration { border-left: none; border-top: 1px solid var(--color-divider); padding-left: 0; padding-top: 30px; margin-top: 12px; }
+  .extrato-divider { flex-direction: row; padding: 4px 0; }
+  .extrato-divider-line { width: auto; height: 1px; }
+}
