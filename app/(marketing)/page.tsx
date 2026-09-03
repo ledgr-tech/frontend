@@ -1,28 +1,30 @@
 import Image from "next/image";
 import Link from "next/link";
 
-const PROVAS_HERO = [
-  { valor: "4", rotulo: "bancos num só relatório" },
-  { valor: "4.218", rotulo: "lançamentos conferidos no mês" },
-  { valor: "27", rotulo: "linhas para revisar" },
-];
+import { BarraConciliada, MotionRoot, NumeroAnimado, PlanCard, Reveal } from "./reveal";
 
-const NUMEROS = [
-  { valor: "96,3%", rotulo: "dos lançamentos casaram sem ninguém conferir" },
-  { valor: "R$ 214.380", rotulo: "em divergência que o Ledgr apontou linha por linha" },
+const PROVAS_HERO = [
+  { valor: "4+", rotulo: "bancos processados num só relatório" },
+  { valor: "milhares", rotulo: "de lançamentos conferidos por mês" },
   { valor: "4", rotulo: "categorias de divergência, sempre nomeadas" },
 ];
 
+const NUMEROS = [
+  { valor: "96,3%", rotulo: "dos lançamentos casados automaticamente, sem intervenção manual" },
+  { valor: "minutos", rotulo: "para ter o relatório pronto após subir os arquivos" },
+  { valor: "zero", rotulo: "configuração — funciona com qualquer banco e qualquer ERP" },
+];
+
 const EXTRATO_BANCO = [
-  { data: "04/09", desc: "Boleto Aço Norte Bobinas", valor: "R$ 12.640,00" },
-  { data: "05/09", desc: "Repasse cartão D+30", valor: "R$ 7.912,45" },
-  { data: "11/09", desc: "Aluguel galpão BR-386", valor: "R$ 9.800,00" },
+  { data: "04/10", desc: "Pagamento fornecedor #1082", valor: "R$ 12.640,00" },
+  { data: "05/10", desc: "Crédito cartão D+30", valor: "R$ 7.912,45" },
+  { data: "11/10", desc: "Aluguel sede outubro", valor: "R$ 9.800,00" },
 ];
 
 const EXTRATO_SISTEMA = [
-  { data: "04/09", desc: "Boleto Aço Norte Bobinas", valor: "R$ 12.604,00" },
-  { data: "05/09", desc: "Repasse cartão D+30", valor: "R$ 7.912,40" },
-  { data: "12/09", desc: "Aluguel galpão BR-386", valor: "R$ 9.800,00" },
+  { data: "04/10", desc: "Pagamento fornecedor #1082", valor: "R$ 12.604,00" },
+  { data: "05/10", desc: "Crédito cartão D+30", valor: "R$ 7.912,40" },
+  { data: "12/10", desc: "Aluguel sede outubro", valor: "R$ 9.800,00" },
 ];
 
 const PASSOS = [
@@ -77,6 +79,7 @@ const RODAPE_LINKS = [
 export default function LandingPage() {
   return (
     <main>
+      <MotionRoot>
       {/* header */}
       <header
         style={{
@@ -90,7 +93,7 @@ export default function LandingPage() {
       >
         <div
           style={{
-            maxWidth: 1180,
+            maxWidth: 1440,
             margin: "0 auto",
             padding: "16px clamp(16px, 3.5vw, 40px)",
             display: "flex",
@@ -176,7 +179,7 @@ export default function LandingPage() {
         <div
           style={{
             position: "relative",
-            maxWidth: 1180,
+            maxWidth: 1440,
             margin: "0 auto",
             padding: "84px clamp(16px, 3.5vw, 40px) 72px",
             display: "grid",
@@ -202,7 +205,7 @@ export default function LandingPage() {
             <h1
               style={{
                 margin: "0 0 24px",
-                fontSize: 72,
+                fontSize: "clamp(52px, 4.8vw, 88px)",
                 fontWeight: 400,
                 lineHeight: 1.02,
                 letterSpacing: "-0.022em",
@@ -215,7 +218,7 @@ export default function LandingPage() {
             <p
               style={{
                 margin: "0 0 34px",
-                fontSize: 17.5,
+                fontSize: "clamp(16px, 1.2vw, 19px)",
                 lineHeight: 1.72,
                 maxWidth: "44ch",
                 textAlign: "justify",
@@ -245,9 +248,8 @@ export default function LandingPage() {
             </div>
             <div
               style={{
-                display: "flex",
-                flexWrap: "wrap",
-                gap: 0,
+                display: "grid",
+                gridTemplateColumns: "repeat(3, 1fr)",
                 borderTop: "1px solid var(--color-divider)",
               }}
             >
@@ -255,7 +257,7 @@ export default function LandingPage() {
                 <div
                   key={prova.rotulo}
                   style={{
-                    padding: `18px 22px 0 ${i === 0 ? 0 : 22}px`,
+                    padding: `18px 16px 0 ${i === 0 ? 0 : 16}px`,
                     borderLeft: i === 0 ? "none" : "1px solid var(--color-divider)",
                     display: "flex",
                     flexDirection: "column",
@@ -326,11 +328,11 @@ export default function LandingPage() {
                   marginBottom: 8,
                 }}
               >
-                Setembro · Telha Certa
+                Outubro · Demonstração
               </div>
               <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 8 }}>
                 <span style={{ fontFamily: "var(--font-heading)", fontSize: 38, fontWeight: 600, lineHeight: 1 }}>
-                  96,3%
+                  <NumeroAnimado valor={96.3} />
                 </span>
                 <span style={{ fontSize: 13.5, color: "color-mix(in srgb, var(--color-text) 62%, transparent)" }}>
                   conciliado
@@ -345,7 +347,7 @@ export default function LandingPage() {
                   display: "flex",
                 }}
               >
-                <div style={{ width: "96.3%", background: "var(--color-neutral-300)" }} />
+                <BarraConciliada percentual={96.3} />
                 <div style={{ flex: 1, background: "var(--color-accent)" }} />
               </div>
               <div style={{ marginTop: 8, fontSize: 12.5, color: "color-mix(in srgb, var(--color-text) 60%, transparent)" }}>
@@ -373,8 +375,8 @@ export default function LandingPage() {
           height={1952}
           style={{ position: "absolute", bottom: -90, left: 40, width: 300, height: "auto", opacity: 0.08, pointerEvents: "none" }}
         />
-        <div style={{ position: "relative", maxWidth: 1180, margin: "0 auto", padding: "54px clamp(16px, 3.5vw, 40px)" }}>
-          <div
+        <div style={{ position: "relative", maxWidth: 1440, margin: "0 auto", padding: "54px clamp(16px, 3.5vw, 40px)" }}>
+          <Reveal
             style={{
               display: "flex",
               flexWrap: "wrap",
@@ -388,14 +390,15 @@ export default function LandingPage() {
               Em números
             </span>
             <span style={{ fontSize: 14, lineHeight: 1.6, maxWidth: "46ch", color: "var(--color-neutral-400)" }}>
-              Um mês de indústria conciliado no Ledgr: R$ 7 milhões de faturamento, quatro bancos e o
-              razão do Cigam.
+              O Ledgr cruza extrato do banco com o razão do ERP e entrega um relatório categorizado
+              — sem planilha, sem conferência manual linha por linha.
             </span>
-          </div>
+          </Reveal>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: "28px 0" }}>
             {NUMEROS.map((numero, i) => (
-              <div
+              <Reveal
                 key={numero.rotulo}
+                delay={i * 0.08}
                 style={{
                   padding: `0 28px 0 ${i === 0 ? 0 : 28}px`,
                   borderLeft: i === 0 ? "none" : "1px solid color-mix(in srgb, var(--color-neutral-100) 22%, transparent)",
@@ -416,7 +419,7 @@ export default function LandingPage() {
                   {numero.valor}
                 </span>
                 <span style={{ fontSize: 14, lineHeight: 1.6, color: "var(--color-neutral-400)" }}>{numero.rotulo}</span>
-              </div>
+              </Reveal>
             ))}
           </div>
         </div>
@@ -424,8 +427,8 @@ export default function LandingPage() {
 
       {/* o problema */}
       <section id="problema" style={{ borderTop: "1px solid var(--color-divider)" }}>
-        <div style={{ maxWidth: 1180, margin: "0 auto", padding: "72px clamp(16px, 3.5vw, 40px)" }}>
-          <div
+        <div style={{ maxWidth: 1440, margin: "0 auto", padding: "72px clamp(16px, 3.5vw, 40px)" }}>
+          <Reveal
             style={{
               display: "grid",
               gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
@@ -435,7 +438,7 @@ export default function LandingPage() {
           >
             <div>
               <h6 style={{ margin: "0 0 12px", color: "var(--color-accent-700)" }}>Cap. II · O jeito de hoje</h6>
-              <h2 style={{ margin: 0, fontSize: 38, fontWeight: 400, lineHeight: 1.08 }}>
+              <h2 style={{ margin: 0, fontSize: "clamp(30px, 2.8vw, 46px)", fontWeight: 400, lineHeight: 1.08 }}>
                 Duas telas abertas, um dedo em cada linha.
               </h2>
             </div>
@@ -453,8 +456,8 @@ export default function LandingPage() {
               cansa e deixa passar erro. Quanto maior o volume de lançamentos, pior fica — e o mês
               fecha sempre no aperto.
             </p>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto minmax(0, 1fr)", gap: 28, alignItems: "stretch" }}>
+          </Reveal>
+          <Reveal delay={0.1} style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto minmax(0, 1fr)", gap: 28, alignItems: "stretch" }}>
             <div style={{ border: "1px solid var(--color-divider)", borderRadius: "var(--radius-md)", background: "var(--color-surface)", overflow: "hidden" }}>
               <div
                 style={{
@@ -514,7 +517,7 @@ export default function LandingPage() {
                 </div>
               ))}
             </div>
-          </div>
+          </Reveal>
         </div>
       </section>
 
@@ -528,8 +531,8 @@ export default function LandingPage() {
           height={1920}
           style={{ position: "absolute", top: 30, right: -40, width: 420, height: "auto", opacity: 0.07, pointerEvents: "none" }}
         />
-        <div style={{ position: "relative", maxWidth: 1180, margin: "0 auto", padding: "72px clamp(16px, 3.5vw, 40px)" }}>
-          <div
+        <div style={{ position: "relative", maxWidth: 1440, margin: "0 auto", padding: "72px clamp(16px, 3.5vw, 40px)" }}>
+          <Reveal
             style={{
               display: "flex",
               flexWrap: "wrap",
@@ -541,7 +544,7 @@ export default function LandingPage() {
           >
             <div style={{ flex: "1 1 360px", minWidth: 0 }}>
               <h6 style={{ margin: "0 0 12px", color: "var(--color-accent-700)" }}>Cap. III · Como funciona</h6>
-              <h2 style={{ margin: 0, fontSize: 38, fontWeight: 400, lineHeight: 1.08 }}>
+              <h2 style={{ margin: 0, fontSize: "clamp(30px, 2.8vw, 46px)", fontWeight: 400, lineHeight: 1.08 }}>
                 Três passos, nenhum deles manual.
               </h2>
             </div>
@@ -552,7 +555,7 @@ export default function LandingPage() {
               height={1920}
               style={{ flex: "none", width: 210, height: "auto" }}
             />
-          </div>
+          </Reveal>
           <div
             style={{
               display: "grid",
@@ -561,8 +564,9 @@ export default function LandingPage() {
             }}
           >
             {PASSOS.map((passo, i) => (
-              <div
+              <Reveal
                 key={passo.num}
+                delay={i * 0.1}
                 style={{
                   padding: `30px 30px 30px ${i === 0 ? 0 : 30}px`,
                   borderLeft: i === 0 ? "none" : "1px solid var(--color-divider)",
@@ -591,7 +595,7 @@ export default function LandingPage() {
                 <div style={{ fontSize: 15, lineHeight: 1.72, textAlign: "justify", hyphens: "auto" }}>
                   {passo.texto}
                 </div>
-              </div>
+              </Reveal>
             ))}
           </div>
         </div>
@@ -599,8 +603,8 @@ export default function LandingPage() {
 
       {/* regra de ouro */}
       <section id="regra" style={{ borderTop: "1px solid var(--color-divider)" }}>
-        <div style={{ maxWidth: 1180, margin: "0 auto", padding: "72px clamp(16px, 3.5vw, 40px)" }}>
-          <div
+        <div style={{ maxWidth: 1440, margin: "0 auto", padding: "72px clamp(16px, 3.5vw, 40px)" }}>
+          <Reveal
             style={{
               border: "1px solid var(--color-accent)",
               borderRadius: "var(--radius-md)",
@@ -627,7 +631,7 @@ export default function LandingPage() {
               <h6 style={{ margin: "0 0 10px", color: "var(--color-accent-700)" }}>
                 Regra de ouro
               </h6>
-              <h2 style={{ margin: "0 0 12px", fontSize: 34, fontWeight: 400 }}>
+              <h2 style={{ margin: "0 0 12px", fontSize: "clamp(26px, 2.4vw, 42px)", fontWeight: 400 }}>
                 O extrato do banco é sempre a fonte da verdade.
               </h2>
               <p
@@ -645,7 +649,7 @@ export default function LandingPage() {
                 precisa ser corrigido no seu sistema de gestão.
               </p>
             </div>
-          </div>
+          </Reveal>
         </div>
       </section>
 
@@ -653,7 +657,7 @@ export default function LandingPage() {
       <section style={{ borderTop: "1px solid var(--color-divider)", background: "var(--color-surface)" }}>
         <div
           style={{
-            maxWidth: 1180,
+            maxWidth: 1440,
             margin: "0 auto",
             padding: "72px clamp(16px, 3.5vw, 40px)",
             display: "flex",
@@ -669,10 +673,10 @@ export default function LandingPage() {
             height={1920}
             style={{ flex: "none", width: 196, height: "auto" }}
           />
-          <div style={{ flex: "1 1 420px", minWidth: 0, paddingLeft: 32, borderLeft: "1px solid var(--color-accent)" }}>
-            <h6 style={{ margin: "0 0 12px", color: "var(--color-accent-700)" }}>Primeiras empresas</h6>
-            <h2 style={{ margin: "0 0 16px", fontSize: 32, fontWeight: 400, lineHeight: 1.12 }}>
-              Estamos abrindo o Ledgr para um grupo pequeno de empresas.
+          <Reveal delay={0.1} style={{ flex: "1 1 420px", minWidth: 0, paddingLeft: 32, borderLeft: "1px solid var(--color-accent)" }}>
+            <h6 style={{ margin: "0 0 12px", color: "var(--color-accent-700)" }}>Sem configuração</h6>
+            <h2 style={{ margin: "0 0 16px", fontSize: "clamp(26px, 2.4vw, 40px)", fontWeight: 400, lineHeight: 1.12 }}>
+              Suba os arquivos e veja as divergências em minutos.
             </h2>
             <p
               style={{
@@ -684,10 +688,9 @@ export default function LandingPage() {
                 hyphens: "auto",
               }}
             >
-              Construímos o Ledgr em cima de um problema específico: indústrias e comércios que
-              movimentam vários bancos e fecham o mês conferindo linha por linha. O motor de
-              conciliação já roda sobre volumes reais desse porte — quatro bancos, milhares de
-              lançamentos, um único relatório no fim.
+              O Ledgr aceita OFX e CSV de qualquer banco. Suba o extrato do banco, suba o razão do
+              seu ERP ou sistema de gestão no mesmo período e receba o relatório categorizado —
+              nenhuma planilha, nenhum mapeamento prévio.
             </p>
             <p
               style={{
@@ -699,21 +702,21 @@ export default function LandingPage() {
                 hyphens: "auto",
               }}
             >
-              Nesta primeira turma, o primeiro fechamento é por nossa conta e a implantação é feita
-              com a gente do lado — mapeamos as colunas do seu ERP, rodamos o seu mês e você compara
-              com o que sua equipe fez à mão.
+              Cada divergência vem nomeada: sem correspondente no banco, valor diferente, data
+              diferente, duplicidade. Você vê o problema, decide o que corrigir no sistema e fecha
+              o mês com segurança.
             </p>
             <Link href="/login" className="btn btn-primary">
-              Quero conciliar meu mês
+              Testar agora, gratuito
             </Link>
-          </div>
+          </Reveal>
         </div>
       </section>
 
       {/* perguntas */}
       <section style={{ borderTop: "1px solid var(--color-divider)" }}>
-        <div style={{ maxWidth: 1180, margin: "0 auto", padding: "72px clamp(16px, 3.5vw, 40px)" }}>
-          <div
+        <div style={{ maxWidth: 1440, margin: "0 auto", padding: "72px clamp(16px, 3.5vw, 40px)" }}>
+          <Reveal
             style={{
               display: "flex",
               flexWrap: "wrap",
@@ -723,13 +726,13 @@ export default function LandingPage() {
               marginBottom: 34,
             }}
           >
-            <h2 style={{ margin: 0, fontSize: 32, fontWeight: 400, lineHeight: 1.1 }}>
+            <h2 style={{ margin: 0, fontSize: "clamp(26px, 2.4vw, 40px)", fontWeight: 400, lineHeight: 1.1 }}>
               Perguntas que sempre aparecem
             </h2>
             <span style={{ fontSize: 14, color: "color-mix(in srgb, var(--color-text) 58%, transparent)" }}>
               Qualquer outra dúvida: ola@ledgr.com.br
             </span>
-          </div>
+          </Reveal>
           <div
             style={{
               display: "grid",
@@ -738,9 +741,10 @@ export default function LandingPage() {
               borderTop: "1px solid var(--color-divider)",
             }}
           >
-            {PERGUNTAS.map((item) => (
-              <div
+            {PERGUNTAS.map((item, i) => (
+              <Reveal
                 key={item.pergunta}
+                delay={i * 0.08}
                 style={{
                   padding: "22px 0",
                   borderBottom: "1px solid var(--color-divider)",
@@ -753,7 +757,7 @@ export default function LandingPage() {
                   {item.pergunta}
                 </span>
                 <span style={{ fontSize: 15, lineHeight: 1.72 }}>{item.resposta}</span>
-              </div>
+              </Reveal>
             ))}
           </div>
         </div>
@@ -786,10 +790,10 @@ export default function LandingPage() {
             pointerEvents: "none",
           }}
         />
-        <div
+        <Reveal
           style={{
             position: "relative",
-            maxWidth: 1180,
+            maxWidth: 1440,
             margin: "0 auto",
             padding: "84px clamp(16px, 3.5vw, 40px)",
             display: "flex",
@@ -805,7 +809,7 @@ export default function LandingPage() {
           <h2
             style={{
               margin: 0,
-              fontSize: 50,
+              fontSize: "clamp(36px, 3.5vw, 60px)",
               fontWeight: 400,
               lineHeight: 1.06,
               maxWidth: "26ch",
@@ -831,9 +835,11 @@ export default function LandingPage() {
               textAlign: "left",
             }}
           >
-            {PLANOS.map((plano) => (
-              <div
+            {PLANOS.map((plano, i) => (
+              <PlanCard
                 key={plano.nome}
+                index={i}
+                delay={0.1 + i * 0.07}
                 style={{
                   display: "flex",
                   flexDirection: "column",
@@ -854,7 +860,7 @@ export default function LandingPage() {
                   {plano.preco}
                 </span>
                 <span style={{ fontSize: 13.5, lineHeight: 1.6, color: "var(--color-neutral-400)" }}>{plano.limite}</span>
-              </div>
+              </PlanCard>
             ))}
           </div>
           <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "center", gap: 14, marginTop: 6 }}>
@@ -874,14 +880,14 @@ export default function LandingPage() {
               Ver o sistema por dentro
             </Link>
           </div>
-        </div>
+        </Reveal>
       </section>
 
       {/* rodapé */}
       <footer style={{ borderTop: "1px solid var(--color-divider)", background: "var(--color-surface)" }}>
         <div
           style={{
-            maxWidth: 1180,
+            maxWidth: 1440,
             margin: "0 auto",
             padding: "44px clamp(16px, 3.5vw, 40px) 20px",
             display: "flex",
@@ -911,7 +917,7 @@ export default function LandingPage() {
             ))}
           </div>
         </div>
-        <div style={{ maxWidth: 1180, margin: "0 auto", padding: "18px clamp(16px, 3.5vw, 40px) 40px" }}>
+        <div style={{ maxWidth: 1440, margin: "0 auto", padding: "18px clamp(16px, 3.5vw, 40px) 40px" }}>
           <div
             style={{
               borderTop: "1px solid var(--color-divider)",
@@ -929,6 +935,7 @@ export default function LandingPage() {
           </div>
         </div>
       </footer>
+      </MotionRoot>
     </main>
   );
 }
