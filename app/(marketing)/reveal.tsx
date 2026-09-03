@@ -72,8 +72,8 @@ export function PlanCard({
   const mouseX = useMotionValue(-9999);
   const mouseY = useMotionValue(-9999);
   const spotlight = useTransform(
-    [mouseX, mouseY] as Parameters<typeof useTransform>[0],
-    ([x, y]: number[]) =>
+    [mouseX, mouseY],
+    ([x, y]) =>
       `radial-gradient(220px circle at ${x}px ${y}px, color-mix(in srgb, var(--color-accent) 16%, transparent), transparent 80%)`,
   );
 

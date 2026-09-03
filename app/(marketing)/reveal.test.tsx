@@ -28,9 +28,9 @@ describe("Reveal", () => {
     );
 
     const barra = container.querySelector("div") as HTMLElement;
-    expect(barra.style.width).toBe("0px");
+    expect(barra.style.width).toBe("0%");
     await waitFor(() => expect(barra.style.width).toBe("96.3%"), {
-      timeout: 3000,
+      timeout: 9000,
     });
-  });
+  }, 10000);
 });

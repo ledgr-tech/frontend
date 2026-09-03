@@ -34,11 +34,13 @@ describe("LandingPage", () => {
   it("shows the em números stats", () => {
     render(<LandingPage />);
     expect(
-      screen.getByText("dos lançamentos casaram sem ninguém conferir")
+      screen.getByText("dos lançamentos casados automaticamente, sem intervenção manual")
     ).toBeInTheDocument();
-    expect(screen.getByText("R$ 214.380")).toBeInTheDocument();
     expect(
-      screen.getByText(/Um mês de indústria conciliado no Ledgr/)
+      screen.getByText("para ter o relatório pronto após subir os arquivos")
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("configuração — funciona com qualquer banco e qualquer ERP")
     ).toBeInTheDocument();
   });
 
@@ -58,9 +60,9 @@ describe("LandingPage", () => {
   it("invites early companies with a CTA into the product", () => {
     render(<LandingPage />);
     expect(
-      screen.getByText("Estamos abrindo o Ledgr para um grupo pequeno de empresas.")
+      screen.getByText("Suba os arquivos e veja as divergências em minutos.")
     ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Quero conciliar meu mês" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Testar agora, gratuito" })).toHaveAttribute(
       "href",
       "/login"
     );
