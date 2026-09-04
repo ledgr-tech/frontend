@@ -12,6 +12,10 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Local reference export from Claude Design; gitignored, not project code.
+    "v2- informações simples/**",
+    // Isolated worktrees for in-progress feature branches.
+    ".worktrees/**",
   ]),
 ]);
 

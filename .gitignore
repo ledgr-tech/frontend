@@ -39,6 +39,10 @@ yarn-error.log*
 # git worktrees used for isolated agent work
 /.worktrees/
 
+# local reference export from Claude Design (source content/assets for
+# screens — not project source, kept locally only, never committed)
+/v2- informações simples/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
