@@ -132,7 +132,7 @@ describe("LandingPage", () => {
     expect(footer.getByRole("link", { name: "Perguntas" })).toHaveAttribute("href", "#perguntas");
     expect(footer.getByText("Empresa")).toBeInTheDocument();
     expect(footer.getByRole("link", { name: "Assinatura" })).toHaveAttribute("href", "#preco");
-    expect(footer.getByRole("link", { name: "Contato" })).toHaveAttribute("href", "mailto:ola@ledgr.com.br");
+    expect(footer.getByRole("link", { name: "Contato" })).toHaveAttribute("href", "mailto:ledgrtech@gmail.com");
     expect(footer.getByRole("link", { name: "Segurança" })).toHaveAttribute("href", "#regra");
     expect(footer.getByText("Legal")).toBeInTheDocument();
     expect(footer.getByRole("link", { name: "Termos de uso" })).toBeInTheDocument();

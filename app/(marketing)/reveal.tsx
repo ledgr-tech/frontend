@@ -33,8 +33,8 @@ export function Reveal({
     <m.div
       data-reveal
       style={style}
-      initial={{ opacity: 0, y: 22 }}
-      whileInView={{ opacity: 1, y: 0 }}
+      initial={{ opacity: 0, scale: 0.96 }}
+      whileInView={{ opacity: 1, scale: 1 }}
       viewport={{ once: false, amount: 0.15, margin: "0px 0px -60px 0px" }}
       transition={{ duration: 0.55, delay, ease: [0.22, 1, 0.36, 1] }}
     >

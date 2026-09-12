@@ -1,17 +1,32 @@
 import type { Metadata } from "next";
-import { Cormorant_Garamond, Lora } from "next/font/google";
+import { Cormorant_Garamond, Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 
-const cormorantGaramond = Cormorant_Garamond({
+const interHeading = Inter({
   variable: "--font-heading-family",
   subsets: ["latin"],
-  weight: ["400", "600"],
+  weight: ["600", "700"],
 });
 
-const lora = Lora({
+const interBody = Inter({
   variable: "--font-body-family",
   subsets: ["latin"],
-  weight: ["400", "600"],
+  weight: ["400", "500"],
+});
+
+// mistura: serif de destaque pra títulos/valores em foco, Inter pro resto
+const cormorantGaramond = Cormorant_Garamond({
+  variable: "--font-display-family",
+  subsets: ["latin"],
+  weight: ["500", "600"],
+});
+
+// monoespaçada pros rótulos pequenos (CAP. I, REGRA DE OURO...) — remete a
+// ticker/planilha/extrato
+const jetbrainsMono = JetBrains_Mono({
+  variable: "--font-mono-family",
+  subsets: ["latin"],
+  weight: ["500", "600"],
 });
 
 export const metadata: Metadata = {
@@ -24,7 +39,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="pt-BR"
-      className={`${cormorantGaramond.variable} ${lora.variable} h-full antialiased`}
+      className={`${interHeading.variable} ${interBody.variable} ${cormorantGaramond.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
