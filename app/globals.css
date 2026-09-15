@@ -7,6 +7,8 @@
   --color-accent: #b68235;
   --color-accent-2: #ac803e;
   --color-divider: color-mix(in srgb, #201f1d 16%, transparent);
+  /* erro de formulário: terracota que conversa com o dourado (contraste ~5:1 sobre o fundo claro) */
+  --color-erro: #a94f33;
   --ledgr-tinta: #f3f2f2;
 
   --color-neutral-100: #f8f4f4;
@@ -277,6 +279,68 @@ a { color: var(--color-accent); text-underline-offset: 3px; }
   background: transparent; color: var(--color-accent-700);
 }
 .login-ver-senha svg { width: 22px; height: 22px; }
+
+/* olho do mascote: pisca ao alternar, pisca sozinho de vez em quando e ergue a sobrancelha no hover */
+.olho-mascote .olho-sobrancelha,
+.olho-mascote .olho-aberto,
+.olho-mascote .olho-fechado {
+  transform-box: fill-box; transform-origin: 50% 50%;
+  transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.18s ease;
+}
+.olho-mascote .olho-fechado { opacity: 0; transform: translateY(-1.5px) scaleY(0.6); }
+.olho-mascote[data-estado="fechado"] .olho-aberto { opacity: 0; transform: scaleY(0.1); }
+.olho-mascote[data-estado="fechado"] .olho-fechado { opacity: 1; transform: none; }
+.olho-mascote[data-estado="aberto"] .olho-aberto { animation: olho-piscar 6s ease-in-out 2.5s infinite; }
+@keyframes olho-piscar {
+  0%, 92%, 100% { transform: scaleY(1); }
+  95% { transform: scaleY(0.1); }
+}
+.login-ver-senha:hover .olho-sobrancelha,
+.login-ver-senha:focus-visible .olho-sobrancelha { transform: translateY(-1.4px); }
+
+/* ao digitar a senha o olho salta da cara como nos desenhos antigos: espreme, estica, balança como
+   mola e fica projetado enquanto há foco; a sobrancelha dispara e os riscos de impacto piscam */
+.olho-mascote {
+  overflow: visible;
+  transform-origin: 50% 55%;
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), filter 0.3s ease;
+}
+.olho-mascote .olho-impacto { opacity: 0; transform-box: fill-box; transform-origin: 50% 50%; }
+.login-senha-campo:focus-within .olho-mascote {
+  transform: scale(1.35);
+  filter: drop-shadow(0 2px 2px color-mix(in srgb, var(--color-accent) 35%, transparent));
+  animation: olho-saltar 0.75s ease-out;
+}
+.login-senha-campo:focus-within .olho-sobrancelha {
+  transform: translateY(-1.4px);
+  animation: sobrancelha-saltar 0.75s ease-out;
+}
+.login-senha-campo:focus-within .olho-impacto { animation: olho-impacto 0.75s ease-out; }
+@keyframes olho-saltar {
+  0% { transform: scale(1, 1); }
+  12% { transform: scale(0.82, 1.18); }
+  34% { transform: translateY(-2px) scale(2.3, 2.1); }
+  50% { transform: translateY(-1px) scale(1.6, 1.95); }
+  64% { transform: scale(1.95, 1.6); }
+  78% { transform: scale(1.4, 1.55); }
+  90% { transform: scale(1.42, 1.3); }
+  100% { transform: scale(1.35, 1.35); }
+}
+@keyframes sobrancelha-saltar {
+  0%, 12% { transform: translateY(0); }
+  34% { transform: translateY(-5px); }
+  55% { transform: translateY(-0.5px); }
+  75% { transform: translateY(-2.4px); }
+  100% { transform: translateY(-1.4px); }
+}
+@keyframes olho-impacto {
+  0%, 22% { opacity: 0; transform: scale(0.6); }
+  36% { opacity: 1; transform: scale(1.15); }
+  65%, 100% { opacity: 0; transform: scale(1.4); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .olho-mascote, .olho-mascote * { animation: none !important; transition: none !important; }
+}
 .login-ver-senha:hover { border-color: var(--color-accent); }
 .login-link:hover { border-bottom-color: var(--color-accent) !important; }
 .login-voltar {
@@ -286,10 +350,142 @@ a { color: var(--color-accent); text-underline-offset: 3px; }
 }
 .login-voltar:hover { border-color: var(--color-accent); color: var(--color-accent-700); }
 
+/* celular baixo (ex.: 360x640): compacta o login para caber sem rolagem, mesmo com mensagens de erro.
+   Só em telas estreitas, para não mexer no layout de notebooks com pouca altura útil */
+@media (max-height: 700px) and (max-width: 480px) {
+  .login-eyebrow { display: none !important; }
+  .login-form .input { min-height: 44px !important; padding-top: 9px !important; padding-bottom: 9px !important; }
+  .login-divisor { margin: 8px 0 !important; }
+  .login-criar { margin-top: 8px !important; }
+  .login-form .campo-erro { margin-top: 4px; }
+}
+
 /* rótulo só para leitor de tela: some da tela mas mantém o nome acessível do campo */
 .sr-only {
   position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
   overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+
+/* link do login cujo traço dourado "carrega" da esquerda para a direita no hover */
+.login-link-animado {
+  color: var(--color-accent-700); text-decoration: none; padding-bottom: 2px;
+  background-image:
+    linear-gradient(var(--color-accent), var(--color-accent)),
+    linear-gradient(var(--color-divider), var(--color-divider));
+  background-repeat: no-repeat;
+  background-position: 0 100%, 0 100%;
+  background-size: 0% 1px, 100% 1px;
+  transition: background-size 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.login-link-animado:hover,
+.login-link-animado:focus-visible { background-size: 100% 1px, 100% 1px; }
+button.login-link-animado { border: 0; background-color: transparent; font: inherit; padding: 0 0 2px; cursor: pointer; }
+@media (prefers-reduced-motion: reduce) {
+  .login-link-animado { transition: none; }
+}
+
+/* botão Google do login: mostra só o símbolo; no hover a metade esquerda vira um painel com as cores
+   da marca em faixas inclinadas (cores fixas, fora dos tokens por serem do Google) e o símbolo
+   desliza para o centro da metade direita */
+.login-google { position: relative; overflow: hidden; width: 100%; min-height: 44px; padding: 0; }
+.login-google-simbolo {
+  position: absolute; inset: 0; display: grid; place-items: center;
+  transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.login-google-simbolo svg { width: 22px; height: 22px; }
+/* "G" sempre com as cores do Google, parado e no hover */
+.login-google-simbolo .g-azul { fill: #4285f4; }
+.login-google-simbolo .g-vermelho { fill: #ea4335; }
+.login-google-simbolo .g-amarelo { fill: #fbbc05; }
+.login-google-simbolo .g-verde { fill: #34a853; }
+
+/* painel começa 10px antes da borda: com a inclinação ancorada na base, as quatro faixas ficam
+   com a mesma largura visível na altura do meio do botão */
+.login-google-painel {
+  position: absolute; top: 0; bottom: 0; left: -10px; width: calc(50% + 10px);
+  display: flex;
+  transform: translateX(-110%);
+  transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.login-google-faixa {
+  flex: 1 1 0;
+  transform: skewX(-25deg); transform-origin: 0 100%;
+}
+/* a inclinação empurra o topo da primeira faixa para a direita: a sombra da mesma cor preenche a
+   cunha do canto superior esquerdo (a sobra fica fora do botão e é cortada pelo overflow) */
+.login-google-faixa.g-azul { background: #4285f4; box-shadow: -24px 0 0 #4285f4; }
+.login-google-faixa.g-vermelho { background: #ea4335; }
+.login-google-faixa.g-amarelo { background: #fbbc05; }
+.login-google-faixa.g-verde { background: #34a853; }
+
+.login-google:not(:disabled):hover .login-google-painel,
+.login-google:not(:disabled):focus-visible .login-google-painel { transform: translateX(0); }
+.login-google:not(:disabled):hover .login-google-simbolo,
+.login-google:not(:disabled):focus-visible .login-google-simbolo { transform: translateX(25%); }
+@media (prefers-reduced-motion: reduce) {
+  .login-google-simbolo, .login-google-painel { transition: none; }
+}
+
+/* recuperar senha: fundo desfocado (sobre o .dialog-backdrop) e card no estilo do detalhe do comparativo */
+.recuperar-fundo {
+  background: color-mix(in srgb, var(--color-bg) 45%, transparent);
+  /* só a propriedade padrão: o pipeline de CSS gera o prefixo -webkit- sozinho.
+     Declarar os dois fazia o build manter apenas o prefixado, que o Chrome ignora */
+  backdrop-filter: blur(10px);
+}
+.recuperar-card {
+  position: relative; overflow: hidden;
+  width: min(400px, 100%);
+  padding: 22px 24px;
+  border: 1px solid var(--color-divider); border-radius: var(--radius-md);
+  background: var(--color-surface); box-shadow: var(--shadow-lg);
+}
+.recuperar-carregando {
+  position: absolute; top: 0; left: 0; height: 2px;
+  background: var(--color-accent);
+}
+
+/* erros de formulário (login e recuperação de senha): borda terracota no campo, mensagem logo abaixo
+   com ícone, e um tremor curto que recomeça a cada erro (data-tremor alterna entre "a" e "b") */
+.input[aria-invalid="true"],
+.input[aria-invalid="true"]:hover,
+.input[aria-invalid="true"]:focus-visible {
+  border-color: var(--color-erro);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-erro) 12%, transparent);
+}
+.input[data-tremor="a"], .login-senha-campo[data-tremor="a"] { animation: campo-tremor-a 0.36s cubic-bezier(0.36, 0.07, 0.19, 0.97); }
+.input[data-tremor="b"], .login-senha-campo[data-tremor="b"] { animation: campo-tremor-b 0.36s cubic-bezier(0.36, 0.07, 0.19, 0.97); }
+/* no campo de senha quem treme é o bloco (input + olho), não só o input */
+.login-senha-campo .input[data-tremor] { animation: none; }
+@keyframes campo-tremor-a { 20%, 60% { transform: translateX(-4px); } 40%, 80% { transform: translateX(4px); } }
+@keyframes campo-tremor-b { 20%, 60% { transform: translateX(-4px); } 40%, 80% { transform: translateX(4px); } }
+.campo-erro {
+  display: flex; align-items: flex-start; gap: 6px;
+  margin: 6px 0 0 4px;
+  font-size: 13.5px; line-height: 1.4; color: var(--color-erro);
+  animation: campo-erro-surgir 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.campo-erro svg {
+  flex: none; width: 15px; height: 15px; margin-top: 1.5px;
+  fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round;
+}
+@keyframes campo-erro-surgir {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .input[data-tremor], .login-senha-campo[data-tremor], .campo-erro { animation: none; }
+}
+
+/* cursor da saudação digitada no login */
+.login-cursor {
+  display: inline-block; width: 2px; height: 0.9em; margin-left: 3px; vertical-align: -0.08em;
+  background: var(--color-accent);
+  animation: login-cursor-pisca 1s steps(1) infinite;
+}
+@keyframes login-cursor-pisca { 50% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .login-cursor { animation: none; }
 }
 
 /* no tablet os dois painéis lado a lado cortam todas as descrições — empilha antes */
