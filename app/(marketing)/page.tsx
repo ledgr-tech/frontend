@@ -210,8 +210,9 @@ export default function LandingPage() {
             <Image
               src="/mascotes/logo-barras.png"
               alt="Ledgr"
-              width={2400}
-              height={1952}
+              width={1280}
+              height={1041}
+              sizes="32px"
               loading="eager"
               style={{ height: 26, width: "auto" }}
             />
@@ -255,8 +256,9 @@ export default function LandingPage() {
           src="/mascotes/logo-barras.png"
           alt=""
           aria-hidden="true"
-          width={2400}
-          height={1952}
+          width={1280}
+          height={1041}
+          sizes="640px"
           loading="eager"
           style={{
             position: "absolute",
@@ -407,7 +409,8 @@ export default function LandingPage() {
               alt="Mascote Ledgr com prancheta de conciliação e dinheiro"
               width={824}
               height={720}
-              priority
+              sizes="(max-width: 680px) 90vw, 440px"
+              preload
               style={{ position: "relative", zIndex: 1, width: "96%", maxWidth: 440, height: "auto" }}
             />
             <div
@@ -471,14 +474,29 @@ export default function LandingPage() {
           background: "var(--color-neutral-900)",
         }}
       >
-        <Image
-          src="/mascotes/logo-barras.png"
-          alt=""
+        {/* marca em traço fino, cortada na borda esquerda */}
+        <svg
           aria-hidden="true"
-          width={2400}
-          height={1952}
-          style={{ position: "absolute", bottom: 24, left: 24, width: 140, height: "auto", opacity: 0.08, pointerEvents: "none" }}
-        />
+          className="numeros-marca"
+          viewBox="0 0 2000 1627"
+          fill="none"
+          style={{
+            position: "absolute",
+            top: -50,
+            left: -80,
+            width: "clamp(220px, 22vw, 380px)",
+            height: "auto",
+            color: "var(--color-accent-700)",
+            opacity: 0.15,
+            pointerEvents: "none",
+          }}
+        >
+          <g stroke="currentColor" strokeWidth={3}>
+            <rect x="60" y="43" width="1162" height="463" rx="231.5" vectorEffect="non-scaling-stroke" />
+            <rect x="76" y="560" width="1896" height="463" rx="231.5" vectorEffect="non-scaling-stroke" />
+            <rect x="43" y="1060" width="1629" height="463" rx="231.5" vectorEffect="non-scaling-stroke" />
+          </g>
+        </svg>
         <div style={{ position: "relative", maxWidth: 1600, margin: "0 auto", padding: "72px clamp(20px, 4.2vw, 56px)" }}>
           <Reveal>
             <InkHover
@@ -567,6 +585,26 @@ export default function LandingPage() {
           <Reveal delay={0.1}>
             <ExtratoComparacao banco={EXTRATO_BANCO} sistema={EXTRATO_SISTEMA} />
           </Reveal>
+          <Reveal delay={0.15}>
+            {/* dica de hover: as linhas divergentes do comparativo abrem detalhes */}
+            <div className="hover-hint" style={{ justifyContent: "center", margin: "22px 0 0" }}>
+              <span className="hover-hint-icone">
+                <svg
+                  aria-hidden="true"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={1.25}
+                  strokeLinecap="round"
+                >
+                  <rect x="7" y="3" width="10" height="17" rx="5" />
+                  <path d="M12 3v5.5M7.2 8.5h9.6" />
+                  <path className="hover-hint-roda" d="M12 5v1.6" strokeWidth={1.75} />
+                </svg>
+              </span>
+              <span className="hover-hint-texto">Passe o mouse sobre as linhas para ver os detalhes</span>
+            </div>
+          </Reveal>
         </div>
       </section>
 
@@ -576,8 +614,9 @@ export default function LandingPage() {
           src="/mascotes/mascote-explicando.png"
           alt=""
           aria-hidden="true"
-          width={1920}
-          height={1920}
+          width={1000}
+          height={1000}
+          sizes="480px"
           style={{ position: "absolute", top: 30, left: -40, width: 480, height: "auto", opacity: 0.07, pointerEvents: "none" }}
         />
         <div style={{ position: "relative", maxWidth: 1600, margin: "0 auto", padding: "96px clamp(20px, 4.2vw, 56px)" }}>
@@ -601,8 +640,9 @@ export default function LandingPage() {
               <Image
                 src="/mascotes/mascote-explicando.png"
                 alt="Mascote Ledgr explicando"
-                width={1920}
-                height={1920}
+                width={1000}
+                height={1000}
+                sizes="240px"
                 style={{ flex: "none", width: 240, height: "auto" }}
               />
             </InkHover>
@@ -713,8 +753,9 @@ export default function LandingPage() {
           src="/mascotes/mascote-sentado.png"
           alt=""
           aria-hidden="true"
-          width={1920}
-          height={1920}
+          width={1000}
+          height={1000}
+          sizes="480px"
           style={{ position: "absolute", bottom: 20, right: 24, width: 480, height: "auto", opacity: 0.07, pointerEvents: "none" }}
         />
         <div
@@ -733,8 +774,9 @@ export default function LandingPage() {
             <Image
               src="/mascotes/mascote-sentado.png"
               alt="Mascote Ledgr sentado lendo um panfleto"
-              width={1920}
-              height={1920}
+              width={1000}
+              height={1000}
+              sizes="220px"
               style={{ width: 220, height: "auto", display: "block" }}
             />
           </InkHover>
@@ -823,8 +865,9 @@ export default function LandingPage() {
           src="/mascotes/mascote-comemorando.png"
           alt=""
           aria-hidden="true"
-          width={1920}
-          height={1920}
+          width={1000}
+          height={1000}
+          sizes="520px"
           style={{
             position: "absolute",
             top: "50%",
@@ -943,7 +986,7 @@ export default function LandingPage() {
         >
           <div style={{ flex: "1 1 300px", minWidth: 0, display: "flex", flexDirection: "column", gap: 10 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
-              <Image src="/mascotes/logo-barras.png" alt="Ledgr" width={2400} height={1952} style={{ height: 24, width: "auto" }} />
+              <Image src="/mascotes/logo-barras.png" alt="Ledgr" width={1280} height={1041} sizes="30px" style={{ height: 24, width: "auto" }} />
               <span style={{ fontFamily: "var(--font-heading)", fontSize: 19, fontWeight: 600 }}>Ledgr</span>
             </div>
             <span style={{ fontSize: 14, lineHeight: 1.7, maxWidth: "40ch", color: "color-mix(in srgb, var(--color-text) 62%, transparent)" }}>
@@ -957,7 +1000,7 @@ export default function LandingPage() {
                 {coluna.titulo}
               </span>
               {coluna.itens.map((link) => (
-                <a key={link.rotulo} href={link.href} style={{ fontSize: 14.5 }}>
+                <a key={link.rotulo} href={link.href} style={{ fontSize: 14.5, paddingBlock: 3 }}>
                   {link.rotulo}
                 </a>
               ))}
