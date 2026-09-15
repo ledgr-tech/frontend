@@ -84,7 +84,8 @@ h4 { font-size: 24px; }
 h5 { font-size: 18px; }
 h6 { font-size: 14px; letter-spacing: 0.08em; text-transform: uppercase; }
 p { margin: 0 0 var(--space-3); }
-a { color: var(--color-accent); text-underline-offset: 3px; }
+/* textos em dourado usam o tom 700: o dourado base (#b68235) tem só 3:1 de contraste com o fundo */
+a { color: var(--color-accent-700); text-underline-offset: 3px; }
 :focus { outline: none; }
 :focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
 
@@ -128,11 +129,11 @@ a { color: var(--color-accent); text-underline-offset: 3px; }
   border-radius: var(--radius-md);
 }
 .btn:disabled { opacity: 0.45; cursor: not-allowed; }
-.btn-primary { color: var(--color-accent); border-color: var(--color-accent); }
+.btn-primary { color: var(--color-accent-700); border-color: var(--color-accent); }
 .btn-primary:hover { background: color-mix(in srgb, var(--color-accent) 12%, transparent); }
 .btn-secondary { border-color: var(--color-divider); }
 .btn-secondary:hover { background: color-mix(in srgb, var(--color-text) 7%, transparent); }
-.btn-ghost { color: var(--color-accent); padding-inline: var(--space-1); }
+.btn-ghost { color: var(--color-accent-700); padding-inline: var(--space-1); }
 .btn-ghost:hover { background: color-mix(in srgb, var(--color-accent) 10%, transparent); }
 .btn-block { width: 100%; margin-top: var(--space-2); }
 
@@ -148,11 +149,64 @@ a { color: var(--color-accent); text-underline-offset: 3px; }
 }
 .input:hover { border-color: color-mix(in srgb, var(--color-text) 45%, transparent); }
 .input:focus-visible { border-color: var(--color-accent); outline-offset: 0; }
+/* preenchimento automático do navegador sem o fundo azul/amarelo por cima do design */
+.input:-webkit-autofill {
+  -webkit-text-fill-color: var(--color-text);
+  -webkit-box-shadow: 0 0 0 1000px var(--campo-fundo, var(--color-bg)) inset;
+}
+
+/* rótulo flutuante (CampoTexto): começa dentro do campo e sobe para a borda ao focar ou preencher.
+   O placeholder é " " ou um exemplo; o exemplo só aparece depois que o rótulo sobe */
+.campo-flutuante { position: relative; }
+.campo-flutuante-rotulo {
+  position: absolute; left: 13px; top: 50%;
+  max-width: calc(100% - 26px); padding: 0 5px; border-radius: 4px;
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  font-size: 16px; line-height: 1.25; pointer-events: none;
+  color: color-mix(in srgb, var(--color-text) 66%, transparent);
+  transform: translateY(-50%); transform-origin: left center;
+  transition: top 0.18s cubic-bezier(0.22, 1, 0.36, 1), transform 0.18s cubic-bezier(0.22, 1, 0.36, 1), color 0.18s ease;
+}
+.login-senha-campo .campo-flutuante-rotulo { max-width: calc(100% - 72px); }
+.campo-flutuante .input::placeholder { color: transparent; transition: color 0.18s ease; }
+.campo-flutuante .input:focus::placeholder { color: color-mix(in srgb, var(--color-text) 64%, transparent); }
+.campo-flutuante .input:focus + .campo-flutuante-rotulo,
+.campo-flutuante .input:not(:placeholder-shown) + .campo-flutuante-rotulo {
+  top: 0; transform: translateY(-50%) scale(0.78);
+  background: var(--campo-fundo, var(--color-bg));
+}
+/* regra separada: um navegador que não conheça o seletor descarta só ela */
+.campo-flutuante .input:-webkit-autofill + .campo-flutuante-rotulo {
+  top: 0; transform: translateY(-50%) scale(0.78);
+  background: var(--campo-fundo, var(--color-bg));
+}
+.campo-flutuante .input:focus + .campo-flutuante-rotulo { color: var(--color-accent-700); }
+.campo-flutuante .input[aria-invalid="true"] + .campo-flutuante-rotulo { color: var(--color-erro); }
+.campo-flutuante .input:disabled + .campo-flutuante-rotulo { opacity: 0.6; }
+/* texto de apoio abaixo do campo (requisito da senha): mesmo lugar e medida da mensagem de erro */
+.campo-requisito {
+  display: flex; align-items: center; gap: 6px;
+  margin: 6px 0 0 4px;
+  font-size: 13.5px; line-height: 1.4;
+  color: color-mix(in srgb, var(--color-text) 66%, transparent);
+  transition: color 0.2s ease;
+}
+.campo-requisito svg {
+  flex: none; width: 15px; height: 15px;
+  fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round;
+}
+.campo-requisito[data-atendido="true"] { color: var(--color-accent-700); }
+@media (prefers-reduced-motion: reduce) {
+  .campo-flutuante-rotulo, .campo-requisito { transition: none; }
+}
 
 .card {
   display: flex; flex-direction: column; gap: var(--space-2);
   padding: var(--space-3); border-radius: var(--radius-md); background: transparent; border: 1px solid var(--color-divider);
 }
+
+/* cartão que envolve um input de arquivo invisível: o foco de teclado aparece no cartão */
+.cartao-arquivo:has(input:focus-visible) { outline: 2px solid var(--color-accent); outline-offset: 2px; }
 
 .ink-drop {
   position: absolute; z-index: 0; pointer-events: none;
@@ -220,7 +274,7 @@ a { color: var(--color-accent); text-underline-offset: 3px; }
   border-radius: calc(var(--radius-md) * 0.75);
 }
 .tag-accent { background: var(--color-accent-100); color: var(--color-accent-800); }
-.tag-outline { border: 1px solid var(--color-accent); color: var(--color-accent); }
+.tag-outline { border: 1px solid var(--color-accent); color: var(--color-accent-700); }
 
 .nav {
   display: flex; align-items: center; gap: var(--space-4);
@@ -232,7 +286,7 @@ a { color: var(--color-accent); text-underline-offset: 3px; }
   font-size: 18px; margin-right: auto;
 }
 .nav a { color: inherit; text-decoration: none; font-size: 14px; }
-.nav a:hover { color: var(--color-accent); }
+.nav a:hover { color: var(--color-accent-700); }
 
 .table { width: 100%; border-collapse: collapse; font-size: 14px; }
 .table th {
@@ -272,6 +326,7 @@ a { color: var(--color-accent); text-underline-offset: 3px; }
 .extrato-divider { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; }
 .extrato-divider-line { width: 1px; flex: 1; background: var(--color-divider); }
 .hero-illustration { border-left: 1px solid var(--color-divider); padding-left: 30px; }
+.login-senha-campo { display: flex; align-items: center; }
 .login-ver-senha {
   position: absolute; right: 8px; cursor: pointer;
   display: grid; place-items: center; width: 36px; height: 36px; padding: 0;
@@ -360,6 +415,89 @@ a { color: var(--color-accent); text-underline-offset: 3px; }
   .login-form .campo-erro { margin-top: 4px; }
 }
 
+/* cadastro: formulário à esquerda e o mascote do passo acompanhando à direita, com a dica embaixo.
+   Em telas estreitas a coluna do mascote some para o formulário caber sem rolagem */
+.cadastro-grid {
+  display: grid; grid-template-columns: minmax(0, 424px) 340px; gap: 120px;
+  align-items: center; width: 100%; max-width: 884px;
+}
+.cadastro-lado {
+  display: flex; flex-direction: column; align-items: center; gap: clamp(8px, 1.6vh, 16px); text-align: center;
+}
+/* mascote grande e apagado, no mesmo espírito da marca d'água do "Como funciona" da landing; a dica fica logo abaixo */
+.cadastro-mascote-fundo {
+  pointer-events: none;
+  /* pouco mais largo que a coluna (340px): mantém o respiro até o formulário e não cruza a linha da direita */
+  width: clamp(240px, 44vh, 380px);
+  animation: cadastro-mascote-entrar 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.cadastro-mascote { display: block; width: 100%; height: auto; opacity: 0.1; }
+.cadastro-dica {
+  max-width: 34ch; padding-top: 16px; border-top: 1px solid var(--color-divider);
+  animation: cadastro-dica-entrar 0.5s 0.08s both cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes cadastro-mascote-entrar {
+  from { opacity: 0; transform: translateY(16px) scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes cadastro-dica-entrar {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+/* abaixo de 1000px o conjunto (884px + margens) não cabe lado a lado: a coluna do mascote some */
+@media (max-width: 1000px) {
+  .cadastro-grid { grid-template-columns: minmax(0, 424px); justify-content: center; }
+  .cadastro-lado { display: none; }
+}
+/* notebook com pouca altura útil (ex.: 1366x657): campos e espaços um pouco menores para os três erros
+   e o aceite dos termos do passo de acesso caberem sem rolagem */
+@media (max-height: 700px) {
+  .cadastro-grid .input { min-height: 44px !important; padding-top: 9px !important; padding-bottom: 9px !important; }
+  .cadastro-campos { gap: 8px !important; }
+  .cadastro-grid .campo-erro, .cadastro-grid .campo-requisito { margin-top: 3px; }
+  .cadastro-acoes, .cadastro-etapas, .cadastro-entrar { margin-top: 10px !important; }
+  .cadastro-consentimento { margin-top: 8px !important; }
+}
+/* celular baixo (ex.: 360x640): texto do passo e aceite um pouco menores para os erros caberem sem rolagem */
+@media (max-height: 700px) and (max-width: 480px) {
+  .cadastro-texto { font-size: 14px !important; line-height: 1.5 !important; margin-bottom: 10px !important; }
+  .cadastro-consentimento { font-size: 12px !important; line-height: 1.4 !important; margin-top: 6px !important; }
+  .cadastro-acoes, .cadastro-etapas, .cadastro-entrar { margin-top: 8px !important; }
+}
+/* celular: o topo cabe em uma linha (marca e "Voltar ao site"), sem o rótulo da tela, que quebrava em duas */
+@media (max-width: 480px) {
+  .moldura-rotulo { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cadastro-mascote, .cadastro-dica { animation: none; }
+}
+
+/* transição entre telas (ViewTransition do React, disparada pelas navegações do Next):
+   a tela que sai some rápido e a nova sobe com fade, na mesma curva das animações da landing */
+::view-transition-old(.tela) {
+  animation: 160ms ease-in both tela-sumir;
+}
+::view-transition-new(.tela) {
+  animation: 320ms cubic-bezier(0.22, 1, 0.36, 1) 120ms both tela-surgir;
+}
+@keyframes tela-sumir {
+  to { opacity: 0; filter: blur(2px); }
+}
+@keyframes tela-surgir {
+  from { opacity: 0; transform: translateY(12px); filter: blur(2px); }
+  to { opacity: 1; transform: none; filter: blur(0); }
+}
+/* cliques durante a transição chegam à página nova */
+::view-transition { pointer-events: none; }
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(*),
+  ::view-transition-new(*),
+  ::view-transition-group(*) {
+    animation-duration: 0s !important;
+    animation-delay: 0s !important;
+  }
+}
+
 /* rótulo só para leitor de tela: some da tela mas mantém o nome acessível do campo */
 .sr-only {
   position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
@@ -439,6 +577,8 @@ button.login-link-animado { border: 0; background-color: transparent; font: inhe
   padding: 22px 24px;
   border: 1px solid var(--color-divider); border-radius: var(--radius-md);
   background: var(--color-surface); box-shadow: var(--shadow-lg);
+  /* fundo atrás do rótulo flutuante quando ele sobe para a borda do campo */
+  --campo-fundo: var(--color-surface);
 }
 .recuperar-carregando {
   position: absolute; top: 0; left: 0; height: 2px;
@@ -453,10 +593,8 @@ button.login-link-animado { border: 0; background-color: transparent; font: inhe
   border-color: var(--color-erro);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-erro) 12%, transparent);
 }
-.input[data-tremor="a"], .login-senha-campo[data-tremor="a"] { animation: campo-tremor-a 0.36s cubic-bezier(0.36, 0.07, 0.19, 0.97); }
-.input[data-tremor="b"], .login-senha-campo[data-tremor="b"] { animation: campo-tremor-b 0.36s cubic-bezier(0.36, 0.07, 0.19, 0.97); }
-/* no campo de senha quem treme é o bloco (input + olho), não só o input */
-.login-senha-campo .input[data-tremor] { animation: none; }
+.campo-flutuante[data-tremor="a"] { animation: campo-tremor-a 0.36s cubic-bezier(0.36, 0.07, 0.19, 0.97); }
+.campo-flutuante[data-tremor="b"] { animation: campo-tremor-b 0.36s cubic-bezier(0.36, 0.07, 0.19, 0.97); }
 @keyframes campo-tremor-a { 20%, 60% { transform: translateX(-4px); } 40%, 80% { transform: translateX(4px); } }
 @keyframes campo-tremor-b { 20%, 60% { transform: translateX(-4px); } 40%, 80% { transform: translateX(4px); } }
 .campo-erro {
@@ -474,7 +612,7 @@ button.login-link-animado { border: 0; background-color: transparent; font: inhe
   to { opacity: 1; transform: none; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .input[data-tremor], .login-senha-campo[data-tremor], .campo-erro { animation: none; }
+  .campo-flutuante[data-tremor], .campo-erro { animation: none; }
 }
 
 /* cursor da saudação digitada no login */

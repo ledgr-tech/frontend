@@ -30,12 +30,15 @@ describe("NovaConciliacaoPage", () => {
 
     const botao = screen.getByRole("button", { name: "Conciliar extratos" });
     expect(botao).toBeDisabled();
+    // o motivo do botão desabilitado fica escrito e ligado a ele
+    expect(botao).toHaveAccessibleDescription("Envie os dois extratos para conciliar.");
 
     await user.upload(screen.getByLabelText("Extrato do banco"), arquivo("banco.ofx"));
     expect(botao).toBeDisabled();
 
     await user.upload(screen.getByLabelText("Extrato do sistema de gestão"), arquivo("sistema.csv"));
     expect(botao).toBeEnabled();
+    expect(botao).not.toHaveAccessibleDescription();
   });
 
   it("creates a conciliação and navigates to it on submit", async () => {

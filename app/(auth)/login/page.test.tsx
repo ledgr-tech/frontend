@@ -13,8 +13,8 @@ const login = vi.fn();
 const autenticar = vi.fn();
 vi.mock("@/lib/auth", () => ({
   CONTA_TESTE: { email: "financeiro@telhacerta.com.br", senha: "ledgr2026" },
-  login: (email: string) => login(email),
-  autenticar: (email: string, senha: string) => autenticar(email, senha),
+  login: (...args: unknown[]) => login(...args),
+  autenticar: (...args: unknown[]) => autenticar(...args),
 }));
 
 async function preencherEEntrar(email: string, senha: string) {
@@ -79,12 +79,15 @@ describe("LoginPage", () => {
     }
   });
 
-  it("uses the field names as placeholders, keeping the labels for screen readers only", () => {
+  it("shows floating labels that stay visible while typing, with an example only in the e-mail field", () => {
     render(<LoginPage />);
-    expect(screen.getByLabelText("E-mail")).toHaveAttribute("placeholder", "E-mail");
-    expect(screen.getByLabelText("Senha")).toHaveAttribute("placeholder", "Senha");
-    expect(screen.getByText("E-mail", { selector: "label" })).toHaveClass("sr-only");
-    expect(screen.getByText("Senha", { selector: "label" })).toHaveClass("sr-only");
+    const rotuloEmail = screen.getByText("E-mail", { selector: "label" });
+    expect(rotuloEmail).toHaveClass("campo-flutuante-rotulo");
+    expect(rotuloEmail).not.toHaveClass("sr-only");
+    expect(screen.getByText("Senha", { selector: "label" })).toHaveClass("campo-flutuante-rotulo");
+    expect(screen.getByLabelText("E-mail")).toHaveAttribute("placeholder", "nome@empresa.com.br");
+    // placeholder de um espaço: o CSS usa :placeholder-shown para saber quando subir o rótulo
+    expect(screen.getByLabelText("Senha")).toHaveAttribute("placeholder", " ");
   });
 
   it("toggles the password visibility", async () => {
@@ -153,8 +156,23 @@ describe("LoginPage", () => {
 
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     await waitFor(() => expect(push).toHaveBeenCalledWith("/dashboard"));
-    expect(login).toHaveBeenCalledWith("financeiro@telhacerta.com.br");
+    expect(login).toHaveBeenCalledWith("financeiro@telhacerta.com.br", { manterSessao: true });
     expect(autenticar).not.toHaveBeenCalled();
+  });
+
+  it("only keeps the session in this tab when 'Manter sessão ativa' is unchecked", async () => {
+    const user = userEvent.setup();
+    render(<LoginPage />);
+    await user.click(screen.getByRole("checkbox", { name: "Manter sessão ativa" }));
+    await preencherEEntrar("financeiro@telhacerta.com.br", "ledgr2026");
+
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/dashboard"));
+    expect(autenticar).toHaveBeenCalledWith("financeiro@telhacerta.com.br", "ledgr2026", { manterSessao: false });
+  });
+
+  it("links to the signup without promising a number of steps", () => {
+    render(<LoginPage />);
+    expect(screen.getByRole("link", { name: "Criar conta" })).toHaveAttribute("href", "/cadastro");
   });
 
   describe("error messages", () => {
@@ -165,9 +183,9 @@ describe("LoginPage", () => {
       const email = screen.getByLabelText("E-mail");
       const senha = screen.getByLabelText("Senha");
       expect(email).toHaveAttribute("aria-invalid", "true");
-      expect(email).toHaveAccessibleDescription("Informe seu e-mail para entrar.");
+      expect(email).toHaveAccessibleDescription("Informe seu e-mail.");
       expect(senha).toHaveAttribute("aria-invalid", "true");
-      expect(senha).toHaveAccessibleDescription("Digite sua senha.");
+      expect(senha).toHaveAccessibleDescription("Informe sua senha.");
       expect(screen.getAllByRole("alert")).toHaveLength(2);
       expect(autenticar).not.toHaveBeenCalled();
     });
@@ -189,7 +207,7 @@ describe("LoginPage", () => {
       await preencherEEntrar("outra@empresa.com.br", "ledgr2026");
 
       const email = screen.getByLabelText("E-mail");
-      await waitFor(() => expect(email).toHaveAccessibleDescription("Não encontramos uma conta com esse e-mail."));
+      await waitFor(() => expect(email).toHaveAccessibleDescription("Não encontramos conta com este e-mail. Confira o endereço."));
       expect(screen.getByRole("button", { name: "Entrar" })).toBeEnabled();
       expect(push).not.toHaveBeenCalled();
     });
@@ -201,7 +219,7 @@ describe("LoginPage", () => {
 
       const senha = screen.getByLabelText("Senha");
       await waitFor(() => expect(senha).toHaveAccessibleDescription("Senha incorreta. Confira e tente de novo."));
-      expect(autenticar).toHaveBeenCalledWith("financeiro@telhacerta.com.br", "errada");
+      expect(autenticar).toHaveBeenCalledWith("financeiro@telhacerta.com.br", "errada", { manterSessao: true });
       expect(screen.getByLabelText("E-mail")).not.toHaveAttribute("aria-invalid");
     });
 
@@ -212,7 +230,7 @@ describe("LoginPage", () => {
 
       await waitFor(() =>
         expect(screen.getByLabelText("Senha")).toHaveAccessibleDescription(
-          "Muitas tentativas. Aguarde alguns minutos e tente de novo.",
+          "Acesso pausado por segurança. Tente de novo em alguns minutos.",
         ),
       );
     });
@@ -229,7 +247,8 @@ describe("LoginPage", () => {
     it("shakes the field again on every repeated error", async () => {
       render(<LoginPage />);
       const user = await preencherEEntrar("", "");
-      const email = screen.getByLabelText("E-mail");
+      // quem treme é o bloco do campo (input + rótulo flutuante), para o rótulo acompanhar
+      const email = screen.getByLabelText("E-mail").closest(".campo-flutuante") as HTMLElement;
       const primeiroTremor = email.getAttribute("data-tremor");
       expect(primeiroTremor).toMatch(/^(a|b)$/);
 
@@ -245,7 +264,7 @@ describe("LoginPage", () => {
 
     expect(screen.getByRole("button", { name: "Entrando…" })).toBeDisabled();
     await waitFor(() => expect(push).toHaveBeenCalledWith("/dashboard"));
-    expect(autenticar).toHaveBeenCalledWith("financeiro@telhacerta.com.br", "ledgr2026");
+    expect(autenticar).toHaveBeenCalledWith("financeiro@telhacerta.com.br", "ledgr2026", { manterSessao: true });
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 

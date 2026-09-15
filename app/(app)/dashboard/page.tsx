@@ -33,7 +33,7 @@ export default function DashboardPage() {
         <div>
           <h1 style={{ margin: "0 0 4px", fontSize: 30, fontWeight: 600 }}>{EMPRESA_MOCK}</h1>
           <span
-            style={{ fontSize: 14, color: "color-mix(in srgb, var(--color-text) 55%, transparent)" }}
+            style={{ fontSize: 14, color: "color-mix(in srgb, var(--color-text) 66%, transparent)" }}
           >
             Competência setembro/2026
           </span>

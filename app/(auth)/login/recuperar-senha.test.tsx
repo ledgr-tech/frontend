@@ -13,6 +13,8 @@ describe("RecuperarSenha", () => {
     render(<RecuperarSenha aberto emailInicial="financeiro@telhacerta.com.br" onFechar={() => {}} />);
     const dialogo = screen.getByRole("dialog", { name: "Esqueceu a senha?" });
     expect(dialogo).toHaveAttribute("aria-modal", "true");
+    // o rótulo pequeno acima do título é só visual: o único título do card é "Esqueceu a senha?"
+    expect(screen.getAllByRole("heading")).toHaveLength(1);
     const campo = screen.getByLabelText("E-mail da conta");
     expect(campo).toHaveValue("financeiro@telhacerta.com.br");
     expect(campo).toHaveFocus();
@@ -43,6 +45,7 @@ describe("RecuperarSenha", () => {
 
     expect(await screen.findByRole("heading", { name: "Confira seu e-mail." }, { timeout: 3000 })).toBeInTheDocument();
     expect(screen.getByText(/financeiro@telhacerta\.com\.br/)).toBeInTheDocument();
+    expect(screen.getByText(/caixa de spam/)).toBeInTheDocument();
   });
 
   it("closes on Escape, on a click outside the card and on 'Voltar ao login', but not on a click inside", async () => {
