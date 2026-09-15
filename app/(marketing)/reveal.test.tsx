@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { InkHover, MotionRoot, PlanCard, Reveal } from "./reveal";
 
 describe("Reveal", () => {
-  it("sai de opacity 0 e revela quando entra na viewport", async () => {
+  it("sai de opacity 0 + escala reduzida e revela quando entra na viewport", async () => {
     render(
       <MotionRoot>
         <Reveal>

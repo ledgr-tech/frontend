@@ -122,6 +122,20 @@ const PERGUNTAS = [
     pergunta: "O contador consegue acessar?",
     resposta: "Sim, com o papel de leitor: abre relatório e histórico, não altera lançamento nenhum.",
   },
+  {
+    pergunta: "Consigo conciliar mais de um banco ao mesmo tempo?",
+    resposta:
+      "Sim. Suba o extrato de quantos bancos usar — o Ledgr consolida tudo num único relatório, sem lançamento perdido entre contas.",
+  },
+  {
+    pergunta: "Existe fidelidade ou taxa de implantação?",
+    resposta:
+      "Não. Você paga só pelo volume de lançamentos conferidos no mês — sem contrato de fidelidade, taxa de setup ou cobrança por usuário adicional.",
+  },
+  {
+    pergunta: "Posso cancelar quando quiser?",
+    resposta: "Sim, direto pelo painel, sem burocracia — não há multa nem aviso prévio.",
+  },
 ];
 
 const PLANOS = [
@@ -151,7 +165,7 @@ const RODAPE_COLUNAS = [
     titulo: "Empresa",
     itens: [
       { rotulo: "Assinatura", href: "#preco" },
-      { rotulo: "Contato", href: "mailto:ola@ledgr.com.br" },
+      { rotulo: "Contato", href: "mailto:ledgrtech@gmail.com" },
       { rotulo: "Segurança", href: "#regra" },
     ],
   },
@@ -182,9 +196,9 @@ export default function LandingPage() {
       >
         <div
           style={{
-            maxWidth: 1440,
+            maxWidth: 1600,
             margin: "0 auto",
-            padding: "16px clamp(16px, 3.5vw, 40px)",
+            padding: "20px clamp(20px, 4.2vw, 56px)",
             display: "flex",
             flexWrap: "wrap",
             alignItems: "center",
@@ -198,7 +212,7 @@ export default function LandingPage() {
               alt="Ledgr"
               width={2400}
               height={1952}
-              priority
+              loading="eager"
               style={{ height: 26, width: "auto" }}
             />
             <span style={{ fontFamily: "var(--font-heading)", fontSize: 23, fontWeight: 600 }}>Ledgr</span>
@@ -243,6 +257,7 @@ export default function LandingPage() {
           aria-hidden="true"
           width={2400}
           height={1952}
+          loading="eager"
           style={{
             position: "absolute",
             top: -70,
@@ -269,9 +284,9 @@ export default function LandingPage() {
           className="hero-grid"
           style={{
             position: "relative",
-            maxWidth: 1440,
+            maxWidth: 1600,
             margin: "0 auto",
-            padding: "84px clamp(16px, 3.5vw, 40px) 72px",
+            padding: "108px clamp(20px, 4.2vw, 56px) 96px",
             display: "grid",
             gap: 56,
             alignItems: "center",
@@ -280,6 +295,7 @@ export default function LandingPage() {
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 28 }}>
               <span
+                className="eyebrow"
                 style={{
                   fontSize: 12,
                   letterSpacing: "0.14em",
@@ -292,6 +308,7 @@ export default function LandingPage() {
               <span style={{ flex: 1, maxWidth: 120, height: 1, background: "var(--color-divider)" }} />
             </div>
             <h1
+              className="font-display"
               style={{
                 margin: "0 0 24px",
                 fontSize: "clamp(52px, 4.8vw, 88px)",
@@ -355,7 +372,7 @@ export default function LandingPage() {
                 >
                   <span
                     style={{
-                      fontFamily: "var(--font-heading)",
+                      fontFamily: "var(--font-display)",
                       fontSize: 30,
                       fontWeight: 600,
                       lineHeight: 1,
@@ -381,8 +398,8 @@ export default function LandingPage() {
             className="hero-illustration"
             style={{
               display: "flex",
-              justifyContent: "center",
-              alignItems: "flex-end",
+              flexDirection: "column",
+              alignItems: "center",
             }}
           >
             <Image
@@ -394,12 +411,11 @@ export default function LandingPage() {
               style={{ position: "relative", zIndex: 1, width: "96%", maxWidth: 440, height: "auto" }}
             />
             <div
+              className="hero-stat-card"
               style={{
-                position: "absolute",
-                zIndex: 2,
-                bottom: 4,
-                left: 8,
-                maxWidth: 246,
+                alignSelf: "flex-start",
+                marginTop: 28,
+                width: "min(246px, 100%)",
                 padding: "16px 18px",
                 border: "1px solid var(--color-accent)",
                 borderRadius: "var(--radius-md)",
@@ -419,7 +435,7 @@ export default function LandingPage() {
                 Agosto · 2026
               </div>
               <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 8 }}>
-                <span style={{ fontFamily: "var(--font-heading)", fontSize: 38, fontWeight: 600, lineHeight: 1 }}>
+                <span style={{ fontFamily: "var(--font-display)", fontSize: 38, fontWeight: 600, lineHeight: 1 }}>
                   96,3%
                 </span>
                 <span style={{ fontSize: 13.5, color: "color-mix(in srgb, var(--color-text) 62%, transparent)" }}>
@@ -461,22 +477,20 @@ export default function LandingPage() {
           aria-hidden="true"
           width={2400}
           height={1952}
-          style={{ position: "absolute", bottom: -90, left: 40, width: 300, height: "auto", opacity: 0.08, pointerEvents: "none" }}
+          style={{ position: "absolute", bottom: 24, left: 24, width: 140, height: "auto", opacity: 0.08, pointerEvents: "none" }}
         />
-        <div style={{ position: "relative", maxWidth: 1440, margin: "0 auto", padding: "54px clamp(16px, 3.5vw, 40px)" }}>
+        <div style={{ position: "relative", maxWidth: 1600, margin: "0 auto", padding: "72px clamp(20px, 4.2vw, 56px)" }}>
           <Reveal>
             <InkHover
               tone="light"
               style={{
                 display: "flex",
-                flexWrap: "wrap",
-                alignItems: "baseline",
-                justifyContent: "space-between",
-                gap: "12px 28px",
+                flexDirection: "column",
+                gap: 10,
                 marginBottom: 30,
               }}
             >
-              <span style={{ fontSize: 12, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--color-accent-300)" }}>
+              <span className="eyebrow" style={{ fontSize: 12, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--color-accent-300)" }}>
                 Em números
               </span>
               <span style={{ fontSize: 14, lineHeight: 1.6, maxWidth: "46ch", color: "var(--color-neutral-400)" }}>
@@ -500,7 +514,7 @@ export default function LandingPage() {
               >
                 <span
                   style={{
-                    fontFamily: "var(--font-heading)",
+                    fontFamily: "var(--font-display)",
                     fontSize: 46,
                     fontWeight: 400,
                     lineHeight: 1,
@@ -518,7 +532,7 @@ export default function LandingPage() {
 
       {/* o problema */}
       <section id="problema" style={{ borderTop: "1px solid var(--color-divider)" }}>
-        <div style={{ maxWidth: 1440, margin: "0 auto", padding: "72px clamp(16px, 3.5vw, 40px)" }}>
+        <div style={{ maxWidth: 1600, margin: "0 auto", padding: "96px clamp(20px, 4.2vw, 56px)" }}>
           <Reveal>
             <InkHover
               style={{
@@ -529,7 +543,7 @@ export default function LandingPage() {
               }}
             >
               <div>
-                <h6 style={{ margin: "0 0 12px", color: "var(--color-accent-700)" }}>Cap. II · O jeito de hoje</h6>
+                <h6 className="eyebrow" style={{ margin: "0 0 12px", color: "var(--color-accent-700)" }}>Cap. II · O jeito de hoje</h6>
                 <h2 style={{ margin: 0, fontSize: "clamp(30px, 2.8vw, 46px)", fontWeight: 400, lineHeight: 1.08 }}>
                   Duas telas abertas, um dedo em cada linha.
                 </h2>
@@ -564,9 +578,9 @@ export default function LandingPage() {
           aria-hidden="true"
           width={1920}
           height={1920}
-          style={{ position: "absolute", top: 30, right: -40, width: 470, height: "auto", opacity: 0.07, pointerEvents: "none" }}
+          style={{ position: "absolute", top: 30, left: -40, width: 480, height: "auto", opacity: 0.07, pointerEvents: "none" }}
         />
-        <div style={{ position: "relative", maxWidth: 1440, margin: "0 auto", padding: "72px clamp(16px, 3.5vw, 40px)" }}>
+        <div style={{ position: "relative", maxWidth: 1600, margin: "0 auto", padding: "96px clamp(20px, 4.2vw, 56px)" }}>
           <Reveal>
             <InkHover
               style={{
@@ -579,7 +593,7 @@ export default function LandingPage() {
               }}
             >
               <div style={{ flex: "1 1 360px", minWidth: 0 }}>
-                <h6 style={{ margin: "0 0 12px", color: "var(--color-accent-700)" }}>Cap. III · Como funciona</h6>
+                <h6 className="eyebrow" style={{ margin: "0 0 12px", color: "var(--color-accent-700)" }}>Cap. III · Como funciona</h6>
                 <h2 style={{ margin: 0, fontSize: "clamp(30px, 2.8vw, 46px)", fontWeight: 400, lineHeight: 1.08 }}>
                   Três passos, sem cruzar linha por linha.
                 </h2>
@@ -615,7 +629,7 @@ export default function LandingPage() {
                 <div style={{ display: "flex", alignItems: "baseline", gap: 12 }}>
                   <span
                     style={{
-                      fontFamily: "var(--font-heading)",
+                      fontFamily: "var(--font-display)",
                       fontSize: 40,
                       fontWeight: 400,
                       lineHeight: 1,
@@ -640,23 +654,24 @@ export default function LandingPage() {
 
       {/* regra de ouro */}
       <section id="regra" style={{ borderTop: "1px solid var(--color-divider)" }}>
-        <div style={{ maxWidth: 1440, margin: "0 auto", padding: "72px clamp(16px, 3.5vw, 40px)" }}>
+        <div style={{ maxWidth: 1600, margin: "0 auto", padding: "96px clamp(20px, 4.2vw, 56px)" }}>
           <Reveal>
             <InkHover
+              className="regra-card"
               style={{
                 border: "1px solid var(--color-accent)",
                 borderRadius: "var(--radius-md)",
                 padding: "42px 46px",
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
+                display: "grid",
+                gridTemplateColumns: "auto 1fr auto",
+                alignItems: "start",
                 textAlign: "center",
-                gap: 16,
+                columnGap: 24,
               }}
             >
               <div
+                className="font-display regra-icon"
                 style={{
-                  fontFamily: "var(--font-heading)",
                   fontSize: 82,
                   fontWeight: 400,
                   lineHeight: 1,
@@ -665,11 +680,11 @@ export default function LandingPage() {
               >
                 §
               </div>
-              <div style={{ maxWidth: "68ch" }}>
-                <h6 style={{ margin: "0 0 10px", color: "var(--color-accent-700)" }}>
+              <div>
+                <h6 className="eyebrow" style={{ margin: "0 0 10px", color: "var(--color-accent-700)" }}>
                   Regra de ouro
                 </h6>
-                <h2 style={{ margin: "0 0 12px", fontSize: "clamp(26px, 2.4vw, 42px)", fontWeight: 400 }}>
+                <h2 className="font-display" style={{ margin: "0 0 12px", fontSize: "clamp(26px, 2.4vw, 42px)", fontWeight: 500 }}>
                   O extrato do banco é sempre a fonte da verdade.
                 </h2>
                 <p
@@ -684,6 +699,9 @@ export default function LandingPage() {
                   precisa ser corrigido no seu sistema de gestão.
                 </p>
               </div>
+              <div className="font-display regra-icon regra-icon-mirror" aria-hidden style={{ fontSize: 82, lineHeight: 1, visibility: "hidden" }}>
+                §
+              </div>
             </InkHover>
           </Reveal>
         </div>
@@ -697,14 +715,14 @@ export default function LandingPage() {
           aria-hidden="true"
           width={1920}
           height={1920}
-          style={{ position: "absolute", bottom: -70, right: -30, width: 360, height: "auto", opacity: 0.07, pointerEvents: "none" }}
+          style={{ position: "absolute", bottom: 20, right: 24, width: 480, height: "auto", opacity: 0.07, pointerEvents: "none" }}
         />
         <div
           style={{
             position: "relative",
-            maxWidth: 1440,
+            maxWidth: 1600,
             margin: "0 auto",
-            padding: "72px clamp(16px, 3.5vw, 40px)",
+            padding: "96px clamp(20px, 4.2vw, 56px)",
             display: "flex",
             flexWrap: "wrap",
             gap: "32px 48px",
@@ -721,7 +739,7 @@ export default function LandingPage() {
             />
           </InkHover>
           <Reveal delay={0.1} style={{ flex: "1 1 420px", minWidth: 0, paddingLeft: 32, borderLeft: "1px solid var(--color-accent)" }}>
-            <h6 style={{ margin: "0 0 12px", color: "var(--color-accent-700)" }}>Sem configuração</h6>
+            <h6 className="eyebrow" style={{ margin: "0 0 12px", color: "var(--color-accent-700)" }}>Sem configuração</h6>
             <h2 style={{ margin: "0 0 16px", fontSize: "clamp(26px, 2.4vw, 40px)", fontWeight: 400, lineHeight: 1.12 }}>
               Suba os arquivos e veja as divergências em minutos.
             </h2>
@@ -762,48 +780,29 @@ export default function LandingPage() {
 
       {/* perguntas */}
       <section id="perguntas" style={{ borderTop: "1px solid var(--color-divider)" }}>
-        <div style={{ maxWidth: 1440, margin: "0 auto", padding: "72px clamp(16px, 3.5vw, 40px)" }}>
-          <Reveal
-            style={{
-              display: "flex",
-              flexWrap: "wrap",
-              alignItems: "baseline",
-              justifyContent: "space-between",
-              gap: "12px 32px",
-              marginBottom: 34,
-            }}
-          >
+        <div style={{ maxWidth: 1600, margin: "0 auto", padding: "96px clamp(20px, 4.2vw, 56px)" }}>
+          <Reveal style={{ marginBottom: 34 }}>
             <h2 style={{ margin: 0, fontSize: "clamp(26px, 2.4vw, 40px)", fontWeight: 400, lineHeight: 1.1 }}>
               Perguntas que sempre aparecem
             </h2>
-            <span style={{ fontSize: 14, color: "color-mix(in srgb, var(--color-text) 58%, transparent)" }}>
-              Qualquer outra dúvida: ola@ledgr.com.br
+            <span
+              style={{
+                display: "block",
+                marginTop: 12,
+                fontSize: 14,
+                color: "color-mix(in srgb, var(--color-text) 58%, transparent)",
+              }}
+            >
+              Qualquer outra dúvida: ledgrtech@gmail.com
             </span>
           </Reveal>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
-              gap: "0 48px",
-              borderTop: "1px solid var(--color-divider)",
-            }}
-          >
+          <div style={{ maxWidth: "72ch", margin: "0 auto", borderTop: "1px solid var(--color-divider)" }}>
             {PERGUNTAS.map((item, i) => (
-              <Reveal key={item.pergunta} delay={i * 0.08}>
-                <InkHover
-                  style={{
-                    padding: "22px 0",
-                    borderBottom: "1px solid var(--color-divider)",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 8,
-                  }}
-                >
-                  <span style={{ fontFamily: "var(--font-heading)", fontSize: 19, fontWeight: 600, lineHeight: 1.26 }}>
-                    {item.pergunta}
-                  </span>
-                  <span style={{ fontSize: 15, lineHeight: 1.72 }}>{item.resposta}</span>
-                </InkHover>
+              <Reveal key={item.pergunta} delay={i * 0.05}>
+                <details className="faq-item">
+                  <summary className="faq-question">{item.pergunta}</summary>
+                  <p className="faq-answer">{item.resposta}</p>
+                </details>
               </Reveal>
             ))}
           </div>
@@ -840,9 +839,9 @@ export default function LandingPage() {
         <Reveal
           style={{
             position: "relative",
-            maxWidth: 1440,
+            maxWidth: 1600,
             margin: "0 auto",
-            padding: "84px clamp(16px, 3.5vw, 40px)",
+            padding: "108px clamp(20px, 4.2vw, 56px)",
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
@@ -850,7 +849,7 @@ export default function LandingPage() {
             textAlign: "center",
           }}
         >
-          <span style={{ fontSize: 12, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--color-accent-300)" }}>
+          <span className="eyebrow" style={{ fontSize: 12, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--color-accent-300)" }}>
             Cap. IV · Começar
           </span>
           <h2
@@ -902,7 +901,7 @@ export default function LandingPage() {
                 <span style={{ fontFamily: "var(--font-heading)", fontSize: 19, fontWeight: 600, color: "var(--ledgr-tinta)" }}>
                   {plano.nome}
                 </span>
-                <span style={{ fontFamily: "var(--font-heading)", fontSize: 30, fontWeight: 600, lineHeight: 1, color: "var(--ledgr-tinta)" }}>
+                <span style={{ fontFamily: "var(--font-display)", fontSize: 30, fontWeight: 600, lineHeight: 1, color: "var(--ledgr-tinta)" }}>
                   {plano.preco}
                 </span>
                 <span style={{ fontSize: 13.5, lineHeight: 1.6, color: "var(--color-neutral-400)" }}>{plano.limite}</span>
@@ -933,9 +932,9 @@ export default function LandingPage() {
       <footer style={{ borderTop: "1px solid var(--color-divider)", background: "var(--color-surface)" }}>
         <div
           style={{
-            maxWidth: 1440,
+            maxWidth: 1600,
             margin: "0 auto",
-            padding: "44px clamp(16px, 3.5vw, 40px) 20px",
+            padding: "56px clamp(20px, 4.2vw, 56px) 28px",
             display: "flex",
             flexWrap: "wrap",
             gap: "32px 56px",
@@ -965,7 +964,7 @@ export default function LandingPage() {
             </div>
           ))}
         </div>
-        <div style={{ maxWidth: 1440, margin: "0 auto", padding: "18px clamp(16px, 3.5vw, 40px) 40px" }}>
+        <div style={{ maxWidth: 1600, margin: "0 auto", padding: "24px clamp(20px, 4.2vw, 56px) 48px" }}>
           <div
             style={{
               borderTop: "1px solid var(--color-divider)",
