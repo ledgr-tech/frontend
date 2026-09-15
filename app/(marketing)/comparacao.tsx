@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, m } from "motion/react";
-import { useEffect, useRef, useState } from "react";
+import { useId, useState } from "react";
 
 export type LinhaExtrato = {
   data: string;
@@ -12,21 +12,91 @@ export type LinhaExtrato = {
   explicacao: string | null;
 };
 
+function Detalhe({ id, linha }: { id: string; linha: LinhaExtrato }) {
+  const valorStyle = {
+    display: "flex",
+    justifyContent: "space-between",
+    gap: 14,
+    padding: "7px 0",
+    borderBottom: "1px solid var(--color-divider)",
+    fontSize: 13.5,
+  };
+  const rotuloStyle = { flex: "none", color: "color-mix(in srgb, var(--color-text) 56%, transparent)" };
+
+  return (
+    <m.div
+      id={id}
+      role="tooltip"
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 6 }}
+      transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
+      style={{
+        // ponytail: abre sempre acima da linha — abaixo, a última linha invade a seção seguinte.
+        position: "absolute",
+        bottom: "calc(100% - 4px)",
+        right: 12,
+        zIndex: 20,
+        width: "min(340px, calc(100% - 24px))",
+        padding: "16px 18px",
+        border: "1px solid var(--color-divider)",
+        borderRadius: "var(--radius-md)",
+        background: "var(--color-surface)",
+        boxShadow: "var(--shadow-lg)",
+        pointerEvents: "none",
+        display: "flex",
+        flexDirection: "column",
+        gap: 12,
+      }}
+    >
+      <div>
+        <h6 style={{ margin: "0 0 8px", color: "var(--color-accent-700)" }}>Lançamento · {linha.status}</h6>
+        <div style={{ fontFamily: "var(--font-heading)", fontSize: 19, fontWeight: 600, lineHeight: 1.24, marginBottom: 10 }}>
+          {linha.desc}
+        </div>
+        <div style={{ borderTop: "1px solid var(--color-divider)" }}>
+          <div style={valorStyle}>
+            <span style={rotuloStyle}>Extrato do banco</span>
+            <span>{linha.valorBanco ?? "—"}</span>
+          </div>
+          <div style={valorStyle}>
+            <span style={rotuloStyle}>Extrato do sistema</span>
+            <span>{linha.valorSistema ?? "—"}</span>
+          </div>
+        </div>
+      </div>
+      {linha.explicacao && (
+        <p className="dialog-body" style={{ margin: 0, lineHeight: 1.6 }}>
+          {linha.explicacao}
+        </p>
+      )}
+    </m.div>
+  );
+}
+
+type Lado = "banco" | "sistema";
+type Ativa = { lado: Lado; desc: string } | null;
+
 function Painel({
+  lado,
   titulo,
   arquivo,
   linhas,
-  valorDe,
-  onAbrir,
+  ativa,
+  setAtiva,
 }: {
+  lado: Lado;
   titulo: string;
   arquivo: string;
   linhas: LinhaExtrato[];
-  valorDe: (linha: LinhaExtrato) => string | null;
-  onAbrir: (linha: LinhaExtrato) => void;
+  ativa: Ativa;
+  setAtiva: (atualizar: (atual: Ativa) => Ativa) => void;
 }) {
+  const baseId = useId();
+  const valorDe = (linha: LinhaExtrato) => (lado === "banco" ? linha.valorBanco : linha.valorSistema);
+
   return (
-    <div style={{ border: "1px solid var(--color-divider)", borderRadius: "var(--radius-md)", background: "var(--color-surface)", overflow: "hidden" }}>
+    <div style={{ border: "1px solid var(--color-divider)", borderRadius: "var(--radius-md)", background: "var(--color-surface)" }}>
       <div
         style={{
           padding: "13px 18px",
@@ -40,8 +110,7 @@ function Painel({
         <span style={{ fontFamily: "var(--font-heading)", fontSize: 17, fontWeight: 600 }}>{titulo}</span>
         <span style={{ fontSize: 12, color: "color-mix(in srgb, var(--color-text) 50%, transparent)" }}>{arquivo}</span>
       </div>
-      {linhas.map((linha) => {
-        const clicavel = linha.status !== "Batido";
+      {linhas.map((linha, i) => {
         const conteudo = (
           <>
             <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
@@ -62,10 +131,11 @@ function Painel({
           gap: 6,
           width: "100%",
           padding: "10px 18px",
-          borderBottom: "1px solid var(--color-divider)",
+          // a borda do painel já fecha a última linha
+          borderBottom: i === linhas.length - 1 ? "none" : "1px solid var(--color-divider)",
         };
 
-        if (!clicavel) {
+        if (linha.status === "Batido") {
           return (
             <div key={linha.desc} style={rowStyle}>
               {conteudo}
@@ -73,25 +143,45 @@ function Painel({
           );
         }
 
+        // o par é casado pela descrição — é o que o Ledgr mostra dos dois lados
+        const aberta = ativa?.lado === lado && ativa.desc === linha.desc;
+        const correspondente = ativa !== null && ativa.lado !== lado && ativa.desc === linha.desc;
+        const id = `${baseId}-${i}`;
+        const abrir = () => setAtiva(() => ({ lado, desc: linha.desc }));
+        const fechar = () => setAtiva((atual) => (atual?.lado === lado && atual.desc === linha.desc ? null : atual));
+
         return (
-          <button
-            key={linha.desc}
-            type="button"
-            onClick={() => onAbrir(linha)}
-            style={{
-              ...rowStyle,
-              background: "transparent",
-              borderTop: "none",
-              borderLeft: "none",
-              borderRight: "none",
-              font: "inherit",
-              textAlign: "left",
-              cursor: "pointer",
-              color: "inherit",
-            }}
-          >
-            {conteudo}
-          </button>
+          <div key={linha.desc} style={{ position: "relative" }} onMouseEnter={abrir} onMouseLeave={fechar}>
+            <button
+              type="button"
+              aria-describedby={aberta ? id : undefined}
+              data-correspondente={correspondente || undefined}
+              onFocus={abrir}
+              onBlur={fechar}
+              // toque não tem hover: o tap abre, tocar fora (blur) fecha
+              onClick={abrir}
+              onKeyDown={(event) => event.key === "Escape" && fechar()}
+              style={{
+                ...rowStyle,
+                background: aberta
+                  ? "color-mix(in srgb, var(--color-accent-300) 12%, transparent)"
+                  : correspondente
+                    ? "color-mix(in srgb, var(--color-accent-300) 6%, transparent)"
+                    : "transparent",
+                borderTop: "none",
+                borderLeft: "none",
+                borderRight: "none",
+                font: "inherit",
+                textAlign: "left",
+                cursor: "help",
+                color: "inherit",
+                transition: "background 0.15s",
+              }}
+            >
+              {conteudo}
+            </button>
+            <AnimatePresence>{aberta && <Detalhe id={id} linha={linha} />}</AnimatePresence>
+          </div>
         );
       })}
     </div>
@@ -99,136 +189,17 @@ function Painel({
 }
 
 export function ExtratoComparacao({ banco, sistema }: { banco: LinhaExtrato[]; sistema: LinhaExtrato[] }) {
-  const [aberta, setAberta] = useState<LinhaExtrato | null>(null);
-  const fecharRef = useRef<HTMLButtonElement>(null);
-
-  useEffect(() => {
-    if (!aberta) return;
-
-    fecharRef.current?.focus();
-    const overflowAnterior = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
-    const aoTeclar = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setAberta(null);
-      if (event.key === "Tab") {
-        event.preventDefault();
-        fecharRef.current?.focus();
-      }
-    };
-    document.addEventListener("keydown", aoTeclar);
-
-    return () => {
-      document.body.style.overflow = overflowAnterior;
-      document.removeEventListener("keydown", aoTeclar);
-    };
-  }, [aberta]);
+  const [ativa, setAtiva] = useState<Ativa>(null);
 
   return (
-    <>
-      <div className="extrato-grid" style={{ display: "grid", gap: 28, alignItems: "stretch" }}>
-        <Painel titulo="Extrato do banco" arquivo="extrato-08.ofx" linhas={banco} valorDe={(l) => l.valorBanco} onAbrir={setAberta} />
-        <div className="extrato-divider">
-          <div className="extrato-divider-line" />
-          <div style={{ fontFamily: "var(--font-heading)", fontSize: 28, color: "var(--color-accent)" }}>≠</div>
-          <div className="extrato-divider-line" />
-        </div>
-        <Painel titulo="Extrato do sistema" arquivo="razao-08.csv" linhas={sistema} valorDe={(l) => l.valorSistema} onAbrir={setAberta} />
+    <div className="extrato-grid" style={{ display: "grid", gap: 28, alignItems: "stretch" }}>
+      <Painel lado="banco" titulo="Extrato do banco" arquivo="extrato-08.ofx" linhas={banco} ativa={ativa} setAtiva={setAtiva} />
+      <div className="extrato-divider">
+        <div className="extrato-divider-line" />
+        <div style={{ fontFamily: "var(--font-heading)", fontSize: 28, color: "var(--color-accent)" }}>≠</div>
+        <div className="extrato-divider-line" />
       </div>
-
-      <AnimatePresence>
-        {aberta && (
-          <m.div
-            onClick={() => setAberta(null)}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            style={{
-              position: "fixed",
-              inset: 0,
-              zIndex: 100,
-              background: "color-mix(in srgb, var(--color-neutral-900) 32%, transparent)",
-            }}
-          >
-            <m.aside
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="divergencia-titulo"
-              onClick={(event) => event.stopPropagation()}
-              initial={{ x: "100%" }}
-              animate={{ x: 0 }}
-              exit={{ x: "100%" }}
-              transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-              style={{
-                position: "fixed",
-                top: 0,
-                right: 0,
-                height: "100%",
-                width: "min(360px, 100%)",
-                borderLeft: "1px solid var(--color-divider)",
-                background: "var(--color-surface)",
-                boxShadow: "var(--shadow-lg)",
-                padding: "30px 26px 40px",
-                overflowY: "auto",
-                display: "flex",
-                flexDirection: "column",
-                gap: 24,
-              }}
-            >
-              <div>
-                <h6 style={{ margin: "0 0 10px", color: "var(--color-accent-700)" }}>
-                  Lançamento · {aberta.status}
-                </h6>
-                <div
-                  id="divergencia-titulo"
-                  style={{ fontFamily: "var(--font-heading)", fontSize: 22, fontWeight: 600, lineHeight: 1.24, marginBottom: 12 }}
-                >
-                  {aberta.desc}
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", borderTop: "1px solid var(--color-divider)" }}>
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      gap: 14,
-                      padding: "9px 0",
-                      borderBottom: "1px solid var(--color-divider)",
-                      fontSize: 13.5,
-                    }}
-                  >
-                    <span style={{ flex: "none", color: "color-mix(in srgb, var(--color-text) 56%, transparent)" }}>
-                      Extrato do banco
-                    </span>
-                    <span>{aberta.valorBanco ?? "—"}</span>
-                  </div>
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      gap: 14,
-                      padding: "9px 0",
-                      borderBottom: "1px solid var(--color-divider)",
-                      fontSize: 13.5,
-                    }}
-                  >
-                    <span style={{ flex: "none", color: "color-mix(in srgb, var(--color-text) 56%, transparent)" }}>
-                      Extrato do sistema
-                    </span>
-                    <span>{aberta.valorSistema ?? "—"}</span>
-                  </div>
-                </div>
-              </div>
-              {aberta.explicacao && <p className="dialog-body">{aberta.explicacao}</p>}
-              <div style={{ marginTop: "auto" }}>
-                <button type="button" ref={fecharRef} className="btn btn-ghost" onClick={() => setAberta(null)}>
-                  Fechar
-                </button>
-              </div>
-            </m.aside>
-          </m.div>
-        )}
-      </AnimatePresence>
-    </>
+      <Painel lado="sistema" titulo="Extrato do sistema" arquivo="razao-08.csv" linhas={sistema} ativa={ativa} setAtiva={setAtiva} />
+    </div>
   );
 }

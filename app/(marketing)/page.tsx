@@ -212,7 +212,7 @@ export default function LandingPage() {
               alt="Ledgr"
               width={2400}
               height={1952}
-              priority
+              loading="eager"
               style={{ height: 26, width: "auto" }}
             />
             <span style={{ fontFamily: "var(--font-heading)", fontSize: 23, fontWeight: 600 }}>Ledgr</span>
@@ -257,6 +257,7 @@ export default function LandingPage() {
           aria-hidden="true"
           width={2400}
           height={1952}
+          loading="eager"
           style={{
             position: "absolute",
             top: -70,

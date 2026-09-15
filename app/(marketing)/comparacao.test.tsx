@@ -3,68 +3,69 @@ import { describe, expect, it } from "vitest";
 
 import { ExtratoComparacao, type LinhaExtrato } from "./comparacao";
 
-const BANCO: LinhaExtrato[] = [
-  {
-    data: "04/10",
-    desc: "Pagamento fornecedor #1082",
-    valorBanco: "R$ 12.640,00",
-    valorSistema: "R$ 12.604,00",
-    status: "Valor divergente",
-    explicacao: "O banco descontou juros por atraso.",
-  },
-];
+const LINHA: LinhaExtrato = {
+  data: "04/10",
+  desc: "Pagamento fornecedor #1082",
+  valorBanco: "R$ 12.640,00",
+  valorSistema: "R$ 12.604,00",
+  status: "Valor divergente",
+  explicacao: "O banco descontou juros por atraso.",
+};
 
-const SISTEMA: LinhaExtrato[] = [
-  {
-    data: "04/10",
-    desc: "Pagamento fornecedor #1082",
-    valorBanco: "R$ 12.640,00",
-    valorSistema: "R$ 12.604,00",
-    status: "Valor divergente",
-    explicacao: "O banco descontou juros por atraso.",
-  },
-];
-
-function abrirPainel() {
-  fireEvent.click(screen.getAllByRole("button", { name: /Pagamento fornecedor #1082/ })[0]);
+function linhaDoBanco() {
+  return screen.getAllByRole("button", { name: /Pagamento fornecedor #1082/ })[0];
 }
 
-describe("ExtratoComparacao dialog", () => {
-  it("gives the divergence panel dialog semantics", () => {
-    render(<ExtratoComparacao banco={BANCO} sistema={SISTEMA} />);
+describe("ExtratoComparacao hover", () => {
+  it("shows the divergence details when hovering a mismatched line", () => {
+    render(<ExtratoComparacao banco={[LINHA]} sistema={[LINHA]} />);
 
-    abrirPainel();
+    fireEvent.mouseEnter(linhaDoBanco());
 
-    expect(screen.getByRole("dialog")).toHaveAttribute("aria-modal", "true");
+    const tooltip = screen.getByRole("tooltip");
+    expect(tooltip).toHaveTextContent("Lançamento · Valor divergente");
+    expect(tooltip).toHaveTextContent("R$ 12.604,00");
+    expect(tooltip).toHaveTextContent("juros por atraso");
+    expect(linhaDoBanco()).toHaveAttribute("aria-describedby", tooltip.id);
   });
 
-  it("moves focus into the panel when it opens", async () => {
-    render(<ExtratoComparacao banco={BANCO} sistema={SISTEMA} />);
+  it("only opens the hovered panel's line", () => {
+    render(<ExtratoComparacao banco={[LINHA]} sistema={[LINHA]} />);
 
-    abrirPainel();
+    fireEvent.mouseEnter(linhaDoBanco());
 
-    await waitFor(() => expect(screen.getByRole("button", { name: "Fechar" })).toHaveFocus());
+    expect(screen.getAllByRole("tooltip")).toHaveLength(1);
   });
 
-  it("closes when Escape is pressed", async () => {
-    render(<ExtratoComparacao banco={BANCO} sistema={SISTEMA} />);
-    abrirPainel();
-    expect(screen.getByRole("dialog")).toBeInTheDocument();
+  it("highlights the matching line in the other statement", async () => {
+    render(<ExtratoComparacao banco={[LINHA]} sistema={[LINHA]} />);
+    const [banco, sistema] = screen.getAllByRole("button", { name: /Pagamento fornecedor #1082/ });
 
-    fireEvent.keyDown(document, { key: "Escape" });
+    fireEvent.mouseEnter(banco);
+    expect(sistema).toHaveAttribute("data-correspondente", "true");
+    expect(banco).not.toHaveAttribute("data-correspondente");
 
-    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    fireEvent.mouseLeave(banco);
+    await waitFor(() => expect(sistema).not.toHaveAttribute("data-correspondente"));
   });
 
-  it("locks page scroll while open and restores it on close", async () => {
-    render(<ExtratoComparacao banco={BANCO} sistema={SISTEMA} />);
-    expect(document.body.style.overflow).not.toBe("hidden");
+  it("hides the details when the mouse leaves", async () => {
+    render(<ExtratoComparacao banco={[LINHA]} sistema={[LINHA]} />);
+    fireEvent.mouseEnter(linhaDoBanco());
 
-    abrirPainel();
-    expect(document.body.style.overflow).toBe("hidden");
+    fireEvent.mouseLeave(linhaDoBanco());
 
-    fireEvent.keyDown(document, { key: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("tooltip")).not.toBeInTheDocument());
+  });
 
-    await waitFor(() => expect(document.body.style.overflow).not.toBe("hidden"));
+  it("opens on keyboard focus and closes on Escape", async () => {
+    render(<ExtratoComparacao banco={[LINHA]} sistema={[LINHA]} />);
+
+    fireEvent.focus(linhaDoBanco());
+    expect(screen.getByRole("tooltip")).toBeInTheDocument();
+
+    fireEvent.keyDown(linhaDoBanco(), { key: "Escape" });
+
+    await waitFor(() => expect(screen.queryByRole("tooltip")).not.toBeInTheDocument());
   });
 });

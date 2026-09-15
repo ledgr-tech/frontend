@@ -58,10 +58,10 @@ describe("LandingPage", () => {
     expect(screen.getByText("Sem correspondente")).toBeInTheDocument();
   });
 
-  it("opens a dialog explaining the divergence when a mismatched line is clicked", () => {
+  it("explains the divergence when hovering a mismatched line", () => {
     render(<LandingPage />);
 
-    fireEvent.click(screen.getAllByRole("button", { name: /Pagamento fornecedor #1082/ })[0]);
+    fireEvent.mouseEnter(screen.getAllByRole("button", { name: /Pagamento fornecedor #1082/ })[0]);
 
     expect(screen.getByText(/juros por atraso/)).toBeInTheDocument();
   });
@@ -72,11 +72,12 @@ describe("LandingPage", () => {
     expect(screen.queryByRole("button", { name: /Recebimento cliente Alfa Comércio/ })).not.toBeInTheDocument();
   });
 
-  it("closes the divergence dialog when Fechar is clicked", async () => {
+  it("hides the divergence details when the mouse leaves the line", async () => {
     render(<LandingPage />);
-    fireEvent.click(screen.getAllByRole("button", { name: /Pagamento fornecedor #1082/ })[0]);
+    const linha = screen.getAllByRole("button", { name: /Pagamento fornecedor #1082/ })[0];
+    fireEvent.mouseEnter(linha);
 
-    fireEvent.click(screen.getByRole("button", { name: "Fechar" }));
+    fireEvent.mouseLeave(linha);
 
     await waitFor(() => expect(screen.queryByText(/juros por atraso/)).not.toBeInTheDocument());
   });
