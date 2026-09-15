@@ -270,6 +270,20 @@ a { color: var(--color-accent); text-underline-offset: 3px; }
 .extrato-divider { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; }
 .extrato-divider-line { width: 1px; flex: 1; background: var(--color-divider); }
 .hero-illustration { border-left: 1px solid var(--color-divider); padding-left: 30px; }
+.login-ver-senha {
+  position: absolute; right: 10px; cursor: pointer;
+  font-family: var(--font-body); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase;
+  padding: 5px 8px; border: 1px solid transparent; border-radius: var(--radius-sm);
+  background: transparent; color: var(--color-accent-700);
+}
+.login-ver-senha:hover { border-color: var(--color-accent); }
+.login-link:hover { border-bottom-color: var(--color-accent) !important; }
+.login-voltar {
+  font-size: 13.5px; padding: 7px 13px; text-decoration: none;
+  border: 1px solid var(--color-divider); border-radius: var(--radius-sm);
+  color: color-mix(in srgb, var(--color-text) 70%, transparent);
+}
+.login-voltar:hover { border-color: var(--color-accent); color: var(--color-accent-700); }
 
 /* no tablet os dois painéis lado a lado cortam todas as descrições — empilha antes */
 @media (max-width: 900px) {
