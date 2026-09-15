@@ -243,7 +243,7 @@ export default function LandingPage() {
             <Link href="/login" className="btn btn-ghost">
               Entrar
             </Link>
-            <Link href="/login" className="btn btn-primary">
+            <Link href="/cadastro" className="btn btn-primary">
               Começar
             </Link>
           </nav>
@@ -953,7 +953,7 @@ export default function LandingPage() {
           </div>
           <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "center", gap: 14, marginTop: 6 }}>
             <Link
-              href="/login"
+              href="/cadastro"
               className="btn btn-primary"
               style={{
                 fontSize: 15.5,

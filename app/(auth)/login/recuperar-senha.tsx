@@ -1,10 +1,9 @@
 "use client";
 
 import { AnimatePresence, LazyMotion, MotionConfig, domAnimation, m } from "motion/react";
-import { useEffect, useId, useRef, useState, type FormEvent } from "react";
-import { MensagemErro } from "./mensagem-erro";
-
-const EMAIL_VALIDO = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+import { useEffect, useId, useRef, useState, type CSSProperties, type FormEvent } from "react";
+import { CampoTexto } from "../_compartilhado/campo-texto";
+import { EMAIL_VALIDO, MENSAGEM_EMAIL_INCOMPLETO } from "../_compartilhado/validacao";
 
 // sem backend ainda: o envio é simulado; o traço dourado carrega durante esse tempo
 const ENVIO_SIMULADO_MS = 1200;
@@ -14,7 +13,17 @@ const CURVA = [0.22, 1, 0.36, 1] as const;
 
 type Etapa = "formulario" | "enviando" | "enviado";
 
-const estiloEyebrow = { margin: "0 0 8px", color: "var(--color-accent-700)" };
+// rótulo com a cara de h6, mas em <p>: o título do card é o h2 logo abaixo
+const estiloEyebrow: CSSProperties = {
+  margin: "0 0 8px",
+  fontFamily: "var(--font-heading)",
+  fontWeight: 600,
+  fontSize: 14,
+  lineHeight: 1.12,
+  letterSpacing: "0.08em",
+  textTransform: "uppercase",
+  color: "var(--color-accent-700)",
+};
 const estiloTitulo = {
   margin: "0 0 10px",
   fontFamily: "var(--font-heading)",
@@ -45,7 +54,6 @@ function Cartao({ emailInicial, onFechar }: { emailInicial: string; onFechar: ()
   const tituloId = useId();
   const textoId = useId();
   const campoId = useId();
-  const erroId = useId();
   const [email, setEmail] = useState(emailInicial);
   const [erro, setErro] = useState("");
   // cada erro novo alterna data-tremor entre "a" e "b" para o CSS repetir o tremor do campo
@@ -96,7 +104,7 @@ function Cartao({ emailInicial, onFechar }: { emailInicial: string; onFechar: ()
     const mensagem = !emailLimpo
       ? "Informe o e-mail da sua conta."
       : !EMAIL_VALIDO.test(emailLimpo)
-        ? "Confira o e-mail: parece incompleto."
+        ? MENSAGEM_EMAIL_INCOMPLETO
         : "";
     if (mensagem) {
       setErro(mensagem);
@@ -154,7 +162,7 @@ function Cartao({ emailInicial, onFechar }: { emailInicial: string; onFechar: ()
               exit={{ opacity: 0, y: -6 }}
               transition={{ duration: 0.18, ease: CURVA }}
             >
-              <h6 style={estiloEyebrow}>Recuperar acesso</h6>
+              <p style={estiloEyebrow}>Recuperar acesso</p>
               <h2 id={tituloId} style={estiloTitulo}>
                 Esqueceu a senha?
               </h2>
@@ -162,29 +170,21 @@ function Cartao({ emailInicial, onFechar }: { emailInicial: string; onFechar: ()
                 Informe o e-mail da sua conta e enviaremos um código para você criar uma nova senha.
               </p>
 
-              <label htmlFor={campoId} className="sr-only">
-                E-mail da conta
-              </label>
-              <input
+              <CampoTexto
                 ref={campo}
                 id={campoId}
-                className="input"
-                type="email"
+                rotulo="E-mail da conta"
+                tipo="email"
                 autoComplete="email"
-                placeholder="E-mail"
-                aria-invalid={erro ? true : undefined}
-                aria-describedby={erro ? erroId : undefined}
-                data-tremor={erro ? (tremor % 2 === 1 ? "a" : "b") : undefined}
-                value={email}
-                onChange={(evento) => {
-                  setEmail(evento.target.value);
+                erro={erro}
+                tremor={erro ? (tremor % 2 === 1 ? "a" : "b") : undefined}
+                disabled={etapa === "enviando"}
+                valor={email}
+                onValor={(valor) => {
+                  setEmail(valor);
                   if (erro) setErro("");
                 }}
-                disabled={etapa === "enviando"}
-                style={{ minHeight: 50, fontSize: 16, padding: "12px 18px" }}
               />
-
-              {erro && <MensagemErro id={erroId}>{erro}</MensagemErro>}
 
               <button
                 type="submit"
@@ -235,12 +235,13 @@ function Confirmacao({
       exit={{ opacity: 0 }}
       transition={{ duration: 0.22, ease: CURVA }}
     >
-      <h6 style={estiloEyebrow}>Código enviado</h6>
+      <p style={estiloEyebrow}>Código enviado</p>
       <h2 id={tituloId} style={estiloTitulo}>
         Confira seu e-mail.
       </h2>
       <p id={textoId} className="dialog-body" style={{ margin: "0 0 18px", lineHeight: 1.6 }}>
-        Se houver uma conta com <strong>{email}</strong>, o código chega em instantes.
+        Se houver uma conta com <strong>{email}</strong>, o código chega em alguns minutos. Se não aparecer, confira a
+        caixa de spam.
       </p>
       <button ref={voltar} type="button" className="btn btn-primary btn-block" style={{ fontSize: 15.5, padding: "12px 22px", marginTop: 0 }} onClick={onFechar}>
         Voltar ao login

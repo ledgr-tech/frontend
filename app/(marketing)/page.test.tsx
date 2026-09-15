@@ -25,7 +25,7 @@ describe("LandingPage", () => {
     const { container } = render(<LandingPage />);
     const header = within(container.querySelector("header")!);
     expect(header.getByRole("link", { name: "Entrar" })).toHaveAttribute("href", "/login");
-    expect(header.getByRole("link", { name: "Começar" })).toHaveAttribute("href", "/login");
+    expect(header.getByRole("link", { name: "Começar" })).toHaveAttribute("href", "/cadastro");
     expect(header.getByRole("link", { name: "O problema" })).toHaveAttribute("href", "#problema");
     expect(header.getByRole("link", { name: "Como funciona" })).toHaveAttribute("href", "#como");
     expect(header.getByRole("link", { name: "Assinatura" })).toHaveAttribute("href", "#preco");
@@ -121,7 +121,7 @@ describe("LandingPage", () => {
     expect(screen.getByText("até 5.000 lançamentos por mês")).toBeInTheDocument();
     expect(screen.getByText("Volume")).toBeInTheDocument();
     expect(screen.getByText("Sob consulta")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Começar agora" })).toHaveAttribute("href", "/login");
+    expect(screen.getByRole("link", { name: "Começar agora" })).toHaveAttribute("href", "/cadastro");
   });
 
   it("has a footer organized into Produto, Empresa and Legal link columns", () => {

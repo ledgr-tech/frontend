@@ -6,7 +6,8 @@ import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "re
 import { useRouter } from "next/navigation";
 import { CONTA_TESTE, autenticar, login, type ErroAutenticacao } from "@/lib/auth";
 import dynamic from "next/dynamic";
-import { MensagemErro } from "./mensagem-erro";
+import { CampoTexto } from "../_compartilhado/campo-texto";
+import { EMAIL_VALIDO, MENSAGEM_EMAIL_INCOMPLETO } from "../_compartilhado/validacao";
 import { CHAVE_SAUDACAO, SAUDACOES, escolherSaudacao } from "./saudacoes";
 
 // o card de recuperação (e o motion que ele usa) fica fora do carregamento inicial do login:
@@ -18,8 +19,6 @@ const RecuperarSenha = dynamic(() => import("./recuperar-senha").then((modulo) =
 function precarregarRecuperarSenha() {
   void import("./recuperar-senha");
 }
-
-const EMAIL_VALIDO = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
 // mesma pausa do Claude Design: dá tempo de ler "Entrando…" antes de trocar de tela
 const ATRASO_ENTRADA_MS = 700;
@@ -39,16 +38,17 @@ type Erros = Partial<Record<Campo, string>>;
 
 // erros checados antes de enviar
 const MENSAGENS = {
-  emailVazio: "Informe seu e-mail para entrar.",
-  emailIncompleto: "Confira o e-mail: parece incompleto.",
-  senhaVazia: "Digite sua senha.",
+  emailVazio: "Informe seu e-mail.",
+  emailIncompleto: MENSAGEM_EMAIL_INCOMPLETO,
+  senhaVazia: "Informe sua senha.",
 };
 
 // erros devolvidos pela autenticação, cada um mostrado junto ao campo a que se refere
 const ERROS_AUTENTICACAO: Record<ErroAutenticacao, { campo: Campo; mensagem: string }> = {
-  conta_nao_encontrada: { campo: "email", mensagem: "Não encontramos uma conta com esse e-mail." },
+  conta_nao_encontrada: { campo: "email", mensagem: "Não encontramos conta com este e-mail. Confira o endereço." },
   senha_incorreta: { campo: "senha", mensagem: "Senha incorreta. Confira e tente de novo." },
-  muitas_tentativas: { campo: "senha", mensagem: "Muitas tentativas. Aguarde alguns minutos e tente de novo." },
+  // "alguns minutos" e não um tempo exato: quem tenta de novo durante o bloqueio pega só o que falta dele
+  muitas_tentativas: { campo: "senha", mensagem: "Acesso pausado por segurança. Tente de novo em alguns minutos." },
 };
 
 // linhas verticais sutis da landing, só nas laterais: sempre por fora do formulário (424px)
@@ -73,44 +73,10 @@ function lerSaudacaoAnterior(): number | null {
   }
 }
 
-// olho no traço do mascote: sobrancelha em arco e pupila preta em gota com o recorte de brilho;
-// fechado vira a pálpebra curva com cílios
-// os dois estados ficam sempre no SVG: o CSS (.olho-mascote em globals.css) anima a troca como uma piscada
-function OlhoMascote({ fechado }: { fechado: boolean }) {
-  return (
-    <svg
-      className="olho-mascote"
-      data-estado={fechado ? "fechado" : "aberto"}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.6}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      {/* riscos de impacto de desenho animado: só piscam no instante em que o olho salta */}
-      <path className="olho-impacto" d="M3.6 8.6l-2-1.2M3.2 12.8H.9M3.6 17l-2 1.2M20.4 8.6l2-1.2M20.8 12.8h2.3M20.4 17l2 1.2" />
-      <path className="olho-sobrancelha" d="M7.2 5.2c2.7-1.9 6.9-1.9 9.6 0" />
-      <g className="olho-aberto">
-        <ellipse cx="12" cy="13.6" rx="4.4" ry="5.8" fill="currentColor" stroke="none" transform="rotate(-6 12 13.6)" />
-        {/* brilho em cunha aberto na borda da pupila, como nos olhos do mascote */}
-        <path d="M6.6 11.2l5.9 2.8-5.7 2.9z" fill="var(--color-bg)" stroke="none" />
-        <path d="M15.3 19c.9.3 1.8.2 2.6-.3" />
-      </g>
-      <g className="olho-fechado">
-        <path d="M7 13c2.9 3.4 7.1 3.4 10 0" />
-        <path d="M9.1 15.7l-.8 1.7M12 16.6v1.9M14.9 15.7l.8 1.7" />
-      </g>
-    </svg>
-  );
-}
-
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
-  const [verSenha, setVerSenha] = useState(false);
   const [manterSessao, setManterSessao] = useState(true);
   const [erros, setErros] = useState<Erros>({});
   // contador por campo: cada erro novo alterna data-tremor entre "a" e "b" para o CSS repetir o tremor
@@ -247,7 +213,7 @@ export default function LoginPage() {
     setErros({});
     setEntrando(true);
     timer.current = setTimeout(() => {
-      const resultado = autenticar(emailLimpo, senha);
+      const resultado = autenticar(emailLimpo, senha, { manterSessao });
       if (resultado.ok) {
         router.push("/dashboard");
         return;
@@ -264,7 +230,7 @@ export default function LoginPage() {
     setErros({});
     setEntrando(true);
     timer.current = setTimeout(() => {
-      login(CONTA_TESTE.email);
+      login(CONTA_TESTE.email, { manterSessao });
       router.push("/dashboard");
     }, ATRASO_ENTRADA_MS);
   }
@@ -321,7 +287,7 @@ export default function LoginPage() {
               fontSize: 12,
               letterSpacing: "0.12em",
               textTransform: "uppercase",
-              color: "color-mix(in srgb, var(--color-text) 50%, transparent)",
+              color: "color-mix(in srgb, var(--color-text) 66%, transparent)",
             }}
           >
             Acesso
@@ -376,66 +342,37 @@ export default function LoginPage() {
           />
 
           <div style={{ display: "flex", flexDirection: "column", gap: "clamp(10px, 1.8vh, 16px)", marginBottom: 8 }}>
-            {/* o nome do campo fica no placeholder; o label segue só para leitor de tela */}
-            <div className="field">
-              <label htmlFor="login-email" className="sr-only">E-mail</label>
-              <input
-                ref={campoEmail}
-                id="login-email"
-                className="input"
-                type="email"
-                autoComplete="email"
-                placeholder="E-mail"
-                aria-invalid={erros.email ? true : undefined}
-                aria-describedby={erros.email ? "login-erro-email" : undefined}
-                data-tremor={tremorDe("email")}
-                value={email}
-                onChange={(event) => {
-                  setEmail(event.target.value);
-                  limparErro("email");
-                }}
-                style={{ minHeight: 50, fontSize: 16, padding: "12px 18px" }}
-              />
-              {erros.email && <MensagemErro id="login-erro-email">{erros.email}</MensagemErro>}
-            </div>
-            <div className="field">
-              <label htmlFor="login-senha" className="sr-only">Senha</label>
-              {/* com foco em qualquer parte do campo (input ou olho), o olho do mascote se projeta à frente */}
-              <div
-                className="login-senha-campo"
-                data-tremor={tremorDe("senha")}
-                style={{ position: "relative", display: "flex", alignItems: "center" }}
-              >
-                <input
-                  ref={campoSenha}
-                  id="login-senha"
-                  className="input"
-                  type={verSenha ? "text" : "password"}
-                  autoComplete="current-password"
-                  placeholder="Senha"
-                  aria-invalid={erros.senha ? true : undefined}
-                  aria-describedby={erros.senha ? "login-erro-senha" : undefined}
-                  value={senha}
-                  onChange={(event) => {
-                    setSenha(event.target.value);
-                    limparErro("senha");
-                  }}
-                  style={{ minHeight: 50, fontSize: 16, padding: "12px 54px 12px 18px" }}
-                />
-                <button
-                  type="button"
-                  className="login-ver-senha"
-                  aria-controls="login-senha"
-                  aria-pressed={verSenha}
-                  aria-label={verSenha ? "Ocultar senha" : "Mostrar senha"}
-                  title={verSenha ? "Ocultar senha" : "Mostrar senha"}
-                  onClick={() => setVerSenha((atual) => !atual)}
-                >
-                  <OlhoMascote fechado={verSenha} />
-                </button>
-              </div>
-              {erros.senha && <MensagemErro id="login-erro-senha">{erros.senha}</MensagemErro>}
-            </div>
+            {/* rótulos flutuantes: começam dentro do campo e sobem para a borda ao focar ou preencher */}
+            <CampoTexto
+              ref={campoEmail}
+              id="login-email"
+              rotulo="E-mail"
+              tipo="email"
+              exemplo="nome@empresa.com.br"
+              autoComplete="email"
+              erro={erros.email}
+              tremor={tremorDe("email")}
+              valor={email}
+              onValor={(valor) => {
+                setEmail(valor);
+                limparErro("email");
+              }}
+            />
+            <CampoTexto
+              ref={campoSenha}
+              id="login-senha"
+              rotulo="Senha"
+              tipo="password"
+              alternarSenha
+              autoComplete="current-password"
+              erro={erros.senha}
+              tremor={tremorDe("senha")}
+              valor={senha}
+              onValor={(valor) => {
+                setSenha(valor);
+                limparErro("senha");
+              }}
+            />
           </div>
 
           <div
@@ -486,7 +423,7 @@ export default function LoginPage() {
 
           <div className="login-divisor" style={{ display: "flex", alignItems: "center", gap: 14, margin: "clamp(14px, 2.6vh, 26px) 0" }}>
             <span style={{ flex: 1, height: 1, background: "var(--color-divider)" }} />
-            <span style={{ fontSize: 12, letterSpacing: "0.12em", textTransform: "uppercase", color: "color-mix(in srgb, var(--color-text) 46%, transparent)" }}>
+            <span style={{ fontSize: 12, letterSpacing: "0.12em", textTransform: "uppercase", color: "color-mix(in srgb, var(--color-text) 66%, transparent)" }}>
               ou
             </span>
             <span style={{ flex: 1, height: 1, background: "var(--color-divider)" }} />
@@ -520,9 +457,9 @@ export default function LoginPage() {
 
           <p className="login-criar" style={{ margin: "clamp(14px, 2.8vh, 28px) 0 0", fontSize: 14.5, lineHeight: 1.6, color: "color-mix(in srgb, var(--color-text) 66%, transparent)" }}>
             Ainda não tem conta?{" "}
-            <a href="#" className="login-link-animado">
-              Criar acesso em três passos
-            </a>
+            <Link href="/cadastro" className="login-link-animado">
+              Criar conta
+            </Link>
           </p>
         </form>
       </div>
@@ -535,7 +472,7 @@ export default function LoginPage() {
           textAlign: "center",
           gap: "4px 22px",
           fontSize: 12.5,
-          color: "color-mix(in srgb, var(--color-text) 50%, transparent)",
+          color: "color-mix(in srgb, var(--color-text) 66%, transparent)",
         }}
       >
         {/* páginas de termos e privacidade ainda não existem */}

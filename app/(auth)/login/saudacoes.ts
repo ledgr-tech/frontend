@@ -1,6 +1,6 @@
 // Mensagens de boas-vindas da tela de login — neutras em gênero, uma por visita.
 export const SAUDACOES: readonly string[] = [
-  "Boas-vindas de volta.",
+  "Bom ver você de novo.",
   "Que bom ter você aqui.",
   "Vamos fechar o mês?",
   "O fechamento começa aqui.",

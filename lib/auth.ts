@@ -18,17 +18,26 @@ export type ResultadoAutenticacao = { ok: true; sessao: Session } | { ok: false;
 
 type Tentativas = { falhas: number; bloqueadoAte: number };
 
-export function login(email: string): Session {
+export type OpcoesSessao = {
+  /** "Manter sessão ativa": sem ela, a sessão fica só nesta aba e some quando a aba fecha */
+  manterSessao?: boolean;
+};
+
+export function login(email: string, { manterSessao = true }: OpcoesSessao = {}): Session {
   const session: Session = { email };
   if (typeof window !== "undefined") {
-    window.localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+    const [guardar, descartar] = manterSessao
+      ? [window.localStorage, window.sessionStorage]
+      : [window.sessionStorage, window.localStorage];
+    descartar.removeItem(SESSION_KEY);
+    guardar.setItem(SESSION_KEY, JSON.stringify(session));
   }
   return session;
 }
 
 export function getSession(): Session | null {
   if (typeof window === "undefined") return null;
-  const raw = window.localStorage.getItem(SESSION_KEY);
+  const raw = window.localStorage.getItem(SESSION_KEY) ?? window.sessionStorage.getItem(SESSION_KEY);
   if (!raw) return null;
   try {
     return JSON.parse(raw) as Session;
@@ -40,6 +49,7 @@ export function getSession(): Session | null {
 export function logout(): void {
   if (typeof window !== "undefined") {
     window.localStorage.removeItem(SESSION_KEY);
+    window.sessionStorage.removeItem(SESSION_KEY);
   }
 }
 
@@ -63,7 +73,11 @@ function salvarTentativas(tentativas: Tentativas | null): void {
  * Autenticação simulada: só a CONTA_TESTE entra. Mesma forma de resultado que uma API real devolveria,
  * para a tela já tratar cada erro no lugar certo.
  */
-export function autenticar(email: string, senha: string, agora: number = Date.now()): ResultadoAutenticacao {
+export function autenticar(
+  email: string,
+  senha: string,
+  { agora = Date.now(), manterSessao = true }: OpcoesSessao & { agora?: number } = {},
+): ResultadoAutenticacao {
   const tentativas = lerTentativas();
   if (tentativas.bloqueadoAte > agora) return { ok: false, erro: "muitas_tentativas" };
 
@@ -80,5 +94,5 @@ export function autenticar(email: string, senha: string, agora: number = Date.no
   }
 
   salvarTentativas(null);
-  return { ok: true, sessao: login(CONTA_TESTE.email) };
+  return { ok: true, sessao: login(CONTA_TESTE.email, { manterSessao }) };
 }
