@@ -7,6 +7,8 @@
   --color-accent: #b68235;
   --color-accent-2: #ac803e;
   --color-divider: color-mix(in srgb, #201f1d 16%, transparent);
+  /* erro de formulário: terracota que conversa com o dourado (contraste ~5:1 sobre o fundo claro) */
+  --color-erro: #a94f33;
   --ledgr-tinta: #f3f2f2;
 
   --color-neutral-100: #f8f4f4;
@@ -81,8 +83,14 @@ h3 { font-size: 30px; }
 h4 { font-size: 24px; }
 h5 { font-size: 18px; }
 h6 { font-size: 14px; letter-spacing: 0.08em; text-transform: uppercase; }
+/* quebras de linha equilibradas: títulos sem palavra sozinha na última linha, parágrafos sem órfãs */
+h1, h2, h3, h4, h5, h6, summary { text-wrap: balance; }
+p, li { text-wrap: pretty; }
+/* âncoras da landing não somem por baixo do cabeçalho fixo */
+section[id] { scroll-margin-top: 72px; }
 p { margin: 0 0 var(--space-3); }
-a { color: var(--color-accent); text-underline-offset: 3px; }
+/* textos em dourado usam o tom 700: o dourado base (#b68235) tem só 3:1 de contraste com o fundo */
+a { color: var(--color-accent-700); text-underline-offset: 3px; }
 :focus { outline: none; }
 :focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
 
@@ -126,11 +134,11 @@ a { color: var(--color-accent); text-underline-offset: 3px; }
   border-radius: var(--radius-md);
 }
 .btn:disabled { opacity: 0.45; cursor: not-allowed; }
-.btn-primary { color: var(--color-accent); border-color: var(--color-accent); }
+.btn-primary { color: var(--color-accent-700); border-color: var(--color-accent); }
 .btn-primary:hover { background: color-mix(in srgb, var(--color-accent) 12%, transparent); }
 .btn-secondary { border-color: var(--color-divider); }
 .btn-secondary:hover { background: color-mix(in srgb, var(--color-text) 7%, transparent); }
-.btn-ghost { color: var(--color-accent); padding-inline: var(--space-1); }
+.btn-ghost { color: var(--color-accent-700); padding-inline: var(--space-1); }
 .btn-ghost:hover { background: color-mix(in srgb, var(--color-accent) 10%, transparent); }
 .btn-block { width: 100%; margin-top: var(--space-2); }
 
@@ -146,11 +154,64 @@ a { color: var(--color-accent); text-underline-offset: 3px; }
 }
 .input:hover { border-color: color-mix(in srgb, var(--color-text) 45%, transparent); }
 .input:focus-visible { border-color: var(--color-accent); outline-offset: 0; }
+/* preenchimento automático do navegador sem o fundo azul/amarelo por cima do design */
+.input:-webkit-autofill {
+  -webkit-text-fill-color: var(--color-text);
+  -webkit-box-shadow: 0 0 0 1000px var(--campo-fundo, var(--color-bg)) inset;
+}
+
+/* rótulo flutuante (CampoTexto): começa dentro do campo e sobe para a borda ao focar ou preencher.
+   O placeholder é " " ou um exemplo; o exemplo só aparece depois que o rótulo sobe */
+.campo-flutuante { position: relative; }
+.campo-flutuante-rotulo {
+  position: absolute; left: 13px; top: 50%;
+  max-width: calc(100% - 26px); padding: 0 5px; border-radius: 4px;
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  font-size: 16px; line-height: 1.25; pointer-events: none;
+  color: color-mix(in srgb, var(--color-text) 66%, transparent);
+  transform: translateY(-50%); transform-origin: left center;
+  transition: top 0.18s cubic-bezier(0.22, 1, 0.36, 1), transform 0.18s cubic-bezier(0.22, 1, 0.36, 1), color 0.18s ease;
+}
+.login-senha-campo .campo-flutuante-rotulo { max-width: calc(100% - 72px); }
+.campo-flutuante .input::placeholder { color: transparent; transition: color 0.18s ease; }
+.campo-flutuante .input:focus::placeholder { color: color-mix(in srgb, var(--color-text) 64%, transparent); }
+.campo-flutuante .input:focus + .campo-flutuante-rotulo,
+.campo-flutuante .input:not(:placeholder-shown) + .campo-flutuante-rotulo {
+  top: 0; transform: translateY(-50%) scale(0.78);
+  background: var(--campo-fundo, var(--color-bg));
+}
+/* regra separada: um navegador que não conheça o seletor descarta só ela */
+.campo-flutuante .input:-webkit-autofill + .campo-flutuante-rotulo {
+  top: 0; transform: translateY(-50%) scale(0.78);
+  background: var(--campo-fundo, var(--color-bg));
+}
+.campo-flutuante .input:focus + .campo-flutuante-rotulo { color: var(--color-accent-700); }
+.campo-flutuante .input[aria-invalid="true"] + .campo-flutuante-rotulo { color: var(--color-erro); }
+.campo-flutuante .input:disabled + .campo-flutuante-rotulo { opacity: 0.6; }
+/* texto de apoio abaixo do campo (requisito da senha): mesmo lugar e medida da mensagem de erro */
+.campo-requisito {
+  display: flex; align-items: center; gap: 6px;
+  margin: 6px 0 0 4px;
+  font-size: 13.5px; line-height: 1.4;
+  color: color-mix(in srgb, var(--color-text) 66%, transparent);
+  transition: color 0.2s ease;
+}
+.campo-requisito svg {
+  flex: none; width: 15px; height: 15px;
+  fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round;
+}
+.campo-requisito[data-atendido="true"] { color: var(--color-accent-700); }
+@media (prefers-reduced-motion: reduce) {
+  .campo-flutuante-rotulo, .campo-requisito { transition: none; }
+}
 
 .card {
   display: flex; flex-direction: column; gap: var(--space-2);
   padding: var(--space-3); border-radius: var(--radius-md); background: transparent; border: 1px solid var(--color-divider);
 }
+
+/* cartão que envolve um input de arquivo invisível: o foco de teclado aparece no cartão */
+.cartao-arquivo:has(input:focus-visible) { outline: 2px solid var(--color-accent); outline-offset: 2px; }
 
 .ink-drop {
   position: absolute; z-index: 0; pointer-events: none;
@@ -205,8 +266,11 @@ a { color: var(--color-accent); text-underline-offset: 3px; }
   70% { transform: translateY(3px); opacity: 0; }
   100% { transform: translateY(0); opacity: 0; }
 }
+/* no toque não existe hover: a dica pede um toque e o ícone do mouse sai */
+.so-toque { display: none; }
 @media (hover: none) {
-  .hover-hint { display: none; }
+  .so-mouse, .hover-hint-icone { display: none; }
+  .so-toque { display: inline; }
 }
 @media (prefers-reduced-motion: reduce) {
   .hover-hint-roda, .hover-hint-icone::after { animation: none; }
@@ -218,7 +282,7 @@ a { color: var(--color-accent); text-underline-offset: 3px; }
   border-radius: calc(var(--radius-md) * 0.75);
 }
 .tag-accent { background: var(--color-accent-100); color: var(--color-accent-800); }
-.tag-outline { border: 1px solid var(--color-accent); color: var(--color-accent); }
+.tag-outline { border: 1px solid var(--color-accent); color: var(--color-accent-700); }
 
 .nav {
   display: flex; align-items: center; gap: var(--space-4);
@@ -230,7 +294,7 @@ a { color: var(--color-accent); text-underline-offset: 3px; }
   font-size: 18px; margin-right: auto;
 }
 .nav a { color: inherit; text-decoration: none; font-size: 14px; }
-.nav a:hover { color: var(--color-accent); }
+.nav a:hover { color: var(--color-accent-700); }
 
 .table { width: 100%; border-collapse: collapse; font-size: 14px; }
 .table th {
@@ -265,11 +329,11 @@ a { color: var(--color-accent); text-underline-offset: 3px; }
    stack on narrow screens instead of squeezing every column down to a
    sliver (auto-fit/minmax already handles the other landing grids). */
 .hero-grid { grid-template-columns: minmax(0, 1.06fr) minmax(0, 0.94fr); }
-.hero-provas-grid { grid-template-columns: repeat(3, 1fr); }
 .extrato-grid { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); }
 .extrato-divider { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; }
 .extrato-divider-line { width: 1px; flex: 1; background: var(--color-divider); }
 .hero-illustration { border-left: 1px solid var(--color-divider); padding-left: 30px; }
+.login-senha-campo { display: flex; align-items: center; }
 .login-ver-senha {
   position: absolute; right: 8px; cursor: pointer;
   display: grid; place-items: center; width: 36px; height: 36px; padding: 0;
@@ -277,6 +341,68 @@ a { color: var(--color-accent); text-underline-offset: 3px; }
   background: transparent; color: var(--color-accent-700);
 }
 .login-ver-senha svg { width: 22px; height: 22px; }
+
+/* olho do mascote: pisca ao alternar, pisca sozinho de vez em quando e ergue a sobrancelha no hover */
+.olho-mascote .olho-sobrancelha,
+.olho-mascote .olho-aberto,
+.olho-mascote .olho-fechado {
+  transform-box: fill-box; transform-origin: 50% 50%;
+  transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.18s ease;
+}
+.olho-mascote .olho-fechado { opacity: 0; transform: translateY(-1.5px) scaleY(0.6); }
+.olho-mascote[data-estado="fechado"] .olho-aberto { opacity: 0; transform: scaleY(0.1); }
+.olho-mascote[data-estado="fechado"] .olho-fechado { opacity: 1; transform: none; }
+.olho-mascote[data-estado="aberto"] .olho-aberto { animation: olho-piscar 6s ease-in-out 2.5s infinite; }
+@keyframes olho-piscar {
+  0%, 92%, 100% { transform: scaleY(1); }
+  95% { transform: scaleY(0.1); }
+}
+.login-ver-senha:hover .olho-sobrancelha,
+.login-ver-senha:focus-visible .olho-sobrancelha { transform: translateY(-1.4px); }
+
+/* ao digitar a senha o olho salta da cara como nos desenhos antigos: espreme, estica, balança como
+   mola e fica projetado enquanto há foco; a sobrancelha dispara e os riscos de impacto piscam */
+.olho-mascote {
+  overflow: visible;
+  transform-origin: 50% 55%;
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), filter 0.3s ease;
+}
+.olho-mascote .olho-impacto { opacity: 0; transform-box: fill-box; transform-origin: 50% 50%; }
+.login-senha-campo:focus-within .olho-mascote {
+  transform: scale(1.35);
+  filter: drop-shadow(0 2px 2px color-mix(in srgb, var(--color-accent) 35%, transparent));
+  animation: olho-saltar 0.75s ease-out;
+}
+.login-senha-campo:focus-within .olho-sobrancelha {
+  transform: translateY(-1.4px);
+  animation: sobrancelha-saltar 0.75s ease-out;
+}
+.login-senha-campo:focus-within .olho-impacto { animation: olho-impacto 0.75s ease-out; }
+@keyframes olho-saltar {
+  0% { transform: scale(1, 1); }
+  12% { transform: scale(0.82, 1.18); }
+  34% { transform: translateY(-2px) scale(2.3, 2.1); }
+  50% { transform: translateY(-1px) scale(1.6, 1.95); }
+  64% { transform: scale(1.95, 1.6); }
+  78% { transform: scale(1.4, 1.55); }
+  90% { transform: scale(1.42, 1.3); }
+  100% { transform: scale(1.35, 1.35); }
+}
+@keyframes sobrancelha-saltar {
+  0%, 12% { transform: translateY(0); }
+  34% { transform: translateY(-5px); }
+  55% { transform: translateY(-0.5px); }
+  75% { transform: translateY(-2.4px); }
+  100% { transform: translateY(-1.4px); }
+}
+@keyframes olho-impacto {
+  0%, 22% { opacity: 0; transform: scale(0.6); }
+  36% { opacity: 1; transform: scale(1.15); }
+  65%, 100% { opacity: 0; transform: scale(1.4); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .olho-mascote, .olho-mascote * { animation: none !important; transition: none !important; }
+}
 .login-ver-senha:hover { border-color: var(--color-accent); }
 .login-link:hover { border-bottom-color: var(--color-accent) !important; }
 .login-voltar {
@@ -286,24 +412,368 @@ a { color: var(--color-accent); text-underline-offset: 3px; }
 }
 .login-voltar:hover { border-color: var(--color-accent); color: var(--color-accent-700); }
 
+/* celular baixo (ex.: 360x640): compacta o login para caber sem rolagem, mesmo com mensagens de erro.
+   Só em telas estreitas, para não mexer no layout de notebooks com pouca altura útil */
+@media (max-height: 700px) and (max-width: 480px) {
+  .login-eyebrow { display: none !important; }
+  .login-form .input { min-height: 44px !important; padding-top: 9px !important; padding-bottom: 9px !important; }
+  .login-divisor { margin: 8px 0 !important; }
+  .login-criar { margin-top: 8px !important; }
+  .login-form .campo-erro { margin-top: 4px; }
+}
+
+/* cadastro: formulário à esquerda e o mascote do passo acompanhando à direita, com a dica embaixo.
+   Em telas estreitas a coluna do mascote some para o formulário caber sem rolagem */
+.cadastro-grid {
+  display: grid; grid-template-columns: minmax(0, 424px) 340px; gap: 120px;
+  align-items: center; width: 100%; max-width: 884px;
+}
+.cadastro-lado {
+  display: flex; flex-direction: column; align-items: center; gap: clamp(8px, 1.6vh, 16px); text-align: center;
+}
+/* mascote grande e apagado, no mesmo espírito da marca d'água do "Como funciona" da landing; a dica fica logo abaixo */
+.cadastro-mascote-fundo {
+  pointer-events: none;
+  /* pouco mais largo que a coluna (340px): mantém o respiro até o formulário e não cruza a linha da direita */
+  width: clamp(240px, 44vh, 380px);
+  animation: cadastro-mascote-entrar 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.cadastro-mascote { display: block; width: 100%; height: auto; opacity: 0.1; }
+.cadastro-dica {
+  max-width: 34ch; padding-top: 16px; border-top: 1px solid var(--color-divider);
+  animation: cadastro-dica-entrar 0.5s 0.08s both cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes cadastro-mascote-entrar {
+  from { opacity: 0; transform: translateY(16px) scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes cadastro-dica-entrar {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+/* abaixo de 1000px o conjunto (884px + margens) não cabe lado a lado: a coluna do mascote some */
+@media (max-width: 1000px) {
+  .cadastro-grid { grid-template-columns: minmax(0, 424px); justify-content: center; }
+  .cadastro-lado { display: none; }
+}
+/* notebook com pouca altura útil (ex.: 1366x657): campos e espaços um pouco menores para os três erros
+   e o aceite dos termos do passo de acesso caberem sem rolagem */
+@media (max-height: 700px) {
+  .cadastro-grid .input { min-height: 44px !important; padding-top: 9px !important; padding-bottom: 9px !important; }
+  .cadastro-campos { gap: 8px !important; }
+  .cadastro-grid .campo-erro, .cadastro-grid .campo-requisito { margin-top: 3px; }
+  .cadastro-acoes, .cadastro-etapas, .cadastro-entrar { margin-top: 10px !important; }
+  .cadastro-consentimento { margin-top: 8px !important; }
+}
+/* celular baixo (ex.: 360x640): texto do passo e aceite um pouco menores para os erros caberem sem rolagem */
+@media (max-height: 700px) and (max-width: 480px) {
+  .cadastro-texto { font-size: 14px !important; line-height: 1.5 !important; margin-bottom: 10px !important; }
+  .cadastro-consentimento { font-size: 12px !important; line-height: 1.4 !important; margin-top: 6px !important; }
+  .cadastro-acoes, .cadastro-etapas, .cadastro-entrar { margin-top: 8px !important; }
+}
+/* celular: o topo cabe em uma linha (marca e "Voltar ao site"), sem o rótulo da tela, que quebrava em duas */
+@media (max-width: 480px) {
+  .moldura-rotulo { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cadastro-mascote, .cadastro-dica { animation: none; }
+}
+
+/* transição entre telas (ViewTransition do React, disparada pelas navegações do Next):
+   a tela que sai some rápido e a nova sobe com fade, na mesma curva das animações da landing */
+::view-transition-old(.tela) {
+  animation: 160ms ease-in both tela-sumir;
+}
+::view-transition-new(.tela) {
+  animation: 320ms cubic-bezier(0.22, 1, 0.36, 1) 120ms both tela-surgir;
+}
+@keyframes tela-sumir {
+  to { opacity: 0; filter: blur(2px); }
+}
+@keyframes tela-surgir {
+  from { opacity: 0; transform: translateY(12px); filter: blur(2px); }
+  to { opacity: 1; transform: none; filter: blur(0); }
+}
+/* cliques durante a transição chegam à página nova */
+::view-transition { pointer-events: none; }
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(*),
+  ::view-transition-new(*),
+  ::view-transition-group(*) {
+    animation-duration: 0s !important;
+    animation-delay: 0s !important;
+  }
+}
+
 /* rótulo só para leitor de tela: some da tela mas mantém o nome acessível do campo */
 .sr-only {
   position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
   overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
 }
 
+/* link do login cujo traço dourado "carrega" da esquerda para a direita no hover */
+.login-link-animado {
+  color: var(--color-accent-700); text-decoration: none; padding-bottom: 2px;
+  background-image:
+    linear-gradient(var(--color-accent), var(--color-accent)),
+    linear-gradient(var(--color-divider), var(--color-divider));
+  background-repeat: no-repeat;
+  background-position: 0 100%, 0 100%;
+  background-size: 0% 1px, 100% 1px;
+  transition: background-size 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.login-link-animado:hover,
+.login-link-animado:focus-visible { background-size: 100% 1px, 100% 1px; }
+button.login-link-animado { border: 0; background-color: transparent; font: inherit; padding: 0 0 2px; cursor: pointer; }
+@media (prefers-reduced-motion: reduce) {
+  .login-link-animado { transition: none; }
+}
+
+/* botão Google do login: mostra só o símbolo; no hover a metade esquerda vira um painel com as cores
+   da marca em faixas inclinadas (cores fixas, fora dos tokens por serem do Google) e o símbolo
+   desliza para o centro da metade direita */
+.login-google { position: relative; overflow: hidden; width: 100%; min-height: 44px; padding: 0; }
+.login-google-simbolo {
+  position: absolute; inset: 0; display: grid; place-items: center;
+  transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.login-google-simbolo svg { width: 22px; height: 22px; }
+/* "G" sempre com as cores do Google, parado e no hover */
+.login-google-simbolo .g-azul { fill: #4285f4; }
+.login-google-simbolo .g-vermelho { fill: #ea4335; }
+.login-google-simbolo .g-amarelo { fill: #fbbc05; }
+.login-google-simbolo .g-verde { fill: #34a853; }
+
+/* painel começa 10px antes da borda: com a inclinação ancorada na base, as quatro faixas ficam
+   com a mesma largura visível na altura do meio do botão */
+.login-google-painel {
+  position: absolute; top: 0; bottom: 0; left: -10px; width: calc(50% + 10px);
+  display: flex;
+  transform: translateX(-110%);
+  transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.login-google-faixa {
+  flex: 1 1 0;
+  transform: skewX(-25deg); transform-origin: 0 100%;
+}
+/* a inclinação empurra o topo da primeira faixa para a direita: a sombra da mesma cor preenche a
+   cunha do canto superior esquerdo (a sobra fica fora do botão e é cortada pelo overflow) */
+.login-google-faixa.g-azul { background: #4285f4; box-shadow: -24px 0 0 #4285f4; }
+.login-google-faixa.g-vermelho { background: #ea4335; }
+.login-google-faixa.g-amarelo { background: #fbbc05; }
+.login-google-faixa.g-verde { background: #34a853; }
+
+.login-google:not(:disabled):hover .login-google-painel,
+.login-google:not(:disabled):focus-visible .login-google-painel { transform: translateX(0); }
+.login-google:not(:disabled):hover .login-google-simbolo,
+.login-google:not(:disabled):focus-visible .login-google-simbolo { transform: translateX(25%); }
+@media (prefers-reduced-motion: reduce) {
+  .login-google-simbolo, .login-google-painel { transition: none; }
+}
+
+/* recuperar senha: fundo desfocado (sobre o .dialog-backdrop) e card no estilo do detalhe do comparativo */
+.recuperar-fundo {
+  background: color-mix(in srgb, var(--color-bg) 45%, transparent);
+  /* só a propriedade padrão: o pipeline de CSS gera o prefixo -webkit- sozinho.
+     Declarar os dois fazia o build manter apenas o prefixado, que o Chrome ignora */
+  backdrop-filter: blur(10px);
+}
+.recuperar-card {
+  position: relative; overflow: hidden;
+  width: min(400px, 100%);
+  padding: 22px 24px;
+  border: 1px solid var(--color-divider); border-radius: var(--radius-md);
+  background: var(--color-surface); box-shadow: var(--shadow-lg);
+  /* fundo atrás do rótulo flutuante quando ele sobe para a borda do campo */
+  --campo-fundo: var(--color-surface);
+}
+.recuperar-carregando {
+  position: absolute; top: 0; left: 0; height: 2px;
+  background: var(--color-accent);
+}
+
+/* erros de formulário (login e recuperação de senha): borda terracota no campo, mensagem logo abaixo
+   com ícone, e um tremor curto que recomeça a cada erro (data-tremor alterna entre "a" e "b") */
+.input[aria-invalid="true"],
+.input[aria-invalid="true"]:hover,
+.input[aria-invalid="true"]:focus-visible {
+  border-color: var(--color-erro);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-erro) 12%, transparent);
+}
+.campo-flutuante[data-tremor="a"] { animation: campo-tremor-a 0.36s cubic-bezier(0.36, 0.07, 0.19, 0.97); }
+.campo-flutuante[data-tremor="b"] { animation: campo-tremor-b 0.36s cubic-bezier(0.36, 0.07, 0.19, 0.97); }
+@keyframes campo-tremor-a { 20%, 60% { transform: translateX(-4px); } 40%, 80% { transform: translateX(4px); } }
+@keyframes campo-tremor-b { 20%, 60% { transform: translateX(-4px); } 40%, 80% { transform: translateX(4px); } }
+.campo-erro {
+  display: flex; align-items: flex-start; gap: 6px;
+  margin: 6px 0 0 4px;
+  font-size: 13.5px; line-height: 1.4; color: var(--color-erro);
+  animation: campo-erro-surgir 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.campo-erro svg {
+  flex: none; width: 15px; height: 15px; margin-top: 1.5px;
+  fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round;
+}
+@keyframes campo-erro-surgir {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .campo-flutuante[data-tremor], .campo-erro { animation: none; }
+}
+
+/* cursor da saudação digitada no login */
+.login-cursor {
+  display: inline-block; width: 2px; height: 0.9em; margin-left: 3px; vertical-align: -0.08em;
+  background: var(--color-accent);
+  animation: login-cursor-pisca 1s steps(1) infinite;
+}
+@keyframes login-cursor-pisca { 50% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .login-cursor { animation: none; }
+}
+
 /* no tablet os dois painéis lado a lado cortam todas as descrições — empilha antes */
 @media (max-width: 900px) {
-  .extrato-grid { grid-template-columns: 1fr; }
+  /* minmax(0, …): sem ele o painel cresce até o tamanho das linhas e estoura a tela de 320px */
+  .extrato-grid { grid-template-columns: minmax(0, 1fr); }
   .extrato-divider { flex-direction: row; padding: 4px 0; }
   .extrato-divider-line { width: auto; height: 1px; }
 }
 
-@media (max-width: 680px) {
-  .hero-grid, .hero-provas-grid { grid-template-columns: 1fr; }
+/* ---------- landing em telas menores ---------- */
+
+/* cabeçalho: acima de 960px, navegação completa; abaixo, a marca vai para a direita e abre um menu de opções */
+.site-menu-botao { display: none; }
+.site-menu {
+  position: absolute; top: 100%; left: 0; right: 0;
+  max-height: calc(100dvh - 72px); overflow-y: auto;
+  padding: 4px clamp(20px, 4.2vw, 56px) 20px;
+  background: var(--color-bg);
+  border-bottom: 1px solid var(--color-divider);
+  box-shadow: var(--shadow-md);
+  animation: site-menu-abrir 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.site-menu ul { list-style: none; margin: 0; padding: 0; }
+.site-menu li + li { border-top: 1px solid var(--color-divider); }
+.site-menu-link {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 16px;
+  min-height: 56px; padding: 14px 0;
+  font-family: var(--font-heading); font-size: 22px; font-weight: 600; line-height: 1.2;
+  color: var(--color-text); text-decoration: none;
+}
+.site-menu-cap {
+  font-family: var(--font-mono); font-size: 12px; font-weight: 400;
+  letter-spacing: 0.14em; text-transform: uppercase; color: var(--color-accent-700);
+}
+.site-menu-acoes { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px; }
+.site-menu-acoes .btn { min-height: 48px; font-size: 15px; }
+@keyframes site-menu-abrir {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: none; }
+}
+/* ícone do menu = as barras do logo: a do meio some e as outras duas se cruzam em X */
+.site-menu-barras { display: block; width: 30px; height: auto; overflow: visible; }
+.site-menu-barras rect {
+  transform-box: fill-box; transform-origin: center;
+  transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.2s ease;
+}
+/* scaleY afina as barras cruzadas: com a espessura do logo o X ficava pesado */
+.site-menu-botao[aria-expanded="true"] .barra-1 { transform: translate(359px, 539px) rotate(45deg) scale(1.2, 0.62); }
+.site-menu-botao[aria-expanded="true"] .barra-2 { transform: scaleX(0); opacity: 0; }
+.site-menu-botao[aria-expanded="true"] .barra-3 { transform: translate(143px, -478px) rotate(-45deg) scale(0.86, 0.62); }
+@media (max-width: 960px) {
+  .site-nav, .site-logo-marca { display: none !important; }
+  .site-cabecalho-conteudo { padding-block: 12px !important; flex-wrap: nowrap !important; }
+  .site-menu-botao {
+    display: grid; place-items: center; flex: none;
+    width: 46px; height: 46px; margin-right: -8px; padding: 0;
+    border: 1px solid transparent; border-radius: var(--radius-sm);
+    background: transparent; color: var(--color-text); cursor: pointer;
+  }
+  .site-menu-botao:hover, .site-menu-botao[aria-expanded="true"] { border-color: var(--color-divider); }
+}
+@media (min-width: 961px) {
+  .site-menu { display: none; }
+}
+@media (max-width: 380px) {
+  .site-slogan { display: none; }
+}
+
+/* parágrafos justificados no desktop; no celular a coluna é estreita e a justificação abre buracos */
+.texto-justificado { text-align: justify; hyphens: auto; }
+
+/* grades com divisória vertical (provas do hero, em números, passos): no celular empilham com a linha em cima */
+.grade-colunas { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.grade-colunas > * { padding-inline: var(--grade-recuo, 16px); }
+.grade-colunas > :first-child { padding-left: 0; }
+.grade-colunas > * + * { border-left: 1px solid var(--grade-linha, var(--color-divider)); }
+.numeros-grade { --grade-recuo: 28px; --grade-linha: color-mix(in srgb, var(--color-neutral-100) 22%, transparent); }
+.hero-provas-grid { --grade-recuo: 16px; }
+.hero-provas-grid > * { padding-top: 18px; }
+.passos-grade { --grade-recuo: 30px; }
+.passos-grade > * { padding-block: 30px; }
+
+/* planos: cinco lado a lado; no tablet dois por linha com o "Volume" ocupando a largura; no celular um por linha */
+.planos-grade { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 1100px) {
+  .planos-grade { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .planos-grade > :last-child { grid-column: 1 / -1; }
+}
+
+@media (max-width: 900px) {
+  .hero-grid { grid-template-columns: minmax(0, 1fr); }
   .hero-illustration { border-left: none; border-top: 1px solid var(--color-divider); padding-left: 0; padding-top: 30px; margin-top: 12px; }
+}
+
+@media (max-width: 760px) {
+  .grade-colunas { grid-template-columns: minmax(0, 1fr); }
+  .grade-colunas > * { padding-inline: 0; }
+  .grade-colunas > * + * { border-left: none; border-top: 1px solid var(--grade-linha, var(--color-divider)); }
+  .numeros-grade > * { padding-block: 22px; }
+  .numeros-grade > :first-child { padding-top: 0; }
+  .numeros-grade > :last-child { padding-bottom: 0; }
+  /* provas do hero em linhas: valor à esquerda, explicação ao lado */
+  .hero-provas-grid > * { flex-direction: row !important; align-items: baseline; gap: 14px !important; padding-block: 14px; }
+  .hero-provas-grid > * > :first-child { flex: none; }
+  .passos-grade > * { padding-block: 24px; }
+
+  /* imagens de fundo e mascotes menores, para acompanharem a coluna */
+  .hero-marca { width: 380px !important; top: -40px !important; right: -130px !important; }
+  .como-marca, .convite-marca { width: 280px !important; }
+  .como-mascote { width: 170px !important; }
+  .convite-conteudo { justify-content: center; }
+  .convite-mascote { width: 160px !important; }
+  .convite-texto { flex-basis: 100% !important; padding: 24px 0 0 !important; border-left: none !important; border-top: 1px solid var(--color-accent); }
+  /* no preço o mascote sobe para trás do título, em vez de ficar por trás dos valores */
+  .preco-mascote { width: 300px !important; top: 36px !important; transform: translateX(-50%) !important; opacity: 0.07 !important; }
+}
+
+@media (max-width: 680px) {
+  .texto-justificado { text-align: left; }
   .hero-stat-card { align-self: center !important; width: 100% !important; }
-  .regra-card { grid-template-columns: 1fr !important; row-gap: 12px; }
+  .regra-card { grid-template-columns: 1fr !important; row-gap: 12px; padding: 30px 22px !important; }
+  .regra-icon { font-size: 56px !important; }
   .regra-icon-mirror { display: none; }
   .numeros-marca { display: none; }
+}
+
+/* planos no celular: um card por linha, com o preço à direita do nome, para a lista não ficar comprida */
+@media (max-width: 600px) {
+  .extrato-desc { white-space: normal !important; line-height: 1.35; }
+  .planos-grade { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .plano-card {
+    display: grid !important; grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "nome preco" "limite preco";
+    align-items: center; column-gap: 16px; row-gap: 2px !important;
+    padding: 16px 18px !important;
+  }
+  .plano-nome { grid-area: nome; }
+  .plano-limite { grid-area: limite; }
+  .plano-preco { grid-area: preco; text-align: right; font-size: 26px !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .site-menu { animation: none; }
+  .site-menu-barras rect { transition: none; }
 }

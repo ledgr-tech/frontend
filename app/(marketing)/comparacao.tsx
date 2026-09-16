@@ -115,7 +115,8 @@ function Painel({
           <>
             <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
               <span style={{ flex: "none", fontSize: 13, color: "color-mix(in srgb, var(--color-text) 50%, transparent)" }}>{linha.data}</span>
-              <span style={{ flex: 1, minWidth: 0, fontSize: 15, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {/* no celular a descrição quebra em linhas em vez de ser cortada (globals.css) */}
+              <span className="extrato-desc" style={{ flex: 1, minWidth: 0, fontSize: 15, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {linha.desc}
               </span>
               <span style={{ flex: "none", fontFamily: "var(--font-heading)", fontSize: 16.5, fontWeight: 600 }}>{valorDe(linha)}</span>

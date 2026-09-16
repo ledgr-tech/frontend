@@ -27,7 +27,7 @@ export default function NovaConciliacaoPage() {
   return (
     <div style={{ padding: "36px 0 64px", maxWidth: 1040 }}>
       <h1 style={{ margin: "0 0 4px", fontSize: 30, fontWeight: 600 }}>Nova conciliação</h1>
-      <span style={{ fontSize: 14, color: "color-mix(in srgb, var(--color-text) 55%, transparent)" }}>
+      <span style={{ fontSize: 14, color: "color-mix(in srgb, var(--color-text) 66%, transparent)" }}>
         Setembro/2026
       </span>
 
@@ -40,14 +40,14 @@ export default function NovaConciliacaoPage() {
         }}
       >
         <label
-          className="card"
-          style={{ cursor: "pointer", alignItems: "center", textAlign: "center", padding: "32px 20px" }}
+          className="card cartao-arquivo"
+          style={{ position: "relative", cursor: "pointer", alignItems: "center", textAlign: "center", padding: "32px 20px" }}
         >
           <span style={{ fontFamily: "var(--font-heading)", fontSize: 20, fontWeight: 600 }}>
             Extrato do banco
           </span>
-          <span style={{ fontSize: 14, color: "color-mix(in srgb, var(--color-text) 65%, transparent)" }}>
-            {arquivoBanco ? arquivoBanco.name : "OFX ou CSV do banco"}
+          <span style={{ fontSize: 14, color: "color-mix(in srgb, var(--color-text) 66%, transparent)" }}>
+            {arquivoBanco ? arquivoBanco.name : "Arquivo OFX ou CSV exportado do internet banking"}
           </span>
           <input
             aria-label="Extrato do banco"
@@ -58,14 +58,14 @@ export default function NovaConciliacaoPage() {
           />
         </label>
         <label
-          className="card"
-          style={{ cursor: "pointer", alignItems: "center", textAlign: "center", padding: "32px 20px" }}
+          className="card cartao-arquivo"
+          style={{ position: "relative", cursor: "pointer", alignItems: "center", textAlign: "center", padding: "32px 20px" }}
         >
           <span style={{ fontFamily: "var(--font-heading)", fontSize: 20, fontWeight: 600 }}>
             Extrato do sistema de gestão
           </span>
-          <span style={{ fontSize: 14, color: "color-mix(in srgb, var(--color-text) 65%, transparent)" }}>
-            {arquivoSistema ? arquivoSistema.name : "CSV exportado do seu sistema"}
+          <span style={{ fontSize: 14, color: "color-mix(in srgb, var(--color-text) 66%, transparent)" }}>
+            {arquivoSistema ? arquivoSistema.name : "Arquivo CSV exportado do seu sistema de gestão"}
           </span>
           <input
             aria-label="Extrato do sistema de gestão"
@@ -86,15 +86,26 @@ export default function NovaConciliacaoPage() {
         </p>
       </div>
 
-      <button
-        type="button"
-        className="btn btn-primary"
-        disabled={!podeConciliar}
-        onClick={conciliar}
-        style={{ fontSize: 15, padding: "12px 22px" }}
-      >
-        Conciliar extratos
-      </button>
+      <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "10px 16px" }}>
+        <button
+          type="button"
+          className="btn btn-primary"
+          disabled={!podeConciliar}
+          aria-describedby={podeConciliar ? undefined : "nova-conciliacao-pendente"}
+          onClick={conciliar}
+          style={{ fontSize: 15, padding: "12px 22px" }}
+        >
+          Conciliar extratos
+        </button>
+        {!podeConciliar && (
+          <span
+            id="nova-conciliacao-pendente"
+            style={{ fontSize: 14, color: "color-mix(in srgb, var(--color-text) 66%, transparent)" }}
+          >
+            Envie os dois extratos para conciliar.
+          </span>
+        )}
+      </div>
     </div>
   );
 }
