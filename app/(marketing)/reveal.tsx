@@ -24,14 +24,17 @@ export function Reveal({
   children,
   delay = 0,
   style,
+  className,
 }: {
   children: ReactNode;
   delay?: number;
   style?: CSSProperties;
+  className?: string;
 }) {
   return (
     <m.div
       data-reveal
+      className={className}
       style={style}
       initial={{ opacity: 0, scale: 0.96 }}
       whileInView={{ opacity: 1, scale: 1 }}
@@ -123,7 +126,15 @@ export function InkHover({
   );
 }
 
-export function SpotlightHover({ children, style }: { children: ReactNode; style?: CSSProperties }) {
+export function SpotlightHover({
+  children,
+  style,
+  className,
+}: {
+  children: ReactNode;
+  style?: CSSProperties;
+  className?: string;
+}) {
   const mouseX = useMotionValue(-9999);
   const mouseY = useMotionValue(-9999);
   const reducedMotion = useReducedMotion();
@@ -135,6 +146,7 @@ export function SpotlightHover({ children, style }: { children: ReactNode; style
 
   return (
     <m.div
+      className={className}
       style={{ position: "relative", overflow: "hidden", ...style, background: spotlight }}
       onMouseMove={(e) => {
         if (reducedMotion) return;
@@ -156,10 +168,12 @@ export function PlanCard({
   children,
   style,
   delay,
+  className,
 }: {
   children: ReactNode;
   style?: CSSProperties;
   delay?: number;
+  className?: string;
 }) {
   return (
     <m.div
@@ -169,7 +183,9 @@ export function PlanCard({
       viewport={{ once: false, amount: 0.15, margin: "0px 0px -60px 0px" }}
       transition={{ duration: 0.55, delay, ease: [0.22, 1, 0.36, 1] }}
     >
-      <SpotlightHover style={style}>{children}</SpotlightHover>
+      <SpotlightHover className={className} style={style}>
+        {children}
+      </SpotlightHover>
     </m.div>
   );
 }

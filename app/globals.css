@@ -83,6 +83,11 @@ h3 { font-size: 30px; }
 h4 { font-size: 24px; }
 h5 { font-size: 18px; }
 h6 { font-size: 14px; letter-spacing: 0.08em; text-transform: uppercase; }
+/* quebras de linha equilibradas: títulos sem palavra sozinha na última linha, parágrafos sem órfãs */
+h1, h2, h3, h4, h5, h6, summary { text-wrap: balance; }
+p, li { text-wrap: pretty; }
+/* âncoras da landing não somem por baixo do cabeçalho fixo */
+section[id] { scroll-margin-top: 72px; }
 p { margin: 0 0 var(--space-3); }
 /* textos em dourado usam o tom 700: o dourado base (#b68235) tem só 3:1 de contraste com o fundo */
 a { color: var(--color-accent-700); text-underline-offset: 3px; }
@@ -261,8 +266,11 @@ a { color: var(--color-accent-700); text-underline-offset: 3px; }
   70% { transform: translateY(3px); opacity: 0; }
   100% { transform: translateY(0); opacity: 0; }
 }
+/* no toque não existe hover: a dica pede um toque e o ícone do mouse sai */
+.so-toque { display: none; }
 @media (hover: none) {
-  .hover-hint { display: none; }
+  .so-mouse, .hover-hint-icone { display: none; }
+  .so-toque { display: inline; }
 }
 @media (prefers-reduced-motion: reduce) {
   .hover-hint-roda, .hover-hint-icone::after { animation: none; }
@@ -321,7 +329,6 @@ a { color: var(--color-accent-700); text-underline-offset: 3px; }
    stack on narrow screens instead of squeezing every column down to a
    sliver (auto-fit/minmax already handles the other landing grids). */
 .hero-grid { grid-template-columns: minmax(0, 1.06fr) minmax(0, 0.94fr); }
-.hero-provas-grid { grid-template-columns: repeat(3, 1fr); }
 .extrato-grid { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); }
 .extrato-divider { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; }
 .extrato-divider-line { width: 1px; flex: 1; background: var(--color-divider); }
@@ -628,16 +635,145 @@ button.login-link-animado { border: 0; background-color: transparent; font: inhe
 
 /* no tablet os dois painéis lado a lado cortam todas as descrições — empilha antes */
 @media (max-width: 900px) {
-  .extrato-grid { grid-template-columns: 1fr; }
+  /* minmax(0, …): sem ele o painel cresce até o tamanho das linhas e estoura a tela de 320px */
+  .extrato-grid { grid-template-columns: minmax(0, 1fr); }
   .extrato-divider { flex-direction: row; padding: 4px 0; }
   .extrato-divider-line { width: auto; height: 1px; }
 }
 
-@media (max-width: 680px) {
-  .hero-grid, .hero-provas-grid { grid-template-columns: 1fr; }
+/* ---------- landing em telas menores ---------- */
+
+/* cabeçalho: acima de 960px, navegação completa; abaixo, a marca vai para a direita e abre um menu de opções */
+.site-menu-botao { display: none; }
+.site-menu {
+  position: absolute; top: 100%; left: 0; right: 0;
+  max-height: calc(100dvh - 72px); overflow-y: auto;
+  padding: 4px clamp(20px, 4.2vw, 56px) 20px;
+  background: var(--color-bg);
+  border-bottom: 1px solid var(--color-divider);
+  box-shadow: var(--shadow-md);
+  animation: site-menu-abrir 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.site-menu ul { list-style: none; margin: 0; padding: 0; }
+.site-menu li + li { border-top: 1px solid var(--color-divider); }
+.site-menu-link {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 16px;
+  min-height: 56px; padding: 14px 0;
+  font-family: var(--font-heading); font-size: 22px; font-weight: 600; line-height: 1.2;
+  color: var(--color-text); text-decoration: none;
+}
+.site-menu-cap {
+  font-family: var(--font-mono); font-size: 12px; font-weight: 400;
+  letter-spacing: 0.14em; text-transform: uppercase; color: var(--color-accent-700);
+}
+.site-menu-acoes { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px; }
+.site-menu-acoes .btn { min-height: 48px; font-size: 15px; }
+@keyframes site-menu-abrir {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: none; }
+}
+/* ícone do menu = as barras do logo: a do meio some e as outras duas se cruzam em X */
+.site-menu-barras { display: block; width: 30px; height: auto; overflow: visible; }
+.site-menu-barras rect {
+  transform-box: fill-box; transform-origin: center;
+  transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.2s ease;
+}
+/* scaleY afina as barras cruzadas: com a espessura do logo o X ficava pesado */
+.site-menu-botao[aria-expanded="true"] .barra-1 { transform: translate(359px, 539px) rotate(45deg) scale(1.2, 0.62); }
+.site-menu-botao[aria-expanded="true"] .barra-2 { transform: scaleX(0); opacity: 0; }
+.site-menu-botao[aria-expanded="true"] .barra-3 { transform: translate(143px, -478px) rotate(-45deg) scale(0.86, 0.62); }
+@media (max-width: 960px) {
+  .site-nav, .site-logo-marca { display: none !important; }
+  .site-cabecalho-conteudo { padding-block: 12px !important; flex-wrap: nowrap !important; }
+  .site-menu-botao {
+    display: grid; place-items: center; flex: none;
+    width: 46px; height: 46px; margin-right: -8px; padding: 0;
+    border: 1px solid transparent; border-radius: var(--radius-sm);
+    background: transparent; color: var(--color-text); cursor: pointer;
+  }
+  .site-menu-botao:hover, .site-menu-botao[aria-expanded="true"] { border-color: var(--color-divider); }
+}
+@media (min-width: 961px) {
+  .site-menu { display: none; }
+}
+@media (max-width: 380px) {
+  .site-slogan { display: none; }
+}
+
+/* parágrafos justificados no desktop; no celular a coluna é estreita e a justificação abre buracos */
+.texto-justificado { text-align: justify; hyphens: auto; }
+
+/* grades com divisória vertical (provas do hero, em números, passos): no celular empilham com a linha em cima */
+.grade-colunas { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.grade-colunas > * { padding-inline: var(--grade-recuo, 16px); }
+.grade-colunas > :first-child { padding-left: 0; }
+.grade-colunas > * + * { border-left: 1px solid var(--grade-linha, var(--color-divider)); }
+.numeros-grade { --grade-recuo: 28px; --grade-linha: color-mix(in srgb, var(--color-neutral-100) 22%, transparent); }
+.hero-provas-grid { --grade-recuo: 16px; }
+.hero-provas-grid > * { padding-top: 18px; }
+.passos-grade { --grade-recuo: 30px; }
+.passos-grade > * { padding-block: 30px; }
+
+/* planos: cinco lado a lado; no tablet dois por linha com o "Volume" ocupando a largura; no celular um por linha */
+.planos-grade { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 1100px) {
+  .planos-grade { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .planos-grade > :last-child { grid-column: 1 / -1; }
+}
+
+@media (max-width: 900px) {
+  .hero-grid { grid-template-columns: minmax(0, 1fr); }
   .hero-illustration { border-left: none; border-top: 1px solid var(--color-divider); padding-left: 0; padding-top: 30px; margin-top: 12px; }
+}
+
+@media (max-width: 760px) {
+  .grade-colunas { grid-template-columns: minmax(0, 1fr); }
+  .grade-colunas > * { padding-inline: 0; }
+  .grade-colunas > * + * { border-left: none; border-top: 1px solid var(--grade-linha, var(--color-divider)); }
+  .numeros-grade > * { padding-block: 22px; }
+  .numeros-grade > :first-child { padding-top: 0; }
+  .numeros-grade > :last-child { padding-bottom: 0; }
+  /* provas do hero em linhas: valor à esquerda, explicação ao lado */
+  .hero-provas-grid > * { flex-direction: row !important; align-items: baseline; gap: 14px !important; padding-block: 14px; }
+  .hero-provas-grid > * > :first-child { flex: none; }
+  .passos-grade > * { padding-block: 24px; }
+
+  /* imagens de fundo e mascotes menores, para acompanharem a coluna */
+  .hero-marca { width: 380px !important; top: -40px !important; right: -130px !important; }
+  .como-marca, .convite-marca { width: 280px !important; }
+  .como-mascote { width: 170px !important; }
+  .convite-conteudo { justify-content: center; }
+  .convite-mascote { width: 160px !important; }
+  .convite-texto { flex-basis: 100% !important; padding: 24px 0 0 !important; border-left: none !important; border-top: 1px solid var(--color-accent); }
+  /* no preço o mascote sobe para trás do título, em vez de ficar por trás dos valores */
+  .preco-mascote { width: 300px !important; top: 36px !important; transform: translateX(-50%) !important; opacity: 0.07 !important; }
+}
+
+@media (max-width: 680px) {
+  .texto-justificado { text-align: left; }
   .hero-stat-card { align-self: center !important; width: 100% !important; }
-  .regra-card { grid-template-columns: 1fr !important; row-gap: 12px; }
+  .regra-card { grid-template-columns: 1fr !important; row-gap: 12px; padding: 30px 22px !important; }
+  .regra-icon { font-size: 56px !important; }
   .regra-icon-mirror { display: none; }
   .numeros-marca { display: none; }
+}
+
+/* planos no celular: um card por linha, com o preço à direita do nome, para a lista não ficar comprida */
+@media (max-width: 600px) {
+  .extrato-desc { white-space: normal !important; line-height: 1.35; }
+  .planos-grade { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .plano-card {
+    display: grid !important; grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "nome preco" "limite preco";
+    align-items: center; column-gap: 16px; row-gap: 2px !important;
+    padding: 16px 18px !important;
+  }
+  .plano-nome { grid-area: nome; }
+  .plano-limite { grid-area: limite; }
+  .plano-preco { grid-area: preco; text-align: right; font-size: 26px !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .site-menu { animation: none; }
+  .site-menu-barras rect { transition: none; }
 }

@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 
+import { CabecalhoSite } from "./cabecalho-site";
 import { ExtratoComparacao, type LinhaExtrato } from "./comparacao";
 import { InkHover, MotionRoot, PlanCard, Reveal } from "./reveal";
 
@@ -183,78 +184,14 @@ export default function LandingPage() {
   return (
     <main>
       <MotionRoot>
-      {/* header */}
-      <header
-        style={{
-          position: "sticky",
-          top: 0,
-          zIndex: 20,
-          background: "color-mix(in srgb, var(--color-bg) 92%, transparent)",
-          backdropFilter: "blur(6px)",
-          borderBottom: "1px solid var(--color-divider)",
-        }}
-      >
-        <div
-          style={{
-            maxWidth: 1600,
-            margin: "0 auto",
-            padding: "20px clamp(20px, 4.2vw, 56px)",
-            display: "flex",
-            flexWrap: "wrap",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: "16px 32px",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <Image
-              src="/mascotes/logo-barras.png"
-              alt="Ledgr"
-              width={1280}
-              height={1041}
-              sizes="32px"
-              loading="eager"
-              style={{ height: 26, width: "auto" }}
-            />
-            <span style={{ fontFamily: "var(--font-heading)", fontSize: 23, fontWeight: 600 }}>Ledgr</span>
-            <span
-              style={{
-                paddingLeft: 12,
-                borderLeft: "1px solid var(--color-divider)",
-                fontSize: 12,
-                letterSpacing: "0.12em",
-                textTransform: "uppercase",
-                color: "color-mix(in srgb, var(--color-text) 50%, transparent)",
-              }}
-            >
-              Conciliação bancária
-            </span>
-          </div>
-          <nav style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "8px 28px" }}>
-            <a href="#problema" style={{ fontSize: 15, color: "var(--color-text)", textDecoration: "none" }}>
-              O problema
-            </a>
-            <a href="#como" style={{ fontSize: 15, color: "var(--color-text)", textDecoration: "none" }}>
-              Como funciona
-            </a>
-            <a href="#preco" style={{ fontSize: 15, color: "var(--color-text)", textDecoration: "none" }}>
-              Assinatura
-            </a>
-            <Link href="/login" className="btn btn-ghost">
-              Entrar
-            </Link>
-            <Link href="/cadastro" className="btn btn-primary">
-              Começar
-            </Link>
-          </nav>
-        </div>
-      </header>
+      <CabecalhoSite />
 
       {/* hero */}
       <section style={{ position: "relative", overflow: "hidden" }}>
         <Image
           src="/mascotes/logo-barras.png"
           alt=""
+          className="hero-marca"
           aria-hidden="true"
           width={1280}
           height={1041}
@@ -288,7 +225,7 @@ export default function LandingPage() {
             position: "relative",
             maxWidth: 1600,
             margin: "0 auto",
-            padding: "108px clamp(20px, 4.2vw, 56px) 96px",
+            padding: "clamp(56px, 9vw, 108px) clamp(20px, 4.2vw, 56px) clamp(56px, 8vw, 96px)",
             display: "grid",
             gap: 56,
             alignItems: "center",
@@ -313,7 +250,7 @@ export default function LandingPage() {
               className="font-display"
               style={{
                 margin: "0 0 24px",
-                fontSize: "clamp(52px, 4.8vw, 88px)",
+                fontSize: "clamp(44px, 4.8vw, 88px)",
                 fontWeight: 400,
                 lineHeight: 1.02,
                 letterSpacing: "-0.022em",
@@ -324,13 +261,12 @@ export default function LandingPage() {
             </h1>
             <div style={{ width: 84, height: 1, background: "var(--color-accent)", marginBottom: 26 }} />
             <p
+              className="texto-justificado"
               style={{
                 margin: "0 0 34px",
                 fontSize: "clamp(16px, 1.2vw, 19px)",
                 lineHeight: 1.72,
                 maxWidth: "44ch",
-                textAlign: "justify",
-                hyphens: "auto",
               }}
             >
               Suba o extrato do banco e o extrato do seu sistema de gestão. Em minutos você recebe o
@@ -354,19 +290,11 @@ export default function LandingPage() {
                 OFX ou CSV, direto do internet banking
               </span>
             </div>
-            <div
-              className="hero-provas-grid"
-              style={{
-                display: "grid",
-                borderTop: "1px solid var(--color-divider)",
-              }}
-            >
-              {PROVAS_HERO.map((prova, i) => (
+            <div className="grade-colunas hero-provas-grid" style={{ borderTop: "1px solid var(--color-divider)" }}>
+              {PROVAS_HERO.map((prova) => (
                 <div
                   key={prova.rotulo}
                   style={{
-                    padding: `18px 16px 0 ${i === 0 ? 0 : 16}px`,
-                    borderLeft: i === 0 ? "none" : "1px solid var(--color-divider)",
                     display: "flex",
                     flexDirection: "column",
                     gap: 6,
@@ -497,7 +425,7 @@ export default function LandingPage() {
             <rect x="43" y="1060" width="1629" height="463" rx="231.5" vectorEffect="non-scaling-stroke" />
           </g>
         </svg>
-        <div style={{ position: "relative", maxWidth: 1600, margin: "0 auto", padding: "72px clamp(20px, 4.2vw, 56px)" }}>
+        <div style={{ position: "relative", maxWidth: 1600, margin: "0 auto", padding: "clamp(52px, 7vw, 72px) clamp(20px, 4.2vw, 56px)" }}>
           <Reveal>
             <InkHover
               tone="light"
@@ -517,14 +445,12 @@ export default function LandingPage() {
               </span>
             </InkHover>
           </Reveal>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: "28px 0" }}>
+          <div className="grade-colunas numeros-grade">
             {NUMEROS.map((numero, i) => (
               <Reveal
                 key={numero.rotulo}
                 delay={i * 0.08}
                 style={{
-                  padding: `0 28px 0 ${i === 0 ? 0 : 28}px`,
-                  borderLeft: i === 0 ? "none" : "1px solid color-mix(in srgb, var(--color-neutral-100) 22%, transparent)",
                   display: "flex",
                   flexDirection: "column",
                   gap: 10,
@@ -533,7 +459,7 @@ export default function LandingPage() {
                 <span
                   style={{
                     fontFamily: "var(--font-display)",
-                    fontSize: 46,
+                    fontSize: "clamp(36px, 3.4vw, 46px)",
                     fontWeight: 400,
                     lineHeight: 1,
                     color: "var(--color-neutral-100)",
@@ -550,12 +476,12 @@ export default function LandingPage() {
 
       {/* o problema */}
       <section id="problema" style={{ borderTop: "1px solid var(--color-divider)" }}>
-        <div style={{ maxWidth: 1600, margin: "0 auto", padding: "96px clamp(20px, 4.2vw, 56px)" }}>
+        <div style={{ maxWidth: 1600, margin: "0 auto", padding: "clamp(64px, 9vw, 96px) clamp(20px, 4.2vw, 56px)" }}>
           <Reveal>
             <InkHover
               style={{
                 display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
+                gridTemplateColumns: "repeat(auto-fit, minmax(min(300px, 100%), 1fr))",
                 gap: "24px 48px",
                 marginBottom: 42,
               }}
@@ -567,13 +493,12 @@ export default function LandingPage() {
                 </h2>
               </div>
               <p
+                className="texto-justificado"
                 style={{
                   margin: 0,
                   alignSelf: "end",
                   fontSize: 15.5,
                   lineHeight: 1.75,
-                  textAlign: "justify",
-                  hyphens: "auto",
                 }}
               >
                 Conferir o extrato do banco contra o extrato do sistema de gestão linha a linha é lento,
@@ -602,7 +527,10 @@ export default function LandingPage() {
                   <path className="hover-hint-roda" d="M12 5v1.6" strokeWidth={1.75} />
                 </svg>
               </span>
-              <span className="hover-hint-texto">Passe o mouse sobre as linhas para ver os detalhes</span>
+              <span className="hover-hint-texto">
+                <span className="so-mouse">Passe o mouse sobre as linhas</span>
+                <span className="so-toque">Toque nas linhas</span> para ver os detalhes
+              </span>
             </div>
           </Reveal>
         </div>
@@ -617,9 +545,10 @@ export default function LandingPage() {
           width={1000}
           height={1000}
           sizes="480px"
+          className="como-marca"
           style={{ position: "absolute", top: 30, left: -40, width: 480, height: "auto", opacity: 0.07, pointerEvents: "none" }}
         />
-        <div style={{ position: "relative", maxWidth: 1600, margin: "0 auto", padding: "96px clamp(20px, 4.2vw, 56px)" }}>
+        <div style={{ position: "relative", maxWidth: 1600, margin: "0 auto", padding: "clamp(64px, 9vw, 96px) clamp(20px, 4.2vw, 56px)" }}>
           <Reveal>
             <InkHover
               style={{
@@ -643,24 +572,17 @@ export default function LandingPage() {
                 width={1000}
                 height={1000}
                 sizes="240px"
+                className="como-mascote"
                 style={{ flex: "none", width: 240, height: "auto" }}
               />
             </InkHover>
           </Reveal>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
-              borderTop: "1px solid var(--color-divider)",
-            }}
-          >
+          <div className="grade-colunas passos-grade" style={{ borderTop: "1px solid var(--color-divider)" }}>
             {PASSOS.map((passo, i) => (
               <Reveal
                 key={passo.num}
                 delay={i * 0.1}
                 style={{
-                  padding: `30px 30px 30px ${i === 0 ? 0 : 30}px`,
-                  borderLeft: i === 0 ? "none" : "1px solid var(--color-divider)",
                   display: "flex",
                   flexDirection: "column",
                   gap: 12,
@@ -683,7 +605,7 @@ export default function LandingPage() {
                 <div style={{ fontFamily: "var(--font-heading)", fontSize: 22, fontWeight: 600, lineHeight: 1.2 }}>
                   {passo.titulo}
                 </div>
-                <div style={{ fontSize: 15, lineHeight: 1.72, textAlign: "justify", hyphens: "auto" }}>
+                <div className="texto-justificado" style={{ fontSize: 15, lineHeight: 1.72 }}>
                   {passo.texto}
                 </div>
               </Reveal>
@@ -694,7 +616,7 @@ export default function LandingPage() {
 
       {/* regra de ouro */}
       <section id="regra" style={{ borderTop: "1px solid var(--color-divider)" }}>
-        <div style={{ maxWidth: 1600, margin: "0 auto", padding: "96px clamp(20px, 4.2vw, 56px)" }}>
+        <div style={{ maxWidth: 1600, margin: "0 auto", padding: "clamp(64px, 9vw, 96px) clamp(20px, 4.2vw, 56px)" }}>
           <Reveal>
             <InkHover
               className="regra-card"
@@ -756,14 +678,16 @@ export default function LandingPage() {
           width={1000}
           height={1000}
           sizes="480px"
+          className="convite-marca"
           style={{ position: "absolute", bottom: 20, right: 24, width: 480, height: "auto", opacity: 0.07, pointerEvents: "none" }}
         />
         <div
+          className="convite-conteudo"
           style={{
             position: "relative",
             maxWidth: 1600,
             margin: "0 auto",
-            padding: "96px clamp(20px, 4.2vw, 56px)",
+            padding: "clamp(64px, 9vw, 96px) clamp(20px, 4.2vw, 56px)",
             display: "flex",
             flexWrap: "wrap",
             gap: "32px 48px",
@@ -777,22 +701,22 @@ export default function LandingPage() {
               width={1000}
               height={1000}
               sizes="220px"
+              className="convite-mascote"
               style={{ width: 220, height: "auto", display: "block" }}
             />
           </InkHover>
-          <Reveal delay={0.1} style={{ flex: "1 1 420px", minWidth: 0, paddingLeft: 32, borderLeft: "1px solid var(--color-accent)" }}>
+          <Reveal delay={0.1} className="convite-texto" style={{ flex: "1 1 420px", minWidth: 0, paddingLeft: 32, borderLeft: "1px solid var(--color-accent)" }}>
             <h6 className="eyebrow" style={{ margin: "0 0 12px", color: "var(--color-accent-700)" }}>Sem configuração</h6>
             <h2 style={{ margin: "0 0 16px", fontSize: "clamp(26px, 2.4vw, 40px)", fontWeight: 400, lineHeight: 1.12 }}>
               Suba os arquivos e veja as divergências em minutos.
             </h2>
             <p
+              className="texto-justificado"
               style={{
                 margin: "0 0 18px",
                 fontSize: 15.5,
                 lineHeight: 1.75,
                 maxWidth: "66ch",
-                textAlign: "justify",
-                hyphens: "auto",
               }}
             >
               O Ledgr aceita OFX e CSV de qualquer banco. Suba o extrato do banco, suba o razão do
@@ -800,13 +724,12 @@ export default function LandingPage() {
               sem integração pra configurar, sem instalar nada.
             </p>
             <p
+              className="texto-justificado"
               style={{
                 margin: "0 0 22px",
                 fontSize: 15.5,
                 lineHeight: 1.75,
                 maxWidth: "66ch",
-                textAlign: "justify",
-                hyphens: "auto",
               }}
             >
               Cada divergência vem nomeada: sem correspondente, valor divergente, data divergente,
@@ -822,7 +745,7 @@ export default function LandingPage() {
 
       {/* perguntas */}
       <section id="perguntas" style={{ borderTop: "1px solid var(--color-divider)" }}>
-        <div style={{ maxWidth: 1600, margin: "0 auto", padding: "96px clamp(20px, 4.2vw, 56px)" }}>
+        <div style={{ maxWidth: 1600, margin: "0 auto", padding: "clamp(64px, 9vw, 96px) clamp(20px, 4.2vw, 56px)" }}>
           <Reveal style={{ marginBottom: 34 }}>
             <h2 style={{ margin: 0, fontSize: "clamp(26px, 2.4vw, 40px)", fontWeight: 400, lineHeight: 1.1 }}>
               Perguntas que sempre aparecem
@@ -868,6 +791,7 @@ export default function LandingPage() {
           width={1000}
           height={1000}
           sizes="520px"
+          className="preco-mascote"
           style={{
             position: "absolute",
             top: "50%",
@@ -884,7 +808,7 @@ export default function LandingPage() {
             position: "relative",
             maxWidth: 1600,
             margin: "0 auto",
-            padding: "108px clamp(20px, 4.2vw, 56px)",
+            padding: "clamp(72px, 10vw, 108px) clamp(20px, 4.2vw, 56px)",
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
@@ -914,10 +838,8 @@ export default function LandingPage() {
             implantação, sem cobrar por usuário.
           </p>
           <div
+            className="planos-grade"
             style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-              gap: 16,
               width: "100%",
               maxWidth: 1180,
               marginTop: 14,
@@ -928,6 +850,7 @@ export default function LandingPage() {
               <PlanCard
                 key={plano.nome}
                 delay={0.1 + i * 0.07}
+                className="plano-card"
                 style={{
                   display: "flex",
                   flexDirection: "column",
@@ -941,13 +864,15 @@ export default function LandingPage() {
                   borderRadius: "var(--radius-md)",
                 }}
               >
-                <span style={{ fontFamily: "var(--font-heading)", fontSize: 19, fontWeight: 600, color: "var(--ledgr-tinta)" }}>
+                <span className="plano-nome" style={{ fontFamily: "var(--font-heading)", fontSize: 19, fontWeight: 600, color: "var(--ledgr-tinta)" }}>
                   {plano.nome}
                 </span>
-                <span style={{ fontFamily: "var(--font-display)", fontSize: 30, fontWeight: 600, lineHeight: 1, color: "var(--ledgr-tinta)" }}>
+                <span className="plano-preco" style={{ fontFamily: "var(--font-display)", fontSize: 30, fontWeight: 600, lineHeight: 1, color: "var(--ledgr-tinta)" }}>
                   {plano.preco}
                 </span>
-                <span style={{ fontSize: 13.5, lineHeight: 1.6, color: "var(--color-neutral-400)" }}>{plano.limite}</span>
+                <span className="plano-limite" style={{ fontSize: 13.5, lineHeight: 1.6, color: "var(--color-neutral-400)" }}>
+                  {plano.limite}
+                </span>
               </PlanCard>
             ))}
           </div>

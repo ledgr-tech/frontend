@@ -66,6 +66,12 @@ describe("LandingPage", () => {
     expect(screen.getByText(/juros por atraso/)).toBeInTheDocument();
   });
 
+  it("tells mouse users to hover and touch users to tap the comparison lines", () => {
+    render(<LandingPage />);
+    expect(screen.getByText("Passe o mouse sobre as linhas")).toHaveClass("so-mouse");
+    expect(screen.getByText("Toque nas linhas")).toHaveClass("so-toque");
+  });
+
   it("does not treat a matched (Batido) line as clickable", () => {
     render(<LandingPage />);
 
