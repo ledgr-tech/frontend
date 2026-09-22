@@ -18,6 +18,9 @@ import {
   statusDaLinha,
   valorDaLinha,
 } from "./resumo";
+// ponytail: primitivas de UI compartilhadas que hoje moram em (marketing) por
+// terem nascido na landing. Se uma terceira tela usar, aí vale mudar de lugar.
+import { InkHover, MotionRoot, Reveal, SpotlightHover } from "@/app/(marketing)/reveal";
 
 // Copy do design ("sugestoes" em Ledgr.dc.html). São leituras de padrão entre
 // competências — o mock tem uma competência só, então o texto é fixo até existir
@@ -69,7 +72,7 @@ export default function DashboardPage() {
   const lancamentos = conciliacoes.flatMap((conciliacao) => conciliacao.linhas).slice(0, 7);
 
   return (
-    <div>
+    <MotionRoot>
       <div className="dash-cabecalho">
         <div>
           <h1 style={{ margin: "0 0 4px", fontSize: 30, fontWeight: 600 }}>{EMPRESA_MOCK}</h1>
@@ -99,14 +102,16 @@ export default function DashboardPage() {
             gap: 18,
           }}
         >
-          <Image
-            src="/mascotes/mascote-sentado.png"
-            alt="Mascote Ledgr sentado com uma folha"
-            width={1000}
-            height={1000}
-            sizes="250px"
-            style={{ width: 250, height: "auto" }}
-          />
+          <InkHover style={{ flex: "none" }}>
+            <Image
+              src="/mascotes/mascote-sentado.png"
+              alt="Mascote Ledgr sentado com uma folha"
+              width={1000}
+              height={1000}
+              sizes="250px"
+              style={{ width: 250, height: "auto", display: "block" }}
+            />
+          </InkHover>
           <h2
             style={{ margin: 0, fontSize: 32, fontWeight: 400, maxWidth: "24ch", textWrap: "balance" }}
           >
@@ -134,6 +139,9 @@ export default function DashboardPage() {
         </div>
       ) : (
         <div style={{ padding: "32px 0 56px", display: "flex", flexDirection: "column", gap: 36 }}>
+          {/* ponytail: o resumo não entra no reveal. É o dado principal da tela e
+              fica acima da dobra — se o observer ou o rAF não rodarem, os números
+              não podem ficar invisíveis. O que está abaixo da dobra pode animar. */}
           <div className="grade-colunas dash-resumo">
             <div>
               <span className="dash-rotulo">Lançamentos processados</span>
@@ -159,7 +167,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="dash-analise">
+          <Reveal once className="dash-analise">
             <div className="dash-sugestoes">
               <div
                 style={{
@@ -214,7 +222,7 @@ export default function DashboardPage() {
             </div>
 
             {resumo.semCorrespondente === 0 ? null : (
-              <div className="dash-destaque">
+              <SpotlightHover className="dash-destaque">
                 <Image
                   src="/mascotes/mascote-explicando.png"
                   alt="Mascote Ledgr apontando"
@@ -237,11 +245,11 @@ export default function DashboardPage() {
                 >
                   Revisar agora
                 </Link>
-              </div>
+              </SpotlightHover>
             )}
-          </div>
+          </Reveal>
 
-          <div>
+          <Reveal once delay={0.08}>
             <div
               style={{
                 display: "flex",
@@ -291,12 +299,12 @@ export default function DashboardPage() {
                 </tbody>
               </table>
             </div>
-          </div>
+          </Reveal>
 
           {/* ponytail: o design pensa numa competência só. Enquanto o mock cria uma
               conciliação por upload, as anteriores precisam continuar alcançáveis. */}
           {conciliacoes.length > 1 && (
-            <div>
+            <Reveal once delay={0.16}>
               <h3 style={{ margin: "0 0 12px", fontSize: 22, fontWeight: 600 }}>
                 Conciliações anteriores
               </h3>
@@ -332,10 +340,10 @@ export default function DashboardPage() {
                   ))}
                 </tbody>
               </table>
-            </div>
+            </Reveal>
           )}
         </div>
       )}
-    </div>
+    </MotionRoot>
   );
 }
