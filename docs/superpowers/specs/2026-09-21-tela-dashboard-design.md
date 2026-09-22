@@ -54,6 +54,28 @@ linha 659) tem quatro blocos que não existiam ainda:
 - Enriquecer `linhasMock()` para os números do resumo ficarem parecidos com o design.
 - "atualizado há 12 minutos" no cabeçalho: exige timestamp real de processamento.
 
+## Camada de movimento (atualização sobre o export)
+
+O export do Claude Design é de 11/09 e não conhece as primitivas que a landing e
+o login ganharam depois (`app/(marketing)/reveal.tsx`). A dashboard passou a usar:
+
+- `MotionRoot` em volta da tela;
+- `Reveal once` nos blocos de análise, tabela e anteriores, com stagger de 0,08s;
+- `SpotlightHover` no card do mascote, o mesmo dos cards de plano da landing;
+- `InkHover` no mascote do estado vazio.
+
+Duas decisões dentro disso:
+
+9. **`Reveal` ganhou `once`.** A landing reanima a cada passagem de propósito
+   (`once: false` segue o padrão); numa tela de trabalho isso irrita, então aqui
+   anima uma vez. O default não mudou, a landing não foi tocada.
+10. **O resumo fica fora do reveal.** É o dado principal e está acima da dobra —
+    se o IntersectionObserver ou o rAF não rodarem, os números não podem ficar
+    invisíveis. Só o que está abaixo da dobra anima.
+
+As primitivas continuam em `(marketing)` por terem nascido lá. Se uma terceira
+tela usar, vale mover para um lugar compartilhado.
+
 ## Verificado no navegador
 
 - **Estado vazio:** mascote sentado, sem blocos de resumo/sugestões.
