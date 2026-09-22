@@ -367,3 +367,58 @@ export const HISTORICO_MESES: MesHistorico[] = [
   { mes: "Maio 2026", lancamentos: 1288, taxaMatch: 93.4, ajusteLiquido: 6740, fechadoComRessalva: true },
   { mes: "Abril 2026", lancamentos: 1219, taxaMatch: 91.8, ajusteLiquido: 8115, fechadoComRessalva: true },
 ];
+
+// ── Avisos ───────────────────────────────────────────────────────────────────
+// Lista fixa do design (notificacoes em Ledgr.dc.html). Só o "já li" é estado.
+
+export type Aviso = {
+  id: string;
+  titulo: string;
+  texto: string;
+  quando: string;
+  nivel: Nivel;
+  /** Para onde o aviso leva, quando a tela existe. */
+  href: string | null;
+};
+
+export const AVISOS: Aviso[] = [
+  {
+    id: "extrato-outubro",
+    titulo: "Extrato de outubro disponível no banco",
+    texto: "O Sicredi liberou o arquivo do período 01–31/10.",
+    quando: "há 20 minutos",
+    nivel: "medio",
+    href: "/conciliacoes/nova",
+  },
+  {
+    id: "divergencias-pendentes",
+    titulo: "157 divergências aguardando decisão",
+    texto: "Setembro não pode ser fechado enquanto houver item pendente.",
+    quando: "há 3 horas",
+    nivel: "forte",
+    // o design manda para a comparação folha a folha, que ainda não existe
+    href: null,
+  },
+  {
+    id: "prazo-fechamento",
+    titulo: "Prazo de fechamento em 4 dias",
+    texto: "O contador pede o relatório até 05/10.",
+    quando: "ontem",
+    nivel: "leve",
+    // o design manda para o fechamento, que ainda não existe
+    href: null,
+  },
+];
+
+const AVISOS_LIDOS_KEY = "ledgr_avisos_lidos";
+
+export function avisosLidos(): boolean {
+  if (typeof window === "undefined") return false;
+  return window.localStorage.getItem(AVISOS_LIDOS_KEY) === "1";
+}
+
+export function marcarAvisosLidos(): void {
+  if (typeof window !== "undefined") {
+    window.localStorage.setItem(AVISOS_LIDOS_KEY, "1");
+  }
+}
