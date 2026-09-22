@@ -12,6 +12,8 @@ type Listas = { ativas: Regra[]; sugeridas: Regra[] };
 
 export default function RegrasPage() {
   const [listas, setListas] = useState<Listas | null>(null);
+  // qual regra acabou de trocar de lista, para ela chegar destacada
+  const [recemMexida, setRecemMexida] = useState<number | null>(null);
 
   useEffect(() => {
     // localStorage is only readable client-side; this is the standard pattern for
@@ -39,11 +41,13 @@ export default function RegrasPage() {
   function desativar(id: number) {
     desativarRegra(id);
     setListas(listarRegras());
+    setRecemMexida(id);
   }
 
   function ativar(id: number) {
     ativarRegra(id);
     setListas(listarRegras());
+    setRecemMexida(id);
   }
 
   return (
@@ -68,7 +72,11 @@ export default function RegrasPage() {
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               {listas.ativas.map((regra) => (
-                <div key={regra.id} className="regra-cartao">
+                <div
+                  key={regra.id}
+                  className="regra-cartao"
+                  data-recem={regra.id === recemMexida ? "true" : undefined}
+                >
                   <div style={{ flex: "1 1 340px", minWidth: 0 }}>
                     <div className="regra-titulo-linha">
                       <span
@@ -116,7 +124,11 @@ export default function RegrasPage() {
           ) : (
             <div style={{ borderTop: "1px solid var(--color-divider)" }}>
               {listas.sugeridas.map((regra) => (
-                <div key={regra.id} className="regra-sugerida">
+                <div
+                  key={regra.id}
+                  className="regra-sugerida"
+                  data-recem={regra.id === recemMexida ? "true" : undefined}
+                >
                   <div style={{ flex: "1 1 340px", minWidth: 0 }}>
                     <div
                       style={{

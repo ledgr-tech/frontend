@@ -40,6 +40,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang="pt-BR"
       data-scroll-behavior="smooth"
+      // o script abaixo escreve data-tema/data-densidade antes da hidratação, e o
+      // HTML do servidor não os tem — sem isto o React trata como incompatibilidade,
+      // avisa que "won't be patched up" e descarta os atributos, fazendo o tema
+      // salvo sumir no meio da sessão
+      suppressHydrationWarning
       className={`${interHeading.variable} ${interBody.variable} ${cormorantGaramond.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
       <head>

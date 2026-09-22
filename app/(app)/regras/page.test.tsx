@@ -87,6 +87,20 @@ describe("RegrasPage", () => {
     expect(ativarRegra).toHaveBeenCalledWith(2);
   });
 
+  it("marks the rule that just moved lists, so the click has a visible effect", async () => {
+    listarRegras.mockReturnValue({ ativas: [ativa], sugeridas: [sugerida] });
+    const user = userEvent.setup();
+    const { container } = render(<RegrasPage />);
+
+    expect(container.querySelector("[data-recem]")).toBeNull();
+
+    await user.click(await screen.findByRole("button", { name: "Criar regra" }));
+
+    const marcada = container.querySelector("[data-recem='true']");
+    expect(marcada).not.toBeNull();
+    expect(marcada?.textContent).toContain(sugerida.titulo);
+  });
+
   it("explains the empty state on each list instead of showing a bare heading", async () => {
     listarRegras.mockReturnValue({ ativas: [], sugeridas: [] });
     render(<RegrasPage />);

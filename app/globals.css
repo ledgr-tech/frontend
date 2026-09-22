@@ -1256,6 +1256,87 @@ html[data-densidade="compacta"] .table td { padding-block: 4px; }
 html[data-densidade="compacta"] .table th { padding-block: 6px; }
 html[data-densidade="compacta"] .selo { padding-block: 1px; }
 
+/* A regra que acabou de trocar de lista chega com um realce que apaga. É a
+   consequência do clique ficando visível: sem isso a regra some de uma lista e
+   aparece na outra sem nada ligar as duas pontas. */
+@keyframes ledgr-realce {
+  from { background: color-mix(in srgb, var(--color-accent-700) 16%, transparent); }
+  to { background: transparent; }
+}
+.regra-cartao[data-recem="true"],
+.regra-sugerida[data-recem="true"] {
+  animation: ledgr-realce 1.4s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .regra-cartao[data-recem="true"],
+  .regra-sugerida[data-recem="true"] { animation: none; }
+}
+
+/* Tabela em cartões no celular.
+   `display: block` apaga o papel implícito de tabela, então as linhas e células
+   declaram `role` no HTML — sem isso o leitor de tela perde a grade inteira e
+   passa a ler uma pilha de textos soltos. O rótulo de cada campo vem do
+   data-rotulo, que só aparece nesta largura. */
+@media (max-width: 680px) {
+  .tabela-cartoes .table,
+  .tabela-cartoes .table tbody,
+  .tabela-cartoes .table tr,
+  .tabela-cartoes .table td { display: block; width: auto; }
+
+  .tabela-cartoes .table thead { display: none; }
+
+  .tabela-cartoes .table tr {
+    border: 1px solid var(--color-divider); border-radius: var(--radius-md);
+    padding: 12px 14px; margin-bottom: 12px; background: var(--color-surface);
+  }
+
+  .tabela-cartoes .table td {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 14px;
+    border: 0; padding: 5px 0; text-align: left !important;
+  }
+
+  .tabela-cartoes .table td::before {
+    content: attr(data-rotulo); flex: none;
+    font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
+    color: color-mix(in srgb, var(--color-text) 62%, transparent);
+  }
+
+  /* a descrição é o título do cartão: ocupa a linha toda, sem rótulo */
+  .tabela-cartoes .table td[data-destaque="true"] {
+    display: block; padding-bottom: 8px; margin-bottom: 4px;
+    border-bottom: 1px solid var(--color-divider);
+    font-family: var(--font-heading); font-size: 16px; font-weight: 600;
+  }
+  .tabela-cartoes .table td[data-destaque="true"]::before { content: none; }
+
+  /* dentro do cartão a rolagem horizontal não faz mais sentido */
+  .tabela-cartoes.dash-tabela-rolagem { overflow-x: visible; }
+  .tabela-cartoes.dash-tabela-rolagem .table { min-width: 0; }
+}
+
+/* Blocos recolhíveis do app. Usa <details>/<summary> nativo — o mesmo que a
+   landing já usa no FAQ — em vez de estado em React: abre sem JS, entra na busca
+   da página pelo Ctrl+F do navegador e já vem com o teclado funcionando. */
+.recolhivel-titulo {
+  cursor: pointer; list-style: none;
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 16px;
+  padding-bottom: 12px;
+}
+.recolhivel-titulo::-webkit-details-marker { display: none; }
+.recolhivel-titulo::after {
+  content: "+"; flex: none;
+  font-family: var(--font-heading); font-size: 22px; font-weight: 400; line-height: 1;
+  color: var(--color-accent);
+  transition: transform 0.2s ease;
+}
+.recolhivel[open] > .recolhivel-titulo::after { transform: rotate(45deg); }
+.recolhivel-titulo:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 4px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .recolhivel-titulo::after { transition: none; }
+}
+
 .app-tema-botao {
   flex: none; cursor: pointer; font-family: var(--font-body); font-size: 13.5px;
   padding: 8px 13px; border-radius: var(--radius-md);

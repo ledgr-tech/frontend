@@ -295,10 +295,10 @@ export default function DashboardPage() {
                 Ver a conciliação
               </Link>
             </div>
-            <div className="dash-tabela-rolagem">
-              <table className="table">
-                <thead>
-                  <tr>
+            <div className="dash-tabela-rolagem tabela-cartoes">
+              <table className="table" role="table">
+                <thead role="rowgroup">
+                  <tr role="row">
                     <th style={{ width: 110 }}>Data</th>
                     <th>Descrição</th>
                     <th style={{ width: 140, textAlign: "right" }}>Valor</th>
@@ -306,18 +306,29 @@ export default function DashboardPage() {
                     <th style={{ width: 110, textAlign: "right" }}>Origem</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody role="rowgroup">
                   {lancamentos.map((linha) => {
                     const status = statusDaLinha(linha.status);
                     return (
-                      <tr key={linha.id}>
-                        <td className="dash-celula-fraca">{linha.data}/2026</td>
-                        <td>{linha.descricao}</td>
-                        <td className="dash-valor-celula">{formatarMoeda(valorDaLinha(linha))}</td>
-                        <td>
+                      <tr key={linha.id} role="row">
+                        <td role="cell" data-rotulo="Data" className="dash-celula-fraca">
+                          {linha.data}/2026
+                        </td>
+                        <td role="cell" data-rotulo="Descrição" data-destaque="true">
+                          {linha.descricao}
+                        </td>
+                        <td role="cell" data-rotulo="Valor" className="dash-valor-celula">
+                          {formatarMoeda(valorDaLinha(linha))}
+                        </td>
+                        <td role="cell" data-rotulo="Status">
                           <span className={`selo selo-${status.tom}`}>{status.rotulo}</span>
                         </td>
-                        <td className="dash-celula-fraca" style={{ textAlign: "right", fontSize: 14 }}>
+                        <td
+                          role="cell"
+                          data-rotulo="Origem"
+                          className="dash-celula-fraca"
+                          style={{ textAlign: "right", fontSize: 14 }}
+                        >
                           {origemDaLinha(linha)}
                         </td>
                       </tr>

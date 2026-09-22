@@ -174,10 +174,10 @@ export default function ConciliacaoPage() {
       )}
 
       <div>
-        <div className="dash-tabela-rolagem">
-          <table className="table">
-            <thead>
-              <tr>
+        <div className="dash-tabela-rolagem tabela-cartoes">
+          <table className="table" role="table">
+            <thead role="rowgroup">
+              <tr role="row">
                 <Cabecalho coluna="data" ordem={ordem} onOrdenar={alternarOrdem}>
                   Data
                 </Cabecalho>
@@ -195,13 +195,15 @@ export default function ConciliacaoPage() {
                 </Cabecalho>
               </tr>
             </thead>
-            <tbody>
+            <tbody role="rowgroup">
               {visiveis.map((linha) => {
                 const status = statusDaLinha(linha.status);
                 return (
-                  <tr key={linha.id}>
-                    <td className="dash-celula-fraca">{linha.data}</td>
-                    <td>
+                  <tr key={linha.id} role="row">
+                    <td role="cell" data-rotulo="Data" className="dash-celula-fraca">
+                      {linha.data}
+                    </td>
+                    <td role="cell" data-rotulo="Descrição" data-destaque="true">
                       {/* botão de verdade: a linha inteira com onClick não era
                           alcançável por teclado */}
                       <button
@@ -212,13 +214,13 @@ export default function ConciliacaoPage() {
                         {linha.descricao}
                       </button>
                     </td>
-                    <td className="dash-valor-celula">
+                    <td role="cell" data-rotulo="Banco" className="dash-valor-celula">
                       {linha.valorBanco !== null ? formatarMoeda(linha.valorBanco) : "—"}
                     </td>
-                    <td className="dash-valor-celula">
+                    <td role="cell" data-rotulo="Sistema" className="dash-valor-celula">
                       {linha.valorSistema !== null ? formatarMoeda(linha.valorSistema) : "—"}
                     </td>
-                    <td style={{ textAlign: "right" }}>
+                    <td role="cell" data-rotulo="Status" style={{ textAlign: "right" }}>
                       <span className={`selo selo-${status.tom}`}>{status.rotulo}</span>
                     </td>
                   </tr>

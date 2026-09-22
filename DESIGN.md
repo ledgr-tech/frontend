@@ -87,22 +87,42 @@ tabela, que é onde a densidade paga numa ferramenta de conciliação.
 
 ## Tier 3 — refinamento que cai bem neste estilo
 
-### 7. Animar a consequência, não a entrada
+### 7. Animar a consequência, não a entrada — ✅ feito
 
-Está invertido: o scroll-reveal anima a **chegada** dos blocos (padrão de
-marketing), enquanto a mudança que importa — a taxa de match saltando depois de
-uma decisão — acontece em corte seco. Numa ferramenta, motion se paga mostrando
-efeito: número interpolando, linha saindo da lista ao ser resolvida.
+Dois lugares onde algo muda de verdade no lugar:
 
-### 8. Divulgação progressiva no detalhe da divergência
+- **O valor do cartão no detalhe** interpola quando você aceita o valor do banco
+  (`app/(app)/numero-animado.tsx`). O componente **não anima ao montar**, de
+  propósito: um número que sobe do zero toda vez que a tela abre é decoração;
+  um número que sai de 12.604 para 12.640 é a resposta ao seu clique.
+- **A regra que troca de lista** chega com um realce que apaga. Sem isso ela
+  sumia de uma lista e aparecia na outra sem nada ligar as duas pontas.
 
-É um scroll longo. "Crônico, não pontual" e "Histórico do lançamento" podiam vir
-recolhidos.
+> **O que não fiz:** o scroll-reveal na chegada dos blocos continua. Removê-lo é
+> a outra metade do argumento, mas é mudança de gosto sobre algo que vocês já
+> viram e aprovaram — fica como decisão de vocês, não minha.
 
-### 9. Tabela em cartões no celular
+### 8. Divulgação progressiva no detalhe da divergência — ✅ feito
 
-Abaixo de 680px a tabela rola na horizontal. O padrão de mercado é um cartão por
-linha.
+"Crônico, não pontual" abre por padrão (é a leitura que muda o que você faz a
+seguir) e "Histórico do lançamento" vem fechado (procedência é consulta).
+
+Usa `<details>`/`<summary>` nativo, o mesmo que o FAQ da landing já usava: abre
+sem JS, entra no Ctrl+F do navegador e já vem com teclado. O CTA "Criar regra"
+saiu do `summary` para o corpo — botão dentro de `summary` vira dois alvos
+disputando o mesmo clique.
+
+### 9. Tabela em cartões no celular — ✅ feito
+
+Abaixo de 680px cada linha vira um cartão, com a descrição de título e os demais
+campos rotulados.
+
+> **Armadilha:** `display: block` numa tabela **apaga o papel implícito de
+> tabela** e o leitor de tela passa a ler uma pilha de textos soltos. As linhas e
+> células declaram `role` explicitamente para a grade sobreviver.
+
+> **Vale dizer:** o spec da landing registra que "o sistema é usado no desktop".
+> Isto é polimento de menor valor aqui do que seria num produto mobile-first.
 
 ## O que eu não traria
 
@@ -130,8 +150,13 @@ Metade do que o mercado "aprova" destruiria esta identidade.
 - O `AGENTS.md` diz que os títulos são Cormorant Garamond e o corpo é Lora. O
   `app/layout.tsx` carrega **Inter** para os dois, com Cormorant só como
   `--font-display`. A doc ficou para trás do código.
-- Em desenvolvimento, o HMR às vezes apaga o `data-tema` do `<html>` e o tema
-  parece não trocar até recarregar. Verificado contra `next start`: em produção
-  o toggle responde na hora. É artefato do dev, não do código.
+- **Corrigido depois de um diagnóstico errado:** eu tinha anotado aqui que o
+  `data-tema` sumia por causa do HMR. Não era. O script inline escreve o atributo
+  antes da hidratação, o HTML do servidor não o tem, e o React trata como
+  incompatibilidade — avisando literalmente que "won't be patched up" e
+  descartando o atributo. A correção é `suppressHydrationWarning` no `<html>`,
+  que existe exatamente para atributos escritos antes da hidratação. O teste em
+  produção passou porque lá eu cliquei o toggle *depois* da hidratação, que é um
+  caminho que nunca quebrou.
 - O diálogo de linha em `/conciliacoes/[id]` e a tela de detalhe mostram a mesma
   informação. Quando a tela provar que basta, o diálogo sai.

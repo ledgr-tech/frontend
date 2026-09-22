@@ -130,6 +130,20 @@ describe("DetalheDivergenciaPage", () => {
     );
   });
 
+  it("collapses the history by default and leaves the chronic pattern open", async () => {
+    buscarConciliacao.mockReturnValue(conciliacao);
+    const { container } = render(<DetalheDivergenciaPage />);
+
+    await screen.findByText("Crônico, não pontual");
+    const blocos = [...container.querySelectorAll("details")];
+    const cronico = blocos.find((b) => b.textContent?.includes("Crônico"));
+    const historico = blocos.find((b) => b.textContent?.includes("Histórico do lançamento"));
+
+    // o padrão crônico muda o que você faz a seguir; procedência é consulta
+    expect(cronico?.open).toBe(true);
+    expect(historico?.open).toBe(false);
+  });
+
   it("lists the lançamento history with its origem", async () => {
     buscarConciliacao.mockReturnValue(conciliacao);
     render(<DetalheDivergenciaPage />);

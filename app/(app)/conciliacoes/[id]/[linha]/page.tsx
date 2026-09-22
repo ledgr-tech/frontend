@@ -14,6 +14,7 @@ import {
 } from "@/lib/mock-data";
 import { statusDaLinha } from "../../../dashboard/resumo";
 import { Barra, EsqueletoTela } from "../../../esqueleto";
+import { NumeroAnimado } from "../../../numero-animado";
 
 type Carregado = { conciliacao: Conciliacao; linha: LinhaComparacao } | "ausente" | null;
 
@@ -43,7 +44,7 @@ function CartaoExtrato({
         <span className={marcaClasse}>{marca}</span>
       </div>
       <div className="det-valor" style={destacado ? undefined : { color: "var(--color-risco-700)" }}>
-        {valor === null ? "—" : formatarMoeda(valor)}
+        {valor === null ? "—" : <NumeroAnimado valor={valor} formatar={formatarMoeda} />}
       </div>
       {campos?.map((campo) => (
         <div key={campo.rotulo} className="det-campo">
@@ -219,16 +220,24 @@ export default function DetalheDivergenciaPage() {
         )}
 
         {linha.cronico && linha.cronico.length > 0 && (
-          <div className="det-cronico">
-            <div className="det-cronico-topo">
-              <div>
-                <h6 style={{ margin: "0 0 6px", color: "var(--color-accent-700)" }}>
+          /* aberto por padrão: é a leitura que muda o que você faz a seguir */
+          <details className="det-cronico recolhivel" open>
+            <summary className="recolhivel-titulo">
+              <span>
+                <span
+                  className="det-kicker"
+                  style={{ display: "block", marginBottom: 6 }}
+                >
                   Crônico, não pontual
-                </h6>
-                <div style={{ fontFamily: "var(--font-heading)", fontSize: 21, fontWeight: 600, lineHeight: 1.26 }}>
+                </span>
+                <span style={{ fontFamily: "var(--font-heading)", fontSize: 21, fontWeight: 600, lineHeight: 1.26 }}>
                   O mesmo fornecedor divergiu nos {linha.cronico.length} últimos meses.
-                </div>
-              </div>
+                </span>
+              </span>
+            </summary>
+            {/* o CTA fica no corpo, não no summary: botão dentro de summary vira
+                dois alvos disputando o mesmo clique */}
+            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
               <Link href="/regras" className="btn btn-primary" style={{ fontSize: 13.5 }}>
                 Criar regra para este fornecedor
               </Link>
@@ -251,13 +260,16 @@ export default function DetalheDivergenciaPage() {
                 </div>
               ))}
             </div>
-          </div>
+          </details>
         )}
 
-        <div>
-          <h3 style={{ margin: "0 0 12px", fontSize: 22, fontWeight: 600 }}>
-            Histórico do lançamento
-          </h3>
+        {/* fechado por padrão: procedência é consulta, não leitura de rotina */}
+        <details className="recolhivel">
+          <summary className="recolhivel-titulo">
+            <span style={{ fontSize: 22, fontWeight: 600, fontFamily: "var(--font-heading)" }}>
+              Histórico do lançamento
+            </span>
+          </summary>
           <table className="table">
             <thead>
               <tr>
@@ -278,7 +290,7 @@ export default function DetalheDivergenciaPage() {
               ))}
             </tbody>
           </table>
-        </div>
+        </details>
 
         {desfazivel && (
           <div className="desfazer" role="status">
