@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { ativarRegra, desativarRegra, listarRegras, tomDaRegra, type Regra } from "@/lib/mock-data";
+import { Barra, EsqueletoTela } from "../esqueleto";
 
 type Listas = { ativas: Regra[]; sugeridas: Regra[] };
 
@@ -20,7 +21,19 @@ export default function RegrasPage() {
   }, []);
 
   if (listas === null) {
-    return null;
+    return (
+      <EsqueletoTela>
+        {[0, 1].map((i) => (
+          <div key={i} className="regra-cartao">
+            <div style={{ flex: "1 1 340px", minWidth: 0, display: "flex", flexDirection: "column", gap: 9 }}>
+              <Barra largura={260} altura={18} />
+              <Barra />
+              <Barra largura="72%" />
+            </div>
+          </div>
+        ))}
+      </EsqueletoTela>
+    );
   }
 
   function desativar(id: number) {

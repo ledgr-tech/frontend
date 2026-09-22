@@ -12,12 +12,24 @@ vi.mock("next/navigation", () => ({
 
 const buscarConciliacao = vi.fn();
 const aceitarValorDoBanco = vi.fn();
+const restaurarLinha = vi.fn();
 vi.mock("@/lib/mock-data", () => ({
   buscarConciliacao: (id: string) => buscarConciliacao(id),
   aceitarValorDoBanco: (id: string, linha: string) => aceitarValorDoBanco(id, linha),
+  restaurarLinha: (id: string, linha: unknown) => restaurarLinha(id, linha),
   formatarMoeda: (valor: number) =>
     valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }),
 }));
+
+/** A conciliação como fica depois de aceitar o valor do banco em lc-2. */
+function comLc2Aceita(base: Conciliacao): Conciliacao {
+  return {
+    ...base,
+    linhas: base.linhas.map((linha) =>
+      linha.id === "lc-2" ? { ...linha, valorSistema: 12640, status: "batido" as const } : linha,
+    ),
+  };
+}
 
 const conciliacao: Conciliacao = {
   id: "conc-1",
@@ -71,6 +83,7 @@ describe("DetalheDivergenciaPage", () => {
   beforeEach(() => {
     buscarConciliacao.mockReset();
     aceitarValorDoBanco.mockReset();
+    restaurarLinha.mockReset();
     push.mockReset();
   });
 
@@ -126,16 +139,67 @@ describe("DetalheDivergenciaPage", () => {
     expect(screen.getByText("Sistema")).toBeInTheDocument();
   });
 
-  it("accepts the bank value and returns to the conciliação", async () => {
+  it("accepts the bank value in place, without navigating away", async () => {
     buscarConciliacao.mockReturnValue(conciliacao);
+    aceitarValorDoBanco.mockReturnValue(comLc2Aceita(conciliacao));
     const user = userEvent.setup();
     render(<DetalheDivergenciaPage />);
 
     await user.click(await screen.findByRole("button", { name: "Aceitar valor do banco" }));
 
     expect(aceitarValorDoBanco).toHaveBeenCalledWith("conc-1", "lc-2");
-    expect(push).toHaveBeenCalledWith("/conciliacoes/conc-1");
+    // a decisão acontece aqui: sair da tela tiraria o desfazer de alcance
+    expect(push).not.toHaveBeenCalled();
+    // e a consequência aparece
+    expect(screen.getByText("Conciliado")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Aceitar valor do banco" })).not.toBeInTheDocument();
   });
+
+  it("offers an undo after accepting", async () => {
+    buscarConciliacao.mockReturnValue(conciliacao);
+    aceitarValorDoBanco.mockReturnValue(comLc2Aceita(conciliacao));
+    const user = userEvent.setup();
+    render(<DetalheDivergenciaPage />);
+
+    await user.click(await screen.findByRole("button", { name: "Aceitar valor do banco" }));
+
+    expect(screen.getByRole("status")).toHaveTextContent(/Valor do banco aceito/);
+    expect(screen.getByRole("button", { name: "Desfazer" })).toBeInTheDocument();
+  });
+
+  it("puts the linha back when the undo is used", async () => {
+    buscarConciliacao.mockReturnValue(conciliacao);
+    aceitarValorDoBanco.mockReturnValue(comLc2Aceita(conciliacao));
+    restaurarLinha.mockReturnValue(conciliacao);
+    const user = userEvent.setup();
+    render(<DetalheDivergenciaPage />);
+
+    await user.click(await screen.findByRole("button", { name: "Aceitar valor do banco" }));
+    await user.click(screen.getByRole("button", { name: "Desfazer" }));
+
+    // recebe o retrato da linha como ela estava, não um id solto
+    expect(restaurarLinha).toHaveBeenCalledWith(
+      "conc-1",
+      expect.objectContaining({ id: "lc-2", status: "divergencia_valor", valorSistema: 12604 }),
+    );
+    expect(screen.getByRole("button", { name: "Aceitar valor do banco" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Desfazer" })).not.toBeInTheDocument();
+  });
+
+  it("dismisses the undo bar without reverting", async () => {
+    buscarConciliacao.mockReturnValue(conciliacao);
+    aceitarValorDoBanco.mockReturnValue(comLc2Aceita(conciliacao));
+    const user = userEvent.setup();
+    render(<DetalheDivergenciaPage />);
+
+    await user.click(await screen.findByRole("button", { name: "Aceitar valor do banco" }));
+    await user.click(screen.getByRole("button", { name: "Pronto" }));
+
+    expect(restaurarLinha).not.toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: "Desfazer" })).not.toBeInTheDocument();
+    expect(screen.getByText("Conciliado")).toBeInTheDocument();
+  });
+
 
   it("shows a not found message when the linha does not belong to the conciliação", async () => {
     buscarConciliacao.mockReturnValue({ ...conciliacao, linhas: [] });

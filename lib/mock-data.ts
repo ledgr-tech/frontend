@@ -235,6 +235,25 @@ export function aceitarValorDoBanco(conciliacaoId: string, linhaId: string): Con
   return atualizada;
 }
 
+/**
+ * Devolve uma linha ao estado que ela tinha antes de uma decisão. É o que sustenta
+ * o desfazer: a tela guarda a linha como estava e manda de volta. Reverter assim,
+ * com o retrato inteiro, evita ter que inventar a inversa de cada mutação.
+ */
+export function restaurarLinha(conciliacaoId: string, linha: LinhaComparacao): Conciliacao | null {
+  const lista = lerConciliacoes();
+  const index = lista.findIndex((conciliacao) => conciliacao.id === conciliacaoId);
+  if (index === -1) return null;
+
+  const atualizada: Conciliacao = {
+    ...lista[index],
+    linhas: lista[index].linhas.map((atual) => (atual.id === linha.id ? linha : atual)),
+  };
+  lista[index] = atualizada;
+  salvarConciliacoes(lista);
+  return atualizada;
+}
+
 export function formatarMoeda(valor: number): string {
   return valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }

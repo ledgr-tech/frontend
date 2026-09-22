@@ -21,6 +21,7 @@ import {
 // ponytail: primitivas de UI compartilhadas que hoje moram em (marketing) por
 // terem nascido na landing. Se uma terceira tela usar, aí vale mudar de lugar.
 import { InkHover, MotionRoot, Reveal, SpotlightHover } from "@/app/(marketing)/reveal";
+import { Barra, EsqueletoTabela, EsqueletoTela } from "../esqueleto";
 
 // Copy do design ("sugestoes" em Ledgr.dc.html). São leituras de padrão entre
 // competências — o mock tem uma competência só, então o texto é fixo até existir
@@ -64,7 +65,20 @@ export default function DashboardPage() {
   }, []);
 
   if (conciliacoes === null) {
-    return null;
+    return (
+      <EsqueletoTela>
+        <div className="grade-colunas dash-resumo esq-resumo">
+          {[0, 1, 2].map((i) => (
+            <div key={i}>
+              <Barra largura={140} altura={11} />
+              <Barra largura={96} altura={38} />
+              <Barra largura={170} altura={12} />
+            </div>
+          ))}
+        </div>
+        <EsqueletoTabela />
+      </EsqueletoTela>
+    );
   }
 
   const resumo = resumir(conciliacoes);

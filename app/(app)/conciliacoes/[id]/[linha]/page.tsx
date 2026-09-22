@@ -1,17 +1,19 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import {
   aceitarValorDoBanco,
   buscarConciliacao,
   formatarMoeda,
+  restaurarLinha,
   type Conciliacao,
   type LinhaComparacao,
 } from "@/lib/mock-data";
 import { statusDaLinha } from "../../../dashboard/resumo";
+import { Barra, EsqueletoTela } from "../../../esqueleto";
 
 type Carregado = { conciliacao: Conciliacao; linha: LinhaComparacao } | "ausente" | null;
 
@@ -67,8 +69,9 @@ function CartaoExtrato({
 
 export default function DetalheDivergenciaPage() {
   const params = useParams<{ id: string; linha: string }>();
-  const router = useRouter();
   const [carregado, setCarregado] = useState<Carregado>(null);
+  // retrato da linha antes da decisão; existir significa "dá para desfazer"
+  const [desfazivel, setDesfazivel] = useState<LinhaComparacao | null>(null);
 
   useEffect(() => {
     // localStorage is only readable client-side; this is the standard pattern for
@@ -82,7 +85,20 @@ export default function DetalheDivergenciaPage() {
   }, [params.id, params.linha]);
 
   if (carregado === null) {
-    return null;
+    return (
+      <EsqueletoTela>
+        <div className="det-comparacao">
+          {[0, 1].map((i) => (
+            <div key={i} className="det-cartao" style={{ gap: 16 }}>
+              <Barra largura={150} altura={17} />
+              <Barra largura={190} altura={36} />
+              <Barra />
+              <Barra largura="64%" />
+            </div>
+          ))}
+        </div>
+      </EsqueletoTela>
+    );
   }
 
   if (carregado === "ausente") {
@@ -107,9 +123,23 @@ export default function DetalheDivergenciaPage() {
       ? Math.abs(linha.valorBanco - linha.valorSistema)
       : null;
 
+  // A decisão acontece aqui mesmo, sem navegar: assim a consequência fica visível
+  // e o desfazer não precisa sobreviver a uma troca de tela.
   function aceitar() {
-    aceitarValorDoBanco(conciliacao.id, linha.id);
-    router.push(`/conciliacoes/${conciliacao.id}`);
+    const antes = linha;
+    const atualizada = aceitarValorDoBanco(conciliacao.id, linha.id);
+    const depois = atualizada?.linhas.find((item) => item.id === linha.id);
+    if (!atualizada || !depois) return;
+    setCarregado({ conciliacao: atualizada, linha: depois });
+    setDesfazivel(antes);
+  }
+
+  function desfazer() {
+    if (!desfazivel) return;
+    const atualizada = restaurarLinha(conciliacao.id, desfazivel);
+    const depois = atualizada?.linhas.find((item) => item.id === desfazivel.id);
+    if (atualizada && depois) setCarregado({ conciliacao: atualizada, linha: depois });
+    setDesfazivel(null);
   }
 
   return (
@@ -126,7 +156,7 @@ export default function DetalheDivergenciaPage() {
         </div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
           <Link href={`/conciliacoes/${conciliacao.id}`} className="btn btn-secondary">
-            Ignorar por ora
+            {linha.status === "batido" ? "Voltar para a conciliação" : "Ignorar por ora"}
           </Link>
           {/* ponytail: só faz sentido aceitar o banco quando ele tem a linha. */}
           {linha.valorBanco !== null && linha.status !== "batido" && (
@@ -249,6 +279,26 @@ export default function DetalheDivergenciaPage() {
             </tbody>
           </table>
         </div>
+
+        {desfazivel && (
+          <div className="desfazer" role="status">
+            <span className="desfazer-texto">
+              Valor do banco aceito. <strong>{linha.descricao}</strong> agora está conciliado em{" "}
+              {formatarMoeda(linha.valorBanco ?? 0)}.
+            </span>
+            <button type="button" className="btn btn-primary" onClick={desfazer}>
+              Desfazer
+            </button>
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={() => setDesfazivel(null)}
+              style={{ fontSize: 13.5 }}
+            >
+              Pronto
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
