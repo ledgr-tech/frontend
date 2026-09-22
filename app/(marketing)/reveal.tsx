@@ -25,11 +25,14 @@ export function Reveal({
   delay = 0,
   style,
   className,
+  once = false,
 }: {
   children: ReactNode;
   delay?: number;
   style?: CSSProperties;
   className?: string;
+  /** A landing reanima a cada passagem; telas de trabalho animam uma vez só. */
+  once?: boolean;
 }) {
   return (
     <m.div
@@ -38,7 +41,7 @@ export function Reveal({
       style={style}
       initial={{ opacity: 0, scale: 0.96 }}
       whileInView={{ opacity: 1, scale: 1 }}
-      viewport={{ once: false, amount: 0.15, margin: "0px 0px -60px 0px" }}
+      viewport={{ once, amount: 0.15, margin: "0px 0px -60px 0px" }}
       transition={{ duration: 0.55, delay, ease: [0.22, 1, 0.36, 1] }}
     >
       {children}

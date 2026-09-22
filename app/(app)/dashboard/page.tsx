@@ -1,8 +1,58 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
-import { EMPRESA_MOCK, listarConciliacoes, type Conciliacao } from "@/lib/mock-data";
+import {
+  EMPRESA_MOCK,
+  formatarMoeda,
+  listarConciliacoes,
+  type Conciliacao,
+} from "@/lib/mock-data";
+import {
+  formatarInteiro,
+  formatarMoedaCurta,
+  formatarPercentual,
+  origemDaLinha,
+  resumir,
+  statusDaLinha,
+  valorDaLinha,
+} from "./resumo";
+// ponytail: primitivas de UI compartilhadas que hoje moram em (marketing) por
+// terem nascido na landing. Se uma terceira tela usar, aí vale mudar de lugar.
+import { InkHover, MotionRoot, Reveal, SpotlightHover } from "@/app/(marketing)/reveal";
+import { Barra, EsqueletoTabela, EsqueletoTela } from "../esqueleto";
+
+// Copy do design ("sugestoes" em Ledgr.dc.html). São leituras de padrão entre
+// competências — o mock tem uma competência só, então o texto é fixo até existir
+// histórico de verdade para ler.
+// O destino de "Ver o caso" depende da conciliação carregada, então vem de fora.
+const SUGESTOES = [
+  {
+    num: "I",
+    titulo: "Aço Norte Bobinas aparece em três meses seguidos com juros não lançados",
+    texto:
+      "Sempre a mesma diferença de dois dias de atraso. Vale criar uma regra de despesa financeira para esse fornecedor.",
+    cta: "Ver o caso",
+    href: null,
+  },
+  {
+    num: "II",
+    titulo: "Vinte e dois estornos de maquininha não existem no extrato do banco",
+    texto:
+      "O sistema lança o estorno na hora, o banco só no dia seguinte. Uma janela de data de dois dias resolveria cinco deles.",
+    cta: "Criar regra",
+    href: "/regras",
+  },
+  {
+    num: "III",
+    titulo: "Setembro repetiu o padrão de agosto: 157 divergências, 19 no sistema",
+    texto:
+      "A taxa de match subiu para 96,3%, mas o gargalo continua sendo lançamento manual no ERP.",
+    cta: "Ver histórico",
+    href: "/historico",
+  },
+];
 
 export default function DashboardPage() {
   const [conciliacoes, setConciliacoes] = useState<Conciliacao[] | null>(null);
@@ -15,25 +65,44 @@ export default function DashboardPage() {
   }, []);
 
   if (conciliacoes === null) {
-    return null;
+    return (
+      <EsqueletoTela>
+        <div className="grade-colunas dash-resumo esq-resumo">
+          {[0, 1, 2].map((i) => (
+            <div key={i}>
+              <Barra largura={140} altura={11} />
+              <Barra largura={96} altura={38} />
+              <Barra largura={170} altura={12} />
+            </div>
+          ))}
+        </div>
+        <EsqueletoTabela />
+      </EsqueletoTela>
+    );
   }
 
+  const resumo = resumir(conciliacoes);
+  const maisRecente = conciliacoes[0] ?? null;
+  // A tabela do design mostra os sete primeiros lançamentos da competência.
+  const lancamentos = conciliacoes.flatMap((conciliacao) => conciliacao.linhas).slice(0, 7);
+  // "Ver o caso" abre a primeira divergência em aberto; sem nenhuma, fica sem CTA.
+  const primeiraEmAberto = maisRecente?.linhas.find((linha) => linha.status !== "batido") ?? null;
+  const hrefPrimeiroCaso =
+    maisRecente && primeiraEmAberto
+      ? `/conciliacoes/${maisRecente.id}/${primeiraEmAberto.id}`
+      : null;
+
   return (
-    <div>
-      <div
-        style={{
-          borderBottom: "1px solid var(--color-divider)",
-          padding: "24px 0",
-          display: "flex",
-          alignItems: "flex-end",
-          justifyContent: "space-between",
-          gap: 24,
-        }}
-      >
+    <MotionRoot>
+      <div className="dash-cabecalho">
         <div>
           <h1 style={{ margin: "0 0 4px", fontSize: 30, fontWeight: 600 }}>{EMPRESA_MOCK}</h1>
           <span
-            style={{ fontSize: 14, color: "color-mix(in srgb, var(--color-text) 66%, transparent)" }}
+            style={{
+              fontSize: 14,
+              fontVariantNumeric: "tabular-nums",
+              color: "color-mix(in srgb, var(--color-text) 55%, transparent)",
+            }}
           >
             Competência setembro/2026
           </span>
@@ -43,7 +112,7 @@ export default function DashboardPage() {
         </Link>
       </div>
 
-      {conciliacoes.length === 0 ? (
+      {maisRecente === null ? (
         <div
           style={{
             padding: "76px 0",
@@ -54,10 +123,30 @@ export default function DashboardPage() {
             gap: 18,
           }}
         >
-          <h2 style={{ margin: 0, fontSize: 32, fontWeight: 400, maxWidth: "24ch" }}>
+          <InkHover style={{ flex: "none" }}>
+            <Image
+              src="/mascotes/mascote-sentado.png"
+              alt="Mascote Ledgr sentado com uma folha"
+              width={1000}
+              height={1000}
+              sizes="250px"
+              style={{ width: 250, height: "auto", display: "block" }}
+            />
+          </InkHover>
+          <h2
+            style={{ margin: 0, fontSize: 32, fontWeight: 400, maxWidth: "24ch", textWrap: "balance" }}
+          >
             Nenhum extrato por aqui ainda.
           </h2>
-          <p style={{ margin: 0, fontSize: 15, lineHeight: 1.75, maxWidth: "48ch" }}>
+          <p
+            style={{
+              margin: 0,
+              fontSize: 15,
+              lineHeight: 1.75,
+              maxWidth: "48ch",
+              color: "color-mix(in srgb, var(--color-text) 78%, transparent)",
+            }}
+          >
             Suba o extrato do banco e o extrato do sistema de gestão. A primeira conciliação fica
             pronta em poucos minutos.
           </p>
@@ -70,42 +159,229 @@ export default function DashboardPage() {
           </Link>
         </div>
       ) : (
-        <div style={{ padding: "32px 0 56px" }}>
-          <h3 style={{ margin: "0 0 12px", fontSize: 22, fontWeight: 600 }}>
-            Conciliações recentes
-          </h3>
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Mês</th>
-                <th>Status</th>
-                <th style={{ width: 110 }}>Lançamentos</th>
-                <th style={{ width: 110 }}></th>
-              </tr>
-            </thead>
-            <tbody>
-              {conciliacoes.map((conciliacao) => (
-                <tr key={conciliacao.id}>
-                  <td>{conciliacao.mes}</td>
-                  <td>
+        <div style={{ padding: "32px 0 56px", display: "flex", flexDirection: "column", gap: 36 }}>
+          {/* ponytail: o resumo não entra no reveal. É o dado principal da tela e
+              fica acima da dobra — se o observer ou o rAF não rodarem, os números
+              não podem ficar invisíveis. O que está abaixo da dobra pode animar. */}
+          <div className="grade-colunas dash-resumo">
+            <div>
+              <span className="dash-rotulo">Lançamentos processados</span>
+              <span className="dash-valor">{formatarInteiro(resumo.processados)}</span>
+              <span className="dash-nota">Período 01–30 de setembro</span>
+            </div>
+            <div>
+              <span className="dash-rotulo">Match automático</span>
+              <span className="dash-valor" style={{ color: "var(--color-ok)" }}>
+                {formatarPercentual(resumo.taxaMatch)}
+              </span>
+              <span className="dash-nota">
+                {formatarInteiro(resumo.batidos)} casados sem intervenção
+              </span>
+            </div>
+            <div>
+              <span className="dash-rotulo">Valor em divergência</span>
+              <span className="dash-valor" style={{ color: "var(--color-risco)" }}>
+                {formatarMoedaCurta(resumo.valorDivergente)}
+              </span>
+              <span className="dash-nota">
+                Distribuído em {formatarInteiro(resumo.divergentes)}{" "}
+                {resumo.divergentes === 1 ? "lançamento" : "lançamentos"}
+              </span>
+            </div>
+          </div>
+
+          <Reveal once className="dash-analise">
+            <div className="dash-sugestoes">
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "baseline",
+                  justifyContent: "space-between",
+                  gap: 16,
+                  marginBottom: 14,
+                }}
+              >
+                <h3 style={{ margin: 0, fontSize: 22, fontWeight: 600 }}>O que o Ledgr sugere</h3>
+                <span
+                  className="dash-sugestoes-contagem"
+                  style={{
+                    fontSize: 13,
+                    letterSpacing: "0.1em",
+                    textTransform: "uppercase",
+                    color: "color-mix(in srgb, var(--color-text) 52%, transparent)",
+                  }}
+                >
+                  {SUGESTOES.length} observações
+                </span>
+              </div>
+              <div style={{ borderTop: "1px solid var(--color-divider)" }}>
+                {SUGESTOES.map((sugestao) => (
+                  <div key={sugestao.num} className="dash-sugestao">
+                    <span className="dash-sugestao-num">{sugestao.num}</span>
                     <span
-                      className={conciliacao.status === "fechada" ? "tag tag-accent" : "tag tag-outline"}
+                      style={{
+                        flex: 1,
+                        minWidth: 0,
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 5,
+                      }}
                     >
-                      {conciliacao.status === "fechada" ? "Fechada" : "Em andamento"}
+                      <span className="dash-sugestao-titulo">{sugestao.titulo}</span>
+                      <span className="dash-sugestao-texto">{sugestao.texto}</span>
                     </span>
-                  </td>
-                  <td>{conciliacao.linhas.length}</td>
-                  <td>
-                    <Link href={`/conciliacoes/${conciliacao.id}`} className="btn btn-secondary">
-                      Ver
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                    {(() => {
+                      const href = sugestao.href ?? hrefPrimeiroCaso;
+                      if (href === null) return null;
+                      return (
+                        <Link
+                          href={href}
+                          className="btn btn-ghost"
+                          style={{ flex: "none", fontSize: 13.5 }}
+                        >
+                          {sugestao.cta}
+                        </Link>
+                      );
+                    })()}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {resumo.semCorrespondente === 0 ? null : (
+              <SpotlightHover className="dash-destaque">
+                <Image
+                  src="/mascotes/mascote-explicando.png"
+                  alt="Mascote Ledgr apontando"
+                  width={1000}
+                  height={1000}
+                  sizes="116px"
+                  style={{ width: 116, height: "auto" }}
+                />
+                <span className="dash-destaque-titulo">
+                  Comece pelas {formatarInteiro(resumo.semCorrespondente)} sem correspondente
+                </span>
+                <span className="dash-destaque-texto">
+                  São elas que respondem por {formatarMoedaCurta(resumo.valorSemCorrespondente)} dos{" "}
+                  {formatarMoedaCurta(resumo.valorDivergente)} em divergência.
+                </span>
+                <Link
+                  href={hrefPrimeiroCaso ?? `/conciliacoes/${maisRecente.id}`}
+                  className="btn btn-primary"
+                  style={{ marginTop: 2 }}
+                >
+                  Revisar agora
+                </Link>
+              </SpotlightHover>
+            )}
+          </Reveal>
+
+          <Reveal once delay={0.08}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "baseline",
+                justifyContent: "space-between",
+                gap: 20,
+                marginBottom: 12,
+              }}
+            >
+              <h3 style={{ margin: 0, fontSize: 22, fontWeight: 600 }}>Conciliações recentes</h3>
+              <Link
+                href={`/conciliacoes/${maisRecente.id}`}
+                className="btn btn-secondary"
+                style={{ fontSize: 13.5 }}
+              >
+                Ver a conciliação
+              </Link>
+            </div>
+            <div className="dash-tabela-rolagem tabela-cartoes">
+              <table className="table" role="table">
+                <thead role="rowgroup">
+                  <tr role="row">
+                    <th style={{ width: 110 }}>Data</th>
+                    <th>Descrição</th>
+                    <th style={{ width: 140, textAlign: "right" }}>Valor</th>
+                    <th style={{ width: 250 }}>Status</th>
+                    <th style={{ width: 110, textAlign: "right" }}>Origem</th>
+                  </tr>
+                </thead>
+                <tbody role="rowgroup">
+                  {lancamentos.map((linha) => {
+                    const status = statusDaLinha(linha.status);
+                    return (
+                      <tr key={linha.id} role="row">
+                        <td role="cell" data-rotulo="Data" className="dash-celula-fraca">
+                          {linha.data}/2026
+                        </td>
+                        <td role="cell" data-rotulo="Descrição" data-destaque="true">
+                          {linha.descricao}
+                        </td>
+                        <td role="cell" data-rotulo="Valor" className="dash-valor-celula">
+                          {formatarMoeda(valorDaLinha(linha))}
+                        </td>
+                        <td role="cell" data-rotulo="Status">
+                          <span className={`selo selo-${status.tom}`}>{status.rotulo}</span>
+                        </td>
+                        <td
+                          role="cell"
+                          data-rotulo="Origem"
+                          className="dash-celula-fraca"
+                          style={{ textAlign: "right", fontSize: 14 }}
+                        >
+                          {origemDaLinha(linha)}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </Reveal>
+
+          {/* ponytail: o design pensa numa competência só. Enquanto o mock cria uma
+              conciliação por upload, as anteriores precisam continuar alcançáveis. */}
+          {conciliacoes.length > 1 && (
+            <Reveal once delay={0.16}>
+              <h3 style={{ margin: "0 0 12px", fontSize: 22, fontWeight: 600 }}>
+                Conciliações anteriores
+              </h3>
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Mês</th>
+                    <th>Status</th>
+                    <th style={{ width: 110 }}>Lançamentos</th>
+                    <th style={{ width: 110 }}></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {conciliacoes.slice(1).map((conciliacao) => (
+                    <tr key={conciliacao.id}>
+                      <td>{conciliacao.mes}</td>
+                      <td>
+                        <span
+                          className={
+                            conciliacao.status === "fechada" ? "tag tag-accent" : "tag tag-outline"
+                          }
+                        >
+                          {conciliacao.status === "fechada" ? "Fechada" : "Em andamento"}
+                        </span>
+                      </td>
+                      <td>{conciliacao.linhas.length}</td>
+                      <td>
+                        <Link href={`/conciliacoes/${conciliacao.id}`} className="btn btn-secondary">
+                          Ver
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </Reveal>
+          )}
         </div>
       )}
-    </div>
+    </MotionRoot>
   );
 }
