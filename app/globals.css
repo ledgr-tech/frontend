@@ -1092,6 +1092,10 @@ button.login-link-animado { border: 0; background-color: transparent; font: inhe
 .app-shell {
   display: grid; grid-template-columns: minmax(180px, 236px) minmax(0, 1fr);
   min-height: 100vh; background: var(--color-bg);
+  /* precisa declarar a cor, nao so herdar: o tema escuro redefine --color-text
+     aqui dentro, e uma propriedade ja computada no <body> nao volta atras. Sem
+     isto o fundo escurece e o texto continua preto. */
+  color: var(--color-text);
 }
 .app-aside {
   position: sticky; top: 0; align-self: start; height: 100vh;
@@ -1109,7 +1113,8 @@ button.login-link-animado { border: 0; background-color: transparent; font: inhe
   border-radius: 50%; border: 1.5px solid var(--color-bg); background: var(--color-accent-700);
 }
 .app-aside-aviso {
-  font-size: 11.5px; color: color-mix(in srgb, var(--color-text) 52%, transparent);
+  /* 62%, nao 52%: a 11.5px o texto precisa de 4.5:1, e 52% media 4.46 no escuro */
+  font-size: 11.5px; color: color-mix(in srgb, var(--color-text) 62%, transparent);
 }
 .app-nav {
   flex: 1 1 auto; min-height: 0; overflow-y: auto;
@@ -1182,7 +1187,10 @@ button.login-link-animado { border: 0; background-color: transparent; font: inhe
   border-bottom: 1px solid var(--color-divider);
 }
 .app-busca-achado:last-child { border-bottom: none; }
-.app-busca-achado:hover { background: color-mix(in srgb, var(--color-accent) 10%, transparent); }
+.app-busca-achado:hover,
+.app-busca-achado[data-ativo="true"] {
+  background: color-mix(in srgb, var(--color-accent) 10%, transparent);
+}
 .app-busca-achado-titulo {
   font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
@@ -1241,6 +1249,19 @@ button.login-link-animado { border: 0; background-color: transparent; font: inhe
   font-size: 12px; font-variant-numeric: tabular-nums;
   color: color-mix(in srgb, var(--color-text) 48%, transparent);
 }
+
+/* Densidade da tabela. Só o miolo da linha muda: o cabeçalho e a tipografia
+   ficam, para a tabela não virar outra coisa quando aperta. */
+html[data-densidade="compacta"] .table td { padding-block: 4px; }
+html[data-densidade="compacta"] .table th { padding-block: 6px; }
+html[data-densidade="compacta"] .selo { padding-block: 1px; }
+
+.app-tema-botao {
+  flex: none; cursor: pointer; font-family: var(--font-body); font-size: 13.5px;
+  padding: 8px 13px; border-radius: var(--radius-md);
+  background: transparent; border: 1px solid var(--color-divider); color: var(--color-text);
+}
+.app-tema-botao:hover { border-color: var(--color-accent); color: var(--color-accent-700); }
 
 .app-usuario {
   flex: none; display: flex; align-items: center; gap: 9px;
@@ -1366,4 +1387,125 @@ th[aria-sort] .th-ordena-seta { opacity: 1; }
 @media (max-width: 560px) {
   .esq-tabela-linha { grid-template-columns: 70px minmax(0, 1fr) 70px; }
   .esq-tabela-linha > :nth-child(n + 4) { display: none; }
+}
+
+/* ── Tema escuro ──────────────────────────────────────────────────────────────
+   GERADO — nao editar a mao. Fonte: scripts/gerar-escuro.mjs, que le a escala
+   do tema claro e espelha.
+
+   A escala de luminosidade e a MESMA do tema claro, invertida: o passo 100 passa
+   a ser o mais escuro e o 900 o mais claro. Isso e o que permite nenhum
+   componente mudar de passo — quem pedia --color-ok-700 para texto continua
+   pedindo, e recebe um verde claro legivel sobre o fundo escuro em vez de um
+   verde escuro. O croma cai 15%, porque cor saturada sobre fundo escuro vibra.
+
+   Escopo: so o app autenticado (.app-shell). A landing e as telas de acesso
+   seguem claras porque o logo-barras e 63% de pixels escuros e sumiria no fundo
+   escuro — trocar isso exige uma variante clara do logo, que nao existe ainda.
+
+   O bloco aparece duas vezes de proposito: uma para quem pediu escuro no
+   sistema operacional e nao forcou claro, outra para quem escolheu escuro no
+   proprio app. Os dois sao gerados juntos, entao nao divergem. */
+@media (prefers-color-scheme: dark) {
+  html:not([data-tema="claro"]) .app-shell {
+    --color-bg: #1c1a18;
+    --color-surface: #272522;
+    --color-text: #e9e8e5;
+    --color-divider: color-mix(in srgb, #e9e8e5 18%, transparent);
+
+    --color-accent: #a67a3c;
+    --color-ok: #56905f;
+    --color-risco: #b6705a;
+
+    --color-neutral-100: #2d2b28;
+    --color-neutral-200: #44423f;
+    --color-neutral-300: #605d5a;
+    --color-neutral-400: #7c7976;
+    --color-neutral-500: #9b9895;
+    --color-neutral-600: #bab7b4;
+    --color-neutral-700: #d7d3d0;
+    --color-neutral-800: #eae7e4;
+    --color-neutral-900: #f8f4f1;
+
+    --color-accent-100: #312a20;
+    --color-accent-200: #523e24;
+    --color-accent-300: #795624;
+    --color-accent-400: #9b7137;
+    --color-accent-500: #bc8f52;
+    --color-accent-600: #dbaf74;
+    --color-accent-700: #f4cd99;
+    --color-accent-800: #ffe3c0;
+    --color-accent-900: #fff3e4;
+
+    --color-ok-100: #252e26;
+    --color-ok-200: #304934;
+    --color-ok-300: #3b6a43;
+    --color-ok-400: #52895b;
+    --color-ok-500: #6ea977;
+    --color-ok-600: #8fc897;
+    --color-ok-700: #b1e3b7;
+    --color-ok-800: #ccf4d0;
+    --color-ok-900: #e3fde6;
+
+    --color-risco-100: #342824;
+    --color-risco-200: #593930;
+    --color-risco-300: #844c3b;
+    --color-risco-400: #a86652;
+    --color-risco-500: #cc836d;
+    --color-risco-600: #eba38d;
+    --color-risco-700: #fec5b3;
+    --color-risco-800: #fee0d7;
+    --color-risco-900: #fff2ee;
+  }
+}
+
+html[data-tema="escuro"] .app-shell {
+  --color-bg: #1c1a18;
+  --color-surface: #272522;
+  --color-text: #e9e8e5;
+  --color-divider: color-mix(in srgb, #e9e8e5 18%, transparent);
+
+  --color-accent: #a67a3c;
+  --color-ok: #56905f;
+  --color-risco: #b6705a;
+
+  --color-neutral-100: #2d2b28;
+  --color-neutral-200: #44423f;
+  --color-neutral-300: #605d5a;
+  --color-neutral-400: #7c7976;
+  --color-neutral-500: #9b9895;
+  --color-neutral-600: #bab7b4;
+  --color-neutral-700: #d7d3d0;
+  --color-neutral-800: #eae7e4;
+  --color-neutral-900: #f8f4f1;
+
+  --color-accent-100: #312a20;
+  --color-accent-200: #523e24;
+  --color-accent-300: #795624;
+  --color-accent-400: #9b7137;
+  --color-accent-500: #bc8f52;
+  --color-accent-600: #dbaf74;
+  --color-accent-700: #f4cd99;
+  --color-accent-800: #ffe3c0;
+  --color-accent-900: #fff3e4;
+
+  --color-ok-100: #252e26;
+  --color-ok-200: #304934;
+  --color-ok-300: #3b6a43;
+  --color-ok-400: #52895b;
+  --color-ok-500: #6ea977;
+  --color-ok-600: #8fc897;
+  --color-ok-700: #b1e3b7;
+  --color-ok-800: #ccf4d0;
+  --color-ok-900: #e3fde6;
+
+  --color-risco-100: #342824;
+  --color-risco-200: #593930;
+  --color-risco-300: #844c3b;
+  --color-risco-400: #a86652;
+  --color-risco-500: #cc836d;
+  --color-risco-600: #eba38d;
+  --color-risco-700: #fec5b3;
+  --color-risco-800: #fee0d7;
+  --color-risco-900: #fff2ee;
 }

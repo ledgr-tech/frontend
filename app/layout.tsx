@@ -42,6 +42,16 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       data-scroll-behavior="smooth"
       className={`${interHeading.variable} ${interBody.variable} ${cormorantGaramond.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
+      <head>
+        {/* Roda antes da primeira pintura: sem isso o app abriria claro e piscaria
+            para o escuro depois da hidratação. Só escreve o atributo quando há
+            escolha salva — sem escolha, o CSS segue o prefers-color-scheme. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{var d=document.documentElement.dataset,t=localStorage.getItem("ledgr_tema");if(t)d.tema=t;var n=localStorage.getItem("ledgr_densidade");if(n)d.densidade=n}catch(e){}`,
+          }}
+        />
+      </head>
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );

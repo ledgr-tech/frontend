@@ -2,12 +2,14 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   AVISOS,
   formatarMoeda,
   listarConciliacoes,
   type LinhaComparacao,
 } from "@/lib/mock-data";
+import { aplicarTema, temaAtual, type Tema } from "./tema";
 
 type Achado = {
   conciliacaoId: string;
@@ -40,6 +42,12 @@ export function BarraSuperior({
   const [buscaAberta, setBuscaAberta] = useState(false);
   const [avisosAbertos, setAvisosAbertos] = useState(false);
   const [lancamentos, setLancamentos] = useState<Achado[]>([]);
+  // null enquanto não sabemos: o tema só é legível no cliente, e chutar "claro"
+  // faria o rótulo do botão trocar sozinho depois da hidratação
+  const [tema, setTema] = useState<Tema | null>(null);
+  // qual resultado a seta está apontando; -1 = nenhum
+  const [ativo, setAtivo] = useState(-1);
+  const router = useRouter();
   const buscaRef = useRef<HTMLInputElement>(null);
   const caixaBusca = useRef<HTMLDivElement>(null);
   const caixaAvisos = useRef<HTMLDivElement>(null);
@@ -53,6 +61,11 @@ export function BarraSuperior({
         conciliacao.linhas.map((linha) => ({ conciliacaoId: conciliacao.id, linha })),
       ),
     );
+  }, []);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setTema(temaAtual());
   }, []);
 
   // ⌘K / Ctrl+K põe o foco na busca, como o atalho que a caixa anuncia.
@@ -94,6 +107,30 @@ export function BarraSuperior({
 
   const naoLidos = avisoNaoLido ? AVISOS.length : 0;
 
+  const painelAberto = buscaAberta && termo.trim() !== "";
+
+  function aoTeclarNaBusca(evento: React.KeyboardEvent<HTMLInputElement>) {
+    if (!painelAberto || achados.length === 0) return;
+    if (evento.key === "ArrowDown") {
+      evento.preventDefault();
+      setAtivo((i) => (i + 1) % achados.length);
+    } else if (evento.key === "ArrowUp") {
+      evento.preventDefault();
+      setAtivo((i) => (i <= 0 ? achados.length - 1 : i - 1));
+    } else if (evento.key === "Enter" && ativo >= 0) {
+      evento.preventDefault();
+      const alvo = achados[ativo];
+      setBuscaAberta(false);
+      router.push(`/conciliacoes/${alvo.conciliacaoId}/${alvo.linha.id}`);
+    }
+  }
+
+  function alternarTema() {
+    const proximo: Tema = tema === "escuro" ? "claro" : "escuro";
+    aplicarTema(proximo);
+    setTema(proximo);
+  }
+
   return (
     <div className="app-topo">
       <div className="app-busca-envelope" ref={caixaBusca}>
@@ -103,14 +140,23 @@ export function BarraSuperior({
           </span>
           <input
             ref={buscaRef}
-            type="search"
+            type="text"
+            role="combobox"
             className="input app-busca-campo"
             aria-label="Buscar lançamento"
+            aria-expanded={painelAberto}
+            aria-controls="busca-resultados"
+            aria-autocomplete="list"
+            aria-activedescendant={
+              painelAberto && ativo >= 0 ? `busca-opcao-${ativo}` : undefined
+            }
+            onKeyDown={aoTeclarNaBusca}
             placeholder="Buscar valor, fornecedor ou data…"
             value={termo}
             onChange={(evento) => {
               setTermo(evento.target.value);
               setBuscaAberta(true);
+              setAtivo(-1);
             }}
             onFocus={() => setBuscaAberta(true)}
           />
@@ -119,18 +165,24 @@ export function BarraSuperior({
           </span>
         </div>
 
-        {buscaAberta && termo.trim() !== "" && (
+        {painelAberto && (
           <div className="app-painel app-busca-painel">
             {achados.length === 0 ? (
-              <p className="app-busca-vazio">
+              <p className="app-busca-vazio" role="status">
                 Nada encontrado. Tente o valor sem centavos ou parte do nome do fornecedor.
               </p>
-            ) : (
-              achados.map(({ conciliacaoId, linha }) => (
+            ) : null}
+            <div id="busca-resultados" role="listbox" aria-label="Resultados da busca">
+              {achados.map(({ conciliacaoId, linha }, i) => (
                 <Link
                   key={`${conciliacaoId}-${linha.id}`}
+                  id={`busca-opcao-${i}`}
+                  role="option"
+                  aria-selected={i === ativo}
+                  data-ativo={i === ativo ? "true" : undefined}
                   href={`/conciliacoes/${conciliacaoId}/${linha.id}`}
                   className="app-busca-achado"
+                  onMouseEnter={() => setAtivo(i)}
                   onClick={() => setBuscaAberta(false)}
                 >
                   <span className="app-busca-achado-titulo">{linha.descricao}</span>
@@ -139,8 +191,8 @@ export function BarraSuperior({
                     {formatarMoeda(linha.valorBanco ?? linha.valorSistema ?? 0)}
                   </span>
                 </Link>
-              ))
-            )}
+              ))}
+            </div>
           </div>
         )}
       </div>
@@ -204,6 +256,13 @@ export function BarraSuperior({
           </div>
         )}
       </div>
+
+      {/* o rótulo diz para onde vai, não onde está — é o que o design faz */}
+      {tema !== null && (
+        <button type="button" className="app-tema-botao" onClick={alternarTema}>
+          {tema === "escuro" ? "Tema claro" : "Tema escuro"}
+        </button>
+      )}
 
       <div className="app-usuario">
         <span className="app-usuario-iniciais" aria-hidden="true">

@@ -86,6 +86,8 @@ describe("ConciliacaoPage", () => {
   beforeEach(() => {
     buscarConciliacao.mockReset();
     fecharConciliacao.mockReset();
+    window.localStorage.clear();
+    delete document.documentElement.dataset.densidade;
   });
 
   it("lists comparison rows for a conciliação em andamento", async () => {
@@ -177,6 +179,21 @@ describe("ConciliacaoPage", () => {
 
     await user.click(cabecalho);
     expect(cabecalho.closest("th")).toHaveAttribute("aria-sort", "descending");
+  });
+
+  it("switches the table density and remembers it", async () => {
+    buscarConciliacao.mockReturnValue(conciliacaoMista);
+    const user = userEvent.setup();
+    render(<ConciliacaoPage />);
+
+    const compacta = await screen.findByRole("button", { name: "Compacta" });
+    expect(screen.getByRole("button", { name: "Padrão" })).toHaveAttribute("aria-pressed", "true");
+
+    await user.click(compacta);
+
+    expect(compacta).toHaveAttribute("aria-pressed", "true");
+    expect(document.documentElement.dataset.densidade).toBe("compacta");
+    expect(window.localStorage.getItem("ledgr_densidade")).toBe("compacta");
   });
 
   it("paginates past the page size and keeps the count honest", async () => {

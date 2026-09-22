@@ -3,6 +3,11 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { BarraSuperior } from "./barra-superior";
 
+const push = vi.fn();
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push }),
+}));
+
 const listarConciliacoes = vi.fn();
 vi.mock("@/lib/mock-data", () => ({
   AVISOS: [
@@ -74,6 +79,8 @@ describe("BarraSuperior", () => {
   beforeEach(() => {
     listarConciliacoes.mockReset();
     listarConciliacoes.mockReturnValue(conciliacoes);
+    push.mockReset();
+    window.localStorage.clear();
   });
 
   it("derives the user label and initials from the session email", () => {
@@ -93,7 +100,7 @@ describe("BarraSuperior", () => {
 
     await user.type(screen.getByLabelText("Buscar lançamento"), "aço norte");
 
-    const achado = screen.getByRole("link", { name: /Boleto Aço Norte Bobinas/ });
+    const achado = screen.getByRole("option", { name: /Boleto Aço Norte Bobinas/ });
     expect(achado).toHaveAttribute("href", "/conciliacoes/conc-1/lc-1");
     expect(screen.queryByText("Folha de pagamento setembro")).not.toBeInTheDocument();
   });
@@ -104,7 +111,7 @@ describe("BarraSuperior", () => {
 
     await user.type(screen.getByLabelText("Buscar lançamento"), "48.200");
 
-    expect(screen.getByRole("link", { name: /Folha de pagamento setembro/ })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: /Folha de pagamento setembro/ })).toBeInTheDocument();
   });
 
   it("finds a lançamento by date", async () => {
@@ -113,7 +120,7 @@ describe("BarraSuperior", () => {
 
     await user.type(screen.getByLabelText("Buscar lançamento"), "04/09");
 
-    expect(screen.getByRole("link", { name: /Boleto Aço Norte Bobinas/ })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: /Boleto Aço Norte Bobinas/ })).toBeInTheDocument();
   });
 
   it("explains an empty result instead of showing a blank panel", async () => {
@@ -130,10 +137,10 @@ describe("BarraSuperior", () => {
     montar();
 
     await user.type(screen.getByLabelText("Buscar lançamento"), "aço");
-    expect(screen.getByRole("link", { name: /Boleto Aço Norte/ })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: /Boleto Aço Norte/ })).toBeInTheDocument();
 
     await user.keyboard("{Escape}");
-    expect(screen.queryByRole("link", { name: /Boleto Aço Norte/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: /Boleto Aço Norte/ })).not.toBeInTheDocument();
   });
 
   it("focuses the search box on the announced shortcut", async () => {
@@ -144,6 +151,92 @@ describe("BarraSuperior", () => {
     expect(campo).not.toHaveFocus();
     await user.keyboard("{Control>}k{/Control}");
     expect(campo).toHaveFocus();
+  });
+
+  it("announces itself as a combobox driving the results list", async () => {
+    const user = userEvent.setup();
+    montar();
+    const campo = screen.getByLabelText("Buscar lançamento");
+
+    expect(campo).toHaveAttribute("role", "combobox");
+    expect(campo).toHaveAttribute("aria-expanded", "false");
+
+    await user.type(campo, "a");
+
+    expect(campo).toHaveAttribute("aria-expanded", "true");
+    expect(campo).toHaveAttribute("aria-controls", "busca-resultados");
+    expect(screen.getByRole("listbox", { name: "Resultados da busca" })).toBeInTheDocument();
+  });
+
+  it("walks the results with the arrow keys", async () => {
+    const user = userEvent.setup();
+    montar();
+    const campo = screen.getByLabelText("Buscar lançamento");
+
+    await user.type(campo, "a");
+    const opcoes = screen.getAllByRole("option");
+    expect(campo).not.toHaveAttribute("aria-activedescendant");
+
+    await user.keyboard("{ArrowDown}");
+    expect(campo).toHaveAttribute("aria-activedescendant", "busca-opcao-0");
+    expect(opcoes[0]).toHaveAttribute("aria-selected", "true");
+
+    await user.keyboard("{ArrowDown}");
+    expect(campo).toHaveAttribute("aria-activedescendant", "busca-opcao-1");
+
+    // volta ao primeiro dando a volta
+    await user.keyboard("{ArrowUp}");
+    expect(campo).toHaveAttribute("aria-activedescendant", "busca-opcao-0");
+    await user.keyboard("{ArrowUp}");
+    expect(campo).toHaveAttribute(
+      "aria-activedescendant",
+      `busca-opcao-${opcoes.length - 1}`,
+    );
+  });
+
+  it("opens the highlighted result with Enter", async () => {
+    const user = userEvent.setup();
+    montar();
+
+    await user.type(screen.getByLabelText("Buscar lançamento"), "aço norte");
+    await user.keyboard("{ArrowDown}");
+    await user.keyboard("{Enter}");
+
+    expect(push).toHaveBeenCalledWith("/conciliacoes/conc-1/lc-1");
+  });
+
+  it("does nothing on Enter while no result is highlighted", async () => {
+    const user = userEvent.setup();
+    montar();
+
+    await user.type(screen.getByLabelText("Buscar lançamento"), "aço norte");
+    await user.keyboard("{Enter}");
+
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it("resets the highlight when the query changes", async () => {
+    const user = userEvent.setup();
+    montar();
+    const campo = screen.getByLabelText("Buscar lançamento");
+
+    await user.type(campo, "a");
+    await user.keyboard("{ArrowDown}");
+    expect(campo).toHaveAttribute("aria-activedescendant", "busca-opcao-0");
+
+    await user.type(campo, "ço");
+    expect(campo).not.toHaveAttribute("aria-activedescendant");
+  });
+
+  it("offers the theme toggle, labelled with where it goes", async () => {
+    const user = userEvent.setup();
+    montar();
+
+    const botao = await screen.findByRole("button", { name: "Tema escuro" });
+    await user.click(botao);
+
+    expect(document.documentElement.dataset.tema).toBe("escuro");
+    expect(screen.getByRole("button", { name: "Tema claro" })).toBeInTheDocument();
   });
 
   it("counts the avisos only while they are unread", () => {

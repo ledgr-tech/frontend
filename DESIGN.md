@@ -43,32 +43,47 @@ virtualizar antes de ter dado real é otimizar no escuro.
 
 ## Tier 2 — é a régua atual para ferramenta de trabalho
 
-### 4. Dark mode
+### 4. Dark mode — ✅ feito
 
-Zero token de dark mode hoje. Conciliação é tela que se encara por horas, e o
-design tem um `ledgr-noite` como referência.
+As rampas escuras não foram escolhidas a dedo: `scripts/gerar-escuro.mjs` lê a
+escala do tema claro e **espelha a luminosidade**, mantendo matiz e o arco de
+croma (com o croma 15% menor, porque cor saturada sobre fundo escuro vibra). O
+passo 100 passa a ser o mais escuro e o 900 o mais claro, e é isso que permite
+**nenhum componente mudar de passo**: quem pedia `--color-ok-700` para texto
+continua pedindo e recebe um verde claro legível.
 
-O caminho é mecânico, não criativo: as rampas estão estruturadas em OKLCH numa
-escala de luminosidade compartilhada (ver `docs/superpowers/specs/2026-09-22-cores-de-status-design.md`),
-então as rampas escuras se **derivam** invertendo a escala, em vez de serem
-escolhidas a dedo. Depois é revisar as sete telas.
+O bloco de CSS é gerado, não escrito à mão, e sai em duas cópias — uma para quem
+pediu escuro no sistema, outra para quem escolheu no app — geradas juntas para
+não divergirem.
 
-### 5. Teclado primeiro
+**Escopo: só o app autenticado (`.app-shell`).** A landing e as telas de acesso
+seguem claras porque o `logo-barras` é 63% de pixels escuros e sumiria no fundo
+escuro. Levar o escuro para o site inteiro exige uma variante clara do logo, que
+não existe. Os mascotes, esses, são 60–79% de pixels claros e sobrevivem.
 
-O ⌘K foca a caixa de busca e para aí.
+> **Armadilha anotada:** o `.app-shell` precisa declarar `color` explicitamente.
+> Redefinir `--color-text` dentro dele não conserta texto herdado do `<body>`,
+> que já computou a cor clara lá em cima. Sem isso o fundo escurece e o texto
+> continua preto.
 
-- **Bug a corrigir:** os resultados não navegam por seta e não têm
-  `role="combobox"`/`listbox`, então leitor de tela não anuncia que apareceram
-  opções. Isso é regressão de acessibilidade introduzida junto com a barra.
-- Depois: paleta com **ações** (não só busca), `j/k` na tabela, `?` abrindo a
-  folha de atalhos.
+### 5. Teclado — parcial
 
-Para um time que repete o mesmo ciclo todo mês, é diferencial real.
+- ✅ **Bug corrigido:** a busca agora é um `combobox` de verdade, com
+  `aria-expanded`, `aria-controls`, `aria-activedescendant` e um `listbox` de
+  `option`s. Setas andam pela lista (dando a volta nas pontas), Enter abre o
+  resultado apontado, Escape fecha.
+- ⬜ **Falta:** paleta com **ações** (não só busca), `j/k` na tabela, `?` abrindo
+  a folha de atalhos. São decisões de produto maiores que um ajuste de foco.
 
-### 6. Controle de densidade
+### 6. Controle de densidade — ✅ feito
 
-O app herdou o espaçamento arejado do site (density 1.15×), ótimo para landing e
-caro para planilha. O design tem `cfgEscala` (Compacto / Padrão / Ampliado).
+Duas densidades de tabela, ao lado dos filtros da comparação, lembradas entre
+sessões.
+
+O design resolve isso com `zoom` em quatro níveis. Não copiei: `zoom` escala a
+página inteira, incluindo o menu sticky e os painéis posicionados, que passariam
+a calcular posição sobre um layout escalado. O controle aqui é só das linhas de
+tabela, que é onde a densidade paga numa ferramenta de conciliação.
 
 ## Tier 3 — refinamento que cai bem neste estilo
 
@@ -112,5 +127,11 @@ Metade do que o mercado "aprova" destruiria esta identidade.
 - O `eslint-disable` de `react-hooks/set-state-in-effect` em
   `app/(auth)/login/page.tsx:122` não é mais necessário e gera o único warning do
   lint.
+- O `AGENTS.md` diz que os títulos são Cormorant Garamond e o corpo é Lora. O
+  `app/layout.tsx` carrega **Inter** para os dois, com Cormorant só como
+  `--font-display`. A doc ficou para trás do código.
+- Em desenvolvimento, o HMR às vezes apaga o `data-tema` do `<html>` e o tema
+  parece não trocar até recarregar. Verificado contra `next start`: em produção
+  o toggle responde na hora. É artefato do dev, não do código.
 - O diálogo de linha em `/conciliacoes/[id]` e a tela de detalhe mostram a mesma
   informação. Quando a tela provar que basta, o diálogo sai.

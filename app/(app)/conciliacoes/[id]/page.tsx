@@ -13,6 +13,7 @@ import {
 import { statusDaLinha } from "../../dashboard/resumo";
 import { EsqueletoTela } from "../../esqueleto";
 import { filtrarLinhas, ordenarLinhas, type Coluna, type Ordem } from "./ordenar";
+import { aplicarDensidade, densidadeAtual, type Densidade } from "../../densidade";
 
 /** Quantas linhas por página. 4.218 lançamentos não cabem numa tela. */
 const POR_PAGINA = 25;
@@ -60,6 +61,8 @@ export default function ConciliacaoPage() {
   const [filtro, setFiltro] = useState<"todos" | "revisao">("todos");
   const [ordem, setOrdem] = useState<Ordem>({ coluna: "data", crescente: true });
   const [pagina, setPagina] = useState(0);
+  // null enquanto não lemos a preferência: só existe no cliente
+  const [densidade, setDensidade] = useState<Densidade | null>(null);
 
   useEffect(() => {
     // localStorage is only readable client-side; this is the standard pattern for
@@ -67,6 +70,11 @@ export default function ConciliacaoPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setConciliacao(buscarConciliacao(params.id));
   }, [params.id]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setDensidade(densidadeAtual());
+  }, []);
 
   if (conciliacao === undefined) {
     return <EsqueletoTela />;
@@ -101,6 +109,11 @@ export default function ConciliacaoPage() {
   // página atual fora do fim, e reagir a isso com setState causaria render extra
   const paginaAtual = Math.min(pagina, totalPaginas - 1);
   const visiveis = ordenadas.slice(paginaAtual * POR_PAGINA, (paginaAtual + 1) * POR_PAGINA);
+
+  function escolherDensidade(proxima: Densidade) {
+    aplicarDensidade(proxima);
+    setDensidade(proxima);
+  }
 
   function alternarOrdem(coluna: Coluna) {
     setOrdem((atual) =>
@@ -138,6 +151,27 @@ export default function ConciliacaoPage() {
           </button>
         </div>
       </div>
+
+      {densidade !== null && (
+        <div className="pills" role="group" aria-label="Densidade da tabela">
+          <button
+            type="button"
+            className="pill"
+            aria-pressed={densidade === "padrao"}
+            onClick={() => escolherDensidade("padrao")}
+          >
+            Padrão
+          </button>
+          <button
+            type="button"
+            className="pill"
+            aria-pressed={densidade === "compacta"}
+            onClick={() => escolherDensidade("compacta")}
+          >
+            Compacta
+          </button>
+        </div>
+      )}
 
       <div>
         <div className="dash-tabela-rolagem">
