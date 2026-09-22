@@ -26,7 +26,7 @@ vi.mock("@/lib/mock-data", () => ({
       titulo: "Extrato de outubro disponível no banco",
       texto: "O Sicredi liberou o arquivo.",
       quando: "há 20 minutos",
-      nivel: "medio",
+      tom: "atencao",
       href: "/conciliacoes/nova",
     },
   ],

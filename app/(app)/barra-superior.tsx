@@ -176,7 +176,7 @@ export function BarraSuperior({
             {AVISOS.map((aviso) => {
               const corpo = (
                 <>
-                  <span className={`app-aviso-ponto app-aviso-ponto-${aviso.nivel}`} aria-hidden="true" />
+                  <span className={`app-aviso-ponto app-aviso-ponto-${aviso.tom}`} aria-hidden="true" />
                   <span className="app-aviso-corpo">
                     <span className="app-aviso-titulo">{aviso.titulo}</span>
                     <span className="app-aviso-texto">{aviso.texto}</span>

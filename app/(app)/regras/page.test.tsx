@@ -11,12 +11,13 @@ vi.mock("@/lib/mock-data", () => ({
   listarRegras: () => listarRegras(),
   ativarRegra: (id: number) => ativarRegra(id),
   desativarRegra: (id: number) => desativarRegra(id),
+  tomDaRegra: (marca: string) =>
+    marca === "Aprendida" ? "ok" : marca === "Sugerida" ? "atencao" : "neutro",
 }));
 
 const ativa: Regra = {
   id: 0,
   titulo: "Juros de atraso da Aço Norte Bobinas",
-  nivel: "medio",
   marca: "Aprendida",
   texto: "Classificar a diferença como despesa financeira e casar automaticamente.",
   rodape: "Criada em 12/08/2026 por Financeiro · aplicada 3 vezes",
@@ -26,7 +27,6 @@ const ativa: Regra = {
 const sugerida: Regra = {
   id: 2,
   titulo: "Estornos de maquininha com dois dias de folga",
-  nivel: "medio",
   marca: "Sugerida",
   texto: "Uma janela de dois dias para essa descrição resolveria dezoito dos vinte e dois casos.",
   rodape: "Padrão detectado em julho, agosto e setembro",
@@ -50,6 +50,13 @@ describe("RegrasPage", () => {
     expect(screen.getByText(sugerida.titulo)).toBeInTheDocument();
     expect(screen.getByText("Aprendida")).toBeInTheDocument();
     expect(screen.getByText("resolve 5 de 6")).toBeInTheDocument();
+  });
+
+  it("colours the badge by where the rule came from", () => {
+    listarRegras.mockReturnValue({ ativas: [ativa], sugeridas: [] });
+    render(<RegrasPage />);
+    // Aprendida ja trabalha por voce: verde
+    expect(screen.getByText("Aprendida")).toHaveClass("selo-ok");
   });
 
   it("pluralises the kicker counts", async () => {

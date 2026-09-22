@@ -11,7 +11,7 @@ vi.mock("@/lib/mock-data", () => ({
       titulo: "Extrato de outubro disponível no banco",
       texto: "O Sicredi liberou o arquivo do período 01–31/10.",
       quando: "há 20 minutos",
-      nivel: "medio",
+      tom: "atencao",
       href: "/conciliacoes/nova",
     },
     {
@@ -19,7 +19,7 @@ vi.mock("@/lib/mock-data", () => ({
       titulo: "157 divergências aguardando decisão",
       texto: "Setembro não pode ser fechado enquanto houver item pendente.",
       quando: "há 3 horas",
-      nivel: "forte",
+      tom: "risco",
       href: null,
     },
   ],

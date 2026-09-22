@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ativarRegra, desativarRegra, listarRegras, type Regra } from "@/lib/mock-data";
+import { ativarRegra, desativarRegra, listarRegras, tomDaRegra, type Regra } from "@/lib/mock-data";
 
 type Listas = { ativas: Regra[]; sugeridas: Regra[] };
 
@@ -68,7 +68,7 @@ export default function RegrasPage() {
                       >
                         {regra.titulo}
                       </span>
-                      <span className={`selo selo-${regra.nivel}`}>{regra.marca}</span>
+                      <span className={`selo selo-${tomDaRegra(regra.marca)}`}>{regra.marca}</span>
                     </div>
                     <div className="regra-texto">{regra.texto}</div>
                     <div className="regra-rodape">{regra.rodape}</div>

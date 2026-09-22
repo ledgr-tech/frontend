@@ -61,12 +61,15 @@ describe("resumir", () => {
 });
 
 describe("statusDaLinha", () => {
-  it("traz o rótulo e o nível de atenção do design", () => {
+  it("traz o rótulo do design e o tom semântico", () => {
     expect(statusDaLinha("divergencia_valor")).toEqual({
       rotulo: "Divergência de valor",
-      nivel: "forte",
+      tom: "risco",
     });
-    expect(statusDaLinha("batido").nivel).toBe("neutro");
+    // uma linha batida e caso resolvido, nao ausencia de status
+    expect(statusDaLinha("batido").tom).toBe("ok");
+    // falta um dos lados: pendente, nao errado
+    expect(statusDaLinha("somente_banco").tom).toBe("atencao");
   });
 });
 

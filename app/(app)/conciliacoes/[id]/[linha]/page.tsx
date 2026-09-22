@@ -40,7 +40,7 @@ function CartaoExtrato({
         </span>
         <span className={marcaClasse}>{marca}</span>
       </div>
-      <div className="det-valor" style={destacado ? undefined : { color: "var(--color-accent-700)" }}>
+      <div className="det-valor" style={destacado ? undefined : { color: "var(--color-risco-700)" }}>
         {valor === null ? "—" : formatarMoeda(valor)}
       </div>
       {campos?.map((campo) => (
@@ -161,7 +161,7 @@ export default function DetalheDivergenciaPage() {
           <CartaoExtrato
             titulo="Extrato do sistema"
             marca={linha.status === "batido" ? "Conciliado" : "Precisa de ajuste"}
-            marcaClasse="tag tag-outline"
+            marcaClasse={linha.status === "batido" ? "selo selo-ok" : "selo selo-risco"}
             valor={linha.valorSistema}
             campos={linha.camposSistema}
             destacado={false}
@@ -211,7 +211,7 @@ export default function DetalheDivergenciaPage() {
                   <span style={{ flex: "none", fontSize: 14, color: "color-mix(in srgb, var(--color-text) 50%, transparent)" }}>
                     contra
                   </span>
-                  <span className="det-cronico-num" style={{ color: "var(--color-accent-700)" }}>
+                  <span className="det-cronico-num" style={{ color: "var(--color-risco-700)" }}>
                     {formatarMoeda(mes.valorSistema)}
                   </span>
                   <span className="det-cronico-nota">

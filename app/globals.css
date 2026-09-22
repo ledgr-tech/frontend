@@ -31,6 +31,34 @@
   --color-accent-800: #5a3b0a;
   --color-accent-900: #3a270d;
 
+  /* Papeis de status. Geradas na MESMA escala de luminosidade e no mesmo arco de
+     croma da rampa de ouro (L de 0.9695 a 0.2897, croma picando em 500) — so o
+     matiz muda: verde em H=148, terracota em H=37.9, o matiz que o --color-erro
+     ja usava. Por isso o passo 300 de qualquer papel pesa igual na pagina.
+     Divisao de trabalho: o OURO e marca e atencao, VERDE e TERRACOTA sao
+     reservados a status. Cor de status nunca entra no chrome. */
+  --color-ok: #52985e;
+  --color-ok-100: #ebfaec;
+  --color-ok-200: #cff3d3;
+  --color-ok-300: #a9e6b1;
+  --color-ok-400: #87cb90;
+  --color-ok-500: #65ac70;
+  --color-ok-600: #498b54;
+  --color-ok-700: #336c3e;
+  --color-ok-800: #234d2b;
+  --color-ok-900: #19321d;
+
+  --color-risco: #c7745a;
+  --color-risco-100: #fef2ee;
+  --color-risco-200: #ffe0d7;
+  --color-risco-300: #fec5b3;
+  --color-risco-400: #f39f85;
+  --color-risco-500: #d47f65;
+  --color-risco-600: #b06249;
+  --color-risco-700: #8a4934;
+  --color-risco-800: #633324;
+  --color-risco-900: #402219;
+
   --font-heading: var(--font-heading-family), system-ui, sans-serif;
   --font-heading-weight: 600;
   --font-body: var(--font-body-family), system-ui, sans-serif;
@@ -789,17 +817,22 @@ button.login-link-animado { border: 0; background-color: transparent; font: inhe
   color: color-mix(in srgb, var(--color-text) 62%, transparent);
   background: transparent;
 }
-.selo-leve {
-  border-color: var(--color-accent-300); color: var(--color-accent-700);
-  background: color-mix(in srgb, var(--color-accent-300) 22%, transparent);
+/* .selo sem modificador = neutro, sem cor. Os tres papeis usam a MESMA receita:
+   texto no passo 700 sobre 8% do 700, com a borda carregando o matiz. Medido no
+   navegador: ok 4.71:1, risco 5.12:1, atencao 5.02:1 — o texto tem 12.5px, entao
+   precisa de 4.5:1. Um preenchimento de 14% chegava a 4.2 e reprovava; fundo mais
+   fraco com borda colorida ainda e mais fiel ao "cor como traco" do design system. */
+.selo-ok {
+  border-color: var(--color-ok-400); color: var(--color-ok-700);
+  background: color-mix(in srgb, var(--color-ok-700) 8%, transparent);
 }
-.selo-medio {
+.selo-atencao {
   border-color: var(--color-accent); color: var(--color-accent-700);
-  background: color-mix(in srgb, var(--color-accent) 14%, transparent);
+  background: color-mix(in srgb, var(--color-accent-700) 8%, transparent);
 }
-.selo-forte {
-  border-color: var(--color-accent-700); color: var(--color-accent-700);
-  background: color-mix(in srgb, var(--color-accent-700) 16%, transparent);
+.selo-risco {
+  border-color: var(--color-risco-600); color: var(--color-risco-700);
+  background: color-mix(in srgb, var(--color-risco-700) 8%, transparent);
 }
 
 .dash-cabecalho {
@@ -908,7 +941,7 @@ button.login-link-animado { border: 0; background-color: transparent; font: inhe
 .det-delta-linha { width: 1px; flex: 1; background: var(--color-divider); }
 .det-delta-valor {
   font-family: var(--font-heading); font-size: 24px;
-  color: var(--color-accent); font-variant-numeric: tabular-nums; white-space: nowrap;
+  color: var(--color-risco); font-variant-numeric: tabular-nums; white-space: nowrap;
 }
 .det-causa {
   display: flex; flex-wrap: wrap; gap: 24px 30px; align-items: center;
@@ -1193,9 +1226,9 @@ button.login-link-animado { border: 0; background-color: transparent; font: inhe
   flex: none; width: 8px; height: 8px; margin-top: 7px; border-radius: 50%;
   background: var(--color-divider);
 }
-.app-aviso-ponto-leve { background: var(--color-accent-300); }
-.app-aviso-ponto-medio { background: var(--color-accent); }
-.app-aviso-ponto-forte { background: var(--color-accent-700); }
+.app-aviso-ponto-ok { background: var(--color-ok); }
+.app-aviso-ponto-atencao { background: var(--color-accent); }
+.app-aviso-ponto-risco { background: var(--color-risco); }
 .app-aviso-corpo { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .app-aviso-titulo {
   font-family: var(--font-heading); font-size: 15.5px; font-weight: 600; line-height: 1.3;

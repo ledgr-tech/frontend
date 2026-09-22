@@ -1,17 +1,20 @@
-import type { Conciliacao, LinhaComparacao, Nivel, StatusLinha } from "@/lib/mock-data";
+import type { Conciliacao, LinhaComparacao, StatusLinha, Tom } from "@/lib/mock-data";
 
 // Rótulos e níveis de atenção vêm do design (NIVEL_STATUS em "Ledgr.dc.html").
 // ponytail: o design prevê 7 status, o mock só produz estes 4. Os outros três
 // (data divergente, possível duplicidade, match com tolerância) entram junto com
 // a conciliação real, que é quem sabe calculá-los.
-const STATUS: Record<StatusLinha, { rotulo: string; nivel: Nivel }> = {
-  batido: { rotulo: "Match exato", nivel: "neutro" },
-  divergencia_valor: { rotulo: "Divergência de valor", nivel: "forte" },
-  somente_banco: { rotulo: "Sem correspondência no sistema", nivel: "medio" },
-  somente_sistema: { rotulo: "Sem correspondência no banco", nivel: "medio" },
+const STATUS: Record<StatusLinha, { rotulo: string; tom: Tom }> = {
+  // bateu: verde, o caso resolvido
+  batido: { rotulo: "Match exato", tom: "ok" },
+  // os dois lados existem e o dinheiro nao confere: e o unico erro de verdade
+  divergencia_valor: { rotulo: "Divergência de valor", tom: "risco" },
+  // falta um dos lados: incompleto, nao errado — fica no ouro
+  somente_banco: { rotulo: "Sem correspondência no sistema", tom: "atencao" },
+  somente_sistema: { rotulo: "Sem correspondência no banco", tom: "atencao" },
 };
 
-export function statusDaLinha(status: StatusLinha): { rotulo: string; nivel: Nivel } {
+export function statusDaLinha(status: StatusLinha): { rotulo: string; tom: Tom } {
   return STATUS[status];
 }
 

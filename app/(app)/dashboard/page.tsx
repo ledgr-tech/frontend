@@ -157,14 +157,16 @@ export default function DashboardPage() {
             </div>
             <div>
               <span className="dash-rotulo">Match automático</span>
-              <span className="dash-valor">{formatarPercentual(resumo.taxaMatch)}</span>
+              <span className="dash-valor" style={{ color: "var(--color-ok)" }}>
+                {formatarPercentual(resumo.taxaMatch)}
+              </span>
               <span className="dash-nota">
                 {formatarInteiro(resumo.batidos)} casados sem intervenção
               </span>
             </div>
             <div>
               <span className="dash-rotulo">Valor em divergência</span>
-              <span className="dash-valor" style={{ color: "var(--color-accent)" }}>
+              <span className="dash-valor" style={{ color: "var(--color-risco)" }}>
                 {formatarMoedaCurta(resumo.valorDivergente)}
               </span>
               <span className="dash-nota">
@@ -299,7 +301,7 @@ export default function DashboardPage() {
                         <td>{linha.descricao}</td>
                         <td className="dash-valor-celula">{formatarMoeda(valorDaLinha(linha))}</td>
                         <td>
-                          <span className={`selo selo-${status.nivel}`}>{status.rotulo}</span>
+                          <span className={`selo selo-${status.tom}`}>{status.rotulo}</span>
                         </td>
                         <td className="dash-celula-fraca" style={{ textAlign: "right", fontSize: 14 }}>
                           {origemDaLinha(linha)}

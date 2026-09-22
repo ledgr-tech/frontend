@@ -8,7 +8,9 @@ import { formatarInteiro, formatarMoedaCurta, formatarPercentual } from "../dash
 // na ordem inversa, para o tempo correr da esquerda para a direita.
 const CRONOLOGICO = [...HISTORICO_MESES].reverse();
 
-// Tom de ouro por posição, do mais claro ao mais forte: o mês atual é o que pesa.
+// O gráfico mede taxa de match, que é a métrica "ok" — mesma cor que ela tem na
+// dashboard. Rampa sequencial (uma série ao longo do tempo, não categorias): do
+// mais claro ao mais forte, então o mês atual é o que pesa.
 const RAMPA = [200, 200, 300, 300, 500, 700];
 
 /** Mesma escala do design: 28px de base e 11px por ponto percentual acima de 90. */
@@ -49,7 +51,7 @@ export default function HistoricoPage() {
               <h6 style={{ margin: "0 0 6px", color: "var(--color-accent-700)" }}>
                 Taxa de match automático
               </h6>
-              <div className="hist-destaque">
+              <div className="hist-destaque" style={{ color: "var(--color-ok-700)" }}>
                 {formatarPercentual(atual.taxaMatch)} em {mesAtual}
               </div>
             </div>
@@ -66,8 +68,8 @@ export default function HistoricoPage() {
                   className="hist-barra"
                   style={{
                     height: alturaDaBarra(mes.taxaMatch),
-                    borderColor: `var(--color-accent-${RAMPA[i]})`,
-                    background: `color-mix(in srgb, var(--color-accent-${RAMPA[i]}) ${14 + i * 5}%, transparent)`,
+                    borderColor: `var(--color-ok-${RAMPA[i]})`,
+                    background: `color-mix(in srgb, var(--color-ok-${RAMPA[i]}) ${14 + i * 5}%, transparent)`,
                   }}
                 />
                 <span className="hist-barra-mes">{mes.mes.slice(0, 3)}</span>
@@ -99,7 +101,7 @@ export default function HistoricoPage() {
                     <td className="dash-valor-celula">{formatarPercentual(mes.taxaMatch)}</td>
                     <td className="dash-valor-celula">{formatarMoedaCurta(mes.ajusteLiquido)}</td>
                     <td style={{ textAlign: "right" }}>
-                      <span className={mes.fechadoComRessalva ? "selo selo-medio" : "selo"}>
+                      <span className={mes.fechadoComRessalva ? "selo selo-atencao" : "selo selo-ok"}>
                         {mes.fechadoComRessalva ? "Fechado com ressalva" : "Fechado"}
                       </span>
                     </td>

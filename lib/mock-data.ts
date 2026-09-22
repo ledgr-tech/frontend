@@ -11,8 +11,13 @@ export type EventoHistorico = {
   origem?: "Banco" | "Sistema" | "Ledgr";
 };
 
-/** Nível de atenção do design (NIVEIS em Ledgr.dc.html): quanto mais grave, mais o ouro pesa. */
-export type Nivel = "neutro" | "leve" | "medio" | "forte";
+/**
+ * Papel de cor de um status. O design tinha uma escala de gravidade em ouro
+ * (leve/medio/forte), então só a intensidade distinguia um problema do outro.
+ * Aqui o matiz é que carrega o significado: verde resolvido, terracota
+ * divergente, ouro pendente, neutro sem cor.
+ */
+export type Tom = "neutro" | "ok" | "atencao" | "risco";
 
 /** Linha "rótulo: valor" nos cartões de banco e sistema do detalhe da divergência. */
 export type CampoLancamento = {
@@ -243,7 +248,6 @@ export type MarcaRegra = "Aprendida" | "Padrão" | "Sugerida";
 export type Regra = {
   id: number;
   titulo: string;
-  nivel: Nivel;
   marca: MarcaRegra;
   texto: string;
   /** Linha de procedência: quem criou, quando, quantas vezes aplicou. */
@@ -256,7 +260,6 @@ const REGRAS: Regra[] = [
   {
     id: 0,
     titulo: "Juros de atraso da Aço Norte Bobinas",
-    nivel: "medio",
     marca: "Aprendida",
     texto:
       "Quando o boleto desse fornecedor liquidar acima do valor emitido, classificar a diferença como despesa financeira e casar automaticamente.",
@@ -266,7 +269,6 @@ const REGRAS: Regra[] = [
   {
     id: 1,
     titulo: "Tarifas e IOF entram conciliados",
-    nivel: "leve",
     marca: "Padrão",
     texto:
       "Tarifa de pacote, IOF e taxas bancárias de até R$ 200 casam sem passar pela revisão manual.",
@@ -276,7 +278,6 @@ const REGRAS: Regra[] = [
   {
     id: 2,
     titulo: "Estornos de maquininha com dois dias de folga",
-    nivel: "medio",
     marca: "Sugerida",
     texto:
       "O sistema lança o estorno na hora e o banco credita no dia seguinte. Uma janela de dois dias para essa descrição resolveria dezoito dos vinte e dois casos do mês.",
@@ -286,7 +287,6 @@ const REGRAS: Regra[] = [
   {
     id: 3,
     titulo: "Folha de pagamento sempre no dia 15",
-    nivel: "leve",
     marca: "Sugerida",
     texto:
       "Casar a folha pelo valor total do mês mesmo quando o banco quebrar o pagamento em dois lançamentos.",
@@ -296,7 +296,6 @@ const REGRAS: Regra[] = [
   {
     id: 4,
     titulo: "Antecipação de recebíveis por lote",
-    nivel: "leve",
     marca: "Sugerida",
     texto:
       "Agrupar os lançamentos do mesmo lote de antecipação antes de comparar com o crédito único do banco.",
@@ -304,6 +303,17 @@ const REGRAS: Regra[] = [
     impacto: "resolve 3 de 4",
   },
 ];
+
+/**
+ * O tom da regra sai da procedência dela. Antes havia um `nivel` por regra que
+ * não queria dizer nada além de "mais ou menos ouro": uma regra Aprendida já
+ * está trabalhando por você, a Padrão é mobília, e a Sugerida espera decisão.
+ */
+export function tomDaRegra(marca: MarcaRegra): Tom {
+  if (marca === "Aprendida") return "ok";
+  if (marca === "Sugerida") return "atencao";
+  return "neutro";
+}
 
 const REGRAS_KEY = "ledgr_regras_ativas";
 /** Estado inicial do protótipo do design: as duas primeiras já vêm ligadas. */
@@ -376,7 +386,7 @@ export type Aviso = {
   titulo: string;
   texto: string;
   quando: string;
-  nivel: Nivel;
+  tom: Tom;
   /** Para onde o aviso leva, quando a tela existe. */
   href: string | null;
 };
@@ -387,7 +397,7 @@ export const AVISOS: Aviso[] = [
     titulo: "Extrato de outubro disponível no banco",
     texto: "O Sicredi liberou o arquivo do período 01–31/10.",
     quando: "há 20 minutos",
-    nivel: "medio",
+    tom: "atencao",
     href: "/conciliacoes/nova",
   },
   {
@@ -395,7 +405,7 @@ export const AVISOS: Aviso[] = [
     titulo: "157 divergências aguardando decisão",
     texto: "Setembro não pode ser fechado enquanto houver item pendente.",
     quando: "há 3 horas",
-    nivel: "forte",
+    tom: "risco",
     // o design manda para a comparação folha a folha, que ainda não existe
     href: null,
   },
@@ -404,7 +414,7 @@ export const AVISOS: Aviso[] = [
     titulo: "Prazo de fechamento em 4 dias",
     texto: "O contador pede o relatório até 05/10.",
     quando: "ontem",
-    nivel: "leve",
+    tom: "atencao",
     // o design manda para o fechamento, que ainda não existe
     href: null,
   },
