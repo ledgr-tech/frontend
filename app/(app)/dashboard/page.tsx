@@ -25,9 +25,7 @@ import { InkHover, MotionRoot, Reveal, SpotlightHover } from "@/app/(marketing)/
 // Copy do design ("sugestoes" em Ledgr.dc.html). São leituras de padrão entre
 // competências — o mock tem uma competência só, então o texto é fixo até existir
 // histórico de verdade para ler.
-// ponytail: só a primeira tem CTA. "Criar regra" e "Ver histórico" apontariam
-// para /regras e /historico, que ainda não existem; botão que não leva a lugar
-// nenhum é pior que botão ausente.
+// O destino de "Ver o caso" depende da conciliação carregada, então vem de fora.
 const SUGESTOES = [
   {
     num: "I",
@@ -35,20 +33,23 @@ const SUGESTOES = [
     texto:
       "Sempre a mesma diferença de dois dias de atraso. Vale criar uma regra de despesa financeira para esse fornecedor.",
     cta: "Ver o caso",
+    href: null,
   },
   {
     num: "II",
     titulo: "Vinte e dois estornos de maquininha não existem no extrato do banco",
     texto:
       "O sistema lança o estorno na hora, o banco só no dia seguinte. Uma janela de data de dois dias resolveria cinco deles.",
-    cta: null,
+    cta: "Criar regra",
+    href: "/regras",
   },
   {
     num: "III",
     titulo: "Setembro repetiu o padrão de agosto: 157 divergências, 19 no sistema",
     texto:
       "A taxa de match subiu para 96,3%, mas o gargalo continua sendo lançamento manual no ERP.",
-    cta: null,
+    cta: "Ver histórico",
+    href: "/historico",
   },
 ];
 
@@ -70,6 +71,12 @@ export default function DashboardPage() {
   const maisRecente = conciliacoes[0] ?? null;
   // A tabela do design mostra os sete primeiros lançamentos da competência.
   const lancamentos = conciliacoes.flatMap((conciliacao) => conciliacao.linhas).slice(0, 7);
+  // "Ver o caso" abre a primeira divergência em aberto; sem nenhuma, fica sem CTA.
+  const primeiraEmAberto = maisRecente?.linhas.find((linha) => linha.status !== "batido") ?? null;
+  const hrefPrimeiroCaso =
+    maisRecente && primeiraEmAberto
+      ? `/conciliacoes/${maisRecente.id}/${primeiraEmAberto.id}`
+      : null;
 
   return (
     <MotionRoot>
@@ -207,15 +214,19 @@ export default function DashboardPage() {
                       <span className="dash-sugestao-titulo">{sugestao.titulo}</span>
                       <span className="dash-sugestao-texto">{sugestao.texto}</span>
                     </span>
-                    {sugestao.cta === null ? null : (
-                      <Link
-                        href={`/conciliacoes/${maisRecente.id}`}
-                        className="btn btn-ghost"
-                        style={{ flex: "none", fontSize: 13.5 }}
-                      >
-                        {sugestao.cta}
-                      </Link>
-                    )}
+                    {(() => {
+                      const href = sugestao.href ?? hrefPrimeiroCaso;
+                      if (href === null) return null;
+                      return (
+                        <Link
+                          href={href}
+                          className="btn btn-ghost"
+                          style={{ flex: "none", fontSize: 13.5 }}
+                        >
+                          {sugestao.cta}
+                        </Link>
+                      );
+                    })()}
                   </div>
                 ))}
               </div>
@@ -239,7 +250,7 @@ export default function DashboardPage() {
                   {formatarMoedaCurta(resumo.valorDivergente)} em divergência.
                 </span>
                 <Link
-                  href={`/conciliacoes/${maisRecente.id}`}
+                  href={hrefPrimeiroCaso ?? `/conciliacoes/${maisRecente.id}`}
                   className="btn btn-primary"
                   style={{ marginTop: 2 }}
                 >

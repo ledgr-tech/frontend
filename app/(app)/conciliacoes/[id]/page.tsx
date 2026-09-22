@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   buscarConciliacao,
   fecharConciliacao,
@@ -135,6 +136,15 @@ export default function ConciliacaoPage() {
               <button type="button" className="btn btn-secondary" onClick={() => setLinhaAberta(null)}>
                 Fechar
               </button>
+              {/* ponytail: o diálogo é o espia rápido; o detalhe inteiro é tela própria
+                  no design. Os dois mostram a mesma linha — quando a tela provar que
+                  basta, o diálogo pode sair. */}
+              <Link
+                href={`/conciliacoes/${conciliacao.id}/${linhaAberta.id}`}
+                className="btn btn-primary"
+              >
+                Abrir detalhe
+              </Link>
             </div>
           </div>
         </div>

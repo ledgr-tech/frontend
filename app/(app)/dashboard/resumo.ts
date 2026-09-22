@@ -1,6 +1,4 @@
-import type { Conciliacao, LinhaComparacao, StatusLinha } from "@/lib/mock-data";
-
-export type Nivel = "neutro" | "leve" | "medio" | "forte";
+import type { Conciliacao, LinhaComparacao, Nivel, StatusLinha } from "@/lib/mock-data";
 
 // Rótulos e níveis de atenção vêm do design (NIVEL_STATUS em "Ledgr.dc.html").
 // ponytail: o design prevê 7 status, o mock só produz estes 4. Os outros três

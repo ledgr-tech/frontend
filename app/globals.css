@@ -877,3 +877,178 @@ button.login-link-animado { border: 0; background-color: transparent; font: inhe
   /* no celular o contador brigava com o título em duas linhas */
   .dash-sugestoes-contagem { display: none; }
 }
+
+/* ── Detalhe da divergência ─────────────────────────────────────────────────── */
+.det-kicker {
+  font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--color-accent-700); font-variant-numeric: tabular-nums; margin-bottom: 8px;
+}
+.det-corpo {
+  padding: 32px 0 64px; max-width: 1040px;
+  display: flex; flex-direction: column; gap: 32px;
+}
+.det-comparacao {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 26px; align-items: stretch;
+}
+.det-cartao {
+  border: 1px solid var(--color-divider); border-radius: var(--radius-md);
+  padding: 22px 24px; display: flex; flex-direction: column; gap: 14px;
+}
+.det-cartao-verdade { border-color: var(--color-accent); }
+.det-valor {
+  font-family: var(--font-heading); font-size: 42px; font-weight: 400;
+  line-height: 1.04; letter-spacing: -0.01em; font-variant-numeric: tabular-nums;
+}
+.det-campo {
+  display: flex; justify-content: space-between; gap: 16px; font-size: 15px;
+  border-top: 1px solid var(--color-divider); padding-top: 9px;
+}
+.det-delta { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; }
+.det-delta-linha { width: 1px; flex: 1; background: var(--color-divider); }
+.det-delta-valor {
+  font-family: var(--font-heading); font-size: 24px;
+  color: var(--color-accent); font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.det-causa {
+  display: flex; flex-wrap: wrap; gap: 24px 30px; align-items: center;
+  border-block: 1px solid var(--color-divider); padding: 26px 0;
+}
+.det-causa-titulo {
+  font-family: var(--font-heading); font-size: 21px; font-weight: 600;
+  line-height: 1.24; margin-bottom: 8px;
+}
+.det-causa-texto {
+  margin: 0; font-size: 14.5px; line-height: 1.72; text-align: justify;
+  hyphens: auto; max-width: 74ch;
+  color: color-mix(in srgb, var(--color-text) 78%, transparent);
+}
+.det-cronico {
+  border: 1px solid var(--color-accent-300); border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-accent-300) 14%, var(--color-surface));
+  padding: 22px 24px;
+}
+.det-cronico-topo {
+  display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between;
+  gap: 10px 20px; margin-bottom: 14px;
+}
+.det-cronico-linha {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px;
+  padding: 11px 0; border-bottom: 1px solid var(--color-divider);
+}
+.det-cronico-mes {
+  flex: none; width: 110px; font-size: 14px; font-variant-numeric: tabular-nums;
+  color: color-mix(in srgb, var(--color-text) 60%, transparent);
+}
+.det-cronico-num {
+  flex: none; font-family: var(--font-heading); font-size: 17px; font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.det-cronico-nota {
+  flex: 1; min-width: 0; text-align: right; font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  color: color-mix(in srgb, var(--color-text) 68%, transparent);
+}
+
+/* até 760px os dois extratos empilham e o delta vira uma linha horizontal */
+@media (max-width: 760px) {
+  .det-comparacao { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .det-delta { flex-direction: row; gap: 14px; }
+  .det-delta-linha { width: auto; height: 1px; flex: 1; }
+  .det-valor { font-size: 34px; }
+  .det-causa-texto { text-align: left; }
+  .det-cronico-nota { flex-basis: 100%; text-align: left; }
+}
+
+/* ── Regras ─────────────────────────────────────────────────────────────────── */
+.regras-corpo {
+  padding: 32px 0 64px; max-width: 1000px;
+  display: flex; flex-direction: column; gap: 34px;
+}
+.regra-cartao {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 16px 24px;
+  padding: 20px 22px; border-radius: var(--radius-md);
+  border: 1px solid var(--color-divider); background: var(--color-surface);
+}
+.regra-titulo-linha {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 7px;
+}
+.regra-texto {
+  font-size: 14.5px; line-height: 1.72; text-wrap: pretty;
+  color: color-mix(in srgb, var(--color-text) 76%, transparent);
+}
+.regra-rodape {
+  margin-top: 8px; font-size: 13px; font-variant-numeric: tabular-nums;
+  color: color-mix(in srgb, var(--color-text) 55%, transparent);
+}
+.regras-sugeridas-topo {
+  display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between;
+  gap: 10px 20px; margin-bottom: 14px;
+}
+.regra-sugerida {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 14px 20px;
+  padding: 18px 0; border-bottom: 1px solid var(--color-divider);
+}
+.regra-impacto {
+  font-size: 13px; font-variant-numeric: tabular-nums;
+  color: color-mix(in srgb, var(--color-text) 55%, transparent);
+}
+.regras-vazio {
+  margin: 0; font-size: 14.5px; line-height: 1.72; max-width: 60ch;
+  color: color-mix(in srgb, var(--color-text) 70%, transparent);
+}
+
+/* ── Histórico ──────────────────────────────────────────────────────────────── */
+.hist-corpo {
+  padding: 34px 0 64px; max-width: 1040px;
+  display: flex; flex-direction: column; gap: 34px;
+}
+.hist-grafico-bloco { border-block: 1px solid var(--color-divider); padding: 26px 0; }
+.hist-grafico-topo {
+  display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between;
+  gap: 12px 20px; margin-bottom: 22px;
+}
+.hist-destaque {
+  font-family: var(--font-heading); font-size: 30px; font-weight: 400;
+  line-height: 1; font-variant-numeric: tabular-nums;
+}
+.hist-nota {
+  font-size: 14px; line-height: 1.6; max-width: 32ch; text-align: right;
+  color: color-mix(in srgb, var(--color-text) 62%, transparent);
+}
+.hist-barras {
+  display: grid; grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 18px; align-items: end; height: 176px;
+}
+.hist-barra-coluna {
+  display: flex; flex-direction: column; justify-content: flex-end;
+  align-items: stretch; gap: 8px; height: 100%;
+}
+.hist-barra-taxa {
+  font-size: 13.5px; font-variant-numeric: tabular-nums; text-align: center;
+  color: color-mix(in srgb, var(--color-text) 70%, transparent);
+}
+.hist-barra {
+  border: 1px solid var(--color-accent-300);
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+}
+.hist-barra-mes {
+  font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; text-align: center;
+  color: color-mix(in srgb, var(--color-text) 55%, transparent);
+}
+.hist-economia {
+  display: flex; flex-wrap: wrap; gap: 26px 34px; align-items: center;
+  border-top: 1px solid var(--color-divider); padding-top: 28px;
+}
+.hist-economia-texto {
+  margin: 0; font-size: 14.5px; line-height: 1.72; text-align: justify;
+  hyphens: auto; max-width: 70ch;
+  color: color-mix(in srgb, var(--color-text) 78%, transparent);
+}
+
+@media (max-width: 680px) {
+  .hist-nota { text-align: left; }
+  .hist-barras { gap: 8px; }
+  .hist-barra-taxa { font-size: 11px; }
+  .hist-economia-texto { text-align: left; }
+}

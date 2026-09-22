@@ -93,10 +93,37 @@ describe("DashboardPage", () => {
     render(<DashboardPage />);
 
     expect(await screen.findByText("Comece pelas 2 sem correspondente")).toBeInTheDocument();
+    // vai direto para a primeira divergência em aberto, não para a lista
     expect(screen.getByRole("link", { name: "Revisar agora" })).toHaveAttribute(
       "href",
-      "/conciliacoes/conc-9",
+      "/conciliacoes/conc-9/l-1",
     );
+  });
+
+  it("points each suggestion at the screen that resolves it", async () => {
+    listarConciliacoes.mockReturnValue([
+      conciliacao("conc-1", [linha("l-1", "divergencia_valor", 12640, 12604)]),
+    ]);
+    render(<DashboardPage />);
+
+    expect(await screen.findByRole("link", { name: "Ver o caso" })).toHaveAttribute(
+      "href",
+      "/conciliacoes/conc-1/l-1",
+    );
+    expect(screen.getByRole("link", { name: "Criar regra" })).toHaveAttribute("href", "/regras");
+    expect(screen.getByRole("link", { name: "Ver histórico" })).toHaveAttribute("href", "/historico");
+  });
+
+  it("drops the Ver o caso link when every linha is already matched", async () => {
+    listarConciliacoes.mockReturnValue([
+      conciliacao("conc-1", [linha("l-1", "batido", 100, 100)]),
+    ]);
+    render(<DashboardPage />);
+
+    expect(await screen.findByText("Conciliações recentes")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Ver o caso" })).not.toBeInTheDocument();
+    // as outras duas não dependem da conciliação e continuam
+    expect(screen.getByRole("link", { name: "Criar regra" })).toBeInTheDocument();
   });
 
   it("hides the highlight card when every linha has a counterpart", async () => {
