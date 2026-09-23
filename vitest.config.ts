@@ -11,5 +11,11 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["./tests/setup.ts"],
     exclude: ["**/node_modules/**", "**/.worktrees/**"],
+    // 5s (o default) já estourava com os arquivos rodando em paralelo: o teste
+    // que abre "Esqueci a senha" espera um import dinâmico (o card e o motion),
+    // e sob disputa de CPU isso passa de 5s. Serializado, a suíte inteira passa
+    // — ou seja, é orçamento de tempo, não travamento. Um travamento de verdade
+    // continua falhando, só que 15s depois.
+    testTimeout: 15_000,
   },
 });

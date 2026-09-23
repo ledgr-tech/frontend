@@ -26,7 +26,7 @@ function comLc2Aceita(base: Conciliacao): Conciliacao {
   return {
     ...base,
     linhas: base.linhas.map((linha) =>
-      linha.id === "lc-2" ? { ...linha, valorSistema: 12640, status: "batido" as const } : linha,
+      linha.id === "lc-2" ? { ...linha, valorSistema: 12640, status: "match_exato" as const } : linha,
     ),
   };
 }
@@ -42,7 +42,7 @@ const conciliacao: Conciliacao = {
       data: "02/09",
       valorBanco: 7300,
       valorSistema: 7300,
-      status: "batido",
+      status: "match_exato",
       explicacao: null,
       historico: [],
     },
@@ -52,7 +52,7 @@ const conciliacao: Conciliacao = {
       data: "04/09",
       valorBanco: 12640,
       valorSistema: 12604,
-      status: "divergencia_valor",
+      status: "divergente_valor",
       explicacao: "O boleto foi emitido em R$ 12.604,00 e pago com acréscimo de R$ 36,00.",
       causa: "Juros de dois dias de atraso não lançados no sistema.",
       historico: [
@@ -72,7 +72,7 @@ const conciliacao: Conciliacao = {
       data: "08/09",
       valorBanco: 3150,
       valorSistema: null,
-      status: "somente_banco",
+      status: "sem_correspondencia",
       explicacao: null,
       historico: [],
     },
@@ -194,7 +194,7 @@ describe("DetalheDivergenciaPage", () => {
     // recebe o retrato da linha como ela estava, não um id solto
     expect(restaurarLinha).toHaveBeenCalledWith(
       "conc-1",
-      expect.objectContaining({ id: "lc-2", status: "divergencia_valor", valorSistema: 12604 }),
+      expect.objectContaining({ id: "lc-2", status: "divergente_valor", valorSistema: 12604 }),
     );
     expect(screen.getByRole("button", { name: "Aceitar valor do banco" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Desfazer" })).not.toBeInTheDocument();

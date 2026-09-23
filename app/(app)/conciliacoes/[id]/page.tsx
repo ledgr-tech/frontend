@@ -4,13 +4,13 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
-  buscarConciliacao,
   fecharConciliacao,
   formatarMoeda,
   type Conciliacao,
   type LinhaComparacao,
 } from "@/lib/mock-data";
-import { statusDaLinha } from "../../dashboard/resumo";
+import { estaResolvida, statusDaLinha } from "../../dashboard/resumo";
+import { useConciliacao } from "../usar-conciliacao";
 import { EsqueletoTela } from "../../esqueleto";
 import { filtrarLinhas, ordenarLinhas, type Coluna, type Ordem } from "./ordenar";
 import { aplicarDensidade, densidadeAtual, type Densidade } from "../../densidade";
@@ -56,7 +56,7 @@ function Cabecalho({
 export default function ConciliacaoPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
-  const [conciliacao, setConciliacao] = useState<Conciliacao | null | undefined>(undefined);
+  const { estado, substituir } = useConciliacao(params.id);
   const [linhaAberta, setLinhaAberta] = useState<LinhaComparacao | null>(null);
   const [filtro, setFiltro] = useState<"todos" | "revisao">("todos");
   const [ordem, setOrdem] = useState<Ordem>({ coluna: "data", crescente: true });
@@ -65,22 +65,15 @@ export default function ConciliacaoPage() {
   const [densidade, setDensidade] = useState<Densidade | null>(null);
 
   useEffect(() => {
-    // localStorage is only readable client-side; this is the standard pattern for
-    // deferring a client-only read out of the render phase.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setConciliacao(buscarConciliacao(params.id));
-  }, [params.id]);
-
-  useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setDensidade(densidadeAtual());
   }, []);
 
-  if (conciliacao === undefined) {
+  if (estado.situacao === "carregando") {
     return <EsqueletoTela />;
   }
 
-  if (conciliacao === null) {
+  if (estado.situacao === "ausente") {
     return (
       <div style={{ padding: "48px 0" }}>
         <p>Conciliação não encontrada.</p>
@@ -88,9 +81,11 @@ export default function ConciliacaoPage() {
     );
   }
 
+  const { conciliacao, real, truncada } = estado;
+
   function fechar() {
-    const atualizada = fecharConciliacao(conciliacao!.id);
-    if (atualizada) setConciliacao(atualizada);
+    const atualizada = fecharConciliacao(conciliacao.id);
+    if (atualizada) substituir(atualizada);
   }
 
   if (conciliacao.status === "fechada") {
@@ -124,6 +119,14 @@ export default function ConciliacaoPage() {
 
   return (
     <div style={{ padding: "28px 0 72px", display: "flex", flexDirection: "column", gap: 22 }}>
+      {/* A tela ordena e filtra a lista inteira no cliente, então só faz sentido
+          com a lista inteira em mãos. Se o teto de páginas cortou, dizer isso é
+          melhor do que deixar alguém ordenar por valor sobre meia conciliação. */}
+      {truncada && (
+        <p role="status" className="selo selo-atencao" style={{ alignSelf: "flex-start" }}>
+          Mostrando as primeiras {conciliacao.linhas.length} linhas desta conciliação.
+        </p>
+      )}
       <div className="tabela-controles">
         <h1 style={{ margin: 0, fontSize: 30, fontWeight: 600 }}>Comparação direta</h1>
         <div className="pills">
@@ -197,7 +200,7 @@ export default function ConciliacaoPage() {
             </thead>
             <tbody role="rowgroup">
               {visiveis.map((linha) => {
-                const status = statusDaLinha(linha.status);
+                const status = statusDaLinha(linha);
                 return (
                   <tr key={linha.id} role="row">
                     <td role="cell" data-rotulo="Data" className="dash-celula-fraca">
@@ -267,11 +270,15 @@ export default function ConciliacaoPage() {
         )}
       </div>
 
-      <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
-        <button type="button" className="btn btn-primary" onClick={fechar}>
-          Fechar mês
-        </button>
-      </div>
+      {/* Fechar o mês grava no mock. Com dado do backend não há endpoint que
+          persista isso, então o botão não aparece em vez de fingir que fechou. */}
+      {!real && (
+        <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
+          <button type="button" className="btn btn-primary" onClick={fechar}>
+            Fechar mês
+          </button>
+        </div>
+      )}
 
       {linhaAberta && (
         <div className="dialog-backdrop" onClick={() => setLinhaAberta(null)}>
@@ -337,7 +344,7 @@ function Fechamento({
   onNovaConciliacao: () => void;
 }) {
   const total = conciliacao.linhas.length;
-  const batidos = conciliacao.linhas.filter((linha) => linha.status === "batido").length;
+  const batidos = conciliacao.linhas.filter((linha) => estaResolvida(linha.status)).length;
   const pendentes = total - batidos;
 
   return (

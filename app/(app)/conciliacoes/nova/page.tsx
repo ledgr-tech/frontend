@@ -1,28 +1,161 @@
 "use client";
 
-import { useState, type ChangeEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
-import { criarConciliacao } from "@/lib/mock-data";
+import {
+  conciliar,
+  enviarExtrato,
+  situacaoDoExtrato,
+  type Falha,
+  type SituacaoExtrato,
+} from "../acoes";
+
+/** Mesmo teto do backend (`TAMANHO_MAXIMO_BYTES`), conferido antes de subir. */
+const TAMANHO_MAXIMO_BYTES = 5 * 1024 * 1024;
+
+// O upload responde na hora com `status: "pendente"` e o parsing roda em
+// background, então o resultado só aparece consultando de novo.
+const INTERVALO_CONSULTA_MS = 1500;
+const ESPERA_MAXIMA_MS = 90_000;
+
+const TERMINAIS: readonly SituacaoExtrato["status"][] = [
+  "concluido",
+  "concluido_com_erros",
+  "erro",
+];
+
+type Etapa = "ocioso" | "enviando" | "processando" | "conciliando";
+
+const RECADO: Record<Exclude<Etapa, "ocioso">, string> = {
+  enviando: "Enviando os extratos…",
+  processando: "Lendo os lançamentos…",
+  conciliando: "Comparando banco e sistema…",
+};
+
+function esperar(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 export default function NovaConciliacaoPage() {
   const router = useRouter();
   const [arquivoBanco, setArquivoBanco] = useState<File | null>(null);
   const [arquivoSistema, setArquivoSistema] = useState<File | null>(null);
+  const [etapa, setEtapa] = useState<Etapa>("ocioso");
+  const [erro, setErro] = useState<string | null>(null);
+  const [avisos, setAvisos] = useState<string[]>([]);
+  // para o laço de consulta se a pessoa sair da tela no meio do processamento
+  const vivo = useRef(true);
+
+  useEffect(() => {
+    vivo.current = true;
+    return () => {
+      vivo.current = false;
+    };
+  }, []);
 
   function selecionarBanco(event: ChangeEvent<HTMLInputElement>) {
+    setErro(null);
     setArquivoBanco(event.target.files?.[0] ?? null);
   }
 
   function selecionarSistema(event: ChangeEvent<HTMLInputElement>) {
+    setErro(null);
     setArquivoSistema(event.target.files?.[0] ?? null);
   }
 
-  function conciliar() {
-    const conciliacao = criarConciliacao();
-    router.push(`/conciliacoes/${conciliacao.id}`);
+  function falhar(falha: Falha) {
+    // 401 é sessão expirada: de volta pro login, em vez de um erro na tela
+    if (falha.status === 401) {
+      router.push("/login");
+      return;
+    }
+    setEtapa("ocioso");
+    setErro(falha.erro);
+  }
+
+  async function subir(arquivo: File, origem: "banco" | "sistema") {
+    const dados = new FormData();
+    dados.append("arquivo", arquivo);
+    // O campo que trava a integração (issue #20): obrigatório e sem default no
+    // backend — ausente, o FastAPI devolve 422 antes de olhar o arquivo.
+    dados.append("origem", origem);
+    return enviarExtrato(dados);
+  }
+
+  /** Consulta até o parsing terminar. Devolve null se desistiu de esperar. */
+  async function aguardarProcessamento(extratoId: string): Promise<SituacaoExtrato | Falha | null> {
+    const limite = Date.now() + ESPERA_MAXIMA_MS;
+    while (Date.now() < limite) {
+      const resposta = await situacaoDoExtrato(extratoId);
+      if (!resposta.ok) return resposta;
+      if (TERMINAIS.includes(resposta.dados.status)) return resposta.dados;
+      if (!vivo.current) return null;
+      await esperar(INTERVALO_CONSULTA_MS);
+    }
+    return null;
+  }
+
+  async function conciliarExtratos() {
+    if (!arquivoBanco || !arquivoSistema || etapa !== "ocioso") return;
+
+    const grande = [arquivoBanco, arquivoSistema].find(
+      (arquivo) => arquivo.size > TAMANHO_MAXIMO_BYTES,
+    );
+    if (grande) {
+      // o backend também barra, mas com 413 depois de subir o arquivo inteiro
+      setErro(`O arquivo "${grande.name}" passa de 5MB. Exporte um período menor.`);
+      return;
+    }
+
+    setErro(null);
+    setAvisos([]);
+    setEtapa("enviando");
+
+    const banco = await subir(arquivoBanco, "banco");
+    if (!banco.ok) return falhar(banco);
+    const sistema = await subir(arquivoSistema, "sistema");
+    if (!sistema.ok) return falhar(sistema);
+
+    setEtapa("processando");
+    const situacoes = await Promise.all([
+      aguardarProcessamento(banco.dados.extratoId),
+      aguardarProcessamento(sistema.dados.extratoId),
+    ]);
+
+    const recados: string[] = [];
+    for (const situacao of situacoes) {
+      if (situacao === null) {
+        setEtapa("ocioso");
+        setErro("O processamento demorou mais que o esperado. Tente de novo em instantes.");
+        return;
+      }
+      if ("ok" in situacao) return falhar(situacao);
+      if (situacao.status === "erro") {
+        setEtapa("ocioso");
+        setErro(`Não foi possível ler o extrato do ${situacao.origem}.`);
+        return;
+      }
+      if (situacao.erros.length > 0) {
+        // "concluido_com_erros": a conciliação segue, mas quem enviou precisa
+        // saber que parte das linhas ficou de fora.
+        recados.push(
+          `${situacao.erros.length} linha(s) do extrato do ${situacao.origem} não foram lidas.`,
+        );
+      }
+    }
+    setAvisos(recados);
+
+    setEtapa("conciliando");
+    const resultado = await conciliar(banco.dados.extratoId, sistema.dados.extratoId);
+    if (!resultado.ok) return falhar(resultado);
+
+    // A listagem do resultado parte do extrato do banco: o do sistema seria
+    // ambíguo, porque pode ter sido conciliado com vários extratos de banco.
+    router.push(`/conciliacoes/${banco.dados.extratoId}`);
   }
 
   const podeConciliar = arquivoBanco !== null && arquivoSistema !== null;
+  const ocupado = etapa !== "ocioso";
 
   return (
     <div style={{ padding: "36px 0 64px", maxWidth: 1040 }}>
@@ -53,6 +186,7 @@ export default function NovaConciliacaoPage() {
             aria-label="Extrato do banco"
             type="file"
             accept=".ofx,.csv"
+            disabled={ocupado}
             onChange={selecionarBanco}
             style={{ position: "absolute", width: 1, height: 1, opacity: 0 }}
           />
@@ -71,6 +205,7 @@ export default function NovaConciliacaoPage() {
             aria-label="Extrato do sistema de gestão"
             type="file"
             accept=".csv"
+            disabled={ocupado}
             onChange={selecionarSistema}
             style={{ position: "absolute", width: 1, height: 1, opacity: 0 }}
           />
@@ -86,18 +221,40 @@ export default function NovaConciliacaoPage() {
         </p>
       </div>
 
+      {erro && (
+        <p role="alert" className="selo selo-risco" style={{ marginBottom: 20 }}>
+          {erro}
+        </p>
+      )}
+
+      {avisos.length > 0 && (
+        <ul style={{ margin: "0 0 20px", paddingLeft: 18, fontSize: 14 }}>
+          {avisos.map((aviso) => (
+            <li key={aviso}>{aviso}</li>
+          ))}
+        </ul>
+      )}
+
       <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "10px 16px" }}>
         <button
           type="button"
           className="btn btn-primary"
-          disabled={!podeConciliar}
+          disabled={!podeConciliar || ocupado}
           aria-describedby={podeConciliar ? undefined : "nova-conciliacao-pendente"}
-          onClick={conciliar}
+          onClick={() => void conciliarExtratos()}
           style={{ fontSize: 15, padding: "12px 22px" }}
         >
-          Conciliar extratos
+          {ocupado ? "Conciliando…" : "Conciliar extratos"}
         </button>
-        {!podeConciliar && (
+        {ocupado && (
+          <span
+            aria-live="polite"
+            style={{ fontSize: 14, color: "color-mix(in srgb, var(--color-text) 66%, transparent)" }}
+          >
+            {RECADO[etapa]}
+          </span>
+        )}
+        {!podeConciliar && !ocupado && (
           <span
             id="nova-conciliacao-pendente"
             style={{ fontSize: 14, color: "color-mix(in srgb, var(--color-text) 66%, transparent)" }}

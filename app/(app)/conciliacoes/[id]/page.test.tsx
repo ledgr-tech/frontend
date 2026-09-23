@@ -4,9 +4,17 @@ import userEvent from "@testing-library/user-event";
 import type { Conciliacao } from "@/lib/mock-data";
 import ConciliacaoPage from "./page";
 
+// hoisted porque a fábrica do vi.mock roda antes das declarações do módulo
+const rota = vi.hoisted(() => ({ id: "conc-1" }));
+
 vi.mock("next/navigation", () => ({
-  useParams: () => ({ id: "conc-1" }),
+  useParams: () => ({ id: rota.id }),
   useRouter: () => ({ push: vi.fn() }),
+}));
+
+const carregarConciliacao = vi.fn();
+vi.mock("../acoes", () => ({
+  carregarConciliacao: (id: string) => carregarConciliacao(id),
 }));
 
 const buscarConciliacao = vi.fn();
@@ -29,7 +37,7 @@ const conciliacaoEmAndamento: Conciliacao = {
       data: "04/09",
       valorBanco: 12640,
       valorSistema: 12604,
-      status: "divergencia_valor",
+      status: "divergente_valor",
       explicacao: "Juros de dois dias de atraso não lançados no sistema.",
       historico: [{ quando: "04/09", evento: "Pago no banco com juros de atraso" }],
     },
@@ -47,7 +55,7 @@ const conciliacaoFechada: Conciliacao = {
       data: "04/09",
       valorBanco: 12640,
       valorSistema: 12604,
-      status: "batido",
+      status: "match_exato",
       explicacao: "Juros de dois dias de atraso não lançados no sistema.",
       historico: [{ quando: "04/09", evento: "Pago no banco com juros de atraso" }],
     },
@@ -65,7 +73,7 @@ const conciliacaoMista: Conciliacao = {
       data: "02/09",
       valorBanco: 7300,
       valorSistema: 7300,
-      status: "batido",
+      status: "match_exato",
       explicacao: null,
       historico: [],
     },
@@ -75,7 +83,7 @@ const conciliacaoMista: Conciliacao = {
       data: "04/09",
       valorBanco: 12640,
       valorSistema: 12604,
-      status: "divergencia_valor",
+      status: "divergente_valor",
       explicacao: "Juros de dois dias de atraso não lançados no sistema.",
       historico: [],
     },
@@ -84,8 +92,10 @@ const conciliacaoMista: Conciliacao = {
 
 describe("ConciliacaoPage", () => {
   beforeEach(() => {
+    rota.id = "conc-1";
     buscarConciliacao.mockReset();
     fecharConciliacao.mockReset();
+    carregarConciliacao.mockReset();
     window.localStorage.clear();
     delete document.documentElement.dataset.densidade;
   });
@@ -138,8 +148,11 @@ describe("ConciliacaoPage", () => {
     ).toBeInTheDocument();
   });
 
-  it("shows a skeleton while loading instead of a blank screen", () => {
-    buscarConciliacao.mockReturnValue(undefined);
+  it("shows a skeleton while the backend has not answered yet", () => {
+    // id em formato UUID: é o que faz a tela buscar no backend em vez do mock,
+    // e é o único caminho em que existe uma espera de verdade para mostrar
+    rota.id = "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20";
+    carregarConciliacao.mockReturnValue(new Promise(() => {}));
     const { container } = render(<ConciliacaoPage />);
     expect(container.querySelector("[aria-busy=\"true\"]")).not.toBeNull();
   });
@@ -159,7 +172,7 @@ describe("ConciliacaoPage", () => {
   it("explains an empty filter result", async () => {
     buscarConciliacao.mockReturnValue({
       ...conciliacaoMista,
-      linhas: conciliacaoMista.linhas.filter((linha) => linha.status === "batido"),
+      linhas: conciliacaoMista.linhas.filter((linha) => linha.status === "match_exato"),
     });
     const user = userEvent.setup();
     render(<ConciliacaoPage />);
@@ -203,7 +216,7 @@ describe("ConciliacaoPage", () => {
       data: "04/09",
       valorBanco: 100 + i,
       valorSistema: 100 + i,
-      status: "batido" as const,
+      status: "match_exato" as const,
       explicacao: null,
       historico: [],
     }));
