@@ -11,6 +11,7 @@ import {
 } from "@/lib/mock-data";
 import {
   formatarInteiro,
+  estaResolvida,
   formatarMoedaCurta,
   formatarPercentual,
   origemDaLinha,
@@ -86,7 +87,7 @@ export default function DashboardPage() {
   // A tabela do design mostra os sete primeiros lançamentos da competência.
   const lancamentos = conciliacoes.flatMap((conciliacao) => conciliacao.linhas).slice(0, 7);
   // "Ver o caso" abre a primeira divergência em aberto; sem nenhuma, fica sem CTA.
-  const primeiraEmAberto = maisRecente?.linhas.find((linha) => linha.status !== "batido") ?? null;
+  const primeiraEmAberto = maisRecente?.linhas.find((linha) => !estaResolvida(linha.status)) ?? null;
   const hrefPrimeiroCaso =
     maisRecente && primeiraEmAberto
       ? `/conciliacoes/${maisRecente.id}/${primeiraEmAberto.id}`
@@ -308,7 +309,7 @@ export default function DashboardPage() {
                 </thead>
                 <tbody role="rowgroup">
                   {lancamentos.map((linha) => {
-                    const status = statusDaLinha(linha.status);
+                    const status = statusDaLinha(linha);
                     return (
                       <tr key={linha.id} role="row">
                         <td role="cell" data-rotulo="Data" className="dash-celula-fraca">

@@ -4,7 +4,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { login } from "@/lib/auth";
+import { CONTA_TESTE } from "@/lib/auth";
+import { entrar as abrirSessao } from "../acoes";
 import { CampoTexto } from "../_compartilhado/campo-texto";
 import { MolduraAuth } from "../_compartilhado/moldura-auth";
 import { TituloDigitado } from "../_compartilhado/titulo-digitado";
@@ -88,8 +89,12 @@ export default function CadastroPage() {
     setErros({});
     if (ultimoPasso) {
       setConcluindo(true);
-      timer.current = setTimeout(() => {
-        login((valores.email ?? "").trim());
+      timer.current = setTimeout(async () => {
+        // ponytail: o backend ainda não cria usuário — não existe endpoint de
+        // cadastro. O formulário completo já roda, mas quem entra é a conta de
+        // teste, a mesma do login. Quando o endpoint existir, é aqui que os
+        // valores coletados viram uma conta de verdade.
+        await abrirSessao(CONTA_TESTE.email, CONTA_TESTE.senha, true);
         router.push("/conciliacoes/nova");
       }, ATRASO_CONCLUSAO_MS);
       return;

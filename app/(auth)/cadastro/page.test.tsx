@@ -9,9 +9,14 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push }),
 }));
 
-const login = vi.fn();
 vi.mock("@/lib/auth", () => ({
-  login: (email: string) => login(email),
+  CONTA_TESTE: { email: "financeiro@telhacerta.com.br", senha: "ledgr2026" },
+}));
+
+// quem abre a sessão é uma Server Action; aqui ela é só uma promessa de ok
+const abrirSessao = vi.fn();
+vi.mock("../acoes", () => ({
+  entrar: (...args: unknown[]) => abrirSessao(...args),
 }));
 
 type Usuario = ReturnType<typeof userEvent.setup>;
@@ -37,7 +42,8 @@ function titulo() {
 describe("CadastroPage", () => {
   beforeEach(() => {
     push.mockClear();
-    login.mockClear();
+    abrirSessao.mockReset();
+    abrirSessao.mockResolvedValue(true);
   });
 
   it("starts on the access step with name, e-mail and password", () => {
@@ -249,6 +255,8 @@ describe("CadastroPage", () => {
     await user.click(screen.getByRole("button", { name: "Concluir e subir extratos" }));
 
     await waitFor(() => expect(push).toHaveBeenCalledWith("/conciliacoes/nova"));
-    expect(login).toHaveBeenCalledWith("financeiro@telhacerta.com.br");
+    // ponytail: enquanto o backend não cria usuário, quem entra é a conta de
+    // teste — os dados do formulário ainda não viram conta nenhuma
+    expect(abrirSessao).toHaveBeenCalledWith("financeiro@telhacerta.com.br", "ledgr2026", true);
   });
 });

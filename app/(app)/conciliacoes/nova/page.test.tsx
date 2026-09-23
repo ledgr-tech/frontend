@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import NovaConciliacaoPage from "./page";
 
@@ -8,23 +8,62 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push }),
 }));
 
-const criarConciliacao = vi.fn();
-vi.mock("@/lib/mock-data", () => ({
-  criarConciliacao: () => criarConciliacao(),
+const enviarExtrato = vi.fn();
+const situacaoDoExtrato = vi.fn();
+const conciliar = vi.fn();
+vi.mock("../acoes", () => ({
+  enviarExtrato: (dados: FormData) => enviarExtrato(dados),
+  situacaoDoExtrato: (id: string) => situacaoDoExtrato(id),
+  conciliar: (banco: string, sistema: string) => conciliar(banco, sistema),
 }));
 
-function arquivo(nome: string) {
-  return new File(["conteudo"], nome, { type: "text/csv" });
+function arquivo(nome: string, tamanho = 8) {
+  const conteudo = "x".repeat(tamanho);
+  return new File([conteudo], nome, { type: "text/csv" });
+}
+
+function concluido(origem: "banco" | "sistema", erros: { identificador: string; motivo: string }[] = []) {
+  return {
+    ok: true as const,
+    dados: {
+      extrato_id: `extrato-${origem}`,
+      status: erros.length > 0 ? ("concluido_com_erros" as const) : ("concluido" as const),
+      origem,
+      quantidade_lancamentos: 3,
+      erros,
+    },
+  };
+}
+
+async function enviarOsDois() {
+  const user = userEvent.setup();
+  render(<NovaConciliacaoPage />);
+  await user.upload(screen.getByLabelText("Extrato do banco"), arquivo("banco.ofx"));
+  await user.upload(screen.getByLabelText("Extrato do sistema de gestão"), arquivo("sistema.csv"));
+  await user.click(screen.getByRole("button", { name: "Conciliar extratos" }));
+  return user;
 }
 
 describe("NovaConciliacaoPage", () => {
   beforeEach(() => {
     push.mockClear();
-    criarConciliacao.mockReset();
-    criarConciliacao.mockReturnValue({ id: "conc-123", mes: "Setembro 2026", status: "em_andamento", linhas: [] });
+    enviarExtrato.mockReset();
+    situacaoDoExtrato.mockReset();
+    conciliar.mockReset();
+
+    enviarExtrato
+      .mockResolvedValueOnce({ ok: true, dados: { extratoId: "extrato-banco" } })
+      .mockResolvedValueOnce({ ok: true, dados: { extratoId: "extrato-sistema" } });
+    situacaoDoExtrato.mockImplementation((id: string) =>
+      Promise.resolve(concluido(id === "extrato-banco" ? "banco" : "sistema")),
+    );
+    conciliar.mockResolvedValue({
+      ok: true,
+      dados: { extrato_banco_id: "extrato-banco", extrato_sistema_id: "extrato-sistema", total: 3 },
+    });
   });
 
-  it("disables the submit button until both files are selected", async () => {
+  it("deixa o botão desligado até os dois arquivos estarem escolhidos", async () => {
     const user = userEvent.setup();
     render(<NovaConciliacaoPage />);
 
@@ -41,15 +80,81 @@ describe("NovaConciliacaoPage", () => {
     expect(botao).not.toHaveAccessibleDescription();
   });
 
-  it("creates a conciliação and navigates to it on submit", async () => {
+  it("sobe os dois extratos marcando a origem de cada um", async () => {
+    await enviarOsDois();
+
+    await waitFor(() => expect(enviarExtrato).toHaveBeenCalledTimes(2));
+    // o campo que trava a integração (issue #20): tem que ir, e com o valor certo
+    const [primeiro] = enviarExtrato.mock.calls[0] as [FormData];
+    const [segundo] = enviarExtrato.mock.calls[1] as [FormData];
+    expect(primeiro.get("origem")).toBe("banco");
+    expect((primeiro.get("arquivo") as File).name).toBe("banco.ofx");
+    expect(segundo.get("origem")).toBe("sistema");
+    expect((segundo.get("arquivo") as File).name).toBe("sistema.csv");
+  });
+
+  it("concilia e abre o resultado pelo extrato do banco", async () => {
+    await enviarOsDois();
+
+    await waitFor(() =>
+      expect(conciliar).toHaveBeenCalledWith("extrato-banco", "extrato-sistema"),
+    );
+    // a listagem parte do extrato do banco; pelo do sistema seria ambígua
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/conciliacoes/extrato-banco"));
+  });
+
+  it("não concilia quando o upload falha, e mostra o motivo", async () => {
+    enviarExtrato.mockReset();
+    enviarExtrato.mockResolvedValue({
+      ok: false,
+      status: 429,
+      erro: "Muitos envios seguidos. Espere um minuto e tente de novo.",
+    });
+
+    await enviarOsDois();
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Espere um minuto");
+    expect(conciliar).not.toHaveBeenCalled();
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it("manda para o login quando a sessão expirou", async () => {
+    enviarExtrato.mockReset();
+    enviarExtrato.mockResolvedValue({ ok: false, status: 401, erro: "Sua sessão expirou." });
+
+    await enviarOsDois();
+
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/login"));
+  });
+
+  it("avisa das linhas que o parser não leu, mas segue conciliando", async () => {
+    situacaoDoExtrato.mockImplementation((id: string) =>
+      Promise.resolve(
+        id === "extrato-banco"
+          ? concluido("banco", [{ identificador: "L12", motivo: "valor inválido" }])
+          : concluido("sistema"),
+      ),
+    );
+
+    await enviarOsDois();
+
+    expect(
+      await screen.findByText("1 linha(s) do extrato do banco não foram lidas."),
+    ).toBeInTheDocument();
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/conciliacoes/extrato-banco"));
+  });
+
+  it("barra arquivo acima de 5MB antes de gastar uma requisição", async () => {
     const user = userEvent.setup();
     render(<NovaConciliacaoPage />);
-
-    await user.upload(screen.getByLabelText("Extrato do banco"), arquivo("banco.ofx"));
+    await user.upload(
+      screen.getByLabelText("Extrato do banco"),
+      arquivo("gigante.ofx", 5 * 1024 * 1024 + 1),
+    );
     await user.upload(screen.getByLabelText("Extrato do sistema de gestão"), arquivo("sistema.csv"));
     await user.click(screen.getByRole("button", { name: "Conciliar extratos" }));
 
-    expect(criarConciliacao).toHaveBeenCalled();
-    expect(push).toHaveBeenCalledWith("/conciliacoes/conc-123");
+    expect(await screen.findByRole("alert")).toHaveTextContent("passa de 5MB");
+    expect(enviarExtrato).not.toHaveBeenCalled();
   });
 });

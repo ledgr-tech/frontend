@@ -48,7 +48,7 @@ describe("mock-data store", () => {
   });
 
   it("returns empty array when localStorage contains malformed JSON", () => {
-    window.localStorage.setItem("ledgr_conciliacoes", "not valid json {]");
+    window.localStorage.setItem("ledgr_conciliacoes_v2", "not valid json {]");
     expect(listarConciliacoes()).toEqual([]);
   });
 });
@@ -60,18 +60,18 @@ describe("aceitarValorDoBanco", () => {
 
   it("copies the bank value onto the system side and matches the linha", () => {
     const criada = criarConciliacao();
-    const divergente = criada.linhas.find((linha) => linha.status === "divergencia_valor")!;
+    const divergente = criada.linhas.find((linha) => linha.status === "divergente_valor")!;
 
     const atualizada = aceitarValorDoBanco(criada.id, divergente.id);
     const linha = atualizada?.linhas.find((item) => item.id === divergente.id);
 
-    expect(linha?.status).toBe("batido");
+    expect(linha?.status).toBe("match_exato");
     expect(linha?.valorSistema).toBe(divergente.valorBanco);
   });
 
   it("records the decision in the linha history", () => {
     const criada = criarConciliacao();
-    const divergente = criada.linhas.find((linha) => linha.status === "divergencia_valor")!;
+    const divergente = criada.linhas.find((linha) => linha.status === "divergente_valor")!;
     const antes = divergente.historico.length;
 
     const atualizada = aceitarValorDoBanco(criada.id, divergente.id);
@@ -83,11 +83,11 @@ describe("aceitarValorDoBanco", () => {
 
   it("persists the decision", () => {
     const criada = criarConciliacao();
-    const divergente = criada.linhas.find((linha) => linha.status === "divergencia_valor")!;
+    const divergente = criada.linhas.find((linha) => linha.status === "divergente_valor")!;
     aceitarValorDoBanco(criada.id, divergente.id);
 
     const relida = buscarConciliacao(criada.id);
-    expect(relida?.linhas.find((item) => item.id === divergente.id)?.status).toBe("batido");
+    expect(relida?.linhas.find((item) => item.id === divergente.id)?.status).toBe("match_exato");
   });
 
   it("leaves a linha the bank does not have alone", () => {

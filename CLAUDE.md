@@ -8,7 +8,10 @@
 
 ## Backend status
 
-- No real backend yet. `lib/auth.ts` and `lib/mock-data.ts` are localStorage-backed mocks standing in for it, deliberately isolated behind function signatures a real API could later replace. They're currently synchronous — swapping in real async calls will need those call sites updated (they already model loading states, so this should be mechanical, not a redesign).
+- **The upload → conciliation flow is real.** `lib/backend.ts` is the only place that talks to the FastAPI backend (`LEDGR_API_URL`), always server-side, always with a `Authorization: Bearer <jwt>` built from the session cookie. Screens reach it through Server Actions (`app/(app)/conciliacoes/acoes.ts`), never with `fetch` from the browser.
+- **Session is NextAuth** (`auth.ts` at the root), with `jwt.encode`/`decode` replaced so the cookie *is* the HS256 token the backend validates — see `lib/token.ts` for the claim contract and `docs/superpowers/specs/2026-09-22-integracao-backend-design.md` for why.
+- **Still mocked, because the backend has no endpoint for it:** the login credential check (there is no `/auth/login` — see `authorize` in `auth.ts`), the signup, the list of conciliations on the dashboard (there is no "list my extratos"), `/historico`, `/regras`, and every write on a conciliation (close the month, accept the bank value). Screens showing backend data hide those write actions instead of pretending to save.
+- `lib/mock-data.ts` still backs everything in the list above. When a real endpoint shows up, the swap point is named in a `ponytail:` comment next to the mock call.
 
 ## Decision history
 

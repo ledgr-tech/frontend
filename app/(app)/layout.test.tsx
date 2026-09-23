@@ -1,104 +1,50 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import AppLayout from "./layout";
 
-const replace = vi.fn();
+const auth = vi.fn();
+vi.mock("@/auth", () => ({
+  auth: () => auth(),
+}));
+
+const redirect = vi.fn();
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ replace }),
-  usePathname: () => "/dashboard",
+  // o redirect do Next interrompe a renderização lançando; o mock imita isso,
+  // senão o teste seguiria para um caminho que na vida real nunca roda
+  redirect: (destino: string) => {
+    redirect(destino);
+    throw new Error("NEXT_REDIRECT");
+  },
 }));
 
-const getSession = vi.fn();
-const logout = vi.fn();
-vi.mock("@/lib/auth", () => ({
-  getSession: () => getSession(),
-  logout: () => logout(),
-}));
-
-const avisosLidos = vi.fn();
-const marcarAvisosLidos = vi.fn();
-vi.mock("@/lib/mock-data", () => ({
-  EMPRESA_MOCK: "Telha Certa",
-  AVISOS: [
-    {
-      id: "a1",
-      titulo: "Extrato de outubro disponível no banco",
-      texto: "O Sicredi liberou o arquivo.",
-      quando: "há 20 minutos",
-      tom: "atencao",
-      href: "/conciliacoes/nova",
-    },
-  ],
-  avisosLidos: () => avisosLidos(),
-  marcarAvisosLidos: () => marcarAvisosLidos(),
-  listarConciliacoes: () => [],
-  formatarMoeda: (valor: number) =>
-    valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }),
+vi.mock("./shell", () => ({
+  Shell: ({ email, children }: { email: string; children: React.ReactNode }) => (
+    <div data-email={email}>{children}</div>
+  ),
 }));
 
 describe("AppLayout", () => {
   beforeEach(() => {
-    replace.mockClear();
-    logout.mockClear();
-    getSession.mockReset();
-    avisosLidos.mockReset();
-    marcarAvisosLidos.mockReset();
-    avisosLidos.mockReturnValue(false);
+    auth.mockReset();
+    redirect.mockClear();
   });
 
-  it("redirects to /login when there's no session", () => {
-    getSession.mockReturnValue(null);
-    render(<AppLayout>conteúdo</AppLayout>);
-    expect(replace).toHaveBeenCalledWith("/login");
+  it("manda para o login quando não há sessão", async () => {
+    auth.mockResolvedValue(null);
+    // a checagem é no servidor: a página protegida nem chega a ser montada
+    await expect(AppLayout({ children: "conteúdo" })).rejects.toThrow("NEXT_REDIRECT");
+    expect(redirect).toHaveBeenCalledWith("/login");
   });
 
-  it("renders nothing while there is no session yet", () => {
-    getSession.mockReturnValue(null);
-    const { container } = render(<AppLayout>conteúdo</AppLayout>);
-    expect(container.firstChild).toBeNull();
+  it("manda para o login quando a sessão veio sem e-mail", async () => {
+    auth.mockResolvedValue({ user: {} });
+    await expect(AppLayout({ children: "conteúdo" })).rejects.toThrow("NEXT_REDIRECT");
+    expect(redirect).toHaveBeenCalledWith("/login");
   });
 
-  it("renders children inside the shell when a session exists", async () => {
-    getSession.mockReturnValue({ email: "financeiro@telhacerta.com.br" });
-    render(<AppLayout>conteúdo autenticado</AppLayout>);
-
-    expect(await screen.findByText("conteúdo autenticado")).toBeInTheDocument();
-    // menu lateral e barra superior chegam junto
-    expect(screen.getByRole("navigation", { name: "Seções do app" })).toBeInTheDocument();
-    expect(screen.getByLabelText("Buscar lançamento")).toBeInTheDocument();
-  });
-
-  it("logs out and returns to /login", async () => {
-    getSession.mockReturnValue({ email: "financeiro@telhacerta.com.br" });
-    const user = userEvent.setup();
-    render(<AppLayout>conteúdo</AppLayout>);
-
-    await user.click(await screen.findByRole("button", { name: "Sair" }));
-
-    expect(logout).toHaveBeenCalled();
-    expect(replace).toHaveBeenCalledWith("/login");
-  });
-
-  it("clears the unread mark once the avisos are read", async () => {
-    getSession.mockReturnValue({ email: "financeiro@telhacerta.com.br" });
-    const user = userEvent.setup();
-    render(<AppLayout>conteúdo</AppLayout>);
-
-    expect(await screen.findByText("3 avisos para você")).toBeInTheDocument();
-
-    await user.click(screen.getByRole("button", { name: /Avisos/ }));
-    await user.click(screen.getByRole("button", { name: "Marcar como lidos" }));
-
-    expect(marcarAvisosLidos).toHaveBeenCalled();
-    expect(screen.getByText("tudo em ordem")).toBeInTheDocument();
-  });
-
-  it("starts without the unread mark when the avisos were already read", async () => {
-    getSession.mockReturnValue({ email: "financeiro@telhacerta.com.br" });
-    avisosLidos.mockReturnValue(true);
-    render(<AppLayout>conteúdo</AppLayout>);
-
-    expect(await screen.findByText("tudo em ordem")).toBeInTheDocument();
+  it("entrega o e-mail da sessão para o shell", async () => {
+    auth.mockResolvedValue({ user: { email: "financeiro@telhacerta.com.br" } });
+    const elemento = await AppLayout({ children: "conteúdo" });
+    expect(redirect).not.toHaveBeenCalled();
+    expect(elemento.props.email).toBe("financeiro@telhacerta.com.br");
   });
 });

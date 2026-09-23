@@ -1,22 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import {
   aceitarValorDoBanco,
-  buscarConciliacao,
   formatarMoeda,
   restaurarLinha,
-  type Conciliacao,
   type LinhaComparacao,
 } from "@/lib/mock-data";
-import { statusDaLinha } from "../../../dashboard/resumo";
+import { estaResolvida, statusDaLinha } from "../../../dashboard/resumo";
 import { Barra, EsqueletoTela } from "../../../esqueleto";
 import { NumeroAnimado } from "../../../numero-animado";
-
-type Carregado = { conciliacao: Conciliacao; linha: LinhaComparacao } | "ausente" | null;
+import { useConciliacao } from "../../usar-conciliacao";
 
 function CartaoExtrato({
   titulo,
@@ -70,22 +67,18 @@ function CartaoExtrato({
 
 export default function DetalheDivergenciaPage() {
   const params = useParams<{ id: string; linha: string }>();
-  const [carregado, setCarregado] = useState<Carregado>(null);
+  const { estado, substituir } = useConciliacao(params.id);
   // retrato da linha antes da decisão; existir significa "dá para desfazer"
   const [desfazivel, setDesfazivel] = useState<LinhaComparacao | null>(null);
 
-  useEffect(() => {
-    // localStorage is only readable client-side; this is the standard pattern for
-    // deferring a client-only read out of the render phase.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setCarregado(() => {
-      const conciliacao = buscarConciliacao(params.id);
-      const linha = conciliacao?.linhas.find((item) => item.id === params.linha);
-      return conciliacao && linha ? { conciliacao, linha } : "ausente";
-    });
-  }, [params.id, params.linha]);
+  // A linha sai da conciliação carregada, em vez de virar um segundo estado:
+  // com duas cópias, uma decisão precisaria lembrar de atualizar as duas.
+  const linha =
+    estado.situacao === "pronta"
+      ? estado.conciliacao.linhas.find((item) => item.id === params.linha)
+      : undefined;
 
-  if (carregado === null) {
+  if (estado.situacao === "carregando") {
     return (
       <EsqueletoTela>
         <div className="det-comparacao">
@@ -102,7 +95,7 @@ export default function DetalheDivergenciaPage() {
     );
   }
 
-  if (carregado === "ausente") {
+  if (estado.situacao === "ausente" || linha === undefined) {
     return (
       <div style={{ padding: "76px 0", textAlign: "center" }}>
         <h1 style={{ margin: "0 0 12px", fontSize: 30, fontWeight: 600 }}>
@@ -115,9 +108,9 @@ export default function DetalheDivergenciaPage() {
     );
   }
 
-  const { conciliacao, linha } = carregado;
-  const status = statusDaLinha(linha.status);
-  const emAberto = conciliacao.linhas.filter((item) => item.status !== "batido");
+  const { conciliacao, real } = estado;
+  const status = statusDaLinha(linha);
+  const emAberto = conciliacao.linhas.filter((item) => !estaResolvida(item.status));
   const posicao = emAberto.findIndex((item) => item.id === linha.id);
   const delta =
     linha.valorBanco !== null && linha.valorSistema !== null
@@ -127,19 +120,16 @@ export default function DetalheDivergenciaPage() {
   // A decisão acontece aqui mesmo, sem navegar: assim a consequência fica visível
   // e o desfazer não precisa sobreviver a uma troca de tela.
   function aceitar() {
-    const antes = linha;
-    const atualizada = aceitarValorDoBanco(conciliacao.id, linha.id);
-    const depois = atualizada?.linhas.find((item) => item.id === linha.id);
-    if (!atualizada || !depois) return;
-    setCarregado({ conciliacao: atualizada, linha: depois });
-    setDesfazivel(antes);
+    const atualizada = aceitarValorDoBanco(conciliacao.id, linha!.id);
+    if (!atualizada) return;
+    substituir(atualizada);
+    setDesfazivel(linha!);
   }
 
   function desfazer() {
     if (!desfazivel) return;
     const atualizada = restaurarLinha(conciliacao.id, desfazivel);
-    const depois = atualizada?.linhas.find((item) => item.id === desfazivel.id);
-    if (atualizada && depois) setCarregado({ conciliacao: atualizada, linha: depois });
+    if (atualizada) substituir(atualizada);
     setDesfazivel(null);
   }
 
@@ -157,10 +147,12 @@ export default function DetalheDivergenciaPage() {
         </div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
           <Link href={`/conciliacoes/${conciliacao.id}`} className="btn btn-secondary">
-            {linha.status === "batido" ? "Voltar para a conciliação" : "Ignorar por ora"}
+            {estaResolvida(linha.status) ? "Voltar para a conciliação" : "Ignorar por ora"}
           </Link>
-          {/* ponytail: só faz sentido aceitar o banco quando ele tem a linha. */}
-          {linha.valorBanco !== null && linha.status !== "batido" && (
+          {/* ponytail: só faz sentido aceitar o banco quando ele tem a linha.
+              E com dado do backend o botão não aparece: não existe endpoint que
+              grave a decisão, então ele mudaria a tela e nada mais. */}
+          {!real && linha.valorBanco !== null && !estaResolvida(linha.status) && (
             <button type="button" className="btn btn-primary" onClick={aceitar}>
               Aceitar valor do banco
             </button>
@@ -191,8 +183,8 @@ export default function DetalheDivergenciaPage() {
           </div>
           <CartaoExtrato
             titulo="Extrato do sistema"
-            marca={linha.status === "batido" ? "Conciliado" : "Precisa de ajuste"}
-            marcaClasse={linha.status === "batido" ? "selo selo-ok" : "selo selo-risco"}
+            marca={estaResolvida(linha.status) ? "Conciliado" : "Precisa de ajuste"}
+            marcaClasse={estaResolvida(linha.status) ? "selo selo-ok" : "selo selo-risco"}
             valor={linha.valorSistema}
             campos={linha.camposSistema}
             destacado={false}

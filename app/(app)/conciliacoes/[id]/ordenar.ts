@@ -1,25 +1,29 @@
 import type { LinhaComparacao } from "@/lib/mock-data";
-import { statusDaLinha } from "../../dashboard/resumo";
+import { estaResolvida, statusDaLinha } from "../../dashboard/resumo";
 
 export type Coluna = "data" | "descricao" | "valorBanco" | "valorSistema" | "status";
 
 export type Ordem = { coluna: Coluna; crescente: boolean };
 
 /**
- * As datas do mock vêm como "DD/MM", sem ano, porque uma conciliação é de uma
- * competência só. Vira MMDD para comparar — quando houver ano de verdade isto
- * passa a ser uma data e a função não muda de forma.
+ * Chave de ordenação por data.
+ *
+ * Do backend vem a data completa, e aí a chave é AAAAMMDD — um extrato que
+ * cruza dezembro/janeiro ordena certo. O mock só tem "DD/MM" (uma conciliação é
+ * de uma competência só) e cai em MMDD. As duas escalas nunca se misturam numa
+ * mesma lista: ou as linhas vieram todas do backend, ou todas do mock.
  */
-function dataComparavel(data: string): number {
-  const [dia, mes] = data.split("/").map((parte) => Number.parseInt(parte, 10));
+function dataComparavel(linha: LinhaComparacao): number {
+  if (linha.dataISO) return Number(linha.dataISO.replaceAll("-", ""));
+  const [dia, mes] = linha.data.split("/").map((parte) => Number.parseInt(parte, 10));
   if (Number.isNaN(dia) || Number.isNaN(mes)) return 0;
   return mes * 100 + dia;
 }
 
 function valorDe(linha: LinhaComparacao, coluna: Coluna): number | string | null {
-  if (coluna === "data") return dataComparavel(linha.data);
+  if (coluna === "data") return dataComparavel(linha);
   if (coluna === "descricao") return linha.descricao.toLowerCase();
-  if (coluna === "status") return statusDaLinha(linha.status).rotulo.toLowerCase();
+  if (coluna === "status") return statusDaLinha(linha).rotulo.toLowerCase();
   return coluna === "valorBanco" ? linha.valorBanco : linha.valorSistema;
 }
 
@@ -54,5 +58,5 @@ export function filtrarLinhas(
   linhas: LinhaComparacao[],
   filtro: "todos" | "revisao",
 ): LinhaComparacao[] {
-  return filtro === "revisao" ? linhas.filter((linha) => linha.status !== "batido") : linhas;
+  return filtro === "revisao" ? linhas.filter((linha) => !estaResolvida(linha.status)) : linhas;
 }
