@@ -9,12 +9,16 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push }),
 }));
 
-const login = vi.fn();
 const autenticar = vi.fn();
 vi.mock("@/lib/auth", () => ({
   CONTA_TESTE: { email: "financeiro@telhacerta.com.br", senha: "ledgr2026" },
-  login: (...args: unknown[]) => login(...args),
   autenticar: (...args: unknown[]) => autenticar(...args),
+}));
+
+// quem abre a sessão é uma Server Action; aqui ela é só uma promessa de ok
+const abrirSessao = vi.fn();
+vi.mock("../acoes", () => ({
+  entrar: (...args: unknown[]) => abrirSessao(...args),
 }));
 
 async function preencherEEntrar(email: string, senha: string) {
@@ -28,9 +32,10 @@ async function preencherEEntrar(email: string, senha: string) {
 describe("LoginPage", () => {
   beforeEach(() => {
     push.mockClear();
-    login.mockClear();
+    abrirSessao.mockReset();
+    abrirSessao.mockResolvedValue(true);
     autenticar.mockReset();
-    autenticar.mockReturnValue({ ok: true, sessao: { email: "financeiro@telhacerta.com.br" } });
+    autenticar.mockReturnValue({ ok: true });
     window.localStorage.clear();
   });
 
@@ -156,7 +161,7 @@ describe("LoginPage", () => {
 
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     await waitFor(() => expect(push).toHaveBeenCalledWith("/dashboard"));
-    expect(login).toHaveBeenCalledWith("financeiro@telhacerta.com.br", { manterSessao: true });
+    expect(abrirSessao).toHaveBeenCalledWith("financeiro@telhacerta.com.br", "ledgr2026", true);
     expect(autenticar).not.toHaveBeenCalled();
   });
 
@@ -167,7 +172,7 @@ describe("LoginPage", () => {
     await preencherEEntrar("financeiro@telhacerta.com.br", "ledgr2026");
 
     await waitFor(() => expect(push).toHaveBeenCalledWith("/dashboard"));
-    expect(autenticar).toHaveBeenCalledWith("financeiro@telhacerta.com.br", "ledgr2026", { manterSessao: false });
+    expect(abrirSessao).toHaveBeenCalledWith("financeiro@telhacerta.com.br", "ledgr2026", false);
   });
 
   it("links to the signup without promising a number of steps", () => {
@@ -219,7 +224,7 @@ describe("LoginPage", () => {
 
       const senha = screen.getByLabelText("Senha");
       await waitFor(() => expect(senha).toHaveAccessibleDescription("Senha incorreta. Confira e tente de novo."));
-      expect(autenticar).toHaveBeenCalledWith("financeiro@telhacerta.com.br", "errada", { manterSessao: true });
+      expect(autenticar).toHaveBeenCalledWith("financeiro@telhacerta.com.br", "errada");
       expect(screen.getByLabelText("E-mail")).not.toHaveAttribute("aria-invalid");
     });
 
@@ -264,7 +269,7 @@ describe("LoginPage", () => {
 
     expect(screen.getByRole("button", { name: "Entrando…" })).toBeDisabled();
     await waitFor(() => expect(push).toHaveBeenCalledWith("/dashboard"));
-    expect(autenticar).toHaveBeenCalledWith("financeiro@telhacerta.com.br", "ledgr2026", { manterSessao: true });
+    expect(autenticar).toHaveBeenCalledWith("financeiro@telhacerta.com.br", "ledgr2026");
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 

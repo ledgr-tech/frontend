@@ -4,7 +4,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { CONTA_TESTE, autenticar, login, type ErroAutenticacao } from "@/lib/auth";
+import { CONTA_TESTE, autenticar, type ErroAutenticacao } from "@/lib/auth";
+import { entrar as abrirSessao } from "../acoes";
 import dynamic from "next/dynamic";
 import { CampoTexto } from "../_compartilhado/campo-texto";
 import { EMAIL_VALIDO, MENSAGEM_EMAIL_INCOMPLETO } from "../_compartilhado/validacao";
@@ -49,6 +50,14 @@ const ERROS_AUTENTICACAO: Record<ErroAutenticacao, { campo: Campo; mensagem: str
   senha_incorreta: { campo: "senha", mensagem: "Senha incorreta. Confira e tente de novo." },
   // "alguns minutos" e não um tempo exato: quem tenta de novo durante o bloqueio pega só o que falta dele
   muitas_tentativas: { campo: "senha", mensagem: "Acesso pausado por segurança. Tente de novo em alguns minutos." },
+};
+
+// O servidor recusou credenciais que passaram na checagem local: não é erro de
+// quem digitou, é ambiente mal configurado (NEXTAUTH_SECRET ou
+// LEDGR_EMPRESA_ID_TESTE faltando). Mensagem separada pra não acusar o usuário.
+const FALHA_DE_SESSAO = {
+  campo: "senha" as Campo,
+  mensagem: "Não foi possível abrir a sessão. Tente de novo em instantes.",
 };
 
 // linhas verticais sutis da landing, só nas laterais: sempre por fora do formulário (424px)
@@ -119,10 +128,8 @@ export default function LoginPage() {
       // sem localStorage (aba privada): só não evita repetição
     }
     // o sorteio (localStorage) e a preferência de movimento só existem no cliente
-    /* eslint-disable react-hooks/set-state-in-effect */
     setSemAnimacao(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false);
     setSaudacao(SAUDACOES[indice]);
-    /* eslint-enable react-hooks/set-state-in-effect */
   }, []);
 
   useEffect(() => {
@@ -212,14 +219,17 @@ export default function LoginPage() {
 
     setErros({});
     setEntrando(true);
-    timer.current = setTimeout(() => {
-      const resultado = autenticar(emailLimpo, senha, { manterSessao });
-      if (resultado.ok) {
+    timer.current = setTimeout(async () => {
+      // duas etapas de propósito: `autenticar` só escolhe a mensagem e conta as
+      // tentativas; quem abre a sessão é o servidor, em `abrirSessao`.
+      const resultado = autenticar(emailLimpo, senha);
+      const falha = resultado.ok ? null : ERROS_AUTENTICACAO[resultado.erro];
+      if (!falha && (await abrirSessao(emailLimpo, senha, manterSessao))) {
         router.push("/dashboard");
         return;
       }
       setEntrando(false);
-      const { campo, mensagem } = ERROS_AUTENTICACAO[resultado.erro];
+      const { campo, mensagem } = falha ?? FALHA_DE_SESSAO;
       mostrarErros({ [campo]: mensagem });
     }, ATRASO_ENTRADA_MS);
   }
@@ -229,9 +239,13 @@ export default function LoginPage() {
     if (entrando) return;
     setErros({});
     setEntrando(true);
-    timer.current = setTimeout(() => {
-      login(CONTA_TESTE.email, { manterSessao });
-      router.push("/dashboard");
+    timer.current = setTimeout(async () => {
+      if (await abrirSessao(CONTA_TESTE.email, CONTA_TESTE.senha, manterSessao)) {
+        router.push("/dashboard");
+        return;
+      }
+      setEntrando(false);
+      mostrarErros({ [FALHA_DE_SESSAO.campo]: FALHA_DE_SESSAO.mensagem });
     }, ATRASO_ENTRADA_MS);
   }
 
