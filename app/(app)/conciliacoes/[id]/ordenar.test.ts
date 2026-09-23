@@ -8,16 +8,16 @@ function linha(
   descricao: string,
   valorBanco: number | null,
   valorSistema: number | null,
-  status: StatusLinha = "batido",
+  status: StatusLinha = "match_exato",
 ): LinhaComparacao {
   return { id, descricao, data, valorBanco, valorSistema, status, explicacao: null, historico: [] };
 }
 
 const lista = [
   linha("b", "15/09", "Folha de pagamento", 48200, 48200),
-  linha("a", "04/09", "Aço Norte", 12640, 12604, "divergencia_valor"),
+  linha("a", "04/09", "Aço Norte", 12640, 12604, "divergente_valor"),
   linha("c", "02/10", "Energia elétrica", 2104, 2104),
-  linha("d", "08/09", "TED sem par", 3150, null, "somente_banco"),
+  linha("d", "08/09", "TED sem par", 3150, null, "sem_correspondencia"),
 ];
 
 describe("ordenarLinhas", () => {
@@ -57,8 +57,8 @@ describe("ordenarLinhas", () => {
 
   it("ordena por status pelo rótulo que aparece na tela", () => {
     const rotulos = ordenarLinhas(lista, { coluna: "status", crescente: true }).map((l) => l.status);
-    // "Divergência de valor" < "Match exato" < "Sem correspondência no sistema"
-    expect(rotulos).toEqual(["divergencia_valor", "batido", "batido", "somente_banco"]);
+    // "Match exato" < "Sem correspondência no sistema" < "Valor diverge na mesma data"
+    expect(rotulos).toEqual(["match_exato", "match_exato", "sem_correspondencia", "divergente_valor"]);
   });
 
   it("aguenta data malformada sem quebrar a ordenação", () => {

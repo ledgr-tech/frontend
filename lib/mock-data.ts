@@ -1,8 +1,21 @@
+/**
+ * As 7 categorias que o motor de conciliação do backend produz
+ * (`StatusConciliacao` em `app/api/conciliacoes.py`, ADR-006/007/009).
+ *
+ * Só `match_exato` e `match_tolerancia` têm os dois lados preenchidos. As
+ * outras cinco descrevem **um** lançamento que não casou, e por quê: o backend
+ * sub-classifica cada sobra olhando o outro extrato, mas não forma par. Ou
+ * seja, `divergente_valor` quer dizer "achei algo nesta data e o valor não
+ * bate", não "estes dois lançamentos diferem em R$ 36".
+ */
 export type StatusLinha =
-  | "batido"
-  | "divergencia_valor"
-  | "somente_banco"
-  | "somente_sistema";
+  | "match_exato"
+  | "match_tolerancia"
+  | "divergente_valor"
+  | "divergente_data"
+  | "duplicado"
+  | "tarifa_bancaria"
+  | "sem_correspondencia";
 
 export type EventoHistorico = {
   quando: string;
@@ -37,7 +50,10 @@ export type MesCronico = {
 export type LinhaComparacao = {
   id: string;
   descricao: string;
+  /** "DD/MM", como o design mostra na tabela. */
   data: string;
+  /** Data completa (AAAA-MM-DD) quando vem do backend. Só a ordenação usa. */
+  dataISO?: string;
   valorBanco: number | null;
   valorSistema: number | null;
   status: StatusLinha;
@@ -62,7 +78,12 @@ export type Conciliacao = {
 
 export const EMPRESA_MOCK = "Telha Certa";
 
-const STORAGE_KEY = "ledgr_conciliacoes";
+// O sufixo é versão de formato, não enfeite: os status das linhas mudaram para
+// as 7 categorias do backend, e uma conciliação gravada antes disso tem
+// `status: "batido"`, que não existe mais no mapa de rótulos — a tabela
+// quebrava ao renderizar. Trocar a chave faz o dado velho ser ignorado em vez
+// de lido errado. Mexeu no formato de `Conciliacao`, mexe aqui também.
+const STORAGE_KEY = "ledgr_conciliacoes_v2";
 
 function linhasMock(): LinhaComparacao[] {
   return [
@@ -72,7 +93,7 @@ function linhasMock(): LinhaComparacao[] {
       data: "02/09",
       valorBanco: 7300,
       valorSistema: 7300,
-      status: "batido",
+      status: "match_exato",
       explicacao: null,
       historico: [
         { quando: "01/09", evento: "Lançado no sistema de gestão" },
@@ -85,7 +106,7 @@ function linhasMock(): LinhaComparacao[] {
       data: "04/09",
       valorBanco: 12640,
       valorSistema: 12604,
-      status: "divergencia_valor",
+      status: "divergente_valor",
       explicacao:
         "O boleto foi emitido em R$ 12.604,00 e pago com acréscimo de R$ 36,00. O banco registrou o valor pago; o sistema guardou o valor da emissão. Aceitar o valor do banco corrige o lançamento e classifica a diferença como despesa financeira.",
       historico: [
@@ -119,7 +140,7 @@ function linhasMock(): LinhaComparacao[] {
       data: "05/09",
       valorBanco: 4180,
       valorSistema: null,
-      status: "somente_banco",
+      status: "sem_correspondencia",
       explicacao: null,
       historico: [
         { quando: "05/09", evento: "Recebido no banco, sem lançamento correspondente no sistema" },
@@ -131,7 +152,7 @@ function linhasMock(): LinhaComparacao[] {
       data: "08/09",
       valorBanco: null,
       valorSistema: 2150,
-      status: "somente_sistema",
+      status: "sem_correspondencia",
       explicacao: null,
       historico: [
         { quando: "08/09", evento: "Lançado no sistema, ainda não debitado no banco" },
@@ -143,7 +164,7 @@ function linhasMock(): LinhaComparacao[] {
       data: "05/09",
       valorBanco: 48200,
       valorSistema: 48200,
-      status: "batido",
+      status: "match_exato",
       explicacao: null,
       historico: [
         { quando: "03/09", evento: "Lançado no sistema de gestão" },
@@ -221,7 +242,7 @@ export function aceitarValorDoBanco(conciliacaoId: string, linhaId: string): Con
     return {
       ...linha,
       valorSistema: linha.valorBanco,
-      status: "batido" as StatusLinha,
+      status: "match_exato" as StatusLinha,
       historico: [
         ...linha.historico,
         { quando: "Agora", evento: "Valor do banco aceito pelo responsável", origem: "Ledgr" as const },

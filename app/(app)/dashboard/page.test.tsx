@@ -49,10 +49,10 @@ describe("DashboardPage", () => {
   it("derives the summary row from the conciliação linhas", async () => {
     listarConciliacoes.mockReturnValue([
       conciliacao("conc-1", [
-        linha("l-1", "batido", 7300, 7300),
-        linha("l-2", "divergencia_valor", 12640, 12604),
-        linha("l-3", "somente_banco", 4180, null),
-        linha("l-4", "somente_sistema", null, 2150),
+        linha("l-1", "match_exato", 7300, 7300),
+        linha("l-2", "divergente_valor", 12640, 12604),
+        linha("l-3", "sem_correspondencia", 4180, null),
+        linha("l-4", "sem_correspondencia", null, 2150),
       ]),
     ]);
     render(<DashboardPage />);
@@ -68,16 +68,16 @@ describe("DashboardPage", () => {
   it("labels each lançamento with the status wording from the design", async () => {
     listarConciliacoes.mockReturnValue([
       conciliacao("conc-1", [
-        linha("l-1", "batido", 7300, 7300, "Pagamento Vale Verde"),
-        linha("l-2", "divergencia_valor", 12640, 12604, "Boleto Aço Norte"),
-        linha("l-3", "somente_banco", 4180, null, "Transferência recebida"),
+        linha("l-1", "match_exato", 7300, 7300, "Pagamento Vale Verde"),
+        linha("l-2", "divergente_valor", 12640, 12604, "Boleto Aço Norte"),
+        linha("l-3", "sem_correspondencia", 4180, null, "Transferência recebida"),
       ]),
     ]);
     render(<DashboardPage />);
 
     expect(await screen.findByText("Conciliações recentes")).toBeInTheDocument();
     expect(screen.getByText("Match exato")).toBeInTheDocument();
-    expect(screen.getByText("Divergência de valor")).toBeInTheDocument();
+    expect(screen.getByText("Valor diverge na mesma data")).toBeInTheDocument();
     expect(screen.getByText("Sem correspondência no sistema")).toBeInTheDocument();
     // a origem é o banco sempre que o banco tem a linha
     expect(screen.getAllByText("Banco")).toHaveLength(3);
@@ -86,8 +86,8 @@ describe("DashboardPage", () => {
   it("points the highlight card at the linhas without a counterpart", async () => {
     listarConciliacoes.mockReturnValue([
       conciliacao("conc-9", [
-        linha("l-1", "somente_banco", 4180, null),
-        linha("l-2", "somente_sistema", null, 2150),
+        linha("l-1", "sem_correspondencia", 4180, null),
+        linha("l-2", "sem_correspondencia", null, 2150),
       ]),
     ]);
     render(<DashboardPage />);
@@ -102,7 +102,7 @@ describe("DashboardPage", () => {
 
   it("points each suggestion at the screen that resolves it", async () => {
     listarConciliacoes.mockReturnValue([
-      conciliacao("conc-1", [linha("l-1", "divergencia_valor", 12640, 12604)]),
+      conciliacao("conc-1", [linha("l-1", "divergente_valor", 12640, 12604)]),
     ]);
     render(<DashboardPage />);
 
@@ -116,7 +116,7 @@ describe("DashboardPage", () => {
 
   it("drops the Ver o caso link when every linha is already matched", async () => {
     listarConciliacoes.mockReturnValue([
-      conciliacao("conc-1", [linha("l-1", "batido", 100, 100)]),
+      conciliacao("conc-1", [linha("l-1", "match_exato", 100, 100)]),
     ]);
     render(<DashboardPage />);
 
@@ -128,7 +128,7 @@ describe("DashboardPage", () => {
 
   it("hides the highlight card when every linha has a counterpart", async () => {
     listarConciliacoes.mockReturnValue([
-      conciliacao("conc-1", [linha("l-1", "batido", 100, 100)]),
+      conciliacao("conc-1", [linha("l-1", "match_exato", 100, 100)]),
     ]);
     render(<DashboardPage />);
 
@@ -138,7 +138,7 @@ describe("DashboardPage", () => {
 
   it("only lists earlier conciliações when there is more than one", async () => {
     listarConciliacoes.mockReturnValue([
-      conciliacao("conc-2", [linha("l-1", "batido", 100, 100)]),
+      conciliacao("conc-2", [linha("l-1", "match_exato", 100, 100)]),
     ]);
     const { unmount } = render(<DashboardPage />);
     expect(await screen.findByText("Conciliações recentes")).toBeInTheDocument();
@@ -146,8 +146,8 @@ describe("DashboardPage", () => {
     unmount();
 
     listarConciliacoes.mockReturnValue([
-      conciliacao("conc-2", [linha("l-1", "batido", 100, 100)]),
-      { ...conciliacao("conc-1", [linha("l-2", "batido", 200, 200)]), status: "fechada" },
+      conciliacao("conc-2", [linha("l-1", "match_exato", 100, 100)]),
+      { ...conciliacao("conc-1", [linha("l-2", "match_exato", 200, 200)]), status: "fechada" },
     ]);
     render(<DashboardPage />);
     expect(await screen.findByText("Conciliações anteriores")).toBeInTheDocument();
