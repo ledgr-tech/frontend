@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import CadastroPage from "./page";
@@ -9,14 +9,11 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push }),
 }));
 
-vi.mock("@/lib/auth", () => ({
-  CONTA_TESTE: { email: "financeiro@telhacerta.com.br", senha: "ledgr2026" },
-}));
-
-// quem abre a sessão é uma Server Action; aqui ela é só uma promessa de ok
-const abrirSessao = vi.fn();
+// o fim do cadastro é o atalho de demonstração, uma Server Action; aqui ela só
+// devolve se o servidor deixou entrar
+const entrarNaDemonstracao = vi.fn();
 vi.mock("../acoes", () => ({
-  entrar: (...args: unknown[]) => abrirSessao(...args),
+  entrarNaDemonstracao: (...args: unknown[]) => entrarNaDemonstracao(...args),
 }));
 
 type Usuario = ReturnType<typeof userEvent.setup>;
@@ -42,8 +39,12 @@ function titulo() {
 describe("CadastroPage", () => {
   beforeEach(() => {
     push.mockClear();
-    abrirSessao.mockReset();
-    abrirSessao.mockResolvedValue(true);
+    entrarNaDemonstracao.mockReset();
+    entrarNaDemonstracao.mockResolvedValue(true);
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 
   it("starts on the access step with name, e-mail and password", () => {
@@ -241,10 +242,7 @@ describe("CadastroPage", () => {
     expect(screen.getByLabelText("E-mail")).toHaveValue("financeiro@telhacerta.com.br");
   });
 
-  it("finishes by signing in and opening the statement upload", async () => {
-    const user = userEvent.setup();
-    render(<CadastroPage />);
-
+  async function concluirCadastro(user: Usuario) {
     await preencher(user, ACESSO);
     await continuar(user);
     await preencher(user, EMPRESA);
@@ -253,10 +251,59 @@ describe("CadastroPage", () => {
     await continuar(user);
     await user.type(screen.getByLabelText("Sistema de gestão"), "Cigam");
     await user.click(screen.getByRole("button", { name: "Concluir e subir extratos" }));
+  }
+
+  it("finishes through the demo shortcut and opens the statement upload when the demo is on", async () => {
+    vi.stubEnv("NEXT_PUBLIC_LEDGR_DEMO_ABERTA", "1");
+    const user = userEvent.setup();
+    render(<CadastroPage />);
+
+    await concluirCadastro(user);
 
     await waitFor(() => expect(push).toHaveBeenCalledWith("/conciliacoes/nova"));
     // ponytail: enquanto o backend não cria usuário, quem entra é a conta de
     // teste — os dados do formulário ainda não viram conta nenhuma
-    expect(abrirSessao).toHaveBeenCalledWith("financeiro@telhacerta.com.br", "ledgr2026", true);
+    expect(entrarNaDemonstracao).toHaveBeenCalledWith(true);
+  });
+
+  it("says signup is closed, without signing in, when the demo is off", async () => {
+    const user = userEvent.setup();
+    render(<CadastroPage />);
+
+    await concluirCadastro(user);
+
+    expect(await screen.findByRole("heading", { level: 1, name: "Cadastro ainda fechado" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "ledgrtech@gmail.com" })).toHaveAttribute(
+      "href",
+      "mailto:ledgrtech@gmail.com",
+    );
+    expect(screen.getByRole("link", { name: "Entrar" })).toHaveAttribute("href", "/login");
+    expect(screen.queryByLabelText("Sistema de gestão")).not.toBeInTheDocument();
+    expect(entrarNaDemonstracao).not.toHaveBeenCalled();
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it("says signup is closed when the server refuses the demo shortcut", async () => {
+    vi.stubEnv("NEXT_PUBLIC_LEDGR_DEMO_ABERTA", "1");
+    entrarNaDemonstracao.mockResolvedValue(false);
+    const user = userEvent.setup();
+    render(<CadastroPage />);
+
+    await concluirCadastro(user);
+
+    expect(await screen.findByRole("heading", { level: 1, name: "Cadastro ainda fechado" })).toBeInTheDocument();
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it("says signup is closed when the server can't be reached", async () => {
+    vi.stubEnv("NEXT_PUBLIC_LEDGR_DEMO_ABERTA", "1");
+    entrarNaDemonstracao.mockRejectedValue(new Error("Failed to fetch"));
+    const user = userEvent.setup();
+    render(<CadastroPage />);
+
+    await concluirCadastro(user);
+
+    expect(await screen.findByRole("heading", { level: 1, name: "Cadastro ainda fechado" })).toBeInTheDocument();
+    expect(push).not.toHaveBeenCalled();
   });
 });

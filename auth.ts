@@ -1,6 +1,6 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
-import { CONTA_TESTE } from "@/lib/auth";
+import { autorizarContaDeTeste } from "@/lib/conta-teste";
 import { DURACAO_SESSAO_SEGUNDOS, assinarToken, lerToken } from "@/lib/token";
 
 /**
@@ -25,27 +25,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       credentials: { email: {}, senha: {} },
       // ponytail: o backend ainda não expõe endpoint de autenticação — só
       // /extratos e /conciliacoes. Enquanto não expõe, a única conta que entra
-      // é a de teste e o empresa_id vem do ambiente. Quando o login real
-      // existir, é esta função que passa a chamá-lo; nada mais muda, porque o
-      // resto do sistema já trabalha em cima do token.
+      // é a de teste (`lib/conta-teste.ts`) e o empresa_id vem do ambiente.
+      // Quando o login real existir, é esta função que passa a chamá-lo; nada
+      // mais muda, porque o resto do sistema já trabalha em cima do token.
       authorize(credenciais) {
-        const email = String(credenciais?.email ?? "")
-          .trim()
-          .toLowerCase();
-        const senha = String(credenciais?.senha ?? "");
-        if (email !== CONTA_TESTE.email || senha !== CONTA_TESTE.senha) return null;
-
-        const empresaId = process.env.LEDGR_EMPRESA_ID_TESTE;
-        if (!empresaId) {
-          throw new Error(
-            "LEDGR_EMPRESA_ID_TESTE não configurado: o backend rejeita token sem empresa_id.",
-          );
-        }
-        return {
-          id: process.env.LEDGR_USUARIO_ID_TESTE || empresaId,
-          email: CONTA_TESTE.email,
-          empresaId,
-        };
+        return autorizarContaDeTeste(
+          String(credenciais?.email ?? ""),
+          String(credenciais?.senha ?? ""),
+        );
       },
     }),
   ],
