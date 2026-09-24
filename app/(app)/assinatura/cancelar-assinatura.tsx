@@ -23,7 +23,7 @@ export function CancelarAssinatura({ fimDoPeriodo }: { fimDoPeriodo: string }) {
       <button
         ref={botao}
         type="button"
-        className="btn btn-ghost"
+        className="btn ass-cancelar"
         aria-haspopup="dialog"
         onClick={() => setAberto(true)}
       >
@@ -96,7 +96,7 @@ function Confirmacao({ fimDoPeriodo, onFechar }: { fimDoPeriodo: string; onFecha
           {`O histórico de setembro continua acessível por doze meses, mas nenhum extrato novo poderá ser conciliado a partir de ${fimDoPeriodo}.`}
         </p>
         <div className="dialog-actions">
-          <button ref={manter} type="button" className="btn btn-ghost" onClick={onFechar}>
+          <button ref={manter} type="button" className="btn btn-secondary" onClick={onFechar}>
             Manter assinatura
           </button>
           <button type="button" className="btn btn-primary" disabled aria-describedby={notaId}>

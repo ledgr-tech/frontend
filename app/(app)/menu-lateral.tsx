@@ -28,8 +28,7 @@ import { aplicarTema, temaAtual, type Tema } from "./tema";
 type ItemMenu = {
   nome: string;
   icone: LucideIcon;
-  /** null enquanto a tela não existe: o item aparece, apagado, marcado "em breve" e sem link. */
-  href: string | null;
+  href: string;
   /** Rotas que deixam este item aceso, além do próprio href. */
   tambem?: string[];
 };
@@ -40,9 +39,9 @@ const ITENS: ItemMenu[] = [
   { nome: "Visão geral", icone: House, href: "/visao-geral" },
   { nome: "Extratos", icone: Files, href: "/extratos" },
   { nome: "Conciliações", icone: ArrowLeftRight, href: "/dashboard", tambem: ["/conciliacoes"] },
-  { nome: "Fechamentos", icone: CalendarCheck, href: null },
+  { nome: "Fechamentos", icone: CalendarCheck, href: "/fechamentos" },
   { nome: "Histórico", icone: History, href: "/historico" },
-  { nome: "Assinatura", icone: CreditCard, href: null },
+  { nome: "Assinatura", icone: CreditCard, href: "/assinatura" },
 ];
 
 // Traço fino e cor do texto: o ícone acompanha o filete do sistema em vez de
@@ -50,7 +49,6 @@ const ITENS: ItemMenu[] = [
 const ICONE = { size: 18, strokeWidth: 1.5, "aria-hidden": true } as const;
 
 function estaAtivo(item: ItemMenu, caminho: string): boolean {
-  if (item.href === null) return false;
   if (caminho === item.href) return true;
   return (item.tambem ?? []).some((prefixo) => caminho.startsWith(prefixo));
 }
@@ -157,20 +155,6 @@ export function MenuLateral({ email, onSair }: { email: string; onSair: () => vo
       <nav className="app-nav" aria-label="Seções do app">
         {ITENS.map((item) => {
           const Icone = item.icone;
-          if (item.href === null) {
-            return (
-              <span
-                key={item.nome}
-                className="app-nav-item app-nav-item-indisponivel app-dica"
-                aria-disabled="true"
-                data-dica={`${item.nome} · em breve`}
-              >
-                <Icone {...ICONE} />
-                <span className="app-rotulo">{item.nome}</span>
-                <span className="app-rotulo app-nav-em-breve">em breve</span>
-              </span>
-            );
-          }
           const ativo = estaAtivo(item, caminho);
           return (
             <Link
