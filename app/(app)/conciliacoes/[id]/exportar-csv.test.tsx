@@ -23,8 +23,13 @@ const revogarUrl = vi.fn();
 // o <a download> que o botão cria e clica; o jsdom não baixa nada
 const cliques: HTMLAnchorElement[] = [];
 
-/** O Blob do jsdom não tem arrayBuffer(); o FileReader lê do mesmo jeito. */
-function bytes(arquivo: Blob): Promise<Uint8Array> {
+/**
+ * Os bytes do Blob, venha ele de onde vier: conforme a versão do Node, o
+ * `Response.blob()` do teste devolve o Blob do Node (que tem arrayBuffer() e o
+ * FileReader do jsdom recusa) ou o do jsdom (que não tem arrayBuffer()).
+ */
+async function bytes(arquivo: Blob): Promise<Uint8Array> {
+  if (typeof arquivo.arrayBuffer === "function") return new Uint8Array(await arquivo.arrayBuffer());
   return new Promise((pronto) => {
     const leitor = new FileReader();
     leitor.onload = () => pronto(new Uint8Array(leitor.result as ArrayBuffer));
