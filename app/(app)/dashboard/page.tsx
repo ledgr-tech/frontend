@@ -1,20 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { EMPRESA_MOCK, formatarMoeda } from "@/lib/mock-data";
+import { carregarPainel, type Painel } from "../conciliacoes/acoes";
 import {
-  EMPRESA_MOCK,
-  formatarMoeda,
-  listarConciliacoes,
-  type Conciliacao,
-} from "@/lib/mock-data";
-import {
+  formatarDataHora,
   formatarInteiro,
   estaResolvida,
   formatarMoedaCurta,
   formatarPercentual,
   origemDaLinha,
+  periodoDasLinhas,
   resumir,
   statusDaLinha,
   valorDaLinha,
@@ -24,48 +23,59 @@ import {
 import { InkHover, MotionRoot, Reveal, SpotlightHover } from "@/app/(marketing)/reveal";
 import { Barra, EsqueletoTabela, EsqueletoTela } from "../esqueleto";
 
-// Copy do design ("sugestoes" em Ledgr.dc.html). São leituras de padrão entre
-// competências — o mock tem uma competência só, então o texto é fixo até existir
-// histórico de verdade para ler.
-// O destino de "Ver o caso" depende da conciliação carregada, então vem de fora.
-const SUGESTOES = [
-  {
-    num: "I",
-    titulo: "Aço Norte Bobinas aparece em três meses seguidos com juros não lançados",
-    texto:
-      "Sempre a mesma diferença de dois dias de atraso. Vale criar uma regra de despesa financeira para esse fornecedor.",
-    cta: "Ver o caso",
-    href: null,
-  },
-  {
-    num: "II",
-    titulo: "Vinte e dois estornos de maquininha não existem no extrato do banco",
-    texto:
-      "O sistema lança o estorno na hora, o banco só no dia seguinte. Uma janela de data de dois dias resolveria cinco deles.",
-    cta: "Criar regra",
-    href: "/regras",
-  },
-  {
-    num: "III",
-    titulo: "Setembro repetiu o padrão de agosto: 157 divergências, 19 no sistema",
-    texto:
-      "A taxa de match subiu para 96,3%, mas o gargalo continua sendo lançamento manual no ERP.",
-    cta: "Ver histórico",
-    href: "/historico",
-  },
-];
+// ponytail: "O que o Ledgr sugere" (as três leituras de padrão do design) saiu
+// enquanto não há de onde tirá-las — eram frases fixas, com números inventados,
+// ao lado de dados reais que podiam contradizê-las. Voltam quando o backend
+// tiver o que comparar entre execuções.
+
+const FALHA_AO_CARREGAR =
+  "Não foi possível carregar suas conciliações. Recarregue a página e tente de novo.";
+
+type Estado =
+  | { situacao: "carregando" }
+  | { situacao: "falhou" }
+  | { situacao: "pronto"; painel: Painel };
+
+/** "2026-09-04" → "04/09/2026"; o mock só tem "04/09". */
+function dataCompleta(dataISO: string | undefined, data: string): string {
+  return dataISO ? dataISO.split("-").reverse().join("/") : data;
+}
 
 export default function DashboardPage() {
-  const [conciliacoes, setConciliacoes] = useState<Conciliacao[] | null>(null);
+  const router = useRouter();
+  const [estado, setEstado] = useState<Estado>({ situacao: "carregando" });
+
+  // O router fica numa ref, fora das dependências: se ele trocar de identidade
+  // entre renders, o efeito recarregaria o painel a cada render. O único uso é
+  // redirecionar num 401 (mesmo arranjo de `useConciliacao`).
+  const irPara = useRef(router);
+  useEffect(() => {
+    irPara.current = router;
+  });
 
   useEffect(() => {
-    // localStorage is only readable client-side; this is the standard pattern for
-    // deferring a client-only read out of the render phase.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setConciliacoes(listarConciliacoes());
+    let cancelado = false;
+    carregarPainel().then(
+      (resposta) => {
+        if (cancelado) return;
+        if (!resposta.ok) {
+          if (resposta.status === 401) irPara.current.push("/login");
+          setEstado({ situacao: "falhou" });
+          return;
+        }
+        setEstado({ situacao: "pronto", painel: resposta.dados });
+      },
+      // a action lançou em vez de devolver Resultado (rede, deploy novo no meio)
+      () => {
+        if (!cancelado) setEstado({ situacao: "falhou" });
+      },
+    );
+    return () => {
+      cancelado = true;
+    };
   }, []);
 
-  if (conciliacoes === null) {
+  if (estado.situacao === "carregando") {
     return (
       <EsqueletoTela>
         <div className="grade-colunas dash-resumo esq-resumo">
@@ -82,38 +92,36 @@ export default function DashboardPage() {
     );
   }
 
-  const resumo = resumir(conciliacoes);
-  const maisRecente = conciliacoes[0] ?? null;
-  // A tabela do design mostra os sete primeiros lançamentos da competência.
-  const lancamentos = conciliacoes.flatMap((conciliacao) => conciliacao.linhas).slice(0, 7);
-  // "Ver o caso" abre a primeira divergência em aberto; sem nenhuma, fica sem CTA.
-  const primeiraEmAberto = maisRecente?.linhas.find((linha) => !estaResolvida(linha.status)) ?? null;
-  const hrefPrimeiroCaso =
-    maisRecente && primeiraEmAberto
-      ? `/conciliacoes/${maisRecente.id}/${primeiraEmAberto.id}`
-      : null;
+  const recente = estado.situacao === "pronto" ? estado.painel.recente : null;
+  const anteriores = estado.situacao === "pronto" ? estado.painel.anteriores : [];
 
   return (
     <MotionRoot>
       <div className="dash-cabecalho">
         <div>
           <h1 style={{ margin: "0 0 4px", fontSize: 30, fontWeight: 600 }}>{EMPRESA_MOCK}</h1>
-          <span
-            style={{
-              fontSize: 14,
-              fontVariantNumeric: "tabular-nums",
-              color: "color-mix(in srgb, var(--color-text) 55%, transparent)",
-            }}
-          >
-            Competência setembro/2026
-          </span>
+          {recente && (
+            <span
+              style={{
+                fontSize: 14,
+                fontVariantNumeric: "tabular-nums",
+                color: "color-mix(in srgb, var(--color-text) 55%, transparent)",
+              }}
+            >
+              Competência {recente.mes.toLowerCase()}
+            </span>
+          )}
         </div>
         <Link href="/conciliacoes/nova" className="btn btn-primary">
           Novo extrato
         </Link>
       </div>
 
-      {maisRecente === null ? (
+      {estado.situacao === "falhou" ? (
+        <p role="alert" style={{ padding: "48px 0" }}>
+          {FALHA_AO_CARREGAR}
+        </p>
+      ) : recente === null ? (
         <div
           style={{
             padding: "76px 0",
@@ -160,229 +168,196 @@ export default function DashboardPage() {
           </Link>
         </div>
       ) : (
-        <div style={{ padding: "32px 0 56px", display: "flex", flexDirection: "column", gap: 36 }}>
-          {/* ponytail: o resumo não entra no reveal. É o dado principal da tela e
-              fica acima da dobra — se o observer ou o rAF não rodarem, os números
-              não podem ficar invisíveis. O que está abaixo da dobra pode animar. */}
-          <div className="grade-colunas dash-resumo">
-            <div>
-              <span className="dash-rotulo">Lançamentos processados</span>
-              <span className="dash-valor">{formatarInteiro(resumo.processados)}</span>
-              <span className="dash-nota">Período 01–30 de setembro</span>
-            </div>
-            <div>
-              <span className="dash-rotulo">Match automático</span>
-              <span className="dash-valor" style={{ color: "var(--color-ok)" }}>
-                {formatarPercentual(resumo.taxaMatch)}
-              </span>
-              <span className="dash-nota">
-                {formatarInteiro(resumo.batidos)} casados sem intervenção
-              </span>
-            </div>
-            <div>
-              <span className="dash-rotulo">Valor em divergência</span>
-              <span className="dash-valor" style={{ color: "var(--color-risco)" }}>
-                {formatarMoedaCurta(resumo.valorDivergente)}
-              </span>
-              <span className="dash-nota">
-                Distribuído em {formatarInteiro(resumo.divergentes)}{" "}
-                {resumo.divergentes === 1 ? "lançamento" : "lançamentos"}
-              </span>
-            </div>
-          </div>
-
-          <Reveal once className="dash-analise">
-            <div className="dash-sugestoes">
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "baseline",
-                  justifyContent: "space-between",
-                  gap: 16,
-                  marginBottom: 14,
-                }}
-              >
-                <h3 style={{ margin: 0, fontSize: 22, fontWeight: 600 }}>O que o Ledgr sugere</h3>
-                <span
-                  className="dash-sugestoes-contagem"
-                  style={{
-                    fontSize: 13,
-                    letterSpacing: "0.1em",
-                    textTransform: "uppercase",
-                    color: "color-mix(in srgb, var(--color-text) 52%, transparent)",
-                  }}
-                >
-                  {SUGESTOES.length} observações
-                </span>
-              </div>
-              <div style={{ borderTop: "1px solid var(--color-divider)" }}>
-                {SUGESTOES.map((sugestao) => (
-                  <div key={sugestao.num} className="dash-sugestao">
-                    <span className="dash-sugestao-num">{sugestao.num}</span>
-                    <span
-                      style={{
-                        flex: 1,
-                        minWidth: 0,
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: 5,
-                      }}
-                    >
-                      <span className="dash-sugestao-titulo">{sugestao.titulo}</span>
-                      <span className="dash-sugestao-texto">{sugestao.texto}</span>
-                    </span>
-                    {(() => {
-                      const href = sugestao.href ?? hrefPrimeiroCaso;
-                      if (href === null) return null;
-                      return (
-                        <Link
-                          href={href}
-                          className="btn btn-ghost"
-                          style={{ flex: "none", fontSize: 13.5 }}
-                        >
-                          {sugestao.cta}
-                        </Link>
-                      );
-                    })()}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {resumo.semCorrespondente === 0 ? null : (
-              <SpotlightHover className="dash-destaque">
-                <Image
-                  src="/mascotes/mascote-explicando.png"
-                  alt="Mascote Ledgr apontando"
-                  width={1000}
-                  height={1000}
-                  sizes="116px"
-                  style={{ width: 116, height: "auto" }}
-                />
-                <span className="dash-destaque-titulo">
-                  Comece pelas {formatarInteiro(resumo.semCorrespondente)} sem correspondente
-                </span>
-                <span className="dash-destaque-texto">
-                  São elas que respondem por {formatarMoedaCurta(resumo.valorSemCorrespondente)} dos{" "}
-                  {formatarMoedaCurta(resumo.valorDivergente)} em divergência.
-                </span>
-                <Link
-                  href={hrefPrimeiroCaso ?? `/conciliacoes/${maisRecente.id}`}
-                  className="btn btn-primary"
-                  style={{ marginTop: 2 }}
-                >
-                  Revisar agora
-                </Link>
-              </SpotlightHover>
-            )}
-          </Reveal>
-
-          <Reveal once delay={0.08}>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "baseline",
-                justifyContent: "space-between",
-                gap: 20,
-                marginBottom: 12,
-              }}
-            >
-              <h3 style={{ margin: 0, fontSize: 22, fontWeight: 600 }}>Conciliações recentes</h3>
-              <Link
-                href={`/conciliacoes/${maisRecente.id}`}
-                className="btn btn-secondary"
-                style={{ fontSize: 13.5 }}
-              >
-                Ver a conciliação
-              </Link>
-            </div>
-            <div className="dash-tabela-rolagem tabela-cartoes">
-              <table className="table" role="table">
-                <thead role="rowgroup">
-                  <tr role="row">
-                    <th style={{ width: 110 }}>Data</th>
-                    <th>Descrição</th>
-                    <th style={{ width: 140, textAlign: "right" }}>Valor</th>
-                    <th style={{ width: 250 }}>Status</th>
-                    <th style={{ width: 110, textAlign: "right" }}>Origem</th>
-                  </tr>
-                </thead>
-                <tbody role="rowgroup">
-                  {lancamentos.map((linha) => {
-                    const status = statusDaLinha(linha);
-                    return (
-                      <tr key={linha.id} role="row">
-                        <td role="cell" data-rotulo="Data" className="dash-celula-fraca">
-                          {linha.data}/2026
-                        </td>
-                        <td role="cell" data-rotulo="Descrição" data-destaque="true">
-                          {linha.descricao}
-                        </td>
-                        <td role="cell" data-rotulo="Valor" className="dash-valor-celula">
-                          {formatarMoeda(valorDaLinha(linha))}
-                        </td>
-                        <td role="cell" data-rotulo="Status">
-                          <span className={`selo selo-${status.tom}`}>{status.rotulo}</span>
-                        </td>
-                        <td
-                          role="cell"
-                          data-rotulo="Origem"
-                          className="dash-celula-fraca"
-                          style={{ textAlign: "right", fontSize: 14 }}
-                        >
-                          {origemDaLinha(linha)}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </Reveal>
-
-          {/* ponytail: o design pensa numa competência só. Enquanto o mock cria uma
-              conciliação por upload, as anteriores precisam continuar alcançáveis. */}
-          {conciliacoes.length > 1 && (
-            <Reveal once delay={0.16}>
-              <h3 style={{ margin: "0 0 12px", fontSize: 22, fontWeight: 600 }}>
-                Conciliações anteriores
-              </h3>
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Mês</th>
-                    <th>Status</th>
-                    <th style={{ width: 110 }}>Lançamentos</th>
-                    <th style={{ width: 110 }}></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {conciliacoes.slice(1).map((conciliacao) => (
-                    <tr key={conciliacao.id}>
-                      <td>{conciliacao.mes}</td>
-                      <td>
-                        <span
-                          className={
-                            conciliacao.status === "fechada" ? "tag tag-accent" : "tag tag-outline"
-                          }
-                        >
-                          {conciliacao.status === "fechada" ? "Fechada" : "Em andamento"}
-                        </span>
-                      </td>
-                      <td>{conciliacao.linhas.length}</td>
-                      <td>
-                        <Link href={`/conciliacoes/${conciliacao.id}`} className="btn btn-secondary">
-                          Ver
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </Reveal>
-          )}
-        </div>
+        <Conteudo recente={recente} anteriores={anteriores} />
       )}
     </MotionRoot>
+  );
+}
+
+function Conteudo({
+  recente,
+  anteriores,
+}: {
+  recente: NonNullable<Painel["recente"]>;
+  anteriores: Painel["anteriores"];
+}) {
+  const resumo = resumir([recente]);
+  const periodo = periodoDasLinhas(recente.linhas);
+  // A tabela do design mostra os sete primeiros lançamentos da competência.
+  const lancamentos = recente.linhas.slice(0, 7);
+  // "Revisar agora" abre a primeira divergência em aberto; sem nenhuma, vai para a lista.
+  const primeiraEmAberto = recente.linhas.find((linha) => !estaResolvida(linha.status)) ?? null;
+  const hrefPrimeiroCaso = primeiraEmAberto
+    ? `/conciliacoes/${recente.id}/${primeiraEmAberto.id}`
+    : `/conciliacoes/${recente.id}`;
+
+  return (
+    <div style={{ padding: "32px 0 56px", display: "flex", flexDirection: "column", gap: 36 }}>
+      {/* ponytail: o resumo não entra no reveal. É o dado principal da tela e
+          fica acima da dobra — se o observer ou o rAF não rodarem, os números
+          não podem ficar invisíveis. O que está abaixo da dobra pode animar. */}
+      <div className="grade-colunas dash-resumo">
+        <div>
+          <span className="dash-rotulo">Lançamentos processados</span>
+          <span className="dash-valor">{formatarInteiro(resumo.processados)}</span>
+          {periodo && <span className="dash-nota">Período {periodo}</span>}
+        </div>
+        <div>
+          <span className="dash-rotulo">Match automático</span>
+          <span className="dash-valor" style={{ color: "var(--color-ok)" }}>
+            {formatarPercentual(resumo.taxaMatch)}
+          </span>
+          <span className="dash-nota">{formatarInteiro(resumo.batidos)} casados sem intervenção</span>
+        </div>
+        <div>
+          <span className="dash-rotulo">Valor em divergência</span>
+          <span className="dash-valor" style={{ color: "var(--color-risco)" }}>
+            {formatarMoedaCurta(resumo.valorDivergente)}
+          </span>
+          <span className="dash-nota">
+            Distribuído em {formatarInteiro(resumo.divergentes)}{" "}
+            {resumo.divergentes === 1 ? "lançamento" : "lançamentos"}
+          </span>
+        </div>
+      </div>
+
+      {resumo.semCorrespondente > 0 && (
+        <Reveal once className="dash-analise">
+          <SpotlightHover className="dash-destaque dash-destaque-faixa">
+            <Image
+              src="/mascotes/mascote-explicando.png"
+              alt="Mascote Ledgr apontando"
+              width={1000}
+              height={1000}
+              sizes="88px"
+              style={{ width: 88, height: "auto", flex: "none" }}
+            />
+            <span className="dash-destaque-corpo">
+              <span className="dash-destaque-titulo">
+                Comece pelas {formatarInteiro(resumo.semCorrespondente)} sem correspondente
+              </span>
+              <span className="dash-destaque-texto">
+                São elas que respondem por {formatarMoedaCurta(resumo.valorSemCorrespondente)} dos{" "}
+                {formatarMoedaCurta(resumo.valorDivergente)} em divergência.
+              </span>
+            </span>
+            <Link href={hrefPrimeiroCaso} className="btn btn-primary">
+              Revisar agora
+            </Link>
+          </SpotlightHover>
+        </Reveal>
+      )}
+
+      <Reveal once delay={0.08}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "baseline",
+            justifyContent: "space-between",
+            gap: 20,
+            marginBottom: 12,
+          }}
+        >
+          <h3 style={{ margin: 0, fontSize: 22, fontWeight: 600 }}>Conciliações recentes</h3>
+          <Link
+            href={`/conciliacoes/${recente.id}`}
+            className="btn btn-secondary"
+            style={{ fontSize: 13.5 }}
+          >
+            Ver a conciliação
+          </Link>
+        </div>
+        <div className="dash-tabela-rolagem tabela-cartoes">
+          <table className="table" role="table">
+            <thead role="rowgroup">
+              <tr role="row">
+                <th style={{ width: 110 }}>Data</th>
+                <th>Descrição</th>
+                <th style={{ width: 140, textAlign: "right" }}>Valor</th>
+                <th style={{ width: 250 }}>Status</th>
+                <th style={{ width: 110, textAlign: "right" }}>Origem</th>
+              </tr>
+            </thead>
+            <tbody role="rowgroup">
+              {lancamentos.map((linha) => {
+                const status = statusDaLinha(linha);
+                return (
+                  <tr key={linha.id} role="row">
+                    <td role="cell" data-rotulo="Data" className="dash-celula-fraca">
+                      {dataCompleta(linha.dataISO, linha.data)}
+                    </td>
+                    <td role="cell" data-rotulo="Descrição" data-destaque="true">
+                      {linha.descricao}
+                    </td>
+                    <td role="cell" data-rotulo="Valor" className="dash-valor-celula">
+                      {formatarMoeda(valorDaLinha(linha))}
+                    </td>
+                    <td role="cell" data-rotulo="Status">
+                      <span className={`selo selo-${status.tom}`}>{status.rotulo}</span>
+                    </td>
+                    <td
+                      role="cell"
+                      data-rotulo="Origem"
+                      className="dash-celula-fraca"
+                      style={{ textAlign: "right", fontSize: 14 }}
+                    >
+                      {origemDaLinha(linha)}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </Reveal>
+
+      {/* As outras execuções atuais (as refeitas depois ficam só no histórico). */}
+      {anteriores.length > 0 && (
+        <Reveal once delay={0.16}>
+          <h3 style={{ margin: "0 0 12px", fontSize: 22, fontWeight: 600 }}>
+            Conciliações anteriores
+          </h3>
+          <div className="dash-tabela-rolagem">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th style={{ width: 160 }}>Executada em</th>
+                  <th>Arquivos</th>
+                  <th style={{ width: 120, textAlign: "right" }}>Lançamentos</th>
+                  <th style={{ width: 100, textAlign: "right" }}>Match</th>
+                  <th style={{ width: 90 }}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {anteriores.map((execucao) => (
+                  <tr key={execucao.id}>
+                    <td style={{ fontVariantNumeric: "tabular-nums" }}>
+                      {formatarDataHora(execucao.executadaEm)}
+                    </td>
+                    <td style={{ overflowWrap: "anywhere" }}>
+                      {execucao.arquivoBanco} × {execucao.arquivoSistema}
+                    </td>
+                    <td style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
+                      {formatarInteiro(execucao.lancamentos)}
+                    </td>
+                    <td className="dash-valor-celula">
+                      {execucao.acerto === null ? "—" : formatarPercentual(execucao.acerto)}
+                    </td>
+                    <td style={{ textAlign: "right" }}>
+                      <Link
+                        href={`/conciliacoes/${execucao.extratoBancoId}`}
+                        className="btn btn-secondary"
+                      >
+                        Ver
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Reveal>
+      )}
+    </div>
   );
 }
