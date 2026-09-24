@@ -9,7 +9,6 @@ import {
   buscarConciliacao,
   fecharConciliacao,
   formatarMoeda,
-  HISTORICO_MESES,
 } from "./mock-data";
 
 describe("mock-data store", () => {
@@ -144,19 +143,5 @@ describe("regras", () => {
   it("falls back to the defaults when localStorage is malformed", () => {
     window.localStorage.setItem("ledgr_regras_ativas", "not valid json {]");
     expect(listarRegras().ativas).toHaveLength(2);
-  });
-});
-
-describe("HISTORICO_MESES", () => {
-  it("runs from the most recent competência to the oldest", () => {
-    expect(HISTORICO_MESES[0].mes).toBe("Setembro 2026");
-    expect(HISTORICO_MESES.at(-1)?.mes).toBe("Abril 2026");
-  });
-
-  it("keeps every taxa de match as a percentage between 0 and 100", () => {
-    for (const mes of HISTORICO_MESES) {
-      expect(mes.taxaMatch).toBeGreaterThan(0);
-      expect(mes.taxaMatch).toBeLessThanOrEqual(100);
-    }
   });
 });

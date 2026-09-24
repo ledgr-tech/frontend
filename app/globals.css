@@ -885,6 +885,17 @@ button.login-link-animado { border: 0; background-color: transparent; font: inhe
   font-size: 14px; line-height: 1.72;
   color: color-mix(in srgb, var(--color-text) 72%, transparent);
 }
+.dash-destaque-corpo { display: flex; flex-direction: column; gap: 6px; }
+/* Sem as sugestões ao lado, o cartão de 250px ficaria sozinho num canto: vira
+   faixa com mascote, texto e botão lado a lado. Até 640px volta a empilhar. */
+.dash-destaque-faixa {
+  flex: 1 1 100%; flex-direction: row; text-align: left; gap: 22px;
+}
+.dash-destaque-faixa .dash-destaque-corpo { flex: 1; min-width: 0; }
+.dash-destaque-faixa .btn { flex: none; }
+@media (max-width: 640px) {
+  .dash-destaque-faixa { flex-direction: column; text-align: center; }
+}
 
 /* a tabela de lançamentos tem 5 colunas: em tela estreita rola na horizontal
    em vez de espremer a descrição até quebrar letra por letra */
@@ -893,6 +904,8 @@ button.login-link-animado { border: 0; background-color: transparent; font: inhe
 .dash-valor-celula {
   text-align: right; font-family: var(--font-heading); font-size: 17px; font-weight: 600;
   font-variant-numeric: tabular-nums;
+  /* débito vem negativo do backend: sem isso, "-R$ 12.640,00" quebra depois do hífen */
+  white-space: nowrap;
 }
 .dash-celula-fraca {
   font-variant-numeric: tabular-nums;
@@ -1084,6 +1097,89 @@ button.login-link-animado { border: 0; background-color: transparent; font: inhe
   .hist-barras { gap: 8px; }
   .hist-barra-taxa { font-size: 11px; }
   .hist-economia-texto { text-align: left; }
+}
+
+/* ── Extratos carregados ──────────────────────────────────────────────────────
+   Galeria do design (cartaoArquivo em Ledgr.dc.html): cada arquivo é uma folha
+   3:4 com linhas desenhadas, e as linhas douradas marcam arquivo com linha não
+   lida. O selecionado abre no painel da direita; até 1000px o painel desce. */
+.extratos-corpo { display: flex; flex-direction: column; gap: 22px; }
+.extratos-area {
+  display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 28px; align-items: start;
+}
+.extratos-grade {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 22px 18px;
+}
+.extratos-vazio { margin: 0; padding: 48px 0; color: color-mix(in srgb, var(--color-text) 70%, transparent); }
+.extrato-cartao {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 8px; min-width: 0;
+  padding: 0; border: none; background: transparent; cursor: pointer; text-align: left;
+  font: inherit; color: inherit;
+}
+.extrato-cartao:focus-visible {
+  outline: 2px solid var(--color-accent); outline-offset: 4px; border-radius: var(--radius-sm);
+}
+.extrato-folha {
+  position: relative; display: flex; flex-direction: column; gap: 10px;
+  width: 100%; aspect-ratio: 3 / 4; padding: 14px 13px 12px; overflow: hidden;
+  /* neutral-100 e não surface: aqui o surface é mais escuro que a página, e a
+     folha precisa parecer papel por cima dela, nos dois temas */
+  border-radius: var(--radius-sm); background: var(--color-neutral-100);
+  border: 1px solid var(--color-divider); box-shadow: var(--shadow-sm);
+  transition: box-shadow 180ms ease, border-color 180ms ease;
+}
+.extrato-cartao:hover .extrato-folha { border-color: var(--color-accent); }
+.extrato-cartao[aria-pressed="true"] .extrato-folha {
+  border-color: var(--color-accent); box-shadow: var(--shadow-md);
+}
+.extrato-folha-titulo {
+  font-family: var(--font-heading); font-size: 12px; font-weight: 600;
+  color: color-mix(in srgb, var(--color-text) 70%, transparent);
+}
+.extrato-folha-linhas { display: flex; flex-direction: column; gap: 7px; }
+.extrato-folha-linha { display: flex; justify-content: space-between; gap: 10px; }
+.extrato-folha-linha > span { height: 4px; border-radius: 1px; background: var(--color-neutral-300); }
+.extrato-folha-linha > span:first-child { flex: 1; min-width: 0; }
+.extrato-folha-linha > span:last-child { flex: none; width: 26px; background: var(--color-neutral-400); }
+.extrato-folha-linha[data-marcada] > span:first-child { background: var(--color-accent-300); }
+.extrato-folha-linha[data-marcada] > span:last-child { background: var(--color-accent); }
+.extrato-etiqueta {
+  position: absolute; bottom: 10px; left: 12px; padding: 2px 6px; border-radius: 2px;
+  font-family: var(--font-heading); font-size: 10px; font-weight: 600; letter-spacing: 0.1em;
+  border: 1px solid var(--color-divider);
+  color: color-mix(in srgb, var(--color-text) 70%, transparent);
+}
+.extrato-etiqueta[data-problema] { border-color: var(--color-accent); color: var(--color-accent-700); }
+.extrato-nome { font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
+.extrato-meta {
+  font-size: 13px; font-variant-numeric: tabular-nums;
+  color: color-mix(in srgb, var(--color-text) 62%, transparent);
+}
+.extrato-painel {
+  position: sticky; top: 24px; display: flex; flex-direction: column; gap: 14px;
+  padding: 22px; border: 1px solid var(--color-divider); border-radius: var(--radius-md);
+}
+.extrato-painel-nome { margin: 0; font-size: 20px; font-weight: 600; overflow-wrap: anywhere; }
+.extrato-campos { margin: 0; display: flex; flex-direction: column; }
+.extrato-campos > div {
+  display: flex; justify-content: space-between; gap: 16px;
+  padding: 9px 0; border-top: 1px solid var(--color-divider); font-size: 13.5px;
+}
+.extrato-campos dt { flex: none; color: color-mix(in srgb, var(--color-text) 62%, transparent); }
+.extrato-campos dd { margin: 0; min-width: 0; text-align: right; font-variant-numeric: tabular-nums; }
+.extrato-nao-lidas h4 { margin: 0 0 8px; font-size: 15px; font-weight: 600; color: var(--color-accent-700); }
+.extrato-nao-lidas ul {
+  margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px;
+  max-height: 240px; overflow-y: auto; font-size: 13.5px;
+}
+.extrato-nao-lidas li { display: flex; gap: 10px; }
+.extrato-nao-lida-onde {
+  flex: none; font-variant-numeric: tabular-nums;
+  color: color-mix(in srgb, var(--color-text) 62%, transparent);
+}
+@media (max-width: 1000px) {
+  .extratos-area { grid-template-columns: 1fr; }
+  .extrato-painel { position: static; }
 }
 
 /* ── Shell do app: menu lateral + barra superior ─────────────────────────────

@@ -15,7 +15,7 @@ type ItemMenu = {
 
 // Os cinco destinos do design (navItens em Ledgr.dc.html), na mesma ordem.
 const ITENS: ItemMenu[] = [
-  { nome: "Extratos", href: null },
+  { nome: "Extratos", href: "/extratos" },
   { nome: "Conciliações", href: "/dashboard", tambem: ["/conciliacoes"] },
   { nome: "Fechamentos", href: null },
   { nome: "Histórico", href: "/historico" },

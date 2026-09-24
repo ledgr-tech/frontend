@@ -394,30 +394,6 @@ export function desativarRegra(id: number): void {
   salvarIdsAtivos(lerIdsAtivos().filter((ativo) => ativo !== id));
 }
 
-// ── Histórico de conciliações ────────────────────────────────────────────────
-// Seis competências do design (histMeses). O gráfico de barras lê desta mesma
-// lista: o design tinha um segundo array (histBarras) com os mesmos meses, e as
-// duas cópias já estavam fora de sincronia — ver a nota no spec.
-
-export type MesHistorico = {
-  mes: string;
-  lancamentos: number;
-  /** Percentual de 0 a 100. */
-  taxaMatch: number;
-  ajusteLiquido: number;
-  fechadoComRessalva: boolean;
-};
-
-/** Da competência mais recente para a mais antiga, como a tabela do design. */
-export const HISTORICO_MESES: MesHistorico[] = [
-  { mes: "Setembro 2026", lancamentos: 4218, taxaMatch: 96.3, ajusteLiquido: 1284, fechadoComRessalva: false },
-  { mes: "Agosto 2026", lancamentos: 3980, taxaMatch: 97.3, ajusteLiquido: 2106, fechadoComRessalva: false },
-  { mes: "Julho 2026", lancamentos: 4104, taxaMatch: 96.7, ajusteLiquido: 3418, fechadoComRessalva: false },
-  { mes: "Junho 2026", lancamentos: 1302, taxaMatch: 95.1, ajusteLiquido: 4960, fechadoComRessalva: false },
-  { mes: "Maio 2026", lancamentos: 1288, taxaMatch: 93.4, ajusteLiquido: 6740, fechadoComRessalva: true },
-  { mes: "Abril 2026", lancamentos: 1219, taxaMatch: 91.8, ajusteLiquido: 8115, fechadoComRessalva: true },
-];
-
 // ── Avisos ───────────────────────────────────────────────────────────────────
 // Lista fixa do design (notificacoes em Ledgr.dc.html). Só o "já li" é estado.
 
