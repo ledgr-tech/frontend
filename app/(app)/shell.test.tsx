@@ -56,7 +56,9 @@ describe("Shell", () => {
     const user = userEvent.setup();
     render(<Shell email={EMAIL}>conteúdo</Shell>);
 
-    await user.click(await screen.findByRole("button", { name: "Sair" }));
+    // o Sair mora no menu da conta, no rodapé do menu lateral
+    await user.click(await screen.findByRole("button", { name: /Financeiro/ }));
+    await user.click(screen.getByRole("button", { name: "Sair" }));
 
     // quem apaga o cookie httpOnly e redireciona é a Server Action
     expect(sair).toHaveBeenCalled();
@@ -66,19 +68,18 @@ describe("Shell", () => {
     const user = userEvent.setup();
     render(<Shell email={EMAIL}>conteúdo</Shell>);
 
-    expect(await screen.findByText("3 avisos para você")).toBeInTheDocument();
-
-    await user.click(screen.getByRole("button", { name: /Avisos/ }));
+    await user.click(await screen.findByRole("button", { name: "Avisos 1" }));
     await user.click(screen.getByRole("button", { name: "Marcar como lidos" }));
 
     expect(marcarAvisosLidos).toHaveBeenCalled();
-    expect(screen.getByText("tudo em ordem")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Avisos 0" })).toBeInTheDocument();
   });
 
   it("começa sem marca quando os avisos já tinham sido lidos", async () => {
     avisosLidos.mockReturnValue(true);
     render(<Shell email={EMAIL}>conteúdo</Shell>);
 
-    expect(await screen.findByText("tudo em ordem")).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Avisos 0" })).toBeInTheDocument();
+    expect(avisosLidos).toHaveBeenCalled();
   });
 });

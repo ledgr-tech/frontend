@@ -49,11 +49,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <head>
         {/* Roda antes da primeira pintura: sem isso o app abriria claro e piscaria
-            para o escuro depois da hidratação. Só escreve o atributo quando há
-            escolha salva — sem escolha, o CSS segue o prefers-color-scheme. */}
+            para o escuro depois da hidratação, e o menu recolhido abriria largo e
+            encolheria. Só escreve o atributo quando há escolha salva — sem escolha,
+            o CSS segue o prefers-color-scheme e o menu abre largo. */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `try{var d=document.documentElement.dataset,t=localStorage.getItem("ledgr_tema");if(t)d.tema=t;var n=localStorage.getItem("ledgr_densidade");if(n)d.densidade=n}catch(e){}`,
+            __html: `try{var d=document.documentElement.dataset,t=localStorage.getItem("ledgr_tema");if(t)d.tema=t;var n=localStorage.getItem("ledgr_densidade");if(n)d.densidade=n;var m=localStorage.getItem("ledgr_menu");if(m)d.menu=m}catch(e){}`,
           }}
         />
       </head>

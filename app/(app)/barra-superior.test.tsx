@@ -65,13 +65,7 @@ const conciliacoes = [
 
 function montar(props: Partial<Parameters<typeof BarraSuperior>[0]> = {}) {
   return render(
-    <BarraSuperior
-      email="financeiro@telhacerta.com.br"
-      avisoNaoLido={false}
-      onMarcarAvisosLidos={vi.fn()}
-      onSair={vi.fn()}
-      {...props}
-    />,
+    <BarraSuperior avisoNaoLido={false} onMarcarAvisosLidos={vi.fn()} {...props} />,
   );
 }
 
@@ -83,10 +77,10 @@ describe("BarraSuperior", () => {
     window.localStorage.clear();
   });
 
-  it("derives the user label and initials from the session email", () => {
+  it("leaves the account and the theme to the side menu", () => {
     montar();
-    expect(screen.getByText("Financeiro")).toBeInTheDocument();
-    expect(screen.getByText("FI")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Sair" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Tema/ })).not.toBeInTheDocument();
   });
 
   it("shows no results panel until something is typed", () => {
@@ -228,17 +222,6 @@ describe("BarraSuperior", () => {
     expect(campo).not.toHaveAttribute("aria-activedescendant");
   });
 
-  it("offers the theme toggle, labelled with where it goes", async () => {
-    const user = userEvent.setup();
-    montar();
-
-    const botao = await screen.findByRole("button", { name: "Tema escuro" });
-    await user.click(botao);
-
-    expect(document.documentElement.dataset.tema).toBe("escuro");
-    expect(screen.getByRole("button", { name: "Tema claro" })).toBeInTheDocument();
-  });
-
   it("counts the avisos only while they are unread", () => {
     const { unmount } = montar({ avisoNaoLido: true });
     expect(screen.getByRole("button", { name: "Avisos 2" })).toBeInTheDocument();
@@ -272,15 +255,5 @@ describe("BarraSuperior", () => {
     await user.click(screen.getByRole("button", { name: "Marcar como lidos" }));
 
     expect(onMarcarAvisosLidos).toHaveBeenCalled();
-  });
-
-  it("reports the logout upwards", async () => {
-    const onSair = vi.fn();
-    const user = userEvent.setup();
-    montar({ onSair });
-
-    await user.click(screen.getByRole("button", { name: "Sair" }));
-
-    expect(onSair).toHaveBeenCalled();
   });
 });

@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // o indicador do next dev nasce no canto inferior esquerdo, em cima da conta
+  // do usuário no rodapé do menu lateral; só existe em desenvolvimento
+  devIndicators: { position: "bottom-right" },
   images: {
     // AVIF primeiro (bem menor nos mascotes em traço), WebP como fallback
     formats: ["image/avif", "image/webp"],

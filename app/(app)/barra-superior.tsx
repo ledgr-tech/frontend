@@ -9,7 +9,6 @@ import {
   listarConciliacoes,
   type LinhaComparacao,
 } from "@/lib/mock-data";
-import { aplicarTema, temaAtual, type Tema } from "./tema";
 
 type Achado = {
   conciliacaoId: string;
@@ -27,24 +26,18 @@ function combina(linha: LinhaComparacao, termo: string): boolean {
   return campos.some((campo) => campo.toLowerCase().includes(termo));
 }
 
+// O tema e a conta (nome, empresa e Sair) moram no rodapé do menu lateral.
 export function BarraSuperior({
-  email,
   avisoNaoLido,
   onMarcarAvisosLidos,
-  onSair,
 }: {
-  email: string;
   avisoNaoLido: boolean;
   onMarcarAvisosLidos: () => void;
-  onSair: () => void;
 }) {
   const [termo, setTermo] = useState("");
   const [buscaAberta, setBuscaAberta] = useState(false);
   const [avisosAbertos, setAvisosAbertos] = useState(false);
   const [lancamentos, setLancamentos] = useState<Achado[]>([]);
-  // null enquanto não sabemos: o tema só é legível no cliente, e chutar "claro"
-  // faria o rótulo do botão trocar sozinho depois da hidratação
-  const [tema, setTema] = useState<Tema | null>(null);
   // qual resultado a seta está apontando; -1 = nenhum
   const [ativo, setAtivo] = useState(-1);
   const router = useRouter();
@@ -61,11 +54,6 @@ export function BarraSuperior({
         conciliacao.linhas.map((linha) => ({ conciliacaoId: conciliacao.id, linha })),
       ),
     );
-  }, []);
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setTema(temaAtual());
   }, []);
 
   // ⌘K / Ctrl+K põe o foco na busca, como o atalho que a caixa anuncia.
@@ -100,11 +88,6 @@ export function BarraSuperior({
     return lancamentos.filter(({ linha }) => combina(linha, limpo)).slice(0, 8);
   }, [termo, lancamentos]);
 
-  // "financeiro@telhacerta.com.br" → "Financeiro" e "FI"
-  const apelido = email.split("@")[0] ?? "";
-  const nome = apelido.charAt(0).toUpperCase() + apelido.slice(1);
-  const iniciais = apelido.slice(0, 2).toUpperCase();
-
   const naoLidos = avisoNaoLido ? AVISOS.length : 0;
 
   const painelAberto = buscaAberta && termo.trim() !== "";
@@ -123,12 +106,6 @@ export function BarraSuperior({
       setBuscaAberta(false);
       router.push(`/conciliacoes/${alvo.conciliacaoId}/${alvo.linha.id}`);
     }
-  }
-
-  function alternarTema() {
-    const proximo: Tema = tema === "escuro" ? "claro" : "escuro";
-    aplicarTema(proximo);
-    setTema(proximo);
   }
 
   return (
@@ -255,23 +232,6 @@ export function BarraSuperior({
             })}
           </div>
         )}
-      </div>
-
-      {/* o rótulo diz para onde vai, não onde está — é o que o design faz */}
-      {tema !== null && (
-        <button type="button" className="app-tema-botao" onClick={alternarTema}>
-          {tema === "escuro" ? "Tema claro" : "Tema escuro"}
-        </button>
-      )}
-
-      <div className="app-usuario">
-        <span className="app-usuario-iniciais" aria-hidden="true">
-          {iniciais}
-        </span>
-        <span style={{ fontSize: 14 }}>{nome}</span>
-        <button type="button" className="btn btn-ghost" style={{ fontSize: 13.5 }} onClick={onSair}>
-          Sair
-        </button>
       </div>
     </div>
   );
