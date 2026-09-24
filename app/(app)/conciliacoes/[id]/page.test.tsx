@@ -5,17 +5,21 @@ import type { Conciliacao } from "@/lib/mock-data";
 import ConciliacaoPage from "./page";
 
 // hoisted porque a fábrica do vi.mock roda antes das declarações do módulo
-const rota = vi.hoisted(() => ({ id: "conc-1" }));
+const rota = vi.hoisted(() => ({ id: "conc-1", busca: "" }));
 
 vi.mock("next/navigation", () => ({
   useParams: () => ({ id: rota.id }),
+  useSearchParams: () => new URLSearchParams(rota.busca),
   useRouter: () => ({ push: vi.fn() }),
 }));
 
 const carregarConciliacao = vi.fn();
 vi.mock("../acoes", () => ({
-  carregarConciliacao: (id: string) => carregarConciliacao(id),
+  carregarConciliacao: (...args: unknown[]) => carregarConciliacao(...args),
 }));
+
+const BANCO = "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20";
+const SISTEMA = "7a2b9c4d-1e3f-4a5b-8c6d-9e0f1a2b3c4d";
 
 const buscarConciliacao = vi.fn();
 const fecharConciliacao = vi.fn();
@@ -93,6 +97,7 @@ const conciliacaoMista: Conciliacao = {
 describe("ConciliacaoPage", () => {
   beforeEach(() => {
     rota.id = "conc-1";
+    rota.busca = "";
     buscarConciliacao.mockReset();
     fecharConciliacao.mockReset();
     carregarConciliacao.mockReset();
@@ -167,6 +172,41 @@ describe("ConciliacaoPage", () => {
     expect(
       await screen.findByText("Conciliação não encontrada.")
     ).toBeInTheDocument();
+  });
+
+  it("loads only the lines of the pair named in the URL, and keeps it in the link to a line", async () => {
+    rota.id = BANCO;
+    rota.busca = `sistema=${SISTEMA}`;
+    carregarConciliacao.mockResolvedValue({
+      ok: true,
+      dados: {
+        conciliacao: { ...conciliacaoEmAndamento, id: BANCO, extratoSistemaId: SISTEMA },
+        truncada: false,
+      },
+    });
+    const user = userEvent.setup();
+    render(<ConciliacaoPage />);
+
+    await user.click(await screen.findByText("Boleto Aço Norte Bobinas"));
+
+    expect(carregarConciliacao).toHaveBeenCalledWith(BANCO, SISTEMA);
+    expect(screen.getByRole("link", { name: "Abrir detalhe" })).toHaveAttribute(
+      "href",
+      `/conciliacoes/${BANCO}/lc-1?sistema=${SISTEMA}`,
+    );
+  });
+
+  it("treats an empty pair in the URL as no pair at all", async () => {
+    rota.id = BANCO;
+    rota.busca = "sistema=";
+    carregarConciliacao.mockResolvedValue({
+      ok: true,
+      dados: { conciliacao: { ...conciliacaoEmAndamento, id: BANCO }, truncada: false },
+    });
+    render(<ConciliacaoPage />);
+
+    expect(await screen.findByText("Boleto Aço Norte Bobinas")).toBeInTheDocument();
+    expect(carregarConciliacao).toHaveBeenCalledWith(BANCO, undefined);
   });
 
   it("shows a skeleton while the backend has not answered yet", () => {

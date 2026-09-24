@@ -220,14 +220,15 @@ describe("extratosDasExecucoes", () => {
       nome: "sicredi-set.ofx",
       origem: "banco",
       conciliadoEm: "2026-09-24T17:00:00Z",
-      resultado: "/conciliacoes/b-set",
+      resultado: "/conciliacoes/b-set?sistema=s-set-v2",
     });
     expect(sistemaNovo.origem).toBe("sistema");
-    // o resultado de um extrato do sistema abre pelo extrato do banco da mesma rodada
+    // o extrato do banco de setembro entrou em dois pares: cada arquivo do
+    // sistema abre o seu, e não as linhas dos dois misturadas
     expect(sistemaAntigo).toMatchObject({
       nome: "erp-set.csv",
       conciliadoEm: "2026-09-23T12:00:00Z",
-      resultado: "/conciliacoes/b-set",
+      resultado: "/conciliacoes/b-set?sistema=s-set",
     });
   });
 

@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { Execucao } from "@/lib/adaptadores";
+import { caminhoDaConciliacao } from "@/lib/caminhos";
 import { EMPRESA_MOCK, type Conciliacao } from "@/lib/mock-data";
 import { carregarVisaoGeral, type VisaoGeral } from "../conciliacoes/acoes";
 import {
@@ -12,6 +13,7 @@ import {
   resumir,
 } from "../dashboard/resumo";
 import { GraficoDeMatch } from "../historico/grafico";
+import { NOTA_VER_ATUAL, VerExecucao } from "../historico/ver-execucao";
 import { pendencias } from "./pendencias";
 
 /**
@@ -129,7 +131,10 @@ function EstadoDoMes({
         <span className="vg-nota">
           {`Última conciliação em ${formatarDataHora(execucao.executadaEm)} · ${execucao.arquivoBanco} × ${execucao.arquivoSistema}`}
         </span>
-        <Link href={`/conciliacoes/${execucao.extratoBancoId}`} className="btn btn-secondary">
+        <Link
+          href={caminhoDaConciliacao(execucao.extratoBancoId, execucao.extratoSistemaId)}
+          className="btn btn-secondary"
+        >
           Ver a conciliação
         </Link>
       </div>
@@ -241,9 +246,7 @@ function AtividadeRecente({ execucoes, total }: { execucoes: Execucao[]; total: 
                   {execucao.acerto === null ? "—" : formatarPercentual(execucao.acerto)}
                 </td>
                 <td style={{ textAlign: "right" }}>
-                  <Link href={`/conciliacoes/${execucao.extratoBancoId}`} className="btn btn-secondary">
-                    Ver
-                  </Link>
+                  <VerExecucao execucao={execucao} />
                 </td>
               </tr>
             ))}
@@ -253,6 +256,11 @@ function AtividadeRecente({ execucoes, total }: { execucoes: Execucao[]; total: 
       {total > execucoes.length && (
         <p className="vg-nota" style={{ margin: "12px 0 0" }}>
           {`As ${execucoes.length} mais recentes de ${formatarInteiro(total)}.`}
+        </p>
+      )}
+      {execucoes.some((execucao) => !execucao.atual) && (
+        <p className="vg-nota" style={{ margin: "12px 0 0" }}>
+          {NOTA_VER_ATUAL}
         </p>
       )}
     </section>

@@ -32,7 +32,14 @@ export type EstadoConciliacao =
 export const FALHA_AO_CARREGAR =
   "Não foi possível carregar a conciliação. Recarregue a página e tente de novo.";
 
-export function useConciliacao(id: string): {
+/**
+ * `sistema` é o extrato do sistema do par, lido de `?sistema=` na URL; sem ele,
+ * o backend devolve as linhas de todos os pares do extrato do banco.
+ */
+export function useConciliacao(
+  id: string,
+  sistema?: string,
+): {
   estado: EstadoConciliacao;
   substituir: (conciliacao: Conciliacao) => void;
 } {
@@ -61,7 +68,7 @@ export function useConciliacao(id: string): {
     }
 
     let cancelado = false;
-    carregarConciliacao(id).then(
+    carregarConciliacao(id, sistema).then(
       (resposta) => {
         if (cancelado) return;
         if (!resposta.ok) {
@@ -83,7 +90,7 @@ export function useConciliacao(id: string): {
     return () => {
       cancelado = true;
     };
-  }, [id]);
+  }, [id, sistema]);
 
   /** Depois de uma ação do mock, que devolve a conciliação já atualizada. */
   function substituir(conciliacao: Conciliacao) {

@@ -101,8 +101,32 @@ describe("HistoricoPage", () => {
     expect(recente.getByText("4.218")).toBeInTheDocument();
     expect(recente.getByText("96,3%")).toBeInTheDocument();
     expect(recente.getByText("Atual")).toBeInTheDocument();
-    expect(recente.getByRole("link", { name: "Ver" })).toHaveAttribute("href", "/conciliacoes/banco-e3");
+    expect(recente.getByRole("link", { name: "Ver" })).toHaveAttribute(
+      "href",
+      "/conciliacoes/banco-e3?sistema=sistema-e3",
+    );
     expect(within(linhas[1]).getByText("Substituída")).toBeInTheDocument();
+  });
+
+  it("says a redone execution opens the current result of its pair", async () => {
+    com(EXECUCOES);
+    await renderizar();
+
+    const refeita = within(screen.getAllByRole("row")[2]);
+    // o backend só guarda a rodada mais nova de cada par: o link não pode
+    // prometer as contagens de 23/09 que a linha mostra
+    expect(refeita.getByRole("link", { name: "Ver atual" })).toHaveAttribute(
+      "href",
+      "/conciliacoes/banco-e2?sistema=sistema-e2",
+    );
+    expect(screen.getByText(/Só o resultado mais recente fica guardado/)).toBeInTheDocument();
+  });
+
+  it("does not explain Ver atual when no execution was redone", async () => {
+    com(EXECUCOES.filter((item) => item.atual));
+    await renderizar();
+
+    expect(screen.queryByText(/Só o resultado mais recente fica guardado/)).not.toBeInTheDocument();
   });
 
   it("shows a dash for an execution without lançamentos", async () => {

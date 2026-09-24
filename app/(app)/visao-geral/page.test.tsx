@@ -83,7 +83,13 @@ function com(visao: Partial<VisaoGeral> = {}) {
       total: EXECUCOES.length,
       recente: {
         execucao: RECENTE,
-        conciliacao: { id: "banco-e7", mes: "Setembro/2026", status: "em_andamento", linhas: LINHAS },
+        conciliacao: {
+          id: "banco-e7",
+          extratoSistemaId: "sistema-e7",
+          mes: "Setembro/2026",
+          status: "em_andamento",
+          linhas: LINHAS,
+        },
       },
       arquivosComLinhasNaoLidas: [],
       ...visao,
@@ -132,7 +138,7 @@ describe("VisaoGeralPage", () => {
     ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Ver a conciliação" })).toHaveAttribute(
       "href",
-      "/conciliacoes/banco-e7",
+      "/conciliacoes/banco-e7?sistema=sistema-e7",
     );
   });
 
@@ -143,9 +149,9 @@ describe("VisaoGeralPage", () => {
     const lista = screen.getByRole("list", { name: "Pede sua atenção" });
     const itens = within(lista).getAllByRole("link");
     expect(itens.map((item) => item.getAttribute("href"))).toEqual([
-      "/conciliacoes/banco-e7/l5",
-      "/conciliacoes/banco-e7/l4",
-      "/conciliacoes/banco-e7/l6",
+      "/conciliacoes/banco-e7/l5?sistema=sistema-e7",
+      "/conciliacoes/banco-e7/l4?sistema=sistema-e7",
+      "/conciliacoes/banco-e7/l6?sistema=sistema-e7",
     ]);
     expect(itens[0]).toHaveTextContent("Valor diverge na mesma data");
     expect(itens[0]).toHaveTextContent("1 lançamento · R$ 36");
@@ -224,8 +230,31 @@ describe("VisaoGeralPage", () => {
     expect(within(linhas[0]).getByText("sicredi-e7.ofx × erp-e7.csv")).toBeInTheDocument();
     expect(within(linhas[0]).getByRole("link", { name: "Ver" })).toHaveAttribute(
       "href",
-      "/conciliacoes/banco-e7",
+      "/conciliacoes/banco-e7?sistema=sistema-e7",
     );
+  });
+
+  it("says a redone execution opens the current result of its pair", async () => {
+    com();
+    await renderizar();
+
+    const tabela = screen.getByRole("table", { name: "Atividade recente" });
+    const refeita = within(tabela).getAllByRole("row")[2];
+    // e6 foi refeita: o backend só guarda a rodada mais nova de cada par, e é
+    // ela que abre — o link diz isso em vez de fingir que abre a de 23/09
+    expect(within(refeita).getByRole("link", { name: "Ver atual" })).toHaveAttribute(
+      "href",
+      "/conciliacoes/banco-e6?sistema=sistema-e6",
+    );
+    expect(screen.getByText(/Só o resultado mais recente fica guardado/)).toBeInTheDocument();
+  });
+
+  it("does not explain Ver atual when no recent execution was redone", async () => {
+    com({ execucoes: EXECUCOES.filter((item) => item.atual) });
+    await renderizar();
+
+    expect(screen.getByRole("table", { name: "Atividade recente" })).toBeInTheDocument();
+    expect(screen.queryByText(/Só o resultado mais recente fica guardado/)).not.toBeInTheDocument();
   });
 
   it("walks through the first steps when there is no conciliação yet", async () => {

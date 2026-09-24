@@ -5,6 +5,7 @@ import { EMPRESA_MOCK } from "@/lib/mock-data";
 import { listarExecucoes } from "../conciliacoes/acoes";
 import { formatarDataHora, formatarInteiro, formatarPercentual } from "../dashboard/resumo";
 import { GraficoDeMatch } from "./grafico";
+import { NOTA_VER_ATUAL, VerExecucao } from "./ver-execucao";
 
 /**
  * O histórico lê `GET /execucoes` no servidor: uma linha por rodada de
@@ -119,9 +120,7 @@ function Historico({ execucoes, total }: { execucoes: Execucao[]; total: number 
                     </span>
                   </td>
                   <td style={{ textAlign: "right" }}>
-                    <Link href={`/conciliacoes/${execucao.extratoBancoId}`} className="btn btn-secondary">
-                      Ver
-                    </Link>
+                    <VerExecucao execucao={execucao} />
                   </td>
                 </tr>
               ))}
@@ -132,6 +131,9 @@ function Historico({ execucoes, total }: { execucoes: Execucao[]; total: number 
           <p style={{ margin: "12px 0 0", fontSize: 14, color: cinza(62) }}>
             Mostrando as {execucoes.length} mais recentes de {formatarInteiro(total)}.
           </p>
+        )}
+        {execucoes.some((execucao) => !execucao.atual) && (
+          <p style={{ margin: "12px 0 0", fontSize: 14, color: cinza(62) }}>{NOTA_VER_ATUAL}</p>
         )}
       </div>
     </div>
