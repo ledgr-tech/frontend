@@ -3,6 +3,8 @@
 import {
   adaptarConciliacao,
   adaptarExecucao,
+  extratosDasExecucoes,
+  type ArquivoConciliado,
   type Execucao,
   type ListaConciliacaoAPI,
   type ListaExecucoesAPI,
@@ -186,4 +188,41 @@ export async function carregarPainel(): Promise<Resultado<Painel>> {
   const conciliacao = await carregarConciliacao(maisRecente.extratoBancoId);
   if (!conciliacao.ok) return conciliacao;
   return { ok: true, dados: { recente: conciliacao.dados.conciliacao, anteriores } };
+}
+
+export type ArquivoExtrato = ArquivoConciliado & {
+  /** Null quando o detalhe do arquivo não carregou; o resto da lista segue. */
+  situacao: SituacaoExtrato["status"] | null;
+  lancamentos: number | null;
+  /** As linhas que o parser não conseguiu ler, com o motivo. */
+  erros: SituacaoExtrato["erros"];
+};
+
+/**
+ * Os arquivos enviados, para a tela de extratos: os nomes vêm das execuções e a
+ * situação de cada um, de `GET /extratos/{id}`.
+ *
+ * ponytail: uma chamada por arquivo (em paralelo, até ~100 com as 50 execuções
+ * da página). Some quando o backend tiver `GET /extratos` com a lista pronta.
+ */
+export async function listarExtratos(): Promise<Resultado<ArquivoExtrato[]>> {
+  const lista = await listarExecucoes();
+  if (!lista.ok) return lista;
+
+  const arquivos = extratosDasExecucoes(lista.dados.execucoes);
+  const detalhes = await Promise.all(arquivos.map((arquivo) => situacaoDoExtrato(arquivo.id)));
+  return {
+    ok: true,
+    dados: arquivos.map((arquivo, i) => {
+      const detalhe = detalhes[i];
+      return detalhe.ok
+        ? {
+            ...arquivo,
+            situacao: detalhe.dados.status,
+            lancamentos: detalhe.dados.quantidade_lancamentos,
+            erros: detalhe.dados.erros,
+          }
+        : { ...arquivo, situacao: null, lancamentos: null, erros: [] };
+    }),
+  };
 }

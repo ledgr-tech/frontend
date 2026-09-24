@@ -22,6 +22,7 @@ vi.mock("next/navigation", () => ({
 function execucao(parcial: Partial<Execucao> & Pick<Execucao, "id">): Execucao {
   return {
     extratoBancoId: `banco-${parcial.id}`,
+    extratoSistemaId: `sistema-${parcial.id}`,
     arquivoBanco: `sicredi-${parcial.id}.ofx`,
     arquivoSistema: `erp-${parcial.id}.csv`,
     executadaEm: "2026-09-24T17:02:11Z",
