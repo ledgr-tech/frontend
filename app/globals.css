@@ -2198,3 +2198,69 @@ html[data-tema="escuro"] .app-shell {
   .fech-titulo { font-size: 32px; }
   .fech-titulo[data-estado="aberto"] { font-size: 28px; }
 }
+
+/* ── Assinatura ───────────────────────────────────────────────────────────────
+   Plano, planos e faturas (isAssinatura em Ledgr.dc.html). O resumo e a tabela
+   reaproveitam os da dashboard. O plano atual se destaca em neutro, não em
+   dourado: é estado, não ação. O aviso de que a cobrança não está no ar é
+   filete neutro, porque é informação, não "atenção". */
+.ass-acoes { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.ass-corpo {
+  padding: 34px 0 64px; max-width: 1000px;
+  display: flex; flex-direction: column; gap: 34px;
+}
+.ass-aviso {
+  margin: 0; padding: 12px 16px; border-radius: var(--radius-md);
+  border: 1px solid var(--color-divider);
+  font-size: 14px; line-height: 1.6; color: var(--texto-apagado);
+}
+.ass-aviso strong { font-weight: 600; color: var(--color-text); }
+.ass-titulo { margin: 0 0 14px; font-size: 22px; font-weight: 600; }
+
+/* cartões de 240px no mínimo, como no design: três por linha no desktop */
+.ass-planos {
+  list-style: none; margin: 0; padding: 0;
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px;
+}
+.ass-plano {
+  display: flex; flex-direction: column; gap: 12px; min-width: 0;
+  padding: 22px 20px; border-radius: var(--radius-md);
+  border: 1px solid var(--color-divider);
+}
+/* levantado como a opção escolhida do controle segmentado */
+.ass-plano[data-atual="true"] {
+  border-color: color-mix(in srgb, var(--color-text) 30%, transparent);
+  background: var(--superficie-elevada);
+}
+.ass-plano-topo { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.ass-plano-nome { margin: 0; font-size: 21px; font-weight: 600; line-height: 1.2; }
+.ass-plano-atual {
+  font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--texto-apagado);
+}
+.ass-plano-valor { display: flex; align-items: baseline; gap: 6px; }
+.ass-plano-preco { font-size: 28px; font-weight: 600; line-height: 1; white-space: nowrap; }
+.ass-plano-sufixo { font-size: 13.5px; color: color-mix(in srgb, var(--color-text) 58%, transparent); }
+.ass-plano-filete { width: 40px; height: 1px; background: var(--color-divider); }
+.ass-plano-texto {
+  margin: 0; font-size: 14.5px; line-height: 1.72; text-wrap: pretty;
+  color: color-mix(in srgb, var(--color-text) 74%, transparent);
+}
+.ass-plano .btn { margin-top: auto; font-size: 14px; padding: 9px 16px; }
+/* nome e preço do plano são título: Newsreader, como os h1–h3 e os números grandes */
+.app-shell :is(.ass-plano-nome, .ass-plano-preco) {
+  font-family: var(--font-titulo); font-variant-numeric: lining-nums tabular-nums;
+}
+
+.ass-faturas { border-top: 1px solid var(--color-divider); padding-top: 28px; }
+.ass-fatura-valor {
+  text-align: right; font-size: 15px; font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+/* o "PDF" do recibo: botão com cara de link, porque ainda não baixa nada */
+.ass-recibo {
+  cursor: pointer; font: inherit; font-size: 14px; color: var(--color-text);
+  background: transparent; border: 0; border-bottom: 1px solid var(--color-divider); padding: 0;
+}
+.ass-recibo:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* o porquê do "Cancelar mesmo assim" desligado, logo abaixo dele */
+.ass-dialogo-nota { margin: 0; text-align: right; font-size: 13px; color: var(--texto-apagado); }
