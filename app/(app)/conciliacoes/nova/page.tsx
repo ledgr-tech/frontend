@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
+import { analisarCsv, type Analise } from "@/lib/csv-extrato";
 import {
   conciliar,
   enviarExtrato,
@@ -9,6 +10,8 @@ import {
   type Falha,
   type SituacaoExtrato,
 } from "../acoes";
+import { ImportacaoInterrompida } from "./importacao-interrompida";
+import { lerBytes } from "./ler-arquivo";
 
 /**
  * Conferido antes de subir. Abaixo dos 5MB do backend de propósito: o arquivo
@@ -33,9 +36,10 @@ const TERMINAIS: readonly SituacaoExtrato["status"][] = [
   "erro",
 ];
 
-type Etapa = "ocioso" | "enviando" | "processando" | "conciliando";
+type Etapa = "ocioso" | "conferindo" | "enviando" | "processando" | "conciliando";
 
 const RECADO: Record<Exclude<Etapa, "ocioso">, string> = {
+  conferindo: "Conferindo os arquivos…",
   enviando: "Enviando os extratos…",
   processando: "Lendo os lançamentos…",
   conciliando: "Comparando banco e sistema…",
@@ -45,6 +49,26 @@ function esperar(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+type Origem = "banco" | "sistema";
+
+/** Um CSV que o backend não lê como está, esperando a pessoa apontar as colunas. */
+type Pendente = {
+  origem: Origem;
+  arquivo: File;
+  analise: Extract<Analise, { motivo: "colunas" | "formato" }>;
+};
+
+/** O que o backend deixa saber de um extrato que ele recusou inteiro. */
+function motivoDaRecusa(situacao: SituacaoExtrato): string {
+  const [primeira] = situacao.erros;
+  if (primeira) {
+    // nenhuma linha passou: a primeira recusada já diz o que há de errado com o arquivo
+    return `Nenhuma linha do extrato do ${situacao.origem} pôde ser lida (linha ${primeira.identificador}: ${primeira.motivo}).`;
+  }
+  // erro do arquivo inteiro: o backend não grava o motivo, só o status
+  return `O servidor não conseguiu ler o extrato do ${situacao.origem}. Confira se é o arquivo certo, exportado em OFX ou CSV.`;
+}
+
 export default function NovaConciliacaoPage() {
   const router = useRouter();
   const [arquivoBanco, setArquivoBanco] = useState<File | null>(null);
@@ -52,6 +76,7 @@ export default function NovaConciliacaoPage() {
   const [etapa, setEtapa] = useState<Etapa>("ocioso");
   const [erro, setErro] = useState<string | null>(null);
   const [avisos, setAvisos] = useState<string[]>([]);
+  const [pendente, setPendente] = useState<Pendente | null>(null);
   // para o laço de consulta se a pessoa sair da tela no meio do processamento
   const vivo = useRef(true);
 
@@ -104,12 +129,26 @@ export default function NovaConciliacaoPage() {
     return null;
   }
 
-  async function conciliarExtratos() {
-    if (!arquivoBanco || !arquivoSistema || etapa !== "ocioso") return;
+  /**
+   * O CSV passa pelas regras do backend antes de subir. Devolve true se pode
+   * subir como está; senão abre a importação interrompida ou mostra o erro.
+   */
+  async function conferir(arquivo: File, origem: Origem): Promise<boolean> {
+    if (!arquivo.name.toLowerCase().endsWith(".csv")) return true; // OFX o backend lê sempre
+    const analise = analisarCsv(await lerBytes(arquivo));
+    if (analise.pronto) return true;
+    if (analise.motivo === "ilegivel") {
+      setErro(`Não foi possível ler "${arquivo.name}": ${analise.mensagem}`);
+    } else {
+      setPendente({ origem, arquivo, analise });
+    }
+    return false;
+  }
 
-    const grande = [arquivoBanco, arquivoSistema].find(
-      (arquivo) => arquivo.size > TAMANHO_MAXIMO_BYTES,
-    );
+  async function conciliarExtratos(banco = arquivoBanco, sistema = arquivoSistema) {
+    if (!banco || !sistema) return;
+
+    const grande = [banco, sistema].find((arquivo) => arquivo.size > TAMANHO_MAXIMO_BYTES);
     if (grande) {
       // sem isso, o arquivo inteiro sobe só pra requisição ser recusada no caminho
       setErro(`O arquivo "${grande.name}" passa de 4MB. Exporte um período menor.`);
@@ -118,14 +157,38 @@ export default function NovaConciliacaoPage() {
 
     setErro(null);
     setAvisos([]);
-    setEtapa("enviando");
+    setEtapa("conferindo");
 
     try {
-      await enviarEConciliar(arquivoBanco, arquivoSistema);
+      // nada sobe antes de os dois estarem prontos: extrato órfão no backend não tem volta
+      if (!(await conferir(banco, "banco")) || !(await conferir(sistema, "sistema"))) {
+        setEtapa("ocioso");
+        return;
+      }
+      setEtapa("enviando");
+      await enviarEConciliar(banco, sistema);
     } catch {
       setEtapa("ocioso");
       setErro(ERRO_SEM_RESPOSTA);
     }
+  }
+
+  /** Mapeamento confirmado: troca o arquivo pelo reescrito e continua de onde parou. */
+  function retomar(reescrito: File) {
+    if (!pendente) return;
+    const banco = pendente.origem === "banco" ? reescrito : arquivoBanco;
+    const sistema = pendente.origem === "sistema" ? reescrito : arquivoSistema;
+    setArquivoBanco(banco);
+    setArquivoSistema(sistema);
+    setPendente(null);
+    void conciliarExtratos(banco, sistema);
+  }
+
+  function subirOutro() {
+    if (!pendente) return;
+    if (pendente.origem === "banco") setArquivoBanco(null);
+    else setArquivoSistema(null);
+    setPendente(null);
   }
 
   async function enviarEConciliar(arquivoBanco: File, arquivoSistema: File) {
@@ -150,7 +213,7 @@ export default function NovaConciliacaoPage() {
       if ("ok" in situacao) return falhar(situacao);
       if (situacao.status === "erro") {
         setEtapa("ocioso");
-        setErro(`Não foi possível ler o extrato do ${situacao.origem}.`);
+        setErro(motivoDaRecusa(situacao));
         return;
       }
       if (situacao.erros.length > 0) {
@@ -174,6 +237,20 @@ export default function NovaConciliacaoPage() {
 
   const podeConciliar = arquivoBanco !== null && arquivoSistema !== null;
   const ocupado = etapa !== "ocioso";
+
+  if (pendente) {
+    return (
+      <div style={{ padding: "36px 0 64px", maxWidth: 1040 }}>
+        <ImportacaoInterrompida
+          nome={pendente.arquivo.name}
+          origem={pendente.origem}
+          analise={pendente.analise}
+          onPronto={retomar}
+          onOutroArquivo={subirOutro}
+        />
+      </div>
+    );
+  }
 
   return (
     <div style={{ padding: "36px 0 64px", maxWidth: 1040 }}>
