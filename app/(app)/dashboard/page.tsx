@@ -283,7 +283,7 @@ function Conteudo({
               {lancamentos.map((linha) => {
                 const status = statusDaLinha(linha);
                 return (
-                  <tr key={linha.id} role="row">
+                  <tr key={linha.id} role="row" data-tom={status.tom}>
                     <td role="cell" data-rotulo="Data" className="dash-celula-fraca">
                       {dataCompleta(linha.dataISO, linha.data)}
                     </td>

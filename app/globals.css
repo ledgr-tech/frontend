@@ -1118,24 +1118,57 @@ button.login-link-animado { border: 0; background-color: transparent; font: inhe
 .app-shell h6 { color: var(--texto-apagado); }
 
 /* ── Comparação em duas folhas ────────────────────────────────────────────────
-   O extrato do banco e o do sistema são coisas diferentes: cada um é uma folha,
-   com tom próprio e um vão entre as duas — a "folha a folha" do design (isFolhas
-   em Ledgr.dc.html). O banco é o papel claro e quente; o sistema, um tom
-   levemente frio, sem amarelo. O status fica fora das folhas: é o veredito. */
-.app-shell { --folha-banco: #faf8f4; --folha-sistema: #ebeef1; }
-@media (prefers-color-scheme: dark) {
-  html:not([data-tema="claro"]) .app-shell { --folha-banco: #25231f; --folha-sistema: #1f2429; }
+   O extrato do banco e o do sistema são coisas diferentes: cada um é uma folha de
+   canto arredondado, com um vão entre as duas — a "folha a folha" do design
+   (isFolhas em Ledgr.dc.html) no desenho das listas agrupadas da Apple. As duas
+   ficam no mesmo matiz quente e neutro e se distinguem só pela claridade: um azul
+   diria "isto é outra coisa" (link, informação) em vez de "isto é outra folha".
+   O banco, fonte da verdade, é o papel mais claro; o sistema, um cinza quente.
+   O status fica fora das folhas: é o veredito. */
+.app-shell {
+  --folha-banco: #fdfcfa; --folha-sistema: #ebe8e3;
+  /* o que sobe acima do trilho: a opção escolhida do controle segmentado */
+  --superficie-elevada: #fdfcfa;
 }
-html[data-tema="escuro"] .app-shell { --folha-banco: #25231f; --folha-sistema: #1f2429; }
+@media (prefers-color-scheme: dark) {
+  html:not([data-tema="claro"]) .app-shell {
+    --folha-banco: #2c2a27; --folha-sistema: #232120; --superficie-elevada: #3b3935;
+  }
+}
+html[data-tema="escuro"] .app-shell {
+  --folha-banco: #2c2a27; --folha-sistema: #232120; --superficie-elevada: #3b3935;
+}
 
 .folha-banco { background: var(--folha-banco); }
 .folha-sistema { background: var(--folha-sistema); }
-/* o hover da linha não pode sumir debaixo da cor da folha */
-.table tbody tr:hover .folha-banco { background: color-mix(in srgb, var(--color-text) 4%, var(--folha-banco)); }
-.table tbody tr:hover .folha-sistema { background: color-mix(in srgb, var(--color-text) 4%, var(--folha-sistema)); }
+
+/* separado, não colapsado: só assim a célula do canto aceita border-radius */
+.tabela-folhas { border-collapse: separate; border-spacing: 0; }
+.tabela-folhas .folha-titulo { border-radius: var(--radius-md) var(--radius-md) 0 0; }
+.tabela-folhas tbody tr:last-child > td { border-bottom: none; }
+.tabela-folhas tbody tr:last-child > td:first-child { border-bottom-left-radius: var(--radius-md); }
+.tabela-folhas tbody tr:last-child > td.folha-banco:nth-child(3) { border-bottom-right-radius: var(--radius-md); }
+.tabela-folhas tbody tr:last-child > td.folha-sistema { border-radius: 0 0 var(--radius-md) var(--radius-md); }
+/* a estrutura é das folhas; a coluna do status não precisa de filete próprio */
+.tabela-folhas :is(th, td):last-child { border-bottom: none; }
+
+/* O hover acende a linha na cor do veredito dela: verde se casou, terracota se
+   custa dinheiro, dourado se falta par, cinza se já está explicado. Vale para
+   qualquer tabela cujas linhas tragam data-tom (comparação e dashboard). */
+.table tbody tr[data-tom] { --tom-linha: var(--color-text); }
+.table tbody tr[data-tom="ok"] { --tom-linha: var(--color-ok); }
+.table tbody tr[data-tom="risco"] { --tom-linha: var(--color-risco); }
+.table tbody tr[data-tom="atencao"] { --tom-linha: var(--color-accent); }
+.table tbody tr[data-tom]:hover { background: color-mix(in srgb, var(--tom-linha) 9%, transparent); }
+.table tbody tr[data-tom]:hover > .folha-banco {
+  background: color-mix(in srgb, var(--tom-linha) 9%, var(--folha-banco));
+}
+.table tbody tr[data-tom]:hover > .folha-sistema {
+  background: color-mix(in srgb, var(--tom-linha) 9%, var(--folha-sistema));
+}
 /* o vão é da cor da página, inclusive no hover: as folhas não se tocam */
 .table .folha-vao {
-  width: 14px; min-width: 14px; padding: 0; border: none; background: var(--color-bg);
+  width: 16px; min-width: 16px; padding: 0; border: none; background: var(--color-bg);
 }
 .table .folha-fora { border: none; }
 .table .folha-titulo {
@@ -1355,9 +1388,17 @@ html[data-tema="escuro"] .app-shell { --folha-banco: #25231f; --folha-sistema: #
 /* no mesmo papel das folhas da comparação: banco quente, sistema frio */
 .extrato-folha[data-origem="banco"] { background: var(--folha-banco); }
 .extrato-folha[data-origem="sistema"] { background: var(--folha-sistema); }
-.extrato-cartao:hover .extrato-folha { border-color: color-mix(in srgb, var(--color-text) 35%, transparent); }
+/* hover e seleção na cor da situação do arquivo, a mesma do selo embaixo dele */
+.extrato-cartao { --tom-cartao: var(--color-text); }
+.extrato-cartao[data-tom="ok"] { --tom-cartao: var(--color-ok); }
+.extrato-cartao[data-tom="atencao"] { --tom-cartao: var(--color-accent); }
+.extrato-cartao[data-tom="risco"] { --tom-cartao: var(--color-risco); }
+.extrato-cartao:hover .extrato-folha {
+  border-color: color-mix(in srgb, var(--tom-cartao) 60%, transparent);
+}
 .extrato-cartao[aria-pressed="true"] .extrato-folha {
-  border-color: color-mix(in srgb, var(--color-text) 55%, transparent); box-shadow: var(--shadow-md);
+  border-color: var(--tom-cartao);
+  box-shadow: 0 0 0 1px var(--tom-cartao), var(--shadow-md);
 }
 .extrato-folha-titulo {
   font-family: var(--font-heading); font-size: 12px; font-weight: 600;
@@ -1913,6 +1954,20 @@ html[data-densidade="compacta"] .selo { padding-block: 1px; }
 .pill[aria-pressed="true"] {
   border-color: color-mix(in srgb, var(--color-text) 30%, transparent);
   background: var(--tinta-ativa); font-weight: 500;
+}
+
+/* Controle segmentado, como o da Apple: um trilho com a opção escolhida
+   levantada, no lugar de pílulas soltas, nos filtros de duas a quatro opções. */
+.pills.segmentado {
+  display: inline-flex; width: fit-content; max-width: 100%; gap: 2px; padding: 3px;
+  border-radius: calc(var(--radius-sm) + 3px); background: var(--tinta-ativa);
+}
+.segmentado .pill {
+  border: none; border-radius: var(--radius-sm); padding: 5px 13px; background: transparent;
+}
+.segmentado .pill:hover { background: var(--tinta-hover); }
+.segmentado .pill[aria-pressed="true"] {
+  background: var(--superficie-elevada); box-shadow: var(--shadow-sm); font-weight: 500;
 }
 
 /* cabecalho ordenavel: o botao ocupa a celula toda para o alvo ser generoso */

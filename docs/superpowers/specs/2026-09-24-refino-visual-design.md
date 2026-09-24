@@ -63,3 +63,35 @@ Retorno de 24/09/2026, olhando a comparação direta e a tela de extratos:
 - **Detalhe, escuro:** cartão do banco `#25231f`, do sistema `#1f2429`, cada um com
   o ícone; item ativo do menu em cinza.
 - **375px:** comparação em cartões, sem vão nem rolagem lateral.
+
+## Segunda rodada (mesmo dia)
+
+Retorno: o azul do sistema "não faz sentido, azul é outra coisa"; as bordas
+quadradas não combinam com o sistema; "o hover deve ser da cor do match"; e um
+desenho mais próximo do nosso, inspirado na Apple.
+
+7. **Sem azul.** As duas folhas ficam no mesmo matiz quente e neutro e mudam só de
+   claridade: banco em papel claro (`#fdfcfa`, escuro `#2c2a27`), sistema em cinza
+   quente (`#ebe8e3`, escuro `#232120`). Outro matiz carrega outro significado
+   (link, informação); aqui a diferença é de folha, não de natureza.
+
+8. **Folhas arredondadas**, como as listas agrupadas da Apple, com o raio do
+   sistema (`--radius-md`, 16px). A tabela passou a `border-collapse: separate`,
+   única forma de a célula do canto aceitar `border-radius`. A coluna do status
+   perdeu o filete próprio: a estrutura é das folhas. O vão foi para 16px.
+
+9. **Hover na cor do veredito.** Interpretei "a cor do match" como a cor do
+   resultado de cada linha: a linha acende em verde se casou, terracota se o valor
+   diverge ou há duplicidade, dourado se falta par, cinza na tarifa. `data-tom` na
+   linha da comparação e da dashboard; o cartão de extrato faz o mesmo no hover e na
+   seleção, na cor do selo embaixo dele.
+
+10. **Controle segmentado** no lugar das pílulas soltas ("Todos / Só revisão",
+    "Padrão / Compacta", filtros dos extratos): um trilho neutro com a opção
+    escolhida levantada (`--superficie-elevada` e `--shadow-sm`), como no iOS e no
+    macOS.
+
+Verificado no navegador: folhas nos dois temas sem azul, os quatro cantos de cada
+folha a 16px, hover terracota na linha do "Boleto Aço Norte" atravessando as duas
+folhas e o status, cartão selecionado de extrato com contorno verde, controles
+segmentados nas duas telas.

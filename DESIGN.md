@@ -16,8 +16,14 @@ preenchimento**, filete carregando a estrutura, identidade tipográfica.
   selecionada, rótulo pequeno (`h6`) e item ativo do menu não são dourados.
 - **Duas fontes:** títulos (`h1`–`h3` a partir de ~20px) e números em destaque em
   Cormorant Garamond; o resto em Inter.
-- **Banco e sistema são duas folhas:** `--folha-banco` (papel quente) e
-  `--folha-sistema` (tom frio), com o ícone de origem (`IconeOrigem`).
+- **Banco e sistema são duas folhas** de canto arredondado: `--folha-banco` (papel
+  claro) e `--folha-sistema` (cinza quente) — mesmo matiz, só a claridade muda;
+  outra cor diria "outra coisa", não "outra folha". Com o ícone de origem
+  (`IconeOrigem`).
+- **Hover e seleção na cor do veredito:** linha de tabela com `data-tom` e cartão
+  de extrato acendem no tom do seu status (verde, terracota, dourado, cinza).
+- **Filtros de duas a quatro opções em controle segmentado** (`.pills.segmentado`),
+  como o da Apple.
 
 ## Tier 1 — buracos, não polimento
 

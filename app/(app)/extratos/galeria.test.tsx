@@ -57,6 +57,13 @@ describe("Galeria de extratos", () => {
     expect(screen.getByRole("button", { name: "Com problema (1)" })).toBeInTheDocument();
   });
 
+  it("tags each card with the tone of its situation, which colors hover and selection", () => {
+    render(<Galeria arquivos={ARQUIVOS} />);
+
+    expect(cartao("sicredi-setembro.ofx")).toHaveAttribute("data-tom", "ok");
+    expect(cartao("erp-setembro.csv")).toHaveAttribute("data-tom", "atencao");
+  });
+
   it("marks each file with the icon of where it came from", () => {
     render(<Galeria arquivos={ARQUIVOS} />);
 

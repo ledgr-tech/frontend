@@ -142,7 +142,7 @@ export default function ConciliacaoPage() {
       )}
       <div className="tabela-controles">
         <h1 style={{ margin: 0, fontSize: 30, fontWeight: 600 }}>Comparação direta</h1>
-        <div className="pills">
+        <div className="pills segmentado" role="group" aria-label="Filtrar lançamentos">
           <button
             type="button"
             className="pill"
@@ -169,7 +169,7 @@ export default function ConciliacaoPage() {
       </div>
 
       {densidade !== null && (
-        <div className="pills" role="group" aria-label="Densidade da tabela">
+        <div className="pills segmentado" role="group" aria-label="Densidade da tabela">
           <button
             type="button"
             className="pill"
@@ -191,7 +191,7 @@ export default function ConciliacaoPage() {
 
       <div>
         <div className="dash-tabela-rolagem tabela-cartoes">
-          <table className="table" role="table">
+          <table className="table tabela-folhas" role="table">
             <thead role="rowgroup">
               {/* Duas folhas, como a "folha a folha" do design: o extrato do banco
                   e o do sistema são coisas diferentes, cada um com seu tom e um vão
@@ -248,7 +248,8 @@ export default function ConciliacaoPage() {
               {visiveis.map((linha) => {
                 const status = statusDaLinha(linha);
                 return (
-                  <tr key={linha.id} role="row">
+                  // o tom do status pinta o hover: a linha acende na cor do veredito dela
+                  <tr key={linha.id} role="row" data-tom={status.tom}>
                     <td role="cell" data-rotulo="Data" className="dash-celula-fraca folha-banco">
                       {linha.data}
                     </td>

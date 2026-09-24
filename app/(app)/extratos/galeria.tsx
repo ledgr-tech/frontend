@@ -113,7 +113,7 @@ export function Galeria({ arquivos }: { arquivos: ArquivoExtrato[] }) {
 
   return (
     <div className="extratos-corpo">
-      <div className="pills" role="group" aria-label="Filtrar arquivos">
+      <div className="pills segmentado" role="group" aria-label="Filtrar arquivos">
         {FILTROS.map((item) => (
           <button
             key={item.id}
@@ -139,6 +139,8 @@ export function Galeria({ arquivos }: { arquivos: ArquivoExtrato[] }) {
                   key={arquivo.id}
                   type="button"
                   className="extrato-cartao"
+                  // hover e seleção na cor da situação do arquivo, como o selo
+                  data-tom={selo.tom}
                   aria-pressed={arquivo.id === aberto.id}
                   onClick={() => setSelecionado(arquivo.id)}
                 >
