@@ -53,10 +53,11 @@ async function detalheDoErro(resposta: Response): Promise<string> {
   return `O servidor respondeu ${resposta.status}.`;
 }
 
-export async function chamarBackend<T>(
+/** A requisição com o Bearer da sessão; erro do backend vira `ErroBackend`. */
+async function requisitar(
   caminho: string,
   init: RequestInit & { corpo?: FormData | object } = {},
-): Promise<T> {
+): Promise<Response> {
   const token = await tokenDaSessao();
   if (!token) throw new ErroBackend(401, "Sessão expirada.");
 
@@ -81,6 +82,23 @@ export async function chamarBackend<T>(
   });
 
   if (!resposta.ok) throw new ErroBackend(resposta.status, await detalheDoErro(resposta));
+  return resposta;
+}
+
+export async function chamarBackend<T>(
+  caminho: string,
+  init: RequestInit & { corpo?: FormData | object } = {},
+): Promise<T> {
+  const resposta = await requisitar(caminho, init);
   if (resposta.status === 204) return undefined as T;
   return (await resposta.json()) as T;
+}
+
+/**
+ * Para arquivo (o CSV da conciliação): a resposta vem crua, para quem chama
+ * repassar os bytes. Ler como texto descartaria o BOM do UTF-8, e sem ele o
+ * Excel abre os acentos quebrados.
+ */
+export async function baixarDoBackend(caminho: string): Promise<Response> {
+  return requisitar(caminho);
 }

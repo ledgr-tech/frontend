@@ -1944,6 +1944,15 @@ html[data-densidade="compacta"] .selo { padding-block: 1px; }
   display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
   gap: 12px 20px;
 }
+/* densidade à esquerda, exportar à direita — mesmo quando a densidade ainda não
+   foi lida do navegador e só o botão aparece */
+.tabela-ferramentas {
+  display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between;
+  gap: 12px 20px;
+}
+.tabela-ferramentas > .exportar-csv { margin-left: auto; }
+.exportar-csv { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.exportar-csv-erro { margin: 0; max-width: 320px; font-size: 13px; color: var(--color-risco-700); text-align: right; }
 .pills { display: flex; flex-wrap: wrap; gap: 8px; }
 .pill {
   cursor: pointer; font-family: var(--font-body); font-size: 13.5px;

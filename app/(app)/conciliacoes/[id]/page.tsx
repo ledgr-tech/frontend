@@ -16,6 +16,7 @@ import { EsqueletoTela } from "../../esqueleto";
 import { filtrarLinhas, ordenarLinhas, type Coluna, type Ordem } from "./ordenar";
 import { aplicarDensidade, densidadeAtual, type Densidade } from "../../densidade";
 import { IconeOrigem, type Origem } from "../../icone-origem";
+import { ExportarCsv } from "./exportar-csv";
 
 /** Quantas linhas por página. 4.218 lançamentos não cabem numa tela. */
 const POR_PAGINA = 25;
@@ -170,26 +171,37 @@ export default function ConciliacaoPage() {
         </div>
       </div>
 
-      {densidade !== null && (
-        <div className="pills segmentado" role="group" aria-label="Densidade da tabela">
-          <button
-            type="button"
-            className="pill"
-            aria-pressed={densidade === "padrao"}
-            onClick={() => escolherDensidade("padrao")}
-          >
-            Padrão
-          </button>
-          <button
-            type="button"
-            className="pill"
-            aria-pressed={densidade === "compacta"}
-            onClick={() => escolherDensidade("compacta")}
-          >
-            Compacta
-          </button>
-        </div>
-      )}
+      <div className="tabela-ferramentas">
+        {densidade !== null && (
+          <div className="pills segmentado" role="group" aria-label="Densidade da tabela">
+            <button
+              type="button"
+              className="pill"
+              aria-pressed={densidade === "padrao"}
+              onClick={() => escolherDensidade("padrao")}
+            >
+              Padrão
+            </button>
+            <button
+              type="button"
+              className="pill"
+              aria-pressed={densidade === "compacta"}
+              onClick={() => escolherDensidade("compacta")}
+            >
+              Compacta
+            </button>
+          </div>
+        )}
+        {/* o mock não existe no backend: não há arquivo para gerar */}
+        {real && (
+          <ExportarCsv
+            extratoBancoId={conciliacao.id}
+            extratoSistemaId={conciliacao.extratoSistemaId}
+            mes={conciliacao.mes}
+            filtrada={filtro === "revisao"}
+          />
+        )}
+      </div>
 
       <div>
         <div className="dash-tabela-rolagem tabela-cartoes">

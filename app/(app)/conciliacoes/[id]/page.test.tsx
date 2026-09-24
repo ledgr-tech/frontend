@@ -196,6 +196,34 @@ describe("ConciliacaoPage", () => {
     );
   });
 
+  it("offers the CSV of the pair only for a conciliação from the backend", async () => {
+    rota.id = BANCO;
+    rota.busca = `sistema=${SISTEMA}`;
+    carregarConciliacao.mockResolvedValue({
+      ok: true,
+      dados: {
+        conciliacao: { ...conciliacaoMista, id: BANCO, extratoSistemaId: SISTEMA },
+        truncada: false,
+      },
+    });
+    const user = userEvent.setup();
+    render(<ConciliacaoPage />);
+
+    expect(await screen.findByRole("button", { name: "Exportar CSV" })).toBeInTheDocument();
+    // o backend filtra um status por vez; o "Só revisão" junta cinco, e o
+    // arquivo sai com tudo — o botão não pode deixar entender outra coisa
+    await user.click(screen.getByRole("button", { name: "Só revisão (1)" }));
+    expect(screen.getByRole("button", { name: "Exportar CSV (todas as linhas)" })).toBeInTheDocument();
+  });
+
+  it("has no CSV for the mock conciliação, which the backend does not know", async () => {
+    buscarConciliacao.mockReturnValue(conciliacaoEmAndamento);
+    render(<ConciliacaoPage />);
+
+    expect(await screen.findByText("Comparação direta")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Exportar CSV/ })).not.toBeInTheDocument();
+  });
+
   it("treats an empty pair in the URL as no pair at all", async () => {
     rota.id = BANCO;
     rota.busca = "sistema=";
