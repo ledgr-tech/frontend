@@ -164,19 +164,25 @@ describe("DashboardPage", () => {
   });
 
   it("points the highlight card at the linhas without a counterpart", async () => {
-    painel(
-      conciliacao("banco-9", [
+    painel({
+      ...conciliacao("banco-9", [
         linha("l-1", "sem_correspondencia", 4180, null),
         linha("l-2", "sem_correspondencia", null, 2150),
       ]),
-    );
+      extratoSistemaId: "sistema-9",
+    });
     render(<DashboardPage />);
 
     expect(await screen.findByText("Comece pelas 2 sem correspondente")).toBeInTheDocument();
-    // vai direto para a primeira divergência em aberto, não para a lista
+    // vai direto para a primeira divergência em aberto, não para a lista, e
+    // leva o par junto
     expect(screen.getByRole("link", { name: "Revisar agora" })).toHaveAttribute(
       "href",
-      "/conciliacoes/banco-9/l-1",
+      "/conciliacoes/banco-9/l-1?sistema=sistema-9",
+    );
+    expect(screen.getByRole("link", { name: "Ver a conciliação" })).toHaveAttribute(
+      "href",
+      "/conciliacoes/banco-9?sistema=sistema-9",
     );
   });
 
@@ -208,7 +214,7 @@ describe("DashboardPage", () => {
     expect(linhaAnterior.getByText("97,3%")).toBeInTheDocument();
     expect(linhaAnterior.getByRole("link", { name: "Ver" })).toHaveAttribute(
       "href",
-      "/conciliacoes/banco-e1",
+      "/conciliacoes/banco-e1?sistema=sistema-e1",
     );
   });
 

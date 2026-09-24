@@ -71,6 +71,8 @@ export type LinhaComparacao = {
 
 export type Conciliacao = {
   id: string;
+  /** O extrato do sistema do par; só nas conciliações do backend. */
+  extratoSistemaId?: string;
   mes: string;
   status: "em_andamento" | "fechada";
   linhas: LinhaComparacao[];

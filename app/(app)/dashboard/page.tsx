@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { caminhoDaConciliacao } from "@/lib/caminhos";
 import { EMPRESA_MOCK, formatarMoeda } from "@/lib/mock-data";
 import { carregarPainel, type Painel } from "../conciliacoes/acoes";
 import {
@@ -188,9 +189,11 @@ function Conteudo({
   const lancamentos = recente.linhas.slice(0, 7);
   // "Revisar agora" abre a primeira divergência em aberto; sem nenhuma, vai para a lista.
   const primeiraEmAberto = recente.linhas.find((linha) => !estaResolvida(linha.status)) ?? null;
-  const hrefPrimeiroCaso = primeiraEmAberto
-    ? `/conciliacoes/${recente.id}/${primeiraEmAberto.id}`
-    : `/conciliacoes/${recente.id}`;
+  const hrefPrimeiroCaso = caminhoDaConciliacao(
+    recente.id,
+    recente.extratoSistemaId,
+    primeiraEmAberto?.id,
+  );
 
   return (
     <div style={{ padding: "32px 0 56px", display: "flex", flexDirection: "column", gap: 36 }}>
@@ -261,7 +264,7 @@ function Conteudo({
         >
           <h3 style={{ margin: 0, fontSize: 22, fontWeight: 600 }}>Conciliações recentes</h3>
           <Link
-            href={`/conciliacoes/${recente.id}`}
+            href={caminhoDaConciliacao(recente.id, recente.extratoSistemaId)}
             className="btn btn-secondary"
             style={{ fontSize: 13.5 }}
           >
@@ -352,7 +355,7 @@ function Conteudo({
                     </td>
                     <td style={{ textAlign: "right" }}>
                       <Link
-                        href={`/conciliacoes/${execucao.extratoBancoId}`}
+                        href={caminhoDaConciliacao(execucao.extratoBancoId, execucao.extratoSistemaId)}
                         className="btn btn-secondary"
                       >
                         Ver

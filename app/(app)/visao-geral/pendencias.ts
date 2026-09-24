@@ -1,3 +1,4 @@
+import { caminhoDaConciliacao } from "@/lib/caminhos";
 import type { Conciliacao, LinhaComparacao, Tom } from "@/lib/mock-data";
 import { estaResolvida, statusDaLinha, valorEmAberto } from "../dashboard/resumo";
 
@@ -37,7 +38,7 @@ export function pendencias(conciliacao: Conciliacao): Pendencia[] {
       tom,
       quantidade: linhas.length,
       valor: valorEmAberto(linhas),
-      href: `/conciliacoes/${conciliacao.id}/${linhas[0].id}`,
+      href: caminhoDaConciliacao(conciliacao.id, conciliacao.extratoSistemaId, linhas[0].id),
     }))
     .sort((a, b) => PESO[a.tom] - PESO[b.tom] || b.valor - a.valor);
 }

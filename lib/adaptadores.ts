@@ -1,3 +1,4 @@
+import { caminhoDaConciliacao } from "./caminhos";
 import type { CampoLancamento, Conciliacao, LinhaComparacao, StatusLinha } from "./mock-data";
 
 /**
@@ -99,11 +100,19 @@ export function adaptarLinha(item: ItemConciliacaoAPI): LinhaComparacao {
   };
 }
 
-export function adaptarConciliacao(lista: ListaConciliacaoAPI): Conciliacao {
+/**
+ * `extratoSistemaId` é o filtro que foi pedido ao backend, quando houve: a
+ * resposta não o repete, e a tela precisa dele para os links das linhas.
+ */
+export function adaptarConciliacao(
+  lista: ListaConciliacaoAPI,
+  extratoSistemaId?: string,
+): Conciliacao {
   const linhas = lista.itens.map(adaptarLinha);
   const primeira = linhas.find((linha) => linha.dataISO)?.dataISO;
   return {
     id: lista.extrato_id,
+    extratoSistemaId,
     // A competência sai da primeira data que apareceu; o backend não tem campo
     // de mês, e o extrato é sempre de um período.
     mes: primeira ? mesPorExtenso(primeira) : "Conciliação",
@@ -201,7 +210,7 @@ export type ArquivoConciliado = {
   origem: "banco" | "sistema";
   /** ISO da rodada mais recente que usou o arquivo. */
   conciliadoEm: string;
-  /** O resultado daquela rodada — sempre pelo extrato do banco dela. */
+  /** O resultado daquela rodada: o par de extratos dela. */
   resultado: string;
 };
 
@@ -216,7 +225,7 @@ export function extratosDasExecucoes(execucoes: Execucao[]): ArquivoConciliado[]
   const vistos = new Map<string, ArquivoConciliado>();
   // a lista chega da mais recente para a mais antiga: o primeiro uso é o último
   for (const execucao of execucoes) {
-    const resultado = `/conciliacoes/${execucao.extratoBancoId}`;
+    const resultado = caminhoDaConciliacao(execucao.extratoBancoId, execucao.extratoSistemaId);
     const lados = [
       { id: execucao.extratoBancoId, nome: execucao.arquivoBanco, origem: "banco" as const },
       { id: execucao.extratoSistemaId, nome: execucao.arquivoSistema, origem: "sistema" as const },

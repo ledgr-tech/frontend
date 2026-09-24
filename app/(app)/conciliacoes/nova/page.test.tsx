@@ -110,14 +110,17 @@ describe("NovaConciliacaoPage", () => {
     expect((segundo.get("arquivo") as File).name).toBe("sistema.csv");
   });
 
-  it("concilia e abre o resultado pelo extrato do banco", async () => {
+  it("concilia e abre o resultado do par que acabou de conciliar", async () => {
     await enviarOsDois();
 
     await waitFor(() =>
       expect(conciliar).toHaveBeenCalledWith("extrato-banco", "extrato-sistema"),
     );
-    // a listagem parte do extrato do banco; pelo do sistema seria ambígua
-    await waitFor(() => expect(push).toHaveBeenCalledWith("/conciliacoes/extrato-banco"));
+    // a listagem parte do extrato do banco, filtrada pelo do sistema: sem o
+    // filtro, viriam também as linhas de outros pares daquele extrato do banco
+    await waitFor(() =>
+      expect(push).toHaveBeenCalledWith("/conciliacoes/extrato-banco?sistema=extrato-sistema"),
+    );
   });
 
   it("não concilia quando o upload falha, e mostra o motivo", async () => {
@@ -158,7 +161,7 @@ describe("NovaConciliacaoPage", () => {
     expect(
       await screen.findByText("1 linha(s) do extrato do banco não foram lidas."),
     ).toBeInTheDocument();
-    await waitFor(() => expect(push).toHaveBeenCalledWith("/conciliacoes/extrato-banco"));
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/conciliacoes/extrato-banco?sistema=extrato-sistema"));
   });
 
   // 4MB e não os 5MB do backend: o arquivo passa por uma Server Action, e a
@@ -238,7 +241,7 @@ describe("NovaConciliacaoPage", () => {
       expect(await textoEnviado(1)).toBe(
         "data;valor;descricao\n2026-09-04;-12604.00;Boleto Aço Norte\n2026-09-05;7912.40;Repasse cartão\n",
       );
-      await waitFor(() => expect(push).toHaveBeenCalledWith("/conciliacoes/extrato-banco"));
+      await waitFor(() => expect(push).toHaveBeenCalledWith("/conciliacoes/extrato-banco?sistema=extrato-sistema"));
     });
 
     it("volta ao formulário sem o arquivo quando a pessoa prefere subir outro", async () => {

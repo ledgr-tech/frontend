@@ -4,6 +4,7 @@ import {
   adaptarConciliacao,
   adaptarExecucao,
   extratosDasExecucoes,
+  pareceUuid,
   type ArquivoConciliado,
   type Execucao,
   type ListaConciliacaoAPI,
@@ -113,28 +114,38 @@ const POR_REQUISICAO = 1000;
 // limit/offset/status) e este laço some.
 const MAXIMO_DE_PAGINAS = 10;
 
+/**
+ * As linhas de uma conciliação. Com `extratoSistemaId`, só as do par; sem ele,
+ * as de todos os pares em que o extrato do banco entrou — que é o que um link
+ * antigo, de antes do par ir para a URL, ainda pede.
+ */
 export async function carregarConciliacao(
   extratoBancoId: string,
+  extratoSistemaId?: string,
 ): Promise<Resultado<{ conciliacao: Conciliacao; truncada: boolean }>> {
+  // vem da URL: não entra na query do backend sem conferir
+  if (extratoSistemaId !== undefined && !pareceUuid(extratoSistemaId)) {
+    return { ok: false, status: 404, erro: "Conciliação não encontrada." };
+  }
+  const par = extratoSistemaId ? `&extrato_sistema_id=${extratoSistemaId}` : "";
+  const pagina = (numero: number) =>
+    `/conciliacoes/${extratoBancoId}?limit=${POR_REQUISICAO}&offset=${numero * POR_REQUISICAO}${par}`;
+
   try {
-    const primeira = await chamarBackend<ListaConciliacaoAPI>(
-      `/conciliacoes/${extratoBancoId}?limit=${POR_REQUISICAO}&offset=0`,
-    );
+    const primeira = await chamarBackend<ListaConciliacaoAPI>(pagina(0));
     const itens = [...primeira.itens];
-    let pagina = 1;
-    while (itens.length < primeira.total && pagina < MAXIMO_DE_PAGINAS) {
-      const proxima = await chamarBackend<ListaConciliacaoAPI>(
-        `/conciliacoes/${extratoBancoId}?limit=${POR_REQUISICAO}&offset=${pagina * POR_REQUISICAO}`,
-      );
+    let paginas = 1;
+    while (itens.length < primeira.total && paginas < MAXIMO_DE_PAGINAS) {
+      const proxima = await chamarBackend<ListaConciliacaoAPI>(pagina(paginas));
       if (proxima.itens.length === 0) break;
       itens.push(...proxima.itens);
-      pagina += 1;
+      paginas += 1;
     }
 
     return {
       ok: true,
       dados: {
-        conciliacao: adaptarConciliacao({ ...primeira, itens }),
+        conciliacao: adaptarConciliacao({ ...primeira, itens }, extratoSistemaId),
         truncada: itens.length < primeira.total,
       },
     };
@@ -185,7 +196,7 @@ export async function carregarPainel(): Promise<Resultado<Painel>> {
   const [maisRecente, ...anteriores] = lista.dados.execucoes.filter((execucao) => execucao.atual);
   if (!maisRecente) return { ok: true, dados: { recente: null, anteriores: [] } };
 
-  const conciliacao = await carregarConciliacao(maisRecente.extratoBancoId);
+  const conciliacao = await carregarConciliacao(maisRecente.extratoBancoId, maisRecente.extratoSistemaId);
   if (!conciliacao.ok) return conciliacao;
   return { ok: true, dados: { recente: conciliacao.dados.conciliacao, anteriores } };
 }
@@ -255,7 +266,7 @@ export async function carregarVisaoGeral(): Promise<Resultado<VisaoGeral>> {
   }
 
   const [conciliacao, banco, sistema] = await Promise.all([
-    carregarConciliacao(maisRecente.extratoBancoId),
+    carregarConciliacao(maisRecente.extratoBancoId, maisRecente.extratoSistemaId),
     situacaoDoExtrato(maisRecente.extratoBancoId),
     situacaoDoExtrato(maisRecente.extratoSistemaId),
   ]);

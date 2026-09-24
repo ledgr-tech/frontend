@@ -1,7 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ExecucaoAPI, ItemConciliacaoAPI } from "@/lib/adaptadores";
 import { ErroBackend } from "@/lib/backend";
-import { carregarPainel, carregarVisaoGeral, listarExecucoes, listarExtratos } from "./acoes";
+import {
+  carregarConciliacao,
+  carregarPainel,
+  carregarVisaoGeral,
+  listarExecucoes,
+  listarExtratos,
+} from "./acoes";
 
 // A rede é a fronteira: o que se testa é o caminho pedido e o que as actions
 // fazem com a resposta. ErroBackend e a tradução de erro rodam de verdade.
@@ -13,12 +19,13 @@ vi.mock("@/lib/backend", async (original) => ({
 
 const BANCO_RECENTE = "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20";
 const BANCO_ANTERIOR = "9b8a7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d";
+const SISTEMA = "7a2b9c4d-1e3f-4a5b-8c6d-9e0f1a2b3c4d";
 
 function execucao(id: string, extratoBancoId: string, atual = true): ExecucaoAPI {
   return {
     id,
     extrato_banco_id: extratoBancoId,
-    extrato_sistema_id: "7a2b9c4d-1e3f-4a5b-8c6d-9e0f1a2b3c4d",
+    extrato_sistema_id: SISTEMA,
     nome_arquivo_banco: `${id}-banco.ofx`,
     nome_arquivo_sistema: `${id}-sistema.csv`,
     executada_em: "2026-09-24T17:02:11Z",
@@ -101,6 +108,53 @@ describe("listarExecucoes", () => {
   });
 });
 
+describe("carregarConciliacao", () => {
+  beforeEach(() => {
+    chamarBackend.mockReset();
+  });
+
+  /** Cada página com uma linha, e o total pede duas páginas. */
+  function backendEmDuasPaginas() {
+    chamarBackend.mockImplementation(async (caminho: string) => {
+      const offset = new URLSearchParams(caminho.split("?")[1]).get("offset");
+      const item = { ...itemConciliacao, id: `c-${offset}` };
+      return { extrato_id: BANCO_RECENTE, total: 2, limit: 1000, offset: Number(offset), itens: [item] };
+    });
+  }
+
+  it("pede só as linhas do par, em todas as páginas", async () => {
+    backendEmDuasPaginas();
+
+    const resultado = await carregarConciliacao(BANCO_RECENTE, SISTEMA);
+
+    expect(chamarBackend.mock.calls.map(([caminho]) => caminho)).toEqual([
+      `/conciliacoes/${BANCO_RECENTE}?limit=1000&offset=0&extrato_sistema_id=${SISTEMA}`,
+      `/conciliacoes/${BANCO_RECENTE}?limit=1000&offset=1000&extrato_sistema_id=${SISTEMA}`,
+    ]);
+    if (!resultado.ok) throw new Error(resultado.erro);
+    // a tela precisa do par para montar os links das linhas
+    expect(resultado.dados.conciliacao.extratoSistemaId).toBe(SISTEMA);
+  });
+
+  it("sem o extrato do sistema, pede todas as linhas do extrato do banco", async () => {
+    backendEmDuasPaginas();
+
+    const resultado = await carregarConciliacao(BANCO_RECENTE);
+
+    expect(chamarBackend).toHaveBeenCalledWith(`/conciliacoes/${BANCO_RECENTE}?limit=1000&offset=0`);
+    if (!resultado.ok) throw new Error(resultado.erro);
+    expect(resultado.dados.conciliacao.extratoSistemaId).toBeUndefined();
+  });
+
+  it("recusa um extrato do sistema que não é UUID, sem chamar o backend", async () => {
+    // o parâmetro vem da URL: não vai para a query do backend sem conferir
+    const resultado = await carregarConciliacao(BANCO_RECENTE, "x&status=duplicado");
+
+    expect(resultado).toEqual({ ok: false, status: 404, erro: "Conciliação não encontrada." });
+    expect(chamarBackend).not.toHaveBeenCalled();
+  });
+});
+
 describe("carregarPainel", () => {
   beforeEach(() => {
     chamarBackend.mockReset();
@@ -125,11 +179,14 @@ describe("carregarPainel", () => {
 
     const resultado = await carregarPainel();
 
+    // só as linhas do par da execução: o mesmo extrato do banco pode ter sido
+    // conciliado com outro arquivo do sistema
     expect(chamarBackend).toHaveBeenCalledWith(
-      `/conciliacoes/${BANCO_RECENTE}?limit=1000&offset=0`,
+      `/conciliacoes/${BANCO_RECENTE}?limit=1000&offset=0&extrato_sistema_id=${SISTEMA}`,
     );
     if (!resultado.ok) throw new Error(resultado.erro);
     expect(resultado.dados.recente?.id).toBe(BANCO_RECENTE);
+    expect(resultado.dados.recente?.extratoSistemaId).toBe(SISTEMA);
     expect(resultado.dados.recente?.linhas.map((linha) => linha.id)).toEqual(["c-1"]);
     // a substituída (e-2) fica só no histórico; no painel, cada par aparece uma vez
     expect(resultado.dados.anteriores.map((item) => item.id)).toEqual(["e-1"]);
@@ -152,8 +209,6 @@ describe("carregarPainel", () => {
 });
 
 describe("listarExtratos", () => {
-  const SISTEMA = "7a2b9c4d-1e3f-4a5b-8c6d-9e0f1a2b3c4d";
-
   beforeEach(() => {
     chamarBackend.mockReset();
   });
@@ -204,7 +259,7 @@ describe("listarExtratos", () => {
       nome: "e-2-sistema.csv",
       origem: "sistema",
       conciliadoEm: "2026-09-24T17:02:11Z",
-      resultado: `/conciliacoes/${BANCO_RECENTE}`,
+      resultado: `/conciliacoes/${BANCO_RECENTE}?sistema=${SISTEMA}`,
       situacao: "concluido_com_erros",
       lancamentos: 12,
       erros: [{ identificador: "linha 14", motivo: "valor ilegível" }],
@@ -239,8 +294,6 @@ describe("listarExtratos", () => {
 });
 
 describe("carregarVisaoGeral", () => {
-  const SISTEMA = "7a2b9c4d-1e3f-4a5b-8c6d-9e0f1a2b3c4d";
-
   beforeEach(() => {
     chamarBackend.mockReset();
   });
@@ -298,6 +351,9 @@ describe("carregarVisaoGeral", () => {
     expect(resultado.dados.execucoes.map((item) => item.id)).toEqual(["e-3", "e-2", "e-1"]);
     expect(resultado.dados.recente?.execucao.id).toBe("e-3");
     expect(resultado.dados.recente?.conciliacao.linhas.map((linha) => linha.id)).toEqual(["c-1"]);
+    expect(chamarBackend).toHaveBeenCalledWith(
+      `/conciliacoes/${BANCO_RECENTE}?limit=1000&offset=0&extrato_sistema_id=${SISTEMA}`,
+    );
     expect(resultado.dados.arquivosComLinhasNaoLidas).toEqual([
       { nome: "e-3-sistema.csv", linhas: 2 },
     ]);

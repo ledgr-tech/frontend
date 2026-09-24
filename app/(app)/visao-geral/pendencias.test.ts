@@ -22,7 +22,13 @@ function linha(
 }
 
 function conciliacao(linhas: LinhaComparacao[]): Conciliacao {
-  return { id: "banco-1", mes: "Setembro/2026", status: "em_andamento", linhas };
+  return {
+    id: "banco-1",
+    extratoSistemaId: "sistema-1",
+    mes: "Setembro/2026",
+    status: "em_andamento",
+    linhas,
+  };
 }
 
 describe("pendencias", () => {
@@ -57,28 +63,28 @@ describe("pendencias", () => {
         tom: "risco",
         quantidade: 1,
         valor: 36,
-        href: "/conciliacoes/banco-1/valor",
+        href: "/conciliacoes/banco-1/valor?sistema=sistema-1",
       },
       {
         rotulo: "Sem correspondência no sistema",
         tom: "atencao",
         quantidade: 2,
         valor: 5160,
-        href: "/conciliacoes/banco-1/orfa-1",
+        href: "/conciliacoes/banco-1/orfa-1?sistema=sistema-1",
       },
       {
         rotulo: "Sem correspondência no banco",
         tom: "atencao",
         quantidade: 1,
         valor: 640,
-        href: "/conciliacoes/banco-1/orfa-banco-pequena",
+        href: "/conciliacoes/banco-1/orfa-banco-pequena?sistema=sistema-1",
       },
       {
         rotulo: "Tarifa bancária",
         tom: "neutro",
         quantidade: 1,
         valor: 45,
-        href: "/conciliacoes/banco-1/tarifa",
+        href: "/conciliacoes/banco-1/tarifa?sistema=sistema-1",
       },
     ]);
   });

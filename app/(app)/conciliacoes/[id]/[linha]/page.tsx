@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
+import { caminhoDaConciliacao } from "@/lib/caminhos";
 import {
   aceitarValorDoBanco,
   formatarMoeda,
@@ -74,7 +75,8 @@ function CartaoExtrato({
 
 export default function DetalheDivergenciaPage() {
   const params = useParams<{ id: string; linha: string }>();
-  const { estado, substituir } = useConciliacao(params.id);
+  const sistema = useSearchParams().get("sistema") || undefined;
+  const { estado, substituir } = useConciliacao(params.id, sistema);
   // retrato da linha antes da decisão; existir significa "dá para desfazer"
   const [desfazivel, setDesfazivel] = useState<LinhaComparacao | null>(null);
 
@@ -166,7 +168,10 @@ export default function DetalheDivergenciaPage() {
           <h1 style={{ margin: 0, fontSize: 30, fontWeight: 600 }}>{linha.descricao}</h1>
         </div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-          <Link href={`/conciliacoes/${conciliacao.id}`} className="btn btn-secondary">
+          <Link
+            href={caminhoDaConciliacao(conciliacao.id, conciliacao.extratoSistemaId)}
+            className="btn btn-secondary"
+          >
             {estaResolvida(linha.status) ? "Voltar para a conciliação" : "Ignorar por ora"}
           </Link>
           {/* ponytail: só faz sentido aceitar o banco quando ele tem a linha.

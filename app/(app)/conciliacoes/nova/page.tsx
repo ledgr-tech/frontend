@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
+import { caminhoDaConciliacao } from "@/lib/caminhos";
 import { analisarCsv, type Analise } from "@/lib/csv-extrato";
 import {
   conciliar,
@@ -230,9 +231,10 @@ export default function NovaConciliacaoPage() {
     const resultado = await conciliar(banco.dados.extratoId, sistema.dados.extratoId);
     if (!resultado.ok) return falhar(resultado);
 
-    // A listagem do resultado parte do extrato do banco: o do sistema seria
-    // ambíguo, porque pode ter sido conciliado com vários extratos de banco.
-    router.push(`/conciliacoes/${banco.dados.extratoId}`);
+    // A listagem do resultado parte do extrato do banco (o do sistema seria
+    // ambíguo, porque pode ter sido conciliado com vários extratos de banco), e
+    // o do sistema vai junto para filtrar só as linhas deste par.
+    router.push(caminhoDaConciliacao(banco.dados.extratoId, sistema.dados.extratoId));
   }
 
   const podeConciliar = arquivoBanco !== null && arquivoSistema !== null;

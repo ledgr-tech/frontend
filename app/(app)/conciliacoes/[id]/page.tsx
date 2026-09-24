@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { caminhoDaConciliacao } from "@/lib/caminhos";
 import {
   fecharConciliacao,
   formatarMoeda,
@@ -60,8 +61,9 @@ function Cabecalho({
 
 export default function ConciliacaoPage() {
   const params = useParams<{ id: string }>();
+  const sistema = useSearchParams().get("sistema") || undefined;
   const router = useRouter();
-  const { estado, substituir } = useConciliacao(params.id);
+  const { estado, substituir } = useConciliacao(params.id, sistema);
   const [linhaAberta, setLinhaAberta] = useState<LinhaComparacao | null>(null);
   const [filtro, setFiltro] = useState<"todos" | "revisao">("todos");
   const [ordem, setOrdem] = useState<Ordem>({ coluna: "data", crescente: true });
@@ -377,7 +379,7 @@ export default function ConciliacaoPage() {
                   no design. Os dois mostram a mesma linha — quando a tela provar que
                   basta, o diálogo pode sair. */}
               <Link
-                href={`/conciliacoes/${conciliacao.id}/${linhaAberta.id}`}
+                href={caminhoDaConciliacao(conciliacao.id, conciliacao.extratoSistemaId, linhaAberta.id)}
                 className="btn btn-primary"
               >
                 Abrir detalhe
