@@ -927,7 +927,7 @@ button.login-link-animado { border: 0; background-color: transparent; font: inhe
 /* ── Detalhe da divergência ─────────────────────────────────────────────────── */
 .det-kicker {
   font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase;
-  color: var(--color-accent-700); font-variant-numeric: tabular-nums; margin-bottom: 8px;
+  color: var(--texto-apagado); font-variant-numeric: tabular-nums; margin-bottom: 8px;
 }
 .det-corpo {
   padding: 32px 0 64px; max-width: 1040px;
@@ -941,7 +941,9 @@ button.login-link-animado { border: 0; background-color: transparent; font: inhe
   border: 1px solid var(--color-divider); border-radius: var(--radius-md);
   padding: 22px 24px; display: flex; flex-direction: column; gap: 14px;
 }
-.det-cartao-verdade { border-color: var(--color-accent); }
+.det-cartao-titulo {
+  display: flex; align-items: center; gap: 8px; font-size: 20px; font-weight: 600;
+}
 .det-valor {
   font-family: var(--font-heading); font-size: 42px; font-weight: 400;
   line-height: 1.04; letter-spacing: -0.01em; font-variant-numeric: tabular-nums;
@@ -1099,6 +1101,65 @@ button.login-link-animado { border: 0; background-color: transparent; font: inhe
   .hist-economia-texto { text-align: left; }
 }
 
+/* ── Tipografia do app ─────────────────────────────────────────────────────────
+   Títulos em Cormorant Garamond — a serifada do design system, a mesma da
+   landing — e o resto em Inter. Só do tamanho de título para cima: abaixo de
+   ~20px a Cormorant fica frágil, então lista, tabela e botão seguem em Inter.
+   O font-size-adjust aproxima a altura das minúsculas da Inter; sem ele a
+   Cormorant parece um corpo menor no mesmo px. Algarismos alinhados: os de
+   estilo antigo sobem e descem, e em valor isso atrapalha a leitura. */
+.app-shell :is(h1, h2, h3),
+.app-shell :is(.dash-valor, .hist-destaque, .det-valor, .vg-estado-aberto, .folha-nome, .det-cartao-titulo) {
+  font-family: var(--font-display); font-size-adjust: 0.46;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+/* título de passo tem 18px: pequeno demais para a serifada */
+.app-shell .vg-passo-titulo { font-family: var(--font-heading); font-size-adjust: none; }
+.app-shell h6 { color: var(--texto-apagado); }
+
+/* ── Comparação em duas folhas ────────────────────────────────────────────────
+   O extrato do banco e o do sistema são coisas diferentes: cada um é uma folha,
+   com tom próprio e um vão entre as duas — a "folha a folha" do design (isFolhas
+   em Ledgr.dc.html). O banco é o papel claro e quente; o sistema, um tom
+   levemente frio, sem amarelo. O status fica fora das folhas: é o veredito. */
+.app-shell { --folha-banco: #faf8f4; --folha-sistema: #ebeef1; }
+@media (prefers-color-scheme: dark) {
+  html:not([data-tema="claro"]) .app-shell { --folha-banco: #25231f; --folha-sistema: #1f2429; }
+}
+html[data-tema="escuro"] .app-shell { --folha-banco: #25231f; --folha-sistema: #1f2429; }
+
+.folha-banco { background: var(--folha-banco); }
+.folha-sistema { background: var(--folha-sistema); }
+/* o hover da linha não pode sumir debaixo da cor da folha */
+.table tbody tr:hover .folha-banco { background: color-mix(in srgb, var(--color-text) 4%, var(--folha-banco)); }
+.table tbody tr:hover .folha-sistema { background: color-mix(in srgb, var(--color-text) 4%, var(--folha-sistema)); }
+/* o vão é da cor da página, inclusive no hover: as folhas não se tocam */
+.table .folha-vao {
+  width: 14px; min-width: 14px; padding: 0; border: none; background: var(--color-bg);
+}
+.table .folha-fora { border: none; }
+.table .folha-titulo {
+  padding: 12px var(--space-2) 10px; border-bottom: none;
+  text-transform: none; letter-spacing: 0; font-size: 14px; color: var(--color-text);
+}
+.folha-titulo-conteudo { display: flex; align-items: center; gap: 8px; }
+.folha-titulo-conteudo .icone-origem { flex: none; color: var(--texto-apagado); }
+/* sem quebra: "Sistema de gestão" em duas linhas desalinhava o topo das folhas */
+.folha-nome { font-size: 19px; font-weight: 600; line-height: 1.1; white-space: nowrap; }
+.folha-etiqueta {
+  margin-left: auto; padding: 1px 8px; border-radius: 999px; white-space: nowrap;
+  border: 1px solid var(--color-divider); font-size: 11.5px; font-weight: 400;
+  color: var(--texto-apagado);
+}
+.det-cartao-titulo .icone-origem { flex: none; color: var(--texto-apagado); }
+
+/* "Extrato do banco" no diálogo e a coluna Origem da dashboard */
+.rotulo-origem {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; color: var(--texto-apagado);
+}
+.rotulo-origem-celula { font-size: 14px; }
+
 /* ── Visão geral ──────────────────────────────────────────────────────────────
    A home do app. Reaproveita o cabeçalho e a tabela da dashboard e o gráfico do
    histórico; o que é dela: o estado do mês com a barra de progresso, a lista do
@@ -1165,7 +1226,7 @@ button.login-link-animado { border: 0; background-color: transparent; font: inhe
   border-bottom: 1px solid var(--color-divider);
   text-decoration: none; color: var(--color-text);
 }
-.vg-item:hover { background: color-mix(in srgb, var(--color-accent) 8%, transparent); }
+.vg-item:hover { background: var(--tinta-hover); }
 .vg-ponto { flex: none; width: 9px; height: 9px; border-radius: 50%; }
 .vg-ponto-risco { background: var(--color-risco); }
 .vg-ponto-atencao { background: var(--color-accent); }
@@ -1291,9 +1352,12 @@ button.login-link-animado { border: 0; background-color: transparent; font: inhe
   border: 1px solid var(--color-divider); box-shadow: var(--shadow-sm);
   transition: box-shadow 180ms ease, border-color 180ms ease;
 }
-.extrato-cartao:hover .extrato-folha { border-color: var(--color-accent); }
+/* no mesmo papel das folhas da comparação: banco quente, sistema frio */
+.extrato-folha[data-origem="banco"] { background: var(--folha-banco); }
+.extrato-folha[data-origem="sistema"] { background: var(--folha-sistema); }
+.extrato-cartao:hover .extrato-folha { border-color: color-mix(in srgb, var(--color-text) 35%, transparent); }
 .extrato-cartao[aria-pressed="true"] .extrato-folha {
-  border-color: var(--color-accent); box-shadow: var(--shadow-md);
+  border-color: color-mix(in srgb, var(--color-text) 55%, transparent); box-shadow: var(--shadow-md);
 }
 .extrato-folha-titulo {
   font-family: var(--font-heading); font-size: 12px; font-weight: 600;
@@ -1313,7 +1377,11 @@ button.login-link-animado { border: 0; background-color: transparent; font: inhe
   color: color-mix(in srgb, var(--color-text) 70%, transparent);
 }
 .extrato-etiqueta[data-problema] { border-color: var(--color-accent); color: var(--color-accent-700); }
-.extrato-nome { font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
+.extrato-nome {
+  display: flex; align-items: flex-start; gap: 6px;
+  font-size: 14px; font-weight: 600; overflow-wrap: anywhere;
+}
+.extrato-nome .icone-origem { flex: none; margin-top: 2px; }
 .extrato-meta {
   font-size: 13px; font-variant-numeric: tabular-nums;
   color: color-mix(in srgb, var(--color-text) 62%, transparent);
@@ -1322,7 +1390,11 @@ button.login-link-animado { border: 0; background-color: transparent; font: inhe
   position: sticky; top: 24px; display: flex; flex-direction: column; gap: 14px;
   padding: 22px; border: 1px solid var(--color-divider); border-radius: var(--radius-md);
 }
+.extrato-painel-topo { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .extrato-painel-nome { margin: 0; font-size: 20px; font-weight: 600; overflow-wrap: anywhere; }
+.extrato-painel-topo .icone-origem {
+  flex: none; margin-top: 3px; color: color-mix(in srgb, var(--color-text) 58%, transparent);
+}
 .extrato-campos { margin: 0; display: flex; flex-direction: column; }
 .extrato-campos > div {
   display: flex; justify-content: space-between; gap: 16px;
@@ -1352,6 +1424,13 @@ button.login-link-animado { border: 0; background-color: transparent; font: inhe
    ícones — o estado vem de html[data-menu], que o script do <head> escreve antes
    da primeira pintura. Até 900px vira uma coluna, o menu deita e não recolhe. */
 .app-shell {
+  /* O dourado fica para três coisas: a ação principal, o foco do teclado e o
+     status "atenção". Hover e seleção usam estes dois tons neutros — é o que o
+     mercado faz (Stripe, Linear, Mercury) e o que impede a cor da marca de virar
+     papel de parede. Declarados aqui para herdar o --color-text do tema escuro. */
+  --tinta-hover: color-mix(in srgb, var(--color-text) 6%, transparent);
+  --tinta-ativa: color-mix(in srgb, var(--color-text) 9%, transparent);
+  --texto-apagado: color-mix(in srgb, var(--color-text) 58%, transparent);
   display: grid; grid-template-columns: minmax(180px, 248px) minmax(0, 1fr);
   min-height: 100vh; background: var(--color-bg);
   /* precisa declarar a cor, nao so herdar: o tema escuro redefine --color-text
@@ -1383,7 +1462,7 @@ button.login-link-animado { border: 0; background-color: transparent; font: inhe
   border-radius: var(--radius-md); border: 1px solid transparent; background: transparent;
   color: color-mix(in srgb, var(--color-text) 72%, transparent);
 }
-.app-icone-botao:hover { border-color: var(--color-divider); color: var(--color-accent-700); }
+.app-icone-botao:hover { background: var(--tinta-hover); color: var(--color-text); }
 
 /* recolhido, o logo e o proprio botao de abrir: no hover vira o icone do painel */
 .app-menu-abrir {
@@ -1394,7 +1473,7 @@ button.login-link-animado { border: 0; background-color: transparent; font: inhe
 }
 .app-menu-abrir-icone { display: none; }
 .app-menu-abrir:hover, .app-menu-abrir:focus-visible {
-  border-color: var(--color-divider); color: var(--color-accent-700);
+  background: var(--tinta-hover); color: var(--color-text);
 }
 .app-menu-abrir:hover .app-logo, .app-menu-abrir:focus-visible .app-logo { display: none; }
 .app-menu-abrir:hover .app-menu-abrir-icone,
@@ -1415,10 +1494,8 @@ button.login-link-animado { border: 0; background-color: transparent; font: inhe
 .app-nav-item > svg { flex: none; }
 /* numa coluna estreita o nome encolhe com reticências em vez de vazar */
 .app-nav-item > .app-rotulo { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.app-nav-item:hover { background: color-mix(in srgb, var(--color-accent) 10%, transparent); }
-.app-nav-item[data-ativo="true"] {
-  border-color: var(--color-accent); color: var(--color-accent-700);
-}
+.app-nav-item:hover { background: var(--tinta-hover); }
+.app-nav-item[data-ativo="true"] { background: var(--tinta-ativa); color: var(--color-text); }
 /* o item aceso ja usa o contorno dourado; a acao principal ganha o tom por
    baixo para nao ser lida como "voce esta aqui" */
 .app-nav-nova {
@@ -1441,13 +1518,13 @@ button.login-link-animado { border: 0; background-color: transparent; font: inhe
 .app-assistente {
   flex: none; display: flex; align-items: center; gap: 10px; padding: 9px 10px;
   border-radius: var(--radius-md);
-  border: 1px dashed color-mix(in srgb, var(--color-accent) 60%, transparent);
+  border: 1px dashed color-mix(in srgb, var(--color-text) 28%, transparent);
 }
 .app-assistente-mascote { flex: none; width: 36px; height: 36px; object-fit: contain; }
 .app-assistente-texto { display: flex; flex-direction: column; gap: 1px; }
 .app-assistente-chamada {
   font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase;
-  color: var(--color-accent-700);
+  color: var(--texto-apagado);
 }
 .app-assistente-titulo {
   font-family: var(--font-heading); font-size: 16px; font-weight: 600; line-height: 1.15;
@@ -1467,9 +1544,7 @@ button.login-link-animado { border: 0; background-color: transparent; font: inhe
   border-radius: var(--radius-md); border: 1px solid transparent;
   background: transparent; color: var(--color-text);
 }
-.app-conta:hover, .app-conta[aria-expanded="true"] {
-  background: color-mix(in srgb, var(--color-accent) 10%, transparent);
-}
+.app-conta:hover, .app-conta[aria-expanded="true"] { background: var(--tinta-hover); }
 .app-conta-iniciais {
   flex: none; width: 32px; height: 32px; border-radius: 50%;
   border: 1px solid var(--color-divider);
@@ -1502,10 +1577,7 @@ button.login-link-animado { border: 0; background-color: transparent; font: inhe
   padding: 10px 14px; text-align: left; border: none; background: transparent;
   font-family: var(--font-body); font-size: 14px; color: var(--color-text);
 }
-.app-conta-sair:hover {
-  background: color-mix(in srgb, var(--color-accent) 10%, transparent);
-  color: var(--color-accent-700);
-}
+.app-conta-sair:hover { background: var(--tinta-hover); }
 
 /* Dica ao lado do item. So existe onde pode aparecer — nos botoes so de icone
    e, com o menu recolhido, em todos os itens: escondida mas gerada, ela vazaria
@@ -1593,7 +1665,7 @@ button.login-link-animado { border: 0; background-color: transparent; font: inhe
 
 .app-painel {
   position: absolute; top: calc(100% + 8px); z-index: 50;
-  border: 1px solid var(--color-accent); border-radius: var(--radius-md);
+  border: 1px solid var(--color-divider); border-radius: var(--radius-md);
   background: var(--color-bg); box-shadow: var(--shadow-lg); overflow: hidden;
 }
 .app-busca-painel { left: 0; right: 0; max-height: 60vh; overflow-y: auto; }
@@ -1604,9 +1676,7 @@ button.login-link-animado { border: 0; background-color: transparent; font: inhe
 }
 .app-busca-achado:last-child { border-bottom: none; }
 .app-busca-achado:hover,
-.app-busca-achado[data-ativo="true"] {
-  background: color-mix(in srgb, var(--color-accent) 10%, transparent);
-}
+.app-busca-achado[data-ativo="true"] { background: var(--tinta-hover); }
 .app-busca-achado-titulo {
   font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
@@ -1624,7 +1694,7 @@ button.login-link-animado { border: 0; background-color: transparent; font: inhe
   font-family: var(--font-body); padding: 7px 13px; border-radius: var(--radius-md);
   background: transparent; border: 1px solid var(--color-divider); color: var(--color-text);
 }
-.app-avisos-botao:hover { border-color: var(--color-accent); color: var(--color-accent-700); }
+.app-avisos-botao:hover { background: var(--tinta-hover); }
 .app-avisos-conta {
   font-size: 12px; font-variant-numeric: tabular-nums; min-width: 18px;
   padding: 1px 5px; border-radius: 999px; border: 1px solid var(--color-divider);
@@ -1645,7 +1715,7 @@ button.login-link-animado { border: 0; background-color: transparent; font: inhe
   text-decoration: none; color: var(--color-text);
 }
 .app-aviso:last-child { border-bottom: none; }
-.app-aviso-link:hover { background: color-mix(in srgb, var(--color-accent) 10%, transparent); }
+.app-aviso-link:hover { background: var(--tinta-hover); }
 .app-aviso-ponto {
   flex: none; width: 8px; height: 8px; margin-top: 7px; border-radius: 50%;
   background: var(--color-divider);
@@ -1725,6 +1795,10 @@ html[data-densidade="compacta"] .selo { padding-block: 1px; }
     font-family: var(--font-heading); font-size: 16px; font-weight: 600;
   }
   .tabela-cartoes .table td[data-destaque="true"]::before { content: none; }
+
+  /* no cartão não há colunas lado a lado: o vão some e as folhas perdem o tom */
+  .tabela-cartoes .table td.folha-vao { display: none; }
+  .tabela-cartoes .table :is(td.folha-banco, td.folha-sistema) { background: transparent; }
 
   /* dentro do cartão a rolagem horizontal não faz mais sentido */
   .tabela-cartoes.dash-tabela-rolagem { overflow-x: visible; }
@@ -1835,10 +1909,10 @@ html[data-densidade="compacta"] .selo { padding-block: 1px; }
   padding: 6px 13px; border-radius: 999px;
   border: 1px solid var(--color-divider); background: transparent; color: var(--color-text);
 }
-.pill:hover { border-color: var(--color-accent); color: var(--color-accent-700); }
+.pill:hover { background: var(--tinta-hover); }
 .pill[aria-pressed="true"] {
-  border-color: var(--color-accent); color: var(--color-accent-700);
-  background: color-mix(in srgb, var(--color-accent-700) 8%, transparent);
+  border-color: color-mix(in srgb, var(--color-text) 30%, transparent);
+  background: var(--tinta-ativa); font-weight: 500;
 }
 
 /* cabecalho ordenavel: o botao ocupa a celula toda para o alvo ser generoso */
@@ -1847,10 +1921,10 @@ html[data-densidade="compacta"] .selo { padding-block: 1px; }
   font: inherit; letter-spacing: inherit; text-transform: inherit; color: inherit;
   background: transparent; border: 0; padding: 0;
 }
-.th-ordena:hover { color: var(--color-accent-700); }
-th[aria-sort] .th-ordena { color: var(--color-accent-700); }
+.th-ordena:hover { color: var(--color-text); }
+th:is([aria-sort="ascending"], [aria-sort="descending"]) .th-ordena { color: var(--color-text); }
 .th-ordena-seta { font-size: 10px; opacity: 0.55; }
-th[aria-sort] .th-ordena-seta { opacity: 1; }
+th:is([aria-sort="ascending"], [aria-sort="descending"]) .th-ordena-seta { opacity: 1; }
 .th-direita .th-ordena { justify-content: flex-end; }
 
 /* a descricao e o alvo de abrir a linha: botao de verdade, alcancavel por teclado */

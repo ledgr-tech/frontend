@@ -14,11 +14,12 @@ const interBody = Inter({
   weight: ["400", "500"],
 });
 
-// mistura: serif de destaque pra títulos/valores em foco, Inter pro resto
+// mistura: serif de destaque pra títulos/valores em foco, Inter pro resto. O 400
+// é dos números grandes e das manchetes do app: quanto maior, mais leve
 const cormorantGaramond = Cormorant_Garamond({
   variable: "--font-display-family",
   subsets: ["latin"],
-  weight: ["500", "600"],
+  weight: ["400", "500", "600"],
 });
 
 // monoespaçada pros rótulos pequenos (CAP. I, REGRA DE OURO...) — remete a

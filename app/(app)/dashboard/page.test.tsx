@@ -135,6 +135,21 @@ describe("DashboardPage", () => {
     expect(screen.getAllByText("Banco")).toHaveLength(3);
   });
 
+  it("shows where each lançamento came from with the icon of its origin", async () => {
+    painel(
+      conciliacao("banco-1", [
+        linha("l-1", "sem_correspondencia", 4180, null, "Transferência recebida"),
+        linha("l-2", "sem_correspondencia", null, 980, "Estorno maquininha"),
+      ]),
+    );
+    render(<DashboardPage />);
+
+    const doBanco = (await screen.findByText("Banco")).closest("td");
+    expect(doBanco?.querySelector('[data-origem="banco"]')).not.toBeNull();
+    const doSistema = screen.getByText("Sistema").closest("td");
+    expect(doSistema?.querySelector('[data-origem="sistema"]')).not.toBeNull();
+  });
+
   it("points the highlight card at the linhas without a counterpart", async () => {
     painel(
       conciliacao("banco-9", [

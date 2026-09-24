@@ -57,6 +57,16 @@ describe("Galeria de extratos", () => {
     expect(screen.getByRole("button", { name: "Com problema (1)" })).toBeInTheDocument();
   });
 
+  it("marks each file with the icon of where it came from", () => {
+    render(<Galeria arquivos={ARQUIVOS} />);
+
+    expect(cartao("sicredi-setembro.ofx").querySelector('[data-origem="banco"]')).not.toBeNull();
+    expect(cartao("erp-setembro.csv").querySelector('[data-origem="sistema"]')).not.toBeNull();
+    // o painel abre com o primeiro arquivo, que é do banco
+    const regiao = screen.getByRole("region", { name: "Arquivo selecionado" });
+    expect(regiao.querySelector('[data-origem="banco"]')).not.toBeNull();
+  });
+
   it("shows each file with its type, content and situation", () => {
     render(<Galeria arquivos={ARQUIVOS} />);
     const setembro = within(cartao("sicredi-setembro.ofx"));

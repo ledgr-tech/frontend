@@ -22,6 +22,7 @@ import {
 // terem nascido na landing. Se uma terceira tela usar, aí vale mudar de lugar.
 import { InkHover, MotionRoot, Reveal, SpotlightHover } from "@/app/(marketing)/reveal";
 import { Barra, EsqueletoTabela, EsqueletoTela } from "../esqueleto";
+import { IconeOrigem } from "../icone-origem";
 
 // ponytail: "O que o Ledgr sugere" (as três leituras de padrão do design) saiu
 // enquanto não há de onde tirá-las — eram frases fixas, com números inventados,
@@ -301,7 +302,13 @@ function Conteudo({
                       className="dash-celula-fraca"
                       style={{ textAlign: "right", fontSize: 14 }}
                     >
-                      {origemDaLinha(linha)}
+                      <span className="rotulo-origem rotulo-origem-celula">
+                        <IconeOrigem
+                          origem={origemDaLinha(linha) === "Banco" ? "banco" : "sistema"}
+                          tamanho={15}
+                        />
+                        {origemDaLinha(linha)}
+                      </span>
                     </td>
                   </tr>
                 );
