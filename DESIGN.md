@@ -25,6 +25,10 @@ preenchimento**, filete carregando a estrutura, identidade tipográfica.
   de extrato acendem no tom do seu status (verde, terracota, dourado, cinza).
 - **Filtros de duas a quatro opções em controle segmentado** (`.pills.segmentado`),
   como o da Apple.
+- **Texto gerado por IA leva selo neutro** ("Gerada por IA · confira antes de
+  decidir", com o ícone `Sparkles`), nunca dourado: a IA explica, quem decide é
+  quem concilia. Texto que não veio da IA não leva selo. A geração só acontece no
+  clique, porque custa e tem limite diário (`ExplicacaoDaDivergencia`).
 
 ## Tier 1 — buracos, não polimento
 

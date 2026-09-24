@@ -16,6 +16,7 @@ import { Barra, EsqueletoTela } from "../../../esqueleto";
 import { NumeroAnimado } from "../../../numero-animado";
 import { FALHA_AO_CARREGAR, useConciliacao } from "../../usar-conciliacao";
 import { IconeOrigem, type Origem } from "../../../icone-origem";
+import { ExplicacaoDaDivergencia } from "./explicacao";
 
 function CartaoExtrato({
   titulo,
@@ -215,6 +216,17 @@ export default function DetalheDivergenciaPage() {
             origem="sistema"
           />
         </div>
+
+        {/* Com dado do backend, só a linha casada chega com o porquê (a regra que
+            casou). A divergência é explicada sob pedido, pelo POST /explicacoes;
+            o key zera o estado ao trocar de linha. */}
+        {!linha.explicacao && real && !estaResolvida(linha.status) && (
+          <ExplicacaoDaDivergencia
+            key={linha.id}
+            linhaId={linha.id}
+            voltarPara={caminhoDaConciliacao(conciliacao.id, conciliacao.extratoSistemaId)}
+          />
+        )}
 
         {linha.explicacao && (
           <div className="det-causa">
