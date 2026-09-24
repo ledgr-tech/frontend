@@ -63,6 +63,7 @@
   --font-heading-weight: 600;
   --font-body: var(--font-body-family), system-ui, sans-serif;
   --font-display: var(--font-display-family), serif;
+  --font-titulo: var(--font-titulo-family), serif;
   --font-mono: var(--font-mono-family), ui-monospace, monospace;
 
   --space-1: 4.6px;
@@ -1102,19 +1103,18 @@ button.login-link-animado { border: 0; background-color: transparent; font: inhe
 }
 
 /* ── Tipografia do app ─────────────────────────────────────────────────────────
-   Títulos em Cormorant Garamond — a serifada do design system, a mesma da
-   landing — e o resto em Inter. Só do tamanho de título para cima: abaixo de
-   ~20px a Cormorant fica frágil, então lista, tabela e botão seguem em Inter.
-   O font-size-adjust aproxima a altura das minúsculas da Inter; sem ele a
-   Cormorant parece um corpo menor no mesmo px. Algarismos alinhados: os de
-   estilo antigo sobem e descem, e em valor isso atrapalha a leitura. */
+   Títulos em Newsreader e o resto em Inter, como a Apple junta a New York à SF.
+   A Newsreader tem tamanho óptico: o mesmo arquivo desenha o título grande com
+   mais contraste e o de 20px mais firme. A Cormorant da landing, delicada e de
+   olho pequeno, não aguentava o corpo de título de tela. Só do tamanho de
+   título para cima: lista, tabela e botão seguem em Inter. Algarismos
+   alinhados: os de estilo antigo sobem e descem, e em valor isso atrapalha. */
 .app-shell :is(h1, h2, h3),
 .app-shell :is(.dash-valor, .hist-destaque, .det-valor, .vg-estado-aberto, .folha-nome, .det-cartao-titulo) {
-  font-family: var(--font-display); font-size-adjust: 0.46;
-  font-variant-numeric: lining-nums tabular-nums;
+  font-family: var(--font-titulo); font-variant-numeric: lining-nums tabular-nums;
 }
-/* título de passo tem 18px: pequeno demais para a serifada */
-.app-shell .vg-passo-titulo { font-family: var(--font-heading); font-size-adjust: none; }
+/* título de passo tem 18px: fica na Inter, como o resto do texto corrido */
+.app-shell .vg-passo-titulo { font-family: var(--font-heading); }
 .app-shell h6 { color: var(--texto-apagado); }
 
 /* ── Comparação em duas folhas ────────────────────────────────────────────────
@@ -1300,7 +1300,7 @@ html[data-tema="escuro"] .app-shell {
 }
 .vg-passo { display: flex; flex-direction: column; gap: 8px; padding-block: 24px; }
 .vg-passo-numeral {
-  font-family: var(--font-display); font-size: 40px; font-weight: 500; line-height: 1;
+  font-family: var(--font-titulo); font-size: 40px; font-weight: 500; line-height: 1;
   color: var(--color-accent);
 }
 .vg-passo-titulo { margin: 0; font-size: 18px; font-weight: 600; line-height: 1.3; }

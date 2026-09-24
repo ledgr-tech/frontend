@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Cormorant_Garamond, Inter, JetBrains_Mono } from "next/font/google";
+import { Cormorant_Garamond, Inter, JetBrains_Mono, Newsreader } from "next/font/google";
 import "./globals.css";
 
 const interHeading = Inter({
@@ -14,12 +14,20 @@ const interBody = Inter({
   weight: ["400", "500"],
 });
 
-// mistura: serif de destaque pra títulos/valores em foco, Inter pro resto. O 400
-// é dos números grandes e das manchetes do app: quanto maior, mais leve
+// mistura da landing: serif de destaque pra manchetes e valores em foco
 const cormorantGaramond = Cormorant_Garamond({
   variable: "--font-display-family",
   subsets: ["latin"],
-  weight: ["400", "500", "600"],
+  weight: ["500", "600"],
+});
+
+// títulos e números grandes do app. Variável, com o eixo de tamanho óptico: o
+// desenho se ajusta ao corpo (mais contraste no título grande, mais firme no
+// médio), como a New York da Apple ao lado da SF
+const newsreader = Newsreader({
+  variable: "--font-titulo-family",
+  subsets: ["latin"],
+  axes: ["opsz"],
 });
 
 // monoespaçada pros rótulos pequenos (CAP. I, REGRA DE OURO...) — remete a
@@ -46,7 +54,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       // avisa que "won't be patched up" e descarta os atributos, fazendo o tema
       // salvo sumir no meio da sessão
       suppressHydrationWarning
-      className={`${interHeading.variable} ${interBody.variable} ${cormorantGaramond.variable} ${jetbrainsMono.variable} h-full antialiased`}
+      className={`${interHeading.variable} ${interBody.variable} ${cormorantGaramond.variable} ${newsreader.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
       <head>
         {/* Roda antes da primeira pintura: sem isso o app abriria claro e piscaria

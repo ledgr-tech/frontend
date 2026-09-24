@@ -15,7 +15,8 @@ preenchimento**, filete carregando a estrutura, identidade tipográfica.
   `--tinta-hover` / `--tinta-ativa`, neutros. Cabeçalho de tabela, aba
   selecionada, rótulo pequeno (`h6`) e item ativo do menu não são dourados.
 - **Duas fontes:** títulos (`h1`–`h3` a partir de ~20px) e números em destaque em
-  Cormorant Garamond; o resto em Inter.
+  Newsreader (`--font-titulo`, com tamanho óptico); o resto em Inter. A Cormorant
+  Garamond (`--font-display`) fica só na landing.
 - **Banco e sistema são duas folhas** de canto arredondado: `--folha-banco` (papel
   claro) e `--folha-sistema` (cinza quente) — mesmo matiz, só a claridade muda;
   outra cor diria "outra coisa", não "outra folha". Com o ícone de origem
@@ -172,7 +173,8 @@ Metade do que o mercado "aprova" destruiria esta identidade.
   lint.
 - ~~O `AGENTS.md` dizia Cormorant e Lora enquanto o código carregava Inter.~~
   Resolvido em 24/09/2026: o `AGENTS.md` descreve o que o código faz (Inter no
-  corpo e na interface, Cormorant nos títulos do app e nos destaques da landing).
+  corpo e na interface, Newsreader nos títulos do app, Cormorant nos destaques da
+  landing).
 - **Corrigido depois de um diagnóstico errado:** eu tinha anotado aqui que o
   `data-tema` sumia por causa do HMR. Não era. O script inline escreve o atributo
   antes da hidratação, o HTML do servidor não o tem, e o React trata como

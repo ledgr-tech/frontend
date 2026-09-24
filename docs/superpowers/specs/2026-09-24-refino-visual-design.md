@@ -95,3 +95,22 @@ Verificado no navegador: folhas nos dois temas sem azul, os quatro cantos de cad
 folha a 16px, hover terracota na linha do "Boleto Aço Norte" atravessando as duas
 folhas e o status, cartão selecionado de extrato com contorno verde, controles
 segmentados nas duas telas.
+
+## Terceira rodada (mesmo dia)
+
+Retorno: não gostou da Cormorant nos títulos; "vamos usar outra variação". A outra
+serifada da maquete de comparação era a Newsreader.
+
+11. **Títulos do app em Newsreader**, num token próprio (`--font-titulo`). É a
+    mesma ideia da Apple, que põe a New York (serifada com tamanhos ópticos) ao
+    lado da SF: a Newsreader vem com o eixo `opsz`, então o título de 30px ganha
+    mais contraste e o de 20px fica mais firme, sem arquivo a mais. A Cormorant,
+    delicada e de olho pequeno, pedia `font-size-adjust` para não parecer menor;
+    a Newsreader tem altura de minúscula perto da Inter (0,52 contra 0,55) e
+    dispensa o ajuste. Os algarismos já são tabulares e alinhados.
+12. **A landing continua em Cormorant** (`--font-display`), que volta a carregar
+    só os pesos 500 e 600 de antes: o 400 tinha vindo para o app.
+
+Verificado no navegador: "Telha Certa", os três números da dashboard, a visão geral
+e o cabeçalho das folhas em Newsreader, nos dois temas; a landing em Cormorant;
+console limpo numa aba nova.
