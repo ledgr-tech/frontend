@@ -24,8 +24,15 @@ describe("MenuLateral", () => {
 
     expect(screen.getByRole("link", { name: "Conciliações" })).toHaveAttribute("href", "/dashboard");
     expect(screen.getByRole("link", { name: "Histórico" })).toHaveAttribute("href", "/historico");
-    expect(screen.queryByRole("link", { name: "Extratos" })).not.toBeInTheDocument();
-    expect(screen.getByText("Extratos")).toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByRole("link", { name: "Extratos" })).toHaveAttribute("href", "/extratos");
+    expect(screen.queryByRole("link", { name: "Fechamentos" })).not.toBeInTheDocument();
+    expect(screen.getByText("Fechamentos")).toHaveAttribute("aria-disabled", "true");
+  });
+
+  it("marks Extratos as current on its own route", () => {
+    caminho.mockReturnValue("/extratos");
+    render(<MenuLateral temAvisoNaoLido={false} />);
+    expect(screen.getByRole("link", { name: "Extratos" })).toHaveAttribute("aria-current", "page");
   });
 
   it("marks Conciliações as the current page on the dashboard", () => {

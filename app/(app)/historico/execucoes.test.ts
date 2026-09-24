@@ -6,6 +6,7 @@ function execucao(id: string, acerto: number | null, atual = true): Execucao {
   return {
     id,
     extratoBancoId: `banco-${id}`,
+    extratoSistemaId: `sistema-${id}`,
     arquivoBanco: `${id}.ofx`,
     arquivoSistema: `${id}.csv`,
     executadaEm: "2026-09-24T17:02:11Z",

@@ -170,6 +170,7 @@ export type Execucao = {
   id: string;
   /** Por onde se abre o resultado: `/conciliacoes/{extratoBancoId}`. */
   extratoBancoId: string;
+  extratoSistemaId: string;
   arquivoBanco: string;
   arquivoSistema: string;
   executadaEm: string;
@@ -183,6 +184,7 @@ export function adaptarExecucao(item: ExecucaoAPI): Execucao {
   return {
     id: item.id,
     extratoBancoId: item.extrato_banco_id,
+    extratoSistemaId: item.extrato_sistema_id,
     arquivoBanco: item.nome_arquivo_banco,
     arquivoSistema: item.nome_arquivo_sistema,
     executadaEm: item.executada_em,
@@ -190,6 +192,42 @@ export function adaptarExecucao(item: ExecucaoAPI): Execucao {
     acerto: item.percentual_acerto === null ? null : paraNumero(String(item.percentual_acerto)),
     atual: item.atual,
   };
+}
+
+/** Um arquivo enviado, visto pelas conciliações em que ele entrou. */
+export type ArquivoConciliado = {
+  id: string;
+  nome: string;
+  origem: "banco" | "sistema";
+  /** ISO da rodada mais recente que usou o arquivo. */
+  conciliadoEm: string;
+  /** O resultado daquela rodada — sempre pelo extrato do banco dela. */
+  resultado: string;
+};
+
+/**
+ * Os arquivos que aparecem nas execuções, cada um uma vez.
+ *
+ * ponytail: o backend não lista extratos (só tem `GET /extratos/{id}`), então a
+ * tela de extratos parte das conciliações — extrato enviado e nunca conciliado
+ * fica de fora. Quando existir `GET /extratos`, é ele que substitui isto.
+ */
+export function extratosDasExecucoes(execucoes: Execucao[]): ArquivoConciliado[] {
+  const vistos = new Map<string, ArquivoConciliado>();
+  // a lista chega da mais recente para a mais antiga: o primeiro uso é o último
+  for (const execucao of execucoes) {
+    const resultado = `/conciliacoes/${execucao.extratoBancoId}`;
+    const lados = [
+      { id: execucao.extratoBancoId, nome: execucao.arquivoBanco, origem: "banco" as const },
+      { id: execucao.extratoSistemaId, nome: execucao.arquivoSistema, origem: "sistema" as const },
+    ];
+    for (const lado of lados) {
+      if (!vistos.has(lado.id)) {
+        vistos.set(lado.id, { ...lado, conciliadoEm: execucao.executadaEm, resultado });
+      }
+    }
+  }
+  return [...vistos.values()];
 }
 
 /**

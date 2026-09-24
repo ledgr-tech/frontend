@@ -3,7 +3,9 @@ import {
   adaptarConciliacao,
   adaptarExecucao,
   adaptarLinha,
+  extratosDasExecucoes,
   pareceUuid,
+  type Execucao,
   type ExecucaoAPI,
   type ItemConciliacaoAPI,
   type ListaConciliacaoAPI,
@@ -150,6 +152,7 @@ describe("adaptarExecucao", () => {
     expect(adaptarExecucao(execucao())).toEqual({
       id: "a1b2c3d4-0000-4000-8000-000000000001",
       extratoBancoId: "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20",
+      extratoSistemaId: "7a2b9c4d-1e3f-4a5b-8c6d-9e0f1a2b3c4d",
       arquivoBanco: "sicredi-setembro.ofx",
       arquivoSistema: "erp-setembro.csv",
       executadaEm: "2026-09-24T17:02:11.482913Z",
@@ -170,5 +173,65 @@ describe("adaptarExecucao", () => {
 
   it("marca a execução refeita depois como não atual", () => {
     expect(adaptarExecucao(execucao({ atual: false })).atual).toBe(false);
+  });
+});
+
+describe("extratosDasExecucoes", () => {
+  function rodada(
+    id: string,
+    banco: [string, string],
+    sistema: [string, string],
+    executadaEm: string,
+  ): Execucao {
+    return {
+      id,
+      extratoBancoId: banco[0],
+      arquivoBanco: banco[1],
+      extratoSistemaId: sistema[0],
+      arquivoSistema: sistema[1],
+      executadaEm,
+      lancamentos: 10,
+      acerto: 90,
+      atual: true,
+    };
+  }
+
+  // da mais recente para a mais antiga, como /execucoes devolve
+  const execucoes = [
+    rodada("e3", ["b-set", "sicredi-set.ofx"], ["s-set-v2", "erp-set-v2.csv"], "2026-09-24T17:00:00Z"),
+    rodada("e2", ["b-set", "sicredi-set.ofx"], ["s-set", "erp-set.csv"], "2026-09-23T12:00:00Z"),
+    rodada("e1", ["b-ago", "sicredi-ago.ofx"], ["s-ago", "erp-ago.csv"], "2026-09-02T19:00:00Z"),
+  ];
+
+  it("lista cada arquivo uma vez só, do uso mais recente para o mais antigo", () => {
+    expect(extratosDasExecucoes(execucoes).map((arquivo) => arquivo.id)).toEqual([
+      "b-set",
+      "s-set-v2",
+      "s-set",
+      "b-ago",
+      "s-ago",
+    ]);
+  });
+
+  it("guarda a origem, o nome e a conciliação mais recente de cada arquivo", () => {
+    const [bancoSetembro, sistemaNovo, sistemaAntigo] = extratosDasExecucoes(execucoes);
+    expect(bancoSetembro).toEqual({
+      id: "b-set",
+      nome: "sicredi-set.ofx",
+      origem: "banco",
+      conciliadoEm: "2026-09-24T17:00:00Z",
+      resultado: "/conciliacoes/b-set",
+    });
+    expect(sistemaNovo.origem).toBe("sistema");
+    // o resultado de um extrato do sistema abre pelo extrato do banco da mesma rodada
+    expect(sistemaAntigo).toMatchObject({
+      nome: "erp-set.csv",
+      conciliadoEm: "2026-09-23T12:00:00Z",
+      resultado: "/conciliacoes/b-set",
+    });
+  });
+
+  it("não tem arquivo nenhum sem execução", () => {
+    expect(extratosDasExecucoes([])).toEqual([]);
   });
 });

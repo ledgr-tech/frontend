@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ExecucaoAPI, ItemConciliacaoAPI } from "@/lib/adaptadores";
 import { ErroBackend } from "@/lib/backend";
-import { carregarPainel, listarExecucoes } from "./acoes";
+import { carregarPainel, listarExecucoes, listarExtratos } from "./acoes";
 
 // A rede é a fronteira: o que se testa é o caminho pedido e o que as actions
 // fazem com a resposta. ErroBackend e a tradução de erro rodam de verdade.
@@ -148,5 +148,92 @@ describe("carregarPainel", () => {
       status: 404,
       erro: "Extrato não encontrado.",
     });
+  });
+});
+
+describe("listarExtratos", () => {
+  const SISTEMA = "7a2b9c4d-1e3f-4a5b-8c6d-9e0f1a2b3c4d";
+
+  beforeEach(() => {
+    chamarBackend.mockReset();
+  });
+
+  /** /execucoes com duas rodadas que dividem o extrato do sistema. */
+  function backendComExtratos(detalhes: Record<string, unknown>) {
+    chamarBackend.mockImplementation(async (caminho: string) => {
+      if (caminho.startsWith("/execucoes")) {
+        return {
+          total: 2,
+          limit: 50,
+          offset: 0,
+          itens: [execucao("e-2", BANCO_RECENTE), execucao("e-1", BANCO_ANTERIOR)],
+        };
+      }
+      const id = caminho.replace("/extratos/", "");
+      const detalhe = detalhes[id];
+      if (detalhe instanceof Error) throw detalhe;
+      if (detalhe) return detalhe;
+      throw new Error(`caminho inesperado: ${caminho}`);
+    });
+  }
+
+  function detalhe(id: string, origem: "banco" | "sistema", erros: { identificador: string; motivo: string }[] = []) {
+    return {
+      extrato_id: id,
+      status: erros.length > 0 ? "concluido_com_erros" : "concluido",
+      origem,
+      quantidade_lancamentos: 12,
+      erros,
+    };
+  }
+
+  it("junta cada arquivo das execuções com a situação que o backend guarda dele", async () => {
+    backendComExtratos({
+      [BANCO_RECENTE]: detalhe(BANCO_RECENTE, "banco"),
+      [SISTEMA]: detalhe(SISTEMA, "sistema", [{ identificador: "linha 14", motivo: "valor ilegível" }]),
+      [BANCO_ANTERIOR]: detalhe(BANCO_ANTERIOR, "banco"),
+    });
+
+    const resultado = await listarExtratos();
+
+    if (!resultado.ok) throw new Error(resultado.erro);
+    // o extrato do sistema aparece uma vez só, mesmo usado nas duas rodadas
+    expect(resultado.dados.map((arquivo) => arquivo.id)).toEqual([BANCO_RECENTE, SISTEMA, BANCO_ANTERIOR]);
+    expect(resultado.dados[1]).toEqual({
+      id: SISTEMA,
+      nome: "e-2-sistema.csv",
+      origem: "sistema",
+      conciliadoEm: "2026-09-24T17:02:11Z",
+      resultado: `/conciliacoes/${BANCO_RECENTE}`,
+      situacao: "concluido_com_erros",
+      lancamentos: 12,
+      erros: [{ identificador: "linha 14", motivo: "valor ilegível" }],
+    });
+    expect(chamarBackend).toHaveBeenCalledWith(`/extratos/${SISTEMA}`);
+  });
+
+  it("mantém o arquivo na lista quando o detalhe dele não carrega", async () => {
+    backendComExtratos({
+      [BANCO_RECENTE]: new ErroBackend(404, "Extrato não encontrado."),
+      [SISTEMA]: detalhe(SISTEMA, "sistema"),
+      [BANCO_ANTERIOR]: detalhe(BANCO_ANTERIOR, "banco"),
+    });
+
+    const resultado = await listarExtratos();
+
+    if (!resultado.ok) throw new Error(resultado.erro);
+    expect(resultado.dados[0]).toMatchObject({
+      id: BANCO_RECENTE,
+      situacao: null,
+      lancamentos: null,
+      erros: [],
+    });
+    expect(resultado.dados[1].situacao).toBe("concluido");
+  });
+
+  it("devolve a falha quando nem as execuções carregam", async () => {
+    chamarBackend.mockRejectedValue(new ErroBackend(401, "Token expirado"));
+
+    expect(await listarExtratos()).toMatchObject({ ok: false, status: 401 });
   });
 });
