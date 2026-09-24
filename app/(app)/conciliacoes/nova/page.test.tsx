@@ -144,17 +144,53 @@ describe("NovaConciliacaoPage", () => {
     await waitFor(() => expect(push).toHaveBeenCalledWith("/conciliacoes/extrato-banco"));
   });
 
-  it("barra arquivo acima de 5MB antes de gastar uma requisição", async () => {
+  // 4MB e não os 5MB do backend: o arquivo passa por uma Server Action, e a
+  // Vercel corta o corpo da requisição em 4,5MB antes de o backend ver qualquer coisa
+  it("barra arquivo acima de 4MB antes de gastar uma requisição", async () => {
     const user = userEvent.setup();
     render(<NovaConciliacaoPage />);
     await user.upload(
       screen.getByLabelText("Extrato do banco"),
-      arquivo("gigante.ofx", 5 * 1024 * 1024 + 1),
+      arquivo("gigante.ofx", 4 * 1024 * 1024 + 1),
     );
     await user.upload(screen.getByLabelText("Extrato do sistema de gestão"), arquivo("sistema.csv"));
     await user.click(screen.getByRole("button", { name: "Conciliar extratos" }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("passa de 5MB");
+    expect(await screen.findByRole("alert")).toHaveTextContent("passa de 4MB");
     expect(enviarExtrato).not.toHaveBeenCalled();
+  });
+
+  it("aceita arquivo de exatamente 4MB", async () => {
+    const user = userEvent.setup();
+    render(<NovaConciliacaoPage />);
+    await user.upload(screen.getByLabelText("Extrato do banco"), arquivo("limite.ofx", 4 * 1024 * 1024));
+    await user.upload(screen.getByLabelText("Extrato do sistema de gestão"), arquivo("sistema.csv"));
+    await user.click(screen.getByRole("button", { name: "Conciliar extratos" }));
+
+    await waitFor(() => expect(enviarExtrato).toHaveBeenCalledTimes(2));
+  });
+
+  it("volta ao início com um recado quando o envio nem chega ao servidor", async () => {
+    // a Server Action lança em vez de devolver Resultado: corpo grande demais,
+    // rede caída ou deploy novo no meio ("Failed to find Server Action")
+    enviarExtrato.mockReset();
+    enviarExtrato.mockRejectedValue(new Error("Body exceeded 1 MB limit"));
+
+    await enviarOsDois();
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Não foi possível enviar agora. Recarregue a página e tente de novo.",
+    );
+    expect(screen.getByRole("button", { name: "Conciliar extratos" })).toBeEnabled();
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it("também se recupera quando a conciliação lança no meio do caminho", async () => {
+    conciliar.mockRejectedValue(new Error("Failed to fetch"));
+
+    await enviarOsDois();
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Recarregue a página");
+    expect(screen.getByRole("button", { name: "Conciliar extratos" })).toBeEnabled();
   });
 });

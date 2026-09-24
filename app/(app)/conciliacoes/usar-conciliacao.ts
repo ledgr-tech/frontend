@@ -22,7 +22,15 @@ import { carregarConciliacao } from "./acoes";
 export type EstadoConciliacao =
   | { situacao: "carregando" }
   | { situacao: "ausente" }
+  | { situacao: "falhou" }
   | { situacao: "pronta"; conciliacao: Conciliacao; real: boolean; truncada: boolean };
+
+/**
+ * A Server Action lançou em vez de devolver um Resultado (rede caída, deploy
+ * novo no meio). Não é "não encontrada": recarregar costuma resolver.
+ */
+export const FALHA_AO_CARREGAR =
+  "Não foi possível carregar a conciliação. Recarregue a página e tente de novo.";
 
 export function useConciliacao(id: string): {
   estado: EstadoConciliacao;
@@ -53,20 +61,25 @@ export function useConciliacao(id: string): {
     }
 
     let cancelado = false;
-    void carregarConciliacao(id).then((resposta) => {
-      if (cancelado) return;
-      if (!resposta.ok) {
-        if (resposta.status === 401) irPara.current.push("/login");
-        setEstado({ situacao: "ausente" });
-        return;
-      }
-      setEstado({
-        situacao: "pronta",
-        conciliacao: resposta.dados.conciliacao,
-        real: true,
-        truncada: resposta.dados.truncada,
-      });
-    });
+    carregarConciliacao(id).then(
+      (resposta) => {
+        if (cancelado) return;
+        if (!resposta.ok) {
+          if (resposta.status === 401) irPara.current.push("/login");
+          setEstado({ situacao: "ausente" });
+          return;
+        }
+        setEstado({
+          situacao: "pronta",
+          conciliacao: resposta.dados.conciliacao,
+          real: true,
+          truncada: resposta.dados.truncada,
+        });
+      },
+      () => {
+        if (!cancelado) setEstado({ situacao: "falhou" });
+      },
+    );
     return () => {
       cancelado = true;
     };

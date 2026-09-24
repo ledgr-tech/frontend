@@ -10,8 +10,17 @@ import {
   type SituacaoExtrato,
 } from "../acoes";
 
-/** Mesmo teto do backend (`TAMANHO_MAXIMO_BYTES`), conferido antes de subir. */
-const TAMANHO_MAXIMO_BYTES = 5 * 1024 * 1024;
+/**
+ * Conferido antes de subir. Abaixo dos 5MB do backend de propósito: o arquivo
+ * passa por uma Server Action, e a Vercel corta o corpo da requisição em 4,5MB
+ * (o `bodySizeLimit` do next.config.ts acompanha esse teto).
+ */
+const TAMANHO_MAXIMO_BYTES = 4 * 1024 * 1024;
+
+// A Server Action lançou em vez de devolver um Resultado: corpo grande demais,
+// rede caída ou deploy novo no meio ("Failed to find Server Action"). Recarregar
+// resolve os dois últimos.
+const ERRO_SEM_RESPOSTA = "Não foi possível enviar agora. Recarregue a página e tente de novo.";
 
 // O upload responde na hora com `status: "pendente"` e o parsing roda em
 // background, então o resultado só aparece consultando de novo.
@@ -102,8 +111,8 @@ export default function NovaConciliacaoPage() {
       (arquivo) => arquivo.size > TAMANHO_MAXIMO_BYTES,
     );
     if (grande) {
-      // o backend também barra, mas com 413 depois de subir o arquivo inteiro
-      setErro(`O arquivo "${grande.name}" passa de 5MB. Exporte um período menor.`);
+      // sem isso, o arquivo inteiro sobe só pra requisição ser recusada no caminho
+      setErro(`O arquivo "${grande.name}" passa de 4MB. Exporte um período menor.`);
       return;
     }
 
@@ -111,6 +120,15 @@ export default function NovaConciliacaoPage() {
     setAvisos([]);
     setEtapa("enviando");
 
+    try {
+      await enviarEConciliar(arquivoBanco, arquivoSistema);
+    } catch {
+      setEtapa("ocioso");
+      setErro(ERRO_SEM_RESPOSTA);
+    }
+  }
+
+  async function enviarEConciliar(arquivoBanco: File, arquivoSistema: File) {
     const banco = await subir(arquivoBanco, "banco");
     if (!banco.ok) return falhar(banco);
     const sistema = await subir(arquivoSistema, "sistema");

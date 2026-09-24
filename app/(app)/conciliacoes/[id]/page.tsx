@@ -10,7 +10,7 @@ import {
   type LinhaComparacao,
 } from "@/lib/mock-data";
 import { estaResolvida, statusDaLinha } from "../../dashboard/resumo";
-import { useConciliacao } from "../usar-conciliacao";
+import { FALHA_AO_CARREGAR, useConciliacao } from "../usar-conciliacao";
 import { EsqueletoTela } from "../../esqueleto";
 import { filtrarLinhas, ordenarLinhas, type Coluna, type Ordem } from "./ordenar";
 import { aplicarDensidade, densidadeAtual, type Densidade } from "../../densidade";
@@ -77,6 +77,14 @@ export default function ConciliacaoPage() {
     return (
       <div style={{ padding: "48px 0" }}>
         <p>Conciliação não encontrada.</p>
+      </div>
+    );
+  }
+
+  if (estado.situacao === "falhou") {
+    return (
+      <div style={{ padding: "48px 0" }}>
+        <p role="alert">{FALHA_AO_CARREGAR}</p>
       </div>
     );
   }
