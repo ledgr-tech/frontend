@@ -885,6 +885,17 @@ button.login-link-animado { border: 0; background-color: transparent; font: inhe
   font-size: 14px; line-height: 1.72;
   color: color-mix(in srgb, var(--color-text) 72%, transparent);
 }
+.dash-destaque-corpo { display: flex; flex-direction: column; gap: 6px; }
+/* Sem as sugestões ao lado, o cartão de 250px ficaria sozinho num canto: vira
+   faixa com mascote, texto e botão lado a lado. Até 640px volta a empilhar. */
+.dash-destaque-faixa {
+  flex: 1 1 100%; flex-direction: row; text-align: left; gap: 22px;
+}
+.dash-destaque-faixa .dash-destaque-corpo { flex: 1; min-width: 0; }
+.dash-destaque-faixa .btn { flex: none; }
+@media (max-width: 640px) {
+  .dash-destaque-faixa { flex-direction: column; text-align: center; }
+}
 
 /* a tabela de lançamentos tem 5 colunas: em tela estreita rola na horizontal
    em vez de espremer a descrição até quebrar letra por letra */

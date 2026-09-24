@@ -109,3 +109,62 @@ export function formatarMoedaCurta(valor: number): string {
 export function formatarPercentual(valor: number): string {
   return `${valor.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
 }
+
+// O servidor da Vercel roda em UTC; data sem fuso explícito sairia 3h adiantada.
+const FUSO = "America/Sao_Paulo";
+
+function partes(iso: string): Record<string, string> {
+  const formato = new Intl.DateTimeFormat("pt-BR", {
+    timeZone: FUSO,
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  });
+  return Object.fromEntries(formato.formatToParts(new Date(iso)).map((p) => [p.type, p.value]));
+}
+
+/** "2026-09-24T17:02:11Z" → "24/09/2026 14:02", no horário de Brasília. */
+export function formatarDataHora(iso: string): string {
+  const { day, month, year, hour, minute } = partes(iso);
+  return `${day}/${month}/${year} ${hour}:${minute}`;
+}
+
+/** "2026-10-01T02:30:00Z" → "30/09", no dia de Brasília. */
+export function formatarDiaMes(iso: string): string {
+  const { day, month } = partes(iso);
+  return `${day}/${month}`;
+}
+
+const MESES_MINUSCULOS = [
+  "janeiro",
+  "fevereiro",
+  "março",
+  "abril",
+  "maio",
+  "junho",
+  "julho",
+  "agosto",
+  "setembro",
+  "outubro",
+  "novembro",
+  "dezembro",
+];
+
+/**
+ * O período que o extrato cobre, pelas datas das próprias linhas: "01–30 de
+ * setembro" como no design, ou "28/08 a 03/09" quando atravessa o mês.
+ */
+export function periodoDasLinhas(linhas: LinhaComparacao[]): string | null {
+  // AAAA-MM-DD ordena como texto
+  const datas = linhas.flatMap((linha) => (linha.dataISO ? [linha.dataISO] : [])).sort();
+  if (datas.length === 0) return null;
+  const [, mesInicio, diaInicio] = datas[0].split("-");
+  const [, mesFim, diaFim] = datas[datas.length - 1].split("-");
+  if (mesInicio === mesFim) {
+    return `${diaInicio}–${diaFim} de ${MESES_MINUSCULOS[Number(mesFim) - 1]}`;
+  }
+  return `${diaInicio}/${mesInicio} a ${diaFim}/${mesFim}`;
+}

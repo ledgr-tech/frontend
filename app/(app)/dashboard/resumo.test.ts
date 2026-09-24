@@ -1,6 +1,14 @@
 import { describe, it, expect } from "vitest";
 import type { Conciliacao, LinhaComparacao, StatusLinha } from "@/lib/mock-data";
-import { resumir, statusDaLinha, origemDaLinha, formatarPercentual } from "./resumo";
+import {
+  resumir,
+  statusDaLinha,
+  origemDaLinha,
+  formatarPercentual,
+  formatarDataHora,
+  formatarDiaMes,
+  periodoDasLinhas,
+} from "./resumo";
 
 function linha(
   status: StatusLinha,
@@ -110,5 +118,42 @@ describe("origemDaLinha", () => {
   it("é Sistema quando o banco não tem a linha", () => {
     expect(origemDaLinha(linha("sem_correspondencia", null, 2150))).toBe("Sistema");
     expect(origemDaLinha(linha("match_exato", 100, 100))).toBe("Banco");
+  });
+});
+
+describe("formatarDataHora", () => {
+  it("mostra a hora de Brasília, não a do servidor", () => {
+    // o histórico renderiza no servidor, que na Vercel roda em UTC
+    expect(formatarDataHora("2026-09-24T17:02:11Z")).toBe("24/09/2026 14:02");
+  });
+
+  it("vira o dia junto com o fuso", () => {
+    expect(formatarDataHora("2026-10-01T02:30:00Z")).toBe("30/09/2026 23:30");
+  });
+});
+
+describe("formatarDiaMes", () => {
+  it("usa o dia de Brasília", () => {
+    expect(formatarDiaMes("2026-10-01T02:30:00Z")).toBe("30/09");
+  });
+});
+
+describe("periodoDasLinhas", () => {
+  function comData(dataISO: string | undefined): LinhaComparacao {
+    return { ...linha("match_exato", 100, 100), dataISO };
+  }
+
+  it("escreve como o design quando tudo cai no mesmo mês", () => {
+    const linhas = [comData("2026-09-30"), comData("2026-09-01"), comData("2026-09-14")];
+    expect(periodoDasLinhas(linhas)).toBe("01–30 de setembro");
+  });
+
+  it("mostra as duas pontas quando o extrato atravessa o mês", () => {
+    expect(periodoDasLinhas([comData("2026-08-28"), comData("2026-09-03")])).toBe("28/08 a 03/09");
+  });
+
+  it("não inventa período sem data", () => {
+    expect(periodoDasLinhas([comData(undefined)])).toBeNull();
+    expect(periodoDasLinhas([])).toBeNull();
   });
 });

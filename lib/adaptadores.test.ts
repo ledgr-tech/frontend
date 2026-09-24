@@ -1,8 +1,10 @@
 import { describe, it, expect } from "vitest";
 import {
   adaptarConciliacao,
+  adaptarExecucao,
   adaptarLinha,
   pareceUuid,
+  type ExecucaoAPI,
   type ItemConciliacaoAPI,
   type ListaConciliacaoAPI,
 } from "./adaptadores";
@@ -114,5 +116,59 @@ describe("pareceUuid", () => {
   it("separa id do backend de id do mock", () => {
     expect(pareceUuid("3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20")).toBe(true);
     expect(pareceUuid("conc-1")).toBe(false);
+  });
+});
+
+/** Uma execução como `GET /execucoes` devolve (ItemExecucaoResponse no backend). */
+function execucao(parcial: Partial<ExecucaoAPI> = {}): ExecucaoAPI {
+  return {
+    id: "a1b2c3d4-0000-4000-8000-000000000001",
+    extrato_banco_id: "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20",
+    extrato_sistema_id: "7a2b9c4d-1e3f-4a5b-8c6d-9e0f1a2b3c4d",
+    nome_arquivo_banco: "sicredi-setembro.ofx",
+    nome_arquivo_sistema: "erp-setembro.csv",
+    executada_em: "2026-09-24T17:02:11.482913Z",
+    tolerancia_dias: 2,
+    contagens: {
+      total: 4218,
+      match_exato: 3900,
+      match_tolerancia: 162,
+      duplicado: 4,
+      sem_correspondencia: 98,
+      tarifa_bancaria: 21,
+      divergente_valor: 22,
+      divergente_data: 11,
+    },
+    percentual_acerto: "96.30",
+    atual: true,
+    ...parcial,
+  };
+}
+
+describe("adaptarExecucao", () => {
+  it("traz o que a tela mostra de cada execução", () => {
+    expect(adaptarExecucao(execucao())).toEqual({
+      id: "a1b2c3d4-0000-4000-8000-000000000001",
+      extratoBancoId: "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20",
+      arquivoBanco: "sicredi-setembro.ofx",
+      arquivoSistema: "erp-setembro.csv",
+      executadaEm: "2026-09-24T17:02:11.482913Z",
+      lancamentos: 4218,
+      acerto: 96.3,
+      atual: true,
+    });
+  });
+
+  it("aceita o percentual como número, caso o backend deixe de mandar string", () => {
+    expect(adaptarExecucao(execucao({ percentual_acerto: 87.5 })).acerto).toBe(87.5);
+  });
+
+  it("não inventa percentual para execução sem lançamento", () => {
+    // o backend devolve null quando total é zero: não existe acerto de nada
+    expect(adaptarExecucao(execucao({ percentual_acerto: null })).acerto).toBeNull();
+  });
+
+  it("marca a execução refeita depois como não atual", () => {
+    expect(adaptarExecucao(execucao({ atual: false })).atual).toBe(false);
   });
 });

@@ -1,6 +1,12 @@
 "use server";
 
-import { adaptarConciliacao, type ListaConciliacaoAPI } from "@/lib/adaptadores";
+import {
+  adaptarConciliacao,
+  adaptarExecucao,
+  type Execucao,
+  type ListaConciliacaoAPI,
+  type ListaExecucoesAPI,
+} from "@/lib/adaptadores";
 import { chamarBackend, ErroBackend } from "@/lib/backend";
 import type { Conciliacao } from "@/lib/mock-data";
 
@@ -133,4 +139,51 @@ export async function carregarConciliacao(
   } catch (erro) {
     return traduzir(erro);
   }
+}
+
+// ponytail: o histórico mostra as 50 execuções mais recentes (o backend aceita
+// até 100 por página). Quando alguém passar disso, entra paginação na tela.
+const EXECUCOES_POR_PAGINA = 50;
+
+export type ListaExecucoes = { execucoes: Execucao[]; total: number };
+
+/** Mais recente primeiro, incluindo as rodadas que foram refeitas depois. */
+export async function listarExecucoes(): Promise<Resultado<ListaExecucoes>> {
+  try {
+    const lista = await chamarBackend<ListaExecucoesAPI>(
+      `/execucoes?limit=${EXECUCOES_POR_PAGINA}&offset=0`,
+    );
+    return {
+      ok: true,
+      dados: { execucoes: lista.itens.map(adaptarExecucao), total: lista.total },
+    };
+  } catch (erro) {
+    return traduzir(erro);
+  }
+}
+
+export type Painel = {
+  /** As linhas da execução mais recente, que alimentam o resumo; null sem execução. */
+  recente: Conciliacao | null;
+  /** As outras execuções atuais, da mais recente para a mais antiga. */
+  anteriores: Execucao[];
+};
+
+/**
+ * O que a dashboard precisa numa ida só ao servidor: a lista de execuções diz
+ * qual é a mais recente, e as linhas dela dão o resumo com valores em reais —
+ * que `/execucoes` não tem, porque só guarda contagens.
+ */
+export async function carregarPainel(): Promise<Resultado<Painel>> {
+  const lista = await listarExecucoes();
+  if (!lista.ok) return lista;
+
+  // As refeitas depois ficam só no histórico: aqui cada par de extratos aparece
+  // uma vez. A mais recente de todas é sempre atual.
+  const [maisRecente, ...anteriores] = lista.dados.execucoes.filter((execucao) => execucao.atual);
+  if (!maisRecente) return { ok: true, dados: { recente: null, anteriores: [] } };
+
+  const conciliacao = await carregarConciliacao(maisRecente.extratoBancoId);
+  if (!conciliacao.ok) return conciliacao;
+  return { ok: true, dados: { recente: conciliacao.dados.conciliacao, anteriores } };
 }

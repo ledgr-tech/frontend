@@ -133,6 +133,65 @@ export function mesPorExtenso(iso: string): string {
   return nome ? `${nome}/${ano}` : iso;
 }
 
+/** Uma rodada de `POST /conciliacoes`, como `GET /execucoes` devolve. */
+export type ExecucaoAPI = {
+  id: string;
+  extrato_banco_id: string;
+  extrato_sistema_id: string;
+  nome_arquivo_banco: string;
+  nome_arquivo_sistema: string;
+  /** ISO 8601 em UTC, com o sufixo explícito. */
+  executada_em: string;
+  tolerancia_dias: number;
+  contagens: {
+    total: number;
+    match_exato: number;
+    match_tolerancia: number;
+    duplicado: number;
+    sem_correspondencia: number;
+    tarifa_bancaria: number;
+    divergente_valor: number;
+    divergente_data: number;
+  };
+  /** Decimal (0 a 100, duas casas) — o Pydantic manda como string. Null sem lançamentos. */
+  percentual_acerto: string | number | null;
+  /** Falso quando o mesmo par de extratos foi conciliado de novo depois. */
+  atual: boolean;
+};
+
+export type ListaExecucoesAPI = {
+  total: number;
+  limit: number;
+  offset: number;
+  itens: ExecucaoAPI[];
+};
+
+export type Execucao = {
+  id: string;
+  /** Por onde se abre o resultado: `/conciliacoes/{extratoBancoId}`. */
+  extratoBancoId: string;
+  arquivoBanco: string;
+  arquivoSistema: string;
+  executadaEm: string;
+  lancamentos: number;
+  /** Percentual de 0 a 100 — match exato mais match por tolerância. */
+  acerto: number | null;
+  atual: boolean;
+};
+
+export function adaptarExecucao(item: ExecucaoAPI): Execucao {
+  return {
+    id: item.id,
+    extratoBancoId: item.extrato_banco_id,
+    arquivoBanco: item.nome_arquivo_banco,
+    arquivoSistema: item.nome_arquivo_sistema,
+    executadaEm: item.executada_em,
+    lancamentos: item.contagens.total,
+    acerto: item.percentual_acerto === null ? null : paraNumero(String(item.percentual_acerto)),
+    atual: item.atual,
+  };
+}
+
 /**
  * Id vindo do backend (UUID do extrato) ou do mock ("conc-1")?
  *
