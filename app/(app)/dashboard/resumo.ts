@@ -77,7 +77,8 @@ export type Resumo = {
   valorSemCorrespondente: number;
 };
 
-function somar(linhas: LinhaComparacao[]): number {
+/** Quanto as linhas deixam em aberto, em reais; as já resolvidas contam zero. */
+export function valorEmAberto(linhas: LinhaComparacao[]): number {
   return linhas.reduce((total, linha) => total + divergenciaEmCentavos(linha), 0) / 100;
 }
 
@@ -92,9 +93,9 @@ export function resumir(conciliacoes: Conciliacao[]): Resumo {
     batidos: resolvidas.length,
     taxaMatch: linhas.length === 0 ? 0 : (resolvidas.length / linhas.length) * 100,
     divergentes: emAberto.length,
-    valorDivergente: somar(linhas),
+    valorDivergente: valorEmAberto(linhas),
     semCorrespondente: orfas.length,
-    valorSemCorrespondente: somar(orfas),
+    valorSemCorrespondente: valorEmAberto(orfas),
   };
 }
 

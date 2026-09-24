@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ExecucaoAPI, ItemConciliacaoAPI } from "@/lib/adaptadores";
 import { ErroBackend } from "@/lib/backend";
-import { carregarPainel, listarExecucoes, listarExtratos } from "./acoes";
+import { carregarPainel, carregarVisaoGeral, listarExecucoes, listarExtratos } from "./acoes";
 
 // A rede é a fronteira: o que se testa é o caminho pedido e o que as actions
 // fazem com a resposta. ErroBackend e a tradução de erro rodam de verdade.
@@ -235,5 +235,98 @@ describe("listarExtratos", () => {
     chamarBackend.mockRejectedValue(new ErroBackend(401, "Token expirado"));
 
     expect(await listarExtratos()).toMatchObject({ ok: false, status: 401 });
+  });
+});
+
+describe("carregarVisaoGeral", () => {
+  const SISTEMA = "7a2b9c4d-1e3f-4a5b-8c6d-9e0f1a2b3c4d";
+
+  beforeEach(() => {
+    chamarBackend.mockReset();
+  });
+
+  function situacao(id: string, erros: { identificador: string; motivo: string }[] = []) {
+    return { extrato_id: id, status: "concluido", origem: "banco", quantidade_lancamentos: 2, erros };
+  }
+
+  /** /execucoes, as linhas da mais recente e o detalhe de cada arquivo pedido. */
+  function backendComVisao(execucoes: ExecucaoAPI[], extratos: Record<string, unknown>) {
+    chamarBackend.mockImplementation(async (caminho: string) => {
+      if (caminho.startsWith("/execucoes")) {
+        return { total: 7, limit: 50, offset: 0, itens: execucoes };
+      }
+      if (caminho.startsWith(`/conciliacoes/${BANCO_RECENTE}`)) {
+        return { extrato_id: BANCO_RECENTE, total: 1, limit: 1000, offset: 0, itens: [itemConciliacao] };
+      }
+      const detalhe = extratos[caminho.replace("/extratos/", "")];
+      if (detalhe instanceof Error) throw detalhe;
+      if (detalhe) return detalhe;
+      throw new Error(`caminho inesperado: ${caminho}`);
+    });
+  }
+
+  it("sem execução nenhuma, não tem o que abrir", async () => {
+    backendCom([]);
+
+    expect(await carregarVisaoGeral()).toEqual({
+      ok: true,
+      dados: { execucoes: [], total: 0, recente: null, arquivosComLinhasNaoLidas: [] },
+    });
+    expect(chamarBackend).toHaveBeenCalledTimes(1);
+  });
+
+  it("abre as linhas da mais recente e a situação só dos dois arquivos dela", async () => {
+    backendComVisao(
+      [
+        execucao("e-3", BANCO_RECENTE),
+        execucao("e-2", BANCO_ANTERIOR, false),
+        execucao("e-1", BANCO_ANTERIOR),
+      ],
+      {
+        [BANCO_RECENTE]: situacao(BANCO_RECENTE),
+        [SISTEMA]: situacao(SISTEMA, [
+          { identificador: "linha 14", motivo: "valor ilegível" },
+          { identificador: "linha 15", motivo: "data ilegível" },
+        ]),
+      },
+    );
+
+    const resultado = await carregarVisaoGeral();
+
+    if (!resultado.ok) throw new Error(resultado.erro);
+    expect(resultado.dados.total).toBe(7);
+    expect(resultado.dados.execucoes.map((item) => item.id)).toEqual(["e-3", "e-2", "e-1"]);
+    expect(resultado.dados.recente?.execucao.id).toBe("e-3");
+    expect(resultado.dados.recente?.conciliacao.linhas.map((linha) => linha.id)).toEqual(["c-1"]);
+    expect(resultado.dados.arquivosComLinhasNaoLidas).toEqual([
+      { nome: "e-3-sistema.csv", linhas: 2 },
+    ]);
+    // os arquivos das rodadas antigas não entram: a visão geral fala do mês corrente
+    expect(chamarBackend).not.toHaveBeenCalledWith(`/extratos/${BANCO_ANTERIOR}`);
+  });
+
+  it("segue sem o aviso do arquivo quando o detalhe dele não carrega", async () => {
+    backendComVisao([execucao("e-1", BANCO_RECENTE)], {
+      [BANCO_RECENTE]: new ErroBackend(404, "Extrato não encontrado."),
+      [SISTEMA]: situacao(SISTEMA),
+    });
+
+    const resultado = await carregarVisaoGeral();
+
+    if (!resultado.ok) throw new Error(resultado.erro);
+    expect(resultado.dados.recente?.execucao.id).toBe("e-1");
+    expect(resultado.dados.arquivosComLinhasNaoLidas).toEqual([]);
+  });
+
+  it("devolve a falha quando as linhas da mais recente não carregam", async () => {
+    backendComVisao([execucao("e-1", BANCO_ANTERIOR)], {});
+
+    expect(await carregarVisaoGeral()).toMatchObject({ ok: false });
+  });
+
+  it("devolve a falha quando nem as execuções carregam", async () => {
+    chamarBackend.mockRejectedValue(new ErroBackend(401, "Token expirado"));
+
+    expect(await carregarVisaoGeral()).toMatchObject({ ok: false, status: 401 });
   });
 });

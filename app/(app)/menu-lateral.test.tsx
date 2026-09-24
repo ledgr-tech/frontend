@@ -24,18 +24,19 @@ describe("MenuLateral", () => {
     delete document.documentElement.dataset.tema;
   });
 
-  it("lists the five destinations from the design, in order", () => {
+  it("opens with Visão geral, then the five destinations from the design, in order", () => {
     montar();
 
     const nav = screen.getByRole("navigation", { name: "Seções do app" });
     expect(nav.textContent).toBe(
-      "ExtratosConciliaçõesFechamentosem breveHistóricoAssinaturaem breve",
+      "Visão geralExtratosConciliaçõesFechamentosem breveHistóricoAssinaturaem breve",
     );
   });
 
   it("links only the destinations that already exist", () => {
     montar();
 
+    expect(screen.getByRole("link", { name: "Visão geral" })).toHaveAttribute("href", "/visao-geral");
     expect(screen.getByRole("link", { name: "Conciliações" })).toHaveAttribute("href", "/dashboard");
     expect(screen.getByRole("link", { name: "Histórico" })).toHaveAttribute("href", "/historico");
     expect(screen.getByRole("link", { name: "Extratos" })).toHaveAttribute("href", "/extratos");
@@ -49,6 +50,13 @@ describe("MenuLateral", () => {
     const fechamentos = screen.getByText("Fechamentos").closest("[aria-disabled]");
     expect(fechamentos).toHaveAttribute("aria-disabled", "true");
     expect(within(fechamentos as HTMLElement).getByText("em breve")).toBeInTheDocument();
+  });
+
+  it("marks Visão geral as current on its own route", () => {
+    caminho.mockReturnValue("/visao-geral");
+    montar();
+    expect(screen.getByRole("link", { name: "Visão geral" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("link", { name: "Conciliações" })).not.toHaveAttribute("aria-current");
   });
 
   it("marks Extratos as current on its own route", () => {

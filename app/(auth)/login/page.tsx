@@ -236,7 +236,7 @@ export default function LoginPage() {
       }
       if (resultado.ok) {
         limparTentativas();
-        router.push("/dashboard");
+        router.push("/visao-geral");
         return;
       }
       const pausou = resultado.erro === "senha_incorreta" && registrarSenhaErrada();
@@ -258,7 +258,7 @@ export default function LoginPage() {
     timer.current = setTimeout(async () => {
       const entrou = await entrarNaDemonstracao(manterSessao).catch(() => false);
       if (entrou) {
-        router.push("/dashboard");
+        router.push("/visao-geral");
         return;
       }
       falhar("falha_sessao");

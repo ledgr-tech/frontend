@@ -11,6 +11,7 @@ import {
   CreditCard,
   Files,
   History,
+  House,
   LogOut,
   Moon,
   PanelLeftClose,
@@ -33,8 +34,10 @@ type ItemMenu = {
   tambem?: string[];
 };
 
-// Os cinco destinos do design (navItens em Ledgr.dc.html), na mesma ordem.
+// A visão geral (home, que o design não tem) e os cinco destinos do design
+// (navItens em Ledgr.dc.html), na mesma ordem.
 const ITENS: ItemMenu[] = [
+  { nome: "Visão geral", icone: House, href: "/visao-geral" },
   { nome: "Extratos", icone: Files, href: "/extratos" },
   { nome: "Conciliações", icone: ArrowLeftRight, href: "/dashboard", tambem: ["/conciliacoes"] },
   { nome: "Fechamentos", icone: CalendarCheck, href: null },

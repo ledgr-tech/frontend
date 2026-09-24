@@ -226,3 +226,60 @@ export async function listarExtratos(): Promise<Resultado<ArquivoExtrato[]>> {
     }),
   };
 }
+
+export type VisaoGeral = {
+  /** Mais recente primeiro, incluindo as rodadas refeitas depois. */
+  execucoes: Execucao[];
+  total: number;
+  /** A execução mais recente e as linhas dela; null sem execução nenhuma. */
+  recente: { execucao: Execucao; conciliacao: Conciliacao } | null;
+  /** Os arquivos da mais recente com linhas que o parser não conseguiu ler. */
+  arquivosComLinhasNaoLidas: { nome: string; linhas: number }[];
+};
+
+/**
+ * O que a visão geral precisa: a lista de execuções (tendência e atividade), as
+ * linhas da mais recente (o estado do mês e o que está em aberto) e a situação
+ * dos dois arquivos dela. Só dos dois: varrer todos os arquivos, como a tela de
+ * extratos faz, custaria uma chamada por arquivo para abrir a home.
+ */
+export async function carregarVisaoGeral(): Promise<Resultado<VisaoGeral>> {
+  const lista = await listarExecucoes();
+  if (!lista.ok) return lista;
+  const { execucoes, total } = lista.dados;
+
+  // a mais recente de todas é sempre atual; o filtro é só por garantia
+  const maisRecente = execucoes.find((execucao) => execucao.atual);
+  if (!maisRecente) {
+    return { ok: true, dados: { execucoes, total, recente: null, arquivosComLinhasNaoLidas: [] } };
+  }
+
+  const [conciliacao, banco, sistema] = await Promise.all([
+    carregarConciliacao(maisRecente.extratoBancoId),
+    situacaoDoExtrato(maisRecente.extratoBancoId),
+    situacaoDoExtrato(maisRecente.extratoSistemaId),
+  ]);
+  if (!conciliacao.ok) return conciliacao;
+
+  // o detalhe do arquivo é aviso a mais, não o dado principal: se não carregar,
+  // a home abre sem ele
+  const arquivos = [
+    { nome: maisRecente.arquivoBanco, situacao: banco },
+    { nome: maisRecente.arquivoSistema, situacao: sistema },
+  ];
+  const arquivosComLinhasNaoLidas = arquivos.flatMap(({ nome, situacao }) =>
+    situacao.ok && situacao.dados.erros.length > 0
+      ? [{ nome, linhas: situacao.dados.erros.length }]
+      : [],
+  );
+
+  return {
+    ok: true,
+    dados: {
+      execucoes,
+      total,
+      recente: { execucao: maisRecente, conciliacao: conciliacao.dados.conciliacao },
+      arquivosComLinhasNaoLidas,
+    },
+  };
+}

@@ -172,7 +172,7 @@ describe("LoginPage", () => {
     await user.click(screen.getByRole("button", { name: "Entrar com Google" }));
 
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-    await waitFor(() => expect(push).toHaveBeenCalledWith("/dashboard"));
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/visao-geral"));
     // a conta de teste fica no servidor: o navegador não manda credencial nenhuma
     expect(entrarNaDemonstracao).toHaveBeenCalledWith(true);
     expect(abrirSessao).not.toHaveBeenCalled();
@@ -208,7 +208,7 @@ describe("LoginPage", () => {
     await user.click(screen.getByRole("checkbox", { name: "Manter sessão ativa" }));
     await preencherEEntrar("financeiro@telhacerta.com.br", "ledgr2026");
 
-    await waitFor(() => expect(push).toHaveBeenCalledWith("/dashboard"));
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/visao-geral"));
     expect(abrirSessao).toHaveBeenCalledWith("financeiro@telhacerta.com.br", "ledgr2026", false);
   });
 
@@ -332,12 +332,12 @@ describe("LoginPage", () => {
     });
   });
 
-  it("shows the loading state, then signs in and redirects to the dashboard", async () => {
+  it("shows the loading state, then signs in and redirects to the overview", async () => {
     render(<LoginPage />);
     await preencherEEntrar("financeiro@telhacerta.com.br", "ledgr2026");
 
     expect(screen.getByRole("button", { name: "Entrando…" })).toBeDisabled();
-    await waitFor(() => expect(push).toHaveBeenCalledWith("/dashboard"));
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/visao-geral"));
     expect(abrirSessao).toHaveBeenCalledWith("financeiro@telhacerta.com.br", "ledgr2026", true);
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
@@ -346,7 +346,7 @@ describe("LoginPage", () => {
     for (let tentativa = 1; tentativa < LIMITE_TENTATIVAS; tentativa++) registrarSenhaErrada();
     render(<LoginPage />);
     await preencherEEntrar("financeiro@telhacerta.com.br", "ledgr2026");
-    await waitFor(() => expect(push).toHaveBeenCalledWith("/dashboard"));
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/visao-geral"));
 
     // se a contagem tivesse ficado, esta seria a senha errada que bloqueia
     expect(registrarSenhaErrada()).toBe(false);
