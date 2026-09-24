@@ -4,10 +4,18 @@ import userEvent from "@testing-library/user-event";
 import type { Conciliacao } from "@/lib/mock-data";
 import DetalheDivergenciaPage from "./page";
 
+// hoisted porque a fábrica do vi.mock roda antes das declarações do módulo
+const rota = vi.hoisted(() => ({ id: "conc-1" }));
+
 const push = vi.fn();
 vi.mock("next/navigation", () => ({
-  useParams: () => ({ id: "conc-1", linha: "lc-2" }),
+  useParams: () => ({ id: rota.id, linha: "lc-2" }),
   useRouter: () => ({ push }),
+}));
+
+const carregarConciliacao = vi.fn();
+vi.mock("../../acoes", () => ({
+  carregarConciliacao: (id: string) => carregarConciliacao(id),
 }));
 
 const buscarConciliacao = vi.fn();
@@ -81,6 +89,8 @@ const conciliacao: Conciliacao = {
 
 describe("DetalheDivergenciaPage", () => {
   beforeEach(() => {
+    rota.id = "conc-1";
+    carregarConciliacao.mockReset();
     buscarConciliacao.mockReset();
     aceitarValorDoBanco.mockReset();
     restaurarLinha.mockReset();
@@ -225,5 +235,16 @@ describe("DetalheDivergenciaPage", () => {
     buscarConciliacao.mockReturnValue(null);
     render(<DetalheDivergenciaPage />);
     expect(await screen.findByText("Lançamento não encontrado.")).toBeInTheDocument();
+  });
+
+  it("offers a reload instead of an endless skeleton when the backend call throws", async () => {
+    rota.id = "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20";
+    carregarConciliacao.mockRejectedValue(new Error("Failed to fetch"));
+    render(<DetalheDivergenciaPage />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Não foi possível carregar a conciliação. Recarregue a página e tente de novo.",
+    );
+    expect(screen.queryByText("Lançamento não encontrado.")).not.toBeInTheDocument();
   });
 });

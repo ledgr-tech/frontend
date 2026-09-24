@@ -157,6 +157,18 @@ describe("ConciliacaoPage", () => {
     expect(container.querySelector("[aria-busy=\"true\"]")).not.toBeNull();
   });
 
+  it("offers a reload instead of an endless skeleton when the backend call throws", async () => {
+    // a Server Action lançou (rede, deploy novo no meio) em vez de devolver um Resultado
+    rota.id = "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20";
+    carregarConciliacao.mockRejectedValue(new Error("Failed to fetch"));
+    const { container } = render(<ConciliacaoPage />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Não foi possível carregar a conciliação. Recarregue a página e tente de novo.",
+    );
+    expect(container.querySelector("[aria-busy=\"true\"]")).toBeNull();
+  });
+
   it("filters down to the linhas that need review", async () => {
     buscarConciliacao.mockReturnValue(conciliacaoMista);
     const user = userEvent.setup();

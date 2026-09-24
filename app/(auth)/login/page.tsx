@@ -4,8 +4,14 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { CONTA_TESTE, autenticar, type ErroAutenticacao } from "@/lib/auth";
-import { entrar as abrirSessao } from "../acoes";
+import { demoAberta } from "@/lib/demo";
+import { estaBloqueado, limparTentativas, registrarSenhaErrada } from "@/lib/tentativas";
+import {
+  entrar as abrirSessao,
+  entrarNaDemonstracao,
+  type ErroEntrada,
+  type ResultadoEntrada,
+} from "../acoes";
 import dynamic from "next/dynamic";
 import { CampoTexto } from "../_compartilhado/campo-texto";
 import { EMAIL_VALIDO, MENSAGEM_EMAIL_INCOMPLETO } from "../_compartilhado/validacao";
@@ -44,20 +50,19 @@ const MENSAGENS = {
   senhaVazia: "Informe sua senha.",
 };
 
+// o que o servidor devolve, mais a pausa depois de senhas erradas seguidas
+type ErroLogin = ErroEntrada | "muitas_tentativas";
+
 // erros devolvidos pela autenticação, cada um mostrado junto ao campo a que se refere
-const ERROS_AUTENTICACAO: Record<ErroAutenticacao, { campo: Campo; mensagem: string }> = {
+const ERROS_LOGIN: Record<ErroLogin, { campo: Campo; mensagem: string }> = {
   conta_nao_encontrada: { campo: "email", mensagem: "Não encontramos conta com este e-mail. Confira o endereço." },
   senha_incorreta: { campo: "senha", mensagem: "Senha incorreta. Confira e tente de novo." },
   // "alguns minutos" e não um tempo exato: quem tenta de novo durante o bloqueio pega só o que falta dele
   muitas_tentativas: { campo: "senha", mensagem: "Acesso pausado por segurança. Tente de novo em alguns minutos." },
-};
-
-// O servidor recusou credenciais que passaram na checagem local: não é erro de
-// quem digitou, é ambiente mal configurado (NEXTAUTH_SECRET ou
-// LEDGR_EMPRESA_ID_TESTE faltando). Mensagem separada pra não acusar o usuário.
-const FALHA_DE_SESSAO = {
-  campo: "senha" as Campo,
-  mensagem: "Não foi possível abrir a sessão. Tente de novo em instantes.",
+  // Não é erro de quem digitou: ambiente mal configurado (NEXTAUTH_SECRET,
+  // LEDGR_EMPRESA_ID_TESTE ou a conta de teste faltando) ou servidor fora do
+  // ar. Mensagem separada pra não acusar o usuário.
+  falha_sessao: { campo: "senha", mensagem: "Não foi possível abrir a sessão. Tente de novo em instantes." },
 };
 
 // linhas verticais sutis da landing, só nas laterais: sempre por fora do formulário (424px)
@@ -220,32 +225,43 @@ export default function LoginPage() {
     setErros({});
     setEntrando(true);
     timer.current = setTimeout(async () => {
-      // duas etapas de propósito: `autenticar` só escolhe a mensagem e conta as
-      // tentativas; quem abre a sessão é o servidor, em `abrirSessao`.
-      const resultado = autenticar(emailLimpo, senha);
-      const falha = resultado.ok ? null : ERROS_AUTENTICACAO[resultado.erro];
-      if (!falha && (await abrirSessao(emailLimpo, senha, manterSessao))) {
+      // quem confere a senha é o servidor; daqui só sai a pausa depois de erros seguidos
+      if (estaBloqueado()) return falhar("muitas_tentativas");
+      let resultado: ResultadoEntrada;
+      try {
+        resultado = await abrirSessao(emailLimpo, senha, manterSessao);
+      } catch {
+        // a action nem respondeu (rede, deploy novo no meio): para quem digitou, é a mesma falha
+        return falhar("falha_sessao");
+      }
+      if (resultado.ok) {
+        limparTentativas();
         router.push("/dashboard");
         return;
       }
-      setEntrando(false);
-      const { campo, mensagem } = falha ?? FALHA_DE_SESSAO;
-      mostrarErros({ [campo]: mensagem });
+      const pausou = resultado.erro === "senha_incorreta" && registrarSenhaErrada();
+      falhar(pausou ? "muitas_tentativas" : resultado.erro);
     }, ATRASO_ENTRADA_MS);
   }
 
-  // ainda sem provedor: entra direto com a conta de teste, sem validar os campos do formulário
+  function falhar(erro: ErroLogin) {
+    setEntrando(false);
+    const { campo, mensagem } = ERROS_LOGIN[erro];
+    mostrarErros({ [campo]: mensagem });
+  }
+
+  // ainda sem provedor: é o atalho de demonstração, sem validar os campos do formulário
   function entrarComGoogle() {
     if (entrando) return;
     setErros({});
     setEntrando(true);
     timer.current = setTimeout(async () => {
-      if (await abrirSessao(CONTA_TESTE.email, CONTA_TESTE.senha, manterSessao)) {
+      const entrou = await entrarNaDemonstracao(manterSessao).catch(() => false);
+      if (entrou) {
         router.push("/dashboard");
         return;
       }
-      setEntrando(false);
-      mostrarErros({ [FALHA_DE_SESSAO.campo]: FALHA_DE_SESSAO.mensagem });
+      falhar("falha_sessao");
     }, ATRASO_ENTRADA_MS);
   }
 
@@ -435,39 +451,44 @@ export default function LoginPage() {
             {entrando ? "Entrando…" : "Entrar"}
           </button>
 
-          <div className="login-divisor" style={{ display: "flex", alignItems: "center", gap: 14, margin: "clamp(14px, 2.6vh, 26px) 0" }}>
-            <span style={{ flex: 1, height: 1, background: "var(--color-divider)" }} />
-            <span style={{ fontSize: 12, letterSpacing: "0.12em", textTransform: "uppercase", color: "color-mix(in srgb, var(--color-text) 66%, transparent)" }}>
-              ou
-            </span>
-            <span style={{ flex: 1, height: 1, background: "var(--color-divider)" }} />
-          </div>
+          {/* atalho de demonstração: só aparece onde NEXT_PUBLIC_LEDGR_DEMO_ABERTA=1 (ver lib/demo.ts) */}
+          {demoAberta() && (
+            <>
+            <div className="login-divisor" style={{ display: "flex", alignItems: "center", gap: 14, margin: "clamp(14px, 2.6vh, 26px) 0" }}>
+              <span style={{ flex: 1, height: 1, background: "var(--color-divider)" }} />
+              <span style={{ fontSize: 12, letterSpacing: "0.12em", textTransform: "uppercase", color: "color-mix(in srgb, var(--color-text) 66%, transparent)" }}>
+                ou
+              </span>
+              <span style={{ flex: 1, height: 1, background: "var(--color-divider)" }} />
+            </div>
 
-          {/* só o símbolo do Google aparece; no hover, faixas inclinadas com as cores da marca ocupam metade do botão */}
-          <button
-            type="button"
-            className="btn btn-secondary login-google"
-            aria-label="Entrar com Google"
-            disabled={entrando}
-            onClick={entrarComGoogle}
-          >
-            {/* quatro faixas de largura igual, inclinadas no mesmo ângulo */}
-            <span className="login-google-painel" aria-hidden="true">
-              <span className="login-google-faixa g-azul" />
-              <span className="login-google-faixa g-vermelho" />
-              <span className="login-google-faixa g-amarelo" />
-              <span className="login-google-faixa g-verde" />
-            </span>
-            {/* o "G" com as cores do Google (cores no globals.css) */}
-            <span className="login-google-simbolo" aria-hidden="true">
-              <svg viewBox="0 0 48 48">
-                <path className="g-amarelo" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z" />
-                <path className="g-vermelho" d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 16.318 4 9.656 8.337 6.306 14.691z" />
-                <path className="g-verde" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238C29.211 35.091 26.715 36 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z" />
-                <path className="g-azul" d="M43.611 20.083H42V20H24v8h11.303c-.792 2.237-2.231 4.166-4.087 5.571l.003-.002 6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917z" />
-              </svg>
-            </span>
-          </button>
+            {/* só o símbolo do Google aparece; no hover, faixas inclinadas com as cores da marca ocupam metade do botão */}
+            <button
+              type="button"
+              className="btn btn-secondary login-google"
+              aria-label="Entrar com Google"
+              disabled={entrando}
+              onClick={entrarComGoogle}
+            >
+              {/* quatro faixas de largura igual, inclinadas no mesmo ângulo */}
+              <span className="login-google-painel" aria-hidden="true">
+                <span className="login-google-faixa g-azul" />
+                <span className="login-google-faixa g-vermelho" />
+                <span className="login-google-faixa g-amarelo" />
+                <span className="login-google-faixa g-verde" />
+              </span>
+              {/* o "G" com as cores do Google (cores no globals.css) */}
+              <span className="login-google-simbolo" aria-hidden="true">
+                <svg viewBox="0 0 48 48">
+                  <path className="g-amarelo" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z" />
+                  <path className="g-vermelho" d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 16.318 4 9.656 8.337 6.306 14.691z" />
+                  <path className="g-verde" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238C29.211 35.091 26.715 36 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z" />
+                  <path className="g-azul" d="M43.611 20.083H42V20H24v8h11.303c-.792 2.237-2.231 4.166-4.087 5.571l.003-.002 6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917z" />
+                </svg>
+              </span>
+            </button>
+            </>
+          )}
 
           <p className="login-criar" style={{ margin: "clamp(14px, 2.8vh, 28px) 0 0", fontSize: 14.5, lineHeight: 1.6, color: "color-mix(in srgb, var(--color-text) 66%, transparent)" }}>
             Ainda não tem conta?{" "}

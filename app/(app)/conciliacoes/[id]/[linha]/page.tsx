@@ -13,7 +13,7 @@ import {
 import { estaResolvida, statusDaLinha } from "../../../dashboard/resumo";
 import { Barra, EsqueletoTela } from "../../../esqueleto";
 import { NumeroAnimado } from "../../../numero-animado";
-import { useConciliacao } from "../../usar-conciliacao";
+import { FALHA_AO_CARREGAR, useConciliacao } from "../../usar-conciliacao";
 
 function CartaoExtrato({
   titulo,
@@ -92,6 +92,19 @@ export default function DetalheDivergenciaPage() {
           ))}
         </div>
       </EsqueletoTela>
+    );
+  }
+
+  if (estado.situacao === "falhou") {
+    return (
+      <div style={{ padding: "76px 0", textAlign: "center" }}>
+        <p role="alert" style={{ margin: "0 0 20px" }}>
+          {FALHA_AO_CARREGAR}
+        </p>
+        <Link href="/dashboard" className="btn btn-secondary">
+          Voltar para a dashboard
+        </Link>
+      </div>
     );
   }
 
