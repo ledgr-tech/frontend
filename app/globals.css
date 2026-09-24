@@ -1544,16 +1544,6 @@ html[data-tema="escuro"] .app-shell {
   background: color-mix(in srgb, var(--color-accent) 9%, transparent);
 }
 .app-nav-nova:hover { background: color-mix(in srgb, var(--color-accent) 16%, transparent); }
-.app-nav-item-indisponivel { cursor: not-allowed; }
-.app-nav-item-indisponivel:hover { background: transparent; }
-.app-nav-item-indisponivel > svg,
-.app-nav-item-indisponivel > .app-rotulo:not(.app-nav-em-breve) { opacity: 0.45; }
-.app-nav-item > .app-nav-em-breve {
-  flex: none; margin-left: auto; padding: 1px 5px; border-radius: 999px;
-  border: 1px solid var(--color-divider); overflow: visible;
-  font-family: var(--font-body); font-weight: 400; font-size: 10px;
-  color: color-mix(in srgb, var(--color-text) 62%, transparent);
-}
 
 /* o assistente (mascote) ainda nao conversa: tracejado e "em breve", sem clique */
 .app-assistente {
@@ -1886,7 +1876,6 @@ html[data-densidade="compacta"] .selo { padding-block: 1px; }
   }
   /* sem o width: 100% do menu em pe, os itens medem o proprio texto e embrulham */
   .app-nav-item { width: auto; }
-  .app-nav-item > .app-nav-em-breve { margin-left: 0; }
   .app-assistente { display: none; }
   .app-aside-rodape { grid-area: rodape; border-top: none; padding-top: 0; }
   /* so as iniciais no canto; o nome continua no botao para o leitor de tela */
@@ -2143,3 +2132,136 @@ html[data-tema="escuro"] .app-shell {
   --color-risco-800: #fee0d7;
   --color-risco-900: #fff2ee;
 }
+
+/* ── Fechamentos ──────────────────────────────────────────────────────────────
+   O fechamento do mês (FECHAMENTO em Ledgr.dc.html). Reaproveita o cabeçalho e o
+   resumo da dashboard e a lista e o rodapé da visão geral; o que é dela: o
+   mascote com a frase do mês, o filete na cor do veredito e o cartão do marco.
+   O rótulo pequeno e o filete, dourados no design, seguem a regra de 24/09: o
+   rótulo fica apagado e o filete é verde quando o mês está conciliado, dourado
+   (atenção) quando ainda há pendência. */
+.fech-corpo {
+  padding: 44px 0 64px; max-width: 1000px;
+  display: flex; flex-direction: column; gap: 34px;
+}
+.fech-destaque { display: flex; flex-wrap: wrap; gap: 28px 36px; align-items: center; }
+.fech-mascote { flex: none; width: 190px; height: auto; }
+.fech-destaque-corpo { flex: 1 1 360px; min-width: 0; }
+.fech-kicker {
+  margin: 0 0 14px; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--texto-apagado);
+}
+.fech-titulo { margin: 0 0 12px; font-size: 42px; font-weight: 400; line-height: 1.06; }
+/* a frase do mês em aberto é mais longa: no corpo de 42px ia a três linhas */
+.fech-titulo[data-estado="aberto"] { font-size: 34px; line-height: 1.12; }
+.fech-filete { display: block; width: 76px; height: 1px; margin-bottom: 18px; background: var(--color-ok); }
+.fech-filete[data-estado="aberto"] { background: var(--color-accent); }
+.fech-texto {
+  margin: 0 0 18px; font-size: 15.5px; line-height: 1.75; max-width: 62ch;
+  color: color-mix(in srgb, var(--color-text) 80%, transparent);
+}
+
+/* o resumo é uma <dl>: sem as margens padrão de dl e dd */
+.fech-resumo { margin: 0; }
+.fech-resumo dd { margin: 0; }
+.fech-resumo .dash-valor { font-size: 34px; }
+
+/* no máximo três por linha, como no design; um marco só não estica a linha toda */
+.fech-marcos {
+  list-style: none; margin: 0; padding: 0;
+  display: grid; gap: 22px;
+  grid-template-columns: repeat(auto-fill, minmax(max(190px, (100% - 44px) / 3), 1fr));
+}
+.fech-marco {
+  display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center;
+  padding: 22px 20px; border-radius: var(--radius-md);
+  border: 1px solid var(--color-divider); background: var(--color-surface);
+}
+.fech-marco-titulo {
+  font-family: var(--font-heading); font-size: 18px; font-weight: 600; line-height: 1.24;
+}
+.fech-marco-texto {
+  font-size: 13px; line-height: 1.65; text-wrap: pretty;
+  color: color-mix(in srgb, var(--color-text) 70%, transparent);
+}
+
+.fech-comecar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px;
+  border-top: 1px solid var(--color-divider); padding-top: 26px;
+}
+.fech-comecar-nota { font-size: 14px; color: color-mix(in srgb, var(--color-text) 60%, transparent); }
+
+@media (max-width: 640px) {
+  .fech-mascote { width: 140px; }
+  .fech-titulo { font-size: 32px; }
+  .fech-titulo[data-estado="aberto"] { font-size: 28px; }
+}
+
+/* ── Assinatura ───────────────────────────────────────────────────────────────
+   Plano, planos e faturas (isAssinatura em Ledgr.dc.html). O resumo e a tabela
+   reaproveitam os da dashboard. O plano atual se destaca em neutro, não em
+   dourado: é estado, não ação. O aviso de que a cobrança não está no ar é
+   filete neutro, porque é informação, não "atenção". */
+.ass-acoes { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.ass-corpo {
+  padding: 34px 0 64px; max-width: 1000px;
+  display: flex; flex-direction: column; gap: 34px;
+}
+.ass-aviso {
+  margin: 0; padding: 12px 16px; border-radius: var(--radius-md);
+  border: 1px solid var(--color-divider);
+  font-size: 14px; line-height: 1.6; color: var(--texto-apagado);
+}
+.ass-aviso strong { font-weight: 600; color: var(--color-text); }
+.ass-titulo { margin: 0 0 14px; font-size: 22px; font-weight: 600; }
+
+/* cartões de 240px no mínimo, como no design: três por linha no desktop */
+.ass-planos {
+  list-style: none; margin: 0; padding: 0;
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px;
+}
+.ass-plano {
+  display: flex; flex-direction: column; gap: 12px; min-width: 0;
+  padding: 22px 20px; border-radius: var(--radius-md);
+  border: 1px solid var(--color-divider);
+}
+/* levantado como a opção escolhida do controle segmentado */
+.ass-plano[data-atual="true"] {
+  border-color: color-mix(in srgb, var(--color-text) 30%, transparent);
+  background: var(--superficie-elevada);
+}
+.ass-plano-topo { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.ass-plano-nome { margin: 0; font-size: 21px; font-weight: 600; line-height: 1.2; }
+.ass-plano-atual {
+  font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--texto-apagado);
+}
+.ass-plano-valor { display: flex; align-items: baseline; gap: 6px; }
+.ass-plano-preco { font-size: 28px; font-weight: 600; line-height: 1; white-space: nowrap; }
+.ass-plano-sufixo { font-size: 13.5px; color: color-mix(in srgb, var(--color-text) 58%, transparent); }
+.ass-plano-filete { width: 40px; height: 1px; background: var(--color-divider); }
+.ass-plano-texto {
+  margin: 0; font-size: 14.5px; line-height: 1.72; text-wrap: pretty;
+  color: color-mix(in srgb, var(--color-text) 74%, transparent);
+}
+.ass-plano .btn { margin-top: auto; font-size: 14px; padding: 9px 16px; }
+/* nome e preço do plano são título: Newsreader, como os h1–h3 e os números grandes */
+.app-shell :is(.ass-plano-nome, .ass-plano-preco) {
+  font-family: var(--font-titulo); font-variant-numeric: lining-nums tabular-nums;
+}
+
+.ass-faturas { border-top: 1px solid var(--color-divider); padding-top: 28px; }
+.ass-fatura-valor {
+  text-align: right; font-size: 15px; font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+/* o "PDF" do recibo: botão com cara de link, porque ainda não baixa nada */
+.ass-recibo {
+  cursor: pointer; font: inherit; font-size: 14px; color: var(--color-text);
+  background: transparent; border: 0; border-bottom: 1px solid var(--color-divider); padding: 0;
+}
+.ass-recibo:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* o porquê do "Cancelar mesmo assim" desligado, logo abaixo dele */
+/* cancelar nao e acao principal: sem dourado, texto apagado e fundo neutro no hover */
+.ass-cancelar { padding-inline: var(--space-1); color: var(--texto-apagado); }
+.ass-cancelar:hover { color: var(--color-text); background: var(--tinta-hover); }
+.ass-dialogo-nota { margin: 0; text-align: right; font-size: 13px; color: var(--texto-apagado); }

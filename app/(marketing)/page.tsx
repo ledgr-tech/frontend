@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 
+import { PLANOS } from "@/lib/planos";
 import { CabecalhoSite } from "./cabecalho-site";
 import { ExtratoComparacao, type LinhaExtrato } from "./comparacao";
 import { InkHover, MotionRoot, PlanCard, Reveal } from "./reveal";
@@ -136,20 +137,6 @@ const PERGUNTAS = [
   {
     pergunta: "Posso cancelar quando quiser?",
     resposta: "Sim, direto pelo painel, sem burocracia — não há multa nem aviso prévio.",
-  },
-];
-
-const PLANOS = [
-  { nome: "Essencial", preco: "R$ 49,90", limite: "até 100 lançamentos por mês", destaque: false, contato: false },
-  { nome: "Padrão", preco: "R$ 79,90", limite: "até 200 lançamentos por mês", destaque: true, contato: false },
-  { nome: "Avançado", preco: "R$ 99,90", limite: "até 350 lançamentos por mês", destaque: false, contato: false },
-  { nome: "Escala", preco: "R$ 149,90", limite: "até 5.000 lançamentos por mês", destaque: false, contato: false },
-  {
-    nome: "Volume",
-    preco: "Sob consulta",
-    limite: "acima de 5.000 — indústria e multi-banco",
-    destaque: false,
-    contato: true,
   },
 ];
 

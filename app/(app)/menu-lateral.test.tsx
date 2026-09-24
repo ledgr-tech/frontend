@@ -28,28 +28,28 @@ describe("MenuLateral", () => {
     montar();
 
     const nav = screen.getByRole("navigation", { name: "Seções do app" });
-    expect(nav.textContent).toBe(
-      "Visão geralExtratosConciliaçõesFechamentosem breveHistóricoAssinaturaem breve",
-    );
+    expect(nav.textContent).toBe("Visão geralExtratosConciliaçõesFechamentosHistóricoAssinatura");
   });
 
-  it("links only the destinations that already exist", () => {
+  it("links every destination, with none left for later", () => {
     montar();
 
     expect(screen.getByRole("link", { name: "Visão geral" })).toHaveAttribute("href", "/visao-geral");
     expect(screen.getByRole("link", { name: "Conciliações" })).toHaveAttribute("href", "/dashboard");
     expect(screen.getByRole("link", { name: "Histórico" })).toHaveAttribute("href", "/historico");
     expect(screen.getByRole("link", { name: "Extratos" })).toHaveAttribute("href", "/extratos");
-    expect(screen.queryByRole("link", { name: /Fechamentos/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: /Assinatura/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Fechamentos" })).toHaveAttribute("href", "/fechamentos");
+    expect(screen.getByRole("link", { name: "Assinatura" })).toHaveAttribute("href", "/assinatura");
+    expect(screen.getByRole("navigation", { name: "Seções do app" })).not.toHaveTextContent("em breve");
   });
 
-  it("says out loud that the missing destinations come later", () => {
+  it.each([
+    ["Fechamentos", "/fechamentos"],
+    ["Assinatura", "/assinatura"],
+  ])("marks %s as current on its own route", (nome, rota) => {
+    caminho.mockReturnValue(rota);
     montar();
-
-    const fechamentos = screen.getByText("Fechamentos").closest("[aria-disabled]");
-    expect(fechamentos).toHaveAttribute("aria-disabled", "true");
-    expect(within(fechamentos as HTMLElement).getByText("em breve")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: nome })).toHaveAttribute("aria-current", "page");
   });
 
   it("marks Visão geral as current on its own route", () => {
