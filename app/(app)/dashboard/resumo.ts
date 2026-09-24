@@ -52,13 +52,18 @@ function centavos(reais: number): number {
   return Math.round(reais * 100);
 }
 
-/** Quanto a linha deixa em aberto: a diferença quando os dois lados existem, o valor inteiro quando só um existe. */
+/**
+ * Quanto a linha deixa em aberto: a diferença quando os dois lados existem, o
+ * valor inteiro quando só um existe. Sempre pelo tamanho: o backend guarda
+ * débito negativo, e somar com sinal fazia um débito órfão descontar da
+ * divergência em vez de somar.
+ */
 function divergenciaEmCentavos(linha: LinhaComparacao): number {
   if (estaResolvida(linha.status)) return 0;
   if (linha.valorBanco !== null && linha.valorSistema !== null) {
     return Math.abs(centavos(linha.valorBanco) - centavos(linha.valorSistema));
   }
-  return centavos(valorDaLinha(linha));
+  return Math.abs(centavos(valorDaLinha(linha)));
 }
 
 export type Resumo = {

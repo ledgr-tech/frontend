@@ -105,6 +105,20 @@ describe("resumir", () => {
     expect(resumo.divergentes).toBe(0);
   });
 
+  it("soma débito e crédito pelo tamanho, não pelo sinal", () => {
+    // o backend guarda débito negativo (TRNAMT do OFX); somado com sinal, um
+    // débito órfão de 980 descontava da divergência em vez de somar
+    const resumo = resumir([
+      conciliacao([linha("sem_correspondencia", 4180, null), linha("sem_correspondencia", null, -980)]),
+    ]);
+    expect(resumo.valorSemCorrespondente).toBe(5160);
+    expect(resumo.valorDivergente).toBe(5160);
+  });
+
+  it("mede a diferença entre dois débitos pelo tamanho", () => {
+    expect(resumir([conciliacao([linha("divergente_valor", -12640, -12604)])]).valorDivergente).toBe(36);
+  });
+
   it("soma em centavos, sem resíduo de float", () => {
     // 0.1 + 0.2 em float dá 0.30000000000000004; em centavos, dá 0.3
     const resumo = resumir([

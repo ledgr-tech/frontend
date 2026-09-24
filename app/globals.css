@@ -904,6 +904,8 @@ button.login-link-animado { border: 0; background-color: transparent; font: inhe
 .dash-valor-celula {
   text-align: right; font-family: var(--font-heading); font-size: 17px; font-weight: 600;
   font-variant-numeric: tabular-nums;
+  /* débito vem negativo do backend: sem isso, "-R$ 12.640,00" quebra depois do hífen */
+  white-space: nowrap;
 }
 .dash-celula-fraca {
   font-variant-numeric: tabular-nums;
