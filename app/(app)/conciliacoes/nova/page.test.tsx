@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import NovaConciliacaoPage from "./page";
+import { lerBytes } from "./ler-arquivo";
 
 const push = vi.fn();
 vi.mock("next/navigation", () => ({
@@ -17,9 +18,25 @@ vi.mock("../acoes", () => ({
   conciliar: (banco: string, sistema: string) => conciliar(banco, sistema),
 }));
 
-function arquivo(nome: string, tamanho = 8) {
-  const conteudo = "x".repeat(tamanho);
-  return new File([conteudo], nome, { type: "text/csv" });
+// Um CSV que o backend lê como está; OFX não passa pela checagem, então o
+// conteúdo dele não importa aqui.
+const CSV_PRONTO = "data;valor;descricao\n2026-09-04;-12604.00;Boleto Aço Norte\n";
+
+// O layout do design que o backend não lê: débito e crédito separados, vírgula decimal.
+const CSV_CIGAM = [
+  "DT_LANC;HISTORICO;DOC;DEB;CRED",
+  "04/09/2026;Boleto Aço Norte;00071;12.604,00;0,00",
+  "05/09/2026;Repasse cartão;4471;0,00;7.912,40",
+].join("\n");
+
+function arquivo(nome: string, tamanho = 8, conteudo?: string) {
+  const corpo = conteudo ?? (nome.endsWith(".csv") ? CSV_PRONTO : "x".repeat(tamanho));
+  return new File([corpo], nome, { type: "text/csv" });
+}
+
+async function textoEnviado(chamada: number) {
+  const [dados] = enviarExtrato.mock.calls[chamada] as [FormData];
+  return new TextDecoder().decode(await lerBytes(dados.get("arquivo") as File));
 }
 
 function concluido(origem: "banco" | "sistema", erros: { identificador: string; motivo: string }[] = []) {
@@ -35,11 +52,11 @@ function concluido(origem: "banco" | "sistema", erros: { identificador: string; 
   };
 }
 
-async function enviarOsDois() {
+async function enviarOsDois(sistema = arquivo("sistema.csv")) {
   const user = userEvent.setup();
   render(<NovaConciliacaoPage />);
   await user.upload(screen.getByLabelText("Extrato do banco"), arquivo("banco.ofx"));
-  await user.upload(screen.getByLabelText("Extrato do sistema de gestão"), arquivo("sistema.csv"));
+  await user.upload(screen.getByLabelText("Extrato do sistema de gestão"), sistema);
   await user.click(screen.getByRole("button", { name: "Conciliar extratos" }));
   return user;
 }
@@ -192,5 +209,105 @@ describe("NovaConciliacaoPage", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Recarregue a página");
     expect(screen.getByRole("button", { name: "Conciliar extratos" })).toBeEnabled();
+  });
+
+  describe("CSV fora do formato que o backend lê", () => {
+    it("para antes de enviar qualquer arquivo e mostra o que não foi reconhecido", async () => {
+      await enviarOsDois(arquivo("razao.csv", 0, CSV_CIGAM));
+
+      expect(await screen.findByRole("heading", { name: "Não deu para conciliar" })).toBeInTheDocument();
+      expect(screen.getByText(/não tem uma coluna de valor reconhecível/)).toBeInTheDocument();
+      expect(enviarExtrato).not.toHaveBeenCalled();
+    });
+
+    it("continua de onde parou depois do mapeamento, enviando o arquivo reescrito", async () => {
+      const user = await enviarOsDois(arquivo("razao.csv", 0, CSV_CIGAM));
+
+      await user.click(await screen.findByRole("button", { name: "Apontar as colunas" }));
+      await user.click(
+        within(screen.getByRole("group", { name: "Papel da coluna DEB" })).getByRole("button", { name: "Valor" }),
+      );
+      await user.click(
+        within(screen.getByRole("group", { name: "Papel da coluna CRED" })).getByRole("button", { name: "Valor" }),
+      );
+      await user.click(screen.getByRole("button", { name: "Confirmar mapeamento" }));
+
+      await waitFor(() => expect(enviarExtrato).toHaveBeenCalledTimes(2));
+      const [segundo] = enviarExtrato.mock.calls[1] as [FormData];
+      expect(segundo.get("origem")).toBe("sistema");
+      expect(await textoEnviado(1)).toBe(
+        "data;valor;descricao\n2026-09-04;-12604.00;Boleto Aço Norte\n2026-09-05;7912.40;Repasse cartão\n",
+      );
+      await waitFor(() => expect(push).toHaveBeenCalledWith("/conciliacoes/extrato-banco"));
+    });
+
+    it("volta ao formulário sem o arquivo quando a pessoa prefere subir outro", async () => {
+      const user = await enviarOsDois(arquivo("razao.csv", 0, CSV_CIGAM));
+
+      await user.click(await screen.findByRole("button", { name: "Subir outro arquivo" }));
+
+      const botao = screen.getByRole("button", { name: "Conciliar extratos" });
+      expect(botao).toBeDisabled();
+      expect(screen.getByText("Arquivo CSV exportado do seu sistema de gestão")).toBeInTheDocument();
+      expect(enviarExtrato).not.toHaveBeenCalled();
+    });
+
+    it("sobe como está o CSV que o backend já lê", async () => {
+      await enviarOsDois();
+
+      await waitFor(() => expect(enviarExtrato).toHaveBeenCalledTimes(2));
+      expect(await textoEnviado(1)).toBe(CSV_PRONTO);
+    });
+
+    it("explica o CSV que nem dá para ler como tabela", async () => {
+      await enviarOsDois(arquivo("vazio.csv", 0, ""));
+
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        'Não foi possível ler "vazio.csv": O arquivo está vazio.',
+      );
+      expect(enviarExtrato).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("arquivo que o servidor recusa inteiro", () => {
+    it("diz que o servidor não leu o arquivo, em vez de só 'não foi possível'", async () => {
+      situacaoDoExtrato.mockImplementation((id: string) =>
+        Promise.resolve(
+          id === "extrato-sistema"
+            ? { ok: true, dados: { ...concluido("sistema").dados, status: "erro", erros: [] } }
+            : concluido("banco"),
+        ),
+      );
+
+      await enviarOsDois();
+
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        "O servidor não conseguiu ler o extrato do sistema. Confira se é o arquivo certo, exportado em OFX ou CSV.",
+      );
+      expect(conciliar).not.toHaveBeenCalled();
+    });
+
+    it("mostra a primeira linha recusada quando nenhuma foi lida", async () => {
+      situacaoDoExtrato.mockImplementation((id: string) =>
+        Promise.resolve(
+          id === "extrato-sistema"
+            ? {
+                ok: true,
+                dados: {
+                  ...concluido("sistema").dados,
+                  status: "erro",
+                  erros: [{ identificador: "2", motivo: "Valor inválido no CSV: 'doze'" }],
+                },
+              }
+            : concluido("banco"),
+        ),
+      );
+
+      await enviarOsDois();
+
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        "Nenhuma linha do extrato do sistema pôde ser lida (linha 2: Valor inválido no CSV: 'doze').",
+      );
+    });
   });
 });
