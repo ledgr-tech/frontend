@@ -893,6 +893,8 @@ button.login-link-animado { border: 0; background-color: transparent; font: inhe
 .dash-valor-celula {
   text-align: right; font-family: var(--font-heading); font-size: 17px; font-weight: 600;
   font-variant-numeric: tabular-nums;
+  /* débito vem negativo do backend: sem isso, "-R$ 12.640,00" quebra depois do hífen */
+  white-space: nowrap;
 }
 .dash-celula-fraca {
   font-variant-numeric: tabular-nums;
@@ -1084,6 +1086,44 @@ button.login-link-animado { border: 0; background-color: transparent; font: inhe
   .hist-barras { gap: 8px; }
   .hist-barra-taxa { font-size: 11px; }
   .hist-economia-texto { text-align: left; }
+}
+
+/* ── Importação interrompida ──────────────────────────────────────────────────
+   Diagnóstico e mapeamento de colunas do CSV (erroColunas e mapaColunas em
+   Ledgr.dc.html). Linha sem papel leva o tinta de atenção, como no design; a
+   prévia fica ao lado das colunas e desce abaixo de 1200px — com o menu
+   lateral, menos que isso deixa a tabela da prévia estreita demais. */
+.importacao { display: flex; flex-direction: column; gap: 28px; }
+.importacao-titulo { margin: 0 0 8px; font-size: 30px; font-weight: 600; outline: none; }
+.importacao-texto {
+  margin: 0; max-width: 64ch; font-size: 15px; line-height: 1.7;
+  color: color-mix(in srgb, var(--color-text) 78%, transparent);
+}
+.importacao-acoes { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+.importacao tr[data-pendente],
+.mapa-coluna[data-pendente] { background: color-mix(in srgb, var(--color-accent) 10%, transparent); }
+.importacao-mapa {
+  display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 32px; align-items: start;
+}
+.mapa-coluna {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px;
+  padding: 14px 10px; border-bottom: 1px solid var(--color-divider);
+}
+.mapa-opcao {
+  display: flex; align-items: flex-start; gap: 11px; margin-top: 16px; padding: 13px 14px;
+  border: 1px solid var(--color-divider); border-radius: var(--radius-md); cursor: pointer;
+}
+.mapa-opcao input { margin-top: 3px; accent-color: var(--color-accent-700); }
+.importacao-previa {
+  display: flex; flex-direction: column; gap: 14px; padding: 20px;
+  border: 1px solid var(--color-divider); border-radius: var(--radius-md);
+}
+.importacao-problemas {
+  margin: 0; padding-left: 18px; font-size: 13.5px;
+  color: color-mix(in srgb, var(--color-text) 72%, transparent);
+}
+@media (max-width: 1200px) {
+  .importacao-mapa { grid-template-columns: 1fr; }
 }
 
 /* ── Shell do app: menu lateral + barra superior ─────────────────────────────
