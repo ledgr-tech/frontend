@@ -22,14 +22,9 @@ export function Shell({ email, children }: { email: string; children: ReactNode 
 
   return (
     <div className="app-shell">
-      <MenuLateral temAvisoNaoLido={avisoNaoLido} />
+      <MenuLateral email={email} onSair={() => void sair()} />
       <main className="app-principal">
-        <BarraSuperior
-          email={email}
-          avisoNaoLido={avisoNaoLido}
-          onMarcarAvisosLidos={marcarLidos}
-          onSair={() => void sair()}
-        />
+        <BarraSuperior avisoNaoLido={avisoNaoLido} onMarcarAvisosLidos={marcarLidos} />
         <div className="app-conteudo">{children}</div>
       </main>
     </div>

@@ -134,8 +134,11 @@ Metade do que o mercado "aprova" destruiria esta identidade.
   sem preenchimentos grandes".
 - **Soft UI, tudo arredondado.** O sistema é filete e raio pequeno; inflar apaga o
   caráter.
-- **Ícones em tudo.** O readme do design system sugere Lucide, mas o app usa
-  **zero ícone** hoje e fica melhor assim: a identidade é tipográfica.
+- **Ícones em tudo.** O readme do design system sugere Lucide. O app usa ícone
+  **só no menu lateral** (Lucide, traço 1,5, na cor do texto), porque menu que
+  recolhe precisa de algo no lugar do nome (decisão de 24/09/2026, ver
+  `docs/superpowers/specs/2026-09-24-menu-lateral-recolhivel-design.md`). Fora
+  dele a identidade continua tipográfica: botão tem rótulo, não ícone.
 - **Sparkle de IA.** O assistente existe no design como conversa com o mascote,
   que é da marca. Um botão ✨ genérico não é.
 

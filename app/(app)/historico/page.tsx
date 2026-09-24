@@ -3,13 +3,8 @@ import { redirect } from "next/navigation";
 import type { Execucao } from "@/lib/adaptadores";
 import { EMPRESA_MOCK } from "@/lib/mock-data";
 import { listarExecucoes } from "../conciliacoes/acoes";
-import {
-  formatarDataHora,
-  formatarDiaMes,
-  formatarInteiro,
-  formatarPercentual,
-} from "../dashboard/resumo";
-import { alturasDasBarras, paraGrafico, variacaoEmPontos } from "./execucoes";
+import { formatarDataHora, formatarInteiro, formatarPercentual } from "../dashboard/resumo";
+import { GraficoDeMatch } from "./grafico";
 
 /**
  * O histórico lê `GET /execucoes` no servidor: uma linha por rodada de
@@ -18,11 +13,6 @@ import { alturasDasBarras, paraGrafico, variacaoEmPontos } from "./execucoes";
  * ajuste em reais, o "fechado com ressalva" e a economia acumulada — nada disso
  * tem fonte ainda.
  */
-
-// O gráfico mede taxa de match, que é a métrica "ok" — mesma cor que ela tem na
-// dashboard. Rampa sequencial (uma série ao longo do tempo, não categorias): do
-// mais claro ao mais forte, então a execução mais recente é a que pesa.
-const RAMPA = [200, 200, 300, 300, 500, 700];
 
 const FALHA_AO_CARREGAR =
   "Não foi possível carregar o histórico. Recarregue a página e tente de novo.";
@@ -88,51 +78,9 @@ function SemExecucoes() {
 }
 
 function Historico({ execucoes, total }: { execucoes: Execucao[]; total: number }) {
-  const grafico = paraGrafico(execucoes);
-  const alturas = alturasDasBarras(grafico.map((item) => item.acerto));
-  // com menos de seis barras, usa o fim da rampa: a mais recente é sempre a mais forte
-  const tons = RAMPA.slice(RAMPA.length - grafico.length);
-  const maisRecente = grafico.at(-1);
-  const variacao = variacaoEmPontos(grafico);
-
   return (
     <div className="hist-corpo">
-      {maisRecente && (
-        <div className="hist-grafico-bloco">
-          <div className="hist-grafico-topo">
-            <div>
-              <h6 style={{ margin: "0 0 6px", color: "var(--color-accent-700)" }}>
-                Taxa de match automático
-              </h6>
-              <div className="hist-destaque" style={{ color: "var(--color-ok-700)" }}>
-                {formatarPercentual(maisRecente.acerto)} em {formatarDiaMes(maisRecente.executadaEm)}
-              </div>
-            </div>
-            {variacao !== null && (
-              <span className="hist-nota">
-                {variacao >= 0 ? "Subiu" : "Caiu"} {formatarPercentual(Math.abs(variacao)).replace("%", "")}{" "}
-                pontos desde {formatarDiaMes(grafico[0].executadaEm)}.
-              </span>
-            )}
-          </div>
-          <div className="hist-barras">
-            {grafico.map((item, i) => (
-              <div key={item.id} className="hist-barra-coluna">
-                <span className="hist-barra-taxa">{formatarPercentual(item.acerto)}</span>
-                <div
-                  className="hist-barra"
-                  style={{
-                    height: alturas[i],
-                    borderColor: `var(--color-ok-${tons[i]})`,
-                    background: `color-mix(in srgb, var(--color-ok-${tons[i]}) ${14 + (RAMPA.length - grafico.length + i) * 5}%, transparent)`,
-                  }}
-                />
-                <span className="hist-barra-mes">{formatarDiaMes(item.executadaEm)}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      <GraficoDeMatch execucoes={execucoes} />
 
       <div>
         <h3 style={{ margin: "0 0 12px", fontSize: 22, fontWeight: 600 }}>Execução a execução</h3>
