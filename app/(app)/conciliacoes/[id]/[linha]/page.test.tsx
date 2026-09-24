@@ -109,6 +109,16 @@ describe("DetalheDivergenciaPage", () => {
     expect(screen.getByText("Δ 36,00")).toBeInTheDocument();
   });
 
+  it("marks each extrato card with the icon of its origin", async () => {
+    buscarConciliacao.mockReturnValue(conciliacao);
+    render(<DetalheDivergenciaPage />);
+
+    const banco = (await screen.findByText("Extrato do banco")).closest(".det-cartao");
+    expect(banco?.querySelector('[data-origem="banco"]')).not.toBeNull();
+    const sistema = screen.getByText("Extrato do sistema").closest(".det-cartao");
+    expect(sistema?.querySelector('[data-origem="sistema"]')).not.toBeNull();
+  });
+
   it("numbers the item among the linhas still em aberto, not among all of them", async () => {
     buscarConciliacao.mockReturnValue(conciliacao);
     render(<DetalheDivergenciaPage />);

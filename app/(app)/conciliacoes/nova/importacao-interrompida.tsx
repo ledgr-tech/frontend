@@ -140,7 +140,7 @@ export function ImportacaoInterrompida({
 
   const cabecalho = (
     <>
-      <h6 style={{ margin: "0 0 6px", color: "var(--color-accent-700)" }}>Importação interrompida</h6>
+      <h6 style={{ margin: "0 0 6px" }}>Importação interrompida</h6>
       <span style={{ fontSize: 14, color: cinza(62), overflowWrap: "anywhere" }}>{subtitulo}</span>
     </>
   );

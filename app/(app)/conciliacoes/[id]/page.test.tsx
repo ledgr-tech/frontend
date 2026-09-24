@@ -107,6 +107,27 @@ describe("ConciliacaoPage", () => {
     expect(screen.getByText("Boleto Aço Norte Bobinas")).toBeInTheDocument();
   });
 
+  it("splits the table into the bank sheet and the system sheet", async () => {
+    buscarConciliacao.mockReturnValue(conciliacaoEmAndamento);
+    render(<ConciliacaoPage />);
+
+    const banco = await screen.findByRole("columnheader", { name: /Extrato do banco/ });
+    // data, descrição e valor do banco ficam na mesma folha
+    expect(banco).toHaveAttribute("colspan", "3");
+    expect(banco.querySelector('[data-origem="banco"]')).not.toBeNull();
+    const sistema = screen.getByRole("columnheader", { name: /Sistema de gestão/ });
+    expect(sistema.querySelector('[data-origem="sistema"]')).not.toBeNull();
+  });
+
+  it("tags each row with the tone of its status, which colors the hover", async () => {
+    buscarConciliacao.mockReturnValue(conciliacaoEmAndamento);
+    render(<ConciliacaoPage />);
+
+    const linha = (await screen.findByText("Boleto Aço Norte Bobinas")).closest("tr");
+    // valor diverge na mesma data: terracota, a cor de quem custa dinheiro
+    expect(linha).toHaveAttribute("data-tom", "risco");
+  });
+
   it("opens the transaction dialog with its explanation when a row is clicked", async () => {
     buscarConciliacao.mockReturnValue(conciliacaoEmAndamento);
     const user = userEvent.setup();

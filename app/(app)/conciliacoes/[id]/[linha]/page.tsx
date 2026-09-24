@@ -14,6 +14,7 @@ import { estaResolvida, statusDaLinha } from "../../../dashboard/resumo";
 import { Barra, EsqueletoTela } from "../../../esqueleto";
 import { NumeroAnimado } from "../../../numero-animado";
 import { FALHA_AO_CARREGAR, useConciliacao } from "../../usar-conciliacao";
+import { IconeOrigem, type Origem } from "../../../icone-origem";
 
 function CartaoExtrato({
   titulo,
@@ -21,26 +22,32 @@ function CartaoExtrato({
   marcaClasse,
   valor,
   campos,
-  destacado,
+  origem,
 }: {
   titulo: string;
   marca: string;
   marcaClasse: string;
   valor: number | null;
   campos: { rotulo: string; valor: string }[] | undefined;
-  destacado: boolean;
+  /** O banco é a fonte da verdade; o valor do sistema é o que diverge dele. */
+  origem: Origem;
 }) {
+  // cada cartão no tom da sua folha, como na comparação direta
   return (
-    <div className={destacado ? "det-cartao det-cartao-verdade" : "det-cartao"}>
+    <div className={`det-cartao folha-${origem}`}>
       <div
-        style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12 }}
+        style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}
       >
-        <span style={{ fontFamily: "var(--font-heading)", fontSize: 18, fontWeight: 600 }}>
+        <span className="det-cartao-titulo">
+          <IconeOrigem origem={origem} />
           {titulo}
         </span>
         <span className={marcaClasse}>{marca}</span>
       </div>
-      <div className="det-valor" style={destacado ? undefined : { color: "var(--color-risco-700)" }}>
+      <div
+        className="det-valor"
+        style={origem === "banco" ? undefined : { color: "var(--color-risco-700)" }}
+      >
         {valor === null ? "—" : <NumeroAnimado valor={valor} formatar={formatarMoeda} />}
       </div>
       {campos?.map((campo) => (
@@ -178,10 +185,10 @@ export default function DetalheDivergenciaPage() {
           <CartaoExtrato
             titulo="Extrato do banco"
             marca="Fonte da verdade"
-            marcaClasse="tag tag-accent"
+            marcaClasse="folha-etiqueta"
             valor={linha.valorBanco}
             campos={linha.camposBanco}
-            destacado
+            origem="banco"
           />
           <div className="det-delta">
             <div className="det-delta-linha" />
@@ -200,7 +207,7 @@ export default function DetalheDivergenciaPage() {
             marcaClasse={estaResolvida(linha.status) ? "selo selo-ok" : "selo selo-risco"}
             valor={linha.valorSistema}
             campos={linha.camposSistema}
-            destacado={false}
+            origem="sistema"
           />
         </div>
 
@@ -215,7 +222,7 @@ export default function DetalheDivergenciaPage() {
               style={{ flex: "none", width: 130, height: "auto" }}
             />
             <div style={{ flex: "1 1 340px", minWidth: 0 }}>
-              <h6 style={{ margin: "0 0 8px", color: "var(--color-accent-700)" }}>
+              <h6 style={{ margin: "0 0 8px" }}>
                 O que provavelmente aconteceu
               </h6>
               {linha.causa && <div className="det-causa-titulo">{linha.causa}</div>}

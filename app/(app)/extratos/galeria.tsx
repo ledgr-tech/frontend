@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { Tom } from "@/lib/mock-data";
 import type { ArquivoExtrato } from "../conciliacoes/acoes";
 import { formatarDataHora, formatarInteiro } from "../dashboard/resumo";
+import { IconeOrigem } from "../icone-origem";
 
 /**
  * A galeria de "Extratos carregados" do design: cada arquivo é uma folha, e o
@@ -80,7 +81,7 @@ function Folha({ arquivo }: { arquivo: ArquivoExtrato }) {
   const base = semente(arquivo.id);
   const problema = temProblema(arquivo);
   return (
-    <span className="extrato-folha" aria-hidden="true">
+    <span className="extrato-folha" data-origem={arquivo.origem} aria-hidden="true">
       <span className="extrato-folha-titulo">{ORIGEM[arquivo.origem]}</span>
       <span className="extrato-folha-linhas">
         {Array.from({ length: LINHAS_DA_FOLHA }, (_, i) => (
@@ -112,7 +113,7 @@ export function Galeria({ arquivos }: { arquivos: ArquivoExtrato[] }) {
 
   return (
     <div className="extratos-corpo">
-      <div className="pills" role="group" aria-label="Filtrar arquivos">
+      <div className="pills segmentado" role="group" aria-label="Filtrar arquivos">
         {FILTROS.map((item) => (
           <button
             key={item.id}
@@ -138,11 +139,16 @@ export function Galeria({ arquivos }: { arquivos: ArquivoExtrato[] }) {
                   key={arquivo.id}
                   type="button"
                   className="extrato-cartao"
+                  // hover e seleção na cor da situação do arquivo, como o selo
+                  data-tom={selo.tom}
                   aria-pressed={arquivo.id === aberto.id}
                   onClick={() => setSelecionado(arquivo.id)}
                 >
                   <Folha arquivo={arquivo} />
-                  <span className="extrato-nome">{arquivo.nome}</span>
+                  <span className="extrato-nome">
+                    <IconeOrigem origem={arquivo.origem} tamanho={15} />
+                    {arquivo.nome}
+                  </span>
                   <span className="extrato-meta">{conteudo(arquivo)}</span>
                   <span className={selo.tom === "neutro" ? "selo" : `selo selo-${selo.tom}`}>
                     {selo.rotulo}
@@ -163,8 +169,11 @@ function Painel({ arquivo }: { arquivo: ArquivoExtrato }) {
   const naoLidas = arquivo.erros.length;
   return (
     <section className="extrato-painel" aria-label="Arquivo selecionado">
-      <h6 style={{ margin: 0, color: "var(--color-accent-700)" }}>Arquivo · {selo.rotulo.toLowerCase()}</h6>
-      <h3 className="extrato-painel-nome">{arquivo.nome}</h3>
+      <h6 style={{ margin: 0 }}>Arquivo · {selo.rotulo.toLowerCase()}</h6>
+      <div className="extrato-painel-topo">
+        <h3 className="extrato-painel-nome">{arquivo.nome}</h3>
+        <IconeOrigem origem={arquivo.origem} tamanho={22} />
+      </div>
 
       <dl className="extrato-campos">
         <div>

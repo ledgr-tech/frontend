@@ -135,6 +135,34 @@ describe("DashboardPage", () => {
     expect(screen.getAllByText("Banco")).toHaveLength(3);
   });
 
+  it("tags each lançamento row with the tone of its status", async () => {
+    painel(
+      conciliacao("banco-1", [
+        linha("l-1", "match_exato", 7300, 7300, "Pagamento Vale Verde"),
+        linha("l-2", "divergente_valor", 12640, 12604, "Boleto Aço Norte"),
+      ]),
+    );
+    render(<DashboardPage />);
+
+    expect((await screen.findByText("Pagamento Vale Verde")).closest("tr")).toHaveAttribute("data-tom", "ok");
+    expect(screen.getByText("Boleto Aço Norte").closest("tr")).toHaveAttribute("data-tom", "risco");
+  });
+
+  it("shows where each lançamento came from with the icon of its origin", async () => {
+    painel(
+      conciliacao("banco-1", [
+        linha("l-1", "sem_correspondencia", 4180, null, "Transferência recebida"),
+        linha("l-2", "sem_correspondencia", null, 980, "Estorno maquininha"),
+      ]),
+    );
+    render(<DashboardPage />);
+
+    const doBanco = (await screen.findByText("Banco")).closest("td");
+    expect(doBanco?.querySelector('[data-origem="banco"]')).not.toBeNull();
+    const doSistema = screen.getByText("Sistema").closest("td");
+    expect(doSistema?.querySelector('[data-origem="sistema"]')).not.toBeNull();
+  });
+
   it("points the highlight card at the linhas without a counterpart", async () => {
     painel(
       conciliacao("banco-9", [

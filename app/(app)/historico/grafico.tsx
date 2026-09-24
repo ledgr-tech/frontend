@@ -26,7 +26,7 @@ export function GraficoDeMatch({ execucoes }: { execucoes: Execucao[] }) {
     <div className="hist-grafico-bloco">
       <div className="hist-grafico-topo">
         <div>
-          <h6 style={{ margin: "0 0 6px", color: "var(--color-accent-700)" }}>
+          <h6 style={{ margin: "0 0 6px" }}>
             Taxa de match automático
           </h6>
           <div className="hist-destaque" style={{ color: "var(--color-ok-700)" }}>

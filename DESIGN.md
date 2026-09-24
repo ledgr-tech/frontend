@@ -8,6 +8,24 @@ O sistema visual está descrito em `AGENTS.md` e em
 fundo claro quente, um acento dourado, cor aplicada como **traço e não
 preenchimento**, filete carregando a estrutura, identidade tipográfica.
 
+**Regras de 24/09/2026** (ver `docs/superpowers/specs/2026-09-24-refino-visual-design.md`):
+
+- **O dourado é para três coisas:** a ação principal (`.btn-primary`, "Nova
+  conciliação"), o foco do teclado e o status "atenção". Hover e seleção usam
+  `--tinta-hover` / `--tinta-ativa`, neutros. Cabeçalho de tabela, aba
+  selecionada, rótulo pequeno (`h6`) e item ativo do menu não são dourados.
+- **Duas fontes:** títulos (`h1`–`h3` a partir de ~20px) e números em destaque em
+  Newsreader (`--font-titulo`, com tamanho óptico); o resto em Inter. A Cormorant
+  Garamond (`--font-display`) fica só na landing.
+- **Banco e sistema são duas folhas** de canto arredondado: `--folha-banco` (papel
+  claro) e `--folha-sistema` (cinza quente) — mesmo matiz, só a claridade muda;
+  outra cor diria "outra coisa", não "outra folha". Com o ícone de origem
+  (`IconeOrigem`).
+- **Hover e seleção na cor do veredito:** linha de tabela com `data-tom` e cartão
+  de extrato acendem no tom do seu status (verde, terracota, dourado, cinza).
+- **Filtros de duas a quatro opções em controle segmentado** (`.pills.segmentado`),
+  como o da Apple.
+
 ## Tier 1 — buracos, não polimento
 
 ### 1. Estados de carregamento — ✅ feito
@@ -135,10 +153,13 @@ Metade do que o mercado "aprova" destruiria esta identidade.
 - **Soft UI, tudo arredondado.** O sistema é filete e raio pequeno; inflar apaga o
   caráter.
 - **Ícones em tudo.** O readme do design system sugere Lucide. O app usa ícone
-  **só no menu lateral** (Lucide, traço 1,5, na cor do texto), porque menu que
-  recolhe precisa de algo no lugar do nome (decisão de 24/09/2026, ver
-  `docs/superpowers/specs/2026-09-24-menu-lateral-recolhivel-design.md`). Fora
-  dele a identidade continua tipográfica: botão tem rótulo, não ícone.
+  em dois lugares só (Lucide, traço 1,5, na cor do texto): o **menu lateral**,
+  porque menu que recolhe precisa de algo no lugar do nome, e a **origem do
+  extrato** (prédio do banco, base de dados do sistema), porque banco e sistema
+  são duas coisas que a pessoa precisa distinguir num relance. Decisões de
+  24/09/2026, ver `docs/superpowers/specs/2026-09-24-menu-lateral-recolhivel-design.md`
+  e `2026-09-24-refino-visual-design.md`. Fora disso a identidade continua
+  tipográfica: botão tem rótulo, não ícone.
 - **Sparkle de IA.** O assistente existe no design como conversa com o mascote,
   que é da marca. Um botão ✨ genérico não é.
 
@@ -150,9 +171,10 @@ Metade do que o mercado "aprova" destruiria esta identidade.
 - O `eslint-disable` de `react-hooks/set-state-in-effect` em
   `app/(auth)/login/page.tsx:122` não é mais necessário e gera o único warning do
   lint.
-- O `AGENTS.md` diz que os títulos são Cormorant Garamond e o corpo é Lora. O
-  `app/layout.tsx` carrega **Inter** para os dois, com Cormorant só como
-  `--font-display`. A doc ficou para trás do código.
+- ~~O `AGENTS.md` dizia Cormorant e Lora enquanto o código carregava Inter.~~
+  Resolvido em 24/09/2026: o `AGENTS.md` descreve o que o código faz (Inter no
+  corpo e na interface, Newsreader nos títulos do app, Cormorant nos destaques da
+  landing).
 - **Corrigido depois de um diagnóstico errado:** eu tinha anotado aqui que o
   `data-tema` sumia por causa do HMR. Não era. O script inline escreve o atributo
   antes da hidratação, o HTML do servidor não o tem, e o React trata como

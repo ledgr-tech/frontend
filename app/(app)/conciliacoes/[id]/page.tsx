@@ -14,6 +14,7 @@ import { FALHA_AO_CARREGAR, useConciliacao } from "../usar-conciliacao";
 import { EsqueletoTela } from "../../esqueleto";
 import { filtrarLinhas, ordenarLinhas, type Coluna, type Ordem } from "./ordenar";
 import { aplicarDensidade, densidadeAtual, type Densidade } from "../../densidade";
+import { IconeOrigem, type Origem } from "../../icone-origem";
 
 /** Quantas linhas por página. 4.218 lançamentos não cabem numa tela. */
 const POR_PAGINA = 25;
@@ -29,17 +30,21 @@ function Cabecalho({
   onOrdenar,
   children,
   direita = false,
+  folha,
 }: {
   coluna: Coluna;
   ordem: Ordem;
   onOrdenar: (coluna: Coluna) => void;
   children: React.ReactNode;
   direita?: boolean;
+  /** Em qual das duas folhas a coluna mora; sem folha, fica no fundo da página. */
+  folha?: Origem;
 }) {
   const ativa = ordem.coluna === coluna;
+  const classes = [direita && "th-direita", folha && `folha-${folha}`].filter(Boolean).join(" ");
   return (
     <th
-      className={direita ? "th-direita" : undefined}
+      className={classes || undefined}
       style={direita ? { textAlign: "right" } : undefined}
       aria-sort={ativa ? (ordem.crescente ? "ascending" : "descending") : "none"}
     >
@@ -137,7 +142,7 @@ export default function ConciliacaoPage() {
       )}
       <div className="tabela-controles">
         <h1 style={{ margin: 0, fontSize: 30, fontWeight: 600 }}>Comparação direta</h1>
-        <div className="pills">
+        <div className="pills segmentado" role="group" aria-label="Filtrar lançamentos">
           <button
             type="button"
             className="pill"
@@ -164,7 +169,7 @@ export default function ConciliacaoPage() {
       </div>
 
       {densidade !== null && (
-        <div className="pills" role="group" aria-label="Densidade da tabela">
+        <div className="pills segmentado" role="group" aria-label="Densidade da tabela">
           <button
             type="button"
             className="pill"
@@ -186,19 +191,52 @@ export default function ConciliacaoPage() {
 
       <div>
         <div className="dash-tabela-rolagem tabela-cartoes">
-          <table className="table" role="table">
+          <table className="table tabela-folhas" role="table">
             <thead role="rowgroup">
+              {/* Duas folhas, como a "folha a folha" do design: o extrato do banco
+                  e o do sistema são coisas diferentes, cada um com seu tom e um vão
+                  entre os dois. O status fica fora das folhas — é o veredito. */}
+              <tr role="row" className="folhas-titulos">
+                <th colSpan={3} scope="colgroup" className="folha-banco folha-titulo">
+                  <span className="folha-titulo-conteudo">
+                    <IconeOrigem origem="banco" />
+                    <span className="folha-nome">Extrato do banco</span>
+                    <span className="folha-etiqueta">Fonte da verdade</span>
+                  </span>
+                </th>
+                <td className="folha-vao" aria-hidden="true" />
+                <th scope="colgroup" className="folha-sistema folha-titulo">
+                  <span className="folha-titulo-conteudo">
+                    <IconeOrigem origem="sistema" />
+                    <span className="folha-nome">Sistema de gestão</span>
+                  </span>
+                </th>
+                <td className="folha-fora" aria-hidden="true" />
+              </tr>
               <tr role="row">
-                <Cabecalho coluna="data" ordem={ordem} onOrdenar={alternarOrdem}>
+                <Cabecalho coluna="data" ordem={ordem} onOrdenar={alternarOrdem} folha="banco">
                   Data
                 </Cabecalho>
-                <Cabecalho coluna="descricao" ordem={ordem} onOrdenar={alternarOrdem}>
+                <Cabecalho coluna="descricao" ordem={ordem} onOrdenar={alternarOrdem} folha="banco">
                   Descrição
                 </Cabecalho>
-                <Cabecalho coluna="valorBanco" ordem={ordem} onOrdenar={alternarOrdem} direita>
+                <Cabecalho
+                  coluna="valorBanco"
+                  ordem={ordem}
+                  onOrdenar={alternarOrdem}
+                  direita
+                  folha="banco"
+                >
                   Banco
                 </Cabecalho>
-                <Cabecalho coluna="valorSistema" ordem={ordem} onOrdenar={alternarOrdem} direita>
+                <td className="folha-vao" aria-hidden="true" />
+                <Cabecalho
+                  coluna="valorSistema"
+                  ordem={ordem}
+                  onOrdenar={alternarOrdem}
+                  direita
+                  folha="sistema"
+                >
                   Sistema
                 </Cabecalho>
                 <Cabecalho coluna="status" ordem={ordem} onOrdenar={alternarOrdem} direita>
@@ -210,11 +248,12 @@ export default function ConciliacaoPage() {
               {visiveis.map((linha) => {
                 const status = statusDaLinha(linha);
                 return (
-                  <tr key={linha.id} role="row">
-                    <td role="cell" data-rotulo="Data" className="dash-celula-fraca">
+                  // o tom do status pinta o hover: a linha acende na cor do veredito dela
+                  <tr key={linha.id} role="row" data-tom={status.tom}>
+                    <td role="cell" data-rotulo="Data" className="dash-celula-fraca folha-banco">
                       {linha.data}
                     </td>
-                    <td role="cell" data-rotulo="Descrição" data-destaque="true">
+                    <td role="cell" data-rotulo="Descrição" data-destaque="true" className="folha-banco">
                       {/* botão de verdade: a linha inteira com onClick não era
                           alcançável por teclado */}
                       <button
@@ -225,10 +264,11 @@ export default function ConciliacaoPage() {
                         {linha.descricao}
                       </button>
                     </td>
-                    <td role="cell" data-rotulo="Banco" className="dash-valor-celula">
+                    <td role="cell" data-rotulo="Banco" className="dash-valor-celula folha-banco">
                       {linha.valorBanco !== null ? formatarMoeda(linha.valorBanco) : "—"}
                     </td>
-                    <td role="cell" data-rotulo="Sistema" className="dash-valor-celula">
+                    <td className="folha-vao" aria-hidden="true" />
+                    <td role="cell" data-rotulo="Sistema" className="dash-valor-celula folha-sistema">
                       {linha.valorSistema !== null ? formatarMoeda(linha.valorSistema) : "—"}
                     </td>
                     <td role="cell" data-rotulo="Status" style={{ textAlign: "right" }}>
@@ -294,13 +334,19 @@ export default function ConciliacaoPage() {
             <span className="dialog-title">{linhaAberta.descricao}</span>
             <div style={{ display: "flex", gap: 16 }}>
               <div>
-                <div style={{ fontSize: 12, color: "var(--color-accent-700)" }}>Extrato do banco</div>
+                <div className="rotulo-origem">
+                  <IconeOrigem origem="banco" tamanho={14} />
+                  Extrato do banco
+                </div>
                 <div style={{ fontFamily: "var(--font-heading)", fontSize: 24, fontWeight: 600 }}>
                   {linhaAberta.valorBanco !== null ? formatarMoeda(linhaAberta.valorBanco) : "—"}
                 </div>
               </div>
               <div>
-                <div style={{ fontSize: 12, color: "var(--color-accent-700)" }}>Extrato do sistema</div>
+                <div className="rotulo-origem">
+                  <IconeOrigem origem="sistema" tamanho={14} />
+                  Extrato do sistema
+                </div>
                 <div style={{ fontFamily: "var(--font-heading)", fontSize: 24, fontWeight: 600 }}>
                   {linhaAberta.valorSistema !== null ? formatarMoeda(linhaAberta.valorSistema) : "—"}
                 </div>
@@ -363,7 +409,7 @@ function Fechamento({
             fontSize: 12,
             letterSpacing: "0.14em",
             textTransform: "uppercase",
-            color: "var(--color-accent-700)",
+            color: "color-mix(in srgb, var(--color-text) 58%, transparent)",
             marginBottom: 14,
           }}
         >
