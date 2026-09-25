@@ -15,6 +15,9 @@ jobs:
         with:
           node-version: "20"
       - run: npm ci
+      # só as dependências que vão para produção, e só o que é alto ou crítico:
+      # o resto vira PR do Dependabot sem travar o merge de ninguém
+      - run: npm audit --omit=dev --audit-level=high
       - run: npm run lint
       - run: npm run test
       - run: npm run build
