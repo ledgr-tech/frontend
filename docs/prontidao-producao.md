@@ -1,8 +1,9 @@
 # Prontidão para produção — `develop` → `main`
 
-Situação em 24/09/2026. **Recomendação: ainda não fazer o merge para a `main`.** O
-código do front está em bom estado, mas faltam três coisas fora dele, e a `main`
-receberia 27 commits de uma vez — toda a integração com o backend desde o PR #22.
+Situação em 24/09/2026, atualizada em 25/09 com o endurecimento do front.
+**Recomendação: ainda não fazer o merge para a `main`.** O código do front está em
+bom estado, mas faltam três coisas fora dele, e a `main` receberia de uma vez toda a
+integração com o backend desde o PR #22 (44 commits em 25/09).
 
 Ordem segura:
 
@@ -34,10 +35,10 @@ Ordem segura:
 | Sessão e acesso | ✅ Cookie httpOnly, rotas do app checadas no servidor, token nunca vai ao navegador, proteção CSRF das Server Actions (padrão do Next). |
 | Conta de teste e atalhos | ✅ Senha só no servidor (`lib/conta-teste.ts`), atalho de demonstração desligado por padrão (PR #24). |
 | Upload | ✅ Limite de 4 MB no front e 4,5 MB nas Server Actions (teto da Vercel). ⚠️ No backend, o limite de 10 uploads/min é por IP, mas o IP visto é o do proxy do Railway (e, com a Vercel, o dos servidores dela): na prática é global para todos os usuários. |
-| Varredura automática no CI (CodeQL, Dependabot, audit) | ❌ Não existe — o CI só roda lint, testes e build. |
-| Cabeçalhos de segurança (CSP, X-Frame-Options, etc.) | ❌ Nenhum configurado no `next.config.ts`. |
+| Varredura automática no CI (CodeQL, Dependabot, audit) | ✅ `npm audit --omit=dev --audit-level=high` no CI e Dependabot semanal contra a `develop` (`.github/dependabot.yml`). ⚠️ CodeQL não; alertas e atualizações de segurança do Dependabot são configuração do repositório, ainda por ligar. |
+| Cabeçalhos de segurança (CSP, X-Frame-Options, etc.) | ✅ `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, HSTS e sem `X-Powered-By`. ⚠️ CSP só em `Report-Only`: aponta no console, não bloqueia. Impor pede tirar o script inline do tema (ou nonce) e decidir sobre o toolbar da Vercel nos previews. |
 | Limite de tentativas de login | ⚠️ Só no navegador (`lib/tentativas.ts`), fácil de contornar. Risco baixo com senha forte, mas sem barreira no servidor. |
-| Validação dos IDs nas Server Actions | ⚠️ Os IDs vão para a URL do backend sem checar se são UUID. O backend valida o token, então não dá acesso a outra empresa, mas vale endurecer. |
+| Validação dos IDs nas Server Actions | ✅ Todo id que entra no caminho ou na query do backend é conferido como UUID antes (`situacaoDoExtrato`, `carregarConciliacao`, rota do CSV). Os que vão no corpo JSON o backend valida. |
 | Revisão de segurança do diff `develop` → `main` | ❌ Não foi feita. |
 
 ## Antes do merge para a `main`
@@ -48,8 +49,10 @@ Ordem segura:
       senha nova para a conta de teste.
 - [ ] **Uso:** produção só com dados fictícios até existir login real e as páginas
       de Termos e Privacidade.
-- [ ] **Front:** cabeçalhos de segurança no `next.config.ts`, validação de UUID nas
+- [x] **Front:** cabeçalhos de segurança no `next.config.ts`, validação de UUID nas
       Server Actions, `npm audit` e Dependabot no CI.
+- [ ] **Front, depois:** impor a CSP (hoje `Report-Only`) e ligar alertas e
+      atualizações de segurança do Dependabot nas configurações do repositório.
 - [ ] **Revisão:** revisão de segurança do diff `develop` → `main`; depois, PR para a
       `main` com aprovação de alguém do time.
 

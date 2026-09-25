@@ -83,6 +83,9 @@ export async function enviarExtrato(dados: FormData): Promise<Resultado<{ extrat
 export async function situacaoDoExtrato(
   extratoId: string,
 ): Promise<Resultado<SituacaoExtrato>> {
+  // Server Action é endpoint público: o id vai no caminho da chamada ao backend,
+  // com o token da sessão, e não entra lá sem ter formato de id
+  if (!pareceUuid(extratoId)) return { ok: false, status: 404, erro: "Extrato não encontrado." };
   try {
     return { ok: true, dados: await chamarBackend<SituacaoExtrato>(`/extratos/${extratoId}`) };
   } catch (erro) {
@@ -123,8 +126,9 @@ export async function carregarConciliacao(
   extratoBancoId: string,
   extratoSistemaId?: string,
 ): Promise<Resultado<{ conciliacao: Conciliacao; truncada: boolean }>> {
-  // vem da URL: não entra na query do backend sem conferir
-  if (extratoSistemaId !== undefined && !pareceUuid(extratoSistemaId)) {
+  // os dois vêm da URL e vão para o caminho e a query do backend: não entram lá
+  // sem ter formato de id
+  if (!pareceUuid(extratoBancoId) || (extratoSistemaId !== undefined && !pareceUuid(extratoSistemaId))) {
     return { ok: false, status: 404, erro: "Conciliação não encontrada." };
   }
   const par = extratoSistemaId ? `&extrato_sistema_id=${extratoSistemaId}` : "";

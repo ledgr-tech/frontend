@@ -7,6 +7,7 @@ import {
   carregarVisaoGeral,
   listarExecucoes,
   listarExtratos,
+  situacaoDoExtrato,
 } from "./acoes";
 
 // A rede é a fronteira: o que se testa é o caminho pedido e o que as actions
@@ -144,6 +145,15 @@ describe("carregarConciliacao", () => {
     expect(chamarBackend).toHaveBeenCalledWith(`/conciliacoes/${BANCO_RECENTE}?limit=1000&offset=0`);
     if (!resultado.ok) throw new Error(resultado.erro);
     expect(resultado.dados.conciliacao.extratoSistemaId).toBeUndefined();
+  });
+
+  it("recusa um extrato do banco que não é UUID, sem chamar o backend", async () => {
+    // Server Action é endpoint público: o id entra no caminho da chamada ao
+    // backend, e "../execucoes" levaria o token da sessão a outra rota
+    const resultado = await carregarConciliacao("../execucoes");
+
+    expect(resultado).toEqual({ ok: false, status: 404, erro: "Conciliação não encontrada." });
+    expect(chamarBackend).not.toHaveBeenCalled();
   });
 
   it("recusa um extrato do sistema que não é UUID, sem chamar o backend", async () => {
@@ -384,5 +394,31 @@ describe("carregarVisaoGeral", () => {
     chamarBackend.mockRejectedValue(new ErroBackend(401, "Token expirado"));
 
     expect(await carregarVisaoGeral()).toMatchObject({ ok: false, status: 401 });
+  });
+});
+
+describe("situacaoDoExtrato", () => {
+  beforeEach(() => {
+    chamarBackend.mockReset();
+  });
+
+  it("pergunta ao backend pelo extrato", async () => {
+    chamarBackend.mockResolvedValue({
+      extrato_id: SISTEMA,
+      status: "concluido",
+      origem: "sistema",
+      quantidade_lancamentos: 12,
+      erros: [],
+    });
+
+    expect(await situacaoDoExtrato(SISTEMA)).toMatchObject({ ok: true, dados: { status: "concluido" } });
+    expect(chamarBackend).toHaveBeenCalledWith(`/extratos/${SISTEMA}`);
+  });
+
+  it("recusa um id que não é UUID, sem chamar o backend", async () => {
+    const resultado = await situacaoDoExtrato("upload?x=1");
+
+    expect(resultado).toEqual({ ok: false, status: 404, erro: "Extrato não encontrado." });
+    expect(chamarBackend).not.toHaveBeenCalled();
   });
 });
