@@ -5,6 +5,7 @@ import {
   carregarConciliacao,
   carregarPainel,
   carregarVisaoGeral,
+  explicarDivergencia,
   listarExecucoes,
   listarExtratos,
   situacaoDoExtrato,
@@ -394,6 +395,84 @@ describe("carregarVisaoGeral", () => {
     chamarBackend.mockRejectedValue(new ErroBackend(401, "Token expirado"));
 
     expect(await carregarVisaoGeral()).toMatchObject({ ok: false, status: 401 });
+  });
+});
+
+describe("explicarDivergencia", () => {
+  const LINHA = "6f55ff77-7794-4079-8186-ba17414abbe6";
+
+  beforeEach(() => {
+    chamarBackend.mockReset();
+  });
+
+  function resposta(parcial: Record<string, unknown> = {}) {
+    return {
+      conciliacao_id: LINHA,
+      status: "divergente_valor",
+      explicacao: "Há lançamentos do outro lado na mesma data, mas nenhum com este valor.",
+      gerada_por_ia: true,
+      em_cache: false,
+      indisponibilidade: null,
+      ...parcial,
+    };
+  }
+
+  it("pede a explicação da linha, com prazo para a IA responder", async () => {
+    chamarBackend.mockResolvedValue(resposta());
+
+    const resultado = await explicarDivergencia(LINHA);
+
+    const [caminho, init] = chamarBackend.mock.calls[0] as [string, RequestInit & { corpo: unknown }];
+    expect(caminho).toBe("/explicacoes");
+    expect(init.method).toBe("POST");
+    expect(init.corpo).toEqual({ conciliacao_id: LINHA });
+    // o backend espera até 20 s pelo provedor; sem prazo do nosso lado, uma
+    // resposta que nunca chega prenderia a tela no "Explicando…"
+    expect(init.signal).toBeInstanceOf(AbortSignal);
+    expect(resultado).toEqual({
+      ok: true,
+      dados: {
+        texto: "Há lançamentos do outro lado na mesma data, mas nenhum com este valor.",
+        geradaPorIa: true,
+        indisponibilidade: null,
+      },
+    });
+  });
+
+  it("diz por que o texto é o fixo do motor quando a IA não respondeu", async () => {
+    chamarBackend.mockResolvedValue(resposta({ gerada_por_ia: false, indisponibilidade: "limite_diario" }));
+
+    expect(await explicarDivergencia(LINHA)).toMatchObject({
+      ok: true,
+      dados: { geradaPorIa: false, indisponibilidade: "limite_diario" },
+    });
+  });
+
+  it("avisa que a linha mudou quando a conciliação foi refeita", async () => {
+    // o id da linha muda quando o par é conciliado de novo
+    chamarBackend.mockRejectedValue(new ErroBackend(404, "Conciliação não encontrada."));
+
+    expect(await explicarDivergencia(LINHA)).toEqual({
+      ok: false,
+      status: 404,
+      erro: "Esta linha mudou: a conciliação foi refeita depois que a tela abriu.",
+    });
+  });
+
+  it("não deixa a tela esperando para sempre", async () => {
+    chamarBackend.mockRejectedValue(new DOMException("The operation was aborted due to timeout", "TimeoutError"));
+
+    expect(await explicarDivergencia(LINHA)).toEqual({
+      ok: false,
+      status: 504,
+      erro: "A explicação demorou mais que o normal. Tente de novo em instantes.",
+    });
+  });
+
+  it("traduz a sessão vencida para a mensagem da tela", async () => {
+    chamarBackend.mockRejectedValue(new ErroBackend(401, "Token expirado"));
+
+    expect(await explicarDivergencia(LINHA)).toMatchObject({ ok: false, status: 401 });
   });
 });
 
