@@ -15,8 +15,10 @@ vi.mock("next/navigation", () => ({
 }));
 
 const carregarConciliacao = vi.fn();
+const explicarDivergencia = vi.fn();
 vi.mock("../../acoes", () => ({
   carregarConciliacao: (...args: unknown[]) => carregarConciliacao(...args),
+  explicarDivergencia: (...args: unknown[]) => explicarDivergencia(...args),
 }));
 
 const BANCO = "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20";
@@ -96,6 +98,7 @@ describe("DetalheDivergenciaPage", () => {
     rota.id = "conc-1";
     rota.busca = "";
     carregarConciliacao.mockReset();
+    explicarDivergencia.mockReset();
     buscarConciliacao.mockReset();
     aceitarValorDoBanco.mockReset();
     restaurarLinha.mockReset();
@@ -254,6 +257,53 @@ describe("DetalheDivergenciaPage", () => {
       `/conciliacoes/${BANCO}?sistema=${SISTEMA}`,
     );
     expect(carregarConciliacao).toHaveBeenCalledWith(BANCO, SISTEMA);
+  });
+
+  /** A conciliação como o backend devolve: a divergência não traz explicação. */
+  function doBackend(lc2: Partial<Conciliacao["linhas"][number]>) {
+    rota.id = BANCO;
+    rota.busca = `sistema=${SISTEMA}`;
+    carregarConciliacao.mockResolvedValue({
+      ok: true,
+      dados: {
+        conciliacao: {
+          ...conciliacao,
+          id: BANCO,
+          extratoSistemaId: SISTEMA,
+          linhas: conciliacao.linhas.map((linha) =>
+            linha.id === "lc-2" ? { ...linha, causa: undefined, cronico: undefined, ...lc2 } : linha,
+          ),
+        },
+        truncada: false,
+      },
+    });
+  }
+
+  it("offers to explain a divergence from the backend, only when asked", async () => {
+    doBackend({ explicacao: null });
+    render(<DetalheDivergenciaPage />);
+
+    expect(await screen.findByRole("button", { name: "Explicar esta divergência" })).toBeInTheDocument();
+    // cada geração custa: nada é pedido só por abrir a tela
+    expect(explicarDivergencia).not.toHaveBeenCalled();
+  });
+
+  it("has nothing to explain on a line that matched", async () => {
+    doBackend({ status: "match_exato", explicacao: 'Conciliado pela regra "exato".' });
+    render(<DetalheDivergenciaPage />);
+
+    expect(await screen.findByText('Conciliado pela regra "exato".')).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Explicar/ })).not.toBeInTheDocument();
+  });
+
+  it("keeps the mock's own explanation, which the backend does not know", async () => {
+    buscarConciliacao.mockReturnValue(conciliacao);
+    render(<DetalheDivergenciaPage />);
+
+    expect(
+      await screen.findByText("O boleto foi emitido em R$ 12.604,00 e pago com acréscimo de R$ 36,00."),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Explicar/ })).not.toBeInTheDocument();
   });
 
   it("shows a not found message when the linha does not belong to the conciliação", async () => {

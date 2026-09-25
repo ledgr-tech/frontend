@@ -294,3 +294,72 @@ export async function carregarVisaoGeral(): Promise<Resultado<VisaoGeral>> {
     },
   };
 }
+
+/** Por que o texto é o fixo do motor, e não o da IA; null quando veio da IA. */
+export type Indisponibilidade = "desabilitado" | "erro_provedor" | "limite_diario";
+
+export type Explicacao = {
+  /** Texto puro, sem markdown. Vem de descrição de extrato de terceiro: nunca vira HTML. */
+  texto: string;
+  /** Só com `true` a tela rotula como gerada por IA. */
+  geradaPorIa: boolean;
+  indisponibilidade: Indisponibilidade | null;
+};
+
+type ExplicacaoAPI = {
+  conciliacao_id: string;
+  status: string;
+  explicacao: string;
+  gerada_por_ia: boolean;
+  em_cache: boolean;
+  indisponibilidade: Indisponibilidade | null;
+};
+
+// O backend espera até 20 s pelo provedor de IA antes de cair no texto fixo;
+// numa chamada real de teste levou 6,6 s. 30 s dá folga sem prender a tela.
+const PRAZO_DA_EXPLICACAO_MS = 30_000;
+
+/**
+ * Por que uma linha é divergência, em linguagem natural (`POST /explicacoes`).
+ * Só as cinco categorias de divergência são elegíveis; a tela nem oferece o
+ * botão nas linhas casadas. É POST porque pode disparar uma geração paga, por
+ * isso só roda no clique — nunca ao abrir a tela.
+ *
+ * Falha do provedor e limite diário não são erro: chegam como 200 com o texto
+ * fixo do motor e o motivo em `indisponibilidade`.
+ */
+export async function explicarDivergencia(conciliacaoId: string): Promise<Resultado<Explicacao>> {
+  try {
+    const resposta = await chamarBackend<ExplicacaoAPI>("/explicacoes", {
+      method: "POST",
+      corpo: { conciliacao_id: conciliacaoId },
+      signal: AbortSignal.timeout(PRAZO_DA_EXPLICACAO_MS),
+    });
+    return {
+      ok: true,
+      dados: {
+        texto: resposta.explicacao,
+        geradaPorIa: resposta.gerada_por_ia,
+        indisponibilidade: resposta.indisponibilidade,
+      },
+    };
+  } catch (erro) {
+    // O id da linha muda quando o par é conciliado de novo (as linhas são
+    // reescritas), e o id que a tela tem passa a responder 404.
+    if (erro instanceof ErroBackend && erro.status === 404) {
+      return {
+        ok: false,
+        status: 404,
+        erro: "Esta linha mudou: a conciliação foi refeita depois que a tela abriu.",
+      };
+    }
+    if (erro instanceof DOMException && erro.name === "TimeoutError") {
+      return {
+        ok: false,
+        status: 504,
+        erro: "A explicação demorou mais que o normal. Tente de novo em instantes.",
+      };
+    }
+    return traduzir(erro);
+  }
+}
