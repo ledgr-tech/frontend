@@ -119,7 +119,11 @@ describe("responder", () => {
     expect(texto("o que falta pra fechar", contexto())).toBe(
       "Faltam 3 decisões suas. Comece por “Sem correspondência no sistema”: 1 linha, R$ 4.180 dos R$ 4.261 em aberto.",
     );
-    expect(resposta.link).toEqual({ href: "/conciliacoes/banco-1/l4?sistema=sistema-1", rotulo: "Revisar" });
+    // a categoria inteira, como o "Revisar" do hub; só a explicação aponta uma linha
+    expect(resposta.link).toEqual({
+      href: "/conciliacoes/banco-1?sistema=sistema-1&status=sem_correspondencia",
+      rotulo: "Revisar",
+    });
   });
 
   it("lembra das linhas não lidas, que ficam fora da conta", () => {
