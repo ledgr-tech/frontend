@@ -195,13 +195,25 @@ export type Execucao = {
   atual: boolean;
 };
 
-const DIVERGENCIAS = [
+/**
+ * As cinco categorias de divergência do motor, na régua das cores de status: o
+ * que custa dinheiro primeiro, o que já tem explicação por último. É a ordem
+ * do relatório da conciliação.
+ */
+export const DIVERGENCIAS = [
   "divergente_valor",
-  "divergente_data",
   "duplicado",
+  "divergente_data",
   "sem_correspondencia",
   "tarifa_bancaria",
-] as const;
+] as const satisfies readonly StatusLinha[];
+
+export type Divergencia = (typeof DIVERGENCIAS)[number];
+
+/** Confere um texto de fora (a URL) antes de usá-lo como filtro. */
+export function ehDivergencia(valor: string | null | undefined): valor is Divergencia {
+  return (DIVERGENCIAS as readonly string[]).includes(valor ?? "");
+}
 
 export function adaptarExecucao(item: ExecucaoAPI): Execucao {
   return {

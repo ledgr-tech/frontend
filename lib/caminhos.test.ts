@@ -29,4 +29,13 @@ describe("caminhoDoCsv", () => {
   it("sem o par, o extrato do banco inteiro", () => {
     expect(caminhoDoCsv(BANCO)).toBe(`/api/conciliacoes/${BANCO}/exportar`);
   });
+
+  it("leva a categoria escolhida no relatório, para o arquivo ter só ela", () => {
+    expect(caminhoDoCsv(BANCO, SISTEMA, "duplicado")).toBe(
+      `/api/conciliacoes/${BANCO}/exportar?sistema=${SISTEMA}&status=duplicado`,
+    );
+    expect(caminhoDoCsv(BANCO, undefined, "tarifa_bancaria")).toBe(
+      `/api/conciliacoes/${BANCO}/exportar?status=tarifa_bancaria`,
+    );
+  });
 });

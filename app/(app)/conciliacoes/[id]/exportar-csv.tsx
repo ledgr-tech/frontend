@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import type { Divergencia } from "@/lib/adaptadores";
 import { caminhoDoCsv } from "@/lib/caminhos";
 
 const FALHA = "Não foi possível gerar o CSV agora. Tente de novo em instantes.";
@@ -9,18 +10,20 @@ const FALHA = "Não foi possível gerar o CSV agora. Tente de novo em instantes.
 /**
  * "Setembro/2026" → "ledgr-conciliacao-setembro-2026.csv". O backend chama o
  * arquivo pelo começo do id do extrato, que não diz nada a quem abre a pasta de
- * downloads; a competência diz.
+ * downloads; a competência diz. Com uma categoria escolhida, ela entra no fim,
+ * para o recorte não sobrescrever o arquivo inteiro na mesma pasta.
  */
-export function nomeDoArquivo(mes: string): string {
+export function nomeDoArquivo(mes: string, status?: Divergencia): string {
+  const categoria = status ? `-${status.replaceAll("_", "-")}` : "";
   // sem ano, o `mes` é o "Conciliação" de quando nenhuma linha tem data
-  if (!/\d{4}/.test(mes)) return "ledgr-conciliacao.csv";
+  if (!/\d{4}/.test(mes)) return `ledgr-conciliacao${categoria}.csv`;
   const competencia = mes
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "");
-  return `ledgr-conciliacao-${competencia}.csv`;
+  return `ledgr-conciliacao-${competencia}${categoria}.csv`;
 }
 
 export function salvar(arquivo: Blob, nome: string) {
@@ -41,19 +44,22 @@ export function salvar(arquivo: Blob, nome: string) {
  * na própria tela, sem trocar de página. O arquivo chega como Blob, com os
  * bytes que o backend mandou — o BOM do começo incluído.
  *
- * O backend filtra por um status só, e o "Só revisão" da tela junta cinco: com
- * ele ligado, o arquivo traz todas as linhas, e o botão diz isso.
+ * Uma categoria do relatório (`status`) vai para o backend, que filtra o
+ * arquivo. O "Só revisão" junta cinco e o backend filtra por um status só: com
+ * ele ligado (`filtrada`), o arquivo traz todas as linhas, e o botão diz isso.
  */
 export function ExportarCsv({
   extratoBancoId,
   extratoSistemaId,
   mes,
   filtrada,
+  status,
 }: {
   extratoBancoId: string;
   extratoSistemaId?: string;
   mes: string;
   filtrada: boolean;
+  status?: Divergencia;
 }) {
   const router = useRouter();
   const [exportando, setExportando] = useState(false);
@@ -63,7 +69,7 @@ export function ExportarCsv({
     setExportando(true);
     setErro(null);
     try {
-      const resposta = await fetch(caminhoDoCsv(extratoBancoId, extratoSistemaId));
+      const resposta = await fetch(caminhoDoCsv(extratoBancoId, extratoSistemaId, status));
       if (resposta.status === 401) {
         router.push("/login");
         return;
@@ -73,7 +79,7 @@ export function ExportarCsv({
         setErro(typeof corpo?.erro === "string" ? corpo.erro : FALHA);
         return;
       }
-      salvar(await resposta.blob(), nomeDoArquivo(mes));
+      salvar(await resposta.blob(), nomeDoArquivo(mes, status));
     } catch {
       setErro(FALHA);
     } finally {

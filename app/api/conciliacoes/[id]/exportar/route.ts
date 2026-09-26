@@ -1,4 +1,4 @@
-import { pareceUuid } from "@/lib/adaptadores";
+import { ehDivergencia, pareceUuid } from "@/lib/adaptadores";
 import { baixarDoBackend, ErroBackend } from "@/lib/backend";
 
 /**
@@ -23,15 +23,23 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ): Promise<Response> {
   const { id } = await params;
-  const sistema = new URL(request.url).searchParams.get("sistema") || undefined;
-  // os dois vêm da URL: não entram no caminho do backend sem conferir
+  const busca = new URL(request.url).searchParams;
+  const sistema = busca.get("sistema") || undefined;
+  const status = busca.get("status") || undefined;
+  // tudo vem da URL: nada entra no caminho do backend sem conferir
   if (!pareceUuid(id) || (sistema !== undefined && !pareceUuid(sistema))) {
     return erro(404, "Conciliação não encontrada.");
   }
+  if (status !== undefined && !ehDivergencia(status)) {
+    return erro(400, "Essa categoria de divergência não existe.");
+  }
 
   try {
-    const par = sistema ? `?extrato_sistema_id=${sistema}` : "";
-    const arquivo = await baixarDoBackend(`/conciliacoes/${id}/exportar${par}`);
+    const filtros = new URLSearchParams();
+    if (sistema) filtros.set("extrato_sistema_id", sistema);
+    if (status) filtros.set("status", status);
+    const query = filtros.toString();
+    const arquivo = await baixarDoBackend(`/conciliacoes/${id}/exportar${query ? `?${query}` : ""}`);
 
     const cabecalhos = new Headers({ "Cache-Control": "no-store" });
     for (const nome of REPASSADOS) {

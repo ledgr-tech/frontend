@@ -1,3 +1,4 @@
+import type { Divergencia } from "@/lib/adaptadores";
 import type { LinhaComparacao } from "@/lib/mock-data";
 import { estaResolvida, statusDaLinha } from "../../dashboard/resumo";
 
@@ -53,10 +54,11 @@ export function ordenarLinhas(
   });
 }
 
-/** O filtro "só revisão" do design: esconde o que já bateu. */
-export function filtrarLinhas(
-  linhas: LinhaComparacao[],
-  filtro: "todos" | "revisao",
-): LinhaComparacao[] {
-  return filtro === "revisao" ? linhas.filter((linha) => !estaResolvida(linha.status)) : linhas;
+/** Todas, só as que pedem revisão (o "só revisão" do design), ou uma categoria do relatório. */
+export type Filtro = "todos" | "revisao" | Divergencia;
+
+export function filtrarLinhas(linhas: LinhaComparacao[], filtro: Filtro): LinhaComparacao[] {
+  if (filtro === "todos") return linhas;
+  if (filtro === "revisao") return linhas.filter((linha) => !estaResolvida(linha.status));
+  return linhas.filter((linha) => linha.status === filtro);
 }

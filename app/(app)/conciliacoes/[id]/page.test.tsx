@@ -94,10 +94,42 @@ const conciliacaoMista: Conciliacao = {
   ],
 };
 
+// uma conciliação do backend com três categorias em revisão, para o relatório
+const conciliacaoDoRelatorio: Conciliacao = {
+  ...conciliacaoMista,
+  id: BANCO,
+  extratoSistemaId: SISTEMA,
+  linhas: [
+    ...conciliacaoMista.linhas,
+    {
+      id: "lc-3",
+      descricao: "Tarifa pacote de serviços",
+      data: "05/09",
+      valorBanco: -89.9,
+      valorSistema: null,
+      status: "tarifa_bancaria",
+      explicacao: null,
+      historico: [],
+    },
+    {
+      id: "lc-4",
+      descricao: "Tarifa TED",
+      data: "06/09",
+      valorBanco: -12.5,
+      valorSistema: null,
+      status: "tarifa_bancaria",
+      explicacao: null,
+      historico: [],
+    },
+  ],
+};
+
 describe("ConciliacaoPage", () => {
   beforeEach(() => {
     rota.id = "conc-1";
     rota.busca = "";
+    // a categoria escolhida vai para a URL de verdade; cada teste começa sem ela
+    window.history.replaceState(null, "", "/");
     buscarConciliacao.mockReset();
     fecharConciliacao.mockReset();
     carregarConciliacao.mockReset();
@@ -395,6 +427,75 @@ describe("ConciliacaoPage", () => {
 
     await user.click(await screen.findByRole("button", { name: "Só revisão (0)" }));
     expect(screen.getByText(/todos os lançamentos bateram/)).toBeInTheDocument();
+  });
+
+  describe("the report grouped by category", () => {
+    it("counts the five categories, with the money each leaves open", async () => {
+      buscarConciliacao.mockReturnValue(conciliacaoMista);
+      render(<ConciliacaoPage />);
+
+      const relatorio = await screen.findByRole("region", { name: "Divergências por categoria" });
+      const categorias = within(relatorio).getAllByRole("button");
+      expect(categorias).toHaveLength(5);
+      expect(categorias[0]).toHaveTextContent(/^Valor diverge na mesma data\s*1\s*R\$\s36 em aberto$/);
+      expect(relatorio).toHaveTextContent(/1 linha pede revisão · R\$\s36 em aberto/);
+      // sem linha, não há o que abrir; o zero fica, apagado
+      expect(within(relatorio).getByRole("button", { name: /Possível duplicidade/ })).toBeDisabled();
+    });
+
+    it("drills into a category: the table, the URL and the CSV follow it", async () => {
+      rota.id = BANCO;
+      rota.busca = `sistema=${SISTEMA}`;
+      window.history.replaceState(null, "", `/conciliacoes/${BANCO}?sistema=${SISTEMA}`);
+      carregarConciliacao.mockResolvedValue({
+        ok: true,
+        dados: { conciliacao: conciliacaoDoRelatorio, truncada: false },
+      });
+      const user = userEvent.setup();
+      render(<ConciliacaoPage />);
+
+      const tarifas = await screen.findByRole("button", { name: /Tarifa bancária/ });
+      await user.click(tarifas);
+
+      expect(tarifas).toHaveAttribute("aria-pressed", "true");
+      expect(screen.getByRole("button", { name: "Tarifa TED" })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Boleto Aço Norte Bobinas" })).not.toBeInTheDocument();
+      expect(window.location.search).toBe(`?sistema=${SISTEMA}&status=tarifa_bancaria`);
+      // o backend filtra por esse status, então o arquivo bate com a tela
+      expect(screen.getByRole("button", { name: "Exportar CSV" })).toBeInTheDocument();
+
+      // desligar volta ao que as cinco juntam
+      await user.click(tarifas);
+      expect(screen.getByRole("button", { name: "Só revisão (3)" })).toHaveAttribute("aria-pressed", "true");
+      expect(screen.getByRole("button", { name: "Boleto Aço Norte Bobinas" })).toBeInTheDocument();
+      expect(window.location.search).toBe(`?sistema=${SISTEMA}`);
+    });
+
+    it("opens on the category named in the URL, and ignores one that is not a divergence", async () => {
+      rota.id = BANCO;
+      rota.busca = `sistema=${SISTEMA}&status=divergente_valor`;
+      carregarConciliacao.mockResolvedValue({
+        ok: true,
+        dados: { conciliacao: conciliacaoDoRelatorio, truncada: false },
+      });
+      const { unmount } = render(<ConciliacaoPage />);
+
+      expect(await screen.findByRole("button", { name: /Valor diverge na mesma data/ })).toHaveAttribute(
+        "aria-pressed",
+        "true",
+      );
+      expect(screen.queryByRole("button", { name: "Tarifa TED" })).not.toBeInTheDocument();
+      unmount();
+
+      rota.busca = `sistema=${SISTEMA}&status=duplicado`;
+      const segunda = render(<ConciliacaoPage />);
+      expect(await screen.findByText("Nenhuma linha em “Possível duplicidade” nesta conciliação.")).toBeInTheDocument();
+      segunda.unmount();
+
+      rota.busca = `sistema=${SISTEMA}&status=match_exato`;
+      render(<ConciliacaoPage />);
+      expect(await screen.findByRole("button", { name: "Todos (4)" })).toHaveAttribute("aria-pressed", "true");
+    });
   });
 
   it("sorts by a column and flips the direction on a second click", async () => {
