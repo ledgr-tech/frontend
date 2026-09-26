@@ -1,4 +1,6 @@
-import type { Execucao } from "@/lib/adaptadores";
+import type { StatusLinha, Tom } from "@/lib/mock-data";
+import type { ParDoFechamento } from "../conciliacoes/acoes";
+import { seloDoStatus } from "../dashboard/resumo";
 
 const MESES = [
   "janeiro",
@@ -15,53 +17,94 @@ const MESES = [
   "dezembro",
 ];
 
-export type Competencia = {
-  /** "setembro": o mês que está fechando. */
-  mes: string;
-  /** "outubro": o que o botão de começar abre. */
+export type Pendencia = { status: StatusLinha; rotulo: string; tom: Tom; quantidade: number };
+
+/** Um mês na mesa de fechamento: todos os pares de extratos conciliados dele. */
+export type MesDeFechamento = {
+  /** "2026-09": identifica e ordena. */
+  chave: string;
+  /** "Setembro" e "2026", separados para a folha do mês e o nome do CSV. */
+  nome: string;
+  ano: string;
+  /** "Setembro de 2026". */
+  titulo: string;
+  /** "outubro": o mês que o "Começar" abre. */
   proximo: string;
+  /** Da conciliação mais recente para a mais antiga. */
+  pares: ParDoFechamento[];
+  lancamentos: number;
+  conciliados: number;
+  divergentes: number;
+  /** O que ainda pede decisão, do mais grave para o mais leve. */
+  pendencias: Pendencia[];
+  naoLidas: { nome: string; linhas: number }[];
+  /** Nada pede decisão e os arquivos foram lidos por inteiro. */
+  pronto: boolean;
 };
 
-/**
- * O mês da conciliação, a partir do `mes` que `adaptarConciliacao` já monta
- * ("Setembro/2026"): lendo dali, o título desta tela e a competência da visão
- * geral nunca discordam. Null quando nenhuma linha tinha data e o adaptador pôs
- * outra coisa no lugar.
- */
-export function competencia(mes: string): Competencia | null {
-  const indice = MESES.indexOf(mes.split("/")[0].toLowerCase());
-  if (indice === -1) return null;
-  return { mes: MESES[indice], proximo: MESES[(indice + 1) % 12] };
-}
-
-// O servidor da Vercel roda em UTC; uma execução de 31/03 à noite em Brasília
-// sairia como abril.
-const MES_E_ANO = new Intl.DateTimeFormat("pt-BR", {
+// "2026-09" no fuso de Brasília: o servidor da Vercel roda em UTC, e uma
+// conciliação de 30/09 à noite sairia como outubro
+const ANO_MES = new Intl.DateTimeFormat("en-CA", {
   timeZone: "America/Sao_Paulo",
-  month: "long",
   year: "numeric",
+  month: "2-digit",
 });
 
-export type PrimeiraConciliacao = {
-  /** "Março de 2026", como no marco do design. */
-  quando: string;
-  lancamentos: number;
-};
-
 /**
- * A execução mais antiga, para o marco "Primeira conciliação". A lista chega da
- * mais recente para a mais antiga e só com a primeira página: se o total passa
- * dela, a última da lista não é a primeira de todas, e aí não há o que dizer.
+ * O mês do par é o do extrato, pela primeira data dele. Sem ela (conciliação
+ * vazia, ou a consulta falhou), cai no mês em que foi conciliado.
  */
-export function primeiraConciliacao(
-  execucoes: Execucao[],
-  total: number,
-): PrimeiraConciliacao | null {
-  const primeira = execucoes.at(-1);
-  if (!primeira || total > execucoes.length) return null;
-  const quando = MES_E_ANO.format(new Date(primeira.executadaEm));
+function chaveDoPar(par: ParDoFechamento): string {
+  return par.primeiraData?.slice(0, 7) ?? ANO_MES.format(new Date(par.execucao.executadaEm));
+}
+
+// a régua das cores de status: o que custa dinheiro antes, o já explicado por último
+const GRAVIDADE: Record<Tom, number> = { risco: 0, atencao: 1, neutro: 2, ok: 3 };
+
+function montarMes(chave: string, pares: ParDoFechamento[]): MesDeFechamento {
+  const [ano, mes] = chave.split("-");
+  const indice = Number(mes) - 1;
+  const minusculo = MESES[indice] ?? mes;
+  const nome = `${minusculo.charAt(0).toUpperCase()}${minusculo.slice(1)}`;
+
+  const quantidades = new Map<StatusLinha, number>();
+  for (const { execucao } of pares) {
+    for (const [status, quantidade] of Object.entries(execucao.divergencias) as [StatusLinha, number][]) {
+      quantidades.set(status, (quantidades.get(status) ?? 0) + quantidade);
+    }
+  }
+  const pendencias = [...quantidades]
+    .map(([status, quantidade]) => ({ status, quantidade, ...seloDoStatus(status) }))
+    .sort((a, b) => GRAVIDADE[a.tom] - GRAVIDADE[b.tom] || b.quantidade - a.quantidade);
+
+  const lancamentos = pares.reduce((soma, par) => soma + par.execucao.lancamentos, 0);
+  const divergentes = pendencias.reduce((soma, pendencia) => soma + pendencia.quantidade, 0);
+  const naoLidas = pares.flatMap((par) => par.naoLidas);
+
   return {
-    quando: quando.charAt(0).toUpperCase() + quando.slice(1),
-    lancamentos: primeira.lancamentos,
+    chave,
+    nome,
+    ano,
+    titulo: `${nome} de ${ano}`,
+    proximo: MESES[(indice + 1) % 12] ?? "próximo mês",
+    pares,
+    lancamentos,
+    conciliados: lancamentos - divergentes,
+    divergentes,
+    pendencias,
+    naoLidas,
+    pronto: divergentes === 0 && naoLidas.length === 0,
   };
+}
+
+/** Os pares agrupados por mês, do mais recente para o mais antigo. */
+export function agruparPorMes(pares: ParDoFechamento[]): MesDeFechamento[] {
+  const porMes = new Map<string, ParDoFechamento[]>();
+  for (const par of pares) {
+    const chave = chaveDoPar(par);
+    porMes.set(chave, [...(porMes.get(chave) ?? []), par]);
+  }
+  return [...porMes]
+    .sort(([a], [b]) => b.localeCompare(a))
+    .map(([chave, doMes]) => montarMes(chave, doMes));
 }

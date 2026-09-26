@@ -3,6 +3,7 @@ import type { ExecucaoAPI, ItemConciliacaoAPI } from "@/lib/adaptadores";
 import { ErroBackend } from "@/lib/backend";
 import {
   carregarConciliacao,
+  carregarFechamentos,
   carregarPainel,
   carregarVisaoGeral,
   explicarDivergencia,
@@ -499,5 +500,75 @@ describe("situacaoDoExtrato", () => {
 
     expect(resultado).toEqual({ ok: false, status: 404, erro: "Extrato não encontrado." });
     expect(chamarBackend).not.toHaveBeenCalled();
+  });
+});
+
+describe("carregarFechamentos", () => {
+  beforeEach(() => {
+    chamarBackend.mockReset();
+  });
+
+  function situacao(id: string, erros: { identificador: string; motivo: string }[] = []) {
+    return { extrato_id: id, status: "concluido", origem: "banco", quantidade_lancamentos: 2, erros };
+  }
+
+  it("dá a cada par atual o mês do extrato e as linhas não lidas dos dois arquivos", async () => {
+    chamarBackend.mockImplementation(async (caminho: string) => {
+      if (caminho.startsWith("/execucoes")) {
+        return {
+          total: 2,
+          limit: 50,
+          offset: 0,
+          itens: [execucao("e-2", BANCO_RECENTE), execucao("e-1", BANCO_ANTERIOR, false)],
+        };
+      }
+      if (caminho.startsWith(`/conciliacoes/${BANCO_RECENTE}`)) {
+        return { extrato_id: BANCO_RECENTE, total: 140, limit: 1, offset: 0, itens: [itemConciliacao] };
+      }
+      if (caminho === `/extratos/${BANCO_RECENTE}`) return situacao(BANCO_RECENTE);
+      if (caminho === `/extratos/${SISTEMA}`) {
+        return situacao(SISTEMA, [{ identificador: "linha 14", motivo: "valor ilegível" }]);
+      }
+      throw new Error(`caminho inesperado: ${caminho}`);
+    });
+
+    const resultado = await carregarFechamentos();
+
+    // a rodada substituída (e-1, atual: false) não entra
+    expect(resultado).toMatchObject({
+      ok: true,
+      dados: [
+        {
+          execucao: { id: "e-2" },
+          primeiraData: "2026-09-04",
+          naoLidas: [{ nome: "e-2-sistema.csv", linhas: 1 }],
+        },
+      ],
+    });
+    // só a primeira linha, pela data: a lista vem em ordem de data
+    expect(chamarBackend).toHaveBeenCalledWith(
+      `/conciliacoes/${BANCO_RECENTE}?limit=1&offset=0&extrato_sistema_id=${SISTEMA}`,
+    );
+  });
+
+  it("mantém o par sem a data quando a primeira linha não vem", async () => {
+    chamarBackend.mockImplementation(async (caminho: string) => {
+      if (caminho.startsWith("/execucoes")) {
+        return { total: 1, limit: 50, offset: 0, itens: [execucao("e-1", BANCO_RECENTE)] };
+      }
+      if (caminho.startsWith("/conciliacoes/")) throw new ErroBackend(500, "Erro interno.");
+      return situacao(caminho.replace("/extratos/", ""));
+    });
+
+    expect(await carregarFechamentos()).toMatchObject({
+      ok: true,
+      dados: [{ execucao: { id: "e-1" }, primeiraData: null, naoLidas: [] }],
+    });
+  });
+
+  it("devolve a falha quando nem a lista de execuções vem", async () => {
+    chamarBackend.mockRejectedValue(new ErroBackend(401, "Token inválido."));
+
+    expect(await carregarFechamentos()).toMatchObject({ ok: false, status: 401 });
   });
 });

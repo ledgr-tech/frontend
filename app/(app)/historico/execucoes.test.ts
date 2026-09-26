@@ -12,6 +12,7 @@ function execucao(id: string, acerto: number | null, atual = true): Execucao {
     executadaEm: "2026-09-24T17:02:11Z",
     lancamentos: 100,
     acerto,
+    divergencias: {},
     atual,
   };
 }

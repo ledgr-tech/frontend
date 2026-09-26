@@ -186,8 +186,18 @@ export type Execucao = {
   lancamentos: number;
   /** Percentual de 0 a 100 — match exato mais match por tolerância. */
   acerto: number | null;
+  /** Quantas linhas de cada divergência a rodada deixou, só as que têm alguma. */
+  divergencias: Partial<Record<StatusLinha, number>>;
   atual: boolean;
 };
+
+const DIVERGENCIAS = [
+  "divergente_valor",
+  "divergente_data",
+  "duplicado",
+  "sem_correspondencia",
+  "tarifa_bancaria",
+] as const;
 
 export function adaptarExecucao(item: ExecucaoAPI): Execucao {
   return {
@@ -199,6 +209,12 @@ export function adaptarExecucao(item: ExecucaoAPI): Execucao {
     executadaEm: item.executada_em,
     lancamentos: item.contagens.total,
     acerto: item.percentual_acerto === null ? null : paraNumero(String(item.percentual_acerto)),
+    divergencias: Object.fromEntries(
+      DIVERGENCIAS.filter((status) => item.contagens[status] > 0).map((status) => [
+        status,
+        item.contagens[status],
+      ]),
+    ),
     atual: item.atual,
   };
 }

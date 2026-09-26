@@ -158,8 +158,31 @@ describe("adaptarExecucao", () => {
       executadaEm: "2026-09-24T17:02:11.482913Z",
       lancamentos: 4218,
       acerto: 96.3,
+      divergencias: {
+        duplicado: 4,
+        sem_correspondencia: 98,
+        tarifa_bancaria: 21,
+        divergente_valor: 22,
+        divergente_data: 11,
+      },
       atual: true,
     });
+  });
+
+  it("deixa de fora das divergências as categorias sem nenhuma linha", () => {
+    const tudoCasado = execucao({
+      contagens: {
+        total: 10,
+        match_exato: 9,
+        match_tolerancia: 0,
+        duplicado: 0,
+        sem_correspondencia: 1,
+        tarifa_bancaria: 0,
+        divergente_valor: 0,
+        divergente_data: 0,
+      },
+    });
+    expect(adaptarExecucao(tudoCasado).divergencias).toEqual({ sem_correspondencia: 1 });
   });
 
   it("aceita o percentual como número, caso o backend deixe de mandar string", () => {
@@ -192,6 +215,7 @@ describe("extratosDasExecucoes", () => {
       executadaEm,
       lancamentos: 10,
       acerto: 90,
+      divergencias: {},
       atual: true,
     };
   }
