@@ -21,6 +21,8 @@ export class ErroBackend extends Error {
   constructor(
     readonly status: number,
     readonly detalhe: string,
+    /** Num 422 do FastAPI, os campos do corpo que não passaram na validação. */
+    readonly campos: string[] = [],
   ) {
     super(detalhe);
     this.name = "ErroBackend";
@@ -41,29 +43,40 @@ async function tokenDaSessao(): Promise<string | null> {
   return null;
 }
 
-async function detalheDoErro(resposta: Response): Promise<string> {
+async function erroDaResposta(resposta: Response): Promise<ErroBackend> {
   try {
     const corpo = await resposta.json();
     // FastAPI manda `{detail: "..."}`; num 422 de validação, `detail` é uma
-    // lista de objetos, que não serve pra mostrar na tela.
-    if (typeof corpo?.detail === "string") return corpo.detail;
+    // lista de objetos, que não serve pra mostrar na tela — dela sai só quais
+    // campos do corpo falharam (`loc: ["body", "<campo>"]`).
+    if (typeof corpo?.detail === "string") return new ErroBackend(resposta.status, corpo.detail);
+    if (Array.isArray(corpo?.detail)) {
+      const campos = corpo.detail
+        .filter((item: { loc?: unknown[] }) => item?.loc?.[0] === "body")
+        .map((item: { loc: unknown[] }) => String(item.loc[1]));
+      return new ErroBackend(resposta.status, `O servidor respondeu ${resposta.status}.`, campos);
+    }
   } catch {
     // resposta sem corpo JSON (502 do proxy, timeout do Railway)
   }
-  return `O servidor respondeu ${resposta.status}.`;
+  return new ErroBackend(resposta.status, `O servidor respondeu ${resposta.status}.`);
 }
 
-/** A requisição com o Bearer da sessão; erro do backend vira `ErroBackend`. */
-async function requisitar(
-  caminho: string,
-  init: RequestInit & { corpo?: FormData | object } = {},
-): Promise<Response> {
-  const token = await tokenDaSessao();
-  if (!token) throw new ErroBackend(401, "Sessão expirada.");
+type Opcoes = RequestInit & {
+  corpo?: FormData | object;
+  /** Sem Bearer: só o `/login` e o `/register`, que é onde a sessão nasce. */
+  publica?: boolean;
+};
 
-  const { corpo, ...resto } = init;
+/** A requisição com o Bearer da sessão; erro do backend vira `ErroBackend`. */
+async function requisitar(caminho: string, init: Opcoes = {}): Promise<Response> {
+  const { corpo, publica, ...resto } = init;
   const cabecalhos = new Headers(resto.headers);
-  cabecalhos.set("Authorization", `Bearer ${token}`);
+  if (!publica) {
+    const token = await tokenDaSessao();
+    if (!token) throw new ErroBackend(401, "Sessão expirada.");
+    cabecalhos.set("Authorization", `Bearer ${token}`);
+  }
 
   let body: BodyInit | undefined;
   if (corpo instanceof FormData) {
@@ -81,14 +94,11 @@ async function requisitar(
     cache: "no-store",
   });
 
-  if (!resposta.ok) throw new ErroBackend(resposta.status, await detalheDoErro(resposta));
+  if (!resposta.ok) throw await erroDaResposta(resposta);
   return resposta;
 }
 
-export async function chamarBackend<T>(
-  caminho: string,
-  init: RequestInit & { corpo?: FormData | object } = {},
-): Promise<T> {
+export async function chamarBackend<T>(caminho: string, init: Opcoes = {}): Promise<T> {
   const resposta = await requisitar(caminho, init);
   if (resposta.status === 204) return undefined as T;
   return (await resposta.json()) as T;

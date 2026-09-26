@@ -50,18 +50,16 @@ const MENSAGENS = {
   senhaVazia: "Informe sua senha.",
 };
 
-// o que o servidor devolve, mais a pausa depois de senhas erradas seguidas
-type ErroLogin = ErroEntrada | "muitas_tentativas";
-
 // erros devolvidos pela autenticação, cada um mostrado junto ao campo a que se refere
-const ERROS_LOGIN: Record<ErroLogin, { campo: Campo; mensagem: string }> = {
-  conta_nao_encontrada: { campo: "email", mensagem: "Não encontramos conta com este e-mail. Confira o endereço." },
-  senha_incorreta: { campo: "senha", mensagem: "Senha incorreta. Confira e tente de novo." },
+const ERROS_LOGIN: Record<ErroEntrada, { campo: Campo; mensagem: string }> = {
+  // uma mensagem só para e-mail sem conta e senha errada: o backend não diz qual dos dois,
+  // de propósito, para ninguém descobrir pelo login quais e-mails têm conta
+  credenciais_invalidas: { campo: "senha", mensagem: "E-mail ou senha incorretos. Confira e tente de novo." },
+  // a pausa do navegador depois de erros seguidos e o limite do backend (10 entradas por minuto).
   // "alguns minutos" e não um tempo exato: quem tenta de novo durante o bloqueio pega só o que falta dele
   muitas_tentativas: { campo: "senha", mensagem: "Acesso pausado por segurança. Tente de novo em alguns minutos." },
-  // Não é erro de quem digitou: ambiente mal configurado (NEXTAUTH_SECRET,
-  // LEDGR_EMPRESA_ID_TESTE ou a conta de teste faltando) ou servidor fora do
-  // ar. Mensagem separada pra não acusar o usuário.
+  // Não é erro de quem digitou: ambiente mal configurado (NEXTAUTH_SECRET) ou
+  // backend fora do ar. Mensagem separada pra não acusar o usuário.
   falha_sessao: { campo: "senha", mensagem: "Não foi possível abrir a sessão. Tente de novo em instantes." },
 };
 
@@ -239,18 +237,18 @@ export default function LoginPage() {
         router.push("/visao-geral");
         return;
       }
-      const pausou = resultado.erro === "senha_incorreta" && registrarSenhaErrada();
+      const pausou = resultado.erro === "credenciais_invalidas" && registrarSenhaErrada();
       falhar(pausou ? "muitas_tentativas" : resultado.erro);
     }, ATRASO_ENTRADA_MS);
   }
 
-  function falhar(erro: ErroLogin) {
+  function falhar(erro: ErroEntrada) {
     setEntrando(false);
     const { campo, mensagem } = ERROS_LOGIN[erro];
     mostrarErros({ [campo]: mensagem });
   }
 
-  // ainda sem provedor: é o atalho de demonstração, sem validar os campos do formulário
+  // ainda sem provedor: é o atalho que entra na conta de demonstração, sem validar os campos do formulário
   function entrarComGoogle() {
     if (entrando) return;
     setErros({});

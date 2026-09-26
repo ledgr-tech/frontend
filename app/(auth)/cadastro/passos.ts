@@ -60,9 +60,25 @@ export function formatarCnpj(valor: string): string {
   return formatado;
 }
 
-// só o tamanho e o formato: o cálculo do dígito verificador fica para depois
-function validarCnpj(valor: string): string | undefined {
-  return /^[A-Z0-9]{12}\d{2}$/.test(caracteresCnpj(valor)) ? undefined : "O CNPJ tem 14 caracteres. Confira o número.";
+// O mesmo cálculo do backend (app/core/cnpj.py), que recusa o cadastro com dígito errado: conferir
+// aqui mostra o erro no passo da empresa, e não só no fim. Letra vale o código ASCII menos 48, como a
+// Receita definiu para o CNPJ alfanumérico — para os números dá o próprio algarismo.
+const PESOS_CNPJ = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+
+function digitoVerificador(base: string): string {
+  const pesos = PESOS_CNPJ.slice(-base.length);
+  const resto = [...base].reduce((soma, c, i) => soma + (c.charCodeAt(0) - 48) * pesos[i], 0) % 11;
+  return resto < 2 ? "0" : String(11 - resto);
+}
+
+export function validarCnpj(valor: string): string | undefined {
+  const c = caracteresCnpj(valor);
+  if (!/^[A-Z0-9]{12}\d{2}$/.test(c)) return "O CNPJ tem 14 caracteres. Confira o número.";
+  const dv1 = digitoVerificador(c.slice(0, 12));
+  const dv = dv1 + digitoVerificador(c.slice(0, 12) + dv1);
+  // 00.000.000/0000-00 e parecidos passam no cálculo, mas o backend recusa
+  if (new Set(c).size === 1 || c.slice(12) !== dv) return "Os dígitos do CNPJ não conferem. Confira o número.";
+  return undefined;
 }
 
 export const PASSOS: PassoCadastro[] = [
@@ -113,7 +129,7 @@ export const PASSOS: PassoCadastro[] = [
       {
         id: "cnpj",
         rotulo: "CNPJ",
-        exemplo: "12.345.678/0001-90",
+        exemplo: "12.345.678/0001-95",
         tipo: "text",
         autoComplete: "off",
         // sem teclado numérico: o CNPJ novo pode ter letras
