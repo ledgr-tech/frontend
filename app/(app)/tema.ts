@@ -34,3 +34,30 @@ export function aplicarTema(tema: Tema): void {
   }
   document.documentElement.dataset.tema = tema;
 }
+
+/** O que a pessoa escolheu nas configurações: um tema fixo ou seguir o sistema. */
+export type EscolhaDeTema = Tema | "sistema";
+
+export function escolhaDeTema(): EscolhaDeTema {
+  if (typeof window === "undefined") return "sistema";
+  try {
+    const salvo = window.localStorage.getItem(CHAVE);
+    return salvo === "claro" || salvo === "escuro" ? salvo : "sistema";
+  } catch {
+    return "sistema";
+  }
+}
+
+/**
+ * Esquece a escolha: sem o atributo em <html>, o CSS volta a seguir o
+ * `prefers-color-scheme`, inclusive se o sistema trocar com o app aberto.
+ */
+export function seguirSistema(): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(CHAVE);
+  } catch {
+    // nada salvo para apagar
+  }
+  delete document.documentElement.dataset.tema;
+}

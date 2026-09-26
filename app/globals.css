@@ -1732,6 +1732,109 @@ html[data-tema="escuro"] .app-shell {
   font-family: var(--font-body); font-size: 14px; color: var(--color-text);
 }
 .app-conta-sair:hover { background: var(--tinta-hover); }
+.app-conta-atalho {
+  margin-left: auto; font-size: 12px; font-variant-numeric: tabular-nums;
+  color: color-mix(in srgb, var(--color-text) 50%, transparent);
+}
+
+/* ── Configurações ─────────────────────────────────────────────────────────────
+   Janela no meio da tela, como a do Claude: <dialog> nativo com showModal, que
+   põe a janela na camada de cima, prende o foco e fecha no Esc. Seções à
+   esquerda, com busca; o conteúdo à direita, uma linha por ajuste. */
+.cfg {
+  width: min(960px, calc(100vw - 32px)); height: min(640px, calc(100dvh - 48px));
+  max-width: none; max-height: none; margin: auto; padding: 0;
+  /* o --radius-lg (28px), numa janela deste tamanho, deixa a janela com cara de bolha */
+  border: 1px solid var(--color-divider); border-radius: var(--radius-md);
+  background: var(--color-bg); color: var(--color-text); box-shadow: var(--shadow-lg);
+  overflow: hidden;
+}
+.cfg::backdrop { background: rgb(12 11 10 / 0.55); backdrop-filter: blur(3px); }
+.cfg[open] { animation: cfg-surgir 0.18s cubic-bezier(0.22, 1, 0.36, 1); }
+@keyframes cfg-surgir { from { opacity: 0; transform: translateY(8px) scale(0.99); } to { opacity: 1; transform: none; } }
+
+.cfg-janela { display: grid; grid-template-columns: 240px minmax(0, 1fr); height: 100%; }
+.cfg-lado {
+  display: flex; flex-direction: column; gap: 18px; padding: 18px 14px; overflow-y: auto;
+  border-right: 1px solid var(--color-divider);
+  background: color-mix(in srgb, var(--color-text) 3%, var(--color-bg));
+}
+.cfg-busca {
+  display: flex; align-items: center; gap: 8px; padding: 8px 11px;
+  border: 1px solid var(--color-divider); border-radius: var(--radius-md);
+  color: color-mix(in srgb, var(--color-text) 55%, transparent);
+}
+.cfg-busca:focus-within { border-color: var(--color-accent); }
+.cfg-busca input {
+  flex: 1; min-width: 0; border: none; background: transparent; outline: none;
+  font: inherit; font-size: 14px; color: var(--color-text);
+}
+.cfg-grupo { display: flex; flex-direction: column; gap: 4px; }
+.cfg-grupo-nome {
+  margin: 0 0 4px 8px; font-size: 12.5px;
+  color: color-mix(in srgb, var(--color-text) 55%, transparent);
+}
+.cfg-grupo nav { display: flex; flex-direction: column; gap: 2px; }
+.cfg-item {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 10px;
+  border: none; border-radius: var(--radius-sm); background: transparent; cursor: pointer;
+  font-family: var(--font-body); font-size: 14.5px; text-align: left; color: var(--color-text);
+}
+.cfg-item:hover { background: var(--tinta-hover); }
+.cfg-item[aria-current="page"] { background: var(--tinta-ativa); font-weight: 600; }
+.cfg-item:focus-visible { outline: 2px solid var(--color-accent); outline-offset: -2px; }
+
+.cfg-conteudo { position: relative; overflow-y: auto; padding: 30px 34px 40px; }
+.cfg-fechar {
+  position: absolute; top: 16px; right: 16px; display: flex; padding: 7px; cursor: pointer;
+  border: none; border-radius: var(--radius-sm); background: transparent;
+  color: color-mix(in srgb, var(--color-text) 70%, transparent);
+}
+.cfg-fechar:hover { background: var(--tinta-hover); color: var(--color-text); }
+.cfg-titulo { margin: 0 0 14px; font-size: 22px; font-weight: 600; }
+.cfg-achado + .cfg-achado { margin-top: 30px; }
+.cfg-linhas { list-style: none; margin: 0; padding: 0; }
+.cfg-linha {
+  display: flex; align-items: center; justify-content: space-between; gap: 18px 28px;
+  padding: 16px 0; border-bottom: 1px solid var(--color-divider);
+}
+.cfg-linha:last-child { border-bottom: none; }
+.cfg-linha-texto { display: flex; flex-direction: column; gap: 4px; min-width: 0; max-width: 58ch; }
+.cfg-linha-titulo { font-family: var(--font-heading); font-size: 15px; font-weight: 600; }
+.cfg-linha-descricao {
+  font-size: 13.5px; line-height: 1.55;
+  color: color-mix(in srgb, var(--color-text) 66%, transparent);
+}
+.cfg-linha-controle { flex: none; max-width: 100%; }
+.cfg-valor {
+  font-size: 14px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere;
+  color: color-mix(in srgb, var(--color-text) 80%, transparent);
+}
+.cfg-link { font-size: 14px; color: var(--color-text); text-underline-offset: 3px; }
+.cfg-teclas { display: flex; gap: 5px; }
+.cfg-tecla {
+  min-width: 26px; padding: 3px 7px; border-radius: var(--radius-sm); text-align: center;
+  border: 1px solid var(--color-divider); border-bottom-width: 2px;
+  font-family: var(--font-body); font-size: 12.5px; color: var(--color-text);
+}
+.cfg-vazio { margin: 40px 0 0; color: color-mix(in srgb, var(--color-text) 66%, transparent); }
+
+/* no celular: a lista de seções vira uma faixa rolável em cima do conteúdo */
+@media (max-width: 720px) {
+  .cfg { height: calc(100dvh - 32px); }
+  .cfg-janela { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
+  .cfg-lado { flex-direction: column; gap: 10px; padding: 14px; border-right: none; border-bottom: 1px solid var(--color-divider); }
+  .cfg-grupo-nome { display: none; }
+  .cfg-lado > .cfg-grupo { flex-direction: row; }
+  .cfg-lado { overflow: visible; }
+  .cfg-lado .cfg-grupo nav { flex-direction: row; overflow-x: auto; }
+  .cfg-item { width: auto; white-space: nowrap; }
+  .cfg-conteudo { padding: 20px 18px 28px; }
+  .cfg-linha { flex-direction: column; align-items: flex-start; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cfg[open] { animation: none; }
+}
 
 /* Dica ao lado do item. So existe onde pode aparecer — nos botoes so de icone
    e, com o menu recolhido, em todos os itens: escondida mas gerada, ela vazaria

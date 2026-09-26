@@ -217,6 +217,24 @@ export async function carregarPainel(): Promise<Resultado<Painel>> {
   return { ok: true, dados: { recente: conciliacao.dados.conciliacao, anteriores } };
 }
 
+/**
+ * A tolerância de data da conciliação mais recente, em dias: é a configuração
+ * que o motor usou por último. Null sem conciliação ou sem resposta — quem mostra
+ * é a janela de configurações, que abre sem ela.
+ *
+ * ponytail: lida de `/execucoes` porque o backend guarda a configuração da
+ * empresa (`configuracoes`) mas não tem rota para ela. Com a rota, é lá que se lê
+ * e se ajusta.
+ */
+export async function toleranciaDaUltimaConciliacao(): Promise<number | null> {
+  try {
+    const lista = await chamarBackend<ListaExecucoesAPI>("/execucoes?limit=1&offset=0");
+    return lista.itens[0]?.tolerancia_dias ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export type ArquivoExtrato = ArquivoConciliado & {
   /** Null quando o detalhe do arquivo não carregou; o resto da lista segue. */
   situacao: SituacaoExtrato["status"] | null;

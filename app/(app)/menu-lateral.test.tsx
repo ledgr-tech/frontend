@@ -9,6 +9,8 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("@/lib/mock-data", () => ({ EMPRESA_MOCK: "Telha Certa" }));
+// a janela de configurações lê a tolerância do backend quando abre
+vi.mock("./conciliacoes/acoes", () => ({ toleranciaDaUltimaConciliacao: async () => 1 }));
 
 const EMAIL = "financeiro@telhacerta.com.br";
 
@@ -200,5 +202,27 @@ describe("MenuLateral", () => {
     await user.keyboard("{Escape}");
 
     expect(screen.queryByRole("button", { name: "Sair" })).not.toBeInTheDocument();
+  });
+
+  it("opens the settings window from the account menu, closing the menu", async () => {
+    const user = userEvent.setup();
+    montar();
+
+    await user.click(screen.getByRole("button", { name: /Financeiro/ }));
+    await user.click(screen.getByRole("button", { name: /Configurações/ }));
+
+    expect(screen.getByRole("dialog", { name: "Configurações" })).toHaveAttribute("open");
+    expect(screen.getByRole("button", { name: /Financeiro/ })).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("opens the settings window with Ctrl+comma, and gives the focus back to the account when it closes", async () => {
+    const user = userEvent.setup();
+    montar();
+
+    await user.keyboard("{Control>},{/Control}");
+    expect(screen.getByRole("dialog", { name: "Configurações" })).toHaveAttribute("open");
+
+    await user.click(screen.getByRole("button", { name: "Fechar configurações" }));
+    expect(screen.getByRole("button", { name: /Financeiro/ })).toHaveFocus();
   });
 });
