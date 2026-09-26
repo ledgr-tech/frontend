@@ -840,6 +840,10 @@ button.login-link-animado { border: 0; background-color: transparent; font: inhe
   border-bottom: 1px solid var(--color-divider); padding: 24px 0;
   display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 18px 24px;
 }
+/* o topo de toda tela (cabecalho.tsx): o mesmo título, a mesma linha, as ações à direita */
+.tela-titulo { margin: 0; font-size: 30px; font-weight: 600; }
+.tela-contexto { display: block; margin-top: 4px; }
+.tela-acoes { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 
 /* reaproveita .grade-colunas (3 colunas com filete, 1 por linha até 760px) */
 .dash-resumo { --grade-recuo: 28px; border-block: 1px solid var(--color-divider); }

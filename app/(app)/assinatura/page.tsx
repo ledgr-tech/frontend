@@ -1,6 +1,7 @@
 import { PLANOS } from "@/lib/planos";
 import { CancelarAssinatura } from "./cancelar-assinatura";
-import { ASSINATURA, FATURAS, NUMEROS } from "./dados";
+import { ASSINATURA, FATURAS, NUMEROS } from "./dados";
+import { Cabecalho } from "../cabecalho";
 
 /**
  * A assinatura da empresa: o plano, os planos da landing e as faturas. Tudo
@@ -16,18 +17,18 @@ export default function AssinaturaPage() {
 
   return (
     <div>
-      <div className="dash-cabecalho">
-        <div>
-          <h1 style={{ margin: "0 0 4px", fontSize: 30, fontWeight: 600 }}>Assinatura</h1>
-          <span className="vg-subtitulo">{`Plano ${plano.nome} · renova em ${renovaEm}`}</span>
-        </div>
-        <div className="ass-acoes">
-          <button type="button" className="btn btn-secondary" disabled aria-describedby={AVISO_ID}>
-            Trocar forma de pagamento
-          </button>
-          <CancelarAssinatura fimDoPeriodo={renovaEm} />
-        </div>
-      </div>
+      <Cabecalho
+        titulo="Assinatura"
+        contexto={[`plano ${plano.nome}`, `renova em ${renovaEm}`]}
+        acoes={
+          <>
+            <button type="button" className="btn btn-secondary" disabled aria-describedby={AVISO_ID}>
+              Trocar forma de pagamento
+            </button>
+            <CancelarAssinatura fimDoPeriodo={renovaEm} />
+          </>
+        }
+      />
 
       <div className="ass-corpo">
         <p id={AVISO_ID} role="note" className="aviso-demonstracao">

@@ -108,7 +108,9 @@ describe("DashboardPage", () => {
     );
     render(<DashboardPage />);
 
-    expect(await screen.findByText("Competência setembro/2026")).toBeInTheDocument();
+    // o título é o nome que o menu dá à tela; a empresa e o mês ficam na linha de baixo
+    expect(await screen.findByRole("heading", { level: 1, name: "Conciliações" })).toBeInTheDocument();
+    expect(screen.getByText("Telha Certa · competência setembro/2026")).toBeInTheDocument();
     expect(screen.getByText("Período 01–30 de setembro")).toBeInTheDocument();
   });
 

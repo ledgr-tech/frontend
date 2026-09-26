@@ -17,7 +17,7 @@ describe("AssinaturaPage", () => {
   it("shows the current plan and the renewal date under the title", () => {
     render(<AssinaturaPage />);
     expect(screen.getByRole("heading", { level: 1, name: "Assinatura" })).toBeInTheDocument();
-    expect(screen.getByText("Plano Escala · renova em 12 de outubro")).toBeInTheDocument();
+    expect(screen.getByText("Telha Certa · plano Escala · renova em 12 de outubro")).toBeInTheDocument();
   });
 
   it("summarises the plan, the accounts and September's volume", () => {

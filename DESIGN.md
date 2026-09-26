@@ -122,6 +122,14 @@ Dois lugares onde algo muda de verdade no lugar:
   desligados, com o aviso da tela (como na Assinatura), e não há mais troca de
   lista para realçar. Volta junto com a rota de regras no backend.
 
+**Regra de 26/09: toda tela abre com o `Cabecalho`** (`app/(app)/cabecalho.tsx`).
+O título é o nome que o menu dá à tela ("Conciliações", não o nome da empresa);
+a linha de baixo começa sempre pela empresa e segue com o contexto da tela
+("Telha Certa · competência setembro/2026 · 140 lançamentos"); à direita, só as
+ações da própria tela. "Nova conciliação" mora no menu e não se repete no
+cabeçalho. Tela de detalhe troca a linha por um sobretítulo que diz onde o item
+está ("Valor diverge na mesma data · item 31 de 42").
+
 **Regra de 26/09: tela com dado de demonstração avisa.** Assinatura e Regras
 mostram `.aviso-demonstracao` no topo, e toda ação que gravaria algo aparece
 desligada, com `aria-describedby` apontando para o aviso. Onde o dado real existe

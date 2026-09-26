@@ -24,6 +24,7 @@ const SISTEMA = "7a2b9c4d-1e3f-4a5b-8c6d-9e0f1a2b3c4d";
 const buscarConciliacao = vi.fn();
 const fecharConciliacao = vi.fn();
 vi.mock("@/lib/mock-data", () => ({
+  EMPRESA_MOCK: "Telha Certa",
   buscarConciliacao: (id: string) => buscarConciliacao(id),
   fecharConciliacao: (id: string) => fecharConciliacao(id),
   formatarMoeda: (valor: number) =>
