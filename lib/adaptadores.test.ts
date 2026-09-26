@@ -47,6 +47,21 @@ describe("adaptarLinha", () => {
     expect(linha.dataISO).toBe("2026-09-04");
   });
 
+  it("mostra só o começo do id do lançamento, que é do Ledgr e não do banco", () => {
+    const linha = adaptarLinha(
+      item({
+        lancamento_banco: {
+          id: "3cf85879-9a0d-4448-992e-d123a5c374cd",
+          data: "2026-09-04",
+          valor: "12640.00",
+          descricao: "Boleto",
+          tipo: "debito",
+        },
+      }),
+    );
+    expect(linha.camposBanco?.find((campo) => campo.rotulo === "Identificador")?.valor).toBe("3cf85879");
+  });
+
   it("deixa null o lado que o motor não pareou", () => {
     // as cinco categorias de divergência descrevem um lançamento só: o backend
     // sub-classifica a sobra olhando o outro extrato, mas não forma par

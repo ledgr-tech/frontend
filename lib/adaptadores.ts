@@ -61,7 +61,10 @@ function campos(lancamento: LancamentoAPI): CampoLancamento[] {
   return [
     { rotulo: "Data do lançamento", valor: lancamento.data.split("-").reverse().join("/") },
     { rotulo: "Tipo", valor: lancamento.tipo },
-    { rotulo: "Identificador", valor: lancamento.id },
+    // ponytail: é o id do lançamento no banco de dados do Ledgr, não um código
+    // do banco. Os 8 primeiros caracteres bastam para achar a linha no suporte;
+    // inteiro, o UUID ocupava quatro linhas do cartão.
+    { rotulo: "Identificador", valor: lancamento.id.slice(0, 8) },
   ];
 }
 

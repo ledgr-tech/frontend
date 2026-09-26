@@ -51,16 +51,14 @@ describe("ExtratosPage", () => {
     redirect.mockClear();
   });
 
-  it("shows the files with a way to upload another one", async () => {
+  it("shows the files under the same title the menu uses", async () => {
     listarExtratos.mockResolvedValue({ ok: true, dados: ARQUIVOS });
     await renderizar();
 
-    expect(screen.getByRole("heading", { level: 1, name: "Extratos carregados" })).toBeInTheDocument();
-    expect(screen.getByText("2 arquivos · Telha Certa")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Carregar arquivo" })).toHaveAttribute(
-      "href",
-      "/conciliacoes/nova",
-    );
+    expect(screen.getByRole("heading", { level: 1, name: "Extratos" })).toBeInTheDocument();
+    expect(screen.getByText("Telha Certa · 2 arquivos")).toBeInTheDocument();
+    // "Nova conciliação" já está no menu: o cabeçalho não repete o botão dourado
+    expect(screen.queryByRole("link", { name: "Carregar arquivo" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /sicredi-setembro\.ofx/ })).toBeInTheDocument();
   });
 

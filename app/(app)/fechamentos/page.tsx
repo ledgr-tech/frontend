@@ -1,11 +1,11 @@
 import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { EMPRESA_MOCK } from "@/lib/mock-data";
 import { carregarFechamentos } from "../conciliacoes/acoes";
 import { formatarInteiro } from "../dashboard/resumo";
 import { agruparPorMes } from "./fechamento";
 import { MesaDeFechamento } from "./mesa";
+import { Cabecalho } from "../cabecalho";
 
 /**
  * Os fechamentos, mês a mês: cada competência com o que ainda segura o
@@ -30,19 +30,13 @@ export default async function FechamentosPage() {
 
   return (
     <div>
-      <div className="dash-cabecalho">
-        <div>
-          <h1 style={{ margin: "0 0 4px", fontSize: 30, fontWeight: 600 }}>Fechamentos</h1>
-          <span className="vg-subtitulo">
-            {meses.length > 0
-              ? `${EMPRESA_MOCK} · ${formatarInteiro(meses.length)} ${meses.length === 1 ? "competência" : "competências"}`
-              : EMPRESA_MOCK}
-          </span>
-        </div>
-        <Link href="/conciliacoes/nova" className="btn btn-primary">
-          Nova conciliação
-        </Link>
-      </div>
+      <Cabecalho
+        titulo="Fechamentos"
+        contexto={[
+          meses.length > 0 &&
+            `${formatarInteiro(meses.length)} ${meses.length === 1 ? "competência" : "competências"}`,
+        ]}
+      />
 
       {!resposta.ok ? (
         <p role="alert" style={{ padding: "48px 0" }}>

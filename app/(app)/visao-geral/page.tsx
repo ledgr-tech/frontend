@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { ArrowLeftRight, ArrowRight, CalendarCheck, Files, History, type LucideIcon } from "lucide-react";
 import { extratosDasExecucoes, type Execucao } from "@/lib/adaptadores";
 import { caminhoDaConciliacao } from "@/lib/caminhos";
-import { EMPRESA_MOCK, type Conciliacao } from "@/lib/mock-data";
+import { type Conciliacao } from "@/lib/mock-data";
 import { carregarVisaoGeral, type VisaoGeral } from "../conciliacoes/acoes";
 import {
   formatarDataHora,
@@ -17,6 +17,7 @@ import { GraficoDeMatch } from "../historico/grafico";
 import { IconeOrigem } from "../icone-origem";
 import { NOTA_VER_ATUAL, VerExecucao } from "../historico/ver-execucao";
 import { pendencias } from "./pendencias";
+import { Cabecalho } from "../cabecalho";
 
 /**
  * A home do app: onde o mês está, os atalhos para as outras telas (cada um com o
@@ -44,19 +45,10 @@ export default async function VisaoGeralPage() {
 
   return (
     <div>
-      <div className="dash-cabecalho">
-        <div>
-          <h1 style={{ margin: "0 0 4px", fontSize: 30, fontWeight: 600 }}>Visão geral</h1>
-          <span className="vg-subtitulo">
-            {recente
-              ? `${EMPRESA_MOCK} · competência ${recente.conciliacao.mes.toLowerCase()}`
-              : EMPRESA_MOCK}
-          </span>
-        </div>
-        <Link href="/conciliacoes/nova" className="btn btn-primary">
-          Nova conciliação
-        </Link>
-      </div>
+      <Cabecalho
+        titulo="Visão geral"
+        contexto={[recente && `competência ${recente.conciliacao.mes.toLowerCase()}`]}
+      />
 
       {!resposta.ok ? (
         <p role="alert" style={{ padding: "48px 0" }}>

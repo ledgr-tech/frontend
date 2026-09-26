@@ -114,10 +114,8 @@ describe("VisaoGeralPage", () => {
     await renderizar();
     expect(screen.getByRole("heading", { level: 1, name: "Visão geral" })).toBeInTheDocument();
     expect(screen.getByText("Telha Certa · competência setembro/2026")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Nova conciliação" })).toHaveAttribute(
-      "href",
-      "/conciliacoes/nova",
-    );
+    // "Nova conciliação" já está no menu: o cabeçalho não repete o botão dourado
+    expect(screen.queryByRole("link", { name: "Nova conciliação" })).not.toBeInTheDocument();
   });
 
   it("works as a hub: one shortcut per screen, each with where that screen stands", async () => {

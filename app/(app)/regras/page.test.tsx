@@ -5,6 +5,7 @@ import RegrasPage from "./page";
 
 const listarRegras = vi.fn();
 vi.mock("@/lib/mock-data", () => ({
+  EMPRESA_MOCK: "Telha Certa",
   listarRegras: () => listarRegras(),
   tomDaRegra: (marca: string) =>
     marca === "Aprendida" ? "ok" : marca === "Sugerida" ? "atencao" : "neutro",
@@ -33,12 +34,12 @@ describe("RegrasPage", () => {
     listarRegras.mockReset();
   });
 
-  it("splits the rules into ativas and sugeridas with the counts in the kicker", async () => {
+  it("splits the rules into ativas and sugeridas with the counts under the title", async () => {
     listarRegras.mockReturnValue({ ativas: [ativa], sugeridas: [sugerida] });
     render(<RegrasPage />);
 
-    expect(await screen.findByText("Suas regras")).toBeInTheDocument();
-    expect(screen.getByText("1 ativa · 1 sugerida")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { level: 1, name: "Regras" })).toBeInTheDocument();
+    expect(screen.getByText("Telha Certa · 1 ativa · 1 sugerida")).toBeInTheDocument();
     expect(screen.getByText(ativa.titulo)).toBeInTheDocument();
     expect(screen.getByText(sugerida.titulo)).toBeInTheDocument();
     expect(screen.getByText("Aprendida")).toBeInTheDocument();
@@ -52,10 +53,10 @@ describe("RegrasPage", () => {
     expect(screen.getByText("Aprendida")).toHaveClass("selo-ok");
   });
 
-  it("pluralises the kicker counts", async () => {
+  it("pluralises the counts", async () => {
     listarRegras.mockReturnValue({ ativas: [ativa, { ...ativa, id: 1 }], sugeridas: [] });
     render(<RegrasPage />);
-    expect(await screen.findByText("2 ativas · 0 sugeridas")).toBeInTheDocument();
+    expect(await screen.findByText("Telha Certa · 2 ativas · 0 sugeridas")).toBeInTheDocument();
   });
 
   it("says the rules are a demonstration, and does not pretend to save them", async () => {

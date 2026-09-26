@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { EMPRESA_MOCK } from "@/lib/mock-data";
 import { listarExtratos } from "../conciliacoes/acoes";
 import { formatarInteiro } from "../dashboard/resumo";
-import { Galeria } from "./galeria";
+import { Galeria } from "./galeria";
+import { Cabecalho } from "../cabecalho";
 
 /**
  * "Extratos carregados" do design, com o que o backend sabe hoje: os arquivos
@@ -23,20 +23,13 @@ export default async function ExtratosPage() {
 
   return (
     <div>
-      <div className="dash-cabecalho">
-        <div>
-          <h1 style={{ margin: "0 0 4px", fontSize: 30, fontWeight: 600 }}>Extratos carregados</h1>
-          {resposta.ok && (
-            <span style={{ fontSize: 14, fontVariantNumeric: "tabular-nums", color: cinza(55) }}>
-              {formatarInteiro(resposta.dados.length)}{" "}
-              {resposta.dados.length === 1 ? "arquivo" : "arquivos"} · {EMPRESA_MOCK}
-            </span>
-          )}
-        </div>
-        <Link href="/conciliacoes/nova" className="btn btn-primary">
-          Carregar arquivo
-        </Link>
-      </div>
+      <Cabecalho
+        titulo="Extratos"
+        contexto={[
+          resposta.ok &&
+            `${formatarInteiro(resposta.dados.length)} ${resposta.dados.length === 1 ? "arquivo" : "arquivos"}`,
+        ]}
+      />
 
       {!resposta.ok ? (
         <p role="alert" style={{ padding: "48px 0" }}>

@@ -71,7 +71,7 @@ describe("HistoricoPage", () => {
   it("headlines the most recent taxa de match", async () => {
     com(EXECUCOES);
     await renderizar();
-    expect(screen.getByText("Histórico de conciliações")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Histórico" })).toBeInTheDocument();
     expect(screen.getByText("96,3% em 24/09")).toBeInTheDocument();
   });
 

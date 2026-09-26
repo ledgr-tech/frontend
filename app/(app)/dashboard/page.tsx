@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { caminhoDaConciliacao } from "@/lib/caminhos";
-import { EMPRESA_MOCK, formatarMoeda } from "@/lib/mock-data";
+import { formatarMoeda } from "@/lib/mock-data";
 import { carregarPainel, type Painel } from "../conciliacoes/acoes";
 import {
   formatarDataHora,
@@ -23,7 +23,8 @@ import {
 // terem nascido na landing. Se uma terceira tela usar, aí vale mudar de lugar.
 import { InkHover, MotionRoot, Reveal, SpotlightHover } from "@/app/(marketing)/reveal";
 import { Barra, EsqueletoTabela, EsqueletoTela } from "../esqueleto";
-import { IconeOrigem } from "../icone-origem";
+import { IconeOrigem } from "../icone-origem";
+import { Cabecalho } from "../cabecalho";
 
 // ponytail: "O que o Ledgr sugere" (as três leituras de padrão do design) saiu
 // enquanto não há de onde tirá-las — eram frases fixas, com números inventados,
@@ -99,25 +100,8 @@ export default function DashboardPage() {
 
   return (
     <MotionRoot>
-      <div className="dash-cabecalho">
-        <div>
-          <h1 style={{ margin: "0 0 4px", fontSize: 30, fontWeight: 600 }}>{EMPRESA_MOCK}</h1>
-          {recente && (
-            <span
-              style={{
-                fontSize: 14,
-                fontVariantNumeric: "tabular-nums",
-                color: "color-mix(in srgb, var(--color-text) 55%, transparent)",
-              }}
-            >
-              Competência {recente.mes.toLowerCase()}
-            </span>
-          )}
-        </div>
-        <Link href="/conciliacoes/nova" className="btn btn-primary">
-          Novo extrato
-        </Link>
-      </div>
+      {/* o menu chama esta tela de Conciliações: o título é o mesmo */}
+      <Cabecalho titulo="Conciliações" contexto={[recente && `competência ${recente.mes.toLowerCase()}`]} />
 
       {estado.situacao === "falhou" ? (
         <p role="alert" style={{ padding: "48px 0" }}>

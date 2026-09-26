@@ -17,6 +17,7 @@ import { NumeroAnimado } from "../../../numero-animado";
 import { FALHA_AO_CARREGAR, useConciliacao } from "../../usar-conciliacao";
 import { IconeOrigem, type Origem } from "../../../icone-origem";
 import { ExplicacaoDaDivergencia } from "./explicacao";
+import { Cabecalho } from "../../../cabecalho";
 
 function CartaoExtrato({
   titulo,
@@ -37,9 +38,7 @@ function CartaoExtrato({
   // cada cartão no tom da sua folha, como na comparação direta
   return (
     <div className={`det-cartao folha-${origem}`}>
-      <div
-        style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}
-      >
+      <div className="det-cartao-topo">
         <span className="det-cartao-titulo">
           <IconeOrigem origem={origem} />
           {titulo}
@@ -112,7 +111,7 @@ export default function DetalheDivergenciaPage() {
           {FALHA_AO_CARREGAR}
         </p>
         <Link href="/dashboard" className="btn btn-secondary">
-          Voltar para a dashboard
+          Voltar para Conciliações
         </Link>
       </div>
     );
@@ -125,7 +124,7 @@ export default function DetalheDivergenciaPage() {
           Lançamento não encontrado.
         </h1>
         <Link href="/dashboard" className="btn btn-secondary">
-          Voltar para a dashboard
+          Voltar para Conciliações
         </Link>
       </div>
     );
@@ -158,17 +157,18 @@ export default function DetalheDivergenciaPage() {
 
   return (
     <div>
-      <div className="dash-cabecalho">
-        <div>
-          <div className="det-kicker">
+      <Cabecalho
+        titulo={linha.descricao}
+        sobretitulo={
+          <>
             {status.rotulo}
             {posicao === -1
               ? null
               : ` · item ${String(posicao + 1).padStart(2, "0")} de ${emAberto.length}`}
-          </div>
-          <h1 style={{ margin: 0, fontSize: 30, fontWeight: 600 }}>{linha.descricao}</h1>
-        </div>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+          </>
+        }
+        acoes={
+          <>
           <Link
             href={caminhoDaConciliacao(conciliacao.id, conciliacao.extratoSistemaId)}
             className="btn btn-secondary"
@@ -184,8 +184,9 @@ export default function DetalheDivergenciaPage() {
               Aceitar valor do banco
             </button>
           )}
-        </div>
-      </div>
+          </>
+        }
+      />
 
       <div className="det-corpo">
         <div className="det-comparacao">

@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { listarRegras, tomDaRegra, type Regra } from "@/lib/mock-data";
-import { Barra, EsqueletoTela } from "../esqueleto";
+import { Barra, EsqueletoTela } from "../esqueleto";
+import { Cabecalho } from "../cabecalho";
 
 type Listas = { ativas: Regra[]; sugeridas: Regra[] };
 
@@ -45,15 +46,13 @@ export default function RegrasPage() {
 
   return (
     <div>
-      <div className="dash-cabecalho">
-        <div>
-          <div className="det-kicker">
-            {listas.ativas.length} {listas.ativas.length === 1 ? "ativa" : "ativas"} ·{" "}
-            {listas.sugeridas.length} {listas.sugeridas.length === 1 ? "sugerida" : "sugeridas"}
-          </div>
-          <h1 style={{ margin: 0, fontSize: 30, fontWeight: 600 }}>Suas regras</h1>
-        </div>
-      </div>
+      <Cabecalho
+        titulo="Regras"
+        contexto={[
+          `${listas.ativas.length} ${listas.ativas.length === 1 ? "ativa" : "ativas"}`,
+          `${listas.sugeridas.length} ${listas.sugeridas.length === 1 ? "sugerida" : "sugeridas"}`,
+        ]}
+      />
 
       <div className="regras-corpo">
         <p id={AVISO_ID} role="note" className="aviso-demonstracao">

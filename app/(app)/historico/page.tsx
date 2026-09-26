@@ -1,13 +1,13 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { Execucao } from "@/lib/adaptadores";
-import { EMPRESA_MOCK } from "@/lib/mock-data";
 import { listarExecucoes } from "../conciliacoes/acoes";
 import { formatarInteiro, formatarPercentual } from "../dashboard/resumo";
 import { segmentos } from "./execucoes";
 import { GraficoDeMatch } from "./grafico";
 import { ExportarHistorico, LinhaDoTempo } from "./linha-do-tempo";
-import { NOTA_VER_ATUAL } from "./ver-execucao";
+import { NOTA_VER_ATUAL } from "./ver-execucao";
+import { Cabecalho } from "../cabecalho";
 
 /**
  * O histórico lê `GET /execucoes` no servidor, uma página por vez: uma entrada
@@ -33,19 +33,17 @@ export default async function HistoricoPage({ searchParams }: PageProps<"/histor
 
   return (
     <div>
-      <div className="dash-cabecalho">
-        <div>
-          <h1 style={{ margin: "0 0 4px", fontSize: 30, fontWeight: 600 }}>Histórico de conciliações</h1>
-          {resposta.ok && (
-            <span className="vg-subtitulo">
-              {`${formatarInteiro(resposta.dados.total)} ${resposta.dados.total === 1 ? "execução" : "execuções"} · ${EMPRESA_MOCK}`}
-            </span>
-          )}
-        </div>
-        {resposta.ok && resposta.dados.execucoes.length > 0 && (
-          <ExportarHistorico execucoes={resposta.dados.execucoes} />
-        )}
-      </div>
+      <Cabecalho
+        titulo="Histórico"
+        contexto={[
+          resposta.ok &&
+            `${formatarInteiro(resposta.dados.total)} ${resposta.dados.total === 1 ? "execução" : "execuções"}`,
+        ]}
+        acoes={
+          resposta.ok &&
+          resposta.dados.execucoes.length > 0 && <ExportarHistorico execucoes={resposta.dados.execucoes} />
+        }
+      />
 
       {!resposta.ok ? (
         <p role="alert" style={{ padding: "48px 0" }}>
