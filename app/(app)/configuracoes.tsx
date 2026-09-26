@@ -118,12 +118,10 @@ export function Configuracoes({
     if (!elemento) return;
     if (aberta && !elemento.open) {
       // as preferências podem ter mudado por fora (o botão de tema, o Ctrl+B)
-      /* eslint-disable react-hooks/set-state-in-effect */
       setTema(escolhaDeTema());
       setDensidade(densidadeAtual());
       setRecolhido(menuRecolhido());
       setMac(/Mac|iPhone|iPad/.test(navigator.platform));
-      /* eslint-enable react-hooks/set-state-in-effect */
       if (typeof elemento.showModal === "function") elemento.showModal();
       else elemento.setAttribute("open", "");
     }

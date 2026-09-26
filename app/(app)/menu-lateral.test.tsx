@@ -161,12 +161,14 @@ describe("MenuLateral", () => {
     expect(screen.getByRole("button", { name: "Tema claro" })).toBeInTheDocument();
   });
 
-  it("shows the assistant as coming soon, with nothing to click", () => {
+  it("leads to the assistant, marked as current on its screen", () => {
+    caminho.mockReturnValue("/assistente");
     montar();
 
-    expect(screen.getByText("Fale com o Ledgr")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Fale com o Ledgr/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: /Fale com o Ledgr/ })).not.toBeInTheDocument();
+    const assistente = screen.getByRole("link", { name: /Fale com o Ledgr/ });
+    expect(assistente).toHaveAttribute("href", "/assistente");
+    expect(assistente).toHaveAttribute("aria-current", "page");
+    expect(screen.queryByText("em breve")).not.toBeInTheDocument();
   });
 
   it("derives the user label and initials from the session email, next to the empresa", () => {

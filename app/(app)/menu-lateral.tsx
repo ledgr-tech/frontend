@@ -195,9 +195,13 @@ export function MenuLateral({ email, onSair }: { email: string; onSair: () => vo
         })}
       </nav>
 
-      {/* ponytail: o assistente ainda não tem backend. Quando tiver, este bloco vira
-          o botão que abre a conversa (bloco "chatbot" do APP em Ledgr.dc.html). */}
-      <div className="app-assistente app-dica" data-dica="Fale com o Ledgr · em breve">
+      {/* o cartão "chatbot" do APP em Ledgr.dc.html; a conversa é tela própria */}
+      <Link
+        href="/assistente"
+        className="app-assistente app-dica"
+        data-dica="Fale com o Ledgr"
+        aria-current={caminho.startsWith("/assistente") ? "page" : undefined}
+      >
         <Image
           src="/mascotes/mascote-chatbot.png"
           alt=""
@@ -209,9 +213,9 @@ export function MenuLateral({ email, onSair }: { email: string; onSair: () => vo
         <span className="app-rotulo app-assistente-texto">
           <span className="app-assistente-chamada">Assistente</span>
           <span className="app-assistente-titulo">Fale com o Ledgr</span>
-          <span className="app-assistente-detalhe">em breve</span>
+          <span className="app-assistente-detalhe">Pergunte sobre o mês</span>
         </span>
-      </div>
+      </Link>
 
       <div className="app-aside-rodape">
         <div className="app-conta-envelope" ref={caixaConta}>
