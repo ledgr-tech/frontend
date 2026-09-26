@@ -77,4 +77,9 @@ describe("filtrarLinhas", () => {
     const ids = filtrarLinhas(lista, "revisao").map((l) => l.id);
     expect(ids).toEqual(["a", "d"]);
   });
+
+  it("deixa só a categoria escolhida no relatório", () => {
+    expect(filtrarLinhas(lista, "sem_correspondencia").map((l) => l.id)).toEqual(["d"]);
+    expect(filtrarLinhas(lista, "duplicado")).toEqual([]);
+  });
 });

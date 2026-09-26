@@ -73,6 +73,27 @@ describe("GET /api/conciliacoes/[id]/exportar", () => {
     expect(baixarDoBackend).not.toHaveBeenCalled();
   });
 
+  it("pede ao backend só a categoria escolhida no relatório", async () => {
+    baixarDoBackend.mockResolvedValue(new Response(CSV, { headers: { "Content-Type": "text/csv" } }));
+
+    await pedir(BANCO, `?sistema=${SISTEMA}&status=divergente_valor`);
+
+    expect(baixarDoBackend).toHaveBeenCalledWith(
+      `/conciliacoes/${BANCO}/exportar?extrato_sistema_id=${SISTEMA}&status=divergente_valor`,
+    );
+  });
+
+  it.each(["match_exato", "tudo", "duplicado&limit=1"])(
+    "recusa a categoria %s, que não é uma das cinco divergências",
+    async (status) => {
+      const resposta = await pedir(BANCO, `?status=${encodeURIComponent(status)}`);
+
+      expect(resposta.status).toBe(400);
+      expect(await resposta.json()).toEqual({ erro: "Essa categoria de divergência não existe." });
+      expect(baixarDoBackend).not.toHaveBeenCalled();
+    },
+  );
+
   it("devolve a sessão vencida como 401, para a tela mandar ao login", async () => {
     baixarDoBackend.mockRejectedValue(new ErroBackend(401, "Token expirado"));
 

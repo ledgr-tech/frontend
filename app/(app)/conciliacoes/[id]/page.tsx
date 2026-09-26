@@ -3,6 +3,7 @@
 import { useEffect, useId, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { ehDivergencia } from "@/lib/adaptadores";
 import { caminhoDaConciliacao } from "@/lib/caminhos";
 import {
   fecharConciliacao,
@@ -10,14 +11,15 @@ import {
   type Conciliacao,
   type LinhaComparacao,
 } from "@/lib/mock-data";
-import { estaResolvida, statusDaLinha } from "../../dashboard/resumo";
+import { estaResolvida, seloDoStatus, statusDaLinha } from "../../dashboard/resumo";
 import { FALHA_AO_CARREGAR, useConciliacao } from "../usar-conciliacao";
 import { EsqueletoTela } from "../../esqueleto";
-import { filtrarLinhas, ordenarLinhas, type Coluna, type Ordem } from "./ordenar";
+import { filtrarLinhas, ordenarLinhas, type Coluna, type Filtro, type Ordem } from "./ordenar";
 import { aplicarDensidade, densidadeAtual, type Densidade } from "../../densidade";
 import { IconeOrigem, type Origem } from "../../icone-origem";
 import { ExportarCsv } from "./exportar-csv";
 import { CartaoLancamento, ladosDaLinha, type CartaoAberto } from "./cartao-lancamento";
+import { Relatorio } from "./relatorio";
 
 /** Quantas linhas por página. 4.218 lançamentos não cabem numa tela. */
 const POR_PAGINA = 25;
@@ -68,13 +70,19 @@ function Cabecalho({
 
 export default function ConciliacaoPage() {
   const params = useParams<{ id: string }>();
-  const sistema = useSearchParams().get("sistema") || undefined;
+  const busca = useSearchParams();
+  const sistema = busca.get("sistema") || undefined;
   const router = useRouter();
   const { estado, substituir } = useConciliacao(params.id, sistema);
   const [linhaAberta, setLinhaAberta] = useState<LinhaComparacao | null>(null);
   const [cartao, setCartao] = useState<CartaoAberto | null>(null);
   const idCartao = useId();
-  const [filtro, setFiltro] = useState<"todos" | "revisao">("todos");
+  // a categoria do relatório chega pela URL: quem volta do detalhe de uma linha
+  // reencontra o mesmo recorte
+  const [filtro, setFiltro] = useState<Filtro>(() => {
+    const status = busca.get("status");
+    return ehDivergencia(status) ? status : "todos";
+  });
   const [ordem, setOrdem] = useState<Ordem>({ coluna: "data", crescente: true });
   const [pagina, setPagina] = useState(0);
   // null enquanto não lemos a preferência: só existe no cliente
@@ -134,6 +142,7 @@ export default function ConciliacaoPage() {
   }
 
   const emRevisao = filtrarLinhas(conciliacao.linhas, "revisao");
+  const categoria = ehDivergencia(filtro) ? filtro : null;
   const ordenadas = ordenarLinhas(filtrarLinhas(conciliacao.linhas, filtro), ordem);
   const totalPaginas = Math.max(1, Math.ceil(ordenadas.length / POR_PAGINA));
   // limita em vez de corrigir num efeito: filtrar pode encurtar a lista e deixar a
@@ -144,6 +153,18 @@ export default function ConciliacaoPage() {
   function escolherDensidade(proxima: Densidade) {
     aplicarDensidade(proxima);
     setDensidade(proxima);
+  }
+
+  function escolherFiltro(proximo: Filtro) {
+    setFiltro(proximo);
+    setPagina(0);
+    // replaceState, não navegação: o Next sincroniza o useSearchParams sem remontar
+    // a página nem buscar as linhas de novo, e o histórico não ganha um passo por clique
+    const url = new URLSearchParams(window.location.search);
+    if (ehDivergencia(proximo)) url.set("status", proximo);
+    else url.delete("status");
+    const query = url.toString();
+    window.history.replaceState(null, "", query ? `?${query}` : window.location.pathname);
   }
 
   function alternarOrdem(coluna: Coluna) {
@@ -170,10 +191,7 @@ export default function ConciliacaoPage() {
             type="button"
             className="pill"
             aria-pressed={filtro === "todos"}
-            onClick={() => {
-              setFiltro("todos");
-              setPagina(0);
-            }}
+            onClick={() => escolherFiltro("todos")}
           >
             Todos ({conciliacao.linhas.length})
           </button>
@@ -181,15 +199,19 @@ export default function ConciliacaoPage() {
             type="button"
             className="pill"
             aria-pressed={filtro === "revisao"}
-            onClick={() => {
-              setFiltro("revisao");
-              setPagina(0);
-            }}
+            onClick={() => escolherFiltro("revisao")}
           >
             Só revisão ({emRevisao.length})
           </button>
         </div>
       </div>
+
+      {/* desligar uma categoria volta ao "Só revisão": as cinco são o que ele junta */}
+      <Relatorio
+        linhas={conciliacao.linhas}
+        ativa={categoria}
+        onEscolher={(status) => escolherFiltro(status ?? "revisao")}
+      />
 
       <div className="tabela-ferramentas">
         {densidade !== null && (
@@ -219,6 +241,7 @@ export default function ConciliacaoPage() {
             extratoSistemaId={conciliacao.extratoSistemaId}
             mes={conciliacao.mes}
             filtrada={filtro === "revisao"}
+            status={categoria ?? undefined}
           />
         )}
       </div>
@@ -364,7 +387,9 @@ export default function ConciliacaoPage() {
 
         {ordenadas.length === 0 && (
           <p className="tabela-vazia">
-            Nada em revisão nesta competência — todos os lançamentos bateram.
+            {categoria
+              ? `Nenhuma linha em “${seloDoStatus(categoria).rotulo}” nesta conciliação.`
+              : "Nada em revisão nesta competência — todos os lançamentos bateram."}
           </p>
         )}
 

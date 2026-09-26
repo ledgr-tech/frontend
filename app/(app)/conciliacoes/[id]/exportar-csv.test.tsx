@@ -51,6 +51,13 @@ describe("nomeDoArquivo", () => {
     // é o que adaptarConciliacao põe quando nenhuma linha tem data
     expect(nomeDoArquivo("Conciliação")).toBe("ledgr-conciliacao.csv");
   });
+
+  it("com uma categoria, ela entra no fim do nome", () => {
+    expect(nomeDoArquivo("Setembro/2026", "tarifa_bancaria")).toBe(
+      "ledgr-conciliacao-setembro-2026-tarifa-bancaria.csv",
+    );
+    expect(nomeDoArquivo("Conciliação", "duplicado")).toBe("ledgr-conciliacao-duplicado.csv");
+  });
 });
 
 describe("ExportarCsv", () => {
@@ -87,6 +94,27 @@ describe("ExportarCsv", () => {
     const [arquivo] = criarUrl.mock.calls[0];
     expect(await bytes(arquivo)).toEqual(CSV);
     await waitFor(() => expect(revogarUrl).toHaveBeenCalledWith("blob:csv"));
+  });
+
+  it("com uma categoria escolhida, pede ao backend só ela", async () => {
+    fetch.mockResolvedValue(new Response(CSV, { headers: { "Content-Type": "text/csv; charset=utf-8" } }));
+    const user = userEvent.setup();
+    render(
+      <ExportarCsv
+        extratoBancoId={BANCO}
+        extratoSistemaId={SISTEMA}
+        mes="Setembro/2026"
+        filtrada={false}
+        status="duplicado"
+      />,
+    );
+
+    // o backend filtra, então o arquivo bate com a tela: nada de "todas as linhas"
+    await user.click(screen.getByRole("button", { name: "Exportar CSV" }));
+
+    await waitFor(() => expect(cliques).toHaveLength(1));
+    expect(fetch).toHaveBeenCalledWith(`/api/conciliacoes/${BANCO}/exportar?sistema=${SISTEMA}&status=duplicado`);
+    expect(cliques[0].download).toBe("ledgr-conciliacao-setembro-2026-duplicado.csv");
   });
 
   it("trava o botão e diz que está exportando enquanto espera", async () => {

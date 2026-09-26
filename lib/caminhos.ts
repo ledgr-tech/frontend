@@ -18,10 +18,13 @@ export function caminhoDaConciliacao(
 
 /**
  * O CSV da conciliação, pela rota do servidor que chama o backend com o token
- * (`app/api/conciliacoes/[id]/exportar`). O par vai junto, para o arquivo ter
- * as mesmas linhas que a tela.
+ * (`app/api/conciliacoes/[id]/exportar`). O par e a categoria escolhida no
+ * relatório vão juntos, para o arquivo ter as mesmas linhas que a tela.
  */
-export function caminhoDoCsv(extratoBancoId: string, extratoSistemaId?: string): string {
-  const par = extratoSistemaId ? `?sistema=${encodeURIComponent(extratoSistemaId)}` : "";
-  return `/api/conciliacoes/${extratoBancoId}/exportar${par}`;
+export function caminhoDoCsv(extratoBancoId: string, extratoSistemaId?: string, status?: string): string {
+  const busca = new URLSearchParams();
+  if (extratoSistemaId) busca.set("sistema", extratoSistemaId);
+  if (status) busca.set("status", status);
+  const query = busca.toString();
+  return `/api/conciliacoes/${extratoBancoId}/exportar${query ? `?${query}` : ""}`;
 }
