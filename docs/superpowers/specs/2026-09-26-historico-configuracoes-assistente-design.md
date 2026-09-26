@@ -63,6 +63,13 @@ salvar o que o backend não guarda.
    ("previsão" não é pergunta sobre revisão).
 5. Tudo como texto: a explicação vem de descrição de extrato de terceiro.
 
+**Atualização (26/09):** o assistente deixou de ser tela. Como no design, é um
+painel que abre à direita do cartão "Fale com o Ledgr" do menu, no tom do cartão
+de lançamento da comparação, e a rota `/assistente` saiu. O painel vive no menu
+(layout), então continua aberto quando um link da conversa troca de tela; lê a
+última conciliação a cada vez que abre; fecha no X, no Esc ou no próprio cartão,
+e o foco volta ao cartão.
+
 ## Verificado no navegador (backend falso)
 
 - Histórico a 1440px: resumo, gráfico, setembro com dois cartões e as barras.

@@ -48,16 +48,27 @@ describe("Conversa", () => {
   });
 
   it("opens with the month in one sentence, from the real numbers", () => {
-    render(<Conversa contexto={CONTEXTO} />);
+    render(<Conversa contexto={CONTEXTO} onFechar={vi.fn()} />);
     expect(conversa()).toHaveTextContent(
       "Setembro está 70,0% conciliado. Sobraram 42 linhas para revisar, a maior parte em “Sem correspondência no banco”.",
     );
-    expect(screen.getByText("olhando setembro agora")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 6 })).toHaveTextContent("Assistente · olhando setembro");
+    // o painel abriu para uma pergunta
+    expect(screen.getByRole("textbox", { name: "Sua pergunta" })).toHaveFocus();
+  });
+
+  it("closes from its own header", async () => {
+    const onFechar = vi.fn();
+    const user = userEvent.setup();
+    render(<Conversa contexto={CONTEXTO} onFechar={onFechar} />);
+
+    await user.click(screen.getByRole("button", { name: "Fechar conversa" }));
+    expect(onFechar).toHaveBeenCalledOnce();
   });
 
   it("answers a suggested question right away, with a way to the screen that has the detail", async () => {
     const user = userEvent.setup();
-    render(<Conversa contexto={CONTEXTO} />);
+    render(<Conversa contexto={CONTEXTO} onFechar={vi.fn()} />);
 
     await user.click(screen.getByRole("button", { name: "O que falta para fechar?" }));
 
@@ -72,7 +83,7 @@ describe("Conversa", () => {
 
   it("answers what is typed, and empties the field", async () => {
     const user = userEvent.setup();
-    render(<Conversa contexto={CONTEXTO} />);
+    render(<Conversa contexto={CONTEXTO} onFechar={vi.fn()} />);
 
     const campo = screen.getByRole("textbox", { name: "Sua pergunta" });
     expect(screen.getByRole("button", { name: "Enviar" })).toBeDisabled();
@@ -88,7 +99,7 @@ describe("Conversa", () => {
       dados: { texto: "O crédito não tem par no sistema na mesma data.", geradaPorIa: true, indisponibilidade: null },
     });
     const user = userEvent.setup();
-    render(<Conversa contexto={CONTEXTO} />);
+    render(<Conversa contexto={CONTEXTO} onFechar={vi.fn()} />);
 
     await user.click(screen.getByRole("button", { name: "Explique a maior divergência" }));
 
@@ -109,7 +120,7 @@ describe("Conversa", () => {
       dados: { texto: "Não existe lançamento do outro lado.", geradaPorIa: false, indisponibilidade: "desabilitado" },
     });
     const user = userEvent.setup();
-    render(<Conversa contexto={CONTEXTO} />);
+    render(<Conversa contexto={CONTEXTO} onFechar={vi.fn()} />);
 
     await user.click(screen.getByRole("button", { name: "Explique a maior divergência" }));
 
@@ -124,7 +135,7 @@ describe("Conversa", () => {
       erro: "A explicação demorou mais que o normal. Tente de novo em instantes.",
     });
     const user = userEvent.setup();
-    render(<Conversa contexto={CONTEXTO} />);
+    render(<Conversa contexto={CONTEXTO} onFechar={vi.fn()} />);
 
     await user.click(screen.getByRole("button", { name: "Explique a maior divergência" }));
     expect(await within(conversa()).findByText(/demorou mais que o normal/)).toBeInTheDocument();
@@ -140,7 +151,7 @@ describe("Conversa", () => {
       dados: { texto: "<img src=x onerror=alert(1)>", geradaPorIa: true, indisponibilidade: null },
     });
     const user = userEvent.setup();
-    render(<Conversa contexto={CONTEXTO} />);
+    render(<Conversa contexto={CONTEXTO} onFechar={vi.fn()} />);
 
     await user.click(screen.getByRole("button", { name: "Explique a maior divergência" }));
 
