@@ -508,7 +508,7 @@ function Fechamento({
   const pendentes = total - batidos;
 
   return (
-    <div style={{ padding: "44px 0 64px", maxWidth: 1000, display: "flex", flexDirection: "column", gap: 34 }}>
+    <div style={{ padding: "44px 0 64px", display: "flex", flexDirection: "column", gap: 34 }}>
       <div>
         <div
           style={{

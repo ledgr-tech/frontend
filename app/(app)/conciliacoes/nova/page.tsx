@@ -242,7 +242,7 @@ export default function NovaConciliacaoPage() {
 
   if (pendente) {
     return (
-      <div style={{ padding: "36px 0 64px", maxWidth: 1040 }}>
+      <div style={{ padding: "36px 0 64px" }}>
         <ImportacaoInterrompida
           nome={pendente.arquivo.name}
           origem={pendente.origem}
@@ -255,7 +255,7 @@ export default function NovaConciliacaoPage() {
   }
 
   return (
-    <div style={{ padding: "36px 0 64px", maxWidth: 1040 }}>
+    <div style={{ padding: "36px 0 64px" }}>
       <h1 style={{ margin: "0 0 4px", fontSize: 30, fontWeight: 600 }}>Nova conciliação</h1>
       <span style={{ fontSize: 14, color: "color-mix(in srgb, var(--color-text) 66%, transparent)" }}>
         Setembro/2026
