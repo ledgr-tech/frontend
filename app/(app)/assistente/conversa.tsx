@@ -4,13 +4,14 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Send, Sparkles } from "lucide-react";
+import { Send, Sparkles, X } from "lucide-react";
 import { explicarDivergencia } from "../conciliacoes/acoes";
 import { formatarMoedaCurta } from "../dashboard/resumo";
 import { responder, saudacao, sugestoes, type Contexto, type Resposta } from "./respostas";
 
 /**
- * A conversa com o Ledgr ("chatbot" do APP em Ledgr.dc.html), em tela própria.
+ * A conversa com o Ledgr ("chatbot" do APP em Ledgr.dc.html), dentro do painel
+ * que abre do cartão do menu.
  * As respostas saem de `responder`, com os números da última conciliação; a
  * explicação de uma divergência é a IA do backend, e só ela tem espera — o
  * "lendo o extrato…" aparece quando há uma chamada de verdade, não para encenar.
@@ -38,7 +39,26 @@ function Mascote({ tamanho }: { tamanho: number }) {
   );
 }
 
-export function Conversa({ contexto }: { contexto: Contexto }) {
+/** O topo do painel, no tom do cartão de lançamento: a chamada em ouro, o nome, fechar. */
+export function TopoDoLedgr({ status, onFechar }: { status?: string; onFechar: () => void }) {
+  return (
+    <div className="asst-topo">
+      <Mascote tamanho={40} />
+      <div className="asst-topo-texto">
+        <h6 className="asst-chamada">
+          <span className="asst-ponto" aria-hidden="true" />
+          {status ? `Assistente · ${status}` : "Assistente"}
+        </h6>
+        <span className="asst-nome">Fale com o Ledgr</span>
+      </div>
+      <button type="button" className="asst-fechar" aria-label="Fechar conversa" onClick={onFechar}>
+        <X size={16} aria-hidden="true" />
+      </button>
+    </div>
+  );
+}
+
+export function Conversa({ contexto, onFechar }: { contexto: Contexto; onFechar: () => void }) {
   const router = useRouter();
   const [mensagens, setMensagens] = useState<Mensagem[]>([{ id: 0, de: "ledgr", texto: saudacao(contexto) }]);
   const [texto, setTexto] = useState("");
@@ -102,17 +122,8 @@ export function Conversa({ contexto }: { contexto: Contexto }) {
   }
 
   return (
-    <div className="asst">
-      <div className="asst-topo">
-        <Mascote tamanho={44} />
-        <div className="asst-topo-texto">
-          <span className="asst-nome">Ledgr</span>
-          <span className="asst-status">
-            <span className="asst-ponto" aria-hidden="true" />
-            {lendo ? "lendo o extrato…" : `olhando ${contexto.mes} agora`}
-          </span>
-        </div>
-      </div>
+    <>
+      <TopoDoLedgr status={lendo ? "lendo o extrato…" : `olhando ${contexto.mes}`} onFechar={onFechar} />
 
       {/* role="log": o leitor de tela anuncia cada mensagem nova, sem roubar o foco */}
       <div className="asst-mensagens" role="log" aria-label="Conversa com o Ledgr" aria-live="polite">
@@ -171,16 +182,14 @@ export function Conversa({ contexto }: { contexto: Contexto }) {
           placeholder={`Pergunte sobre ${contexto.mes}…`}
           aria-label="Sua pergunta"
           autoComplete="off"
+          // o painel abriu para uma pergunta: o cursor já espera nela
+          autoFocus
         />
         <button type="submit" className="btn btn-secondary" disabled={lendo || !texto.trim()}>
           <Send size={15} aria-hidden="true" />
           Enviar
         </button>
       </form>
-      <p className="asst-nota">
-        O Ledgr responde com os números da última conciliação. A explicação de uma divergência usa IA e só
-        roda quando você pede.
-      </p>
-    </div>
+    </>
   );
 }

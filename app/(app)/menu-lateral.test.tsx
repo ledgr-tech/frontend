@@ -4,13 +4,23 @@ import userEvent from "@testing-library/user-event";
 import { MenuLateral } from "./menu-lateral";
 
 const caminho = vi.fn();
+const roteador = { push: vi.fn() };
 vi.mock("next/navigation", () => ({
   usePathname: () => caminho(),
+  useRouter: () => roteador,
 }));
 
 vi.mock("@/lib/mock-data", () => ({ EMPRESA_MOCK: "Telha Certa" }));
-// a janela de configurações lê a tolerância do backend quando abre
-vi.mock("./conciliacoes/acoes", () => ({ toleranciaDaUltimaConciliacao: async () => 1 }));
+// a janela de configurações lê a tolerância do backend quando abre, e o
+// assistente, a última conciliação
+vi.mock("./conciliacoes/acoes", () => ({
+  toleranciaDaUltimaConciliacao: async () => 1,
+  carregarVisaoGeral: async () => ({
+    ok: true,
+    dados: { execucoes: [], total: 0, recente: null, arquivosComLinhasNaoLidas: [] },
+  }),
+  explicarDivergencia: vi.fn(),
+}));
 
 const EMAIL = "financeiro@telhacerta.com.br";
 
@@ -161,14 +171,26 @@ describe("MenuLateral", () => {
     expect(screen.getByRole("button", { name: "Tema claro" })).toBeInTheDocument();
   });
 
-  it("leads to the assistant, marked as current on its screen", () => {
-    caminho.mockReturnValue("/assistente");
+  it("opens the assistant in a panel beside the card, not on a screen of its own", async () => {
+    const user = userEvent.setup();
     montar();
 
-    const assistente = screen.getByRole("link", { name: /Fale com o Ledgr/ });
-    expect(assistente).toHaveAttribute("href", "/assistente");
-    expect(assistente).toHaveAttribute("aria-current", "page");
-    expect(screen.queryByText("em breve")).not.toBeInTheDocument();
+    const cartao = screen.getByRole("button", { name: /Fale com o Ledgr/ });
+    expect(cartao).toHaveAttribute("aria-expanded", "false");
+    await user.click(cartao);
+
+    const painel = screen.getByRole("dialog", { name: "Fale com o Ledgr" });
+    expect(cartao).toHaveAttribute("aria-expanded", "true");
+    expect(cartao).toHaveAttribute("aria-controls", painel.id);
+    expect(await within(painel).findByText(/Ainda não há sobre o que conversar/)).toBeInTheDocument();
+
+    // fechar devolve o foco ao cartão, e o cartão abre e fecha o mesmo painel
+    await user.click(within(painel).getByRole("button", { name: "Fechar conversa" }));
+    expect(screen.queryByRole("dialog", { name: "Fale com o Ledgr" })).not.toBeInTheDocument();
+    expect(cartao).toHaveFocus();
+    await user.click(cartao);
+    await user.click(cartao);
+    expect(screen.queryByRole("dialog", { name: "Fale com o Ledgr" })).not.toBeInTheDocument();
   });
 
   it("derives the user label and initials from the session email, next to the empresa", () => {

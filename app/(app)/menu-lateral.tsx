@@ -22,6 +22,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { EMPRESA_MOCK } from "@/lib/mock-data";
+import { PainelAssistente } from "./assistente/painel";
 import { Configuracoes } from "./configuracoes";
 import { LogoBarras } from "./logo-barras";
 import { alternarMenu } from "./menu";
@@ -62,6 +63,8 @@ export function MenuLateral({ email, onSair }: { email: string; onSair: () => vo
   const [tema, setTema] = useState<Tema | null>(null);
   const [contaAberta, setContaAberta] = useState(false);
   const [configAberta, setConfigAberta] = useState(false);
+  const [assistenteAberto, setAssistenteAberto] = useState(false);
+  const botaoAssistente = useRef<HTMLButtonElement>(null);
   const caixaConta = useRef<HTMLDivElement>(null);
   const botaoConta = useRef<HTMLButtonElement>(null);
   const botaoRecolher = useRef<HTMLButtonElement>(null);
@@ -195,27 +198,42 @@ export function MenuLateral({ email, onSair }: { email: string; onSair: () => vo
         })}
       </nav>
 
-      {/* o cartão "chatbot" do APP em Ledgr.dc.html; a conversa é tela própria */}
-      <Link
-        href="/assistente"
-        className="app-assistente app-dica"
-        data-dica="Fale com o Ledgr"
-        aria-current={caminho.startsWith("/assistente") ? "page" : undefined}
-      >
-        <Image
-          src="/mascotes/mascote-chatbot.png"
-          alt=""
-          width={1254}
-          height={1254}
-          sizes="36px"
-          className="app-assistente-mascote"
-        />
-        <span className="app-rotulo app-assistente-texto">
-          <span className="app-assistente-chamada">Assistente</span>
-          <span className="app-assistente-titulo">Fale com o Ledgr</span>
-          <span className="app-assistente-detalhe">Pergunte sobre o mês</span>
-        </span>
-      </Link>
+      {/* o cartão "chatbot" do APP em Ledgr.dc.html: abre a conversa num painel ao lado */}
+      <div className="app-assistente-envelope">
+        <button
+          ref={botaoAssistente}
+          type="button"
+          className="app-assistente app-dica"
+          data-dica="Fale com o Ledgr"
+          aria-expanded={assistenteAberto}
+          aria-controls={assistenteAberto ? "painel-assistente" : undefined}
+          onClick={() => setAssistenteAberto((aberto) => !aberto)}
+        >
+          <Image
+            src="/mascotes/mascote-chatbot.png"
+            alt=""
+            width={1254}
+            height={1254}
+            sizes="36px"
+            className="app-assistente-mascote"
+          />
+          <span className="app-rotulo app-assistente-texto">
+            <span className="app-assistente-chamada">Assistente</span>
+            <span className="app-assistente-titulo">Fale com o Ledgr</span>
+            <span className="app-assistente-detalhe">Pergunte sobre o mês</span>
+          </span>
+        </button>
+        {assistenteAberto && (
+          <PainelAssistente
+            id="painel-assistente"
+            onFechar={() => {
+              setAssistenteAberto(false);
+              // o botão de fechar some com o painel: o foco volta ao cartão que o abriu
+              botaoAssistente.current?.focus();
+            }}
+          />
+        )}
+      </div>
 
       <div className="app-aside-rodape">
         <div className="app-conta-envelope" ref={caixaConta}>
