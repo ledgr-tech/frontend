@@ -1,4 +1,4 @@
-import { caminhoDaConciliacao } from "@/lib/caminhos";
+import { caminhoDaCategoria } from "@/lib/caminhos";
 import type { Conciliacao, LinhaComparacao, Tom } from "@/lib/mock-data";
 import { estaResolvida, statusDaLinha, valorEmAberto } from "../dashboard/resumo";
 
@@ -9,7 +9,11 @@ export type Pendencia = {
   quantidade: number;
   /** Quanto o grupo deixa em aberto, em reais. */
   valor: number;
-  /** O primeiro caso do grupo: "Revisar" abre direto nele. */
+  /**
+   * A conciliação filtrada na categoria do grupo: "Revisar" abre a lista toda,
+   * não só o primeiro caso. "Sem correspondência" no banco e no sistema caem na
+   * mesma categoria do backend; a tabela mostra as duas, cada linha com o seu selo.
+   */
   href: string;
 };
 
@@ -38,7 +42,7 @@ export function pendencias(conciliacao: Conciliacao): Pendencia[] {
       tom,
       quantidade: linhas.length,
       valor: valorEmAberto(linhas),
-      href: caminhoDaConciliacao(conciliacao.id, conciliacao.extratoSistemaId, linhas[0].id),
+      href: caminhoDaCategoria(conciliacao.id, conciliacao.extratoSistemaId, linhas[0].status),
     }))
     .sort((a, b) => PESO[a.tom] - PESO[b.tom] || b.valor - a.valor);
 }

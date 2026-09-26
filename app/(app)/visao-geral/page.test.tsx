@@ -199,16 +199,16 @@ describe("VisaoGeralPage", () => {
     );
   });
 
-  it("lists what needs attention, riskiest first, each opening its first case", async () => {
+  it("lists what needs attention, riskiest first, each opening its category", async () => {
     com();
     await renderizar();
 
     const lista = screen.getByRole("list", { name: "Pede sua atenção" });
     const itens = within(lista).getAllByRole("link");
     expect(itens.map((item) => item.getAttribute("href"))).toEqual([
-      "/conciliacoes/banco-e7/l5?sistema=sistema-e7",
-      "/conciliacoes/banco-e7/l4?sistema=sistema-e7",
-      "/conciliacoes/banco-e7/l6?sistema=sistema-e7",
+      "/conciliacoes/banco-e7?sistema=sistema-e7&status=divergente_valor",
+      "/conciliacoes/banco-e7?sistema=sistema-e7&status=sem_correspondencia",
+      "/conciliacoes/banco-e7?sistema=sistema-e7&status=tarifa_bancaria",
     ]);
     expect(itens[0]).toHaveTextContent("Valor diverge na mesma data");
     expect(itens[0]).toHaveTextContent("1 lançamento · R$ 36");
