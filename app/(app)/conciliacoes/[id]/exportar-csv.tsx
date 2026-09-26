@@ -23,7 +23,7 @@ export function nomeDoArquivo(mes: string): string {
   return `ledgr-conciliacao-${competencia}.csv`;
 }
 
-function salvar(arquivo: Blob, nome: string) {
+export function salvar(arquivo: Blob, nome: string) {
   const url = URL.createObjectURL(arquivo);
   const link = document.createElement("a");
   link.href = url;

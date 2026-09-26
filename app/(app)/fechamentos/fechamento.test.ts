@@ -19,6 +19,7 @@ function par(
       lancamentos: 100,
       acerto: 100,
       divergencias: {},
+      toleranciaDias: 1,
       atual: true,
       ...parcial,
     },

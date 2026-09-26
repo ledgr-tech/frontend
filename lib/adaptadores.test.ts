@@ -165,6 +165,7 @@ describe("adaptarExecucao", () => {
         divergente_valor: 22,
         divergente_data: 11,
       },
+      toleranciaDias: 2,
       atual: true,
     });
   });
@@ -216,6 +217,7 @@ describe("extratosDasExecucoes", () => {
       lancamentos: 10,
       acerto: 90,
       divergencias: {},
+      toleranciaDias: 1,
       atual: true,
     };
   }

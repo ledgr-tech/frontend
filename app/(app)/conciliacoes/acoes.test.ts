@@ -100,6 +100,19 @@ describe("listarExecucoes", () => {
     });
   });
 
+  it("vira a página em offset de 50, e não deixa página inválida chegar ao backend", async () => {
+    backendCom([]);
+
+    await listarExecucoes(2);
+    expect(chamarBackend).toHaveBeenLastCalledWith("/execucoes?limit=50&offset=100");
+
+    await listarExecucoes(-1);
+    expect(chamarBackend).toHaveBeenLastCalledWith("/execucoes?limit=50&offset=0");
+
+    await listarExecucoes(1.5);
+    expect(chamarBackend).toHaveBeenLastCalledWith("/execucoes?limit=50&offset=0");
+  });
+
   it("traduz a sessão vencida para a mensagem da tela", async () => {
     chamarBackend.mockRejectedValue(new ErroBackend(401, "Token expirado"));
 

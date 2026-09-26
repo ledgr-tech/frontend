@@ -158,21 +158,33 @@ export async function carregarConciliacao(
   }
 }
 
-// ponytail: o histórico mostra as 50 execuções mais recentes (o backend aceita
-// até 100 por página). Quando alguém passar disso, entra paginação na tela.
+// 50 por página (o backend aceita até 100). As telas que resumem — visão geral,
+// fechamentos, extratos — leem só a primeira; o histórico pagina.
 const EXECUCOES_POR_PAGINA = 50;
 
-export type ListaExecucoes = { execucoes: Execucao[]; total: number };
+export type ListaExecucoes = {
+  execucoes: Execucao[];
+  total: number;
+  /** Quantas vêm por página, para a tela saber quantas páginas há. */
+  porPagina: number;
+};
 
 /** Mais recente primeiro, incluindo as rodadas que foram refeitas depois. */
-export async function listarExecucoes(): Promise<Resultado<ListaExecucoes>> {
+export async function listarExecucoes(pagina = 0): Promise<Resultado<ListaExecucoes>> {
+  // Server Action é endpoint público: a página vira offset na URL do backend,
+  // então só entra inteiro não negativo
+  const offset = Number.isSafeInteger(pagina) && pagina > 0 ? pagina * EXECUCOES_POR_PAGINA : 0;
   try {
     const lista = await chamarBackend<ListaExecucoesAPI>(
-      `/execucoes?limit=${EXECUCOES_POR_PAGINA}&offset=0`,
+      `/execucoes?limit=${EXECUCOES_POR_PAGINA}&offset=${offset}`,
     );
     return {
       ok: true,
-      dados: { execucoes: lista.itens.map(adaptarExecucao), total: lista.total },
+      dados: {
+        execucoes: lista.itens.map(adaptarExecucao),
+        total: lista.total,
+        porPagina: EXECUCOES_POR_PAGINA,
+      },
     };
   } catch (erro) {
     return traduzir(erro);

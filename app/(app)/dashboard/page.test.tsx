@@ -57,6 +57,7 @@ function execucao(parcial: Partial<Execucao> & Pick<Execucao, "id">): Execucao {
     lancamentos: 3980,
     acerto: 97.3,
     divergencias: {},
+    toleranciaDias: 1,
     atual: true,
     ...parcial,
   };

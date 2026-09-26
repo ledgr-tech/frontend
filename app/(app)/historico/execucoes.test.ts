@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Execucao } from "@/lib/adaptadores";
-import { alturasDasBarras, paraGrafico, variacaoEmPontos } from "./execucoes";
+import { alturasDasBarras, paraGrafico, porMes, segmentos, variacaoEmPontos } from "./execucoes";
 
 function execucao(id: string, acerto: number | null, atual = true): Execucao {
   return {
@@ -13,6 +13,7 @@ function execucao(id: string, acerto: number | null, atual = true): Execucao {
     lancamentos: 100,
     acerto,
     divergencias: {},
+    toleranciaDias: 1,
     atual,
   };
 }
@@ -59,5 +60,35 @@ describe("variacaoEmPontos", () => {
 
   it("não tem variação com uma barra só", () => {
     expect(variacaoEmPontos(paraGrafico([execucao("e1", 96.3)]))).toBeNull();
+  });
+});
+
+describe("porMes", () => {
+  it("agrupa pelo mês em que rodou, no fuso de Brasília, mantendo a ordem", () => {
+    const meses = porMes([
+      { ...execucao("e3", 90), executadaEm: "2026-10-01T02:00:00Z" },
+      { ...execucao("e2", 90), executadaEm: "2026-09-20T12:00:00Z" },
+      { ...execucao("e1", 90), executadaEm: "2026-08-31T12:00:00Z" },
+    ]);
+    // 01/10 às 02h em UTC ainda é 30/09 em Brasília
+    expect(meses.map((mes) => [mes.titulo, mes.execucoes.map((item) => item.id)])).toEqual([
+      ["Setembro de 2026", ["e3", "e2"]],
+      ["Agosto de 2026", ["e1"]],
+    ]);
+  });
+});
+
+describe("segmentos", () => {
+  it("parte a execução por tom de status, na ordem da régua, só os que têm linha", () => {
+    const partes = segmentos({
+      ...execucao("e1", 50),
+      lancamentos: 20,
+      divergencias: { tarifa_bancaria: 2, divergente_data: 3, sem_correspondencia: 1 },
+    });
+    expect(partes.map((parte) => [parte.rotulo, parte.quantidade])).toEqual([
+      ["Conciliados", 14],
+      ["Incompletos", 4],
+      ["Já explicados", 2],
+    ]);
   });
 });
