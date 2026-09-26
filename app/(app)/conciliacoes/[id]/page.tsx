@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { caminhoDaConciliacao } from "@/lib/caminhos";
@@ -17,9 +17,15 @@ import { filtrarLinhas, ordenarLinhas, type Coluna, type Ordem } from "./ordenar
 import { aplicarDensidade, densidadeAtual, type Densidade } from "../../densidade";
 import { IconeOrigem, type Origem } from "../../icone-origem";
 import { ExportarCsv } from "./exportar-csv";
+import { CartaoLancamento, ladosDaLinha, type CartaoAberto } from "./cartao-lancamento";
 
 /** Quantas linhas por página. 4.218 lançamentos não cabem numa tela. */
 const POR_PAGINA = 25;
+
+/** Toque não tem hover: lá o toque na descrição já abre o diálogo da linha. */
+function temHover(): boolean {
+  return window.matchMedia?.("(hover: hover)").matches ?? false;
+}
 
 /**
  * Cabeçalho ordenável. Vive no escopo do módulo de propósito: definido dentro do
@@ -66,6 +72,8 @@ export default function ConciliacaoPage() {
   const router = useRouter();
   const { estado, substituir } = useConciliacao(params.id, sistema);
   const [linhaAberta, setLinhaAberta] = useState<LinhaComparacao | null>(null);
+  const [cartao, setCartao] = useState<CartaoAberto | null>(null);
+  const idCartao = useId();
   const [filtro, setFiltro] = useState<"todos" | "revisao">("todos");
   const [ordem, setOrdem] = useState<Ordem>({ coluna: "data", crescente: true });
   const [pagina, setPagina] = useState(0);
@@ -76,6 +84,18 @@ export default function ConciliacaoPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setDensidade(densidadeAtual());
   }, []);
+
+  // o cartão é fixo na tela: rolar ou redimensionar o deixaria longe da linha
+  useEffect(() => {
+    if (!cartao) return;
+    const fechar = () => setCartao(null);
+    window.addEventListener("scroll", fechar, { capture: true, passive: true });
+    window.addEventListener("resize", fechar);
+    return () => {
+      window.removeEventListener("scroll", fechar, { capture: true });
+      window.removeEventListener("resize", fechar);
+    };
+  }, [cartao]);
 
   if (estado.situacao === "carregando") {
     return <EsqueletoTela />;
@@ -219,7 +239,7 @@ export default function ConciliacaoPage() {
                   </span>
                 </th>
                 <td className="folha-vao" aria-hidden="true" />
-                <th scope="colgroup" className="folha-sistema folha-titulo">
+                <th colSpan={3} scope="colgroup" className="folha-sistema folha-titulo">
                   <span className="folha-titulo-conteudo">
                     <IconeOrigem origem="sistema" />
                     <span className="folha-nome">Sistema de gestão</span>
@@ -244,6 +264,10 @@ export default function ConciliacaoPage() {
                   Banco
                 </Cabecalho>
                 <td className="folha-vao" aria-hidden="true" />
+                {/* ponytail: sem ordenar — a data e a descrição que ordenam são as do
+                    banco. Ordenar pelo lado do sistema entra se alguém pedir. */}
+                <th className="folha-sistema">Data</th>
+                <th className="folha-sistema">Descrição</th>
                 <Cabecalho
                   coluna="valorSistema"
                   ordem={ordem}
@@ -261,27 +285,68 @@ export default function ConciliacaoPage() {
             <tbody role="rowgroup">
               {visiveis.map((linha) => {
                 const status = statusDaLinha(linha);
+                const { banco, sistema } = ladosDaLinha(linha);
+                // o cartão só nas linhas que pedem revisão, como na landing: nas batidas seria ruído
+                const comCartao = !estaResolvida(linha.status);
+                const abrirCartao = (elemento: Element) =>
+                  setCartao({ linha, ancora: elemento.getBoundingClientRect() });
+                const fecharCartao = () =>
+                  setCartao((atual) => (atual?.linha.id === linha.id ? null : atual));
+                // botão de verdade: a linha inteira com onClick não era alcançável por
+                // teclado. Fica na descrição do banco; sem lançamento no banco, na do sistema.
+                const abrir = (descricao: string) => (
+                  <button
+                    type="button"
+                    className="celula-abrir"
+                    aria-describedby={cartao?.linha.id === linha.id ? idCartao : undefined}
+                    onClick={() => {
+                      setCartao(null);
+                      setLinhaAberta(linha);
+                    }}
+                    onFocus={(evento) => comCartao && abrirCartao(evento.currentTarget.closest("tr")!)}
+                    onBlur={fecharCartao}
+                    onKeyDown={(evento) => evento.key === "Escape" && fecharCartao()}
+                  >
+                    {descricao}
+                  </button>
+                );
                 return (
                   // o tom do status pinta o hover: a linha acende na cor do veredito dela
-                  <tr key={linha.id} role="row" data-tom={status.tom}>
+                  <tr
+                    key={linha.id}
+                    role="row"
+                    data-tom={status.tom}
+                    onMouseEnter={
+                      comCartao ? (evento) => temHover() && abrirCartao(evento.currentTarget) : undefined
+                    }
+                    onMouseLeave={comCartao ? fecharCartao : undefined}
+                  >
                     <td role="cell" data-rotulo="Data" className="dash-celula-fraca folha-banco">
-                      {linha.data}
+                      {banco?.data ?? "—"}
                     </td>
-                    <td role="cell" data-rotulo="Descrição" data-destaque="true" className="folha-banco">
-                      {/* botão de verdade: a linha inteira com onClick não era
-                          alcançável por teclado */}
-                      <button
-                        type="button"
-                        className="celula-abrir"
-                        onClick={() => setLinhaAberta(linha)}
-                      >
-                        {linha.descricao}
-                      </button>
+                    <td
+                      role="cell"
+                      data-rotulo="Descrição"
+                      data-destaque={banco ? "true" : undefined}
+                      className="folha-banco"
+                    >
+                      {banco ? abrir(banco.descricao) : "—"}
                     </td>
                     <td role="cell" data-rotulo="Banco" className="dash-valor-celula folha-banco">
                       {linha.valorBanco !== null ? formatarMoeda(linha.valorBanco) : "—"}
                     </td>
                     <td className="folha-vao" aria-hidden="true" />
+                    <td role="cell" data-rotulo="Data no sistema" className="dash-celula-fraca folha-sistema">
+                      {sistema?.data ?? "—"}
+                    </td>
+                    <td
+                      role="cell"
+                      data-rotulo="Descrição no sistema"
+                      data-destaque={banco ? undefined : "true"}
+                      className="folha-sistema"
+                    >
+                      {sistema ? (banco ? sistema.descricao : abrir(sistema.descricao)) : "—"}
+                    </td>
                     <td role="cell" data-rotulo="Sistema" className="dash-valor-celula folha-sistema">
                       {linha.valorSistema !== null ? formatarMoeda(linha.valorSistema) : "—"}
                     </td>
@@ -294,6 +359,8 @@ export default function ConciliacaoPage() {
             </tbody>
           </table>
         </div>
+
+        {cartao && <CartaoLancamento id={idCartao} aberto={cartao} />}
 
         {ordenadas.length === 0 && (
           <p className="tabela-vazia">

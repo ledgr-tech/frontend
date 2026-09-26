@@ -78,6 +78,32 @@ describe("adaptarLinha", () => {
     expect(linha.dataISO).toBe("2026-09-04");
   });
 
+  it("guarda a data e a descrição do sistema, que podem não ser as do banco", () => {
+    // tolerância de data: o mesmo pagamento caiu um dia depois no ERP, com outro nome
+    const linha = adaptarLinha(
+      item({
+        status: "match_tolerancia",
+        lancamento_sistema: {
+          id: "ls-1",
+          data: "2026-09-05",
+          valor: "12640.00",
+          descricao: "Pagamento fornecedor Aço Norte",
+          tipo: "debito",
+        },
+      }),
+    );
+    expect(linha.data).toBe("04/09");
+    expect(linha.descricao).toBe("Boleto Aço Norte");
+    expect(linha.dataSistema).toBe("05/09");
+    expect(linha.descricaoSistema).toBe("Pagamento fornecedor Aço Norte");
+  });
+
+  it("não tem data nem descrição do sistema quando o sistema não tem a linha", () => {
+    const linha = adaptarLinha(item({ lancamento_sistema: null }));
+    expect(linha.dataSistema).toBeUndefined();
+    expect(linha.descricaoSistema).toBeUndefined();
+  });
+
   it("explica o match com a regra e a confiança que o backend devolveu", () => {
     const linha = adaptarLinha(
       item({ status: "match_tolerancia", regra_aplicada: "tolerancia", score_confianca: "0.67" }),

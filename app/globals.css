@@ -1227,7 +1227,8 @@ html[data-tema="escuro"] .app-shell {
 .tabela-folhas tbody tr:last-child > td { border-bottom: none; }
 .tabela-folhas tbody tr:last-child > td:first-child { border-bottom-left-radius: var(--radius-md); }
 .tabela-folhas tbody tr:last-child > td.folha-banco:nth-child(3) { border-bottom-right-radius: var(--radius-md); }
-.tabela-folhas tbody tr:last-child > td.folha-sistema { border-radius: 0 0 var(--radius-md) var(--radius-md); }
+.tabela-folhas tbody tr:last-child > td.folha-sistema:nth-child(5) { border-bottom-left-radius: var(--radius-md); }
+.tabela-folhas tbody tr:last-child > td.folha-sistema:nth-child(7) { border-bottom-right-radius: var(--radius-md); }
 /* a estrutura é das folhas; a coluna do status não precisa de filete próprio */
 .tabela-folhas :is(th, td):last-child { border-bottom: none; }
 
@@ -2300,6 +2301,39 @@ th:is([aria-sort="ascending"], [aria-sort="descending"]) .th-ordena-seta { opaci
   text-underline-offset: 3px; transition: text-decoration-color 0.18s ease;
 }
 .celula-abrir:hover { text-decoration-color: var(--color-accent); }
+
+/* O lançamento no hover da comparação, o mesmo cartão da landing ("duas telas
+   abertas"). Fixo na tela: dentro da tabela, a rolagem horizontal o cortaria. */
+.cartao-lancamento {
+  position: fixed; z-index: 20;
+  width: min(340px, calc(100vw - 32px));
+  display: flex; flex-direction: column; gap: 12px;
+  padding: 16px 18px;
+  border: 1px solid var(--color-divider); border-radius: var(--radius-md);
+  background: var(--color-surface); box-shadow: var(--shadow-lg);
+  pointer-events: none;
+  animation: cartao-lancamento-surgir 0.16s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.cartao-lancamento h6 { margin: 0 0 8px; font-size: 12px; color: var(--color-accent-700); }
+.cartao-lancamento-titulo {
+  margin-bottom: 10px;
+  font-family: var(--font-heading); font-size: 19px; font-weight: 600; line-height: 1.24;
+}
+.cartao-lancamento dl { margin: 0; border-top: 1px solid var(--color-divider); }
+.cartao-lancamento dl > div {
+  display: flex; justify-content: space-between; gap: 14px;
+  padding: 7px 0; border-bottom: 1px solid var(--color-divider); font-size: 13.5px;
+}
+.cartao-lancamento dt { flex: none; color: color-mix(in srgb, var(--color-text) 56%, transparent); }
+.cartao-lancamento dd { margin: 0; text-align: right; }
+.cartao-lancamento p { margin: 0; line-height: 1.6; }
+@keyframes cartao-lancamento-surgir {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cartao-lancamento { animation: none; }
+}
 
 .paginacao {
   display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;

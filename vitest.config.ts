@@ -12,6 +12,9 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["./tests/setup.ts"],
     exclude: ["**/node_modules/**", "**/.worktrees/**"],
+    // o next-auth importa "next/server" sem extensão, o que o Node puro não resolve;
+    // passando pelo Vite, resolve (é só para os testes que importam o CredentialsSignin)
+    server: { deps: { inline: ["next-auth"] } },
     // 5s (o default) já estourava com os arquivos rodando em paralelo: o teste
     // que abre "Esqueci a senha" espera um import dinâmico (o card e o motion),
     // e sob disputa de CPU isso passa de 5s. Serializado, a suíte inteira passa

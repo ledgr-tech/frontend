@@ -1,6 +1,6 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
-import { autorizarContaDeTeste } from "@/lib/conta-teste";
+import { autorizar } from "@/lib/login";
 import { DURACAO_SESSAO_SEGUNDOS, assinarToken, lerToken } from "@/lib/token";
 
 /**
@@ -23,16 +23,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
     Credentials({
       credentials: { email: {}, senha: {} },
-      // ponytail: o backend ainda não expõe endpoint de autenticação — só
-      // /extratos e /conciliacoes. Enquanto não expõe, a única conta que entra
-      // é a de teste (`lib/conta-teste.ts`) e o empresa_id vem do ambiente.
-      // Quando o login real existir, é esta função que passa a chamá-lo; nada
-      // mais muda, porque o resto do sistema já trabalha em cima do token.
       authorize(credenciais) {
-        return autorizarContaDeTeste(
-          String(credenciais?.email ?? ""),
-          String(credenciais?.senha ?? ""),
-        );
+        return autorizar(String(credenciais?.email ?? ""), String(credenciais?.senha ?? ""));
       },
     }),
   ],

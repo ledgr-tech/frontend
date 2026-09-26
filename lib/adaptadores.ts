@@ -88,6 +88,8 @@ export function adaptarLinha(item: ItemConciliacaoAPI): LinhaComparacao {
     descricao: referencia?.descricao ?? "Lançamento sem descrição",
     data: referencia ? paraDiaMes(referencia.data) : "",
     dataISO: referencia?.data,
+    dataSistema: item.lancamento_sistema ? paraDiaMes(item.lancamento_sistema.data) : undefined,
+    descricaoSistema: item.lancamento_sistema?.descricao,
     valorBanco: paraNumero(item.lancamento_banco?.valor),
     valorSistema: paraNumero(item.lancamento_sistema?.valor),
     status: item.status,

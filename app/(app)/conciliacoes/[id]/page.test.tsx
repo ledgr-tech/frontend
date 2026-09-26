@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { Conciliacao } from "@/lib/mock-data";
 import ConciliacaoPage from "./page";
@@ -109,7 +109,7 @@ describe("ConciliacaoPage", () => {
     buscarConciliacao.mockReturnValue(conciliacaoEmAndamento);
     render(<ConciliacaoPage />);
     expect(await screen.findByText("Comparação direta")).toBeInTheDocument();
-    expect(screen.getByText("Boleto Aço Norte Bobinas")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Boleto Aço Norte Bobinas" })).toBeInTheDocument();
   });
 
   it("splits the table into the bank sheet and the system sheet", async () => {
@@ -121,14 +121,129 @@ describe("ConciliacaoPage", () => {
     expect(banco).toHaveAttribute("colspan", "3");
     expect(banco.querySelector('[data-origem="banco"]')).not.toBeNull();
     const sistema = screen.getByRole("columnheader", { name: /Sistema de gestão/ });
+    // e a do sistema também: o mesmo lançamento pode ter outro dia e outro nome no ERP
+    expect(sistema).toHaveAttribute("colspan", "3");
     expect(sistema.querySelector('[data-origem="sistema"]')).not.toBeNull();
+  });
+
+  it("shows the system's own date and description next to the bank's", async () => {
+    buscarConciliacao.mockReturnValue({
+      ...conciliacaoEmAndamento,
+      linhas: [
+        {
+          ...conciliacaoEmAndamento.linhas[0],
+          status: "match_tolerancia",
+          dataSistema: "05/09",
+          descricaoSistema: "Pagamento fornecedor Aço Norte",
+        },
+      ],
+    });
+    render(<ConciliacaoPage />);
+
+    const linha = (await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" })).closest("tr")!;
+    const celulas = within(linha).getAllByRole("cell");
+    // o Intl separa "R$" do valor com espaço não separável
+    expect(celulas.map((celula) => celula.textContent?.replace(/\s/g, " "))).toEqual([
+      "04/09",
+      "Boleto Aço Norte Bobinas",
+      "R$ 12.640,00",
+      "05/09",
+      "Pagamento fornecedor Aço Norte",
+      "R$ 12.604,00",
+      "Match por tolerância de data",
+    ]);
+  });
+
+  it("leaves the bank sheet empty when only the system has the lançamento, and opens it from there", async () => {
+    buscarConciliacao.mockReturnValue({
+      ...conciliacaoEmAndamento,
+      linhas: [
+        {
+          ...conciliacaoEmAndamento.linhas[0],
+          valorBanco: null,
+          status: "sem_correspondencia",
+          dataSistema: "04/09",
+          descricaoSistema: "Boleto Aço Norte Bobinas",
+        },
+      ],
+    });
+    const user = userEvent.setup();
+    render(<ConciliacaoPage />);
+
+    const linha = (await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" })).closest("tr")!;
+    const [data, descricao, valor] = within(linha).getAllByRole("cell");
+    expect([data.textContent, descricao.textContent, valor.textContent]).toEqual(["—", "—", "—"]);
+
+    await user.click(within(linha).getByRole("button", { name: "Boleto Aço Norte Bobinas" }));
+    expect(screen.getByRole("link", { name: "Abrir detalhe" })).toBeInTheDocument();
+  });
+
+  describe("the lançamento card on hover", () => {
+    beforeEach(() => {
+      vi.stubGlobal("matchMedia", (consulta: string) => ({ matches: consulta === "(hover: hover)" }));
+    });
+
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    it("shows both sides and the explanation of a line under review, like the landing", async () => {
+      buscarConciliacao.mockReturnValue(conciliacaoMista);
+      const user = userEvent.setup();
+      render(<ConciliacaoPage />);
+
+      const linha = (await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" })).closest("tr")!;
+      await user.hover(linha);
+
+      const cartao = screen.getByRole("tooltip");
+      expect(cartao).toHaveTextContent("Lançamento · Valor diverge na mesma data");
+      expect(within(cartao).getByText("Extrato do banco").nextSibling).toHaveTextContent("04/09 · R$ 12.640,00");
+      expect(within(cartao).getByText("Extrato do sistema").nextSibling).toHaveTextContent("04/09 · R$ 12.604,00");
+      expect(cartao).toHaveTextContent("Juros de dois dias de atraso não lançados no sistema.");
+      expect(within(linha).getByRole("button")).toHaveAccessibleDescription(/Valor diverge na mesma data/);
+
+      await user.unhover(linha);
+      expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+    });
+
+    it("stays quiet on lines that already matched", async () => {
+      buscarConciliacao.mockReturnValue(conciliacaoMista);
+      const user = userEvent.setup();
+      render(<ConciliacaoPage />);
+
+      await user.hover((await screen.findByRole("button", { name: "Pagamento batido" })).closest("tr")!);
+      expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+    });
+
+    it("opens for the keyboard too, and Escape closes it", async () => {
+      buscarConciliacao.mockReturnValue(conciliacaoMista);
+      const user = userEvent.setup();
+      render(<ConciliacaoPage />);
+      const botao = await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" });
+
+      act(() => botao.focus());
+      expect(screen.getByRole("tooltip")).toBeInTheDocument();
+
+      await user.keyboard("{Escape}");
+      expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+    });
+
+    it("gives way to the dialog when the line is clicked", async () => {
+      buscarConciliacao.mockReturnValue(conciliacaoMista);
+      const user = userEvent.setup();
+      render(<ConciliacaoPage />);
+
+      await user.click(await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" }));
+      expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+      expect(screen.getByRole("link", { name: "Abrir detalhe" })).toBeInTheDocument();
+    });
   });
 
   it("tags each row with the tone of its status, which colors the hover", async () => {
     buscarConciliacao.mockReturnValue(conciliacaoEmAndamento);
     render(<ConciliacaoPage />);
 
-    const linha = (await screen.findByText("Boleto Aço Norte Bobinas")).closest("tr");
+    const linha = (await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" })).closest("tr");
     // valor diverge na mesma data: terracota, a cor de quem custa dinheiro
     expect(linha).toHaveAttribute("data-tom", "risco");
   });
@@ -138,7 +253,7 @@ describe("ConciliacaoPage", () => {
     const user = userEvent.setup();
     render(<ConciliacaoPage />);
 
-    await user.click(await screen.findByText("Boleto Aço Norte Bobinas"));
+    await user.click(await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" }));
     expect(
       screen.getByText("Juros de dois dias de atraso não lançados no sistema.")
     ).toBeInTheDocument();
@@ -187,7 +302,7 @@ describe("ConciliacaoPage", () => {
     const user = userEvent.setup();
     render(<ConciliacaoPage />);
 
-    await user.click(await screen.findByText("Boleto Aço Norte Bobinas"));
+    await user.click(await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" }));
 
     expect(carregarConciliacao).toHaveBeenCalledWith(BANCO, SISTEMA);
     expect(screen.getByRole("link", { name: "Abrir detalhe" })).toHaveAttribute(
@@ -233,7 +348,7 @@ describe("ConciliacaoPage", () => {
     });
     render(<ConciliacaoPage />);
 
-    expect(await screen.findByText("Boleto Aço Norte Bobinas")).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" })).toBeInTheDocument();
     expect(carregarConciliacao).toHaveBeenCalledWith(BANCO, undefined);
   });
 
@@ -263,11 +378,11 @@ describe("ConciliacaoPage", () => {
     const user = userEvent.setup();
     render(<ConciliacaoPage />);
 
-    expect(await screen.findByText("Pagamento batido")).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Pagamento batido" })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Só revisão (1)" }));
 
-    expect(screen.queryByText("Pagamento batido")).not.toBeInTheDocument();
-    expect(screen.getByText("Boleto Aço Norte Bobinas")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Pagamento batido" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Boleto Aço Norte Bobinas" })).toBeInTheDocument();
   });
 
   it("explains an empty filter result", async () => {
