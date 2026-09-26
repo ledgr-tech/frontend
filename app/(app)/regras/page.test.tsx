@@ -1,16 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import type { Regra } from "@/lib/mock-data";
 import RegrasPage from "./page";
 
 const listarRegras = vi.fn();
-const ativarRegra = vi.fn();
-const desativarRegra = vi.fn();
 vi.mock("@/lib/mock-data", () => ({
   listarRegras: () => listarRegras(),
-  ativarRegra: (id: number) => ativarRegra(id),
-  desativarRegra: (id: number) => desativarRegra(id),
   tomDaRegra: (marca: string) =>
     marca === "Aprendida" ? "ok" : marca === "Sugerida" ? "atencao" : "neutro",
 }));
@@ -36,8 +31,6 @@ const sugerida: Regra = {
 describe("RegrasPage", () => {
   beforeEach(() => {
     listarRegras.mockReset();
-    ativarRegra.mockReset();
-    desativarRegra.mockReset();
   });
 
   it("splits the rules into ativas and sugeridas with the counts in the kicker", async () => {
@@ -65,40 +58,18 @@ describe("RegrasPage", () => {
     expect(await screen.findByText("2 ativas · 0 sugeridas")).toBeInTheDocument();
   });
 
-  it("deactivates a rule and re-reads the lists", async () => {
+  it("says the rules are a demonstration, and does not pretend to save them", async () => {
     listarRegras.mockReturnValue({ ativas: [ativa], sugeridas: [sugerida] });
-    const user = userEvent.setup();
     render(<RegrasPage />);
 
-    await user.click(await screen.findByRole("button", { name: "Desativar" }));
-
-    expect(desativarRegra).toHaveBeenCalledWith(0);
-    // uma leitura no efeito inicial e outra depois da mudança
-    expect(listarRegras).toHaveBeenCalledTimes(2);
-  });
-
-  it("promotes a suggestion into a rule", async () => {
-    listarRegras.mockReturnValue({ ativas: [ativa], sugeridas: [sugerida] });
-    const user = userEvent.setup();
-    render(<RegrasPage />);
-
-    await user.click(await screen.findByRole("button", { name: "Criar regra" }));
-
-    expect(ativarRegra).toHaveBeenCalledWith(2);
-  });
-
-  it("marks the rule that just moved lists, so the click has a visible effect", async () => {
-    listarRegras.mockReturnValue({ ativas: [ativa], sugeridas: [sugerida] });
-    const user = userEvent.setup();
-    const { container } = render(<RegrasPage />);
-
-    expect(container.querySelector("[data-recem]")).toBeNull();
-
-    await user.click(await screen.findByRole("button", { name: "Criar regra" }));
-
-    const marcada = container.querySelector("[data-recem='true']");
-    expect(marcada).not.toBeNull();
-    expect(marcada?.textContent).toContain(sugerida.titulo);
+    const aviso = await screen.findByRole("note");
+    expect(aviso).toHaveTextContent("As regras ainda não estão no ar.");
+    // o backend não guarda regra: os dois botões ficam desligados e dizem por quê
+    for (const nome of ["Desativar", "Criar regra"]) {
+      const botao = screen.getByRole("button", { name: nome });
+      expect(botao).toBeDisabled();
+      expect(botao).toHaveAttribute("aria-describedby", aviso.id);
+    }
   });
 
   it("explains the empty state on each list instead of showing a bare heading", async () => {

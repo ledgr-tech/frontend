@@ -1,9 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import {
   aceitarValorDoBanco,
-  ativarRegra,
   criarConciliacao,
-  desativarRegra,
   listarConciliacoes,
   listarRegras,
   buscarConciliacao,
@@ -114,30 +112,6 @@ describe("regras", () => {
     const { ativas, sugeridas } = listarRegras();
     expect(ativas).toHaveLength(2);
     expect(sugeridas).toHaveLength(3);
-  });
-
-  it("moves a suggestion into the active list and persists it", () => {
-    const sugerida = listarRegras().sugeridas[0];
-    ativarRegra(sugerida.id);
-
-    const { ativas, sugeridas } = listarRegras();
-    expect(ativas.map((regra) => regra.id)).toContain(sugerida.id);
-    expect(sugeridas.map((regra) => regra.id)).not.toContain(sugerida.id);
-  });
-
-  it("moves an active rule back into the suggestions", () => {
-    const ativa = listarRegras().ativas[0];
-    desativarRegra(ativa.id);
-
-    const { ativas, sugeridas } = listarRegras();
-    expect(ativas.map((regra) => regra.id)).not.toContain(ativa.id);
-    expect(sugeridas.map((regra) => regra.id)).toContain(ativa.id);
-  });
-
-  it("does not activate the same rule twice", () => {
-    const ativa = listarRegras().ativas[0];
-    ativarRegra(ativa.id);
-    expect(listarRegras().ativas.filter((regra) => regra.id === ativa.id)).toHaveLength(1);
   });
 
   it("falls back to the defaults when localStorage is malformed", () => {

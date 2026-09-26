@@ -2087,6 +2087,12 @@ html:has(.app-shell) { scrollbar-gutter: stable; }
 }
 .app-aviso:last-child { border-bottom: none; }
 .app-aviso-link:hover { background: var(--tinta-hover); }
+/* já lido: continua ali para quem quiser voltar, só perde o peso */
+.app-aviso[data-lido="true"] { opacity: 0.55; }
+.app-avisos-vazio {
+  margin: 0; padding: 16px; font-size: 13.5px; line-height: 1.6;
+  color: color-mix(in srgb, var(--color-text) 62%, transparent);
+}
 .app-aviso-ponto {
   flex: none; width: 8px; height: 8px; margin-top: 7px; border-radius: 50%;
   background: var(--color-divider);
@@ -2112,23 +2118,6 @@ html:has(.app-shell) { scrollbar-gutter: stable; }
 html[data-densidade="compacta"] .table td { padding-block: 4px; }
 html[data-densidade="compacta"] .table th { padding-block: 6px; }
 html[data-densidade="compacta"] .selo { padding-block: 1px; }
-
-/* A regra que acabou de trocar de lista chega com um realce que apaga. É a
-   consequência do clique ficando visível: sem isso a regra some de uma lista e
-   aparece na outra sem nada ligar as duas pontas. */
-@keyframes ledgr-realce {
-  from { background: color-mix(in srgb, var(--color-accent-700) 16%, transparent); }
-  to { background: transparent; }
-}
-.regra-cartao[data-recem="true"],
-.regra-sugerida[data-recem="true"] {
-  animation: ledgr-realce 1.4s ease-out both;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .regra-cartao[data-recem="true"],
-  .regra-sugerida[data-recem="true"] { animation: none; }
-}
 
 /* Tabela em cartões no celular.
    `display: block` apaga o papel implícito de tabela, então as linhas e células
@@ -2616,12 +2605,12 @@ html[data-tema="escuro"] .app-shell {
   padding: 34px 0 64px;
   display: flex; flex-direction: column; gap: 34px;
 }
-.ass-aviso {
+.aviso-demonstracao {
   margin: 0; padding: 12px 16px; border-radius: var(--radius-md);
   border: 1px solid var(--color-divider);
   font-size: 14px; line-height: 1.6; color: var(--texto-apagado);
 }
-.ass-aviso strong { font-weight: 600; color: var(--color-text); }
+.aviso-demonstracao strong { font-weight: 600; color: var(--color-text); }
 .ass-titulo { margin: 0 0 14px; font-size: 22px; font-weight: 600; }
 
 /* cartões de 240px no mínimo, como no design: três por linha no desktop */

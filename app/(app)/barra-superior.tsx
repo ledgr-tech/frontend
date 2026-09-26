@@ -3,15 +3,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import {
-  AVISOS,
-  formatarMoeda,
-  listarConciliacoes,
-  type LinhaComparacao,
-} from "@/lib/mock-data";
+import { caminhoDaConciliacao } from "@/lib/caminhos";
+import { formatarMoeda, type LinhaComparacao } from "@/lib/mock-data";
+import { avisosDoMes, idsLidos, marcarLidos } from "./avisos";
+import { carregarVisaoGeral, type VisaoGeral } from "./conciliacoes/acoes";
 
 type Achado = {
-  conciliacaoId: string;
+  href: string;
   linha: LinhaComparacao;
 };
 
@@ -26,18 +24,15 @@ function combina(linha: LinhaComparacao, termo: string): boolean {
   return campos.some((campo) => campo.toLowerCase().includes(termo));
 }
 
+type Leitura = { situacao: "lendo" } | { situacao: "falhou" } | { situacao: "pronta"; visao: VisaoGeral };
+
 // O tema e a conta (nome, empresa e Sair) moram no rodapé do menu lateral.
-export function BarraSuperior({
-  avisoNaoLido,
-  onMarcarAvisosLidos,
-}: {
-  avisoNaoLido: boolean;
-  onMarcarAvisosLidos: () => void;
-}) {
+export function BarraSuperior() {
   const [termo, setTermo] = useState("");
   const [buscaAberta, setBuscaAberta] = useState(false);
   const [avisosAbertos, setAvisosAbertos] = useState(false);
-  const [lancamentos, setLancamentos] = useState<Achado[]>([]);
+  const [leitura, setLeitura] = useState<Leitura>({ situacao: "lendo" });
+  const [lidos, setLidos] = useState<string[]>([]);
   // qual resultado a seta está apontando; -1 = nenhum
   const [ativo, setAtivo] = useState(-1);
   const router = useRouter();
@@ -45,16 +40,34 @@ export function BarraSuperior({
   const caixaBusca = useRef<HTMLDivElement>(null);
   const caixaAvisos = useRef<HTMLDivElement>(null);
 
+  // A busca e os avisos leem a conciliação mais recente, a mesma da visão geral.
+  // ponytail: uma leitura por carga da página — a barra vive no layout e não
+  // remonta ao trocar de tela, então uma conciliação nova só aparece aqui ao
+  // recarregar. Buscar em todas pede uma rota de busca no backend.
   useEffect(() => {
-    // localStorage is only readable client-side; this is the standard pattern for
-    // deferring a client-only read out of the render phase.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setLancamentos(
-      listarConciliacoes().flatMap((conciliacao) =>
-        conciliacao.linhas.map((linha) => ({ conciliacaoId: conciliacao.id, linha })),
-      ),
-    );
+    let vivo = true;
+    carregarVisaoGeral()
+      .then((resposta) => {
+        if (!vivo) return;
+        setLidos(idsLidos());
+        setLeitura(resposta.ok ? { situacao: "pronta", visao: resposta.dados } : { situacao: "falhou" });
+      })
+      .catch(() => vivo && setLeitura({ situacao: "falhou" }));
+    return () => {
+      vivo = false;
+    };
   }, []);
+
+  const visao = leitura.situacao === "pronta" ? leitura.visao : null;
+  const avisos = useMemo(() => (visao ? avisosDoMes(visao) : []), [visao]);
+  const lancamentos = useMemo<Achado[]>(() => {
+    const conciliacao = visao?.recente?.conciliacao;
+    if (!conciliacao) return [];
+    return conciliacao.linhas.map((linha) => ({
+      linha,
+      href: caminhoDaConciliacao(conciliacao.id, conciliacao.extratoSistemaId, linha.id),
+    }));
+  }, [visao]);
 
   // ⌘K / Ctrl+K põe o foco na busca, como o atalho que a caixa anuncia.
   useEffect(() => {
@@ -88,7 +101,13 @@ export function BarraSuperior({
     return lancamentos.filter(({ linha }) => combina(linha, limpo)).slice(0, 8);
   }, [termo, lancamentos]);
 
-  const naoLidos = avisoNaoLido ? AVISOS.length : 0;
+  const naoLidos = avisos.filter((aviso) => !lidos.includes(aviso.id)).length;
+
+  function lerTodos() {
+    const ids = avisos.map((aviso) => aviso.id);
+    marcarLidos(ids);
+    setLidos(ids);
+  }
 
   const painelAberto = buscaAberta && termo.trim() !== "";
 
@@ -104,7 +123,7 @@ export function BarraSuperior({
       evento.preventDefault();
       const alvo = achados[ativo];
       setBuscaAberta(false);
-      router.push(`/conciliacoes/${alvo.conciliacaoId}/${alvo.linha.id}`);
+      router.push(alvo.href);
     }
   }
 
@@ -146,18 +165,20 @@ export function BarraSuperior({
           <div className="app-painel app-busca-painel">
             {achados.length === 0 ? (
               <p className="app-busca-vazio" role="status">
-                Nada encontrado. Tente o valor sem centavos ou parte do nome do fornecedor.
+                {visao && !visao.recente
+                  ? "Ainda não há conciliação para buscar."
+                  : "Nada encontrado na conciliação mais recente. Tente o valor sem centavos ou parte do nome do fornecedor."}
               </p>
             ) : null}
             <div id="busca-resultados" role="listbox" aria-label="Resultados da busca">
-              {achados.map(({ conciliacaoId, linha }, i) => (
+              {achados.map(({ href, linha }, i) => (
                 <Link
-                  key={`${conciliacaoId}-${linha.id}`}
+                  key={linha.id}
                   id={`busca-opcao-${i}`}
                   role="option"
                   aria-selected={i === ativo}
                   data-ativo={i === ativo ? "true" : undefined}
-                  href={`/conciliacoes/${conciliacaoId}/${linha.id}`}
+                  href={href}
                   className="app-busca-achado"
                   onMouseEnter={() => setAtivo(i)}
                   onClick={() => setBuscaAberta(false)}
@@ -182,9 +203,12 @@ export function BarraSuperior({
           onClick={() => setAvisosAbertos((aberto) => !aberto)}
         >
           <span style={{ fontFamily: "var(--font-heading)", fontSize: 15 }}>Avisos</span>
-          <span className={naoLidos > 0 ? "app-avisos-conta app-avisos-conta-ativa" : "app-avisos-conta"}>
-            {naoLidos}
-          </span>
+          {/* a conta só depois da leitura: um zero antes dela seria chute */}
+          {visao && (
+            <span className={naoLidos > 0 ? "app-avisos-conta app-avisos-conta-ativa" : "app-avisos-conta"}>
+              {naoLidos}
+            </span>
+          )}
         </button>
 
         {avisosAbertos && (
@@ -193,43 +217,35 @@ export function BarraSuperior({
               <span style={{ fontFamily: "var(--font-heading)", fontSize: 17, fontWeight: 600 }}>
                 Avisos
               </span>
-              <button
-                type="button"
-                className="btn btn-ghost"
-                style={{ fontSize: 12.5 }}
-                onClick={onMarcarAvisosLidos}
-              >
-                Marcar como lidos
-              </button>
+              {naoLidos > 0 && (
+                <button type="button" className="btn btn-ghost" style={{ fontSize: 12.5 }} onClick={lerTodos}>
+                  Marcar como lidos
+                </button>
+              )}
             </div>
-            {AVISOS.map((aviso) => {
-              const corpo = (
-                <>
-                  <span className={`app-aviso-ponto app-aviso-ponto-${aviso.tom}`} aria-hidden="true" />
-                  <span className="app-aviso-corpo">
-                    <span className="app-aviso-titulo">{aviso.titulo}</span>
-                    <span className="app-aviso-texto">{aviso.texto}</span>
-                    <span className="app-aviso-quando">{aviso.quando}</span>
-                  </span>
-                </>
-              );
-              // ponytail: dois dos três avisos do design levam a telas que ainda não
-              // existem (folha a folha e fechamento). Sem destino, não vira link.
-              return aviso.href === null ? (
-                <div key={aviso.id} className="app-aviso">
-                  {corpo}
-                </div>
-              ) : (
-                <Link
-                  key={aviso.id}
-                  href={aviso.href}
-                  className="app-aviso app-aviso-link"
-                  onClick={() => setAvisosAbertos(false)}
-                >
-                  {corpo}
-                </Link>
-              );
-            })}
+            {leitura.situacao === "lendo" && <p className="app-avisos-vazio">Lendo a última conciliação…</p>}
+            {leitura.situacao === "falhou" && (
+              <p className="app-avisos-vazio" role="alert">
+                Não foi possível ler os avisos agora.
+              </p>
+            )}
+            {visao && avisos.length === 0 && <p className="app-avisos-vazio">Nenhum aviso agora.</p>}
+            {avisos.map((aviso) => (
+              <Link
+                key={aviso.id}
+                href={aviso.href}
+                className="app-aviso app-aviso-link"
+                data-lido={lidos.includes(aviso.id) ? "true" : undefined}
+                onClick={() => setAvisosAbertos(false)}
+              >
+                <span className={`app-aviso-ponto app-aviso-ponto-${aviso.tom}`} aria-hidden="true" />
+                <span className="app-aviso-corpo">
+                  <span className="app-aviso-titulo">{aviso.titulo}</span>
+                  <span className="app-aviso-texto">{aviso.texto}</span>
+                  <span className="app-aviso-quando">{aviso.quando}</span>
+                </span>
+              </Link>
+            ))}
           </div>
         )}
       </div>

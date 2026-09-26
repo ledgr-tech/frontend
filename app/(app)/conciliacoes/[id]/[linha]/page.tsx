@@ -173,7 +173,8 @@ export default function DetalheDivergenciaPage() {
             href={caminhoDaConciliacao(conciliacao.id, conciliacao.extratoSistemaId)}
             className="btn btn-secondary"
           >
-            {estaResolvida(linha.status) ? "Voltar para a conciliação" : "Ignorar por ora"}
+            {/* "Ignorar por ora" prometia uma decisão que nada grava: é só voltar */}
+            Voltar para a conciliação
           </Link>
           {/* ponytail: só faz sentido aceitar o banco quando ele tem a linha.
               E com dado do backend o botão não aparece: não existe endpoint que

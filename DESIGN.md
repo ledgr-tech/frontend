@@ -117,8 +117,15 @@ Dois lugares onde algo muda de verdade no lugar:
   (`app/(app)/numero-animado.tsx`). O componente **não anima ao montar**, de
   propósito: um número que sobe do zero toda vez que a tela abre é decoração;
   um número que sai de 12.604 para 12.640 é a resposta ao seu clique.
-- **A regra que troca de lista** chega com um realce que apaga. Sem isso ela
-  sumia de uma lista e aparecia na outra sem nada ligar as duas pontas.
+- ~~**A regra que troca de lista** chega com um realce que apaga.~~ Saiu em
+  26/09: as regras são de demonstração, então "Desativar" e "Criar regra" ficam
+  desligados, com o aviso da tela (como na Assinatura), e não há mais troca de
+  lista para realçar. Volta junto com a rota de regras no backend.
+
+**Regra de 26/09: tela com dado de demonstração avisa.** Assinatura e Regras
+mostram `.aviso-demonstracao` no topo, e toda ação que gravaria algo aparece
+desligada, com `aria-describedby` apontando para o aviso. Onde o dado real existe
+(avisos, busca), a tela usa ele e nunca uma lista inventada.
 
 > **O que não fiz:** o scroll-reveal na chegada dos blocos continua. Removê-lo é
 > a outra metade do argumento, mas é mudança de gosto sobre algo que vocês já

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ativarRegra, desativarRegra, listarRegras, tomDaRegra, type Regra } from "@/lib/mock-data";
+import { listarRegras, tomDaRegra, type Regra } from "@/lib/mock-data";
 import { Barra, EsqueletoTela } from "../esqueleto";
 
 type Listas = { ativas: Regra[]; sugeridas: Regra[] };
@@ -10,10 +10,15 @@ type Listas = { ativas: Regra[]; sugeridas: Regra[] };
 // "Ver aplicações" (→ trilha de auditoria). Nenhuma das duas telas existe nesta
 // branch, então os botões ficam de fora em vez de linkarem para o vazio.
 
+/**
+ * As regras são de demonstração: o backend não guarda regra nenhuma. Como na
+ * Assinatura, nada aqui finge que salvou — os botões aparecem desligados e
+ * apontam para o aviso que diz por quê. Com a rota de regras, eles voltam.
+ */
+const AVISO_ID = "regras-aviso";
+
 export default function RegrasPage() {
   const [listas, setListas] = useState<Listas | null>(null);
-  // qual regra acabou de trocar de lista, para ela chegar destacada
-  const [recemMexida, setRecemMexida] = useState<number | null>(null);
 
   useEffect(() => {
     // localStorage is only readable client-side; this is the standard pattern for
@@ -38,18 +43,6 @@ export default function RegrasPage() {
     );
   }
 
-  function desativar(id: number) {
-    desativarRegra(id);
-    setListas(listarRegras());
-    setRecemMexida(id);
-  }
-
-  function ativar(id: number) {
-    ativarRegra(id);
-    setListas(listarRegras());
-    setRecemMexida(id);
-  }
-
   return (
     <div>
       <div className="dash-cabecalho">
@@ -63,6 +56,11 @@ export default function RegrasPage() {
       </div>
 
       <div className="regras-corpo">
+        <p id={AVISO_ID} role="note" className="aviso-demonstracao">
+          <strong>As regras ainda não estão no ar.</strong> As regras desta tela são de demonstração, e
+          nada é alterado por aqui.
+        </p>
+
         <div>
           <h3 style={{ margin: "0 0 14px", fontSize: 22, fontWeight: 600 }}>Ativas</h3>
           {listas.ativas.length === 0 ? (
@@ -72,11 +70,7 @@ export default function RegrasPage() {
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               {listas.ativas.map((regra) => (
-                <div
-                  key={regra.id}
-                  className="regra-cartao"
-                  data-recem={regra.id === recemMexida ? "true" : undefined}
-                >
+                <div key={regra.id} className="regra-cartao">
                   <div style={{ flex: "1 1 340px", minWidth: 0 }}>
                     <div className="regra-titulo-linha">
                       <span
@@ -98,7 +92,8 @@ export default function RegrasPage() {
                     type="button"
                     className="btn btn-ghost"
                     style={{ flex: "none", fontSize: 13.5 }}
-                    onClick={() => desativar(regra.id)}
+                    disabled
+                    aria-describedby={AVISO_ID}
                   >
                     Desativar
                   </button>
@@ -124,11 +119,7 @@ export default function RegrasPage() {
           ) : (
             <div style={{ borderTop: "1px solid var(--color-divider)" }}>
               {listas.sugeridas.map((regra) => (
-                <div
-                  key={regra.id}
-                  className="regra-sugerida"
-                  data-recem={regra.id === recemMexida ? "true" : undefined}
-                >
+                <div key={regra.id} className="regra-sugerida">
                   <div style={{ flex: "1 1 340px", minWidth: 0 }}>
                     <div
                       style={{
@@ -149,7 +140,8 @@ export default function RegrasPage() {
                       type="button"
                       className="btn btn-primary"
                       style={{ fontSize: 13.5 }}
-                      onClick={() => ativar(regra.id)}
+                      disabled
+                      aria-describedby={AVISO_ID}
                     >
                       Criar regra
                     </button>
