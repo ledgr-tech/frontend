@@ -931,7 +931,7 @@ button.login-link-animado { border: 0; background-color: transparent; font: inhe
   color: var(--texto-apagado); font-variant-numeric: tabular-nums; margin-bottom: 8px;
 }
 .det-corpo {
-  padding: 32px 0 64px; max-width: 1040px;
+  padding: 32px 0 64px;
   display: flex; flex-direction: column; gap: 32px;
 }
 .det-comparacao {
@@ -1017,7 +1017,7 @@ button.login-link-animado { border: 0; background-color: transparent; font: inhe
 
 /* ── Regras ─────────────────────────────────────────────────────────────────── */
 .regras-corpo {
-  padding: 32px 0 64px; max-width: 1000px;
+  padding: 32px 0 64px;
   display: flex; flex-direction: column; gap: 34px;
 }
 .regra-cartao {
@@ -1055,7 +1055,7 @@ button.login-link-animado { border: 0; background-color: transparent; font: inhe
 
 /* ── Histórico ──────────────────────────────────────────────────────────────── */
 .hist-corpo {
-  padding: 34px 0 64px; max-width: 1040px;
+  padding: 34px 0 64px;
   display: flex; flex-direction: column; gap: 34px;
 }
 .hist-grafico-bloco { border-block: 1px solid var(--color-divider); padding: 26px 0; }
@@ -1282,7 +1282,7 @@ html[data-tema="escuro"] .app-shell {
   color: color-mix(in srgb, var(--color-text) 55%, transparent);
 }
 .vg-corpo {
-  padding: 32px 0 64px; max-width: 1180px;
+  padding: 32px 0 64px;
   display: flex; flex-direction: column; gap: 40px;
 }
 .vg-nota {
@@ -1990,16 +1990,27 @@ html[data-tema="escuro"] .app-shell {
   html[data-menu="recolhido"] .app-dica:focus-visible::after { opacity: 1; visibility: visible; }
 }
 
-.app-principal { min-width: 0; position: relative; }
+/* Uma coluna só para todas as telas: até 1240px, centralizada no espaço ao lado
+   do menu. Em tela larga o respiro fica dos dois lados, em vez de tudo sobrar à
+   direita; abaixo disso vale o recuo de sempre. A barra de busca segue a mesma
+   coluna, para as bordas baterem com as do conteúdo. O 100% é resolvido em quem
+   usa a variável: a largura do <main>, pai dos dois. */
+/* a barra de rolagem do Windows ocupa ~16px e some em tela curta: sem o espaço
+   reservado, a coluna centralizada pulava 8px ao trocar de tela */
+html:has(.app-shell) { scrollbar-gutter: stable; }
+.app-principal {
+  min-width: 0; position: relative;
+  --recuo-lateral: max(clamp(16px, 3.5vw, 40px), calc((100% - 1240px) / 2));
+}
 .app-topo {
   position: sticky; top: 0; z-index: 45;
   display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px;
-  padding: 12px clamp(16px, 3.5vw, 40px);
+  padding: 12px var(--recuo-lateral);
   border-bottom: 1px solid var(--color-divider);
   background: color-mix(in srgb, var(--color-bg) 94%, transparent);
   backdrop-filter: blur(6px);
 }
-.app-conteudo { padding: 0 clamp(16px, 3.5vw, 40px); }
+.app-conteudo { padding: 0 var(--recuo-lateral); }
 
 .app-busca-envelope { position: relative; flex: 1 1 320px; min-width: 0; }
 .app-busca {
@@ -2602,7 +2613,7 @@ html[data-tema="escuro"] .app-shell {
    filete neutro, porque é informação, não "atenção". */
 .ass-acoes { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .ass-corpo {
-  padding: 34px 0 64px; max-width: 1000px;
+  padding: 34px 0 64px;
   display: flex; flex-direction: column; gap: 34px;
 }
 .ass-aviso {
