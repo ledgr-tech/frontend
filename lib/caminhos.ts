@@ -1,3 +1,5 @@
+import type { StatusLinha } from "./mock-data";
+
 /**
  * O endereço de uma conciliação na tela.
  *
@@ -14,6 +16,21 @@ export function caminhoDaConciliacao(
   const linha = linhaId ? `/${linhaId}` : "";
   const par = extratoSistemaId ? `?sistema=${encodeURIComponent(extratoSistemaId)}` : "";
   return `/conciliacoes/${extratoBancoId}${linha}${par}`;
+}
+
+/**
+ * A conciliação já no recorte de uma categoria do relatório (`?status=`): a tela
+ * abre com a tabela filtrada nela.
+ */
+export function caminhoDaCategoria(
+  extratoBancoId: string,
+  extratoSistemaId: string | undefined,
+  status: StatusLinha,
+): string {
+  const busca = new URLSearchParams();
+  if (extratoSistemaId) busca.set("sistema", extratoSistemaId);
+  busca.set("status", status);
+  return `/conciliacoes/${extratoBancoId}?${busca}`;
 }
 
 /**

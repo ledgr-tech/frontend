@@ -63,28 +63,28 @@ describe("pendencias", () => {
         tom: "risco",
         quantidade: 1,
         valor: 36,
-        href: "/conciliacoes/banco-1/valor?sistema=sistema-1",
+        href: "/conciliacoes/banco-1?sistema=sistema-1&status=divergente_valor",
       },
       {
         rotulo: "Sem correspondência no sistema",
         tom: "atencao",
         quantidade: 2,
         valor: 5160,
-        href: "/conciliacoes/banco-1/orfa-1?sistema=sistema-1",
+        href: "/conciliacoes/banco-1?sistema=sistema-1&status=sem_correspondencia",
       },
       {
         rotulo: "Sem correspondência no banco",
         tom: "atencao",
         quantidade: 1,
         valor: 640,
-        href: "/conciliacoes/banco-1/orfa-banco-pequena?sistema=sistema-1",
+        href: "/conciliacoes/banco-1?sistema=sistema-1&status=sem_correspondencia",
       },
       {
         rotulo: "Tarifa bancária",
         tom: "neutro",
         quantidade: 1,
         valor: 45,
-        href: "/conciliacoes/banco-1/tarifa?sistema=sistema-1",
+        href: "/conciliacoes/banco-1?sistema=sistema-1&status=tarifa_bancaria",
       },
     ]);
   });

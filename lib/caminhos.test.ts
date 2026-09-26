@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { caminhoDaConciliacao, caminhoDoCsv } from "./caminhos";
+import { caminhoDaCategoria, caminhoDaConciliacao, caminhoDoCsv } from "./caminhos";
 
 const BANCO = "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20";
 const SISTEMA = "7a2b9c4d-1e3f-4a5b-8c6d-9e0f1a2b3c4d";
@@ -18,6 +18,17 @@ describe("caminhoDaConciliacao", () => {
   it("sem o extrato do sistema (a conciliação do mock), fica só o id", () => {
     expect(caminhoDaConciliacao("conc-1")).toBe("/conciliacoes/conc-1");
     expect(caminhoDaConciliacao("conc-1", undefined, "lc-2")).toBe("/conciliacoes/conc-1/lc-2");
+  });
+});
+
+describe("caminhoDaCategoria", () => {
+  it("abre a conciliação do par já filtrada na categoria", () => {
+    expect(caminhoDaCategoria(BANCO, SISTEMA, "duplicado")).toBe(
+      `/conciliacoes/${BANCO}?sistema=${SISTEMA}&status=duplicado`,
+    );
+    expect(caminhoDaCategoria(BANCO, undefined, "tarifa_bancaria")).toBe(
+      `/conciliacoes/${BANCO}?status=tarifa_bancaria`,
+    );
   });
 });
 
