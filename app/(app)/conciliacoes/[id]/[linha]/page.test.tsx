@@ -252,7 +252,7 @@ describe("DetalheDivergenciaPage", () => {
     });
     render(<DetalheDivergenciaPage />);
 
-    expect(await screen.findByRole("link", { name: "Ignorar por ora" })).toHaveAttribute(
+    expect(await screen.findByRole("link", { name: "Voltar para a conciliação" })).toHaveAttribute(
       "href",
       `/conciliacoes/${BANCO}?sistema=${SISTEMA}`,
     );

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import { caminhoDaConciliacao } from "@/lib/caminhos";
 import { analisarCsv, type Analise } from "@/lib/csv-extrato";
+import { EMPRESA_MOCK } from "@/lib/mock-data";
 import {
   conciliar,
   enviarExtrato,
@@ -257,8 +258,9 @@ export default function NovaConciliacaoPage() {
   return (
     <div style={{ padding: "36px 0 64px" }}>
       <h1 style={{ margin: "0 0 4px", fontSize: 30, fontWeight: 600 }}>Nova conciliação</h1>
+      {/* o mês só se sabe depois de ler as datas dos extratos: aqui fica só a empresa */}
       <span style={{ fontSize: 14, color: "color-mix(in srgb, var(--color-text) 66%, transparent)" }}>
-        Setembro/2026
+        {EMPRESA_MOCK}
       </span>
 
       <div

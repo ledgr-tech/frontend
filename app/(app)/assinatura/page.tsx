@@ -30,7 +30,7 @@ export default function AssinaturaPage() {
       </div>
 
       <div className="ass-corpo">
-        <p id={AVISO_ID} role="note" className="ass-aviso">
+        <p id={AVISO_ID} role="note" className="aviso-demonstracao">
           <strong>A cobrança ainda não está no ar.</strong> Plano e faturas desta tela são de
           demonstração, e nada é alterado por aqui.
         </p>
