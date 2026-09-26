@@ -46,7 +46,7 @@ export default function AssinaturaPage() {
           ))}
         </div>
 
-        <section>
+        <section className="ass-planos-caixa">
           <h3 id="assinatura-planos" className="ass-titulo">
             Planos
           </h3>

@@ -292,6 +292,34 @@ describe("ConciliacaoPage", () => {
     ).toBeInTheDocument();
   });
 
+  it("peeks at a line in a native dialog, without an empty history, and gives the focus back", async () => {
+    buscarConciliacao.mockReturnValue({
+      ...conciliacaoEmAndamento,
+      linhas: [{ ...conciliacaoEmAndamento.linhas[0], historico: [] }],
+    });
+    const user = userEvent.setup();
+    render(<ConciliacaoPage />);
+
+    const linha = await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" });
+    await user.click(linha);
+
+    const espia = screen.getByRole("dialog", { name: "Boleto Aço Norte Bobinas" });
+    expect(espia.tagName).toBe("DIALOG");
+    // o backend não registra eventos: sem evento, sem tabela "Quando / Evento" vazia
+    expect(within(espia).queryByRole("columnheader", { name: "Quando" })).not.toBeInTheDocument();
+
+    await user.click(within(espia).getByRole("button", { name: "Fechar" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(linha).toHaveFocus();
+
+    // o Esc fecha na hora, e a mesma linha abre de novo
+    await user.click(linha);
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    await user.click(linha);
+    expect(screen.getByRole("dialog", { name: "Boleto Aço Norte Bobinas" })).toHaveAttribute("open");
+  });
+
   it("shows the fechamento success view when the conciliação is fechada", async () => {
     buscarConciliacao.mockReturnValue(conciliacaoFechada);
     render(<ConciliacaoPage />);

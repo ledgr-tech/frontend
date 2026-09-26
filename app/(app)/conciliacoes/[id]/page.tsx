@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ehDivergencia } from "@/lib/adaptadores";
@@ -444,65 +444,130 @@ export default function ConciliacaoPage() {
         )}
 
         {linhaAberta && (
-          <div className="dialog-backdrop" onClick={() => setLinhaAberta(null)}>
-            <div className="dialog" onClick={(event) => event.stopPropagation()}>
-              <span className="dialog-title">{linhaAberta.descricao}</span>
-              <div style={{ display: "flex", gap: 16 }}>
-                <div>
-                  <div className="rotulo-origem">
-                    <IconeOrigem origem="banco" tamanho={14} />
-                    Extrato do banco
-                  </div>
-                  <div style={{ fontFamily: "var(--font-heading)", fontSize: 24, fontWeight: 600 }}>
-                    {linhaAberta.valorBanco !== null ? formatarMoeda(linhaAberta.valorBanco) : "—"}
-                  </div>
-                </div>
-                <div>
-                  <div className="rotulo-origem">
-                    <IconeOrigem origem="sistema" tamanho={14} />
-                    Extrato do sistema
-                  </div>
-                  <div style={{ fontFamily: "var(--font-heading)", fontSize: 24, fontWeight: 600 }}>
-                    {linhaAberta.valorSistema !== null ? formatarMoeda(linhaAberta.valorSistema) : "—"}
-                  </div>
-                </div>
-              </div>
-              {linhaAberta.explicacao && <p className="dialog-body">{linhaAberta.explicacao}</p>}
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Quando</th>
-                    <th>Evento</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {linhaAberta.historico.map((evento) => (
-                    <tr key={`${evento.quando}-${evento.evento}`}>
-                      <td>{evento.quando}</td>
-                      <td>{evento.evento}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <div className="dialog-actions">
-                <button type="button" className="btn btn-secondary" onClick={() => setLinhaAberta(null)}>
-                  Fechar
-                </button>
-                {/* ponytail: o diálogo é o espia rápido; o detalhe inteiro é tela própria
-                    no design. Os dois mostram a mesma linha — quando a tela provar que
-                    basta, o diálogo pode sair. */}
-                <Link
-                  href={caminhoDaConciliacao(conciliacao.id, conciliacao.extratoSistemaId, linhaAberta.id)}
-                  className="btn btn-primary"
-                >
-                  Abrir detalhe
-                </Link>
-              </div>
-            </div>
-          </div>
+          <EspiaDaLinha
+            // uma janela por linha: abrir outra linha monta outra, e o showModal roda de novo
+            key={linhaAberta.id}
+            linha={linhaAberta}
+            detalhe={caminhoDaConciliacao(conciliacao.id, conciliacao.extratoSistemaId, linhaAberta.id)}
+            onFechar={() => setLinhaAberta(null)}
+          />
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * O espia rápido de uma linha: os dois valores, a explicação e o caminho para o
+ * detalhe inteiro. <dialog> nativo com showModal, como as configurações: prende
+ * o foco, fecha no Esc e deixa o fundo inerte. Ao fechar, o foco volta ao botão
+ * da linha que o abriu.
+ *
+ * ponytail: o detalhe inteiro é tela própria no design. Os dois mostram a mesma
+ * linha — quando a tela provar que basta, o espia pode sair.
+ */
+function EspiaDaLinha({
+  linha,
+  detalhe,
+  onFechar,
+}: {
+  linha: LinhaComparacao;
+  detalhe: string;
+  onFechar: () => void;
+}) {
+  const dialogo = useRef<HTMLDialogElement>(null);
+  // quem estava com o foco antes de a janela abrir, lido uma vez só: o React de
+  // desenvolvimento roda o efeito duas vezes, e na segunda o foco já está dentro dela
+  const quemAbriu = useRef<Element | null>(null);
+  const idTitulo = useId();
+
+  useEffect(() => {
+    const elemento = dialogo.current;
+    quemAbriu.current ??= document.activeElement;
+    if (elemento && !elemento.open) {
+      if (typeof elemento.showModal === "function") elemento.showModal();
+      else {
+        // sem showModal (navegador antigo, jsdom): abre e leva o foco para dentro, como ele faria
+        elemento.setAttribute("open", "");
+        elemento.querySelector<HTMLElement>("button, a")?.focus();
+      }
+    }
+    return () => {
+      const alvo = quemAbriu.current;
+      if (alvo instanceof HTMLElement) alvo.focus();
+    };
+  }, []);
+
+  return (
+    <dialog
+      ref={dialogo}
+      className="espia"
+      aria-labelledby={idTitulo}
+      // o Esc fecha na hora: o evento close chega depois, e só quando o navegador
+      // redesenha a tela; ele fica para o que fechar a janela por outro caminho
+      onKeyDown={(evento) => {
+        if (evento.key !== "Escape") return;
+        evento.preventDefault();
+        onFechar();
+      }}
+      onClose={onFechar}
+      // o clique no fundo escuro cai no próprio <dialog>; dentro da caixa, num filho
+      onClick={(evento) => evento.target === evento.currentTarget && onFechar()}
+    >
+      <div className="dialog">
+        <span id={idTitulo} className="dialog-title">
+          {linha.descricao}
+        </span>
+        <div style={{ display: "flex", gap: 16 }}>
+          <div>
+            <div className="rotulo-origem">
+              <IconeOrigem origem="banco" tamanho={14} />
+              Extrato do banco
+            </div>
+            <div style={{ fontFamily: "var(--font-heading)", fontSize: 24, fontWeight: 600 }}>
+              {linha.valorBanco !== null ? formatarMoeda(linha.valorBanco) : "—"}
+            </div>
+          </div>
+          <div>
+            <div className="rotulo-origem">
+              <IconeOrigem origem="sistema" tamanho={14} />
+              Extrato do sistema
+            </div>
+            <div style={{ fontFamily: "var(--font-heading)", fontSize: 24, fontWeight: 600 }}>
+              {linha.valorSistema !== null ? formatarMoeda(linha.valorSistema) : "—"}
+            </div>
+          </div>
+        </div>
+        {linha.explicacao && <p className="dialog-body">{linha.explicacao}</p>}
+        {/* o backend não registra eventos por lançamento: sem evento, sem tabela vazia */}
+        {linha.historico.length > 0 && (
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Quando</th>
+                <th>Evento</th>
+              </tr>
+            </thead>
+            <tbody>
+              {linha.historico.map((evento) => (
+                <tr key={`${evento.quando}-${evento.evento}`}>
+                  <td>{evento.quando}</td>
+                  <td>{evento.evento}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        <div className="dialog-actions">
+          <button type="button" className="btn btn-secondary" onClick={onFechar}>
+            Fechar
+          </button>
+          <Link href={detalhe} className="btn btn-primary">
+            Abrir detalhe
+          </Link>
+        </div>
+      </div>
+    </dialog>
   );
 }
 

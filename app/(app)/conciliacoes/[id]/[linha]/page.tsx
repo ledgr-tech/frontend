@@ -38,9 +38,7 @@ function CartaoExtrato({
   // cada cartão no tom da sua folha, como na comparação direta
   return (
     <div className={`det-cartao folha-${origem}`}>
-      <div
-        style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}
-      >
+      <div className="det-cartao-topo">
         <span className="det-cartao-titulo">
           <IconeOrigem origem={origem} />
           {titulo}

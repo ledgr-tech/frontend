@@ -353,6 +353,15 @@ a { color: var(--color-accent-700); text-underline-offset: 3px; }
 }
 .dialog-body { font-size: 14px; opacity: 0.85; }
 .dialog-actions { display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-2); }
+/* O espia da linha na comparação: <dialog> nativo com showModal, que prende o
+   foco e fecha no Esc, como as configurações. Por fora ele é transparente; a
+   caixa de dentro é a .dialog de sempre. */
+.espia {
+  width: min(560px, calc(100vw - 32px)); max-width: none; margin: auto; padding: 0;
+  border: none; background: transparent; color: var(--color-text); overflow: visible;
+}
+.espia::backdrop { background: color-mix(in srgb, var(--color-neutral-900) 50%, transparent); }
+.espia .dialog { width: 100%; }
 
 /* Landing page: grids that split into fixed-ratio columns and need to
    stack on narrow screens instead of squeezing every column down to a
@@ -946,6 +955,16 @@ button.login-link-animado { border: 0; background-color: transparent; font: inhe
   border: 1px solid var(--color-divider); border-radius: var(--radius-md);
   padding: 22px 24px; display: flex; flex-direction: column; gap: 14px;
 }
+/* o selo desce para a linha de baixo quando não cabe: espremido, o título
+   quebrava uma palavra por linha */
+.det-cartao-topo {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px;
+}
+/* o título ocupa o resto da linha: cabendo, o selo fica na ponta; não cabendo,
+   desce sempre para o começo da linha de baixo, nos dois cartões */
+.det-cartao-topo > .det-cartao-titulo { flex: 1 1 auto; }
+/* a etiqueta da folha vem do cabeçalho da tabela, onde a margem a empurra para a ponta */
+.det-cartao-topo > .folha-etiqueta { margin-left: 0; }
 .det-cartao-titulo {
   display: flex; align-items: center; gap: 8px; font-size: 20px; font-weight: 600;
 }
@@ -2271,7 +2290,8 @@ html[data-densidade="compacta"] .selo { padding-block: 1px; }
 .exportar-csv-erro { margin: 0; max-width: 320px; font-size: 13px; color: var(--color-risco-700); text-align: right; }
 
 /* o relatório da conciliação: as cinco categorias, e cada uma filtra a tabela */
-.relatorio { display: flex; flex-direction: column; gap: 12px; }
+/* o bloco é contêiner: a grade das categorias responde à largura dele, não à da janela */
+.relatorio { display: flex; flex-direction: column; gap: 12px; container-type: inline-size; }
 .relatorio-topo {
   display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 20px;
 }
@@ -2280,10 +2300,24 @@ html[data-densidade="compacta"] .selo { padding-block: 1px; }
   font-size: 13.5px; font-variant-numeric: tabular-nums;
   color: color-mix(in srgb, var(--color-text) 62%, transparent);
 }
+/* Sempre cinco categorias, e nenhuma sobrando sozinha numa linha: duas colunas
+   com a quinta na largura toda; depois três em cima e duas embaixo, as duas
+   linhas cheias (grade de seis, cartões de 2 e de 3); depois as cinco lado a lado. */
 .relatorio-lista {
   list-style: none; margin: 0; padding: 0;
-  /* 150px: duas colunas já no celular, para a tabela não ficar a uma tela de distância */
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px;
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px;
+}
+@container (max-width: 519px) {
+  .relatorio-lista > li:last-child:nth-child(odd) { grid-column: 1 / -1; }
+}
+@container (min-width: 520px) {
+  .relatorio-lista { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .relatorio-lista > li { grid-column: span 2; }
+  .relatorio-lista > li:nth-child(n+4) { grid-column: span 3; }
+}
+@container (min-width: 760px) {
+  .relatorio-lista { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .relatorio-lista > li, .relatorio-lista > li:nth-child(n+4) { grid-column: auto; }
 }
 .relatorio-lista > li { display: flex; }
 .relatorio-categoria {
@@ -2611,9 +2645,27 @@ html[data-tema="escuro"] .app-shell {
 .ass-titulo { margin: 0 0 14px; font-size: 22px; font-weight: 600; }
 
 /* cartões de 240px no mínimo, como no design: três por linha no desktop */
+/* Cinco planos sem um sobrando sozinho, pela largura da seção: um por linha;
+   dois (o quinto na largura toda); três em cima e dois embaixo, as duas linhas
+   cheias; os cinco lado a lado. Cartão de plano pede mais largura que o de
+   categoria, por isso os limites são outros. */
+.ass-planos-caixa { container-type: inline-size; }
 .ass-planos {
   list-style: none; margin: 0; padding: 0;
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px;
+  display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px;
+}
+@container (min-width: 520px) and (max-width: 759px) {
+  .ass-planos { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ass-planos > li:last-child:nth-child(odd) { grid-column: 1 / -1; }
+}
+@container (min-width: 760px) {
+  .ass-planos { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .ass-planos > li { grid-column: span 2; }
+  .ass-planos > li:nth-child(n+4) { grid-column: span 3; }
+}
+@container (min-width: 1100px) {
+  .ass-planos { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .ass-planos > li, .ass-planos > li:nth-child(n+4) { grid-column: auto; }
 }
 .ass-plano {
   display: flex; flex-direction: column; gap: 12px; min-width: 0;
