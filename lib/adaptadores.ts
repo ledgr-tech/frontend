@@ -190,6 +190,8 @@ export type Execucao = {
   acerto: number | null;
   /** Quantas linhas de cada divergência a rodada deixou, só as que têm alguma. */
   divergencias: Partial<Record<StatusLinha, number>>;
+  /** A tolerância de data daquela rodada, em dias — não a configuração de hoje. */
+  toleranciaDias: number;
   atual: boolean;
 };
 
@@ -217,6 +219,7 @@ export function adaptarExecucao(item: ExecucaoAPI): Execucao {
         item.contagens[status],
       ]),
     ),
+    toleranciaDias: item.tolerancia_dias,
     atual: item.atual,
   };
 }

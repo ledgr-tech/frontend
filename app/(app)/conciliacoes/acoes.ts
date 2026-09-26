@@ -158,21 +158,33 @@ export async function carregarConciliacao(
   }
 }
 
-// ponytail: o histórico mostra as 50 execuções mais recentes (o backend aceita
-// até 100 por página). Quando alguém passar disso, entra paginação na tela.
+// 50 por página (o backend aceita até 100). As telas que resumem — visão geral,
+// fechamentos, extratos — leem só a primeira; o histórico pagina.
 const EXECUCOES_POR_PAGINA = 50;
 
-export type ListaExecucoes = { execucoes: Execucao[]; total: number };
+export type ListaExecucoes = {
+  execucoes: Execucao[];
+  total: number;
+  /** Quantas vêm por página, para a tela saber quantas páginas há. */
+  porPagina: number;
+};
 
 /** Mais recente primeiro, incluindo as rodadas que foram refeitas depois. */
-export async function listarExecucoes(): Promise<Resultado<ListaExecucoes>> {
+export async function listarExecucoes(pagina = 0): Promise<Resultado<ListaExecucoes>> {
+  // Server Action é endpoint público: a página vira offset na URL do backend,
+  // então só entra inteiro não negativo
+  const offset = Number.isSafeInteger(pagina) && pagina > 0 ? pagina * EXECUCOES_POR_PAGINA : 0;
   try {
     const lista = await chamarBackend<ListaExecucoesAPI>(
-      `/execucoes?limit=${EXECUCOES_POR_PAGINA}&offset=0`,
+      `/execucoes?limit=${EXECUCOES_POR_PAGINA}&offset=${offset}`,
     );
     return {
       ok: true,
-      dados: { execucoes: lista.itens.map(adaptarExecucao), total: lista.total },
+      dados: {
+        execucoes: lista.itens.map(adaptarExecucao),
+        total: lista.total,
+        porPagina: EXECUCOES_POR_PAGINA,
+      },
     };
   } catch (erro) {
     return traduzir(erro);
@@ -203,6 +215,24 @@ export async function carregarPainel(): Promise<Resultado<Painel>> {
   const conciliacao = await carregarConciliacao(maisRecente.extratoBancoId, maisRecente.extratoSistemaId);
   if (!conciliacao.ok) return conciliacao;
   return { ok: true, dados: { recente: conciliacao.dados.conciliacao, anteriores } };
+}
+
+/**
+ * A tolerância de data da conciliação mais recente, em dias: é a configuração
+ * que o motor usou por último. Null sem conciliação ou sem resposta — quem mostra
+ * é a janela de configurações, que abre sem ela.
+ *
+ * ponytail: lida de `/execucoes` porque o backend guarda a configuração da
+ * empresa (`configuracoes`) mas não tem rota para ela. Com a rota, é lá que se lê
+ * e se ajusta.
+ */
+export async function toleranciaDaUltimaConciliacao(): Promise<number | null> {
+  try {
+    const lista = await chamarBackend<ListaExecucoesAPI>("/execucoes?limit=1&offset=0");
+    return lista.itens[0]?.tolerancia_dias ?? null;
+  } catch {
+    return null;
+  }
 }
 
 export type ArquivoExtrato = ArquivoConciliado & {

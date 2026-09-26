@@ -30,6 +30,7 @@ function execucao(parcial: Partial<Execucao> & Pick<Execucao, "id">): Execucao {
     lancamentos: 6,
     acerto: 50,
     divergencias: {},
+    toleranciaDias: 1,
     atual: true,
     ...parcial,
   };

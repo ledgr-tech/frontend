@@ -17,10 +17,12 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Plus,
+  Settings,
   Sun,
   type LucideIcon,
 } from "lucide-react";
 import { EMPRESA_MOCK } from "@/lib/mock-data";
+import { Configuracoes } from "./configuracoes";
 import { LogoBarras } from "./logo-barras";
 import { alternarMenu } from "./menu";
 import { aplicarTema, temaAtual, type Tema } from "./tema";
@@ -59,7 +61,9 @@ export function MenuLateral({ email, onSair }: { email: string; onSair: () => vo
   // faria o ícone trocar sozinho depois da hidratação
   const [tema, setTema] = useState<Tema | null>(null);
   const [contaAberta, setContaAberta] = useState(false);
+  const [configAberta, setConfigAberta] = useState(false);
   const caixaConta = useRef<HTMLDivElement>(null);
+  const botaoConta = useRef<HTMLButtonElement>(null);
   const botaoRecolher = useRef<HTMLButtonElement>(null);
   const botaoAbrir = useRef<HTMLButtonElement>(null);
 
@@ -76,11 +80,30 @@ export function MenuLateral({ email, onSair }: { email: string; onSair: () => vo
         evento.preventDefault();
         alternarMenu();
       }
+      // Ctrl+, (⌘, no Mac): o atalho de preferências do Mac, do Claude e dos editores
+      if (evento.key === "," && (evento.metaKey || evento.ctrlKey)) {
+        evento.preventDefault();
+        setContaAberta(false);
+        setConfigAberta(true);
+      }
       if (evento.key === "Escape") setContaAberta(false);
     }
     window.addEventListener("keydown", aoTeclar);
     return () => window.removeEventListener("keydown", aoTeclar);
   }, []);
+
+  // O item que abriu as configurações sumiu junto com o menu da conta, então o
+  // <dialog> não tem para onde devolver o foco: ele volta ao nome da conta. Roda
+  // depois do efeito da janela (filho antes do pai), já com o modal fechado —
+  // antes disso o resto da página está inerte e o foco não pega.
+  const configJaAbriu = useRef(false);
+  useEffect(() => {
+    if (configAberta) {
+      configJaAbriu.current = true;
+      return;
+    }
+    if (configJaAbriu.current) botaoConta.current?.focus();
+  }, [configAberta]);
 
   useEffect(() => {
     function aoClicarFora(evento: MouseEvent) {
@@ -172,9 +195,13 @@ export function MenuLateral({ email, onSair }: { email: string; onSair: () => vo
         })}
       </nav>
 
-      {/* ponytail: o assistente ainda não tem backend. Quando tiver, este bloco vira
-          o botão que abre a conversa (bloco "chatbot" do APP em Ledgr.dc.html). */}
-      <div className="app-assistente app-dica" data-dica="Fale com o Ledgr · em breve">
+      {/* o cartão "chatbot" do APP em Ledgr.dc.html; a conversa é tela própria */}
+      <Link
+        href="/assistente"
+        className="app-assistente app-dica"
+        data-dica="Fale com o Ledgr"
+        aria-current={caminho.startsWith("/assistente") ? "page" : undefined}
+      >
         <Image
           src="/mascotes/mascote-chatbot.png"
           alt=""
@@ -186,13 +213,14 @@ export function MenuLateral({ email, onSair }: { email: string; onSair: () => vo
         <span className="app-rotulo app-assistente-texto">
           <span className="app-assistente-chamada">Assistente</span>
           <span className="app-assistente-titulo">Fale com o Ledgr</span>
-          <span className="app-assistente-detalhe">em breve</span>
+          <span className="app-assistente-detalhe">Pergunte sobre o mês</span>
         </span>
-      </div>
+      </Link>
 
       <div className="app-aside-rodape">
         <div className="app-conta-envelope" ref={caixaConta}>
           <button
+            ref={botaoConta}
             type="button"
             className="app-conta app-dica"
             data-dica={`${nome} · ${EMPRESA_MOCK}`}
@@ -213,6 +241,20 @@ export function MenuLateral({ email, onSair }: { email: string; onSair: () => vo
           {contaAberta && (
             <div id="menu-conta" className="app-painel app-conta-painel">
               <span className="app-conta-email">{email}</span>
+              <button
+                type="button"
+                className="app-conta-sair"
+                onClick={() => {
+                  setContaAberta(false);
+                  setConfigAberta(true);
+                }}
+              >
+                <Settings {...ICONE} size={16} />
+                Configurações
+                <span className="app-conta-atalho" aria-hidden="true">
+                  Ctrl ,
+                </span>
+              </button>
               <button type="button" className="app-conta-sair" onClick={onSair}>
                 <LogOut {...ICONE} size={16} />
                 Sair
@@ -233,6 +275,14 @@ export function MenuLateral({ email, onSair }: { email: string; onSair: () => vo
           </button>
         )}
       </div>
+
+      <Configuracoes
+        aberta={configAberta}
+        onFechar={() => setConfigAberta(false)}
+        email={email}
+        onSair={onSair}
+        onTema={setTema}
+      />
     </aside>
   );
 }
