@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { baixarDoBackend, ErroBackend } from "./backend";
+import { baixarDoBackend, chamarBackend, ErroBackend } from "./backend";
 
 // o cookie da sessão é o JWT; aqui ele é só uma string conhecida
 const cookie = vi.hoisted(() => ({ valor: "jwt-de-teste" as string | undefined }));
@@ -54,5 +54,48 @@ describe("baixarDoBackend", () => {
 
     expect(erro).toBeInstanceOf(ErroBackend);
     expect(erro).toMatchObject({ status: 404, detalhe: "Extrato não encontrado." });
+  });
+});
+
+describe("chamarBackend", () => {
+  beforeEach(() => {
+    cookie.valor = "jwt-de-teste";
+    fetch.mockReset();
+    vi.stubGlobal("fetch", fetch);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("na chamada pública, vai sem Bearer mesmo sem sessão — é onde a sessão nasce", async () => {
+    cookie.valor = undefined;
+    fetch.mockResolvedValue(Response.json({ id: "u" }));
+
+    await chamarBackend("/login", { method: "POST", corpo: { email: "a@b.com", senha: "x" }, publica: true });
+
+    const [, init] = fetch.mock.calls[0] as [string, RequestInit];
+    expect(new Headers(init.headers).has("Authorization")).toBe(false);
+    expect(new Headers(init.headers).get("Content-Type")).toBe("application/json");
+  });
+
+  it("do 422 do FastAPI, guarda quais campos do corpo foram recusados", async () => {
+    fetch.mockResolvedValue(
+      Response.json(
+        {
+          detail: [
+            { type: "value_error", loc: ["body", "cnpj"], msg: "Value error, CNPJ inválido" },
+            { type: "missing", loc: ["body", "razao_social"], msg: "Field required" },
+          ],
+        },
+        { status: 422 },
+      ),
+    );
+
+    const erro = await chamarBackend("/register", { method: "POST", corpo: {}, publica: true }).catch(
+      (e: unknown) => e,
+    );
+
+    expect(erro).toMatchObject({ status: 422, campos: ["cnpj", "razao_social"] });
   });
 });

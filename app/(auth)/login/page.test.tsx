@@ -243,31 +243,35 @@ describe("LoginPage", () => {
       expect(push).not.toHaveBeenCalled();
     });
 
-    it("shows 'account not found' on the e-mail field after trying to sign in", async () => {
-      abrirSessao.mockResolvedValue({ ok: false, erro: "conta_nao_encontrada" });
-      render(<LoginPage />);
-      await preencherEEntrar("outra@empresa.com.br", "ledgr2026");
-
-      const email = screen.getByLabelText("E-mail");
-      await waitFor(() => expect(email).toHaveAccessibleDescription("Não encontramos conta com este e-mail. Confira o endereço."));
-      expect(screen.getByRole("button", { name: "Entrar" })).toBeEnabled();
-      expect(push).not.toHaveBeenCalled();
-    });
-
-    it("shows 'wrong password' on the password field", async () => {
-      abrirSessao.mockResolvedValue({ ok: false, erro: "senha_incorreta" });
+    // o backend responde igual para e-mail sem conta e senha errada, para não contar quais e-mails existem
+    it("says only that e-mail or password don't match, on the password field", async () => {
+      abrirSessao.mockResolvedValue({ ok: false, erro: "credenciais_invalidas" });
       render(<LoginPage />);
       await preencherEEntrar("financeiro@telhacerta.com.br", "errada");
 
       const senha = screen.getByLabelText("Senha");
-      await waitFor(() => expect(senha).toHaveAccessibleDescription("Senha incorreta. Confira e tente de novo."));
+      await waitFor(() => expect(senha).toHaveAccessibleDescription("E-mail ou senha incorretos. Confira e tente de novo."));
       expect(abrirSessao).toHaveBeenCalledWith("financeiro@telhacerta.com.br", "errada", true);
       expect(screen.getByLabelText("E-mail")).not.toHaveAttribute("aria-invalid");
+      expect(screen.getByRole("button", { name: "Entrar" })).toBeEnabled();
+      expect(push).not.toHaveBeenCalled();
+    });
+
+    it("asks to wait when the server limits the sign-ins", async () => {
+      abrirSessao.mockResolvedValue({ ok: false, erro: "muitas_tentativas" });
+      render(<LoginPage />);
+      await preencherEEntrar("financeiro@telhacerta.com.br", "ledgr2026");
+
+      await waitFor(() =>
+        expect(screen.getByLabelText("Senha")).toHaveAccessibleDescription(
+          "Acesso pausado por segurança. Tente de novo em alguns minutos.",
+        ),
+      );
     });
 
     it("pauses the form on the wrong password that reaches the limit", async () => {
       for (let tentativa = 1; tentativa < LIMITE_TENTATIVAS; tentativa++) registrarSenhaErrada();
-      abrirSessao.mockResolvedValue({ ok: false, erro: "senha_incorreta" });
+      abrirSessao.mockResolvedValue({ ok: false, erro: "credenciais_invalidas" });
       render(<LoginPage />);
       await preencherEEntrar("financeiro@telhacerta.com.br", "errada");
 

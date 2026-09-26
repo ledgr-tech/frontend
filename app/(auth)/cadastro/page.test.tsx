@@ -9,11 +9,11 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push }),
 }));
 
-// o fim do cadastro é o atalho de demonstração, uma Server Action; aqui ela só
-// devolve se o servidor deixou entrar
-const entrarNaDemonstracao = vi.fn();
+// o fim do cadastro é uma Server Action (POST /register e já entra); aqui ela só
+// devolve o que o servidor decidiu
+const cadastrar = vi.fn();
 vi.mock("../acoes", () => ({
-  entrarNaDemonstracao: (...args: unknown[]) => entrarNaDemonstracao(...args),
+  cadastrar: (...args: unknown[]) => cadastrar(...args),
 }));
 
 type Usuario = ReturnType<typeof userEvent.setup>;
@@ -29,7 +29,7 @@ async function continuar(user: Usuario) {
 }
 
 const ACESSO = { "Nome completo": "Ana Souza", "E-mail": "financeiro@telhacerta.com.br", Senha: "conciliar2026" };
-const EMPRESA = { "Razão social": "Telha Certa Ltda", CNPJ: "12.345.678/0001-90" };
+const EMPRESA = { "Razão social": "Telha Certa Ltda", CNPJ: "12.345.678/0001-95" };
 const BANCO = { "Banco e agência": "Sicredi · ag. 1234", "Conta corrente": "45678-9" };
 
 function titulo() {
@@ -39,8 +39,8 @@ function titulo() {
 describe("CadastroPage", () => {
   beforeEach(() => {
     push.mockClear();
-    entrarNaDemonstracao.mockReset();
-    entrarNaDemonstracao.mockResolvedValue(true);
+    cadastrar.mockReset();
+    cadastrar.mockResolvedValue({ ok: true, entrou: true });
   });
 
   afterEach(() => {
@@ -180,10 +180,28 @@ describe("CadastroPage", () => {
     await continuar(user);
     expect(screen.getByLabelText("CNPJ")).toHaveAccessibleDescription("O CNPJ tem 14 caracteres. Confira o número.");
 
-    await user.type(screen.getByLabelText("CNPJ"), "90");
-    expect(screen.getByLabelText("CNPJ")).toHaveValue("12.345.678/0001-90");
+    await user.type(screen.getByLabelText("CNPJ"), "95");
+    expect(screen.getByLabelText("CNPJ")).toHaveValue("12.345.678/0001-95");
     await continuar(user);
     expect(titulo()).toHaveTextContent("Qual banco você vai conciliar?");
+  });
+
+  // o mesmo cálculo do backend: sem ele, o CNPJ errado só aparecia depois dos quatro passos
+  it("checks the CNPJ check digits on the company step", async () => {
+    const user = userEvent.setup();
+    render(<CadastroPage />);
+
+    await preencher(user, ACESSO);
+    await continuar(user);
+    await preencher(user, { "Razão social": "Telha Certa Ltda", CNPJ: "12.345.678/0001-90" });
+    await continuar(user);
+    expect(screen.getByLabelText("CNPJ")).toHaveAccessibleDescription("Os dígitos do CNPJ não conferem. Confira o número.");
+    expect(titulo()).toHaveTextContent(PASSOS[1].titulo);
+
+    await user.clear(screen.getByLabelText("CNPJ"));
+    await user.type(screen.getByLabelText("CNPJ"), "00000000000000");
+    await continuar(user);
+    expect(screen.getByLabelText("CNPJ")).toHaveAccessibleDescription("Os dígitos do CNPJ não conferem. Confira o número.");
   });
 
   it("accepts the alphanumeric CNPJ, with letters in upper case", async () => {
@@ -253,57 +271,97 @@ describe("CadastroPage", () => {
     await user.click(screen.getByRole("button", { name: "Concluir e subir extratos" }));
   }
 
-  it("finishes through the demo shortcut and opens the statement upload when the demo is on", async () => {
-    vi.stubEnv("NEXT_PUBLIC_LEDGR_DEMO_ABERTA", "1");
+  it("creates the account with the typed data and opens the statement upload", async () => {
     const user = userEvent.setup();
     render(<CadastroPage />);
 
     await concluirCadastro(user);
 
     await waitFor(() => expect(push).toHaveBeenCalledWith("/conciliacoes/nova"));
-    // ponytail: enquanto o backend não cria usuário, quem entra é a conta de
-    // teste — os dados do formulário ainda não viram conta nenhuma
-    expect(entrarNaDemonstracao).toHaveBeenCalledWith(true);
+    // banco e sistema de gestão o backend ainda não guarda: não saem do navegador
+    expect(cadastrar).toHaveBeenCalledWith({
+      nome: "Ana Souza",
+      email: "financeiro@telhacerta.com.br",
+      senha: "conciliar2026",
+      razaoSocial: "Telha Certa Ltda",
+      cnpj: "12.345.678/0001-95",
+    });
   });
 
-  it("says signup is closed, without signing in, when the demo is off", async () => {
+  it("sends to the login when the account was created but the session didn't open", async () => {
+    cadastrar.mockResolvedValue({ ok: true, entrou: false });
     const user = userEvent.setup();
     render(<CadastroPage />);
 
     await concluirCadastro(user);
 
-    expect(await screen.findByRole("heading", { level: 1, name: "Cadastro ainda fechado" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "ledgrtech@gmail.com" })).toHaveAttribute(
-      "href",
-      "mailto:ledgrtech@gmail.com",
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/login"));
+  });
+
+  it("goes back to the access step when the e-mail already has an account", async () => {
+    cadastrar.mockResolvedValue({ ok: false, erro: "email_cadastrado" });
+    const user = userEvent.setup();
+    render(<CadastroPage />);
+
+    await concluirCadastro(user);
+
+    const email = await screen.findByLabelText("E-mail");
+    expect(email).toHaveAccessibleDescription("Já existe conta com este e-mail. Entre pela tela de login.");
+    expect(email).toHaveFocus();
+    expect(titulo()).toHaveTextContent(PASSOS[0].titulo);
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it("goes back to the company step when the CNPJ already has an account", async () => {
+    cadastrar.mockResolvedValue({ ok: false, erro: "cnpj_cadastrado" });
+    const user = userEvent.setup();
+    render(<CadastroPage />);
+
+    await concluirCadastro(user);
+
+    const cnpj = await screen.findByLabelText("CNPJ");
+    expect(cnpj).toHaveAccessibleDescription("Esta empresa já tem cadastro no Ledgr.");
+    expect(cnpj).toHaveFocus();
+    expect(screen.getByLabelText("Razão social")).toHaveValue("Telha Certa Ltda");
+  });
+
+  it("points out every field the server refused, starting from the earliest step", async () => {
+    cadastrar.mockResolvedValue({ ok: false, erro: "invalido", campos: ["razaoSocial", "email"] });
+    const user = userEvent.setup();
+    render(<CadastroPage />);
+
+    await concluirCadastro(user);
+
+    const email = await screen.findByLabelText("E-mail");
+    expect(email).toHaveAccessibleDescription("Confira o e-mail: o formato não foi aceito.");
+    await continuar(user);
+    expect(screen.getByLabelText("Razão social")).toHaveAccessibleDescription("Confira a razão social.");
+  });
+
+  it("asks to wait, on the last step, when the server limits the signups", async () => {
+    cadastrar.mockResolvedValue({ ok: false, erro: "muitas_tentativas" });
+    const user = userEvent.setup();
+    render(<CadastroPage />);
+
+    await concluirCadastro(user);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Muitos cadastros seguidos agora. Espere um minuto e tente de novo.",
     );
-    expect(screen.getByRole("link", { name: "Entrar" })).toHaveAttribute("href", "/login");
-    expect(screen.queryByLabelText("Sistema de gestão")).not.toBeInTheDocument();
-    expect(entrarNaDemonstracao).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Concluir e subir extratos" })).toBeEnabled();
     expect(push).not.toHaveBeenCalled();
   });
 
-  it("says signup is closed when the server refuses the demo shortcut", async () => {
-    vi.stubEnv("NEXT_PUBLIC_LEDGR_DEMO_ABERTA", "1");
-    entrarNaDemonstracao.mockResolvedValue(false);
+  it("recovers the form when the server can't be reached", async () => {
+    cadastrar.mockRejectedValue(new Error("Failed to fetch"));
     const user = userEvent.setup();
     render(<CadastroPage />);
 
     await concluirCadastro(user);
 
-    expect(await screen.findByRole("heading", { level: 1, name: "Cadastro ainda fechado" })).toBeInTheDocument();
-    expect(push).not.toHaveBeenCalled();
-  });
-
-  it("says signup is closed when the server can't be reached", async () => {
-    vi.stubEnv("NEXT_PUBLIC_LEDGR_DEMO_ABERTA", "1");
-    entrarNaDemonstracao.mockRejectedValue(new Error("Failed to fetch"));
-    const user = userEvent.setup();
-    render(<CadastroPage />);
-
-    await concluirCadastro(user);
-
-    expect(await screen.findByRole("heading", { level: 1, name: "Cadastro ainda fechado" })).toBeInTheDocument();
-    expect(push).not.toHaveBeenCalled();
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Não foi possível concluir o cadastro. Tente de novo em instantes.",
+    );
+    expect(screen.getByRole("button", { name: "Concluir e subir extratos" })).toBeEnabled();
   });
 });
