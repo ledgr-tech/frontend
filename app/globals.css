@@ -1291,6 +1291,50 @@ html[data-tema="escuro"] .app-shell {
   font-family: var(--font-heading); font-size: 17px;
 }
 
+/* o hub: um cartao por tela, com o estado dela; o cartao inteiro e o link */
+.vg-atalhos {
+  list-style: none; margin: 0; padding: 0;
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px;
+}
+.vg-atalhos > li { display: flex; }
+.vg-atalho {
+  flex: 1; display: flex; flex-direction: column; gap: 6px; min-width: 0;
+  padding: 16px 18px 18px; border: 1px solid var(--color-divider); border-radius: var(--radius-md);
+  text-decoration: none; color: var(--color-text);
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.vg-atalho:hover {
+  background: var(--tinta-hover);
+  border-color: color-mix(in srgb, var(--color-text) 26%, transparent);
+}
+.vg-atalho:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+.vg-atalho-topo {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 2px;
+  font-size: 13.5px; font-weight: 600;
+  color: color-mix(in srgb, var(--color-text) 70%, transparent);
+}
+.vg-atalho-ir { margin-left: auto; transition: transform 0.15s ease; }
+.vg-atalho:hover .vg-atalho-ir { transform: translateX(3px); color: var(--color-text); }
+.vg-atalho-numero {
+  font-family: var(--font-titulo); font-size: 24px; line-height: 1.15; text-wrap: balance;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+.vg-atalho-detalhe {
+  font-size: 13.5px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere;
+  color: color-mix(in srgb, var(--color-text) 62%, transparent);
+}
+.vg-atalho-arquivos { display: flex; flex-direction: column; gap: 3px; margin-top: 2px; }
+.vg-atalho-arquivo {
+  display: flex; align-items: center; gap: 6px; min-width: 0;
+  font-size: 13px; overflow-wrap: anywhere;
+  color: color-mix(in srgb, var(--color-text) 78%, transparent);
+}
+.vg-atalho-arquivo .icone-origem { flex: none; }
+.vg-atalho-aviso { display: flex; align-items: center; gap: 8px; margin-top: 2px; font-size: 13.5px; }
+@media (prefers-reduced-motion: reduce) {
+  .vg-atalho-ir { transition: none; }
+}
+
 /* sem execucao nenhuma: o guia dos primeiros passos, com os numerais do onboarding */
 .vg-inicio {
   padding: 56px 0 72px; display: flex; flex-direction: column; align-items: center;
@@ -2174,68 +2218,64 @@ html[data-tema="escuro"] .app-shell {
 }
 
 /* ── Fechamentos ──────────────────────────────────────────────────────────────
-   O fechamento do mês (FECHAMENTO em Ledgr.dc.html). Reaproveita o cabeçalho e o
-   resumo da dashboard e a lista e o rodapé da visão geral; o que é dela: o
-   mascote com a frase do mês, o filete na cor do veredito e o cartão do marco.
-   O rótulo pequeno e o filete, dourados no design, seguem a regra de 24/09: o
-   rótulo fica apagado e o filete é verde quando o mês está conciliado, dourado
-   (atenção) quando ainda há pendência. */
-.fech-corpo {
-  padding: 44px 0 64px; max-width: 1000px;
-  display: flex; flex-direction: column; gap: 34px;
+   A mesa de fechamento: o mesmo desenho da galeria de extratos (folhas à esquerda,
+   painel à direita), com cada mês como uma página de calendário. O painel diz o
+   que ainda segura o fechamento, em passos, e leva até lá. */
+.mes-folha { gap: 2px; }
+.mes-folha .extrato-folha-titulo { margin-bottom: 8px; }
+.mes-folha-nome {
+  font-family: var(--font-titulo); font-size: 26px; font-weight: 500; line-height: 1.05;
 }
-.fech-destaque { display: flex; flex-wrap: wrap; gap: 28px 36px; align-items: center; }
-.fech-mascote { flex: none; width: 190px; height: auto; }
-.fech-destaque-corpo { flex: 1 1 360px; min-width: 0; }
-.fech-kicker {
-  margin: 0 0 14px; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase;
-  color: var(--texto-apagado);
+.mes-folha-ano {
+  font-size: 13px; font-variant-numeric: tabular-nums;
+  color: color-mix(in srgb, var(--color-text) 62%, transparent);
 }
-.fech-titulo { margin: 0 0 12px; font-size: 42px; font-weight: 400; line-height: 1.06; }
-/* a frase do mês em aberto é mais longa: no corpo de 42px ia a três linhas */
-.fech-titulo[data-estado="aberto"] { font-size: 34px; line-height: 1.12; }
-.fech-filete { display: block; width: 76px; height: 1px; margin-bottom: 18px; background: var(--color-ok); }
-.fech-filete[data-estado="aberto"] { background: var(--color-accent); }
-.fech-texto {
-  margin: 0 0 18px; font-size: 15.5px; line-height: 1.75; max-width: 62ch;
-  color: color-mix(in srgb, var(--color-text) 80%, transparent);
+/* a taxa desce para o pé da folha, com a barra embaixo dela */
+.mes-folha-taxa {
+  margin-top: auto; font-family: var(--font-titulo); font-size: 30px; line-height: 1;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+.mes-folha[data-pronto] .mes-folha-taxa { color: var(--color-ok-700); }
+.mes-folha-rotulo {
+  margin-bottom: 8px; font-size: 12px;
+  color: color-mix(in srgb, var(--color-text) 62%, transparent);
 }
 
-/* o resumo é uma <dl>: sem as margens padrão de dl e dd */
-.fech-resumo { margin: 0; }
-.fech-resumo dd { margin: 0; }
-.fech-resumo .dash-valor { font-size: 34px; }
+.fech-progresso { display: flex; flex-direction: column; gap: 8px; }
+.fech-progresso .vg-nota { font-size: 13.5px; }
 
-/* no máximo três por linha, como no design; um marco só não estica a linha toda */
-.fech-marcos {
+.fech-passos {
   list-style: none; margin: 0; padding: 0;
-  display: grid; gap: 22px;
-  grid-template-columns: repeat(auto-fill, minmax(max(190px, (100% - 44px) / 3), 1fr));
+  display: flex; flex-direction: column; border-top: 1px solid var(--color-divider);
 }
-.fech-marco {
-  display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center;
-  padding: 22px 20px; border-radius: var(--radius-md);
-  border: 1px solid var(--color-divider); background: var(--color-surface);
+.fech-passo {
+  display: flex; gap: 10px; padding: 12px 0; border-bottom: 1px solid var(--color-divider);
 }
-.fech-marco-titulo {
-  font-family: var(--font-heading); font-size: 18px; font-weight: 600; line-height: 1.24;
+.fech-passo-icone {
+  flex: none; display: flex; padding-top: 1px;
+  color: color-mix(in srgb, var(--color-text) 45%, transparent);
 }
-.fech-marco-texto {
-  font-size: 13px; line-height: 1.65; text-wrap: pretty;
-  color: color-mix(in srgb, var(--color-text) 70%, transparent);
+.fech-passo[data-feito="true"] .fech-passo-icone { color: var(--color-ok); }
+.fech-passo[data-feito="false"] .fech-passo-icone { color: var(--color-accent); }
+.fech-passo-corpo { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.fech-passo-titulo { font-family: var(--font-heading); font-size: 14.5px; font-weight: 600; }
+.fech-passo-texto {
+  font-size: 13.5px; line-height: 1.5; overflow-wrap: anywhere;
+  color: color-mix(in srgb, var(--color-text) 66%, transparent);
 }
-
-.fech-comecar {
-  display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px;
-  border-top: 1px solid var(--color-divider); padding-top: 26px;
+.fech-passo-lista {
+  list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px;
 }
-.fech-comecar-nota { font-size: 14px; color: color-mix(in srgb, var(--color-text) 60%, transparent); }
-
-@media (max-width: 640px) {
-  .fech-mascote { width: 140px; }
-  .fech-titulo { font-size: 32px; }
-  .fech-titulo[data-estado="aberto"] { font-size: 28px; }
+.fech-pendencia { display: flex; align-items: center; gap: 8px; font-size: 13.5px; }
+.fech-pendencia-quantidade { margin-left: auto; font-variant-numeric: tabular-nums; }
+.fech-link {
+  align-self: flex-start; font-size: 13.5px; overflow-wrap: anywhere;
+  color: var(--color-text); text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--color-text) 30%, transparent);
+  text-underline-offset: 3px;
 }
+.fech-link:hover { text-decoration-color: var(--color-text); }
+.fech-relatorio { display: flex; flex-direction: column; gap: 6px; }
 
 /* ── Assinatura ───────────────────────────────────────────────────────────────
    Plano, planos e faturas (isAssinatura em Ledgr.dc.html). O resumo e a tabela

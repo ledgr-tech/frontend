@@ -299,6 +299,64 @@ export async function carregarVisaoGeral(): Promise<Resultado<VisaoGeral>> {
   };
 }
 
+export type ParDoFechamento = {
+  execucao: Execucao;
+  /** A primeira data do extrato (AAAA-MM-DD), que diz de que mês ele é; null se não veio. */
+  primeiraData: string | null;
+  /** Os arquivos do par com linhas que o parser não conseguiu ler. */
+  naoLidas: { nome: string; linhas: number }[];
+};
+
+/** A primeira linha da conciliação, só pela data: a lista vem em ordem de data. */
+async function primeiraData(execucao: Execucao): Promise<string | null> {
+  try {
+    const pagina = await chamarBackend<ListaConciliacaoAPI>(
+      `/conciliacoes/${execucao.extratoBancoId}?limit=1&offset=0&extrato_sistema_id=${execucao.extratoSistemaId}`,
+    );
+    const item = pagina.itens[0];
+    return (item?.lancamento_banco ?? item?.lancamento_sistema)?.data ?? null;
+  } catch {
+    // sem a data o par ainda entra, pelo mês em que foi conciliado
+    return null;
+  }
+}
+
+/**
+ * Cada par de extratos conciliado, com o mês a que pertence e as linhas não
+ * lidas dos dois arquivos: é o que a mesa de fechamento agrupa por mês. Só as
+ * rodadas atuais — a refeita depois substitui a anterior.
+ *
+ * ponytail: três chamadas por par (a primeira linha, pela data, e os dois
+ * arquivos), em paralelo. Some quando `/execucoes` trouxer o período do extrato
+ * e `GET /extratos` (backend #70) a situação dos arquivos.
+ */
+export async function carregarFechamentos(): Promise<Resultado<ParDoFechamento[]>> {
+  const lista = await listarExecucoes();
+  if (!lista.ok) return lista;
+
+  const atuais = lista.dados.execucoes.filter((execucao) => execucao.atual);
+  const pares = await Promise.all(
+    atuais.map(async (execucao) => {
+      const [data, banco, sistema] = await Promise.all([
+        primeiraData(execucao),
+        situacaoDoExtrato(execucao.extratoBancoId),
+        situacaoDoExtrato(execucao.extratoSistemaId),
+      ]);
+      const arquivos = [
+        { nome: execucao.arquivoBanco, situacao: banco },
+        { nome: execucao.arquivoSistema, situacao: sistema },
+      ];
+      const naoLidas = arquivos.flatMap(({ nome, situacao }) =>
+        situacao.ok && situacao.dados.erros.length > 0
+          ? [{ nome, linhas: situacao.dados.erros.length }]
+          : [],
+      );
+      return { execucao, primeiraData: data, naoLidas };
+    }),
+  );
+  return { ok: true, dados: pares };
+}
+
 /** Por que o texto é o fixo do motor, e não o da IA; null quando veio da IA. */
 export type Indisponibilidade = "desabilitado" | "erro_provedor" | "limite_diario";
 

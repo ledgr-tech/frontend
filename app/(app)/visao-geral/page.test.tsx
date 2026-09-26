@@ -29,6 +29,7 @@ function execucao(parcial: Partial<Execucao> & Pick<Execucao, "id">): Execucao {
     executadaEm: "2026-09-24T17:02:11Z",
     lancamentos: 6,
     acerto: 50,
+    divergencias: {},
     atual: true,
     ...parcial,
   };
@@ -116,6 +117,61 @@ describe("VisaoGeralPage", () => {
       "href",
       "/conciliacoes/nova",
     );
+  });
+
+  it("works as a hub: one shortcut per screen, each with where that screen stands", async () => {
+    com();
+    await renderizar();
+
+    const atalhos = screen.getByRole("navigation", { name: "Atalhos" });
+    const extratos = within(atalhos).getByRole("link", { name: /Extratos/ });
+    expect(extratos).toHaveAttribute("href", "/extratos");
+    // sete execuções, cada uma com os seus dois arquivos
+    expect(extratos).toHaveTextContent("14 arquivos");
+    expect(extratos).toHaveTextContent("7 do banco · 7 do sistema");
+    expect(extratos).toHaveTextContent("sicredi-e7.ofx");
+    expect(extratos).toHaveTextContent("erp-e7.csv");
+
+    // a rodada refeita depois (e6) não conta como outra conciliação
+    const conciliacoes = within(atalhos).getByRole("link", { name: /Conciliações/ });
+    expect(conciliacoes).toHaveAttribute("href", "/dashboard");
+    expect(conciliacoes).toHaveTextContent("6 conciliações");
+    expect(conciliacoes).toHaveTextContent("Última em 24/09/2026 14:02");
+
+    const fechamentos = within(atalhos).getByRole("link", { name: /Fechamentos/ });
+    expect(fechamentos).toHaveAttribute("href", "/fechamentos");
+    expect(fechamentos).toHaveTextContent("Setembro de 2026");
+    expect(fechamentos).toHaveTextContent("3 pendências na última conciliação");
+
+    const historico = within(atalhos).getByRole("link", { name: /Histórico/ });
+    expect(historico).toHaveAttribute("href", "/historico");
+    expect(historico).toHaveTextContent("7 execuções");
+    expect(historico).toHaveTextContent("Match de 50,0% na última");
+  });
+
+  it("tells the shortcuts about unread lines, and about a latest conciliação with nothing pending", async () => {
+    com({ arquivosComLinhasNaoLidas: [{ nome: "erp-e7.csv", linhas: 2 }] });
+    await renderizar();
+    const atalhos = screen.getByRole("navigation", { name: "Atalhos" });
+    expect(within(atalhos).getByRole("link", { name: /Extratos/ })).toHaveTextContent("2 linhas não lidas");
+
+    carregarVisaoGeral.mockReset();
+    com({
+      recente: {
+        execucao: RECENTE,
+        conciliacao: {
+          id: "banco-e7",
+          mes: "Setembro/2026",
+          status: "em_andamento",
+          linhas: [linha("l1", "match_exato", 100, 100)],
+        },
+      },
+    });
+    document.body.innerHTML = "";
+    await renderizar();
+    expect(
+      within(screen.getByRole("navigation", { name: "Atalhos" })).getByRole("link", { name: /Fechamentos/ }),
+    ).toHaveTextContent("Última conciliação sem pendência");
   });
 
   it("says how much of the month is settled, with a progress bar", async () => {

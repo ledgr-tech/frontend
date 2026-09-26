@@ -1,7 +1,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import type { Execucao } from "@/lib/adaptadores";
+import { ArrowLeftRight, ArrowRight, CalendarCheck, Files, History, type LucideIcon } from "lucide-react";
+import { extratosDasExecucoes, type Execucao } from "@/lib/adaptadores";
 import { caminhoDaConciliacao } from "@/lib/caminhos";
 import { EMPRESA_MOCK, type Conciliacao } from "@/lib/mock-data";
 import { carregarVisaoGeral, type VisaoGeral } from "../conciliacoes/acoes";
@@ -13,14 +14,16 @@ import {
   resumir,
 } from "../dashboard/resumo";
 import { GraficoDeMatch } from "../historico/grafico";
+import { IconeOrigem } from "../icone-origem";
 import { NOTA_VER_ATUAL, VerExecucao } from "../historico/ver-execucao";
 import { pendencias } from "./pendencias";
 
 /**
- * A home do app: onde o mês está, o que pede decisão, para onde a taxa de match
- * vai e o que aconteceu por último. Não existe no design — é composta com as
- * peças que as outras telas já têm, e só com dado real: sem execução, vira o
- * guia dos primeiros passos.
+ * A home do app: onde o mês está, os atalhos para as outras telas (cada um com o
+ * estado dela), o que pede decisão, para onde a taxa de match vai e o que
+ * aconteceu por último. Não existe no design — é composta com as peças que as
+ * outras telas já têm, e só com dado real: sem execução, vira o guia dos
+ * primeiros passos.
  */
 
 const FALHA_AO_CARREGAR =
@@ -83,6 +86,8 @@ function Conteudo({
     <div className="vg-corpo">
       <EstadoDoMes execucao={execucao} resumo={resumo} />
 
+      <Atalhos visao={visao} execucao={execucao} conciliacao={conciliacao} divergentes={resumo.divergentes} />
+
       <div className="vg-grade">
         <PedeAtencao conciliacao={conciliacao} arquivos={visao.arquivosComLinhasNaoLidas} />
         <section className="vg-tendencia" aria-label="Tendência da taxa de match">
@@ -139,6 +144,125 @@ function EstadoDoMes({
         </Link>
       </div>
     </section>
+  );
+}
+
+/**
+ * O hub: um cartão por tela, cada um com o estado dela, para a pessoa chegar a
+ * qualquer lugar do app pela home. Tudo sai do que a visão geral já carregou —
+ * nenhuma chamada a mais ao backend.
+ */
+function Atalhos({
+  visao,
+  execucao,
+  conciliacao,
+  divergentes,
+}: {
+  visao: VisaoGeral;
+  execucao: Execucao;
+  conciliacao: Conciliacao;
+  divergentes: number;
+}) {
+  const arquivos = extratosDasExecucoes(visao.execucoes);
+  const doBanco = arquivos.filter((arquivo) => arquivo.origem === "banco").length;
+  const pares = visao.execucoes.filter((item) => item.atual).length;
+  const naoLidas = visao.arquivosComLinhasNaoLidas.reduce((soma, arquivo) => soma + arquivo.linhas, 0);
+  const pronto = divergentes === 0 && naoLidas === 0;
+
+  return (
+    <nav aria-labelledby="vg-atalhos-titulo">
+      <h2 id="vg-atalhos-titulo" className="vg-secao-titulo">
+        Atalhos
+      </h2>
+      <ul className="vg-atalhos">
+        <Atalho href="/extratos" icone={Files} nome="Extratos" numero={plural(arquivos.length, "arquivo", "arquivos")}>
+          <span className="vg-atalho-detalhe">
+            {`${formatarInteiro(doBanco)} do banco · ${formatarInteiro(arquivos.length - doBanco)} do sistema`}
+          </span>
+          {/* os dois arquivos da conciliação mais recente */}
+          <span className="vg-atalho-arquivos">
+            {arquivos.slice(0, 2).map((arquivo) => (
+              <span key={arquivo.id} className="vg-atalho-arquivo">
+                <IconeOrigem origem={arquivo.origem} tamanho={14} />
+                {arquivo.nome}
+              </span>
+            ))}
+          </span>
+          {naoLidas > 0 && (
+            <span className="vg-atalho-aviso">
+              <span className="vg-ponto vg-ponto-atencao" aria-hidden="true" />
+              {plural(naoLidas, "linha não lida", "linhas não lidas")}
+            </span>
+          )}
+        </Atalho>
+
+        <Atalho
+          href="/dashboard"
+          icone={ArrowLeftRight}
+          nome="Conciliações"
+          numero={plural(pares, "conciliação", "conciliações")}
+        >
+          <span className="vg-atalho-detalhe">{`Última em ${formatarDataHora(execucao.executadaEm)}`}</span>
+        </Atalho>
+
+        <Atalho
+          href="/fechamentos"
+          icone={CalendarCheck}
+          nome="Fechamentos"
+          numero={conciliacao.mes.replace("/", " de ")}
+        >
+          {/* a home só carrega a última conciliação: o mês inteiro, com todos os
+              pares dele, é a tela de fechamentos que soma */}
+          <span className="vg-atalho-aviso">
+            <span className={`vg-ponto vg-ponto-${pronto ? "ok" : "atencao"}`} aria-hidden="true" />
+            {pronto
+              ? "Última conciliação sem pendência"
+              : divergentes > 0
+                ? `${plural(divergentes, "pendência", "pendências")} na última conciliação`
+                : "Linhas não lidas na última conciliação"}
+          </span>
+        </Atalho>
+
+        <Atalho
+          href="/historico"
+          icone={History}
+          nome="Histórico"
+          numero={plural(visao.total, "execução", "execuções")}
+        >
+          {execucao.acerto !== null && (
+            <span className="vg-atalho-detalhe">{`Match de ${formatarPercentual(execucao.acerto)} na última`}</span>
+          )}
+        </Atalho>
+      </ul>
+    </nav>
+  );
+}
+
+function Atalho({
+  href,
+  icone: Icone,
+  nome,
+  numero,
+  children,
+}: {
+  href: string;
+  icone: LucideIcon;
+  nome: string;
+  numero: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <li>
+      <Link href={href} className="vg-atalho">
+        <span className="vg-atalho-topo">
+          <Icone size={16} aria-hidden="true" />
+          {nome}
+          <ArrowRight size={16} aria-hidden="true" className="vg-atalho-ir" />
+        </span>
+        <span className="vg-atalho-numero">{numero}</span>
+        {children}
+      </Link>
+    </li>
   );
 }
 

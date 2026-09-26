@@ -28,6 +28,7 @@ function execucao(parcial: Partial<Execucao> & Pick<Execucao, "id">): Execucao {
     executadaEm: "2026-09-24T17:02:11Z",
     lancamentos: 100,
     acerto: 90,
+    divergencias: {},
     atual: true,
     ...parcial,
   };

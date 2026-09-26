@@ -27,6 +27,11 @@ export function estaResolvida(status: StatusLinha): boolean {
   return status === "match_exato" || status === "match_tolerancia";
 }
 
+/** Rótulo e tom de um código do motor, sem a linha (as contagens de `/execucoes`). */
+export function seloDoStatus(status: StatusLinha): { rotulo: string; tom: Tom } {
+  return STATUS[status];
+}
+
 export function statusDaLinha(linha: LinhaComparacao): { rotulo: string; tom: Tom } {
   const base = STATUS[linha.status];
   if (linha.status !== "sem_correspondencia") return base;
