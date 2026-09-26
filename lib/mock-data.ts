@@ -54,6 +54,11 @@ export type LinhaComparacao = {
   data: string;
   /** Data completa (AAAA-MM-DD) quando vem do backend. Só a ordenação usa. */
   dataISO?: string;
+  /** Data ("DD/MM") e descrição do lançamento no sistema, que podem diferir das do banco
+   *  (match por tolerância cai em outro dia; o ERP dá outro nome ao mesmo pagamento).
+   *  Só vêm do backend: no mock os dois lados têm a mesma data e descrição. */
+  dataSistema?: string;
+  descricaoSistema?: string;
   valorBanco: number | null;
   valorSistema: number | null;
   status: StatusLinha;
