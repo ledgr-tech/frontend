@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { listarExtratos } from "../conciliacoes/acoes";
 import { formatarInteiro } from "../dashboard/resumo";
+import { Reveal } from "@/app/reveal";
 import { Galeria } from "./galeria";
 import { Cabecalho } from "../cabecalho";
 
@@ -57,7 +58,9 @@ export default async function ExtratosPage() {
         </div>
       ) : (
         <div style={{ padding: "28px 0 56px", display: "flex", flexDirection: "column", gap: 20 }}>
-          <Galeria arquivos={resposta.dados} />
+          <Reveal once>
+            <Galeria arquivos={resposta.dados} />
+          </Reveal>
           {/* ponytail: o backend não lista extratos, então a lista sai das
               conciliações (ver `extratosDasExecucoes`). Some com `GET /extratos`. */}
           <p style={{ margin: 0, fontSize: 13.5, color: cinza(62) }}>

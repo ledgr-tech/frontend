@@ -343,7 +343,14 @@ a { color: var(--color-accent-700); text-underline-offset: 3px; }
 .dialog-backdrop {
   position: fixed; inset: 0; display: grid; place-items: center;
   padding: var(--space-4); z-index: 100;
-  background: color-mix(in srgb, var(--color-neutral-900) 50%, transparent);
+}
+/* o fundo de toda janela modal, padrão desde 27/09 (DESIGN.md): a tela de trás
+   escurece e desfoca, como nas Configurações. Vale para o <dialog> nativo com
+   showModal e para o .dialog-backdrop das janelas montadas à mão */
+.dialog-backdrop,
+dialog::backdrop {
+  background: rgb(12 11 10 / 0.55);
+  backdrop-filter: blur(3px);
 }
 .dialog {
   width: min(560px, 100%); display: flex; flex-direction: column; gap: var(--space-3);
@@ -363,7 +370,6 @@ a { color: var(--color-accent-700); text-underline-offset: 3px; }
   width: min(560px, calc(100vw - 32px)); max-width: none; margin: auto; padding: 0;
   border: none; background: transparent; color: var(--color-text); overflow: visible;
 }
-.espia::backdrop { background: color-mix(in srgb, var(--color-neutral-900) 50%, transparent); }
 .espia .dialog { width: 100%; }
 
 /* Landing page: grids that split into fixed-ratio columns and need to
@@ -1881,7 +1887,6 @@ html[data-tema="escuro"] .app-shell {
   background: var(--color-bg); color: var(--color-text); box-shadow: var(--shadow-lg);
   overflow: hidden;
 }
-.cfg::backdrop { background: rgb(12 11 10 / 0.55); backdrop-filter: blur(3px); }
 .cfg[open] { animation: cfg-surgir 0.18s cubic-bezier(0.22, 1, 0.36, 1); }
 @keyframes cfg-surgir { from { opacity: 0; transform: translateY(8px) scale(0.99); } to { opacity: 1; transform: none; } }
 

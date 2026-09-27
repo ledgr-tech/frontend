@@ -139,9 +139,24 @@ mostram `.aviso-demonstracao` no topo, e toda ação que gravaria algo aparece
 desligada, com `aria-describedby` apontando para o aviso. Onde o dado real existe
 (avisos, busca), a tela usa ele e nunca uma lista inventada.
 
+**Regra de 27/09: toda janela modal escurece e desfoca o fundo**, como as
+Configurações: `rgb(12 11 10 / 0.55)` com `backdrop-filter: blur(3px)`. A regra
+mora num lugar só em `globals.css` e vale para o `<dialog>` nativo aberto com
+`showModal` (`dialog::backdrop`: Configurações, espia da linha) e para o
+`.dialog-backdrop` das janelas montadas à mão (cancelar assinatura). Janela nova
+não declara fundo próprio. A exceção é o "recuperar senha" do login, que tem o
+fundo claro desfocado da tela de acesso (`.recuperar-fundo`).
+
 > **O que não fiz:** o scroll-reveal na chegada dos blocos continua. Removê-lo é
 > a outra metade do argumento, mas é mudança de gosto sobre algo que vocês já
 > viram e aprovaram — fica como decisão de vocês, não minha.
+>
+> **Decidido em 27/09:** o scroll-reveal fica, e vale para todas as telas do app.
+> Os blocos abaixo do cabeçalho entram com `Reveal once`, em sequência
+> (0, 0,08, 0,16 s); os mascotes das telas levam o rastro de tinta (`InkHover`).
+> O `MotionRoot` está no template do app (`app/(app)/template.tsx`), então tela
+> nova só usa o `Reveal` de `app/reveal.tsx`. O `NumeroAnimado` continua
+> animando só a consequência, nunca a chegada.
 
 ### 8. Divulgação progressiva no detalhe da divergência — ✅ feito
 
@@ -171,6 +186,8 @@ Metade do que o mercado "aprova" destruiria esta identidade.
 
 - **Glassmorphism.** E aqui tem dívida nossa: o `backdrop-filter: blur(6px)` da
   barra superior é a coisa mais "SaaS 2021" do código. Trocar por barra opaca.
+  (O desfoque atrás de janela modal, regra de 27/09, é outra coisa: ele tira a
+  tela de trás de foco. O que fica de fora é superfície de vidro.)
 - **Bento grid, gradiente mesh, glow / neon.** Briga direto com "cor como traço,
   sem preenchimentos grandes".
 - **Soft UI, tudo arredondado.** O sistema é filete e raio pequeno; inflar apaga o

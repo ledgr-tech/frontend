@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Reveal } from "@/app/reveal";
 import { listarRegras, tomDaRegra, type Regra } from "@/lib/mock-data";
 import { Barra, EsqueletoTela } from "../esqueleto";
 import { Cabecalho } from "../cabecalho";
@@ -60,7 +61,7 @@ export default function RegrasPage() {
           nada é alterado por aqui.
         </p>
 
-        <div>
+        <Reveal once>
           <h3 style={{ margin: "0 0 14px", fontSize: 22, fontWeight: 600 }}>Ativas</h3>
           {listas.ativas.length === 0 ? (
             <p className="regras-vazio">
@@ -100,9 +101,9 @@ export default function RegrasPage() {
               ))}
             </div>
           )}
-        </div>
+        </Reveal>
 
-        <div>
+        <Reveal once delay={0.08}>
           <div className="regras-sugeridas-topo">
             <h3 style={{ margin: 0, fontSize: 22, fontWeight: 600 }}>Sugeridas pelo Ledgr</h3>
             <span
@@ -149,7 +150,7 @@ export default function RegrasPage() {
               ))}
             </div>
           )}
-        </div>
+        </Reveal>
       </div>
     </div>
   );

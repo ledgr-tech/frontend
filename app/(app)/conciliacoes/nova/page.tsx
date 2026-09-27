@@ -13,6 +13,7 @@ import {
 } from "../acoes";
 import { ImportacaoInterrompida } from "./importacao-interrompida";
 import { lerBytes } from "./ler-arquivo";
+import { Reveal } from "@/app/reveal";
 import { Cabecalho } from "../../cabecalho";
 
 /**
@@ -261,7 +262,8 @@ export default function NovaConciliacaoPage() {
       <Cabecalho titulo="Nova conciliação" contexto={[]} />
       <div style={{ padding: "8px 0 64px" }}>
 
-        <div
+        <Reveal
+          once
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
@@ -307,16 +309,16 @@ export default function NovaConciliacaoPage() {
               style={{ position: "absolute", width: 1, height: 1, opacity: 0 }}
             />
           </label>
-        </div>
+        </Reveal>
 
-        <div className="card" style={{ marginBottom: 28 }}>
+        <Reveal once delay={0.08} className="card" style={{ marginBottom: 28 }}>
           <h6 style={{ margin: "0 0 8px" }}>Regra de ouro</h6>
           <p style={{ margin: 0, fontSize: 14 }}>
             O extrato do banco é sempre a fonte da verdade. Toda divergência aparece como
             &ldquo;o sistema diverge do banco&rdquo; — se o valor no seu sistema estiver diferente,
             é ele que precisa de ajuste.
           </p>
-        </div>
+        </Reveal>
 
         {erro && (
           <p role="alert" className="selo selo-risco" style={{ marginBottom: 20 }}>
