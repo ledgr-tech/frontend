@@ -112,7 +112,6 @@ export function ExplicacaoDaDivergencia({
                   disabled={estado.etapa === "explicando"}
                   aria-busy={estado.etapa === "explicando"}
                 >
-                  <Sparkles size={15} strokeWidth={1.75} aria-hidden="true" />
                   {estado.etapa === "explicando"
                     ? "Explicando…"
                     : estado.etapa === "falhou"

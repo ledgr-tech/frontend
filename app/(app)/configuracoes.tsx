@@ -6,7 +6,6 @@ import {
   ArrowLeftRight,
   Info,
   Keyboard,
-  LogOut,
   Palette,
   Search,
   ShieldCheck,
@@ -176,7 +175,6 @@ export function Configuracoes({
           descricao: "Encerra a sessão neste navegador.",
           controle: (
             <button type="button" className="btn btn-secondary" onClick={onSair}>
-              <LogOut size={16} aria-hidden="true" />
               Sair
             </button>
           ),

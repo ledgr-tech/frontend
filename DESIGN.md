@@ -10,10 +10,14 @@ preenchimento**, filete carregando a estrutura, identidade tipográfica.
 
 **Regras de 24/09/2026** (ver `docs/superpowers/specs/2026-09-24-refino-visual-design.md`):
 
-- **O dourado é para três coisas:** a ação principal (`.btn-primary`, "Nova
-  conciliação"), o foco do teclado e o status "atenção". Hover e seleção usam
-  `--tinta-hover` / `--tinta-ativa`, neutros. Cabeçalho de tabela, aba
-  selecionada, rótulo pequeno (`h6`) e item ativo do menu não são dourados.
+- **O dourado é para quatro coisas:** a ação principal (`.btn-primary`, "Nova
+  conciliação"), o foco do teclado, o status "atenção" e, desde 27/09, o rótulo
+  de cartão flutuante (o `h6` do cartão de lançamento e o do assistente, que
+  aparecem por cima da tela). Hover e seleção usam `--tinta-hover` /
+  `--tinta-ativa`, neutros. Cabeçalho de tabela, aba selecionada, rótulo pequeno
+  (`h6`) fora de cartão flutuante, item ativo do menu, botão fantasma
+  (`.btn-ghost`), link de ação dentro de lista ("Revisar") e numeral decorativo
+  não são dourados.
 - **Duas fontes:** títulos (`h1`–`h3` a partir de ~20px) e números em destaque em
   Newsreader (`--font-titulo`, com tamanho óptico); o resto em Inter. A Cormorant
   Garamond (`--font-display`) fica só na landing.
@@ -172,13 +176,19 @@ Metade do que o mercado "aprova" destruiria esta identidade.
 - **Soft UI, tudo arredondado.** O sistema é filete e raio pequeno; inflar apaga o
   caráter.
 - **Ícones em tudo.** O readme do design system sugere Lucide. O app usa ícone
-  em dois lugares só (Lucide, traço 1,5, na cor do texto): o **menu lateral**,
-  porque menu que recolhe precisa de algo no lugar do nome, e a **origem do
-  extrato** (prédio do banco, base de dados do sistema), porque banco e sistema
-  são duas coisas que a pessoa precisa distinguir num relance. Decisões de
-  24/09/2026, ver `docs/superpowers/specs/2026-09-24-menu-lateral-recolhivel-design.md`
-  e `2026-09-24-refino-visual-design.md`. Fora disso a identidade continua
-  tipográfica: botão tem rótulo, não ícone.
+  (Lucide, na cor do texto) para duas coisas só, regra revista em 27/09/2026:
+  - **navegar:** o menu lateral, porque menu que recolhe precisa de algo no
+    lugar do nome; os atalhos da visão geral; as seções e a busca das
+    Configurações;
+  - **dizer estado:** a origem do extrato (prédio do banco, base de dados do
+    sistema), porque banco e sistema precisam se distinguir num relance; os
+    passos de Fechamentos; o selo de texto gerado por IA.
+
+  Botão de ação tem rótulo, não ícone ("Enviar", "Exportar histórico", "Sair",
+  "Explicar esta divergência"). A exceção é o X de fechar janela, que é controle
+  e não ação. Decisões de 24/09/2026 em
+  `docs/superpowers/specs/2026-09-24-menu-lateral-recolhivel-design.md` e
+  `2026-09-24-refino-visual-design.md`.
 - **Sparkle de IA.** O assistente existe no design como conversa com o mascote,
   que é da marca. Um botão ✨ genérico não é.
 
