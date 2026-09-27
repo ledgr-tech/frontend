@@ -19,9 +19,7 @@ import {
   statusDaLinha,
   valorDaLinha,
 } from "./resumo";
-// ponytail: primitivas de UI compartilhadas que hoje moram em (marketing) por
-// terem nascido na landing. Se uma terceira tela usar, aí vale mudar de lugar.
-import { InkHover, MotionRoot, Reveal, SpotlightHover } from "@/app/(marketing)/reveal";
+import { InkHover, Reveal, SpotlightHover } from "@/app/reveal";
 import { Barra, EsqueletoTabela, EsqueletoTela } from "../esqueleto";
 import { IconeOrigem } from "../icone-origem";
 import { Cabecalho } from "../cabecalho";
@@ -99,7 +97,7 @@ export default function DashboardPage() {
   const anteriores = estado.situacao === "pronto" ? estado.painel.anteriores : [];
 
   return (
-    <MotionRoot>
+    <>
       {/* o menu chama esta tela de Conciliações: o título é o mesmo */}
       <Cabecalho titulo="Conciliações" contexto={[recente && `competência ${recente.mes.toLowerCase()}`]} />
 
@@ -156,7 +154,7 @@ export default function DashboardPage() {
       ) : (
         <Conteudo recente={recente} anteriores={anteriores} />
       )}
-    </MotionRoot>
+    </>
   );
 }
 

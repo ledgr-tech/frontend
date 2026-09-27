@@ -20,6 +20,7 @@ import { IconeOrigem, type Origem } from "../../icone-origem";
 import { ExportarCsv } from "./exportar-csv";
 import { CartaoLancamento, ladosDaLinha, type CartaoAberto } from "./cartao-lancamento";
 import { Relatorio } from "./relatorio";
+import { Reveal } from "@/app/reveal";
 import { Cabecalho } from "../../cabecalho";
 
 /** Quantas linhas por página. 4.218 lançamentos não cabem numa tela. */
@@ -207,14 +208,16 @@ export default function ConciliacaoPage() {
           </p>
         )}
         {/* desligar uma categoria volta ao "Só revisão": as cinco são o que ele junta */}
-        <Relatorio
-          linhas={conciliacao.linhas}
-          ativa={categoria}
-          onEscolher={(status) => escolherFiltro(status ?? "revisao")}
-        />
+        <Reveal once>
+          <Relatorio
+            linhas={conciliacao.linhas}
+            ativa={categoria}
+            onEscolher={(status) => escolherFiltro(status ?? "revisao")}
+          />
+        </Reveal>
 
         {/* uma faixa só de controles, colada na tabela: o filtro à esquerda, a densidade à direita */}
-        <div className="tabela-ferramentas">
+        <Reveal once delay={0.08} className="tabela-ferramentas">
           <div className="pills segmentado" role="group" aria-label="Filtrar lançamentos">
             <button
               type="button"
@@ -253,9 +256,9 @@ export default function ConciliacaoPage() {
               </button>
             </div>
           )}
-        </div>
+        </Reveal>
 
-        <div>
+        <Reveal once delay={0.08}>
           <div className="dash-tabela-rolagem tabela-cartoes">
             <table className="table tabela-folhas" role="table">
               <thead role="rowgroup">
@@ -431,7 +434,7 @@ export default function ConciliacaoPage() {
               </div>
             </div>
           )}
-        </div>
+        </Reveal>
 
         {/* Fechar o mês grava no mock. Com dado do backend não há endpoint que
             persista isso, então o botão não aparece em vez de fingir que fechou. */}

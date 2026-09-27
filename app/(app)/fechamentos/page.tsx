@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { carregarFechamentos } from "../conciliacoes/acoes";
 import { formatarInteiro } from "../dashboard/resumo";
 import { agruparPorMes } from "./fechamento";
+import { InkHover, Reveal } from "@/app/reveal";
 import { MesaDeFechamento } from "./mesa";
 import { Cabecalho } from "../cabecalho";
 
@@ -45,9 +46,9 @@ export default async function FechamentosPage() {
       ) : meses.length === 0 ? (
         <SemConciliacao />
       ) : (
-        <div style={{ padding: "28px 0 56px" }}>
+        <Reveal once style={{ padding: "28px 0 56px" }}>
           <MesaDeFechamento meses={meses} />
-        </div>
+        </Reveal>
       )}
     </div>
   );
@@ -56,14 +57,16 @@ export default async function FechamentosPage() {
 function SemConciliacao() {
   return (
     <div className="vg-inicio">
-      <Image
-        src="/mascotes/mascote-sentado.png"
-        alt="Mascote Ledgr sentado com uma folha"
-        width={1000}
-        height={1000}
-        sizes="200px"
-        style={{ width: 200, height: "auto", display: "block" }}
-      />
+      <InkHover style={{ flex: "none" }}>
+        <Image
+          src="/mascotes/mascote-sentado.png"
+          alt="Mascote Ledgr sentado com uma folha"
+          width={1000}
+          height={1000}
+          sizes="200px"
+          style={{ width: 200, height: "auto", display: "block" }}
+        />
+      </InkHover>
       <h2 style={{ margin: 0, fontSize: 32, fontWeight: 400 }}>Nenhum mês para fechar ainda.</h2>
       <p className="vg-inicio-texto">
         Suba o extrato do banco e o extrato do sistema de gestão. A primeira conciliação fica

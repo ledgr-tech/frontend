@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Sparkles } from "lucide-react";
+import { InkHover } from "@/app/reveal";
 import { explicarDivergencia, type Explicacao, type Indisponibilidade } from "../../acoes";
 
 const FALHA = "Não foi possível pedir a explicação agora. Tente de novo em instantes.";
@@ -66,14 +67,16 @@ export function ExplicacaoDaDivergencia({
 
   return (
     <div className="det-causa">
-      <Image
-        src={pronta ? "/mascotes/mascote-explicando.png" : "/mascotes/mascote-lendo.png"}
-        alt={pronta ? "Mascote Ledgr explicando" : "Mascote Ledgr lendo"}
-        width={900}
-        height={808}
-        sizes="130px"
-        style={{ flex: "none", width: 130, height: "auto" }}
-      />
+      <InkHover style={{ flex: "none" }}>
+        <Image
+          src={pronta ? "/mascotes/mascote-explicando.png" : "/mascotes/mascote-lendo.png"}
+          alt={pronta ? "Mascote Ledgr explicando" : "Mascote Ledgr lendo"}
+          width={900}
+          height={808}
+          sizes="130px"
+          style={{ width: 130, height: "auto", display: "block" }}
+        />
+      </InkHover>
       <div style={{ flex: "1 1 340px", minWidth: 0 }}>
         <h6 style={{ margin: "0 0 8px" }}>O que provavelmente aconteceu</h6>
 

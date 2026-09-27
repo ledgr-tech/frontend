@@ -18,6 +18,7 @@ import { FALHA_AO_CARREGAR, useConciliacao } from "../../usar-conciliacao";
 import { IconeOrigem, type Origem } from "../../../icone-origem";
 import { ExplicacaoDaDivergencia } from "./explicacao";
 import { Cabecalho } from "../../../cabecalho";
+import { InkHover, Reveal } from "@/app/reveal";
 
 function CartaoExtrato({
   titulo,
@@ -189,7 +190,7 @@ export default function DetalheDivergenciaPage() {
       />
 
       <div className="det-corpo">
-        <div className="det-comparacao">
+        <Reveal once className="det-comparacao">
           <CartaoExtrato
             titulo="Extrato do banco"
             marca="Fonte da verdade"
@@ -217,29 +218,33 @@ export default function DetalheDivergenciaPage() {
             campos={linha.camposSistema}
             origem="sistema"
           />
-        </div>
+        </Reveal>
 
         {/* Com dado do backend, só a linha casada chega com o porquê (a regra que
             casou). A divergência é explicada sob pedido, pelo POST /explicacoes;
             o key zera o estado ao trocar de linha. */}
         {!linha.explicacao && real && !estaResolvida(linha.status) && (
-          <ExplicacaoDaDivergencia
-            key={linha.id}
-            linhaId={linha.id}
-            voltarPara={caminhoDaConciliacao(conciliacao.id, conciliacao.extratoSistemaId)}
-          />
+          <Reveal once delay={0.08}>
+            <ExplicacaoDaDivergencia
+              key={linha.id}
+              linhaId={linha.id}
+              voltarPara={caminhoDaConciliacao(conciliacao.id, conciliacao.extratoSistemaId)}
+            />
+          </Reveal>
         )}
 
         {linha.explicacao && (
-          <div className="det-causa">
-            <Image
-              src="/mascotes/mascote-lendo.png"
-              alt="Mascote Ledgr lendo"
-              width={900}
-              height={808}
-              sizes="130px"
-              style={{ flex: "none", width: 130, height: "auto" }}
-            />
+          <Reveal once delay={0.08} className="det-causa">
+            <InkHover style={{ flex: "none" }}>
+              <Image
+                src="/mascotes/mascote-lendo.png"
+                alt="Mascote Ledgr lendo"
+                width={900}
+                height={808}
+                sizes="130px"
+                style={{ width: 130, height: "auto", display: "block" }}
+              />
+            </InkHover>
             <div style={{ flex: "1 1 340px", minWidth: 0 }}>
               <h6 style={{ margin: "0 0 8px" }}>
                 O que provavelmente aconteceu
@@ -247,81 +252,85 @@ export default function DetalheDivergenciaPage() {
               {linha.causa && <div className="det-causa-titulo">{linha.causa}</div>}
               <p className="det-causa-texto">{linha.explicacao}</p>
             </div>
-          </div>
+          </Reveal>
         )}
 
         {linha.cronico && linha.cronico.length > 0 && (
           /* aberto por padrão: é a leitura que muda o que você faz a seguir */
-          <details className="det-cronico recolhivel" open>
-            <summary className="recolhivel-titulo">
-              <span>
-                <span
-                  className="det-kicker"
-                  style={{ display: "block", marginBottom: 6 }}
-                >
-                  Crônico, não pontual
+          <Reveal once delay={0.16}>
+            <details className="det-cronico recolhivel" open>
+              <summary className="recolhivel-titulo">
+                <span>
+                  <span
+                    className="det-kicker"
+                    style={{ display: "block", marginBottom: 6 }}
+                  >
+                    Crônico, não pontual
+                  </span>
+                  <span style={{ fontFamily: "var(--font-heading)", fontSize: 21, fontWeight: 600, lineHeight: 1.26 }}>
+                    O mesmo fornecedor divergiu nos {linha.cronico.length} últimos meses.
+                  </span>
                 </span>
-                <span style={{ fontFamily: "var(--font-heading)", fontSize: 21, fontWeight: 600, lineHeight: 1.26 }}>
-                  O mesmo fornecedor divergiu nos {linha.cronico.length} últimos meses.
-                </span>
-              </span>
-            </summary>
-            {/* o CTA fica no corpo, não no summary: botão dentro de summary vira
-                dois alvos disputando o mesmo clique */}
-            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
-              <Link href="/regras" className="btn btn-primary" style={{ fontSize: 13.5 }}>
-                Criar regra para este fornecedor
-              </Link>
-            </div>
-            <div style={{ borderTop: "1px solid var(--color-divider)" }}>
-              {linha.cronico.map((mes) => (
-                <div key={mes.mes} className="det-cronico-linha">
-                  <span className="det-cronico-mes">{mes.mes}</span>
-                  <span className="det-cronico-num">{formatarMoeda(mes.valorBanco)}</span>
-                  <span style={{ flex: "none", fontSize: 14, color: "color-mix(in srgb, var(--color-text) 50%, transparent)" }}>
-                    contra
-                  </span>
-                  <span className="det-cronico-num" style={{ color: "var(--color-risco-700)" }}>
-                    {formatarMoeda(mes.valorSistema)}
-                  </span>
-                  <span className="det-cronico-nota">
-                    diferença de {formatarMoeda(Math.abs(mes.valorBanco - mes.valorSistema))} ·{" "}
-                    {mes.nota}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </details>
+              </summary>
+              {/* o CTA fica no corpo, não no summary: botão dentro de summary vira
+                  dois alvos disputando o mesmo clique */}
+              <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
+                <Link href="/regras" className="btn btn-primary" style={{ fontSize: 13.5 }}>
+                  Criar regra para este fornecedor
+                </Link>
+              </div>
+              <div style={{ borderTop: "1px solid var(--color-divider)" }}>
+                {linha.cronico.map((mes) => (
+                  <div key={mes.mes} className="det-cronico-linha">
+                    <span className="det-cronico-mes">{mes.mes}</span>
+                    <span className="det-cronico-num">{formatarMoeda(mes.valorBanco)}</span>
+                    <span style={{ flex: "none", fontSize: 14, color: "color-mix(in srgb, var(--color-text) 50%, transparent)" }}>
+                      contra
+                    </span>
+                    <span className="det-cronico-num" style={{ color: "var(--color-risco-700)" }}>
+                      {formatarMoeda(mes.valorSistema)}
+                    </span>
+                    <span className="det-cronico-nota">
+                      diferença de {formatarMoeda(Math.abs(mes.valorBanco - mes.valorSistema))} ·{" "}
+                      {mes.nota}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </details>
+          </Reveal>
         )}
 
         {/* fechado por padrão: procedência é consulta, não leitura de rotina */}
-        <details className="recolhivel">
-          <summary className="recolhivel-titulo">
-            <span style={{ fontSize: 22, fontWeight: 600, fontFamily: "var(--font-heading)" }}>
-              Histórico do lançamento
-            </span>
-          </summary>
-          <table className="table">
-            <thead>
-              <tr>
-                <th style={{ width: 130 }}>Quando</th>
-                <th>Evento</th>
-                <th style={{ width: 150, textAlign: "right" }}>Origem</th>
-              </tr>
-            </thead>
-            <tbody>
-              {linha.historico.map((evento) => (
-                <tr key={`${evento.quando}-${evento.evento}`}>
-                  <td className="dash-celula-fraca">{evento.quando}</td>
-                  <td>{evento.evento}</td>
-                  <td className="dash-celula-fraca" style={{ textAlign: "right", fontSize: 14 }}>
-                    {evento.origem ?? "—"}
-                  </td>
+        <Reveal once delay={0.16}>
+          <details className="recolhivel">
+            <summary className="recolhivel-titulo">
+              <span style={{ fontSize: 22, fontWeight: 600, fontFamily: "var(--font-heading)" }}>
+                Histórico do lançamento
+              </span>
+            </summary>
+            <table className="table">
+              <thead>
+                <tr>
+                  <th style={{ width: 130 }}>Quando</th>
+                  <th>Evento</th>
+                  <th style={{ width: 150, textAlign: "right" }}>Origem</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </details>
+              </thead>
+              <tbody>
+                {linha.historico.map((evento) => (
+                  <tr key={`${evento.quando}-${evento.evento}`}>
+                    <td className="dash-celula-fraca">{evento.quando}</td>
+                    <td>{evento.evento}</td>
+                    <td className="dash-celula-fraca" style={{ textAlign: "right", fontSize: 14 }}>
+                      {evento.origem ?? "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </details>
+        </Reveal>
 
         {desfazivel && (
           <div className="desfazer" role="status">

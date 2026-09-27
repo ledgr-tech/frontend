@@ -4,6 +4,7 @@ import type { Execucao } from "@/lib/adaptadores";
 import { listarExecucoes } from "../conciliacoes/acoes";
 import { formatarInteiro, formatarPercentual } from "../dashboard/resumo";
 import { segmentos } from "./execucoes";
+import { Reveal } from "@/app/reveal";
 import { GraficoDeMatch } from "./grafico";
 import { ExportarHistorico, LinhaDoTempo } from "./linha-do-tempo";
 import { NOTA_VER_ATUAL } from "./ver-execucao";
@@ -141,11 +142,15 @@ function Historico({
 
   return (
     <div className="hist-corpo">
-      <Resumo execucoes={execucoes} parcial={temAnterior || temProxima} />
+      <Reveal once>
+        <Resumo execucoes={execucoes} parcial={temAnterior || temProxima} />
+      </Reveal>
 
-      <GraficoDeMatch execucoes={execucoes} />
+      <Reveal once delay={0.08}>
+        <GraficoDeMatch execucoes={execucoes} />
+      </Reveal>
 
-      <div>
+      <Reveal once delay={0.16}>
         <LinhaDoTempo execucoes={execucoes} />
 
         {(temAnterior || temProxima) && (
@@ -172,7 +177,7 @@ function Historico({
             {NOTA_VER_ATUAL}
           </p>
         )}
-      </div>
+      </Reveal>
     </div>
   );
 }

@@ -1,3 +1,4 @@
+import { Reveal } from "@/app/reveal";
 import { PLANOS } from "@/lib/planos";
 import { CancelarAssinatura } from "./cancelar-assinatura";
 import { ASSINATURA, FATURAS, NUMEROS } from "./dados";
@@ -36,7 +37,7 @@ export default function AssinaturaPage() {
           demonstração, e nada é alterado por aqui.
         </p>
 
-        <div className="grade-colunas dash-resumo">
+        <Reveal once className="grade-colunas dash-resumo">
           {NUMEROS.map((numero) => (
             <div key={numero.rotulo}>
               <span className="dash-rotulo">{numero.rotulo}</span>
@@ -44,89 +45,93 @@ export default function AssinaturaPage() {
               <span className="dash-nota">{numero.nota}</span>
             </div>
           ))}
-        </div>
+        </Reveal>
 
-        <section className="ass-planos-caixa">
-          <h3 id="assinatura-planos" className="ass-titulo">
-            Planos
-          </h3>
-          <ul className="ass-planos" aria-labelledby="assinatura-planos">
-            {PLANOS.map((opcao) => {
-              const atual = opcao.nome === plano.nome;
-              return (
-                <li key={opcao.nome} className="ass-plano" data-atual={atual ? "true" : undefined}>
-                  <div className="ass-plano-topo">
-                    <h4 className="ass-plano-nome">{opcao.nome}</h4>
-                    {atual && <span className="ass-plano-atual">Atual</span>}
-                  </div>
-                  <div className="ass-plano-valor">
-                    <span className="ass-plano-preco">{opcao.preco}</span>
-                    {!opcao.contato && <span className="ass-plano-sufixo">/mês</span>}
-                  </div>
-                  <span className="ass-plano-filete" aria-hidden="true" />
-                  <p className="ass-plano-texto">{opcao.limite}</p>
-                  {atual && <p className="ass-plano-texto">{faixa}</p>}
-                  {/* o plano atual não é ação, é estado; os outros seriam troca de plano */}
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    disabled
-                    aria-describedby={atual ? undefined : AVISO_ID}
-                  >
-                    {atual ? "Plano atual" : `Mudar para ${opcao.nome}`}
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
+        <Reveal once delay={0.08}>
+          <section className="ass-planos-caixa">
+            <h3 id="assinatura-planos" className="ass-titulo">
+              Planos
+            </h3>
+            <ul className="ass-planos" aria-labelledby="assinatura-planos">
+              {PLANOS.map((opcao) => {
+                const atual = opcao.nome === plano.nome;
+                return (
+                  <li key={opcao.nome} className="ass-plano" data-atual={atual ? "true" : undefined}>
+                    <div className="ass-plano-topo">
+                      <h4 className="ass-plano-nome">{opcao.nome}</h4>
+                      {atual && <span className="ass-plano-atual">Atual</span>}
+                    </div>
+                    <div className="ass-plano-valor">
+                      <span className="ass-plano-preco">{opcao.preco}</span>
+                      {!opcao.contato && <span className="ass-plano-sufixo">/mês</span>}
+                    </div>
+                    <span className="ass-plano-filete" aria-hidden="true" />
+                    <p className="ass-plano-texto">{opcao.limite}</p>
+                    {atual && <p className="ass-plano-texto">{faixa}</p>}
+                    {/* o plano atual não é ação, é estado; os outros seriam troca de plano */}
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      disabled
+                      aria-describedby={atual ? undefined : AVISO_ID}
+                    >
+                      {atual ? "Plano atual" : `Mudar para ${opcao.nome}`}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        </Reveal>
 
-        <section className="ass-faturas">
-          <h3 className="ass-titulo">Faturas</h3>
-          <div className="dash-tabela-rolagem">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Competência</th>
-                  <th style={{ width: 170 }}>Vencimento</th>
-                  <th style={{ width: 140, textAlign: "right" }}>Valor</th>
-                  <th style={{ width: 130, textAlign: "right" }}>Situação</th>
-                  <th style={{ width: 110, textAlign: "right" }}>Recibo</th>
-                </tr>
-              </thead>
-              <tbody>
-                {FATURAS.map((fatura) => (
-                  <tr key={fatura.competencia}>
-                    <td style={{ fontSize: 15 }}>{fatura.competencia}</td>
-                    <td className="dash-celula-fraca">{fatura.vencimento}</td>
-                    <td className="ass-fatura-valor">{fatura.valor}</td>
-                    <td style={{ textAlign: "right" }}>
-                      <span className={fatura.situacao === "Paga" ? "selo selo-ok" : "selo"}>
-                        {fatura.situacao}
-                      </span>
-                    </td>
-                    <td style={{ textAlign: "right" }}>
-                      {/* fatura a vencer ainda não tem recibo */}
-                      {fatura.situacao === "Paga" ? (
-                        <button
-                          type="button"
-                          className="ass-recibo"
-                          disabled
-                          aria-label={`Recibo de ${fatura.competencia.toLowerCase()} em PDF`}
-                          aria-describedby={AVISO_ID}
-                        >
-                          PDF
-                        </button>
-                      ) : (
-                        "—"
-                      )}
-                    </td>
+        <Reveal once delay={0.16}>
+          <section className="ass-faturas">
+            <h3 className="ass-titulo">Faturas</h3>
+            <div className="dash-tabela-rolagem">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Competência</th>
+                    <th style={{ width: 170 }}>Vencimento</th>
+                    <th style={{ width: 140, textAlign: "right" }}>Valor</th>
+                    <th style={{ width: 130, textAlign: "right" }}>Situação</th>
+                    <th style={{ width: 110, textAlign: "right" }}>Recibo</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
+                </thead>
+                <tbody>
+                  {FATURAS.map((fatura) => (
+                    <tr key={fatura.competencia}>
+                      <td style={{ fontSize: 15 }}>{fatura.competencia}</td>
+                      <td className="dash-celula-fraca">{fatura.vencimento}</td>
+                      <td className="ass-fatura-valor">{fatura.valor}</td>
+                      <td style={{ textAlign: "right" }}>
+                        <span className={fatura.situacao === "Paga" ? "selo selo-ok" : "selo"}>
+                          {fatura.situacao}
+                        </span>
+                      </td>
+                      <td style={{ textAlign: "right" }}>
+                        {/* fatura a vencer ainda não tem recibo */}
+                        {fatura.situacao === "Paga" ? (
+                          <button
+                            type="button"
+                            className="ass-recibo"
+                            disabled
+                            aria-label={`Recibo de ${fatura.competencia.toLowerCase()} em PDF`}
+                            aria-describedby={AVISO_ID}
+                          >
+                            PDF
+                          </button>
+                        ) : (
+                          "—"
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </Reveal>
       </div>
     </div>
   );

@@ -13,6 +13,7 @@ import {
   formatarPercentual,
   resumir,
 } from "../dashboard/resumo";
+import { InkHover, Reveal } from "@/app/reveal";
 import { GraficoDeMatch } from "../historico/grafico";
 import { IconeOrigem } from "../icone-origem";
 import { NOTA_VER_ATUAL, VerExecucao } from "../historico/ver-execucao";
@@ -76,18 +77,24 @@ function Conteudo({
 
   return (
     <div className="vg-corpo">
-      <EstadoDoMes execucao={execucao} resumo={resumo} />
+      <Reveal once>
+        <EstadoDoMes execucao={execucao} resumo={resumo} />
+      </Reveal>
 
-      <Atalhos visao={visao} execucao={execucao} conciliacao={conciliacao} divergentes={resumo.divergentes} />
+      <Reveal once delay={0.08}>
+        <Atalhos visao={visao} execucao={execucao} conciliacao={conciliacao} divergentes={resumo.divergentes} />
+      </Reveal>
 
-      <div className="vg-grade">
+      <Reveal once delay={0.16} className="vg-grade">
         <PedeAtencao conciliacao={conciliacao} arquivos={visao.arquivosComLinhasNaoLidas} />
         <section className="vg-tendencia" aria-label="Tendência da taxa de match">
           <GraficoDeMatch execucoes={visao.execucoes} />
         </section>
-      </div>
+      </Reveal>
 
-      <AtividadeRecente execucoes={visao.execucoes.slice(0, NA_ATIVIDADE)} total={visao.total} />
+      <Reveal once delay={0.24}>
+        <AtividadeRecente execucoes={visao.execucoes.slice(0, NA_ATIVIDADE)} total={visao.total} />
+      </Reveal>
     </div>
   );
 }
@@ -407,14 +414,16 @@ const PASSOS = [
 function PrimeirosPassos() {
   return (
     <div className="vg-inicio">
-      <Image
-        src="/mascotes/mascote-sentado.png"
-        alt="Mascote Ledgr sentado com uma folha"
-        width={1000}
-        height={1000}
-        sizes="200px"
-        style={{ width: 200, height: "auto", display: "block" }}
-      />
+      <InkHover style={{ flex: "none" }}>
+        <Image
+          src="/mascotes/mascote-sentado.png"
+          alt="Mascote Ledgr sentado com uma folha"
+          width={1000}
+          height={1000}
+          sizes="200px"
+          style={{ width: 200, height: "auto", display: "block" }}
+        />
+      </InkHover>
       <h2 style={{ margin: 0, fontSize: 32, fontWeight: 400, textWrap: "balance" }}>
         Nenhum extrato por aqui ainda.
       </h2>

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { PLANOS } from "@/lib/planos";
 import { CabecalhoSite } from "./cabecalho-site";
 import { ExtratoComparacao, type LinhaExtrato } from "./comparacao";
-import { InkHover, MotionRoot, PlanCard, Reveal } from "./reveal";
+import { InkHover, MotionRoot, PlanCard, Reveal } from "../reveal";
 
 const PROVAS_HERO = [
   { valor: "4+", rotulo: "bancos processados num só relatório" },
