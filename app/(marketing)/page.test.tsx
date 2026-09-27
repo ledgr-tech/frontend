@@ -10,7 +10,7 @@ describe("LandingPage", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: "Conciliar meu primeiro extrato" })
-    ).toHaveAttribute("href", "/login");
+    ).toHaveAttribute("href", "/cadastro");
   });
 
   it("counts the same five divergence categories the product reports", () => {
@@ -56,12 +56,21 @@ describe("LandingPage", () => {
     expect(screen.getByText("R$ 12.604,00")).toBeInTheDocument();
   });
 
-  it("names each line's reconciliation status with one consistent vocabulary", () => {
+  it("names each line's status with the same labels the app uses", () => {
     render(<LandingPage />);
-    expect(screen.getAllByText("Batido")).toHaveLength(2);
-    expect(screen.getAllByText("Valor divergente")).toHaveLength(4);
-    expect(screen.getAllByText("Data divergente")).toHaveLength(2);
-    expect(screen.getByText("Sem correspondente")).toBeInTheDocument();
+    expect(screen.getAllByText("Match exato")).toHaveLength(2);
+    expect(screen.getAllByText("Valor diverge na mesma data")).toHaveLength(4);
+    expect(screen.getAllByText("Mesmo valor em outra data")).toHaveLength(2);
+    // a tarifa só do lado do banco é a categoria própria do motor, não uma sobra qualquer
+    expect(screen.getByText("Tarifa bancária")).toBeInTheDocument();
+  });
+
+  it("lists the five categories by the app's names wherever the site names them", () => {
+    render(<LandingPage />);
+    const lista =
+      "valor diverge na mesma data, mesmo valor em outra data, possível duplicidade, tarifa bancária e sem correspondência";
+    expect(screen.getByText(`Relatório nas 5 categorias: ${lista}.`)).toBeInTheDocument();
+    expect(screen.getByText(new RegExp(`Cada divergência vem nomeada: ${lista}\.`))).toBeInTheDocument();
   });
 
   it("explains the divergence when hovering a mismatched line", () => {
@@ -78,7 +87,7 @@ describe("LandingPage", () => {
     expect(screen.getByText("Toque nas linhas")).toHaveClass("so-toque");
   });
 
-  it("does not treat a matched (Batido) line as clickable", () => {
+  it("does not treat a matched line as clickable", () => {
     render(<LandingPage />);
 
     expect(screen.queryByRole("button", { name: /Recebimento cliente Alfa Comércio/ })).not.toBeInTheDocument();
@@ -96,7 +105,7 @@ describe("LandingPage", () => {
 
   it("lists the three how-it-works steps", () => {
     render(<LandingPage />);
-    expect(screen.getByText("Suba os extratos dos bancos")).toBeInTheDocument();
+    expect(screen.getByText("Suba o extrato do banco")).toBeInTheDocument();
     expect(screen.getByText("Suba o extrato do sistema")).toBeInTheDocument();
     expect(screen.getByText("Receba as divergências")).toBeInTheDocument();
   });
@@ -106,18 +115,29 @@ describe("LandingPage", () => {
     expect(
       screen.getByText("Suba os arquivos e veja as divergências em minutos.")
     ).toBeInTheDocument();
+    // quem chega pela primeira vez vai criar a conta; o "Entrar" do cabeçalho segue no login
     expect(screen.getByRole("link", { name: "Testar agora, gratuito" })).toHaveAttribute(
       "href",
-      "/login"
+      "/cadastro"
     );
   });
 
   it("answers the FAQ questions", () => {
     render(<LandingPage />);
     expect(screen.getByText("Preciso instalar algo no meu banco?")).toBeInTheDocument();
-    expect(screen.getByText("E se o meu ERP não estiver na lista?")).toBeInTheDocument();
+    expect(screen.getByText("E se o CSV do meu sistema vier em outro formato?")).toBeInTheDocument();
     expect(screen.getByText("Quem decide o que é divergência?")).toBeInTheDocument();
     expect(screen.getByText("O contador consegue acessar?")).toBeInTheDocument();
+  });
+
+  it("does not promise what the product does not do yet", () => {
+    render(<LandingPage />);
+    // um relatório por par de extratos, sem papéis de usuário, sem cobrança no ar
+    expect(screen.queryByText(/consolida tudo/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/papel de leitor/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/direto pelo painel/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/bancos processados num só relatório/)).not.toBeInTheDocument();
+    expect(screen.getByText(/a cobrança ainda não está no ar/)).toBeInTheDocument();
   });
 
   it("lists all five pricing tiers, covering the volume shown in the hero demo", () => {

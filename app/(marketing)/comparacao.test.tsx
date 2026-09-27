@@ -8,7 +8,7 @@ const LINHA: LinhaExtrato = {
   desc: "Pagamento fornecedor #1082",
   valorBanco: "R$ 12.640,00",
   valorSistema: "R$ 12.604,00",
-  status: "Valor divergente",
+  status: "divergente_valor",
   explicacao: "O banco descontou juros por atraso.",
 };
 
@@ -23,7 +23,7 @@ describe("ExtratoComparacao hover", () => {
     fireEvent.mouseEnter(linhaDoBanco());
 
     const tooltip = screen.getByRole("tooltip");
-    expect(tooltip).toHaveTextContent("Lançamento · Valor divergente");
+    expect(tooltip).toHaveTextContent("Lançamento · Valor diverge na mesma data");
     expect(tooltip).toHaveTextContent("R$ 12.604,00");
     expect(tooltip).toHaveTextContent("juros por atraso");
     expect(linhaDoBanco()).toHaveAttribute("aria-describedby", tooltip.id);
