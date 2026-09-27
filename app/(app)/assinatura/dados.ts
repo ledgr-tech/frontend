@@ -1,4 +1,3 @@
-import { EMPRESA_MOCK } from "@/lib/mock-data";
 import { PLANOS, type Plano } from "@/lib/planos";
 
 /**
@@ -29,7 +28,7 @@ export const ASSINATURA = {
   plano: ATUAL,
   renovaEm: "12 de outubro",
   /** O porquê desta faixa, no cartão do plano atual. */
-  faixa: `É a faixa da ${EMPRESA_MOCK}: 4.218 lançamentos em setembro, quatro bancos.`,
+  faixa: "É a sua faixa: 4.218 lançamentos em setembro, quatro bancos.",
 };
 
 export const NUMEROS = [

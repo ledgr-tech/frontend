@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { Cabecalho } from "./cabecalho";
 import { Shell } from "./shell";
 
 vi.mock("next/navigation", () => ({
@@ -14,7 +15,6 @@ vi.mock("../(auth)/acoes", () => ({
 }));
 
 vi.mock("@/lib/mock-data", () => ({
-  EMPRESA_MOCK: "Telha Certa",
   formatarMoeda: (valor: number) =>
     valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }),
 }));
@@ -36,7 +36,11 @@ describe("Shell", () => {
   });
 
   it("põe o conteúdo dentro do menu lateral e da barra superior", async () => {
-    render(<Shell email={EMAIL}>conteúdo autenticado</Shell>);
+    render(
+      <Shell email={EMAIL} empresa="Telha Certa Ltda">
+        conteúdo autenticado
+      </Shell>,
+    );
 
     expect(await screen.findByText("conteúdo autenticado")).toBeInTheDocument();
     expect(screen.getByRole("navigation", { name: "Seções do app" })).toBeInTheDocument();
@@ -46,7 +50,11 @@ describe("Shell", () => {
 
   it("encerra a sessão pelo servidor", async () => {
     const user = userEvent.setup();
-    render(<Shell email={EMAIL}>conteúdo</Shell>);
+    render(
+      <Shell email={EMAIL} empresa="Telha Certa Ltda">
+        conteúdo
+      </Shell>,
+    );
 
     // o Sair mora no menu da conta, no rodapé do menu lateral
     await user.click(await screen.findByRole("button", { name: /Financeiro/ }));
@@ -54,5 +62,15 @@ describe("Shell", () => {
 
     // quem apaga o cookie httpOnly e redireciona é a Server Action
     expect(sair).toHaveBeenCalled();
+  });
+
+  it("puts the session's empresa at the start of every screen's header", async () => {
+    render(
+      <Shell email={EMAIL} empresa="Telha Certa Ltda">
+        <Cabecalho titulo="Extratos" contexto={["2 arquivos"]} />
+      </Shell>,
+    );
+
+    expect(await screen.findByText("Telha Certa Ltda · 2 arquivos")).toBeInTheDocument();
   });
 });

@@ -1,7 +1,11 @@
-import type { ReactNode } from "react";
-import { EMPRESA_MOCK } from "@/lib/mock-data";
+"use client";
+
+import { createContext, useContext, type ReactNode } from "react";
 
 type Parte = string | null | false | undefined;
+
+/** A razão social da empresa logada; vazia enquanto o backend não a devolve. */
+export const EmpresaDaSessao = createContext("");
 
 /**
  * O topo de toda tela do app: o título (o mesmo nome do menu), a linha de
@@ -11,8 +15,8 @@ type Parte = string | null | false | undefined;
  * setembro/2026", "4 arquivos"), e parte vazia fica de fora. Tela de detalhe
  * não tem a linha: usa `sobretitulo`, que diz onde o item está.
  *
- * ponytail: a empresa é o `EMPRESA_MOCK`, porque o backend não devolve a razão
- * social (sem `GET /me`). Este é o único lugar a trocar quando devolver.
+ * A empresa é a da sessão, que o `Shell` põe no contexto (vem de `GET /me`).
+ * Sem ela, a linha começa direto pelo contexto: nunca o nome de outra empresa.
  */
 export function Cabecalho({
   titulo,
@@ -25,7 +29,8 @@ export function Cabecalho({
   sobretitulo?: ReactNode;
   acoes?: ReactNode;
 }) {
-  const linha = contexto && [EMPRESA_MOCK, ...contexto.filter(Boolean)].join(" · ");
+  const empresa = useContext(EmpresaDaSessao);
+  const linha = contexto && [empresa, ...contexto].filter(Boolean).join(" · ");
   return (
     <div className="dash-cabecalho">
       <div>

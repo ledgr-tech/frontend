@@ -83,8 +83,6 @@ export type Conciliacao = {
   linhas: LinhaComparacao[];
 };
 
-export const EMPRESA_MOCK = "Telha Certa";
-
 // O sufixo é versão de formato, não enfeite: os status das linhas mudaram para
 // as 7 categorias do backend, e uma conciliação gravada antes disso tem
 // `status: "batido"`, que não existe mais no mapa de rótulos — a tabela

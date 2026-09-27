@@ -75,7 +75,7 @@ describe("FechamentosPage", () => {
   it("shows one sheet per month, the most recent first and open in the panel", async () => {
     await renderizar();
 
-    expect(screen.getByText(/· 2 competências$/)).toBeInTheDocument();
+    expect(screen.getByText("2 competências")).toBeInTheDocument();
     const setembro = screen.getByRole("button", { name: /Setembro de 2026/ });
     const agosto = screen.getByRole("button", { name: /Agosto de 2026/ });
     // o mais recente primeiro, e aberto

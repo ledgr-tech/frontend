@@ -9,6 +9,16 @@ vi.mock("./conciliacoes/acoes", () => ({
   toleranciaDaUltimaConciliacao: () => toleranciaDaUltimaConciliacao(),
 }));
 
+// as trocas da conta são do backend; aqui a action devolve o que ele responderia
+const trocarSenha = vi.fn();
+const trocarEmail = vi.fn();
+const excluirConta = vi.fn();
+vi.mock("../(auth)/acoes", () => ({
+  trocarSenha: (...args: unknown[]) => trocarSenha(...args),
+  trocarEmail: (...args: unknown[]) => trocarEmail(...args),
+  excluirConta: (...args: unknown[]) => excluirConta(...args),
+}));
+
 const EMAIL = "financeiro@telhacerta.com.br";
 
 function abrir(props: Partial<Parameters<typeof Configuracoes>[0]> = {}) {
@@ -29,6 +39,9 @@ function secao(nome: string) {
 describe("Configuracoes", () => {
   beforeEach(() => {
     toleranciaDaUltimaConciliacao.mockReset();
+    trocarSenha.mockReset().mockResolvedValue({ ok: true });
+    trocarEmail.mockReset().mockResolvedValue({ ok: true });
+    excluirConta.mockReset().mockResolvedValue({ ok: true });
     toleranciaDaUltimaConciliacao.mockResolvedValue(2);
     window.localStorage.clear();
     delete document.documentElement.dataset.tema;
@@ -104,6 +117,63 @@ describe("Configuracoes", () => {
     expect(screen.getByText(EMAIL)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Sair" }));
     expect(onSair).toHaveBeenCalled();
+  });
+
+  it("changes the password only when the new one is typed twice the same", async () => {
+    const user = userEvent.setup();
+    abrir();
+    await user.click(secao("Conta"));
+    await user.click(screen.getByRole("button", { name: "Trocar senha" }));
+
+    const formulario = screen.getByRole("form", { name: "Trocar senha" });
+    await user.type(within(formulario).getByLabelText("Senha atual"), "s3nha-velha");
+    await user.type(within(formulario).getByLabelText("Senha nova"), "s3nha-nova");
+    await user.type(within(formulario).getByLabelText("Repita a senha nova"), "s3nha-nov");
+    await user.click(within(formulario).getByRole("button", { name: "Trocar senha" }));
+    expect(screen.getByRole("alert")).toHaveTextContent("A confirmação não bate com a senha nova.");
+    expect(trocarSenha).not.toHaveBeenCalled();
+
+    await user.type(within(formulario).getByLabelText("Repita a senha nova"), "a");
+    await user.click(within(formulario).getByRole("button", { name: "Trocar senha" }));
+    expect(trocarSenha).toHaveBeenCalledWith("s3nha-velha", "s3nha-nova");
+    expect(await screen.findByRole("status")).toHaveTextContent("Senha trocada.");
+    expect(screen.queryByRole("form", { name: "Trocar senha" })).not.toBeInTheDocument();
+  });
+
+  it("keeps the email form open with the server's reason when the change is refused", async () => {
+    trocarEmail.mockResolvedValue({ ok: false, erro: "E-mail já cadastrado." });
+    const user = userEvent.setup();
+    abrir();
+    await user.click(secao("Conta"));
+    await user.click(screen.getByRole("button", { name: "Trocar e-mail" }));
+
+    const formulario = screen.getByRole("form", { name: "Trocar e-mail" });
+    await user.type(within(formulario).getByLabelText("Novo e-mail"), "compras@telhacerta.com.br");
+    await user.type(within(formulario).getByLabelText("Senha atual"), "s3nha");
+    await user.click(within(formulario).getByRole("button", { name: "Trocar e-mail" }));
+
+    expect(trocarEmail).toHaveBeenCalledWith("compras@telhacerta.com.br", "s3nha");
+    expect(await within(formulario).findByRole("alert")).toHaveTextContent("E-mail já cadastrado.");
+    expect(within(formulario).getByLabelText("Novo e-mail")).toHaveValue("compras@telhacerta.com.br");
+  });
+
+  it("asks for the password before deleting the account, and cancelling sends nothing", async () => {
+    const user = userEvent.setup();
+    abrir();
+    await user.click(secao("Conta"));
+
+    await user.click(screen.getByRole("button", { name: "Excluir conta" }));
+    await user.click(screen.getByRole("button", { name: "Cancelar" }));
+    expect(excluirConta).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "Excluir conta" }));
+    const formulario = screen.getByRole("form", { name: "Excluir conta" });
+    await user.click(within(formulario).getByRole("button", { name: "Excluir conta e dados" }));
+    expect(within(formulario).getByRole("alert")).toHaveTextContent("Preencha todos os campos.");
+
+    await user.type(within(formulario).getByLabelText("Senha atual"), "s3nha");
+    await user.click(within(formulario).getByRole("button", { name: "Excluir conta e dados" }));
+    expect(excluirConta).toHaveBeenCalledWith("s3nha");
   });
 
   it("lists the keyboard shortcuts that exist", async () => {
