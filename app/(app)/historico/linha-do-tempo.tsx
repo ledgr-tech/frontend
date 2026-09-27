@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { Download } from "lucide-react";
 import type { Execucao } from "@/lib/adaptadores";
 import { salvar } from "../conciliacoes/[id]/exportar-csv";
 import { formatarDataHora, formatarInteiro, formatarPercentual } from "../dashboard/resumo";
@@ -203,7 +202,6 @@ export function ExportarHistorico({ execucoes }: { execucoes: Execucao[] }) {
         salvar(new Blob([csvDoHistorico(execucoes)], { type: "text/csv;charset=utf-8" }), "ledgr-historico.csv")
       }
     >
-      <Download size={16} aria-hidden="true" />
       Exportar histórico
     </button>
   );

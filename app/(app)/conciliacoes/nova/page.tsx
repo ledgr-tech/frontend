@@ -309,8 +309,8 @@ export default function NovaConciliacaoPage() {
           </label>
         </div>
 
-        <div className="card" style={{ borderColor: "var(--color-accent)", marginBottom: 28 }}>
-          <h6 style={{ margin: "0 0 8px", color: "var(--color-accent-700)" }}>Regra de ouro</h6>
+        <div className="card" style={{ marginBottom: 28 }}>
+          <h6 style={{ margin: "0 0 8px" }}>Regra de ouro</h6>
           <p style={{ margin: 0, fontSize: 14 }}>
             O extrato do banco é sempre a fonte da verdade. Toda divergência aparece como
             &ldquo;o sistema diverge do banco&rdquo; — se o valor no seu sistema estiver diferente,

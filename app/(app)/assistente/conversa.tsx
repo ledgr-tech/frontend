@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Send, Sparkles, X } from "lucide-react";
+import { Sparkles, X } from "lucide-react";
 import { explicarDivergencia } from "../conciliacoes/acoes";
 import { formatarMoedaCurta } from "../dashboard/resumo";
 import { responder, saudacao, sugestoes, type Contexto, type Resposta } from "./respostas";
@@ -186,7 +186,6 @@ export function Conversa({ contexto, onFechar }: { contexto: Contexto; onFechar:
           autoFocus
         />
         <button type="submit" className="btn btn-secondary" disabled={lendo || !texto.trim()}>
-          <Send size={15} aria-hidden="true" />
           Enviar
         </button>
       </form>
