@@ -1,14 +1,34 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CredentialsSignin } from "next-auth";
 import { MuitasEntradas } from "@/lib/login";
-import { cadastrar, entrar, entrarNaDemonstracao } from "./acoes";
+import {
+  cadastrar,
+  entrar,
+  entrarNaDemonstracao,
+  excluirConta,
+  razaoSocialDaEmpresa,
+  trocarEmail,
+  trocarSenha,
+} from "./acoes";
 
 // NextAuth, cookies e o backend são a fronteira externa: o que se testa aqui é
 // o que as actions decidem com a resposta de cada um.
 const signIn = vi.fn();
+const signOut = vi.fn();
+const auth = vi.fn();
 vi.mock("@/auth", () => ({
+  auth: () => auth(),
   signIn: (...args: unknown[]) => signIn(...args),
-  signOut: vi.fn(),
+  signOut: (...args: unknown[]) => signOut(...args),
+}));
+
+const redirect = vi.fn();
+vi.mock("next/navigation", () => ({
+  // o redirect do Next interrompe a action lançando; o mock imita isso
+  redirect: (destino: string) => {
+    redirect(destino);
+    throw new Error("NEXT_REDIRECT");
+  },
 }));
 
 const cookiesGravados = vi.fn();
@@ -26,6 +46,10 @@ const fetch = vi.fn();
 beforeEach(() => {
   signIn.mockReset();
   signIn.mockResolvedValue(undefined);
+  signOut.mockReset();
+  redirect.mockReset();
+  auth.mockReset();
+  auth.mockResolvedValue({ user: { email: "ana@telhacerta.com.br", empresaId: "e" } });
   cookiesGravados.mockReset();
   cookiesExistentes.clear();
   fetch.mockReset();
@@ -238,5 +262,127 @@ describe("cadastrar", () => {
 
     respostaDoBackend(500, { detail: "Internal Server Error" });
     expect(await cadastrar(DADOS)).toEqual({ ok: false, erro: "falha" });
+  });
+});
+
+describe("a conta de quem está logado", () => {
+  function respostaDoBackend(status: number, corpo?: object) {
+    fetch.mockResolvedValue(corpo ? Response.json(corpo, { status }) : new Response(null, { status }));
+  }
+
+  /** O que foi para o backend: rota, método, corpo e se levou o Bearer da sessão. */
+  function chamada() {
+    const [url, init] = fetch.mock.calls[0] as [string, RequestInit];
+    return {
+      url,
+      metodo: init.method,
+      corpo: JSON.parse(String(init.body)),
+      bearer: new Headers(init.headers).get("Authorization"),
+    };
+  }
+
+  beforeEach(() => {
+    cookiesExistentes.set("authjs.session-token", "jwt-da-sessao");
+  });
+
+  it("troca a senha com a atual e refaz a sessão com a nova, sem 'manter sessão'", async () => {
+    respostaDoBackend(204);
+
+    expect(await trocarSenha("s3nha-velha", "s3nha-nova")).toEqual({ ok: true });
+
+    expect(chamada()).toEqual({
+      url: "http://localhost:8000/me/senha",
+      metodo: "POST",
+      corpo: { senha_atual: "s3nha-velha", senha_nova: "s3nha-nova" },
+      bearer: "Bearer jwt-da-sessao",
+    });
+    expect(signIn).toHaveBeenCalledWith("credentials", {
+      email: "ana@telhacerta.com.br",
+      senha: "s3nha-nova",
+      redirect: false,
+    });
+    expect(cookiesGravados).toHaveBeenCalledWith("authjs.session-token", "jwt-da-sessao", expect.any(Object));
+  });
+
+  it("troca o e-mail já normalizado e entra com o novo", async () => {
+    respostaDoBackend(204);
+
+    expect(await trocarEmail("  Ana@Nova.com.BR ", "s3nha")).toEqual({ ok: true });
+
+    expect(chamada().corpo).toEqual({ email_novo: "ana@nova.com.br", senha_atual: "s3nha" });
+    expect(signIn).toHaveBeenCalledWith("credentials", {
+      email: "ana@nova.com.br",
+      senha: "s3nha",
+      redirect: false,
+    });
+  });
+
+  it("mostra o texto do backend para senha atual errada e e-mail já usado, sem refazer a sessão", async () => {
+    respostaDoBackend(400, { detail: "Senha atual incorreta." });
+    expect(await trocarSenha("errada", "s3nha-nova")).toEqual({ ok: false, erro: "Senha atual incorreta." });
+
+    respostaDoBackend(409, { detail: "E-mail já cadastrado." });
+    expect(await trocarEmail("outra@telhacerta.com.br", "s3nha")).toEqual({
+      ok: false,
+      erro: "E-mail já cadastrado.",
+    });
+    expect(signIn).not.toHaveBeenCalled();
+  });
+
+  it("diz que ainda não dá enquanto a rota não existe no backend", async () => {
+    respostaDoBackend(404, { detail: "Not Found" });
+
+    expect(await excluirConta("s3nha")).toEqual({
+      ok: false,
+      erro: "Ainda não disponível: o servidor do Ledgr ainda não tem esta função.",
+    });
+    expect(signOut).not.toHaveBeenCalled();
+  });
+
+  it("exclui com a senha atual e sai para o site", async () => {
+    respostaDoBackend(204);
+
+    await excluirConta("s3nha");
+
+    expect(chamada()).toMatchObject({ url: "http://localhost:8000/me", metodo: "DELETE", corpo: { senha_atual: "s3nha" } });
+    expect(signOut).toHaveBeenCalledWith({ redirectTo: "/" });
+  });
+
+  it("recusa mexer na conta de demonstração sem nem chamar o backend", async () => {
+    vi.stubEnv("LEDGR_CONTA_TESTE_EMAIL", " Ana@TelhaCerta.com.br ");
+
+    expect(await excluirConta("s3nha")).toEqual({
+      ok: false,
+      erro: "A conta de demonstração não pode ser alterada.",
+    });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("manda para o login quando a sessão acabou", async () => {
+    respostaDoBackend(401, { detail: "Token inválido." });
+
+    await expect(trocarSenha("s3nha", "s3nha-nova")).rejects.toThrow("NEXT_REDIRECT");
+    expect(redirect).toHaveBeenCalledWith("/login");
+  });
+});
+
+describe("razaoSocialDaEmpresa", () => {
+  beforeEach(() => {
+    cookiesExistentes.set("authjs.session-token", "jwt-da-sessao");
+  });
+
+  it("lê a razão social de GET /me", async () => {
+    fetch.mockResolvedValue(
+      Response.json({ id: "u", empresa_id: "e", nome: "Ana", email: "a@b.com", razao_social: "Telha Certa Ltda" }),
+    );
+
+    expect(await razaoSocialDaEmpresa()).toBe("Telha Certa Ltda");
+    expect(fetch.mock.calls[0][0]).toBe("http://localhost:8000/me");
+  });
+
+  it("devolve vazio enquanto a rota não existe, em vez de inventar um nome", async () => {
+    fetch.mockResolvedValue(Response.json({ detail: "Not Found" }, { status: 404 }));
+
+    expect(await razaoSocialDaEmpresa()).toBe("");
   });
 });

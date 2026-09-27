@@ -6,7 +6,6 @@ import type { Painel, Resultado } from "../conciliacoes/acoes";
 import DashboardPage from "./page";
 
 vi.mock("@/lib/mock-data", () => ({
-  EMPRESA_MOCK: "Telha Certa",
   formatarMoeda: (valor: number) =>
     valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }),
 }));
@@ -110,7 +109,7 @@ describe("DashboardPage", () => {
 
     // o título é o nome que o menu dá à tela; a empresa e o mês ficam na linha de baixo
     expect(await screen.findByRole("heading", { level: 1, name: "Conciliações" })).toBeInTheDocument();
-    expect(screen.getByText("Telha Certa · competência setembro/2026")).toBeInTheDocument();
+    expect(screen.getByText("competência setembro/2026")).toBeInTheDocument();
     expect(screen.getByText("Período 01–30 de setembro")).toBeInTheDocument();
   });
 

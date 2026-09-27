@@ -4,15 +4,26 @@ import type { ReactNode } from "react";
 import { sair } from "../(auth)/acoes";
 import { MenuLateral } from "./menu-lateral";
 import { BarraSuperior } from "./barra-superior";
+import { EmpresaDaSessao } from "./cabecalho";
 
-export function Shell({ email, children }: { email: string; children: ReactNode }) {
+export function Shell({
+  email,
+  empresa,
+  children,
+}: {
+  email: string;
+  empresa: string;
+  children: ReactNode;
+}) {
   return (
-    <div className="app-shell">
-      <MenuLateral email={email} onSair={() => void sair()} />
-      <main className="app-principal">
-        <BarraSuperior />
-        <div className="app-conteudo">{children}</div>
-      </main>
-    </div>
+    <EmpresaDaSessao value={empresa}>
+      <div className="app-shell">
+        <MenuLateral email={email} empresa={empresa} onSair={() => void sair()} />
+        <main className="app-principal">
+          <BarraSuperior />
+          <div className="app-conteudo">{children}</div>
+        </main>
+      </div>
+    </EmpresaDaSessao>
   );
 }

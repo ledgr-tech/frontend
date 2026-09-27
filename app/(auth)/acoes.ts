@@ -1,8 +1,9 @@
 "use server";
 
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { CredentialsSignin } from "next-auth";
-import { signIn, signOut } from "@/auth";
+import { auth, signIn, signOut } from "@/auth";
 import { ErroBackend, chamarBackend } from "@/lib/backend";
 import { demoAberta } from "@/lib/demo";
 import { MuitasEntradas, type UsuarioAPI } from "@/lib/login";
@@ -145,4 +146,110 @@ export async function cadastrar(dados: DadosCadastro): Promise<ResultadoCadastro
 
 export async function sair(): Promise<void> {
   await signOut({ redirectTo: "/login" });
+}
+
+/**
+ * A razão social da empresa logada, para o cabeçalho e o menu. Vem de
+ * `GET /me`, que o `/login` não cobre: ele devolve só o usuário.
+ *
+ * ponytail: `GET /me` ainda não existe no backend (proposta em
+ * `integracao-backend-sprint5.md`). Até existir, o 404 vira nome vazio e as telas
+ * escondem a empresa — melhor que mostrar o nome de outra.
+ */
+export async function razaoSocialDaEmpresa(): Promise<string> {
+  try {
+    const eu = await chamarBackend<UsuarioAPI & { razao_social?: string }>("/me");
+    return eu.razao_social?.trim() ?? "";
+  } catch {
+    return "";
+  }
+}
+
+export type ResultadoConta = { ok: true } | { ok: false; erro: string };
+
+const FALHA_CONTA = "Não foi possível salvar agora. Tente de novo em instantes.";
+
+/**
+ * Trocar senha, trocar e-mail e excluir a conta: as rotas `/me/*` das issues
+ * #66 e #68 do backend. O 404 é a rota que ainda não subiu.
+ */
+function mensagemDaConta(erro: unknown): string {
+  if (!(erro instanceof ErroBackend)) return FALHA_CONTA;
+  if (erro.status === 404 || erro.status === 405) {
+    return "Ainda não disponível: o servidor do Ledgr ainda não tem esta função.";
+  }
+  // "Senha atual incorreta." (400) e "E-mail já cadastrado." ou conta do Google
+  // (409): o texto do backend é o contrato da #66, feito para a tela.
+  if (erro.status === 400 || erro.status === 409) return erro.detalhe;
+  if (erro.status === 422 && erro.campos.includes("email_novo")) return "Confira o novo e-mail.";
+  if (erro.status === 422 && erro.campos.includes("senha_nova")) {
+    return "A senha nova precisa ter de 8 a 72 caracteres.";
+  }
+  if (erro.status === 429) return "Muitas tentativas. Espere um minuto e tente de novo.";
+  return FALHA_CONTA;
+}
+
+/**
+ * A chamada à conta de quem está logado. A conta de demonstração é de todo
+ * mundo que clica em "Entrar com Google": trocar a senha dela ou apagá-la
+ * tiraria a demonstração do ar, então a recusa é aqui, não só na tela.
+ */
+async function naConta(
+  chamada: () => Promise<unknown>,
+): Promise<{ ok: true; email: string } | { ok: false; erro: string }> {
+  const email = (await auth())?.user?.email;
+  if (!email) redirect("/login");
+  const demonstracao = process.env.LEDGR_CONTA_TESTE_EMAIL?.trim().toLowerCase();
+  if (demonstracao && email.toLowerCase() === demonstracao) {
+    return { ok: false, erro: "A conta de demonstração não pode ser alterada." };
+  }
+  try {
+    await chamada();
+    return { ok: true, email };
+  } catch (erro) {
+    // aqui 401 é sessão que acabou: senha atual errada volta 400 (#66)
+    if (erro instanceof ErroBackend && erro.status === 401) redirect("/login");
+    return { ok: false, erro: mensagemDaConta(erro) };
+  }
+}
+
+// Depois de trocar, a sessão é refeita com o que a pessoa acabou de digitar
+// (#66): o token leva o e-mail, e quando a #75 revogar os tokens antigos, o
+// atual deixaria de valer. ponytail: refeita sem "manter sessão", porque o
+// servidor não sabe o que a pessoa escolheu no login; errar para o lado que
+// termina com o navegador é o que não deixa sessão aberta sem ela querer.
+
+export async function trocarSenha(senhaAtual: string, senhaNova: string): Promise<ResultadoConta> {
+  const conta = await naConta(() =>
+    chamarBackend("/me/senha", {
+      method: "POST",
+      corpo: { senha_atual: senhaAtual, senha_nova: senhaNova },
+    }),
+  );
+  if (!conta.ok) return conta;
+  await entrar(conta.email, senhaNova, false);
+  return { ok: true };
+}
+
+export async function trocarEmail(emailNovo: string, senhaAtual: string): Promise<ResultadoConta> {
+  const email = emailNovo.trim().toLowerCase();
+  const conta = await naConta(() =>
+    chamarBackend("/me/email", {
+      method: "POST",
+      corpo: { email_novo: email, senha_atual: senhaAtual },
+    }),
+  );
+  if (!conta.ok) return conta;
+  await entrar(email, senhaAtual, false);
+  return { ok: true };
+}
+
+/** Pede a senha também: com um token roubado, sem ela, dava para apagar a empresa. */
+export async function excluirConta(senhaAtual: string): Promise<ResultadoConta> {
+  const conta = await naConta(() =>
+    chamarBackend("/me", { method: "DELETE", corpo: { senha_atual: senhaAtual } }),
+  );
+  if (!conta.ok) return conta;
+  await signOut({ redirectTo: "/" });
+  return { ok: true };
 }

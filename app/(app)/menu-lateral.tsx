@@ -21,7 +21,6 @@ import {
   Sun,
   type LucideIcon,
 } from "lucide-react";
-import { EMPRESA_MOCK } from "@/lib/mock-data";
 import { PainelAssistente } from "./assistente/painel";
 import { Configuracoes } from "./configuracoes";
 import { LogoBarras } from "./logo-barras";
@@ -56,7 +55,16 @@ function estaAtivo(item: ItemMenu, caminho: string): boolean {
   return (item.tambem ?? []).some((prefixo) => caminho.startsWith(prefixo));
 }
 
-export function MenuLateral({ email, onSair }: { email: string; onSair: () => void }) {
+export function MenuLateral({
+  email,
+  empresa,
+  onSair,
+}: {
+  email: string;
+  /** Vazia enquanto o backend não devolve a razão social: aí o cartão mostra só o nome. */
+  empresa: string;
+  onSair: () => void;
+}) {
   const caminho = usePathname();
   // null enquanto não sabemos: o tema só é legível no cliente, e chutar "claro"
   // faria o ícone trocar sozinho depois da hidratação
@@ -241,7 +249,7 @@ export function MenuLateral({ email, onSair }: { email: string; onSair: () => vo
             ref={botaoConta}
             type="button"
             className="app-conta app-dica"
-            data-dica={`${nome} · ${EMPRESA_MOCK}`}
+            data-dica={[nome, empresa].filter(Boolean).join(" · ")}
             aria-expanded={contaAberta}
             aria-controls={contaAberta ? "menu-conta" : undefined}
             onClick={() => setContaAberta((aberta) => !aberta)}
@@ -251,7 +259,7 @@ export function MenuLateral({ email, onSair }: { email: string; onSair: () => vo
             </span>
             <span className="app-rotulo app-conta-texto">
               <span className="app-conta-nome">{nome}</span>
-              <span className="app-conta-empresa">{EMPRESA_MOCK}</span>
+              {empresa && <span className="app-conta-empresa">{empresa}</span>}
             </span>
             <ChevronsUpDown {...ICONE} size={15} className="app-conta-seta" />
           </button>

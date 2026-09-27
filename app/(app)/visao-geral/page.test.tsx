@@ -113,7 +113,7 @@ describe("VisaoGeralPage", () => {
     com();
     await renderizar();
     expect(screen.getByRole("heading", { level: 1, name: "Visão geral" })).toBeInTheDocument();
-    expect(screen.getByText("Telha Certa · competência setembro/2026")).toBeInTheDocument();
+    expect(screen.getByText("competência setembro/2026")).toBeInTheDocument();
     // "Nova conciliação" já está no menu: o cabeçalho não repete o botão dourado
     expect(screen.queryByRole("link", { name: "Nova conciliação" })).not.toBeInTheDocument();
   });

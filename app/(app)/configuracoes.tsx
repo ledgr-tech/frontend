@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from "react";
 import Link from "next/link";
 import {
   ArrowLeftRight,
@@ -13,6 +13,10 @@ import {
   X,
   type LucideIcon,
 } from "lucide-react";
+import { excluirConta, trocarEmail, trocarSenha, type ResultadoConta } from "../(auth)/acoes";
+import { MensagemErro } from "../(auth)/_compartilhado/mensagem-erro";
+import { EMAIL_VALIDO, MENSAGEM_EMAIL_INCOMPLETO } from "../(auth)/_compartilhado/validacao";
+import { SENHA_MINIMA } from "../(auth)/cadastro/passos";
 import { toleranciaDaUltimaConciliacao } from "./conciliacoes/acoes";
 import { aplicarDensidade, densidadeAtual, type Densidade } from "./densidade";
 import { alternarMenu, menuRecolhido } from "./menu";
@@ -71,6 +75,153 @@ function Segmentado<T extends string>({
       ))}
     </div>
   );
+}
+
+type CampoDaConta = { id: string; rotulo: string; tipo: "email" | "password"; autoComplete: string };
+
+const SENHA_ATUAL: CampoDaConta = {
+  id: "senha_atual",
+  rotulo: "Senha atual",
+  tipo: "password",
+  autoComplete: "current-password",
+};
+
+/**
+ * Trocar e-mail, trocar senha, excluir a conta: um botão que abre o formulário
+ * na própria linha, embaixo do texto. Tudo pede a senha atual, e o erro que
+ * aparece é o do servidor (senha errada, e-mail já usado, rota que ainda não
+ * existe) — nada finge que salvou.
+ */
+function AcaoDaConta({
+  abrir,
+  confirmar,
+  campos,
+  aviso,
+  perigo = false,
+  feito,
+  validar,
+  enviar,
+  children,
+}: {
+  abrir: string;
+  confirmar: string;
+  campos: CampoDaConta[];
+  aviso?: string;
+  perigo?: boolean;
+  /** A confirmação que fica na linha depois de salvar. */
+  feito?: string;
+  validar?: (valores: Record<string, string>) => string | null;
+  enviar: (valores: Record<string, string>) => Promise<ResultadoConta>;
+  /** O que fica ao lado do botão enquanto o formulário está fechado (o e-mail atual). */
+  children?: ReactNode;
+}) {
+  const [aberto, setAberto] = useState(false);
+  const [valores, setValores] = useState<Record<string, string>>({});
+  const [erro, setErro] = useState("");
+  const [enviando, setEnviando] = useState(false);
+  const [salvo, setSalvo] = useState(false);
+  const botaoAbrir = useRef<HTMLButtonElement>(null);
+  const erroId = useId();
+  const classeBotao = perigo ? "btn btn-perigo" : "btn btn-secondary";
+
+  function fechar() {
+    setAberto(false);
+    setValores({});
+    setErro("");
+    // o botão volta no lugar do formulário: o foco vai para ele, não para o <body>
+    requestAnimationFrame(() => botaoAbrir.current?.focus());
+  }
+
+  async function enviarFormulario(evento: FormEvent) {
+    evento.preventDefault();
+    const problema = campos.some((campo) => !valores[campo.id]?.trim())
+      ? "Preencha todos os campos."
+      : (validar?.(valores) ?? null);
+    if (problema) {
+      setErro(problema);
+      return;
+    }
+    setEnviando(true);
+    setErro("");
+    const resultado = await enviar(valores).catch(
+      // a action nem chegou ao servidor (rede caiu, deploy novo no meio)
+      (): ResultadoConta => ({ ok: false, erro: "Não foi possível salvar agora. Tente de novo em instantes." }),
+    );
+    setEnviando(false);
+    if (!resultado.ok) {
+      setErro(resultado.erro);
+      return;
+    }
+    setSalvo(true);
+    fechar();
+  }
+
+  if (!aberto) {
+    return (
+      <div className="cfg-acao">
+        {salvo && feito ? (
+          <span className="cfg-feito" role="status">
+            {feito}
+          </span>
+        ) : (
+          children
+        )}
+        <button
+          ref={botaoAbrir}
+          type="button"
+          className={classeBotao}
+          onClick={() => {
+            setSalvo(false);
+            setAberto(true);
+          }}
+        >
+          {abrir}
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <form className="cfg-form" onSubmit={enviarFormulario} noValidate aria-label={abrir}>
+      {aviso && <p className="cfg-form-aviso">{aviso}</p>}
+      {campos.map((campo, indice) => (
+        <div key={campo.id} className="field">
+          <label htmlFor={`cfg-${campo.id}`}>{campo.rotulo}</label>
+          <input
+            id={`cfg-${campo.id}`}
+            className="input"
+            type={campo.tipo}
+            autoComplete={campo.autoComplete}
+            // abriu porque a pessoa pediu: o foco vai para onde ela vai digitar
+            autoFocus={indice === 0}
+            // o erro é do formulário (senha errada, rota que não existe), não de um campo: sem borda vermelha
+            aria-describedby={erro ? erroId : undefined}
+            disabled={enviando}
+            value={valores[campo.id] ?? ""}
+            onChange={(evento) => setValores((atuais) => ({ ...atuais, [campo.id]: evento.target.value }))}
+          />
+        </div>
+      ))}
+      {erro && <MensagemErro id={erroId}>{erro}</MensagemErro>}
+      <div className="cfg-form-botoes">
+        <button type="submit" className={perigo ? "btn btn-perigo" : "btn btn-primary"} disabled={enviando}>
+          {enviando ? "Salvando…" : confirmar}
+        </button>
+        <button type="button" className="btn btn-secondary" onClick={fechar} disabled={enviando}>
+          Cancelar
+        </button>
+      </div>
+    </form>
+  );
+}
+
+function validarSenhaNova(valores: Record<string, string>): string | null {
+  const nova = valores.senha_nova;
+  if (nova.length < SENHA_MINIMA) return `A senha nova precisa ter pelo menos ${SENHA_MINIMA} caracteres.`;
+  // o bcrypt do backend corta em 72 bytes; acento conta 2
+  if (new TextEncoder().encode(nova).length > 72) return "Senha longa demais. Use no máximo 72 caracteres.";
+  if (nova !== valores.senha_confirmacao) return "A confirmação não bate com a senha nova.";
+  return null;
 }
 
 function Tecla({ children }: { children: ReactNode }) {
@@ -164,7 +315,48 @@ export function Configuracoes({
       icone: UserRound,
       grupo: "Configurações",
       linhas: [
-        { titulo: "E-mail", descricao: "É com ele que você entra no Ledgr.", controle: <span className="cfg-valor">{email}</span> },
+        {
+          titulo: "E-mail",
+          descricao: "É com ele que você entra no Ledgr.",
+          controle: (
+            <AcaoDaConta
+              abrir="Trocar e-mail"
+              confirmar="Trocar e-mail"
+              feito="E-mail trocado."
+              campos={[
+                { id: "email_novo", rotulo: "Novo e-mail", tipo: "email", autoComplete: "email" },
+                SENHA_ATUAL,
+              ]}
+              validar={(valores) => (EMAIL_VALIDO.test(valores.email_novo.trim()) ? null : MENSAGEM_EMAIL_INCOMPLETO)}
+              enviar={(valores) => trocarEmail(valores.email_novo, valores.senha_atual)}
+            >
+              <span className="cfg-valor">{email}</span>
+            </AcaoDaConta>
+          ),
+        },
+        {
+          titulo: "Senha",
+          descricao: "Troque quando quiser, e na hora se desconfiar que mais alguém sabe.",
+          controle: (
+            <AcaoDaConta
+              abrir="Trocar senha"
+              confirmar="Trocar senha"
+              feito="Senha trocada."
+              campos={[
+                SENHA_ATUAL,
+                { id: "senha_nova", rotulo: "Senha nova", tipo: "password", autoComplete: "new-password" },
+                {
+                  id: "senha_confirmacao",
+                  rotulo: "Repita a senha nova",
+                  tipo: "password",
+                  autoComplete: "new-password",
+                },
+              ]}
+              validar={validarSenhaNova}
+              enviar={(valores) => trocarSenha(valores.senha_atual, valores.senha_nova)}
+            />
+          ),
+        },
         {
           titulo: "Sessão",
           descricao:
@@ -177,6 +369,21 @@ export function Configuracoes({
             <button type="button" className="btn btn-secondary" onClick={onSair}>
               Sair
             </button>
+          ),
+        },
+        {
+          titulo: "Excluir conta",
+          descricao:
+            "Apaga a sua conta e os dados da empresa no Ledgr: extratos, conciliações e histórico. Não dá para desfazer.",
+          controle: (
+            <AcaoDaConta
+              perigo
+              abrir="Excluir conta"
+              confirmar="Excluir conta e dados"
+              aviso="Confirme com a sua senha. Depois disso, a conta e os dados da empresa saem do Ledgr, e você volta para o site."
+              campos={[SENHA_ATUAL]}
+              enviar={(valores) => excluirConta(valores.senha_atual)}
+            />
           ),
         },
       ],

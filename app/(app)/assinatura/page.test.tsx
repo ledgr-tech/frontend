@@ -17,7 +17,7 @@ describe("AssinaturaPage", () => {
   it("shows the current plan and the renewal date under the title", () => {
     render(<AssinaturaPage />);
     expect(screen.getByRole("heading", { level: 1, name: "Assinatura" })).toBeInTheDocument();
-    expect(screen.getByText("Telha Certa · plano Escala · renova em 12 de outubro")).toBeInTheDocument();
+    expect(screen.getByText("plano Escala · renova em 12 de outubro")).toBeInTheDocument();
   });
 
   it("summarises the plan, the accounts and September's volume", () => {
@@ -48,7 +48,7 @@ describe("AssinaturaPage", () => {
     expect(atual).toBeDefined();
     expect(within(atual!).getByRole("heading", { name: "Escala" })).toBeInTheDocument();
     expect(
-      within(atual!).getByText("É a faixa da Telha Certa: 4.218 lançamentos em setembro, quatro bancos."),
+      within(atual!).getByText("É a sua faixa: 4.218 lançamentos em setembro, quatro bancos."),
     ).toBeInTheDocument();
     expect(within(atual!).getByRole("button", { name: "Plano atual" })).toBeDisabled();
   });

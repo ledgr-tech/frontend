@@ -10,7 +10,6 @@ vi.mock("next/navigation", () => ({
   useRouter: () => roteador,
 }));
 
-vi.mock("@/lib/mock-data", () => ({ EMPRESA_MOCK: "Telha Certa" }));
 // a janela de configurações lê a tolerância do backend quando abre, e o
 // assistente, a última conciliação
 vi.mock("./conciliacoes/acoes", () => ({
@@ -25,7 +24,7 @@ vi.mock("./conciliacoes/acoes", () => ({
 const EMAIL = "financeiro@telhacerta.com.br";
 
 function montar(props: Partial<Parameters<typeof MenuLateral>[0]> = {}) {
-  return render(<MenuLateral email={EMAIL} onSair={vi.fn()} {...props} />);
+  return render(<MenuLateral email={EMAIL} empresa="Telha Certa Ltda" onSair={vi.fn()} {...props} />);
 }
 
 describe("MenuLateral", () => {
@@ -198,7 +197,15 @@ describe("MenuLateral", () => {
 
     const conta = screen.getByRole("button", { name: /Financeiro/ });
     expect(within(conta).getByText("FI")).toBeInTheDocument();
-    expect(within(conta).getByText("Telha Certa")).toBeInTheDocument();
+    expect(within(conta).getByText("Telha Certa Ltda")).toBeInTheDocument();
+  });
+
+  it("shows only the user when the backend has not told the empresa yet", () => {
+    montar({ empresa: "" });
+
+    const conta = screen.getByRole("button", { name: /Financeiro/ });
+    expect(conta).toHaveAttribute("data-dica", "Financeiro");
+    expect(conta.querySelector(".app-conta-empresa")).toBeNull();
   });
 
   it("opens the account menu with the email and the logout", async () => {

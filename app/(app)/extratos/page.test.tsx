@@ -56,7 +56,7 @@ describe("ExtratosPage", () => {
     await renderizar();
 
     expect(screen.getByRole("heading", { level: 1, name: "Extratos" })).toBeInTheDocument();
-    expect(screen.getByText("Telha Certa · 2 arquivos")).toBeInTheDocument();
+    expect(screen.getByText("2 arquivos")).toBeInTheDocument();
     // "Nova conciliação" já está no menu: o cabeçalho não repete o botão dourado
     expect(screen.queryByRole("link", { name: "Carregar arquivo" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /sicredi-setembro\.ofx/ })).toBeInTheDocument();
