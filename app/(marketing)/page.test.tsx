@@ -13,6 +13,12 @@ describe("LandingPage", () => {
     ).toHaveAttribute("href", "/login");
   });
 
+  it("counts the same five divergence categories the product reports", () => {
+    render(<LandingPage />);
+    const prova = screen.getByText("categorias de divergência, sempre nomeadas").parentElement!;
+    expect(within(prova).getByText("5")).toBeInTheDocument();
+  });
+
   it("states the golden rule and the pricing model", () => {
     render(<LandingPage />);
     expect(
@@ -142,9 +148,10 @@ describe("LandingPage", () => {
     expect(footer.getByRole("link", { name: "Contato" })).toHaveAttribute("href", "mailto:ledgrtech@gmail.com");
     expect(footer.getByRole("link", { name: "Segurança" })).toHaveAttribute("href", "#regra");
     expect(footer.getByText("Legal")).toBeInTheDocument();
-    expect(footer.getByRole("link", { name: "Termos de uso" })).toBeInTheDocument();
-    expect(footer.getByRole("link", { name: "Privacidade" })).toBeInTheDocument();
-    expect(footer.getByRole("link", { name: "LGPD" })).toBeInTheDocument();
+    expect(footer.getByRole("link", { name: "Termos de uso" })).toHaveAttribute("href", "/termos");
+    expect(footer.getByRole("link", { name: "Privacidade" })).toHaveAttribute("href", "/privacidade");
+    // os direitos do titular são a seção da LGPD na política
+    expect(footer.getByRole("link", { name: "LGPD" })).toHaveAttribute("href", "/privacidade#direitos");
     expect(screen.getByText("© 2026 Ledgr · Passo Fundo, RS")).toBeInTheDocument();
   });
 });

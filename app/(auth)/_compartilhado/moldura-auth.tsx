@@ -113,12 +113,12 @@ export function MolduraAuth({
           color: "color-mix(in srgb, var(--color-text) 66%, transparent)",
         }}
       >
-        {/* páginas de termos e privacidade ainda não existem */}
-        <a href="#" className="login-link" style={linkRodape}>
+        {/* em outra aba: o que já foi digitado no formulário não se perde */}
+        <a href="/termos" target="_blank" rel="noopener" className="login-link" style={linkRodape}>
           Termos de uso
         </a>
         <span aria-hidden="true">·</span>
-        <a href="#" className="login-link" style={linkRodape}>
+        <a href="/privacidade" target="_blank" rel="noopener" className="login-link" style={linkRodape}>
           Política de privacidade
         </a>
       </footer>

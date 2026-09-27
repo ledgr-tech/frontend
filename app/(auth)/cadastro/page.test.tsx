@@ -161,7 +161,13 @@ describe("CadastroPage", () => {
     const user = userEvent.setup();
     render(<CadastroPage />);
     const consentimento = screen.getByText(/Ao continuar, você aceita os/);
-    expect(within(consentimento).getByRole("link", { name: "Termos" })).toBeInTheDocument();
+    // em outra aba: abrir os termos no meio do cadastro não pode apagar o que foi digitado
+    expect(within(consentimento).getByRole("link", { name: "Termos" })).toHaveAttribute("href", "/termos");
+    expect(within(consentimento).getByRole("link", { name: "Termos" })).toHaveAttribute("target", "_blank");
+    expect(within(consentimento).getByRole("link", { name: "Política de privacidade" })).toHaveAttribute(
+      "href",
+      "/privacidade",
+    );
     expect(within(consentimento).getByRole("link", { name: "Política de privacidade" })).toBeInTheDocument();
 
     await preencher(user, ACESSO);

@@ -302,12 +302,12 @@ export default function CadastroPage() {
             }}
           >
             Ao continuar, você aceita os{" "}
-            {/* páginas de termos e privacidade ainda não existem */}
-            <a href="#" className="login-link-animado">
+            {/* em outra aba: sair daqui apagaria o cadastro pela metade */}
+            <a href="/termos" target="_blank" rel="noopener" className="login-link-animado">
               Termos
             </a>{" "}
             e a{" "}
-            <a href="#" className="login-link-animado">
+            <a href="/privacidade" target="_blank" rel="noopener" className="login-link-animado">
               Política de privacidade
             </a>
             .

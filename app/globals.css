@@ -634,12 +634,8 @@ button.login-link-animado { border: 0; background-color: transparent; font: inhe
   /* fundo atrás do rótulo flutuante quando ele sobe para a borda do campo */
   --campo-fundo: var(--color-surface);
 }
-.recuperar-carregando {
-  position: absolute; top: 0; left: 0; height: 2px;
-  background: var(--color-accent);
-}
 
-/* erros de formulário (login e recuperação de senha): borda terracota no campo, mensagem logo abaixo
+/* erros de formulário (login e cadastro): borda terracota no campo, mensagem logo abaixo
    com ícone, e um tremor curto que recomeça a cada erro (data-tremor alterna entre "a" e "b") */
 .input[aria-invalid="true"],
 .input[aria-invalid="true"]:hover,
@@ -1449,6 +1445,11 @@ html[data-tema="escuro"] .app-shell {
   margin: 0; font-size: 15px; line-height: 1.75; max-width: 48ch;
   color: color-mix(in srgb, var(--color-text) 78%, transparent);
 }
+/* o 404 e o erro inesperado (app/tela-de-aviso.tsx): a tela vazia do mascote, com as ações lado a lado;
+   fora do app, centralizada na página inteira */
+.aviso-pagina { min-height: 100dvh; display: grid; place-items: center; padding: 24px 16px; }
+.aviso-acoes { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+.aviso-codigo { font-family: var(--font-mono); font-size: 13px; overflow-wrap: anywhere; }
 .vg-passos {
   --grade-recuo: 28px; list-style: none; margin: 18px 0 10px; padding: 0;
   width: 100%; max-width: 980px; text-align: left;
@@ -2661,6 +2662,33 @@ html[data-tema="escuro"] .app-shell {
   font-size: 14px; line-height: 1.6; color: var(--texto-apagado);
 }
 .aviso-demonstracao strong { font-weight: 600; color: var(--color-text); }
+
+/* Termos de uso e Política de privacidade (app/(marketing)/documento-legal.tsx):
+   texto corrido na largura de leitura, títulos na Newsreader como os do app */
+.legal-topo {
+  max-width: 72ch; margin: 0 auto; padding: 20px 20px 0;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+}
+.legal-marca {
+  font-family: var(--font-heading); font-size: 20px; font-weight: 700;
+  color: var(--color-text); text-decoration: none;
+}
+.legal {
+  max-width: 72ch; margin: 0 auto; padding: 28px 20px 88px;
+  /* fora do .app-shell, onde o token nasce: o .aviso-demonstracao e a data usam */
+  --texto-apagado: color-mix(in srgb, var(--color-text) 58%, transparent);
+}
+.legal :is(h1, h2) { font-family: var(--font-titulo); font-variant-numeric: lining-nums; }
+.legal h1 { margin: 0 0 6px; font-size: 40px; font-weight: 500; line-height: 1.1; text-wrap: balance; }
+.legal h2 { margin: 36px 0 10px; font-size: 22px; font-weight: 600; scroll-margin-top: 24px; }
+.legal-data { margin: 0 0 20px; font-size: 14px; color: var(--texto-apagado); }
+.legal :is(p, li) { font-size: 15.5px; line-height: 1.75; }
+.legal p { margin: 0 0 12px; }
+.legal ul { margin: 0 0 12px; padding-left: 20px; list-style: disc; }
+.legal li + li { margin-top: 6px; }
+.legal-pendente { padding-left: 12px; border-left: 2px solid var(--color-accent); color: var(--texto-apagado); }
+.legal-pendente strong { color: var(--color-text); }
+.legal-contato { margin-top: 40px !important; padding-top: 18px; border-top: 1px solid var(--color-divider); }
 .ass-titulo { margin: 0 0 14px; font-size: 22px; font-weight: 600; }
 
 /* cartões de 240px no mínimo, como no design: três por linha no desktop */

@@ -9,7 +9,8 @@ import { InkHover, MotionRoot, PlanCard, Reveal } from "../reveal";
 const PROVAS_HERO = [
   { valor: "4+", rotulo: "bancos processados num só relatório" },
   { valor: "Alto volume", rotulo: "de lançamentos conferidos por mês, sem esforço extra" },
-  { valor: "4", rotulo: "categorias de divergência, sempre nomeadas" },
+  // as do motor do backend: valor, data, tarifa bancária, sem correspondência e duplicidade
+  { valor: "5", rotulo: "categorias de divergência, sempre nomeadas" },
 ];
 
 const NUMEROS = [
@@ -160,9 +161,9 @@ const RODAPE_COLUNAS = [
   {
     titulo: "Legal",
     itens: [
-      { rotulo: "Termos de uso", href: "#preco" },
-      { rotulo: "Privacidade", href: "#preco" },
-      { rotulo: "LGPD", href: "#preco" },
+      { rotulo: "Termos de uso", href: "/termos" },
+      { rotulo: "Privacidade", href: "/privacidade" },
+      { rotulo: "LGPD", href: "/privacidade#direitos" },
     ],
   },
 ];
