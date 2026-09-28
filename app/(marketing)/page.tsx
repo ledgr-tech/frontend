@@ -396,7 +396,7 @@ export default function LandingPage() {
 
       {/* em números */}
       <section
-        className="faixa-picotada"
+        className="onda onda-papel"
         style={{
           position: "relative",
           overflow: "hidden",
@@ -476,7 +476,7 @@ export default function LandingPage() {
       </section>
 
       {/* o problema */}
-      <section id="problema">
+      <section id="problema" className="onda onda-escura">
         <div style={{ maxWidth: 1600, margin: "0 auto", padding: "clamp(64px, 9vw, 96px) clamp(20px, 4.2vw, 56px)" }}>
           <Reveal>
             <InkHover
@@ -538,7 +538,7 @@ export default function LandingPage() {
       </section>
 
       {/* como funciona */}
-      <section id="como" className="secao-onda" style={{ position: "relative", overflow: "hidden", background: "var(--color-surface)" }}>
+      <section id="como" className="onda onda-papel" style={{ position: "relative", overflow: "hidden", background: "var(--color-surface)" }}>
         <Image
           src="/mascotes/mascote-explicando.png"
           alt=""
@@ -631,7 +631,7 @@ export default function LandingPage() {
       </section>
 
       {/* regra de ouro */}
-      <section id="regra" className="secao-onda">
+      <section id="regra" className="onda onda-superficie">
         <div style={{ maxWidth: 1600, margin: "0 auto", padding: "clamp(64px, 9vw, 96px) clamp(20px, 4.2vw, 56px)" }}>
           <Reveal>
             <InkHover
@@ -686,7 +686,7 @@ export default function LandingPage() {
       </section>
 
       {/* convite */}
-      <section className="secao-onda" style={{ position: "relative", overflow: "hidden", background: "var(--color-surface)" }}>
+      <section className="onda onda-papel" style={{ position: "relative", overflow: "hidden", background: "var(--color-surface)" }}>
         <Image
           src="/mascotes/mascote-sentado.png"
           alt=""
@@ -759,7 +759,7 @@ export default function LandingPage() {
       </section>
 
       {/* perguntas */}
-      <section id="perguntas" className="secao-onda">
+      <section id="perguntas" className="onda onda-superficie">
         <div style={{ maxWidth: 1600, margin: "0 auto", padding: "clamp(64px, 9vw, 96px) clamp(20px, 4.2vw, 56px)" }}>
           <Reveal style={{ marginBottom: 34 }}>
             <h2 style={{ margin: 0, fontSize: "clamp(26px, 2.4vw, 40px)", fontWeight: 400, lineHeight: 1.1 }}>
@@ -792,7 +792,7 @@ export default function LandingPage() {
       {/* preço / cta */}
       <section
         id="preco"
-        className="faixa-picotada"
+        className="onda onda-papel"
         style={{
           position: "relative",
           overflow: "hidden",
@@ -912,7 +912,7 @@ export default function LandingPage() {
       </section>
 
       {/* rodapé */}
-      <footer style={{ background: "var(--color-surface)" }}>
+      <footer className="onda onda-escura" style={{ background: "var(--color-surface)" }}>
         <div
           style={{
             maxWidth: 1600,
