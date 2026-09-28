@@ -64,7 +64,10 @@ async function erroDaResposta(resposta: Response): Promise<ErroBackend> {
 
 type Opcoes = RequestInit & {
   corpo?: FormData | object;
-  /** Sem Bearer: só o `/login` e o `/register`, que é onde a sessão nasce. */
+  /**
+   * Sem Bearer: o `/login` e o `/register`, que é onde a sessão nasce, e a
+   * recuperação de senha (`/senha/*`), de quem não consegue entrar.
+   */
   publica?: boolean;
 };
 

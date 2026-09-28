@@ -2,11 +2,20 @@
 
 import { AnimatePresence, LazyMotion, MotionConfig, domAnimation, m } from "motion/react";
 import { useEffect, useId, useRef, useState, type CSSProperties, type FormEvent } from "react";
+import { pedirRecuperacaoSenha, type ResultadoRecuperacao } from "../acoes";
 import { CampoTexto } from "../_compartilhado/campo-texto";
 import { EMAIL_VALIDO, MENSAGEM_EMAIL_INCOMPLETO } from "../_compartilhado/validacao";
 
-// sem backend ainda: o envio é simulado; o traço dourado carrega durante esse tempo
-const ENVIO_SIMULADO_MS = 1200;
+// o backend responde na hora (o e-mail sai depois da resposta): o traço dourado carrega
+// por pelo menos esse tempo, para dar para ler "Enviando…"
+const ENVIO_MINIMO_MS = 1200;
+
+// a resposta de sucesso é a mesma com e sem conta (#66): nenhuma destas diz se o e-mail existe
+const ERROS_PEDIDO: Record<Extract<ResultadoRecuperacao, { ok: false }>["erro"], string> = {
+  indisponivel: "A recuperação de senha está indisponível agora. Tente de novo mais tarde.",
+  muitas_tentativas: "Muitos pedidos seguidos. Espere um minuto e tente de novo.",
+  falha: "Não foi possível enviar agora. Tente de novo em instantes.",
+};
 
 // mesma curva das animações da landing (Reveal, detalhe do comparativo)
 const CURVA = [0.22, 1, 0.36, 1] as const;
@@ -62,10 +71,13 @@ function Cartao({ emailInicial, onFechar }: { emailInicial: string; onFechar: ()
   const campo = useRef<HTMLInputElement>(null);
   const cartao = useRef<HTMLDivElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const montado = useRef(true);
 
   useEffect(() => {
+    montado.current = true;
     campo.current?.focus();
     return () => {
+      montado.current = false;
       if (timer.current) clearTimeout(timer.current);
     };
   }, []);
@@ -97,7 +109,7 @@ function Cartao({ emailInicial, onFechar }: { emailInicial: string; onFechar: ()
     return () => document.removeEventListener("keydown", tecla);
   }, [onFechar]);
 
-  function enviar(evento: FormEvent<HTMLFormElement>) {
+  async function enviar(evento: FormEvent<HTMLFormElement>) {
     evento.preventDefault();
     if (etapa !== "formulario") return;
     const emailLimpo = email.trim();
@@ -114,7 +126,22 @@ function Cartao({ emailInicial, onFechar }: { emailInicial: string; onFechar: ()
     }
     setErro("");
     setEtapa("enviando");
-    timer.current = setTimeout(() => setEtapa("enviado"), ENVIO_SIMULADO_MS);
+    const pausa = new Promise<void>((resolver) => {
+      timer.current = setTimeout(resolver, ENVIO_MINIMO_MS);
+    });
+    const [resultado] = await Promise.all([
+      pedirRecuperacaoSenha(emailLimpo).catch((): ResultadoRecuperacao => ({ ok: false, erro: "falha" })),
+      pausa,
+    ]);
+    // o card pode ter fechado durante o envio
+    if (!montado.current) return;
+    if (resultado.ok) {
+      setEtapa("enviado");
+      return;
+    }
+    setErro(ERROS_PEDIDO[resultado.erro]);
+    setTremor((atual) => atual + 1);
+    setEtapa("formulario");
   }
 
   return (
@@ -147,7 +174,7 @@ function Cartao({ emailInicial, onFechar }: { emailInicial: string; onFechar: ()
             className="recuperar-carregando"
             initial={{ width: "0%" }}
             animate={{ width: "100%" }}
-            transition={{ duration: ENVIO_SIMULADO_MS / 1000, ease: "linear" }}
+            transition={{ duration: ENVIO_MINIMO_MS / 1000, ease: "linear" }}
           />
         )}
 
@@ -167,7 +194,7 @@ function Cartao({ emailInicial, onFechar }: { emailInicial: string; onFechar: ()
                 Esqueceu a senha?
               </h2>
               <p id={textoId} className="dialog-body" style={{ margin: "0 0 18px", lineHeight: 1.6 }}>
-                Informe o e-mail da sua conta e enviaremos um código para você criar uma nova senha.
+                Informe o e-mail da sua conta e enviaremos um link para você criar uma nova senha.
               </p>
 
               <CampoTexto
@@ -192,7 +219,7 @@ function Cartao({ emailInicial, onFechar }: { emailInicial: string; onFechar: ()
                 disabled={etapa === "enviando"}
                 style={{ fontSize: 15.5, padding: "12px 22px", marginTop: 16 }}
               >
-                {etapa === "enviando" ? "Enviando…" : "Enviar código"}
+                {etapa === "enviando" ? "Enviando…" : "Enviar link"}
               </button>
 
               <div style={{ display: "flex", justifyContent: "center", marginTop: 16 }}>
@@ -235,13 +262,13 @@ function Confirmacao({
       exit={{ opacity: 0 }}
       transition={{ duration: 0.22, ease: CURVA }}
     >
-      <p style={estiloEyebrow}>Código enviado</p>
+      <p style={estiloEyebrow}>Link enviado</p>
       <h2 id={tituloId} style={estiloTitulo}>
         Confira seu e-mail.
       </h2>
       <p id={textoId} className="dialog-body" style={{ margin: "0 0 18px", lineHeight: 1.6 }}>
-        Se houver uma conta com <strong>{email}</strong>, o código chega em alguns minutos. Se não aparecer, confira a
-        caixa de spam.
+        Se houver uma conta com <strong>{email}</strong>, o link chega em alguns minutos e vale por 30 minutos. Se não
+        aparecer, confira a caixa de spam.
       </p>
       <button ref={voltar} type="button" className="btn btn-primary btn-block" style={{ fontSize: 15.5, padding: "12px 22px", marginTop: 0 }} onClick={onFechar}>
         Voltar ao login

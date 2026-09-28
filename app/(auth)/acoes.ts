@@ -144,6 +144,56 @@ export async function cadastrar(dados: DadosCadastro): Promise<ResultadoCadastro
   return { ok: true, entrou: sessao.ok };
 }
 
+export type ResultadoRecuperacao =
+  | { ok: true }
+  | { ok: false; erro: "indisponivel" | "muitas_tentativas" | "falha" };
+
+/**
+ * "Esqueci a senha" (`POST /senha/recuperar`, #66). O backend responde igual
+ * para e-mail com e sem conta, de propósito: a tela também não distingue. O
+ * 503 é o envio de e-mail desligado no servidor, igual para qualquer e-mail.
+ */
+export async function pedirRecuperacaoSenha(email: string): Promise<ResultadoRecuperacao> {
+  try {
+    await chamarBackend("/senha/recuperar", {
+      method: "POST",
+      corpo: { email: email.trim().toLowerCase() },
+      publica: true,
+    });
+  } catch (erro) {
+    if (erro instanceof ErroBackend && erro.status === 503) return { ok: false, erro: "indisponivel" };
+    if (erro instanceof ErroBackend && erro.status === 429) return { ok: false, erro: "muitas_tentativas" };
+    return { ok: false, erro: "falha" };
+  }
+  return { ok: true };
+}
+
+export type ResultadoRedefinicao =
+  | { ok: true }
+  | { ok: false; erro: "link_invalido" | "senha_invalida" | "muitas_tentativas" | "falha" };
+
+/**
+ * A senha nova a partir do link do e-mail (`POST /senha/redefinir`, #66). Não
+ * abre sessão: quem redefiniu entra pelo login, com a senha que acabou de criar.
+ * O 400 junta link expirado, já usado e inexistente — o backend não diz qual.
+ */
+export async function redefinirSenha(token: string, senhaNova: string): Promise<ResultadoRedefinicao> {
+  try {
+    await chamarBackend("/senha/redefinir", {
+      method: "POST",
+      corpo: { token, senha_nova: senhaNova },
+      publica: true,
+    });
+  } catch (erro) {
+    if (!(erro instanceof ErroBackend)) return { ok: false, erro: "falha" };
+    if (erro.status === 422 && erro.campos.includes("senha_nova")) return { ok: false, erro: "senha_invalida" };
+    if (erro.status === 400 || erro.status === 422) return { ok: false, erro: "link_invalido" };
+    if (erro.status === 429) return { ok: false, erro: "muitas_tentativas" };
+    return { ok: false, erro: "falha" };
+  }
+  return { ok: true };
+}
+
 export async function sair(): Promise<void> {
   await signOut({ redirectTo: "/login" });
 }
