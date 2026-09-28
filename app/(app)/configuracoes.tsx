@@ -13,9 +13,8 @@ import {
   X,
   type LucideIcon,
 } from "lucide-react";
-import { excluirConta, trocarEmail, trocarSenha, type ResultadoConta } from "../(auth)/acoes";
+import { trocarSenha, type ResultadoConta } from "../(auth)/acoes";
 import { MensagemErro } from "../(auth)/_compartilhado/mensagem-erro";
-import { EMAIL_VALIDO, MENSAGEM_EMAIL_INCOMPLETO } from "../(auth)/_compartilhado/validacao";
 import { SENHA_MINIMA } from "../(auth)/cadastro/passos";
 import { toleranciaDaUltimaConciliacao } from "./conciliacoes/acoes";
 import { aplicarDensidade, densidadeAtual, type Densidade } from "./densidade";
@@ -317,22 +316,10 @@ export function Configuracoes({
       linhas: [
         {
           titulo: "E-mail",
-          descricao: "É com ele que você entra no Ledgr.",
-          controle: (
-            <AcaoDaConta
-              abrir="Trocar e-mail"
-              confirmar="Trocar e-mail"
-              feito="E-mail trocado."
-              campos={[
-                { id: "email_novo", rotulo: "Novo e-mail", tipo: "email", autoComplete: "email" },
-                SENHA_ATUAL,
-              ]}
-              validar={(valores) => (EMAIL_VALIDO.test(valores.email_novo.trim()) ? null : MENSAGEM_EMAIL_INCOMPLETO)}
-              enviar={(valores) => trocarEmail(valores.email_novo, valores.senha_atual)}
-            >
-              <span className="cfg-valor">{email}</span>
-            </AcaoDaConta>
-          ),
+          descricao: "É com ele que você entra no Ledgr. Para trocar, por enquanto, escreva para ledgrtech@gmail.com.",
+          // ponytail: o backend ainda não tem `POST /me/email` (backend #66). Quando tiver, o controle volta a
+          // ser um AcaoDaConta com `trocarEmail`, que já está pronta e testada em (auth)/acoes.ts.
+          controle: <span className="cfg-valor">{email}</span>,
         },
         {
           titulo: "Senha",
@@ -374,16 +361,13 @@ export function Configuracoes({
         {
           titulo: "Excluir conta",
           descricao:
-            "Apaga a sua conta e os dados da empresa no Ledgr: extratos, conciliações e histórico. Não dá para desfazer.",
+            "Apaga a sua conta e os dados da empresa no Ledgr: extratos, conciliações e histórico. Por enquanto, o pedido é feito por e-mail, a partir do e-mail da conta.",
+          // ponytail: o backend ainda não tem `DELETE /me` (backend #68). Quando tiver, volta o AcaoDaConta com
+          // `perigo` e `excluirConta` (pronta e testada em (auth)/acoes.ts), que pede a senha antes de apagar.
           controle: (
-            <AcaoDaConta
-              perigo
-              abrir="Excluir conta"
-              confirmar="Excluir conta e dados"
-              aviso="Confirme com a sua senha. Depois disso, a conta e os dados da empresa saem do Ledgr, e você volta para o site."
-              campos={[SENHA_ATUAL]}
-              enviar={(valores) => excluirConta(valores.senha_atual)}
-            />
+            <a href="mailto:ledgrtech@gmail.com?subject=Excluir%20conta" className="btn btn-secondary">
+              Pedir por e-mail
+            </a>
           ),
         },
       ],
