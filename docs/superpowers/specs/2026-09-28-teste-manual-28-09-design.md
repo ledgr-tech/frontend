@@ -16,16 +16,16 @@ A regra de sempre vale: a tela só promete o que o produto faz hoje.
 | 1 | Cadastro, passo inicial: "Nome completo" não seria o nome da empresa? | Plano A, tarefa 2 (vira "Seu nome") |
 | 2 | Cadastro: o olho da senha parece invertido | Fica como está, por decisão de 28/09 (ver decisão 1) |
 | 3 | Cadastro, passo II: avisar que dá para adicionar outros bancos depois, nas configurações | Plano A, tarefa 2 (sem "nas configurações", ver decisão 3) |
-| 4 | Cadastro, passo III: dizer que o PDF de lançamentos do ERP também serve | Backend, B1 |
+| 4 | Cadastro, passo III: dizer que o PDF de lançamentos do ERP também serve | Plano D, tarefa 2 |
 | 5 | Cadastro: um "Criando sua conta…" depois de concluir | Plano A, tarefa 3 |
-| 6 | Visão geral, passo II: "O CSV e PDF do seu ERP funciona" | PDF: backend, B1. O travessão da frase sai no Plano C |
-| 7 | Conciliações: falar do PDF nos cartões de arquivo | Backend, B1 |
+| 6 | Visão geral, passo II: "O CSV e PDF do seu ERP funciona" | Plano D, tarefa 2 (o travessão da frase sai no Plano C) |
+| 7 | Conciliações: falar do PDF nos cartões de arquivo | Plano D, tarefa 1 |
 | 8 | Conciliações: tirar o travessão da "Regra de ouro" ("cara de IA") | Plano C, tarefa 1 |
 | 9 | Assinatura: no primeiro acesso, só os planos; o status depois de assinar | Adiado. O próprio teste deixou para quando a cobrança existir |
 | 10 | Configurações, Aparência: ao trocar o tema, o seletor desce na tela | Plano B, tarefa 2 |
 | 11 | Cabeçalho: trocar o ⌘K do Mac por Ctrl | Plano B, tarefa 1 |
 | 12 | Login: erros e botões certos | Passou, nada a fazer |
-| 13 | Cadastro: e-mail ou CNPJ já cadastrado só aparece no fim, depois de todos os passos | Backend, B2 (há uma alternativa só de front, ver "Em aberto") |
+| 13 | Cadastro: e-mail ou CNPJ já cadastrado só aparece no fim, depois de todos os passos | Backend, B2. Em 28/09 a decisão foi aguardar a rota do backend |
 | 14 | E-mail de boas-vindas no cadastro | Backend, B3 |
 | 15 | Troca de senha funciona dentro e fora do app; falta trocar o link do e-mail | Backend e deploy, B4 |
 
@@ -34,9 +34,10 @@ Planos:
 - **Plano A**: [2026-09-28-cadastro-teste-manual.md](../plans/2026-09-28-cadastro-teste-manual.md) (itens 1, 3, 5)
 - **Plano B**: [2026-09-28-app-teste-manual.md](../plans/2026-09-28-app-teste-manual.md) (itens 10, 11)
 - **Plano C**: [2026-09-28-textos-sem-travessao.md](../plans/2026-09-28-textos-sem-travessao.md) (item 8 e o mesmo tique no resto do texto)
+- **Plano D**: [2026-09-28-pdf-do-erp.md](../plans/2026-09-28-pdf-do-erp.md) (itens 4, 6, 7), empilhado sobre o Plano C porque reescreve as mesmas frases
 
-Os três são independentes: cada um sai do `develop` no seu branch e pode ir em
-qualquer ordem. O único arquivo em comum é o `app/globals.css` (A mexe no bloco
+A, B e C são independentes: cada um sai do `develop` no seu branch e pode ir em
+qualquer ordem. O D sai do branch do C e entra depois dele. O único arquivo em comum é o `app/globals.css` (A mexe no bloco
 do cadastro, B no das configurações), sem sobreposição de linhas.
 
 ## Decisões
@@ -73,23 +74,19 @@ do cadastro, B no das configurações), sem sobreposição de linhas.
    por vírgula, dois-pontos, ponto ou parênteses, frase a frase. Ficam o "—"
    que marca célula vazia em tabela e o "–" de intervalo ("1–25 de 80"), que
    são tipografia, não estilo.
-7. **PDF só quando o backend aceitar.** Em 28/09 a informação do time é que o
-   backend já lê PDF, mas o `develop` do backend no GitHub ainda recusa: em
-   `app/api/extratos.py`, `FORMATOS_SUPORTADOS = {".ofx", ".csv"}` devolve
-   "Formato de arquivo não suportado. Envie um arquivo .ofx ou .csv.", e só
-   existem `app/parsers/csv.py` e `app/parsers/ofx.py`. Anunciar PDF antes de
-   isso chegar ao `develop` seria prometer o que o upload recusaria.
+7. **PDF do ERP, só do lado do sistema.** Em 28/09 o time confirmou que o
+   backend lê o PDF de lançamentos exportado do ERP. Nesse dia o `develop` do
+   backend no GitHub ainda listava só `.ofx` e `.csv` em `FORMATOS_SUPORTADOS`
+   (`app/api/extratos.py`), então o Plano D entra quando o backend com PDF
+   estiver no ar. O banco continua OFX ou CSV: o teste pediu o PDF do ERP.
 
 ## Depende do backend
 
 Só relato: o front não mexe no backend, nos issues ou nos cards dele.
 
-- **B1. PDF do ERP (itens 4, 6, 7).** Falta um parser de PDF no backend. Quando
-  existir, o front muda o `accept` do cartão do sistema de gestão em
-  `app/(app)/conciliacoes/nova/page.tsx` (hoje `.csv`), o texto do mesmo cartão,
-  o texto do passo "sistema" em `app/(auth)/cadastro/passos.ts` e o passo II de
-  `PASSOS` em `app/(app)/visao-geral/page.tsx`. O upload já manda os bytes do
-  arquivo (`lerBytes`), então o PDF passa sem mudança no transporte.
+- **B1. PDF do ERP (itens 4, 6, 7).** Confirmado pelo time em 28/09 e feito no
+  Plano D. O que o front precisa é que o `develop` do backend aceite `.pdf` no
+  `POST /extratos/upload` com `origem=sistema`.
 - **B2. E-mail ou CNPJ já cadastrado, no passo certo (item 13).** Não há rota
   para conferir antes do `POST /register`, então o 409 só chega no fim. Pedido:
   uma rota de disponibilidade (e-mail no passo de acesso, CNPJ no da empresa),
@@ -125,7 +122,6 @@ Só relato: o front não mexe no backend, nos issues ou nos cards dele.
   os dois primeiros passos pedem (acesso e empresa); banco e sistema de gestão
   não vão ao backend. Dá para criar a conta ao fim do passo da empresa, que é
   como Linear e Notion fazem: a conta nasce cedo e o resto vira configuração
-  inicial. O erro de e-mail repetido volta um passo só, o de CNPJ aparece no
-  próprio passo, e não depende de rota nova. O custo: os passos II e III
-  passam a acontecer com a conta já criada (o "Voltar" do passo II some), e
-  quem abandona ali já tem conta. Não entrou nos planos até haver decisão.
+  inicial. O custo: os passos II e III passam a acontecer com a conta já criada
+  (o "Voltar" do passo II some), e quem abandona ali já tem conta. Em 28/09 a
+  decisão foi não fazer e aguardar a rota de disponibilidade do backend (B2).
