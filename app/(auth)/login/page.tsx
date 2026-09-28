@@ -508,12 +508,12 @@ export default function LoginPage() {
           color: "color-mix(in srgb, var(--color-text) 66%, transparent)",
         }}
       >
-        {/* páginas de termos e privacidade ainda não existem */}
-        <a href="#" className="login-link" style={{ color: "inherit", textDecoration: "none", borderBottom: "1px solid transparent", paddingBottom: 1 }}>
+        {/* em outra aba: o que já foi digitado no login não se perde */}
+        <a href="/termos" target="_blank" rel="noopener" className="login-link" style={{ color: "inherit", textDecoration: "none", borderBottom: "1px solid transparent", paddingBottom: 1 }}>
           Termos de uso
         </a>
         <span aria-hidden="true">·</span>
-        <a href="#" className="login-link" style={{ color: "inherit", textDecoration: "none", borderBottom: "1px solid transparent", paddingBottom: 1 }}>
+        <a href="/privacidade" target="_blank" rel="noopener" className="login-link" style={{ color: "inherit", textDecoration: "none", borderBottom: "1px solid transparent", paddingBottom: 1 }}>
           Política de privacidade
         </a>
       </footer>

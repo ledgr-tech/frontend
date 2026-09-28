@@ -1,15 +1,24 @@
 import Image from "next/image";
 import Link from "next/link";
 
+import { seloDoStatus } from "@/app/(app)/dashboard/resumo";
+import { DIVERGENCIAS } from "@/lib/adaptadores";
 import { PLANOS } from "@/lib/planos";
 import { CabecalhoSite } from "./cabecalho-site";
 import { ExtratoComparacao, type LinhaExtrato } from "./comparacao";
 import { InkHover, MotionRoot, PlanCard, Reveal } from "../reveal";
+import { PorDentro } from "./por-dentro";
+
+// As categorias de divergência do motor, na ordem e com os nomes do relatório
+// do app: o site não pode prometer uma lista e o produto entregar outra.
+const CATEGORIAS = new Intl.ListFormat("pt-BR").format(
+  DIVERGENCIAS.map((status) => seloDoStatus(status).rotulo.toLowerCase()),
+);
 
 const PROVAS_HERO = [
-  { valor: "4+", rotulo: "bancos processados num só relatório" },
+  { valor: "0", rotulo: "credenciais bancárias pedidas: só o arquivo que o banco já exporta" },
   { valor: "Alto volume", rotulo: "de lançamentos conferidos por mês, sem esforço extra" },
-  { valor: "4", rotulo: "categorias de divergência, sempre nomeadas" },
+  { valor: String(DIVERGENCIAS.length), rotulo: "categorias de divergência, sempre nomeadas" },
 ];
 
 const NUMEROS = [
@@ -18,6 +27,10 @@ const NUMEROS = [
   { valor: "Sem instalar nada", rotulo: "nenhuma integração bancária pra configurar" },
 ];
 
+// ponytail: as `explicacao` desta demonstração são no estilo da IA, que está
+// desligada em produção; sem ela, o produto mostra o motivo fixo do motor. A
+// escolha entre trocar os textos ou marcar como exemplo com IA está pendente no
+// DESIGN.md ("Dívidas pontuais anotadas pelo caminho").
 // Lançamentos que aparecem, com os mesmos valores, nos dois extratos.
 // Agosto/2026: mês já fechado (hoje é setembro/2026), coerente com o rótulo do hero.
 const TRANSACOES_CASADAS: LinhaExtrato[] = [
@@ -26,7 +39,7 @@ const TRANSACOES_CASADAS: LinhaExtrato[] = [
     desc: "Recebimento cliente Alfa Comércio",
     valorBanco: "R$ 3.250,00",
     valorSistema: "R$ 3.250,00",
-    status: "Batido",
+    status: "match_exato",
     explicacao: null,
   },
   {
@@ -34,7 +47,7 @@ const TRANSACOES_CASADAS: LinhaExtrato[] = [
     desc: "Pagamento fornecedor #1082",
     valorBanco: "R$ 12.640,00",
     valorSistema: "R$ 12.604,00",
-    status: "Valor divergente",
+    status: "divergente_valor",
     explicacao:
       "O banco descontou R$ 36,00 de juros por atraso no boleto; o sistema ainda mostra o valor original da emissão.",
   },
@@ -43,13 +56,13 @@ const TRANSACOES_CASADAS: LinhaExtrato[] = [
     desc: "Crédito cartão D+30",
     valorBanco: "R$ 7.912,45",
     valorSistema: "R$ 7.912,40",
-    status: "Valor divergente",
+    status: "divergente_valor",
     explicacao: "Diferença de R$ 0,05 — taxa de arredondamento aplicada pela operadora do cartão.",
   },
 ];
 
 // Mesma descrição e mesmo valor dos dois lados, só que em dias diferentes —
-// por isso os dois aparecem com o status "Data divergente", não como ausência.
+// por isso os dois aparecem como "Mesmo valor em outra data", não como ausência.
 const ALUGUEL_EXPLICACAO =
   "O banco debitou em 11/08; o sistema lançou a mesma despesa em 12/08. Mesmo valor, datas diferentes — o Ledgr não junta as duas automaticamente.";
 
@@ -58,7 +71,7 @@ const ALUGUEL_BANCO: LinhaExtrato = {
   desc: "Aluguel sede agosto",
   valorBanco: "R$ 9.800,00",
   valorSistema: "R$ 9.800,00",
-  status: "Data divergente",
+  status: "divergente_data",
   explicacao: ALUGUEL_EXPLICACAO,
 };
 
@@ -67,18 +80,18 @@ const ALUGUEL_SISTEMA: LinhaExtrato = {
   desc: "Aluguel sede agosto",
   valorBanco: "R$ 9.800,00",
   valorSistema: "R$ 9.800,00",
-  status: "Data divergente",
+  status: "divergente_data",
   explicacao: ALUGUEL_EXPLICACAO,
 };
 
-// Lançamento só do lado do banco, sem par no sistema — ilustra a categoria
-// "Sem correspondente" (que não tem exemplo entre as transações casadas acima).
+// Tarifa só do lado do banco: o motor a separa das outras sobras como
+// "Tarifa bancária", a sobra que ele já sabe explicar.
 const TARIFA_BANCO: LinhaExtrato = {
   data: "06/08",
   desc: "Tarifa de manutenção da conta",
   valorBanco: "R$ 45,00",
   valorSistema: null,
-  status: "Sem correspondente",
+  status: "tarifa_bancaria",
   explicacao: "O banco cobrou essa tarifa em 06/08; ainda não há lançamento correspondente no sistema.",
 };
 
@@ -88,9 +101,8 @@ const EXTRATO_SISTEMA: LinhaExtrato[] = [...TRANSACOES_CASADAS, ALUGUEL_SISTEMA]
 const PASSOS = [
   {
     num: "I",
-    titulo: "Suba os extratos dos bancos",
-    texto:
-      "OFX ou CSV, direto do internet banking — de quantos bancos você usar. O Ledgr consolida tudo num só relatório; é ele que define a verdade da conciliação.",
+    titulo: "Suba o extrato do banco",
+    texto: "OFX ou CSV, direto do internet banking. É esse extrato que define a verdade da conciliação.",
   },
   {
     num: "II",
@@ -100,7 +112,7 @@ const PASSOS = [
   {
     num: "III",
     titulo: "Receba as divergências",
-    texto: "Relatório categorizado: sem correspondente, valor divergente, data divergente, duplicidade.",
+    texto: `Relatório nas ${DIVERGENCIAS.length} categorias: ${CATEGORIAS}.`,
   },
 ];
 
@@ -111,9 +123,9 @@ const PERGUNTAS = [
       "Não. O Ledgr lê o arquivo que o internet banking já exporta — OFX ou CSV. Nenhuma credencial bancária é pedida.",
   },
   {
-    pergunta: "E se o meu ERP não estiver na lista?",
+    pergunta: "E se o CSV do meu sistema vier em outro formato?",
     resposta:
-      "Funciona também — é a única exceção que pede um passo a mais: na importação você aponta qual coluna é data, descrição e valor, uma única vez.",
+      "Funciona também: na importação você aponta qual coluna é data, descrição e valor, e o Ledgr ajusta o arquivo. Por enquanto, esse passo se repete a cada importação.",
   },
   {
     pergunta: "Quem decide o que é divergência?",
@@ -122,12 +134,13 @@ const PERGUNTAS = [
   },
   {
     pergunta: "O contador consegue acessar?",
-    resposta: "Sim, com o papel de leitor: abre relatório e histórico, não altera lançamento nenhum.",
+    resposta:
+      "Ainda não com acesso próprio: hoje cada empresa tem um login só. O relatório de cada conciliação sai em CSV, pronto para mandar ao contador.",
   },
   {
     pergunta: "Consigo conciliar mais de um banco ao mesmo tempo?",
     resposta:
-      "Sim. Suba o extrato de quantos bancos usar — o Ledgr consolida tudo num único relatório, sem lançamento perdido entre contas.",
+      "Sim, uma conta por vez: cada conciliação cruza o extrato de uma conta com o do sistema no mesmo período, então exporte do sistema só os lançamentos daquela conta. Em Fechamentos, as conciliações do mesmo mês aparecem juntas.",
   },
   {
     pergunta: "Existe fidelidade ou taxa de implantação?",
@@ -136,7 +149,8 @@ const PERGUNTAS = [
   },
   {
     pergunta: "Posso cancelar quando quiser?",
-    resposta: "Sim, direto pelo painel, sem burocracia — não há multa nem aviso prévio.",
+    resposta:
+      "Sim, sem multa nem aviso prévio: é só pedir por e-mail. E, por enquanto, nada é cobrado: a cobrança ainda não está no ar.",
   },
 ];
 
@@ -154,15 +168,15 @@ const RODAPE_COLUNAS = [
     itens: [
       { rotulo: "Assinatura", href: "#preco" },
       { rotulo: "Contato", href: "mailto:ledgrtech@gmail.com" },
-      { rotulo: "Segurança", href: "#regra" },
+      { rotulo: "Segurança", href: "/privacidade#seguranca" },
     ],
   },
   {
     titulo: "Legal",
     itens: [
-      { rotulo: "Termos de uso", href: "#preco" },
-      { rotulo: "Privacidade", href: "#preco" },
-      { rotulo: "LGPD", href: "#preco" },
+      { rotulo: "Termos de uso", href: "/termos" },
+      { rotulo: "Privacidade", href: "/privacidade" },
+      { rotulo: "LGPD", href: "/privacidade#direitos" },
     ],
   },
 ];
@@ -262,7 +276,7 @@ export default function LandingPage() {
             </p>
             <div style={{ display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap", marginBottom: 34 }}>
               <Link
-                href="/login"
+                href="/cadastro"
                 className="btn btn-primary"
                 style={{ fontSize: 15.5, padding: "13px 24px" }}
               >
@@ -598,6 +612,21 @@ export default function LandingPage() {
               </Reveal>
             ))}
           </div>
+
+          {/* o que chega depois do terceiro passo: telas do app em miniatura */}
+          <div className="por-dentro">
+            <Reveal>
+              <div className="por-dentro-topo">
+                <h6 className="eyebrow" style={{ margin: 0, color: "var(--color-accent-700)" }}>
+                  Por dentro do Ledgr
+                </h6>
+                <p className="por-dentro-intro">
+                  O que chega depois do terceiro passo, em três telas do Ledgr com um mês de exemplo.
+                </p>
+              </div>
+            </Reveal>
+            <PorDentro />
+          </div>
         </div>
       </section>
 
@@ -719,11 +748,10 @@ export default function LandingPage() {
                 maxWidth: "66ch",
               }}
             >
-              Cada divergência vem nomeada: sem correspondente, valor divergente, data divergente,
-              duplicidade. Você vê o problema, decide o que corrigir no sistema e fecha o mês com
-              segurança.
+              {`Cada divergência vem nomeada: ${CATEGORIAS}.`} Você vê o problema, decide o que
+              corrigir no sistema e fecha o mês com segurança.
             </p>
-            <Link href="/login" className="btn btn-primary">
+            <Link href="/cadastro" className="btn btn-primary">
               Testar agora, gratuito
             </Link>
           </Reveal>

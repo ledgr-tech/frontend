@@ -140,7 +140,8 @@ describe("LoginPage", () => {
     await user.click(gatilho);
 
     const dialogo = await screen.findByRole("dialog", { name: "Esqueceu a senha?" });
-    expect(within(dialogo).getByLabelText("E-mail da conta")).toHaveValue("financeiro@telhacerta.com.br");
+    // o e-mail digitado no login vira o "escreva a partir de" do cartão
+    expect(within(dialogo).getByText("financeiro@telhacerta.com.br")).toBeInTheDocument();
 
     await user.keyboard("{Escape}");
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
@@ -358,7 +359,8 @@ describe("LoginPage", () => {
 
   it("shows the terms and privacy links in the footer instead of the trust notes", () => {
     render(<LoginPage />);
-    expect(screen.getByRole("link", { name: "Termos de uso" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Termos de uso" })).toHaveAttribute("href", "/termos");
+    expect(screen.getByRole("link", { name: "Política de privacidade" })).toHaveAttribute("href", "/privacidade");
     expect(screen.getByRole("link", { name: "Política de privacidade" })).toBeInTheDocument();
     expect(screen.queryByText(/Sem credencial bancária/)).not.toBeInTheDocument();
     expect(screen.queryByText(/não movimenta dinheiro/)).not.toBeInTheDocument();

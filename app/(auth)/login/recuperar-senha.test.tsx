@@ -9,43 +9,31 @@ describe("RecuperarSenha", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
-  it("opens as a modal card with the e-mail field prefilled and focused", () => {
+  it("says the e-mail recovery is not live and points to support, instead of pretending to send a code", () => {
     render(<RecuperarSenha aberto emailInicial="financeiro@telhacerta.com.br" onFechar={() => {}} />);
     const dialogo = screen.getByRole("dialog", { name: "Esqueceu a senha?" });
     expect(dialogo).toHaveAttribute("aria-modal", "true");
     // o rótulo pequeno acima do título é só visual: o único título do card é "Esqueceu a senha?"
     expect(screen.getAllByRole("heading")).toHaveLength(1);
-    const campo = screen.getByLabelText("E-mail da conta");
-    expect(campo).toHaveValue("financeiro@telhacerta.com.br");
-    expect(campo).toHaveFocus();
+    // o parágrafo que descreve a janela, conferido pelo texto (a descrição calculada junta espaço ao <strong>)
+    const texto = document.getElementById(dialogo.getAttribute("aria-describedby") ?? "");
+    expect(texto).toHaveTextContent(
+      "A recuperação por e-mail ainda não está no ar. Escreva para ledgrtech@gmail.com a partir de financeiro@telhacerta.com.br, e a gente ajuda você a voltar a entrar.",
+    );
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+    expect(screen.queryByText(/código/i)).not.toBeInTheDocument();
   });
 
-  it("shows an error and does not send when the e-mail looks incomplete", async () => {
-    const user = userEvent.setup();
-    render(<RecuperarSenha aberto emailInicial="" onFechar={() => {}} />);
-
-    await user.type(screen.getByLabelText("E-mail da conta"), "financeiro@");
-    await user.click(screen.getByRole("button", { name: "Enviar código" }));
-
-    expect(screen.getByRole("alert")).toHaveTextContent("Confira o e-mail: parece incompleto.");
-    // mesmo estilo de erro do login: mensagem junto ao campo, ligada a ele
-    const campo = screen.getByLabelText("E-mail da conta");
-    expect(campo).toHaveAttribute("aria-invalid", "true");
-    expect(campo).toHaveAccessibleDescription("Confira o e-mail: parece incompleto.");
-    expect(screen.getByRole("alert")).toHaveClass("campo-erro");
-    expect(screen.getByRole("button", { name: "Enviar código" })).toBeEnabled();
-  });
-
-  it("shows the sending state, then confirms the code was sent", async () => {
-    const user = userEvent.setup();
+  it("opens the support e-mail with the subject, without the person's e-mail in the link, and focuses it", () => {
     render(<RecuperarSenha aberto emailInicial="financeiro@telhacerta.com.br" onFechar={() => {}} />);
+    const escrever = screen.getByRole("link", { name: "Escrever para o suporte" });
+    expect(escrever).toHaveAttribute("href", "mailto:ledgrtech@gmail.com?subject=Recuperar%20acesso%20ao%20Ledgr");
+    expect(escrever).toHaveFocus();
+  });
 
-    await user.click(screen.getByRole("button", { name: "Enviar código" }));
-    expect(screen.getByRole("button", { name: "Enviando…" })).toBeDisabled();
-
-    expect(await screen.findByRole("heading", { name: "Confira seu e-mail." }, { timeout: 3000 })).toBeInTheDocument();
-    expect(screen.getByText(/financeiro@telhacerta\.com\.br/)).toBeInTheDocument();
-    expect(screen.getByText(/caixa de spam/)).toBeInTheDocument();
+  it("asks to write from the account e-mail when none was typed on the login", () => {
+    render(<RecuperarSenha aberto emailInicial="  " onFechar={() => {}} />);
+    expect(screen.getByRole("dialog")).toHaveTextContent(/a partir do e-mail da sua conta, e a gente/);
   });
 
   it("closes on Escape, on a click outside the card and on 'Voltar ao login', but not on a click inside", async () => {

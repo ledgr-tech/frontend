@@ -139,7 +139,8 @@ function Passo({ feito, icone, titulo, children }: { feito?: boolean; icone?: Re
   );
 }
 
-function Painel({ mes }: { mes: MesDeFechamento }) {
+/** Exportado também para a landing, que mostra o painel de um mês de exemplo. */
+export function Painel({ mes }: { mes: MesDeFechamento }) {
   const conciliadas = mes.pares.map((par) => ({
     ...par,
     caminho: caminhoDaConciliacao(par.execucao.extratoBancoId, par.execucao.extratoSistemaId),
