@@ -396,11 +396,11 @@ export default function LandingPage() {
 
       {/* em números */}
       <section
-        className="onda onda-papel"
+        className="onda onda-papel grao"
         style={{
           position: "relative",
           overflow: "hidden",
-          background: "var(--color-neutral-900)",
+          backgroundColor: "var(--color-neutral-900)",
         }}
       >
         {/* marca em traço fino, cortada na borda esquerda */}
@@ -792,11 +792,11 @@ export default function LandingPage() {
       {/* preço / cta */}
       <section
         id="preco"
-        className="onda onda-papel"
+        className="onda onda-papel grao"
         style={{
           position: "relative",
           overflow: "hidden",
-          background: "var(--color-neutral-900)",
+          backgroundColor: "var(--color-neutral-900)",
         }}
       >
         <Image
