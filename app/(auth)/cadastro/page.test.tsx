@@ -282,6 +282,61 @@ describe("CadastroPage", () => {
     await user.click(screen.getByRole("button", { name: "Concluir e subir extratos" }));
   }
 
+  it("swaps the form for a status panel while the account is being created", async () => {
+    cadastrar.mockReturnValue(new Promise(() => {}));
+    const user = userEvent.setup();
+    render(<CadastroPage />);
+
+    await concluirCadastro(user);
+
+    const status = screen.getByRole("status");
+    expect(status).toHaveTextContent("Criando sua conta…");
+    expect(status).toHaveTextContent("Cadastrando a empresa Telha Certa Ltda e o seu acesso.");
+    expect(titulo()).toHaveTextContent("Criando sua conta…");
+    await waitFor(() => expect(titulo()).toHaveFocus());
+    expect(screen.queryByRole("button", { name: "Concluir e subir extratos" })).not.toBeInTheDocument();
+  });
+
+  it("says the account was created while it opens the first conciliation", async () => {
+    const user = userEvent.setup();
+    render(<CadastroPage />);
+
+    await concluirCadastro(user);
+
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/conciliacoes/nova"));
+    expect(screen.getByRole("status")).toHaveTextContent("Conta criada.");
+    expect(screen.getByRole("status")).toHaveTextContent("Abrindo sua primeira conciliação…");
+  });
+
+  it("says the account was created when it sends to the login", async () => {
+    cadastrar.mockResolvedValue({ ok: true, entrou: false });
+    const user = userEvent.setup();
+    render(<CadastroPage />);
+
+    await concluirCadastro(user);
+
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/login"));
+    expect(screen.getByRole("status")).toHaveTextContent("Conta criada.");
+    expect(screen.getByRole("status")).toHaveTextContent("Agora é só entrar com o seu e-mail e a senha.");
+  });
+
+  it("creates the account only once when the last step is sent twice", async () => {
+    const user = userEvent.setup();
+    render(<CadastroPage />);
+    await preencher(user, ACESSO);
+    await continuar(user);
+    await preencher(user, EMPRESA);
+    await continuar(user);
+    await preencher(user, BANCO);
+    await continuar(user);
+    await user.type(screen.getByLabelText("Sistema de gestão"), "Cigam");
+
+    await user.keyboard("{Enter}{Enter}");
+
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/conciliacoes/nova"));
+    expect(cadastrar).toHaveBeenCalledTimes(1);
+  });
+
   it("creates the account with the typed data and opens the statement upload", async () => {
     const user = userEvent.setup();
     render(<CadastroPage />);
@@ -375,5 +430,7 @@ describe("CadastroPage", () => {
       "Não foi possível concluir o cadastro. Tente de novo em instantes.",
     );
     expect(screen.getByRole("button", { name: "Concluir e subir extratos" })).toBeEnabled();
+    // o formulário foi recriado: o foco volta ao botão, e não ao <body> (num efeito: waitFor, como os vizinhos)
+    await waitFor(() => expect(screen.getByRole("button", { name: "Concluir e subir extratos" })).toHaveFocus());
   });
 });

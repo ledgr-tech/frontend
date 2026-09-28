@@ -11,8 +11,9 @@ import { MolduraAuth } from "../_compartilhado/moldura-auth";
 import { TituloDigitado } from "../_compartilhado/titulo-digitado";
 import { EMAIL_VALIDO, MENSAGEM_EMAIL_INCOMPLETO } from "../_compartilhado/validacao";
 import { PASSOS, SENHA_MINIMA, type CampoCadastro } from "./passos";
+import { CriandoConta, type FaseCriacao } from "./criando-conta";
 
-// mesma pausa do login: dá tempo de ler "Concluindo…" antes de trocar de tela
+// mesma pausa do login: dá tempo de ler "Criando sua conta…" antes de trocar de tela
 const ATRASO_CONCLUSAO_MS = 700;
 
 type Valores = Record<string, string>;
@@ -58,6 +59,8 @@ export default function CadastroPage() {
   // contador por campo: cada erro novo alterna data-tremor entre "a" e "b" para o CSS repetir o tremor
   const [tremor, setTremor] = useState<Record<string, number>>({});
   const [concluindo, setConcluindo] = useState(false);
+  const [fase, setFase] = useState<FaseCriacao>("criando");
+  const botaoEnviar = useRef<HTMLButtonElement>(null);
   const [erroGeral, setErroGeral] = useState<string>();
   const campos = useRef<Record<string, HTMLInputElement | null>>({});
   // quando o backend recusa um campo de outro passo, o foco vai para o campo, e não para o título
@@ -86,6 +89,11 @@ export default function CadastroPage() {
     }
     titulo.current?.focus();
   }, [indicePasso]);
+
+  // o erro geral não aponta campo: com o formulário recriado, o foco volta ao botão
+  useEffect(() => {
+    if (erroGeral) botaoEnviar.current?.focus();
+  }, [erroGeral]);
 
   function alterar(id: string, valor: string) {
     setValores((atual) => ({ ...atual, [id]: valor }));
@@ -126,6 +134,7 @@ export default function CadastroPage() {
       resultado = { ok: false, erro: "falha" };
     }
     if (resultado.ok) {
+      setFase(resultado.entrou ? "abrindo" : "login");
       // conta criada sem sessão (o login deu 429 logo depois do cadastro): falta só entrar
       router.push(resultado.entrou ? "/conciliacoes/nova" : "/login");
       return;
@@ -171,6 +180,7 @@ export default function CadastroPage() {
     setErros(errosForaDoPasso);
     setErroGeral(undefined);
     if (ultimoPasso) {
+      setFase("criando");
       setConcluindo(true);
       timer.current = setTimeout(concluir, ATRASO_CONCLUSAO_MS);
       return;
@@ -198,6 +208,9 @@ export default function CadastroPage() {
   return (
     <MolduraAuth rotulo="Cadastro" larguraConteudo={884} linhaDireitaNaBorda>
       <div className="cadastro-grid">
+      {concluindo ? (
+        <CriandoConta fase={fase} empresa={(valores.razaoSocial ?? "").trim()} />
+      ) : (
       <form className="login-form" onSubmit={enviar} noValidate style={{ width: "100%", maxWidth: 424 }}>
         <div className="login-eyebrow" style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: "clamp(10px, 2vh, 20px)" }}>
           <span className="eyebrow" style={{ fontSize: 12, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--color-accent-700)" }}>
@@ -276,17 +289,17 @@ export default function CadastroPage() {
 
         <div className="cadastro-acoes" style={{ display: "flex", alignItems: "center", gap: 12, marginTop: "clamp(16px, 2.6vh, 24px)" }}>
           {indicePasso > 0 && (
-            <button type="button" className="btn btn-ghost" onClick={voltar} disabled={concluindo}>
+            <button type="button" className="btn btn-ghost" onClick={voltar}>
               Voltar
             </button>
           )}
           <button
+            ref={botaoEnviar}
             type="submit"
             className="btn btn-primary"
-            disabled={concluindo}
             style={{ flex: 1, fontSize: 15.5, padding: "clamp(10px, 1.6vh, 13px) 22px" }}
           >
-            {concluindo ? "Concluindo…" : passo.botao}
+            {passo.botao}
           </button>
         </div>
 
@@ -347,6 +360,7 @@ export default function CadastroPage() {
           </Link>
         </p>
       </form>
+      )}
 
       {/* o mascote acompanha o cadastro pela lateral direita, grande e apagado ao fundo (como no "Como funciona"
           da landing), com a dica por cima; a key troca a imagem a cada passo e repete a entrada */}
