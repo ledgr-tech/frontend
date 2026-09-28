@@ -103,14 +103,21 @@ describe("responder", () => {
   it("resume o mês com os números reais", () => {
     const resposta = responder("Resumo de setembro", contexto());
     expect(texto("Resumo de setembro", contexto())).toBe(
-      "Setembro: 6 lançamentos. 3 casaram sozinhos — 50,0%. Ficaram R$ 4.261 em aberto, em 3 linhas.",
+      "Setembro: 6 lançamentos. 3 casaram sozinhos (50,0%). Ficaram R$ 4.261 em aberto, em 3 linhas.",
     );
     expect(resposta.link).toEqual({ href: "/conciliacoes/banco-1?sistema=sistema-1", rotulo: "Abrir a conciliação" });
   });
 
   it("diz de onde sai o dinheiro em aberto, grupo a grupo", () => {
     expect(texto("Por que sobrou R$ 4.261?", contexto())).toBe(
-      "Os R$ 4.261 em aberto saem de 3 linhas — Valor diverge na mesma data: 1 (R$ 36); Sem correspondência no sistema: 1 (R$ 4.180) e Tarifa bancária: 1 (R$ 45).",
+      "Os R$ 4.261 em aberto saem de 3 linhas. Valor diverge na mesma data: 1 (R$ 36); Sem correspondência no sistema: 1 (R$ 4.180) e Tarifa bancária: 1 (R$ 45).",
+    );
+  });
+
+  it("diz de onde sai o dinheiro em aberto quando sobrou uma linha só", () => {
+    const linhas = [linha("l1", "match_exato", 100, 100), linha("l6", "tarifa_bancaria", -45, null)];
+    expect(texto("Por que sobrou R$ 45?", contexto(linhas))).toBe(
+      "Os R$ 45 em aberto saem de 1 linha. Tarifa bancária: 1 (R$ 45).",
     );
   });
 

@@ -80,6 +80,16 @@ describe("NovaConciliacaoPage", () => {
     });
   });
 
+  it("diz a regra de ouro em frases, sem travessão", () => {
+    render(<NovaConciliacaoPage />);
+    const regra = screen.getByText(/O extrato do banco é sempre a fonte da verdade\./);
+
+    expect(regra).toHaveTextContent(
+      "O extrato do banco é sempre a fonte da verdade. Toda divergência aparece como “o sistema diverge do banco”. Se o valor no seu sistema estiver diferente, é ele que precisa de ajuste.",
+    );
+    expect(regra.textContent).not.toContain("—");
+  });
+
   it("deixa o botão desligado até os dois arquivos estarem escolhidos", async () => {
     const user = userEvent.setup();
     render(<NovaConciliacaoPage />);
