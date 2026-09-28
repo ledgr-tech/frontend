@@ -156,10 +156,16 @@ describe("CadastroPage", () => {
   it("toggles the password visibility with the mascot eye, as in the login", async () => {
     const user = userEvent.setup();
     render(<CadastroPage />);
+    const olho = () => screen.getByRole("button", { name: /(Mostrar|Ocultar) senha/ }).querySelector("svg");
+    expect(olho()).toHaveAttribute("data-estado", "fechado");
+
     await user.click(screen.getByRole("button", { name: "Mostrar senha" }));
     expect(screen.getByLabelText("Senha")).toHaveAttribute("type", "text");
+    expect(olho()).toHaveAttribute("data-estado", "aberto");
+
     await user.click(screen.getByRole("button", { name: "Ocultar senha" }));
     expect(screen.getByLabelText("Senha")).toHaveAttribute("type", "password");
+    expect(olho()).toHaveAttribute("data-estado", "fechado");
   });
 
   it("asks for consent to the terms and privacy policy on the access step only", async () => {

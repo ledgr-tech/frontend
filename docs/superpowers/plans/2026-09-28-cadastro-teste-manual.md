@@ -2,13 +2,13 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Resolver os apontamentos do cadastro que o front resolve sozinho: o rótulo "Seu nome", o aviso de outros bancos no passo II e a tela "Criando sua conta…" depois de concluir. (O olho da senha, tarefa 1, foi cancelado em 28/09: fica como está.)
+**Goal:** Resolver os apontamentos do cadastro que o front resolve sozinho: o rótulo "Seu nome", o aviso de outros bancos no passo II e a tela "Criando sua conta…" depois de concluir. (O olho da senha, tarefa 1, chegou a ser cancelado e foi retomado no mesmo dia.)
 
 **Architecture:** Tudo fica em `app/(auth)`. Os textos moram em `app/(auth)/cadastro/passos.ts`. A tela de transição é um componente novo, `criando-conta.tsx`, que a página do cadastro mostra no lugar do formulário enquanto `concluindo` é verdadeiro.
 
 **Tech Stack:** Next.js 16 (App Router), React 19, TypeScript, Vitest + Testing Library (jsdom), CSS em `app/globals.css`.
 
-**Spec:** [docs/superpowers/specs/2026-09-28-teste-manual-28-09-design.md](../specs/2026-09-28-teste-manual-28-09-design.md) (decisões 2 a 4)
+**Spec:** [docs/superpowers/specs/2026-09-28-teste-manual-28-09-design.md](../specs/2026-09-28-teste-manual-28-09-design.md) (decisões 1 a 4)
 
 **Branch:** `feature/cadastro-teste-manual`, a partir do `develop`, num worktree em `.worktrees/cadastro-teste-manual`. PR para o `develop`.
 
@@ -31,9 +31,18 @@
 
 ---
 
-### Task 1: O olho mostra o estado da senha (cancelada)
+### Task 1: O olho mostra o estado da senha
 
-Cancelada em 28/09: o olho fica como está (decisão 1 da spec). Nada a fazer nesta tarefa.
+Retomada em 28/09, depois das tarefas 2 e 3 (decisão 1 da spec).
+
+**Files:**
+- Modify: `app/(auth)/_compartilhado/campo-texto.tsx` (`<OlhoMascote fechado={!verSenha} />`)
+- Modify: `app/(auth)/_compartilhado/olho-mascote.tsx` (comentário)
+- Test: `app/(auth)/login/page.test.tsx` e `app/(auth)/cadastro/page.test.tsx` (o `data-estado` do SVG do olho)
+
+- [x] Testes primeiro: no login e no cadastro, o olho começa `fechado`, vira `aberto` em "Mostrar senha" e volta a `fechado` em "Ocultar senha" (falharam com "aberto" recebido)
+- [x] `fechado={!verSenha}` no `CampoTexto`; o rótulo continua dizendo a ação
+- [x] `npx vitest run "app/(auth)"` verde; na tela, o cadastro abre com o olho fechado e "Mostrar senha"
 
 ---
 

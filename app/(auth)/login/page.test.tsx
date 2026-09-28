@@ -118,17 +118,17 @@ describe("LoginPage", () => {
     expect(senha).toHaveAttribute("type", "password");
   });
 
-  it("switches the mascot eye between its open and closed animated states", async () => {
+  it("keeps the mascot eye closed while the password is hidden, and open while it is visible", async () => {
     const user = userEvent.setup();
     render(<LoginPage />);
     const olho = () => screen.getByRole("button", { name: /(Mostrar|Ocultar) senha/ }).querySelector("svg");
-    expect(olho()).toHaveAttribute("data-estado", "aberto");
-
-    await user.click(screen.getByRole("button", { name: "Mostrar senha" }));
     expect(olho()).toHaveAttribute("data-estado", "fechado");
 
-    await user.click(screen.getByRole("button", { name: "Ocultar senha" }));
+    await user.click(screen.getByRole("button", { name: "Mostrar senha" }));
     expect(olho()).toHaveAttribute("data-estado", "aberto");
+
+    await user.click(screen.getByRole("button", { name: "Ocultar senha" }));
+    expect(olho()).toHaveAttribute("data-estado", "fechado");
   });
 
   it("opens the password recovery card with the typed e-mail and returns focus when it closes", async () => {

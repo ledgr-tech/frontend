@@ -89,7 +89,9 @@ export function CampoTexto({
             title={verSenha ? "Ocultar senha" : "Mostrar senha"}
             onClick={() => setVerSenha((atual) => !atual)}
           >
-            <OlhoMascote fechado={verSenha} />
+            {/* o olho mostra o que o mascote vê: fechado com a senha escondida, aberto com ela à mostra;
+                o rótulo continua dizendo a ação, como pede o aria-pressed */}
+            <OlhoMascote fechado={!verSenha} />
           </button>
         )}
       </div>

@@ -14,7 +14,7 @@ A regra de sempre vale: a tela só promete o que o produto faz hoje.
 | # | Apontamento do teste | Destino |
 |---|---|---|
 | 1 | Cadastro, passo inicial: "Nome completo" não seria o nome da empresa? | Plano A, tarefa 2 (vira "Seu nome") |
-| 2 | Cadastro: o olho da senha parece invertido | Fica como está, por decisão de 28/09 (ver decisão 1) |
+| 2 | Cadastro: o olho da senha parece invertido | Plano A, tarefa 1 |
 | 3 | Cadastro, passo II: avisar que dá para adicionar outros bancos depois, nas configurações | Plano A, tarefa 2 (sem "nas configurações", ver decisão 3) |
 | 4 | Cadastro, passo III: dizer que o PDF de lançamentos do ERP também serve | Plano D, tarefa 2 |
 | 5 | Cadastro: um "Criando sua conta…" depois de concluir | Plano A, tarefa 3 |
@@ -31,7 +31,7 @@ A regra de sempre vale: a tela só promete o que o produto faz hoje.
 
 Planos:
 
-- **Plano A**: [2026-09-28-cadastro-teste-manual.md](../plans/2026-09-28-cadastro-teste-manual.md) (itens 1, 3, 5)
+- **Plano A**: [2026-09-28-cadastro-teste-manual.md](../plans/2026-09-28-cadastro-teste-manual.md) (itens 1, 2, 3, 5)
 - **Plano B**: [2026-09-28-app-teste-manual.md](../plans/2026-09-28-app-teste-manual.md) (itens 10, 11)
 - **Plano C**: [2026-09-28-textos-sem-travessao.md](../plans/2026-09-28-textos-sem-travessao.md) (item 8 e o mesmo tique no resto do texto)
 - **Plano D**: [2026-09-28-pdf-do-erp.md](../plans/2026-09-28-pdf-do-erp.md) (itens 4, 6, 7), empilhado sobre o Plano C porque reescreve as mesmas frases
@@ -42,13 +42,17 @@ do cadastro, B no das configurações), sem sobreposição de linhas.
 
 ## Decisões
 
-1. **Olho da senha: fica como está, por ora.** O olho segue a convenção de
-   "ícone = ação" (aberto com a senha escondida, fechado com ela à mostra), a
-   mesma do botão de revelar senha do Edge e dos exemplos do MUI. O teste leu o
-   olho fechado com cílios como estado, e a troca para "ícone = estado" chegou a
-   ser planejada, mas em 28/09 a decisão foi manter o comportamento atual. Se
-   voltar, a mudança é uma linha em `app/(auth)/_compartilhado/campo-texto.tsx`
-   (`fechado={!verSenha}`) e os testes do olho no login e no cadastro.
+1. **Olho da senha: o ícone mostra o estado.** O olho seguia a convenção de
+   "ícone = ação" (aberto com a senha escondida, fechado com ela à mostra), a do
+   botão de revelar senha do Edge e dos exemplos do MUI. Essa convenção depende
+   do olho cortado, que se lê como botão; o olho do mascote fechado, com cílios,
+   se lê como estado ("não estou vendo"), e foi assim que o teste leu. Passa a
+   seguir o estado, como o "ocultar saldo" dos apps de banco: fechado com a
+   senha escondida, aberto com ela à mostra. O rótulo acessível e o `title`
+   continuam dizendo a ação ("Mostrar senha" / "Ocultar senha"), com
+   `aria-pressed`. Como é o mesmo `CampoTexto`, login, cadastro e redefinir
+   senha mudam juntos. (Chegou a ficar para depois em 28/09 e foi retomada no
+   mesmo dia.)
 2. **"Seu nome" no lugar de "Nome completo".** O campo é da pessoa (é o nome
    que os e-mails usam, "Olá, Rafael"). A empresa vem no passo seguinte, como
    "Razão social". "Seu nome" desfaz a dúvida sem mudar o que é pedido.
