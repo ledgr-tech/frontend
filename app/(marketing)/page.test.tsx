@@ -67,10 +67,12 @@ describe("LandingPage", () => {
     ).toBeInTheDocument();
   });
 
-  it("shows the product inside below the how-it-works steps, with the app's own screens, as a showcase that is not clickable", () => {
+  it("shows the product inside right after the how-it-works steps, in its own section, with the app's own screens, as a showcase that is not clickable", () => {
     const { container } = render(<LandingPage />);
-    // depois dos três passos: é o que chega no terceiro
-    expect(container.querySelector("#como")).toContainElement(screen.getByText("Por dentro do Ledgr"));
+    // seção própria, logo depois dos três passos: é o que chega no terceiro
+    const porDentro = container.querySelector("#por-dentro");
+    expect(porDentro).toContainElement(screen.getByText("Por dentro do Ledgr"));
+    expect(container.querySelector("#como")?.nextElementSibling).toBe(porDentro);
     // o mesmo agosto do topo da página: 157 de 4.218 para revisar
     expect(screen.getByRole("heading", { name: "Divergências por categoria" })).toBeInTheDocument();
     expect(screen.getByText(/^157 linhas pedem revisão/)).toBeInTheDocument();

@@ -612,12 +612,21 @@ export default function LandingPage() {
               </Reveal>
             ))}
           </div>
+        </div>
+      </section>
 
-          {/* o que chega depois do terceiro passo: telas do app em miniatura */}
+      {/* por dentro do ledgr: o que chega depois do terceiro passo, em três telas do app em
+          miniatura sobre a faixa escura, como as janelas do produto sobre o violeta do arc.net */}
+      <section
+        id="por-dentro"
+        className="onda onda-superficie grao"
+        style={{ position: "relative", overflow: "hidden", backgroundColor: "var(--faixa-escura)" }}
+      >
+        <div style={{ position: "relative", maxWidth: 1600, margin: "0 auto", padding: "clamp(64px, 9vw, 96px) clamp(20px, 4.2vw, 56px)" }}>
           <div className="por-dentro">
             <Reveal>
               <div className="por-dentro-topo">
-                <h6 className="eyebrow" style={{ margin: 0, color: "var(--color-accent-700)" }}>
+                <h6 className="eyebrow" style={{ margin: 0, color: "var(--color-accent-300)" }}>
                   Por dentro do Ledgr
                 </h6>
                 <p className="por-dentro-intro">
@@ -631,7 +640,7 @@ export default function LandingPage() {
       </section>
 
       {/* regra de ouro */}
-      <section id="regra" className="onda onda-superficie">
+      <section id="regra" className="onda onda-escura">
         <div style={{ maxWidth: 1600, margin: "0 auto", padding: "clamp(64px, 9vw, 96px) clamp(20px, 4.2vw, 56px)" }}>
           <Reveal>
             <InkHover
