@@ -313,7 +313,8 @@ describe("CadastroPage", () => {
 
     const email = await screen.findByLabelText("E-mail");
     expect(email).toHaveAccessibleDescription("Já existe conta com este e-mail. Entre pela tela de login.");
-    expect(email).toHaveFocus();
+    // o foco muda num efeito depois que o passo aparece: numa máquina lenta (o CI), o campo surge antes dele
+    await waitFor(() => expect(email).toHaveFocus());
     expect(titulo()).toHaveTextContent(PASSOS[0].titulo);
     expect(push).not.toHaveBeenCalled();
   });
@@ -327,7 +328,7 @@ describe("CadastroPage", () => {
 
     const cnpj = await screen.findByLabelText("CNPJ");
     expect(cnpj).toHaveAccessibleDescription("Esta empresa já tem cadastro no Ledgr.");
-    expect(cnpj).toHaveFocus();
+    await waitFor(() => expect(cnpj).toHaveFocus());
     expect(screen.getByLabelText("Razão social")).toHaveValue("Telha Certa Ltda");
   });
 
