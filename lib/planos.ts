@@ -22,7 +22,7 @@ export const PLANOS: Plano[] = [
   {
     nome: "Volume",
     preco: "Sob consulta",
-    limite: "acima de 5.000 — indústria e multi-banco",
+    limite: "acima de 5.000, para indústria e multi-banco",
     destaque: false,
     contato: true,
   },

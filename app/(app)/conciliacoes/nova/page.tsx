@@ -315,7 +315,7 @@ export default function NovaConciliacaoPage() {
           <h6 style={{ margin: "0 0 8px" }}>Regra de ouro</h6>
           <p style={{ margin: 0, fontSize: 14 }}>
             O extrato do banco é sempre a fonte da verdade. Toda divergência aparece como
-            &ldquo;o sistema diverge do banco&rdquo; — se o valor no seu sistema estiver diferente,
+            &ldquo;o sistema diverge do banco&rdquo;. Se o valor no seu sistema estiver diferente,
             é ele que precisa de ajuste.
           </p>
         </Reveal>

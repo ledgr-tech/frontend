@@ -135,7 +135,7 @@ export function responder(pergunta: string, contexto: Contexto): Resposta {
     const tarifas = grupo(contexto, "Tarifa bancária");
     if (!tarifas) return { texto: `Nenhuma tarifa bancária sobrou em ${mes}.` };
     return {
-      texto: `${plural(tarifas.quantidade, "tarifa bancária", "tarifas bancárias")} em ${mes}, somando ${formatarMoedaCurta(tarifas.valor)}. Estão no extrato do banco e não no sistema de gestão — é a sobra que o Ledgr já sabe explicar, por isso tem categoria própria.`,
+      texto: `${plural(tarifas.quantidade, "tarifa bancária", "tarifas bancárias")} em ${mes}, somando ${formatarMoedaCurta(tarifas.valor)}. Estão no extrato do banco e não no sistema de gestão. É a sobra que o Ledgr já sabe explicar, por isso tem categoria própria.`,
       link: { href: tarifas.href, rotulo: "Ver as tarifas" },
     };
   }
@@ -178,7 +178,7 @@ export function responder(pergunta: string, contexto: Contexto): Resposta {
       contexto.valorAberto > 0
         ? `Os ${formatarMoedaCurta(contexto.valorAberto)} em aberto saem de ${plural(contexto.divergentes, "linha", "linhas")}`
         : `Sobraram ${plural(contexto.divergentes, "linha", "linhas")}, sem dinheiro em aberto`;
-    return { texto: `${inicio} — ${lista(partes)}.`, link: { href: contexto.caminho, rotulo: "Abrir a lista" } };
+    return { texto: `${inicio}. ${lista(partes)}.`, link: { href: contexto.caminho, rotulo: "Abrir a lista" } };
   }
 
   if (/\b(resum|como esta|mes\b)/.test(texto) || texto.includes(mes)) {
@@ -189,7 +189,7 @@ export function responder(pergunta: string, contexto: Contexto): Resposta {
           ? ` Sobraram ${plural(contexto.divergentes, "linha", "linhas")}, sem dinheiro em aberto.`
           : " Nada ficou em aberto.";
     return {
-      texto: `${Mes}: ${plural(contexto.processados, "lançamento", "lançamentos")}. ${formatarInteiro(contexto.batidos)} casaram sozinhos — ${formatarPercentual(contexto.taxa)}.${aberto}${naoLidas(contexto)}`,
+      texto: `${Mes}: ${plural(contexto.processados, "lançamento", "lançamentos")}. ${formatarInteiro(contexto.batidos)} casaram sozinhos (${formatarPercentual(contexto.taxa)}).${aberto}${naoLidas(contexto)}`,
       link: { href: contexto.caminho, rotulo: "Abrir a conciliação" },
     };
   }

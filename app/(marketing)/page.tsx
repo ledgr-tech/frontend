@@ -57,14 +57,14 @@ const TRANSACOES_CASADAS: LinhaExtrato[] = [
     valorBanco: "R$ 7.912,45",
     valorSistema: "R$ 7.912,40",
     status: "divergente_valor",
-    explicacao: "Diferença de R$ 0,05 — taxa de arredondamento aplicada pela operadora do cartão.",
+    explicacao: "Diferença de R$ 0,05: taxa de arredondamento aplicada pela operadora do cartão.",
   },
 ];
 
 // Mesma descrição e mesmo valor dos dois lados, só que em dias diferentes —
 // por isso os dois aparecem como "Mesmo valor em outra data", não como ausência.
 const ALUGUEL_EXPLICACAO =
-  "O banco debitou em 11/08; o sistema lançou a mesma despesa em 12/08. Mesmo valor, datas diferentes — o Ledgr não junta as duas automaticamente.";
+  "O banco debitou em 11/08; o sistema lançou a mesma despesa em 12/08. Mesmo valor, datas diferentes. O Ledgr não junta as duas automaticamente.";
 
 const ALUGUEL_BANCO: LinhaExtrato = {
   data: "11/08",
@@ -120,7 +120,7 @@ const PERGUNTAS = [
   {
     pergunta: "Preciso instalar algo no meu banco?",
     resposta:
-      "Não. O Ledgr lê o arquivo que o internet banking já exporta — OFX ou CSV. Nenhuma credencial bancária é pedida.",
+      "Não. O Ledgr lê o arquivo que o internet banking já exporta, em OFX ou CSV. Nenhuma credencial bancária é pedida.",
   },
   {
     pergunta: "E se o CSV do meu sistema vier em outro formato?",
@@ -145,7 +145,7 @@ const PERGUNTAS = [
   {
     pergunta: "Existe fidelidade ou taxa de implantação?",
     resposta:
-      "Não. Você paga só pelo volume de lançamentos conferidos no mês — sem contrato de fidelidade, taxa de setup ou cobrança por usuário adicional.",
+      "Não. Você paga só pelo volume de lançamentos conferidos no mês, sem contrato de fidelidade, taxa de setup ou cobrança por usuário adicional.",
   },
   {
     pergunta: "Posso cancelar quando quiser?",
@@ -271,7 +271,7 @@ export default function LandingPage() {
               }}
             >
               Suba o extrato do banco e o extrato do seu sistema de gestão. Em minutos você recebe o
-              relatório do que bate e do que não bate — lançamento por lançamento, sem planilha no
+              relatório do que bate e do que não bate, lançamento por lançamento, sem planilha no
               meio.
             </p>
             <div style={{ display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap", marginBottom: 34 }}>
@@ -441,8 +441,8 @@ export default function LandingPage() {
                 Em números
               </span>
               <span style={{ fontSize: 14, lineHeight: 1.6, maxWidth: "46ch", color: "var(--color-neutral-400)" }}>
-                O Ledgr cruza extrato do banco com o razão do ERP e entrega um relatório categorizado
-                — sem planilha, sem conferência manual linha por linha.
+                O Ledgr cruza extrato do banco com o razão do ERP e entrega um relatório categorizado,
+                sem planilha e sem conferência manual linha por linha.
               </span>
             </InkHover>
           </Reveal>
@@ -503,7 +503,7 @@ export default function LandingPage() {
                 }}
               >
                 Conferir o extrato do banco contra o extrato do sistema de gestão linha a linha é lento,
-                cansa e deixa passar erro. Quanto maior o volume de lançamentos, pior fica — e o mês
+                cansa e deixa passar erro. Quanto maior o volume de lançamentos, pior fica. E o mês
                 fecha sempre no aperto.
               </p>
             </InkHover>
@@ -736,8 +736,8 @@ export default function LandingPage() {
               }}
             >
               O Ledgr aceita OFX e CSV de qualquer banco. Suba o extrato do banco, suba o razão do
-              seu ERP ou sistema de gestão no mesmo período e receba o relatório categorizado —
-              sem integração pra configurar, sem instalar nada.
+              seu ERP ou sistema de gestão no mesmo período e receba o relatório categorizado. Sem
+              integração pra configurar, sem instalar nada.
             </p>
             <p
               className="texto-justificado"

@@ -401,7 +401,7 @@ export default function ConciliacaoPage() {
             <p className="tabela-vazia">
               {categoria
                 ? `Nenhuma linha em “${seloDoStatus(categoria).rotulo}” nesta conciliação.`
-                : "Nada em revisão nesta competência — todos os lançamentos bateram."}
+                : "Nada em revisão nesta competência: todos os lançamentos bateram."}
             </p>
           )}
 
