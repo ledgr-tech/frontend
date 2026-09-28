@@ -89,7 +89,7 @@ export const PASSOS: PassoCadastro[] = [
     titulo: "Crie seu acesso.",
     texto: "Use seu e-mail de trabalho. É com ele e com esta senha que você entra no Ledgr para acompanhar as conciliações.",
     campos: [
-      { id: "nome", rotulo: "Nome completo", tipo: "text", autoComplete: "name", autoCapitalize: "words", mensagemVazio: "Informe seu nome." },
+      { id: "nome", rotulo: "Seu nome", tipo: "text", autoComplete: "name", autoCapitalize: "words", mensagemVazio: "Informe seu nome." },
       {
         id: "email",
         rotulo: "E-mail",
@@ -150,7 +150,8 @@ export const PASSOS: PassoCadastro[] = [
     rotuloEtapa: "Banco",
     eyebrow: "Passo II de III",
     titulo: "Qual banco você vai conciliar?",
-    texto: "Informe o banco e a conta de onde sai o extrato. É esse extrato que define a verdade da conciliação.",
+    texto:
+      "Informe o banco e a conta de onde sai o extrato: é ele que define a verdade da conciliação. Tem mais de um banco? Comece por um. Os outros entram depois, cada um na sua conciliação.",
     campos: [
       {
         id: "banco",

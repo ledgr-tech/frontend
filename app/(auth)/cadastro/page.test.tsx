@@ -28,7 +28,7 @@ async function continuar(user: Usuario) {
   await user.click(screen.getByRole("button", { name: "Continuar" }));
 }
 
-const ACESSO = { "Nome completo": "Ana Souza", "E-mail": "financeiro@telhacerta.com.br", Senha: "conciliar2026" };
+const ACESSO = { "Seu nome": "Ana Souza", "E-mail": "financeiro@telhacerta.com.br", Senha: "conciliar2026" };
 const EMPRESA = { "Razão social": "Telha Certa Ltda", CNPJ: "12.345.678/0001-95" };
 const BANCO = { "Banco e agência": "Sicredi · ag. 1234", "Conta corrente": "45678-9" };
 
@@ -50,7 +50,7 @@ describe("CadastroPage", () => {
   it("starts on the access step with name, e-mail and password", () => {
     render(<CadastroPage />);
     expect(titulo()).toHaveTextContent(PASSOS[0].titulo);
-    expect(screen.getByLabelText("Nome completo")).toBeInTheDocument();
+    expect(screen.getByLabelText("Seu nome")).toBeInTheDocument();
     expect(screen.getByLabelText("E-mail")).toHaveAttribute("type", "email");
     expect(screen.getByLabelText("Senha")).toHaveAttribute("type", "password");
     // o mínimo da senha aparece antes do erro, logo abaixo do campo
@@ -94,7 +94,7 @@ describe("CadastroPage", () => {
     await preencher(user, { "E-mail": "financeiro@", Senha: "curta" });
     await continuar(user);
 
-    expect(screen.getByLabelText("Nome completo")).toHaveAccessibleDescription("Informe seu nome.");
+    expect(screen.getByLabelText("Seu nome")).toHaveAccessibleDescription("Informe seu nome.");
     expect(screen.getByLabelText("E-mail")).toHaveAccessibleDescription("Confira o e-mail: parece incompleto.");
     expect(screen.getByLabelText("Senha")).toHaveAccessibleDescription("A senha precisa ter pelo menos 8 caracteres.");
     expect(titulo()).toHaveTextContent(PASSOS[0].titulo);
@@ -114,6 +114,11 @@ describe("CadastroPage", () => {
     await continuar(user);
     expect(titulo()).toHaveTextContent("Qual banco você vai conciliar?");
     expect(screen.getByText("Passo II de III")).toBeInTheDocument();
+    expect(
+      screen.getByText(/Tem mais de um banco\? Comece por um\. Os outros entram depois, cada um na sua conciliação\./),
+    ).toBeInTheDocument();
+    // não existe tela de bancos nas configurações: o texto não pode mandar a pessoa para lá
+    expect(screen.queryByText(/configurações/i)).not.toBeInTheDocument();
 
     await preencher(user, BANCO);
     await continuar(user);
@@ -262,7 +267,7 @@ describe("CadastroPage", () => {
     await user.click(screen.getByRole("button", { name: "Voltar" }));
 
     expect(titulo()).toHaveTextContent(PASSOS[0].titulo);
-    expect(screen.getByLabelText("Nome completo")).toHaveValue("Ana Souza");
+    expect(screen.getByLabelText("Seu nome")).toHaveValue("Ana Souza");
     expect(screen.getByLabelText("E-mail")).toHaveValue("financeiro@telhacerta.com.br");
   });
 
