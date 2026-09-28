@@ -396,10 +396,10 @@ export default function LandingPage() {
 
       {/* em números */}
       <section
+        className="faixa-picotada"
         style={{
           position: "relative",
           overflow: "hidden",
-          borderTop: "1px solid var(--color-divider)",
           background: "var(--color-neutral-900)",
         }}
       >
@@ -476,7 +476,7 @@ export default function LandingPage() {
       </section>
 
       {/* o problema */}
-      <section id="problema" style={{ borderTop: "1px solid var(--color-divider)" }}>
+      <section id="problema">
         <div style={{ maxWidth: 1600, margin: "0 auto", padding: "clamp(64px, 9vw, 96px) clamp(20px, 4.2vw, 56px)" }}>
           <Reveal>
             <InkHover
@@ -538,7 +538,7 @@ export default function LandingPage() {
       </section>
 
       {/* como funciona */}
-      <section id="como" style={{ position: "relative", overflow: "hidden", borderTop: "1px solid var(--color-divider)", background: "var(--color-surface)" }}>
+      <section id="como" className="secao-onda" style={{ position: "relative", overflow: "hidden", background: "var(--color-surface)" }}>
         <Image
           src="/mascotes/mascote-explicando.png"
           alt=""
@@ -631,7 +631,7 @@ export default function LandingPage() {
       </section>
 
       {/* regra de ouro */}
-      <section id="regra" style={{ borderTop: "1px solid var(--color-divider)" }}>
+      <section id="regra" className="secao-onda">
         <div style={{ maxWidth: 1600, margin: "0 auto", padding: "clamp(64px, 9vw, 96px) clamp(20px, 4.2vw, 56px)" }}>
           <Reveal>
             <InkHover
@@ -686,7 +686,7 @@ export default function LandingPage() {
       </section>
 
       {/* convite */}
-      <section style={{ position: "relative", overflow: "hidden", borderTop: "1px solid var(--color-divider)", background: "var(--color-surface)" }}>
+      <section className="secao-onda" style={{ position: "relative", overflow: "hidden", background: "var(--color-surface)" }}>
         <Image
           src="/mascotes/mascote-sentado.png"
           alt=""
@@ -759,7 +759,7 @@ export default function LandingPage() {
       </section>
 
       {/* perguntas */}
-      <section id="perguntas" style={{ borderTop: "1px solid var(--color-divider)" }}>
+      <section id="perguntas" className="secao-onda">
         <div style={{ maxWidth: 1600, margin: "0 auto", padding: "clamp(64px, 9vw, 96px) clamp(20px, 4.2vw, 56px)" }}>
           <Reveal style={{ marginBottom: 34 }}>
             <h2 style={{ margin: 0, fontSize: "clamp(26px, 2.4vw, 40px)", fontWeight: 400, lineHeight: 1.1 }}>
@@ -792,10 +792,10 @@ export default function LandingPage() {
       {/* preço / cta */}
       <section
         id="preco"
+        className="faixa-picotada"
         style={{
           position: "relative",
           overflow: "hidden",
-          borderTop: "1px solid var(--color-divider)",
           background: "var(--color-neutral-900)",
         }}
       >
@@ -912,7 +912,7 @@ export default function LandingPage() {
       </section>
 
       {/* rodapé */}
-      <footer style={{ borderTop: "1px solid var(--color-divider)", background: "var(--color-surface)" }}>
+      <footer style={{ background: "var(--color-surface)" }}>
         <div
           style={{
             maxWidth: 1600,

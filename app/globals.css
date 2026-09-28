@@ -720,6 +720,29 @@ button.login-link-animado { border: 0; background-color: transparent; font: inhe
   .extrato-divider-line { width: auto; height: 1px; }
 }
 
+/* ---------- corte das bordas da landing (experimento de 28/09, a partir do site do Arc) ----------
+   O filete reto entre as seções vira uma onda fina, na mesma cor dele: continua sendo filete, só o
+   traço muda. As duas faixas escuras ganham a borda picotada de papel de extrato, e ela já separa
+   as seções vizinhas, que por isso não levam filete. Só a landing: o app segue com filete reto. */
+.secao-onda { position: relative; }
+.secao-onda::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0; height: 6px;
+  background: var(--color-divider);
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='6'%3E%3Cpath d='M0 3Q4 .6 8 3T16 3' fill='none' stroke='%23000' stroke-width='1.5'/%3E%3C/svg%3E") 0 0 / 16px 6px repeat-x;
+  pointer-events: none;
+}
+/* os picotes avançam por cima das seções vizinhas (margem negativa), então o vão entre eles mostra
+   o fundo de cada vizinha, seja o papel da página, seja a superfície do rodapé */
+.faixa-picotada {
+  --picote: 10px;
+  position: relative; z-index: 1;
+  margin-block: calc(-1 * var(--picote));
+  mask:
+    radial-gradient(circle at 50% 100%, #000 calc(var(--picote) - 0.5px), transparent var(--picote)) 50% 0 / calc(2 * var(--picote)) var(--picote) repeat-x,
+    linear-gradient(#000 0 0) 0 var(--picote) / 100% calc(100% - 2 * var(--picote)) no-repeat,
+    radial-gradient(circle at 50% 0, #000 calc(var(--picote) - 0.5px), transparent var(--picote)) 50% 100% / calc(2 * var(--picote)) var(--picote) repeat-x;
+}
+
 /* ---------- landing em telas menores ---------- */
 
 /* cabeçalho: acima de 960px, navegação completa; abaixo, a marca vai para a direita e abre um menu de opções */
