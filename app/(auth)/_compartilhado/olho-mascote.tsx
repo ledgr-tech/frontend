@@ -1,5 +1,5 @@
 // olho no traço do mascote: sobrancelha em arco e pupila preta em gota com o recorte de brilho;
-// fechado vira a pálpebra curva com cílios
+// fechado vira a pálpebra curva com cílios. Segue o estado da senha: fechado enquanto ela está escondida.
 // os dois estados ficam sempre no SVG: o CSS (.olho-mascote em globals.css) anima a troca como uma piscada
 export function OlhoMascote({ fechado }: { fechado: boolean }) {
   return (

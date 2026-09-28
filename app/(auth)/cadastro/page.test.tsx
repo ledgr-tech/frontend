@@ -28,7 +28,7 @@ async function continuar(user: Usuario) {
   await user.click(screen.getByRole("button", { name: "Continuar" }));
 }
 
-const ACESSO = { "Nome completo": "Ana Souza", "E-mail": "financeiro@telhacerta.com.br", Senha: "conciliar2026" };
+const ACESSO = { "Seu nome": "Ana Souza", "E-mail": "financeiro@telhacerta.com.br", Senha: "conciliar2026" };
 const EMPRESA = { "Razão social": "Telha Certa Ltda", CNPJ: "12.345.678/0001-95" };
 const BANCO = { "Banco e agência": "Sicredi · ag. 1234", "Conta corrente": "45678-9" };
 
@@ -50,7 +50,7 @@ describe("CadastroPage", () => {
   it("starts on the access step with name, e-mail and password", () => {
     render(<CadastroPage />);
     expect(titulo()).toHaveTextContent(PASSOS[0].titulo);
-    expect(screen.getByLabelText("Nome completo")).toBeInTheDocument();
+    expect(screen.getByLabelText("Seu nome")).toBeInTheDocument();
     expect(screen.getByLabelText("E-mail")).toHaveAttribute("type", "email");
     expect(screen.getByLabelText("Senha")).toHaveAttribute("type", "password");
     // o mínimo da senha aparece antes do erro, logo abaixo do campo
@@ -94,7 +94,7 @@ describe("CadastroPage", () => {
     await preencher(user, { "E-mail": "financeiro@", Senha: "curta" });
     await continuar(user);
 
-    expect(screen.getByLabelText("Nome completo")).toHaveAccessibleDescription("Informe seu nome.");
+    expect(screen.getByLabelText("Seu nome")).toHaveAccessibleDescription("Informe seu nome.");
     expect(screen.getByLabelText("E-mail")).toHaveAccessibleDescription("Confira o e-mail: parece incompleto.");
     expect(screen.getByLabelText("Senha")).toHaveAccessibleDescription("A senha precisa ter pelo menos 8 caracteres.");
     expect(titulo()).toHaveTextContent(PASSOS[0].titulo);
@@ -114,6 +114,11 @@ describe("CadastroPage", () => {
     await continuar(user);
     expect(titulo()).toHaveTextContent("Qual banco você vai conciliar?");
     expect(screen.getByText("Passo II de III")).toBeInTheDocument();
+    expect(
+      screen.getByText(/Tem mais de um banco\? Comece por um\. Os outros entram depois, cada um na sua conciliação\./),
+    ).toBeInTheDocument();
+    // não existe tela de bancos nas configurações: o texto não pode mandar a pessoa para lá
+    expect(screen.queryByText(/configurações/i)).not.toBeInTheDocument();
 
     await preencher(user, BANCO);
     await continuar(user);
@@ -151,10 +156,16 @@ describe("CadastroPage", () => {
   it("toggles the password visibility with the mascot eye, as in the login", async () => {
     const user = userEvent.setup();
     render(<CadastroPage />);
+    const olho = () => screen.getByRole("button", { name: /(Mostrar|Ocultar) senha/ }).querySelector("svg");
+    expect(olho()).toHaveAttribute("data-estado", "fechado");
+
     await user.click(screen.getByRole("button", { name: "Mostrar senha" }));
     expect(screen.getByLabelText("Senha")).toHaveAttribute("type", "text");
+    expect(olho()).toHaveAttribute("data-estado", "aberto");
+
     await user.click(screen.getByRole("button", { name: "Ocultar senha" }));
     expect(screen.getByLabelText("Senha")).toHaveAttribute("type", "password");
+    expect(olho()).toHaveAttribute("data-estado", "fechado");
   });
 
   it("asks for consent to the terms and privacy policy on the access step only", async () => {
@@ -262,7 +273,7 @@ describe("CadastroPage", () => {
     await user.click(screen.getByRole("button", { name: "Voltar" }));
 
     expect(titulo()).toHaveTextContent(PASSOS[0].titulo);
-    expect(screen.getByLabelText("Nome completo")).toHaveValue("Ana Souza");
+    expect(screen.getByLabelText("Seu nome")).toHaveValue("Ana Souza");
     expect(screen.getByLabelText("E-mail")).toHaveValue("financeiro@telhacerta.com.br");
   });
 
@@ -276,6 +287,61 @@ describe("CadastroPage", () => {
     await user.type(screen.getByLabelText("Sistema de gestão"), "Cigam");
     await user.click(screen.getByRole("button", { name: "Concluir e subir extratos" }));
   }
+
+  it("swaps the form for a status panel while the account is being created", async () => {
+    cadastrar.mockReturnValue(new Promise(() => {}));
+    const user = userEvent.setup();
+    render(<CadastroPage />);
+
+    await concluirCadastro(user);
+
+    const status = screen.getByRole("status");
+    expect(status).toHaveTextContent("Criando sua conta…");
+    expect(status).toHaveTextContent("Cadastrando a empresa Telha Certa Ltda e o seu acesso.");
+    expect(titulo()).toHaveTextContent("Criando sua conta…");
+    await waitFor(() => expect(titulo()).toHaveFocus());
+    expect(screen.queryByRole("button", { name: "Concluir e subir extratos" })).not.toBeInTheDocument();
+  });
+
+  it("says the account was created while it opens the first conciliation", async () => {
+    const user = userEvent.setup();
+    render(<CadastroPage />);
+
+    await concluirCadastro(user);
+
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/conciliacoes/nova"));
+    expect(screen.getByRole("status")).toHaveTextContent("Conta criada.");
+    expect(screen.getByRole("status")).toHaveTextContent("Abrindo sua primeira conciliação…");
+  });
+
+  it("says the account was created when it sends to the login", async () => {
+    cadastrar.mockResolvedValue({ ok: true, entrou: false });
+    const user = userEvent.setup();
+    render(<CadastroPage />);
+
+    await concluirCadastro(user);
+
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/login"));
+    expect(screen.getByRole("status")).toHaveTextContent("Conta criada.");
+    expect(screen.getByRole("status")).toHaveTextContent("Agora é só entrar com o seu e-mail e a senha.");
+  });
+
+  it("creates the account only once when the last step is sent twice", async () => {
+    const user = userEvent.setup();
+    render(<CadastroPage />);
+    await preencher(user, ACESSO);
+    await continuar(user);
+    await preencher(user, EMPRESA);
+    await continuar(user);
+    await preencher(user, BANCO);
+    await continuar(user);
+    await user.type(screen.getByLabelText("Sistema de gestão"), "Cigam");
+
+    await user.keyboard("{Enter}{Enter}");
+
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/conciliacoes/nova"));
+    expect(cadastrar).toHaveBeenCalledTimes(1);
+  });
 
   it("creates the account with the typed data and opens the statement upload", async () => {
     const user = userEvent.setup();
@@ -370,5 +436,7 @@ describe("CadastroPage", () => {
       "Não foi possível concluir o cadastro. Tente de novo em instantes.",
     );
     expect(screen.getByRole("button", { name: "Concluir e subir extratos" })).toBeEnabled();
+    // o formulário foi recriado: o foco volta ao botão, e não ao <body> (num efeito: waitFor, como os vizinhos)
+    await waitFor(() => expect(screen.getByRole("button", { name: "Concluir e subir extratos" })).toHaveFocus());
   });
 });
