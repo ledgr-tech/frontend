@@ -400,7 +400,7 @@ export default function LandingPage() {
         style={{
           position: "relative",
           overflow: "hidden",
-          backgroundColor: "var(--color-neutral-900)",
+          backgroundColor: "var(--faixa-escura)",
         }}
       >
         {/* marca em traço fino, cortada na borda esquerda */}
@@ -796,7 +796,7 @@ export default function LandingPage() {
         style={{
           position: "relative",
           overflow: "hidden",
-          backgroundColor: "var(--color-neutral-900)",
+          backgroundColor: "var(--faixa-escura)",
         }}
       >
         <Image
