@@ -2017,7 +2017,10 @@ html[data-tema="escuro"] .app-shell {
   padding: 16px 0; border-bottom: 1px solid var(--color-divider);
 }
 .cfg-linha:last-child { border-bottom: none; }
-.cfg-linha-texto { display: flex; flex-direction: column; gap: 4px; min-width: 0; max-width: 58ch; }
+/* base de 16rem: é com ela que o flex decide se o controle cabe ao lado, e não com o
+   tamanho da descrição, que muda com a opção escolhida (o tema, por exemplo); cabendo,
+   o texto cresce até 58ch */
+.cfg-linha-texto { display: flex; flex-direction: column; gap: 4px; flex: 1 1 16rem; min-width: 0; max-width: 58ch; }
 .cfg-linha-titulo { font-family: var(--font-heading); font-size: 15px; font-weight: 600; }
 .cfg-linha-descricao {
   font-size: 13.5px; line-height: 1.55;

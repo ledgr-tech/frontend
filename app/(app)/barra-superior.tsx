@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { caminhoDaConciliacao } from "@/lib/caminhos";
+import { useTeclaDeAtalho } from "@/lib/plataforma";
 import { formatarMoeda, type LinhaComparacao } from "@/lib/mock-data";
 import { avisosDoMes, idsLidos, marcarLidos } from "./avisos";
 import { carregarVisaoGeral, type VisaoGeral } from "./conciliacoes/acoes";
@@ -33,6 +34,7 @@ export function BarraSuperior() {
   const [avisosAbertos, setAvisosAbertos] = useState(false);
   const [leitura, setLeitura] = useState<Leitura>({ situacao: "lendo" });
   const [lidos, setLidos] = useState<string[]>([]);
+  const tecla = useTeclaDeAtalho();
   // qual resultado a seta está apontando; -1 = nenhum
   const [ativo, setAtivo] = useState(-1);
   const router = useRouter();
@@ -157,7 +159,7 @@ export function BarraSuperior() {
             onFocus={() => setBuscaAberta(true)}
           />
           <span aria-hidden="true" className="app-busca-atalho">
-            ⌘K
+            {tecla === "⌘" ? "⌘K" : "Ctrl K"}
           </span>
         </div>
 

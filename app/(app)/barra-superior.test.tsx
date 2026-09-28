@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { Execucao } from "@/lib/adaptadores";
@@ -69,6 +69,14 @@ describe("BarraSuperior", () => {
     push.mockReset();
     window.localStorage.clear();
   });
+
+  afterEach(() => {
+    delete (window.navigator as unknown as Record<string, unknown>).platform;
+  });
+
+  function fingirPlataforma(valor: string) {
+    Object.defineProperty(window.navigator, "platform", { value: valor, configurable: true });
+  }
 
   it("leaves the account and the theme to the side menu", async () => {
     await montar();
@@ -150,6 +158,28 @@ describe("BarraSuperior", () => {
 
     expect(campo).not.toHaveFocus();
     await user.keyboard("{Control>}k{/Control}");
+    expect(campo).toHaveFocus();
+  });
+
+  it("announces the search shortcut with Ctrl on Windows", async () => {
+    fingirPlataforma("Win32");
+    const { container } = await montar();
+    expect(container.querySelector(".app-busca-atalho")).toHaveTextContent("Ctrl K");
+  });
+
+  it("announces the search shortcut with ⌘ on a Mac", async () => {
+    fingirPlataforma("MacIntel");
+    const { container } = await montar();
+    expect(container.querySelector(".app-busca-atalho")).toHaveTextContent("⌘K");
+  });
+
+  it("also focuses the search box with ⌘K, whatever the label says", async () => {
+    fingirPlataforma("Win32");
+    const user = userEvent.setup();
+    await montar();
+    const campo = screen.getByLabelText("Buscar lançamento");
+
+    await user.keyboard("{Meta>}k{/Meta}");
     expect(campo).toHaveFocus();
   });
 

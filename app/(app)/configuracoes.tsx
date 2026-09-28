@@ -20,6 +20,7 @@ import { toleranciaDaUltimaConciliacao } from "./conciliacoes/acoes";
 import { aplicarDensidade, densidadeAtual, type Densidade } from "./densidade";
 import { alternarMenu, menuRecolhido } from "./menu";
 import { aplicarTema, escolhaDeTema, seguirSistema, temaDoSistema, type EscolhaDeTema, type Tema } from "./tema";
+import { useTeclaDeAtalho } from "@/lib/plataforma";
 
 /**
  * As configurações, numa janela no meio da tela (como a do Claude): seções à
@@ -260,7 +261,7 @@ export function Configuracoes({
   const [densidade, setDensidade] = useState<Densidade>("padrao");
   const [recolhido, setRecolhido] = useState(false);
   const [toleranciaDias, setToleranciaDias] = useState<number | null | undefined>(undefined);
-  const [mac, setMac] = useState(false);
+  const ctrl = useTeclaDeAtalho();
 
   useEffect(() => {
     const elemento = dialogo.current;
@@ -270,7 +271,6 @@ export function Configuracoes({
       setTema(escolhaDeTema());
       setDensidade(densidadeAtual());
       setRecolhido(menuRecolhido());
-      setMac(/Mac|iPhone|iPad/.test(navigator.platform));
       if (typeof elemento.showModal === "function") elemento.showModal();
       else elemento.setAttribute("open", "");
     }
@@ -304,8 +304,6 @@ export function Configuracoes({
     if (menuRecolhido() !== quer) alternarMenu();
     setRecolhido(quer);
   }
-
-  const ctrl = mac ? "⌘" : "Ctrl";
 
   const secoes: Secao[] = [
     {
