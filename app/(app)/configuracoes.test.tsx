@@ -9,14 +9,10 @@ vi.mock("./conciliacoes/acoes", () => ({
   toleranciaDaUltimaConciliacao: () => toleranciaDaUltimaConciliacao(),
 }));
 
-// as trocas da conta são do backend; aqui a action devolve o que ele responderia
+// a troca de senha é do backend; aqui a action devolve o que ele responderia
 const trocarSenha = vi.fn();
-const trocarEmail = vi.fn();
-const excluirConta = vi.fn();
 vi.mock("../(auth)/acoes", () => ({
   trocarSenha: (...args: unknown[]) => trocarSenha(...args),
-  trocarEmail: (...args: unknown[]) => trocarEmail(...args),
-  excluirConta: (...args: unknown[]) => excluirConta(...args),
 }));
 
 const EMAIL = "financeiro@telhacerta.com.br";
@@ -36,12 +32,15 @@ function secao(nome: string) {
   return screen.getByRole("button", { name: nome });
 }
 
+/** A linha inteira de uma configuração, pelo título dela. */
+function linhaDe(titulo: string) {
+  return screen.getByText(titulo, { selector: ".cfg-linha-titulo" }).closest("li")!;
+}
+
 describe("Configuracoes", () => {
   beforeEach(() => {
     toleranciaDaUltimaConciliacao.mockReset();
     trocarSenha.mockReset().mockResolvedValue({ ok: true });
-    trocarEmail.mockReset().mockResolvedValue({ ok: true });
-    excluirConta.mockReset().mockResolvedValue({ ok: true });
     toleranciaDaUltimaConciliacao.mockResolvedValue(2);
     window.localStorage.clear();
     delete document.documentElement.dataset.tema;
@@ -140,40 +139,31 @@ describe("Configuracoes", () => {
     expect(screen.queryByRole("form", { name: "Trocar senha" })).not.toBeInTheDocument();
   });
 
-  it("keeps the email form open with the server's reason when the change is refused", async () => {
-    trocarEmail.mockResolvedValue({ ok: false, erro: "E-mail já cadastrado." });
+  // o backend ainda não tem POST /me/email nem DELETE /me: um formulário que pede a senha
+  // para depois dizer "ainda não disponível" faz a pessoa trabalhar à toa
+  it("shows the account email without a change form, and says how to change it for now", async () => {
     const user = userEvent.setup();
     abrir();
     await user.click(secao("Conta"));
-    await user.click(screen.getByRole("button", { name: "Trocar e-mail" }));
 
-    const formulario = screen.getByRole("form", { name: "Trocar e-mail" });
-    await user.type(within(formulario).getByLabelText("Novo e-mail"), "compras@telhacerta.com.br");
-    await user.type(within(formulario).getByLabelText("Senha atual"), "s3nha");
-    await user.click(within(formulario).getByRole("button", { name: "Trocar e-mail" }));
-
-    expect(trocarEmail).toHaveBeenCalledWith("compras@telhacerta.com.br", "s3nha");
-    expect(await within(formulario).findByRole("alert")).toHaveTextContent("E-mail já cadastrado.");
-    expect(within(formulario).getByLabelText("Novo e-mail")).toHaveValue("compras@telhacerta.com.br");
+    const linha = linhaDe("E-mail");
+    expect(within(linha).getByText(EMAIL)).toBeInTheDocument();
+    expect(within(linha).getByText(/Para trocar, por enquanto, escreva para ledgrtech@gmail\.com\./)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Trocar e-mail" })).not.toBeInTheDocument();
   });
 
-  it("asks for the password before deleting the account, and cancelling sends nothing", async () => {
+  it("sends the account deletion to support by e-mail, as the privacy policy says", async () => {
     const user = userEvent.setup();
     abrir();
     await user.click(secao("Conta"));
 
-    await user.click(screen.getByRole("button", { name: "Excluir conta" }));
-    await user.click(screen.getByRole("button", { name: "Cancelar" }));
-    expect(excluirConta).not.toHaveBeenCalled();
-
-    await user.click(screen.getByRole("button", { name: "Excluir conta" }));
-    const formulario = screen.getByRole("form", { name: "Excluir conta" });
-    await user.click(within(formulario).getByRole("button", { name: "Excluir conta e dados" }));
-    expect(within(formulario).getByRole("alert")).toHaveTextContent("Preencha todos os campos.");
-
-    await user.type(within(formulario).getByLabelText("Senha atual"), "s3nha");
-    await user.click(within(formulario).getByRole("button", { name: "Excluir conta e dados" }));
-    expect(excluirConta).toHaveBeenCalledWith("s3nha");
+    expect(screen.queryByRole("button", { name: "Excluir conta" })).not.toBeInTheDocument();
+    const linha = linhaDe("Excluir conta");
+    expect(within(linha).getByRole("link", { name: "Pedir por e-mail" })).toHaveAttribute(
+      "href",
+      "mailto:ledgrtech@gmail.com?subject=Excluir%20conta",
+    );
+    expect(within(linha).getByText(/a partir do e-mail da conta/)).toBeInTheDocument();
   });
 
   it("lists the keyboard shortcuts that exist", async () => {
