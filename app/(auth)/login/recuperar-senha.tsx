@@ -4,7 +4,7 @@ import { AnimatePresence, LazyMotion, MotionConfig, domAnimation, m } from "moti
 import { useEffect, useId, useRef, useState, type CSSProperties, type FormEvent } from "react";
 import { pedirRecuperacaoSenha, type ResultadoRecuperacao } from "../acoes";
 import { CampoTexto } from "../_compartilhado/campo-texto";
-import { EMAIL_VALIDO, MENSAGEM_EMAIL_INCOMPLETO } from "../_compartilhado/validacao";
+import { EMAIL_VALIDO, MENSAGEM_EMAIL_INCOMPLETO, VALIDADE_LINK_MINUTOS } from "../_compartilhado/validacao";
 
 // o backend responde na hora (o e-mail sai depois da resposta): o traço dourado carrega
 // por pelo menos esse tempo, para dar para ler "Enviando…"
@@ -267,7 +267,7 @@ function Confirmacao({
         Confira seu e-mail.
       </h2>
       <p id={textoId} className="dialog-body" style={{ margin: "0 0 18px", lineHeight: 1.6 }}>
-        Se houver uma conta com <strong>{email}</strong>, o link chega em alguns minutos e vale por 30 minutos. Se não
+        Se houver uma conta com <strong>{email}</strong>, o link chega em alguns minutos e vale por {VALIDADE_LINK_MINUTOS} minutos. Se não
         aparecer, confira a caixa de spam.
       </p>
       <button ref={voltar} type="button" className="btn btn-primary btn-block" style={{ fontSize: 15.5, padding: "12px 22px", marginTop: 0 }} onClick={onFechar}>

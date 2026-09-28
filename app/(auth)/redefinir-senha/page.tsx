@@ -6,6 +6,7 @@ import { redefinirSenha, type ResultadoRedefinicao } from "../acoes";
 import { CampoTexto } from "../_compartilhado/campo-texto";
 import { MensagemErro } from "../_compartilhado/mensagem-erro";
 import { MolduraAuth } from "../_compartilhado/moldura-auth";
+import { VALIDADE_LINK_MINUTOS } from "../_compartilhado/validacao";
 
 /**
  * Onde cai o link do e-mail de "Esqueci a senha" (#66, ADR-012 no ledgr-docs):
@@ -22,10 +23,10 @@ const SENHA_MINIMA = 8;
 const SENHA_MAXIMA_BYTES = 72;
 
 type Etapa = "lendo" | "sem_token" | "formulario" | "enviando" | "concluido" | "link_invalido";
-type ErroBackend = Extract<ResultadoRedefinicao, { ok: false }>["erro"];
+type ErroRedefinicao = Extract<ResultadoRedefinicao, { ok: false }>["erro"];
 type Erros = { senha?: string; confirmacao?: string; geral?: string };
 
-const ERROS_BACKEND: Record<Exclude<ErroBackend, "link_invalido">, Erros> = {
+const ERROS_BACKEND: Record<Exclude<ErroRedefinicao, "link_invalido">, Erros> = {
   senha_invalida: { senha: `A senha precisa ter de ${SENHA_MINIMA} a ${SENHA_MAXIMA_BYTES} caracteres.` },
   muitas_tentativas: { geral: "Muitas tentativas. Espere um minuto e tente de novo." },
   falha: { geral: "Não foi possível salvar agora. Tente de novo em instantes." },
@@ -113,7 +114,7 @@ export default function RedefinirSenhaPage() {
       },
       link_invalido: {
         titulo: "Este link não vale mais.",
-        texto: "O link vale por 30 minutos e só pode ser usado uma vez. Peça um novo em “Esqueci a senha”, na tela de login.",
+        texto: `O link vale por ${VALIDADE_LINK_MINUTOS} minutos e só pode ser usado uma vez. Peça um novo em “Esqueci a senha”, na tela de login.`,
         acao: "Pedir um novo link",
       },
       concluido: {
