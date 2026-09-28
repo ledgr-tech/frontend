@@ -231,3 +231,15 @@ Metade do que o mercado "aprova" destruiria esta identidade.
   caminho que nunca quebrou.
 - O diálogo de linha em `/conciliacoes/[id]` e a tela de detalhe mostram a mesma
   informação. Quando a tela provar que basta, o diálogo sai.
+- **Pendente (27/09): as explicações da demonstração da landing.** Na comparação
+  banco × sistema (`app/(marketing)/page.tsx`, `TRANSACOES_CASADAS` e vizinhos),
+  passar o mouse numa linha divergente mostra uma explicação específica, como "O
+  banco descontou R$ 36,00 de juros por atraso no boleto…", que só a IA
+  escreveria. A IA está desligada em produção, e aí o produto mostra o motivo fixo
+  do motor para a categoria ("Existe um lançamento do outro lado na mesma data, mas
+  o valor não coincide com o deste item."), que é o que "Por dentro do Ledgr"
+  mostra para a mesma linha #1082, na mesma página. Decidir entre trocar os
+  textos da demonstração pelos motivos fixos (`_MOTIVOS_DETERMINISTICOS` em
+  `app/services/ia/prompt.py`, no backend) ou manter e marcar como exemplo com IA.
+  Se a IA for ligada em produção antes disso, a pendência cai sozinha, e a
+  miniatura de "Por dentro" passa a mostrar a explicação com o selo de IA.

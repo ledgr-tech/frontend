@@ -27,6 +27,10 @@ const NUMEROS = [
   { valor: "Sem instalar nada", rotulo: "nenhuma integração bancária pra configurar" },
 ];
 
+// ponytail: as `explicacao` desta demonstração são no estilo da IA, que está
+// desligada em produção; sem ela, o produto mostra o motivo fixo do motor. A
+// escolha entre trocar os textos ou marcar como exemplo com IA está pendente no
+// DESIGN.md ("Dívidas pontuais anotadas pelo caminho").
 // Lançamentos que aparecem, com os mesmos valores, nos dois extratos.
 // Agosto/2026: mês já fechado (hoje é setembro/2026), coerente com o rótulo do hero.
 const TRANSACOES_CASADAS: LinhaExtrato[] = [
