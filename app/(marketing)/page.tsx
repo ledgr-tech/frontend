@@ -107,7 +107,7 @@ const PASSOS = [
   {
     num: "II",
     titulo: "Suba o extrato do sistema",
-    texto: "Exporte o razão do seu ERP ou sistema de gestão no mesmo período.",
+    texto: "Exporte o razão do seu ERP ou sistema de gestão no mesmo período, em CSV ou PDF.",
   },
   {
     num: "III",

@@ -323,6 +323,7 @@ describe("VisaoGeralPage", () => {
       "Suba o extrato do sistema de gestão",
       "Revise o que não bateu",
     ]);
+    expect(screen.getByText("O CSV ou o PDF exportado do seu ERP funciona: Cigam, Bling, Tiny ou outro.")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Fazer o primeiro upload" })).toHaveAttribute(
       "href",
       "/conciliacoes/nova",
