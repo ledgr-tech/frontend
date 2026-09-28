@@ -2,13 +2,16 @@
 
 import { AnimatePresence, m } from "motion/react";
 import { useId, useState } from "react";
+import { estaResolvida, seloDoStatus } from "@/app/(app)/dashboard/resumo";
+import type { StatusLinha } from "@/lib/mock-data";
 
 export type LinhaExtrato = {
   data: string;
   desc: string;
   valorBanco: string | null;
   valorSistema: string | null;
-  status: "Batido" | "Sem correspondente" | "Valor divergente" | "Data divergente";
+  /** O código do motor; o nome que aparece é o do app (`seloDoStatus`). */
+  status: StatusLinha;
   explicacao: string | null;
 };
 
@@ -50,7 +53,7 @@ function Detalhe({ id, linha }: { id: string; linha: LinhaExtrato }) {
       }}
     >
       <div>
-        <h6 style={{ margin: "0 0 8px", color: "var(--color-accent-700)" }}>Lançamento · {linha.status}</h6>
+        <h6 style={{ margin: "0 0 8px", color: "var(--color-accent-700)" }}>Lançamento · {seloDoStatus(linha.status).rotulo}</h6>
         <div style={{ fontFamily: "var(--font-heading)", fontSize: 19, fontWeight: 600, lineHeight: 1.24, marginBottom: 10 }}>
           {linha.desc}
         </div>
@@ -122,7 +125,9 @@ function Painel({
               <span style={{ flex: "none", fontFamily: "var(--font-heading)", fontSize: 16.5, fontWeight: 600 }}>{valorDe(linha)}</span>
             </div>
             <div style={{ display: "flex", justifyContent: "flex-end" }}>
-              <span className={linha.status === "Batido" ? "tag tag-accent" : "tag tag-outline"}>{linha.status}</span>
+              <span className={estaResolvida(linha.status) ? "tag tag-accent" : "tag tag-outline"}>
+                {seloDoStatus(linha.status).rotulo}
+              </span>
             </div>
           </>
         );
@@ -136,7 +141,7 @@ function Painel({
           borderBottom: i === linhas.length - 1 ? "none" : "1px solid var(--color-divider)",
         };
 
-        if (linha.status === "Batido") {
+        if (estaResolvida(linha.status)) {
           return (
             <div key={linha.desc} style={rowStyle}>
               {conteudo}

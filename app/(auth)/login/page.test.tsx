@@ -358,7 +358,8 @@ describe("LoginPage", () => {
 
   it("shows the terms and privacy links in the footer instead of the trust notes", () => {
     render(<LoginPage />);
-    expect(screen.getByRole("link", { name: "Termos de uso" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Termos de uso" })).toHaveAttribute("href", "/termos");
+    expect(screen.getByRole("link", { name: "Política de privacidade" })).toHaveAttribute("href", "/privacidade");
     expect(screen.getByRole("link", { name: "Política de privacidade" })).toBeInTheDocument();
     expect(screen.queryByText(/Sem credencial bancária/)).not.toBeInTheDocument();
     expect(screen.queryByText(/não movimenta dinheiro/)).not.toBeInTheDocument();
