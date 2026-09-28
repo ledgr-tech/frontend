@@ -634,8 +634,12 @@ button.login-link-animado { border: 0; background-color: transparent; font: inhe
   /* fundo atrás do rótulo flutuante quando ele sobe para a borda do campo */
   --campo-fundo: var(--color-surface);
 }
+.recuperar-carregando {
+  position: absolute; top: 0; left: 0; height: 2px;
+  background: var(--color-accent);
+}
 
-/* erros de formulário (login e cadastro): borda terracota no campo, mensagem logo abaixo
+/* erros de formulário (login, cadastro e recuperação de senha): borda terracota no campo, mensagem logo abaixo
    com ícone, e um tremor curto que recomeça a cada erro (data-tremor alterna entre "a" e "b") */
 .input[aria-invalid="true"],
 .input[aria-invalid="true"]:hover,

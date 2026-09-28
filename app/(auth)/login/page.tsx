@@ -422,7 +422,7 @@ export default function LoginPage() {
               />
               Manter sessão ativa
             </label>
-            {/* abre o card de recuperação; o envio do código é simulado até a autenticação real (#5) */}
+            {/* abre o card de recuperação, que pede o link por e-mail ao backend (#66) */}
             <button
               ref={gatilhoRecuperar}
               type="button"

@@ -6,7 +6,9 @@ import {
   entrar,
   entrarNaDemonstracao,
   excluirConta,
+  pedirRecuperacaoSenha,
   razaoSocialDaEmpresa,
+  redefinirSenha,
   trocarEmail,
   trocarSenha,
 } from "./acoes";
@@ -384,5 +386,88 @@ describe("razaoSocialDaEmpresa", () => {
     fetch.mockResolvedValue(Response.json({ detail: "Not Found" }, { status: 404 }));
 
     expect(await razaoSocialDaEmpresa()).toBe("");
+  });
+});
+
+describe("pedirRecuperacaoSenha", () => {
+  function respostaDoBackend(status: number, corpo: object) {
+    fetch.mockResolvedValue(Response.json(corpo, { status }));
+  }
+
+  it("pede o link sem Bearer, com o e-mail limpo", async () => {
+    respostaDoBackend(202, { mensagem: "Se o e-mail estiver cadastrado, enviaremos um link." });
+
+    expect(await pedirRecuperacaoSenha("  Ana@TelhaCerta.com.br ")).toEqual({ ok: true });
+
+    const [url, init] = fetch.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe("http://localhost:8000/senha/recuperar");
+    expect(init.method).toBe("POST");
+    expect(new Headers(init.headers).has("Authorization")).toBe(false);
+    expect(JSON.parse(String(init.body))).toEqual({ email: "ana@telhacerta.com.br" });
+  });
+
+  it("avisa quando o envio de e-mail está desligado no servidor", async () => {
+    respostaDoBackend(503, { detail: "Recuperação de senha indisponível no momento." });
+
+    expect(await pedirRecuperacaoSenha("ana@telhacerta.com.br")).toEqual({ ok: false, erro: "indisponivel" });
+  });
+
+  it("pede para esperar quando o backend limita os pedidos", async () => {
+    respostaDoBackend(429, { error: "Rate limit exceeded" });
+
+    expect(await pedirRecuperacaoSenha("ana@telhacerta.com.br")).toEqual({ ok: false, erro: "muitas_tentativas" });
+  });
+
+  it("não culpa quem digitou quando o backend está fora do ar", async () => {
+    fetch.mockRejectedValue(new TypeError("fetch failed"));
+
+    expect(await pedirRecuperacaoSenha("ana@telhacerta.com.br")).toEqual({ ok: false, erro: "falha" });
+  });
+});
+
+describe("redefinirSenha", () => {
+  function respostaDoBackend(status: number, corpo?: object) {
+    fetch.mockResolvedValue(corpo ? Response.json(corpo, { status }) : new Response(null, { status }));
+  }
+
+  it("manda o token do link e a senha nova sem Bearer", async () => {
+    respostaDoBackend(204);
+
+    expect(await redefinirSenha("token-do-link", "s3nha-nova")).toEqual({ ok: true });
+
+    const [url, init] = fetch.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe("http://localhost:8000/senha/redefinir");
+    expect(new Headers(init.headers).has("Authorization")).toBe(false);
+    expect(JSON.parse(String(init.body))).toEqual({ token: "token-do-link", senha_nova: "s3nha-nova" });
+  });
+
+  it("diz que o link não vale mais quando o backend recusa o token", async () => {
+    respostaDoBackend(400, { detail: "Link inválido ou expirado. Peça um novo." });
+
+    expect(await redefinirSenha("token-velho", "s3nha-nova")).toEqual({ ok: false, erro: "link_invalido" });
+  });
+
+  it("aponta a senha quando ela não passa na regra do backend", async () => {
+    respostaDoBackend(422, { detail: [{ loc: ["body", "senha_nova"], msg: "curta" }] });
+
+    expect(await redefinirSenha("token", "curta")).toEqual({ ok: false, erro: "senha_invalida" });
+  });
+
+  it("trata token malformado como link inválido", async () => {
+    respostaDoBackend(422, { detail: [{ loc: ["body", "token"], msg: "vazio" }] });
+
+    expect(await redefinirSenha("", "s3nha-nova")).toEqual({ ok: false, erro: "link_invalido" });
+  });
+
+  it("pede para esperar quando o backend limita as tentativas", async () => {
+    respostaDoBackend(429, { error: "Rate limit exceeded" });
+
+    expect(await redefinirSenha("token", "s3nha-nova")).toEqual({ ok: false, erro: "muitas_tentativas" });
+  });
+
+  it("não culpa quem digitou quando o backend está fora do ar", async () => {
+    fetch.mockRejectedValue(new TypeError("fetch failed"));
+
+    expect(await redefinirSenha("token", "s3nha-nova")).toEqual({ ok: false, erro: "falha" });
   });
 });

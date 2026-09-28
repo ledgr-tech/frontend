@@ -140,8 +140,7 @@ describe("LoginPage", () => {
     await user.click(gatilho);
 
     const dialogo = await screen.findByRole("dialog", { name: "Esqueceu a senha?" });
-    // o e-mail digitado no login vira o "escreva a partir de" do cartão
-    expect(within(dialogo).getByText("financeiro@telhacerta.com.br")).toBeInTheDocument();
+    expect(within(dialogo).getByLabelText("E-mail da conta")).toHaveValue("financeiro@telhacerta.com.br");
 
     await user.keyboard("{Escape}");
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
