@@ -16,8 +16,9 @@ describe("Termos e Privacidade", () => {
     expect(screen.getByRole("link", { name: "ledgrtech@gmail.com" })).toBeInTheDocument();
   });
 
-  it("gives the rights section the anchor the site footer's LGPD link points to", () => {
+  it("gives the sections the anchors the site footer's LGPD and Segurança links point to", () => {
     render(<PrivacidadePage />);
     expect(screen.getByRole("heading", { name: "Seus direitos" })).toHaveAttribute("id", "direitos");
+    expect(screen.getByRole("heading", { name: "Segurança" })).toHaveAttribute("id", "seguranca");
   });
 });

@@ -73,7 +73,7 @@ export default function PrivacidadePage() {
         CD/ANPD nº 19/2024).
       </EmDefinicao>
 
-      <h2>Segurança</h2>
+      <h2 id="seguranca">Segurança</h2>
       <ul>
         <li>
           Cada empresa só vê os próprios dados: todo acesso ao servidor leva a identificação da empresa, e

@@ -1,6 +1,9 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import LandingPage from "./page";
+
+// o painel do mês em "Por dentro do Ledgr" é o do app, e o botão de CSV dele usa o roteador
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }) }));
 
 describe("LandingPage", () => {
   it("shows the hero headline and a link into the product", () => {
@@ -50,25 +53,46 @@ describe("LandingPage", () => {
     ).toBeInTheDocument();
   });
 
+  it("shows the product inside below the how-it-works steps, with the app's own screens, as a showcase that is not clickable", () => {
+    const { container } = render(<LandingPage />);
+    // depois dos três passos: é o que chega no terceiro
+    expect(container.querySelector("#como")).toContainElement(screen.getByText("Por dentro do Ledgr"));
+    // o mesmo agosto do topo da página: 157 de 4.218 para revisar
+    expect(screen.getByRole("heading", { name: "Divergências por categoria" })).toBeInTheDocument();
+    expect(screen.getByText(/^157 linhas pedem revisão/)).toBeInTheDocument();
+    expect(screen.getByText("4.061 de 4.218 lançamentos conciliados")).toBeInTheDocument();
+    // sem IA em produção, a explicação é o motivo fixo do motor, sem selo de IA
+    expect(
+      screen.getByText("Existe um lançamento do outro lado na mesma data, mas o valor não coincide com o deste item."),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Gerada por IA/)).not.toBeInTheDocument();
+    const telas = container.querySelectorAll(".por-dentro-tela");
+    expect(telas).toHaveLength(3);
+    telas.forEach((tela) => expect(tela).toHaveAttribute("inert"));
+  });
+
+  // a demonstração banco × sistema; "Por dentro do Ledgr" repete alguns destes valores
+  const demonstracao = () => within(document.getElementById("problema")!);
+
   it("shows the bank vs. system statement comparison with a mismatch", () => {
     render(<LandingPage />);
-    expect(screen.getByText("R$ 12.640,00")).toBeInTheDocument();
-    expect(screen.getByText("R$ 12.604,00")).toBeInTheDocument();
+    expect(demonstracao().getByText("R$ 12.640,00")).toBeInTheDocument();
+    expect(demonstracao().getByText("R$ 12.604,00")).toBeInTheDocument();
   });
 
   it("names each line's status with the same labels the app uses", () => {
     render(<LandingPage />);
-    expect(screen.getAllByText("Match exato")).toHaveLength(2);
-    expect(screen.getAllByText("Valor diverge na mesma data")).toHaveLength(4);
-    expect(screen.getAllByText("Mesmo valor em outra data")).toHaveLength(2);
+    expect(demonstracao().getAllByText("Match exato")).toHaveLength(2);
+    expect(demonstracao().getAllByText("Valor diverge na mesma data")).toHaveLength(4);
+    expect(demonstracao().getAllByText("Mesmo valor em outra data")).toHaveLength(2);
     // a tarifa só do lado do banco é a categoria própria do motor, não uma sobra qualquer
-    expect(screen.getByText("Tarifa bancária")).toBeInTheDocument();
+    expect(demonstracao().getByText("Tarifa bancária")).toBeInTheDocument();
   });
 
   it("lists the five categories by the app's names wherever the site names them", () => {
     render(<LandingPage />);
     const lista =
-      "valor diverge na mesma data, mesmo valor em outra data, possível duplicidade, tarifa bancária e sem correspondência";
+      "valor diverge na mesma data, possível duplicidade, mesmo valor em outra data, sem correspondência e tarifa bancária";
     expect(screen.getByText(`Relatório nas 5 categorias: ${lista}.`)).toBeInTheDocument();
     expect(screen.getByText(new RegExp(`Cada divergência vem nomeada: ${lista}\.`))).toBeInTheDocument();
   });
@@ -166,10 +190,11 @@ describe("LandingPage", () => {
     expect(footer.getByText("Empresa")).toBeInTheDocument();
     expect(footer.getByRole("link", { name: "Assinatura" })).toHaveAttribute("href", "#preco");
     expect(footer.getByRole("link", { name: "Contato" })).toHaveAttribute("href", "mailto:ledgrtech@gmail.com");
-    expect(footer.getByRole("link", { name: "Segurança" })).toHaveAttribute("href", "#regra");
     expect(footer.getByText("Legal")).toBeInTheDocument();
     expect(footer.getByRole("link", { name: "Termos de uso" })).toHaveAttribute("href", "/termos");
     expect(footer.getByRole("link", { name: "Privacidade" })).toHaveAttribute("href", "/privacidade");
+    // "Segurança" é a seção da política, não a Regra de ouro
+    expect(footer.getByRole("link", { name: "Segurança" })).toHaveAttribute("href", "/privacidade#seguranca");
     // os direitos do titular são a seção da LGPD na política
     expect(footer.getByRole("link", { name: "LGPD" })).toHaveAttribute("href", "/privacidade#direitos");
     expect(screen.getByText("© 2026 Ledgr · Passo Fundo, RS")).toBeInTheDocument();

@@ -2,21 +2,15 @@ import Image from "next/image";
 import Link from "next/link";
 
 import { seloDoStatus } from "@/app/(app)/dashboard/resumo";
+import { DIVERGENCIAS } from "@/lib/adaptadores";
 import { PLANOS } from "@/lib/planos";
-import type { StatusLinha } from "@/lib/mock-data";
 import { CabecalhoSite } from "./cabecalho-site";
 import { ExtratoComparacao, type LinhaExtrato } from "./comparacao";
 import { InkHover, MotionRoot, PlanCard, Reveal } from "../reveal";
+import { PorDentro } from "./por-dentro";
 
-// As categorias de divergência do motor, com os mesmos nomes que o app mostra
-// (`seloDoStatus`): o site não pode prometer uma lista e o produto entregar outra.
-const DIVERGENCIAS: StatusLinha[] = [
-  "divergente_valor",
-  "divergente_data",
-  "duplicado",
-  "tarifa_bancaria",
-  "sem_correspondencia",
-];
+// As categorias de divergência do motor, na ordem e com os nomes do relatório
+// do app: o site não pode prometer uma lista e o produto entregar outra.
 const CATEGORIAS = new Intl.ListFormat("pt-BR").format(
   DIVERGENCIAS.map((status) => seloDoStatus(status).rotulo.toLowerCase()),
 );
@@ -170,7 +164,7 @@ const RODAPE_COLUNAS = [
     itens: [
       { rotulo: "Assinatura", href: "#preco" },
       { rotulo: "Contato", href: "mailto:ledgrtech@gmail.com" },
-      { rotulo: "Segurança", href: "#regra" },
+      { rotulo: "Segurança", href: "/privacidade#seguranca" },
     ],
   },
   {
@@ -613,6 +607,21 @@ export default function LandingPage() {
                 </div>
               </Reveal>
             ))}
+          </div>
+
+          {/* o que chega depois do terceiro passo: telas do app em miniatura */}
+          <div className="por-dentro">
+            <Reveal>
+              <div className="por-dentro-topo">
+                <h6 className="eyebrow" style={{ margin: 0, color: "var(--color-accent-700)" }}>
+                  Por dentro do Ledgr
+                </h6>
+                <p className="por-dentro-intro">
+                  O que chega depois do terceiro passo, em três telas do Ledgr com um mês de exemplo.
+                </p>
+              </div>
+            </Reveal>
+            <PorDentro />
           </div>
         </div>
       </section>

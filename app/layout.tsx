@@ -38,10 +38,22 @@ const jetbrainsMono = JetBrains_Mono({
   weight: ["500", "600"],
 });
 
+const DESCRICAO =
+  "Concilie o extrato do banco com o extrato do seu sistema de gestão em minutos, sem planilha no meio.";
+
+// A imagem da prévia é `app/opengraph-image.tsx`. O endereço absoluto dela o Next
+// monta sozinho na Vercel (domínio de produção ou da prévia), sem metadataBase.
 export const metadata: Metadata = {
   title: "Ledgr",
-  description:
-    "Concilie o extrato do banco com o extrato do seu sistema de gestão em minutos, sem planilha no meio.",
+  description: DESCRICAO,
+  openGraph: {
+    title: "Ledgr · Pare de conciliar extrato à mão.",
+    description: DESCRICAO,
+    siteName: "Ledgr",
+    locale: "pt_BR",
+    type: "website",
+  },
+  twitter: { card: "summary_large_image" },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
