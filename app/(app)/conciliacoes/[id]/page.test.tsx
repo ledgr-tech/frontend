@@ -371,7 +371,7 @@ describe("ConciliacaoPage", () => {
     );
   });
 
-  it("offers the CSV of the pair only for a conciliação from the backend", async () => {
+  it("has no CSV export in the header, not even for a conciliação from the backend", async () => {
     rota.id = BANCO;
     rota.busca = `sistema=${SISTEMA}`;
     carregarConciliacao.mockResolvedValue({
@@ -381,14 +381,11 @@ describe("ConciliacaoPage", () => {
         truncada: false,
       },
     });
-    const user = userEvent.setup();
     render(<ConciliacaoPage />);
 
-    expect(await screen.findByRole("button", { name: "Exportar CSV" })).toBeInTheDocument();
-    // o backend filtra um status por vez; o "Só revisão" junta cinco, e o
-    // arquivo sai com tudo — o botão não pode deixar entender outra coisa
-    await user.click(screen.getByRole("button", { name: "Só revisão (1)" }));
-    expect(screen.getByRole("button", { name: "Exportar CSV (todas as linhas)" })).toBeInTheDocument();
+    // espera a conciliação do backend chegar: antes dela o cabeçalho não tem o que exportar
+    expect(await screen.findByRole("button", { name: "Só revisão (1)" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Exportar CSV/ })).not.toBeInTheDocument();
   });
 
   it("has no CSV for the mock conciliação, which the backend does not know", async () => {
@@ -489,8 +486,6 @@ describe("ConciliacaoPage", () => {
       expect(screen.getByRole("button", { name: "Tarifa TED" })).toBeInTheDocument();
       expect(screen.queryByRole("button", { name: "Boleto Aço Norte Bobinas" })).not.toBeInTheDocument();
       expect(window.location.search).toBe(`?sistema=${SISTEMA}&status=tarifa_bancaria`);
-      // o backend filtra por esse status, então o arquivo bate com a tela
-      expect(screen.getByRole("button", { name: "Exportar CSV" })).toBeInTheDocument();
 
       // desligar volta ao que as cinco juntam
       await user.click(tarifas);

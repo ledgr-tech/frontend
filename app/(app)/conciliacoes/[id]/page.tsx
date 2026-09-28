@@ -17,7 +17,6 @@ import { EsqueletoTela } from "../../esqueleto";
 import { filtrarLinhas, ordenarLinhas, type Coluna, type Filtro, type Ordem } from "./ordenar";
 import { aplicarDensidade, densidadeAtual, type Densidade } from "../../densidade";
 import { IconeOrigem, type Origem } from "../../icone-origem";
-import { ExportarCsv } from "./exportar-csv";
 import { CartaoLancamento, ladosDaLinha, type CartaoAberto } from "./cartao-lancamento";
 import { Relatorio } from "./relatorio";
 import { Reveal } from "@/app/reveal";
@@ -185,18 +184,6 @@ export default function ConciliacaoPage() {
           conciliacao.mes !== "Conciliação" && `competência ${conciliacao.mes.toLowerCase()}`,
           `${formatarInteiro(conciliacao.linhas.length)} ${conciliacao.linhas.length === 1 ? "lançamento" : "lançamentos"}`,
         ]}
-        acoes={
-          // o mock não existe no backend: não há arquivo para gerar
-          real && (
-            <ExportarCsv
-              extratoBancoId={conciliacao.id}
-              extratoSistemaId={conciliacao.extratoSistemaId}
-              mes={conciliacao.mes}
-              filtrada={filtro === "revisao"}
-              status={categoria ?? undefined}
-            />
-          )
-        }
       />
       <div style={{ padding: "24px 0 72px", display: "flex", flexDirection: "column", gap: 22 }}>
         {/* A tela ordena e filtra a lista inteira no cliente, então só faz sentido
