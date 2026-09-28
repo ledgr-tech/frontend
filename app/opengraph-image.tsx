@@ -11,7 +11,7 @@ import { join } from "node:path";
  * Sem rede, a imagem sai na fonte padrão em vez de quebrar o build.
  */
 
-export const alt = "Ledgr — Pare de conciliar extrato à mão.";
+export const alt = "Ledgr: pare de conciliar extrato à mão.";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 

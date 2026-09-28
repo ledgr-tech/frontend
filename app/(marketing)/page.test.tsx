@@ -22,6 +22,20 @@ describe("LandingPage", () => {
     expect(within(prova).getByText("5")).toBeInTheDocument();
   });
 
+  it("writes its copy without dashes between clauses", () => {
+    render(<LandingPage />);
+
+    expect(
+      screen.getByText(/Em minutos você recebe o relatório do que bate e do que não bate, lançamento por lançamento, sem planilha no meio\./),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/entrega um relatório categorizado, sem planilha e sem conferência manual linha por linha\./),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Não. O Ledgr lê o arquivo que o internet banking já exporta, em OFX ou CSV. Nenhuma credencial bancária é pedida."),
+    ).toBeInTheDocument();
+  });
+
   it("states the golden rule and the pricing model", () => {
     render(<LandingPage />);
     expect(
