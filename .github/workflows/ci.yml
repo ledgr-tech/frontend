@@ -6,6 +6,10 @@ on:
   push:
     branches: [main, develop]
 
+# o CI só lê o código: sem isso o token herda o padrão da organização, que pode dar escrita (alerta do CodeQL)
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
