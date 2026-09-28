@@ -834,12 +834,13 @@ button.login-link-animado { border: 0; background-color: transparent; font: inhe
   --tinta-hover: color-mix(in srgb, var(--color-text) 6%, transparent);
   --tinta-ativa: color-mix(in srgb, var(--color-text) 9%, transparent);
   --texto-apagado: color-mix(in srgb, var(--color-text) 58%, transparent);
-  --folha-banco: #fdfcfa; --folha-sistema: #ebe8e3; --superficie-elevada: #fdfcfa;
-  /* janela do app sobre a faixa escura, como as do produto no arc.net: o papel do app por
-     dentro, raio pequeno e uma sombra que a descola do fundo */
+  /* janela do app sobre a faixa escura, no tema escuro do próprio app (as cores vêm do bloco
+     do tema escuro, mais abaixo): papel escuro por dentro, raio pequeno e um filete claro bem
+     fino, que no escuro separa melhor que sombra, como o Linear mostra o produto */
   padding: 22px; border-radius: var(--radius-sm);
   background: var(--folha-banco);
-  box-shadow: 0 18px 44px -16px rgb(0 0 0 / 0.6), 0 2px 8px rgb(0 0 0 / 0.25);
+  border: 1px solid rgb(255 255 255 / 0.08);
+  box-shadow: 0 16px 40px -24px rgb(0 0 0 / 0.7);
   color: var(--color-text);
 }
 /* o painel do mês já vem com moldura própria; na miniatura, a tela é a moldura */
@@ -1347,7 +1348,8 @@ button.login-link-animado { border: 0; background-color: transparent; font: inhe
     --folha-banco: #2c2a27; --folha-sistema: #232120; --superficie-elevada: #3b3935;
   }
 }
-html[data-tema="escuro"] .app-shell {
+/* as miniaturas de "Por dentro do Ledgr" ficam sempre no tema escuro do app: estão na faixa escura da landing */
+html[data-tema="escuro"] .app-shell, .por-dentro-tela {
   --folha-banco: #2c2a27; --folha-sistema: #232120; --superficie-elevada: #3b3935;
 }
 
@@ -2643,7 +2645,7 @@ th:is([aria-sort="ascending"], [aria-sort="descending"]) .th-ordena-seta { opaci
   }
 }
 
-html[data-tema="escuro"] .app-shell {
+html[data-tema="escuro"] .app-shell, .por-dentro-tela {
   --color-bg: #1c1a18;
   --color-surface: #272522;
   --color-text: #e9e8e5;
