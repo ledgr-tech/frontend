@@ -65,6 +65,12 @@ export function CabecalhoSite() {
   }, [aberto]);
 
   const fechar = () => setAberto(false);
+  // o Link para a mesma página só troca o endereço (tira o #secao), sem rolar; a subida é
+  // suave pelo scroll-behavior do html, e instantânea com movimento reduzido
+  const voltarAoInicio = () => {
+    fechar();
+    window.scrollTo({ top: 0 });
+  };
 
   return (
     <header
@@ -92,17 +98,25 @@ export function CabecalhoSite() {
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
-          <Image
-            className="site-logo-marca"
-            src="/mascotes/logo-barras.png"
-            alt="Ledgr"
-            width={1280}
-            height={1041}
-            sizes="32px"
-            loading="eager"
-            style={{ height: 26, width: "auto" }}
-          />
-          <span style={{ fontFamily: "var(--font-heading)", fontSize: 23, fontWeight: 600 }}>Ledgr</span>
+          {/* a marca leva ao início, como em qualquer site */}
+          <Link
+            href="/"
+            aria-label="Ledgr, voltar ao início"
+            onClick={voltarAoInicio}
+            style={{ display: "flex", alignItems: "center", gap: 12, color: "inherit", textDecoration: "none" }}
+          >
+            <Image
+              className="site-logo-marca"
+              src="/mascotes/logo-barras.png"
+              alt=""
+              width={1280}
+              height={1041}
+              sizes="32px"
+              loading="eager"
+              style={{ height: 26, width: "auto" }}
+            />
+            <span style={{ fontFamily: "var(--font-heading)", fontSize: 23, fontWeight: 600 }}>Ledgr</span>
+          </Link>
           <span
             className="site-slogan"
             style={{

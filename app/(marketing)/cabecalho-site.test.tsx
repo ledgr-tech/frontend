@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { CabecalhoSite } from "./cabecalho-site";
@@ -57,6 +57,24 @@ describe("CabecalhoSite", () => {
 
     expect(menu()).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Abrir menu" })).toHaveFocus();
+  });
+
+  it("takes you back to the start from the Ledgr brand, closing the menu", async () => {
+    const user = userEvent.setup();
+    render(<CabecalhoSite />);
+    const marca = screen.getByRole("link", { name: "Ledgr, voltar ao início" });
+    expect(marca).toHaveAttribute("href", "/");
+    // o slogan acompanha a marca, mas não faz parte do link
+    expect(marca).not.toHaveTextContent("Conciliação bancária");
+    await user.click(screen.getByRole("button", { name: "Abrir menu" }));
+    const rolar = vi.spyOn(window, "scrollTo").mockImplementation(() => {});
+
+    await user.click(marca);
+
+    // o Link para a mesma página só troca o endereço; quem sobe é a marca
+    expect(rolar).toHaveBeenCalledWith({ top: 0 });
+    expect(menu()).not.toBeInTheDocument();
+    rolar.mockRestore();
   });
 
   it("closes when tapping outside the header", async () => {
