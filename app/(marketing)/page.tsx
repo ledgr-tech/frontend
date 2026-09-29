@@ -23,7 +23,7 @@ const PROVAS_HERO = [
 
 const NUMEROS = [
   { valor: "Automático", rotulo: "a maior parte dos lançamentos casa sem precisar mexer em nada" },
-  { valor: "minutos", rotulo: "para ter o relatório pronto após subir os arquivos" },
+  { valor: "minutos", rotulo: "para o relatório ficar pronto depois que você sobe os arquivos" },
   { valor: "Sem instalar nada", rotulo: "nenhuma integração bancária pra configurar" },
 ];
 
@@ -102,7 +102,7 @@ const PASSOS = [
   {
     num: "I",
     titulo: "Suba o extrato do banco",
-    texto: "OFX ou CSV, direto do internet banking. É esse extrato que define a verdade da conciliação.",
+    texto: "OFX ou CSV, direto do internet banking. Quando os dois lados discordam, vale o que está nesse extrato.",
   },
   {
     num: "II",
@@ -120,7 +120,7 @@ const PERGUNTAS = [
   {
     pergunta: "Preciso instalar algo no meu banco?",
     resposta:
-      "Não. O Ledgr lê o arquivo que o internet banking já exporta, em OFX ou CSV. Nenhuma credencial bancária é pedida.",
+      "Não. O Ledgr lê o arquivo que o internet banking já exporta, em OFX ou CSV, e não pede nenhuma credencial bancária.",
   },
   {
     pergunta: "E se o CSV do meu sistema vier em outro formato?",
@@ -130,12 +130,12 @@ const PERGUNTAS = [
   {
     pergunta: "Quem decide o que é divergência?",
     resposta:
-      "Você. O Ledgr aponta, nomeia e explica cada caso; aceitar o valor do banco ou corrigir no sistema é sempre uma decisão sua.",
+      "Você. O Ledgr mostra cada caso com a categoria e o motivo provável, mas aceitar o valor do banco ou corrigir no sistema é decisão sua.",
   },
   {
     pergunta: "O contador consegue acessar?",
     resposta:
-      "Ainda não com acesso próprio: hoje cada empresa tem um login só. O relatório de cada conciliação sai em CSV, pronto para mandar ao contador.",
+      "Ainda não tem acesso próprio: hoje cada empresa tem um login só. Mas o relatório de cada conciliação sai em CSV, pronto para mandar ao contador.",
   },
   {
     pergunta: "Consigo conciliar mais de um banco ao mesmo tempo?",
@@ -145,12 +145,12 @@ const PERGUNTAS = [
   {
     pergunta: "Existe fidelidade ou taxa de implantação?",
     resposta:
-      "Não. Você paga só pelo volume de lançamentos conferidos no mês, sem contrato de fidelidade, taxa de setup ou cobrança por usuário adicional.",
+      "Não. Você paga só pelo volume de lançamentos conferidos no mês, sem contrato de fidelidade, taxa de implantação ou cobrança por usuário adicional.",
   },
   {
     pergunta: "Posso cancelar quando quiser?",
     resposta:
-      "Sim, sem multa nem aviso prévio: é só pedir por e-mail. E, por enquanto, nada é cobrado: a cobrança ainda não está no ar.",
+      "Sim, sem multa nem aviso prévio: é só pedir por e-mail. E por enquanto ninguém paga nada, porque a cobrança ainda não está no ar.",
   },
 ];
 
@@ -441,8 +441,8 @@ export default function LandingPage() {
                 Em números
               </span>
               <span style={{ fontSize: 14, lineHeight: 1.6, maxWidth: "46ch", color: "var(--color-neutral-400)" }}>
-                O Ledgr cruza extrato do banco com o razão do ERP e entrega um relatório categorizado,
-                sem planilha e sem conferência manual linha por linha.
+                O Ledgr cruza o extrato do banco com o razão do ERP e devolve cada divergência na sua
+                categoria. Você não monta planilha nem confere linha por linha.
               </span>
             </InkHover>
           </Reveal>
@@ -564,7 +564,7 @@ export default function LandingPage() {
               <div style={{ flex: "1 1 360px", minWidth: 0 }}>
                 <h6 className="eyebrow" style={{ margin: "0 0 12px", color: "var(--color-accent-700)" }}>Cap. III · Como funciona</h6>
                 <h2 style={{ margin: 0, fontSize: "clamp(30px, 2.8vw, 46px)", fontWeight: 400, lineHeight: 1.08 }}>
-                  Três passos, sem cruzar linha por linha.
+                  Três passos. A conferência linha por linha fica com o Ledgr.
                 </h2>
               </div>
               <Image
@@ -679,9 +679,9 @@ export default function LandingPage() {
                     lineHeight: 1.75,
                   }}
                 >
-                  Toda divergência é reportada na mesma direção: o sistema diverge do banco, nunca o
-                  contrário. Isso encerra a discussão sobre qual número vale e deixa claro o que
-                  precisa ser corrigido no seu sistema de gestão.
+                  O Ledgr aponta toda divergência do mesmo lado: é o sistema que difere do banco.
+                  Assim ninguém discute qual número vale, e fica claro o que corrigir no seu
+                  sistema de gestão.
                 </p>
               </div>
               <div className="font-display regra-icon regra-icon-mirror" aria-hidden style={{ fontSize: 82, lineHeight: 1, visibility: "hidden" }}>
@@ -742,9 +742,9 @@ export default function LandingPage() {
                 maxWidth: "66ch",
               }}
             >
-              O Ledgr aceita OFX e CSV de qualquer banco. Suba o extrato do banco, suba o razão do
-              seu ERP ou sistema de gestão no mesmo período e receba o relatório categorizado. Sem
-              integração pra configurar, sem instalar nada.
+              O Ledgr aceita OFX e CSV de qualquer banco. Você sobe o extrato do banco e o razão do
+              seu ERP ou sistema de gestão do mesmo período, e recebe o relatório com as divergências
+              separadas. Não tem integração pra configurar nem programa pra instalar.
             </p>
             <p
               className="texto-justificado"
@@ -755,8 +755,8 @@ export default function LandingPage() {
                 maxWidth: "66ch",
               }}
             >
-              {`Cada divergência vem nomeada: ${CATEGORIAS}.`} Você vê o problema, decide o que
-              corrigir no sistema e fecha o mês com segurança.
+              {`Cada divergência vem com o nome da categoria: ${CATEGORIAS}.`} Você vê o problema,
+              decide o que corrigir no sistema e fecha o mês.
             </p>
             <Link href="/cadastro" className="btn btn-primary">
               Testar agora, gratuito
@@ -856,8 +856,8 @@ export default function LandingPage() {
           </h2>
           <div style={{ width: 84, height: 1, background: "var(--color-accent)" }} />
           <p style={{ margin: 0, fontSize: 16.5, lineHeight: 1.72, maxWidth: "52ch", color: "var(--color-neutral-300)" }}>
-            Você paga pelo tanto de lançamento que conferir no mês. Sem fidelidade, sem taxa de
-            implantação, sem cobrar por usuário.
+            Você paga pelo número de lançamentos que conferir no mês. Não tem fidelidade, taxa de
+            implantação nem cobrança por usuário.
           </p>
           <div
             className="planos-grade"

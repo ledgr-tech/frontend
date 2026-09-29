@@ -24,8 +24,8 @@ import type { LinhaExtrato } from "./comparacao";
 
 /**
  * A tela inteira do app numa janela, como o arc.net mostra o navegador: a
- * "Comparação direta" de agosto da Telha Certa Ltda (a empresa de exemplo do
- * export do Claude Design), com a linha do fluxo de "Por dentro" em destaque.
+ * "Comparação direta" de agosto de uma empresa genérica ("Sua empresa"), com a
+ * linha do fluxo de "Por dentro" em destaque.
  *
  * O conteúdo usa as classes e os componentes do app (Cabecalho, Relatorio, a
  * tabela em duas folhas, os selos). O menu e a barra de cima não: as regras do
@@ -38,7 +38,7 @@ import type { LinhaExtrato } from "./comparacao";
  */
 
 const LARGURA = 1280;
-const EMPRESA = "Telha Certa Ltda";
+const EMPRESA = "Sua empresa";
 
 // ponytail: cópia dos nomes e ícones do menu (ITENS em app/(app)/menu-lateral.tsx).
 // Se o menu do app mudar, esta lista muda junto.
@@ -267,9 +267,8 @@ export function Vitrine({
         </div>
       </div>
       <figcaption className="sr-only">
-        A tela Comparação direta do Ledgr, com a conciliação de agosto da {EMPRESA}: as divergências por
-        categoria e a tabela do extrato do banco ao lado do sistema de gestão, com a linha “{destaque}” em
-        destaque.
+        A tela Comparação direta do Ledgr com uma conciliação de agosto. Em cima ficam as divergências por
+        categoria; embaixo, o extrato do banco ao lado do sistema de gestão, com a linha “{destaque}” acesa.
       </figcaption>
     </figure>
   );

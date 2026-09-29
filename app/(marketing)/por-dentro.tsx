@@ -37,14 +37,15 @@ export function PorDentro({ banco, sistema }: { banco: LinhaExtrato[]; sistema: 
           O pagamento ao fornecedor chega nos dois arquivos, no mesmo dia, com 36 reais de diferença.
         </Etapa>
         <Etapa num="II" titulo="O Ledgr acha a diferença" atraso={0.08}>
-          Casa as duas pela data, mede a diferença e dá o nome da categoria. É uma das 41 desse tipo em agosto.
+          O Ledgr junta as duas pela data e mede a diferença. A linha entra em “Valor diverge na mesma data”, com
+          outras 40 do mesmo tipo em agosto.
         </Etapa>
         <Etapa num="III" titulo="E diz o motivo" atraso={0.16}>
-          Cada divergência vem com o que provavelmente aconteceu. Quem decide o que corrigir é você.
+          Cada divergência vem com o motivo mais provável, e o que corrigir fica por sua conta.
         </Etapa>
         <Etapa num="IV" titulo="Você corrige no seu sistema" atraso={0.24}>
-          O extrato do banco é a fonte da verdade: o ajuste é no seu sistema de gestão, e a linha vai no
-          relatório para o contador.
+          Como o banco é a referência, os 36 reais são ajustados no seu sistema de gestão. A linha também
+          sai no relatório em CSV que vai para o contador.
         </Etapa>
       </ol>
       <Reveal once>

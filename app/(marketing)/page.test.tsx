@@ -26,10 +26,10 @@ describe("LandingPage", () => {
       screen.getByText(/Em minutos você recebe o relatório do que bate e do que não bate, lançamento por lançamento, sem planilha no meio\./),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/entrega um relatório categorizado, sem planilha e sem conferência manual linha por linha\./),
+      screen.getByText(/devolve cada divergência na sua categoria\. Você não monta planilha nem confere linha por linha\./),
     ).toBeInTheDocument();
     expect(
-      screen.getByText("Não. O Ledgr lê o arquivo que o internet banking já exporta, em OFX ou CSV. Nenhuma credencial bancária é pedida."),
+      screen.getByText("Não. O Ledgr lê o arquivo que o internet banking já exporta, em OFX ou CSV, e não pede nenhuma credencial bancária."),
     ).toBeInTheDocument();
   });
 
@@ -57,7 +57,7 @@ describe("LandingPage", () => {
       screen.getByText("a maior parte dos lançamentos casa sem precisar mexer em nada")
     ).toBeInTheDocument();
     expect(
-      screen.getByText("para ter o relatório pronto após subir os arquivos")
+      screen.getByText("para o relatório ficar pronto depois que você sobe os arquivos")
     ).toBeInTheDocument();
     expect(
       screen.getByText("nenhuma integração bancária pra configurar")
@@ -87,10 +87,10 @@ describe("LandingPage", () => {
     const tela = container.querySelector<HTMLElement>("#por-dentro .vitrine-app")!;
     expect(tela.closest("[inert]")).not.toBeNull();
     const dentro = within(tela);
-    // o casco do app, com Conciliações aceso, e a comparação direta de agosto da empresa de exemplo
+    // o casco do app, com Conciliações aceso, e a comparação direta de agosto de uma empresa genérica
     expect(dentro.getByText("Conciliações").closest("[data-ativo]")).not.toBeNull();
     expect(dentro.getByRole("heading", { name: "Comparação direta" })).toBeInTheDocument();
-    expect(dentro.getByText("Telha Certa Ltda · competência agosto/2026 · 4.218 lançamentos")).toBeInTheDocument();
+    expect(dentro.getByText("Sua empresa · competência agosto/2026 · 4.218 lançamentos")).toBeInTheDocument();
     // o relatório é o componente do app, com o mesmo agosto do topo da página
     expect(dentro.getByRole("heading", { name: "Divergências por categoria" })).toBeInTheDocument();
     expect(dentro.getByText(/^157 linhas pedem revisão/)).toBeInTheDocument();
@@ -127,7 +127,7 @@ describe("LandingPage", () => {
     const lista =
       "valor diverge na mesma data, possível duplicidade, mesmo valor em outra data, sem correspondência e tarifa bancária";
     expect(screen.getByText(`Relatório nas 5 categorias: ${lista}.`)).toBeInTheDocument();
-    expect(screen.getByText(new RegExp(`Cada divergência vem nomeada: ${lista}\.`))).toBeInTheDocument();
+    expect(screen.getByText(new RegExp(`Cada divergência vem com o nome da categoria: ${lista}\.`))).toBeInTheDocument();
   });
 
   it("explains the divergence when hovering a mismatched line", () => {
