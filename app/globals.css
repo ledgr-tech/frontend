@@ -942,7 +942,14 @@ button.login-link-animado { border: 0; background-color: transparent; font: inhe
   background: color-mix(in srgb, var(--tom-linha) 14%, var(--folha-sistema));
 }
 .vitrine-app .table tbody tr[data-destacada] > td:last-child {
+  position: relative;
   background: color-mix(in srgb, var(--tom-linha) 14%, transparent);
+}
+/* o cartão do hover do app aberto sobre essa linha. No app ele é fixo na tela, a 12px da ponta
+   da linha e 4px sobre ela; aqui a âncora é a última célula, que termina onde a linha termina */
+.vitrine-app .cartao-lancamento {
+  position: absolute; right: 12px; bottom: calc(100% - 4px);
+  width: 340px; text-align: left; animation: none;
 }
 .numeros-grade { --grade-recuo: 28px; --grade-linha: color-mix(in srgb, var(--color-neutral-100) 22%, transparent); }
 .hero-provas-grid { --grade-recuo: 16px; }

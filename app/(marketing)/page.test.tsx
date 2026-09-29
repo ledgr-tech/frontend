@@ -97,14 +97,28 @@ describe("LandingPage", () => {
     // o relatório é o componente do app, com o mesmo agosto do topo da página
     expect(dentro.getByRole("heading", { name: "Divergências por categoria" })).toBeInTheDocument();
     expect(dentro.getByText(/^157 linhas pedem revisão/)).toBeInTheDocument();
-    // a linha do fluxo, em destaque na tabela das duas folhas
+    // a linha do fluxo, em destaque na tabela das duas folhas (e no título do cartão aberto sobre ela)
     const linha = within(tela.querySelector<HTMLElement>("tr[data-destacada]")!);
-    expect(linha.getAllByText("Pagamento fornecedor #1082")).toHaveLength(2);
+    expect(linha.getAllByText("Pagamento fornecedor #1082")).toHaveLength(3);
     expect(linha.getByText("R$ 12.640,00")).toBeInTheDocument();
     expect(linha.getByText("R$ 12.604,00")).toBeInTheDocument();
     expect(linha.getByText("Valor diverge na mesma data")).toBeInTheDocument();
     // fora do leitor de tela, a réplica ganha uma descrição
     expect(screen.getByText(/^A tela Comparação direta do Ledgr/)).toBeInTheDocument();
+  });
+
+  it("freezes the app's hover card open over line #1082 in the showcase, with the reason for the difference", () => {
+    const { container } = render(<LandingPage />);
+    const linha = container.querySelector<HTMLElement>("#por-dentro .vitrine-app tr[data-destacada]")!;
+    const cartao = within(linha.querySelector<HTMLElement>(".cartao-lancamento")!);
+    expect(cartao.getByText("Lançamento · Valor diverge na mesma data")).toBeInTheDocument();
+    expect(cartao.getByText("Pagamento fornecedor #1082")).toBeInTheDocument();
+    // no formato do cartão do app: a data de cada lado junto do valor
+    expect(cartao.getByText("04/08 · R$ 12.640,00")).toBeInTheDocument();
+    expect(cartao.getByText("04/08 · R$ 12.604,00")).toBeInTheDocument();
+    expect(cartao.getByText(/^O banco descontou R\$ 36,00 de juros por atraso no boleto/)).toBeInTheDocument();
+    // a legenda para o leitor de tela conta o cartão, já que a réplica fica fora dele
+    expect(screen.getByText(/o cartão dela aberto com o motivo da diferença/)).toBeInTheDocument();
   });
 
   // a demonstração banco × sistema; "Por dentro do Ledgr" repete alguns destes valores
@@ -138,7 +152,7 @@ describe("LandingPage", () => {
 
     fireEvent.mouseEnter(screen.getAllByRole("button", { name: /Pagamento fornecedor #1082/ })[0]);
 
-    expect(screen.getByText(/juros por atraso/)).toBeInTheDocument();
+    expect(demonstracao().getByText(/juros por atraso/)).toBeInTheDocument();
   });
 
   it("tells mouse users to hover and touch users to tap the comparison lines", () => {
@@ -160,7 +174,7 @@ describe("LandingPage", () => {
 
     fireEvent.mouseLeave(linha);
 
-    await waitFor(() => expect(screen.queryByText(/juros por atraso/)).not.toBeInTheDocument());
+    await waitFor(() => expect(demonstracao().queryByText(/juros por atraso/)).not.toBeInTheDocument());
   });
 
   it("lists the three how-it-works steps", () => {

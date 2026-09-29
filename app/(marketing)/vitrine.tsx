@@ -14,6 +14,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { Cabecalho, EmpresaDaSessao } from "@/app/(app)/cabecalho";
+import { ConteudoCartao } from "@/app/(app)/conciliacoes/[id]/cartao-lancamento";
 import { Relatorio } from "@/app/(app)/conciliacoes/[id]/relatorio";
 import { seloDoStatus } from "@/app/(app)/dashboard/resumo";
 import { IconeOrigem } from "@/app/(app)/icone-origem";
@@ -25,7 +26,8 @@ import type { LinhaExtrato } from "./comparacao";
 /**
  * A tela inteira do app numa janela, como o arc.net mostra o navegador: a
  * "Comparação direta" de agosto de uma empresa genérica ("Sua empresa"), com a
- * linha do fluxo de "Por dentro" em destaque.
+ * linha do fluxo de "Por dentro" em destaque e o cartão do hover do app aberto
+ * sobre ela, como se o mouse estivesse ali.
  *
  * O conteúdo usa as classes e os componentes do app (Cabecalho, Relatorio, a
  * tabela em duas folhas, os selos). O menu e a barra de cima não: as regras do
@@ -244,8 +246,9 @@ export function Vitrine({
                   <tbody>
                     {linhas.map(({ b, s }) => {
                       const selo = seloDoStatus(b.status);
+                      const destacada = b.desc === destaque;
                       return (
-                        <tr key={b.desc} data-tom={selo.tom} data-destacada={b.desc === destaque || undefined}>
+                        <tr key={b.desc} data-tom={selo.tom} data-destacada={destacada || undefined}>
                           <td className="dash-celula-fraca folha-banco">{b.data}</td>
                           <td className="folha-banco">{b.desc}</td>
                           <td className="dash-valor-celula folha-banco">{b.valorBanco ?? "—"}</td>
@@ -255,6 +258,19 @@ export function Vitrine({
                           <td className="dash-valor-celula folha-sistema">{s?.valorSistema ?? "—"}</td>
                           <td style={{ textAlign: "right" }}>
                             <span className={`selo selo-${selo.tom}`}>{selo.rotulo}</span>
+                            {/* na última célula, que termina onde a linha termina: o cartão se
+                                ancora nela como no app se ancora na linha (globals.css) */}
+                            {destacada && (
+                              <div className="cartao-lancamento">
+                                <ConteudoCartao
+                                  rotulo={selo.rotulo}
+                                  titulo={b.desc}
+                                  banco={b.valorBanco ? `${b.data} · ${b.valorBanco}` : "—"}
+                                  sistema={s?.valorSistema ? `${s.data} · ${s.valorSistema}` : "—"}
+                                  explicacao={b.explicacao}
+                                />
+                              </div>
+                            )}
                           </td>
                         </tr>
                       );
@@ -268,7 +284,8 @@ export function Vitrine({
       </div>
       <figcaption className="sr-only">
         A tela Comparação direta do Ledgr com uma conciliação de agosto. Em cima ficam as divergências por
-        categoria; embaixo, o extrato do banco ao lado do sistema de gestão, com a linha “{destaque}” acesa.
+        categoria; embaixo, o extrato do banco ao lado do sistema de gestão, com a linha “{destaque}” acesa e
+        o cartão dela aberto com o motivo da diferença.
       </figcaption>
     </figure>
   );

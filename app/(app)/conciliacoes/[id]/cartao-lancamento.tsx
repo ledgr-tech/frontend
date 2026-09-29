@@ -35,6 +35,44 @@ function valorDoLado(lado: Lado, valor: number | null): string {
 }
 
 /**
+ * O miolo do cartão, já em texto. Separado para a vitrine da landing, que
+ * mostra o cartão aberto na réplica da tela com os valores dela.
+ */
+export function ConteudoCartao({
+  rotulo,
+  titulo,
+  banco,
+  sistema,
+  explicacao,
+}: {
+  rotulo: string;
+  titulo: string;
+  banco: string;
+  sistema: string;
+  explicacao: string | null;
+}) {
+  return (
+    <>
+      <div>
+        <h6>Lançamento · {rotulo}</h6>
+        <div className="cartao-lancamento-titulo">{titulo}</div>
+        <dl>
+          <div>
+            <dt>Extrato do banco</dt>
+            <dd>{banco}</dd>
+          </div>
+          <div>
+            <dt>Extrato do sistema</dt>
+            <dd>{sistema}</dd>
+          </div>
+        </dl>
+      </div>
+      {explicacao && <p className="dialog-body">{explicacao}</p>}
+    </>
+  );
+}
+
+/**
  * O lançamento no hover, como o da landing ("duas telas abertas, um dedo em
  * cada linha"). Fixo na tela, e não dentro da tabela, porque a rolagem
  * horizontal da tabela cortaria o cartão da primeira linha.
@@ -55,21 +93,13 @@ export function CartaoLancamento({ id, aberto }: { id: string; aberto: CartaoAbe
         ...(acima ? { bottom: tela.clientHeight - ancora.top - 4 } : { top: ancora.bottom - 4 }),
       }}
     >
-      <div>
-        <h6>Lançamento · {statusDaLinha(linha).rotulo}</h6>
-        <div className="cartao-lancamento-titulo">{linha.descricao}</div>
-        <dl>
-          <div>
-            <dt>Extrato do banco</dt>
-            <dd>{valorDoLado(banco, linha.valorBanco)}</dd>
-          </div>
-          <div>
-            <dt>Extrato do sistema</dt>
-            <dd>{valorDoLado(sistema, linha.valorSistema)}</dd>
-          </div>
-        </dl>
-      </div>
-      {linha.explicacao && <p className="dialog-body">{linha.explicacao}</p>}
+      <ConteudoCartao
+        rotulo={statusDaLinha(linha).rotulo}
+        titulo={linha.descricao}
+        banco={valorDoLado(banco, linha.valorBanco)}
+        sistema={valorDoLado(sistema, linha.valorSistema)}
+        explicacao={linha.explicacao}
+      />
     </div>
   );
 }
