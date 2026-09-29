@@ -134,6 +134,12 @@ a { color: var(--color-accent-700); text-underline-offset: 3px; }
 /* rótulos pequenos (kickers/eyebrows) em accent — monoespaçada remete a
    ticker/extrato/planilha */
 .eyebrow { font-family: var(--font-mono); }
+/* eyebrow de seção em <p>, não <h6>: é rótulo, e um <h6> logo depois do <h1> pulava cinco
+   níveis para o leitor de tela. O desenho é o mesmo do h6 */
+p.eyebrow {
+  font-weight: var(--font-heading-weight); font-size: 14px; line-height: 1.12;
+  letter-spacing: 0.08em; text-transform: uppercase;
+}
 
 /* FAQ: <details>/<summary> nativo, sem JS — dropdown com + que vira x */
 .faq-item { border-bottom: 1px solid var(--color-divider); }
@@ -720,6 +726,48 @@ button.login-link-animado { border: 0; background-color: transparent; font: inhe
   .extrato-divider-line { width: auto; height: 1px; }
 }
 
+/* ---------- borda em onda da landing (experimento de 28/09, no formato do arc.net) ----------
+   Cada seção começa com uma onda suave na cor da seção de cima, 17px de período e 4px de altura,
+   como no site do Arc: a seção de cima parece escorrer por cima desta. Ela é desenhada dentro da
+   própria seção, então o overflow: hidden das seções não corta. A cor vem de --onda-cor, com o
+   fundo da seção anterior. Só a landing: o app e as telas de acesso seguem com filete reto. */
+.onda { position: relative; }
+.onda::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0; height: 8px; z-index: 1;
+  background: var(--onda-cor);
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='17' height='8'%3E%3Cpath d='M0 0H17V4C12.75 4 12.75 8 8.5 8S4.25 4 0 4Z'/%3E%3C/svg%3E") 0 0 / 17px 8px repeat-x;
+  pointer-events: none;
+}
+.onda-papel { --onda-cor: var(--color-bg); }
+.onda-superficie { --onda-cor: var(--color-surface); }
+.onda-escura { --onda-cor: var(--faixa-escura); }
+/* granulado das faixas escuras, como o do fundo violeta do Arc: ruído SVG gerado aqui (nenhuma imagem
+   de fora), pontinhos claros de alpha baixo, como camada de fundo, então fica atrás do texto. A onda
+   que a faixa escura derrama na seção de baixo leva o mesmo grão, para a borda não virar tira lisa. */
+:root {
+  /* o preto das faixas, um pouco abaixo do neutral-900 para o grão não deixar a faixa cinza */
+  --faixa-escura: color-mix(in srgb, var(--color-neutral-900) 78%, #000);
+  --grao: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 .28 0 0 0 -.08'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+}
+.grao { background-image: var(--grao); }
+.onda-escura::before { background-image: var(--grao); }
+/* a mesma faixa em tom claro: "pedra", um cinza quente um pouco mais fundo que o --color-surface
+   de "Como funciona" e o papel da Regra de ouro, para se separar das duas vizinhas, com o grão
+   escuro e bem mais fraco (no claro o ponto escuro aparece mais que o claro no escuro) */
+:root {
+  --faixa-clara: #e4e0db;
+  --grao-claro: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .2 0 0 0 0 .14 0 0 0 0 .06 .2 0 0 0 -.07'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+}
+.grao-claro { background-image: var(--grao-claro); }
+.onda-faixa-clara { --onda-cor: var(--faixa-clara); }
+.onda-faixa-clara::before { background-image: var(--grao-claro); }
+
+/* marca d'água das barras do logo no hero (LogoBarras em SVG, na cor do texto) */
+.hero-marca {
+  position: absolute; top: -70px; right: -110px; width: 640px; height: auto;
+  opacity: 0.05; color: var(--color-text); pointer-events: none;
+}
+
 /* ---------- landing em telas menores ---------- */
 
 /* cabeçalho: acima de 960px, navegação completa; abaixo, a marca vai para a direita e abre um menu de opções */
@@ -787,50 +835,115 @@ button.login-link-animado { border: 0; background-color: transparent; font: inhe
 .grade-colunas > * { padding-inline: var(--grade-recuo, 16px); }
 .grade-colunas > :first-child { padding-left: 0; }
 .grade-colunas > * + * { border-left: 1px solid var(--grade-linha, var(--color-divider)); }
-/* "Por dentro do Ledgr" (app/(marketing)/por-dentro.tsx): telas do app em miniatura,
-   embaixo dos passos de "Como funciona", cada uma com a legenda embaixo */
-.por-dentro {
-  margin-top: clamp(56px, 7vw, 80px); padding-top: clamp(40px, 5vw, 56px);
-  border-top: 1px solid var(--color-divider);
-  display: flex; flex-direction: column; gap: 28px;
-}
-.por-dentro-topo { display: flex; flex-direction: column; gap: 10px; }
+/* "Por dentro do Ledgr" (app/(marketing)/por-dentro.tsx): seção própria na faixa clara, logo
+   depois de "Como funciona", com a vida da linha #1082 em quatro etapas e a tela do app embaixo. Uma coluna no celular,
+   2×2 no tablet e as quatro lado a lado no desktop, como os passos de "Como funciona" */
+.por-dentro { display: flex; flex-direction: column; gap: clamp(36px, 5vw, 56px); }
+.por-dentro-topo { display: flex; flex-direction: column; gap: 12px; }
 .por-dentro-intro {
-  margin: 0; max-width: 52ch; font-size: 15.5px; line-height: 1.7;
-  color: color-mix(in srgb, var(--color-text) 72%, transparent);
+  margin: 0; max-width: 24ch; font-size: clamp(30px, 2.8vw, 46px); font-weight: 400;
+  line-height: 1.08; text-wrap: balance;
 }
-.por-dentro-grade { display: grid; grid-template-columns: minmax(0, 1fr); gap: 32px 28px; align-items: start; }
-/* o painel do mês é o mais alto: ocupa a coluna da direita inteira, e o relatório e a
-   explicação se empilham à esquerda, sem buraco embaixo de nenhum */
-@media (min-width: 960px) {
-  .por-dentro-grade { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .por-dentro-grade > :nth-child(3) { grid-column: 2; grid-row: 1 / span 2; }
+.por-dentro-trilha {
+  list-style: none; margin: 0; padding: 0;
+  display: grid; grid-template-columns: minmax(0, 1fr); gap: 48px 28px;
 }
-.por-dentro-item { margin: 0; display: flex; flex-direction: column; gap: 14px; }
-.por-dentro-tela {
-  /* as variáveis que o app declara no .app-shell, no tema claro da landing */
+@media (min-width: 640px) { .por-dentro-trilha { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 1100px) { .por-dentro-trilha { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.por-dentro-etapa { display: flex; }
+.por-dentro-etapa-corpo { flex: 1; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.por-dentro-cabeca { display: flex; align-items: center; gap: 14px; }
+.por-dentro-num {
+  font-family: var(--font-display); font-size: 40px; line-height: 1; color: var(--color-accent);
+}
+/* o fio em onda: o mesmo período de 17px das bordas, como traço, na cor do numeral */
+.por-dentro-fio {
+  flex: 1; height: 8px; background: var(--color-accent); opacity: 0.55;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='17' height='8'%3E%3Cpath d='M0 4Q4.25 1 8.5 4T17 4' fill='none' stroke='%23000' stroke-width='1.2'/%3E%3C/svg%3E") 0 50% / 17px 8px repeat-x;
+}
+.por-dentro-titulo {
+  margin: 6px 0 0; font-family: var(--font-heading); font-size: 20px; font-weight: 600;
+  line-height: 1.25;
+}
+.por-dentro-texto { margin: 0; font-size: 14.5px; line-height: 1.65; color: color-mix(in srgb, var(--color-text) 72%, transparent); }
+/* a tela inteira do app numa janela (app/(marketing)/vitrine.tsx), como o arc.net mostra o
+   navegador: moldura com filete, sombra suave e a barra de três pontos; dentro, a réplica em
+   1280px, encolhida inteira por zoom. As variáveis são as que o app declara no .app-shell,
+   sempre no tema claro: a janela está na faixa clara da landing */
+.vitrine { margin: clamp(8px, 2vw, 24px) 0 0; }
+.vitrine-janela {
+  overflow: hidden; border-radius: 12px; background: var(--color-bg);
+  border: 1px solid color-mix(in srgb, var(--color-text) 14%, transparent);
+  box-shadow: 0 34px 70px -42px rgb(45 35 20 / 0.55), 0 2px 6px rgb(45 35 20 / 0.06);
+}
+.vitrine-barra {
+  display: flex; gap: 7px; padding: 11px 14px;
+  background: var(--color-surface); border-bottom: 1px solid var(--color-divider);
+}
+.vitrine-barra > span {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: color-mix(in srgb, var(--color-text) 16%, transparent);
+}
+.vitrine-app {
   --tinta-hover: color-mix(in srgb, var(--color-text) 6%, transparent);
   --tinta-ativa: color-mix(in srgb, var(--color-text) 9%, transparent);
   --texto-apagado: color-mix(in srgb, var(--color-text) 58%, transparent);
   --folha-banco: #fdfcfa; --folha-sistema: #ebe8e3; --superficie-elevada: #fdfcfa;
-  /* moldura com filete, como os cartões do app, sobre o fundo da seção: sem cartão chapado */
-  padding: 22px; border-radius: var(--radius-md);
-  border: 1px solid color-mix(in srgb, var(--color-text) 18%, transparent);
-  color: var(--color-text);
+  width: 1280px; display: grid; grid-template-columns: 232px minmax(0, 1fr);
+  background: var(--color-bg); color: var(--color-text); text-align: left;
 }
-/* o painel do mês já vem com moldura própria; na miniatura, a tela é a moldura */
-.por-dentro-tela .extrato-painel { padding: 0; border: none; background: none; position: static; }
-@media (max-width: 480px) { .por-dentro-tela { padding: 16px; } }
-.por-dentro-legenda { font-size: 14px; line-height: 1.6; color: color-mix(in srgb, var(--color-text) 66%, transparent); }
-.por-dentro-legenda strong { font-weight: 600; color: var(--color-text); }
-.por-dentro-explicacao { display: flex; flex-direction: column; gap: 18px; }
-.por-dentro-linha { margin: 4px 0 0; font-size: 20px; font-weight: 600; }
-.por-dentro-par { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
-.por-dentro-par > span:not(.det-delta-valor) { display: flex; flex-direction: column; gap: 2px; }
-.por-dentro-rotulo { font-size: 12.5px; color: var(--texto-apagado); }
-.por-dentro-valor { font-family: var(--font-titulo); font-size: 22px; font-variant-numeric: lining-nums tabular-nums; }
-.por-dentro-explicacao .det-causa { padding: 18px 0 0; border-bottom: none; }
-.por-dentro-explicacao .det-causa-texto { text-align: left; }
+/* menu e barra de cima: o desenho do .app-aside e do .app-topo, com classes próprias (ver vitrine.tsx) */
+.vitrine-menu {
+  display: flex; flex-direction: column; gap: 14px; padding: 18px 14px;
+  background: var(--color-surface); border-right: 1px solid var(--color-divider);
+}
+.vitrine-marca {
+  display: flex; align-items: center; gap: 10px; min-height: 36px; padding-left: 10px;
+  font-family: var(--font-heading); font-size: 20px; font-weight: 600; line-height: 1;
+}
+.vitrine-item {
+  display: flex; align-items: center; gap: 10px; padding: 8px 11px; white-space: nowrap;
+  border-radius: var(--radius-md); border: 1px solid transparent;
+  font-family: var(--font-heading); font-size: 15px; font-weight: 600;
+  color: color-mix(in srgb, var(--color-text) 78%, transparent);
+}
+.vitrine-item[data-ativo] { background: var(--tinta-ativa); color: var(--color-text); }
+.vitrine-nova {
+  border-color: var(--color-accent); color: var(--color-accent-700);
+  background: color-mix(in srgb, var(--color-accent) 9%, transparent);
+}
+.vitrine-nav { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.vitrine-assistente {
+  display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: var(--radius-md);
+  border: 1px solid color-mix(in srgb, var(--color-text) 20%, transparent);
+}
+.vitrine-conta {
+  display: flex; align-items: center; gap: 10px; padding: 12px 6px 0;
+  border-top: 1px solid var(--color-divider);
+}
+.vitrine-conta-texto { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.vitrine-conta-seta { flex: none; color: color-mix(in srgb, var(--color-text) 55%, transparent); }
+.vitrine-principal { min-width: 0; }
+.vitrine-topo {
+  display: flex; align-items: center; gap: 16px; padding: 12px 40px;
+  border-bottom: 1px solid var(--color-divider);
+}
+.vitrine-busca { flex: 1; }
+.vitrine-busca-texto { flex: 1; font-size: 14.5px; color: color-mix(in srgb, var(--color-text) 45%, transparent); }
+/* no app o atalho some em tela estreita; na réplica a tela é sempre a de desktop */
+.vitrine-app .app-busca-atalho { display: inline; }
+.vitrine-conteudo { padding: 0 40px 36px; }
+.vitrine-tela { display: flex; flex-direction: column; gap: 22px; padding-top: 24px; }
+/* a linha do fluxo acesa como no hover do app, um pouco mais forte, para ser vista de longe */
+.vitrine-app .table tbody tr[data-destacada] > .folha-banco {
+  background: color-mix(in srgb, var(--tom-linha) 14%, var(--folha-banco));
+}
+.vitrine-app .table tbody tr[data-destacada] > .folha-sistema {
+  background: color-mix(in srgb, var(--tom-linha) 14%, var(--folha-sistema));
+}
+.vitrine-app .table tbody tr[data-destacada] > td:last-child {
+  background: color-mix(in srgb, var(--tom-linha) 14%, transparent);
+}
 .numeros-grade { --grade-recuo: 28px; --grade-linha: color-mix(in srgb, var(--color-neutral-100) 22%, transparent); }
 .hero-provas-grid { --grade-recuo: 16px; }
 .hero-provas-grid > * { padding-top: 18px; }
@@ -862,7 +975,7 @@ button.login-link-animado { border: 0; background-color: transparent; font: inhe
   .passos-grade > * { padding-block: 24px; }
 
   /* imagens de fundo e mascotes menores, para acompanharem a coluna */
-  .hero-marca { width: 380px !important; top: -40px !important; right: -130px !important; }
+  .hero-marca { width: 380px; top: -40px; right: -130px; }
   .como-marca, .convite-marca { width: 280px !important; }
   .como-mascote { width: 170px !important; }
   .convite-conteudo { justify-content: center; }
@@ -1297,13 +1410,13 @@ button.login-link-animado { border: 0; background-color: transparent; font: inhe
    olho pequeno, não aguentava o corpo de título de tela. Só do tamanho de
    título para cima: lista, tabela e botão seguem em Inter. Algarismos
    alinhados: os de estilo antigo sobem e descem, e em valor isso atrapalha. */
-:is(.app-shell, .por-dentro-tela) :is(h1, h2, h3),
-:is(.app-shell, .por-dentro-tela) :is(.dash-valor, .hist-destaque, .det-valor, .vg-estado-aberto, .folha-nome, .det-cartao-titulo) {
+:is(.app-shell, .vitrine-app) :is(h1, h2, h3),
+:is(.app-shell, .vitrine-app) :is(.dash-valor, .hist-destaque, .det-valor, .vg-estado-aberto, .folha-nome, .det-cartao-titulo) {
   font-family: var(--font-titulo); font-variant-numeric: lining-nums tabular-nums;
 }
 /* título de passo tem 18px: fica na Inter, como o resto do texto corrido */
 .app-shell .vg-passo-titulo { font-family: var(--font-heading); }
-:is(.app-shell, .por-dentro-tela) h6 { color: var(--texto-apagado); }
+:is(.app-shell, .vitrine-app) h6 { color: var(--texto-apagado); }
 
 /* ── Comparação em duas folhas ────────────────────────────────────────────────
    O extrato do banco e o do sistema são coisas diferentes: cada um é uma folha de

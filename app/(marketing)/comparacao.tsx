@@ -24,7 +24,7 @@ function Detalhe({ id, linha }: { id: string; linha: LinhaExtrato }) {
     borderBottom: "1px solid var(--color-divider)",
     fontSize: 13.5,
   };
-  const rotuloStyle = { flex: "none", color: "color-mix(in srgb, var(--color-text) 56%, transparent)" };
+  const rotuloStyle = { flex: "none", color: "color-mix(in srgb, var(--color-text) 68%, transparent)" };
 
   return (
     <m.div
@@ -111,13 +111,13 @@ function Painel({
         }}
       >
         <span style={{ fontFamily: "var(--font-heading)", fontSize: 17, fontWeight: 600 }}>{titulo}</span>
-        <span style={{ fontSize: 12, color: "color-mix(in srgb, var(--color-text) 50%, transparent)" }}>{arquivo}</span>
+        <span style={{ fontSize: 12, color: "color-mix(in srgb, var(--color-text) 68%, transparent)" }}>{arquivo}</span>
       </div>
       {linhas.map((linha, i) => {
         const conteudo = (
           <>
             <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-              <span style={{ flex: "none", fontSize: 13, color: "color-mix(in srgb, var(--color-text) 50%, transparent)" }}>{linha.data}</span>
+              <span style={{ flex: "none", fontSize: 13, color: "color-mix(in srgb, var(--color-text) 68%, transparent)" }}>{linha.data}</span>
               {/* no celular a descrição quebra em linhas em vez de ser cortada (globals.css) */}
               <span className="extrato-desc" style={{ flex: 1, minWidth: 0, fontSize: 15, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {linha.desc}

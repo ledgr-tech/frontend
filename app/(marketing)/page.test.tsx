@@ -1,9 +1,6 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import LandingPage from "./page";
-
-// o painel do mês em "Por dentro do Ledgr" é o do app, e o botão de CSV dele usa o roteador
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }) }));
 
 describe("LandingPage", () => {
   it("shows the hero headline and a link into the product", () => {
@@ -29,10 +26,10 @@ describe("LandingPage", () => {
       screen.getByText(/Em minutos você recebe o relatório do que bate e do que não bate, lançamento por lançamento, sem planilha no meio\./),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/entrega um relatório categorizado, sem planilha e sem conferência manual linha por linha\./),
+      screen.getByText(/devolve cada divergência na sua categoria\. Você não monta planilha nem confere linha por linha\./),
     ).toBeInTheDocument();
     expect(
-      screen.getByText("Não. O Ledgr lê o arquivo que o internet banking já exporta, em OFX ou CSV. Nenhuma credencial bancária é pedida."),
+      screen.getByText("Não. O Ledgr lê o arquivo que o internet banking já exporta, em OFX ou CSV, e não pede nenhuma credencial bancária."),
     ).toBeInTheDocument();
     expect(
       screen.getByText("Exporte o razão do seu ERP ou sistema de gestão no mesmo período, em CSV ou PDF."),
@@ -63,29 +60,51 @@ describe("LandingPage", () => {
       screen.getByText("a maior parte dos lançamentos casa sem precisar mexer em nada")
     ).toBeInTheDocument();
     expect(
-      screen.getByText("para ter o relatório pronto após subir os arquivos")
+      screen.getByText("para o relatório ficar pronto depois que você sobe os arquivos")
     ).toBeInTheDocument();
     expect(
       screen.getByText("nenhuma integração bancária pra configurar")
     ).toBeInTheDocument();
   });
 
-  it("shows the product inside below the how-it-works steps, with the app's own screens, as a showcase that is not clickable", () => {
+  it("follows one line, #1082, from the two statements to your own system, right after the how-it-works steps", () => {
     const { container } = render(<LandingPage />);
-    // depois dos três passos: é o que chega no terceiro
-    expect(container.querySelector("#como")).toContainElement(screen.getByText("Por dentro do Ledgr"));
-    // o mesmo agosto do topo da página: 157 de 4.218 para revisar
-    expect(screen.getByRole("heading", { name: "Divergências por categoria" })).toBeInTheDocument();
-    expect(screen.getByText(/^157 linhas pedem revisão/)).toBeInTheDocument();
-    expect(screen.getByText("4.061 de 4.218 lançamentos conciliados")).toBeInTheDocument();
-    // sem IA em produção, a explicação é o motivo fixo do motor, sem selo de IA
-    expect(
-      screen.getByText("Existe um lançamento do outro lado na mesma data, mas o valor não coincide com o deste item."),
-    ).toBeInTheDocument();
-    expect(screen.queryByText(/Gerada por IA/)).not.toBeInTheDocument();
-    const telas = container.querySelectorAll(".por-dentro-tela");
-    expect(telas).toHaveLength(3);
-    telas.forEach((tela) => expect(tela).toHaveAttribute("inert"));
+    // seção própria, logo depois dos três passos: é o que chega no terceiro
+    const porDentro = container.querySelector<HTMLElement>("#por-dentro")!;
+    expect(porDentro).toContainElement(screen.getByText("Por dentro do Ledgr"));
+    expect(container.querySelector("#como")?.nextElementSibling).toBe(porDentro);
+    // as quatro etapas, em ordem; termina no sistema de gestão, não numa decisão dentro do app
+    const etapas = [...porDentro.querySelectorAll<HTMLElement>(".por-dentro-etapa")];
+    expect(etapas.map((etapa) => within(etapa).getByRole("heading").textContent)).toEqual([
+      "Duas versões da mesma linha",
+      "O Ledgr acha a diferença",
+      "E diz o motivo",
+      "Você corrige no seu sistema",
+    ]);
+    // sem recorte em cada etapa: quem mostra o produto é a tela inteira, logo abaixo
+    expect(porDentro.querySelector(".por-dentro-recorte")).toBeNull();
+  });
+
+  it("shows the whole app screen below the flow, with line #1082 highlighted, as a showcase that is not clickable", () => {
+    const { container } = render(<LandingPage />);
+    const tela = container.querySelector<HTMLElement>("#por-dentro .vitrine-app")!;
+    expect(tela.closest("[inert]")).not.toBeNull();
+    const dentro = within(tela);
+    // o casco do app, com Conciliações aceso, e a comparação direta de agosto de uma empresa genérica
+    expect(dentro.getByText("Conciliações").closest("[data-ativo]")).not.toBeNull();
+    expect(dentro.getByRole("heading", { name: "Comparação direta" })).toBeInTheDocument();
+    expect(dentro.getByText("Sua empresa · competência agosto/2026 · 4.218 lançamentos")).toBeInTheDocument();
+    // o relatório é o componente do app, com o mesmo agosto do topo da página
+    expect(dentro.getByRole("heading", { name: "Divergências por categoria" })).toBeInTheDocument();
+    expect(dentro.getByText(/^157 linhas pedem revisão/)).toBeInTheDocument();
+    // a linha do fluxo, em destaque na tabela das duas folhas
+    const linha = within(tela.querySelector<HTMLElement>("tr[data-destacada]")!);
+    expect(linha.getAllByText("Pagamento fornecedor #1082")).toHaveLength(2);
+    expect(linha.getByText("R$ 12.640,00")).toBeInTheDocument();
+    expect(linha.getByText("R$ 12.604,00")).toBeInTheDocument();
+    expect(linha.getByText("Valor diverge na mesma data")).toBeInTheDocument();
+    // fora do leitor de tela, a réplica ganha uma descrição
+    expect(screen.getByText(/^A tela Comparação direta do Ledgr/)).toBeInTheDocument();
   });
 
   // a demonstração banco × sistema; "Por dentro do Ledgr" repete alguns destes valores
@@ -111,7 +130,7 @@ describe("LandingPage", () => {
     const lista =
       "valor diverge na mesma data, possível duplicidade, mesmo valor em outra data, sem correspondência e tarifa bancária";
     expect(screen.getByText(`Relatório nas 5 categorias: ${lista}.`)).toBeInTheDocument();
-    expect(screen.getByText(new RegExp(`Cada divergência vem nomeada: ${lista}\.`))).toBeInTheDocument();
+    expect(screen.getByText(new RegExp(`Cada divergência vem com o nome da categoria: ${lista}\.`))).toBeInTheDocument();
   });
 
   it("explains the divergence when hovering a mismatched line", () => {

@@ -28,6 +28,10 @@ const newsreader = Newsreader({
   variable: "--font-titulo-family",
   subsets: ["latin"],
   axes: ["opsz"],
+  // ponytail: sem preload. São 130 KB, a maior fonte, e só o app logado (e a janela no fim da
+  // landing) usa; pré-carregada, ela disputava a banda com o CSS e o topo da landing no
+  // celular. O navegador baixa quando um título a usa, e o título troca de fonte uma vez.
+  preload: false,
 });
 
 // monoespaçada pros rótulos pequenos (CAP. I, REGRA DE OURO...) — remete a
