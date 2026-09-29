@@ -1,9 +1,6 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import LandingPage from "./page";
-
-// o painel do mês em "Por dentro do Ledgr" é o do app, e o botão de CSV dele usa o roteador
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }) }));
 
 describe("LandingPage", () => {
   it("shows the hero headline and a link into the product", () => {
@@ -67,24 +64,35 @@ describe("LandingPage", () => {
     ).toBeInTheDocument();
   });
 
-  it("shows the product inside right after the how-it-works steps, in its own section, with the app's own screens, as a showcase that is not clickable", () => {
+  it("follows one line, #1082, from the two statements to your own system, right after the how-it-works steps", () => {
     const { container } = render(<LandingPage />);
     // seção própria, logo depois dos três passos: é o que chega no terceiro
-    const porDentro = container.querySelector("#por-dentro");
+    const porDentro = container.querySelector<HTMLElement>("#por-dentro")!;
     expect(porDentro).toContainElement(screen.getByText("Por dentro do Ledgr"));
     expect(container.querySelector("#como")?.nextElementSibling).toBe(porDentro);
-    // o mesmo agosto do topo da página: 157 de 4.218 para revisar
-    expect(screen.getByRole("heading", { name: "Divergências por categoria" })).toBeInTheDocument();
-    expect(screen.getByText(/^157 linhas pedem revisão/)).toBeInTheDocument();
-    expect(screen.getByText("4.061 de 4.218 lançamentos conciliados")).toBeInTheDocument();
+    // as quatro etapas, em ordem; termina no sistema de gestão, não numa decisão dentro do app
+    const etapas = within(porDentro).getAllByRole("listitem");
+    expect(etapas.map((etapa) => within(etapa).getByRole("heading").textContent)).toEqual([
+      "Duas versões da mesma linha",
+      "O Ledgr acha a diferença",
+      "E diz o motivo",
+      "Você corrige no seu sistema",
+    ]);
+    // a mesma linha da demonstração de "O problema"
+    const dentro = within(porDentro);
+    expect(dentro.getByText("R$ 12.640,00")).toBeInTheDocument();
+    expect(dentro.getByText("R$ 12.604,00")).toBeInTheDocument();
+    expect(dentro.getByText("Δ 36,00")).toBeInTheDocument();
+    expect(dentro.getByText("Valor diverge na mesma data")).toBeInTheDocument();
     // sem IA em produção, a explicação é o motivo fixo do motor, sem selo de IA
     expect(
-      screen.getByText("Existe um lançamento do outro lado na mesma data, mas o valor não coincide com o deste item."),
+      dentro.getByText("Existe um lançamento do outro lado na mesma data, mas o valor não coincide com o deste item."),
     ).toBeInTheDocument();
-    expect(screen.queryByText(/Gerada por IA/)).not.toBeInTheDocument();
-    const telas = container.querySelectorAll(".por-dentro-tela");
-    expect(telas).toHaveLength(3);
-    telas.forEach((tela) => expect(tela).toHaveAttribute("inert"));
+    expect(dentro.queryByText(/Gerada por IA/)).not.toBeInTheDocument();
+    // os recortes do app são vitrine: quem descreve a etapa é o texto
+    const recortes = porDentro.querySelectorAll(".por-dentro-recorte");
+    expect(recortes).toHaveLength(4);
+    recortes.forEach((recorte) => expect(recorte).toHaveAttribute("inert"));
   });
 
   // a demonstração banco × sistema; "Por dentro do Ledgr" repete alguns destes valores

@@ -1,162 +1,135 @@
-"use client";
-
 import Image from "next/image";
 import type { ReactNode } from "react";
-import { Relatorio } from "@/app/(app)/conciliacoes/[id]/relatorio";
-import { agruparPorMes } from "@/app/(app)/fechamentos/fechamento";
-import { Painel } from "@/app/(app)/fechamentos/mesa";
+import { FileDown } from "lucide-react";
+import { seloDoStatus } from "@/app/(app)/dashboard/resumo";
 import { Reveal } from "@/app/reveal";
-import type { Divergencia } from "@/lib/adaptadores";
-import type { LinhaComparacao } from "@/lib/mock-data";
 
 /**
- * "Por dentro do Ledgr": três telas do app em miniatura, montadas com os
- * próprios componentes dele e um mês de exemplo, o mesmo agosto do topo da
- * página (4.218 lançamentos, 157 para revisar). Não são capturas de tela: se a
- * tela do app mudar, a miniatura muda junto. São vitrine (`inert`): nada se
- * clica, nada leva para dentro do app.
+ * "Por dentro do Ledgr": a vida de uma linha, a #1082 da demonstração de "O
+ * problema", dos dois extratos até o seu sistema de gestão. Cada etapa traz um
+ * recorte do app, no tema escuro dele, com as classes das telas de verdade. São
+ * vitrine (`inert`): quem descreve a etapa é o texto.
+ *
+ * Termina no sistema de gestão, e não numa decisão dentro do Ledgr, porque o app
+ * ainda não grava decisão nenhuma (aceitar o valor do banco, fechar o mês).
  */
 
-// As 157 linhas de agosto que pedem revisão, por categoria.
-const PENDENTES: Record<Divergencia, number> = {
-  divergente_valor: 41,
-  duplicado: 12,
-  divergente_data: 58,
-  sem_correspondencia: 39,
-  tarifa_bancaria: 7,
-};
-
-/** Linhas de exemplo com valores variados, para o relatório calcular o que fica em aberto. */
-function linhasDe(status: Divergencia, quantidade: number): LinhaComparacao[] {
-  return Array.from({ length: quantidade }, (_, i) => {
-    const valor = 180 + ((i * 137) % 2400);
-    const [banco, sistema] =
-      status === "divergente_valor"
-        ? [valor, valor - (12 + (i % 9) * 7)]
-        : status === "divergente_data"
-          ? [valor, valor]
-          : status === "tarifa_bancaria"
-            ? [9.9 + (i % 4) * 12.5, null]
-            : [valor, null];
-    return {
-      id: `${status}-${i}`,
-      descricao: "",
-      data: "",
-      valorBanco: banco,
-      valorSistema: sistema,
-      status,
-      explicacao: null,
-      historico: [],
-    };
-  });
-}
-
-const LINHAS = (Object.entries(PENDENTES) as [Divergencia, number][]).flatMap(([status, quantidade]) =>
-  linhasDe(status, quantidade),
-);
-
-// O mesmo mês pela conta do app (`agruparPorMes`): 4.218 − 157 = 4.061 conciliados.
-const [AGOSTO] = agruparPorMes([
-  {
-    execucao: {
-      id: "exemplo-agosto",
-      extratoBancoId: "00000000-0000-4000-8000-000000000001",
-      extratoSistemaId: "00000000-0000-4000-8000-000000000002",
-      arquivoBanco: "extrato-08.ofx",
-      arquivoSistema: "razao-08.csv",
-      executadaEm: "2026-09-02T12:40:00Z",
-      lancamentos: 4218,
-      acerto: 96.3,
-      divergencias: PENDENTES,
-      toleranciaDias: 0,
-      atual: true,
-    },
-    primeiraData: "2026-08-01",
-    naoLidas: [],
-  },
-]);
+const SELO = seloDoStatus("divergente_valor");
 
 // O que a tela da linha mostra hoje para um valor que diverge: com a IA
 // desligada, é o motivo fixo do motor (`_MOTIVOS_DETERMINISTICOS` em
 // app/services/ia/prompt.py, no backend), sem o selo de IA.
 const MOTIVO_VALOR = "Existe um lançamento do outro lado na mesma data, mas o valor não coincide com o deste item.";
 
-function Explicacao() {
+function Folha({ lado, rotulo, valor }: { lado: "banco" | "sistema"; rotulo: string; valor: string }) {
   return (
-    <div className="por-dentro-explicacao">
-      <div>
-        <div className="det-kicker">Valor diverge na mesma data</div>
-        <h3 className="por-dentro-linha">Pagamento fornecedor #1082</h3>
-      </div>
-      <div className="por-dentro-par">
-        <span>
-          <span className="por-dentro-rotulo">Extrato do banco</span>
-          <span className="por-dentro-valor">R$ 12.640,00</span>
-        </span>
-        <span className="det-delta-valor">Δ 36,00</span>
-        <span>
-          <span className="por-dentro-rotulo">Extrato do sistema</span>
-          <span className="por-dentro-valor">R$ 12.604,00</span>
-        </span>
-      </div>
-      <div className="det-causa">
-        <Image
-          src="/mascotes/mascote-explicando.png"
-          alt=""
-          width={1000}
-          height={1000}
-          sizes="80px"
-          style={{ width: 80, height: "auto", flex: "none" }}
-        />
-        <div style={{ flex: "1 1 180px", minWidth: 0 }}>
-          <h6 style={{ margin: "0 0 8px" }}>O que provavelmente aconteceu</h6>
-          <p className="det-causa-texto">{MOTIVO_VALOR}</p>
-        </div>
-      </div>
+    <div className={`por-dentro-folha folha-${lado}`}>
+      <span className="por-dentro-rotulo">{rotulo}</span>
+      <span className="por-dentro-valor">{valor}</span>
     </div>
   );
 }
 
-function Tela({ legenda, texto, atraso, children }: { legenda: string; texto: string; atraso: number; children: ReactNode }) {
+function Etapa({
+  num,
+  titulo,
+  atraso,
+  recorte,
+  children,
+}: {
+  num: string;
+  titulo: string;
+  atraso: number;
+  recorte: ReactNode;
+  children: ReactNode;
+}) {
   return (
-    <Reveal once delay={atraso}>
-      <figure className="por-dentro-item">
-        {/* vitrine: fora do foco, do clique e do leitor de tela; quem descreve é a legenda */}
-        <div className="por-dentro-tela" inert>
-          {children}
+    <li className="por-dentro-etapa">
+      <Reveal once delay={atraso} className="por-dentro-etapa-corpo">
+        {/* o numeral e o fio em onda que liga uma etapa à outra, no desenho das bordas da landing */}
+        <span className="por-dentro-cabeca" aria-hidden="true">
+          <span className="por-dentro-num">{num}</span>
+          <span className="por-dentro-fio" />
+        </span>
+        <h3 className="por-dentro-titulo">{titulo}</h3>
+        <p className="por-dentro-texto">{children}</p>
+        <div className="por-dentro-recorte" inert>
+          {recorte}
         </div>
-        <figcaption className="por-dentro-legenda">
-          <strong>{legenda}</strong> {texto}
-        </figcaption>
-      </figure>
-    </Reveal>
+      </Reveal>
+    </li>
   );
 }
 
 export function PorDentro() {
   return (
-    <div className="por-dentro-grade">
-      <Tela
+    <ol className="por-dentro-trilha">
+      <Etapa
+        num="I"
+        titulo="Duas versões da mesma linha"
         atraso={0}
-        legenda="Divergências por categoria."
-        texto="As cinco categorias, com o que cada uma deixa em aberto. Um clique mostra só as linhas dela."
+        recorte={
+          <>
+            <div className="det-kicker">Pagamento fornecedor #1082 · 04/08</div>
+            <div className="por-dentro-folhas">
+              <Folha lado="banco" rotulo="Extrato do banco" valor="R$ 12.640,00" />
+              <Folha lado="sistema" rotulo="Extrato do sistema" valor="R$ 12.604,00" />
+            </div>
+          </>
+        }
       >
-        <Relatorio linhas={LINHAS} ativa={null} onEscolher={() => {}} />
-      </Tela>
-      <Tela
+        O pagamento ao fornecedor chega nos dois arquivos, no mesmo dia, com 36 reais de diferença.
+      </Etapa>
+      <Etapa
+        num="II"
+        titulo="O Ledgr acha a diferença"
         atraso={0.08}
-        legenda="O que provavelmente aconteceu."
-        texto="Cada divergência vem com o motivo. Quem decide o que corrigir é você."
+        recorte={
+          <div className="por-dentro-diferenca">
+            <span className="det-delta-valor">Δ 36,00</span>
+            <span className={`selo selo-${SELO.tom}`}>{SELO.rotulo}</span>
+          </div>
+        }
       >
-        <Explicacao />
-      </Tela>
-      <Tela
+        Casa as duas pela data, mede a diferença e dá o nome da categoria. É uma das 41 desse tipo em agosto.
+      </Etapa>
+      <Etapa
+        num="III"
+        titulo="E diz o motivo"
         atraso={0.16}
-        legenda="O mês em Fechamentos."
-        texto="O que ainda segura o fechamento, e o relatório em CSV para o contador."
+        recorte={
+          <div className="por-dentro-motivo">
+            <Image
+              src="/mascotes/mascote-explicando.png"
+              alt=""
+              width={1000}
+              height={1000}
+              sizes="56px"
+              style={{ width: 56, height: "auto", flex: "none" }}
+            />
+            <p className="det-causa-texto">{MOTIVO_VALOR}</p>
+          </div>
+        }
       >
-        <Painel mes={AGOSTO} />
-      </Tela>
-    </div>
+        Cada divergência vem com o que provavelmente aconteceu. Quem decide o que corrigir é você.
+      </Etapa>
+      <Etapa
+        num="IV"
+        titulo="Você corrige no seu sistema"
+        atraso={0.24}
+        recorte={
+          <>
+            <Folha lado="sistema" rotulo="Ajuste no sistema de gestão" valor="+ R$ 36,00" />
+            <div className="por-dentro-relatorio">
+              <FileDown size={16} aria-hidden="true" />
+              Relatório em CSV para o contador
+            </div>
+          </>
+        }
+      >
+        O extrato do banco é a fonte da verdade: o ajuste é no seu sistema de gestão, e a linha vai no
+        relatório para o contador.
+      </Etapa>
+    </ol>
   );
 }

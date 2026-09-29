@@ -615,8 +615,8 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* por dentro do ledgr: o que chega depois do terceiro passo, em três telas do app em
-          miniatura sobre a faixa escura, como as janelas do produto sobre o violeta do arc.net */}
+      {/* por dentro do ledgr: o que chega depois do terceiro passo, contado pela vida de uma
+          linha, a #1082 de "O problema", até o sistema de gestão */}
       <section
         id="por-dentro"
         className="onda onda-superficie grao"
@@ -629,9 +629,7 @@ export default function LandingPage() {
                 <h6 className="eyebrow" style={{ margin: 0, color: "var(--color-accent-300)" }}>
                   Por dentro do Ledgr
                 </h6>
-                <p className="por-dentro-intro">
-                  O que chega depois do terceiro passo, em três telas do Ledgr com um mês de exemplo.
-                </p>
+                <h2 className="por-dentro-intro">Uma linha de agosto, do extrato ao seu sistema.</h2>
               </div>
             </Reveal>
             <PorDentro />

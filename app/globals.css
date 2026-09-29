@@ -814,48 +814,63 @@ button.login-link-animado { border: 0; background-color: transparent; font: inhe
 .grade-colunas > :first-child { padding-left: 0; }
 .grade-colunas > * + * { border-left: 1px solid var(--grade-linha, var(--color-divider)); }
 /* "Por dentro do Ledgr" (app/(marketing)/por-dentro.tsx): seção própria na faixa escura, logo
-   depois de "Como funciona", com três telas do app em miniatura, cada uma com a legenda embaixo */
-.por-dentro { display: flex; flex-direction: column; gap: 28px; }
-.por-dentro-topo { display: flex; flex-direction: column; gap: 10px; }
+   depois de "Como funciona", com a vida da linha #1082 em quatro etapas. Uma coluna no celular,
+   2×2 no tablet e as quatro lado a lado no desktop, como os passos de "Como funciona" */
+.por-dentro { display: flex; flex-direction: column; gap: clamp(36px, 5vw, 56px); }
+.por-dentro-topo { display: flex; flex-direction: column; gap: 12px; }
 .por-dentro-intro {
-  margin: 0; max-width: 52ch; font-size: 15.5px; line-height: 1.7;
-  color: var(--color-neutral-300);
+  margin: 0; max-width: 24ch; font-size: clamp(30px, 2.8vw, 46px); font-weight: 400;
+  line-height: 1.08; text-wrap: balance; color: var(--ledgr-tinta);
 }
-.por-dentro-grade { display: grid; grid-template-columns: minmax(0, 1fr); gap: 32px 28px; align-items: start; }
-/* o painel do mês é o mais alto: ocupa a coluna da direita inteira, e o relatório e a
-   explicação se empilham à esquerda, sem buraco embaixo de nenhum */
-@media (min-width: 960px) {
-  .por-dentro-grade { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .por-dentro-grade > :nth-child(3) { grid-column: 2; grid-row: 1 / span 2; }
+.por-dentro-trilha {
+  list-style: none; margin: 0; padding: 0;
+  display: grid; grid-template-columns: minmax(0, 1fr); gap: 48px 28px;
 }
-.por-dentro-item { margin: 0; display: flex; flex-direction: column; gap: 14px; }
-.por-dentro-tela {
-  /* as variáveis que o app declara no .app-shell, no tema claro da landing */
+@media (min-width: 640px) { .por-dentro-trilha { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 1100px) { .por-dentro-trilha { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.por-dentro-etapa { display: flex; }
+.por-dentro-etapa-corpo { flex: 1; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.por-dentro-cabeca { display: flex; align-items: center; gap: 14px; }
+.por-dentro-num {
+  font-family: var(--font-display); font-size: 40px; line-height: 1; color: var(--color-accent);
+}
+/* o fio em onda: o mesmo período de 17px das bordas, como traço, na cor do numeral */
+.por-dentro-fio {
+  flex: 1; height: 8px; background: var(--color-accent); opacity: 0.55;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='17' height='8'%3E%3Cpath d='M0 4Q4.25 1 8.5 4T17 4' fill='none' stroke='%23000' stroke-width='1.2'/%3E%3C/svg%3E") 0 50% / 17px 8px repeat-x;
+}
+.por-dentro-titulo {
+  margin: 6px 0 0; font-family: var(--font-heading); font-size: 20px; font-weight: 600;
+  line-height: 1.25; color: var(--ledgr-tinta);
+}
+.por-dentro-texto { margin: 0; font-size: 14.5px; line-height: 1.65; color: var(--color-neutral-300); }
+/* o recorte do app, no tema escuro dele (as cores vêm do bloco do tema escuro, mais abaixo):
+   fundo do app, raio pequeno e um filete claro bem fino, que no escuro separa melhor que sombra.
+   Cresce até o fim da coluna, para os quatro terminarem na mesma altura */
+.por-dentro-recorte {
   --tinta-hover: color-mix(in srgb, var(--color-text) 6%, transparent);
   --tinta-ativa: color-mix(in srgb, var(--color-text) 9%, transparent);
   --texto-apagado: color-mix(in srgb, var(--color-text) 58%, transparent);
-  /* janela do app sobre a faixa escura, no tema escuro do próprio app (as cores vêm do bloco
-     do tema escuro, mais abaixo): papel escuro por dentro, raio pequeno e um filete claro bem
-     fino, que no escuro separa melhor que sombra, como o Linear mostra o produto */
-  padding: 22px; border-radius: var(--radius-sm);
-  background: var(--folha-banco);
+  flex: 1; margin-top: 6px; padding: 18px;
+  display: flex; flex-direction: column; gap: 12px;
+  border-radius: var(--radius-sm); background: var(--color-bg);
   border: 1px solid rgb(255 255 255 / 0.08);
   box-shadow: 0 16px 40px -24px rgb(0 0 0 / 0.7);
   color: var(--color-text);
 }
-/* o painel do mês já vem com moldura própria; na miniatura, a tela é a moldura */
-.por-dentro-tela .extrato-painel { padding: 0; border: none; background: none; position: static; }
-@media (max-width: 480px) { .por-dentro-tela { padding: 16px; } }
-.por-dentro-legenda { font-size: 14px; line-height: 1.6; color: var(--color-neutral-400); }
-.por-dentro-legenda strong { font-weight: 600; color: var(--color-neutral-100); }
-.por-dentro-explicacao { display: flex; flex-direction: column; gap: 18px; }
-.por-dentro-linha { margin: 4px 0 0; font-size: 20px; font-weight: 600; }
-.por-dentro-par { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
-.por-dentro-par > span:not(.det-delta-valor) { display: flex; flex-direction: column; gap: 2px; }
+.por-dentro-recorte .det-kicker { margin: 0; }
+.por-dentro-folhas { display: flex; flex-direction: column; gap: 6px; }
+.por-dentro-folha { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border-radius: var(--radius-sm); }
 .por-dentro-rotulo { font-size: 12.5px; color: var(--texto-apagado); }
-.por-dentro-valor { font-family: var(--font-titulo); font-size: 22px; font-variant-numeric: lining-nums tabular-nums; }
-.por-dentro-explicacao .det-causa { padding: 18px 0 0; border-bottom: none; }
-.por-dentro-explicacao .det-causa-texto { text-align: left; }
+.por-dentro-valor { font-family: var(--font-titulo); font-size: 20px; font-variant-numeric: lining-nums tabular-nums; }
+.por-dentro-diferenca { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; }
+.por-dentro-diferenca .det-delta-valor { font-size: 30px; }
+.por-dentro-motivo { display: flex; align-items: flex-start; gap: 12px; }
+.por-dentro-motivo .det-causa-texto { text-align: left; font-size: 13.5px; line-height: 1.6; }
+.por-dentro-relatorio {
+  display: flex; align-items: center; gap: 8px; padding-top: 12px;
+  border-top: 1px solid var(--color-divider); font-size: 13.5px; font-weight: 600;
+}
 .numeros-grade { --grade-recuo: 28px; --grade-linha: color-mix(in srgb, var(--color-neutral-100) 22%, transparent); }
 .hero-provas-grid { --grade-recuo: 16px; }
 .hero-provas-grid > * { padding-top: 18px; }
@@ -1322,13 +1337,13 @@ button.login-link-animado { border: 0; background-color: transparent; font: inhe
    olho pequeno, não aguentava o corpo de título de tela. Só do tamanho de
    título para cima: lista, tabela e botão seguem em Inter. Algarismos
    alinhados: os de estilo antigo sobem e descem, e em valor isso atrapalha. */
-:is(.app-shell, .por-dentro-tela) :is(h1, h2, h3),
-:is(.app-shell, .por-dentro-tela) :is(.dash-valor, .hist-destaque, .det-valor, .vg-estado-aberto, .folha-nome, .det-cartao-titulo) {
+:is(.app-shell, .por-dentro-recorte) :is(h1, h2, h3),
+:is(.app-shell, .por-dentro-recorte) :is(.dash-valor, .hist-destaque, .det-valor, .vg-estado-aberto, .folha-nome, .det-cartao-titulo) {
   font-family: var(--font-titulo); font-variant-numeric: lining-nums tabular-nums;
 }
 /* título de passo tem 18px: fica na Inter, como o resto do texto corrido */
 .app-shell .vg-passo-titulo { font-family: var(--font-heading); }
-:is(.app-shell, .por-dentro-tela) h6 { color: var(--texto-apagado); }
+:is(.app-shell, .por-dentro-recorte) h6 { color: var(--texto-apagado); }
 
 /* ── Comparação em duas folhas ────────────────────────────────────────────────
    O extrato do banco e o do sistema são coisas diferentes: cada um é uma folha de
@@ -1348,8 +1363,8 @@ button.login-link-animado { border: 0; background-color: transparent; font: inhe
     --folha-banco: #2c2a27; --folha-sistema: #232120; --superficie-elevada: #3b3935;
   }
 }
-/* as miniaturas de "Por dentro do Ledgr" ficam sempre no tema escuro do app: estão na faixa escura da landing */
-html[data-tema="escuro"] .app-shell, .por-dentro-tela {
+/* os recortes de "Por dentro do Ledgr" ficam sempre no tema escuro do app: estão na faixa escura da landing */
+html[data-tema="escuro"] .app-shell, .por-dentro-recorte {
   --folha-banco: #2c2a27; --folha-sistema: #232120; --superficie-elevada: #3b3935;
 }
 
@@ -2645,7 +2660,7 @@ th:is([aria-sort="ascending"], [aria-sort="descending"]) .th-ordena-seta { opaci
   }
 }
 
-html[data-tema="escuro"] .app-shell, .por-dentro-tela {
+html[data-tema="escuro"] .app-shell, .por-dentro-recorte {
   --color-bg: #1c1a18;
   --color-surface: #272522;
   --color-text: #e9e8e5;
