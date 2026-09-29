@@ -745,10 +745,11 @@ button.login-link-animado { border: 0; background-color: transparent; font: inhe
 }
 .grao { background-image: var(--grao); }
 .onda-escura::before { background-image: var(--grao); }
-/* a mesma faixa em tom claro: um creme quente, entre o papel e o dourado, com o grão escuro e bem
-   mais fraco (no claro o ponto escuro aparece mais que o claro no escuro) */
+/* a mesma faixa em tom claro: "pedra", um cinza quente um pouco mais fundo que o --color-surface
+   de "Como funciona" e o papel da Regra de ouro, para se separar das duas vizinhas, com o grão
+   escuro e bem mais fraco (no claro o ponto escuro aparece mais que o claro no escuro) */
 :root {
-  --faixa-clara: color-mix(in srgb, var(--color-accent-200) 30%, var(--color-bg));
+  --faixa-clara: #e4e0db;
   --grao-claro: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .2 0 0 0 0 .14 0 0 0 0 .06 .2 0 0 0 -.07'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
 }
 .grao-claro { background-image: var(--grao-claro); }
