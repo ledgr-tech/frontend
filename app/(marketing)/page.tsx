@@ -619,14 +619,14 @@ export default function LandingPage() {
           linha, a #1082 de "O problema", até o sistema de gestão */}
       <section
         id="por-dentro"
-        className="onda onda-superficie grao"
-        style={{ position: "relative", overflow: "hidden", backgroundColor: "var(--faixa-escura)" }}
+        className="onda onda-superficie grao-claro"
+        style={{ position: "relative", overflow: "hidden", backgroundColor: "var(--faixa-clara)" }}
       >
         <div style={{ position: "relative", maxWidth: 1600, margin: "0 auto", padding: "clamp(64px, 9vw, 96px) clamp(20px, 4.2vw, 56px)" }}>
           <div className="por-dentro">
             <Reveal>
               <div className="por-dentro-topo">
-                <h6 className="eyebrow" style={{ margin: 0, color: "var(--color-accent-300)" }}>
+                <h6 className="eyebrow" style={{ margin: 0, color: "var(--color-accent-700)" }}>
                   Por dentro do Ledgr
                 </h6>
                 <h2 className="por-dentro-intro">Uma linha de agosto, do extrato ao seu sistema.</h2>
@@ -638,7 +638,7 @@ export default function LandingPage() {
       </section>
 
       {/* regra de ouro */}
-      <section id="regra" className="onda onda-escura">
+      <section id="regra" className="onda onda-faixa-clara">
         <div style={{ maxWidth: 1600, margin: "0 auto", padding: "clamp(64px, 9vw, 96px) clamp(20px, 4.2vw, 56px)" }}>
           <Reveal>
             <InkHover

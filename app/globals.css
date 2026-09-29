@@ -745,6 +745,15 @@ button.login-link-animado { border: 0; background-color: transparent; font: inhe
 }
 .grao { background-image: var(--grao); }
 .onda-escura::before { background-image: var(--grao); }
+/* a mesma faixa em tom claro: um creme quente, entre o papel e o dourado, com o grão escuro e bem
+   mais fraco (no claro o ponto escuro aparece mais que o claro no escuro) */
+:root {
+  --faixa-clara: color-mix(in srgb, var(--color-accent-200) 30%, var(--color-bg));
+  --grao-claro: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .2 0 0 0 0 .14 0 0 0 0 .06 .2 0 0 0 -.07'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+}
+.grao-claro { background-image: var(--grao-claro); }
+.onda-faixa-clara { --onda-cor: var(--faixa-clara); }
+.onda-faixa-clara::before { background-image: var(--grao-claro); }
 
 /* ---------- landing em telas menores ---------- */
 
@@ -820,7 +829,7 @@ button.login-link-animado { border: 0; background-color: transparent; font: inhe
 .por-dentro-topo { display: flex; flex-direction: column; gap: 12px; }
 .por-dentro-intro {
   margin: 0; max-width: 24ch; font-size: clamp(30px, 2.8vw, 46px); font-weight: 400;
-  line-height: 1.08; text-wrap: balance; color: var(--ledgr-tinta);
+  line-height: 1.08; text-wrap: balance;
 }
 .por-dentro-trilha {
   list-style: none; margin: 0; padding: 0;
@@ -841,36 +850,37 @@ button.login-link-animado { border: 0; background-color: transparent; font: inhe
 }
 .por-dentro-titulo {
   margin: 6px 0 0; font-family: var(--font-heading); font-size: 20px; font-weight: 600;
-  line-height: 1.25; color: var(--ledgr-tinta);
+  line-height: 1.25;
 }
-.por-dentro-texto { margin: 0; font-size: 14.5px; line-height: 1.65; color: var(--color-neutral-300); }
-/* o recorte do app, no tema escuro dele (as cores vêm do bloco do tema escuro, mais abaixo):
-   fundo do app, raio pequeno e um filete claro bem fino, que no escuro separa melhor que sombra.
-   Cresce até o fim da coluna, para os quatro terminarem na mesma altura */
+.por-dentro-texto { margin: 0; font-size: 14.5px; line-height: 1.65; color: color-mix(in srgb, var(--color-text) 72%, transparent); }
+/* o recorte: o cartão da demonstração de "O problema" (comparacao.tsx), com filete, cabeçalho e
+   linhas com divisória, em papel claro sobre o creme da faixa. Cresce até o fim da coluna, para
+   os quatro terminarem na mesma altura */
 .por-dentro-recorte {
-  --tinta-hover: color-mix(in srgb, var(--color-text) 6%, transparent);
-  --tinta-ativa: color-mix(in srgb, var(--color-text) 9%, transparent);
-  --texto-apagado: color-mix(in srgb, var(--color-text) 58%, transparent);
-  flex: 1; margin-top: 6px; padding: 18px;
-  display: flex; flex-direction: column; gap: 12px;
-  border-radius: var(--radius-sm); background: var(--color-bg);
-  border: 1px solid rgb(255 255 255 / 0.08);
-  box-shadow: 0 16px 40px -24px rgb(0 0 0 / 0.7);
-  color: var(--color-text);
+  --texto-apagado: color-mix(in srgb, var(--color-text) 54%, transparent);
+  flex: 1; margin-top: 6px; display: flex; flex-direction: column;
+  border: 1px solid var(--color-divider); border-radius: var(--radius-md);
+  background: #fdfcfa; color: var(--color-text);
+  box-shadow: 0 14px 32px -26px rgb(90 59 10 / 0.45);
 }
-.por-dentro-recorte .det-kicker { margin: 0; }
-.por-dentro-folhas { display: flex; flex-direction: column; gap: 6px; }
-.por-dentro-folha { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border-radius: var(--radius-sm); }
-.por-dentro-rotulo { font-size: 12.5px; color: var(--texto-apagado); }
-.por-dentro-valor { font-family: var(--font-titulo); font-size: 20px; font-variant-numeric: lining-nums tabular-nums; }
-.por-dentro-diferenca { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; }
-.por-dentro-diferenca .det-delta-valor { font-size: 30px; }
-.por-dentro-motivo { display: flex; align-items: flex-start; gap: 12px; }
+.por-dentro-recorte-topo {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+  padding: 13px 18px; border-bottom: 1px solid var(--color-divider);
+}
+.por-dentro-recorte-titulo { font-family: var(--font-heading); font-size: 16px; font-weight: 600; line-height: 1.3; }
+.por-dentro-recorte-meta { flex: none; font-size: 12px; color: var(--texto-apagado); }
+.por-dentro-recorte-linha {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+  padding: 11px 18px; border-bottom: 1px solid var(--color-divider);
+}
+.por-dentro-recorte-linha:last-child { border-bottom: none; }
+.por-dentro-recorte-corpo { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; padding: 14px 18px; }
+.por-dentro-rotulo { font-size: 13.5px; color: var(--texto-apagado); }
+.por-dentro-valor { flex: none; font-family: var(--font-heading); font-size: 16.5px; font-weight: 600; font-variant-numeric: lining-nums tabular-nums; }
+.por-dentro-recorte .det-delta-valor { font-size: 30px; }
+.por-dentro-motivo { flex-direction: row; align-items: flex-start; }
 .por-dentro-motivo .det-causa-texto { text-align: left; font-size: 13.5px; line-height: 1.6; }
-.por-dentro-relatorio {
-  display: flex; align-items: center; gap: 8px; padding-top: 12px;
-  border-top: 1px solid var(--color-divider); font-size: 13.5px; font-weight: 600;
-}
+.por-dentro-relatorio { justify-content: flex-start; align-items: center; gap: 8px; font-size: 13.5px; font-weight: 600; }
 .numeros-grade { --grade-recuo: 28px; --grade-linha: color-mix(in srgb, var(--color-neutral-100) 22%, transparent); }
 .hero-provas-grid { --grade-recuo: 16px; }
 .hero-provas-grid > * { padding-top: 18px; }
@@ -1337,13 +1347,13 @@ button.login-link-animado { border: 0; background-color: transparent; font: inhe
    olho pequeno, não aguentava o corpo de título de tela. Só do tamanho de
    título para cima: lista, tabela e botão seguem em Inter. Algarismos
    alinhados: os de estilo antigo sobem e descem, e em valor isso atrapalha. */
-:is(.app-shell, .por-dentro-recorte) :is(h1, h2, h3),
-:is(.app-shell, .por-dentro-recorte) :is(.dash-valor, .hist-destaque, .det-valor, .vg-estado-aberto, .folha-nome, .det-cartao-titulo) {
+.app-shell :is(h1, h2, h3),
+.app-shell :is(.dash-valor, .hist-destaque, .det-valor, .vg-estado-aberto, .folha-nome, .det-cartao-titulo) {
   font-family: var(--font-titulo); font-variant-numeric: lining-nums tabular-nums;
 }
 /* título de passo tem 18px: fica na Inter, como o resto do texto corrido */
 .app-shell .vg-passo-titulo { font-family: var(--font-heading); }
-:is(.app-shell, .por-dentro-recorte) h6 { color: var(--texto-apagado); }
+.app-shell h6 { color: var(--texto-apagado); }
 
 /* ── Comparação em duas folhas ────────────────────────────────────────────────
    O extrato do banco e o do sistema são coisas diferentes: cada um é uma folha de
@@ -1363,8 +1373,7 @@ button.login-link-animado { border: 0; background-color: transparent; font: inhe
     --folha-banco: #2c2a27; --folha-sistema: #232120; --superficie-elevada: #3b3935;
   }
 }
-/* os recortes de "Por dentro do Ledgr" ficam sempre no tema escuro do app: estão na faixa escura da landing */
-html[data-tema="escuro"] .app-shell, .por-dentro-recorte {
+html[data-tema="escuro"] .app-shell {
   --folha-banco: #2c2a27; --folha-sistema: #232120; --superficie-elevada: #3b3935;
 }
 
@@ -2660,7 +2669,7 @@ th:is([aria-sort="ascending"], [aria-sort="descending"]) .th-ordena-seta { opaci
   }
 }
 
-html[data-tema="escuro"] .app-shell, .por-dentro-recorte {
+html[data-tema="escuro"] .app-shell {
   --color-bg: #1c1a18;
   --color-surface: #272522;
   --color-text: #e9e8e5;

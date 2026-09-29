@@ -7,8 +7,9 @@ import { Reveal } from "@/app/reveal";
 /**
  * "Por dentro do Ledgr": a vida de uma linha, a #1082 da demonstração de "O
  * problema", dos dois extratos até o seu sistema de gestão. Cada etapa traz um
- * recorte do app, no tema escuro dele, com as classes das telas de verdade. São
- * vitrine (`inert`): quem descreve a etapa é o texto.
+ * recorte no desenho do cartão daquela demonstração: cabeçalho, linhas com
+ * divisória e o selo com contorno dourado. São vitrine (`inert`): quem descreve
+ * a etapa é o texto.
  *
  * Termina no sistema de gestão, e não numa decisão dentro do Ledgr, porque o app
  * ainda não grava decisão nenhuma (aceitar o valor do banco, fechar o mês).
@@ -21,9 +22,9 @@ const SELO = seloDoStatus("divergente_valor");
 // app/services/ia/prompt.py, no backend), sem o selo de IA.
 const MOTIVO_VALOR = "Existe um lançamento do outro lado na mesma data, mas o valor não coincide com o deste item.";
 
-function Folha({ lado, rotulo, valor }: { lado: "banco" | "sistema"; rotulo: string; valor: string }) {
+function Linha({ rotulo, valor }: { rotulo: string; valor: string }) {
   return (
-    <div className={`por-dentro-folha folha-${lado}`}>
+    <div className="por-dentro-recorte-linha">
       <span className="por-dentro-rotulo">{rotulo}</span>
       <span className="por-dentro-valor">{valor}</span>
     </div>
@@ -34,12 +35,17 @@ function Etapa({
   num,
   titulo,
   atraso,
+  topo,
+  meta,
   recorte,
   children,
 }: {
   num: string;
   titulo: string;
   atraso: number;
+  /** o cabeçalho do recorte, como o "Extrato do banco · extrato-08.ofx" da demonstração */
+  topo: string;
+  meta?: string;
   recorte: ReactNode;
   children: ReactNode;
 }) {
@@ -54,6 +60,10 @@ function Etapa({
         <h3 className="por-dentro-titulo">{titulo}</h3>
         <p className="por-dentro-texto">{children}</p>
         <div className="por-dentro-recorte" inert>
+          <div className="por-dentro-recorte-topo">
+            <span className="por-dentro-recorte-titulo">{topo}</span>
+            {meta && <span className="por-dentro-recorte-meta">{meta}</span>}
+          </div>
           {recorte}
         </div>
       </Reveal>
@@ -68,13 +78,12 @@ export function PorDentro() {
         num="I"
         titulo="Duas versões da mesma linha"
         atraso={0}
+        topo="Pagamento fornecedor #1082"
+        meta="04/08"
         recorte={
           <>
-            <div className="det-kicker">Pagamento fornecedor #1082 · 04/08</div>
-            <div className="por-dentro-folhas">
-              <Folha lado="banco" rotulo="Extrato do banco" valor="R$ 12.640,00" />
-              <Folha lado="sistema" rotulo="Extrato do sistema" valor="R$ 12.604,00" />
-            </div>
+            <Linha rotulo="Extrato do banco" valor="R$ 12.640,00" />
+            <Linha rotulo="Extrato do sistema" valor="R$ 12.604,00" />
           </>
         }
       >
@@ -84,10 +93,12 @@ export function PorDentro() {
         num="II"
         titulo="O Ledgr acha a diferença"
         atraso={0.08}
+        topo="Diferença"
+        meta="04/08"
         recorte={
-          <div className="por-dentro-diferenca">
+          <div className="por-dentro-recorte-corpo">
             <span className="det-delta-valor">Δ 36,00</span>
-            <span className={`selo selo-${SELO.tom}`}>{SELO.rotulo}</span>
+            <span className="tag tag-outline">{SELO.rotulo}</span>
           </div>
         }
       >
@@ -97,8 +108,9 @@ export function PorDentro() {
         num="III"
         titulo="E diz o motivo"
         atraso={0.16}
+        topo="O que provavelmente aconteceu"
         recorte={
-          <div className="por-dentro-motivo">
+          <div className="por-dentro-recorte-corpo por-dentro-motivo">
             <Image
               src="/mascotes/mascote-explicando.png"
               alt=""
@@ -117,10 +129,11 @@ export function PorDentro() {
         num="IV"
         titulo="Você corrige no seu sistema"
         atraso={0.24}
+        topo="Seu sistema de gestão"
         recorte={
           <>
-            <Folha lado="sistema" rotulo="Ajuste no sistema de gestão" valor="+ R$ 36,00" />
-            <div className="por-dentro-relatorio">
+            <Linha rotulo="Ajuste" valor="+ R$ 36,00" />
+            <div className="por-dentro-recorte-linha por-dentro-relatorio">
               <FileDown size={16} aria-hidden="true" />
               Relatório em CSV para o contador
             </div>
