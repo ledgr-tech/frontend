@@ -61,6 +61,9 @@ type Pendente = {
   analise: Extract<Analise, { motivo: "colunas" | "formato" }>;
 };
 
+// o que cada lado aceita: o banco exporta OFX ou CSV; o ERP, CSV ou o PDF de lançamentos
+const FORMATOS: Record<Origem, string> = { banco: "OFX ou CSV", sistema: "CSV ou PDF" };
+
 /** O que o backend deixa saber de um extrato que ele recusou inteiro. */
 function motivoDaRecusa(situacao: SituacaoExtrato): string {
   const [primeira] = situacao.erros;
@@ -69,7 +72,7 @@ function motivoDaRecusa(situacao: SituacaoExtrato): string {
     return `Nenhuma linha do extrato do ${situacao.origem} pôde ser lida (linha ${primeira.identificador}: ${primeira.motivo}).`;
   }
   // erro do arquivo inteiro: o backend não grava o motivo, só o status
-  return `O servidor não conseguiu ler o extrato do ${situacao.origem}. Confira se é o arquivo certo, exportado em OFX ou CSV.`;
+  return `O servidor não conseguiu ler o extrato do ${situacao.origem}. Confira se é o arquivo certo, exportado em ${FORMATOS[situacao.origem]}.`;
 }
 
 export default function NovaConciliacaoPage() {
@@ -137,7 +140,7 @@ export default function NovaConciliacaoPage() {
    * subir como está; senão abre a importação interrompida ou mostra o erro.
    */
   async function conferir(arquivo: File, origem: Origem): Promise<boolean> {
-    if (!arquivo.name.toLowerCase().endsWith(".csv")) return true; // OFX o backend lê sempre
+    if (!arquivo.name.toLowerCase().endsWith(".csv")) return true; // OFX e PDF o backend lê direto
     const analise = analisarCsv(await lerBytes(arquivo));
     if (analise.pronto) return true;
     if (analise.motivo === "ilegivel") {
@@ -298,12 +301,12 @@ export default function NovaConciliacaoPage() {
               Extrato do sistema de gestão
             </span>
             <span style={{ fontSize: 14, color: "color-mix(in srgb, var(--color-text) 66%, transparent)" }}>
-              {arquivoSistema ? arquivoSistema.name : "Arquivo CSV exportado do seu sistema de gestão"}
+              {arquivoSistema ? arquivoSistema.name : "Arquivo CSV ou PDF exportado do seu sistema de gestão"}
             </span>
             <input
               aria-label="Extrato do sistema de gestão"
               type="file"
-              accept=".csv"
+              accept=".csv,.pdf"
               disabled={ocupado}
               onChange={selecionarSistema}
               style={{ position: "absolute", width: 1, height: 1, opacity: 0 }}
