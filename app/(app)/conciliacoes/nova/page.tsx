@@ -12,7 +12,7 @@ import {
   type SituacaoExtrato,
 } from "../acoes";
 import { ImportacaoInterrompida } from "./importacao-interrompida";
-import { lerBytes } from "./ler-arquivo";
+import { lerBytes } from "./ler-arquivo";
 import { Reveal } from "@/app/reveal";
 import { Cabecalho } from "../../cabecalho";
 
@@ -266,7 +266,6 @@ export default function NovaConciliacaoPage() {
       <div style={{ padding: "8px 0 64px" }}>
 
         <Reveal
-          once
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
@@ -314,7 +313,7 @@ export default function NovaConciliacaoPage() {
           </label>
         </Reveal>
 
-        <Reveal once delay={0.08} className="card" style={{ marginBottom: 28 }}>
+        <Reveal delay={0.08} className="card" style={{ marginBottom: 28 }}>
           <h6 style={{ margin: "0 0 8px" }}>Regra de ouro</h6>
           <p style={{ margin: 0, fontSize: 14 }}>
             O extrato do banco é sempre a fonte da verdade. Toda divergência aparece como

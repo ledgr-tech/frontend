@@ -77,22 +77,22 @@ function Conteudo({
 
   return (
     <div className="vg-corpo">
-      <Reveal once>
+      <Reveal>
         <EstadoDoMes execucao={execucao} resumo={resumo} />
       </Reveal>
 
-      <Reveal once delay={0.08}>
+      <Reveal delay={0.08}>
         <Atalhos visao={visao} execucao={execucao} conciliacao={conciliacao} divergentes={resumo.divergentes} />
       </Reveal>
 
-      <Reveal once delay={0.16} className="vg-grade">
+      <Reveal delay={0.16} className="vg-grade">
         <PedeAtencao conciliacao={conciliacao} arquivos={visao.arquivosComLinhasNaoLidas} />
         <section className="vg-tendencia" aria-label="Tendência da taxa de match">
           <GraficoDeMatch execucoes={visao.execucoes} />
         </section>
       </Reveal>
 
-      <Reveal once delay={0.24}>
+      <Reveal delay={0.24}>
         <AtividadeRecente execucoes={visao.execucoes.slice(0, NA_ATIVIDADE)} total={visao.total} />
       </Reveal>
     </div>

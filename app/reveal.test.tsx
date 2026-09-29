@@ -1,10 +1,10 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { InkHover, MotionRoot, PlanCard, Reveal } from "./reveal";
 
 describe("Reveal", () => {
-  it("sai de opacity 0 + escala reduzida e revela quando entra na viewport", async () => {
+  it("sai de opacity 0 um pouco abaixo, sem escala, e revela quando entra na viewport", async () => {
     render(
       <MotionRoot>
         <Reveal>
@@ -15,11 +15,41 @@ describe("Reveal", () => {
 
     const alvo = screen.getByText("conteúdo").parentElement as HTMLElement;
     expect(alvo).toHaveStyle({ opacity: "0" });
+    // escala borra o texto de blocos grandes durante a entrada; o deslocamento não
+    expect(alvo.style.transform).toContain("translateY(16px)");
+    expect(alvo.style.transform).not.toContain("scale");
     await waitFor(() => expect(alvo).toHaveStyle({ opacity: "1" }), {
       timeout: 3000,
     });
   });
 
+  it("revela uma vez só: quando o bloco sai da tela, continua visível", async () => {
+    // o motion guarda um IntersectionObserver por página; o espião pega o dele para dizer
+    // quando o bloco entra e sai da tela
+    let avisar: (visivel: boolean) => void = () => {};
+    const observar = vi
+      .spyOn(IntersectionObserver.prototype, "observe")
+      .mockImplementation(function (this: IntersectionObserver, alvo: Element) {
+        const { cb } = this as unknown as { cb: IntersectionObserverCallback };
+        avisar = (visivel) => cb([{ target: alvo, isIntersecting: visivel } as IntersectionObserverEntry], this);
+      });
+    render(
+      <MotionRoot>
+        <Reveal>
+          <span>conteúdo</span>
+        </Reveal>
+      </MotionRoot>,
+    );
+    const alvo = screen.getByText("conteúdo").parentElement as HTMLElement;
+    act(() => avisar(true));
+    await waitFor(() => expect(alvo).toHaveStyle({ opacity: "1" }), { timeout: 3000 });
+
+    act(() => avisar(false));
+    await new Promise((fim) => setTimeout(fim, 900));
+
+    expect(alvo).toHaveStyle({ opacity: "1" });
+    observar.mockRestore();
+  });
 });
 
 describe("InkHover", () => {

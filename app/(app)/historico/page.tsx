@@ -7,7 +7,7 @@ import { segmentos } from "./execucoes";
 import { Reveal } from "@/app/reveal";
 import { GraficoDeMatch } from "./grafico";
 import { ExportarHistorico, LinhaDoTempo } from "./linha-do-tempo";
-import { NOTA_VER_ATUAL } from "./ver-execucao";
+import { NOTA_VER_ATUAL } from "./ver-execucao";
 import { Cabecalho } from "../cabecalho";
 
 /**
@@ -142,15 +142,15 @@ function Historico({
 
   return (
     <div className="hist-corpo">
-      <Reveal once>
+      <Reveal>
         <Resumo execucoes={execucoes} parcial={temAnterior || temProxima} />
       </Reveal>
 
-      <Reveal once delay={0.08}>
+      <Reveal delay={0.08}>
         <GraficoDeMatch execucoes={execucoes} />
       </Reveal>
 
-      <Reveal once delay={0.16}>
+      <Reveal delay={0.16}>
         <LinhaDoTempo execucoes={execucoes} />
 
         {(temAnterior || temProxima) && (

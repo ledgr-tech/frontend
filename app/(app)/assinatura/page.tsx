@@ -1,7 +1,7 @@
 import { Reveal } from "@/app/reveal";
 import { PLANOS } from "@/lib/planos";
 import { CancelarAssinatura } from "./cancelar-assinatura";
-import { ASSINATURA, FATURAS, NUMEROS } from "./dados";
+import { ASSINATURA, FATURAS, NUMEROS } from "./dados";
 import { Cabecalho } from "../cabecalho";
 
 /**
@@ -37,7 +37,7 @@ export default function AssinaturaPage() {
           demonstração, e nada é alterado por aqui.
         </p>
 
-        <Reveal once className="grade-colunas dash-resumo">
+        <Reveal className="grade-colunas dash-resumo">
           {NUMEROS.map((numero) => (
             <div key={numero.rotulo}>
               <span className="dash-rotulo">{numero.rotulo}</span>
@@ -47,7 +47,7 @@ export default function AssinaturaPage() {
           ))}
         </Reveal>
 
-        <Reveal once delay={0.08}>
+        <Reveal delay={0.08}>
           <section className="ass-planos-caixa">
             <h3 id="assinatura-planos" className="ass-titulo">
               Planos
@@ -84,7 +84,7 @@ export default function AssinaturaPage() {
           </section>
         </Reveal>
 
-        <Reveal once delay={0.16}>
+        <Reveal delay={0.16}>
           <section className="ass-faturas">
             <h3 className="ass-titulo">Faturas</h3>
             <div className="dash-tabela-rolagem">

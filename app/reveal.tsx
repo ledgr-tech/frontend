@@ -20,28 +20,30 @@ export function MotionRoot({ children }: { children: ReactNode }) {
   );
 }
 
+/**
+ * Entrada de um bloco na primeira vez que ele aparece na tela, subindo 16px com fade, como
+ * Linear e Stripe. Uma vez só: quem volta rolando para reler encontra o conteúdo parado.
+ * Sem escala: em blocos grandes ela deixa o texto borrado enquanto anima.
+ */
 export function Reveal({
   children,
   delay = 0,
   style,
   className,
-  once = false,
 }: {
   children: ReactNode;
   delay?: number;
   style?: CSSProperties;
   className?: string;
-  /** A landing reanima a cada passagem; telas de trabalho animam uma vez só. */
-  once?: boolean;
 }) {
   return (
     <m.div
       data-reveal
       className={className}
       style={style}
-      initial={{ opacity: 0, scale: 0.96 }}
-      whileInView={{ opacity: 1, scale: 1 }}
-      viewport={{ once, amount: 0.15, margin: "0px 0px -60px 0px" }}
+      initial={{ opacity: 0, y: 16 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, amount: 0.15, margin: "0px 0px -60px 0px" }}
       transition={{ duration: 0.55, delay, ease: [0.22, 1, 0.36, 1] }}
     >
       {children}
@@ -179,16 +181,10 @@ export function PlanCard({
   className?: string;
 }) {
   return (
-    <m.div
-      data-reveal
-      initial={{ opacity: 0, y: 22 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: false, amount: 0.15, margin: "0px 0px -60px 0px" }}
-      transition={{ duration: 0.55, delay, ease: [0.22, 1, 0.36, 1] }}
-    >
+    <Reveal delay={delay}>
       <SpotlightHover className={className} style={style}>
         {children}
       </SpotlightHover>
-    </m.div>
+    </Reveal>
   );
 }

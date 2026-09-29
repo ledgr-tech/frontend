@@ -21,7 +21,7 @@ import {
 } from "./resumo";
 import { InkHover, Reveal, SpotlightHover } from "@/app/reveal";
 import { Barra, EsqueletoTabela, EsqueletoTela } from "../esqueleto";
-import { IconeOrigem } from "../icone-origem";
+import { IconeOrigem } from "../icone-origem";
 import { Cabecalho } from "../cabecalho";
 
 // ponytail: "O que o Ledgr sugere" (as três leituras de padrão do design) saiu
@@ -208,7 +208,7 @@ function Conteudo({
       </div>
 
       {resumo.semCorrespondente > 0 && (
-        <Reveal once className="dash-analise">
+        <Reveal className="dash-analise">
           <SpotlightHover className="dash-destaque dash-destaque-faixa">
             <Image
               src="/mascotes/mascote-explicando.png"
@@ -234,7 +234,7 @@ function Conteudo({
         </Reveal>
       )}
 
-      <Reveal once delay={0.08}>
+      <Reveal delay={0.08}>
         <div
           style={{
             display: "flex",
@@ -305,7 +305,7 @@ function Conteudo({
 
       {/* As outras execuções atuais (as refeitas depois ficam só no histórico). */}
       {anteriores.length > 0 && (
-        <Reveal once delay={0.16}>
+        <Reveal delay={0.16}>
           <h3 style={{ margin: "0 0 12px", fontSize: 22, fontWeight: 600 }}>
             Conciliações anteriores
           </h3>

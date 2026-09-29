@@ -46,7 +46,7 @@ export default async function FechamentosPage() {
       ) : meses.length === 0 ? (
         <SemConciliacao />
       ) : (
-        <Reveal once style={{ padding: "28px 0 56px" }}>
+        <Reveal style={{ padding: "28px 0 56px" }}>
           <MesaDeFechamento meses={meses} />
         </Reveal>
       )}

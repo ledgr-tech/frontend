@@ -195,7 +195,7 @@ export default function ConciliacaoPage() {
           </p>
         )}
         {/* desligar uma categoria volta ao "Só revisão": as cinco são o que ele junta */}
-        <Reveal once>
+        <Reveal>
           <Relatorio
             linhas={conciliacao.linhas}
             ativa={categoria}
@@ -204,7 +204,7 @@ export default function ConciliacaoPage() {
         </Reveal>
 
         {/* uma faixa só de controles, colada na tabela: o filtro à esquerda, a densidade à direita */}
-        <Reveal once delay={0.08} className="tabela-ferramentas">
+        <Reveal delay={0.08} className="tabela-ferramentas">
           <div className="pills segmentado" role="group" aria-label="Filtrar lançamentos">
             <button
               type="button"
@@ -245,7 +245,7 @@ export default function ConciliacaoPage() {
           )}
         </Reveal>
 
-        <Reveal once delay={0.08}>
+        <Reveal delay={0.08}>
           <div className="dash-tabela-rolagem tabela-cartoes">
             <table className="table tabela-folhas" role="table">
               <thead role="rowgroup">

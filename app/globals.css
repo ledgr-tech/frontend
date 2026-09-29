@@ -529,7 +529,7 @@ dialog::backdrop {
   .moldura-rotulo { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .cadastro-mascote, .cadastro-dica { animation: none; }
+  .cadastro-mascote-fundo, .cadastro-dica { animation: none; }
 }
 /* "Criando sua conta…": ocupa o lugar do formulário, com a mesma largura e o mesmo título dos passos;
    a barra repete o traço de 3px da trilha de etapas, correndo enquanto o servidor trabalha */

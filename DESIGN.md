@@ -152,11 +152,17 @@ fundo claro desfocado da tela de acesso (`.recuperar-fundo`).
 > viram e aprovaram — fica como decisão de vocês, não minha.
 >
 > **Decidido em 27/09:** o scroll-reveal fica, e vale para todas as telas do app.
-> Os blocos abaixo do cabeçalho entram com `Reveal once`, em sequência
+> Os blocos abaixo do cabeçalho entram com `Reveal`, em sequência
 > (0, 0,08, 0,16 s); os mascotes das telas levam o rastro de tinta (`InkHover`).
 > O `MotionRoot` está no template do app (`app/(app)/template.tsx`), então tela
 > nova só usa o `Reveal` de `app/reveal.tsx`. O `NumeroAnimado` continua
 > animando só a consequência, nunca a chegada.
+>
+> **Mudado em 29/09:** o `Reveal` anima uma vez só em todo lugar, landing
+> inclusive (antes a landing reanimava a cada passagem: quem voltava rolando
+> esperava o fade de novo), e entra subindo 16px em vez de crescer de 96%, que
+> borrava o texto dos blocos grandes. É o que fazem Linear, Stripe e Vercel. O
+> prop `once` saiu, porque virou o único comportamento.
 
 ### 8. Divulgação progressiva no detalhe da divergência — ✅ feito
 

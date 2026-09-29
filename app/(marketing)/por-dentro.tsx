@@ -16,7 +16,7 @@ import { Vitrine } from "./vitrine";
 function Etapa({ num, titulo, atraso, children }: { num: string; titulo: string; atraso: number; children: ReactNode }) {
   return (
     <li className="por-dentro-etapa">
-      <Reveal once delay={atraso} className="por-dentro-etapa-corpo">
+      <Reveal delay={atraso} className="por-dentro-etapa-corpo">
         {/* o numeral e o fio em onda que liga uma etapa à outra, no desenho das bordas da landing */}
         <span className="por-dentro-cabeca" aria-hidden="true">
           <span className="por-dentro-num">{num}</span>
@@ -48,7 +48,7 @@ export function PorDentro({ banco, sistema }: { banco: LinhaExtrato[]; sistema: 
           sai no relatório em CSV que vai para o contador.
         </Etapa>
       </ol>
-      <Reveal once>
+      <Reveal>
         <Vitrine banco={banco} sistema={sistema} destaque="Pagamento fornecedor #1082" />
       </Reveal>
     </>

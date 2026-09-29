@@ -190,7 +190,7 @@ export default function DetalheDivergenciaPage() {
       />
 
       <div className="det-corpo">
-        <Reveal once className="det-comparacao">
+        <Reveal className="det-comparacao">
           <CartaoExtrato
             titulo="Extrato do banco"
             marca="Fonte da verdade"
@@ -224,7 +224,7 @@ export default function DetalheDivergenciaPage() {
             casou). A divergência é explicada sob pedido, pelo POST /explicacoes;
             o key zera o estado ao trocar de linha. */}
         {!linha.explicacao && real && !estaResolvida(linha.status) && (
-          <Reveal once delay={0.08}>
+          <Reveal delay={0.08}>
             <ExplicacaoDaDivergencia
               key={linha.id}
               linhaId={linha.id}
@@ -234,7 +234,7 @@ export default function DetalheDivergenciaPage() {
         )}
 
         {linha.explicacao && (
-          <Reveal once delay={0.08} className="det-causa">
+          <Reveal delay={0.08} className="det-causa">
             <InkHover style={{ flex: "none" }}>
               <Image
                 src="/mascotes/mascote-lendo.png"
@@ -257,7 +257,7 @@ export default function DetalheDivergenciaPage() {
 
         {linha.cronico && linha.cronico.length > 0 && (
           /* aberto por padrão: é a leitura que muda o que você faz a seguir */
-          <Reveal once delay={0.16}>
+          <Reveal delay={0.16}>
             <details className="det-cronico recolhivel" open>
               <summary className="recolhivel-titulo">
                 <span>
@@ -302,7 +302,7 @@ export default function DetalheDivergenciaPage() {
         )}
 
         {/* fechado por padrão: procedência é consulta, não leitura de rotina */}
-        <Reveal once delay={0.16}>
+        <Reveal delay={0.16}>
           <details className="recolhivel">
             <summary className="recolhivel-titulo">
               <span style={{ fontSize: 22, fontWeight: 600, fontFamily: "var(--font-heading)" }}>
