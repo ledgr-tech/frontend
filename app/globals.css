@@ -823,8 +823,8 @@ button.login-link-animado { border: 0; background-color: transparent; font: inhe
 .grade-colunas > * { padding-inline: var(--grade-recuo, 16px); }
 .grade-colunas > :first-child { padding-left: 0; }
 .grade-colunas > * + * { border-left: 1px solid var(--grade-linha, var(--color-divider)); }
-/* "Por dentro do Ledgr" (app/(marketing)/por-dentro.tsx): seção própria na faixa escura, logo
-   depois de "Como funciona", com a vida da linha #1082 em quatro etapas. Uma coluna no celular,
+/* "Por dentro do Ledgr" (app/(marketing)/por-dentro.tsx): seção própria na faixa clara, logo
+   depois de "Como funciona", com a vida da linha #1082 em quatro etapas e a tela do app embaixo. Uma coluna no celular,
    2×2 no tablet e as quatro lado a lado no desktop, como os passos de "Como funciona" */
 .por-dentro { display: flex; flex-direction: column; gap: clamp(36px, 5vw, 56px); }
 .por-dentro-topo { display: flex; flex-direction: column; gap: 12px; }
@@ -854,34 +854,84 @@ button.login-link-animado { border: 0; background-color: transparent; font: inhe
   line-height: 1.25;
 }
 .por-dentro-texto { margin: 0; font-size: 14.5px; line-height: 1.65; color: color-mix(in srgb, var(--color-text) 72%, transparent); }
-/* o recorte: o cartão da demonstração de "O problema" (comparacao.tsx), com filete, cabeçalho e
-   linhas com divisória, em papel claro sobre o creme da faixa. Cresce até o fim da coluna, para
-   os quatro terminarem na mesma altura */
-.por-dentro-recorte {
-  --texto-apagado: color-mix(in srgb, var(--color-text) 54%, transparent);
-  flex: 1; margin-top: 6px; display: flex; flex-direction: column;
-  border: 1px solid var(--color-divider); border-radius: var(--radius-md);
-  background: #fdfcfa; color: var(--color-text);
-  box-shadow: 0 14px 32px -26px rgb(90 59 10 / 0.45);
+/* a tela inteira do app numa janela (app/(marketing)/vitrine.tsx), como o arc.net mostra o
+   navegador: moldura com filete, sombra suave e a barra de três pontos; dentro, a réplica em
+   1280px, encolhida inteira por zoom. As variáveis são as que o app declara no .app-shell,
+   sempre no tema claro: a janela está na faixa clara da landing */
+.vitrine { margin: clamp(8px, 2vw, 24px) 0 0; }
+.vitrine-janela {
+  overflow: hidden; border-radius: 12px; background: var(--color-bg);
+  border: 1px solid color-mix(in srgb, var(--color-text) 14%, transparent);
+  box-shadow: 0 34px 70px -42px rgb(45 35 20 / 0.55), 0 2px 6px rgb(45 35 20 / 0.06);
 }
-.por-dentro-recorte-topo {
-  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
-  padding: 13px 18px; border-bottom: 1px solid var(--color-divider);
+.vitrine-barra {
+  display: flex; gap: 7px; padding: 11px 14px;
+  background: var(--color-surface); border-bottom: 1px solid var(--color-divider);
 }
-.por-dentro-recorte-titulo { font-family: var(--font-heading); font-size: 16px; font-weight: 600; line-height: 1.3; }
-.por-dentro-recorte-meta { flex: none; font-size: 12px; color: var(--texto-apagado); }
-.por-dentro-recorte-linha {
-  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
-  padding: 11px 18px; border-bottom: 1px solid var(--color-divider);
+.vitrine-barra > span {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: color-mix(in srgb, var(--color-text) 16%, transparent);
 }
-.por-dentro-recorte-linha:last-child { border-bottom: none; }
-.por-dentro-recorte-corpo { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; padding: 14px 18px; }
-.por-dentro-rotulo { font-size: 13.5px; color: var(--texto-apagado); }
-.por-dentro-valor { flex: none; font-family: var(--font-heading); font-size: 16.5px; font-weight: 600; font-variant-numeric: lining-nums tabular-nums; }
-.por-dentro-recorte .det-delta-valor { font-size: 30px; }
-.por-dentro-motivo { flex-direction: row; align-items: flex-start; }
-.por-dentro-motivo .det-causa-texto { text-align: left; font-size: 13.5px; line-height: 1.6; }
-.por-dentro-relatorio { justify-content: flex-start; align-items: center; gap: 8px; font-size: 13.5px; font-weight: 600; }
+.vitrine-app {
+  --tinta-hover: color-mix(in srgb, var(--color-text) 6%, transparent);
+  --tinta-ativa: color-mix(in srgb, var(--color-text) 9%, transparent);
+  --texto-apagado: color-mix(in srgb, var(--color-text) 58%, transparent);
+  --folha-banco: #fdfcfa; --folha-sistema: #ebe8e3; --superficie-elevada: #fdfcfa;
+  width: 1280px; display: grid; grid-template-columns: 232px minmax(0, 1fr);
+  background: var(--color-bg); color: var(--color-text); text-align: left;
+}
+/* menu e barra de cima: o desenho do .app-aside e do .app-topo, com classes próprias (ver vitrine.tsx) */
+.vitrine-menu {
+  display: flex; flex-direction: column; gap: 14px; padding: 18px 14px;
+  background: var(--color-surface); border-right: 1px solid var(--color-divider);
+}
+.vitrine-marca {
+  display: flex; align-items: center; gap: 10px; min-height: 36px; padding-left: 10px;
+  font-family: var(--font-heading); font-size: 20px; font-weight: 600; line-height: 1;
+}
+.vitrine-item {
+  display: flex; align-items: center; gap: 10px; padding: 8px 11px; white-space: nowrap;
+  border-radius: var(--radius-md); border: 1px solid transparent;
+  font-family: var(--font-heading); font-size: 15px; font-weight: 600;
+  color: color-mix(in srgb, var(--color-text) 78%, transparent);
+}
+.vitrine-item[data-ativo] { background: var(--tinta-ativa); color: var(--color-text); }
+.vitrine-nova {
+  border-color: var(--color-accent); color: var(--color-accent-700);
+  background: color-mix(in srgb, var(--color-accent) 9%, transparent);
+}
+.vitrine-nav { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.vitrine-assistente {
+  display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: var(--radius-md);
+  border: 1px solid color-mix(in srgb, var(--color-text) 20%, transparent);
+}
+.vitrine-conta {
+  display: flex; align-items: center; gap: 10px; padding: 12px 6px 0;
+  border-top: 1px solid var(--color-divider);
+}
+.vitrine-conta-texto { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.vitrine-conta-seta { flex: none; color: color-mix(in srgb, var(--color-text) 55%, transparent); }
+.vitrine-principal { min-width: 0; }
+.vitrine-topo {
+  display: flex; align-items: center; gap: 16px; padding: 12px 40px;
+  border-bottom: 1px solid var(--color-divider);
+}
+.vitrine-busca { flex: 1; }
+.vitrine-busca-texto { flex: 1; font-size: 14.5px; color: color-mix(in srgb, var(--color-text) 45%, transparent); }
+/* no app o atalho some em tela estreita; na réplica a tela é sempre a de desktop */
+.vitrine-app .app-busca-atalho { display: inline; }
+.vitrine-conteudo { padding: 0 40px 36px; }
+.vitrine-tela { display: flex; flex-direction: column; gap: 22px; padding-top: 24px; }
+/* a linha do fluxo acesa como no hover do app, um pouco mais forte, para ser vista de longe */
+.vitrine-app .table tbody tr[data-destacada] > .folha-banco {
+  background: color-mix(in srgb, var(--tom-linha) 14%, var(--folha-banco));
+}
+.vitrine-app .table tbody tr[data-destacada] > .folha-sistema {
+  background: color-mix(in srgb, var(--tom-linha) 14%, var(--folha-sistema));
+}
+.vitrine-app .table tbody tr[data-destacada] > td:last-child {
+  background: color-mix(in srgb, var(--tom-linha) 14%, transparent);
+}
 .numeros-grade { --grade-recuo: 28px; --grade-linha: color-mix(in srgb, var(--color-neutral-100) 22%, transparent); }
 .hero-provas-grid { --grade-recuo: 16px; }
 .hero-provas-grid > * { padding-top: 18px; }
@@ -1348,13 +1398,13 @@ button.login-link-animado { border: 0; background-color: transparent; font: inhe
    olho pequeno, não aguentava o corpo de título de tela. Só do tamanho de
    título para cima: lista, tabela e botão seguem em Inter. Algarismos
    alinhados: os de estilo antigo sobem e descem, e em valor isso atrapalha. */
-.app-shell :is(h1, h2, h3),
-.app-shell :is(.dash-valor, .hist-destaque, .det-valor, .vg-estado-aberto, .folha-nome, .det-cartao-titulo) {
+:is(.app-shell, .vitrine-app) :is(h1, h2, h3),
+:is(.app-shell, .vitrine-app) :is(.dash-valor, .hist-destaque, .det-valor, .vg-estado-aberto, .folha-nome, .det-cartao-titulo) {
   font-family: var(--font-titulo); font-variant-numeric: lining-nums tabular-nums;
 }
 /* título de passo tem 18px: fica na Inter, como o resto do texto corrido */
 .app-shell .vg-passo-titulo { font-family: var(--font-heading); }
-.app-shell h6 { color: var(--texto-apagado); }
+:is(.app-shell, .vitrine-app) h6 { color: var(--texto-apagado); }
 
 /* ── Comparação em duas folhas ────────────────────────────────────────────────
    O extrato do banco e o do sistema são coisas diferentes: cada um é uma folha de

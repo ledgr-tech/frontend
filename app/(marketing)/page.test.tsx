@@ -71,28 +71,37 @@ describe("LandingPage", () => {
     expect(porDentro).toContainElement(screen.getByText("Por dentro do Ledgr"));
     expect(container.querySelector("#como")?.nextElementSibling).toBe(porDentro);
     // as quatro etapas, em ordem; termina no sistema de gestão, não numa decisão dentro do app
-    const etapas = within(porDentro).getAllByRole("listitem");
+    const etapas = [...porDentro.querySelectorAll<HTMLElement>(".por-dentro-etapa")];
     expect(etapas.map((etapa) => within(etapa).getByRole("heading").textContent)).toEqual([
       "Duas versões da mesma linha",
       "O Ledgr acha a diferença",
       "E diz o motivo",
       "Você corrige no seu sistema",
     ]);
-    // a mesma linha da demonstração de "O problema"
-    const dentro = within(porDentro);
-    expect(dentro.getByText("R$ 12.640,00")).toBeInTheDocument();
-    expect(dentro.getByText("R$ 12.604,00")).toBeInTheDocument();
-    expect(dentro.getByText("Δ 36,00")).toBeInTheDocument();
-    expect(dentro.getByText("Valor diverge na mesma data")).toBeInTheDocument();
-    // sem IA em produção, a explicação é o motivo fixo do motor, sem selo de IA
-    expect(
-      dentro.getByText("Existe um lançamento do outro lado na mesma data, mas o valor não coincide com o deste item."),
-    ).toBeInTheDocument();
-    expect(dentro.queryByText(/Gerada por IA/)).not.toBeInTheDocument();
-    // os recortes do app são vitrine: quem descreve a etapa é o texto
-    const recortes = porDentro.querySelectorAll(".por-dentro-recorte");
-    expect(recortes).toHaveLength(4);
-    recortes.forEach((recorte) => expect(recorte).toHaveAttribute("inert"));
+    // sem recorte em cada etapa: quem mostra o produto é a tela inteira, logo abaixo
+    expect(porDentro.querySelector(".por-dentro-recorte")).toBeNull();
+  });
+
+  it("shows the whole app screen below the flow, with line #1082 highlighted, as a showcase that is not clickable", () => {
+    const { container } = render(<LandingPage />);
+    const tela = container.querySelector<HTMLElement>("#por-dentro .vitrine-app")!;
+    expect(tela.closest("[inert]")).not.toBeNull();
+    const dentro = within(tela);
+    // o casco do app, com Conciliações aceso, e a comparação direta de agosto da empresa de exemplo
+    expect(dentro.getByText("Conciliações").closest("[data-ativo]")).not.toBeNull();
+    expect(dentro.getByRole("heading", { name: "Comparação direta" })).toBeInTheDocument();
+    expect(dentro.getByText("Telha Certa Ltda · competência agosto/2026 · 4.218 lançamentos")).toBeInTheDocument();
+    // o relatório é o componente do app, com o mesmo agosto do topo da página
+    expect(dentro.getByRole("heading", { name: "Divergências por categoria" })).toBeInTheDocument();
+    expect(dentro.getByText(/^157 linhas pedem revisão/)).toBeInTheDocument();
+    // a linha do fluxo, em destaque na tabela das duas folhas
+    const linha = within(tela.querySelector<HTMLElement>("tr[data-destacada]")!);
+    expect(linha.getAllByText("Pagamento fornecedor #1082")).toHaveLength(2);
+    expect(linha.getByText("R$ 12.640,00")).toBeInTheDocument();
+    expect(linha.getByText("R$ 12.604,00")).toBeInTheDocument();
+    expect(linha.getByText("Valor diverge na mesma data")).toBeInTheDocument();
+    // fora do leitor de tela, a réplica ganha uma descrição
+    expect(screen.getByText(/^A tela Comparação direta do Ledgr/)).toBeInTheDocument();
   });
 
   // a demonstração banco × sistema; "Por dentro do Ledgr" repete alguns destes valores

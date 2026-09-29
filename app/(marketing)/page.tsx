@@ -616,7 +616,7 @@ export default function LandingPage() {
       </section>
 
       {/* por dentro do ledgr: o que chega depois do terceiro passo, contado pela vida de uma
-          linha, a #1082 de "O problema", até o sistema de gestão */}
+          linha, a #1082 de "O problema", até o sistema de gestão, e a tela inteira do app embaixo */}
       <section
         id="por-dentro"
         className="onda onda-superficie grao-claro"
@@ -632,7 +632,7 @@ export default function LandingPage() {
                 <h2 className="por-dentro-intro">Uma linha de agosto, do extrato ao seu sistema.</h2>
               </div>
             </Reveal>
-            <PorDentro />
+            <PorDentro banco={EXTRATO_BANCO} sistema={EXTRATO_SISTEMA} />
           </div>
         </div>
       </section>
