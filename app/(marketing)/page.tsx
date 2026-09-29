@@ -270,7 +270,7 @@ export default function LandingPage() {
               <span
                 style={{
                   fontSize: 14,
-                  color: "color-mix(in srgb, var(--color-text) 55%, transparent)",
+                  color: "color-mix(in srgb, var(--color-text) 68%, transparent)",
                 }}
               >
                 OFX ou CSV, direto do internet banking
@@ -300,7 +300,7 @@ export default function LandingPage() {
                     style={{
                       fontSize: 13,
                       lineHeight: 1.5,
-                      color: "color-mix(in srgb, var(--color-text) 60%, transparent)",
+                      color: "color-mix(in srgb, var(--color-text) 68%, transparent)",
                     }}
                   >
                     {prova.rotulo}
@@ -345,7 +345,7 @@ export default function LandingPage() {
                   fontSize: 12,
                   letterSpacing: "0.1em",
                   textTransform: "uppercase",
-                  color: "color-mix(in srgb, var(--color-text) 52%, transparent)",
+                  color: "color-mix(in srgb, var(--color-text) 68%, transparent)",
                   marginBottom: 8,
                 }}
               >
@@ -355,7 +355,7 @@ export default function LandingPage() {
                 <span style={{ fontFamily: "var(--font-display)", fontSize: 38, fontWeight: 600, lineHeight: 1 }}>
                   96,3%
                 </span>
-                <span style={{ fontSize: 13.5, color: "color-mix(in srgb, var(--color-text) 62%, transparent)" }}>
+                <span style={{ fontSize: 13.5, color: "color-mix(in srgb, var(--color-text) 68%, transparent)" }}>
                   conciliado
                 </span>
               </div>
@@ -371,7 +371,7 @@ export default function LandingPage() {
                 <div style={{ width: "96.3%", background: "var(--color-neutral-300)" }} />
                 <div style={{ flex: 1, background: "var(--color-accent)" }} />
               </div>
-              <div style={{ marginTop: 8, fontSize: 12.5, color: "color-mix(in srgb, var(--color-text) 60%, transparent)" }}>
+              <div style={{ marginTop: 8, fontSize: 12.5, color: "color-mix(in srgb, var(--color-text) 68%, transparent)" }}>
                 157 de 4.218 para revisar
               </div>
             </div>
@@ -473,7 +473,7 @@ export default function LandingPage() {
               }}
             >
               <div>
-                <h6 className="eyebrow" style={{ margin: "0 0 12px", color: "var(--color-accent-700)" }}>Cap. II · O jeito de hoje</h6>
+                <p className="eyebrow" style={{ margin: "0 0 12px", color: "var(--color-accent-700)" }}>Cap. II · O jeito de hoje</p>
                 <h2 style={{ margin: 0, fontSize: "clamp(30px, 2.8vw, 46px)", fontWeight: 400, lineHeight: 1.08 }}>
                   Duas telas abertas, um dedo em cada linha.
                 </h2>
@@ -547,7 +547,7 @@ export default function LandingPage() {
               }}
             >
               <div style={{ flex: "1 1 360px", minWidth: 0 }}>
-                <h6 className="eyebrow" style={{ margin: "0 0 12px", color: "var(--color-accent-700)" }}>Cap. III · Como funciona</h6>
+                <p className="eyebrow" style={{ margin: "0 0 12px", color: "var(--color-accent-700)" }}>Cap. III · Como funciona</p>
                 <h2 style={{ margin: 0, fontSize: "clamp(30px, 2.8vw, 46px)", fontWeight: 400, lineHeight: 1.08 }}>
                   Três passos. A conferência linha por linha fica com o Ledgr.
                 </h2>
@@ -611,9 +611,9 @@ export default function LandingPage() {
           <div className="por-dentro">
             <Reveal>
               <div className="por-dentro-topo">
-                <h6 className="eyebrow" style={{ margin: 0, color: "var(--color-accent-700)" }}>
+                <p className="eyebrow" style={{ margin: 0, color: "var(--color-accent-700)" }}>
                   Por dentro do Ledgr
-                </h6>
+                </p>
                 <h2 className="por-dentro-intro">Uma linha de agosto, do extrato ao seu sistema.</h2>
               </div>
             </Reveal>
@@ -651,9 +651,9 @@ export default function LandingPage() {
                 §
               </div>
               <div>
-                <h6 className="eyebrow" style={{ margin: "0 0 10px", color: "var(--color-accent-700)" }}>
+                <p className="eyebrow" style={{ margin: "0 0 10px", color: "var(--color-accent-700)" }}>
                   Regra de ouro
-                </h6>
+                </p>
                 <h2 className="font-display" style={{ margin: "0 0 12px", fontSize: "clamp(26px, 2.4vw, 42px)", fontWeight: 500 }}>
                   O extrato do banco é sempre a fonte da verdade.
                 </h2>
@@ -714,7 +714,7 @@ export default function LandingPage() {
             />
           </InkHover>
           <Reveal delay={0.1} className="convite-texto" style={{ flex: "1 1 420px", minWidth: 0, paddingLeft: 32, borderLeft: "1px solid var(--color-accent)" }}>
-            <h6 className="eyebrow" style={{ margin: "0 0 12px", color: "var(--color-accent-700)" }}>Sem configuração</h6>
+            <p className="eyebrow" style={{ margin: "0 0 12px", color: "var(--color-accent-700)" }}>Sem configuração</p>
             <h2 style={{ margin: "0 0 16px", fontSize: "clamp(26px, 2.4vw, 40px)", fontWeight: 400, lineHeight: 1.12 }}>
               Suba os arquivos e veja as divergências em minutos.
             </h2>
@@ -762,7 +762,7 @@ export default function LandingPage() {
                 display: "block",
                 marginTop: 12,
                 fontSize: 14,
-                color: "color-mix(in srgb, var(--color-text) 58%, transparent)",
+                color: "color-mix(in srgb, var(--color-text) 68%, transparent)",
               }}
             >
               Qualquer outra dúvida: ledgrtech@gmail.com
@@ -921,14 +921,14 @@ export default function LandingPage() {
               <Image src="/mascotes/logo-barras.png" alt="Ledgr" width={1280} height={1041} sizes="30px" style={{ height: 24, width: "auto" }} />
               <span style={{ fontFamily: "var(--font-heading)", fontSize: 19, fontWeight: 600 }}>Ledgr</span>
             </div>
-            <span style={{ fontSize: 14, lineHeight: 1.7, maxWidth: "40ch", color: "color-mix(in srgb, var(--color-text) 62%, transparent)" }}>
+            <span style={{ fontSize: 14, lineHeight: 1.7, maxWidth: "40ch", color: "color-mix(in srgb, var(--color-text) 68%, transparent)" }}>
               Conciliação bancária sem planilha, para quem fecha o mês com o extrato na mão. Passo
               Fundo, RS.
             </span>
           </div>
           {RODAPE_COLUNAS.map((coluna) => (
             <div key={coluna.titulo} style={{ flex: "0 1 170px", display: "flex", flexDirection: "column", gap: 10 }}>
-              <span style={{ fontSize: 12, letterSpacing: "0.12em", textTransform: "uppercase", color: "color-mix(in srgb, var(--color-text) 50%, transparent)" }}>
+              <span style={{ fontSize: 12, letterSpacing: "0.12em", textTransform: "uppercase", color: "color-mix(in srgb, var(--color-text) 68%, transparent)" }}>
                 {coluna.titulo}
               </span>
               {coluna.itens.map((link) => (
@@ -949,7 +949,7 @@ export default function LandingPage() {
               justifyContent: "space-between",
               gap: "8px 24px",
               fontSize: 13,
-              color: "color-mix(in srgb, var(--color-text) 50%, transparent)",
+              color: "color-mix(in srgb, var(--color-text) 68%, transparent)",
             }}
           >
             <span>© 2026 Ledgr · Passo Fundo, RS</span>

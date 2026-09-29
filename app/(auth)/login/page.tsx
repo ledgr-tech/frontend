@@ -326,7 +326,8 @@ export default function LoginPage() {
         </Link>
       </header>
 
-      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "clamp(12px, 3vh, 40px) 0" }}>
+      {/* o <main> da página, como na MolduraAuth: leitor de tela pula direto para o formulário */}
+      <main style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "clamp(12px, 3vh, 40px) 0" }}>
         <form className="login-form" onSubmit={enviar} noValidate style={{ width: "100%", maxWidth: 424 }}>
           <div className="login-eyebrow" style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: "clamp(10px, 2vh, 20px)" }}>
             <span className="eyebrow" style={{ fontSize: 12, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--color-accent-700)" }}>
@@ -495,7 +496,7 @@ export default function LoginPage() {
             </Link>
           </p>
         </form>
-      </div>
+      </main>
 
       <footer
         style={{

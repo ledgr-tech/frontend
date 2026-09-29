@@ -112,7 +112,7 @@ export function CabecalhoSite() {
               letterSpacing: "0.12em",
               textTransform: "uppercase",
               whiteSpace: "nowrap",
-              color: "color-mix(in srgb, var(--color-text) 50%, transparent)",
+              color: "color-mix(in srgb, var(--color-text) 68%, transparent)",
             }}
           >
             Conciliação bancária

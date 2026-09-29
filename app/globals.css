@@ -134,6 +134,12 @@ a { color: var(--color-accent-700); text-underline-offset: 3px; }
 /* rótulos pequenos (kickers/eyebrows) em accent — monoespaçada remete a
    ticker/extrato/planilha */
 .eyebrow { font-family: var(--font-mono); }
+/* eyebrow de seção em <p>, não <h6>: é rótulo, e um <h6> logo depois do <h1> pulava cinco
+   níveis para o leitor de tela. O desenho é o mesmo do h6 */
+p.eyebrow {
+  font-weight: var(--font-heading-weight); font-size: 14px; line-height: 1.12;
+  letter-spacing: 0.08em; text-transform: uppercase;
+}
 
 /* FAQ: <details>/<summary> nativo, sem JS — dropdown com + que vira x */
 .faq-item { border-bottom: 1px solid var(--color-divider); }

@@ -98,9 +98,10 @@ export function MolduraAuth({
         </Link>
       </header>
 
-      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "clamp(12px, 3vh, 40px) 0" }}>
+      {/* o <main> da página: sem ele, leitor de tela não tem como pular direto para o formulário */}
+      <main style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "clamp(12px, 3vh, 40px) 0" }}>
         {children}
-      </div>
+      </main>
 
       <footer
         style={{
