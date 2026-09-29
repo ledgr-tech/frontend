@@ -4,6 +4,7 @@ import Link from "next/link";
 import { seloDoStatus } from "@/app/(app)/dashboard/resumo";
 import { DIVERGENCIAS } from "@/lib/adaptadores";
 import { PLANOS } from "@/lib/planos";
+import { LogoBarras } from "@/app/(app)/logo-barras";
 import { CabecalhoSite } from "./cabecalho-site";
 import { ExtratoComparacao, type LinhaExtrato } from "./comparacao";
 import { InkHover, MotionRoot, PlanCard, Reveal } from "../reveal";
@@ -189,25 +190,9 @@ export default function LandingPage() {
 
       {/* hero */}
       <section style={{ position: "relative", overflow: "hidden" }}>
-        <Image
-          src="/mascotes/logo-barras.png"
-          alt=""
-          className="hero-marca"
-          aria-hidden="true"
-          width={1280}
-          height={1041}
-          sizes="640px"
-          loading="eager"
-          style={{
-            position: "absolute",
-            top: -70,
-            right: -110,
-            width: 640,
-            height: "auto",
-            opacity: 0.05,
-            pointerEvents: "none",
-          }}
-        />
+        {/* SVG em linha, não <img>: a marca d'água quase invisível era a maior imagem do topo e
+            virava o LCP no celular, esperando o JavaScript para pintar */}
+        <LogoBarras className="hero-marca" />
         <div
           aria-hidden="true"
           style={{

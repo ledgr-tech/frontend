@@ -756,6 +756,12 @@ button.login-link-animado { border: 0; background-color: transparent; font: inhe
 .onda-faixa-clara { --onda-cor: var(--faixa-clara); }
 .onda-faixa-clara::before { background-image: var(--grao-claro); }
 
+/* marca d'água das barras do logo no hero (LogoBarras em SVG, na cor do texto) */
+.hero-marca {
+  position: absolute; top: -70px; right: -110px; width: 640px; height: auto;
+  opacity: 0.05; color: var(--color-text); pointer-events: none;
+}
+
 /* ---------- landing em telas menores ---------- */
 
 /* cabeçalho: acima de 960px, navegação completa; abaixo, a marca vai para a direita e abre um menu de opções */
@@ -963,7 +969,7 @@ button.login-link-animado { border: 0; background-color: transparent; font: inhe
   .passos-grade > * { padding-block: 24px; }
 
   /* imagens de fundo e mascotes menores, para acompanharem a coluna */
-  .hero-marca { width: 380px !important; top: -40px !important; right: -130px !important; }
+  .hero-marca { width: 380px; top: -40px; right: -130px; }
   .como-marca, .convite-marca { width: 280px !important; }
   .como-mascote { width: 170px !important; }
   .convite-conteudo { justify-content: center; }
