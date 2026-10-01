@@ -6,9 +6,11 @@ import { join } from "node:path";
  * A prévia de quando o link do Ledgr é colado no WhatsApp, no LinkedIn ou no
  * e-mail. Gerada no build (é estática) e usada por todas as páginas.
  *
- * As fontes vêm do Google Fonts no build, como as do `next/font`: o ImageResponse
- * só lê TTF, OTF ou WOFF, e o Google devolve TTF quando o pedido traz `text=`.
- * Sem rede, a imagem sai na fonte padrão em vez de quebrar o build.
+ * As fontes ficam no repositório, como as do site (app/fonts), e o build não
+ * depende do Google Fonts. O ImageResponse só lê TTF, OTF ou WOFF, e não fonte
+ * variável: por isso estas são TTF estáticos à parte (Newsreader no tamanho
+ * óptico 72 e peso 500, Inter 400 e 700), que o Google recortou no mesmo
+ * alfabeto latino da fatia latina do site. Um caractere fora dele (ł, Δ) não sai.
  */
 
 export const alt = "Ledgr: pare de conciliar extrato à mão.";
@@ -19,20 +21,8 @@ const ROTULO = "CONCILIAÇÃO BANCÁRIA";
 const TITULO = "Pare de conciliar extrato à mão.";
 const TEXTO = "Concilie o extrato do banco com o extrato do seu sistema de gestão em minutos, sem planilha no meio.";
 
-async function fonteDoGoogle(familia: string, texto: string): Promise<ArrayBuffer | null> {
-  try {
-    const opcoes = { cache: "force-cache" } as const;
-    const css = await fetch(
-      `https://fonts.googleapis.com/css2?family=${familia}&text=${encodeURIComponent(texto)}`,
-      opcoes,
-    ).then((resposta) => resposta.text());
-    const url = css.match(/src: url\((.+?)\) format\('(?:opentype|truetype)'\)/)?.[1];
-    if (!url) return null;
-    const resposta = await fetch(url, opcoes);
-    return resposta.ok ? await resposta.arrayBuffer() : null;
-  } catch {
-    return null;
-  }
+function fonte(caminho: string): Promise<Buffer> {
+  return readFile(join(process.cwd(), "app/fonts", caminho));
 }
 
 async function imagem(caminho: string): Promise<string> {
@@ -42,17 +32,17 @@ async function imagem(caminho: string): Promise<string> {
 
 export default async function ImagemDeCompartilhamento() {
   const [titulo, texto, marca, logo, mascote] = await Promise.all([
-    fonteDoGoogle("Newsreader:opsz,wght@72,500", TITULO),
-    fonteDoGoogle("Inter:wght@400", TEXTO),
-    fonteDoGoogle("Inter:wght@700", `Ledgr${ROTULO}`),
+    fonte("newsreader/newsreader-72pt-500.ttf"),
+    fonte("inter/inter-400.ttf"),
+    fonte("inter/inter-700.ttf"),
     imagem("mascotes/logo-barras.png"),
     imagem("mascotes/mascote-apresenta.png"),
   ]);
   const fontes = [
-    titulo && { name: "Newsreader", data: titulo, weight: 500 as const },
-    texto && { name: "Inter", data: texto, weight: 400 as const },
-    marca && { name: "Inter", data: marca, weight: 700 as const },
-  ].filter((fonte) => !!fonte);
+    { name: "Newsreader", data: titulo, weight: 500 as const },
+    { name: "Inter", data: texto, weight: 400 as const },
+    { name: "Inter", data: marca, weight: 700 as const },
+  ];
 
   return new ImageResponse(
     (
