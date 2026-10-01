@@ -2,10 +2,12 @@ import Image from "next/image";
 import Link from "next/link";
 
 import { DIVERGENCIAS } from "@/lib/adaptadores";
+import { DEPOIMENTOS } from "@/lib/depoimentos";
 import { LogoBarras } from "@/app/(app)/logo-barras";
 import { CabecalhoSite } from "./cabecalho-site";
 import { CATEGORIAS, QUANTAS_CATEGORIAS } from "./categorias";
 import { ExtratoComparacao, type LinhaExtrato } from "./comparacao";
+import { Depoimentos } from "./depoimentos";
 import { DicaDoMouse } from "./dica-do-mouse";
 import { InkHover, MotionRoot, Reveal } from "../reveal";
 import { fonteDestaque } from "./fonte-destaque";
@@ -676,12 +678,16 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* depoimentos, onde o export do Claude Design os punha: só aparece quando há depoimento real */}
+      <Depoimentos depoimentos={DEPOIMENTOS} />
+
       {/* perguntas, com o mascote que lia o panfleto no antigo convite: o convite repetia o que os
           passos, os números e a FAQ já diziam, e saiu. O fundo de superfície também veio dele, para
-          as faixas continuarem alternando (a onda de cima é a cor da Regra de ouro, papel) */}
+          as faixas continuarem alternando (a onda de cima é a cor da seção anterior: a faixa escura
+          dos depoimentos, ou a Regra de ouro, papel, enquanto não há depoimento) */}
       <section
         id="perguntas"
-        className="onda onda-papel"
+        className={DEPOIMENTOS.length > 0 ? "onda onda-escura" : "onda onda-papel"}
         style={{ position: "relative", overflow: "hidden", background: "var(--color-surface)" }}
       >
         <Image

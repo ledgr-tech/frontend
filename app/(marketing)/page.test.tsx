@@ -1,8 +1,12 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { PLANOS } from "@/lib/planos";
 import { fonteDestaque } from "./fonte-destaque";
 import LandingPage from "./page";
+
+// a landing aqui é a de sempre, sem depoimentos: a lista real cresce quando eles chegam, e não pode
+// mudar estes testes. A landing com depoimentos é conferida em page-depoimentos.test.tsx
+vi.mock("@/lib/depoimentos", () => ({ DEPOIMENTOS: [] }));
 
 describe("LandingPage", () => {
   // o hero é a primeira seção; a faixa de números vem logo abaixo dele
