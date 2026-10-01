@@ -1,24 +1,20 @@
 import Image from "next/image";
 import Link from "next/link";
 
-import { seloDoStatus } from "@/app/(app)/dashboard/resumo";
 import { DIVERGENCIAS } from "@/lib/adaptadores";
-import { PLANOS } from "@/lib/planos";
 import { LogoBarras } from "@/app/(app)/logo-barras";
 import { CabecalhoSite } from "./cabecalho-site";
+import { CATEGORIAS, QUANTAS_CATEGORIAS } from "./categorias";
 import { ExtratoComparacao, type LinhaExtrato } from "./comparacao";
-import { InkHover, MotionRoot, PlanCard, Reveal } from "../reveal";
+import { DicaDoMouse } from "./dica-do-mouse";
+import { InkHover, MotionRoot, Reveal } from "../reveal";
 import { fonteDestaque } from "./fonte-destaque";
 import { PorDentro } from "./por-dentro";
+import { Precos, type ResumoDoMes } from "./precos";
 
-// As categorias de divergência do motor, na ordem e com os nomes do relatório
-// do app: o site não pode prometer uma lista e o produto entregar outra.
-const CATEGORIAS = new Intl.ListFormat("pt-BR").format(
-  DIVERGENCIAS.map((status) => seloDoStatus(status).rotulo.toLowerCase()),
-);
-
-// No feminino, como "categorias"; o número em si continua vindo do motor (DIVERGENCIAS).
-const POR_EXTENSO = ["Nenhuma", "Uma", "Duas", "Três", "Quatro", "Cinco", "Seis", "Sete", "Oito", "Nove", "Dez"];
+// O agosto da demonstração: o cartão do hero e o relatório do último card de Preços mostram o
+// mesmo mês, com os mesmos números
+const AGOSTO: ResumoDoMes = { periodo: "Agosto · 2026", conciliado: "96,3%", paraRevisar: "157 de 4.218 para revisar" };
 
 // A faixa logo abaixo do hero, só com o que é quantidade, e por extenso: algarismo solto em
 // tamanho grande ficava com cara de letra. Abre com o argumento central do pitch (não trocar de
@@ -27,10 +23,7 @@ const POR_EXTENSO = ["Nenhuma", "Uma", "Duas", "Três", "Quatro", "Cinco", "Seis
 const NUMEROS = [
   { valor: "Zero", rotulo: "sistemas para trocar: o Ledgr usa o que o seu sistema de gestão já exporta" },
   { valor: "Minutos", rotulo: "para o relatório ficar pronto depois que você sobe os arquivos" },
-  {
-    valor: POR_EXTENSO[DIVERGENCIAS.length] ?? String(DIVERGENCIAS.length),
-    rotulo: "categorias de divergência, sempre nomeadas",
-  },
+  { valor: QUANTAS_CATEGORIAS, rotulo: "categorias de divergência, sempre nomeadas" },
 ];
 
 // ponytail: as `explicacao` desta demonstração são no estilo da IA, que estará
@@ -369,11 +362,11 @@ export default function LandingPage() {
                   marginBottom: 8,
                 }}
               >
-                Agosto · 2026
+                {AGOSTO.periodo}
               </div>
               <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 8 }}>
                 <span className="numero-destaque" style={{ fontSize: 38, fontWeight: 600, lineHeight: 1 }}>
-                  96,3%
+                  {AGOSTO.conciliado}
                 </span>
                 <span style={{ fontSize: 13.5, color: "color-mix(in srgb, var(--color-text) 68%, transparent)" }}>
                   conciliado
@@ -388,11 +381,11 @@ export default function LandingPage() {
                   display: "flex",
                 }}
               >
-                <div style={{ width: "96.3%", background: "var(--color-neutral-300)" }} />
+                <div style={{ width: AGOSTO.conciliado.replace(",", "."), background: "var(--color-neutral-300)" }} />
                 <div style={{ flex: 1, background: "var(--color-accent)" }} />
               </div>
               <div style={{ marginTop: 8, fontSize: 12.5, color: "color-mix(in srgb, var(--color-text) 68%, transparent)" }}>
-                157 de 4.218 para revisar
+                {AGOSTO.paraRevisar}
               </div>
             </div>
           </InkHover>
@@ -521,26 +514,10 @@ export default function LandingPage() {
           </Reveal>
           <Reveal delay={0.15}>
             {/* dica de hover: as linhas divergentes do comparativo abrem detalhes */}
-            <div className="hover-hint" style={{ justifyContent: "center", margin: "22px 0 0" }}>
-              <span className="hover-hint-icone">
-                <svg
-                  aria-hidden="true"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth={1.25}
-                  strokeLinecap="round"
-                >
-                  <rect x="7" y="3" width="10" height="17" rx="5" />
-                  <path d="M12 3v5.5M7.2 8.5h9.6" />
-                  <path className="hover-hint-roda" d="M12 5v1.6" strokeWidth={1.75} />
-                </svg>
-              </span>
-              <span className="hover-hint-texto">
-                <span className="so-mouse">Passe o mouse sobre as linhas</span>
-                <span className="so-toque">Toque nas linhas</span> para ver os detalhes
-              </span>
-            </div>
+            <DicaDoMouse style={{ justifyContent: "center", margin: "22px 0 0" }}>
+              <span className="so-mouse">Passe o mouse sobre as linhas</span>
+              <span className="so-toque">Toque nas linhas</span> para ver os detalhes
+            </DicaDoMouse>
           </Reveal>
         </div>
       </section>
@@ -763,106 +740,38 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* preço / cta */}
+      {/* preço: o que vem em todo plano, numa trilha vertical como a de "Por dentro", até a régua dos
+          planos, e o convite embaixo. overflow: clip, e não hidden: hidden faria da seção o contêiner
+          de rolagem do título parado (sticky), e ele deixaria de grudar */}
       <section
         id="preco"
         className="onda onda-superficie grao"
-        style={{
-          position: "relative",
-          overflow: "hidden",
-          backgroundColor: "var(--faixa-escura)",
-        }}
+        style={{ position: "relative", overflow: "clip", backgroundColor: "var(--faixa-escura)" }}
       >
+        {/* marca d'água atrás dos botões, saindo pela borda de baixo: no meio da seção ela ficaria
+            atrás dos cards */}
         <Image
           src="/mascotes/mascote-comemorando.png"
           alt=""
           aria-hidden="true"
           width={1000}
           height={1000}
-          sizes="520px"
+          sizes="480px"
           className="preco-mascote"
-          style={{
-            position: "absolute",
-            top: "50%",
-            left: "50%",
-            transform: "translate(-50%, -46%)",
-            width: 520,
-            height: "auto",
-            opacity: 0.1,
-            pointerEvents: "none",
-          }}
         />
-        <Reveal
-          style={{
-            position: "relative",
-            maxWidth: 1600,
-            margin: "0 auto",
-            padding: "clamp(72px, 10vw, 108px) clamp(20px, 4.2vw, 56px)",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            gap: 20,
-            textAlign: "center",
-          }}
-        >
-          <span className="eyebrow" style={{ fontSize: 12, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--color-accent-300)" }}>
-            Cap. IV · Começar
-          </span>
-          <h2
-            className="titulo-misto"
-            style={{
-              margin: 0,
-              fontSize: "clamp(36px, 3.5vw, 60px)",
-              maxWidth: "26ch",
-              color: "var(--ledgr-tinta)",
-            }}
-          >
-            Preço fechado, <em>por volume.</em>
-          </h2>
-          <div style={{ width: 84, height: 1, background: "var(--color-accent)" }} />
-          <p style={{ margin: 0, fontSize: 16.5, lineHeight: 1.72, maxWidth: "52ch", color: "var(--color-neutral-300)" }}>
-            Você paga pelo número de lançamentos que conferir no mês. Não tem fidelidade, taxa de
-            implantação nem cobrança por usuário.
-          </p>
-          <div
-            className="planos-grade"
-            style={{
-              width: "100%",
-              maxWidth: 1180,
-              marginTop: 14,
-              textAlign: "left",
-            }}
-          >
-            {/* sem o valor por enquanto: a cobrança ainda não está definida. O nome, o volume e o
-                destaque do plano continuam (os preços seguem em lib/planos.ts, para a Assinatura do app) */}
-            {PLANOS.map((plano, i) => (
-              <PlanCard
-                key={plano.nome}
-                delay={0.1 + i * 0.07}
-                className="plano-card"
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 8,
-                  padding: "22px 20px",
-                  border: plano.destaque
-                    ? "1px solid var(--color-accent)"
-                    : plano.contato
-                      ? "1px dashed var(--color-accent-800)"
-                      : "1px solid var(--color-accent-800)",
-                  borderRadius: "var(--radius-md)",
-                }}
-              >
-                <span className="plano-nome" style={{ fontFamily: "var(--font-heading)", fontSize: 19, fontWeight: 600, color: "var(--ledgr-tinta)" }}>
-                  {plano.nome}
-                </span>
-                <span className="plano-limite" style={{ fontSize: 13.5, lineHeight: 1.6, color: "var(--color-neutral-400)" }}>
-                  {plano.limite}
-                </span>
-              </PlanCard>
-            ))}
-          </div>
-          <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "center", gap: 14, marginTop: 6 }}>
+        <div className="preco-conteudo">
+          <Precos banco={EXTRATO_BANCO} destaque="Pagamento fornecedor #1082" resumo={AGOSTO}>
+            <span className="eyebrow preco-capitulo">Cap. IV · Começar</span>
+            <h2 className="titulo-misto preco-titulo">
+              Preço fechado, <em>por volume.</em>
+            </h2>
+            <div className="preco-filete" aria-hidden="true" />
+            <p className="preco-texto">
+              Você paga pelo número de lançamentos que conferir no mês. Não tem fidelidade, taxa de
+              implantação nem cobrança por usuário.
+            </p>
+          </Precos>
+          <div className="preco-acoes">
             <Link
               href="/cadastro"
               className="btn btn-primary"
@@ -879,7 +788,7 @@ export default function LandingPage() {
               Ver o sistema por dentro
             </Link>
           </div>
-        </Reveal>
+        </div>
       </section>
 
       {/* rodapé */}

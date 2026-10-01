@@ -927,9 +927,10 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
   background: var(--color-accent); opacity: 0.55; pointer-events: none;
   mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='17'%3E%3Cpath d='M4 0Q1 4.25 4 8.5T4 17' fill='none' stroke='%23000' stroke-width='1.2'/%3E%3C/svg%3E") 50% 0 / 8px 17px repeat-y;
 }
-/* com movimento reduzido, o fio aparece inteiro e não acompanha a rolagem (o recorte é inline) */
+/* com movimento reduzido, o fio aparece inteiro e não acompanha a rolagem (o recorte é inline); vale
+   também para o fio de Preços */
 @media (prefers-reduced-motion: reduce) {
-  .por-dentro-fio { clip-path: none !important; }
+  .por-dentro-fio, .preco-fio { clip-path: none !important; }
 }
 /* a tela inteira do app numa janela (app/(marketing)/vitrine.tsx), como o arc.net mostra o
    navegador: moldura com filete, sombra suave e a barra de três pontos; dentro, a réplica em
@@ -955,8 +956,9 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
   background: color-mix(in srgb, var(--color-text) 16%, transparent);
 }
 /* as variáveis que o app declara no .app-shell, no tema claro: a landing não tem tema escuro. Valem
-   para a réplica da janela e para a demonstração de "O problema", que usam as classes do app */
-:is(.vitrine-app, .demonstracao-folhas) {
+   para a réplica da janela, para a demonstração de "O problema" e para os cards de Preços, que usam
+   as classes do app (e as folhas, no painel da demonstração do card aberto) */
+:is(.vitrine-app, .demonstracao-folhas, .beneficio) {
   --tinta-hover: color-mix(in srgb, var(--color-text) 6%, transparent);
   --tinta-ativa: color-mix(in srgb, var(--color-text) 9%, transparent);
   --texto-apagado: color-mix(in srgb, var(--color-text) 58%, transparent);
@@ -1167,11 +1169,243 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
 }
 .problema-pratica-texto { margin: 0; max-width: 62ch; font-size: 15.5px; line-height: 1.75; }
 
-/* planos: cinco lado a lado; no tablet dois por linha com o "Volume" ocupando a largura; no celular um por linha */
-.planos-grade { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 16px; }
-@media (max-width: 1100px) {
-  .planos-grade { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .planos-grade > :last-child { grid-column: 1 / -1; }
+/* ---------- Preços (app/(marketing)/precos.tsx) ----------
+   O que vem em todo plano, em quatro cards numa trilha vertical como a de "Por dentro", na faixa
+   escura: o fio em onda desce entre os numerais conforme a página rola e termina na régua dos
+   planos. No desktop o título fica parado à esquerda enquanto os cards passam à direita */
+.preco-conteudo {
+  position: relative; max-width: 1600px; margin: 0 auto;
+  padding: clamp(72px, 10vw, 108px) clamp(20px, 4.2vw, 56px);
+  display: grid; grid-template-columns: minmax(0, 1fr); row-gap: clamp(44px, 6vw, 64px);
+}
+/* a passagem (título e cards) e, embaixo, a régua; o vão entre as duas é o que o fio atravessa */
+.preco {
+  --coluna-num: 44px;
+  --preco-vao: clamp(56px, 8vw, 104px);
+  display: grid; grid-template-columns: minmax(0, 1fr); row-gap: var(--preco-vao);
+}
+.preco-passagem { display: grid; grid-template-columns: minmax(0, 1fr); row-gap: clamp(40px, 6vw, 64px); }
+@media (min-width: 761px) { .preco { --coluna-num: 64px; } }
+@media (min-width: 1100px) {
+  .preco { --coluna-num: 104px; }
+  .preco-passagem { grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); column-gap: clamp(48px, 5vw, 88px); }
+  /* abaixo do cabeçalho fixo, como o de "Por dentro". Para quando os cards acabam: a régua está fora */
+  .preco-topo { position: sticky; top: 120px; align-self: start; }
+}
+.preco-capitulo {
+  display: block; margin-bottom: 18px; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--color-accent-300);
+}
+.preco-titulo { margin: 0; max-width: 12ch; font-size: clamp(34px, 3.2vw, 54px); color: var(--ledgr-tinta); }
+.preco-filete { width: 84px; height: 1px; margin: 24px 0; background: var(--color-accent); }
+.preco-texto { margin: 0; max-width: 40ch; font-size: 16.5px; line-height: 1.72; color: var(--color-neutral-300); }
+/* a dica do mouse no tom da faixa escura. O anel pulsa três vezes e para: o título fica parado ao
+   lado da trilha inteira, e um anel pulsando o tempo todo ali cansaria */
+.preco-dica { margin: 30px 0 0; }
+.preco-dica .hover-hint-texto { color: var(--color-neutral-400); }
+.preco-dica .hover-hint-icone::after, .preco-dica .hover-hint-roda { animation-iteration-count: 3; }
+
+/* "Em todo plano" e "Os planos": rótulo de grupo, como o "Hoje" de "O problema", em dourado claro */
+.preco-rotulo {
+  margin: 0; font-family: var(--font-mono); font-size: 12px; font-weight: 500; line-height: 1.2;
+  letter-spacing: 0.14em; text-transform: uppercase; color: var(--color-accent-300);
+}
+/* alinhado com os cards, por cima da coluna dos numerais */
+.preco-rotulo-trilha { margin-bottom: 30px; margin-left: calc(var(--coluna-num) + clamp(12px, 2.4vw, 36px)); }
+
+/* a coluna dos cards é o contêiner do card: ele só põe a demonstração ao lado do texto quando
+   cabe (no desktop estreito e no tablet ela desce para baixo do texto) */
+.preco-percurso { position: relative; container: preco-trilha / inline-size; }
+.preco-trilha { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: clamp(64px, 14vh, 140px); }
+.preco-etapa-corpo { display: grid; grid-template-columns: var(--coluna-num) minmax(0, 1fr); column-gap: clamp(12px, 2.4vw, 36px); }
+/* o numeral tapa o fio que passa por trás dele, com o fundo e o grão da faixa escura */
+.preco-num {
+  justify-self: center; align-self: start; position: relative; z-index: 1; padding-block: 8px;
+  background: var(--grao) var(--faixa-escura);
+  font-family: var(--font-display); font-size: clamp(44px, 4.6vw, 76px); line-height: 1; color: var(--color-accent);
+}
+/* o fio de "Por dentro" na faixa escura: do primeiro numeral até a borda de cima da régua */
+.preco-fio {
+  position: absolute; top: 24px; bottom: calc(-1 * var(--preco-vao));
+  left: calc(var(--coluna-num) / 2 - 4px); width: 8px;
+  background: var(--color-accent); opacity: 0.55; pointer-events: none;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='17'%3E%3Cpath d='M4 0Q1 4.25 4 8.5T4 17' fill='none' stroke='%23000' stroke-width='1.2'/%3E%3C/svg%3E") 50% 0 / 8px 17px repeat-y;
+}
+
+/* o card. Em repouso, escuro na faixa, com o filete dourado; o fim da lista apaga numa máscara que
+   desce até sumir quando o card abre (o --apagar anima porque está registrado). Aberto (hover, ou o
+   foco do teclado), ele vira folha de papel, como as folhas de extrato do app: a cor da referência
+   na nossa paleta, sem preenchimento de cor. A altura não muda: a lista está sempre inteira */
+@property --apagar { syntax: "<percentage>"; inherits: true; initial-value: 38%; }
+.beneficio {
+  position: relative; display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px;
+  padding: 26px 22px 24px; border: 1px solid var(--color-accent-800); border-radius: var(--radius-md);
+  background-color: transparent; color: var(--ledgr-tinta);
+  transition: background-color 0.45s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+    color 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@container preco-trilha (min-width: 800px) {
+  .beneficio { grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 32px; padding: 34px 32px 32px; }
+}
+.beneficio:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 3px; }
+.beneficio-texto { display: flex; flex-direction: column; min-width: 0; }
+.beneficio-titulo {
+  margin: 0; font-family: var(--font-heading); font-size: clamp(22px, 1.9vw, 27px); font-weight: 600;
+  line-height: 1.2; letter-spacing: -0.015em;
+}
+.beneficio-filete {
+  display: block; width: 56px; height: 1px; margin: 18px 0; background: var(--color-accent);
+  transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.beneficio-desc {
+  margin: 0 0 18px; font-size: 15.5px; line-height: 1.65; color: var(--color-neutral-400);
+  transition: color 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.beneficio-lista {
+  list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px;
+  mask-image: linear-gradient(to bottom, #000 var(--apagar), transparent calc(var(--apagar) + 50%));
+  transition: --apagar 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.beneficio-lista li {
+  position: relative; padding-left: 30px; font-size: 15px; line-height: 1.5; color: var(--color-neutral-300);
+  transition: color 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+/* o check em traço: um círculo e o visto, desenhados pela máscara na cor do texto do card */
+.beneficio-lista li::before {
+  content: ""; position: absolute; left: 0; top: 0.08em; width: 20px; height: 20px; background: var(--color-neutral-500);
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9.25'/%3E%3Cpath d='m8.3 12.4 2.5 2.5 4.9-5.3'/%3E%3C/svg%3E") center / contain no-repeat;
+  transition: background-color 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+/* a demonstração: um pedaço do produto sobre um painel; no card aberto o painel vira a folha do
+   sistema (cinza quente) e o pedaço chega mais perto */
+.beneficio-visual {
+  align-self: start; display: grid; grid-template-columns: minmax(0, 1fr); justify-items: center; align-items: center;
+  min-width: 0; padding: 28px; overflow: hidden; border-radius: 12px;
+  background: color-mix(in srgb, #fff 5%, transparent); border: 1px solid color-mix(in srgb, #fff 7%, transparent);
+  transition: background-color 0.45s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+    padding 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.beneficio:is(:hover, :focus-within) { --apagar: 100%; background-color: var(--color-bg); border-color: var(--color-accent); color: var(--color-text); }
+.beneficio:is(:hover, :focus-within) .beneficio-filete { width: 112px; }
+.beneficio:is(:hover, :focus-within) .beneficio-desc { color: color-mix(in srgb, var(--color-text) 72%, transparent); }
+.beneficio:is(:hover, :focus-within) .beneficio-lista li { color: var(--color-text); }
+.beneficio:is(:hover, :focus-within) .beneficio-lista li::before { background: var(--color-accent-700); }
+.beneficio:is(:hover, :focus-within) .beneficio-visual { padding: 28px 18px; background: var(--folha-sistema); border-color: var(--color-divider); }
+.beneficio:is(:hover, :focus-within) .amostra {
+  transform: scale(1.06) translateY(-4px); box-shadow: 0 16px 34px color-mix(in srgb, var(--color-neutral-900) 20%, transparent);
+}
+/* sem mouse não existe hover: a lista vem inteira, nada fica escondido atrás de um gesto */
+@media (hover: none) { .beneficio { --apagar: 100%; } }
+
+/* os pedaços do produto, no tema claro como a vitrine de "Por dentro" */
+.amostra {
+  width: min(100%, 330px); padding: 16px 16px 15px; border: 1px solid var(--color-divider); border-radius: 12px;
+  background: var(--folha-banco); color: var(--color-text); font-size: 13px; line-height: 1.5;
+  box-shadow: 0 10px 28px color-mix(in srgb, #000 30%, transparent);
+  transform-origin: 50% 55%;
+  transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.amostra .selo { max-width: 100%; overflow: hidden; text-overflow: ellipsis; padding: 1px 8px; font-size: 11px; }
+.amostra-topo { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 4px 8px; margin-bottom: 8px; }
+.amostra-rotulo { font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: color-mix(in srgb, var(--color-text) 58%, transparent); }
+.amostra-data { font-family: var(--font-mono); font-size: 11.5px; color: color-mix(in srgb, var(--color-text) 58%, transparent); }
+/* I: as linhas marcadas, com a que bate apagada */
+.amostra-linhas { list-style: none; margin: 0; padding: 0; }
+.amostra-linhas li {
+  display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 10px; row-gap: 3px;
+  padding: 8px 0; border-top: 1px solid var(--color-divider);
+}
+.amostra-linhas li[data-bate] { opacity: 0.5; }
+.amostra-linhas .selo { grid-column: 2; justify-self: start; }
+.amostra-desc { font-size: 12.5px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* II: a linha explicada */
+.amostra-titulo { margin-bottom: 10px; font-size: 14.5px; font-weight: 600; letter-spacing: -0.01em; }
+.amostra-valores { display: grid; grid-template-columns: 1fr 1fr; border-block: 1px solid var(--color-divider); }
+.amostra-valores > div { display: flex; flex-direction: column; gap: 1px; padding: 8px 0; }
+.amostra-valores > div + div { padding-left: 12px; border-left: 1px solid var(--color-divider); }
+.amostra-valor { font-size: 14px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.amostra-explicacao { margin-top: 10px; }
+.amostra-explicacao .explicacao-selo { margin-bottom: 6px; font-size: 10.5px; }
+.amostra-explicacao p { margin: 0; font-size: 12.5px; line-height: 1.55; }
+/* III: as duas folhas, uma sobre a outra; no card aberto elas se afastam. A altura deixa o título da
+   folha do sistema logo abaixo da do banco, à vista mesmo em repouso */
+.amostra-folhas { position: relative; width: min(100%, 330px); height: 236px; }
+.amostra-folha {
+  position: absolute; width: 74%; padding: 14px 14px 16px; border: 1px solid var(--color-divider); border-radius: 12px;
+  color: var(--color-text); box-shadow: 0 10px 26px color-mix(in srgb, #000 26%, transparent);
+  transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.amostra-folha-banco { top: 0; left: 0; z-index: 1; background: var(--folha-banco); }
+.amostra-folha-sistema { right: 0; bottom: 0; background: var(--folha-sistema); }
+.amostra-folha-cab { display: flex; align-items: center; gap: 7px; font-size: 12.5px; font-weight: 600; }
+.amostra-folha-cab .icone-origem { flex: none; color: var(--texto-apagado, color-mix(in srgb, var(--color-text) 58%, transparent)); }
+.amostra-folha-formato { display: block; margin: 2px 0 10px 23px; font-family: var(--font-mono); font-size: 10.5px; color: color-mix(in srgb, var(--color-text) 58%, transparent); }
+/* as linhas do arquivo, em filete, como o esqueleto do app */
+.amostra-folha-linhas {
+  display: block; height: 44px;
+  background: repeating-linear-gradient(to bottom, transparent 0 10px, var(--color-divider) 10px 11px);
+}
+.beneficio:is(:hover, :focus-within) .amostra-folha-banco { transform: translate(-10px, -6px); }
+.beneficio:is(:hover, :focus-within) .amostra-folha-sistema { transform: translate(10px, 6px); }
+/* IV: o resumo do mês, que é o relatório */
+.amostra-formato {
+  padding: 1px 7px; border: 1px solid var(--color-divider); border-radius: 6px;
+  font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.08em; color: color-mix(in srgb, var(--color-text) 66%, transparent);
+}
+.amostra-numero { display: flex; align-items: baseline; gap: 8px; margin: 10px 0 8px; }
+.amostra-numero strong { font-size: 38px; font-weight: 600; line-height: 1; }
+.amostra-numero span { font-size: 13px; color: color-mix(in srgb, var(--color-text) 68%, transparent); }
+.amostra-barra { display: flex; height: 5px; border: 1px solid var(--color-divider); border-radius: var(--radius-sm); overflow: hidden; }
+.amostra-barra span:first-child { background: var(--color-neutral-300); }
+.amostra-barra span:last-child { flex: 1; background: var(--color-accent); }
+.amostra-nota { margin-top: 8px; font-size: 12px; color: color-mix(in srgb, var(--color-text) 68%, transparent); }
+
+/* onde o fio termina: os planos numa régua, pelo volume do mês. O traço passa por cima dos planos,
+   com uma marca em cada um, e o plano aberto ("Volume") é tracejado; o em destaque, em dourado */
+.preco-regua {
+  position: relative; border: 1px solid var(--color-accent-800); border-radius: var(--radius-md);
+  padding: clamp(28px, 3vw, 40px) clamp(22px, 3vw, 44px) clamp(30px, 3vw, 42px);
+  background: color-mix(in srgb, var(--faixa-escura) 72%, transparent);
+}
+.preco-regua-topo { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; margin-bottom: 34px; }
+.preco-regua-nota { font-size: 14px; color: var(--color-neutral-400); }
+.preco-regua-planos { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.preco-regua-plano { position: relative; padding: 26px 20px 0 0; border-top: 1px solid color-mix(in srgb, var(--color-neutral-300) 30%, transparent); }
+.preco-regua-plano::before { content: ""; position: absolute; top: -6px; left: 0; width: 1px; height: 12px; background: var(--color-neutral-400); }
+.preco-regua-plano[data-destaque]::before { top: -9px; width: 2px; height: 18px; background: var(--color-accent); }
+.preco-regua-plano[data-contato] { border-top-style: dashed; }
+.preco-regua-num { display: block; font-size: clamp(34px, 3vw, 46px); line-height: 1; color: var(--color-neutral-100); }
+.preco-regua-plano[data-destaque] .preco-regua-num { color: var(--color-accent-300); }
+.preco-regua-nome {
+  display: block; margin-top: 14px; font-family: var(--font-heading); font-size: 18px; font-weight: 600;
+  letter-spacing: -0.01em; color: var(--ledgr-tinta);
+}
+.preco-regua-limite { display: block; margin-top: 3px; font-size: 13.5px; line-height: 1.55; color: var(--color-neutral-400); }
+
+.preco-acoes { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 14px; }
+/* a marca d'água do mascote comemorando, atrás dos botões e saindo pela borda de baixo: no meio da
+   seção ela ficaria atrás dos cards */
+.preco-mascote {
+  position: absolute; left: 50%; bottom: -210px; transform: translateX(-50%);
+  width: 480px; height: auto; opacity: 0.1; pointer-events: none;
+}
+
+@media (max-width: 760px) {
+  /* no celular a demonstração ocupa a largura do card, sem o painel em volta, e não se aproxima */
+  .beneficio-visual, .beneficio:is(:hover, :focus-within) .beneficio-visual { padding: 0; border: 0; background: none; }
+  .amostra, .amostra-folhas { width: 100%; }
+  .beneficio:is(:hover, :focus-within) .amostra { transform: none; }
+  /* a régua fica de pé, como uma trilha pequena: o traço desce pela esquerda dos planos */
+  .preco-regua-planos { grid-template-columns: minmax(0, 1fr); row-gap: 26px; }
+  .preco-regua-plano { padding: 0 0 0 26px; border-top: 0; border-left: 1px solid color-mix(in srgb, var(--color-neutral-300) 30%, transparent); }
+  .preco-regua-plano[data-contato] { border-left-style: dashed; }
+  .preco-regua-plano::before { top: 0.4em; left: -6px; width: 12px; height: 1px; }
+  .preco-regua-plano[data-destaque]::before { top: 0.4em; left: -9px; width: 18px; height: 2px; }
+  .preco-mascote { width: 300px; bottom: -130px; opacity: 0.07; }
+}
+/* movimento reduzido: o card troca de cor na hora, sem animar */
+@media (prefers-reduced-motion: reduce) {
+  .beneficio, .beneficio *, .beneficio *::before { transition: none; }
 }
 
 @media (max-width: 900px) {
@@ -1195,8 +1429,6 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
   .perguntas-topo { justify-content: center; }
   .perguntas-mascote { width: 140px !important; }
   .perguntas-titulo { flex-basis: 100% !important; padding: 24px 0 0 !important; border-left: none !important; border-top: 1px solid var(--color-accent); }
-  /* no preço o mascote sobe para trás do título, em vez de ficar por trás dos valores */
-  .preco-mascote { width: 300px !important; top: 36px !important; transform: translateX(-50%) !important; opacity: 0.07 !important; }
 }
 
 @media (max-width: 680px) {
@@ -1205,12 +1437,6 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
   .regra-icon { font-size: 56px !important; }
   .regra-icon-mirror { display: none; }
   .numeros-marca { display: none; }
-}
-
-/* planos no celular: um card por linha, compacto, para a lista não ficar comprida */
-@media (max-width: 600px) {
-  .planos-grade { grid-template-columns: minmax(0, 1fr); gap: 10px; }
-  .plano-card { row-gap: 2px !important; padding: 16px 18px !important; }
 }
 
 @media (prefers-reduced-motion: reduce) {

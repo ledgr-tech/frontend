@@ -10,10 +10,10 @@ export function MotionRoot({ children }: { children: ReactNode }) {
   return (
     <LazyMotion features={domAnimation} strict>
       <MotionConfig reducedMotion="user">
-        {/* sem JS o initial={{opacity:0}} do SSR deixaria a página em branco, e o fio da trilha
-            de "Por dentro" ficaria recortado */}
+        {/* sem JS o initial={{opacity:0}} do SSR deixaria a página em branco, e o fio das trilhas
+            de "Por dentro" e de Preços ficaria recortado */}
         <noscript>
-          <style>{`[data-reveal]{opacity:1!important;transform:none!important}.por-dentro-fio{clip-path:none!important}`}</style>
+          <style>{`[data-reveal]{opacity:1!important;transform:none!important}.por-dentro-fio,.preco-fio{clip-path:none!important}`}</style>
         </noscript>
         {children}
       </MotionConfig>
@@ -165,25 +165,5 @@ export function SpotlightHover({
     >
       {children}
     </m.div>
-  );
-}
-
-export function PlanCard({
-  children,
-  style,
-  delay,
-  className,
-}: {
-  children: ReactNode;
-  style?: CSSProperties;
-  delay?: number;
-  className?: string;
-}) {
-  return (
-    <Reveal delay={delay}>
-      <SpotlightHover className={className} style={style}>
-        {children}
-      </SpotlightHover>
-    </Reveal>
   );
 }

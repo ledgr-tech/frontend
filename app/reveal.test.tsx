@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { InkHover, MotionRoot, PlanCard, Reveal } from "./reveal";
+import { InkHover, MotionRoot, Reveal, SpotlightHover } from "./reveal";
 
 describe("Reveal", () => {
   it("sai de opacity 0 um pouco abaixo, sem escala, e revela quando entra na viewport", async () => {
@@ -193,16 +193,16 @@ describe("InkHover", () => {
   });
 });
 
-describe("PlanCard", () => {
+describe("SpotlightHover", () => {
   it("moves a spotlight glow to the pointer position", async () => {
-    const { container } = render(
+    render(
       <MotionRoot>
-        <PlanCard>
-          <span>Plano</span>
-        </PlanCard>
+        <SpotlightHover>
+          <span>Destaque</span>
+        </SpotlightHover>
       </MotionRoot>,
     );
-    const card = container.querySelector("[data-reveal] > div") as HTMLElement;
+    const card = screen.getByText("Destaque").parentElement as HTMLElement;
 
     fireEvent.mouseMove(card, { clientX: 30, clientY: 40 });
 
@@ -210,14 +210,14 @@ describe("PlanCard", () => {
   });
 
   it("resets the spotlight off-screen when the pointer leaves", async () => {
-    const { container } = render(
+    render(
       <MotionRoot>
-        <PlanCard>
-          <span>Plano</span>
-        </PlanCard>
+        <SpotlightHover>
+          <span>Destaque</span>
+        </SpotlightHover>
       </MotionRoot>,
     );
-    const card = container.querySelector("[data-reveal] > div") as HTMLElement;
+    const card = screen.getByText("Destaque").parentElement as HTMLElement;
     fireEvent.mouseMove(card, { clientX: 30, clientY: 40 });
     await waitFor(() => expect(card.style.background).toContain("at 30px 40px"));
 
