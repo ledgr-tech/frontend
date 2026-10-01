@@ -126,6 +126,21 @@ describe("InkHover", () => {
     expect(card.querySelectorAll("[data-ink-drop]")).toHaveLength(0);
   });
 
+  it("keeps at most twelve ink drops at once, even if their animations never end", () => {
+    const { container } = render(
+      <MotionRoot>
+        <InkHover>
+          <span>conteúdo</span>
+        </InkHover>
+      </MotionRoot>,
+    );
+    const card = container.querySelector("div") as HTMLElement;
+
+    for (let passo = 0; passo <= 20; passo++) fireEvent.mouseMove(card, { clientX: passo * 40, clientY: 0 });
+
+    expect(card.querySelectorAll("[data-ink-drop]")).toHaveLength(12);
+  });
+
   it("does not carry a stroke over after the pointer leaves and re-enters", () => {
     const { container } = render(
       <MotionRoot>

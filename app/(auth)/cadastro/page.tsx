@@ -316,11 +316,11 @@ export default function CadastroPage() {
           >
             Ao continuar, você aceita os{" "}
             {/* em outra aba: sair daqui apagaria o cadastro pela metade */}
-            <a href="/termos" target="_blank" rel="noopener" className="login-link-animado">
+            <a href="/termos" target="_blank" rel="noopener" className="link-animado">
               Termos
             </a>{" "}
             e a{" "}
-            <a href="/privacidade" target="_blank" rel="noopener" className="login-link-animado">
+            <a href="/privacidade" target="_blank" rel="noopener" className="link-animado">
               Política de privacidade
             </a>
             .
@@ -355,7 +355,7 @@ export default function CadastroPage() {
 
         <p className="cadastro-entrar" style={{ margin: "clamp(14px, 2.4vh, 22px) 0 0", fontSize: 14.5, lineHeight: 1.6, color: "color-mix(in srgb, var(--color-text) 66%, transparent)" }}>
           Já tem conta?{" "}
-          <Link href="/login" className="login-link-animado">
+          <Link href="/login" className="link-animado">
             Entrar
           </Link>
         </p>

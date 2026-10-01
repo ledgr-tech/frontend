@@ -2,6 +2,7 @@
 
 import { formatarMoeda, type LinhaComparacao } from "@/lib/mock-data";
 import { statusDaLinha } from "../../dashboard/resumo";
+import { SeloIa } from "../../selo-ia";
 
 export type Lado = { data: string; descricao: string } | null;
 
@@ -44,12 +45,15 @@ export function ConteudoCartao({
   banco,
   sistema,
   explicacao,
+  geradaPorIa = false,
 }: {
   rotulo: string;
   titulo: string;
   banco: string;
   sistema: string;
   explicacao: string | null;
+  /** a explicação veio da IA: ganha o selo, colado ao texto */
+  geradaPorIa?: boolean;
 }) {
   return (
     <>
@@ -67,7 +71,15 @@ export function ConteudoCartao({
           </div>
         </dl>
       </div>
-      {explicacao && <p className="dialog-body">{explicacao}</p>}
+      {explicacao &&
+        (geradaPorIa ? (
+          <div>
+            <SeloIa />
+            <p className="dialog-body">{explicacao}</p>
+          </div>
+        ) : (
+          <p className="dialog-body">{explicacao}</p>
+        ))}
     </>
   );
 }

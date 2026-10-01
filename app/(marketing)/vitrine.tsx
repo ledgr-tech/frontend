@@ -14,14 +14,12 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { Cabecalho, EmpresaDaSessao } from "@/app/(app)/cabecalho";
-import { ConteudoCartao } from "@/app/(app)/conciliacoes/[id]/cartao-lancamento";
 import { Relatorio } from "@/app/(app)/conciliacoes/[id]/relatorio";
-import { seloDoStatus } from "@/app/(app)/dashboard/resumo";
-import { IconeOrigem } from "@/app/(app)/icone-origem";
 import { LogoBarras } from "@/app/(app)/logo-barras";
 import type { Divergencia } from "@/lib/adaptadores";
 import type { LinhaComparacao } from "@/lib/mock-data";
 import type { LinhaExtrato } from "./comparacao";
+import { TabelaFolhas } from "./tabela-folhas";
 
 /**
  * A tela inteira do app numa janela, como o arc.net mostra o navegador: a
@@ -92,17 +90,6 @@ const LINHAS = (Object.entries(PENDENTES) as [Divergencia, number][]).flatMap(([
   linhasDe(status, quantidade),
 );
 
-function Coluna({ folha, direita, children }: { folha: "banco" | "sistema"; direita?: boolean; children: string }) {
-  return (
-    <th className={`folha-${folha}${direita ? " th-direita" : ""}`} style={direita ? { textAlign: "right" } : undefined}>
-      <span className="th-ordena">
-        {children}
-        <span className="th-ordena-seta">↕</span>
-      </span>
-    </th>
-  );
-}
-
 export function Vitrine({
   banco,
   sistema,
@@ -125,9 +112,6 @@ export function Vitrine({
     observador.observe(elemento);
     return () => observador.disconnect();
   }, []);
-
-  // o par é casado pela descrição, como na demonstração de "O problema"
-  const linhas = banco.map((b) => ({ b, s: sistema.find((s) => s.desc === b.desc) }));
 
   return (
     <figure className="vitrine">
@@ -209,74 +193,9 @@ export function Vitrine({
                     </button>
                   </div>
                 </div>
-                <table className="table tabela-folhas">
-                  <thead>
-                    <tr className="folhas-titulos">
-                      <th colSpan={3} className="folha-banco folha-titulo">
-                        <span className="folha-titulo-conteudo">
-                          <IconeOrigem origem="banco" />
-                          <span className="folha-nome">Extrato do banco</span>
-                          <span className="folha-etiqueta">Fonte da verdade</span>
-                        </span>
-                      </th>
-                      <td className="folha-vao" />
-                      <th colSpan={3} className="folha-sistema folha-titulo">
-                        <span className="folha-titulo-conteudo">
-                          <IconeOrigem origem="sistema" />
-                          <span className="folha-nome">Sistema de gestão</span>
-                        </span>
-                      </th>
-                      <td className="folha-fora" />
-                    </tr>
-                    <tr>
-                      <Coluna folha="banco">Data</Coluna>
-                      <Coluna folha="banco">Descrição</Coluna>
-                      <Coluna folha="banco" direita>
-                        Banco
-                      </Coluna>
-                      <td className="folha-vao" />
-                      <th className="folha-sistema">Data</th>
-                      <th className="folha-sistema">Descrição</th>
-                      <Coluna folha="sistema" direita>
-                        Sistema
-                      </Coluna>
-                      <th style={{ textAlign: "right" }}>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {linhas.map(({ b, s }) => {
-                      const selo = seloDoStatus(b.status);
-                      const destacada = b.desc === destaque;
-                      return (
-                        <tr key={b.desc} data-tom={selo.tom} data-destacada={destacada || undefined}>
-                          <td className="dash-celula-fraca folha-banco">{b.data}</td>
-                          <td className="folha-banco">{b.desc}</td>
-                          <td className="dash-valor-celula folha-banco">{b.valorBanco ?? "—"}</td>
-                          <td className="folha-vao" />
-                          <td className="dash-celula-fraca folha-sistema">{s?.data ?? "—"}</td>
-                          <td className="folha-sistema">{s?.desc ?? "—"}</td>
-                          <td className="dash-valor-celula folha-sistema">{s?.valorSistema ?? "—"}</td>
-                          <td style={{ textAlign: "right" }}>
-                            <span className={`selo selo-${selo.tom}`}>{selo.rotulo}</span>
-                            {/* na última célula, que termina onde a linha termina: o cartão se
-                                ancora nela como no app se ancora na linha (globals.css) */}
-                            {destacada && (
-                              <div className="cartao-lancamento">
-                                <ConteudoCartao
-                                  rotulo={selo.rotulo}
-                                  titulo={b.desc}
-                                  banco={b.valorBanco ? `${b.data} · ${b.valorBanco}` : "—"}
-                                  sistema={s?.valorSistema ? `${s.data} · ${s.valorSistema}` : "—"}
-                                  explicacao={b.explicacao}
-                                />
-                              </div>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                {/* a mesma tabela da demonstração de "O problema", parada, com a linha do fluxo
+                    acesa e o cartão dela aberto, como se o mouse estivesse ali */}
+                <TabelaFolhas banco={banco} sistema={sistema} setas destacada={destaque} />
               </div>
             </div>
           </div>

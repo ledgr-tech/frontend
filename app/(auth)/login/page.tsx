@@ -427,7 +427,7 @@ export default function LoginPage() {
             <button
               ref={gatilhoRecuperar}
               type="button"
-              className="login-link-animado"
+              className="link-animado"
               aria-haspopup="dialog"
               style={{ fontSize: 14.5 }}
               onPointerEnter={precarregarRecuperarSenha}
@@ -491,7 +491,7 @@ export default function LoginPage() {
 
           <p className="login-criar" style={{ margin: "clamp(14px, 2.8vh, 28px) 0 0", fontSize: 14.5, lineHeight: 1.6, color: "color-mix(in srgb, var(--color-text) 66%, transparent)" }}>
             Ainda não tem conta?{" "}
-            <Link href="/cadastro" className="login-link-animado">
+            <Link href="/cadastro" className="link-animado">
               Criar conta
             </Link>
           </p>

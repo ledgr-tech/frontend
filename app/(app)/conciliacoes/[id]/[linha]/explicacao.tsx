@@ -4,8 +4,8 @@ import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Sparkles } from "lucide-react";
 import { InkHover } from "@/app/reveal";
+import { SeloIa } from "../../../selo-ia";
 import { explicarDivergencia, type Explicacao, type Indisponibilidade } from "../../acoes";
 
 const FALHA = "Não foi possível pedir a explicação agora. Tente de novo em instantes.";
@@ -82,12 +82,7 @@ export function ExplicacaoDaDivergencia({
 
         {pronta ? (
           <>
-            {pronta.geradaPorIa && (
-              <span className="selo explicacao-selo">
-                <Sparkles size={13} strokeWidth={1.75} aria-hidden="true" />
-                Gerada por IA · confira antes de decidir
-              </span>
-            )}
+            {pronta.geradaPorIa && <SeloIa />}
             <p className="det-causa-texto">{pronta.texto}</p>
             {aviso && <p className="explicacao-aviso">{aviso}</p>}
           </>

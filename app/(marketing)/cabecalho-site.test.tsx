@@ -12,11 +12,20 @@ describe("CabecalhoSite", () => {
     render(<CabecalhoSite />);
     const principal = within(screen.getByRole("navigation", { name: "Navegação principal" }));
     expect(principal.getByRole("link", { name: "O problema" })).toHaveAttribute("href", "#problema");
-    expect(principal.getByRole("link", { name: "Começar" })).toHaveAttribute("href", "/cadastro");
+    expect(principal.getByRole("link", { name: "Começar agora" })).toHaveAttribute("href", "/cadastro");
 
     const botao = screen.getByRole("button", { name: "Abrir menu" });
     expect(botao).toHaveAttribute("aria-expanded", "false");
     expect(menu()).not.toBeInTheDocument();
+  });
+
+  it("draws the gold line that loads on hover under the section links, like the login links", () => {
+    render(<CabecalhoSite />);
+    const principal = within(screen.getByRole("navigation", { name: "Navegação principal" }));
+    for (const secao of ["O problema", "Como funciona", "Assinatura"]) {
+      // sem o filete cinza do login: em repouso o link fica limpo, e a linha só aparece no hover
+      expect(principal.getByRole("link", { name: secao })).toHaveClass("link-animado", "sem-filete");
+    }
   });
 
   it("opens the options menu from the Ledgr bars, with the sections and the product links", async () => {
@@ -34,7 +43,7 @@ describe("CabecalhoSite", () => {
     expect(opcoes.getByRole("link", { name: /Como funciona/ })).toHaveAttribute("href", "#como");
     expect(opcoes.getByRole("link", { name: /Assinatura/ })).toHaveAttribute("href", "#preco");
     expect(opcoes.getByRole("link", { name: "Entrar" })).toHaveAttribute("href", "/login");
-    expect(opcoes.getByRole("link", { name: "Começar" })).toHaveAttribute("href", "/cadastro");
+    expect(opcoes.getByRole("link", { name: "Começar agora" })).toHaveAttribute("href", "/cadastro");
   });
 
   it("closes the menu after choosing an option", async () => {

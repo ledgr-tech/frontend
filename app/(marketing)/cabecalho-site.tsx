@@ -78,7 +78,9 @@ export function CabecalhoSite() {
       style={{
         position: "sticky",
         top: 0,
-        zIndex: 20,
+        // acima dos cartões de hover da página (z-index 20): empatado, o cartão vinha depois no
+        // HTML e passava por cima do cabeçalho
+        zIndex: 30,
         background: "color-mix(in srgb, var(--color-bg) 92%, transparent)",
         backdropFilter: "blur(6px)",
         borderBottom: "1px solid var(--color-divider)",
@@ -139,7 +141,9 @@ export function CabecalhoSite() {
           style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "8px 28px" }}
         >
           {SECOES.map((secao) => (
-            <a key={secao.href} href={secao.href} style={linkNavegacao}>
+            // o traço dourado do "Esqueci a senha" do login, sem o filete cinza: a linha só aparece no
+            // hover. A cor do texto continua a do cabeçalho
+            <a key={secao.href} href={secao.href} className="link-animado sem-filete" style={linkNavegacao}>
               {secao.rotulo}
             </a>
           ))}
@@ -147,7 +151,7 @@ export function CabecalhoSite() {
             Entrar
           </Link>
           <Link href="/cadastro" className="btn btn-primary">
-            Começar
+            Começar agora
           </Link>
         </nav>
 
@@ -184,7 +188,7 @@ export function CabecalhoSite() {
                 Entrar
               </Link>
               <Link href="/cadastro" className="btn btn-primary" onClick={fechar}>
-                Começar
+                Começar agora
               </Link>
             </div>
           </nav>
