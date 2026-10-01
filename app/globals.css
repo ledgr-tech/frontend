@@ -527,7 +527,7 @@ dialog::backdrop {
   width: clamp(240px, 44vh, 380px);
   animation: cadastro-mascote-entrar 0.6s cubic-bezier(0.22, 1, 0.36, 1);
 }
-.cadastro-mascote { display: block; width: 100%; height: auto; opacity: 0.1; }
+.cadastro-mascote { display: block; width: 100%; height: auto; opacity: 0.06; }
 .cadastro-dica {
   max-width: 34ch; padding-top: 16px; border-top: 1px solid var(--color-divider);
   animation: cadastro-dica-entrar 0.5s 0.08s both cubic-bezier(0.22, 1, 0.36, 1);
@@ -1387,7 +1387,7 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
    seção ela ficaria atrás dos cards */
 .preco-mascote {
   position: absolute; left: 50%; bottom: -210px; transform: translateX(-50%);
-  width: 480px; height: auto; opacity: 0.1; pointer-events: none;
+  width: 480px; height: auto; opacity: 0.06; pointer-events: none;
 }
 
 @media (max-width: 760px) {
@@ -1401,7 +1401,7 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
   .preco-regua-plano[data-contato] { border-left-style: dashed; }
   .preco-regua-plano::before { top: 0.4em; left: -6px; width: 12px; height: 1px; }
   .preco-regua-plano[data-destaque]::before { top: 0.4em; left: -9px; width: 18px; height: 2px; }
-  .preco-mascote { width: 300px; bottom: -130px; opacity: 0.07; }
+  .preco-mascote { width: 300px; bottom: -130px; opacity: 0.04; }
 }
 /* movimento reduzido: o card troca de cor na hora, sem animar */
 @media (prefers-reduced-motion: reduce) {

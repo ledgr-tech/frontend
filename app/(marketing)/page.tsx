@@ -543,7 +543,7 @@ export default function LandingPage() {
           height={1000}
           sizes="480px"
           className="como-marca"
-          style={{ position: "absolute", bottom: -170, left: -70, width: 480, height: "auto", opacity: 0.07, pointerEvents: "none" }}
+          style={{ position: "absolute", bottom: -170, left: -70, width: 480, height: "auto", opacity: 0.04, pointerEvents: "none" }}
         />
         <div style={{ position: "relative", maxWidth: 1600, margin: "0 auto", padding: "clamp(64px, 9vw, 96px) clamp(20px, 4.2vw, 56px)" }}>
           <Reveal>
@@ -705,7 +705,7 @@ export default function LandingPage() {
           height={1000}
           sizes="480px"
           className="perguntas-marca"
-          style={{ position: "absolute", bottom: 20, right: 24, width: 480, height: "auto", opacity: 0.07, pointerEvents: "none" }}
+          style={{ position: "absolute", bottom: 20, right: 24, width: 480, height: "auto", opacity: 0.04, pointerEvents: "none" }}
         />
         <div style={{ position: "relative", maxWidth: 1600, margin: "0 auto", padding: "clamp(64px, 9vw, 96px) clamp(20px, 4.2vw, 56px)" }}>
           <div className="perguntas-topo" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "24px 40px", marginBottom: 34 }}>
