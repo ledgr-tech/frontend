@@ -21,10 +21,11 @@ const CATEGORIAS = new Intl.ListFormat("pt-BR").format(
 const POR_EXTENSO = ["Nenhuma", "Uma", "Duas", "Três", "Quatro", "Cinco", "Seis", "Sete", "Oito", "Nove", "Dez"];
 
 // A faixa logo abaixo do hero, só com o que é quantidade, e por extenso: algarismo solto em
-// tamanho grande ficava com cara de letra. "Sem instalar nada" já está no zero de credenciais, e
-// "Alto volume" e "Automático" não eram número.
+// tamanho grande ficava com cara de letra. Abre com o argumento central do pitch (não trocar de
+// sistema); o zero de credenciais bancárias continua na FAQ e no rodapé. "Alto volume" e
+// "Automático" não eram número.
 const NUMEROS = [
-  { valor: "Zero", rotulo: "credenciais bancárias pedidas: só o arquivo que o banco já exporta" },
+  { valor: "Zero", rotulo: "sistemas para trocar: o Ledgr usa o que o seu sistema de gestão já exporta" },
   { valor: "Minutos", rotulo: "para o relatório ficar pronto depois que você sobe os arquivos" },
   {
     valor: POR_EXTENSO[DIVERGENCIAS.length] ?? String(DIVERGENCIAS.length),
@@ -122,6 +123,64 @@ const PASSOS = [
   },
 ];
 
+// "Por que o Ledgr", dentro do Cap. II: as duas saídas que a empresa tem hoje, num grupo, e o
+// Ledgr no outro, cada uma respondendo às mesmas perguntas, na ordem de ASPECTOS. Por tipo de
+// solução, sem nome de concorrente: a página não tem como sustentar o que cada produto faz ou deixa
+// de fazer.
+const ASPECTOS = ["Trocar de sistema", "Quem confere, todo mês", "Para começar", "O que custa"];
+
+type Saida = { nome: string; respostas: string[] };
+
+const SAIDAS_DE_HOJE: Saida[] = [
+  {
+    nome: "Conferir à mão",
+    respostas: [
+      "Não precisa.",
+      "Alguém que entenda de contabilidade, linha por linha, com as duas telas abertas.",
+      "A planilha de sempre.",
+      "As horas de quem confere, em todo fechamento.",
+    ],
+  },
+  {
+    nome: "Migrar para um sistema com conciliação",
+    respostas: [
+      "Precisa. A empresa inteira passa para o sistema novo.",
+      "O sistema novo, depois que tudo estiver nele.",
+      "Migrar cadastros, contas e histórico, e treinar a equipe.",
+      "A mensalidade do sistema novo, mais o trabalho da migração.",
+    ],
+  },
+];
+
+const SAIDA_LEDGR: Saida = {
+  nome: "Ledgr",
+  respostas: [
+    "Não precisa. Funciona com o sistema que você já usa.",
+    "O Ledgr, linha por linha: você revisa só o que não bate, já com o motivo.",
+    "Subir dois arquivos: o extrato do banco e o do sistema.",
+    "Pelo volume de lançamentos do mês, sem fidelidade nem taxa de implantação.",
+  ],
+};
+
+function ColunaSaida({ saida, destaque = false, delay }: { saida: Saida; destaque?: boolean; delay: number }) {
+  return (
+    <Reveal delay={delay} className={destaque ? "por-que-coluna por-que-destaque" : "por-que-coluna"}>
+      <h3 className="por-que-nome">
+        {destaque && <LogoBarras className="por-que-logo" />}
+        {saida.nome}
+      </h3>
+      <dl className="por-que-itens">
+        {ASPECTOS.map((aspecto, i) => (
+          <div key={aspecto}>
+            <dt>{aspecto}</dt>
+            <dd>{saida.respostas[i]}</dd>
+          </div>
+        ))}
+      </dl>
+    </Reveal>
+  );
+}
+
 const PERGUNTAS = [
   {
     pergunta: "Preciso instalar algo no meu banco?",
@@ -176,6 +235,7 @@ const RODAPE_COLUNAS = [
   {
     titulo: "Produto",
     itens: [
+      { rotulo: "Por que o Ledgr", href: "#por-que" },
       { rotulo: "Como funciona", href: "#como" },
       { rotulo: "Regra de ouro", href: "#regra" },
       { rotulo: "Perguntas", href: "#perguntas" },
@@ -261,9 +321,9 @@ export default function LandingPage() {
                 maxWidth: "44ch",
               }}
             >
-              Suba o extrato do banco e o extrato do seu sistema de gestão. Em minutos você recebe o
-              relatório do que bate e do que não bate, lançamento por lançamento, sem planilha no
-              meio.
+              Continue no sistema de gestão que você já usa. Suba o extrato do banco e o do sistema:
+              em minutos o Ledgr confere linha por linha e aponta só o que não bate, com o motivo de
+              cada diferença.
             </p>
             <Link href="/cadastro" className="btn btn-primary" style={{ fontSize: 15.5, padding: "13px 24px" }}>
               Começar agora
@@ -401,7 +461,8 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* o problema */}
+      {/* o problema, numa seção só: como é feito hoje (a dor, e as duas saídas de sempre), onde o
+          Ledgr entra (a terceira coluna) e, na prática, as mesmas duas telas conferidas por ele */}
       <section id="problema" className="onda onda-escura">
         <div style={{ maxWidth: 1600, margin: "0 auto", padding: "clamp(64px, 9vw, 96px) clamp(20px, 4.2vw, 56px)" }}>
           <Reveal>
@@ -426,6 +487,34 @@ export default function LandingPage() {
                 fecha sempre no aperto.
               </p>
             </InkHover>
+          </Reveal>
+          {/* como é feito hoje, e onde o Ledgr entra. Os rótulos de grupo dão nome às colunas para o
+              leitor de tela (role="group"), e a grade alinha as respostas pela pergunta (globals.css) */}
+          <div id="por-que" className="por-que-grade">
+            <div className="por-que-grupo" role="group" aria-labelledby="por-que-hoje">
+              <Reveal className="problema-rotulo">
+                <span id="por-que-hoje">Hoje</span>
+              </Reveal>
+              {SAIDAS_DE_HOJE.map((saida, i) => (
+                <ColunaSaida key={saida.nome} saida={saida} delay={0.06 + i * 0.06} />
+              ))}
+            </div>
+            <div className="por-que-grupo por-que-grupo-ledgr" role="group" aria-labelledby="por-que-com-ledgr">
+              <Reveal delay={0.12} className="problema-rotulo problema-rotulo-ledgr">
+                <span id="por-que-com-ledgr">Com o Ledgr</span>
+              </Reveal>
+              <ColunaSaida saida={SAIDA_LEDGR} destaque delay={0.18} />
+            </div>
+          </div>
+          {/* na prática: a demonstração é o resultado do Ledgr (os selos e os motivos são dele), sobre
+              as mesmas duas telas da conferência à mão */}
+          <Reveal className="problema-pratica">
+            <p className="problema-rotulo problema-rotulo-ledgr">Na prática</p>
+            <h3 className="problema-pratica-titulo">As mesmas duas telas, conferidas pelo Ledgr.</h3>
+            <p className="problema-pratica-texto">
+              Os dois extratos de agosto lado a lado, como na conferência à mão. A diferença é que cada
+              linha já vem marcada, e as que não batem vêm com o motivo.
+            </p>
           </Reveal>
           <Reveal delay={0.1}>
             <ExtratoComparacao banco={EXTRATO_BANCO} sistema={EXTRATO_SISTEMA} />

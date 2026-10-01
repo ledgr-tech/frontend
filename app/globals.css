@@ -347,8 +347,8 @@ p.eyebrow {
   .so-toque { display: inline; }
 }
 /* quem já abriu uma linha da comparação entendeu o hover: o anel some e a rodinha para */
-section:has(.extrato-grid[data-explorado]) .hover-hint-roda { animation: none; }
-section:has(.extrato-grid[data-explorado]) .hover-hint-icone::after { animation: none; opacity: 0; }
+section:has(.demonstracao-folhas[data-explorado]) .hover-hint-roda { animation: none; }
+section:has(.demonstracao-folhas[data-explorado]) .hover-hint-icone::after { animation: none; opacity: 0; }
 @media (prefers-reduced-motion: reduce) {
   .hover-hint-roda, .hover-hint-icone::after { animation: none; }
 }
@@ -421,9 +421,6 @@ dialog::backdrop {
    stack on narrow screens instead of squeezing every column down to a
    sliver (auto-fit/minmax already handles the other landing grids). */
 .hero-grid { grid-template-columns: minmax(0, 1.06fr) minmax(0, 0.94fr); }
-.extrato-grid { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); }
-.extrato-divider { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; }
-.extrato-divider-line { width: 1px; flex: 1; background: var(--color-divider); }
 .hero-illustration { border-left: 1px solid var(--color-divider); padding-left: 30px; }
 .login-senha-campo { display: flex; align-items: center; }
 .login-ver-senha {
@@ -763,14 +760,6 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
   .login-cursor { animation: none; }
 }
 
-/* no tablet os dois painéis lado a lado cortam todas as descrições — empilha antes */
-@media (max-width: 900px) {
-  /* minmax(0, …): sem ele o painel cresce até o tamanho das linhas e estoura a tela de 320px */
-  .extrato-grid { grid-template-columns: minmax(0, 1fr); }
-  .extrato-divider { flex-direction: row; padding: 4px 0; }
-  .extrato-divider-line { width: auto; height: 1px; }
-}
-
 /* ---------- borda em onda da landing (experimento de 28/09, no formato do arc.net) ----------
    Cada seção começa com uma onda suave na cor da seção de cima, 17px de período e 4px de altura,
    como no site do Arc: a seção de cima parece escorrer por cima desta. Ela é desenhada dentro da
@@ -796,8 +785,8 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
 }
 .grao { background-image: var(--grao); }
 .onda-escura::before { background-image: var(--grao); }
-/* a mesma faixa em tom claro: "pedra", um cinza quente um pouco mais fundo que o --color-surface
-   de "Como funciona" e o papel da Regra de ouro, para se separar das duas vizinhas, com o grão
+/* a mesma faixa em tom claro: "pedra", um cinza quente um pouco mais fundo que o papel de "Como
+   funciona" e da Regra de ouro, para se separar das duas vizinhas, com o grão
    escuro. Forte o bastante para a textura aparecer como a da faixa escura (opacidade média ~13%
    contra ~6% do grão claro no escuro: ponto escuro no claro pede mais para ser visto) */
 :root {
@@ -965,11 +954,15 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
   width: 10px; height: 10px; border-radius: 50%;
   background: color-mix(in srgb, var(--color-text) 16%, transparent);
 }
-.vitrine-app {
+/* as variáveis que o app declara no .app-shell, no tema claro: a landing não tem tema escuro. Valem
+   para a réplica da janela e para a demonstração de "O problema", que usam as classes do app */
+:is(.vitrine-app, .demonstracao-folhas) {
   --tinta-hover: color-mix(in srgb, var(--color-text) 6%, transparent);
   --tinta-ativa: color-mix(in srgb, var(--color-text) 9%, transparent);
   --texto-apagado: color-mix(in srgb, var(--color-text) 58%, transparent);
   --folha-banco: #fdfcfa; --folha-sistema: #ebe8e3; --superficie-elevada: #fdfcfa;
+}
+.vitrine-app {
   width: 1280px; display: grid; grid-template-columns: 232px minmax(0, 1fr);
   background: var(--color-bg); color: var(--color-text); text-align: left;
 }
@@ -1032,9 +1025,147 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
   position: absolute; right: 12px; bottom: calc(100% - 4px);
   width: 340px; text-align: left; animation: none;
 }
+/* a demonstração de "O problema" (comparacao.tsx): a mesma tabela, com o cartão do hover preso à
+   linha como na réplica. No app ele é fixo na tela porque a tabela rola de lado; aqui ela cabe na
+   largura e não rola. Ele sobe ao abrir, menos quando o ponteiro vem direto de outra linha */
+.demonstracao-folhas .table tbody td:last-child { position: relative; }
+.demonstracao-folhas .cartao-lancamento {
+  position: absolute; right: 12px; bottom: calc(100% - 4px);
+  width: min(340px, calc(100vw - 40px)); text-align: left;
+}
+.demonstracao-folhas .cartao-lancamento[data-na-hora] { animation: none; }
+/* aberta pelo teclado ou pelo toque, a linha acende como no hover do app */
+@media (min-width: 901px) {
+  .demonstracao-folhas .table tbody tr[data-aberta] { background: color-mix(in srgb, var(--tom-linha) 9%, transparent); }
+  .demonstracao-folhas .table tbody tr[data-aberta] > .folha-banco {
+    background: color-mix(in srgb, var(--tom-linha) 9%, var(--folha-banco));
+  }
+  .demonstracao-folhas .table tbody tr[data-aberta] > .folha-sistema {
+    background: color-mix(in srgb, var(--tom-linha) 9%, var(--folha-sistema));
+  }
+}
+/* abaixo de 900px a linha vira cartão: o cartão do hover abre acima do cartão da linha inteira,
+   não da célula do status, que é a última dele */
+@media (max-width: 900px) {
+  .demonstracao-folhas .table tbody tr { position: relative; }
+  .demonstracao-folhas .table tbody td:last-child { position: static; }
+  /* no cartão as folhas perdem o tom, e o hover do app pintaria faixas nas células: acende o cartão */
+  .demonstracao-folhas .table tbody tr[data-tom]:hover > :is(.folha-banco, .folha-sistema) { background: transparent; }
+}
+/* no tablet a tabela do app (uns 830px) não cabe na coluna da landing. No app ela rola de lado, com
+   o cartão fixo na tela; numa página que se lê rolando, a demonstração vira cartões já aqui, com as
+   regras do .tabela-cartoes do app, que só valem até 680px (bloco "Tabela em cartões no celular").
+   Dois por linha, que a largura dá */
+@media (min-width: 681px) and (max-width: 900px) {
+  .demonstracao-folhas .table,
+  .demonstracao-folhas .table tr,
+  .demonstracao-folhas .table td { display: block; width: auto; }
+  .demonstracao-folhas .table thead { display: none; }
+  .demonstracao-folhas .table tbody { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .demonstracao-folhas .table tr {
+    border: 1px solid var(--color-divider); border-radius: var(--radius-md);
+    padding: 12px 14px; background: var(--color-surface);
+  }
+  .demonstracao-folhas .table td {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 14px;
+    border: 0; padding: 5px 0; text-align: left !important;
+  }
+  .demonstracao-folhas .table td::before {
+    content: attr(data-rotulo); flex: none;
+    font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
+    color: color-mix(in srgb, var(--color-text) 62%, transparent);
+  }
+  .demonstracao-folhas .table td[data-destaque="true"] {
+    display: block; padding-bottom: 8px; margin-bottom: 4px;
+    border-bottom: 1px solid var(--color-divider);
+    font-family: var(--font-heading); font-size: 16px; font-weight: 600;
+  }
+  .demonstracao-folhas .table td[data-destaque="true"]::before { content: none; }
+  .demonstracao-folhas .table td.folha-vao { display: none; }
+  .demonstracao-folhas .table :is(td.folha-banco, td.folha-sistema) { background: transparent; }
+}
 .numeros-grade { --grade-recuo: 28px; --grade-linha: color-mix(in srgb, var(--color-neutral-100) 22%, transparent); }
 .passos-grade { --grade-recuo: 30px; }
 .passos-grade > * { padding-block: 30px; }
+
+/* O problema (Cap. II) numa seção só, em três partes: a dor, como é feito hoje e onde o Ledgr
+   entra (a comparação), e na prática (a demonstração das duas telas). Os rótulos das partes, na
+   monoespaçada dos capítulos, menores que o "Cap. II" para não disputarem com ele, com um filete
+   até o fim do grupo: "Hoje" apagado, o que é do Ledgr em dourado */
+.problema-rotulo {
+  display: flex; align-items: center; gap: 14px; margin: 0;
+  font-family: var(--font-mono); font-size: 12px; font-weight: 500; line-height: 1.2;
+  letter-spacing: 0.14em; text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-text) 58%, transparent);
+}
+.problema-rotulo::after { content: ""; flex: 1; height: 1px; background: var(--color-divider); }
+.problema-rotulo-ledgr { color: var(--color-accent-700); }
+.problema-rotulo-ledgr::after { background: color-mix(in srgb, var(--color-accent) 45%, transparent); }
+
+/* a comparação: conferir à mão e migrar de sistema no grupo "Hoje", o Ledgr no outro, cada coluna
+   respondendo às mesmas quatro perguntas. O Ledgr vem numa caixa dourada, como o plano em destaque;
+   as outras colunas têm a mesma caixa, transparente, para as três terem a mesma medida. No celular
+   empilham, com o Ledgr por último. O link "Por que o Ledgr" do rodapé desce até aqui, abaixo do
+   cabeçalho fixo */
+.por-que-grade { display: grid; grid-template-columns: minmax(0, 1fr); row-gap: 36px; scroll-margin-top: 110px; }
+.por-que-grupo { display: flex; flex-direction: column; gap: 12px; }
+.por-que-coluna {
+  display: flex; flex-direction: column;
+  padding: 26px 24px; border: 1px solid transparent; border-radius: var(--radius-md);
+}
+.por-que-destaque {
+  border-color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 7%, var(--color-surface));
+  box-shadow: var(--shadow-md);
+}
+.por-que-nome {
+  display: flex; align-items: center; gap: 10px; margin: 0; padding-bottom: 18px;
+  font-family: var(--font-heading); font-size: clamp(19px, 1.5vw, 22px); font-weight: 600; line-height: 1.25;
+}
+.por-que-logo { flex: none; width: 24px; height: auto; color: var(--color-text); }
+.por-que-itens { display: flex; flex-direction: column; margin: 0; }
+.por-que-itens > div {
+  display: flex; flex-direction: column; gap: 5px;
+  padding-block: 14px; border-top: 1px solid var(--color-divider);
+}
+.por-que-destaque .por-que-itens > div { border-top-color: color-mix(in srgb, var(--color-accent) 40%, transparent); }
+.por-que-itens dt { font-size: 13px; font-weight: 500; color: color-mix(in srgb, var(--color-text) 62%, transparent); }
+.por-que-itens dd { margin: 0; font-size: 15.5px; line-height: 1.6; }
+/* lado a lado: uma grade de três colunas e seis linhas (rótulo, nome e as quatro respostas), que os
+   grupos, as colunas e as listas herdam (subgrid nas duas direções). Assim cada resposta fica na
+   altura da mesma pergunta nas três colunas, mesmo em grupos diferentes. A grade sai pelas laterais
+   na medida do recuo da caixa, para o texto alinhar com o título da seção */
+@media (min-width: 900px) {
+  .por-que-grade {
+    grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: 16px; row-gap: 0;
+    margin-inline: -25px;
+  }
+  .por-que-grupo { display: grid; grid-row: span 6; grid-template-columns: subgrid; grid-template-rows: subgrid; gap: 0 16px; }
+  .por-que-grupo:not(.por-que-grupo-ledgr) { grid-column: span 2; }
+  .por-que-grupo > .problema-rotulo { grid-column: 1 / -1; padding: 0 25px 14px; }
+  .por-que-coluna { display: grid; grid-row: span 5; grid-template-rows: subgrid; }
+  .por-que-itens { display: grid; grid-row: span 4; grid-template-rows: subgrid; }
+}
+@media (max-width: 899px) {
+  /* empilhadas, as colunas de hoje saem da caixa e alinham com o texto da seção */
+  .por-que-coluna:not(.por-que-destaque) { padding: 4px 0 0; }
+  .por-que-destaque { padding: 22px 18px; }
+}
+/* no tablet, empilhada, a coluna fica larga: pergunta à esquerda e resposta à direita, como uma ficha */
+@media (min-width: 600px) and (max-width: 899px) {
+  .por-que-itens > div { display: grid; grid-template-columns: 170px minmax(0, 1fr); column-gap: 24px; align-items: baseline; }
+}
+
+/* na prática: a apresentação da demonstração, depois da comparação */
+.problema-pratica {
+  display: flex; flex-direction: column; gap: 14px;
+  margin: clamp(64px, 8vw, 104px) 0 30px;
+}
+.problema-pratica-titulo {
+  margin: 4px 0 0; font-family: var(--font-heading);
+  font-size: clamp(22px, 1.9vw, 28px); font-weight: 600; line-height: 1.2; letter-spacing: -0.015em;
+}
+.problema-pratica-texto { margin: 0; max-width: 62ch; font-size: 15.5px; line-height: 1.75; }
 
 /* planos: cinco lado a lado; no tablet dois por linha com o "Volume" ocupando a largura; no celular um por linha */
 .planos-grade { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 16px; }
@@ -1078,7 +1209,6 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
 
 /* planos no celular: um card por linha, compacto, para a lista não ficar comprida */
 @media (max-width: 600px) {
-  .extrato-desc { white-space: normal !important; line-height: 1.35; }
   .planos-grade { grid-template-columns: minmax(0, 1fr); gap: 10px; }
   .plano-card { row-gap: 2px !important; padding: 16px 18px !important; }
 }
@@ -1487,13 +1617,13 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
    olho pequeno, não aguentava o corpo de título de tela. Só do tamanho de
    título para cima: lista, tabela e botão seguem em Inter. Algarismos
    alinhados: os de estilo antigo sobem e descem, e em valor isso atrapalha. */
-:is(.app-shell, .vitrine-app) :is(h1, h2, h3),
-:is(.app-shell, .vitrine-app) :is(.dash-valor, .hist-destaque, .det-valor, .vg-estado-aberto, .folha-nome, .det-cartao-titulo) {
+:is(.app-shell, .vitrine-app, .demonstracao-folhas) :is(h1, h2, h3),
+:is(.app-shell, .vitrine-app, .demonstracao-folhas) :is(.dash-valor, .hist-destaque, .det-valor, .vg-estado-aberto, .folha-nome, .det-cartao-titulo) {
   font-family: var(--font-titulo); font-variant-numeric: lining-nums tabular-nums;
 }
 /* título de passo tem 18px: fica na Inter, como o resto do texto corrido */
 .app-shell .vg-passo-titulo { font-family: var(--font-heading); }
-:is(.app-shell, .vitrine-app) h6 { color: var(--texto-apagado); }
+:is(.app-shell, .vitrine-app, .demonstracao-folhas) h6 { color: var(--texto-apagado); }
 
 /* ── Comparação em duas folhas ────────────────────────────────────────────────
    O extrato do banco e o do sistema são coisas diferentes: cada um é uma folha de

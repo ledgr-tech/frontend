@@ -42,8 +42,9 @@ const jetbrainsMono = JetBrains_Mono({
   weight: ["500", "600"],
 });
 
+// o texto da prévia quando alguém manda o link: o mesmo argumento do subtítulo do hero
 const DESCRICAO =
-  "Concilie o extrato do banco com o extrato do seu sistema de gestão em minutos, sem planilha no meio.";
+  "Concilie o extrato do banco com o do sistema de gestão que você já usa: em minutos o Ledgr confere linha por linha e aponta só o que não bate.";
 
 // A imagem da prévia é `app/opengraph-image.tsx`. O endereço absoluto dela o Next
 // monta sozinho na Vercel (domínio de produção ou da prévia), sem metadataBase.
