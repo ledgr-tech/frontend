@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { PLANOS } from "@/lib/planos";
 import { fonteDestaque } from "./fonte-destaque";
 import LandingPage from "./page";
 
@@ -86,8 +87,12 @@ describe("LandingPage", () => {
     const { container } = render(<LandingPage />);
     const numeros = [
       ...[...container.querySelectorAll(".numeros-grade > *")].map((item) => item.firstElementChild!),
-      screen.getByText("96,3%"),
+      // o cartão do hero e o relatório do último card de Preços, que mostra o mesmo agosto
+      ...screen.getAllByText("96,3%"),
+      // e o volume de cada plano na régua de Preços
+      ...container.querySelectorAll(".preco-regua-num"),
     ];
+    expect(numeros).toHaveLength(3 + 2 + 5);
     for (const numero of numeros) expect(numero).toHaveClass("numero-destaque");
   });
 
@@ -338,8 +343,23 @@ describe("LandingPage", () => {
   it("shows no plan prices while billing is not defined", () => {
     render(<LandingPage />);
     const preco = document.getElementById("preco")!;
-    expect(preco.textContent).not.toMatch(/R\$/);
-    expect(within(preco).queryByText("Sob consulta")).not.toBeInTheDocument();
+    // as demonstrações dos cards mostram valores de lançamento; preço de plano, nenhum
+    for (const plano of PLANOS) expect(preco.textContent).not.toContain(plano.preco);
+  });
+
+  it("shows what comes in every plan as a trail of cards, with the page's own August in the demos", () => {
+    render(<LandingPage />);
+    const preco = within(document.getElementById("preco")!);
+    expect(preco.getAllByRole("article").map((card) => within(card).getByRole("heading", { level: 3 }).textContent)).toEqual([
+      "Só o que não bate",
+      "O motivo de cada diferença",
+      "Sem trocar de sistema",
+      "O relatório para o contador",
+    ]);
+    // a #1082 de "O problema" e o mesmo agosto do cartão do hero
+    expect(preco.getByText(/^O banco descontou R\$ 36,00 de juros por atraso no boleto/)).toBeInTheDocument();
+    expect(preco.getByText("157 de 4.218 para revisar")).toBeInTheDocument();
+    expect(preco.getByRole("list", { name: "Os planos" })).toBeInTheDocument();
   });
 
   describe("the comparison with the other ways out", () => {
