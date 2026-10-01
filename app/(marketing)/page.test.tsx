@@ -428,6 +428,23 @@ describe("LandingPage", () => {
       }
     });
 
+    it("leads each answer with the direct answer in bold, so reading across a row compares the three ways", () => {
+      render(<LandingPage />);
+      const destaques = colunas().map((coluna) =>
+        [...coluna.querySelectorAll("dd")].map((resposta) => resposta.querySelector("strong")?.textContent),
+      );
+      expect(destaques).toEqual([
+        ["Não precisa.", "Alguém que entenda de contabilidade", "A planilha de sempre.", "As horas de quem confere"],
+        ["Precisa.", "O sistema novo", "Migrar cadastros, contas e histórico", "A mensalidade do sistema novo"],
+        ["Não precisa.", "O Ledgr, linha por linha", "Subir dois arquivos", "Pelo volume de lançamentos do mês"],
+      ]);
+      // o negrito abre a resposta: o resto da frase continua lá, logo depois dele
+      for (const resposta of porQue().querySelectorAll("dd")) {
+        expect(resposta.firstChild).toBe(resposta.querySelector("strong"));
+      }
+      expect(colunas()[1].querySelectorAll("dd")[0].textContent).toBe("Precisa. A empresa inteira passa para o sistema novo.");
+    });
+
     it("says the Ledgr keeps your system and leaves you only what does not match", () => {
       render(<LandingPage />);
       const [trocar, quem] = [...colunas()[2].querySelectorAll("dd")].map((item) => item.textContent);

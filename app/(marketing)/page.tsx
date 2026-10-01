@@ -124,25 +124,29 @@ const PASSOS = [
 // de fazer.
 const ASPECTOS = ["Trocar de sistema", "Quem confere, todo mês", "Para começar", "O que custa"];
 
-type Saida = { nome: string; respostas: string[] };
+// cada resposta é [o que responde à pergunta, o resto da frase]: o primeiro trecho vai em negrito,
+// e lendo só os negritos de uma linha dá para comparar as três saídas
+type Resposta = [destaque: string, resto?: string];
+
+type Saida = { nome: string; respostas: Resposta[] };
 
 const SAIDAS_DE_HOJE: Saida[] = [
   {
     nome: "Conferir à mão",
     respostas: [
-      "Não precisa.",
-      "Alguém que entenda de contabilidade, linha por linha, com as duas telas abertas.",
-      "A planilha de sempre.",
-      "As horas de quem confere, em todo fechamento.",
+      ["Não precisa."],
+      ["Alguém que entenda de contabilidade", ", linha por linha, com as duas telas abertas."],
+      ["A planilha de sempre."],
+      ["As horas de quem confere", ", em todo fechamento."],
     ],
   },
   {
     nome: "Migrar para um sistema com conciliação",
     respostas: [
-      "Precisa. A empresa inteira passa para o sistema novo.",
-      "O sistema novo, depois que tudo estiver nele.",
-      "Migrar cadastros, contas e histórico, e treinar a equipe.",
-      "A mensalidade do sistema novo, mais o trabalho da migração.",
+      ["Precisa.", " A empresa inteira passa para o sistema novo."],
+      ["O sistema novo", ", depois que tudo estiver nele."],
+      ["Migrar cadastros, contas e histórico", ", e treinar a equipe."],
+      ["A mensalidade do sistema novo", ", mais o trabalho da migração."],
     ],
   },
 ];
@@ -150,10 +154,10 @@ const SAIDAS_DE_HOJE: Saida[] = [
 const SAIDA_LEDGR: Saida = {
   nome: "Ledgr",
   respostas: [
-    "Não precisa. Funciona com o sistema que você já usa.",
-    "O Ledgr, linha por linha: você revisa só o que não bate, já com o motivo.",
-    "Subir dois arquivos: o extrato do banco e o do sistema.",
-    "Pelo volume de lançamentos do mês, sem fidelidade nem taxa de implantação.",
+    ["Não precisa.", " Funciona com o sistema que você já usa."],
+    ["O Ledgr, linha por linha", ": você revisa só o que não bate, já com o motivo."],
+    ["Subir dois arquivos", ": o extrato do banco e o do sistema."],
+    ["Pelo volume de lançamentos do mês", ", sem fidelidade nem taxa de implantação."],
   ],
 };
 
@@ -168,7 +172,10 @@ function ColunaSaida({ saida, destaque = false, delay }: { saida: Saida; destaqu
         {ASPECTOS.map((aspecto, i) => (
           <div key={aspecto}>
             <dt>{aspecto}</dt>
-            <dd>{saida.respostas[i]}</dd>
+            <dd>
+              <strong>{saida.respostas[i][0]}</strong>
+              {saida.respostas[i][1]}
+            </dd>
           </div>
         ))}
       </dl>

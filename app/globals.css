@@ -1129,7 +1129,10 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
 }
 .por-que-destaque .por-que-itens > div { border-top-color: color-mix(in srgb, var(--color-accent) 40%, transparent); }
 .por-que-itens dt { font-size: 13px; font-weight: 500; color: color-mix(in srgb, var(--color-text) 62%, transparent); }
-.por-que-itens dd { margin: 0; font-size: 15.5px; line-height: 1.6; }
+/* o que responde à pergunta em negrito, na cor do texto; o resto da frase um tom abaixo (o mesmo dos
+   textos de apoio dos cards de Preços). Lendo só os negritos de uma linha, as três saídas se comparam */
+.por-que-itens dd { margin: 0; font-size: 15.5px; line-height: 1.6; color: color-mix(in srgb, var(--color-text) 72%, transparent); }
+.por-que-itens dd strong { font-weight: 600; color: var(--color-text); }
 /* lado a lado: uma grade de três colunas e seis linhas (rótulo, nome e as quatro respostas), que os
    grupos, as colunas e as listas herdam (subgrid nas duas direções). Assim cada resposta fica na
    altura da mesma pergunta nas três colunas, mesmo em grupos diferentes. A grade sai pelas laterais
