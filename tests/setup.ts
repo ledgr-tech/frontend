@@ -2,21 +2,18 @@ import "@testing-library/jest-dom/vitest";
 import { cleanup } from "@testing-library/react";
 import { afterEach, vi } from "vitest";
 
-// o next/font/google só existe compilado pelo Next (o index.js do pacote é vazio): nos testes,
-// cada fonte vira só o nome da classe e da variável CSS
-vi.mock("next/font/google", () => {
-  const fonte = (nome: string) => () => ({
-    className: `fonte-${nome}`,
-    variable: `fonte-${nome}-variavel`,
-    style: { fontFamily: nome },
-  });
-  return {
-    Cormorant_Garamond: fonte("cormorant-garamond"),
-    Inter: fonte("inter"),
-    JetBrains_Mono: fonte("jetbrains-mono"),
-    Newsreader: fonte("newsreader"),
-  };
-});
+// o next/font/local só existe compilado pelo Next (fora dele, a função só lança erro): nos testes,
+// cada fonte vira só o nome da classe e da variável CSS, tirado da própria variável
+vi.mock("next/font/local", () => ({
+  default: ({ variable = "--fonte" }: { variable?: string }) => {
+    const nome = variable.replace(/^--/, "");
+    return {
+      className: `fonte-${nome}`,
+      variable: `fonte-${nome}-variavel`,
+      style: { fontFamily: nome },
+    };
+  },
+}));
 
 afterEach(() => {
   cleanup();

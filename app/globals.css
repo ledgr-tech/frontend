@@ -59,6 +59,8 @@
   --color-risco-800: #633324;
   --color-risco-900: #402219;
 
+  /* títulos e texto são a mesma Inter, com os quatro pesos (ver a chamada em app/layout.tsx) */
+  --font-heading-family: var(--font-body-family);
   --font-heading: var(--font-heading-family), system-ui, sans-serif;
   --font-heading-weight: 600;
   --font-body: var(--font-body-family), system-ui, sans-serif;
