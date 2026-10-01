@@ -1105,8 +1105,9 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
 .problema-rotulo-ledgr::after { background: color-mix(in srgb, var(--color-accent) 45%, transparent); }
 
 /* a comparação: conferir à mão e migrar de sistema no grupo "Hoje", o Ledgr no outro, cada coluna
-   respondendo às mesmas quatro perguntas. O Ledgr vem numa caixa dourada, como o plano em destaque;
-   as outras colunas têm a mesma caixa, transparente, para as três terem a mesma medida. No celular
+   respondendo às mesmas quatro perguntas. O Ledgr vem numa caixa de filete dourado, sem fundo nem
+   sombra, como a Regra de ouro e os cards de Preços (cor como traço, não preenchimento); as outras
+   colunas têm a mesma caixa, transparente, para as três terem a mesma medida. No celular
    empilham, com o Ledgr por último. O link "Por que o Ledgr" do rodapé desce até aqui, abaixo do
    cabeçalho fixo */
 .por-que-grade { display: grid; grid-template-columns: minmax(0, 1fr); row-gap: 36px; scroll-margin-top: 110px; }
@@ -1115,11 +1116,7 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
   display: flex; flex-direction: column;
   padding: 26px 24px; border: 1px solid transparent; border-radius: var(--radius-md);
 }
-.por-que-destaque {
-  border-color: var(--color-accent);
-  background: color-mix(in srgb, var(--color-accent) 7%, var(--color-surface));
-  box-shadow: var(--shadow-md);
-}
+.por-que-destaque { border-color: var(--color-accent); }
 .por-que-nome {
   display: flex; align-items: center; gap: 10px; margin: 0; padding-bottom: 18px;
   font-family: var(--font-heading); font-size: clamp(19px, 1.5vw, 22px); font-weight: 600; line-height: 1.25;
