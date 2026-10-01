@@ -8,6 +8,7 @@ import { LogoBarras } from "@/app/(app)/logo-barras";
 import { CabecalhoSite } from "./cabecalho-site";
 import { ExtratoComparacao, type LinhaExtrato } from "./comparacao";
 import { InkHover, MotionRoot, PlanCard, Reveal } from "../reveal";
+import { fonteDestaque } from "./fonte-destaque";
 import { PorDentro } from "./por-dentro";
 
 // As categorias de divergência do motor, na ordem e com os nomes do relatório
@@ -16,22 +17,26 @@ const CATEGORIAS = new Intl.ListFormat("pt-BR").format(
   DIVERGENCIAS.map((status) => seloDoStatus(status).rotulo.toLowerCase()),
 );
 
-const PROVAS_HERO = [
-  { valor: "0", rotulo: "credenciais bancárias pedidas: só o arquivo que o banco já exporta" },
-  { valor: "Alto volume", rotulo: "de lançamentos conferidos por mês, sem esforço extra" },
-  { valor: String(DIVERGENCIAS.length), rotulo: "categorias de divergência, sempre nomeadas" },
-];
+// No feminino, como "categorias"; o número em si continua vindo do motor (DIVERGENCIAS).
+const POR_EXTENSO = ["Nenhuma", "Uma", "Duas", "Três", "Quatro", "Cinco", "Seis", "Sete", "Oito", "Nove", "Dez"];
 
+// A faixa logo abaixo do hero, só com o que é quantidade, e por extenso: algarismo solto em
+// tamanho grande ficava com cara de letra. "Sem instalar nada" já está no zero de credenciais, e
+// "Alto volume" e "Automático" não eram número.
 const NUMEROS = [
-  { valor: "Automático", rotulo: "a maior parte dos lançamentos casa sem precisar mexer em nada" },
-  { valor: "minutos", rotulo: "para o relatório ficar pronto depois que você sobe os arquivos" },
-  { valor: "Sem instalar nada", rotulo: "nenhuma integração bancária pra configurar" },
+  { valor: "Zero", rotulo: "credenciais bancárias pedidas: só o arquivo que o banco já exporta" },
+  { valor: "Minutos", rotulo: "para o relatório ficar pronto depois que você sobe os arquivos" },
+  {
+    valor: POR_EXTENSO[DIVERGENCIAS.length] ?? String(DIVERGENCIAS.length),
+    rotulo: "categorias de divergência, sempre nomeadas",
+  },
 ];
 
-// ponytail: as `explicacao` desta demonstração são no estilo da IA, que está
-// desligada em produção; sem ela, o produto mostra o motivo fixo do motor. A
-// escolha entre trocar os textos ou marcar como exemplo com IA está pendente no
-// DESIGN.md ("Dívidas pontuais anotadas pelo caminho").
+// ponytail: as `explicacao` desta demonstração são no estilo da IA, que estará
+// ligada no lançamento (hoje está desligada em produção, e o produto mostra o
+// motivo fixo do motor). Aparecem com o selo de IA, como no produto: decidido em
+// 01/10 no DESIGN.md ("Dívidas pontuais anotadas pelo caminho"). Se o lançamento
+// for sem IA, troque pelos motivos fixos.
 // Lançamentos que aparecem, com os mesmos valores, nos dois extratos.
 // Agosto/2026: mês já fechado (hoje é setembro/2026), coerente com o rótulo do hero.
 const TRANSACOES_CASADAS: LinhaExtrato[] = [
@@ -124,6 +129,18 @@ const PERGUNTAS = [
       "Não. O Ledgr lê o arquivo que o internet banking já exporta, em OFX ou CSV, e não pede nenhuma credencial bancária.",
   },
   {
+    // só o que a política de privacidade (seção Segurança e "Por quanto tempo") já afirma
+    pergunta: "É seguro subir os meus extratos?",
+    resposta: (
+      <>
+        O Ledgr não pede nenhuma credencial bancária, e o arquivo que você sobe não fica guardado: ficam os
+        lançamentos lidos dele, que só a sua empresa vê. Os registros do servidor não guardam o valor nem a
+        descrição completa dos lançamentos. Os detalhes estão na{" "}
+        <Link href="/privacidade#seguranca">política de privacidade</Link>.
+      </>
+    ),
+  },
+  {
     pergunta: "E se o CSV do meu sistema vier em outro formato?",
     resposta:
       "Funciona também: na importação você aponta qual coluna é data, descrição e valor, e o Ledgr ajusta o arquivo. Por enquanto, esse passo se repete a cada importação.",
@@ -184,7 +201,7 @@ const RODAPE_COLUNAS = [
 
 export default function LandingPage() {
   return (
-    <main>
+    <main className={fonteDestaque.variable}>
       <MotionRoot>
       <CabecalhoSite />
 
@@ -232,22 +249,11 @@ export default function LandingPage() {
               </span>
               <span style={{ flex: 1, maxWidth: 120, height: 1, background: "var(--color-divider)" }} />
             </div>
-            <h1
-              className="font-display"
-              style={{
-                margin: "0 0 24px",
-                fontSize: "clamp(44px, 4.8vw, 88px)",
-                fontWeight: 400,
-                lineHeight: 1.02,
-                letterSpacing: "-0.022em",
-                textWrap: "balance",
-              }}
-            >
-              Pare de conciliar extrato à mão.
+            <h1 className="titulo-misto" style={{ margin: "0 0 24px", fontSize: "clamp(40px, 4.4vw, 72px)" }}>
+              Pare de conciliar extrato <em>à mão.</em>
             </h1>
             <div style={{ width: 84, height: 1, background: "var(--color-accent)", marginBottom: 26 }} />
             <p
-              className="texto-justificado"
               style={{
                 margin: "0 0 34px",
                 fontSize: "clamp(16px, 1.2vw, 19px)",
@@ -259,55 +265,9 @@ export default function LandingPage() {
               relatório do que bate e do que não bate, lançamento por lançamento, sem planilha no
               meio.
             </p>
-            <div style={{ display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap", marginBottom: 34 }}>
-              <Link
-                href="/cadastro"
-                className="btn btn-primary"
-                style={{ fontSize: 15.5, padding: "13px 24px" }}
-              >
-                Conciliar meu primeiro extrato
-              </Link>
-              <span
-                style={{
-                  fontSize: 14,
-                  color: "color-mix(in srgb, var(--color-text) 68%, transparent)",
-                }}
-              >
-                OFX ou CSV, direto do internet banking
-              </span>
-            </div>
-            <div className="grade-colunas hero-provas-grid" style={{ borderTop: "1px solid var(--color-divider)" }}>
-              {PROVAS_HERO.map((prova) => (
-                <div
-                  key={prova.rotulo}
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 6,
-                  }}
-                >
-                  <span
-                    style={{
-                      fontFamily: "var(--font-display)",
-                      fontSize: 30,
-                      fontWeight: 600,
-                      lineHeight: 1,
-                    }}
-                  >
-                    {prova.valor}
-                  </span>
-                  <span
-                    style={{
-                      fontSize: 13,
-                      lineHeight: 1.5,
-                      color: "color-mix(in srgb, var(--color-text) 68%, transparent)",
-                    }}
-                  >
-                    {prova.rotulo}
-                  </span>
-                </div>
-              ))}
-            </div>
+            <Link href="/cadastro" className="btn btn-primary" style={{ fontSize: 15.5, padding: "13px 24px" }}>
+              Começar agora
+            </Link>
           </div>
           <InkHover
             clip={false}
@@ -352,7 +312,7 @@ export default function LandingPage() {
                 Agosto · 2026
               </div>
               <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 8 }}>
-                <span style={{ fontFamily: "var(--font-display)", fontSize: 38, fontWeight: 600, lineHeight: 1 }}>
+                <span className="numero-destaque" style={{ fontSize: 38, fontWeight: 600, lineHeight: 1 }}>
                   96,3%
                 </span>
                 <span style={{ fontSize: 13.5, color: "color-mix(in srgb, var(--color-text) 68%, transparent)" }}>
@@ -412,25 +372,6 @@ export default function LandingPage() {
           </g>
         </svg>
         <div style={{ position: "relative", maxWidth: 1600, margin: "0 auto", padding: "clamp(52px, 7vw, 72px) clamp(20px, 4.2vw, 56px)" }}>
-          <Reveal>
-            <InkHover
-              tone="light"
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: 10,
-                marginBottom: 30,
-              }}
-            >
-              <span className="eyebrow" style={{ fontSize: 12, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--color-accent-300)" }}>
-                Em números
-              </span>
-              <span style={{ fontSize: 14, lineHeight: 1.6, maxWidth: "46ch", color: "var(--color-neutral-400)" }}>
-                O Ledgr cruza o extrato do banco com o razão do ERP e devolve cada divergência na sua
-                categoria. Você não monta planilha nem confere linha por linha.
-              </span>
-            </InkHover>
-          </Reveal>
           <div className="grade-colunas numeros-grade">
             {NUMEROS.map((numero, i) => (
               <Reveal
@@ -443,8 +384,8 @@ export default function LandingPage() {
                 }}
               >
                 <span
+                  className="numero-destaque"
                   style={{
-                    fontFamily: "var(--font-display)",
                     fontSize: "clamp(36px, 3.4vw, 46px)",
                     fontWeight: 400,
                     lineHeight: 1,
@@ -464,25 +405,18 @@ export default function LandingPage() {
       <section id="problema" className="onda onda-escura">
         <div style={{ maxWidth: 1600, margin: "0 auto", padding: "clamp(64px, 9vw, 96px) clamp(20px, 4.2vw, 56px)" }}>
           <Reveal>
-            <InkHover
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(min(300px, 100%), 1fr))",
-                gap: "24px 48px",
-                marginBottom: 42,
-              }}
-            >
+            {/* título e texto empilhados: um recado só, lido de cima para baixo */}
+            <InkHover style={{ display: "flex", flexDirection: "column", gap: 18, marginBottom: 42 }}>
               <div>
                 <p className="eyebrow" style={{ margin: "0 0 12px", color: "var(--color-accent-700)" }}>Cap. II · O jeito de hoje</p>
-                <h2 style={{ margin: 0, fontSize: "clamp(30px, 2.8vw, 46px)", fontWeight: 400, lineHeight: 1.08 }}>
-                  Duas telas abertas, um dedo em cada linha.
+                <h2 className="titulo-misto" style={{ margin: 0, fontSize: "clamp(30px, 2.8vw, 46px)" }}>
+                  Duas telas abertas, um dedo em <em>cada linha.</em>
                 </h2>
               </div>
               <p
-                className="texto-justificado"
                 style={{
                   margin: 0,
-                  alignSelf: "end",
+                  maxWidth: "62ch",
                   fontSize: 15.5,
                   lineHeight: 1.75,
                 }}
@@ -524,6 +458,8 @@ export default function LandingPage() {
 
       {/* como funciona */}
       <section id="como" className="onda onda-papel" style={{ position: "relative", overflow: "hidden", background: "var(--color-surface)" }}>
+        {/* marca d'água no canto de baixo à esquerda, oposto ao mascote visível (como na FAQ),
+            saindo pelas bordas: atrás do título ela competia com ele */}
         <Image
           src="/mascotes/mascote-explicando.png"
           alt=""
@@ -532,7 +468,7 @@ export default function LandingPage() {
           height={1000}
           sizes="480px"
           className="como-marca"
-          style={{ position: "absolute", top: 30, left: -40, width: 480, height: "auto", opacity: 0.07, pointerEvents: "none" }}
+          style={{ position: "absolute", bottom: -170, left: -70, width: 480, height: "auto", opacity: 0.07, pointerEvents: "none" }}
         />
         <div style={{ position: "relative", maxWidth: 1600, margin: "0 auto", padding: "clamp(64px, 9vw, 96px) clamp(20px, 4.2vw, 56px)" }}>
           <Reveal>
@@ -548,8 +484,8 @@ export default function LandingPage() {
             >
               <div style={{ flex: "1 1 360px", minWidth: 0 }}>
                 <p className="eyebrow" style={{ margin: "0 0 12px", color: "var(--color-accent-700)" }}>Cap. III · Como funciona</p>
-                <h2 style={{ margin: 0, fontSize: "clamp(30px, 2.8vw, 46px)", fontWeight: 400, lineHeight: 1.08 }}>
-                  Três passos. A conferência linha por linha fica com o Ledgr.
+                <h2 className="titulo-misto" style={{ margin: 0, fontSize: "clamp(30px, 2.8vw, 46px)" }}>
+                  Três passos. A conferência linha por linha fica <em>com o Ledgr.</em>
                 </h2>
               </div>
               <Image
@@ -557,7 +493,9 @@ export default function LandingPage() {
                 alt="Mascote Ledgr explicando"
                 width={1000}
                 height={1000}
-                sizes="240px"
+                // o mesmo sizes da marca d'água desta seção: as duas pegam a mesma largura do srcset,
+                // e a imagem baixa uma vez só
+                sizes="480px"
                 className="como-mascote"
                 style={{ flex: "none", width: 240, height: "auto" }}
               />
@@ -567,7 +505,7 @@ export default function LandingPage() {
             {PASSOS.map((passo, i) => (
               <Reveal
                 key={passo.num}
-                delay={i * 0.1}
+                delay={i * 0.06}
                 style={{
                   display: "flex",
                   flexDirection: "column",
@@ -591,7 +529,7 @@ export default function LandingPage() {
                 <div style={{ fontFamily: "var(--font-heading)", fontSize: 22, fontWeight: 600, lineHeight: 1.2 }}>
                   {passo.titulo}
                 </div>
-                <div className="texto-justificado" style={{ fontSize: 15, lineHeight: 1.72 }}>
+                <div style={{ fontSize: 15, lineHeight: 1.72 }}>
                   {passo.texto}
                 </div>
               </Reveal>
@@ -601,23 +539,21 @@ export default function LandingPage() {
       </section>
 
       {/* por dentro do ledgr: o que chega depois do terceiro passo, contado pela vida de uma
-          linha, a #1082 de "O problema", até o sistema de gestão, e a tela inteira do app embaixo */}
+          linha, a #1082 de "O problema", até o sistema de gestão, e a tela inteira do app embaixo.
+          overflow: clip, e não hidden: hidden faria da seção o contêiner de rolagem do título
+          parado (sticky), e ele deixaria de grudar */}
       <section
         id="por-dentro"
         className="onda onda-superficie grao-claro"
-        style={{ position: "relative", overflow: "hidden", backgroundColor: "var(--faixa-clara)" }}
+        style={{ position: "relative", overflow: "clip", backgroundColor: "var(--faixa-clara)" }}
       >
         <div style={{ position: "relative", maxWidth: 1600, margin: "0 auto", padding: "clamp(64px, 9vw, 96px) clamp(20px, 4.2vw, 56px)" }}>
           <div className="por-dentro">
-            <Reveal>
-              <div className="por-dentro-topo">
-                <p className="eyebrow" style={{ margin: 0, color: "var(--color-accent-700)" }}>
-                  Por dentro do Ledgr
-                </p>
-                <h2 className="por-dentro-intro">Uma linha de agosto, do extrato ao seu sistema.</h2>
-              </div>
-            </Reveal>
-            <PorDentro banco={EXTRATO_BANCO} sistema={EXTRATO_SISTEMA} />
+            <PorDentro banco={EXTRATO_BANCO} sistema={EXTRATO_SISTEMA}>
+              <h2 className="titulo-misto por-dentro-intro">
+                Cada lançamento, do extrato <em>ao seu sistema.</em>
+              </h2>
+            </PorDentro>
           </div>
         </div>
       </section>
@@ -651,11 +587,8 @@ export default function LandingPage() {
                 §
               </div>
               <div>
-                <p className="eyebrow" style={{ margin: "0 0 10px", color: "var(--color-accent-700)" }}>
-                  Regra de ouro
-                </p>
-                <h2 className="font-display" style={{ margin: "0 0 12px", fontSize: "clamp(26px, 2.4vw, 42px)", fontWeight: 500 }}>
-                  O extrato do banco é sempre a fonte da verdade.
+                <h2 className="titulo-misto" style={{ margin: "0 0 12px", fontSize: "clamp(26px, 2.4vw, 42px)" }}>
+                  O extrato do banco é sempre <em>a fonte da verdade.</em>
                 </h2>
                 <p
                   style={{
@@ -677,8 +610,14 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* convite */}
-      <section className="onda onda-papel" style={{ position: "relative", overflow: "hidden", background: "var(--color-surface)" }}>
+      {/* perguntas, com o mascote que lia o panfleto no antigo convite: o convite repetia o que os
+          passos, os números e a FAQ já diziam, e saiu. O fundo de superfície também veio dele, para
+          as faixas continuarem alternando (a onda de cima é a cor da Regra de ouro, papel) */}
+      <section
+        id="perguntas"
+        className="onda onda-papel"
+        style={{ position: "relative", overflow: "hidden", background: "var(--color-surface)" }}
+      >
         <Image
           src="/mascotes/mascote-sentado.png"
           alt=""
@@ -686,88 +625,42 @@ export default function LandingPage() {
           width={1000}
           height={1000}
           sizes="480px"
-          className="convite-marca"
+          className="perguntas-marca"
           style={{ position: "absolute", bottom: 20, right: 24, width: 480, height: "auto", opacity: 0.07, pointerEvents: "none" }}
         />
-        <div
-          className="convite-conteudo"
-          style={{
-            position: "relative",
-            maxWidth: 1600,
-            margin: "0 auto",
-            padding: "clamp(64px, 9vw, 96px) clamp(20px, 4.2vw, 56px)",
-            display: "flex",
-            flexWrap: "wrap",
-            gap: "32px 48px",
-            alignItems: "center",
-          }}
-        >
-          <InkHover style={{ flex: "none" }}>
-            <Image
-              src="/mascotes/mascote-sentado.png"
-              alt="Mascote Ledgr sentado lendo um panfleto"
-              width={1000}
-              height={1000}
-              sizes="220px"
-              className="convite-mascote"
-              style={{ width: 220, height: "auto", display: "block" }}
-            />
-          </InkHover>
-          <Reveal delay={0.1} className="convite-texto" style={{ flex: "1 1 420px", minWidth: 0, paddingLeft: 32, borderLeft: "1px solid var(--color-accent)" }}>
-            <p className="eyebrow" style={{ margin: "0 0 12px", color: "var(--color-accent-700)" }}>Sem configuração</p>
-            <h2 style={{ margin: "0 0 16px", fontSize: "clamp(26px, 2.4vw, 40px)", fontWeight: 400, lineHeight: 1.12 }}>
-              Suba os arquivos e veja as divergências em minutos.
-            </h2>
-            <p
-              className="texto-justificado"
-              style={{
-                margin: "0 0 18px",
-                fontSize: 15.5,
-                lineHeight: 1.75,
-                maxWidth: "66ch",
-              }}
+        <div style={{ position: "relative", maxWidth: 1600, margin: "0 auto", padding: "clamp(64px, 9vw, 96px) clamp(20px, 4.2vw, 56px)" }}>
+          <div className="perguntas-topo" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "24px 40px", marginBottom: 34 }}>
+            <InkHover style={{ flex: "none" }}>
+              <Image
+                src="/mascotes/mascote-sentado.png"
+                alt="Mascote Ledgr sentado lendo um panfleto"
+                width={1000}
+                height={1000}
+                // o mesmo sizes da marca d'água desta seção, para a imagem baixar uma vez só
+                sizes="480px"
+                className="perguntas-mascote"
+                style={{ width: 180, height: "auto", display: "block" }}
+              />
+            </InkHover>
+            <Reveal
+              className="perguntas-titulo"
+              style={{ flex: "1 1 320px", minWidth: 0, paddingLeft: 32, borderLeft: "1px solid var(--color-accent)" }}
             >
-              O Ledgr aceita OFX e CSV de qualquer banco. Você sobe o extrato do banco e o razão do
-              seu ERP ou sistema de gestão do mesmo período, e recebe o relatório com as divergências
-              separadas. Não tem integração pra configurar nem programa pra instalar.
-            </p>
-            <p
-              className="texto-justificado"
-              style={{
-                margin: "0 0 22px",
-                fontSize: 15.5,
-                lineHeight: 1.75,
-                maxWidth: "66ch",
-              }}
-            >
-              {`Cada divergência vem com o nome da categoria: ${CATEGORIAS}.`} Você vê o problema,
-              decide o que corrigir no sistema e fecha o mês.
-            </p>
-            <Link href="/cadastro" className="btn btn-primary">
-              Testar agora, gratuito
-            </Link>
-          </Reveal>
-        </div>
-      </section>
-
-      {/* perguntas */}
-      <section id="perguntas" className="onda onda-superficie">
-        <div style={{ maxWidth: 1600, margin: "0 auto", padding: "clamp(64px, 9vw, 96px) clamp(20px, 4.2vw, 56px)" }}>
-          <Reveal style={{ marginBottom: 34 }}>
-            <h2 style={{ margin: 0, fontSize: "clamp(26px, 2.4vw, 40px)", fontWeight: 400, lineHeight: 1.1 }}>
-              Perguntas que sempre aparecem
-            </h2>
-            <span
-              style={{
-                display: "block",
-                marginTop: 12,
-                fontSize: 14,
-                color: "color-mix(in srgb, var(--color-text) 68%, transparent)",
-              }}
-            >
-              Qualquer outra dúvida: ledgrtech@gmail.com
-            </span>
-          </Reveal>
+              <h2 className="titulo-misto" style={{ margin: 0, fontSize: "clamp(26px, 2.4vw, 40px)" }}>
+                Perguntas que <em>sempre aparecem</em>
+              </h2>
+              <span
+                style={{
+                  display: "block",
+                  marginTop: 12,
+                  fontSize: 14,
+                  color: "color-mix(in srgb, var(--color-text) 68%, transparent)",
+                }}
+              >
+                Qualquer outra dúvida: ledgrtech@gmail.com
+              </span>
+            </Reveal>
+          </div>
           <div style={{ maxWidth: "72ch", margin: "0 auto", borderTop: "1px solid var(--color-divider)" }}>
             {PERGUNTAS.map((item, i) => (
               <Reveal key={item.pergunta} delay={i * 0.05}>
@@ -784,7 +677,7 @@ export default function LandingPage() {
       {/* preço / cta */}
       <section
         id="preco"
-        className="onda onda-papel grao"
+        className="onda onda-superficie grao"
         style={{
           position: "relative",
           overflow: "hidden",
@@ -827,17 +720,15 @@ export default function LandingPage() {
             Cap. IV · Começar
           </span>
           <h2
+            className="titulo-misto"
             style={{
               margin: 0,
               fontSize: "clamp(36px, 3.5vw, 60px)",
-              fontWeight: 400,
-              lineHeight: 1.06,
               maxWidth: "26ch",
-              textWrap: "balance",
               color: "var(--ledgr-tinta)",
             }}
           >
-            Preço fechado, por volume.
+            Preço fechado, <em>por volume.</em>
           </h2>
           <div style={{ width: 84, height: 1, background: "var(--color-accent)" }} />
           <p style={{ margin: 0, fontSize: 16.5, lineHeight: 1.72, maxWidth: "52ch", color: "var(--color-neutral-300)" }}>
@@ -853,6 +744,8 @@ export default function LandingPage() {
               textAlign: "left",
             }}
           >
+            {/* sem o valor por enquanto: a cobrança ainda não está definida. O nome, o volume e o
+                destaque do plano continuam (os preços seguem em lib/planos.ts, para a Assinatura do app) */}
             {PLANOS.map((plano, i) => (
               <PlanCard
                 key={plano.nome}
@@ -873,9 +766,6 @@ export default function LandingPage() {
               >
                 <span className="plano-nome" style={{ fontFamily: "var(--font-heading)", fontSize: 19, fontWeight: 600, color: "var(--ledgr-tinta)" }}>
                   {plano.nome}
-                </span>
-                <span className="plano-preco" style={{ fontFamily: "var(--font-display)", fontSize: 30, fontWeight: 600, lineHeight: 1, color: "var(--ledgr-tinta)" }}>
-                  {plano.preco}
                 </span>
                 <span className="plano-limite" style={{ fontSize: 13.5, lineHeight: 1.6, color: "var(--color-neutral-400)" }}>
                   {plano.limite}

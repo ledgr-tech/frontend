@@ -130,6 +130,26 @@ a { color: var(--color-accent-700); text-underline-offset: 3px; }
 
 /* mistura tipográfica: serif de destaque pra manchetes e valores em foco */
 .font-display { font-family: var(--font-display); font-weight: 500; letter-spacing: 0; }
+/* números grandes da landing na Cormorant, com algarismos alinhados: os de estilo antigo, padrão da
+   fonte, deixam o 0 com cara de "o" minúsculo e descem o 5 abaixo da linha */
+.numero-destaque { font-family: var(--font-display); font-variant-numeric: lining-nums; }
+
+/* títulos da landing em duas vozes: a frase na Inter e um trecho curto, quase sempre o fim, no
+   itálico da Cormorant (carregado só pela landing, em app/(marketing)/fonte-destaque.ts) */
+/* o padding-bottom é a folga do itálico: maior e sem altura de linha, ele pende ~0,17em abaixo da
+   caixa do título, e um bloco com overflow: hidden logo embaixo cortava a perna do "g" de Ledgr */
+.titulo-misto {
+  font-family: var(--font-body); font-weight: 500; letter-spacing: -0.025em; line-height: 1.1;
+  padding-bottom: 0.18em;
+}
+.titulo-misto em {
+  font-family: var(--font-destaque-family), var(--font-display), serif;
+  font-style: italic; font-weight: 500; letter-spacing: -0.005em;
+  /* o olho da Cormorant é bem mais baixo que o da Inter: no mesmo corpo, o trecho pareceria menor */
+  font-size: 1.2em;
+  /* e o corpo maior não abre mais espaço só nas linhas que têm o trecho */
+  line-height: 0;
+}
 
 /* rótulos pequenos (kickers/eyebrows) em accent — monoespaçada remete a
    ticker/extrato/planilha */
@@ -157,6 +177,14 @@ p.eyebrow {
   transition: transform 0.2s ease;
 }
 .faq-item[open] .faq-question::after { transform: rotate(45deg); }
+/* a resposta desliza ao abrir e ao fechar. Onde o navegador não conhece ::details-content, a regra
+   inteira é ignorada e a resposta abre na hora, como antes; sem interpolate-size (Safari), também */
+.faq-item { interpolate-size: allow-keywords; }
+.faq-item::details-content {
+  block-size: 0; overflow: hidden;
+  transition: block-size 220ms cubic-bezier(0.23, 1, 0.32, 1), content-visibility 220ms allow-discrete;
+}
+.faq-item[open]::details-content { block-size: auto; }
 .faq-answer { margin: 0 0 22px; max-width: 62ch; font-size: 15px; line-height: 1.72; }
 
 .btn {
@@ -167,8 +195,16 @@ p.eyebrow {
   background: transparent; border: 1px solid transparent;
   padding: var(--space-2) calc(var(--space-3) * 1.2);
   border-radius: var(--radius-md);
+  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease,
+    transform 160ms cubic-bezier(0.23, 1, 0.32, 1);
 }
+/* o aperto responde ao clique na hora, antes de a página reagir */
+.btn:active:not(:disabled) { transform: scale(0.97); }
 .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+@media (prefers-reduced-motion: reduce) {
+  .btn { transition: none; }
+  .faq-item::details-content { transition: none; }
+}
 .btn-primary { color: var(--color-accent-700); border-color: var(--color-accent); }
 .btn-primary:hover { background: color-mix(in srgb, var(--color-accent) 12%, transparent); }
 .btn-secondary { border-color: var(--color-divider); }
@@ -310,6 +346,9 @@ p.eyebrow {
   .so-mouse, .hover-hint-icone { display: none; }
   .so-toque { display: inline; }
 }
+/* quem já abriu uma linha da comparação entendeu o hover: o anel some e a rodinha para */
+section:has(.extrato-grid[data-explorado]) .hover-hint-roda { animation: none; }
+section:has(.extrato-grid[data-explorado]) .hover-hint-icone::after { animation: none; opacity: 0; }
 @media (prefers-reduced-motion: reduce) {
   .hover-hint-roda, .hover-hint-icone::after { animation: none; }
 }
@@ -596,8 +635,9 @@ dialog::backdrop {
   overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
 }
 
-/* link do login cujo traço dourado "carrega" da esquerda para a direita no hover */
-.login-link-animado {
+/* link cujo traço dourado "carrega" da esquerda para a direita no hover, sobre um filete cinza:
+   login, cadastro e as seções do cabeçalho da landing */
+.link-animado {
   color: var(--color-accent-700); text-decoration: none; padding-bottom: 2px;
   background-image:
     linear-gradient(var(--color-accent), var(--color-accent)),
@@ -607,11 +647,16 @@ dialog::backdrop {
   background-size: 0% 1px, 100% 1px;
   transition: background-size 0.5s cubic-bezier(0.22, 1, 0.36, 1);
 }
-.login-link-animado:hover,
-.login-link-animado:focus-visible { background-size: 100% 1px, 100% 1px; }
-button.login-link-animado { border: 0; background-color: transparent; font: inherit; padding: 0 0 2px; cursor: pointer; }
+.link-animado:hover,
+.link-animado:focus-visible { background-size: 100% 1px, 100% 1px; }
+/* sem o filete cinza de baixo: em repouso o link fica limpo e só o traço dourado aparece, no hover
+   (as seções do cabeçalho da landing) */
+.link-animado.sem-filete { background-size: 0% 1px, 0% 1px; }
+.link-animado.sem-filete:hover,
+.link-animado.sem-filete:focus-visible { background-size: 100% 1px, 0% 1px; }
+button.link-animado { border: 0; background-color: transparent; font: inherit; padding: 0 0 2px; cursor: pointer; }
 @media (prefers-reduced-motion: reduce) {
-  .login-link-animado { transition: none; }
+  .link-animado { transition: none; }
 }
 
 /* botão Google do login: mostra só o símbolo; no hover a metade esquerda vira um painel com as cores
@@ -753,10 +798,11 @@ button.login-link-animado { border: 0; background-color: transparent; font: inhe
 .onda-escura::before { background-image: var(--grao); }
 /* a mesma faixa em tom claro: "pedra", um cinza quente um pouco mais fundo que o --color-surface
    de "Como funciona" e o papel da Regra de ouro, para se separar das duas vizinhas, com o grão
-   escuro e bem mais fraco (no claro o ponto escuro aparece mais que o claro no escuro) */
+   escuro. Forte o bastante para a textura aparecer como a da faixa escura (opacidade média ~13%
+   contra ~6% do grão claro no escuro: ponto escuro no claro pede mais para ser visto) */
 :root {
   --faixa-clara: #e4e0db;
-  --grao-claro: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .2 0 0 0 0 .14 0 0 0 0 .06 .2 0 0 0 -.07'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+  --grao-claro: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .2 0 0 0 0 .14 0 0 0 0 .06 .55 0 0 0 -.14'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
 }
 .grao-claro { background-image: var(--grao-claro); }
 .onda-faixa-clara { --onda-cor: var(--faixa-clara); }
@@ -823,55 +869,90 @@ button.login-link-animado { border: 0; background-color: transparent; font: inhe
 @media (min-width: 961px) {
   .site-menu { display: none; }
 }
+/* logo acima da largura do menu completo, marca, slogan e navegação não cabem numa linha: o slogan,
+   que é o item secundário, sai até sobrar espaço, para o cabeçalho não quebrar em duas */
+@media (min-width: 961px) and (max-width: 1080px) {
+  .site-slogan { display: none; }
+}
 @media (max-width: 380px) {
   .site-slogan { display: none; }
 }
 
-/* parágrafos justificados no desktop; no celular a coluna é estreita e a justificação abre buracos */
-.texto-justificado { text-align: justify; hyphens: auto; }
-
-/* grades com divisória vertical (provas do hero, em números, passos): no celular empilham com a linha em cima */
+/* grades com divisória vertical (em números, passos): no celular empilham com a linha em cima */
 .grade-colunas { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .grade-colunas > * { padding-inline: var(--grade-recuo, 16px); }
 .grade-colunas > :first-child { padding-left: 0; }
 .grade-colunas > * + * { border-left: 1px solid var(--grade-linha, var(--color-divider)); }
 /* "Por dentro do Ledgr" (app/(marketing)/por-dentro.tsx): seção própria na faixa clara, logo
-   depois de "Como funciona", com a vida da linha #1082 em quatro etapas e a tela do app embaixo. Uma coluna no celular,
-   2×2 no tablet e as quatro lado a lado no desktop, como os passos de "Como funciona" */
-.por-dentro { display: flex; flex-direction: column; gap: clamp(36px, 5vw, 56px); }
-.por-dentro-topo { display: flex; flex-direction: column; gap: 12px; }
-.por-dentro-intro {
-  margin: 0; max-width: 24ch; font-size: clamp(30px, 2.8vw, 46px); font-weight: 400;
-  line-height: 1.08; text-wrap: balance;
+   depois de "Como funciona". A vida da linha #1082 em quatro etapas, numa trilha vertical: um fio em
+   onda desce entre os numerais conforme a página rola (fio-da-trilha.tsx) e entra na tela do app,
+   embaixo. No desktop, o título fica parado à esquerda enquanto a trilha passa à direita */
+.por-dentro {
+  /* o vão entre a trilha e a janela do app, que o fio atravessa até a borda de cima da janela */
+  --por-dentro-vao: clamp(56px, 8vw, 104px);
+  --coluna-num: 64px;
+  display: grid; grid-template-columns: minmax(0, 1fr); row-gap: var(--por-dentro-vao);
 }
+/* título e passos; a janela do app fica fora, logo abaixo */
+.por-dentro-passagem { display: grid; grid-template-columns: minmax(0, 1fr); row-gap: clamp(40px, 6vw, 64px); }
+@media (min-width: 1100px) {
+  .por-dentro { --coluna-num: 112px; }
+  .por-dentro-passagem { grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); column-gap: clamp(48px, 6vw, 96px); }
+  /* abaixo do cabeçalho fixo da landing, que tem 78px. Para quando a passagem acaba: a janela do
+     app está fora dela */
+  .por-dentro-topo { position: sticky; top: 120px; align-self: start; }
+}
+.por-dentro-intro { margin: 0; max-width: 24ch; font-size: clamp(30px, 2.8vw, 46px); }
+.por-dentro-percurso { position: relative; }
+/* passos bem afastados, em altura de tela: a trilha pede rolagem, e o fio tem caminho para guiar */
 .por-dentro-trilha {
   list-style: none; margin: 0; padding: 0;
-  display: grid; grid-template-columns: minmax(0, 1fr); gap: 48px 28px;
+  display: flex; flex-direction: column; gap: clamp(112px, 26vh, 260px);
 }
-@media (min-width: 640px) { .por-dentro-trilha { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (min-width: 1100px) { .por-dentro-trilha { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
-.por-dentro-etapa { display: flex; }
-.por-dentro-etapa-corpo { flex: 1; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
-.por-dentro-cabeca { display: flex; align-items: center; gap: 14px; }
+.por-dentro-etapa-corpo {
+  display: grid; grid-template-columns: var(--coluna-num) minmax(0, 1fr);
+  column-gap: clamp(16px, 2.4vw, 36px); row-gap: 14px;
+}
+/* o numeral tapa o fio que passa por trás dele, com o fundo e o granulado da faixa (o ruído fora
+   de registro com o da seção não se nota): o fio liga um numeral ao outro. Só na altura do numeral,
+   senão o tapume desce pela etapa inteira */
 .por-dentro-num {
-  font-family: var(--font-display); font-size: 40px; line-height: 1; color: var(--color-accent);
+  grid-row: 1 / span 2; justify-self: center; align-self: start; position: relative; z-index: 1;
+  padding-block: 8px; background: var(--grao-claro) var(--faixa-clara);
+  font-family: var(--font-display); font-size: clamp(52px, 5.4vw, 84px); line-height: 1; color: var(--color-accent);
 }
-/* o fio em onda: o mesmo período de 17px das bordas, como traço, na cor do numeral */
-.por-dentro-fio {
-  flex: 1; height: 8px; background: var(--color-accent); opacity: 0.55;
-  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='17' height='8'%3E%3Cpath d='M0 4Q4.25 1 8.5 4T17 4' fill='none' stroke='%23000' stroke-width='1.2'/%3E%3C/svg%3E") 0 50% / 17px 8px repeat-x;
-}
+/* o título do passo alinhado pelo meio da altura do numeral */
 .por-dentro-titulo {
-  margin: 6px 0 0; font-family: var(--font-heading); font-size: 20px; font-weight: 600;
-  line-height: 1.25;
+  grid-column: 2; margin: clamp(10px, 1.4vw, 22px) 0 0; font-family: var(--font-heading);
+  font-size: clamp(22px, 2.1vw, 32px); font-weight: 600; line-height: 1.2; letter-spacing: -0.01em;
 }
-.por-dentro-texto { margin: 0; font-size: 14.5px; line-height: 1.65; color: color-mix(in srgb, var(--color-text) 72%, transparent); }
+.por-dentro-texto {
+  grid-column: 2; margin: 0; max-width: 46ch; font-size: clamp(15.5px, 1.2vw, 18px); line-height: 1.65;
+  color: color-mix(in srgb, var(--color-text) 72%, transparent);
+}
+/* o fio em onda, de pé: o mesmo período de 17px das bordas, como traço, na cor do numeral. Corre do
+   primeiro numeral até a borda de cima da janela do app, atravessando o vão entre as duas */
+.por-dentro-fio {
+  position: absolute; top: 24px; bottom: calc(-1 * var(--por-dentro-vao));
+  left: calc(var(--coluna-num) / 2 - 4px); width: 8px;
+  background: var(--color-accent); opacity: 0.55; pointer-events: none;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='17'%3E%3Cpath d='M4 0Q1 4.25 4 8.5T4 17' fill='none' stroke='%23000' stroke-width='1.2'/%3E%3C/svg%3E") 50% 0 / 8px 17px repeat-y;
+}
+/* com movimento reduzido, o fio aparece inteiro e não acompanha a rolagem (o recorte é inline) */
+@media (prefers-reduced-motion: reduce) {
+  .por-dentro-fio { clip-path: none !important; }
+}
 /* a tela inteira do app numa janela (app/(marketing)/vitrine.tsx), como o arc.net mostra o
    navegador: moldura com filete, sombra suave e a barra de três pontos; dentro, a réplica em
    1280px, encolhida inteira por zoom. As variáveis são as que o app declara no .app-shell,
    sempre no tema claro: a janela está na faixa clara da landing */
-.vitrine { margin: clamp(8px, 2vw, 24px) 0 0; }
+/* sem margem: o fio da trilha termina exatamente na borda de cima da janela */
+.vitrine { margin: 0; }
+/* isolation: as camadas da réplica (o cartão aberto tem z-index 20, como no app) ficam presas na
+   janela. Sem isso, depois da entrada elas empatam com o cabeçalho fixo da landing, que também é
+   20, e vencem por virem depois no HTML: o cartão passava por cima do cabeçalho */
 .vitrine-janela {
+  isolation: isolate;
   overflow: hidden; border-radius: 12px; background: var(--color-bg);
   border: 1px solid color-mix(in srgb, var(--color-text) 14%, transparent);
   box-shadow: 0 34px 70px -42px rgb(45 35 20 / 0.55), 0 2px 6px rgb(45 35 20 / 0.06);
@@ -952,8 +1033,6 @@ button.login-link-animado { border: 0; background-color: transparent; font: inhe
   width: 340px; text-align: left; animation: none;
 }
 .numeros-grade { --grade-recuo: 28px; --grade-linha: color-mix(in srgb, var(--color-neutral-100) 22%, transparent); }
-.hero-provas-grid { --grade-recuo: 16px; }
-.hero-provas-grid > * { padding-top: 18px; }
 .passos-grade { --grade-recuo: 30px; }
 .passos-grade > * { padding-block: 30px; }
 
@@ -976,24 +1055,20 @@ button.login-link-animado { border: 0; background-color: transparent; font: inhe
   .numeros-grade > * { padding-block: 22px; }
   .numeros-grade > :first-child { padding-top: 0; }
   .numeros-grade > :last-child { padding-bottom: 0; }
-  /* provas do hero em linhas: valor à esquerda, explicação ao lado */
-  .hero-provas-grid > * { flex-direction: row !important; align-items: baseline; gap: 14px !important; padding-block: 14px; }
-  .hero-provas-grid > * > :first-child { flex: none; }
   .passos-grade > * { padding-block: 24px; }
 
   /* imagens de fundo e mascotes menores, para acompanharem a coluna */
   .hero-marca { width: 380px; top: -40px; right: -130px; }
-  .como-marca, .convite-marca { width: 280px !important; }
+  .como-marca, .perguntas-marca { width: 280px !important; }
   .como-mascote { width: 170px !important; }
-  .convite-conteudo { justify-content: center; }
-  .convite-mascote { width: 160px !important; }
-  .convite-texto { flex-basis: 100% !important; padding: 24px 0 0 !important; border-left: none !important; border-top: 1px solid var(--color-accent); }
+  .perguntas-topo { justify-content: center; }
+  .perguntas-mascote { width: 140px !important; }
+  .perguntas-titulo { flex-basis: 100% !important; padding: 24px 0 0 !important; border-left: none !important; border-top: 1px solid var(--color-accent); }
   /* no preço o mascote sobe para trás do título, em vez de ficar por trás dos valores */
   .preco-mascote { width: 300px !important; top: 36px !important; transform: translateX(-50%) !important; opacity: 0.07 !important; }
 }
 
 @media (max-width: 680px) {
-  .texto-justificado { text-align: left; }
   .hero-stat-card { align-self: center !important; width: 100% !important; }
   .regra-card { grid-template-columns: 1fr !important; row-gap: 12px; padding: 30px 22px !important; }
   .regra-icon { font-size: 56px !important; }
@@ -1001,19 +1076,11 @@ button.login-link-animado { border: 0; background-color: transparent; font: inhe
   .numeros-marca { display: none; }
 }
 
-/* planos no celular: um card por linha, com o preço à direita do nome, para a lista não ficar comprida */
+/* planos no celular: um card por linha, compacto, para a lista não ficar comprida */
 @media (max-width: 600px) {
   .extrato-desc { white-space: normal !important; line-height: 1.35; }
   .planos-grade { grid-template-columns: minmax(0, 1fr); gap: 10px; }
-  .plano-card {
-    display: grid !important; grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-areas: "nome preco" "limite preco";
-    align-items: center; column-gap: 16px; row-gap: 2px !important;
-    padding: 16px 18px !important;
-  }
-  .plano-nome { grid-area: nome; }
-  .plano-limite { grid-area: limite; }
-  .plano-preco { grid-area: preco; text-align: right; font-size: 26px !important; }
+  .plano-card { row-gap: 2px !important; padding: 16px 18px !important; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1201,7 +1268,10 @@ button.login-link-animado { border: 0; background-color: transparent; font: inhe
   color: color-mix(in srgb, var(--color-text) 78%, transparent);
 }
 /* explicação sob pedido (POST /explicacoes): selo neutro, sem o dourado da ação */
-.explicacao-selo { gap: 6px; margin-bottom: 10px; color: var(--texto-apagado); }
+.explicacao-selo {
+  gap: 6px; margin-bottom: 10px;
+  color: var(--texto-apagado, color-mix(in srgb, var(--color-text) 58%, transparent));
+}
 .explicacao-acoes { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin-top: 14px; }
 .explicacao-aviso { margin: 8px 0 0; font-size: 13px; color: var(--texto-apagado); }
 .explicacao-acoes .explicacao-aviso { margin: 0; }

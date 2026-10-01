@@ -223,7 +223,7 @@ function Cartao({ emailInicial, onFechar }: { emailInicial: string; onFechar: ()
               </button>
 
               <div style={{ display: "flex", justifyContent: "center", marginTop: 16 }}>
-                <button type="button" className="login-link-animado" style={{ fontSize: 14.5 }} onClick={onFechar}>
+                <button type="button" className="link-animado" style={{ fontSize: 14.5 }} onClick={onFechar}>
                   Voltar ao login
                 </button>
               </div>

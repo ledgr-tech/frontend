@@ -268,6 +268,7 @@ export function Vitrine({
                                   banco={b.valorBanco ? `${b.data} · ${b.valorBanco}` : "—"}
                                   sistema={s?.valorSistema ? `${s.data} · ${s.valorSistema}` : "—"}
                                   explicacao={b.explicacao}
+                                  geradaPorIa
                                 />
                               </div>
                             )}

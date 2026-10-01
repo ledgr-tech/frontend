@@ -1,8 +1,9 @@
 "use client";
 
 import { AnimatePresence, m } from "motion/react";
-import { useId, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { estaResolvida, seloDoStatus } from "@/app/(app)/dashboard/resumo";
+import { SeloIa } from "@/app/(app)/selo-ia";
 import type { StatusLinha } from "@/lib/mock-data";
 
 export type LinhaExtrato = {
@@ -15,7 +16,19 @@ export type LinhaExtrato = {
   explicacao: string | null;
 };
 
-function Detalhe({ id, linha }: { id: string; linha: LinhaExtrato }) {
+const CURVA = [0.22, 1, 0.36, 1] as const;
+
+// Como tooltip em sequência: o primeiro cartão entra com fade, e quem desce direto para a linha
+// seguinte vê o próximo na hora, sem esperar a animação de cada um. A saída é mais curta que a entrada.
+const VARIANTES = {
+  fechado: (emSequencia: boolean) => ({ opacity: 0, y: 6, transition: { duration: emSequencia ? 0 : 0.1, ease: CURVA } }),
+  aberto: { opacity: 1, y: 0, transition: { duration: 0.16, ease: CURVA } },
+};
+
+// quanto tempo depois de um cartão fechar o próximo ainda conta como "em sequência"
+const JANELA_SEQUENCIA_MS = 150;
+
+function Detalhe({ id, linha, emSequencia }: { id: string; linha: LinhaExtrato; emSequencia: boolean }) {
   const valorStyle = {
     display: "flex",
     justifyContent: "space-between",
@@ -30,10 +43,11 @@ function Detalhe({ id, linha }: { id: string; linha: LinhaExtrato }) {
     <m.div
       id={id}
       role="tooltip"
-      initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: 6 }}
-      transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
+      custom={emSequencia}
+      variants={VARIANTES}
+      initial={emSequencia ? false : "fechado"}
+      animate="aberto"
+      exit="fechado"
       style={{
         // ponytail: abre sempre acima da linha — abaixo, a última linha invade a seção seguinte.
         position: "absolute",
@@ -68,10 +82,14 @@ function Detalhe({ id, linha }: { id: string; linha: LinhaExtrato }) {
           </div>
         </div>
       </div>
+      {/* as explicações da demonstração são as da IA, ligada no lançamento: vêm com o selo, como no produto */}
       {linha.explicacao && (
-        <p className="dialog-body" style={{ margin: 0, lineHeight: 1.6 }}>
-          {linha.explicacao}
-        </p>
+        <div>
+          <SeloIa />
+          <p className="dialog-body" style={{ margin: 0, lineHeight: 1.6 }}>
+            {linha.explicacao}
+          </p>
+        </div>
       )}
     </m.div>
   );
@@ -86,14 +104,18 @@ function Painel({
   arquivo,
   linhas,
   ativa,
-  setAtiva,
+  emSequencia,
+  abrirLinha,
+  fecharLinha,
 }: {
   lado: Lado;
   titulo: string;
   arquivo: string;
   linhas: LinhaExtrato[];
   ativa: Ativa;
-  setAtiva: (atualizar: (atual: Ativa) => Ativa) => void;
+  emSequencia: boolean;
+  abrirLinha: (lado: Lado, desc: string) => void;
+  fecharLinha: (lado: Lado, desc: string) => void;
 }) {
   const baseId = useId();
   const valorDe = (linha: LinhaExtrato) => (lado === "banco" ? linha.valorBanco : linha.valorSistema);
@@ -153,8 +175,8 @@ function Painel({
         const aberta = ativa?.lado === lado && ativa.desc === linha.desc;
         const correspondente = ativa !== null && ativa.lado !== lado && ativa.desc === linha.desc;
         const id = `${baseId}-${i}`;
-        const abrir = () => setAtiva(() => ({ lado, desc: linha.desc }));
-        const fechar = () => setAtiva((atual) => (atual?.lado === lado && atual.desc === linha.desc ? null : atual));
+        const abrir = () => abrirLinha(lado, linha.desc);
+        const fechar = () => fecharLinha(lado, linha.desc);
 
         return (
           <div key={linha.desc} style={{ position: "relative" }} onMouseEnter={abrir} onMouseLeave={fechar}>
@@ -186,7 +208,9 @@ function Painel({
             >
               {conteudo}
             </button>
-            <AnimatePresence>{aberta && <Detalhe id={id} linha={linha} />}</AnimatePresence>
+            <AnimatePresence custom={emSequencia}>
+              {aberta && <Detalhe id={id} linha={linha} emSequencia={emSequencia} />}
+            </AnimatePresence>
           </div>
         );
       })}
@@ -196,16 +220,33 @@ function Painel({
 
 export function ExtratoComparacao({ banco, sistema }: { banco: LinhaExtrato[]; sistema: LinhaExtrato[] }) {
   const [ativa, setAtiva] = useState<Ativa>(null);
+  const [emSequencia, setEmSequencia] = useState(false);
+  // quem já abriu uma linha entendeu o hover: a dica embaixo da comparação para de animar (globals.css)
+  const [explorada, setExplorada] = useState(false);
+  const fechouEm = useRef(-Infinity);
+
+  // o ponteiro que desce de uma linha para a outra fecha uma e abre a seguinte no mesmo instante
+  const abrirLinha = (lado: Lado, desc: string) => {
+    setEmSequencia(performance.now() - fechouEm.current < JANELA_SEQUENCIA_MS);
+    setExplorada(true);
+    setAtiva({ lado, desc });
+  };
+  const fecharLinha = (lado: Lado, desc: string) => {
+    fechouEm.current = performance.now();
+    setEmSequencia(false);
+    setAtiva((atual) => (atual?.lado === lado && atual.desc === desc ? null : atual));
+  };
+  const paineis = { ativa, emSequencia, abrirLinha, fecharLinha };
 
   return (
-    <div className="extrato-grid" style={{ display: "grid", gap: 28, alignItems: "stretch" }}>
-      <Painel lado="banco" titulo="Extrato do banco" arquivo="extrato-08.ofx" linhas={banco} ativa={ativa} setAtiva={setAtiva} />
+    <div className="extrato-grid" data-explorado={explorada || undefined} style={{ display: "grid", gap: 28, alignItems: "stretch" }}>
+      <Painel lado="banco" titulo="Extrato do banco" arquivo="extrato-08.ofx" linhas={banco} {...paineis} />
       <div className="extrato-divider">
         <div className="extrato-divider-line" />
         <div style={{ fontFamily: "var(--font-heading)", fontSize: 28, color: "var(--color-accent)" }}>≠</div>
         <div className="extrato-divider-line" />
       </div>
-      <Painel lado="sistema" titulo="Extrato do sistema" arquivo="razao-08.csv" linhas={sistema} ativa={ativa} setAtiva={setAtiva} />
+      <Painel lado="sistema" titulo="Extrato do sistema" arquivo="razao-08.csv" linhas={sistema} {...paineis} />
     </div>
   );
 }
