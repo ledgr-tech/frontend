@@ -527,7 +527,7 @@ dialog::backdrop {
   width: clamp(240px, 44vh, 380px);
   animation: cadastro-mascote-entrar 0.6s cubic-bezier(0.22, 1, 0.36, 1);
 }
-.cadastro-mascote { display: block; width: 100%; height: auto; opacity: 0.1; }
+.cadastro-mascote { display: block; width: 100%; height: auto; opacity: 0.06; }
 .cadastro-dica {
   max-width: 34ch; padding-top: 16px; border-top: 1px solid var(--color-divider);
   animation: cadastro-dica-entrar 0.5s 0.08s both cubic-bezier(0.22, 1, 0.36, 1);
@@ -1105,8 +1105,9 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
 .problema-rotulo-ledgr::after { background: color-mix(in srgb, var(--color-accent) 45%, transparent); }
 
 /* a comparação: conferir à mão e migrar de sistema no grupo "Hoje", o Ledgr no outro, cada coluna
-   respondendo às mesmas quatro perguntas. O Ledgr vem numa caixa dourada, como o plano em destaque;
-   as outras colunas têm a mesma caixa, transparente, para as três terem a mesma medida. No celular
+   respondendo às mesmas quatro perguntas. O Ledgr vem numa caixa de filete dourado, sem fundo nem
+   sombra, como a Regra de ouro e os cards de Preços (cor como traço, não preenchimento); as outras
+   colunas têm a mesma caixa, transparente, para as três terem a mesma medida. No celular
    empilham, com o Ledgr por último. O link "Por que o Ledgr" do rodapé desce até aqui, abaixo do
    cabeçalho fixo */
 .por-que-grade { display: grid; grid-template-columns: minmax(0, 1fr); row-gap: 36px; scroll-margin-top: 110px; }
@@ -1115,11 +1116,7 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
   display: flex; flex-direction: column;
   padding: 26px 24px; border: 1px solid transparent; border-radius: var(--radius-md);
 }
-.por-que-destaque {
-  border-color: var(--color-accent);
-  background: color-mix(in srgb, var(--color-accent) 7%, var(--color-surface));
-  box-shadow: var(--shadow-md);
-}
+.por-que-destaque { border-color: var(--color-accent); }
 .por-que-nome {
   display: flex; align-items: center; gap: 10px; margin: 0; padding-bottom: 18px;
   font-family: var(--font-heading); font-size: clamp(19px, 1.5vw, 22px); font-weight: 600; line-height: 1.25;
@@ -1132,7 +1129,10 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
 }
 .por-que-destaque .por-que-itens > div { border-top-color: color-mix(in srgb, var(--color-accent) 40%, transparent); }
 .por-que-itens dt { font-size: 13px; font-weight: 500; color: color-mix(in srgb, var(--color-text) 62%, transparent); }
-.por-que-itens dd { margin: 0; font-size: 15.5px; line-height: 1.6; }
+/* o que responde à pergunta em negrito, na cor do texto; o resto da frase um tom abaixo (o mesmo dos
+   textos de apoio dos cards de Preços). Lendo só os negritos de uma linha, as três saídas se comparam */
+.por-que-itens dd { margin: 0; font-size: 15.5px; line-height: 1.6; color: color-mix(in srgb, var(--color-text) 72%, transparent); }
+.por-que-itens dd strong { font-weight: 600; color: var(--color-text); }
 /* lado a lado: uma grade de três colunas e seis linhas (rótulo, nome e as quatro respostas), que os
    grupos, as colunas e as listas herdam (subgrid nas duas direções). Assim cada resposta fica na
    altura da mesma pergunta nas três colunas, mesmo em grupos diferentes. A grade sai pelas laterais
@@ -1387,7 +1387,7 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
    seção ela ficaria atrás dos cards */
 .preco-mascote {
   position: absolute; left: 50%; bottom: -210px; transform: translateX(-50%);
-  width: 480px; height: auto; opacity: 0.1; pointer-events: none;
+  width: 480px; height: auto; opacity: 0.06; pointer-events: none;
 }
 
 @media (max-width: 760px) {
@@ -1401,11 +1401,81 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
   .preco-regua-plano[data-contato] { border-left-style: dashed; }
   .preco-regua-plano::before { top: 0.4em; left: -6px; width: 12px; height: 1px; }
   .preco-regua-plano[data-destaque]::before { top: 0.4em; left: -9px; width: 18px; height: 2px; }
-  .preco-mascote { width: 300px; bottom: -130px; opacity: 0.07; }
+  .preco-mascote { width: 300px; bottom: -130px; opacity: 0.04; }
 }
 /* movimento reduzido: o card troca de cor na hora, sem animar */
 @media (prefers-reduced-motion: reduce) {
   .beneficio, .beneficio *, .beneficio *::before { transition: none; }
+}
+
+/* ---------- Depoimentos (app/(marketing)/depoimentos.tsx) ----------
+   A seção "Clarity." do Floria no nosso estilo: faixa escura com grão, título centralizado e os
+   cards desencontrados numa grade de 12 colunas, cada um com largura e recuo próprios. O card é
+   filete dourado, como os de Preços em repouso: sem o vidro (backdrop-filter) e sem o brilho do
+   Floria, que o DESIGN.md veta. O desencontro é só de margem, e nenhum card passa por cima de outro */
+.depoimentos-secao { position: relative; overflow: hidden; background-color: var(--faixa-escura); }
+.depoimentos-conteudo {
+  position: relative; max-width: 1280px; margin: 0 auto;
+  padding: clamp(80px, 11vw, 132px) clamp(20px, 4.2vw, 56px) clamp(88px, 12vw, 148px);
+}
+.depoimentos-topo { display: flex; flex-direction: column; align-items: center; margin-bottom: clamp(48px, 7vw, 88px); text-align: center; }
+.depoimentos-titulo { margin: 0; max-width: 18ch; font-size: clamp(36px, 3.6vw, 60px); color: var(--ledgr-tinta); }
+.depoimentos-filete { width: 84px; height: 1px; margin-top: 26px; background: var(--color-accent); }
+
+.depoimentos-grade {
+  list-style: none; margin: 0 auto; padding: 0; max-width: 600px;
+  display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px;
+}
+/* o desencontro, num ciclo de quatro (duas linhas): à esquerda, o card mais baixo e depois recuado
+   uma coluna; à direita, o mais largo no alto e depois um mais estreito, descido. Sobrando um no
+   fim, ele fica no meio, sem degrau. Só no desktop: no celular é uma coluna, na ordem */
+@media (min-width: 900px) {
+  .depoimentos-grade {
+    max-width: none; grid-template-columns: repeat(12, minmax(0, 1fr));
+    column-gap: clamp(20px, 2.6vw, 36px); row-gap: clamp(24px, 3vw, 40px); align-items: start;
+  }
+  .depoimentos-grade > li:nth-child(4n + 1) { grid-column: 1 / span 5; margin-top: 88px; }
+  .depoimentos-grade > li:nth-child(4n + 2) { grid-column: 6 / span 6; }
+  .depoimentos-grade > li:nth-child(4n + 3) { grid-column: 2 / span 5; }
+  .depoimentos-grade > li:nth-child(4n + 4) { grid-column: 7 / span 5; margin-top: 56px; }
+  .depoimentos-grade > li:nth-child(odd):last-child { grid-column: 4 / span 6; margin-top: 0; }
+}
+
+.depoimento {
+  position: relative; display: flex; flex-direction: column; margin: 0;
+  padding: clamp(30px, 3vw, 42px) clamp(26px, 2.8vw, 40px) clamp(26px, 2.6vw, 34px);
+  border: 1px solid var(--color-accent-800); border-radius: var(--radius-md);
+  transition: border-color 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.depoimento:hover { border-color: var(--color-accent); }
+/* as aspas grandes da Cormorant, quase apagadas: o mesmo papel do ícone de aspas do Floria, mas no
+   canto de cima à direita, onde não há nada (à esquerda, como lá, elas batiam nas estrelas e no
+   começo da frase) */
+.depoimento-aspas {
+  position: absolute; top: 4px; right: 24px; font-family: var(--font-display); font-size: 136px; line-height: 1;
+  color: var(--color-accent); opacity: 0.16; pointer-events: none; user-select: none;
+  transition: opacity 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.depoimento:hover .depoimento-aspas { opacity: 0.3; }
+.depoimento-nota { position: relative; display: flex; gap: 4px; margin-bottom: 22px; }
+.depoimento-estrela { width: 15px; height: 15px; fill: none; stroke: var(--color-neutral-500); stroke-width: 1.5; stroke-linejoin: round; }
+.depoimento-estrela[data-cheia] { fill: var(--color-neutral-300); stroke: var(--color-neutral-300); }
+.depoimento-citacao { position: relative; margin: 0 0 clamp(30px, 3vw, 40px); }
+.depoimento-citacao p {
+  margin: 0; font-size: clamp(17px, 1.35vw, 19.5px); font-weight: 450; line-height: 1.62; letter-spacing: -0.005em;
+  color: var(--color-neutral-200);
+}
+.depoimento-autor { display: flex; align-items: center; gap: 14px; margin-top: auto; }
+.depoimento-avatar {
+  flex: none; display: grid; place-items: center; width: 42px; height: 42px; border-radius: 50%;
+  border: 1px solid var(--color-accent-800); font-family: var(--font-display); font-size: 21px; line-height: 1;
+  color: var(--color-accent-300);
+}
+.depoimento-quem { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.depoimento-nome { font-size: 15px; font-weight: 600; color: var(--ledgr-tinta); }
+.depoimento-cargo { font-size: 11.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-neutral-400); }
+@media (prefers-reduced-motion: reduce) {
+  .depoimento, .depoimento-aspas { transition: none; }
 }
 
 @media (max-width: 900px) {

@@ -2,10 +2,12 @@ import Image from "next/image";
 import Link from "next/link";
 
 import { DIVERGENCIAS } from "@/lib/adaptadores";
+import { DEPOIMENTOS } from "@/lib/depoimentos";
 import { LogoBarras } from "@/app/(app)/logo-barras";
 import { CabecalhoSite } from "./cabecalho-site";
 import { CATEGORIAS, QUANTAS_CATEGORIAS } from "./categorias";
 import { ExtratoComparacao, type LinhaExtrato } from "./comparacao";
+import { Depoimentos } from "./depoimentos";
 import { DicaDoMouse } from "./dica-do-mouse";
 import { InkHover, MotionRoot, Reveal } from "../reveal";
 import { fonteDestaque } from "./fonte-destaque";
@@ -122,25 +124,29 @@ const PASSOS = [
 // de fazer.
 const ASPECTOS = ["Trocar de sistema", "Quem confere, todo mês", "Para começar", "O que custa"];
 
-type Saida = { nome: string; respostas: string[] };
+// cada resposta é [o que responde à pergunta, o resto da frase]: o primeiro trecho vai em negrito,
+// e lendo só os negritos de uma linha dá para comparar as três saídas
+type Resposta = [destaque: string, resto?: string];
+
+type Saida = { nome: string; respostas: Resposta[] };
 
 const SAIDAS_DE_HOJE: Saida[] = [
   {
     nome: "Conferir à mão",
     respostas: [
-      "Não precisa.",
-      "Alguém que entenda de contabilidade, linha por linha, com as duas telas abertas.",
-      "A planilha de sempre.",
-      "As horas de quem confere, em todo fechamento.",
+      ["Não precisa."],
+      ["Alguém que entenda de contabilidade", ", linha por linha, com as duas telas abertas."],
+      ["A planilha de sempre."],
+      ["As horas de quem confere", ", em todo fechamento."],
     ],
   },
   {
     nome: "Migrar para um sistema com conciliação",
     respostas: [
-      "Precisa. A empresa inteira passa para o sistema novo.",
-      "O sistema novo, depois que tudo estiver nele.",
-      "Migrar cadastros, contas e histórico, e treinar a equipe.",
-      "A mensalidade do sistema novo, mais o trabalho da migração.",
+      ["Precisa.", " A empresa inteira passa para o sistema novo."],
+      ["O sistema novo", ", depois que tudo estiver nele."],
+      ["Migrar cadastros, contas e histórico", ", e treinar a equipe."],
+      ["A mensalidade do sistema novo", ", mais o trabalho da migração."],
     ],
   },
 ];
@@ -148,10 +154,10 @@ const SAIDAS_DE_HOJE: Saida[] = [
 const SAIDA_LEDGR: Saida = {
   nome: "Ledgr",
   respostas: [
-    "Não precisa. Funciona com o sistema que você já usa.",
-    "O Ledgr, linha por linha: você revisa só o que não bate, já com o motivo.",
-    "Subir dois arquivos: o extrato do banco e o do sistema.",
-    "Pelo volume de lançamentos do mês, sem fidelidade nem taxa de implantação.",
+    ["Não precisa.", " Funciona com o sistema que você já usa."],
+    ["O Ledgr, linha por linha", ": você revisa só o que não bate, já com o motivo."],
+    ["Subir dois arquivos", ": o extrato do banco e o do sistema."],
+    ["Pelo volume de lançamentos do mês", ", sem fidelidade nem taxa de implantação."],
   ],
 };
 
@@ -166,7 +172,10 @@ function ColunaSaida({ saida, destaque = false, delay }: { saida: Saida; destaqu
         {ASPECTOS.map((aspecto, i) => (
           <div key={aspecto}>
             <dt>{aspecto}</dt>
-            <dd>{saida.respostas[i]}</dd>
+            <dd>
+              <strong>{saida.respostas[i][0]}</strong>
+              {saida.respostas[i][1]}
+            </dd>
           </div>
         ))}
       </dl>
@@ -534,7 +543,7 @@ export default function LandingPage() {
           height={1000}
           sizes="480px"
           className="como-marca"
-          style={{ position: "absolute", bottom: -170, left: -70, width: 480, height: "auto", opacity: 0.07, pointerEvents: "none" }}
+          style={{ position: "absolute", bottom: -170, left: -70, width: 480, height: "auto", opacity: 0.04, pointerEvents: "none" }}
         />
         <div style={{ position: "relative", maxWidth: 1600, margin: "0 auto", padding: "clamp(64px, 9vw, 96px) clamp(20px, 4.2vw, 56px)" }}>
           <Reveal>
@@ -676,12 +685,16 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* depoimentos, onde o export do Claude Design os punha: só aparece quando há depoimento real */}
+      <Depoimentos depoimentos={DEPOIMENTOS} />
+
       {/* perguntas, com o mascote que lia o panfleto no antigo convite: o convite repetia o que os
           passos, os números e a FAQ já diziam, e saiu. O fundo de superfície também veio dele, para
-          as faixas continuarem alternando (a onda de cima é a cor da Regra de ouro, papel) */}
+          as faixas continuarem alternando (a onda de cima é a cor da seção anterior: a faixa escura
+          dos depoimentos, ou a Regra de ouro, papel, enquanto não há depoimento) */}
       <section
         id="perguntas"
-        className="onda onda-papel"
+        className={DEPOIMENTOS.length > 0 ? "onda onda-escura" : "onda onda-papel"}
         style={{ position: "relative", overflow: "hidden", background: "var(--color-surface)" }}
       >
         <Image
@@ -692,7 +705,7 @@ export default function LandingPage() {
           height={1000}
           sizes="480px"
           className="perguntas-marca"
-          style={{ position: "absolute", bottom: 20, right: 24, width: 480, height: "auto", opacity: 0.07, pointerEvents: "none" }}
+          style={{ position: "absolute", bottom: 20, right: 24, width: 480, height: "auto", opacity: 0.04, pointerEvents: "none" }}
         />
         <div style={{ position: "relative", maxWidth: 1600, margin: "0 auto", padding: "clamp(64px, 9vw, 96px) clamp(20px, 4.2vw, 56px)" }}>
           <div className="perguntas-topo" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "24px 40px", marginBottom: 34 }}>

@@ -1,8 +1,12 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { PLANOS } from "@/lib/planos";
 import { fonteDestaque } from "./fonte-destaque";
 import LandingPage from "./page";
+
+// a landing aqui é a de sempre, sem depoimentos: a lista real cresce quando eles chegam, e não pode
+// mudar estes testes. A landing com depoimentos é conferida em page-depoimentos.test.tsx
+vi.mock("@/lib/depoimentos", () => ({ DEPOIMENTOS: [] }));
 
 describe("LandingPage", () => {
   // o hero é a primeira seção; a faixa de números vem logo abaixo dele
@@ -422,6 +426,23 @@ describe("LandingPage", () => {
           "O que custa",
         ]);
       }
+    });
+
+    it("leads each answer with the direct answer in bold, so reading across a row compares the three ways", () => {
+      render(<LandingPage />);
+      const destaques = colunas().map((coluna) =>
+        [...coluna.querySelectorAll("dd")].map((resposta) => resposta.querySelector("strong")?.textContent),
+      );
+      expect(destaques).toEqual([
+        ["Não precisa.", "Alguém que entenda de contabilidade", "A planilha de sempre.", "As horas de quem confere"],
+        ["Precisa.", "O sistema novo", "Migrar cadastros, contas e histórico", "A mensalidade do sistema novo"],
+        ["Não precisa.", "O Ledgr, linha por linha", "Subir dois arquivos", "Pelo volume de lançamentos do mês"],
+      ]);
+      // o negrito abre a resposta: o resto da frase continua lá, logo depois dele
+      for (const resposta of porQue().querySelectorAll("dd")) {
+        expect(resposta.firstChild).toBe(resposta.querySelector("strong"));
+      }
+      expect(colunas()[1].querySelectorAll("dd")[0].textContent).toBe("Precisa. A empresa inteira passa para o sistema novo.");
     });
 
     it("says the Ledgr keeps your system and leaves you only what does not match", () => {
