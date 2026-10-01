@@ -3,13 +3,11 @@ import { render } from "@testing-library/react";
 import type { Depoimento } from "@/lib/depoimentos";
 import LandingPage from "./page";
 
-// a lista real começa vazia e cresce quando os depoimentos chegam: aqui ela é trocada por uma lista
+// o que a landing mostra (os reais, ou os de exemplo fora da produção) é trocado aqui por uma lista
 // de teste, para a landing ser conferida com e sem depoimentos
 const lista = vi.hoisted(() => ({ depoimentos: [] as Depoimento[] }));
 vi.mock("@/lib/depoimentos", () => ({
-  get DEPOIMENTOS() {
-    return lista.depoimentos;
-  },
+  depoimentosDaLanding: () => lista.depoimentos,
 }));
 
 const UM: Depoimento = {

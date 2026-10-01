@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 
 import { DIVERGENCIAS } from "@/lib/adaptadores";
-import { DEPOIMENTOS } from "@/lib/depoimentos";
+import { depoimentosDaLanding } from "@/lib/depoimentos";
 import { LogoBarras } from "@/app/(app)/logo-barras";
 import { CabecalhoSite } from "./cabecalho-site";
 import { CATEGORIAS, QUANTAS_CATEGORIAS } from "./categorias";
@@ -262,6 +262,7 @@ const RODAPE_COLUNAS = [
 ];
 
 export default function LandingPage() {
+  const depoimentos = depoimentosDaLanding();
   return (
     <main className={fonteDestaque.variable}>
       <MotionRoot>
@@ -685,8 +686,9 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* depoimentos, onde o export do Claude Design os punha: só aparece quando há depoimento real */}
-      <Depoimentos depoimentos={DEPOIMENTOS} />
+      {/* depoimentos, onde o export do Claude Design os punha: no site publicado só aparece quando há
+          depoimento real; os de exemplo, só no preview e no local (lib/depoimentos.ts) */}
+      <Depoimentos depoimentos={depoimentos} />
 
       {/* perguntas, com o mascote que lia o panfleto no antigo convite: o convite repetia o que os
           passos, os números e a FAQ já diziam, e saiu. O fundo de superfície também veio dele, para
@@ -694,7 +696,7 @@ export default function LandingPage() {
           dos depoimentos, ou a Regra de ouro, papel, enquanto não há depoimento) */}
       <section
         id="perguntas"
-        className={DEPOIMENTOS.length > 0 ? "onda onda-escura" : "onda onda-papel"}
+        className={depoimentos.length > 0 ? "onda onda-escura" : "onda onda-papel"}
         style={{ position: "relative", overflow: "hidden", background: "var(--color-surface)" }}
       >
         <Image

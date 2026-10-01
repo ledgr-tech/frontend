@@ -8,7 +8,8 @@ import type { Depoimento } from "@/lib/depoimentos";
  * dourado na faixa, como os de Preços, sem o vidro e sem o brilho do Floria (o DESIGN.md veta os
  * dois), e os cards não se encavalam como lá.
  *
- * Sem depoimentos a seção não existe: nada de seção vazia, nem de exemplo inventado no lugar.
+ * Sem depoimentos a seção não existe: nada de seção vazia. Exemplo inventado só no preview e no
+ * local, nunca no site publicado (quem decide é `depoimentosDaLanding`, em lib/depoimentos.ts).
  */
 
 const ESTRELAS = [1, 2, 3, 4, 5];
