@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { Conciliacao } from "@/lib/mock-data";
 import DetalheDivergenciaPage from "./page";
@@ -214,6 +214,21 @@ describe("DetalheDivergenciaPage", () => {
         "Justificada por Eduardo: Juros de dois dias de atraso, lançados como despesa financeira.",
       ]);
       expect(evento.closest("tr")).toHaveTextContent("30/09/2026 10:12");
+    });
+
+    it("treats a justified lançamento as decided: neutral seal and out of the open count", async () => {
+      buscarConciliacao.mockReturnValue({
+        ...conciliacao,
+        linhas: conciliacao.linhas.map((linha) => (linha.id === "lc-2" ? { ...linha, decisao: justificada } : linha)),
+      });
+      render(<DetalheDivergenciaPage />);
+
+      // como no eixo da comparação: o status com a decisão, sem número entre as que pedem decisão
+      expect(await screen.findByText("Valor diverge na mesma data · justificada")).toBeInTheDocument();
+      expect(screen.queryByText(/item \d+ de/)).not.toBeInTheDocument();
+      const sistema = screen.getByText("Extrato do sistema").closest(".det-cartao") as HTMLElement;
+      expect(within(sistema).getByText("Justificada")).toHaveAttribute("class", "selo");
+      expect(screen.queryByText("Precisa de ajuste")).not.toBeInTheDocument();
     });
 
     it("says when a check stopped holding: the time of the new round", async () => {

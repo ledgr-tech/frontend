@@ -11,7 +11,7 @@ import {
   restaurarLinha,
   type LinhaComparacao,
 } from "@/lib/mock-data";
-import { estaResolvida, statusDaLinha } from "../../../dashboard/resumo";
+import { estaResolvida, pedeDecisao, statusDaLinha } from "../../../dashboard/resumo";
 import { Barra, EsqueletoTela } from "../../../esqueleto";
 import { NumeroAnimado } from "../../../numero-animado";
 import { FALHA_AO_CARREGAR, useConciliacao } from "../../usar-conciliacao";
@@ -134,7 +134,9 @@ export default function DetalheDivergenciaPage() {
 
   const { conciliacao, real } = estado;
   const status = statusDaLinha(linha);
-  const emAberto = conciliacao.linhas.filter((item) => !estaResolvida(item.status));
+  // as que ainda pedem decisão: a justificada já foi decidida e sai da conta, como no eixo da comparação
+  const emAberto = conciliacao.linhas.filter(pedeDecisao);
+  const justificada = linha.decisao?.tipo === "justificada";
   const posicao = emAberto.findIndex((item) => item.id === linha.id);
   const delta =
     linha.valorBanco !== null && linha.valorSistema !== null
@@ -163,7 +165,7 @@ export default function DetalheDivergenciaPage() {
         titulo={linha.descricao}
         sobretitulo={
           <>
-            {status.rotulo}
+            {justificada ? `${status.rotulo} · justificada` : status.rotulo}
             {posicao === -1
               ? null
               : ` · item ${String(posicao + 1).padStart(2, "0")} de ${emAberto.length}`}
@@ -213,8 +215,8 @@ export default function DetalheDivergenciaPage() {
           </div>
           <CartaoExtrato
             titulo="Extrato do sistema"
-            marca={estaResolvida(linha.status) ? "Conciliado" : "Precisa de ajuste"}
-            marcaClasse={estaResolvida(linha.status) ? "selo selo-ok" : "selo selo-risco"}
+            marca={estaResolvida(linha.status) ? "Conciliado" : justificada ? "Justificada" : "Precisa de ajuste"}
+            marcaClasse={estaResolvida(linha.status) ? "selo selo-ok" : justificada ? "selo" : "selo selo-risco"}
             valor={linha.valorSistema}
             campos={linha.camposSistema}
             origem="sistema"
