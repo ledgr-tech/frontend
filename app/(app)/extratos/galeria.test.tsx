@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { beforeEach, describe, it, expect } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ArquivoExtrato } from "../conciliacoes/acoes";
@@ -12,6 +12,7 @@ function arquivo(parcial: Partial<ArquivoExtrato> & Pick<ArquivoExtrato, "id" | 
     situacao: "concluido",
     lancamentos: 4218,
     erros: [],
+    competencia: "2026-09",
     ...parcial,
   };
 }
@@ -36,8 +37,16 @@ const ARQUIVOS: ArquivoExtrato[] = [
     conciliadoEm: "2026-09-02T19:20:00Z",
     resultado: "/conciliacoes/b-ago",
     lancamentos: 3980,
+    competencia: "2026-08",
   }),
-  arquivo({ id: "s-ago", nome: "erp-agosto.csv", origem: "sistema", situacao: null, lancamentos: null }),
+  arquivo({
+    id: "s-ago",
+    nome: "erp-agosto.csv",
+    origem: "sistema",
+    situacao: null,
+    lancamentos: null,
+    competencia: "2026-08",
+  }),
 ];
 
 function cartao(nome: string) {
@@ -158,5 +167,79 @@ describe("Galeria de extratos", () => {
 
     expect(screen.getByText("Nenhum arquivo com problema.")).toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "Arquivo selecionado" })).not.toBeInTheDocument();
+  });
+
+  describe("grouping", () => {
+    const titulos = () => screen.queryAllByRole("heading", { level: 2 }).map((titulo) => titulo.textContent);
+    const grupo = (nome: string) => within(screen.getByRole("region", { name: nome }));
+
+    // a escolha fica no navegador entre as visitas; cada teste começa sem nenhuma
+    beforeEach(() => window.localStorage.clear());
+
+    it("remembers the chosen grouping on the next visit, like the table density", async () => {
+      const user = userEvent.setup();
+      const { unmount } = render(<Galeria arquivos={ARQUIVOS} />);
+
+      await user.click(screen.getByRole("button", { name: "Ano" }));
+      expect(window.localStorage.getItem("ledgr_extratos_agrupamento")).toBe("ano");
+      unmount();
+
+      render(<Galeria arquivos={ARQUIVOS} />);
+
+      expect(await screen.findByRole("button", { name: "Ano" })).toHaveAttribute("aria-pressed", "true");
+      expect(titulos()).toEqual(["2026"]);
+    });
+
+    it("groups by month when what was saved is not a grouping it knows", () => {
+      window.localStorage.setItem("ledgr_extratos_agrupamento", "semana");
+      render(<Galeria arquivos={ARQUIVOS} />);
+
+      expect(screen.getByRole("button", { name: "Mês" })).toHaveAttribute("aria-pressed", "true");
+    });
+
+    it("groups the files by month by default, the most recent month first", () => {
+      render(<Galeria arquivos={ARQUIVOS} />);
+
+      const agrupar = within(screen.getByRole("group", { name: "Agrupar por" }));
+      expect(agrupar.getByRole("button", { name: "Mês" })).toHaveAttribute("aria-pressed", "true");
+      expect(titulos()).toEqual(["Setembro de 2026", "Agosto de 2026"]);
+      expect(grupo("Setembro de 2026").getByText("2 arquivos · 1 com problema")).toBeInTheDocument();
+      expect(grupo("Setembro de 2026").getByRole("button", { name: /sicredi-setembro/ })).toBeInTheDocument();
+      expect(grupo("Agosto de 2026").getByText("2 arquivos")).toBeInTheDocument();
+      expect(grupo("Agosto de 2026").getByRole("button", { name: /sicredi-agosto/ })).toBeInTheDocument();
+    });
+
+    it("groups by year when asked", async () => {
+      const user = userEvent.setup();
+      render(<Galeria arquivos={ARQUIVOS} />);
+
+      await user.click(screen.getByRole("button", { name: "Ano" }));
+
+      expect(titulos()).toEqual(["2026"]);
+      expect(grupo("2026").getByText("4 arquivos · 1 com problema")).toBeInTheDocument();
+      expect(grupo("2026").getAllByRole("button", { name: /\.(ofx|csv)/ })).toHaveLength(4);
+    });
+
+    it("shows the plain gallery when grouping is off", async () => {
+      const user = userEvent.setup();
+      render(<Galeria arquivos={ARQUIVOS} />);
+
+      await user.click(screen.getByRole("button", { name: "Nenhum" }));
+
+      expect(titulos()).toEqual([]);
+      expect(screen.getAllByRole("button", { name: /\.(ofx|csv)/ })).toHaveLength(4);
+    });
+
+    it("folds a month from its title", async () => {
+      const user = userEvent.setup();
+      render(<Galeria arquivos={ARQUIVOS} />);
+
+      const agosto = screen.getByRole("button", { name: "Agosto de 2026" });
+      await user.click(agosto);
+
+      expect(agosto).toHaveAttribute("aria-expanded", "false");
+      expect(screen.queryByRole("button", { name: /sicredi-agosto/ })).not.toBeInTheDocument();
+      expect(cartao("sicredi-setembro")).toBeInTheDocument();
+    });
   });
 });

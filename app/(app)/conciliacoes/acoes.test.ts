@@ -238,8 +238,11 @@ describe("listarExtratos", () => {
     chamarBackend.mockReset();
   });
 
-  /** /execucoes com duas rodadas que dividem o extrato do sistema. */
-  function backendComExtratos(detalhes: Record<string, unknown>) {
+  /**
+   * /execucoes com duas rodadas que dividem o extrato do sistema. `datas` é a primeira data de
+   * cada conciliação, pelo extrato do banco; sem ela, a conciliação responde erro.
+   */
+  function backendComExtratos(detalhes: Record<string, unknown>, datas: Record<string, string> = {}) {
     chamarBackend.mockImplementation(async (caminho: string) => {
       if (caminho.startsWith("/execucoes")) {
         return {
@@ -248,6 +251,13 @@ describe("listarExtratos", () => {
           offset: 0,
           itens: [execucao("e-2", BANCO_RECENTE), execucao("e-1", BANCO_ANTERIOR)],
         };
+      }
+      if (caminho.startsWith("/conciliacoes/")) {
+        const banco = caminho.slice("/conciliacoes/".length, caminho.indexOf("?"));
+        const data = datas[banco];
+        if (!data) throw new ErroBackend(500, "O servidor respondeu 500.");
+        const item = { ...itemConciliacao, lancamento_banco: { ...itemConciliacao.lancamento_banco!, data } };
+        return { extrato_id: banco, total: 1, limit: 1, offset: 0, itens: [item] };
       }
       const id = caminho.replace("/extratos/", "");
       const detalhe = detalhes[id];
@@ -268,11 +278,14 @@ describe("listarExtratos", () => {
   }
 
   it("junta cada arquivo das execuções com a situação que o backend guarda dele", async () => {
-    backendComExtratos({
-      [BANCO_RECENTE]: detalhe(BANCO_RECENTE, "banco"),
-      [SISTEMA]: detalhe(SISTEMA, "sistema", [{ identificador: "linha 14", motivo: "valor ilegível" }]),
-      [BANCO_ANTERIOR]: detalhe(BANCO_ANTERIOR, "banco"),
-    });
+    backendComExtratos(
+      {
+        [BANCO_RECENTE]: detalhe(BANCO_RECENTE, "banco"),
+        [SISTEMA]: detalhe(SISTEMA, "sistema", [{ identificador: "linha 14", motivo: "valor ilegível" }]),
+        [BANCO_ANTERIOR]: detalhe(BANCO_ANTERIOR, "banco"),
+      },
+      { [BANCO_RECENTE]: "2026-09-04", [BANCO_ANTERIOR]: "2026-08-03" },
+    );
 
     const resultado = await listarExtratos();
 
@@ -288,8 +301,43 @@ describe("listarExtratos", () => {
       situacao: "concluido_com_erros",
       lancamentos: 12,
       erros: [{ identificador: "linha 14", motivo: "valor ilegível" }],
+      competencia: "2026-09",
     });
     expect(chamarBackend).toHaveBeenCalledWith(`/extratos/${SISTEMA}`);
+  });
+
+  it("diz de que mês é cada arquivo pela primeira data da conciliação em que ele entrou", async () => {
+    backendComExtratos(
+      {
+        [BANCO_RECENTE]: detalhe(BANCO_RECENTE, "banco"),
+        [SISTEMA]: detalhe(SISTEMA, "sistema"),
+        [BANCO_ANTERIOR]: detalhe(BANCO_ANTERIOR, "banco"),
+      },
+      // agosto conciliado em setembro: o mês é o do extrato, não o da conciliação
+      { [BANCO_RECENTE]: "2026-09-04", [BANCO_ANTERIOR]: "2026-08-03" },
+    );
+
+    const resultado = await listarExtratos();
+
+    if (!resultado.ok) throw new Error(resultado.erro);
+    expect(resultado.dados.map(({ id, competencia }) => [id, competencia])).toEqual([
+      [BANCO_RECENTE, "2026-09"],
+      [SISTEMA, "2026-09"],
+      [BANCO_ANTERIOR, "2026-08"],
+    ]);
+  });
+
+  it("sem a data da conciliação, usa o mês em que o arquivo foi conciliado", async () => {
+    backendComExtratos({
+      [BANCO_RECENTE]: detalhe(BANCO_RECENTE, "banco"),
+      [SISTEMA]: detalhe(SISTEMA, "sistema"),
+      [BANCO_ANTERIOR]: detalhe(BANCO_ANTERIOR, "banco"),
+    });
+
+    const resultado = await listarExtratos();
+
+    if (!resultado.ok) throw new Error(resultado.erro);
+    expect(resultado.dados[2].competencia).toBe("2026-09");
   });
 
   it("mantém o arquivo na lista quando o detalhe dele não carrega", async () => {

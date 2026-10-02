@@ -54,18 +54,37 @@ const ANO_MES = new Intl.DateTimeFormat("en-CA", {
  * O mês do par é o do extrato, pela primeira data dele. Sem ela (conciliação
  * vazia, ou a consulta falhou), cai no mês em que foi conciliado.
  */
+/**
+ * O mês (AAAA-MM) de um extrato: o da primeira data da conciliação, e sem ela o mês em que foi
+ * conciliado, no fuso de São Paulo. É o mesmo mês no fechamento e na galeria de extratos.
+ */
+export function competencia(primeiraData: string | null, executadaEm: string): string {
+  return primeiraData?.slice(0, 7) ?? ANO_MES.format(new Date(executadaEm));
+}
+
 function chaveDoPar(par: ParDoFechamento): string {
-  return par.primeiraData?.slice(0, 7) ?? ANO_MES.format(new Date(par.execucao.executadaEm));
+  return competencia(par.primeiraData, par.execucao.executadaEm);
 }
 
 // a régua das cores de status: o que custa dinheiro antes, o já explicado por último
 const GRAVIDADE: Record<Tom, number> = { risco: 0, atencao: 1, neutro: 2, ok: 3 };
 
+/** "2026-09" → "Setembro": o nome do mês de uma competência, com a inicial maiúscula. */
+function nomeDoMes(chave: string): string {
+  const mes = chave.split("-")[1];
+  const minusculo = MESES[Number(mes) - 1] ?? mes;
+  return `${minusculo.charAt(0).toUpperCase()}${minusculo.slice(1)}`;
+}
+
+/** "2026-09" → "Setembro de 2026", como o fechamento e a galeria de extratos chamam o mês. */
+export function tituloDaCompetencia(chave: string): string {
+  return `${nomeDoMes(chave)} de ${chave.split("-")[0]}`;
+}
+
 function montarMes(chave: string, pares: ParDoFechamento[]): MesDeFechamento {
   const [ano, mes] = chave.split("-");
   const indice = Number(mes) - 1;
-  const minusculo = MESES[indice] ?? mes;
-  const nome = `${minusculo.charAt(0).toUpperCase()}${minusculo.slice(1)}`;
+  const nome = nomeDoMes(chave);
 
   const quantidades = new Map<StatusLinha, number>();
   for (const { execucao } of pares) {
@@ -85,7 +104,7 @@ function montarMes(chave: string, pares: ParDoFechamento[]): MesDeFechamento {
     chave,
     nome,
     ano,
-    titulo: `${nome} de ${ano}`,
+    titulo: tituloDaCompetencia(chave),
     proximo: MESES[(indice + 1) % 12] ?? "próximo mês",
     pares,
     lancamentos,

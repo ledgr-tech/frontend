@@ -2206,6 +2206,10 @@ html[data-tema="escuro"] .app-shell {
   /* a faixa cresce para cima e para baixo sem tirar as pílulas do lugar */
   margin-block: -10px; background: var(--color-bg);
 }
+.extratos-agrupar { display: flex; align-items: center; gap: 10px; }
+.extratos-agrupar-rotulo {
+  font-size: 13px; color: color-mix(in srgb, var(--color-text) 62%, transparent);
+}
 .extratos-area {
   display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 28px; align-items: start;
 }
