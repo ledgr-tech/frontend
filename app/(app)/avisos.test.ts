@@ -52,6 +52,26 @@ describe("avisosDoMes", () => {
     expect(aviso.texto.replaceAll(" ", " ")).toBe("R$ 59 em aberto, a maior parte em “Tarifa bancária”.");
   });
 
+  it("leaves the justified lines out of what still needs a decision", () => {
+    const justificada = (id: string, status: StatusLinha, banco: number | null, sistema: number | null) => ({
+      ...linha(id, status, banco, sistema),
+      decisao: { tipo: "justificada" as const, texto: "Adiantamento.", autor: "Eduardo", em: "2026-09-30T13:12:00Z", rodada: 1 },
+    });
+    const [aviso] = avisosDoMes(
+      visao([justificada("j", "sem_correspondencia", 4180, null), linha("v", "divergente_valor", 12640, 12604)]),
+    );
+    expect(aviso.titulo).toBe("1 divergência aguardando decisão");
+    expect(aviso.texto.replace(/\s/g, " ")).toBe("R$ 36 em aberto, a maior parte em “Valor diverge na mesma data”.");
+  });
+
+  it("has nothing to say, and does not break, when every divergence was justified", () => {
+    const justificada = {
+      ...linha("j", "sem_correspondencia", 4180, null),
+      decisao: { tipo: "justificada" as const, texto: "Adiantamento.", autor: "Eduardo", em: "2026-09-30T13:12:00Z", rodada: 1 },
+    };
+    expect(avisosDoMes(visao([linha("ok", "match_exato", 1, 1), justificada]))).toEqual([]);
+  });
+
   it("points each file with unread lines to the extratos screen", () => {
     const avisos = avisosDoMes(visao([linha("ok", "match_exato", 1, 1)], [{ nome: "itau.ofx", linhas: 1 }]));
     expect(avisos).toEqual([
