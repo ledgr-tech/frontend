@@ -2190,10 +2190,54 @@ html[data-tema="escuro"] .app-shell {
    Galeria do design (cartaoArquivo em Ledgr.dc.html): cada arquivo é uma folha
    3:4 com linhas desenhadas, e as linhas douradas marcam arquivo com linha não
    lida. O selecionado abre no painel da direita; até 1000px o painel desce. */
-.extratos-corpo { display: flex; flex-direction: column; gap: 22px; }
+/* --extratos-filtros-altura é a altura da faixa, que o painel usa para grudar abaixo dela: a faixa
+   se mede (<FaixaFiltros>) porque em tela estreita os filtros quebram em duas linhas; 58px é a de
+   uma linha, até a medição chegar */
+.extratos-corpo { display: flex; flex-direction: column; gap: 22px; --extratos-filtros-altura: 58px; }
+/* Na rolagem só as folhas correm (aqui e no fechamento): a faixa dos filtros gruda sob a barra do
+   topo, da cor da página, para os cartões passarem por baixo dela, e o painel gruda logo abaixo da
+   faixa. Até 1000px nada gruda: o painel desce para baixo das folhas. */
+.extratos-filtros {
+  position: sticky; top: var(--app-topo-altura, 0px); z-index: 10;
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 20px;
+  /* constante, não a variável: a faixa escreve a variável com a própria altura, e com ela aqui
+     nunca mais encolheria depois de quebrar em duas linhas */
+  min-height: 58px;
+  /* a faixa cresce para cima e para baixo sem tirar as pílulas do lugar */
+  margin-block: -10px; background: var(--color-bg);
+}
 .extratos-area {
   display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 28px; align-items: start;
 }
+/* Lista agrupada (<Grupo>): os anos do fechamento, os meses ou anos dos extratos. Um bloco por
+   grupo, com o título e o resumo sobre um filete; o título inteiro recolhe o bloco. */
+.grupos { min-width: 0; display: flex; flex-direction: column; gap: 30px; }
+.grupo, .grupo-corpo { display: flex; flex-direction: column; gap: 14px; }
+.grupo-topo {
+  display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 2px 12px;
+  padding-bottom: 8px; border-bottom: 1px solid var(--color-divider);
+}
+.grupo-titulo { margin: 0; flex: 1 1 auto; font-size: 22px; font-weight: 600; }
+/* alvo largo: o título inteiro é o botão, e a seta diz se o bloco está aberto */
+.grupo-botao {
+  width: 100%; display: flex; align-items: center; gap: 8px; padding: 2px 0; cursor: pointer;
+  border: none; background: transparent; color: inherit; font: inherit; text-align: left;
+}
+.grupo-botao:focus-visible { outline-offset: 4px; border-radius: var(--radius-sm); }
+.grupo-seta {
+  flex: none; color: color-mix(in srgb, var(--color-text) 55%, transparent);
+  transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+.grupo-botao[aria-expanded="false"] .grupo-seta { transform: rotate(-90deg); }
+.grupo-botao:hover .grupo-seta { color: var(--color-text); }
+@media (prefers-reduced-motion: reduce) {
+  .grupo-seta { transition: none; }
+}
+.grupo-meta {
+  font-size: 13px; font-variant-numeric: tabular-nums;
+  color: color-mix(in srgb, var(--color-text) 62%, transparent);
+}
+.grupo-alternar { align-self: flex-start; font-size: 13.5px; }
 .extratos-grade {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 22px 18px;
 }
@@ -2258,7 +2302,11 @@ html[data-tema="escuro"] .app-shell {
   color: color-mix(in srgb, var(--color-text) 62%, transparent);
 }
 .extrato-painel {
-  position: sticky; top: 24px; display: flex; flex-direction: column; gap: 14px;
+  position: sticky; display: flex; flex-direction: column; gap: 14px;
+  top: calc(var(--app-topo-altura, 0px) + var(--extratos-filtros-altura, 0px) + 6px);
+  /* mais alto que a janela, rola por dentro: preso, o pé dele ficaria fora de alcance */
+  max-height: calc(100vh - var(--app-topo-altura, 0px) - var(--extratos-filtros-altura, 0px) - 24px);
+  overflow-y: auto; overscroll-behavior: contain;
   padding: 22px; border: 1px solid var(--color-divider); border-radius: var(--radius-md);
 }
 .extrato-painel-topo { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
@@ -2285,7 +2333,8 @@ html[data-tema="escuro"] .app-shell {
 }
 @media (max-width: 1000px) {
   .extratos-area { grid-template-columns: 1fr; }
-  .extrato-painel { position: static; }
+  .extratos-filtros { position: static; }
+  .extrato-painel { position: static; max-height: none; overflow: visible; }
 }
 
 /* ── Shell do app: menu lateral + barra superior ─────────────────────────────
@@ -2718,6 +2767,9 @@ html:has(.app-shell) { scrollbar-gutter: stable; }
 .app-principal {
   min-width: 0; position: relative;
   --recuo-lateral: max(clamp(16px, 3.5vw, 40px), calc((100% - 1240px) / 2));
+  /* a altura da barra do topo em tela larga (busca e Avisos numa linha): o que gruda na rolagem
+     dentro do conteúdo gruda abaixo dela, não por baixo */
+  --app-topo-altura: 78px;
 }
 .app-topo {
   position: sticky; top: 0; z-index: 45;
@@ -3286,12 +3338,25 @@ html[data-tema="escuro"] .app-shell {
   color: color-mix(in srgb, var(--color-text) 62%, transparent);
 }
 
+/* Os meses são a lista e o painel é o que se lê: o painel fica com dois terços da largura, em vez dos
+   320px do painel de extratos, e os passos correm em duas colunas. Com 320px o fechamento em aberto
+   descia uns 600px abaixo da tela, ao lado de uma grade quase vazia. Até 1000px o painel desce. */
+.fech-area { grid-template-columns: minmax(170px, 1fr) minmax(0, 2fr); }
+.fech-painel { container-type: inline-size; }
+@media (max-width: 1000px) {
+  .fech-area { grid-template-columns: 1fr; }
+}
+
 .fech-progresso { display: flex; flex-direction: column; gap: 8px; }
 .fech-progresso .vg-nota { font-size: 13.5px; }
 
 .fech-passos {
   list-style: none; margin: 0; padding: 0;
   display: flex; flex-direction: column; border-top: 1px solid var(--color-divider);
+}
+/* cada célula leva o filete de baixo; a grade iguala a altura da linha, e os filetes se alinham */
+@container (min-width: 560px) {
+  .fech-passos { display: grid; grid-template-columns: 1fr 1fr; column-gap: 28px; }
 }
 .fech-passo {
   display: flex; gap: 10px; padding: 12px 0; border-bottom: 1px solid var(--color-divider);
@@ -3308,8 +3373,11 @@ html[data-tema="escuro"] .app-shell {
   font-size: 13.5px; line-height: 1.5; overflow-wrap: anywhere;
   color: color-mix(in srgb, var(--color-text) 66%, transparent);
 }
+/* o tamanho vai na lista, não só no link: o <li> herdava o corpo (20px em tela larga), e cada linha
+   do link ocupava os 32px da entrelinha dele */
 .fech-passo-lista {
   list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px;
+  font-size: 13.5px; line-height: 1.5;
 }
 .fech-pendencia { display: flex; align-items: center; gap: 8px; font-size: 13.5px; }
 .fech-pendencia-quantidade { margin-left: auto; font-variant-numeric: tabular-nums; }
@@ -3320,7 +3388,8 @@ html[data-tema="escuro"] .app-shell {
   text-underline-offset: 3px;
 }
 .fech-link:hover { text-decoration-color: var(--color-text); }
-.fech-relatorio { display: flex; flex-direction: column; gap: 6px; }
+/* o arquivo e o botão na mesma linha; quebra só se o nome não couber */
+.fech-relatorio { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; }
 
 /* ── Assinatura ───────────────────────────────────────────────────────────────
    Plano, planos e faturas (isAssinatura em Ledgr.dc.html). O resumo e a tabela
