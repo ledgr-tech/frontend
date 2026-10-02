@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { Execucao } from "@/lib/adaptadores";
 import { execucoesVigentes } from "@/lib/rodadas";
-import { listarExecucoes } from "../conciliacoes/acoes";
+import { carregarHistorico } from "../conciliacoes/acoes";
 import { formatarInteiro, formatarPercentual } from "../dashboard/resumo";
 import { conciliados as conciliadosDa } from "./execucoes";
 import { Reveal } from "@/app/reveal";
@@ -13,10 +13,9 @@ import { Cabecalho } from "../cabecalho";
 /**
  * O histórico lê `GET /execucoes` no servidor, uma página por vez, e junta as
  * execuções por extrato do banco: uma linha por conciliação, com as rodadas dela
- * (spec 2026-10-02-conciliacao-em-rodadas), agrupadas pelo mês em que a rodada que
- * vale rodou. O backend conta por execução e não sabe a competência do extrato,
- * então a tabela "mês a mês" do design segue fora, assim como o ajuste em reais, o
- * "fechado com ressalva" e a economia acumulada — nada disso tem fonte ainda.
+ * (spec 2026-10-02-conciliacao-em-rodadas), agrupadas pelo mês do extrato, como
+ * Fechamentos. O backend conta por execução e não guarda ajuste em reais, "fechado
+ * com ressalva" nem economia acumulada, então isso do design segue fora.
  */
 
 const FALHA_AO_CARREGAR =
@@ -30,7 +29,7 @@ function lerPagina(valor: string | string[] | undefined): number {
 
 export default async function HistoricoPage({ searchParams }: PageProps<"/historico">) {
   const pagina = lerPagina((await searchParams).pagina);
-  const resposta = await listarExecucoes(pagina);
+  const resposta = await carregarHistorico(pagina);
   if (!resposta.ok && resposta.status === 401) redirect("/login");
 
   return (
@@ -56,6 +55,7 @@ export default async function HistoricoPage({ searchParams }: PageProps<"/histor
       ) : (
         <Historico
           execucoes={resposta.dados.execucoes}
+          competencias={resposta.dados.competencias}
           total={resposta.dados.total}
           pagina={pagina}
           porPagina={resposta.dados.porPagina}
@@ -127,11 +127,13 @@ function Resumo({ vigentes, parcial }: { vigentes: Execucao[]; parcial: boolean 
 
 function Historico({
   execucoes,
+  competencias,
   total,
   pagina,
   porPagina,
 }: {
   execucoes: Execucao[];
+  competencias: Record<string, string>;
   total: number;
   pagina: number;
   porPagina: number;
@@ -152,7 +154,7 @@ function Historico({
       </Reveal>
 
       <Reveal delay={0.16}>
-        <HistoricoPorConciliacao execucoes={execucoes} />
+        <HistoricoPorConciliacao execucoes={execucoes} competencias={competencias} />
 
         {(temAnterior || temProxima) && (
           <nav className="paginacao" aria-label="Páginas do histórico">

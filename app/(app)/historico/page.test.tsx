@@ -2,13 +2,13 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { Execucao } from "@/lib/adaptadores";
-import type { ListaExecucoes, Resultado } from "../conciliacoes/acoes";
+import type { Historico, Resultado } from "../conciliacoes/acoes";
 import HistoricoPage from "./page";
 
 // quem fala com o backend é a action; aqui ela só devolve o que ele responderia
-const listarExecucoes = vi.fn<(pagina?: number) => Promise<Resultado<ListaExecucoes>>>();
+const carregarHistorico = vi.fn<(pagina?: number) => Promise<Resultado<Historico>>>();
 vi.mock("../conciliacoes/acoes", () => ({
-  listarExecucoes: (pagina?: number) => listarExecucoes(pagina),
+  carregarHistorico: (pagina?: number) => carregarHistorico(pagina),
 }));
 
 const redirect = vi.fn();
@@ -86,8 +86,8 @@ const RODADAS: Execucao[] = [
   }),
 ];
 
-function com(execucoes: Execucao[], total = execucoes.length) {
-  listarExecucoes.mockResolvedValue({ ok: true, dados: { execucoes, total, porPagina: 50 } });
+function com(execucoes: Execucao[], total = execucoes.length, competencias: Record<string, string> = {}) {
+  carregarHistorico.mockResolvedValue({ ok: true, dados: { execucoes, total, porPagina: 50, competencias } });
 }
 
 function props(pagina?: string) {
@@ -113,7 +113,7 @@ function execucoesAbertas() {
 
 describe("HistoricoPage", () => {
   beforeEach(() => {
-    listarExecucoes.mockReset();
+    carregarHistorico.mockReset();
     redirect.mockClear();
   });
 
@@ -182,7 +182,43 @@ describe("HistoricoPage", () => {
     expect(screen.queryByText(/Só o resultado mais recente fica guardado/)).not.toBeInTheDocument();
   });
 
-  it("groups the conciliations by the month of the round that counts", async () => {
+  it("groups each conciliation by the month of its extrato, like Fechamentos", async () => {
+    com(
+      [
+        // a rodada nova do extrato de setembro rodou em outubro
+        execucao({ id: "s1", extratoBancoId: "B", executadaEm: "2026-10-02T20:20:00Z" }),
+        execucao({ id: "o1", extratoBancoId: "C", executadaEm: "2026-10-01T13:00:00Z" }),
+      ],
+      2,
+      { B: "2026-09", C: "2026-10" },
+    );
+    await renderizar();
+
+    const meses = screen.getAllByRole("heading", { level: 3 });
+    expect(meses.map((mes) => mes.textContent)).toEqual(["Outubro de 20261 conciliação", "Setembro de 20261 conciliação"]);
+    // quando rodou continua sendo quando rodou
+    const setembro = conciliacoes().find((linha) => linha.textContent?.includes("sicredi-s1.ofx"))!;
+    expect(setembro.querySelector(".hist-c-quando")).toHaveTextContent("02/10 17:20");
+  });
+
+  it("writes the year of the run when it is not the year of the extrato", async () => {
+    com(
+      [
+        // o extrato de dezembro conciliado em janeiro
+        execucao({ id: "d1", extratoBancoId: "D", executadaEm: "2026-01-05T13:00:00Z" }),
+        execucao({ id: "j1", extratoBancoId: "J", executadaEm: "2026-01-04T13:00:00Z" }),
+      ],
+      2,
+      { D: "2025-12", J: "2026-01" },
+    );
+    await renderizar();
+
+    const linha = (id: string) => conciliacoes().find((item) => item.textContent?.includes(`sicredi-${id}.ofx`))!;
+    expect(linha("d1").querySelector(".hist-c-quando")).toHaveTextContent("05/01/2026 10:00");
+    expect(linha("j1").querySelector(".hist-c-quando")).toHaveTextContent("04/01 10:00");
+  });
+
+  it("falls back to the month the round that counts ran, when the extrato's month is unknown", async () => {
     com([...RODADAS, execucao({ id: "j1", executadaEm: "2026-08-05T13:00:00Z" })]);
     await renderizar();
     const meses = screen.getAllByRole("heading", { level: 3 });
@@ -318,7 +354,7 @@ describe("HistoricoPage", () => {
     com(EXECUCOES, 120);
     await renderizar("1");
 
-    expect(listarExecucoes).toHaveBeenCalledWith(1);
+    expect(carregarHistorico).toHaveBeenCalledWith(1);
     expect(screen.getByText("51–53 de 120")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Mais recentes" })).toHaveAttribute("href", "/historico");
     expect(screen.getByRole("link", { name: "Mais antigas" })).toHaveAttribute("href", "/historico?pagina=2");
@@ -328,7 +364,7 @@ describe("HistoricoPage", () => {
   it("starts from the first page when the page in the URL makes no sense", async () => {
     com(EXECUCOES);
     await renderizar("-3");
-    expect(listarExecucoes).toHaveBeenCalledWith(0);
+    expect(carregarHistorico).toHaveBeenCalledWith(0);
     expect(screen.queryByRole("navigation", { name: "Páginas do histórico" })).not.toBeInTheDocument();
   });
 
@@ -350,7 +386,7 @@ describe("HistoricoPage", () => {
   });
 
   it("asks for a reload when the backend fails", async () => {
-    listarExecucoes.mockResolvedValue({ ok: false, status: 0, erro: "Não foi possível falar com o servidor." });
+    carregarHistorico.mockResolvedValue({ ok: false, status: 0, erro: "Não foi possível falar com o servidor." });
     await renderizar();
     expect(screen.getByRole("alert")).toHaveTextContent(
       "Não foi possível carregar o histórico. Recarregue a página e tente de novo.",
@@ -358,7 +394,7 @@ describe("HistoricoPage", () => {
   });
 
   it("sends an expired session back to the login", async () => {
-    listarExecucoes.mockResolvedValue({ ok: false, status: 401, erro: "Sua sessão expirou." });
+    carregarHistorico.mockResolvedValue({ ok: false, status: 401, erro: "Sua sessão expirou." });
     await expect(HistoricoPage(props())).rejects.toThrow("NEXT_REDIRECT");
     expect(redirect).toHaveBeenCalledWith("/login");
   });

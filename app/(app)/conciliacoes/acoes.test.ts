@@ -5,6 +5,7 @@ import {
   carregarConciliacao,
   carregarConciliacaoEmRodadas,
   carregarFechamentos,
+  carregarHistorico,
   carregarPainel,
   carregarVisaoGeral,
   explicarDivergencia,
@@ -152,6 +153,49 @@ describe("listarExecucoes", () => {
       status: 401,
       erro: "Sua sessão expirou. Entre de novo para continuar.",
     });
+  });
+});
+
+describe("carregarHistorico", () => {
+  beforeEach(() => {
+    chamarBackend.mockReset();
+  });
+
+  /** A página com uma execução por extrato do banco; a primeira linha de cada um, pela data pedida. */
+  function backendDoHistorico(datas: Record<string, string>) {
+    chamarBackend.mockImplementation(async (caminho: string) => {
+      if (caminho.startsWith("/execucoes")) {
+        return { total: 52, limit: 50, offset: 50, itens: [execucao("e-2", BANCO_RECENTE), execucao("e-1", BANCO_ANTERIOR)] };
+      }
+      const banco = caminho.slice("/conciliacoes/".length, caminho.indexOf("?"));
+      const data = datas[banco];
+      if (!data) throw new ErroBackend(500, "O servidor respondeu 500.");
+      const item = { ...itemConciliacao, lancamento_banco: { ...itemConciliacao.lancamento_banco!, data } };
+      return { extrato_id: banco, total: 1, limit: 1, offset: 0, itens: [item] };
+    });
+  }
+
+  it("diz o mês do extrato de cada conciliação da página, pela primeira data da rodada que vale", async () => {
+    // a do banco anterior falha: ela entra pelo mês em que foi conciliada (24/09)
+    backendDoHistorico({ [BANCO_RECENTE]: "2026-08-28" });
+
+    const resultado = await carregarHistorico(1);
+
+    if (!resultado.ok) throw new Error(resultado.erro);
+    expect(chamarBackend).toHaveBeenCalledWith("/execucoes?limit=50&offset=50");
+    expect(chamarBackend).toHaveBeenCalledWith(
+      `/conciliacoes/${BANCO_RECENTE}?limit=1&offset=0&extrato_sistema_id=${SISTEMA}`,
+    );
+    expect(resultado.dados).toMatchObject({ total: 52, porPagina: 50 });
+    expect(resultado.dados.execucoes).toHaveLength(2);
+    expect(resultado.dados.competencias).toEqual({ [BANCO_RECENTE]: "2026-08", [BANCO_ANTERIOR]: "2026-09" });
+  });
+
+  it("devolve o erro da lista, sem perguntar o mês de nada", async () => {
+    chamarBackend.mockRejectedValue(new ErroBackend(401, "Sessão expirada."));
+    const resultado = await carregarHistorico();
+    expect(resultado).toMatchObject({ ok: false, status: 401 });
+    expect(chamarBackend).toHaveBeenCalledTimes(1);
   });
 });
 

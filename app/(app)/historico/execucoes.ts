@@ -66,6 +66,8 @@ export type ExecucaoDaConciliacao = { execucao: Execucao; rodada: number; situac
 export type ConciliacaoNoHistorico = {
   extratoBancoId: string;
   arquivoBanco: string;
+  /** O mês do extrato (AAAA-MM), o mesmo de Fechamentos; sem ele, o mês em que a que vale rodou. */
+  competencia: string;
   /** Quantas rodadas a página mostra. */
   rodadas: number;
   /** A linha da conciliação: a que vale, ou, se a página a cortou, a mais recente que sobrou. */
@@ -76,13 +78,18 @@ export type ConciliacaoNoHistorico = {
 
 /**
  * As execuções da página juntas por extrato do banco, como a comparação abre: uma conciliação
- * com as rodadas dela. Ordena pela data da que vale, que é a que a linha mostra.
+ * com as rodadas dela. Ordena pela data da que vale, que é a que a linha mostra. `competencias`
+ * diz o mês do extrato de cada extrato do banco (`carregarHistorico`); quem não tem, cai no mês
+ * em que a que vale rodou.
  *
  * ponytail: só enxerga a página. Uma conciliação com rodadas dos dois lados da quebra de página
  * aparece nas duas, cada uma com as rodadas que tem; o filtro `?extrato_banco_id=` proposto ao
  * backend (ver `acoes.ts`) resolveria isso aqui também.
  */
-export function porConciliacao(execucoes: Execucao[]): ConciliacaoNoHistorico[] {
+export function porConciliacao(
+  execucoes: Execucao[],
+  competencias: Record<string, string> = {},
+): ConciliacaoNoHistorico[] {
   const bancos = [...new Set(execucoes.map((execucao) => execucao.extratoBancoId))];
   const conciliacoes = bancos.map((banco): ConciliacaoNoHistorico => {
     const rodadas = rodadasDoBanco(execucoes, banco);
@@ -98,11 +105,13 @@ export function porConciliacao(execucoes: Execucao[]): ConciliacaoNoHistorico[] 
           situacao: !vale ? "substituida" : rodada.numero === ultima ? "vale" : "anterior",
         };
       });
+    const principal = doBanco.find((item) => item.situacao === "vale") ?? doBanco[0];
     return {
       extratoBancoId: banco,
       arquivoBanco: doBanco[0].execucao.arquivoBanco,
+      competencia: competencias[banco] ?? ANO_MES.format(new Date(principal.execucao.executadaEm)),
       rodadas: ultima,
-      principal: doBanco.find((item) => item.situacao === "vale") ?? doBanco[0],
+      principal,
       execucoes: doBanco,
     };
   });
@@ -112,19 +121,19 @@ export function porConciliacao(execucoes: Execucao[]): ConciliacaoNoHistorico[] 
 
 export type MesDoHistorico = { chave: string; titulo: string; conciliacoes: ConciliacaoNoHistorico[] };
 
-/** As conciliações agrupadas pelo mês em que a que vale rodou, na ordem em que chegam. */
+/**
+ * As conciliações agrupadas pelo mês do extrato, do mais recente para o mais antigo. Dentro do
+ * mês seguem na ordem em que chegam: a que rodou por último antes.
+ */
 export function porMes(conciliacoes: ConciliacaoNoHistorico[]): MesDoHistorico[] {
-  const meses: MesDoHistorico[] = [];
+  const meses = new Map<string, ConciliacaoNoHistorico[]>();
   for (const conciliacao of conciliacoes) {
-    const chave = ANO_MES.format(new Date(conciliacao.principal.execucao.executadaEm));
-    const atual = meses.at(-1);
-    if (atual?.chave === chave) {
-      atual.conciliacoes.push(conciliacao);
-    } else {
-      meses.push({ chave, titulo: mesPorExtenso(`${chave}-01`).replace("/", " de "), conciliacoes: [conciliacao] });
-    }
+    meses.set(conciliacao.competencia, [...(meses.get(conciliacao.competencia) ?? []), conciliacao]);
   }
-  return meses;
+  // AAAA-MM ordena como texto
+  return [...meses]
+    .sort(([a], [b]) => b.localeCompare(a))
+    .map(([chave, doMes]) => ({ chave, titulo: mesPorExtenso(`${chave}-01`).replace("/", " de "), conciliacoes: doMes }));
 }
 
 export type AnoDoHistorico = { ano: string; meses: MesDoHistorico[] };

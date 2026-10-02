@@ -50,9 +50,13 @@ function plural(quantidade: number, singular: string, plural: string): string {
   return `${formatarInteiro(quantidade)} ${quantidade === 1 ? singular : plural}`;
 }
 
-/** "24/09 14:02": o ano já está no título do grupo. */
-function diaMesHora(iso: string): string {
-  return formatarDataHora(iso).replace(/\/\d{4}/, "");
+/**
+ * "24/09 14:02" quando rodou no ano do grupo, que o título já diz; com o ano quando não (o
+ * extrato de dezembro conciliado em janeiro).
+ */
+function quandoRodou(iso: string, ano: string): string {
+  const completa = formatarDataHora(iso);
+  return completa.slice(6, 10) === ano ? completa.replace(/\/\d{4}/, "") : completa;
 }
 
 const SELO: Record<SituacaoNoHistorico, { rotulo: string; classe: string }> = {
@@ -70,9 +74,16 @@ function resumoDoAno(meses: MesDoHistorico[]): string {
   return `${plural(doAno.length, "conciliação", "conciliações")} · ${situacao}`;
 }
 
-export function HistoricoPorConciliacao({ execucoes }: { execucoes: Execucao[] }) {
+export function HistoricoPorConciliacao({
+  execucoes,
+  competencias = {},
+}: {
+  execucoes: Execucao[];
+  /** O mês do extrato de cada extrato do banco (`carregarHistorico`); sem ele, o mês em que rodou. */
+  competencias?: Record<string, string>;
+}) {
   const [filtro, setFiltro] = useState<Filtro>("todas");
-  const todas = porConciliacao(execucoes);
+  const todas = porConciliacao(execucoes, competencias);
   const anos = porAno(porMes(todas.filter((conciliacao) => passaNoFiltro(conciliacao, filtro))));
   // os anos passados começam recolhidos: o que se procura no histórico costuma ser recente, e o
   // título de cada um já diz quantas conciliações ainda pedem revisão
@@ -197,6 +208,7 @@ function Tabela({
             <LinhasDaConciliacao
               key={conciliacao.extratoBancoId}
               conciliacao={conciliacao}
+              ano={mes.chave.slice(0, 4)}
               aberta={abertas.has(conciliacao.extratoBancoId)}
               onAlternar={() => onAlternar(conciliacao.extratoBancoId)}
             />
@@ -218,10 +230,13 @@ function RotuloMovel({ children }: { children: string }) {
 
 function LinhasDaConciliacao({
   conciliacao,
+  ano,
   aberta,
   onAlternar,
 }: {
   conciliacao: ConciliacaoNoHistorico;
+  /** O ano do mês do extrato, que o título do grupo já diz. */
+  ano: string;
   aberta: boolean;
   onAlternar: () => void;
 }) {
@@ -295,7 +310,7 @@ function LinhasDaConciliacao({
         <td className="hist-c-quando">
           <RotuloMovel>Quando</RotuloMovel>
           <time dateTime={execucao.executadaEm} title={formatarDataHora(execucao.executadaEm)}>
-            {diaMesHora(execucao.executadaEm)}
+            {quandoRodou(execucao.executadaEm, ano)}
           </time>
         </td>
         <td className="hist-c-acao">
@@ -307,13 +322,23 @@ function LinhasDaConciliacao({
       </tr>
       {execucoes.length > 1 &&
         execucoes.map((item, indice) => (
-          <LinhaDaExecucao key={item.execucao.id} id={idDasExecucoes[indice]} item={item} aberta={aberta} />
+          <LinhaDaExecucao key={item.execucao.id} id={idDasExecucoes[indice]} item={item} ano={ano} aberta={aberta} />
         ))}
     </>
   );
 }
 
-function LinhaDaExecucao({ id, item, aberta }: { id: string; item: ExecucaoDaConciliacao; aberta: boolean }) {
+function LinhaDaExecucao({
+  id,
+  item,
+  ano,
+  aberta,
+}: {
+  id: string;
+  item: ExecucaoDaConciliacao;
+  ano: string;
+  aberta: boolean;
+}) {
   const { execucao, rodada, situacao } = item;
   const selo = SELO[situacao];
   return (
@@ -338,7 +363,7 @@ function LinhaDaExecucao({ id, item, aberta }: { id: string; item: ExecucaoDaCon
       <td className="hist-c-quando">
         <RotuloMovel>Quando</RotuloMovel>
         <time dateTime={execucao.executadaEm} title={formatarDataHora(execucao.executadaEm)}>
-          {diaMesHora(execucao.executadaEm)}
+          {quandoRodou(execucao.executadaEm, ano)}
         </time>
       </td>
       <td className="hist-c-acao">

@@ -14,6 +14,7 @@ import { chamarBackend, ErroBackend } from "@/lib/backend";
 import { compararRodadas, execucoesVigentes, rodadasDoBanco, type Mudancas } from "@/lib/rodadas";
 import type { Conciliacao, Decisao, TipoEvento } from "@/lib/mock-data";
 import { competencia } from "../fechamentos/fechamento";
+import { porConciliacao } from "../historico/execucoes";
 
 /**
  * O fluxo real de conciliação, ponta a ponta, contra a API do backend:
@@ -468,6 +469,31 @@ async function primeiraData(execucao: Execucao): Promise<string | null> {
     // sem a data o par ainda entra, pelo mês em que foi conciliado
     return null;
   }
+}
+
+export type Historico = ListaExecucoes & {
+  /** O mês do extrato (AAAA-MM) de cada extrato do banco da página, pela rodada que vale. */
+  competencias: Record<string, string>;
+};
+
+/**
+ * Uma página do histórico e o mês do extrato de cada conciliação nela, para a tela agrupar como
+ * Fechamentos e Extratos: pela primeira data da rodada que vale, e sem ela pelo mês em que rodou.
+ *
+ * ponytail: uma chamada por conciliação da página (até 50, em paralelo). Some quando
+ * `/execucoes` trouxer o período do extrato.
+ */
+export async function carregarHistorico(pagina = 0): Promise<Resultado<Historico>> {
+  const lista = await listarExecucoes(pagina);
+  if (!lista.ok) return lista;
+
+  const meses = await Promise.all(
+    porConciliacao(lista.dados.execucoes).map(async ({ extratoBancoId, principal: { execucao } }) => [
+      extratoBancoId,
+      competencia(await primeiraData(execucao), execucao.executadaEm),
+    ]),
+  );
+  return { ok: true, dados: { ...lista.dados, competencias: Object.fromEntries(meses) } };
 }
 
 /**

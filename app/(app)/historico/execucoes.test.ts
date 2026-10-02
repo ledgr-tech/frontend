@@ -151,7 +151,28 @@ describe("paraRevisar", () => {
 });
 
 describe("porMes e porAno", () => {
-  it("agrupa as conciliações pelo mês da que vale, no fuso de Brasília, e os meses pelo ano", () => {
+  it("agrupa pelo mês do extrato, como Fechamentos, e ordena os meses por ele", () => {
+    const meses = porMes(
+      porConciliacao(
+        [
+          // o extrato de setembro com a rodada nova em outubro fica em setembro
+          doPar("e3", "B3", "S3", "2026-10-02T12:00:00Z"),
+          doPar("e2", "B2", "S2", "2026-10-01T12:00:00Z"),
+          // o de agosto conciliado atrasado, depois de um de setembro
+          doPar("e1", "B1", "S1", "2026-09-30T12:00:00Z"),
+          doPar("e0", "B0", "S0", "2026-09-29T12:00:00Z"),
+        ],
+        { B3: "2026-09", B2: "2026-10", B1: "2026-08", B0: "2026-09" },
+      ),
+    );
+    expect(meses.map((mes) => [mes.titulo, mes.conciliacoes.map((item) => item.principal.execucao.id)])).toEqual([
+      ["Outubro de 2026", ["e2"]],
+      ["Setembro de 2026", ["e3", "e0"]],
+      ["Agosto de 2026", ["e1"]],
+    ]);
+  });
+
+  it("sem o mês do extrato, cai no mês em que a que vale rodou, no fuso de Brasília; e os meses vão por ano", () => {
     const meses = porMes(
       porConciliacao([
         // 01/01 às 02h em UTC ainda é 31/12 em Brasília
