@@ -25,6 +25,34 @@ export type EventoHistorico = {
 };
 
 /**
+ * O que alguém registrou sobre uma linha divergente: conferir ("já olhei, vou
+ * corrigir no sistema") e justificar ("não vai ser corrigida, e o motivo é este"),
+ * e desfazer cada um. O registro não apaga: desfazer é um evento novo
+ * (spec 2026-10-02-conciliacao-em-rodadas).
+ */
+export type TipoEvento = "conferida" | "conferencia_desfeita" | "justificada" | "justificativa_desfeita";
+
+/** A decisão em vigor numa linha. O status do motor não muda por ela. */
+export type Decisao = {
+  tipo: "conferida" | "justificada";
+  /** A justificativa; null na conferência. */
+  texto: string | null;
+  autor: string;
+  /** ISO 8601. */
+  em: string;
+  /** Em que rodada foi tomada: uma conferência de rodada passada perde o valor. */
+  rodada: number;
+};
+
+export type EventoDecisao = {
+  tipo: TipoEvento;
+  texto: string | null;
+  autor: string;
+  em: string;
+  rodada: number;
+};
+
+/**
  * Papel de cor de um status. O design tinha uma escala de gravidade em ouro
  * (leve/medio/forte), então só a intensidade distinguia um problema do outro.
  * Aqui o matiz é que carrega o significado: verde resolvido, terracota
@@ -68,6 +96,13 @@ export type LinhaComparacao = {
   valorBanco: number | null;
   valorSistema: number | null;
   status: StatusLinha;
+  /**
+   * A decisão em vigor. Ausente (undefined) quando o backend ainda não guarda
+   * decisões: a tela não oferece decidir. Null quando guarda e ninguém decidiu.
+   */
+  decisao?: Decisao | null;
+  /** O registro da linha, em ordem; o detalhe mostra no histórico. */
+  eventos?: EventoDecisao[];
   explicacao: string | null;
   /** A explicação foi escrita pela IA: leva o selo "Gerada por IA", como os Termos prometem. */
   explicacaoPorIa?: boolean;
@@ -89,6 +124,8 @@ export type Conciliacao = {
   mes: string;
   status: "em_andamento" | "fechada";
   linhas: LinhaComparacao[];
+  /** A rodada destas linhas (1 quando ausente: o mock e o extrato fora das execuções). */
+  rodada?: number;
 };
 
 // O sufixo é versão de formato, não enfeite: os status das linhas mudaram para

@@ -1,5 +1,12 @@
 import { caminhoDaConciliacao } from "./caminhos";
-import type { CampoLancamento, Conciliacao, LinhaComparacao, StatusLinha } from "./mock-data";
+import type {
+  CampoLancamento,
+  Conciliacao,
+  Decisao,
+  EventoDecisao,
+  LinhaComparacao,
+  StatusLinha,
+} from "./mock-data";
 
 /**
  * Traduz o que `GET /conciliacoes/{extrato_id}` devolve para a forma que as
@@ -39,6 +46,12 @@ export type ItemConciliacaoAPI = {
    */
   explicacao?: string | null;
   gerada_por_ia?: boolean;
+  /**
+   * ponytail: decisões por linha, propostas ao backend na spec 2026-10-02 (mesmos
+   * nomes de lá). A chave ausente quer dizer que o backend ainda não as guarda.
+   */
+  decisao?: Decisao | null;
+  eventos?: EventoDecisao[];
 };
 
 export type ListaConciliacaoAPI = {
@@ -133,6 +146,9 @@ export function adaptarLinha(item: ItemConciliacaoAPI): LinhaComparacao {
     explicacao: doBackend ?? explicar(item),
     // só com `true` a tela marca como gerada por IA, como no POST /explicacoes
     explicacaoPorIa: doBackend !== null && item.gerada_por_ia === true,
+    // só com a chave no item: sem ela, o backend não guarda decisões e a tela não oferece
+    ...("decisao" in item ? { decisao: item.decisao ?? null } : {}),
+    ...(item.eventos ? { eventos: item.eventos } : {}),
     // O backend não guarda linha do tempo por lançamento; o histórico do detalhe
     // fica vazio até existir (nada de inventar evento que ninguém registrou).
     historico: [],

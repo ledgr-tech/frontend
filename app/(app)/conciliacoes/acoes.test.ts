@@ -713,6 +713,8 @@ describe("carregarConciliacaoEmRodadas", () => {
       executadaEm: "2026-09-24T17:02:11Z",
     });
     expect(resultado.dados.conciliacao.extratoSistemaId).toBe(SISTEMA_V2);
+    // a rodada vai junto da conciliação: é por ela que uma conferência antiga perde o valor
+    expect(resultado.dados.conciliacao.rodada).toBe(2);
   });
 
   it("com o sistema de uma rodada antiga, abre aquela, sem comparação", async () => {

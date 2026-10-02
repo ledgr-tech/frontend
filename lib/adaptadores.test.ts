@@ -143,6 +143,28 @@ describe("adaptarLinha", () => {
     expect(adaptarLinha({ ...divergente, gerada_por_ia: false }).explicacaoPorIa).toBe(false);
   });
 
+  it("lê a decisão e os eventos que o backend mandar", () => {
+    const decisao = {
+      tipo: "justificada" as const,
+      texto: "Juros de dois dias de atraso.",
+      autor: "Eduardo Sichelero",
+      em: "2026-09-30T13:12:00Z",
+      rodada: 2,
+    };
+    const eventos = [{ ...decisao, tipo: "conferida" as const, texto: null, rodada: 1 }, decisao];
+    const linha = adaptarLinha(item({ status: "divergente_valor", decisao, eventos }));
+    expect(linha.decisao).toEqual(decisao);
+    expect(linha.eventos).toEqual(eventos);
+    // sem decisão nenhuma ainda, o backend manda null: a tela sabe que pode decidir
+    expect(adaptarLinha(item({ decisao: null })).decisao).toBeNull();
+  });
+
+  it("sem o campo, a linha não tem decisão (undefined, não null)", () => {
+    const linha = adaptarLinha(item());
+    expect(linha.decisao).toBeUndefined();
+    expect("decisao" in linha).toBe(false);
+  });
+
   it("diz que não há descrição quando o extrato não trouxe uma, nos dois lados", () => {
     // OFX sem MEMO: a descrição chega vazia, e a linha não pode ficar sem ter onde clicar
     const linha = adaptarLinha(

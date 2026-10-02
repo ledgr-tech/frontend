@@ -239,7 +239,10 @@ export async function carregarConciliacaoEmRodadas(
     }
   }
 
-  return { ok: true, dados: { ...atual.dados, rodada, mudancas } };
+  return {
+    ok: true,
+    dados: { ...atual.dados, conciliacao: { ...atual.dados.conciliacao, rodada: alvo.numero }, rodada, mudancas },
+  };
 }
 
 // 50 por página (o backend aceita até 100). As telas que resumem — visão geral,
