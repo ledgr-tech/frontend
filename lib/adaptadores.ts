@@ -226,6 +226,11 @@ export type ExecucaoAPI = {
     tarifa_bancaria: number;
     divergente_valor: number;
     divergente_data: number;
+    /**
+     * Das divergências, quantas estão justificadas (spec 2026-10-02-conciliacao-em-rodadas).
+     * Proposta ao backend: ausente enquanto ele não guarda decisões.
+     */
+    justificadas?: number;
   };
   /** Decimal (0 a 100, duas casas) — o Pydantic manda como string. Null sem lançamentos. */
   percentual_acerto: string | number | null;
@@ -256,6 +261,8 @@ export type Execucao = {
   /** A tolerância de data daquela rodada, em dias — não a configuração de hoje. */
   toleranciaDias: number;
   atual: boolean;
+  /** Das divergências, quantas estão justificadas: liberam o fechamento sem contar como batidas. */
+  justificadas: number;
 };
 
 /**
@@ -296,6 +303,7 @@ export function adaptarExecucao(item: ExecucaoAPI): Execucao {
     ),
     toleranciaDias: item.tolerancia_dias,
     atual: item.atual,
+    justificadas: item.contagens.justificadas ?? 0,
   };
 }
 

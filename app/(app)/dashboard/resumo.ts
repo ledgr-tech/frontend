@@ -31,6 +31,15 @@ export function estaResolvida(status: StatusLinha): boolean {
   return status === "match_exato" || status === "match_tolerancia";
 }
 
+/**
+ * Diverge e ninguém justificou: é o que ainda segura o fechamento. A justificada não
+ * bateu, mas já tem o motivo no registro (spec 2026-10-02-conciliacao-em-rodadas); a
+ * conferida continua aqui, porque conferir é a promessa de corrigir no sistema.
+ */
+export function pedeDecisao(linha: LinhaComparacao): boolean {
+  return !estaResolvida(linha.status) && linha.decisao?.tipo !== "justificada";
+}
+
 /** Rótulo e tom de um código do motor, sem a linha (as contagens de `/execucoes`). */
 export function seloDoStatus(status: StatusLinha): { rotulo: string; tom: Tom } {
   const { rotulo, tom } = STATUS[status];
@@ -103,15 +112,16 @@ export function valorEmAberto(linhas: LinhaComparacao[]): number {
 export function resumir(conciliacoes: Conciliacao[]): Resumo {
   const linhas = conciliacoes.flatMap((conciliacao) => conciliacao.linhas);
   const resolvidas = linhas.filter((linha) => estaResolvida(linha.status));
-  const emAberto = linhas.filter((linha) => !estaResolvida(linha.status));
-  const orfas = linhas.filter((linha) => linha.status === "sem_correspondencia");
+  // as justificadas ficam à parte: nem batidas, nem em aberto
+  const emAberto = linhas.filter(pedeDecisao);
+  const orfas = emAberto.filter((linha) => linha.status === "sem_correspondencia");
 
   return {
     processados: linhas.length,
     batidos: resolvidas.length,
     taxaMatch: linhas.length === 0 ? 0 : (resolvidas.length / linhas.length) * 100,
     divergentes: emAberto.length,
-    valorDivergente: valorEmAberto(linhas),
+    valorDivergente: valorEmAberto(emAberto),
     semCorrespondente: orfas.length,
     valorSemCorrespondente: valorEmAberto(orfas),
   };

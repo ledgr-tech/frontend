@@ -146,6 +146,21 @@ describe("responder", () => {
     });
   });
 
+  it("conta a divergência justificada como decidida: o mês fica pronto", () => {
+    const justificada: LinhaComparacao = {
+      ...linha("l5", "divergente_valor", -12640, -12604),
+      decisao: { tipo: "justificada", texto: "Juros de atraso.", autor: "Eduardo", em: "2026-09-30T13:12:00Z", rodada: 1 },
+    };
+    const ctx = contexto([linha("l1", "match_exato", 100, 100), justificada]);
+
+    expect(saudacao(ctx)).toBe("Setembro está 50,0% conciliado. Nada sobrou para revisar.");
+    expect(responder("O que falta para fechar?", ctx).texto).toBe("Nada: setembro está pronto para fechar.");
+    // e não há o que explicar: a justificada já tem o porquê
+    expect(responder("Explique a maior divergência", ctx).texto).toBe(
+      "Nenhuma divergência em aberto em setembro: não há o que explicar.",
+    );
+  });
+
   it("fala das tarifas e das duplicidades, ou diz que não há", () => {
     expect(texto("e as tarifas?", contexto())).toMatch(/^1 tarifa bancária em setembro, somando R\$ 45\./);
     expect(responder("tem duplicidade?", contexto()).texto).toBe("Nenhuma possível duplicidade em setembro.");

@@ -298,7 +298,15 @@ describe("adaptarExecucao", () => {
       },
       toleranciaDias: 2,
       atual: true,
+      // o backend que ainda não guarda decisões não manda a contagem: nenhuma justificada
+      justificadas: 0,
     });
+  });
+
+  it("lê quantas divergências estão justificadas", () => {
+    const comJustificadas = execucao();
+    comJustificadas.contagens = { ...comJustificadas.contagens, justificadas: 3 };
+    expect(adaptarExecucao(comJustificadas).justificadas).toBe(3);
   });
 
   it("deixa de fora das divergências as categorias sem nenhuma linha", () => {
@@ -350,6 +358,7 @@ describe("extratosDasExecucoes", () => {
       divergencias: {},
       toleranciaDias: 1,
       atual: true,
+      justificadas: 0,
     };
   }
 

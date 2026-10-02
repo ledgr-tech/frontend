@@ -43,6 +43,7 @@ function par(
       divergencias: {},
       toleranciaDias: 1,
       atual: true,
+      justificadas: 0,
       ...parcial,
     },
     primeiraData: "2026-09-01",
@@ -116,6 +117,32 @@ describe("FechamentosPage", () => {
       "/conciliacoes/nova",
     );
     expect(screen.getByRole("button", { name: /Agosto de 2026/ })).toHaveTextContent("Pronto para fechar");
+  });
+
+  describe("justified divergences", () => {
+    it("calls a month ready when every divergence is justified, and says how many", async () => {
+      await renderizar([par("set", { acerto: 98.6, divergencias: { divergente_valor: 2 }, justificadas: 2 })]);
+
+      expect(screen.getByRole("button", { name: /Setembro de 2026/ })).toHaveTextContent("Pronto para fechar");
+      const pronto = painel();
+      expect(within(pronto).getByText("Fechamento · pronto para fechar")).toBeInTheDocument();
+      const passos = within(pronto).getByRole("list", { name: "Para fechar o mês" });
+      expect(within(passos).getByText(/Divergências decididas/)).toHaveTextContent("(feito)");
+      expect(within(passos).getByText("2 divergências justificadas")).toBeInTheDocument();
+      expect(within(pronto).getByRole("link", { name: "Começar outubro" })).toBeInTheDocument();
+    });
+
+    it("keeps the month open while one of two divergences has no justification", async () => {
+      await renderizar([par("set", { acerto: 98.6, divergencias: { divergente_valor: 2 }, justificadas: 1 })]);
+
+      expect(screen.getByRole("button", { name: /Setembro de 2026/ })).toHaveTextContent("1 pendência");
+      const aberto = painel();
+      expect(within(aberto).getByText("Fechamento · em aberto")).toBeInTheDocument();
+      const passos = within(aberto).getByRole("list", { name: "Para fechar o mês" });
+      expect(within(passos).getByText(/Divergências decididas/)).toHaveTextContent("(pendente)");
+      expect(within(passos).getByText("1 divergência justificada")).toBeInTheDocument();
+      expect(within(aberto).getByRole("link", { name: "Revisar pendências" })).toBeInTheDocument();
+    });
   });
 
   it("filters the months that are ready", async () => {

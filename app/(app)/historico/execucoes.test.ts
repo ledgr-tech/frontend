@@ -15,6 +15,7 @@ function execucao(id: string, acerto: number | null, atual = true): Execucao {
     divergencias: {},
     toleranciaDias: 1,
     atual,
+    justificadas: 0,
   };
 }
 

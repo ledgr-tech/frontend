@@ -37,6 +37,7 @@ function execucao(id: string, banco: string, sistema: string, executadaEm: strin
     divergencias: {},
     toleranciaDias: 2,
     atual,
+    justificadas: 0,
   };
 }
 

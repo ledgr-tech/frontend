@@ -1,6 +1,6 @@
 import { caminhoDaCategoria } from "@/lib/caminhos";
 import type { Conciliacao, LinhaComparacao, Tom } from "@/lib/mock-data";
-import { estaResolvida, statusDaLinha, valorEmAberto } from "../dashboard/resumo";
+import { pedeDecisao, statusDaLinha, valorEmAberto } from "../dashboard/resumo";
 
 export type Pendencia = {
   /** O rótulo do status, o mesmo do selo na conciliação. */
@@ -29,7 +29,8 @@ const PESO: Record<Tom, number> = { risco: 0, atencao: 1, neutro: 2, ok: 3 };
 export function pendencias(conciliacao: Conciliacao): Pendencia[] {
   const grupos = new Map<string, { tom: Tom; linhas: LinhaComparacao[] }>();
   for (const linha of conciliacao.linhas) {
-    if (estaResolvida(linha.status)) continue;
+    // a justificada já tem o motivo no registro: não pede mais atenção
+    if (!pedeDecisao(linha)) continue;
     const { rotulo, tom } = statusDaLinha(linha);
     const grupo = grupos.get(rotulo) ?? { tom, linhas: [] };
     grupo.linhas.push(linha);

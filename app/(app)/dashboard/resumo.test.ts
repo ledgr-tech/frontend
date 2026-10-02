@@ -143,6 +143,25 @@ describe("resumir", () => {
     ]);
     expect(resumo.valorDivergente).toBe(0.3);
   });
+
+  it("deixa a justificada de fora do que pede decisão e do valor em aberto, sem contá-la como batida", () => {
+    const justificada: LinhaComparacao = {
+      ...linha("sem_correspondencia", 4180, null),
+      decisao: { tipo: "justificada", texto: "Adiantamento do cliente.", autor: "Eduardo", em: "2026-09-30T13:12:00Z", rodada: 1 },
+    };
+    const resumo = resumir([
+      conciliacao([linha("match_exato", 100, 100), justificada, linha("divergente_valor", -12640, -12604)]),
+    ]);
+
+    expect(resumo).toMatchObject({
+      processados: 3,
+      batidos: 1,
+      divergentes: 1,
+      valorDivergente: 36,
+      semCorrespondente: 0,
+      valorSemCorrespondente: 0,
+    });
+  });
 });
 
 describe("origemDaLinha", () => {

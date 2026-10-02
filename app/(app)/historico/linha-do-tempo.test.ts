@@ -15,6 +15,7 @@ function execucao(parcial: Partial<Execucao>): Execucao {
     divergencias: { divergente_valor: 42 },
     toleranciaDias: 1,
     atual: true,
+    justificadas: 0,
     ...parcial,
   };
 }

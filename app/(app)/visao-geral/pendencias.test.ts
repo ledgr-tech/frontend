@@ -43,6 +43,17 @@ describe("pendencias", () => {
     ).toEqual([]);
   });
 
+  it("leaves a justified line out: it does not ask for attention anymore", () => {
+    const justificada: LinhaComparacao = {
+      ...linha("valor", "divergente_valor", -12640, -12604),
+      decisao: { tipo: "justificada", texto: "Juros de atraso.", autor: "Eduardo", em: "2026-09-30T13:12:00Z", rodada: 1 },
+    };
+
+    expect(
+      pendencias(conciliacao([justificada, linha("tarifa", "tarifa_bancaria", -45, null)])).map((grupo) => grupo.rotulo),
+    ).toEqual(["Tarifa bancária"]);
+  });
+
   it("groups the open lines by what the backend found, riskiest first", () => {
     const grupos = pendencias(
       conciliacao([

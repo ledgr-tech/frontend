@@ -21,6 +21,7 @@ function par(
       divergencias: {},
       toleranciaDias: 1,
       atual: true,
+      justificadas: 0,
       ...parcial,
     },
     primeiraData: "2026-09-01",
@@ -87,5 +88,16 @@ describe("agruparPorMes", () => {
     const comLinhaNaoLida = agruparPorMes([par("x", {}, { naoLidas: [{ nome: "erp-x.csv", linhas: 2 }] })])[0];
     expect(comLinhaNaoLida.pronto).toBe(false);
     expect(comLinhaNaoLida.naoLidas).toEqual([{ nome: "erp-x.csv", linhas: 2 }]);
+  });
+
+  it("fica pronto com as divergências todas justificadas, somadas entre os pares do mês", () => {
+    const justificado = agruparPorMes([
+      par("itau", { divergencias: { divergente_valor: 2 }, justificadas: 2 }),
+      par("sicredi", { divergencias: { tarifa_bancaria: 1 }, justificadas: 1 }),
+    ])[0];
+    expect(justificado).toMatchObject({ divergentes: 3, justificadas: 3, pronto: true });
+
+    // uma só sem justificativa segura o mês
+    expect(agruparPorMes([par("itau", { divergencias: { divergente_valor: 2 }, justificadas: 1 })])[0].pronto).toBe(false);
   });
 });

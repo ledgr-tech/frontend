@@ -40,12 +40,17 @@ function taxa(mes: MesDeFechamento): number {
   return mes.lancamentos === 0 ? 0 : (mes.conciliados / mes.lancamentos) * 100;
 }
 
+/** As divergências que ainda pedem decisão: as justificadas já foram decididas. */
+function pendentes(mes: MesDeFechamento): number {
+  return mes.divergentes - mes.justificadas;
+}
+
 function seloDoMes(mes: MesDeFechamento): { rotulo: string; tom: Tom } {
   if (mes.pronto) return { rotulo: "Pronto para fechar", tom: "ok" };
-  // sem divergência, o que segura o mês são as linhas que o parser não leu
-  if (mes.divergentes === 0) return { rotulo: "Linhas não lidas", tom: "atencao" };
+  // sem divergência por decidir, o que segura o mês são as linhas que o parser não leu
+  if (pendentes(mes) === 0) return { rotulo: "Linhas não lidas", tom: "atencao" };
   return {
-    rotulo: plural(mes.divergentes, "pendência", "pendências"),
+    rotulo: plural(pendentes(mes), "pendência", "pendências"),
     tom: mes.pendencias[0].tom === "risco" ? "risco" : "atencao",
   };
 }
@@ -282,8 +287,8 @@ export function Painel({ mes }: { mes: MesDeFechamento }) {
           </ul>
         </Passo>
 
-        <Passo feito={mes.divergentes === 0} titulo="Divergências decididas">
-          {mes.divergentes === 0 ? (
+        <Passo feito={pendentes(mes) === 0} titulo="Divergências decididas">
+          {pendentes(mes) === 0 ? (
             <span className="fech-passo-texto">Nenhuma divergência pede decisão.</span>
           ) : (
             <>
@@ -302,6 +307,13 @@ export function Painel({ mes }: { mes: MesDeFechamento }) {
             </>
           )}
         </Passo>
+
+        {/* as justificadas, à parte: decididas, mas não batidas (spec 2026-10-02-conciliacao-em-rodadas) */}
+        {mes.justificadas > 0 && (
+          <Passo feito titulo={plural(mes.justificadas, "divergência justificada", "divergências justificadas")}>
+            <span className="fech-passo-texto">O motivo de cada uma fica no registro da conciliação.</span>
+          </Passo>
+        )}
 
         <Passo feito={mes.naoLidas.length === 0} titulo="Arquivos lidos por inteiro">
           {mes.naoLidas.length === 0 ? (
@@ -342,7 +354,7 @@ export function Painel({ mes }: { mes: MesDeFechamento }) {
         <Link href="/conciliacoes/nova" className="btn btn-primary" style={{ alignSelf: "flex-start" }}>
           {`Começar ${mes.proximo}`}
         </Link>
-      ) : mes.divergentes > 0 ? (
+      ) : pendentes(mes) > 0 ? (
         <Link href={comPendencia.caminho} className="btn btn-primary" style={{ alignSelf: "flex-start" }}>
           Revisar pendências
         </Link>
