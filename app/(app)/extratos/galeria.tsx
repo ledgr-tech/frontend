@@ -82,10 +82,20 @@ function passaNoFiltro(arquivo: ArquivoExtrato, filtro: Filtro): boolean {
   return true;
 }
 
+/** A versão do extrato do sistema que uma mais nova substituiu na mesma conciliação. */
+function versaoAnterior(arquivo: ArquivoExtrato): number | null {
+  return arquivo.rodada && arquivo.rodada.numero < arquivo.rodada.total ? arquivo.rodada.numero : null;
+}
+
 function situacao(arquivo: ArquivoExtrato): { rotulo: string; tom: Tom } {
   switch (arquivo.situacao) {
-    case "concluido":
-      return { rotulo: "Conciliado", tom: "ok" };
+    case "concluido": {
+      // entrou numa rodada que já não vale: foi conciliado, mas não é ele que conta
+      const anterior = versaoAnterior(arquivo);
+      return anterior === null
+        ? { rotulo: "Conciliado", tom: "ok" }
+        : { rotulo: `Versão anterior · rodada ${anterior}`, tom: "neutro" };
+    }
     case "concluido_com_erros":
       return { rotulo: "Com linhas não lidas", tom: "atencao" };
     case "erro":
@@ -281,6 +291,12 @@ function Painel({ arquivo }: { arquivo: ArquivoExtrato }) {
           <dt>Última conciliação</dt>
           <dd>{formatarDataHora(arquivo.conciliadoEm)}</dd>
         </div>
+        {arquivo.rodada && arquivo.rodada.total > 1 && (
+          <div>
+            <dt>Rodada</dt>
+            <dd>{`${arquivo.rodada.numero} de ${arquivo.rodada.total}`}</dd>
+          </div>
+        )}
         <div>
           <dt>Identificador</dt>
           <dd style={{ wordBreak: "break-all" }}>{arquivo.id}</dd>
@@ -304,7 +320,7 @@ function Painel({ arquivo }: { arquivo: ArquivoExtrato }) {
       )}
 
       <Link href={arquivo.resultado} className="btn btn-secondary" style={{ alignSelf: "flex-start" }}>
-        Ver conciliação
+        {versaoAnterior(arquivo) === null ? "Ver conciliação" : `Ver a rodada ${versaoAnterior(arquivo)}`}
       </Link>
     </section>
   );

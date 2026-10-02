@@ -1,4 +1,5 @@
 import { caminhoDaConciliacao } from "./caminhos";
+import { rodadasDoBanco } from "./rodadas";
 import type {
   CampoLancamento,
   Conciliacao,
@@ -315,8 +316,13 @@ export type ArquivoConciliado = {
   origem: "banco" | "sistema";
   /** ISO da rodada mais recente que usou o arquivo. */
   conciliadoEm: string;
-  /** O resultado daquela rodada: o par de extratos dela. */
+  /**
+   * Onde o arquivo abre: o extrato do banco, pelo endereço só dele (a rodada que vale); o do
+   * sistema, na rodada em que entrou.
+   */
   resultado: string;
+  /** Só do extrato do sistema: a rodada da conciliação em que ele entrou, e quantas ela tem. */
+  rodada?: { numero: number; total: number };
 };
 
 /**
@@ -330,15 +336,27 @@ export function extratosDasExecucoes(execucoes: Execucao[]): ArquivoConciliado[]
   const vistos = new Map<string, ArquivoConciliado>();
   // a lista chega da mais recente para a mais antiga: o primeiro uso é o último
   for (const execucao of execucoes) {
-    const resultado = caminhoDaConciliacao(execucao.extratoBancoId, execucao.extratoSistemaId);
-    const lados = [
-      { id: execucao.extratoBancoId, nome: execucao.arquivoBanco, origem: "banco" as const },
-      { id: execucao.extratoSistemaId, nome: execucao.arquivoSistema, origem: "sistema" as const },
-    ];
-    for (const lado of lados) {
-      if (!vistos.has(lado.id)) {
-        vistos.set(lado.id, { ...lado, conciliadoEm: execucao.executadaEm, resultado });
-      }
+    const { extratoBancoId: banco, extratoSistemaId: sistema, executadaEm: conciliadoEm } = execucao;
+    if (!vistos.has(banco)) {
+      vistos.set(banco, {
+        id: banco,
+        nome: execucao.arquivoBanco,
+        origem: "banco",
+        conciliadoEm,
+        resultado: caminhoDaConciliacao(banco),
+      });
+    }
+    if (!vistos.has(sistema)) {
+      const rodadas = rodadasDoBanco(execucoes, banco);
+      const numero = rodadas.find((rodada) => rodada.extratoSistemaId === sistema)?.numero ?? rodadas.length;
+      vistos.set(sistema, {
+        id: sistema,
+        nome: execucao.arquivoSistema,
+        origem: "sistema",
+        conciliadoEm,
+        resultado: caminhoDaConciliacao(banco, sistema),
+        rodada: { numero, total: rodadas.length },
+      });
     }
   }
   return [...vistos.values()];

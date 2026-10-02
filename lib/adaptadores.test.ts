@@ -389,12 +389,13 @@ describe("extratosDasExecucoes", () => {
 
   it("guarda a origem, o nome e a conciliação mais recente de cada arquivo", () => {
     const [bancoSetembro, sistemaNovo, sistemaAntigo] = extratosDasExecucoes(execucoes);
+    // o extrato do banco é a conciliação: abre pelo endereço só dele, na rodada que vale
     expect(bancoSetembro).toEqual({
       id: "b-set",
       nome: "sicredi-set.ofx",
       origem: "banco",
       conciliadoEm: "2026-09-24T17:00:00Z",
-      resultado: "/conciliacoes/b-set?sistema=s-set-v2",
+      resultado: "/conciliacoes/b-set",
     });
     expect(sistemaNovo.origem).toBe("sistema");
     // o extrato do banco de setembro entrou em dois pares: cada arquivo do
@@ -404,6 +405,13 @@ describe("extratosDasExecucoes", () => {
       conciliadoEm: "2026-09-23T12:00:00Z",
       resultado: "/conciliacoes/b-set?sistema=s-set",
     });
+  });
+
+  it("diz em que rodada cada extrato do sistema entrou, e quantas a conciliação tem", () => {
+    const [, sistemaNovo, sistemaAntigo, , sistemaAgosto] = extratosDasExecucoes(execucoes);
+    expect(sistemaNovo.rodada).toEqual({ numero: 2, total: 2 });
+    expect(sistemaAntigo.rodada).toEqual({ numero: 1, total: 2 });
+    expect(sistemaAgosto.rodada).toEqual({ numero: 1, total: 1 });
   });
 
   it("não tem arquivo nenhum sem execução", () => {

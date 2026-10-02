@@ -338,6 +338,8 @@ describe("listarExtratos", () => {
       origem: "sistema",
       conciliadoEm: "2026-09-24T17:02:11Z",
       resultado: `/conciliacoes/${BANCO_RECENTE}?sistema=${SISTEMA}`,
+      // a única rodada do extrato do banco mais recente
+      rodada: { numero: 1, total: 1 },
       situacao: "concluido_com_erros",
       lancamentos: 12,
       erros: [{ identificador: "linha 14", motivo: "valor ilegível" }],

@@ -97,6 +97,43 @@ describe("Galeria de extratos", () => {
     expect(semDetalhe.getByText("Conteúdo indisponível")).toBeInTheDocument();
   });
 
+  it("calls an older version of the system extrato what it is, and opens its own round", async () => {
+    const user = userEvent.setup();
+    render(
+      <Galeria
+        arquivos={[
+          arquivo({ id: "b-set", nome: "sicredi-setembro.ofx" }),
+          arquivo({
+            id: "s-v2",
+            nome: "erp-setembro-v2.csv",
+            origem: "sistema",
+            resultado: "/conciliacoes/b-set?sistema=s-v2",
+            rodada: { numero: 2, total: 2 },
+          }),
+          arquivo({
+            id: "s-v1",
+            nome: "erp-setembro.csv",
+            origem: "sistema",
+            resultado: "/conciliacoes/b-set?sistema=s-v1",
+            rodada: { numero: 1, total: 2 },
+          }),
+        ]}
+      />,
+    );
+
+    expect(within(cartao("erp-setembro-v2.csv")).getByText("Conciliado")).toBeInTheDocument();
+    const antiga = cartao("erp-setembro.csv");
+    expect(within(antiga).getByText("Versão anterior · rodada 1")).toBeInTheDocument();
+    expect(antiga).toHaveAttribute("data-tom", "neutro");
+
+    await user.click(antiga);
+    expect(painel().getByText("1 de 2")).toBeInTheDocument();
+    expect(painel().getByRole("link", { name: "Ver a rodada 1" })).toHaveAttribute(
+      "href",
+      "/conciliacoes/b-set?sistema=s-v1",
+    );
+  });
+
   it("opens the most recent file in the side panel", () => {
     render(<Galeria arquivos={ARQUIVOS} />);
     expect(cartao("sicredi-setembro.ofx")).toHaveAttribute("aria-pressed", "true");
