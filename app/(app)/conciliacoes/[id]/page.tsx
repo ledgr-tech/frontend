@@ -514,7 +514,7 @@ function EspiaDaLinha({
               <IconeOrigem origem="banco" tamanho={14} />
               Extrato do banco
             </div>
-            <div style={{ fontFamily: "var(--font-heading)", fontSize: 24, fontWeight: 600 }}>
+            <div className="font-titulo" style={{ fontSize: 24, fontWeight: 600 }}>
               {linha.valorBanco !== null ? formatarMoeda(linha.valorBanco) : "—"}
             </div>
           </div>
@@ -523,7 +523,7 @@ function EspiaDaLinha({
               <IconeOrigem origem="sistema" tamanho={14} />
               Extrato do sistema
             </div>
-            <div style={{ fontFamily: "var(--font-heading)", fontSize: 24, fontWeight: 600 }}>
+            <div className="font-titulo" style={{ fontSize: 24, fontWeight: 600 }}>
               {linha.valorSistema !== null ? formatarMoeda(linha.valorSistema) : "—"}
             </div>
           </div>
@@ -575,15 +575,7 @@ function Fechamento({
   return (
     <div style={{ padding: "44px 0 64px", display: "flex", flexDirection: "column", gap: 34 }}>
       <div>
-        <div
-          style={{
-            fontSize: 12,
-            letterSpacing: "0.14em",
-            textTransform: "uppercase",
-            color: "color-mix(in srgb, var(--color-text) 58%, transparent)",
-            marginBottom: 14,
-          }}
-        >
+        <div className="rotulo" style={{ marginBottom: 14 }}>
           Mês conciliado
         </div>
         <h2 style={{ margin: "0 0 12px", fontSize: 42, fontWeight: 400 }}>
@@ -601,20 +593,20 @@ function Fechamento({
         }}
       >
         <div style={{ padding: "18px 0" }}>
-          <span style={{ display: "block", fontSize: 12, textTransform: "uppercase" }}>Lançamentos</span>
-          <span style={{ fontFamily: "var(--font-heading)", fontSize: 34 }}>{total}</span>
+          <span className="rotulo" style={{ display: "block" }}>Lançamentos</span>
+          <span className="font-titulo" style={{ fontSize: 34 }}>{total}</span>
         </div>
         <div style={{ padding: "18px 0" }}>
-          <span style={{ display: "block", fontSize: 12, textTransform: "uppercase" }}>
+          <span className="rotulo" style={{ display: "block" }}>
             Batidos automaticamente
           </span>
-          <span style={{ fontFamily: "var(--font-heading)", fontSize: 34 }}>{batidos}</span>
+          <span className="font-titulo" style={{ fontSize: 34 }}>{batidos}</span>
         </div>
         <div style={{ padding: "18px 0" }}>
-          <span style={{ display: "block", fontSize: 12, textTransform: "uppercase" }}>
+          <span className="rotulo" style={{ display: "block" }}>
             Revisados manualmente
           </span>
-          <span style={{ fontFamily: "var(--font-heading)", fontSize: 34 }}>{pendentes}</span>
+          <span className="font-titulo" style={{ fontSize: 34 }}>{pendentes}</span>
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 18 }}>

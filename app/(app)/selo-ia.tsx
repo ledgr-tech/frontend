@@ -1,4 +1,5 @@
 import { Sparkles } from "lucide-react";
+import { TRACO_ICONE } from "./traco-icone";
 
 /**
  * O selo do texto escrito pela IA, em cima da explicação: neutro, nunca dourado, porque a IA
@@ -9,7 +10,8 @@ import { Sparkles } from "lucide-react";
 export function SeloIa() {
   return (
     <span className="selo explicacao-selo">
-      <Sparkles size={13} strokeWidth={1.75} aria-hidden="true" />
+      {/* traço explícito: o selo também vai na demonstração da landing, fora do app */}
+      <Sparkles size={13} strokeWidth={TRACO_ICONE} aria-hidden="true" />
       Gerada por IA · confira antes de decidir
     </span>
   );

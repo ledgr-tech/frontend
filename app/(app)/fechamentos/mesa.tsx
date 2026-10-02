@@ -8,6 +8,8 @@ import { caminhoDaConciliacao } from "@/lib/caminhos";
 import type { Tom } from "@/lib/mock-data";
 import { ExportarCsv } from "../conciliacoes/[id]/exportar-csv";
 import { formatarDataHora, formatarInteiro, formatarPercentual } from "../dashboard/resumo";
+import { FaixaFiltros } from "../faixa-filtros";
+import { Grupo, alternarNoConjunto } from "../grupo";
 import type { MesDeFechamento } from "./fechamento";
 
 /**
@@ -48,54 +50,137 @@ function seloDoMes(mes: MesDeFechamento): { rotulo: string; tom: Tom } {
   };
 }
 
+type Ano = { ano: string; meses: MesDeFechamento[] };
+
+/** Os meses já vêm do mais recente para o mais antigo: cada troca de ano abre um grupo. */
+function agruparPorAno(meses: MesDeFechamento[]): Ano[] {
+  const anos: Ano[] = [];
+  for (const mes of meses) {
+    const ultimo = anos.at(-1);
+    if (ultimo?.ano === mes.ano) ultimo.meses.push(mes);
+    else anos.push({ ano: mes.ano, meses: [mes] });
+  }
+  return anos;
+}
+
+function resumoDoAno(meses: MesDeFechamento[]): string {
+  const pendentes = meses.filter((mes) => !mes.pronto).length;
+  const situacao =
+    pendentes > 0 ? `${formatarInteiro(pendentes)} com pendência` : meses.length === 1 ? "pronta" : "todas prontas";
+  return `${plural(meses.length, "competência", "competências")} · ${situacao}`;
+}
+
 export function MesaDeFechamento({ meses }: { meses: MesDeFechamento[] }) {
   const [filtro, setFiltro] = useState<Filtro>("todos");
   const [selecionado, setSelecionado] = useState<string | null>(meses[0]?.chave ?? null);
+  // os anos passados que a pessoa abriu para ver também os meses prontos
+  const [prontosAbertos, setProntosAbertos] = useState<ReadonlySet<string>>(new Set());
+  // os anos recolhidos inteiros pelo título, para chegar ao seguinte sem rolar por eles
+  const [anosFechados, setAnosFechados] = useState<ReadonlySet<string>>(new Set());
 
   const visiveis = meses.filter((mes) => passaNoFiltro(mes, filtro));
   // se o filtro esconder o selecionado, o painel passa ao primeiro visível
   const aberto = visiveis.find((mes) => mes.chave === selecionado) ?? visiveis[0] ?? null;
 
+  // Com mais de um ano, cada ano vira um bloco com título, que recolhe o ano inteiro. Do ano corrente
+  // aparecem todos os meses; dos anteriores, só o que ainda pede decisão, e os prontos abrem no botão.
+  // Num ano só, a grade segue sem título, como sempre foi. No filtro de prontos nada recolhe: é o
+  // que se pediu para ver.
+  const anos = agruparPorAno(visiveis);
+  const comTitulo = anos.length > 1;
+  const anoCorrente = meses[0]?.ano;
+
   return (
     <div className="extratos-corpo">
-      <div className="pills segmentado" role="group" aria-label="Filtrar meses">
-        {FILTROS.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            className="pill"
-            aria-pressed={filtro === item.id}
-            onClick={() => setFiltro(item.id)}
-          >
-            {item.rotulo} ({meses.filter((mes) => passaNoFiltro(mes, item.id)).length})
-          </button>
-        ))}
-      </div>
+      {/* a faixa dos filtros fica presa sob a barra do topo enquanto os meses rolam */}
+      <FaixaFiltros>
+        <div className="pills segmentado" role="group" aria-label="Filtrar meses">
+          {FILTROS.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              className="pill"
+              aria-pressed={filtro === item.id}
+              onClick={() => setFiltro(item.id)}
+            >
+              {item.rotulo} ({meses.filter((mes) => passaNoFiltro(mes, item.id)).length})
+            </button>
+          ))}
+        </div>
+      </FaixaFiltros>
 
       {aberto === null ? (
         <p className="extratos-vazio">{FILTROS.find((item) => item.id === filtro)?.vazio}</p>
       ) : (
-        <div className="extratos-area">
-          <div className="extratos-grade">
-            {visiveis.map((mes) => {
-              const selo = seloDoMes(mes);
-              return (
-                <button
-                  key={mes.chave}
-                  type="button"
-                  className="extrato-cartao"
-                  // hover e seleção na cor do selo, como na galeria de extratos
-                  data-tom={selo.tom}
-                  aria-pressed={mes.chave === aberto.chave}
-                  onClick={() => setSelecionado(mes.chave)}
+        <div className="extratos-area fech-area">
+          <div className="grupos">
+            {anos.map(({ ano, meses: doAno }) => {
+              const recolhivel = comTitulo && filtro === "todos" && ano !== anoCorrente;
+              const expandido = !recolhivel || prontosAbertos.has(ano);
+              // o mês aberto no painel fica à vista mesmo pronto, para a folha não sumir debaixo dele
+              const mostrados = expandido ? doAno : doAno.filter((mes) => !mes.pronto || mes.chave === aberto.chave);
+              const ocultos = doAno.length - mostrados.length;
+              const temProntos = doAno.some((mes) => mes.pronto);
+              const id = `fech-ano-${ano}`;
+              const conteudo = (
+                <>
+                  <div id={`${id}-meses`} className="extratos-grade" hidden={mostrados.length === 0}>
+                    {mostrados.map((mes) => {
+                      const selo = seloDoMes(mes);
+                      return (
+                        <button
+                          key={mes.chave}
+                          type="button"
+                          className="extrato-cartao"
+                          // hover e seleção na cor do selo, como na galeria de extratos
+                          data-tom={selo.tom}
+                          aria-pressed={mes.chave === aberto.chave}
+                          onClick={() => setSelecionado(mes.chave)}
+                        >
+                          <FolhaDoMes mes={mes} />
+                          <span className="extrato-nome">{mes.titulo}</span>
+                          <span className="extrato-meta">
+                            {`${formatarInteiro(mes.conciliados)} de ${plural(mes.lancamentos, "lançamento", "lançamentos")}`}
+                          </span>
+                          <span className={`selo selo-${selo.tom}`}>{selo.rotulo}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {recolhivel && (expandido ? temProntos : ocultos > 0) && (
+                    <button
+                      type="button"
+                      className="btn btn-ghost grupo-alternar"
+                      aria-expanded={expandido}
+                      aria-controls={`${id}-meses`}
+                      onClick={() => setProntosAbertos(alternarNoConjunto(ano))}
+                    >
+                      {expandido
+                        ? doAno.filter((mes) => mes.pronto).length === 1
+                          ? "Esconder o mês pronto"
+                          : "Esconder os meses prontos"
+                        : ocultos === 1
+                          ? "Mostrar o mês pronto"
+                          : `Mostrar os ${formatarInteiro(ocultos)} meses prontos`}
+                    </button>
+                  )}
+                </>
+              );
+              return comTitulo ? (
+                <Grupo
+                  key={ano}
+                  id={id}
+                  titulo={ano}
+                  resumo={resumoDoAno(doAno)}
+                  fechado={anosFechados.has(ano)}
+                  onAlternar={() => setAnosFechados(alternarNoConjunto(ano))}
                 >
-                  <FolhaDoMes mes={mes} />
-                  <span className="extrato-nome">{mes.titulo}</span>
-                  <span className="extrato-meta">
-                    {`${formatarInteiro(mes.conciliados)} de ${plural(mes.lancamentos, "lançamento", "lançamentos")}`}
-                  </span>
-                  <span className={`selo selo-${selo.tom}`}>{selo.rotulo}</span>
-                </button>
+                  {conteudo}
+                </Grupo>
+              ) : (
+                <div key={ano} className="grupo-corpo">
+                  {conteudo}
+                </div>
               );
             })}
           </div>
@@ -151,7 +236,7 @@ export function Painel({ mes }: { mes: MesDeFechamento }) {
   const ultima = mes.pares[0].execucao.executadaEm;
 
   return (
-    <section className="extrato-painel" aria-label="Mês selecionado">
+    <section className="extrato-painel fech-painel" aria-label="Mês selecionado">
       <h6 style={{ margin: 0 }}>Fechamento · {mes.pronto ? "pronto para fechar" : "em aberto"}</h6>
       <div className="extrato-painel-topo">
         <h3 className="extrato-painel-nome">{mes.titulo}</h3>

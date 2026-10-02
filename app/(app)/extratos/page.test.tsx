@@ -28,6 +28,7 @@ const ARQUIVOS: ArquivoExtrato[] = [
     situacao: "concluido",
     lancamentos: 4218,
     erros: [],
+    competencia: "2026-09",
   },
   {
     id: "s-set",
@@ -38,6 +39,7 @@ const ARQUIVOS: ArquivoExtrato[] = [
     situacao: "concluido",
     lancamentos: 4203,
     erros: [],
+    competencia: "2026-09",
   },
 ];
 
@@ -55,8 +57,9 @@ describe("ExtratosPage", () => {
     listarExtratos.mockResolvedValue({ ok: true, dados: ARQUIVOS });
     await renderizar();
 
-    expect(screen.getByRole("heading", { level: 1, name: "Extratos" })).toBeInTheDocument();
-    expect(screen.getByText("2 arquivos")).toBeInTheDocument();
+    const titulo = screen.getByRole("heading", { level: 1, name: "Extratos" });
+    // a contagem vai no cabeçalho, sob o título (o grupo do mês repete a dele, que aqui é a mesma)
+    expect(titulo.nextElementSibling).toHaveTextContent("2 arquivos");
     // "Nova conciliação" já está no menu: o cabeçalho não repete o botão dourado
     expect(screen.queryByRole("link", { name: "Carregar arquivo" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /sicredi-setembro\.ofx/ })).toBeInTheDocument();

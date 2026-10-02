@@ -1557,10 +1557,6 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
 /* reaproveita .grade-colunas (3 colunas com filete, 1 por linha até 760px) */
 .dash-resumo { --grade-recuo: 28px; border-block: 1px solid var(--color-divider); }
 .dash-resumo > * { display: flex; flex-direction: column; gap: 10px; padding-block: 24px; }
-.dash-rotulo {
-  font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase;
-  color: color-mix(in srgb, var(--color-text) 55%, transparent);
-}
 .dash-valor {
   font-family: var(--font-heading); font-size: 44px; font-weight: 400; line-height: 1;
   font-variant-numeric: tabular-nums; white-space: nowrap;
@@ -1570,22 +1566,6 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
 .dash-analise {
   display: flex; flex-wrap: wrap; gap: 26px 32px; align-items: stretch;
   border-bottom: 1px solid var(--color-divider); padding-bottom: 32px;
-}
-.dash-sugestoes { flex: 1 1 420px; min-width: 0; }
-.dash-sugestao {
-  display: flex; gap: 18px; align-items: flex-start;
-  padding: 16px 0; border-bottom: 1px solid var(--color-divider);
-}
-.dash-sugestao-num {
-  flex: none; font-family: var(--font-heading); font-size: 22px; font-weight: 400;
-  line-height: 1.1; font-variant-numeric: tabular-nums; color: var(--color-accent);
-}
-.dash-sugestao-titulo {
-  font-family: var(--font-heading); font-size: 17.5px; font-weight: 600; line-height: 1.28;
-}
-.dash-sugestao-texto {
-  font-size: 15px; line-height: 1.72; text-wrap: pretty;
-  color: color-mix(in srgb, var(--color-text) 74%, transparent);
 }
 .dash-destaque {
   flex: 0 1 250px; min-width: 210px;
@@ -1630,19 +1610,10 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
   .dash-resumo > :first-child { padding-top: 0; }
   .dash-resumo > :last-child { padding-bottom: 0; }
   .dash-valor { font-size: 36px; }
-  .dash-sugestao { flex-wrap: wrap; }
-}
-
-@media (max-width: 480px) {
-  /* no celular o contador brigava com o título em duas linhas */
-  .dash-sugestoes-contagem { display: none; }
 }
 
 /* ── Detalhe da divergência ─────────────────────────────────────────────────── */
-.det-kicker {
-  font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase;
-  color: var(--texto-apagado); font-variant-numeric: tabular-nums; margin-bottom: 8px;
-}
+.det-kicker { font-variant-numeric: tabular-nums; margin-bottom: 8px; }
 .det-corpo {
   padding: 32px 0 64px;
   display: flex; flex-direction: column; gap: 32px;
@@ -1814,10 +1785,7 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
   border: 1px solid;
   border-radius: var(--radius-sm) var(--radius-sm) 0 0;
 }
-.hist-barra-mes {
-  font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; text-align: center;
-  color: color-mix(in srgb, var(--color-text) 55%, transparent);
-}
+.hist-barra-mes { text-align: center; }
 .hist-economia {
   display: flex; flex-wrap: wrap; gap: 26px 34px; align-items: center;
   border-top: 1px solid var(--color-divider); padding-top: 28px;
@@ -1916,12 +1884,19 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
    título para cima: lista, tabela e botão seguem em Inter. Algarismos
    alinhados: os de estilo antigo sobem e descem, e em valor isso atrapalha. */
 :is(.app-shell, .vitrine-app, .demonstracao-folhas) :is(h1, h2, h3),
-:is(.app-shell, .vitrine-app, .demonstracao-folhas) :is(.dash-valor, .hist-destaque, .det-valor, .vg-estado-aberto, .folha-nome, .det-cartao-titulo) {
+:is(.app-shell, .vitrine-app, .demonstracao-folhas) :is(.dash-valor, .hist-destaque, .det-valor, .det-delta-valor, .vg-estado-aberto, .folha-nome, .det-cartao-titulo, .det-causa-titulo, .dialog-title),
+.font-titulo {
   font-family: var(--font-titulo); font-variant-numeric: lining-nums tabular-nums;
 }
 /* título de passo tem 18px: fica na Inter, como o resto do texto corrido */
 .app-shell .vg-passo-titulo { font-family: var(--font-heading); }
 :is(.app-shell, .vitrine-app, .demonstracao-folhas) h6 { color: var(--texto-apagado); }
+/* Rótulo pequeno em caixa alta: o "lançamentos processados" em cima do número, o "atual" do plano,
+   o "assistente" do menu. Uma régua só, com o espaçamento do h6 do guia (+0,08em); o h6, em 14px, é
+   o rótulo de seção, e o cabeçalho de tabela fica nos 11px dele, junto com a tabela. */
+.rotulo, .dash-rotulo, .det-kicker, .hist-barra-mes, .app-assistente-chamada, .ass-plano-atual {
+  font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--texto-apagado);
+}
 
 /* ── Comparação em duas folhas ────────────────────────────────────────────────
    O extrato do banco e o do sistema são coisas diferentes: cada um é uma folha de
@@ -2026,7 +2001,7 @@ html[data-tema="escuro"] .app-shell {
   gap: 8px 24px;
 }
 .vg-estado-titulo {
-  margin: 0; font-family: var(--font-heading); font-size: 34px; font-weight: 400;
+  margin: 0; font-size: 34px; font-weight: 400;
   line-height: 1.1; font-variant-numeric: tabular-nums; text-wrap: balance;
 }
 .vg-estado-aberto {
@@ -2215,10 +2190,58 @@ html[data-tema="escuro"] .app-shell {
    Galeria do design (cartaoArquivo em Ledgr.dc.html): cada arquivo é uma folha
    3:4 com linhas desenhadas, e as linhas douradas marcam arquivo com linha não
    lida. O selecionado abre no painel da direita; até 1000px o painel desce. */
-.extratos-corpo { display: flex; flex-direction: column; gap: 22px; }
+/* --extratos-filtros-altura é a altura da faixa, que o painel usa para grudar abaixo dela: a faixa
+   se mede (<FaixaFiltros>) porque em tela estreita os filtros quebram em duas linhas; 58px é a de
+   uma linha, até a medição chegar */
+.extratos-corpo { display: flex; flex-direction: column; gap: 22px; --extratos-filtros-altura: 58px; }
+/* Na rolagem só as folhas correm (aqui e no fechamento): a faixa dos filtros gruda sob a barra do
+   topo, da cor da página, para os cartões passarem por baixo dela, e o painel gruda logo abaixo da
+   faixa. Até 1000px nada gruda: o painel desce para baixo das folhas. */
+.extratos-filtros {
+  position: sticky; top: var(--app-topo-altura, 0px); z-index: 10;
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 20px;
+  /* constante, não a variável: a faixa escreve a variável com a própria altura, e com ela aqui
+     nunca mais encolheria depois de quebrar em duas linhas */
+  min-height: 58px;
+  /* a faixa cresce para cima e para baixo sem tirar as pílulas do lugar */
+  margin-block: -10px; background: var(--color-bg);
+}
+.extratos-agrupar { display: flex; align-items: center; gap: 10px; }
+.extratos-agrupar-rotulo {
+  font-size: 13px; color: color-mix(in srgb, var(--color-text) 62%, transparent);
+}
 .extratos-area {
   display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 28px; align-items: start;
 }
+/* Lista agrupada (<Grupo>): os anos do fechamento, os meses ou anos dos extratos. Um bloco por
+   grupo, com o título e o resumo sobre um filete; o título inteiro recolhe o bloco. */
+.grupos { min-width: 0; display: flex; flex-direction: column; gap: 30px; }
+.grupo, .grupo-corpo { display: flex; flex-direction: column; gap: 14px; }
+.grupo-topo {
+  display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 2px 12px;
+  padding-bottom: 8px; border-bottom: 1px solid var(--color-divider);
+}
+.grupo-titulo { margin: 0; flex: 1 1 auto; font-size: 22px; font-weight: 600; }
+/* alvo largo: o título inteiro é o botão, e a seta diz se o bloco está aberto */
+.grupo-botao {
+  width: 100%; display: flex; align-items: center; gap: 8px; padding: 2px 0; cursor: pointer;
+  border: none; background: transparent; color: inherit; font: inherit; text-align: left;
+}
+.grupo-botao:focus-visible { outline-offset: 4px; border-radius: var(--radius-sm); }
+.grupo-seta {
+  flex: none; color: color-mix(in srgb, var(--color-text) 55%, transparent);
+  transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+.grupo-botao[aria-expanded="false"] .grupo-seta { transform: rotate(-90deg); }
+.grupo-botao:hover .grupo-seta { color: var(--color-text); }
+@media (prefers-reduced-motion: reduce) {
+  .grupo-seta { transition: none; }
+}
+.grupo-meta {
+  font-size: 13px; font-variant-numeric: tabular-nums;
+  color: color-mix(in srgb, var(--color-text) 62%, transparent);
+}
+.grupo-alternar { align-self: flex-start; font-size: 13.5px; }
 .extratos-grade {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 22px 18px;
 }
@@ -2283,7 +2306,11 @@ html[data-tema="escuro"] .app-shell {
   color: color-mix(in srgb, var(--color-text) 62%, transparent);
 }
 .extrato-painel {
-  position: sticky; top: 24px; display: flex; flex-direction: column; gap: 14px;
+  position: sticky; display: flex; flex-direction: column; gap: 14px;
+  top: calc(var(--app-topo-altura, 0px) + var(--extratos-filtros-altura, 0px) + 6px);
+  /* mais alto que a janela, rola por dentro: preso, o pé dele ficaria fora de alcance */
+  max-height: calc(100vh - var(--app-topo-altura, 0px) - var(--extratos-filtros-altura, 0px) - 24px);
+  overflow-y: auto; overscroll-behavior: contain;
   padding: 22px; border: 1px solid var(--color-divider); border-radius: var(--radius-md);
 }
 .extrato-painel-topo { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
@@ -2310,7 +2337,8 @@ html[data-tema="escuro"] .app-shell {
 }
 @media (max-width: 1000px) {
   .extratos-area { grid-template-columns: 1fr; }
-  .extrato-painel { position: static; }
+  .extratos-filtros { position: static; }
+  .extrato-painel { position: static; max-height: none; overflow: visible; }
 }
 
 /* ── Shell do app: menu lateral + barra superior ─────────────────────────────
@@ -2417,10 +2445,6 @@ html[data-tema="escuro"] .app-shell {
 .app-assistente:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
 .app-assistente-mascote { flex: none; width: 36px; height: 36px; object-fit: contain; }
 .app-assistente-texto { display: flex; flex-direction: column; gap: 1px; }
-.app-assistente-chamada {
-  font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase;
-  color: var(--texto-apagado);
-}
 .app-assistente-titulo {
   font-family: var(--font-heading); font-size: 16px; font-weight: 600; line-height: 1.15;
 }
@@ -2447,7 +2471,10 @@ html[data-tema="escuro"] .app-shell {
   font-family: var(--font-heading); font-size: 13px; font-weight: 600;
   color: color-mix(in srgb, var(--color-text) 72%, transparent);
 }
-.app-conta-texto { flex: 1 1 auto; display: flex; flex-direction: column; gap: 1px; }
+/* min-width: 0 deixa o texto encolher abaixo do nome inteiro, como no .app-rotulo do menu: sem ele,
+   o item flex mede o nome da empresa (nowrap), passa por baixo do botão de tema e empurra a seta
+   para fora do rodapé, e as reticências nunca entram */
+.app-conta-texto { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
 .app-conta-nome, .app-conta-empresa {
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
@@ -2744,6 +2771,9 @@ html:has(.app-shell) { scrollbar-gutter: stable; }
 .app-principal {
   min-width: 0; position: relative;
   --recuo-lateral: max(clamp(16px, 3.5vw, 40px), calc((100% - 1240px) / 2));
+  /* a altura da barra do topo em tela larga (busca e Avisos numa linha): o que gruda na rolagem
+     dentro do conteúdo gruda abaixo dela, não por baixo */
+  --app-topo-altura: 78px;
 }
 .app-topo {
   position: sticky; top: 0; z-index: 45;
@@ -3312,12 +3342,25 @@ html[data-tema="escuro"] .app-shell {
   color: color-mix(in srgb, var(--color-text) 62%, transparent);
 }
 
+/* Os meses são a lista e o painel é o que se lê: o painel fica com dois terços da largura, em vez dos
+   320px do painel de extratos, e os passos correm em duas colunas. Com 320px o fechamento em aberto
+   descia uns 600px abaixo da tela, ao lado de uma grade quase vazia. Até 1000px o painel desce. */
+.fech-area { grid-template-columns: minmax(170px, 1fr) minmax(0, 2fr); }
+.fech-painel { container-type: inline-size; }
+@media (max-width: 1000px) {
+  .fech-area { grid-template-columns: 1fr; }
+}
+
 .fech-progresso { display: flex; flex-direction: column; gap: 8px; }
 .fech-progresso .vg-nota { font-size: 13.5px; }
 
 .fech-passos {
   list-style: none; margin: 0; padding: 0;
   display: flex; flex-direction: column; border-top: 1px solid var(--color-divider);
+}
+/* cada célula leva o filete de baixo; a grade iguala a altura da linha, e os filetes se alinham */
+@container (min-width: 560px) {
+  .fech-passos { display: grid; grid-template-columns: 1fr 1fr; column-gap: 28px; }
 }
 .fech-passo {
   display: flex; gap: 10px; padding: 12px 0; border-bottom: 1px solid var(--color-divider);
@@ -3334,8 +3377,11 @@ html[data-tema="escuro"] .app-shell {
   font-size: 13.5px; line-height: 1.5; overflow-wrap: anywhere;
   color: color-mix(in srgb, var(--color-text) 66%, transparent);
 }
+/* o tamanho vai na lista, não só no link: o <li> herdava o corpo (20px em tela larga), e cada linha
+   do link ocupava os 32px da entrelinha dele */
 .fech-passo-lista {
   list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px;
+  font-size: 13.5px; line-height: 1.5;
 }
 .fech-pendencia { display: flex; align-items: center; gap: 8px; font-size: 13.5px; }
 .fech-pendencia-quantidade { margin-left: auto; font-variant-numeric: tabular-nums; }
@@ -3346,7 +3392,8 @@ html[data-tema="escuro"] .app-shell {
   text-underline-offset: 3px;
 }
 .fech-link:hover { text-decoration-color: var(--color-text); }
-.fech-relatorio { display: flex; flex-direction: column; gap: 6px; }
+/* o arquivo e o botão na mesma linha; quebra só se o nome não couber */
+.fech-relatorio { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; }
 
 /* ── Assinatura ───────────────────────────────────────────────────────────────
    Plano, planos e faturas (isAssinatura em Ledgr.dc.html). O resumo e a tabela
@@ -3427,9 +3474,6 @@ html[data-tema="escuro"] .app-shell {
 }
 .ass-plano-topo { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
 .ass-plano-nome { margin: 0; font-size: 21px; font-weight: 600; line-height: 1.2; }
-.ass-plano-atual {
-  font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--texto-apagado);
-}
 .ass-plano-valor { display: flex; align-items: baseline; gap: 6px; }
 .ass-plano-preco { font-size: 28px; font-weight: 600; line-height: 1; white-space: nowrap; }
 .ass-plano-sufixo { font-size: 13.5px; color: color-mix(in srgb, var(--color-text) 58%, transparent); }

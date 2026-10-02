@@ -158,4 +158,91 @@ describe("FechamentosPage", () => {
     await expect(FechamentosPage()).rejects.toThrow("NEXT_REDIRECT");
     expect(redirect).toHaveBeenCalledWith("/login");
   });
+
+  describe("with months from more than one year", () => {
+    const mes = (id: string, primeiraData: string, divergencias: Execucao["divergencias"] = {}) =>
+      par(id, { executadaEm: `${primeiraData.slice(0, 7)}-28T12:00:00Z`, divergencias }, { primeiraData });
+    const VARIOS_ANOS = [
+      SETEMBRO_EM_ABERTO,
+      AGOSTO_PRONTO,
+      mes("dez25", "2025-12-01", { sem_correspondencia: 3 }),
+      mes("nov25", "2025-11-01"),
+      mes("out25", "2025-10-01"),
+      mes("dez24", "2024-12-01"),
+      mes("nov24", "2024-11-01"),
+    ];
+    const ano = (nome: string) => screen.getByRole("region", { name: nome });
+
+    it("groups the months under a heading per year, the most recent year first", async () => {
+      await renderizar(VARIOS_ANOS);
+
+      const anos = screen.getAllByRole("heading", { level: 2 }).map((titulo) => titulo.textContent);
+      expect(anos).toEqual(["2026", "2025", "2024"]);
+      expect(within(ano("2025")).getByText("3 competências · 1 com pendência")).toBeInTheDocument();
+    });
+
+    it("shows every month of the current year, and only the months still open from past years", async () => {
+      await renderizar(VARIOS_ANOS);
+
+      expect(within(ano("2026")).getByRole("button", { name: /Setembro de 2026/ })).toBeInTheDocument();
+      expect(within(ano("2026")).getByRole("button", { name: /Agosto de 2026/ })).toBeInTheDocument();
+      expect(within(ano("2025")).getByRole("button", { name: /Dezembro de 2025/ })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /Novembro de 2025/ })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /Dezembro de 2024/ })).not.toBeInTheDocument();
+    });
+
+    it("folds a past year that is all ready into one line, and opens it on click", async () => {
+      const user = userEvent.setup();
+      await renderizar(VARIOS_ANOS);
+
+      expect(within(ano("2024")).getByText("2 competências · todas prontas")).toBeInTheDocument();
+      const mostrar = within(ano("2024")).getByRole("button", { name: "Mostrar os 2 meses prontos" });
+      expect(mostrar).toHaveAttribute("aria-expanded", "false");
+
+      await user.click(mostrar);
+
+      expect(within(ano("2024")).getByRole("button", { name: /Dezembro de 2024/ })).toBeInTheDocument();
+      expect(within(ano("2024")).getByRole("button", { name: /Novembro de 2024/ })).toBeInTheDocument();
+      expect(within(ano("2024")).getByRole("button", { name: "Esconder os meses prontos" })).toHaveAttribute(
+        "aria-expanded",
+        "true",
+      );
+    });
+
+    it("folds a whole year from its title, so the next year comes up without scrolling", async () => {
+      const user = userEvent.setup();
+      await renderizar(VARIOS_ANOS);
+
+      const titulo = within(ano("2026")).getByRole("button", { name: "2026" });
+      expect(titulo).toHaveAttribute("aria-expanded", "true");
+
+      await user.click(titulo);
+
+      expect(titulo).toHaveAttribute("aria-expanded", "false");
+      expect(screen.queryByRole("button", { name: /Setembro de 2026/ })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /Agosto de 2026/ })).not.toBeInTheDocument();
+      // o resumo continua à vista, e o próximo ano segue como estava
+      expect(within(ano("2026")).getByText("2 competências · 1 com pendência")).toBeInTheDocument();
+      expect(within(ano("2025")).getByRole("button", { name: /Dezembro de 2025/ })).toBeInTheDocument();
+
+      await user.click(titulo);
+      expect(screen.getByRole("button", { name: /Setembro de 2026/ })).toBeInTheDocument();
+    });
+
+    it("folds nothing when the filter asks for the ready months", async () => {
+      const user = userEvent.setup();
+      await renderizar(VARIOS_ANOS);
+
+      await user.click(screen.getByRole("button", { name: "Prontos para fechar (5)" }));
+
+      expect(screen.getByRole("button", { name: /Novembro de 2025/ })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /Dezembro de 2024/ })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /Mostrar/ })).not.toBeInTheDocument();
+    });
+
+    it("keeps a single year without a year heading", async () => {
+      await renderizar();
+      expect(screen.queryByRole("heading", { level: 2 })).not.toBeInTheDocument();
+    });
+  });
 });

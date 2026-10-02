@@ -12,6 +12,7 @@ import {
 } from "@/lib/adaptadores";
 import { chamarBackend, ErroBackend } from "@/lib/backend";
 import type { Conciliacao } from "@/lib/mock-data";
+import { competencia } from "../fechamentos/fechamento";
 
 /**
  * O fluxo real de conciliação, ponta a ponta, contra a API do backend:
@@ -241,33 +242,52 @@ export type ArquivoExtrato = ArquivoConciliado & {
   lancamentos: number | null;
   /** As linhas que o parser não conseguiu ler, com o motivo. */
   erros: SituacaoExtrato["erros"];
+  /** O mês do extrato (AAAA-MM), o mesmo do fechamento: a galeria agrupa por ele. */
+  competencia: string;
 };
 
 /**
- * Os arquivos enviados, para a tela de extratos: os nomes vêm das execuções e a
- * situação de cada um, de `GET /extratos/{id}`.
+ * Os arquivos enviados, para a tela de extratos: os nomes vêm das execuções, a
+ * situação de cada um de `GET /extratos/{id}` e o mês, da primeira data da
+ * conciliação mais recente em que o arquivo entrou (como no fechamento).
  *
- * ponytail: uma chamada por arquivo (em paralelo, até ~100 com as 50 execuções
- * da página). Some quando o backend tiver `GET /extratos` com a lista pronta.
+ * ponytail: uma chamada por arquivo e outra por execução (em paralelo, até ~150
+ * com as 50 execuções da página). Some quando o backend tiver `GET /extratos`
+ * com a lista pronta e o período de cada extrato.
  */
 export async function listarExtratos(): Promise<Resultado<ArquivoExtrato[]>> {
   const lista = await listarExecucoes();
   if (!lista.ok) return lista;
 
-  const arquivos = extratosDasExecucoes(lista.dados.execucoes);
-  const detalhes = await Promise.all(arquivos.map((arquivo) => situacaoDoExtrato(arquivo.id)));
+  const { execucoes } = lista.dados;
+  const arquivos = extratosDasExecucoes(execucoes);
+  const [detalhes, datas] = await Promise.all([
+    Promise.all(arquivos.map((arquivo) => situacaoDoExtrato(arquivo.id))),
+    Promise.all(execucoes.map(primeiraData)),
+  ]);
+  // o mês de cada arquivo vem da execução mais recente em que ele aparece, a mesma que dá o nome
+  const mesDoArquivo = new Map<string, string>();
+  execucoes.forEach((execucao, i) => {
+    const mes = competencia(datas[i], execucao.executadaEm);
+    for (const id of [execucao.extratoBancoId, execucao.extratoSistemaId]) {
+      if (!mesDoArquivo.has(id)) mesDoArquivo.set(id, mes);
+    }
+  });
+
   return {
     ok: true,
     dados: arquivos.map((arquivo, i) => {
       const detalhe = detalhes[i];
+      const mes = mesDoArquivo.get(arquivo.id) ?? competencia(null, arquivo.conciliadoEm);
       return detalhe.ok
         ? {
             ...arquivo,
             situacao: detalhe.dados.status,
             lancamentos: detalhe.dados.quantidade_lancamentos,
             erros: detalhe.dados.erros,
+            competencia: mes,
           }
-        : { ...arquivo, situacao: null, lancamentos: null, erros: [] };
+        : { ...arquivo, situacao: null, lancamentos: null, erros: [], competencia: mes };
     }),
   };
 }

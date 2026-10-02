@@ -26,7 +26,11 @@ if (!("IntersectionObserver" in globalThis)) {
     readonly root = null;
     readonly rootMargin = "";
     readonly thresholds: readonly number[] = [];
-    constructor(private cb: IntersectionObserverCallback) {}
+    // as opções ficam guardadas para um teste poder simular o limite (threshold) de verdade
+    constructor(
+      private cb: IntersectionObserverCallback,
+      readonly options?: IntersectionObserverInit,
+    ) {}
     observe(el: Element) {
       this.cb(
         [{ target: el, isIntersecting: true } as IntersectionObserverEntry],

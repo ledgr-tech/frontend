@@ -561,7 +561,7 @@ export function Configuracoes({
                             setBusca("");
                           }}
                         >
-                          <Icone size={17} strokeWidth={1.6} aria-hidden="true" />
+                          <Icone size={17} aria-hidden="true" />
                           {item.nome}
                         </button>
                       );

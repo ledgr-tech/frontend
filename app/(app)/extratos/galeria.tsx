@@ -1,11 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { Tom } from "@/lib/mock-data";
 import type { ArquivoExtrato } from "../conciliacoes/acoes";
 import { formatarDataHora, formatarInteiro } from "../dashboard/resumo";
+import { tituloDaCompetencia } from "../fechamentos/fechamento";
+import { FaixaFiltros } from "../faixa-filtros";
+import { Grupo, alternarNoConjunto } from "../grupo";
 import { IconeOrigem } from "../icone-origem";
+import { agrupamentoSalvo, salvarAgrupamento, type Agrupamento } from "./agrupamento";
 
 /**
  * A galeria de "Extratos carregados" do design: cada arquivo é uma folha, e o
@@ -24,6 +28,40 @@ const FILTROS: { id: Filtro; rotulo: string; vazio: string }[] = [
   { id: "sistema", rotulo: "Do sistema", vazio: "Nenhum arquivo do sistema." },
   { id: "problema", rotulo: "Com problema", vazio: "Nenhum arquivo com problema." },
 ];
+
+
+const AGRUPAMENTOS: { id: Agrupamento; rotulo: string }[] = [
+  { id: "mes", rotulo: "Mês" },
+  { id: "ano", rotulo: "Ano" },
+  { id: "nenhum", rotulo: "Nenhum" },
+];
+
+type GrupoDeArquivos = { chave: string; titulo: string; arquivos: ArquivoExtrato[] };
+
+/**
+ * Os arquivos por competência (o mês do extrato, o mesmo do fechamento) ou por ano dela, do mais
+ * recente para o mais antigo. Dentro do grupo seguem na ordem em que chegam: o mais recente antes.
+ */
+function agrupar(arquivos: ArquivoExtrato[], como: "mes" | "ano"): GrupoDeArquivos[] {
+  const grupos = new Map<string, ArquivoExtrato[]>();
+  for (const arquivo of arquivos) {
+    const chave = como === "mes" ? arquivo.competencia : arquivo.competencia.slice(0, 4);
+    grupos.set(chave, [...(grupos.get(chave) ?? []), arquivo]);
+  }
+  return [...grupos]
+    .sort(([a], [b]) => b.localeCompare(a))
+    .map(([chave, doGrupo]) => ({
+      chave,
+      titulo: como === "mes" ? tituloDaCompetencia(chave) : chave,
+      arquivos: doGrupo,
+    }));
+}
+
+function resumoDoGrupo(arquivos: ArquivoExtrato[]): string {
+  const problemas = arquivos.filter(temProblema).length;
+  const total = `${formatarInteiro(arquivos.length)} ${arquivos.length === 1 ? "arquivo" : "arquivos"}`;
+  return problemas > 0 ? `${total} · ${formatarInteiro(problemas)} com problema` : total;
+}
 
 const ORIGEM = { banco: "Extrato do banco", sistema: "Extrato do sistema de gestão" };
 
@@ -106,57 +144,112 @@ function Folha({ arquivo }: { arquivo: ArquivoExtrato }) {
 export function Galeria({ arquivos }: { arquivos: ArquivoExtrato[] }) {
   const [filtro, setFiltro] = useState<Filtro>("todos");
   const [selecionado, setSelecionado] = useState<string | null>(arquivos[0]?.id ?? null);
+  // por mês de saída (com dezenas de arquivos, a grade solta virava uma parede de folhas), até ler a
+  // escolha salva: ela só existe no navegador, e lida já no primeiro render o HTML do servidor divergiria
+  const [agrupamento, setAgrupamento] = useState<Agrupamento>("mes");
+  // os grupos recolhidos pelo título, pela chave (AAAA-MM ou AAAA), que não se repete entre os modos
+  const [fechados, setFechados] = useState<ReadonlySet<string>>(new Set());
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setAgrupamento(agrupamentoSalvo());
+  }, []);
+
+  function escolherAgrupamento(proximo: Agrupamento) {
+    salvarAgrupamento(proximo);
+    setAgrupamento(proximo);
+  }
 
   const visiveis = arquivos.filter((arquivo) => passaNoFiltro(arquivo, filtro));
   // se o filtro esconder o selecionado, o painel passa ao primeiro visível
   const aberto = visiveis.find((arquivo) => arquivo.id === selecionado) ?? visiveis[0] ?? null;
 
+  const grade = (doGrupo: ArquivoExtrato[], selecionadoId: string) => (
+    <div className="extratos-grade">
+      {doGrupo.map((arquivo) => {
+        const selo = situacao(arquivo);
+        return (
+          <button
+            key={arquivo.id}
+            type="button"
+            className="extrato-cartao"
+            // hover e seleção na cor da situação do arquivo, como o selo
+            data-tom={selo.tom}
+            aria-pressed={arquivo.id === selecionadoId}
+            onClick={() => setSelecionado(arquivo.id)}
+          >
+            <Folha arquivo={arquivo} />
+            <span className="extrato-nome">
+              <IconeOrigem origem={arquivo.origem} tamanho={15} />
+              {arquivo.nome}
+            </span>
+            <span className="extrato-meta">{conteudo(arquivo)}</span>
+            <span className={selo.tom === "neutro" ? "selo" : `selo selo-${selo.tom}`}>{selo.rotulo}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+
   return (
     <div className="extratos-corpo">
-      <div className="pills segmentado" role="group" aria-label="Filtrar arquivos">
-        {FILTROS.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            className="pill"
-            aria-pressed={filtro === item.id}
-            onClick={() => setFiltro(item.id)}
-          >
-            {item.rotulo} ({arquivos.filter((arquivo) => passaNoFiltro(arquivo, item.id)).length})
-          </button>
-        ))}
-      </div>
+      {/* a faixa fica presa sob a barra do topo enquanto as folhas rolam */}
+      <FaixaFiltros>
+        <div className="pills segmentado" role="group" aria-label="Filtrar arquivos">
+          {FILTROS.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              className="pill"
+              aria-pressed={filtro === item.id}
+              onClick={() => setFiltro(item.id)}
+            >
+              {item.rotulo} ({arquivos.filter((arquivo) => passaNoFiltro(arquivo, item.id)).length})
+            </button>
+          ))}
+        </div>
+        <div className="extratos-agrupar">
+          <span id="extratos-agrupar-rotulo" className="extratos-agrupar-rotulo">
+            Agrupar por
+          </span>
+          <div className="pills segmentado" role="group" aria-labelledby="extratos-agrupar-rotulo">
+            {AGRUPAMENTOS.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                className="pill"
+                aria-pressed={agrupamento === item.id}
+                onClick={() => escolherAgrupamento(item.id)}
+              >
+                {item.rotulo}
+              </button>
+            ))}
+          </div>
+        </div>
+      </FaixaFiltros>
 
       {aberto === null ? (
         <p className="extratos-vazio">{FILTROS.find((item) => item.id === filtro)?.vazio}</p>
       ) : (
         <div className="extratos-area">
-          <div className="extratos-grade">
-            {visiveis.map((arquivo) => {
-              const selo = situacao(arquivo);
-              return (
-                <button
-                  key={arquivo.id}
-                  type="button"
-                  className="extrato-cartao"
-                  // hover e seleção na cor da situação do arquivo, como o selo
-                  data-tom={selo.tom}
-                  aria-pressed={arquivo.id === aberto.id}
-                  onClick={() => setSelecionado(arquivo.id)}
+          {agrupamento === "nenhum" ? (
+            grade(visiveis, aberto.id)
+          ) : (
+            <div className="grupos">
+              {agrupar(visiveis, agrupamento).map((grupo) => (
+                <Grupo
+                  key={grupo.chave}
+                  id={`extratos-${grupo.chave}`}
+                  titulo={grupo.titulo}
+                  resumo={resumoDoGrupo(grupo.arquivos)}
+                  fechado={fechados.has(grupo.chave)}
+                  onAlternar={() => setFechados(alternarNoConjunto(grupo.chave))}
                 >
-                  <Folha arquivo={arquivo} />
-                  <span className="extrato-nome">
-                    <IconeOrigem origem={arquivo.origem} tamanho={15} />
-                    {arquivo.nome}
-                  </span>
-                  <span className="extrato-meta">{conteudo(arquivo)}</span>
-                  <span className={selo.tom === "neutro" ? "selo" : `selo selo-${selo.tom}`}>
-                    {selo.rotulo}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+                  {grade(grupo.arquivos, aberto.id)}
+                </Grupo>
+              ))}
+            </div>
+          )}
           <Painel arquivo={aberto} />
         </div>
       )}

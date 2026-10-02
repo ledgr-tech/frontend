@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { ArrowRight } from "lucide-react";
 import { Cabecalho } from "./cabecalho";
 import { Shell } from "./shell";
 
@@ -72,5 +73,18 @@ describe("Shell", () => {
     );
 
     expect(await screen.findByText("Telha Certa Ltda · 2 arquivos")).toBeInTheDocument();
+  });
+
+  it("desenha os ícones do menu e das telas com o traço do guia (1,75)", async () => {
+    const { container } = render(
+      <Shell email={EMAIL} empresa="Telha Certa Ltda">
+        <ArrowRight data-testid="icone-da-tela" />
+      </Shell>,
+    );
+
+    expect(await screen.findByTestId("icone-da-tela")).toHaveAttribute("stroke-width", "1.75");
+    const icones = [...container.querySelectorAll("svg.lucide")];
+    expect(icones.length).toBeGreaterThan(5);
+    for (const icone of icones) expect(icone).toHaveAttribute("stroke-width", "1.75");
   });
 });

@@ -20,7 +20,11 @@ preenchimento**, filete carregando a estrutura, identidade tipográfica.
   não são dourados.
 - **Duas fontes:** títulos (`h1`–`h3` a partir de ~20px) e números em destaque em
   Newsreader (`--font-titulo`, com tamanho óptico); o resto em Inter. A Cormorant
-  Garamond (`--font-display`) fica só na landing.
+  Garamond (`--font-display`) fica só na landing. Desde 02/10, a fonte nunca vai em
+  `style={{}}`: número ou título grande que não é `h1`–`h3` leva `.font-titulo`, e
+  rótulo pequeno em caixa alta leva `.rotulo` (12px, +0,08em; o `h6` de 14px é o
+  rótulo de seção). Os ícones Lucide têm traço 1,75 (`TRACO_ICONE`, que o Shell
+  passa a todos). `app/(app)/guia-de-estilo.test.ts` confere essas regras.
 - **Banco e sistema são duas folhas** de canto arredondado: `--folha-banco` (papel
   claro) e `--folha-sistema` (cinza quente) — mesmo matiz, só a claridade muda;
   outra cor diria "outra coisa", não "outra folha". Com o ícone de origem

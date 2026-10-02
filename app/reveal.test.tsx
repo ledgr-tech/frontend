@@ -50,6 +50,35 @@ describe("Reveal", () => {
     expect(alvo).toHaveStyle({ opacity: "1" });
     observar.mockRestore();
   });
+
+  it("revela também o bloco mais alto que a janela, que nunca fica 15% à vista", async () => {
+    // A galeria de extratos com dezenas de arquivos passa de 14 mil px, e na janela cabem uns 4% dela.
+    // O navegador só diz "visível" quando a fração à vista alcança o limite do observador: com um
+    // limite em fração da altura, o bloco nunca aparecia e a tela ficava em branco.
+    const FRACAO_A_VISTA = 0.04;
+    const observar = vi
+      .spyOn(IntersectionObserver.prototype, "observe")
+      .mockImplementation(function (this: IntersectionObserver, alvo: Element) {
+        const { cb, options } = this as unknown as {
+          cb: IntersectionObserverCallback;
+          options?: IntersectionObserverInit;
+        };
+        const limite = Number(options?.threshold ?? 0);
+        const entrada = { target: alvo, isIntersecting: FRACAO_A_VISTA >= limite, intersectionRatio: FRACAO_A_VISTA };
+        cb([entrada as IntersectionObserverEntry], this);
+      });
+    render(
+      <MotionRoot>
+        <Reveal>
+          <span>galeria comprida</span>
+        </Reveal>
+      </MotionRoot>,
+    );
+
+    const alvo = screen.getByText("galeria comprida").parentElement as HTMLElement;
+    await waitFor(() => expect(alvo).toHaveStyle({ opacity: "1" }), { timeout: 3000 });
+    observar.mockRestore();
+  });
 });
 
 describe("InkHover", () => {

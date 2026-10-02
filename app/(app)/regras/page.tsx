@@ -75,7 +75,6 @@ export default function RegrasPage() {
                     <div className="regra-titulo-linha">
                       <span
                         style={{
-                          fontFamily: "var(--font-heading)",
                           fontSize: 19,
                           fontWeight: 600,
                           lineHeight: 1.26,
@@ -123,7 +122,6 @@ export default function RegrasPage() {
                   <div style={{ flex: "1 1 340px", minWidth: 0 }}>
                     <div
                       style={{
-                        fontFamily: "var(--font-heading)",
                         fontSize: 18,
                         fontWeight: 600,
                         lineHeight: 1.26,

@@ -59,7 +59,6 @@ function CartaoExtrato({
           </span>
           <span
             style={{
-              fontFamily: "var(--font-heading)",
               fontSize: 16,
               fontWeight: 600,
               fontVariantNumeric: "tabular-nums",
@@ -267,7 +266,7 @@ export default function DetalheDivergenciaPage() {
                   >
                     Crônico, não pontual
                   </span>
-                  <span style={{ fontFamily: "var(--font-heading)", fontSize: 21, fontWeight: 600, lineHeight: 1.26 }}>
+                  <span className="font-titulo" style={{ fontSize: 21, fontWeight: 600, lineHeight: 1.26 }}>
                     O mesmo fornecedor divergiu nos {linha.cronico.length} últimos meses.
                   </span>
                 </span>
@@ -305,7 +304,7 @@ export default function DetalheDivergenciaPage() {
         <Reveal delay={0.16}>
           <details className="recolhivel">
             <summary className="recolhivel-titulo">
-              <span style={{ fontSize: 22, fontWeight: 600, fontFamily: "var(--font-heading)" }}>
+              <span className="font-titulo" style={{ fontSize: 22, fontWeight: 600 }}>
                 Histórico do lançamento
               </span>
             </summary>

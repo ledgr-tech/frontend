@@ -1,4 +1,5 @@
 import { Database, Landmark } from "lucide-react";
+import { TRACO_ICONE } from "./traco-icone";
 
 export type Origem = "banco" | "sistema";
 
@@ -16,7 +17,8 @@ export function IconeOrigem({ origem, tamanho = 17 }: { origem: Origem; tamanho?
   return (
     <Icone
       size={tamanho}
-      strokeWidth={1.5}
+      // explícito, não do Shell: o ícone também aparece na landing, fora do app
+      strokeWidth={TRACO_ICONE}
       aria-hidden="true"
       data-origem={origem}
       className="icone-origem"
