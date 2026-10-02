@@ -18,6 +18,11 @@ const carregarConciliacao = vi.fn();
 const explicarDivergencia = vi.fn();
 vi.mock("../../acoes", () => ({
   carregarConciliacao: (...args: unknown[]) => carregarConciliacao(...args),
+  // a tela carrega pela rodada; aqui ela embrulha a carga de sempre, sem rodada
+  carregarConciliacaoEmRodadas: async (...args: unknown[]) => {
+    const resposta = await carregarConciliacao(...args);
+    return resposta.ok ? { ...resposta, dados: { rodada: null, mudancas: null, ...resposta.dados } } : resposta;
+  },
   explicarDivergencia: (...args: unknown[]) => explicarDivergencia(...args),
 }));
 

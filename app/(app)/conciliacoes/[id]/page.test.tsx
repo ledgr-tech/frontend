@@ -16,6 +16,11 @@ vi.mock("next/navigation", () => ({
 const carregarConciliacao = vi.fn();
 vi.mock("../acoes", () => ({
   carregarConciliacao: (...args: unknown[]) => carregarConciliacao(...args),
+  // a tela carrega pela rodada; aqui ela embrulha a carga de sempre, sem rodada
+  carregarConciliacaoEmRodadas: async (...args: unknown[]) => {
+    const resposta = await carregarConciliacao(...args);
+    return resposta.ok ? { ...resposta, dados: { rodada: null, mudancas: null, ...resposta.dados } } : resposta;
+  },
 }));
 
 const BANCO = "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20";

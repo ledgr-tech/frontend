@@ -11,7 +11,7 @@ import {
   type ListaExecucoesAPI,
 } from "@/lib/adaptadores";
 import { chamarBackend, ErroBackend } from "@/lib/backend";
-import { execucoesVigentes } from "@/lib/rodadas";
+import { compararRodadas, execucoesVigentes, rodadasDoBanco, type Mudancas } from "@/lib/rodadas";
 import type { Conciliacao } from "@/lib/mock-data";
 import { competencia } from "../fechamentos/fechamento";
 
@@ -158,6 +158,88 @@ export async function carregarConciliacao(
   } catch (erro) {
     return traduzir(erro);
   }
+}
+
+/** A rodada que a tela mostra, e quantas o extrato do banco tem. */
+export type RodadaVista = {
+  numero: number;
+  total: number;
+  extratoSistemaId: string;
+  arquivoSistema: string;
+  executadaEm: string;
+};
+
+export type ConciliacaoEmRodadas = {
+  conciliacao: Conciliacao;
+  truncada: boolean;
+  /** Null quando o extrato não aparece nas execuções lidas: a tela abre como antes. */
+  rodada: RodadaVista | null;
+  /** O que mudou desde a rodada anterior; só na mais recente, a partir da segunda. */
+  mudancas: Mudancas | null;
+};
+
+// ponytail: as rodadas saem das primeiras páginas de /execucoes (as de um mesmo
+// extrato do banco são recentes entre si). Um filtro `?extrato_banco_id=` no
+// backend tira esta varredura.
+const PAGINAS_DE_RODADAS = 3;
+
+async function execucoesRecentes(): Promise<Resultado<Execucao[]>> {
+  const todas: Execucao[] = [];
+  for (let pagina = 0; pagina < PAGINAS_DE_RODADAS; pagina += 1) {
+    const lista = await listarExecucoes(pagina);
+    if (!lista.ok) return lista;
+    todas.push(...lista.dados.execucoes);
+    if ((pagina + 1) * lista.dados.porPagina >= lista.dados.total) break;
+  }
+  return { ok: true, dados: todas };
+}
+
+/**
+ * A conciliação de um extrato do banco numa rodada: a pedida em `extratoSistemaId`,
+ * ou a mais recente. Na mais recente, a partir da segunda, também o que mudou desde
+ * a anterior (spec 2026-10-02-conciliacao-em-rodadas). Sem as execuções do extrato,
+ * cai na carga de antes, sem rodada, em vez de dizer que a conciliação não existe.
+ */
+export async function carregarConciliacaoEmRodadas(
+  extratoBancoId: string,
+  extratoSistemaId?: string,
+): Promise<Resultado<ConciliacaoEmRodadas>> {
+  if (!pareceUuid(extratoBancoId) || (extratoSistemaId !== undefined && !pareceUuid(extratoSistemaId))) {
+    return { ok: false, status: 404, erro: "Conciliação não encontrada." };
+  }
+
+  const execucoes = await execucoesRecentes();
+  const rodadas = execucoes.ok ? rodadasDoBanco(execucoes.dados, extratoBancoId) : [];
+  const alvo = extratoSistemaId
+    ? rodadas.find((rodada) => rodada.extratoSistemaId === extratoSistemaId)
+    : rodadas.at(-1);
+
+  if (!alvo) {
+    const simples = await carregarConciliacao(extratoBancoId, extratoSistemaId);
+    return simples.ok ? { ok: true, dados: { ...simples.dados, rodada: null, mudancas: null } } : simples;
+  }
+
+  const atual = await carregarConciliacao(extratoBancoId, alvo.extratoSistemaId);
+  if (!atual.ok) return atual;
+
+  const rodada: RodadaVista = {
+    numero: alvo.numero,
+    total: rodadas.length,
+    extratoSistemaId: alvo.extratoSistemaId,
+    arquivoSistema: alvo.arquivoSistema,
+    executadaEm: alvo.execucao.executadaEm,
+  };
+
+  // a comparação é um extra: se a anterior não vier inteira, a tela abre sem ela
+  let mudancas: Mudancas | null = null;
+  if (alvo.numero === rodadas.length && alvo.numero > 1 && !atual.dados.truncada) {
+    const anterior = await carregarConciliacao(extratoBancoId, rodadas[alvo.numero - 2].extratoSistemaId);
+    if (anterior.ok && !anterior.dados.truncada) {
+      mudancas = compararRodadas(anterior.dados.conciliacao.linhas, atual.dados.conciliacao.linhas);
+    }
+  }
+
+  return { ok: true, dados: { ...atual.dados, rodada, mudancas } };
 }
 
 // 50 por página (o backend aceita até 100). As telas que resumem — visão geral,

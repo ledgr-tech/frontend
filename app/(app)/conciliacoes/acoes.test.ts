@@ -3,6 +3,7 @@ import type { ExecucaoAPI, ItemConciliacaoAPI } from "@/lib/adaptadores";
 import { ErroBackend } from "@/lib/backend";
 import {
   carregarConciliacao,
+  carregarConciliacaoEmRodadas,
   carregarFechamentos,
   carregarPainel,
   carregarVisaoGeral,
@@ -687,5 +688,74 @@ describe("carregarFechamentos", () => {
     chamarBackend.mockRejectedValue(new ErroBackend(401, "Token inválido."));
 
     expect(await carregarFechamentos()).toMatchObject({ ok: false, status: 401 });
+  });
+});
+
+describe("carregarConciliacaoEmRodadas", () => {
+  beforeEach(() => {
+    chamarBackend.mockReset();
+  });
+
+  const caminhoDasLinhas = (sistema?: string) =>
+    `/conciliacoes/${BANCO_RECENTE}?limit=1000&offset=0${sistema ? `&extrato_sistema_id=${sistema}` : ""}`;
+
+  it("sem o sistema na URL, abre a rodada mais recente", async () => {
+    backendComRodadas();
+
+    const resultado = await carregarConciliacaoEmRodadas(BANCO_RECENTE);
+    if (!resultado.ok) throw new Error(resultado.erro);
+    expect(chamarBackend).toHaveBeenCalledWith(caminhoDasLinhas(SISTEMA_V2));
+    expect(resultado.dados.rodada).toEqual({
+      numero: 2,
+      total: 2,
+      extratoSistemaId: SISTEMA_V2,
+      arquivoSistema: "e-v2-sistema.csv",
+      executadaEm: "2026-09-24T17:02:11Z",
+    });
+    expect(resultado.dados.conciliacao.extratoSistemaId).toBe(SISTEMA_V2);
+  });
+
+  it("com o sistema de uma rodada antiga, abre aquela, sem comparação", async () => {
+    backendComRodadas();
+
+    const resultado = await carregarConciliacaoEmRodadas(BANCO_RECENTE, SISTEMA_V1);
+    if (!resultado.ok) throw new Error(resultado.erro);
+    expect(chamarBackend).toHaveBeenCalledWith(caminhoDasLinhas(SISTEMA_V1));
+    expect(resultado.dados.rodada?.numero).toBe(1);
+    expect(resultado.dados.mudancas).toBeNull();
+  });
+
+  it("compara com a rodada anterior", async () => {
+    const execucoes = duasRodadas();
+    chamarBackend.mockImplementation(async (caminho: string) => {
+      if (caminho.startsWith("/execucoes")) return { total: 2, limit: 50, offset: 0, itens: execucoes };
+      // na v1 a transferência não tinha par; a v2 do sistema trouxe o lançamento
+      const bateu = caminho.endsWith(SISTEMA_V2);
+      const itens = [bateu ? { ...itemConciliacao, status: "match_exato" } : itemConciliacao];
+      return { extrato_id: BANCO_RECENTE, total: 1, limit: 1000, offset: 0, itens };
+    });
+
+    const resultado = await carregarConciliacaoEmRodadas(BANCO_RECENTE);
+    if (!resultado.ok) throw new Error(resultado.erro);
+    expect(resultado.dados.mudancas).toEqual({ passaramABater: 1, continuamDivergindo: 0, novas: 0 });
+  });
+
+  it("sem execução do extrato, abre como antes, sem rodada", async () => {
+    // o extrato é mais antigo que as páginas de /execucoes que a tela lê
+    chamarBackend.mockImplementation(async (caminho: string) => {
+      if (caminho.startsWith("/execucoes")) {
+        return { total: 1, limit: 50, offset: 0, itens: [execucao("e-outro", BANCO_ANTERIOR)] };
+      }
+      return { extrato_id: BANCO_RECENTE, total: 1, limit: 1000, offset: 0, itens: [itemConciliacao] };
+    });
+
+    const resultado = await carregarConciliacaoEmRodadas(BANCO_RECENTE);
+    expect(resultado).toMatchObject({ ok: true, dados: { rodada: null, mudancas: null } });
+    expect(chamarBackend).toHaveBeenCalledWith(caminhoDasLinhas());
+  });
+
+  it("recusa um id que não é de extrato sem chamar o backend", async () => {
+    expect(await carregarConciliacaoEmRodadas("../etc")).toMatchObject({ ok: false, status: 404 });
+    expect(chamarBackend).not.toHaveBeenCalled();
   });
 });

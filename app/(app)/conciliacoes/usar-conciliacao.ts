@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { pareceUuid } from "@/lib/adaptadores";
 import { buscarConciliacao, type Conciliacao } from "@/lib/mock-data";
-import { carregarConciliacao } from "./acoes";
+import type { Mudancas } from "@/lib/rodadas";
+import { carregarConciliacaoEmRodadas, type RodadaVista } from "./acoes";
 
 /**
  * Carrega uma conciliação, venha ela do backend ou do mock — e diz de onde veio.
@@ -23,7 +24,15 @@ export type EstadoConciliacao =
   | { situacao: "carregando" }
   | { situacao: "ausente" }
   | { situacao: "falhou" }
-  | { situacao: "pronta"; conciliacao: Conciliacao; real: boolean; truncada: boolean };
+  | {
+      situacao: "pronta";
+      conciliacao: Conciliacao;
+      real: boolean;
+      truncada: boolean;
+      /** A rodada aberta; null no mock e quando o extrato não aparece nas execuções. */
+      rodada: RodadaVista | null;
+      mudancas: Mudancas | null;
+    };
 
 /**
  * A Server Action lançou em vez de devolver um Resultado (rede caída, deploy
@@ -33,8 +42,8 @@ export const FALHA_AO_CARREGAR =
   "Não foi possível carregar a conciliação. Recarregue a página e tente de novo.";
 
 /**
- * `sistema` é o extrato do sistema do par, lido de `?sistema=` na URL; sem ele,
- * o backend devolve as linhas de todos os pares do extrato do banco.
+ * `sistema` é o extrato do sistema da rodada, lido de `?sistema=` na URL; sem ele,
+ * abre a rodada mais recente do extrato do banco.
  */
 export function useConciliacao(
   id: string,
@@ -42,9 +51,12 @@ export function useConciliacao(
 ): {
   estado: EstadoConciliacao;
   substituir: (conciliacao: Conciliacao) => void;
+  /** Carrega de novo: depois de uma rodada nova, a URL pode não ter mudado. */
+  recarregar: () => void;
 } {
   const router = useRouter();
   const [estado, setEstado] = useState<EstadoConciliacao>({ situacao: "carregando" });
+  const [vez, setVez] = useState(0);
 
   // O router fica numa ref, e fora das dependências: se ele trocar de
   // identidade entre renders, o efeito recarregaria a conciliação a cada render
@@ -61,14 +73,14 @@ export function useConciliacao(
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setEstado(
         mock
-          ? { situacao: "pronta", conciliacao: mock, real: false, truncada: false }
+          ? { situacao: "pronta", conciliacao: mock, real: false, truncada: false, rodada: null, mudancas: null }
           : { situacao: "ausente" },
       );
       return;
     }
 
     let cancelado = false;
-    carregarConciliacao(id, sistema).then(
+    carregarConciliacaoEmRodadas(id, sistema).then(
       (resposta) => {
         if (cancelado) return;
         if (!resposta.ok) {
@@ -81,6 +93,8 @@ export function useConciliacao(
           conciliacao: resposta.dados.conciliacao,
           real: true,
           truncada: resposta.dados.truncada,
+          rodada: resposta.dados.rodada,
+          mudancas: resposta.dados.mudancas,
         });
       },
       () => {
@@ -90,7 +104,7 @@ export function useConciliacao(
     return () => {
       cancelado = true;
     };
-  }, [id, sistema]);
+  }, [id, sistema, vez]);
 
   /** Depois de uma ação do mock, que devolve a conciliação já atualizada. */
   function substituir(conciliacao: Conciliacao) {
@@ -99,5 +113,5 @@ export function useConciliacao(
     );
   }
 
-  return { estado, substituir };
+  return { estado, substituir, recarregar: () => setVez((atual) => atual + 1) };
 }
