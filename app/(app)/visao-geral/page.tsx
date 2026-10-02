@@ -15,9 +15,9 @@ import {
   resumir,
 } from "../dashboard/resumo";
 import { InkHover, Reveal } from "@/app/reveal";
+import { porConciliacao } from "../historico/execucoes";
 import { GraficoDeMatch } from "../historico/grafico";
 import { IconeOrigem } from "../icone-origem";
-import { NOTA_VER_ATUAL, VerExecucao } from "../historico/ver-execucao";
 import { pendencias } from "./pendencias";
 import { Cabecalho } from "../cabecalho";
 
@@ -32,7 +32,7 @@ import { Cabecalho } from "../cabecalho";
 const FALHA_AO_CARREGAR =
   "Não foi possível carregar a visão geral. Recarregue a página e tente de novo.";
 
-/** Quantas execuções a atividade recente mostra; o resto fica no histórico. */
+/** Quantas conciliações a atividade recente mostra; o resto fica no histórico. */
 const NA_ATIVIDADE = 5;
 
 function plural(quantidade: number, singular: string, plural: string): string {
@@ -89,12 +89,13 @@ function Conteudo({
       <Reveal delay={0.16} className="vg-grade">
         <PedeAtencao conciliacao={conciliacao} arquivos={visao.arquivosComLinhasNaoLidas} />
         <section className="vg-tendencia" aria-label="Tendência da taxa de match">
-          <GraficoDeMatch execucoes={visao.execucoes} />
+          {/* só a rodada que vale: a refeita e a anterior pareceriam uma queda que não houve */}
+          <GraficoDeMatch execucoes={execucoesVigentes(visao.execucoes)} />
         </section>
       </Reveal>
 
       <Reveal delay={0.24}>
-        <AtividadeRecente execucoes={visao.execucoes.slice(0, NA_ATIVIDADE)} total={visao.total} />
+        <AtividadeRecente execucoes={visao.execucoes} total={visao.total} />
       </Reveal>
     </div>
   );
@@ -333,7 +334,14 @@ function PedeAtencao({
   );
 }
 
+/**
+ * As conciliações mais recentes, uma linha por extrato do banco com a rodada que vale, como no
+ * histórico: a rodada anterior e a refeita não aparecem soltas, e o "Ver" abre a que vale.
+ */
 function AtividadeRecente({ execucoes, total }: { execucoes: Execucao[]; total: number }) {
+  const conciliacoes = porConciliacao(execucoes);
+  const recentes = conciliacoes.slice(0, NA_ATIVIDADE);
+
   return (
     <section>
       <div className="vg-secao-topo">
@@ -356,13 +364,14 @@ function AtividadeRecente({ execucoes, total }: { execucoes: Execucao[]; total: 
             </tr>
           </thead>
           <tbody>
-            {execucoes.map((execucao) => (
-              <tr key={execucao.id}>
+            {recentes.map(({ extratoBancoId, arquivoBanco, rodadas, principal: { execucao, rodada } }) => (
+              <tr key={extratoBancoId}>
                 <td style={{ fontVariantNumeric: "tabular-nums" }}>
                   {formatarDataHora(execucao.executadaEm)}
                 </td>
                 <td style={{ overflowWrap: "anywhere" }}>
-                  {`${execucao.arquivoBanco} × ${execucao.arquivoSistema}`}
+                  {`${arquivoBanco} × ${execucao.arquivoSistema}`}
+                  {rodadas > 1 && <span className="vg-rodada">{` · rodada ${rodada}`}</span>}
                 </td>
                 <td style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
                   {formatarInteiro(execucao.lancamentos)}
@@ -371,21 +380,18 @@ function AtividadeRecente({ execucoes, total }: { execucoes: Execucao[]; total: 
                   {execucao.acerto === null ? "—" : formatarPercentual(execucao.acerto)}
                 </td>
                 <td style={{ textAlign: "right" }}>
-                  <VerExecucao execucao={execucao} />
+                  <Link href={caminhoDaConciliacao(extratoBancoId)} className="btn btn-secondary" style={{ whiteSpace: "nowrap" }}>
+                    Ver<span className="sr-only"> {arquivoBanco}</span>
+                  </Link>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      {total > execucoes.length && (
+      {(conciliacoes.length > recentes.length || total > execucoes.length) && (
         <p className="vg-nota" style={{ margin: "12px 0 0" }}>
-          {`As ${execucoes.length} mais recentes de ${formatarInteiro(total)}.`}
-        </p>
-      )}
-      {execucoes.some((execucao) => !execucao.atual) && (
-        <p className="vg-nota" style={{ margin: "12px 0 0" }}>
-          {NOTA_VER_ATUAL}
+          {`As ${formatarInteiro(recentes.length)} conciliações mais recentes. As outras estão no histórico.`}
         </p>
       )}
     </section>

@@ -288,7 +288,7 @@ describe("VisaoGeralPage", () => {
     expect(screen.getByRole("link", { name: "Ver histórico" })).toHaveAttribute("href", "/historico");
   });
 
-  it("lists the five most recent executions", async () => {
+  it("lists the five most recent conciliações, one row each", async () => {
     com();
     await renderizar();
 
@@ -296,34 +296,48 @@ describe("VisaoGeralPage", () => {
     const linhas = within(tabela).getAllByRole("row").slice(1);
     expect(linhas).toHaveLength(5);
     expect(within(linhas[0]).getByText("24/09/2026 14:02")).toBeInTheDocument();
-    expect(within(linhas[0]).getByText("sicredi-e7.ofx × erp-e7.csv")).toBeInTheDocument();
-    expect(within(linhas[0]).getByRole("link", { name: "Ver" })).toHaveAttribute(
+    expect(linhas[0]).toHaveTextContent("sicredi-e7.ofx × erp-e7.csv");
+    // pelo endereço só do banco, que abre a rodada que vale, como no histórico
+    expect(within(linhas[0]).getByRole("link", { name: "Ver sicredi-e7.ofx" })).toHaveAttribute(
       "href",
-      "/conciliacoes/banco-e7?sistema=sistema-e7",
+      "/conciliacoes/banco-e7",
     );
+    expect(screen.getByText("As 5 conciliações mais recentes. As outras estão no histórico.")).toBeInTheDocument();
   });
 
-  it("says a redone execution opens the current result of its pair", async () => {
-    com();
+  it("shows a conciliação in rounds once, with the numbers of the round that counts", async () => {
+    const setembro = { extratoBancoId: "banco-set", arquivoBanco: "sicredi-setembro.ofx" };
+    const execucoes = [
+      execucao({ id: "v2", ...setembro, extratoSistemaId: "s2", arquivoSistema: "erp-v2.csv", lancamentos: 22, acerto: 58.3 }),
+      execucao({
+        id: "v2-antes",
+        ...setembro,
+        extratoSistemaId: "s2",
+        arquivoSistema: "erp-v2.csv",
+        executadaEm: "2026-09-24T09:10:00Z",
+        acerto: 41.7,
+        atual: false,
+      }),
+      execucao({ id: "v1", ...setembro, extratoSistemaId: "s1", arquivoSistema: "erp-v1.csv", executadaEm: "2026-09-23T12:00:00Z", acerto: 33.3 }),
+      execucao({ id: "e5", executadaEm: "2026-09-02T19:20:00Z", acerto: 91.8 }),
+    ];
+    com({ execucoes, total: execucoes.length });
     await renderizar();
 
-    const tabela = screen.getByRole("table", { name: "Atividade recente" });
-    const refeita = within(tabela).getAllByRole("row")[2];
-    // e6 foi refeita: o backend só guarda a rodada mais nova de cada par, e é
-    // ela que abre — o link diz isso em vez de fingir que abre a de 23/09
-    expect(within(refeita).getByRole("link", { name: "Ver atual" })).toHaveAttribute(
-      "href",
-      "/conciliacoes/banco-e6?sistema=sistema-e6",
-    );
-    expect(screen.getByText(/Só o resultado mais recente fica guardado/)).toBeInTheDocument();
-  });
-
-  it("does not explain Ver atual when no recent execution was redone", async () => {
-    com({ execucoes: EXECUCOES.filter((item) => item.atual) });
-    await renderizar();
-
-    expect(screen.getByRole("table", { name: "Atividade recente" })).toBeInTheDocument();
+    const linhas = within(screen.getByRole("table", { name: "Atividade recente" })).getAllByRole("row").slice(1);
+    expect(linhas).toHaveLength(2);
+    expect(linhas[0]).toHaveTextContent("sicredi-setembro.ofx × erp-v2.csv · rodada 2");
+    expect(linhas[0]).toHaveTextContent("58,3%");
+    expect(linhas[1]).toHaveTextContent("sicredi-e5.ofx × erp-e5.csv");
+    expect(linhas[1]).not.toHaveTextContent("rodada");
+    // a refeita e a rodada 1 foram substituídas: nem linha, nem barra no gráfico, nem "Ver atual"
+    expect(screen.queryByRole("link", { name: "Ver atual" })).not.toBeInTheDocument();
     expect(screen.queryByText(/Só o resultado mais recente fica guardado/)).not.toBeInTheDocument();
+    expect([...document.querySelectorAll(".hist-barra-taxa")].map((taxa) => taxa.textContent)).toEqual([
+      "91,8%",
+      "58,3%",
+    ]);
+    expect(screen.queryByText(/mais recentes. As outras/)).not.toBeInTheDocument();
   });
 
   it("walks through the first steps when there is no conciliação yet", async () => {

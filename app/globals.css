@@ -2234,6 +2234,8 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
   margin-bottom: 12px;
 }
 .vg-secao-topo .vg-secao-titulo { margin: 0; }
+/* a rodada que vale, quando a conciliação já teve mais de uma (atividade recente) */
+.vg-rodada { color: color-mix(in srgb, var(--color-text) 62%, transparent); }
 .vg-tendencia .hist-grafico-bloco { border-top: none; padding-top: 4px; }
 
 .vg-lista { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--color-divider); }
