@@ -10,7 +10,7 @@ import { carregarPainel, type Painel } from "../conciliacoes/acoes";
 import {
   formatarDataHora,
   formatarInteiro,
-  estaResolvida,
+  pedeDecisao,
   formatarMoedaCurta,
   formatarPercentual,
   origemDaLinha,
@@ -169,8 +169,9 @@ function Conteudo({
   const periodo = periodoDasLinhas(recente.linhas);
   // A tabela do design mostra os sete primeiros lançamentos da competência.
   const lancamentos = recente.linhas.slice(0, 7);
-  // "Revisar agora" abre a primeira divergência em aberto; sem nenhuma, vai para a lista.
-  const primeiraEmAberto = recente.linhas.find((linha) => !estaResolvida(linha.status)) ?? null;
+  // "Revisar agora" abre a primeira divergência que ainda pede decisão (a justificada já foi
+  // decidida); sem nenhuma, vai para a lista.
+  const primeiraEmAberto = recente.linhas.find(pedeDecisao) ?? null;
   const hrefPrimeiroCaso = caminhoDaConciliacao(
     recente.id,
     recente.extratoSistemaId,

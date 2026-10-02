@@ -190,6 +190,25 @@ describe("DashboardPage", () => {
     );
   });
 
+  it("opens the first divergence that still needs a decision, past the justified ones", async () => {
+    painel({
+      ...conciliacao("banco-9", [
+        {
+          ...linha("l-1", "sem_correspondencia", 4180, null),
+          decisao: { tipo: "justificada", texto: "Adiantamento.", autor: "Eduardo", em: "2026-09-30T13:12:00Z", rodada: 1 },
+        },
+        linha("l-2", "sem_correspondencia", null, 2150),
+      ]),
+      extratoSistemaId: "sistema-9",
+    });
+    render(<DashboardPage />);
+
+    expect(await screen.findByRole("link", { name: "Revisar agora" })).toHaveAttribute(
+      "href",
+      "/conciliacoes/banco-9/l-2?sistema=sistema-9",
+    );
+  });
+
   it("does not show the suggestions, which have no data behind them yet", async () => {
     painel(conciliacao("banco-1", [linha("l-1", "divergente_valor", 12640, 12604)]));
     render(<DashboardPage />);
