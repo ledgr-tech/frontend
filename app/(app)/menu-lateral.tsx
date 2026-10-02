@@ -46,9 +46,9 @@ const ITENS: ItemMenu[] = [
   { nome: "Assinatura", icone: CreditCard, href: "/assinatura" },
 ];
 
-// Traço fino e cor do texto: o ícone acompanha o filete do sistema em vez de
-// competir com o nome do item.
-const ICONE = { size: 18, strokeWidth: 1.5, "aria-hidden": true } as const;
+// Na cor do texto, com o traço do guia que o Shell passa a todo ícone (traco-icone.ts):
+// o ícone acompanha o filete do sistema em vez de competir com o nome do item.
+const ICONE = { size: 18, "aria-hidden": true } as const;
 
 function estaAtivo(item: ItemMenu, caminho: string): boolean {
   if (caminho === item.href) return true;

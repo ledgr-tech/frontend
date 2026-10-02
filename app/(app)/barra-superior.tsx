@@ -204,7 +204,7 @@ export function BarraSuperior() {
           aria-expanded={avisosAbertos}
           onClick={() => setAvisosAbertos((aberto) => !aberto)}
         >
-          <span style={{ fontFamily: "var(--font-heading)", fontSize: 15 }}>Avisos</span>
+          <span style={{ fontSize: 15 }}>Avisos</span>
           {/* a conta só depois da leitura: um zero antes dela seria chute */}
           {visao && (
             <span className={naoLidos > 0 ? "app-avisos-conta app-avisos-conta-ativa" : "app-avisos-conta"}>
@@ -216,7 +216,7 @@ export function BarraSuperior() {
         {avisosAbertos && (
           <div className="app-painel app-avisos-painel">
             <div className="app-avisos-topo">
-              <span style={{ fontFamily: "var(--font-heading)", fontSize: 17, fontWeight: 600 }}>
+              <span style={{ fontSize: 17, fontWeight: 600 }}>
                 Avisos
               </span>
               {naoLidos > 0 && (

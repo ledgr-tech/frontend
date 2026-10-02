@@ -1557,10 +1557,6 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
 /* reaproveita .grade-colunas (3 colunas com filete, 1 por linha até 760px) */
 .dash-resumo { --grade-recuo: 28px; border-block: 1px solid var(--color-divider); }
 .dash-resumo > * { display: flex; flex-direction: column; gap: 10px; padding-block: 24px; }
-.dash-rotulo {
-  font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase;
-  color: color-mix(in srgb, var(--color-text) 55%, transparent);
-}
 .dash-valor {
   font-family: var(--font-heading); font-size: 44px; font-weight: 400; line-height: 1;
   font-variant-numeric: tabular-nums; white-space: nowrap;
@@ -1570,22 +1566,6 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
 .dash-analise {
   display: flex; flex-wrap: wrap; gap: 26px 32px; align-items: stretch;
   border-bottom: 1px solid var(--color-divider); padding-bottom: 32px;
-}
-.dash-sugestoes { flex: 1 1 420px; min-width: 0; }
-.dash-sugestao {
-  display: flex; gap: 18px; align-items: flex-start;
-  padding: 16px 0; border-bottom: 1px solid var(--color-divider);
-}
-.dash-sugestao-num {
-  flex: none; font-family: var(--font-heading); font-size: 22px; font-weight: 400;
-  line-height: 1.1; font-variant-numeric: tabular-nums; color: var(--color-accent);
-}
-.dash-sugestao-titulo {
-  font-family: var(--font-heading); font-size: 17.5px; font-weight: 600; line-height: 1.28;
-}
-.dash-sugestao-texto {
-  font-size: 15px; line-height: 1.72; text-wrap: pretty;
-  color: color-mix(in srgb, var(--color-text) 74%, transparent);
 }
 .dash-destaque {
   flex: 0 1 250px; min-width: 210px;
@@ -1630,19 +1610,10 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
   .dash-resumo > :first-child { padding-top: 0; }
   .dash-resumo > :last-child { padding-bottom: 0; }
   .dash-valor { font-size: 36px; }
-  .dash-sugestao { flex-wrap: wrap; }
-}
-
-@media (max-width: 480px) {
-  /* no celular o contador brigava com o título em duas linhas */
-  .dash-sugestoes-contagem { display: none; }
 }
 
 /* ── Detalhe da divergência ─────────────────────────────────────────────────── */
-.det-kicker {
-  font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase;
-  color: var(--texto-apagado); font-variant-numeric: tabular-nums; margin-bottom: 8px;
-}
+.det-kicker { font-variant-numeric: tabular-nums; margin-bottom: 8px; }
 .det-corpo {
   padding: 32px 0 64px;
   display: flex; flex-direction: column; gap: 32px;
@@ -1814,10 +1785,7 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
   border: 1px solid;
   border-radius: var(--radius-sm) var(--radius-sm) 0 0;
 }
-.hist-barra-mes {
-  font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; text-align: center;
-  color: color-mix(in srgb, var(--color-text) 55%, transparent);
-}
+.hist-barra-mes { text-align: center; }
 .hist-economia {
   display: flex; flex-wrap: wrap; gap: 26px 34px; align-items: center;
   border-top: 1px solid var(--color-divider); padding-top: 28px;
@@ -1916,12 +1884,19 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
    título para cima: lista, tabela e botão seguem em Inter. Algarismos
    alinhados: os de estilo antigo sobem e descem, e em valor isso atrapalha. */
 :is(.app-shell, .vitrine-app, .demonstracao-folhas) :is(h1, h2, h3),
-:is(.app-shell, .vitrine-app, .demonstracao-folhas) :is(.dash-valor, .hist-destaque, .det-valor, .vg-estado-aberto, .folha-nome, .det-cartao-titulo) {
+:is(.app-shell, .vitrine-app, .demonstracao-folhas) :is(.dash-valor, .hist-destaque, .det-valor, .det-delta-valor, .vg-estado-aberto, .folha-nome, .det-cartao-titulo, .det-causa-titulo, .dialog-title),
+.font-titulo {
   font-family: var(--font-titulo); font-variant-numeric: lining-nums tabular-nums;
 }
 /* título de passo tem 18px: fica na Inter, como o resto do texto corrido */
 .app-shell .vg-passo-titulo { font-family: var(--font-heading); }
 :is(.app-shell, .vitrine-app, .demonstracao-folhas) h6 { color: var(--texto-apagado); }
+/* Rótulo pequeno em caixa alta: o "lançamentos processados" em cima do número, o "atual" do plano,
+   o "assistente" do menu. Uma régua só, com o espaçamento do h6 do guia (+0,08em); o h6, em 14px, é
+   o rótulo de seção, e o cabeçalho de tabela fica nos 11px dele, junto com a tabela. */
+.rotulo, .dash-rotulo, .det-kicker, .hist-barra-mes, .app-assistente-chamada, .ass-plano-atual {
+  font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--texto-apagado);
+}
 
 /* ── Comparação em duas folhas ────────────────────────────────────────────────
    O extrato do banco e o do sistema são coisas diferentes: cada um é uma folha de
@@ -2026,7 +2001,7 @@ html[data-tema="escuro"] .app-shell {
   gap: 8px 24px;
 }
 .vg-estado-titulo {
-  margin: 0; font-family: var(--font-heading); font-size: 34px; font-weight: 400;
+  margin: 0; font-size: 34px; font-weight: 400;
   line-height: 1.1; font-variant-numeric: tabular-nums; text-wrap: balance;
 }
 .vg-estado-aberto {
@@ -2417,10 +2392,6 @@ html[data-tema="escuro"] .app-shell {
 .app-assistente:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
 .app-assistente-mascote { flex: none; width: 36px; height: 36px; object-fit: contain; }
 .app-assistente-texto { display: flex; flex-direction: column; gap: 1px; }
-.app-assistente-chamada {
-  font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase;
-  color: var(--texto-apagado);
-}
 .app-assistente-titulo {
   font-family: var(--font-heading); font-size: 16px; font-weight: 600; line-height: 1.15;
 }
@@ -3427,9 +3398,6 @@ html[data-tema="escuro"] .app-shell {
 }
 .ass-plano-topo { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
 .ass-plano-nome { margin: 0; font-size: 21px; font-weight: 600; line-height: 1.2; }
-.ass-plano-atual {
-  font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--texto-apagado);
-}
 .ass-plano-valor { display: flex; align-items: baseline; gap: 6px; }
 .ass-plano-preco { font-size: 28px; font-weight: 600; line-height: 1; white-space: nowrap; }
 .ass-plano-sufixo { font-size: 13.5px; color: color-mix(in srgb, var(--color-text) 58%, transparent); }

@@ -277,7 +277,7 @@ export default function NovaConciliacaoPage() {
             className="card cartao-arquivo"
             style={{ position: "relative", cursor: "pointer", alignItems: "center", textAlign: "center", padding: "32px 20px" }}
           >
-            <span style={{ fontFamily: "var(--font-heading)", fontSize: 20, fontWeight: 600 }}>
+            <span className="font-titulo" style={{ fontSize: 20, fontWeight: 600 }}>
               Extrato do banco
             </span>
             <span style={{ fontSize: 14, color: "color-mix(in srgb, var(--color-text) 66%, transparent)" }}>
@@ -296,7 +296,7 @@ export default function NovaConciliacaoPage() {
             className="card cartao-arquivo"
             style={{ position: "relative", cursor: "pointer", alignItems: "center", textAlign: "center", padding: "32px 20px" }}
           >
-            <span style={{ fontFamily: "var(--font-heading)", fontSize: 20, fontWeight: 600 }}>
+            <span className="font-titulo" style={{ fontSize: 20, fontWeight: 600 }}>
               Extrato do sistema de gestão
             </span>
             <span style={{ fontSize: 14, color: "color-mix(in srgb, var(--color-text) 66%, transparent)" }}>

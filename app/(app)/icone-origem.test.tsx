@@ -18,4 +18,10 @@ describe("IconeOrigem", () => {
     expect(icone).toHaveAttribute("data-origem", "sistema");
     expect(icone).toHaveClass("lucide-database");
   });
+
+  // também aparece na landing, fora do provedor de ícones do app: o traço vai explícito
+  it("usa o traço do guia (1,75) mesmo fora do app", () => {
+    const { container } = render(<IconeOrigem origem="banco" />);
+    expect(container.querySelector("svg")).toHaveAttribute("stroke-width", "1.75");
+  });
 });
