@@ -398,7 +398,7 @@ export default function ConciliacaoPage() {
         <Reveal delay={0.08}>
           <div className="dash-tabela-rolagem tabela-cartoes">
             <table
-              className="table tabela-folhas folhas-com-eixo"
+              className={`table tabela-folhas folhas-com-eixo${ligadas ? " eixo-com-decisao" : ""}`}
               role="table"
               // a coluna de valor cresce para o maior valor da conciliação, quando passa dos milhões
               style={larguraValor ? ({ "--valor-largura": larguraValor } as CSSProperties) : undefined}

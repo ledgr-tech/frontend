@@ -1955,6 +1955,9 @@ html[data-tema="escuro"] .app-shell {
 .folhas-com-eixo col.col-data { width: 4.5rem; }
 .folhas-com-eixo col.col-valor { width: var(--valor-largura, 10rem); }
 .folhas-com-eixo col.col-eixo { width: 9rem; }
+/* com as decisões ligadas, o eixo leva ↻, caixa e selo: o mais largo ("Falta no sistema" com os
+   dois) mede 158px no navegador, e a coluna dá 162 além do padding. Sem decisões, fica como era. */
+.folhas-com-eixo.eixo-com-decisao col.col-eixo { width: 11.25rem; }
 .dash-tabela-rolagem .folhas-com-eixo { min-width: 900px; }
 /* com a largura fixa, uma palavra mais longa que a coluna (um código de PIX) vazaria da folha */
 .folhas-com-eixo td { overflow-wrap: break-word; }
