@@ -548,6 +548,28 @@ describe("ConciliacaoPage", () => {
       expect(screen.getByRole("link", { name: "ver a mais recente" })).toHaveAttribute("href", `/conciliacoes/${BANCO}`);
     });
 
+    it("offers a new version of the system extrato only on the latest round of a real conciliação", async () => {
+      const nome = "Enviar nova versão do extrato do sistema";
+      doBackend({ rodada: RODADA_2 });
+      const primeira = render(<ConciliacaoPage />);
+      expect(await screen.findByRole("button", { name: nome })).toBeInTheDocument();
+      primeira.unmount();
+
+      // rodada passada é só para ler
+      doBackend({ rodada: { ...RODADA_2, numero: 1 } });
+      const antiga = render(<ConciliacaoPage />);
+      await screen.findByText(/Rodada 1 de 2/);
+      expect(screen.queryByRole("button", { name: nome })).not.toBeInTheDocument();
+      antiga.unmount();
+
+      // o mock não tem extrato para versionar
+      rota.id = "conc-1";
+      buscarConciliacao.mockReturnValue(conciliacaoMista);
+      render(<ConciliacaoPage />);
+      await screen.findByText("Comparação direta");
+      expect(screen.queryByRole("button", { name: nome })).not.toBeInTheDocument();
+    });
+
     it("counts what changed since the previous round", async () => {
       doBackend({ rodada: RODADA_2, mudancas: { passaramABater: 4, continuamDivergindo: 2, novas: 1 } });
       const { unmount } = render(<ConciliacaoPage />);

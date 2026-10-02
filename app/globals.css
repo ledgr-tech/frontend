@@ -1993,6 +1993,10 @@ html[data-tema="escuro"] .app-shell {
 }
 .rodada-faixa a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
 
+/* a janela da nova versão do extrato do sistema */
+.nova-versao-campo { display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
+.nova-versao-erro { white-space: normal; border-radius: var(--radius-sm); }
+
 /* o lado sem lançamento: um encaixe tracejado, não três traços */
 .folha-vazia { text-align: center; }
 .folha-vazia-marca {

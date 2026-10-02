@@ -27,6 +27,7 @@ import { aplicarDensidade, densidadeAtual, type Densidade } from "../../densidad
 import { IconeOrigem, type Origem } from "../../icone-origem";
 import { CartaoLancamento, ladosDaLinha, type CartaoAberto } from "./cartao-lancamento";
 import { Relatorio } from "./relatorio";
+import { NovaVersao } from "./nova-versao";
 import { larguraDoValor } from "./largura";
 import { Reveal } from "@/app/reveal";
 import { Cabecalho } from "../../cabecalho";
@@ -103,7 +104,7 @@ export default function ConciliacaoPage() {
   const busca = useSearchParams();
   const sistema = busca.get("sistema") || undefined;
   const router = useRouter();
-  const { estado, substituir } = useConciliacao(params.id, sistema);
+  const { estado, substituir, recarregar } = useConciliacao(params.id, sistema);
   const [linhaAberta, setLinhaAberta] = useState<LinhaComparacao | null>(null);
   const [cartao, setCartao] = useState<CartaoAberto | null>(null);
   const idCartao = useId();
@@ -218,6 +219,20 @@ export default function ConciliacaoPage() {
             rodada.total > 1 &&
             `rodada ${rodada.numero} · ${rodada.arquivoSistema}, ${formatarDataHora(rodada.executadaEm)}`,
         ]}
+        acoes={
+          // só conciliação de verdade, e só na rodada que vale: a passada é para ler
+          real &&
+          (!rodada || rodada.numero === rodada.total) && (
+            <NovaVersao
+              extratoBancoId={conciliacao.id}
+              onConcluida={() => {
+                // a URL só do banco abre a rodada mais recente; se ela já era essa, recarrega
+                router.replace(caminhoDaConciliacao(conciliacao.id));
+                recarregar();
+              }}
+            />
+          )
+        }
       />
       <div style={{ padding: "24px 0 72px", display: "flex", flexDirection: "column", gap: 22 }}>
         {/* A tela ordena e filtra a lista inteira no cliente, então só faz sentido
