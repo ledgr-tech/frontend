@@ -23,6 +23,7 @@ import {
 import { FALHA_AO_CARREGAR, useConciliacao } from "../usar-conciliacao";
 import { EsqueletoTela } from "../../esqueleto";
 import { filtrarLinhas, ordenarLinhas, type Coluna, type Filtro, type Ordem } from "./ordenar";
+import { decisoesLigadas, situacaoDaLinha } from "./situacao";
 import { aplicarDensidade, densidadeAtual, type Densidade } from "../../densidade";
 import { IconeOrigem, type Origem } from "../../icone-origem";
 import { CartaoLancamento, ladosDaLinha, type CartaoAberto } from "./cartao-lancamento";
@@ -46,6 +47,15 @@ function textoDasMudancas(anterior: number, { passaramABater, continuamDivergind
     parte(novas, "nova divergência", "novas divergências"),
   ];
   return `Desde a rodada ${anterior}: ${partes.join(" · ")}`;
+}
+
+/** Por que a tabela ficou vazia no filtro escolhido. */
+function textoDoVazio(filtro: Filtro, justificadas: number): string {
+  if (ehDivergencia(filtro)) return `Nenhuma linha em “${seloDoStatus(filtro).rotulo}” nesta conciliação.`;
+  if (filtro === "justificadas") return "Nenhuma linha justificada nesta conciliação.";
+  // nem tudo bateu: o que sobrou foi justificado
+  if (justificadas > 0) return "Nada em revisão nesta competência: o que não bateu está justificado.";
+  return "Nada em revisão nesta competência: todos os lançamentos bateram.";
 }
 
 /** Quantas linhas por página. 4.218 lançamentos não cabem numa tela. */
@@ -172,10 +182,15 @@ export default function ConciliacaoPage() {
     );
   }
 
-  const emRevisao = filtrarLinhas(conciliacao.linhas, "revisao");
+  // a rodada das linhas decide se uma conferência ainda vale (situacao.ts)
+  const rodadaDasLinhas = conciliacao.rodada ?? 1;
+  const ligadas = decisoesLigadas(conciliacao, real);
+  const emRevisao = filtrarLinhas(conciliacao.linhas, "revisao", rodadaDasLinhas);
+  const justificadas = filtrarLinhas(conciliacao.linhas, "justificadas", rodadaDasLinhas);
+  const conferidas = emRevisao.filter((linha) => situacaoDaLinha(linha, rodadaDasLinhas) === "conferida").length;
   const larguraValor = larguraDoValor(conciliacao.linhas);
   const categoria = ehDivergencia(filtro) ? filtro : null;
-  const ordenadas = ordenarLinhas(filtrarLinhas(conciliacao.linhas, filtro), ordem);
+  const ordenadas = ordenarLinhas(filtrarLinhas(conciliacao.linhas, filtro, rodadaDasLinhas), ordem);
   const totalPaginas = Math.max(1, Math.ceil(ordenadas.length / POR_PAGINA));
   // limita em vez de corrigir num efeito: filtrar pode encurtar a lista e deixar a
   // página atual fora do fim, e reagir a isso com setState causaria render extra
@@ -253,10 +268,12 @@ export default function ConciliacaoPage() {
         {rodada && rodada.numero === rodada.total && mudancas && (
           <p className="rodada-faixa">{textoDasMudancas(rodada.numero - 1, mudancas)}</p>
         )}
-        {/* desligar uma categoria volta ao "Só revisão": as cinco são o que ele junta */}
+        {/* desligar uma categoria volta ao "Só revisão": as cinco são o que ele junta.
+            As justificadas saem das categorias e são contadas à parte. */}
         <Reveal>
           <Relatorio
-            linhas={conciliacao.linhas}
+            linhas={emRevisao}
+            justificadas={justificadas.length}
             ativa={categoria}
             onEscolher={(status) => escolherFiltro(status ?? "revisao")}
           />
@@ -264,23 +281,42 @@ export default function ConciliacaoPage() {
 
         {/* uma faixa só de controles, colada na tabela: o filtro à esquerda, a densidade à direita */}
         <Reveal delay={0.08} className="tabela-ferramentas">
-          <div className="pills segmentado" role="group" aria-label="Filtrar lançamentos">
-            <button
-              type="button"
-              className="pill"
-              aria-pressed={filtro === "todos"}
-              onClick={() => escolherFiltro("todos")}
-            >
-              Todos ({conciliacao.linhas.length})
-            </button>
-            <button
-              type="button"
-              className="pill"
-              aria-pressed={filtro === "revisao"}
-              onClick={() => escolherFiltro("revisao")}
-            >
-              Só revisão ({emRevisao.length})
-            </button>
+          <div className="tabela-filtros">
+            <div className="pills segmentado" role="group" aria-label="Filtrar lançamentos">
+              <button
+                type="button"
+                className="pill"
+                aria-pressed={filtro === "todos"}
+                onClick={() => escolherFiltro("todos")}
+              >
+                Todos ({conciliacao.linhas.length})
+              </button>
+              <button
+                type="button"
+                className="pill"
+                aria-pressed={filtro === "revisao"}
+                onClick={() => escolherFiltro("revisao")}
+              >
+                Só revisão ({emRevisao.length})
+              </button>
+              {/* sem onde gravar a decisão, não há justificada para filtrar */}
+              {ligadas && (
+                <button
+                  type="button"
+                  className="pill"
+                  aria-pressed={filtro === "justificadas"}
+                  onClick={() => escolherFiltro("justificadas")}
+                >
+                  Justificadas ({justificadas.length})
+                </button>
+              )}
+            </div>
+            {/* sem nada a conferir, "0 de 0 conferidas" não diria nada */}
+            {ligadas && emRevisao.length > 0 && (
+              <span className="tabela-progresso">
+                {`${formatarInteiro(conferidas)} de ${formatarInteiro(emRevisao.length)} ${emRevisao.length === 1 ? "conferida" : "conferidas"}`}
+              </span>
+            )}
           </div>
           {densidade !== null && (
             <div className="pills segmentado" role="group" aria-label="Densidade da tabela">
@@ -516,11 +552,7 @@ export default function ConciliacaoPage() {
           {cartao && <CartaoLancamento id={idCartao} aberto={cartao} />}
 
           {ordenadas.length === 0 && (
-            <p className="tabela-vazia">
-              {categoria
-                ? `Nenhuma linha em “${seloDoStatus(categoria).rotulo}” nesta conciliação.`
-                : "Nada em revisão nesta competência: todos os lançamentos bateram."}
-            </p>
+            <p className="tabela-vazia">{textoDoVazio(filtro, justificadas.length)}</p>
           )}
 
           {totalPaginas > 1 && (

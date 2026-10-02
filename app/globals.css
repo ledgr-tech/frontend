@@ -3120,6 +3120,12 @@ html:not([data-densidade="padrao"]) .app-shell .selo { padding-block: 1px; }
   display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
   gap: 12px 20px;
 }
+/* os filtros e, logo ao lado, quantas das linhas em revisão já foram conferidas */
+.tabela-filtros { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+.tabela-progresso {
+  font-size: 13.5px; font-variant-numeric: tabular-nums;
+  color: color-mix(in srgb, var(--color-text) 62%, transparent);
+}
 .exportar-csv { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
 .exportar-csv-erro { margin: 0; max-width: 320px; font-size: 13px; color: var(--color-risco-700); text-align: right; }
 

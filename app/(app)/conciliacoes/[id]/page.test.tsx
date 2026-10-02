@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { Conciliacao } from "@/lib/mock-data";
+import type { Conciliacao, Decisao } from "@/lib/mock-data";
 import ConciliacaoPage from "./page";
 
 // hoisted porque a fábrica do vi.mock roda antes das declarações do módulo
@@ -708,6 +708,118 @@ describe("ConciliacaoPage", () => {
       rota.busca = `sistema=${SISTEMA}&status=match_exato`;
       render(<ConciliacaoPage />);
       expect(await screen.findByRole("button", { name: "Todos (4)" })).toHaveAttribute("aria-pressed", "true");
+    });
+  });
+
+  describe("checked and justified lines", () => {
+    function decisao(tipo: Decisao["tipo"], rodada = 1): Decisao {
+      return {
+        tipo,
+        texto: tipo === "justificada" ? "Juros de dois dias de atraso." : null,
+        autor: "Eduardo Sichelero",
+        em: "2026-09-30T13:12:00Z",
+        rodada,
+      };
+    }
+
+    // do mock, onde as decisões ficam em memória: uma batida, uma justificada,
+    // uma conferida e uma que ninguém olhou
+    const comDecisoes: Conciliacao = {
+      ...conciliacaoMista,
+      linhas: [
+        conciliacaoMista.linhas[0],
+        { ...conciliacaoMista.linhas[1], decisao: decisao("justificada") },
+        { ...conciliacaoDoRelatorio.linhas[2], decisao: decisao("conferida") },
+        { ...conciliacaoDoRelatorio.linhas[3], decisao: null },
+      ],
+    };
+
+    function doBackend(conciliacao: Conciliacao) {
+      rota.id = BANCO;
+      carregarConciliacao.mockResolvedValue({
+        ok: true,
+        dados: { conciliacao: { ...conciliacao, id: BANCO, extratoSistemaId: SISTEMA }, truncada: false },
+      });
+    }
+
+    it("keeps the justified lines out of what needs review, and counts them apart", async () => {
+      buscarConciliacao.mockReturnValue(comDecisoes);
+      render(<ConciliacaoPage />);
+
+      const relatorio = await screen.findByRole("region", { name: "Divergências por categoria" });
+      expect(relatorio).toHaveTextContent(/2 linhas pedem revisão · R\$\s102 em aberto · 1 justificada/);
+      // a justificada sai da categoria dela: o contador anda junto com o filtro
+      expect(within(relatorio).getByRole("button", { name: /Valor diverge na mesma data/ })).toHaveTextContent(
+        /^Valor diverge na mesma data\s*0\s*Sem valor em aberto$/,
+      );
+      expect(screen.getByRole("button", { name: "Todos (4)" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Só revisão (2)" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Justificadas (1)" })).toBeInTheDocument();
+      expect(screen.getByText("1 de 2 conferidas")).toBeInTheDocument();
+    });
+
+    it("filters down to the justified lines, and out of them in review", async () => {
+      buscarConciliacao.mockReturnValue(comDecisoes);
+      const user = userEvent.setup();
+      render(<ConciliacaoPage />);
+
+      await user.click(await screen.findByRole("button", { name: "Justificadas (1)" }));
+      expect(screen.getByRole("button", { name: "Boleto Aço Norte Bobinas" })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Tarifa TED" })).not.toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: "Só revisão (2)" }));
+      expect(screen.queryByRole("button", { name: "Boleto Aço Norte Bobinas" })).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Tarifa pacote de serviços" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Tarifa TED" })).toBeInTheDocument();
+    });
+
+    it("filters as before when the backend does not keep decisions, and turns on when it sends the field", async () => {
+      doBackend(conciliacaoMista);
+      const { unmount } = render(<ConciliacaoPage />);
+      expect(await screen.findByRole("button", { name: "Só revisão (1)" })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /Justificadas/ })).not.toBeInTheDocument();
+      expect(screen.queryByText(/de \d+ conferidas?$/)).not.toBeInTheDocument();
+      unmount();
+
+      // o campo vem mesmo vazio quando o backend guarda decisões
+      doBackend({ ...conciliacaoMista, linhas: conciliacaoMista.linhas.map((linha) => ({ ...linha, decisao: null })) });
+      render(<ConciliacaoPage />);
+      expect(await screen.findByRole("button", { name: "Justificadas (0)" })).toBeInTheDocument();
+      expect(screen.getByText("0 de 1 conferida")).toBeInTheDocument();
+    });
+
+    it("does not count a check from an earlier round when the line still diverges", async () => {
+      doBackend({
+        ...conciliacaoDoRelatorio,
+        rodada: 2,
+        linhas: [
+          { ...conciliacaoDoRelatorio.linhas[2], decisao: decisao("conferida", 1) },
+          { ...conciliacaoDoRelatorio.linhas[3], decisao: null },
+        ],
+      });
+      render(<ConciliacaoPage />);
+
+      expect(await screen.findByText("0 de 2 conferidas")).toBeInTheDocument();
+    });
+
+    it("explains an empty justified filter, and a review list emptied by justifications", async () => {
+      buscarConciliacao.mockReturnValue(conciliacaoMista);
+      const user = userEvent.setup();
+      const { unmount } = render(<ConciliacaoPage />);
+      await user.click(await screen.findByRole("button", { name: "Justificadas (0)" }));
+      expect(screen.getByText("Nenhuma linha justificada nesta conciliação.")).toBeInTheDocument();
+      unmount();
+
+      buscarConciliacao.mockReturnValue({
+        ...conciliacaoMista,
+        linhas: [conciliacaoMista.linhas[0], { ...conciliacaoMista.linhas[1], decisao: decisao("justificada") }],
+      });
+      render(<ConciliacaoPage />);
+      await user.click(await screen.findByRole("button", { name: "Só revisão (0)" }));
+      // não bateu tudo: o que sobrou está justificado
+      expect(screen.getByText("Nada em revisão nesta competência: o que não bateu está justificado.")).toBeInTheDocument();
+      // sem nada a conferir, "0 de 0 conferidas" não diz nada
+      expect(screen.queryByText(/de \d+ conferidas?$/)).not.toBeInTheDocument();
     });
   });
 

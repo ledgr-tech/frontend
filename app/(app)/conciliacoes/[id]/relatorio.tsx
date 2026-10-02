@@ -33,15 +33,32 @@ function plural(quantidade: number, um: string, varios: string): string {
 }
 
 /**
+ * "2 linhas pedem revisão · R$ 3.186 em aberto · 1 justificada". As justificadas
+ * vêm à parte: liberam o fechamento, mas não bateram nem pedem mais revisão.
+ */
+function textoDoTotal(linhas: LinhaComparacao[], emRevisao: number, justificadas: number): string {
+  if (emRevisao === 0 && justificadas === 0) return "Nenhuma linha pede revisão.";
+  const revisao =
+    emRevisao === 0
+      ? "Nenhuma linha pede revisão"
+      : `${plural(emRevisao, "linha pede", "linhas pedem")} revisão · ${formatarMoedaCurta(valorEmAberto(linhas))} em aberto`;
+  return justificadas === 0 ? revisao : `${revisao} · ${plural(justificadas, "justificada", "justificadas")}`;
+}
+
+/**
  * O relatório agrupado: um contador por categoria, e cada um é o filtro da
  * tabela logo abaixo (o drill-down: categoria → linhas → detalhe da linha).
  */
 export function Relatorio({
   linhas,
+  justificadas = 0,
   ativa,
   onEscolher,
 }: {
+  /** As linhas que as categorias contam; as justificadas ficam fora delas. */
   linhas: LinhaComparacao[];
+  /** Quantas divergências estão justificadas, contadas à parte. */
+  justificadas?: number;
   ativa: Divergencia | null;
   onEscolher: (status: Divergencia | null) => void;
 }) {
@@ -54,11 +71,7 @@ export function Relatorio({
         <h2 id="relatorio-titulo" className="relatorio-titulo">
           Divergências por categoria
         </h2>
-        <span className="relatorio-total">
-          {emRevisao === 0
-            ? "Nenhuma linha pede revisão."
-            : `${plural(emRevisao, "linha pede", "linhas pedem")} revisão · ${formatarMoedaCurta(valorEmAberto(linhas))} em aberto`}
-        </span>
+        <span className="relatorio-total">{textoDoTotal(linhas, emRevisao, justificadas)}</span>
       </div>
       <ul className="relatorio-lista">
         {categorias.map((categoria) => (
