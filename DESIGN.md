@@ -10,10 +10,10 @@ preenchimento**, filete carregando a estrutura, identidade tipográfica.
 
 **Regras de 24/09/2026** (ver `docs/superpowers/specs/2026-09-24-refino-visual-design.md`):
 
-- **O dourado é para quatro coisas:** a ação principal (`.btn-primary`, "Nova
-  conciliação"), o foco do teclado, o status "atenção" e, desde 27/09, o rótulo
+- **O dourado é para cinco coisas:** a ação principal (`.btn-primary`, "Nova
+  conciliação"), o foco do teclado, o status "atenção", desde 27/09 o rótulo
   de cartão flutuante (o `h6` do cartão de lançamento e o do assistente, que
-  aparecem por cima da tela). Hover e seleção usam `--tinta-hover` /
+  aparecem por cima da tela) e, desde 02/10, o fio da linha das rodadas. Hover e seleção usam `--tinta-hover` /
   `--tinta-ativa`, neutros. Cabeçalho de tabela, aba selecionada, rótulo pequeno
   (`h6`) fora de cartão flutuante, item ativo do menu, botão fantasma
   (`.btn-ghost`), link de ação dentro de lista ("Revisar") e numeral decorativo
@@ -37,6 +37,22 @@ preenchimento**, filete carregando a estrutura, identidade tipográfica.
   decidir", com o ícone `Sparkles`), nunca dourado: a IA explica, quem decide é
   quem concilia. Texto que não veio da IA não leva selo. A geração só acontece no
   clique, porque custa e tem limite diário (`ExplicacaoDaDivergencia`).
+- **O eixo da comparação também decide, desde 02/10** (ver
+  `docs/superpowers/specs/2026-10-02-conciliacao-em-rodadas-design.md`). Na linha
+  divergente, antes do selo, uma caixa de marcar conferida: um botão com
+  `aria-pressed`, não um checkbox solto, alcançável por teclado. A linha conferida
+  e a justificada saem da cor da categoria: selo neutro e `data-tom="neutro"`, e a
+  conferida fica apagada (texto a 70%, que segura 4,5:1 nas duas folhas). Na
+  justificada, "Justificada" toma o lugar do rótulo curto, sem caixa. Quando a
+  versão nova do extrato do sistema não resolve uma linha conferida numa rodada
+  passada, um ↻ dourado (status de atenção) aparece antes da caixa vazia. Com as
+  decisões ligadas, a coluna do eixo vai de 9rem a 11,25rem, a medida do caso mais
+  largo (↻, caixa e "Falta no sistema").
+- **A linha das rodadas é o quinto uso do dourado**, pedido em 02/10. Ela fica na
+  faixa da rodada e liga os quadrados das rodadas com o fio em onda de "Por
+  dentro" da landing, deitado. O fio se desenha uma vez ao abrir a tela, e aparece
+  inteiro com movimento reduzido. O trecho até o fechamento fica tracejado enquanto
+  alguma linha pede decisão.
 
 ## Tier 1 — buracos, não polimento
 
