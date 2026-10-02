@@ -63,6 +63,14 @@ describe("rodadasDoBanco", () => {
     expect(rodadas[1].execucao.id).toBe("e4");
   });
 
+  it("a execução que vale é a que o backend marca como atual, mesmo no empate de horário", () => {
+    const empate = [
+      execucao("e-substituida", "B", "S1", "2026-09-24T17:00:00Z", false),
+      execucao("e-atual", "B", "S1", "2026-09-24T17:00:00Z"),
+    ];
+    expect(rodadasDoBanco(empate, "B")[0].execucao.id).toBe("e-atual");
+  });
+
   it("ignora as execuções de outro extrato do banco", () => {
     expect(rodadasDoBanco(execucoes, "B2").map((r) => r.extratoSistemaId)).toEqual(["S3"]);
     expect(rodadasDoBanco(execucoes, "nenhum")).toEqual([]);
@@ -79,6 +87,10 @@ describe("execucoesVigentes", () => {
       execucao("e1", "B", "S1", "2026-09-23T12:00:00Z"),
     ];
     expect(execucoesVigentes(execucoes).map((e) => e.id)).toEqual(["e4", "e3"]);
+  });
+
+  it("uma rodada sem a execução atual na lista (a página cortou) não vale", () => {
+    expect(execucoesVigentes([execucao("e2", "B", "S1", "2026-09-24T09:00:00Z", false)])).toEqual([]);
   });
 });
 

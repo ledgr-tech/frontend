@@ -64,6 +64,35 @@ const itemConciliacao: ItemConciliacaoAPI = {
   lancamento_sistema: null,
 };
 
+const SISTEMA_V1 = "1a1a1a1a-1e3f-4a5b-8c6d-9e0f1a2b3c4d";
+const SISTEMA_V2 = "2b2b2b2b-1e3f-4a5b-8c6d-9e0f1a2b3c4d";
+
+/**
+ * O mesmo extrato do banco em duas rodadas: a v1 do sistema em 23/09 e a v2 em 24/09,
+ * as duas `atual` do próprio par. Da mais recente para a mais antiga, como o backend.
+ */
+function duasRodadas(): ExecucaoAPI[] {
+  return [
+    { ...execucao("e-v2", BANCO_RECENTE), extrato_sistema_id: SISTEMA_V2, executada_em: "2026-09-24T17:02:11Z" },
+    { ...execucao("e-v1", BANCO_RECENTE), extrato_sistema_id: SISTEMA_V1, executada_em: "2026-09-23T12:00:00Z" },
+  ];
+}
+
+/** O backend com as duas rodadas: linhas, situação dos arquivos e execuções. */
+function backendComRodadas(execucoes: ExecucaoAPI[] = duasRodadas()) {
+  chamarBackend.mockImplementation(async (caminho: string) => {
+    if (caminho.startsWith("/execucoes")) return { total: execucoes.length, limit: 50, offset: 0, itens: execucoes };
+    if (caminho.startsWith(`/conciliacoes/${BANCO_RECENTE}`)) {
+      return { extrato_id: BANCO_RECENTE, total: 1, limit: 1000, offset: 0, itens: [itemConciliacao] };
+    }
+    if (caminho.startsWith("/extratos/")) {
+      const id = caminho.replace("/extratos/", "");
+      return { extrato_id: id, status: "concluido", origem: "banco", quantidade_lancamentos: 2, erros: [] };
+    }
+    throw new Error(`caminho inesperado: ${caminho}`);
+  });
+}
+
 /** Responde como o backend, pelo caminho pedido. */
 function backendCom(execucoes: ExecucaoAPI[]) {
   chamarBackend.mockImplementation(async (caminho: string) => {
@@ -215,6 +244,15 @@ describe("carregarPainel", () => {
     expect(resultado.dados.recente?.linhas.map((linha) => linha.id)).toEqual(["c-1"]);
     // a substituída (e-2) fica só no histórico; no painel, cada par aparece uma vez
     expect(resultado.dados.anteriores.map((item) => item.id)).toEqual(["e-1"]);
+  });
+
+  it("a versão antiga do extrato do sistema não aparece como outra conciliação", async () => {
+    backendComRodadas();
+
+    const resultado = await carregarPainel();
+    if (!resultado.ok) throw new Error(resultado.erro);
+    expect(resultado.dados.recente?.extratoSistemaId).toBe(SISTEMA_V2);
+    expect(resultado.dados.anteriores).toEqual([]);
   });
 
   it("devolve a falha quando as linhas da mais recente não carregam", async () => {
@@ -369,6 +407,16 @@ describe("listarExtratos", () => {
 describe("carregarVisaoGeral", () => {
   beforeEach(() => {
     chamarBackend.mockReset();
+  });
+
+  it("abre a rodada vigente, mesmo que a versão antiga tenha sido reconciliada depois", async () => {
+    // a v1 conciliada de novo em 25/09 é a execução mais recente, mas a rodada que vale é a da v2
+    const [v2, v1] = duasRodadas();
+    backendComRodadas([{ ...v1, id: "e-v1b", executada_em: "2026-09-25T09:00:00Z" }, v2, { ...v1, atual: false }]);
+
+    const resultado = await carregarVisaoGeral();
+    if (!resultado.ok) throw new Error(resultado.erro);
+    expect(resultado.dados.recente?.execucao.extratoSistemaId).toBe(SISTEMA_V2);
   });
 
   function situacao(id: string, erros: { identificador: string; motivo: string }[] = []) {
@@ -610,6 +658,14 @@ describe("carregarFechamentos", () => {
     expect(chamarBackend).toHaveBeenCalledWith(
       `/conciliacoes/${BANCO_RECENTE}?limit=1&offset=0&extrato_sistema_id=${SISTEMA}`,
     );
+  });
+
+  it("conta um par por extrato do banco: a versão nova do sistema substitui a antiga", async () => {
+    backendComRodadas();
+
+    const resultado = await carregarFechamentos();
+    if (!resultado.ok) throw new Error(resultado.erro);
+    expect(resultado.dados.map((par) => par.execucao.extratoSistemaId)).toEqual([SISTEMA_V2]);
   });
 
   it("mantém o par sem a data quando a primeira linha não vem", async () => {

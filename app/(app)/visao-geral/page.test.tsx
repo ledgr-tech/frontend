@@ -148,6 +148,19 @@ describe("VisaoGeralPage", () => {
     expect(historico).toHaveTextContent("Match de 50,0% na última");
   });
 
+  it("counts a new version of the system extrato as the same conciliação, not another one", async () => {
+    // a primeira versão do extrato do sistema continua "atual" do par dela
+    const execucoes = [
+      execucao({ id: "v2", extratoBancoId: "banco-x", extratoSistemaId: "sistema-v2" }),
+      execucao({ id: "v1", extratoBancoId: "banco-x", extratoSistemaId: "sistema-v1", executadaEm: "2026-09-23T12:00:00Z" }),
+    ];
+    com({ execucoes, total: execucoes.length });
+    await renderizar();
+
+    const atalhos = screen.getByRole("navigation", { name: "Atalhos" });
+    expect(within(atalhos).getByRole("link", { name: /Conciliações/ })).toHaveTextContent("1 conciliação");
+  });
+
   it("tells the shortcuts about unread lines, and about a latest conciliação with nothing pending", async () => {
     com({ arquivosComLinhasNaoLidas: [{ nome: "erp-e7.csv", linhas: 2 }] });
     await renderizar();

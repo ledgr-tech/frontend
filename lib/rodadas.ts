@@ -17,7 +17,7 @@ export type Rodada = {
   numero: number;
   extratoSistemaId: string;
   arquivoSistema: string;
-  /** A execução que vale para o par: a mais recente dele. */
+  /** A execução que vale para o par: a que o backend marca como atual (ou a mais recente). */
   execucao: Execucao;
 };
 
@@ -37,7 +37,10 @@ export function rodadasDoBanco(execucoes: Execucao[], extratoBancoId: string): R
     }
     // ISO ordena como texto
     if (execucao.executadaEm < visto.primeira) visto.primeira = execucao.executadaEm;
-    if (execucao.executadaEm > visto.vale.executadaEm) visto.vale = execucao;
+    // o `atual` do backend decide; sem ele dos dois lados, vale a mais recente
+    const melhor =
+      execucao.atual !== visto.vale.atual ? execucao.atual : execucao.executadaEm > visto.vale.executadaEm;
+    if (melhor) visto.vale = execucao;
   }
   return [...porSistema.values()]
     .sort((a, b) => a.primeira.localeCompare(b.primeira))
@@ -50,14 +53,20 @@ export function rodadasDoBanco(execucoes: Execucao[], extratoBancoId: string): R
 }
 
 /**
- * As execuções que contam: a da rodada mais recente de cada extrato do banco. A
- * primeira versão do extrato do sistema continua `atual` do par dela, e sem isto
- * entraria em dobro nas contagens. Mantém a ordem recebida.
+ * As execuções que contam: a atual da rodada mais recente de cada extrato do banco.
+ * A primeira versão do extrato do sistema continua `atual` do par dela, e sem isto
+ * entraria em dobro nas contagens. Rodada sem a execução atual na lista (a página
+ * cortou) fica de fora, como antes. Mantém a ordem recebida.
  */
 export function execucoesVigentes(execucoes: Execucao[]): Execucao[] {
   const bancos = new Set(execucoes.map((execucao) => execucao.extratoBancoId));
   const vigentes = new Set(
-    [...bancos].flatMap((banco) => rodadasDoBanco(execucoes, banco).slice(-1).map((rodada) => rodada.execucao.id)),
+    [...bancos].flatMap((banco) =>
+      rodadasDoBanco(execucoes, banco)
+        .slice(-1)
+        .filter((rodada) => rodada.execucao.atual)
+        .map((rodada) => rodada.execucao.id),
+    ),
   );
   return execucoes.filter((execucao) => vigentes.has(execucao.id));
 }

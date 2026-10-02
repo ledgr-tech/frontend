@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { ArrowLeftRight, ArrowRight, CalendarCheck, Files, History, type LucideIcon } from "lucide-react";
 import { extratosDasExecucoes, type Execucao } from "@/lib/adaptadores";
 import { caminhoDaConciliacao } from "@/lib/caminhos";
+import { execucoesVigentes } from "@/lib/rodadas";
 import { type Conciliacao } from "@/lib/mock-data";
 import { carregarVisaoGeral, type VisaoGeral } from "../conciliacoes/acoes";
 import {
@@ -164,7 +165,8 @@ function Atalhos({
 }) {
   const arquivos = extratosDasExecucoes(visao.execucoes);
   const doBanco = arquivos.filter((arquivo) => arquivo.origem === "banco").length;
-  const pares = visao.execucoes.filter((item) => item.atual).length;
+  // uma versão nova do extrato do sistema é outra rodada da mesma conciliação
+  const pares = execucoesVigentes(visao.execucoes).length;
   const naoLidas = visao.arquivosComLinhasNaoLidas.reduce((soma, arquivo) => soma + arquivo.linhas, 0);
   const pronto = divergentes === 0 && naoLidas === 0;
 

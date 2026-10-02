@@ -11,6 +11,7 @@ import {
   type ListaExecucoesAPI,
 } from "@/lib/adaptadores";
 import { chamarBackend, ErroBackend } from "@/lib/backend";
+import { execucoesVigentes } from "@/lib/rodadas";
 import type { Conciliacao } from "@/lib/mock-data";
 import { competencia } from "../fechamentos/fechamento";
 
@@ -208,9 +209,9 @@ export async function carregarPainel(): Promise<Resultado<Painel>> {
   const lista = await listarExecucoes();
   if (!lista.ok) return lista;
 
-  // As refeitas depois ficam só no histórico: aqui cada par de extratos aparece
-  // uma vez. A mais recente de todas é sempre atual.
-  const [maisRecente, ...anteriores] = lista.dados.execucoes.filter((execucao) => execucao.atual);
+  // As refeitas depois e as versões antigas do extrato do sistema ficam só no
+  // histórico: aqui cada extrato do banco aparece uma vez, na rodada que vale.
+  const [maisRecente, ...anteriores] = execucoesVigentes(lista.dados.execucoes);
   if (!maisRecente) return { ok: true, dados: { recente: null, anteriores: [] } };
 
   const conciliacao = await carregarConciliacao(maisRecente.extratoBancoId, maisRecente.extratoSistemaId);
@@ -313,8 +314,9 @@ export async function carregarVisaoGeral(): Promise<Resultado<VisaoGeral>> {
   if (!lista.ok) return lista;
   const { execucoes, total } = lista.dados;
 
-  // a mais recente de todas é sempre atual; o filtro é só por garantia
-  const maisRecente = execucoes.find((execucao) => execucao.atual);
+  // a rodada que vale do extrato do banco mais recente: a v1 reconciliada depois da
+  // v2 é a execução mais nova, mas não a rodada de agora
+  const [maisRecente] = execucoesVigentes(execucoes);
   if (!maisRecente) {
     return { ok: true, dados: { execucoes, total, recente: null, arquivosComLinhasNaoLidas: [] } };
   }
@@ -384,7 +386,8 @@ export async function carregarFechamentos(): Promise<Resultado<ParDoFechamento[]
   const lista = await listarExecucoes();
   if (!lista.ok) return lista;
 
-  const atuais = lista.dados.execucoes.filter((execucao) => execucao.atual);
+  // a versão nova do extrato do sistema substitui a antiga: um par por extrato do banco
+  const atuais = execucoesVigentes(lista.dados.execucoes);
   const pares = await Promise.all(
     atuais.map(async (execucao) => {
       const [data, banco, sistema] = await Promise.all([
