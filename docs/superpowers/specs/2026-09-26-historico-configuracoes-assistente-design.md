@@ -12,6 +12,12 @@ salvar o que o backend não guarda.
 
 ## Histórico
 
+> **Revisto em 2026-10-02.** Com as rodadas (`2026-10-02-conciliacao-em-rodadas-design.md`), o histórico
+> deixou a linha do tempo por execução: virou uma linha por conciliação (o extrato do banco), com os
+> números da rodada que vale e as anteriores e refeitas abertas embaixo, agrupada por ano e pelo mês do
+> extrato, como Fechamentos. O "Ver atual" e a borda tracejada da refeita saíram; resumo e gráfico
+> contam só a rodada que vale. O que segue abaixo é o que foi aprovado em 26/09.
+
 1. **Linha do tempo, não tabela.** As execuções saem agrupadas pelo mês em que
    rodaram (fuso de Brasília), cada uma num cartão com os dois arquivos, o match,
    a tolerância daquela rodada e uma barra do que casou e do que pediu revisão,
