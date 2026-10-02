@@ -27,6 +27,11 @@ export function MotionRoot({ children }: { children: ReactNode }) {
  * Sem escala: em blocos grandes ela deixa o texto borrado enquanto anima.
  * `viewport` muda o ponto em que o bloco conta como visível: a trilha de "Por dentro" revela
  * cada etapa na altura em que a ponta do fio desenha.
+ *
+ * O bloco conta como visível quando a borda de cima passa 60px da base da janela (`amount: 0`),
+ * e não quando uma fração da altura dele aparece: uma lista que cresce com os dados (a galeria de
+ * extratos com dezenas de arquivos passa de 14 mil px) nunca fica 15% à vista de uma vez, e com
+ * `amount: 0.15` ela ficava em opacidade 0 para sempre, com a tela em branco.
  */
 export function Reveal({
   children,
@@ -48,7 +53,7 @@ export function Reveal({
       style={style}
       initial={{ opacity: 0, y: 16 }}
       whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, amount: 0.15, margin: "0px 0px -60px 0px", ...viewport }}
+      viewport={{ once: true, amount: 0, margin: "0px 0px -60px 0px", ...viewport }}
       transition={{ duration: 0.55, delay, ease: [0.22, 1, 0.36, 1] }}
     >
       {children}
