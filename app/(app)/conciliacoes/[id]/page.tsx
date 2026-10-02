@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useId, useRef, useState, type CSSProperties, type FormEvent } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Check, RotateCw } from "lucide-react";
@@ -27,7 +27,7 @@ import { FALHA_AO_CARREGAR, useConciliacao } from "../usar-conciliacao";
 import { EsqueletoTela } from "../../esqueleto";
 import { filtrarLinhas, ordenarLinhas, type Coluna, type Filtro, type Ordem } from "./ordenar";
 import { continuaDivergindo, decisoesLigadas, situacaoDaLinha } from "./situacao";
-import { decidir } from "./decidir";
+import { decidir, type ResultadoDaDecisao } from "./decidir";
 import { aplicarDensidade, densidadeAtual, type Densidade } from "../../densidade";
 import { IconeOrigem, type Origem } from "../../icone-origem";
 import { CartaoLancamento, ladosDaLinha, type CartaoAberto } from "./cartao-lancamento";
@@ -35,6 +35,7 @@ import { Relatorio } from "./relatorio";
 import { NovaVersao } from "./nova-versao";
 import { larguraDoValor } from "./largura";
 import { Reveal } from "@/app/reveal";
+import { MensagemErro } from "@/app/(auth)/_compartilhado/mensagem-erro";
 import { Cabecalho } from "../../cabecalho";
 import { SeloIa } from "../../selo-ia";
 
@@ -119,7 +120,8 @@ export default function ConciliacaoPage() {
   const sistema = busca.get("sistema") || undefined;
   const router = useRouter();
   const { estado, substituir, recarregar } = useConciliacao(params.id, sistema);
-  const [linhaAberta, setLinhaAberta] = useState<LinhaComparacao | null>(null);
+  // a janela da linha guarda a chave, não a linha: depois de justificar, ela mostra a linha como voltou
+  const [chaveAberta, setChaveAberta] = useState<string | null>(null);
   const [cartao, setCartao] = useState<CartaoAberto | null>(null);
   const idCartao = useId();
   // a categoria do relatório chega pela URL: quem volta do detalhe de uma linha
@@ -231,6 +233,7 @@ export default function ConciliacaoPage() {
 
   // decidir só onde há onde gravar, e só na rodada que vale: a passada é para ler
   const podeDecidir = ligadas && (!rodada || rodada.numero === rodada.total);
+  const linhaAberta = chaveAberta === null ? null : (conciliacao.linhas.find((linha) => chaveDaLinha(linha) === chaveAberta) ?? null);
 
   /** Troca uma linha na conciliação que estiver na tela quando a resposta chegar. */
   function trocarLinha(chave: string, troca: (linha: LinhaComparacao) => LinhaComparacao) {
@@ -240,34 +243,47 @@ export default function ConciliacaoPage() {
     }));
   }
 
+  /**
+   * Grava uma decisão e põe na tela a linha como voltou. Devolve o motivo de não ter
+   * gravado, ou null. Sessão vencida vai ao login; linha que mudou recarrega a tela.
+   */
+  async function gravarDecisao(linha: LinhaComparacao, tipo: TipoEvento, texto?: string): Promise<string | null> {
+    const chave = chaveDaLinha(linha);
+    let resposta: ResultadoDaDecisao;
+    try {
+      resposta = await decidir({ conciliacao, real, linha, tipo, texto });
+    } catch {
+      // a Server Action lançou (rede caída, deploy novo no meio) em vez de devolver um Resultado
+      return "Não foi possível falar com o servidor.";
+    }
+    if (resposta.ok) {
+      const gravada = resposta.conciliacao.linhas.find((atual) => chaveDaLinha(atual) === chave);
+      if (gravada) trocarLinha(chave, () => gravada);
+      return null;
+    }
+    if (resposta.status === 401) router.push("/login");
+    // outra rodada entrou no meio: a linha que a tela tem não existe mais
+    if (resposta.status === 404) recarregar();
+    return resposta.erro;
+  }
+
   /** A caixa do eixo. Otimista: marca na hora e volta, com o motivo, se não gravar. */
   async function conferir(linha: LinhaComparacao) {
     const chave = chaveDaLinha(linha);
     if (gravando.current.has(chave)) return;
     gravando.current.add(chave);
     const marcada = situacaoDaLinha(linha, rodadaDasLinhas) === "conferida";
-    const tipo: TipoEvento = marcada ? "conferencia_desfeita" : "conferida";
     const otimista: Decisao | null = marcada
       ? null
       : { tipo: "conferida", texto: null, autor: "Você", em: new Date().toISOString(), rodada: rodadaDasLinhas };
     setErroDecisao(null);
     trocarLinha(chave, (atual) => ({ ...atual, decisao: otimista }));
 
-    const resposta = await decidir({ conciliacao, real, linha, tipo });
+    const erro = await gravarDecisao(linha, marcada ? "conferencia_desfeita" : "conferida");
     gravando.current.delete(chave);
-    if (resposta.ok) {
-      const gravada = resposta.conciliacao.linhas.find((atual) => chaveDaLinha(atual) === chave);
-      if (gravada) trocarLinha(chave, () => gravada);
-      return;
-    }
+    if (erro === null) return;
     trocarLinha(chave, (atual) => ({ ...atual, decisao: linha.decisao }));
-    if (resposta.status === 401) {
-      router.push("/login");
-      return;
-    }
-    setErroDecisao(resposta.erro);
-    // outra rodada entrou no meio: a linha que a tela tem não existe mais
-    if (resposta.status === 404) recarregar();
+    setErroDecisao(erro);
   }
 
   return (
@@ -502,7 +518,7 @@ export default function ConciliacaoPage() {
                       aria-describedby={cartao?.linha.id === linha.id ? idCartao : undefined}
                       onClick={() => {
                         setCartao(null);
-                        setLinhaAberta(linha);
+                        setChaveAberta(chaveDaLinha(linha));
                       }}
                       onFocus={(evento) => comCartao && abrirCartao(evento.currentTarget.closest("tr")!)}
                       onBlur={fecharCartao}
@@ -678,8 +694,12 @@ export default function ConciliacaoPage() {
             // uma janela por linha: abrir outra linha monta outra, e o showModal roda de novo
             key={linhaAberta.id}
             linha={linhaAberta}
+            rodada={rodadaDasLinhas}
+            podeDecidir={podeDecidir}
             detalhe={caminhoDaConciliacao(conciliacao.id, conciliacao.extratoSistemaId, linhaAberta.id)}
-            onFechar={() => setLinhaAberta(null)}
+            onJustificar={(texto) => gravarDecisao(linhaAberta, "justificada", texto)}
+            onDesfazer={() => gravarDecisao(linhaAberta, "justificativa_desfeita")}
+            onFechar={() => setChaveAberta(null)}
           />
         )}
       </div>
@@ -698,11 +718,22 @@ export default function ConciliacaoPage() {
  */
 function EspiaDaLinha({
   linha,
+  rodada,
+  podeDecidir,
   detalhe,
+  onJustificar,
+  onDesfazer,
   onFechar,
 }: {
   linha: LinhaComparacao;
+  /** A rodada das linhas na tela: diz se uma conferência ainda vale. */
+  rodada: number;
+  /** Há onde gravar a decisão, e a rodada é a que vale. */
+  podeDecidir: boolean;
   detalhe: string;
+  /** Devolvem o motivo de não ter gravado, ou null. */
+  onJustificar: (texto: string) => Promise<string | null>;
+  onDesfazer: () => Promise<string | null>;
   onFechar: () => void;
 }) {
   const dialogo = useRef<HTMLDialogElement>(null);
@@ -710,23 +741,53 @@ function EspiaDaLinha({
   // desenvolvimento roda o efeito duas vezes, e na segunda o foco já está dentro dela
   const quemAbriu = useRef<Element | null>(null);
   const idTitulo = useId();
+  const idCampo = useId();
+  const idAviso = useId();
+  const idErro = useId();
+  const situacao = situacaoDaLinha(linha, rodada);
+  const [texto, setTexto] = useState("");
+  const [emBranco, setEmBranco] = useState(false);
+  const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+  const mensagem = emBranco ? "Escreva o motivo da justificativa." : erro;
 
   useEffect(() => {
     const elemento = dialogo.current;
     quemAbriu.current ??= document.activeElement;
     if (elemento && !elemento.open) {
+      // sem showModal (navegador antigo, jsdom), só abre
       if (typeof elemento.showModal === "function") elemento.showModal();
-      else {
-        // sem showModal (navegador antigo, jsdom): abre e leva o foco para dentro, como ele faria
-        elemento.setAttribute("open", "");
-        elemento.querySelector<HTMLElement>("button, a")?.focus();
-      }
+      else elemento.setAttribute("open", "");
+      // o foco vai ao Fechar, e não ao primeiro botão: ele pode ser o "Desfazer justificativa"
+      elemento.querySelector<HTMLElement>(".dialog-actions button")?.focus();
     }
     return () => {
       const alvo = quemAbriu.current;
       if (alvo instanceof HTMLElement) alvo.focus();
     };
   }, []);
+
+  /** Uma gravação por vez; o texto fica no campo se ela falhar. */
+  async function enviar(acao: () => Promise<string | null>): Promise<string | null> {
+    setEnviando(true);
+    setErro(null);
+    const falha = await acao();
+    setEnviando(false);
+    setErro(falha);
+    return falha;
+  }
+
+  async function justificar(evento: FormEvent<HTMLFormElement>) {
+    evento.preventDefault();
+    if (enviando) return;
+    const motivo = texto.trim();
+    // o motivo é o que fica no registro: sem ele, não há o que gravar
+    if (!motivo) {
+      setEmBranco(true);
+      return;
+    }
+    if ((await enviar(() => onJustificar(motivo))) === null) setTexto("");
+  }
 
   return (
     <dialog
@@ -774,6 +835,52 @@ function EspiaDaLinha({
             {linha.explicacaoPorIa && <SeloIa />}
             <p className="dialog-body">{linha.explicacao}</p>
           </div>
+        )}
+        {/* a justificativa feita se lê em qualquer rodada; desfazer, só na que vale */}
+        {situacao === "justificada" && linha.decisao && (
+          <div className="espia-decisao">
+            <strong>{`Justificada por ${linha.decisao.autor} em ${formatarDataHora(linha.decisao.em)}`}</strong>
+            {linha.decisao.texto && <p className="dialog-body">{linha.decisao.texto}</p>}
+            {podeDecidir && (
+              <button
+                type="button"
+                className="btn btn-secondary"
+                disabled={enviando}
+                aria-busy={enviando || undefined}
+                onClick={() => enviar(onDesfazer)}
+              >
+                Desfazer justificativa
+              </button>
+            )}
+            {erro && <MensagemErro id={idErro}>{erro}</MensagemErro>}
+          </div>
+        )}
+        {podeDecidir && (situacao === "a_conferir" || situacao === "conferida") && (
+          <form className="espia-decisao" onSubmit={justificar} noValidate>
+            <div className="field">
+              <label htmlFor={idCampo}>Justificativa</label>
+              <textarea
+                id={idCampo}
+                className="input"
+                rows={3}
+                value={texto}
+                disabled={enviando}
+                aria-invalid={emBranco || undefined}
+                aria-describedby={mensagem ? `${idAviso} ${idErro}` : idAviso}
+                onChange={(evento) => {
+                  setTexto(evento.target.value);
+                  if (evento.target.value.trim()) setEmBranco(false);
+                }}
+              />
+            </div>
+            <p id={idAviso} className="espia-aviso">
+              Fica no registro com o seu nome e o horário. Desfazer depois gera um novo registro.
+            </p>
+            {mensagem && <MensagemErro id={idErro}>{mensagem}</MensagemErro>}
+            <button type="submit" className="btn btn-secondary" disabled={enviando} aria-busy={enviando || undefined}>
+              Justificar
+            </button>
+          </form>
         )}
         {/* o backend não registra eventos por lançamento: sem evento, sem tabela vazia */}
         {linha.historico.length > 0 && (

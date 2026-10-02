@@ -418,6 +418,14 @@ dialog::backdrop {
   border: none; background: transparent; color: var(--color-text); overflow: visible;
 }
 .espia .dialog { width: 100%; }
+/* justificar na janela da linha: o campo, o aviso do registro e o botão; ou a justificativa feita */
+.espia-decisao {
+  display: flex; flex-direction: column; gap: 8px;
+  padding-top: var(--space-3); border-top: 1px solid var(--color-divider);
+}
+.espia-decisao textarea.input { min-height: 76px; resize: vertical; line-height: 1.5; }
+.espia-decisao .btn { align-self: flex-start; }
+.espia-aviso { margin: 0; font-size: 13px; color: color-mix(in srgb, var(--color-text) 70%, transparent); }
 
 /* Landing page: grids that split into fixed-ratio columns and need to
    stack on narrow screens instead of squeezing every column down to a

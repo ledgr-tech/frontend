@@ -894,6 +894,24 @@ describe("ConciliacaoPage", () => {
       expect(screen.getByRole("alert")).toHaveTextContent("O servidor respondeu 500.");
     });
 
+    it("puts the box back when the call itself fails", async () => {
+      doBackend(comCampo);
+      // a Server Action lançou (rede caída, deploy novo no meio) em vez de devolver um Resultado
+      registrarDecisao.mockRejectedValue(new Error("Failed to fetch"));
+      const user = userEvent.setup();
+      render(<ConciliacaoPage />);
+
+      const caixa = await screen.findByRole("button", { name: "Marcar Tarifa TED como conferida" });
+      await user.click(caixa);
+      expect(caixa).toHaveAttribute("aria-pressed", "false");
+      expect(screen.getByRole("alert")).toHaveTextContent("Não foi possível falar com o servidor.");
+
+      // e a linha não fica presa como se ainda estivesse gravando
+      registrarDecisao.mockResolvedValue({ ok: true, dados: decisao("conferida") });
+      await user.click(caixa);
+      expect(caixa).toHaveAttribute("aria-pressed", "true");
+    });
+
     it("sends an expired session to the login", async () => {
       doBackend(comCampo);
       registrarDecisao.mockResolvedValue({ ok: false, status: 401, erro: "Sua sessão expirou. Entre de novo para continuar." });
@@ -981,6 +999,141 @@ describe("ConciliacaoPage", () => {
       expect(
         within(caixa.closest("td")!).getByText("Conferida na rodada 1, continua divergindo depois da nova versão"),
       ).toHaveClass("sr-only");
+    });
+
+    describe("justifying in the line's window", () => {
+      it("justifies with a text, and the axis says Justificada", async () => {
+        // o mock de verdade, guardado no navegador
+        const real = await vi.importActual<typeof import("@/lib/mock-data")>("@/lib/mock-data");
+        buscarConciliacao.mockImplementation(real.buscarConciliacao);
+        registrarDecisaoNoMock.mockImplementation(real.registrarDecisaoNoMock);
+        rota.id = real.criarConciliacao().id;
+        const user = userEvent.setup();
+        render(<ConciliacaoPage />);
+
+        await user.click(await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" }));
+        const janela = screen.getByRole("dialog", { name: "Boleto Aço Norte Bobinas" });
+        expect(janela).toHaveTextContent(
+          "Fica no registro com o seu nome e o horário. Desfazer depois gera um novo registro.",
+        );
+        await user.type(
+          within(janela).getByLabelText("Justificativa"),
+          "Juros de dois dias de atraso, lançados como despesa financeira.",
+        );
+        await user.click(within(janela).getByRole("button", { name: "Justificar" }));
+
+        const linha = screen.getByRole("button", { name: "Boleto Aço Norte Bobinas" }).closest("tr")!;
+        expect(within(linha).getAllByRole("cell")[3]).toHaveTextContent("Justificada");
+        // a janela passa a mostrar a justificativa feita, e o caminho de volta
+        expect(janela).toHaveTextContent("Justificada por Você em");
+        expect(janela).toHaveTextContent("Juros de dois dias de atraso, lançados como despesa financeira.");
+        expect(within(janela).getByRole("button", { name: "Desfazer justificativa" })).toBeInTheDocument();
+      });
+
+      it("does not justify with a blank text", async () => {
+        doBackend(comCampo);
+        const user = userEvent.setup();
+        render(<ConciliacaoPage />);
+
+        await user.click(await screen.findByRole("button", { name: "Tarifa TED" }));
+        const janela = screen.getByRole("dialog", { name: "Tarifa TED" });
+        const campo = within(janela).getByLabelText("Justificativa");
+        await user.type(campo, "   ");
+        await user.click(within(janela).getByRole("button", { name: "Justificar" }));
+
+        expect(registrarDecisao).not.toHaveBeenCalled();
+        expect(campo).toHaveAttribute("aria-invalid", "true");
+      });
+
+      it("keeps the text when saving fails, and does not send twice while saving", async () => {
+        doBackend(comCampo);
+        let falhar: (erro: Error) => void = () => {};
+        registrarDecisao.mockReturnValue(new Promise((_, rejeitar) => (falhar = rejeitar)));
+        const user = userEvent.setup();
+        render(<ConciliacaoPage />);
+
+        await user.click(await screen.findByRole("button", { name: "Tarifa TED" }));
+        const janela = screen.getByRole("dialog", { name: "Tarifa TED" });
+        const campo = within(janela).getByLabelText("Justificativa");
+        await user.type(campo, "Tarifa do pacote, contratada; não entra no sistema.");
+        const botao = within(janela).getByRole("button", { name: "Justificar" });
+        await user.click(botao);
+
+        expect(botao).toBeDisabled();
+        expect(botao).toHaveAttribute("aria-busy", "true");
+        await user.click(botao);
+        expect(registrarDecisao).toHaveBeenCalledTimes(1);
+        expect(registrarDecisao).toHaveBeenCalledWith(
+          BANCO,
+          "b:lc-4",
+          "justificada",
+          "Tarifa do pacote, contratada; não entra no sistema.",
+        );
+
+        await act(async () => falhar(new Error("Failed to fetch")));
+        expect(campo).toHaveValue("Tarifa do pacote, contratada; não entra no sistema.");
+        expect(within(janela).getByRole("alert")).toHaveTextContent("Não foi possível falar com o servidor.");
+        expect(botao).toBeEnabled();
+      });
+
+      it("shows who justified, when and why, and undoes it back to be checked", async () => {
+        doBackend({
+          ...comCampo,
+          linhas: comCampo.linhas.map((linha) =>
+            linha.id === "lc-2" ? { ...linha, decisao: decisao("justificada") } : linha,
+          ),
+        });
+        registrarDecisao.mockResolvedValue({ ok: true, dados: null });
+        const user = userEvent.setup();
+        render(<ConciliacaoPage />);
+
+        await user.click(await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" }));
+        const janela = screen.getByRole("dialog", { name: "Boleto Aço Norte Bobinas" });
+        expect(janela).toHaveTextContent("Justificada por Eduardo Sichelero em 30/09/2026 10:12");
+        expect(janela).toHaveTextContent("Juros de dois dias de atraso.");
+
+        // a janela abre com o foco no Fechar: um Enter logo de cara não desfaz nada
+        expect(within(janela).getByRole("button", { name: "Fechar" })).toHaveFocus();
+
+        await user.click(within(janela).getByRole("button", { name: "Desfazer justificativa" }));
+        expect(registrarDecisao).toHaveBeenCalledWith(BANCO, "b:lc-2", "justificativa_desfeita", undefined);
+        // volta para A conferir: a caixa vazia de novo, e o campo para justificar
+        expect(
+          screen.getByRole("button", { name: "Marcar Boleto Aço Norte Bobinas como conferida" }),
+        ).toHaveAttribute("aria-pressed", "false");
+        expect(within(janela).getByLabelText("Justificativa")).toBeInTheDocument();
+      });
+
+      it("only reads on an old round, and offers nothing without decisions from the backend", async () => {
+        doBackend(
+          {
+            ...comCampo,
+            linhas: comCampo.linhas.map((linha) =>
+              linha.id === "lc-2" ? { ...linha, decisao: decisao("justificada") } : linha,
+            ),
+          },
+          { rodada: { ...RODADA_2, numero: 1 } },
+        );
+        const user = userEvent.setup();
+        const antiga = render(<ConciliacaoPage />);
+
+        await user.click(await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" }));
+        let janela = screen.getByRole("dialog", { name: "Boleto Aço Norte Bobinas" });
+        // a justificativa se lê, mas não se desfaz numa rodada passada
+        expect(janela).toHaveTextContent("Justificada por Eduardo Sichelero em 30/09/2026 10:12");
+        expect(within(janela).queryByRole("button", { name: "Desfazer justificativa" })).not.toBeInTheDocument();
+        await user.click(within(janela).getByRole("button", { name: "Fechar" }));
+        await user.click(screen.getByRole("button", { name: "Tarifa TED" }));
+        janela = screen.getByRole("dialog", { name: "Tarifa TED" });
+        expect(within(janela).queryByLabelText("Justificativa")).not.toBeInTheDocument();
+        antiga.unmount();
+
+        doBackend(conciliacaoDoRelatorio);
+        render(<ConciliacaoPage />);
+        await user.click(await screen.findByRole("button", { name: "Tarifa TED" }));
+        janela = screen.getByRole("dialog", { name: "Tarifa TED" });
+        expect(within(janela).queryByLabelText("Justificativa")).not.toBeInTheDocument();
+      });
     });
   });
 
