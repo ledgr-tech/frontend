@@ -1629,9 +1629,12 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
   display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   gap: 26px; align-items: stretch;
 }
+/* o cartão é contêiner: o valor grande mede a largura dele, que depende do menu
+   (aberto, recolhido ou deitado) e não só da janela */
 .det-cartao {
   border: 1px solid var(--color-divider); border-radius: var(--radius-md);
   padding: 22px 24px; display: flex; flex-direction: column; gap: 14px;
+  container-type: inline-size;
 }
 /* o selo desce para a linha de baixo quando não cabe: espremido, o título
    quebrava uma palavra por linha */
@@ -1646,9 +1649,13 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
 .det-cartao-titulo {
   display: flex; align-items: center; gap: 8px; font-size: 20px; font-weight: 600;
 }
+/* Débito vem negativo do backend: sem o nowrap, "-R$ 12.640,00" quebrava depois
+   do hífen. Numa linha só, o valor ocupa ~6,1em; com 15cqi ele cabe no cartão em
+   qualquer largura e só chega aos 42px quando há espaço (cartão de 280px ou mais). */
 .det-valor {
-  font-family: var(--font-heading); font-size: 42px; font-weight: 400;
+  font-family: var(--font-heading); font-size: clamp(24px, 15cqi, 42px); font-weight: 400;
   line-height: 1.04; letter-spacing: -0.01em; font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 .det-campo {
   display: flex; justify-content: space-between; gap: 16px; font-size: 15px;
@@ -1714,7 +1721,7 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
   .det-comparacao { grid-template-columns: minmax(0, 1fr); gap: 16px; }
   .det-delta { flex-direction: row; gap: 14px; }
   .det-delta-linha { width: auto; height: 1px; flex: 1; }
-  .det-valor { font-size: 34px; }
+  .det-valor { font-size: clamp(24px, 15cqi, 34px); }
   .det-causa-texto { text-align: left; }
   .det-cronico-nota { flex-basis: 100%; text-align: left; }
 }
