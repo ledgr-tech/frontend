@@ -116,7 +116,8 @@ function chaveBase(item: ItemConciliacaoAPI): string {
   const sistema = item.lancamento_sistema;
   if (!sistema) return `i:${item.id}`;
   const valor = Number(sistema.valor);
-  const descricao = sistema.descricao.trim().toLowerCase().replace(/\s+/g, " ");
+  // sem descrição (o mesmo caso do "Sem descrição"), a chave fica com data e valor
+  const descricao = (sistema.descricao ?? "").trim().toLowerCase().replace(/\s+/g, " ");
   return `s:${sistema.data}|${Number.isFinite(valor) ? valor.toFixed(2) : sistema.valor}|${descricao}`;
 }
 

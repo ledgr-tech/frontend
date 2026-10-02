@@ -242,6 +242,14 @@ describe("adaptarConciliacao", () => {
     it("prefere a chave que o backend mandar", () => {
       expect(comItens([item({ chave: "k-1" })]).linhas[0].chave).toBe("k-1");
     });
+
+    it("monta a chave de uma linha só do sistema sem descrição, sem derrubar a conciliação", () => {
+      // a descrição nula é a mesma que o adaptador já trata como "Sem descrição"
+      const semDescricao = soDoSistema("c1", null as unknown as string);
+      const conciliacao = comItens([semDescricao]);
+      expect(conciliacao.linhas[0].chave).toBe("s:2026-09-12|-980.00|");
+      expect(conciliacao.linhas[0].descricao).toBe("Sem descrição");
+    });
   });
 });
 
