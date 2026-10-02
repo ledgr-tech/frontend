@@ -1986,6 +1986,13 @@ html[data-tema="escuro"] .app-shell {
   background: color-mix(in srgb, currentColor 13%, transparent);
   box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 13%, transparent);
 }
+/* A rodada: o aviso de rodada passada e a faixa do que mudou desde a anterior. */
+.rodada-faixa {
+  margin: 0; padding: 8px 12px; border-radius: var(--radius-sm);
+  background: var(--tinta-ativa); font-size: 13.5px; font-variant-numeric: tabular-nums;
+}
+.rodada-faixa a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
+
 /* o lado sem lançamento: um encaixe tracejado, não três traços */
 .folha-vazia { text-align: center; }
 .folha-vazia-marca {

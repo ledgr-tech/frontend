@@ -11,8 +11,10 @@ import {
   type Conciliacao,
   type LinhaComparacao,
 } from "@/lib/mock-data";
+import type { Mudancas } from "@/lib/rodadas";
 import {
   estaResolvida,
+  formatarDataHora,
   formatarInteiro,
   rotuloCurto,
   seloDoStatus,
@@ -29,6 +31,21 @@ import { larguraDoValor } from "./largura";
 import { Reveal } from "@/app/reveal";
 import { Cabecalho } from "../../cabecalho";
 import { SeloIa } from "../../selo-ia";
+
+/**
+ * "Desde a rodada 1: 4 passaram a bater · 2 continuam divergindo · 1 nova divergência".
+ * As três partes sempre: num relatório, o zero também informa.
+ */
+function textoDasMudancas(anterior: number, { passaramABater, continuamDivergindo, novas }: Mudancas): string {
+  const parte = (quantidade: number, um: string, varios: string) =>
+    `${formatarInteiro(quantidade)} ${quantidade === 1 ? um : varios}`;
+  const partes = [
+    parte(passaramABater, "passou a bater", "passaram a bater"),
+    parte(continuamDivergindo, "continua divergindo", "continuam divergindo"),
+    parte(novas, "nova divergência", "novas divergências"),
+  ];
+  return `Desde a rodada ${anterior}: ${partes.join(" · ")}`;
+}
 
 /** Quantas linhas por página. 4.218 lançamentos não cabem numa tela. */
 const POR_PAGINA = 25;
@@ -138,7 +155,7 @@ export default function ConciliacaoPage() {
     );
   }
 
-  const { conciliacao, real, truncada } = estado;
+  const { conciliacao, real, truncada, rodada, mudancas } = estado;
 
   function fechar() {
     const atualizada = fecharConciliacao(conciliacao.id);
@@ -196,6 +213,10 @@ export default function ConciliacaoPage() {
           // sem data nenhuma, o mês é o "Conciliação" genérico do adaptador
           conciliacao.mes !== "Conciliação" && `competência ${conciliacao.mes.toLowerCase()}`,
           `${formatarInteiro(conciliacao.linhas.length)} ${conciliacao.linhas.length === 1 ? "lançamento" : "lançamentos"}`,
+          // a rodada só aparece quando há mais de uma: "rodada 1" sozinha é ruído
+          rodada &&
+            rodada.total > 1 &&
+            `rodada ${rodada.numero} · ${rodada.arquivoSistema}, ${formatarDataHora(rodada.executadaEm)}`,
         ]}
       />
       <div style={{ padding: "24px 0 72px", display: "flex", flexDirection: "column", gap: 22 }}>
@@ -206,6 +227,16 @@ export default function ConciliacaoPage() {
           <p role="status" className="selo selo-atencao" style={{ alignSelf: "flex-start" }}>
             Mostrando as primeiras {conciliacao.linhas.length} linhas desta conciliação.
           </p>
+        )}
+        {/* uma rodada passada é só para ler: o aviso leva à que vale */}
+        {rodada && rodada.numero < rodada.total && (
+          <p role="status" className="rodada-faixa">
+            {`Rodada ${rodada.numero} de ${rodada.total} · `}
+            <Link href={caminhoDaConciliacao(conciliacao.id)}>ver a mais recente</Link>
+          </p>
+        )}
+        {rodada && rodada.numero === rodada.total && mudancas && (
+          <p className="rodada-faixa">{textoDasMudancas(rodada.numero - 1, mudancas)}</p>
         )}
         {/* desligar uma categoria volta ao "Só revisão": as cinco são o que ele junta */}
         <Reveal>

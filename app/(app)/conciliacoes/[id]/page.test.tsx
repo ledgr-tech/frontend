@@ -506,6 +506,64 @@ describe("ConciliacaoPage", () => {
     expect(screen.queryByRole("button", { name: /Exportar CSV/ })).not.toBeInTheDocument();
   });
 
+  describe("the rounds of a conciliação", () => {
+    const RODADA_2 = {
+      numero: 2,
+      total: 2,
+      extratoSistemaId: SISTEMA,
+      arquivoSistema: "erp-setembro-v2.csv",
+      executadaEm: "2026-09-24T17:02:00Z",
+    };
+
+    function doBackend(extra: Record<string, unknown>) {
+      rota.id = BANCO;
+      carregarConciliacao.mockResolvedValue({
+        ok: true,
+        dados: {
+          conciliacao: { ...conciliacaoMista, id: BANCO, extratoSistemaId: SISTEMA },
+          truncada: false,
+          ...extra,
+        },
+      });
+    }
+
+    it("says the round in the context line when there is more than one", async () => {
+      doBackend({ rodada: RODADA_2 });
+      const { unmount } = render(<ConciliacaoPage />);
+      expect(await screen.findByText(/rodada 2 · erp-setembro-v2\.csv, 24\/09\/2026 14:02/)).toBeInTheDocument();
+      unmount();
+
+      doBackend({ rodada: { ...RODADA_2, numero: 1, total: 1 } });
+      render(<ConciliacaoPage />);
+      await screen.findByText("Comparação direta");
+      expect(screen.queryByText(/rodada/)).not.toBeInTheDocument();
+    });
+
+    it("warns about an old round and leads to the latest", async () => {
+      doBackend({ rodada: { ...RODADA_2, numero: 1 } });
+      render(<ConciliacaoPage />);
+
+      const aviso = await screen.findByText(/Rodada 1 de 2/);
+      expect(aviso.closest("[role=status]")).not.toBeNull();
+      expect(screen.getByRole("link", { name: "ver a mais recente" })).toHaveAttribute("href", `/conciliacoes/${BANCO}`);
+    });
+
+    it("counts what changed since the previous round", async () => {
+      doBackend({ rodada: RODADA_2, mudancas: { passaramABater: 4, continuamDivergindo: 2, novas: 1 } });
+      const { unmount } = render(<ConciliacaoPage />);
+      expect(
+        await screen.findByText("Desde a rodada 1: 4 passaram a bater · 2 continuam divergindo · 1 nova divergência"),
+      ).toBeInTheDocument();
+      unmount();
+
+      doBackend({ rodada: RODADA_2, mudancas: { passaramABater: 1, continuamDivergindo: 1, novas: 3 } });
+      render(<ConciliacaoPage />);
+      expect(
+        await screen.findByText("Desde a rodada 1: 1 passou a bater · 1 continua divergindo · 3 novas divergências"),
+      ).toBeInTheDocument();
+    });
+  });
+
   it("treats an empty pair in the URL as no pair at all", async () => {
     rota.id = BANCO;
     rota.busca = "sistema=";
