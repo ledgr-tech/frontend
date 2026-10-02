@@ -1,21 +1,22 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { Execucao } from "@/lib/adaptadores";
+import { execucoesVigentes } from "@/lib/rodadas";
 import { listarExecucoes } from "../conciliacoes/acoes";
 import { formatarInteiro, formatarPercentual } from "../dashboard/resumo";
-import { segmentos } from "./execucoes";
+import { conciliados as conciliadosDa } from "./execucoes";
 import { Reveal } from "@/app/reveal";
 import { GraficoDeMatch } from "./grafico";
-import { ExportarHistorico, LinhaDoTempo } from "./linha-do-tempo";
-import { NOTA_VER_ATUAL } from "./ver-execucao";
+import { ExportarHistorico, HistoricoPorConciliacao } from "./por-conciliacao";
 import { Cabecalho } from "../cabecalho";
 
 /**
- * O histórico lê `GET /execucoes` no servidor, uma página por vez: uma entrada
- * por rodada de conciliação, agrupadas pelo mês em que rodaram. O backend conta
- * por execução e não sabe a competência do extrato, então a tabela "mês a mês"
- * do design virou linha do tempo, e saíram o ajuste em reais, o "fechado com
- * ressalva" e a economia acumulada — nada disso tem fonte ainda.
+ * O histórico lê `GET /execucoes` no servidor, uma página por vez, e junta as
+ * execuções por extrato do banco: uma linha por conciliação, com as rodadas dela
+ * (spec 2026-10-02-conciliacao-em-rodadas), agrupadas pelo mês em que a rodada que
+ * vale rodou. O backend conta por execução e não sabe a competência do extrato,
+ * então a tabela "mês a mês" do design segue fora, assim como o ajuste em reais, o
+ * "fechado com ressalva" e a economia acumulada — nada disso tem fonte ainda.
  */
 
 const FALHA_AO_CARREGAR =
@@ -47,7 +48,7 @@ export default async function HistoricoPage({ searchParams }: PageProps<"/histor
       />
 
       {!resposta.ok ? (
-        <p role="alert" style={{ padding: "48px 0" }}>
+        <p role="alert" className="extratos-vazio">
           {FALHA_AO_CARREGAR}
         </p>
       ) : resposta.dados.execucoes.length === 0 ? (
@@ -90,21 +91,20 @@ function SemExecucoes({ pagina }: { pagina: number }) {
   );
 }
 
-/** Só as rodadas atuais: a refeita depois substitui a anterior e não soma de novo. */
-function Resumo({ execucoes, parcial }: { execucoes: Execucao[]; parcial: boolean }) {
-  const atuais = execucoes.filter((execucao) => execucao.atual);
-  const lancamentos = atuais.reduce((soma, execucao) => soma + execucao.lancamentos, 0);
-  const conciliados = atuais.reduce(
-    (soma, execucao) => soma + (segmentos(execucao).find((parte) => parte.tom === "ok")?.quantidade ?? 0),
-    0,
-  );
+/**
+ * Só a rodada que vale de cada conciliação, como Fechamentos e a visão geral contam: a
+ * refeita e a rodada anterior foram substituídas e não somam de novo.
+ */
+function Resumo({ vigentes, parcial }: { vigentes: Execucao[]; parcial: boolean }) {
+  const lancamentos = vigentes.reduce((soma, execucao) => soma + execucao.lancamentos, 0);
+  const conciliados = vigentes.reduce((soma, execucao) => soma + conciliadosDa(execucao), 0);
 
   return (
     <div>
       <dl className="grade-colunas dash-resumo hist-resumo">
         <div>
-          <dt className="dash-rotulo">Conciliações atuais</dt>
-          <dd className="dash-valor">{formatarInteiro(atuais.length)}</dd>
+          <dt className="dash-rotulo">Conciliações</dt>
+          <dd className="dash-valor">{formatarInteiro(vigentes.length)}</dd>
         </div>
         <div>
           <dt className="dash-rotulo">Lançamentos processados</dt>
@@ -120,7 +120,7 @@ function Resumo({ execucoes, parcial }: { execucoes: Execucao[]; parcial: boolea
           </dd>
         </div>
       </dl>
-      {parcial && <p className="vg-nota" style={{ margin: "10px 0 0" }}>Somando as execuções desta página.</p>}
+      {parcial && <p className="vg-nota hist-resumo-nota">Somando as execuções desta página.</p>}
     </div>
   );
 }
@@ -139,26 +139,27 @@ function Historico({
   const inicio = pagina * porPagina;
   const temAnterior = pagina > 0;
   const temProxima = inicio + execucoes.length < total;
+  const vigentes = execucoesVigentes(execucoes);
 
   return (
     <div className="hist-corpo">
       <Reveal>
-        <Resumo execucoes={execucoes} parcial={temAnterior || temProxima} />
+        <Resumo vigentes={vigentes} parcial={temAnterior || temProxima} />
       </Reveal>
 
       <Reveal delay={0.08}>
-        <GraficoDeMatch execucoes={execucoes} />
+        <GraficoDeMatch execucoes={vigentes} />
       </Reveal>
 
       <Reveal delay={0.16}>
-        <LinhaDoTempo execucoes={execucoes} />
+        <HistoricoPorConciliacao execucoes={execucoes} />
 
         {(temAnterior || temProxima) && (
           <nav className="paginacao" aria-label="Páginas do histórico">
             <span className="paginacao-conta">
               {`${formatarInteiro(inicio + 1)}–${formatarInteiro(inicio + execucoes.length)} de ${formatarInteiro(total)}`}
             </span>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div className="paginacao-botoes">
               {temAnterior && (
                 <Link href={pagina === 1 ? "/historico" : `/historico?pagina=${pagina - 1}`} className="btn btn-secondary">
                   Mais recentes
@@ -171,11 +172,6 @@ function Historico({
               )}
             </div>
           </nav>
-        )}
-        {execucoes.some((execucao) => !execucao.atual) && (
-          <p className="vg-nota" style={{ margin: "14px 0 0" }}>
-            {NOTA_VER_ATUAL}
-          </p>
         )}
       </Reveal>
     </div>

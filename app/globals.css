@@ -1815,76 +1815,129 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
   font-variant-numeric: tabular-nums; color: var(--color-ok-700);
 }
 
-/* a linha do tempo: um trilho à esquerda, um cartão por execução, agrupados por mês */
-.hist-linha .vg-secao-topo { flex-wrap: wrap; }
+/* conciliação a conciliação: uma tabela por ano, um bloco de linhas por mês, uma linha por
+   extrato do banco com a rodada que vale, e as outras execuções dele abertas embaixo */
 .hist-legenda {
-  list-style: none; margin: 0 0 18px; padding: 0;
-  display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 13px;
+  list-style: none; margin: 0; padding: 0;
+  display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12.5px;
   color: color-mix(in srgb, var(--color-text) 66%, transparent);
 }
 .hist-legenda li { display: flex; align-items: center; gap: 7px; }
 .hist-legenda-cor { width: 14px; height: 8px; border-radius: 2px; }
-:is(.hist-legenda-cor, .hist-evento-barra > span)[data-tom="ok"] { background: var(--color-ok); }
-:is(.hist-legenda-cor, .hist-evento-barra > span)[data-tom="risco"] { background: var(--color-risco); }
-:is(.hist-legenda-cor, .hist-evento-barra > span)[data-tom="atencao"] { background: var(--color-accent); }
-:is(.hist-legenda-cor, .hist-evento-barra > span)[data-tom="neutro"] {
+:is(.hist-legenda-cor, .hist-resultado-barra > span)[data-tom="ok"] { background: var(--color-ok); }
+:is(.hist-legenda-cor, .hist-resultado-barra > span)[data-tom="risco"] { background: var(--color-risco); }
+:is(.hist-legenda-cor, .hist-resultado-barra > span)[data-tom="atencao"] { background: var(--color-accent); }
+:is(.hist-legenda-cor, .hist-resultado-barra > span)[data-tom="neutro"] {
   background: color-mix(in srgb, var(--color-text) 32%, transparent);
 }
 
-.hist-mes + .hist-mes { margin-top: 10px; }
+.hist-tabela { table-layout: fixed; }
+:is(.hist-num, .hist-taxa, .hist-c-quando) { font-variant-numeric: tabular-nums; }
+.hist-col-rodadas { width: 7.5rem; }
+.hist-col-lancamentos { width: 7.5rem; }
+.hist-col-match { width: 20%; }
+.hist-col-revisar { width: 10rem; }
+.hist-col-quando { width: 7rem; }
+.hist-col-acao { width: 4.75rem; }
+.hist-tabela td { vertical-align: middle; }
+.hist-tabela .hist-num { text-align: right; }
+.hist-tabela .hist-mes-linha th {
+  padding: 22px var(--space-2) 8px; font-size: inherit; letter-spacing: normal; text-transform: none;
+  color: var(--color-text);
+}
+.hist-tabela tbody tr.hist-mes-linha:hover { background: transparent; }
 .hist-mes-titulo {
-  margin: 0 0 14px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px;
+  margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px;
   font-size: 20px; font-weight: 600;
 }
 .hist-mes-conta {
   font-family: var(--font-body); font-size: 13px; font-weight: 400;
   color: color-mix(in srgb, var(--color-text) 58%, transparent);
 }
-.hist-eventos { list-style: none; margin: 0; padding: 0; }
-.hist-evento { position: relative; display: flex; gap: 16px; padding-bottom: 16px; }
-/* o trilho liga a marca de um cartão à do próximo */
-.hist-evento::before {
-  content: ""; position: absolute; left: 5px; top: 30px; bottom: -2px; width: 1px;
-  background: var(--color-divider);
+
+.hist-conciliacao-nome { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.hist-abrir {
+  flex: none; display: inline-grid; place-items: center; width: 24px; height: 24px; padding: 0;
+  border: 0; border-radius: var(--radius-sm); background: transparent; cursor: pointer;
+  color: color-mix(in srgb, var(--color-text) 60%, transparent);
 }
-.hist-evento:last-child::before { content: none; }
-.hist-evento-marca {
-  position: relative; flex: none; width: 11px; height: 11px; margin-top: 19px;
-  border-radius: 50%; border: 2px solid var(--color-ok); background: var(--color-bg);
+.hist-abrir:hover { background: var(--tinta-hover); color: var(--color-text); }
+.hist-abrir svg { transition: transform 180ms cubic-bezier(0.23, 1, 0.32, 1); }
+.hist-abrir[aria-expanded="true"] svg { transform: rotate(90deg); }
+.hist-abrir-vazio { flex: none; width: 24px; }
+.hist-arquivos { display: flex; flex-direction: column; min-width: 0; }
+.hist-arquivo { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.hist-arquivo .icone-origem { flex: none; }
+.hist-arquivo-nome { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hist-arquivo-sistema { font-size: 12.5px; color: color-mix(in srgb, var(--color-text) 62%, transparent); }
+
+/* os quadrados das rodadas, como na faixa da comparação, menores e sem o fio se desenhando */
+.hist-rodadas { display: inline-flex; align-items: center; }
+.hist-rodadas .rodadas-quadrado { width: 18px; height: 18px; font-size: 11px; border-width: 1px; }
+.hist-rodadas .rodadas-quadrado[data-vale] {
+  border-color: var(--color-text); background: var(--color-text); color: var(--color-bg);
 }
-.hist-evento[data-atual="false"] .hist-evento-marca {
-  border-color: color-mix(in srgb, var(--color-text) 35%, transparent);
-}
-.hist-evento-corpo {
-  flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 7px;
-  padding: 14px 16px; border: 1px solid var(--color-divider); border-radius: var(--radius-md);
-}
-/* a rodada refeita depois fica em traço: está no histórico, mas não vale mais */
-.hist-evento[data-atual="false"] .hist-evento-corpo { border-style: dashed; }
-.hist-evento-topo { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.hist-evento-quando {
-  font-family: var(--font-heading); font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums;
-}
-.hist-evento-arquivos { display: flex; flex-wrap: wrap; gap: 4px 18px; font-size: 14px; }
-.hist-evento-arquivos > span { display: inline-flex; align-items: center; gap: 6px; min-width: 0; overflow-wrap: anywhere; }
-.hist-evento-arquivos .icone-origem { flex: none; }
-.hist-evento-numeros {
-  font-size: 13.5px; font-variant-numeric: tabular-nums;
-  color: color-mix(in srgb, var(--color-text) 62%, transparent);
-}
-.hist-evento-barra { display: flex; gap: 2px; height: 8px; margin: 3px 0; border-radius: 999px; overflow: hidden; }
-.hist-evento-barra > span { min-width: 3px; }
-.hist-evento-rodape { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; }
-.hist-evento-resumo {
-  font-size: 13.5px; font-variant-numeric: tabular-nums;
+.hist-rodadas .rodadas-fio { flex: none; width: 12px; min-width: 0; margin: 0 2px; animation: none; }
+
+.hist-resultado { display: flex; align-items: center; gap: 10px; }
+.hist-resultado-barra { flex: 1; display: flex; gap: 2px; height: 6px; border-radius: 999px; overflow: hidden; }
+.hist-resultado-barra > span { min-width: 3px; }
+.hist-taxa { flex: none; min-width: 3.6em; margin-left: auto; text-align: right; }
+/* o que ainda pede revisão pesa; o zero some */
+.hist-conciliacao[data-pendente] .hist-c-revisar { font-weight: 600; }
+.hist-conciliacao:not([data-pendente]) .hist-c-revisar { color: color-mix(in srgb, var(--color-text) 55%, transparent); }
+.hist-justificadas { font-weight: 400; color: color-mix(in srgb, var(--color-text) 62%, transparent); }
+.hist-c-quando { white-space: nowrap; color: color-mix(in srgb, var(--color-text) 70%, transparent); }
+.hist-c-acao { text-align: right; }
+.hist-ver { padding: 3px 10px; font-size: 13px; }
+
+/* as outras execuções, debaixo da conciliação: menores, recuadas sob o nome, em traço */
+.hist-execucao td {
+  font-size: 13px; border-bottom-style: dashed;
   color: color-mix(in srgb, var(--color-text) 72%, transparent);
 }
+.hist-execucao-nome { display: block; padding-left: 30px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* refeita depois com os mesmos arquivos: está no histórico, mas não vale mais */
+.hist-selo-substituida { border-style: dashed; }
+.hist-rotulo-movel { display: none; }
+
+.hist-resumo-nota { margin: 10px 0 0; }
+.paginacao-botoes { display: flex; align-items: center; gap: 8px; }
 
 @media (max-width: 680px) {
   .hist-nota { text-align: left; }
   .hist-barras { gap: 8px; }
   .hist-barra-taxa { font-size: 11px; }
   .hist-economia-texto { text-align: left; }
+
+  /* a tabela vira um bloco por linha: o nome e o Ver em cima; as rodadas e a barra; e os números
+     com rótulo. A coluna das rodadas cresce com os quadrados, sem invadir a vizinha. */
+  .hist-tabela thead {
+    position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+  }
+  .hist-tabela, .hist-tabela tbody { display: block; }
+  .hist-tabela tr {
+    display: grid; grid-template-columns: auto repeat(2, minmax(0, 1fr)) auto; gap: 8px 16px; align-items: end;
+    padding: 10px 0; border-bottom: 1px solid var(--color-divider);
+  }
+  .hist-tabela tr[hidden] { display: none; }
+  .hist-tabela :is(td, th) { display: block; padding: 0; border: 0; }
+  .hist-tabela .hist-num { text-align: left; }
+  .hist-tabela .hist-mes-linha { padding: 20px 0 6px; }
+  .hist-tabela .hist-mes-linha th { grid-column: 1 / -1; padding: 0; }
+  .hist-c-conciliacao { grid-column: 1 / 4; grid-row: 1; min-width: 0; }
+  .hist-c-acao { grid-column: 4; grid-row: 1; align-self: center; }
+  .hist-c-rodadas { grid-column: 1; grid-row: 2; }
+  .hist-c-match { grid-column: 2 / -1; grid-row: 2; }
+  .hist-tabela .hist-c-match { padding-bottom: 4px; }
+  .hist-c-lancamentos { grid-column: 1; grid-row: 3; }
+  .hist-c-revisar { grid-column: 2; grid-row: 3; }
+  .hist-c-quando { grid-column: 3 / -1; grid-row: 3; text-align: right; }
+  .hist-rotulo-movel {
+    display: block; font-size: 11.5px; font-weight: 400;
+    color: color-mix(in srgb, var(--color-text) 58%, transparent);
+  }
+  .hist-execucao-nome { padding-left: 0; }
 }
 
 /* ── Tipografia do app ─────────────────────────────────────────────────────────

@@ -44,6 +44,48 @@ const EXECUCOES: Execucao[] = [
   execucao({ id: "e1", executadaEm: "2026-09-02T19:20:00Z", acerto: 91.8 }),
 ];
 
+/** Setembro: o extrato B na rodada 2, refeita uma vez, depois da rodada 1; e o A, de uma rodada só. */
+const SETEMBRO = { extratoBancoId: "B", arquivoBanco: "sicredi-setembro.ofx" };
+const RODADAS: Execucao[] = [
+  execucao({
+    id: "b3",
+    ...SETEMBRO,
+    extratoSistemaId: "S2",
+    arquivoSistema: "erp-setembro-v2.csv",
+    executadaEm: "2026-09-24T17:02:11Z",
+    lancamentos: 22,
+    acerto: 58.3,
+  }),
+  execucao({
+    id: "b2",
+    ...SETEMBRO,
+    extratoSistemaId: "S2",
+    arquivoSistema: "erp-setembro-v2.csv",
+    executadaEm: "2026-09-24T09:10:00Z",
+    lancamentos: 12,
+    acerto: 41.7,
+    atual: false,
+  }),
+  execucao({
+    id: "b1",
+    ...SETEMBRO,
+    extratoSistemaId: "S1",
+    arquivoSistema: "erp-setembro.csv",
+    executadaEm: "2026-09-23T12:41:00Z",
+    lancamentos: 3,
+    acerto: 33.3,
+  }),
+  execucao({
+    id: "a1",
+    extratoBancoId: "A",
+    arquivoBanco: "sicredi-agosto.ofx",
+    arquivoSistema: "erp-agosto.csv",
+    executadaEm: "2026-09-02T19:20:00Z",
+    lancamentos: 3980,
+    acerto: 91.8,
+  }),
+];
+
 function com(execucoes: Execucao[], total = execucoes.length) {
   listarExecucoes.mockResolvedValue({ ok: true, dados: { execucoes, total, porPagina: 50 } });
 }
@@ -59,8 +101,14 @@ async function renderizar(pagina?: string) {
   render(await HistoricoPage(props(pagina)));
 }
 
-function eventos() {
-  return screen.getAllByRole("listitem").filter((item) => item.classList.contains("hist-evento"));
+/** A linha de cada conciliação, na ordem da tela. */
+function conciliacoes() {
+  return [...document.querySelectorAll<HTMLElement>("tr.hist-conciliacao")];
+}
+
+/** As execuções abertas debaixo das conciliações. */
+function execucoesAbertas() {
+  return [...document.querySelectorAll<HTMLElement>("tr.hist-execucao")].filter((linha) => !linha.hidden);
 }
 
 describe("HistoricoPage", () => {
@@ -95,110 +143,169 @@ describe("HistoricoPage", () => {
     expect(screen.queryByText(/pontos desde/)).not.toBeInTheDocument();
   });
 
-  it("draws one bar per execution, oldest first", async () => {
+  it("draws one bar per conciliation, from the result that counts, oldest first", async () => {
     com(EXECUCOES);
     await renderizar();
+    // a e2 foi refeita depois: não vale mais e não ganha barra
     const colunas = document.querySelectorAll(".hist-barra-coluna");
-    expect(colunas).toHaveLength(3);
+    expect(colunas).toHaveLength(2);
     expect(colunas[0].textContent).toContain("02/09");
-    expect(colunas[2].textContent).toContain("24/09");
+    expect(colunas[1].textContent).toContain("24/09");
   });
 
-  it("puts every execution on the timeline, grouped by the month it ran", async () => {
-    com([
-      ...EXECUCOES,
-      execucao({ id: "e0", executadaEm: "2026-08-28T12:00:00Z", acerto: 88 }),
-    ]);
+  it("leaves the older round and the redone execution out of the chart, so they don't read as a drop", async () => {
+    com(RODADAS);
+    await renderizar();
+    const taxas = [...document.querySelectorAll(".hist-barra-taxa")].map((taxa) => taxa.textContent);
+    expect(taxas).toEqual(["91,8%", "58,3%"]);
+  });
+
+  it("lists one row per conciliation, with the numbers of the round that counts", async () => {
+    com(RODADAS);
     await renderizar();
 
-    const meses = screen.getAllByRole("heading", { level: 3 });
-    expect(meses.map((mes) => mes.textContent)).toEqual([
-      "Setembro de 20263 execuções",
-      "Agosto de 20261 execução",
-    ]);
-    const [recente] = eventos();
-    expect(recente).toHaveTextContent("24/09/2026 14:02");
-    expect(recente).toHaveTextContent("sicredi-e3.ofx");
-    expect(recente).toHaveTextContent("erp-e3.csv");
-    expect(recente).toHaveTextContent("4.218 lançamentos · 96,3% de match · tolerância de 1 dia");
-    expect(within(recente).getByText("Atual")).toBeInTheDocument();
-    expect(within(recente).getByRole("link", { name: "Ver" })).toHaveAttribute(
+    expect(conciliacoes()).toHaveLength(2);
+    const [setembro, agosto] = conciliacoes();
+    expect(setembro).toHaveTextContent("sicredi-setembro.ofx");
+    expect(setembro).toHaveTextContent("erp-setembro-v2.csv");
+    expect(setembro).toHaveTextContent("Rodada 2 de 2");
+    expect(setembro.querySelector(".hist-c-lancamentos")).toHaveTextContent("22");
+    expect(setembro.querySelector(".hist-c-match")).toHaveTextContent("58,3%");
+    expect(setembro.querySelector(".hist-c-quando")).toHaveTextContent("24/09 14:02");
+    // pelo endereço só do banco, que abre a rodada mais recente
+    expect(within(setembro).getByRole("link", { name: "Ver sicredi-setembro.ofx" })).toHaveAttribute(
       "href",
-      "/conciliacoes/banco-e3?sistema=sistema-e3",
+      "/conciliacoes/B",
     );
+    expect(agosto).toHaveTextContent("Rodada 1 de 1");
+    // a nota do "Ver atual" era das execuções soltas: aqui a refeita não abre nada
+    expect(screen.queryByText(/Só o resultado mais recente fica guardado/)).not.toBeInTheDocument();
   });
 
-  it("splits each execution into what matched and what asked for review", async () => {
+  it("groups the conciliations by the month of the round that counts", async () => {
+    com([...RODADAS, execucao({ id: "j1", executadaEm: "2026-08-05T13:00:00Z" })]);
+    await renderizar();
+    const meses = screen.getAllByRole("heading", { level: 3 });
+    expect(meses.map((mes) => mes.textContent)).toEqual([
+      "Setembro de 20262 conciliações",
+      "Agosto de 20261 conciliação",
+    ]);
+  });
+
+  it("opens the rounds and the redone executions under the conciliation", async () => {
+    const user = userEvent.setup();
+    com(RODADAS);
+    await renderizar();
+    expect(execucoesAbertas()).toHaveLength(0);
+
+    const abrir = screen.getByRole("button", { name: "Execuções de sicredi-setembro.ofx" });
+    expect(abrir).toHaveAttribute("aria-expanded", "false");
+    await user.click(abrir);
+    expect(abrir).toHaveAttribute("aria-expanded", "true");
+
+    const [vale, refeita, anterior] = execucoesAbertas();
+    expect(vale).toHaveTextContent("Rodada 2 · erp-setembro-v2.csv");
+    expect(within(vale).getByText("Vale")).toBeInTheDocument();
+    expect(refeita).toHaveTextContent("41,7%");
+    expect(within(refeita).getByText("Substituída")).toBeInTheDocument();
+    // o backend só guarda o resultado mais novo do par: não há o que abrir da refeita
+    expect(within(refeita).queryByRole("link")).toBeNull();
+    expect(anterior).toHaveTextContent("Rodada 1 · erp-setembro.csv");
+    expect(within(anterior).getByText("Anterior")).toBeInTheDocument();
+    expect(within(anterior).getByRole("link", { name: "Ver a rodada 1" })).toHaveAttribute(
+      "href",
+      "/conciliacoes/B?sistema=S1",
+    );
+
+    await user.click(abrir);
+    expect(execucoesAbertas()).toHaveLength(0);
+  });
+
+  it("has nothing to open in a conciliation with a single execution", async () => {
+    com(RODADAS);
+    await renderizar();
+    expect(screen.queryByRole("button", { name: "Execuções de sicredi-agosto.ofx" })).not.toBeInTheDocument();
+  });
+
+  it("counts what asks for review without the justified lines, and names the bar like the comparison", async () => {
     com([
       execucao({
         id: "e1",
-        lancamentos: 140,
-        divergencias: { divergente_valor: 7, duplicado: 7, sem_correspondencia: 14, tarifa_bancaria: 7 },
+        lancamentos: 22,
+        divergencias: { divergente_valor: 4, duplicado: 2, sem_correspondencia: 4 },
+        justificadas: 2,
       }),
     ]);
     await renderizar();
 
-    const [evento] = eventos();
-    expect(evento).toHaveTextContent("105 conciliados · 35 para revisar");
-    const barra = evento.querySelector(".hist-evento-barra")!;
+    const [linha] = conciliacoes();
+    expect(linha.querySelector(".hist-c-revisar")).toHaveTextContent("8 · 2 justificadas");
+    const barra = linha.querySelector(".hist-resultado-barra")!;
     expect([...barra.children].map((parte) => parte.getAttribute("title"))).toEqual([
-      "Conciliados: 105",
-      "Custam dinheiro: 14",
-      "Incompletos: 14",
-      "Já explicados: 7",
+      "Bate: 12",
+      "Valor diverge, Duplicidade: 6",
+      "Data diverge, Falta: 4",
+    ]);
+    const legenda = screen.getByRole("list", { name: "Legenda das barras" });
+    expect(within(legenda).getAllByRole("listitem").map((item) => item.textContent)).toEqual([
+      "Bate",
+      "Valor diverge, Duplicidade",
+      "Data diverge, Falta",
+      "Tarifa",
     ]);
   });
 
-  it("marks the executions redone later, and says their link opens the current result", async () => {
-    com(EXECUCOES);
-    await renderizar();
-
-    const refeita = eventos()[1];
-    expect(refeita).toHaveAttribute("data-atual", "false");
-    expect(within(refeita).getByText("Substituída")).toBeInTheDocument();
-    // o backend só guarda a rodada mais nova de cada par: o link não pode
-    // prometer as contagens de 23/09 que a entrada mostra
-    expect(within(refeita).getByRole("link", { name: "Ver atual" })).toHaveAttribute(
-      "href",
-      "/conciliacoes/banco-e2?sistema=sistema-e2",
-    );
-    expect(screen.getByText(/Só o resultado mais recente fica guardado/)).toBeInTheDocument();
-  });
-
-  it("does not explain Ver atual when no execution was redone", async () => {
-    com(EXECUCOES.filter((item) => item.atual));
-    await renderizar();
-    expect(screen.queryByText(/Só o resultado mais recente fica guardado/)).not.toBeInTheDocument();
-  });
-
-  it("filters the current and the redone executions", async () => {
+  it("filters the conciliations that still ask for review", async () => {
     const user = userEvent.setup();
-    com(EXECUCOES);
+    com([
+      execucao({ id: "e2", lancamentos: 10, divergencias: { divergente_valor: 1 } }),
+      execucao({ id: "e1", lancamentos: 10, executadaEm: "2026-09-02T19:20:00Z" }),
+    ]);
     await renderizar();
 
-    await user.click(screen.getByRole("button", { name: "Substituídas (1)" }));
-    expect(eventos()).toHaveLength(1);
-    expect(eventos()[0]).toHaveTextContent("sicredi-e2.ofx");
+    await user.click(screen.getByRole("button", { name: "Com pendência (1)" }));
+    expect(conciliacoes()).toHaveLength(1);
+    expect(conciliacoes()[0]).toHaveTextContent("sicredi-e2.ofx");
 
-    await user.click(screen.getByRole("button", { name: "Atuais (2)" }));
-    expect(eventos()).toHaveLength(2);
+    await user.click(screen.getByRole("button", { name: "Todas (2)" }));
+    expect(conciliacoes()).toHaveLength(2);
   });
 
-  it("sums up only the current executions, since a redone one is replaced", async () => {
-    com(EXECUCOES);
+  it("groups by year, with the past years closed", async () => {
+    const user = userEvent.setup();
+    com([
+      execucao({ id: "e2", executadaEm: "2026-02-10T12:00:00Z" }),
+      execucao({ id: "e1", executadaEm: "2025-11-10T12:00:00Z", lancamentos: 10, divergencias: { duplicado: 1 } }),
+    ]);
     await renderizar();
-    const resumo = document.querySelector(".hist-resumo")!;
-    expect(within(resumo as HTMLElement).getByText("Conciliações atuais").nextSibling).toHaveTextContent("2");
-    // e3 (4.218) + e1 (100)
-    expect(within(resumo as HTMLElement).getByText("Lançamentos processados").nextSibling).toHaveTextContent("4.318");
+
+    expect(screen.getByRole("button", { name: "2026" })).toHaveAttribute("aria-expanded", "true");
+    const passado = screen.getByRole("button", { name: "2025" });
+    expect(passado).toHaveAttribute("aria-expanded", "false");
+    expect(screen.getByText("1 conciliação · 1 com pendência")).toBeInTheDocument();
+    const antiga = conciliacoes().find((linha) => linha.textContent?.includes("sicredi-e1.ofx"))!;
+    expect(antiga.closest("[hidden]")).not.toBeNull();
+
+    await user.click(passado);
+    expect(antiga.closest("[hidden]")).toBeNull();
+  });
+
+  it("sums up only the round that counts of each conciliation", async () => {
+    com(RODADAS);
+    await renderizar();
+    const resumo = document.querySelector(".hist-resumo") as HTMLElement;
+    expect(within(resumo).getByText("Conciliações").nextSibling).toHaveTextContent("2");
+    // b3 (22) + a1 (3.980): a rodada 1 e a refeita não somam de novo
+    expect(within(resumo).getByText("Lançamentos processados").nextSibling).toHaveTextContent("4.002");
   });
 
   it("leaves the match out for an execution without lançamentos", async () => {
     com([execucao({ id: "e1", acerto: null, lancamentos: 0 })]);
     await renderizar();
-    const [evento] = eventos();
-    expect(evento).toHaveTextContent("0 lançamentos · tolerância de 1 dia");
-    expect(evento.querySelector(".hist-evento-barra")).toBeNull();
+    const [linha] = conciliacoes();
+    expect(linha.querySelector(".hist-c-lancamentos")).toHaveTextContent("0");
+    expect(linha.querySelector(".hist-c-match")).toHaveTextContent("—");
+    expect(linha.querySelector(".hist-resultado-barra")).toBeNull();
   });
 
   it("does not show the savings block, which has no data behind it", async () => {
