@@ -21,7 +21,7 @@ vi.mock("../acoes", () => ({
   // a tela carrega pela rodada; aqui ela embrulha a carga de sempre, sem rodada
   carregarConciliacaoEmRodadas: async (...args: unknown[]) => {
     const resposta = await carregarConciliacao(...args);
-    return resposta.ok ? { ...resposta, dados: { rodada: null, mudancas: null, ...resposta.dados } } : resposta;
+    return resposta.ok ? { ...resposta, dados: { rodada: null, rodadas: [], mudancas: null, ...resposta.dados } } : resposta;
   },
   registrarDecisao: (...args: unknown[]) => registrarDecisao(...args),
 }));
@@ -603,6 +603,84 @@ describe("ConciliacaoPage", () => {
       expect(
         await screen.findByText("Desde a rodada 1: 1 passou a bater · 1 continua divergindo · 3 novas divergências"),
       ).toBeInTheDocument();
+    });
+
+    describe("the line of rounds", () => {
+      const RODADAS = [
+        { numero: 1, total: 3, extratoSistemaId: "sis-1", arquivoSistema: "erp-setembro.csv", executadaEm: "2026-09-23T17:02:00Z" },
+        { numero: 2, total: 3, extratoSistemaId: "sis-2", arquivoSistema: "erp-setembro-v2.csv", executadaEm: "2026-09-24T17:02:00Z" },
+        { numero: 3, total: 3, extratoSistemaId: SISTEMA, arquivoSistema: "erp-setembro-v3.csv", executadaEm: "2026-09-25T17:02:00Z" },
+      ];
+      const nomeDaLinha = "Rodadas desta conciliação";
+
+      it("draws each round as a step: the others lead to their round, the open one is marked", async () => {
+        doBackend({ rodada: RODADAS[2], rodadas: RODADAS, mudancas: { passaramABater: 1, continuamDivergindo: 9, novas: 0 } });
+        render(<ConciliacaoPage />);
+
+        const linha = await screen.findByRole("navigation", { name: nomeDaLinha });
+        expect(within(linha).getByRole("link", { name: "Rodada 1 · erp-setembro.csv, 23/09/2026 14:02" })).toHaveAttribute(
+          "href",
+          `/conciliacoes/${BANCO}?sistema=sis-1`,
+        );
+        expect(
+          within(linha).getByRole("link", { name: "Rodada 2 · erp-setembro-v2.csv, 24/09/2026 14:02" }),
+        ).toHaveAttribute("href", `/conciliacoes/${BANCO}?sistema=sis-2`);
+        // a aberta não leva a lugar nenhum: é onde a pessoa está
+        const aberta = within(linha).getByText("Rodada 3 · erp-setembro-v3.csv, 25/09/2026 14:02");
+        expect(aberta.closest("[aria-current]")).toHaveAttribute("aria-current", "step");
+        expect(within(linha).queryByRole("link", { name: /^Rodada 3/ })).not.toBeInTheDocument();
+      });
+
+      it("ends at the month's closing, saying how much is left", async () => {
+        // conciliacaoMista: uma linha batida e uma que pede revisão
+        doBackend({ rodada: RODADAS[2], rodadas: RODADAS });
+        const { unmount } = render(<ConciliacaoPage />);
+        const linha = await screen.findByRole("navigation", { name: nomeDaLinha });
+        expect(within(linha).getByRole("link", { name: "Fechamento: falta 1" })).toHaveAttribute(
+          "href",
+          "/fechamentos?mes=2026-09",
+        );
+        unmount();
+
+        carregarConciliacao.mockResolvedValue({
+          ok: true,
+          dados: {
+            conciliacao: { ...conciliacaoMista, id: BANCO, extratoSistemaId: SISTEMA, linhas: [conciliacaoMista.linhas[0]] },
+            truncada: false,
+            rodada: RODADAS[2],
+            rodadas: RODADAS,
+          },
+        });
+        render(<ConciliacaoPage />);
+        expect(
+          within(await screen.findByRole("navigation", { name: nomeDaLinha })).getByRole("link", {
+            name: "Fechamento: pronto para fechar",
+          }),
+        ).toBeInTheDocument();
+      });
+
+      it("shows the line on an old round too, with that round marked and the latest a link", async () => {
+        doBackend({ rodada: RODADAS[0], rodadas: RODADAS });
+        render(<ConciliacaoPage />);
+
+        const linha = await screen.findByRole("navigation", { name: nomeDaLinha });
+        expect(within(linha).getByText("Rodada 1 · erp-setembro.csv, 23/09/2026 14:02").closest("[aria-current]")).toHaveAttribute(
+          "aria-current",
+          "step",
+        );
+        // a mais recente pelo endereço só do banco, como o "ver a mais recente"
+        expect(within(linha).getByRole("link", { name: /^Rodada 3/ })).toHaveAttribute("href", `/conciliacoes/${BANCO}`);
+        // a conta do que falta é da rodada que vale, não da que se está lendo
+        expect(within(linha).getByRole("link", { name: "Fechamento" })).toHaveAttribute("href", "/fechamentos?mes=2026-09");
+      });
+
+      it("has no line without rounds, as in the mock", async () => {
+        buscarConciliacao.mockReturnValue(conciliacaoMista);
+        render(<ConciliacaoPage />);
+
+        await screen.findByText("Comparação direta");
+        expect(screen.queryByRole("navigation", { name: nomeDaLinha })).not.toBeInTheDocument();
+      });
     });
   });
 

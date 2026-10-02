@@ -58,9 +58,9 @@ const SETEMBRO_EM_ABERTO = par("set", {
 });
 const AGOSTO_PRONTO = par("ago", { executadaEm: "2026-09-02T10:00:00Z" }, { primeiraData: "2026-08-01" });
 
-async function renderizar(dados: ParDoFechamento[] = [SETEMBRO_EM_ABERTO, AGOSTO_PRONTO]) {
+async function renderizar(dados: ParDoFechamento[] = [SETEMBRO_EM_ABERTO, AGOSTO_PRONTO], busca: Record<string, string> = {}) {
   carregarFechamentos.mockResolvedValue({ ok: true, dados });
-  render(await FechamentosPage());
+  render(await FechamentosPage({ searchParams: Promise.resolve(busca) }));
 }
 
 function painel() {
@@ -82,6 +82,19 @@ describe("FechamentosPage", () => {
     // o mais recente primeiro, e aberto
     expect(setembro.compareDocumentPosition(agosto) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(setembro).toHaveAttribute("aria-pressed", "true");
+    expect(within(painel()).getByRole("heading", { name: "Setembro de 2026" })).toBeInTheDocument();
+  });
+
+  it("opens on the month named in the URL, where the line of rounds of a conciliação leads", async () => {
+    await renderizar(undefined, { mes: "2026-08" });
+
+    expect(screen.getByRole("button", { name: /Agosto de 2026/ })).toHaveAttribute("aria-pressed", "true");
+    expect(within(painel()).getByRole("heading", { name: "Agosto de 2026" })).toBeInTheDocument();
+  });
+
+  it("falls back to the most recent month when the URL names one that has nothing", async () => {
+    await renderizar(undefined, { mes: "2025-01" });
+
     expect(within(painel()).getByRole("heading", { name: "Setembro de 2026" })).toBeInTheDocument();
   });
 
@@ -176,13 +189,13 @@ describe("FechamentosPage", () => {
 
   it("says so when the backend fails", async () => {
     carregarFechamentos.mockResolvedValue({ ok: false, status: 0, erro: "Não foi possível falar com o servidor." });
-    render(await FechamentosPage());
+    render(await FechamentosPage({ searchParams: Promise.resolve({}) }));
     expect(screen.getByRole("alert")).toHaveTextContent("Não foi possível carregar os fechamentos.");
   });
 
   it("sends an expired session to the login", async () => {
     carregarFechamentos.mockResolvedValue({ ok: false, status: 401, erro: "Sua sessão expirou." });
-    await expect(FechamentosPage()).rejects.toThrow("NEXT_REDIRECT");
+    await expect(FechamentosPage({ searchParams: Promise.resolve({}) })).rejects.toThrow("NEXT_REDIRECT");
     expect(redirect).toHaveBeenCalledWith("/login");
   });
 

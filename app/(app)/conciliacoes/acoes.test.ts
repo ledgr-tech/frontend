@@ -769,6 +769,29 @@ describe("carregarConciliacaoEmRodadas", () => {
     expect(resultado.dados.conciliacao.rodada).toBe(2);
   });
 
+  it("traz todas as rodadas do extrato, da primeira à mais recente, para a linha das rodadas", async () => {
+    backendComRodadas();
+
+    const resultado = await carregarConciliacaoEmRodadas(BANCO_RECENTE, SISTEMA_V1);
+    if (!resultado.ok) throw new Error(resultado.erro);
+    expect(resultado.dados.rodadas).toEqual([
+      {
+        numero: 1,
+        total: 2,
+        extratoSistemaId: SISTEMA_V1,
+        arquivoSistema: "e-v1-sistema.csv",
+        executadaEm: "2026-09-23T12:00:00Z",
+      },
+      {
+        numero: 2,
+        total: 2,
+        extratoSistemaId: SISTEMA_V2,
+        arquivoSistema: "e-v2-sistema.csv",
+        executadaEm: "2026-09-24T17:02:11Z",
+      },
+    ]);
+  });
+
   it("com o sistema de uma rodada antiga, abre aquela, sem comparação", async () => {
     backendComRodadas();
 
@@ -804,7 +827,7 @@ describe("carregarConciliacaoEmRodadas", () => {
     });
 
     const resultado = await carregarConciliacaoEmRodadas(BANCO_RECENTE);
-    expect(resultado).toMatchObject({ ok: true, dados: { rodada: null, mudancas: null } });
+    expect(resultado).toMatchObject({ ok: true, dados: { rodada: null, rodadas: [], mudancas: null } });
     expect(chamarBackend).toHaveBeenCalledWith(caminhoDasLinhas());
   });
 

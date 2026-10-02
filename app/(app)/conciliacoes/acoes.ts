@@ -177,6 +177,8 @@ export type ConciliacaoEmRodadas = {
   truncada: boolean;
   /** Null quando o extrato não aparece nas execuções lidas: a tela abre como antes. */
   rodada: RodadaVista | null;
+  /** Todas as rodadas do extrato do banco, da primeira à mais recente; vazia sem rodada. */
+  rodadas: RodadaVista[];
   /** O que mudou desde a rodada anterior; só na mais recente, a partir da segunda. */
   mudancas: Mudancas | null;
 };
@@ -219,19 +221,20 @@ export async function carregarConciliacaoEmRodadas(
 
   if (!alvo) {
     const simples = await carregarConciliacao(extratoBancoId, extratoSistemaId);
-    return simples.ok ? { ok: true, dados: { ...simples.dados, rodada: null, mudancas: null } } : simples;
+    return simples.ok ? { ok: true, dados: { ...simples.dados, rodada: null, rodadas: [], mudancas: null } } : simples;
   }
 
   const atual = await carregarConciliacao(extratoBancoId, alvo.extratoSistemaId);
   if (!atual.ok) return atual;
 
-  const rodada: RodadaVista = {
-    numero: alvo.numero,
+  const vistas: RodadaVista[] = rodadas.map((item) => ({
+    numero: item.numero,
     total: rodadas.length,
-    extratoSistemaId: alvo.extratoSistemaId,
-    arquivoSistema: alvo.arquivoSistema,
-    executadaEm: alvo.execucao.executadaEm,
-  };
+    extratoSistemaId: item.extratoSistemaId,
+    arquivoSistema: item.arquivoSistema,
+    executadaEm: item.execucao.executadaEm,
+  }));
+  const rodada = vistas[alvo.numero - 1];
 
   // a comparação é um extra: se a anterior não vier inteira, a tela abre sem ela
   let mudancas: Mudancas | null = null;
@@ -244,7 +247,13 @@ export async function carregarConciliacaoEmRodadas(
 
   return {
     ok: true,
-    dados: { ...atual.dados, conciliacao: { ...atual.dados.conciliacao, rodada: alvo.numero }, rodada, mudancas },
+    dados: {
+      ...atual.dados,
+      conciliacao: { ...atual.dados.conciliacao, rodada: alvo.numero },
+      rodada,
+      rodadas: vistas,
+      mudancas,
+    },
   };
 }
 

@@ -31,6 +31,8 @@ export type EstadoConciliacao =
       truncada: boolean;
       /** A rodada aberta; null no mock e quando o extrato não aparece nas execuções. */
       rodada: RodadaVista | null;
+      /** Todas as rodadas do extrato do banco, da primeira à mais recente; vazia no mock. */
+      rodadas: RodadaVista[];
       mudancas: Mudancas | null;
     };
 
@@ -73,7 +75,7 @@ export function useConciliacao(
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setEstado(
         mock
-          ? { situacao: "pronta", conciliacao: mock, real: false, truncada: false, rodada: null, mudancas: null }
+          ? { situacao: "pronta", conciliacao: mock, real: false, truncada: false, rodada: null, rodadas: [], mudancas: null }
           : { situacao: "ausente" },
       );
       return;
@@ -94,6 +96,7 @@ export function useConciliacao(
           real: true,
           truncada: resposta.dados.truncada,
           rodada: resposta.dados.rodada,
+          rodadas: resposta.dados.rodadas,
           mudancas: resposta.dados.mudancas,
         });
       },

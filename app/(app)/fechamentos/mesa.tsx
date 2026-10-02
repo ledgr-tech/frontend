@@ -75,9 +75,18 @@ function resumoDoAno(meses: MesDeFechamento[]): string {
   return `${plural(meses.length, "competência", "competências")} · ${situacao}`;
 }
 
-export function MesaDeFechamento({ meses }: { meses: MesDeFechamento[] }) {
+export function MesaDeFechamento({
+  meses,
+  inicial,
+}: {
+  meses: MesDeFechamento[];
+  /** A competência (AAAA-MM) que abre no painel; sem ela, ou sem esse mês, a mais recente. */
+  inicial?: string;
+}) {
   const [filtro, setFiltro] = useState<Filtro>("todos");
-  const [selecionado, setSelecionado] = useState<string | null>(meses[0]?.chave ?? null);
+  const [selecionado, setSelecionado] = useState<string | null>(
+    () => meses.find((mes) => mes.chave === inicial)?.chave ?? meses[0]?.chave ?? null,
+  );
   // os anos passados que a pessoa abriu para ver também os meses prontos
   const [prontosAbertos, setProntosAbertos] = useState<ReadonlySet<string>>(new Set());
   // os anos recolhidos inteiros pelo título, para chegar ao seguinte sem rolar por eles

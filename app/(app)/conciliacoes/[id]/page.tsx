@@ -33,6 +33,8 @@ import { IconeOrigem, type Origem } from "../../icone-origem";
 import { CartaoLancamento, ladosDaLinha, type CartaoAberto } from "./cartao-lancamento";
 import { Relatorio } from "./relatorio";
 import { NovaVersao } from "./nova-versao";
+import { LinhaDasRodadas } from "./linha-das-rodadas";
+import { competencia } from "../../fechamentos/fechamento";
 import { larguraDoValor } from "./largura";
 import { Reveal } from "@/app/reveal";
 import { MensagemErro } from "@/app/(auth)/_compartilhado/mensagem-erro";
@@ -52,6 +54,14 @@ function textoDasMudancas(anterior: number, { passaramABater, continuamDivergind
     parte(novas, "nova divergência", "novas divergências"),
   ];
   return `Desde a rodada ${anterior}: ${partes.join(" · ")}`;
+}
+
+/** A data mais antiga das linhas (AAAA-MM-DD); null no mock, que só tem "DD/MM". */
+function primeiraDataDas(linhas: LinhaComparacao[]): string | null {
+  return linhas.reduce<string | null>(
+    (menor, linha) => (linha.dataISO && (menor === null || linha.dataISO < menor) ? linha.dataISO : menor),
+    null,
+  );
 }
 
 /** Por que a tabela ficou vazia no filtro escolhido. */
@@ -176,7 +186,7 @@ export default function ConciliacaoPage() {
     );
   }
 
-  const { conciliacao, real, truncada, rodada, mudancas } = estado;
+  const { conciliacao, real, truncada, rodada, rodadas, mudancas } = estado;
 
   function fechar() {
     const atualizada = fecharConciliacao(conciliacao.id);
@@ -323,15 +333,30 @@ export default function ConciliacaoPage() {
             Mostrando as primeiras {conciliacao.linhas.length} linhas desta conciliação.
           </p>
         )}
-        {/* uma rodada passada é só para ler: o aviso leva à que vale */}
-        {rodada && rodada.numero < rodada.total && (
-          <p role="status" className="rodada-faixa">
-            {`Rodada ${rodada.numero} de ${rodada.total} · `}
-            <Link href={caminhoDaConciliacao(conciliacao.id)}>ver a mais recente</Link>
-          </p>
-        )}
-        {rodada && rodada.numero === rodada.total && mudancas && (
-          <p className="rodada-faixa">{textoDasMudancas(rodada.numero - 1, mudancas)}</p>
+        {/* a faixa da rodada: o aviso da rodada passada (só para ler, leva à que vale) ou o que
+            mudou desde a anterior, e à direita a linha das rodadas, que chega ao fechamento */}
+        {rodada && (rodada.numero < rodada.total || mudancas || rodadas.length > 1) && (
+          <div className="rodada-faixa">
+            {rodada.numero < rodada.total ? (
+              <p role="status">
+                {`Rodada ${rodada.numero} de ${rodada.total} · `}
+                <Link href={caminhoDaConciliacao(conciliacao.id)}>ver a mais recente</Link>
+              </p>
+            ) : (
+              mudancas && <p>{textoDasMudancas(rodada.numero - 1, mudancas)}</p>
+            )}
+            {rodadas.length > 1 && (
+              <LinhaDasRodadas
+                extratoBancoId={conciliacao.id}
+                rodadas={rodadas}
+                aberta={rodada.numero}
+                // o mês do fechamento como Fechamentos o calcula: o da primeira data do extrato
+                mes={competencia(primeiraDataDas(conciliacao.linhas), rodada.executadaEm)}
+                // o que falta é o da rodada que vale; numa passada, a conta não diria nada
+                pendentes={rodada.numero === rodada.total ? emRevisao.length : null}
+              />
+            )}
+          </div>
         )}
         {/* desligar uma categoria volta ao "Só revisão": as cinco são o que ele junta.
             As justificadas saem das categorias e são contadas à parte. */}

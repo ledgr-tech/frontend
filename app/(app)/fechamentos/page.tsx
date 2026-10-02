@@ -23,11 +23,17 @@ import { Cabecalho } from "../cabecalho";
 const FALHA_AO_CARREGAR =
   "Não foi possível carregar os fechamentos. Recarregue a página e tente de novo.";
 
-export default async function FechamentosPage() {
+export default async function FechamentosPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [chave: string]: string | string[] | undefined }>;
+}) {
   const resposta = await carregarFechamentos();
   if (!resposta.ok && resposta.status === 401) redirect("/login");
 
   const meses = resposta.ok ? agruparPorMes(resposta.dados) : [];
+  // ?mes=AAAA-MM: a linha das rodadas de uma conciliação chega aqui no mês dela
+  const { mes } = await searchParams;
 
   return (
     <div>
@@ -47,7 +53,7 @@ export default async function FechamentosPage() {
         <SemConciliacao />
       ) : (
         <Reveal style={{ padding: "28px 0 56px" }}>
-          <MesaDeFechamento meses={meses} />
+          <MesaDeFechamento meses={meses} inicial={typeof mes === "string" ? mes : undefined} />
         </Reveal>
       )}
     </div>

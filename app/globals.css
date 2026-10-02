@@ -2014,12 +2014,57 @@ html[data-tema="escuro"] .app-shell {
   background: color-mix(in srgb, currentColor 13%, transparent);
   box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 13%, transparent);
 }
-/* A rodada: o aviso de rodada passada e a faixa do que mudou desde a anterior. */
+/* A rodada: o aviso de rodada passada ou o que mudou desde a anterior, e à direita a linha das
+   rodadas (no celular, ela desce para baixo do texto). */
 .rodada-faixa {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 24px;
   margin: 0; padding: 8px 12px; border-radius: var(--radius-sm);
   background: var(--tinta-ativa); font-size: 13.5px; font-variant-numeric: tabular-nums;
 }
-.rodada-faixa a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
+.rodada-faixa p { margin: 0; }
+.rodada-faixa p a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
+
+/* A linha das rodadas: o fio em onda de "Por dentro" na landing, deitado, com o mesmo período de
+   17px, entre um quadrado por extrato do sistema. Lá a rolagem desenha o fio; aqui ele se desenha
+   uma vez, da esquerda para a direita, quando a tela abre. No fim, a chegada ao fechamento. */
+.rodadas-linha { max-width: 100%; }
+.rodadas-linha ol { display: flex; align-items: center; margin: 0; padding: 0; list-style: none; }
+.rodadas-linha li { display: flex; align-items: center; min-width: 0; }
+.rodadas-quadrado {
+  display: inline-grid; place-items: center; flex: none; width: 22px; height: 22px;
+  border: 1.5px solid color-mix(in srgb, var(--color-text) 55%, transparent); border-radius: 4px;
+  font-size: 12px; font-weight: 600; line-height: 1; color: var(--color-text); text-decoration: none;
+}
+a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--tinta-hover); }
+.rodadas-quadrado[aria-current] { border-color: var(--color-text); background: var(--color-text); color: var(--color-bg); }
+.rodadas-fio {
+  flex: 0 1 34px; min-width: 12px; height: 8px; margin: 0 4px;
+  background: var(--color-accent);
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='17' height='8'%3E%3Cpath d='M0 4Q4.25 1 8.5 4T17 4' fill='none' stroke='%23000' stroke-width='1.2'/%3E%3C/svg%3E") 0 50% / 17px 8px repeat-x;
+  animation: rodadas-fio-desenha 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--ordem, 0) * 0.14s);
+}
+/* o que falta até o fechamento: o mesmo fio, tracejado e mais claro, até tudo bater ou estar justificado */
+.rodadas-fio[data-falta] {
+  opacity: 0.55;
+  mask:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='17' height='8'%3E%3Cpath d='M0 4Q4.25 1 8.5 4T17 4' fill='none' stroke='%23000' stroke-width='1.2'/%3E%3C/svg%3E") 0 50% / 17px 8px repeat-x,
+    repeating-linear-gradient(90deg, #000 0 5px, transparent 5px 9px);
+  mask-composite: intersect;
+}
+@keyframes rodadas-fio-desenha {
+  from { clip-path: inset(0 100% 0 0); }
+  to { clip-path: inset(0); }
+}
+.rodadas-chegada {
+  display: inline-flex; align-items: center; gap: 6px; padding: 2px 4px; white-space: nowrap;
+  color: color-mix(in srgb, var(--color-text) 70%, transparent); text-decoration: none;
+}
+.rodadas-chegada:hover { color: var(--color-text); }
+.rodadas-chegada[data-pronto] { color: var(--color-accent-700); font-weight: 600; }
+@media (prefers-reduced-motion: reduce) {
+  .rodadas-fio { animation: none; }
+}
 
 /* a janela da nova versão do extrato do sistema */
 .nova-versao-campo { display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
