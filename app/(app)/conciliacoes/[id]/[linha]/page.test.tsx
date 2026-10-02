@@ -186,6 +186,68 @@ describe("DetalheDivergenciaPage", () => {
     expect(screen.getByText("Sistema")).toBeInTheDocument();
   });
 
+  describe("decisions in the history", () => {
+    const conferida = { tipo: "conferida" as const, texto: null, autor: "Eduardo", em: "2026-09-24T18:40:00Z", rodada: 1 };
+    const justificada = {
+      tipo: "justificada" as const,
+      texto: "Juros de dois dias de atraso, lançados como despesa financeira.",
+      autor: "Eduardo",
+      em: "2026-09-30T13:12:00Z",
+      rodada: 1,
+    };
+
+    it("lists who checked and who justified the lançamento, after what came from the extratos", async () => {
+      buscarConciliacao.mockReturnValue({
+        ...conciliacao,
+        linhas: conciliacao.linhas.map((linha) =>
+          linha.id === "lc-2" ? { ...linha, decisao: justificada, eventos: [conferida, justificada] } : linha,
+        ),
+      });
+      render(<DetalheDivergenciaPage />);
+
+      const evento = await screen.findByText("Justificada por Eduardo: Juros de dois dias de atraso, lançados como despesa financeira.");
+      const linhas = [...evento.closest("tbody")!.querySelectorAll("tr")].map((tr) => tr.children[1].textContent);
+      expect(linhas).toEqual([
+        "Título emitido",
+        "Boleto liquidado",
+        "Conferida por Eduardo",
+        "Justificada por Eduardo: Juros de dois dias de atraso, lançados como despesa financeira.",
+      ]);
+      expect(evento.closest("tr")).toHaveTextContent("30/09/2026 10:12");
+    });
+
+    it("says when a check stopped holding: the time of the new round", async () => {
+      rota.id = BANCO;
+      rota.busca = `sistema=${SISTEMA}`;
+      carregarConciliacao.mockResolvedValue({
+        ok: true,
+        dados: {
+          conciliacao: {
+            ...conciliacao,
+            id: BANCO,
+            extratoSistemaId: SISTEMA,
+            rodada: 2,
+            linhas: conciliacao.linhas.map((linha) =>
+              linha.id === "lc-2" ? { ...linha, decisao: conferida, eventos: [conferida] } : linha,
+            ),
+          },
+          truncada: false,
+          rodada: {
+            numero: 2,
+            total: 2,
+            extratoSistemaId: SISTEMA,
+            arquivoSistema: "erp-setembro-v2.csv",
+            executadaEm: "2026-09-29T17:02:00Z",
+          },
+        },
+      });
+      render(<DetalheDivergenciaPage />);
+
+      const evento = await screen.findByText("Continua divergindo (rodada 2)");
+      expect(evento.closest("tr")).toHaveTextContent("29/09/2026 14:02");
+    });
+  });
+
   it("accepts the bank value in place, without navigating away", async () => {
     buscarConciliacao.mockReturnValue(conciliacao);
     aceitarValorDoBanco.mockReturnValue(comLc2Aceita(conciliacao));

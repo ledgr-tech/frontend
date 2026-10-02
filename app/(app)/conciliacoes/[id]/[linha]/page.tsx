@@ -17,6 +17,7 @@ import { NumeroAnimado } from "../../../numero-animado";
 import { FALHA_AO_CARREGAR, useConciliacao } from "../../usar-conciliacao";
 import { IconeOrigem, type Origem } from "../../../icone-origem";
 import { ExplicacaoDaDivergencia } from "./explicacao";
+import { historicoDaLinha } from "../situacao";
 import { Cabecalho } from "../../../cabecalho";
 import { InkHover, Reveal } from "@/app/reveal";
 import { SeloIa } from "../../../selo-ia";
@@ -321,8 +322,10 @@ export default function DetalheDivergenciaPage() {
                 </tr>
               </thead>
               <tbody>
-                {linha.historico.map((evento) => (
-                  <tr key={`${evento.quando}-${evento.evento}`}>
+                {/* as decisões entram depois do que veio dos extratos; conferir, desfazer e
+                    conferir de novo no mesmo minuto dá eventos iguais, daí o índice na chave */}
+                {historicoDaLinha(linha, conciliacao.rodada ?? 1, estado.rodada?.executadaEm).map((evento, indice) => (
+                  <tr key={`${indice}-${evento.evento}`}>
                     <td className="dash-celula-fraca">{evento.quando}</td>
                     <td>{evento.evento}</td>
                     <td className="dash-celula-fraca" style={{ textAlign: "right", fontSize: 14 }}>
