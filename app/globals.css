@@ -1840,6 +1840,16 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
 .hist-col-quando { width: 7rem; }
 .hist-col-acao { width: 4.75rem; }
 .hist-tabela td { vertical-align: middle; }
+/* o cabeçalho gruda logo abaixo da faixa dos filtros, que gruda sob a barra do topo: numa lista
+   longa, a coluna continua dizendo o que é. O filete vira sombra, que o sticky não perde. */
+.hist-tabela thead th {
+  position: sticky; z-index: 5; top: calc(var(--app-topo-altura, 0px) + var(--extratos-filtros-altura, 58px));
+  background: var(--color-bg); border-bottom: 0; box-shadow: inset 0 -1px 0 var(--color-divider);
+}
+@media (max-width: 1000px) {
+  /* aqui a faixa dos filtros não gruda */
+  .hist-tabela thead th { top: var(--app-topo-altura, 0px); }
+}
 .hist-tabela .hist-num { text-align: right; }
 .hist-tabela .hist-mes-linha th {
   padding: 22px var(--space-2) 8px; font-size: inherit; letter-spacing: normal; text-transform: none;
