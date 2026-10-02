@@ -1990,6 +1990,8 @@ html[data-tema="escuro"] .app-shell {
   background: transparent; color: var(--color-bg); cursor: pointer;
 }
 .eixo-caixa::after { content: ""; position: absolute; inset: -5px; }
+/* o selo neutro do eixo ("Justificada", "Tarifa") a 70%: o .selo de sempre, a 62%, dava 4,48:1 */
+.celula-status .selo-neutro { color: color-mix(in srgb, var(--color-text) 70%, transparent); }
 .eixo-caixa:hover { border-color: var(--color-text); }
 .eixo-caixa[aria-pressed="true"] { border-color: var(--color-text); background: var(--color-text); }
 /* conferida numa rodada passada, e a versão nova não resolveu: o ↻ dourado antes da caixa */
@@ -3197,9 +3199,10 @@ html:not([data-densidade="padrao"]) .app-shell .selo { padding-block: 1px; }
 }
 /* os filtros e, logo ao lado, quantas das linhas em revisão já foram conferidas */
 .tabela-filtros { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+/* 70%, como o .status-batido: os 62% davam 4,48:1 sobre a página, abaixo dos 4,5 */
 .tabela-progresso {
   font-size: 13.5px; font-variant-numeric: tabular-nums;
-  color: color-mix(in srgb, var(--color-text) 62%, transparent);
+  color: color-mix(in srgb, var(--color-text) 70%, transparent);
 }
 .exportar-csv { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
 .exportar-csv-erro { margin: 0; max-width: 320px; font-size: 13px; color: var(--color-risco-700); text-align: right; }
@@ -3211,9 +3214,10 @@ html:not([data-densidade="padrao"]) .app-shell .selo { padding-block: 1px; }
   display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 20px;
 }
 .relatorio-titulo { margin: 0; font-size: 20px; font-weight: 600; }
+/* 70%: com 62% o total dava 4,48:1 sobre a página, abaixo dos 4,5 (medido em 02/10) */
 .relatorio-total, .relatorio-valor {
   font-size: 13.5px; font-variant-numeric: tabular-nums;
-  color: color-mix(in srgb, var(--color-text) 62%, transparent);
+  color: color-mix(in srgb, var(--color-text) 70%, transparent);
 }
 /* Sempre cinco categorias, e nenhuma sobrando sozinha numa linha: duas colunas
    com a quinta na largura toda; depois três em cima e duas embaixo, as duas
