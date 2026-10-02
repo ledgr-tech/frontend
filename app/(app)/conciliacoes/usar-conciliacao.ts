@@ -50,7 +50,7 @@ export function useConciliacao(
   sistema?: string,
 ): {
   estado: EstadoConciliacao;
-  substituir: (conciliacao: Conciliacao) => void;
+  substituir: (conciliacao: Conciliacao | ((atual: Conciliacao) => Conciliacao)) => void;
   /** Carrega de novo: depois de uma rodada nova, a URL pode não ter mudado. */
   recarregar: () => void;
 } {
@@ -106,10 +106,16 @@ export function useConciliacao(
     };
   }, [id, sistema, vez]);
 
-  /** Depois de uma ação do mock, que devolve a conciliação já atualizada. */
-  function substituir(conciliacao: Conciliacao) {
+  /**
+   * Depois de uma ação do mock, que devolve a conciliação já atualizada. Ou uma
+   * função da que estiver na tela: a resposta que chega depois de outra mudança
+   * (a caixa de outra linha) mexe só na linha dela.
+   */
+  function substituir(conciliacao: Conciliacao | ((atual: Conciliacao) => Conciliacao)) {
     setEstado((atual) =>
-      atual.situacao === "pronta" ? { ...atual, conciliacao } : atual,
+      atual.situacao === "pronta"
+        ? { ...atual, conciliacao: typeof conciliacao === "function" ? conciliacao(atual.conciliacao) : conciliacao }
+        : atual,
     );
   }
 

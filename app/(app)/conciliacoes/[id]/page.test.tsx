@@ -6,14 +6,16 @@ import ConciliacaoPage from "./page";
 
 // hoisted porque a fábrica do vi.mock roda antes das declarações do módulo
 const rota = vi.hoisted(() => ({ id: "conc-1", busca: "" }));
+const navegar = vi.hoisted(() => ({ push: vi.fn() }));
 
 vi.mock("next/navigation", () => ({
   useParams: () => ({ id: rota.id }),
   useSearchParams: () => new URLSearchParams(rota.busca),
-  useRouter: () => ({ push: vi.fn() }),
+  useRouter: () => ({ push: navegar.push }),
 }));
 
 const carregarConciliacao = vi.fn();
+const registrarDecisao = vi.fn();
 vi.mock("../acoes", () => ({
   carregarConciliacao: (...args: unknown[]) => carregarConciliacao(...args),
   // a tela carrega pela rodada; aqui ela embrulha a carga de sempre, sem rodada
@@ -21,6 +23,7 @@ vi.mock("../acoes", () => ({
     const resposta = await carregarConciliacao(...args);
     return resposta.ok ? { ...resposta, dados: { rodada: null, mudancas: null, ...resposta.dados } } : resposta;
   },
+  registrarDecisao: (...args: unknown[]) => registrarDecisao(...args),
 }));
 
 const BANCO = "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20";
@@ -28,12 +31,24 @@ const SISTEMA = "7a2b9c4d-1e3f-4a5b-8c6d-9e0f1a2b3c4d";
 
 const buscarConciliacao = vi.fn();
 const fecharConciliacao = vi.fn();
+const registrarDecisaoNoMock = vi.fn();
 vi.mock("@/lib/mock-data", () => ({
   buscarConciliacao: (id: string) => buscarConciliacao(id),
   fecharConciliacao: (id: string) => fecharConciliacao(id),
+  registrarDecisaoNoMock: (...args: unknown[]) => registrarDecisaoNoMock(...args),
   formatarMoeda: (valor: number) =>
     valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }),
 }));
+
+function decisao(tipo: Decisao["tipo"], rodada = 1): Decisao {
+  return {
+    tipo,
+    texto: tipo === "justificada" ? "Juros de dois dias de atraso." : null,
+    autor: "Eduardo Sichelero",
+    em: "2026-09-30T13:12:00Z",
+    rodada,
+  };
+}
 
 const conciliacaoEmAndamento: Conciliacao = {
   id: "conc-1",
@@ -138,6 +153,9 @@ describe("ConciliacaoPage", () => {
     buscarConciliacao.mockReset();
     fecharConciliacao.mockReset();
     carregarConciliacao.mockReset();
+    registrarDecisao.mockReset();
+    registrarDecisaoNoMock.mockReset();
+    navegar.push.mockReset();
     window.localStorage.clear();
     delete document.documentElement.dataset.densidade;
   });
@@ -342,7 +360,9 @@ describe("ConciliacaoPage", () => {
       expect(within(cartao).getByText("Extrato do banco").nextSibling).toHaveTextContent("04/09 · R$ 12.640,00");
       expect(within(cartao).getByText("Extrato do sistema").nextSibling).toHaveTextContent("04/09 · R$ 12.604,00");
       expect(cartao).toHaveTextContent("Juros de dois dias de atraso não lançados no sistema.");
-      expect(within(linha).getByRole("button")).toHaveAccessibleDescription(/Valor diverge na mesma data/);
+      expect(within(linha).getByRole("button", { name: "Boleto Aço Norte Bobinas" })).toHaveAccessibleDescription(
+        /Valor diverge na mesma data/,
+      );
 
       await user.unhover(linha);
       expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
@@ -712,16 +732,6 @@ describe("ConciliacaoPage", () => {
   });
 
   describe("checked and justified lines", () => {
-    function decisao(tipo: Decisao["tipo"], rodada = 1): Decisao {
-      return {
-        tipo,
-        texto: tipo === "justificada" ? "Juros de dois dias de atraso." : null,
-        autor: "Eduardo Sichelero",
-        em: "2026-09-30T13:12:00Z",
-        rodada,
-      };
-    }
-
     // do mock, onde as decisões ficam em memória: uma batida, uma justificada,
     // uma conferida e uma que ninguém olhou
     const comDecisoes: Conciliacao = {
@@ -734,11 +744,25 @@ describe("ConciliacaoPage", () => {
       ],
     };
 
-    function doBackend(conciliacao: Conciliacao) {
+    // do backend que guarda decisões: o campo vem em todos os itens, mesmo vazio
+    const comCampo: Conciliacao = {
+      ...conciliacaoDoRelatorio,
+      linhas: conciliacaoDoRelatorio.linhas.map((linha) => ({ ...linha, chave: `b:${linha.id}`, decisao: null })),
+    };
+
+    const RODADA_2 = {
+      numero: 2,
+      total: 2,
+      extratoSistemaId: SISTEMA,
+      arquivoSistema: "erp-setembro-v2.csv",
+      executadaEm: "2026-09-24T17:02:00Z",
+    };
+
+    function doBackend(conciliacao: Conciliacao, extra: Record<string, unknown> = {}) {
       rota.id = BANCO;
       carregarConciliacao.mockResolvedValue({
         ok: true,
-        dados: { conciliacao: { ...conciliacao, id: BANCO, extratoSistemaId: SISTEMA }, truncada: false },
+        dados: { conciliacao: { ...conciliacao, id: BANCO, extratoSistemaId: SISTEMA }, truncada: false, ...extra },
       });
     }
 
@@ -779,6 +803,8 @@ describe("ConciliacaoPage", () => {
       expect(await screen.findByRole("button", { name: "Só revisão (1)" })).toBeInTheDocument();
       expect(screen.queryByRole("button", { name: /Justificadas/ })).not.toBeInTheDocument();
       expect(screen.queryByText(/de \d+ conferidas?$/)).not.toBeInTheDocument();
+      // sem onde gravar, a tela não oferece marcar
+      expect(screen.queryByRole("button", { name: /como conferida$/ })).not.toBeInTheDocument();
       unmount();
 
       // o campo vem mesmo vazio quando o backend guarda decisões
@@ -786,6 +812,7 @@ describe("ConciliacaoPage", () => {
       render(<ConciliacaoPage />);
       expect(await screen.findByRole("button", { name: "Justificadas (0)" })).toBeInTheDocument();
       expect(screen.getByText("0 de 1 conferida")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Marcar Boleto Aço Norte Bobinas como conferida" })).toBeInTheDocument();
     });
 
     it("does not count a check from an earlier round when the line still diverges", async () => {
@@ -820,6 +847,140 @@ describe("ConciliacaoPage", () => {
       expect(screen.getByText("Nada em revisão nesta competência: o que não bateu está justificado.")).toBeInTheDocument();
       // sem nada a conferir, "0 de 0 conferidas" não diz nada
       expect(screen.queryByText(/de \d+ conferidas?$/)).not.toBeInTheDocument();
+    });
+
+    it("checks a line on the axis and unchecks it, kept by the mock", async () => {
+      // o mock de verdade, guardado no navegador como o "Fechar mês"
+      const real = await vi.importActual<typeof import("@/lib/mock-data")>("@/lib/mock-data");
+      buscarConciliacao.mockImplementation(real.buscarConciliacao);
+      registrarDecisaoNoMock.mockImplementation(real.registrarDecisaoNoMock);
+      const criada = real.criarConciliacao();
+      rota.id = criada.id;
+      const user = userEvent.setup();
+      render(<ConciliacaoPage />);
+
+      const caixa = await screen.findByRole("button", { name: "Marcar Boleto Aço Norte Bobinas como conferida" });
+      expect(caixa).toHaveAttribute("aria-pressed", "false");
+      expect(screen.getByText("0 de 3 conferidas")).toBeInTheDocument();
+
+      await user.click(caixa);
+      expect(caixa).toHaveAttribute("aria-pressed", "true");
+      expect(caixa.closest("tr")).toHaveAttribute("data-situacao", "conferida");
+      expect(screen.getByText("1 de 3 conferidas")).toBeInTheDocument();
+      expect(real.buscarConciliacao(criada.id)?.linhas.find((linha) => linha.id === "lc-2")?.decisao?.tipo).toBe(
+        "conferida",
+      );
+
+      await user.click(caixa);
+      expect(caixa).toHaveAttribute("aria-pressed", "false");
+      expect(screen.getByText("0 de 3 conferidas")).toBeInTheDocument();
+    });
+
+    it("checks right away, and puts the box back with the reason when saving fails", async () => {
+      doBackend(comCampo);
+      let responder: (resposta: unknown) => void = () => {};
+      registrarDecisao.mockReturnValue(new Promise((resolve) => (responder = resolve)));
+      const user = userEvent.setup();
+      render(<ConciliacaoPage />);
+
+      const caixa = await screen.findByRole("button", { name: "Marcar Boleto Aço Norte Bobinas como conferida" });
+      await user.click(caixa);
+      // a decisão vai pela chave da linha, que é a mesma em todas as rodadas
+      expect(registrarDecisao).toHaveBeenCalledWith(BANCO, "b:lc-2", "conferida", undefined);
+      expect(caixa).toHaveAttribute("aria-pressed", "true");
+
+      await act(async () => responder({ ok: false, status: 500, erro: "O servidor respondeu 500." }));
+      expect(caixa).toHaveAttribute("aria-pressed", "false");
+      expect(screen.getByRole("alert")).toHaveTextContent("O servidor respondeu 500.");
+    });
+
+    it("sends an expired session to the login", async () => {
+      doBackend(comCampo);
+      registrarDecisao.mockResolvedValue({ ok: false, status: 401, erro: "Sua sessão expirou. Entre de novo para continuar." });
+      const user = userEvent.setup();
+      render(<ConciliacaoPage />);
+
+      await user.click(await screen.findByRole("button", { name: "Marcar Tarifa TED como conferida" }));
+      expect(navegar.push).toHaveBeenCalledWith("/login");
+    });
+
+    it("reloads with a notice when another round came in meanwhile", async () => {
+      doBackend(comCampo);
+      registrarDecisao.mockResolvedValue({
+        ok: false,
+        status: 404,
+        erro: "Esta linha mudou: a conciliação foi refeita depois que a tela abriu.",
+      });
+      const user = userEvent.setup();
+      render(<ConciliacaoPage />);
+
+      await user.click(await screen.findByRole("button", { name: "Marcar Tarifa TED como conferida" }));
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        "Esta linha mudou: a conciliação foi refeita depois que a tela abriu.",
+      );
+      expect(carregarConciliacao).toHaveBeenCalledTimes(2);
+    });
+
+    it("keeps a line checked meanwhile when an earlier answer arrives, and does not send twice", async () => {
+      doBackend(comCampo);
+      const respostas: ((resposta: unknown) => void)[] = [];
+      registrarDecisao.mockImplementation(() => new Promise((resolve) => respostas.push(resolve)));
+      const user = userEvent.setup();
+      render(<ConciliacaoPage />);
+
+      const boleto = await screen.findByRole("button", { name: "Marcar Boleto Aço Norte Bobinas como conferida" });
+      const tarifa = screen.getByRole("button", { name: "Marcar Tarifa TED como conferida" });
+      await user.click(boleto);
+      // o segundo clique, ainda gravando o primeiro, não manda o contrário por cima
+      await user.click(boleto);
+      await user.click(tarifa);
+      expect(registrarDecisao).toHaveBeenCalledTimes(2);
+
+      await act(async () => respostas[0]({ ok: true, dados: decisao("conferida", 1) }));
+      expect(boleto).toHaveAttribute("aria-pressed", "true");
+      expect(tarifa).toHaveAttribute("aria-pressed", "true");
+
+      await act(async () => respostas[1]({ ok: true, dados: decisao("conferida", 1) }));
+      expect(screen.getByText("2 de 3 conferidas")).toBeInTheDocument();
+    });
+
+    it("offers no box on an old round, which is only for reading", async () => {
+      doBackend(comCampo, { rodada: { ...RODADA_2, numero: 1 } });
+      render(<ConciliacaoPage />);
+
+      await screen.findByText(/Rodada 1 de 2/);
+      expect(screen.queryByRole("button", { name: /como conferida$/ })).not.toBeInTheDocument();
+    });
+
+    it("shows a justified line as Justificada on the axis, without a box", async () => {
+      buscarConciliacao.mockReturnValue(comDecisoes);
+      render(<ConciliacaoPage />);
+
+      const linha = (await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" })).closest("tr")!;
+      const status = within(linha).getAllByRole("cell")[3];
+      expect(within(status).getByText("Justificada")).not.toHaveClass("selo-risco");
+      expect(within(status).getByText("Valor diverge na mesma data · justificada")).toHaveClass("sr-only");
+      expect(within(status).queryByRole("button")).not.toBeInTheDocument();
+    });
+
+    it("marks a line checked in an earlier round that still diverges, with the box empty again", async () => {
+      doBackend(
+        {
+          ...comCampo,
+          rodada: 2,
+          linhas: comCampo.linhas.map((linha) =>
+            linha.id === "lc-2" ? { ...linha, decisao: decisao("conferida", 1) } : linha,
+          ),
+        },
+        { rodada: RODADA_2 },
+      );
+      render(<ConciliacaoPage />);
+
+      const caixa = await screen.findByRole("button", { name: "Marcar Boleto Aço Norte Bobinas como conferida" });
+      expect(caixa).toHaveAttribute("aria-pressed", "false");
+      expect(
+        within(caixa.closest("td")!).getByText("Conferida na rodada 1, continua divergindo depois da nova versão"),
+      ).toHaveClass("sr-only");
     });
   });
 

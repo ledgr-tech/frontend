@@ -12,7 +12,7 @@ import {
 } from "@/lib/adaptadores";
 import { chamarBackend, ErroBackend } from "@/lib/backend";
 import { compararRodadas, execucoesVigentes, rodadasDoBanco, type Mudancas } from "@/lib/rodadas";
-import type { Conciliacao } from "@/lib/mock-data";
+import type { Conciliacao, Decisao, TipoEvento } from "@/lib/mock-data";
 import { competencia } from "../fechamentos/fechamento";
 
 /**
@@ -69,6 +69,9 @@ function traduzir(erro: unknown): Falha {
   // fetch que nem chegou a sair (backend fora do ar, DNS, CORS de rede)
   return { ok: false, status: 0, erro: "Não foi possível falar com o servidor." };
 }
+
+/** O 404 de uma linha que a tela ainda mostra: o par foi conciliado de novo depois que ela abriu. */
+const LINHA_MUDOU = "Esta linha mudou: a conciliação foi refeita depois que a tela abriu.";
 
 export async function enviarExtrato(dados: FormData): Promise<Resultado<{ extratoId: string }>> {
   try {
@@ -547,11 +550,7 @@ export async function explicarDivergencia(conciliacaoId: string): Promise<Result
     // O id da linha muda quando o par é conciliado de novo (as linhas são
     // reescritas), e o id que a tela tem passa a responder 404.
     if (erro instanceof ErroBackend && erro.status === 404) {
-      return {
-        ok: false,
-        status: 404,
-        erro: "Esta linha mudou: a conciliação foi refeita depois que a tela abriu.",
-      };
+      return { ok: false, status: 404, erro: LINHA_MUDOU };
     }
     if (erro instanceof DOMException && erro.name === "TimeoutError") {
       return {
@@ -559,6 +558,34 @@ export async function explicarDivergencia(conciliacaoId: string): Promise<Result
         status: 504,
         erro: "A explicação demorou mais que o normal. Tente de novo em instantes.",
       };
+    }
+    return traduzir(erro);
+  }
+}
+
+/**
+ * Conferir, justificar ou desfazer numa linha (spec 2026-10-02-conciliacao-em-rodadas).
+ * A rota é a proposta ao backend; a tela só chega aqui quando os itens trazem o
+ * campo `decisao`, sinal de que ela existe. Devolve a decisão em vigor, ou null
+ * depois de desfazer.
+ */
+export async function registrarDecisao(
+  extratoBancoId: string,
+  chave: string,
+  tipo: TipoEvento,
+  texto?: string,
+): Promise<Resultado<Decisao | null>> {
+  if (!pareceUuid(extratoBancoId)) return { ok: false, status: 404, erro: "Conciliação não encontrada." };
+  try {
+    const decisao = await chamarBackend<Decisao | null>(`/conciliacoes/${extratoBancoId}/decisoes`, {
+      method: "POST",
+      corpo: { chave, tipo, texto },
+    });
+    return { ok: true, dados: decisao ?? null };
+  } catch (erro) {
+    // a chave some quando outra rodada entra no meio: a linha da tela não existe mais
+    if (erro instanceof ErroBackend && erro.status === 404) {
+      return { ok: false, status: 404, erro: LINHA_MUDOU };
     }
     return traduzir(erro);
   }

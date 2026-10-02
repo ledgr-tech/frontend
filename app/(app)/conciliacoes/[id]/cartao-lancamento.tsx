@@ -2,8 +2,9 @@
 
 import type { CSSProperties } from "react";
 import { formatarMoeda, type LinhaComparacao } from "@/lib/mock-data";
-import { statusDaLinha, valorEmAberto } from "../../dashboard/resumo";
+import { formatarDataHora, statusDaLinha, valorEmAberto } from "../../dashboard/resumo";
 import { SeloIa } from "../../selo-ia";
+import { continuaDivergindo, situacaoDaLinha } from "./situacao";
 
 export type Lado = { data: string; descricao: string } | null;
 
@@ -42,6 +43,24 @@ function valorDoLado(lado: Lado, valor: number | null): string {
   return lado && valor !== null ? `${lado.data} · ${formatarMoeda(valor)}` : "—";
 }
 
+/** A decisão sobre a linha, quando há o que dizer dela no cartão. */
+type NotaDoCartao = { titulo: string; texto: string | null };
+
+function notaDaLinha(linha: LinhaComparacao, rodada: number): NotaDoCartao | null {
+  const decisao = linha.decisao;
+  if (!decisao) return null;
+  if (situacaoDaLinha(linha, rodada) === "justificada") {
+    return { titulo: `Justificada por ${decisao.autor} em ${formatarDataHora(decisao.em)}`, texto: decisao.texto };
+  }
+  if (continuaDivergindo(linha, rodada)) {
+    return {
+      titulo: `Conferida na rodada ${decisao.rodada}, continua divergindo depois da nova versão`,
+      texto: null,
+    };
+  }
+  return null;
+}
+
 /**
  * O miolo do cartão, já em texto. Separado para a vitrine da landing, que
  * mostra o cartão aberto na réplica da tela com os valores dela.
@@ -55,6 +74,7 @@ export function ConteudoCartao({
   geradaPorIa = false,
   descricaoSistema = null,
   diferenca = null,
+  nota = null,
 }: {
   rotulo: string;
   titulo: string;
@@ -67,6 +87,8 @@ export function ConteudoCartao({
   diferenca?: string | null;
   /** a explicação veio da IA: ganha o selo, colado ao texto */
   geradaPorIa?: boolean;
+  /** quem justificou e por quê, ou a conferência que a versão nova não resolveu */
+  nota?: NotaDoCartao | null;
 }) {
   return (
     <>
@@ -96,6 +118,12 @@ export function ConteudoCartao({
           )}
         </dl>
       </div>
+      {nota && (
+        <div className="cartao-lancamento-nota">
+          <strong>{nota.titulo}</strong>
+          {nota.texto && <p className="dialog-body">{nota.texto}</p>}
+        </div>
+      )}
       {explicacao &&
         (geradaPorIa ? (
           <div>
@@ -115,9 +143,19 @@ export function ConteudoCartao({
  * balão sai do veredito que ele explica. Fixo na tela, e não dentro da tabela,
  * porque a rolagem horizontal da tabela cortaria o cartão da primeira linha.
  */
-export function CartaoLancamento({ id, aberto }: { id: string; aberto: CartaoAberto }) {
+export function CartaoLancamento({
+  id,
+  aberto,
+  rodada = 1,
+}: {
+  id: string;
+  aberto: CartaoAberto;
+  /** A rodada das linhas na tela: diz se uma conferência ainda vale. */
+  rodada?: number;
+}) {
   const { linha, ancora } = aberto;
   const { banco, sistema } = ladosDaLinha(linha);
+  const rotulo = statusDaLinha(linha).rotulo;
   const tela = document.documentElement;
   const acima = ancora.top > ESPACO_ACIMA;
   // o meio do cartão no meio da coluna, sem passar da borda da tela; a seta segue a coluna
@@ -139,7 +177,9 @@ export function CartaoLancamento({ id, aberto }: { id: string; aberto: CartaoAbe
       style={estilo}
     >
       <ConteudoCartao
-        rotulo={statusDaLinha(linha).rotulo}
+        // o status do motor não muda com a justificativa: ela vem junto, não no lugar dele
+        rotulo={situacaoDaLinha(linha, rodada) === "justificada" ? `${rotulo} · justificada` : rotulo}
+        nota={notaDaLinha(linha, rodada)}
         titulo={linha.descricao}
         banco={valorDoLado(banco, linha.valorBanco)}
         sistema={valorDoLado(sistema, linha.valorSistema)}

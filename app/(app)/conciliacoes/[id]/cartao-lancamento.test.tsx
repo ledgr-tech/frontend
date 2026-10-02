@@ -104,4 +104,40 @@ describe("CartaoLancamento", () => {
     rerender(<CartaoLancamento id="c" aberto={{ linha: LINHA, ancora: celula(600, 500) }} />);
     expect(screen.queryByText("Gerada por IA · confira antes de decidir")).not.toBeInTheDocument();
   });
+
+  it("says who justified the line, when and why, and keeps the category in the label", () => {
+    const justificada: LinhaComparacao = {
+      ...LINHA,
+      decisao: {
+        tipo: "justificada",
+        texto: "Juros de dois dias de atraso, lançados como despesa financeira.",
+        autor: "Eduardo Sichelero",
+        em: "2026-09-30T13:12:00Z",
+        rodada: 1,
+      },
+    };
+    render(<CartaoLancamento id="c" aberto={{ linha: justificada, ancora: celula(600, 500) }} rodada={2} />);
+
+    const cartao = screen.getByRole("tooltip");
+    expect(cartao).toHaveTextContent("Lançamento · Valor diverge na mesma data · justificada");
+    expect(cartao).toHaveTextContent("Justificada por Eduardo Sichelero em 30/09/2026 10:12");
+    expect(cartao).toHaveTextContent("Juros de dois dias de atraso, lançados como despesa financeira.");
+  });
+
+  it("warns when a line checked in an earlier round still diverges", () => {
+    const conferida: LinhaComparacao = {
+      ...LINHA,
+      decisao: { tipo: "conferida", texto: null, autor: "Eduardo Sichelero", em: "2026-09-24T18:40:00Z", rodada: 1 },
+    };
+    const { rerender } = render(
+      <CartaoLancamento id="c" aberto={{ linha: conferida, ancora: celula(600, 500) }} rodada={2} />,
+    );
+    expect(screen.getByRole("tooltip")).toHaveTextContent(
+      "Conferida na rodada 1, continua divergindo depois da nova versão",
+    );
+
+    // conferida nesta mesma rodada: não há o que avisar
+    rerender(<CartaoLancamento id="c" aberto={{ linha: conferida, ancora: celula(600, 500) }} rodada={1} />);
+    expect(screen.getByRole("tooltip")).not.toHaveTextContent("continua divergindo");
+  });
 });

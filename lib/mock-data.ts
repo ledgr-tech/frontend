@@ -1,3 +1,5 @@
+import { chaveDaLinha } from "./rodadas";
+
 /**
  * As 7 categorias que o motor de conciliação do backend produz
  * (`StatusConciliacao` em `app/api/conciliacoes.py`, ADR-006/007/009).
@@ -319,6 +321,36 @@ export function restaurarLinha(conciliacaoId: string, linha: LinhaComparacao): C
   const atualizada: Conciliacao = {
     ...lista[index],
     linhas: lista[index].linhas.map((atual) => (atual.id === linha.id ? linha : atual)),
+  };
+  lista[index] = atualizada;
+  salvarConciliacoes(lista);
+  return atualizada;
+}
+
+/**
+ * Uma decisão sobre uma linha do mock (conferir, justificar, desfazer), guardada
+ * no navegador como o "Fechar mês". O registro só cresce: desfazer é um evento
+ * novo, e a decisão em vigor volta a null. O mock não tem rodadas, então tudo
+ * acontece na primeira; com dado do backend, quem grava é `registrarDecisao`.
+ */
+export function registrarDecisaoNoMock(
+  conciliacaoId: string,
+  chave: string,
+  tipo: TipoEvento,
+  texto: string | null,
+): Conciliacao | null {
+  const lista = lerConciliacoes();
+  const index = lista.findIndex((conciliacao) => conciliacao.id === conciliacaoId);
+  if (index === -1) return null;
+  if (!lista[index].linhas.some((linha) => chaveDaLinha(linha) === chave)) return null;
+
+  const evento: EventoDecisao = { tipo, texto, autor: "Você", em: new Date().toISOString(), rodada: 1 };
+  const decisao: Decisao | null = tipo === "conferida" || tipo === "justificada" ? { ...evento, tipo } : null;
+  const atualizada: Conciliacao = {
+    ...lista[index],
+    linhas: lista[index].linhas.map((linha) =>
+      chaveDaLinha(linha) === chave ? { ...linha, decisao, eventos: [...(linha.eventos ?? []), evento] } : linha,
+    ),
   };
   lista[index] = atualizada;
   salvarConciliacoes(lista);

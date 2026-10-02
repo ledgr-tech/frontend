@@ -3,15 +3,18 @@
 import { useEffect, useId, useRef, useState, type CSSProperties } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { Check, RotateCw } from "lucide-react";
 import { ehDivergencia } from "@/lib/adaptadores";
 import { caminhoDaConciliacao } from "@/lib/caminhos";
 import {
   fecharConciliacao,
   formatarMoeda,
   type Conciliacao,
+  type Decisao,
   type LinhaComparacao,
+  type TipoEvento,
 } from "@/lib/mock-data";
-import type { Mudancas } from "@/lib/rodadas";
+import { chaveDaLinha, type Mudancas } from "@/lib/rodadas";
 import {
   estaResolvida,
   formatarDataHora,
@@ -23,7 +26,8 @@ import {
 import { FALHA_AO_CARREGAR, useConciliacao } from "../usar-conciliacao";
 import { EsqueletoTela } from "../../esqueleto";
 import { filtrarLinhas, ordenarLinhas, type Coluna, type Filtro, type Ordem } from "./ordenar";
-import { decisoesLigadas, situacaoDaLinha } from "./situacao";
+import { continuaDivergindo, decisoesLigadas, situacaoDaLinha } from "./situacao";
+import { decidir } from "./decidir";
 import { aplicarDensidade, densidadeAtual, type Densidade } from "../../densidade";
 import { IconeOrigem, type Origem } from "../../icone-origem";
 import { CartaoLancamento, ladosDaLinha, type CartaoAberto } from "./cartao-lancamento";
@@ -128,6 +132,10 @@ export default function ConciliacaoPage() {
   const [pagina, setPagina] = useState(0);
   // null enquanto não lemos a preferência: só existe no cliente
   const [densidade, setDensidade] = useState<Densidade | null>(null);
+  // a decisão que não gravou, dita acima da tabela
+  const [erroDecisao, setErroDecisao] = useState<string | null>(null);
+  // as linhas com uma decisão a caminho: o segundo clique não manda o contrário por cima
+  const gravando = useRef(new Set<string>());
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -219,6 +227,47 @@ export default function ConciliacaoPage() {
       atual.coluna === coluna ? { coluna, crescente: !atual.crescente } : { coluna, crescente: true },
     );
     setPagina(0);
+  }
+
+  // decidir só onde há onde gravar, e só na rodada que vale: a passada é para ler
+  const podeDecidir = ligadas && (!rodada || rodada.numero === rodada.total);
+
+  /** Troca uma linha na conciliação que estiver na tela quando a resposta chegar. */
+  function trocarLinha(chave: string, troca: (linha: LinhaComparacao) => LinhaComparacao) {
+    substituir((atual) => ({
+      ...atual,
+      linhas: atual.linhas.map((linha) => (chaveDaLinha(linha) === chave ? troca(linha) : linha)),
+    }));
+  }
+
+  /** A caixa do eixo. Otimista: marca na hora e volta, com o motivo, se não gravar. */
+  async function conferir(linha: LinhaComparacao) {
+    const chave = chaveDaLinha(linha);
+    if (gravando.current.has(chave)) return;
+    gravando.current.add(chave);
+    const marcada = situacaoDaLinha(linha, rodadaDasLinhas) === "conferida";
+    const tipo: TipoEvento = marcada ? "conferencia_desfeita" : "conferida";
+    const otimista: Decisao | null = marcada
+      ? null
+      : { tipo: "conferida", texto: null, autor: "Você", em: new Date().toISOString(), rodada: rodadaDasLinhas };
+    setErroDecisao(null);
+    trocarLinha(chave, (atual) => ({ ...atual, decisao: otimista }));
+
+    const resposta = await decidir({ conciliacao, real, linha, tipo });
+    gravando.current.delete(chave);
+    if (resposta.ok) {
+      const gravada = resposta.conciliacao.linhas.find((atual) => chaveDaLinha(atual) === chave);
+      if (gravada) trocarLinha(chave, () => gravada);
+      return;
+    }
+    trocarLinha(chave, (atual) => ({ ...atual, decisao: linha.decisao }));
+    if (resposta.status === 401) {
+      router.push("/login");
+      return;
+    }
+    setErroDecisao(resposta.erro);
+    // outra rodada entrou no meio: a linha que a tela tem não existe mais
+    if (resposta.status === 404) recarregar();
   }
 
   return (
@@ -340,6 +389,12 @@ export default function ConciliacaoPage() {
           )}
         </Reveal>
 
+        {erroDecisao && (
+          <p role="alert" className="selo selo-risco decisao-erro">
+            {erroDecisao}
+          </p>
+        )}
+
         <Reveal delay={0.08}>
           <div className="dash-tabela-rolagem tabela-cartoes">
             <table
@@ -417,6 +472,9 @@ export default function ConciliacaoPage() {
               <tbody role="rowgroup">
                 {visiveis.map((linha) => {
                   const status = statusDaLinha(linha);
+                  const situacao = situacaoDaLinha(linha, rodadaDasLinhas);
+                  // conferida ou justificada, a linha sai da cor da categoria: alguém já cuidou dela
+                  const tom = situacao === "conferida" || situacao === "justificada" ? "neutro" : status.tom;
                   const { banco, sistema } = ladosDaLinha(linha);
                   // o cartão só nas linhas que pedem revisão, como na landing: nas batidas seria ruído
                   const comCartao = !estaResolvida(linha.status);
@@ -458,7 +516,8 @@ export default function ConciliacaoPage() {
                     <tr
                       key={linha.id}
                       role="row"
-                      data-tom={status.tom}
+                      data-tom={tom}
+                      data-situacao={situacao}
                       onMouseEnter={
                         comCartao ? (evento) => temHover() && abrirCartao(evento.currentTarget) : undefined
                       }
@@ -501,13 +560,31 @@ export default function ConciliacaoPage() {
                       {/* o nome curto cabe no eixo; o inteiro fica para o leitor de tela. O que
                           bateu vai sem selo: só o que pede revisão ganha cor, e o olho vai direto nele */}
                       <td role="cell" data-rotulo="Status" className="celula-status">
-                        <span
-                          className={comCartao ? `selo selo-${status.tom}` : "status-batido"}
-                          aria-hidden="true"
-                        >
-                          {rotuloCurto(linha)}
+                        {continuaDivergindo(linha, rodadaDasLinhas) && (
+                          <span className="eixo-voltou">
+                            <RotateCw size={14} aria-hidden="true" />
+                            <span className="sr-only">
+                              {`Conferida na rodada ${linha.decisao?.rodada}, continua divergindo depois da nova versão`}
+                            </span>
+                          </span>
+                        )}
+                        {podeDecidir && (situacao === "a_conferir" || situacao === "conferida") && (
+                          <button
+                            type="button"
+                            className="eixo-caixa"
+                            aria-pressed={situacao === "conferida"}
+                            aria-label={`Marcar ${linha.descricao} como conferida`}
+                            onClick={() => conferir(linha)}
+                          >
+                            {situacao === "conferida" && <Check size={12} aria-hidden="true" />}
+                          </button>
+                        )}
+                        <span className={comCartao ? `selo selo-${tom}` : "status-batido"} aria-hidden="true">
+                          {situacao === "justificada" ? "Justificada" : rotuloCurto(linha)}
                         </span>
-                        <span className="sr-only">{status.rotulo}</span>
+                        <span className="sr-only">
+                          {situacao === "justificada" ? `${status.rotulo} · justificada` : status.rotulo}
+                        </span>
                       </td>
                       {sistema ? (
                         <>
@@ -549,7 +626,7 @@ export default function ConciliacaoPage() {
             </table>
           </div>
 
-          {cartao && <CartaoLancamento id={idCartao} aberto={cartao} />}
+          {cartao && <CartaoLancamento id={idCartao} aberto={cartao} rodada={rodadaDasLinhas} />}
 
           {ordenadas.length === 0 && (
             <p className="tabela-vazia">{textoDoVazio(filtro, justificadas.length)}</p>

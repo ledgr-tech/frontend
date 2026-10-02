@@ -10,6 +10,7 @@ import {
   explicarDivergencia,
   listarExecucoes,
   listarExtratos,
+  registrarDecisao,
   situacaoDoExtrato,
 } from "./acoes";
 
@@ -584,6 +585,57 @@ describe("explicarDivergencia", () => {
     chamarBackend.mockRejectedValue(new ErroBackend(401, "Token expirado"));
 
     expect(await explicarDivergencia(LINHA)).toMatchObject({ ok: false, status: 401 });
+  });
+});
+
+describe("registrarDecisao", () => {
+  beforeEach(() => {
+    chamarBackend.mockReset();
+  });
+
+  it("grava na rota de decisões do extrato do banco e devolve a decisão em vigor", async () => {
+    const emVigor = {
+      tipo: "justificada",
+      texto: "Juros de dois dias de atraso.",
+      autor: "Eduardo Sichelero",
+      em: "2026-09-30T10:12:00-03:00",
+      rodada: 2,
+    };
+    chamarBackend.mockResolvedValue(emVigor);
+
+    const resultado = await registrarDecisao(BANCO_RECENTE, "lb-1", "justificada", "Juros de dois dias de atraso.");
+
+    expect(chamarBackend).toHaveBeenCalledWith(`/conciliacoes/${BANCO_RECENTE}/decisoes`, {
+      method: "POST",
+      corpo: { chave: "lb-1", tipo: "justificada", texto: "Juros de dois dias de atraso." },
+    });
+    expect(resultado).toEqual({ ok: true, dados: emVigor });
+  });
+
+  it("desfazer deixa a linha sem decisão", async () => {
+    chamarBackend.mockResolvedValue(null);
+
+    expect(await registrarDecisao(BANCO_RECENTE, "lb-1", "conferencia_desfeita")).toEqual({ ok: true, dados: null });
+  });
+
+  it("avisa que a linha mudou quando outra rodada entrou no meio", async () => {
+    // a chave que a tela tem não existe mais na conciliação de agora
+    chamarBackend.mockRejectedValue(new ErroBackend(404, "Linha não encontrada."));
+
+    expect(await registrarDecisao(BANCO_RECENTE, "lb-1", "conferida")).toEqual({
+      ok: false,
+      status: 404,
+      erro: "Esta linha mudou: a conciliação foi refeita depois que a tela abriu.",
+    });
+  });
+
+  it("recusa um id que não é UUID, sem chamar o backend", async () => {
+    expect(await registrarDecisao("../extratos", "lb-1", "conferida")).toEqual({
+      ok: false,
+      status: 404,
+      erro: "Conciliação não encontrada.",
+    });
+    expect(chamarBackend).not.toHaveBeenCalled();
   });
 });
 

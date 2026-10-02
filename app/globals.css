@@ -1970,6 +1970,23 @@ html[data-tema="escuro"] .app-shell {
 .folhas-com-eixo .celula-descricao .celula-abrir { display: block; max-width: 100%; }
 .celula-status, .th-centro { text-align: center; white-space: nowrap; }
 .th-centro .th-ordena { justify-content: center; }
+/* A conferência no eixo: a caixa é um botão (aria-pressed) desenhado como caixa de marcar,
+   antes do selo. O desenho tem 16px; o alvo, 24px, para o dedo e o ponteiro. */
+.eixo-caixa {
+  position: relative; display: inline-grid; place-items: center; vertical-align: middle;
+  width: 16px; height: 16px; margin-right: 6px; padding: 0;
+  border: 1.5px solid color-mix(in srgb, var(--color-text) 55%, transparent); border-radius: 4px;
+  background: transparent; color: var(--color-bg); cursor: pointer;
+}
+.eixo-caixa::after { content: ""; position: absolute; inset: -5px; }
+.eixo-caixa:hover { border-color: var(--color-text); }
+.eixo-caixa[aria-pressed="true"] { border-color: var(--color-text); background: var(--color-text); }
+/* conferida numa rodada passada, e a versão nova não resolveu: o ↻ dourado antes da caixa */
+.eixo-voltou { display: inline-flex; vertical-align: middle; margin-right: 4px; color: var(--color-accent-700); }
+/* a conferida fica apagada: alguém já cuidou dela. Os 70% seguram 4,5:1 nas duas folhas. */
+.tabela-folhas tbody tr[data-situacao="conferida"] > td:not(.celula-status) {
+  color: color-mix(in srgb, var(--color-text) 70%, transparent);
+}
 /* o que bateu fica quieto, sem selo: só o que pede revisão ganha cor. Os 70% (e não o
    --texto-apagado) seguram 4,5:1 sobre a página e sobre a folha cinza do sistema. */
 .status-batido { font-size: 12.5px; color: color-mix(in srgb, var(--color-text) 70%, transparent); }
@@ -1995,7 +2012,9 @@ html[data-tema="escuro"] .app-shell {
 
 /* a janela da nova versão do extrato do sistema */
 .nova-versao-campo { display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
-.nova-versao-erro { white-space: normal; border-radius: var(--radius-sm); }
+.nova-versao-erro, .decisao-erro { white-space: normal; border-radius: var(--radius-sm); }
+/* a decisão que não gravou, acima da tabela, do tamanho do texto */
+.decisao-erro { align-self: flex-start; }
 
 /* o lado sem lançamento: um encaixe tracejado, não três traços */
 .folha-vazia { text-align: center; }
@@ -3271,6 +3290,9 @@ th:is([aria-sort="ascending"], [aria-sort="descending"]) .th-ordena-seta { opaci
 .cartao-lancamento-diferenca {
   font-weight: 600; font-variant-numeric: tabular-nums; color: var(--color-risco-700);
 }
+/* a decisão sobre a linha: quem justificou, quando e por quê; ou a conferência que voltou */
+.cartao-lancamento-nota { display: flex; flex-direction: column; gap: 4px; font-size: 14px; }
+.cartao-lancamento-nota strong { font-weight: 600; }
 .cartao-no-eixo .dialog-body {
   font-size: 15px; line-height: 1.6; opacity: 1;
   color: color-mix(in srgb, var(--color-text) 84%, transparent);
