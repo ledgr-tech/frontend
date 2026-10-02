@@ -95,6 +95,7 @@ export default function DashboardPage() {
 
   const recente = estado.situacao === "pronto" ? estado.painel.recente : null;
   const anteriores = estado.situacao === "pronto" ? estado.painel.anteriores : [];
+  const rodadas = estado.situacao === "pronto" ? estado.painel.rodadas : {};
 
   return (
     <>
@@ -152,7 +153,7 @@ export default function DashboardPage() {
           </Link>
         </div>
       ) : (
-        <Conteudo recente={recente} anteriores={anteriores} />
+        <Conteudo recente={recente} anteriores={anteriores} rodadas={rodadas} />
       )}
     </>
   );
@@ -161,9 +162,11 @@ export default function DashboardPage() {
 function Conteudo({
   recente,
   anteriores,
+  rodadas,
 }: {
   recente: NonNullable<Painel["recente"]>;
   anteriores: Painel["anteriores"];
+  rodadas: Painel["rodadas"];
 }) {
   const resumo = resumir([recente]);
   const periodo = periodoDasLinhas(recente.linhas);
@@ -329,6 +332,10 @@ function Conteudo({
                     </td>
                     <td style={{ overflowWrap: "anywhere" }}>
                       {execucao.arquivoBanco} × {execucao.arquivoSistema}
+                      {/* a atual é sempre a última rodada; com uma só, não há o que dizer */}
+                      {(rodadas[execucao.extratoBancoId] ?? 1) > 1 && (
+                        <span className="vg-rodada">{` · rodada ${rodadas[execucao.extratoBancoId]}`}</span>
+                      )}
                     </td>
                     <td style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
                       {formatarInteiro(execucao.lancamentos)}
@@ -337,11 +344,9 @@ function Conteudo({
                       {execucao.acerto === null ? "—" : formatarPercentual(execucao.acerto)}
                     </td>
                     <td style={{ textAlign: "right" }}>
-                      <Link
-                        href={caminhoDaConciliacao(execucao.extratoBancoId, execucao.extratoSistemaId)}
-                        className="btn btn-secondary"
-                      >
-                        Ver
+                      {/* pelo endereço só do banco, que abre a rodada que vale, como no histórico */}
+                      <Link href={caminhoDaConciliacao(execucao.extratoBancoId)} className="btn btn-secondary">
+                        Ver<span className="sr-only"> {execucao.arquivoBanco}</span>
                       </Link>
                     </td>
                   </tr>

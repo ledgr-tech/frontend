@@ -63,8 +63,8 @@ function execucao(parcial: Partial<Execucao> & Pick<Execucao, "id">): Execucao {
   };
 }
 
-function painel(recente: Conciliacao | null, anteriores: Execucao[] = []) {
-  carregarPainel.mockResolvedValue({ ok: true, dados: { recente, anteriores } });
+function painel(recente: Conciliacao | null, anteriores: Execucao[] = [], rodadas: Record<string, number> = {}) {
+  carregarPainel.mockResolvedValue({ ok: true, dados: { recente, anteriores, rodadas } });
 }
 
 describe("DashboardPage", () => {
@@ -235,10 +235,25 @@ describe("DashboardPage", () => {
     expect(linhaAnterior.getByText("02/09/2026 16:20")).toBeInTheDocument();
     expect(linhaAnterior.getByText("3.980")).toBeInTheDocument();
     expect(linhaAnterior.getByText("97,3%")).toBeInTheDocument();
-    expect(linhaAnterior.getByRole("link", { name: "Ver" })).toHaveAttribute(
+    // pelo endereço só do banco, que abre a rodada que vale, como no histórico e na visão geral
+    expect(linhaAnterior.getByRole("link", { name: "Ver sicredi-e1.ofx" })).toHaveAttribute(
       "href",
-      "/conciliacoes/banco-e1?sistema=sistema-e1",
+      "/conciliacoes/banco-e1",
     );
+  });
+
+  it("says the round of an earlier conciliação that already had more than one", async () => {
+    painel(conciliacao("banco-2", [linha("l-1", "match_exato", 100, 100)]), [execucao({ id: "e1" }), execucao({ id: "e0" })], {
+      "banco-e1": 3,
+      "banco-e0": 1,
+    });
+    render(<DashboardPage />);
+
+    expect(await screen.findByText("Conciliações anteriores")).toBeInTheDocument();
+    expect(screen.getByText(/sicredi-e1\.ofx × erp-e1\.csv/).closest("td")).toHaveTextContent(
+      "sicredi-e1.ofx × erp-e1.csv · rodada 3",
+    );
+    expect(screen.getByText(/sicredi-e0\.ofx × erp-e0\.csv/).closest("td")).not.toHaveTextContent("rodada");
   });
 
   it("only lists earlier conciliações when there are some", async () => {

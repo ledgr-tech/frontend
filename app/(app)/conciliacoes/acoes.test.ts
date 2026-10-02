@@ -265,7 +265,7 @@ describe("carregarPainel", () => {
 
     expect(await carregarPainel()).toEqual({
       ok: true,
-      dados: { recente: null, anteriores: [] },
+      dados: { recente: null, anteriores: [], rodadas: {} },
     });
     expect(chamarBackend).toHaveBeenCalledTimes(1);
   });
@@ -290,6 +290,20 @@ describe("carregarPainel", () => {
     expect(resultado.dados.recente?.linhas.map((linha) => linha.id)).toEqual(["c-1"]);
     // a substituída (e-2) fica só no histórico; no painel, cada par aparece uma vez
     expect(resultado.dados.anteriores.map((item) => item.id)).toEqual(["e-1"]);
+  });
+
+  it("diz quantas rodadas cada conciliação tem, para a lista das anteriores", async () => {
+    backendCom([
+      execucao("e-3", BANCO_RECENTE),
+      { ...execucao("e-2", BANCO_ANTERIOR), extrato_sistema_id: "sistema-v2", executada_em: "2026-09-24T10:00:00Z" },
+      { ...execucao("e-1", BANCO_ANTERIOR), executada_em: "2026-09-23T10:00:00Z" },
+    ]);
+
+    const resultado = await carregarPainel();
+    if (!resultado.ok) throw new Error(resultado.erro);
+    // o banco anterior está na rodada 2: a 1 (e-1) fica só no histórico
+    expect(resultado.dados.anteriores.map((item) => item.id)).toEqual(["e-2"]);
+    expect(resultado.dados.rodadas).toEqual({ [BANCO_RECENTE]: 1, [BANCO_ANTERIOR]: 2 });
   });
 
   it("a versão antiga do extrato do sistema não aparece como outra conciliação", async () => {

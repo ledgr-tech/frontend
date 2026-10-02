@@ -296,6 +296,8 @@ export type Painel = {
   recente: Conciliacao | null;
   /** As outras execuções atuais, da mais recente para a mais antiga. */
   anteriores: Execucao[];
+  /** Quantas rodadas cada extrato do banco tem na página: a atual é sempre a última. */
+  rodadas: Record<string, number>;
 };
 
 /**
@@ -309,12 +311,19 @@ export async function carregarPainel(): Promise<Resultado<Painel>> {
 
   // As refeitas depois e as versões antigas do extrato do sistema ficam só no
   // histórico: aqui cada extrato do banco aparece uma vez, na rodada que vale.
-  const [maisRecente, ...anteriores] = execucoesVigentes(lista.dados.execucoes);
-  if (!maisRecente) return { ok: true, dados: { recente: null, anteriores: [] } };
+  const { execucoes } = lista.dados;
+  const [maisRecente, ...anteriores] = execucoesVigentes(execucoes);
+  if (!maisRecente) return { ok: true, dados: { recente: null, anteriores: [], rodadas: {} } };
+  const rodadas = Object.fromEntries(
+    [...new Set(execucoes.map((execucao) => execucao.extratoBancoId))].map((banco) => [
+      banco,
+      rodadasDoBanco(execucoes, banco).length,
+    ]),
+  );
 
   const conciliacao = await carregarConciliacao(maisRecente.extratoBancoId, maisRecente.extratoSistemaId);
   if (!conciliacao.ok) return conciliacao;
-  return { ok: true, dados: { recente: conciliacao.dados.conciliacao, anteriores } };
+  return { ok: true, dados: { recente: conciliacao.dados.conciliacao, anteriores, rodadas } };
 }
 
 /**
