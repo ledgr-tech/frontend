@@ -3,77 +3,22 @@
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import { caminhoDaConciliacao } from "@/lib/caminhos";
-import { analisarCsv, type Analise } from "@/lib/csv-extrato";
+import { conciliar, type Falha } from "../acoes";
 import {
-  conciliar,
-  enviarExtrato,
-  situacaoDoExtrato,
-  type Falha,
-  type SituacaoExtrato,
-} from "../acoes";
+  aguardarProcessamento,
+  conferirCsv,
+  ERRO_SEM_RESPOSTA,
+  motivoDaRecusa,
+  RECADO,
+  subir,
+  TAMANHO_MAXIMO_BYTES,
+  type Etapa,
+  type Origem,
+  type Pendente,
+} from "../envio";
 import { ImportacaoInterrompida } from "./importacao-interrompida";
-import { lerBytes } from "./ler-arquivo";
 import { Reveal } from "@/app/reveal";
 import { Cabecalho } from "../../cabecalho";
-
-/**
- * Conferido antes de subir. Abaixo dos 5MB do backend de propósito: o arquivo
- * passa por uma Server Action, e a Vercel corta o corpo da requisição em 4,5MB
- * (o `bodySizeLimit` do next.config.ts acompanha esse teto).
- */
-const TAMANHO_MAXIMO_BYTES = 4 * 1024 * 1024;
-
-// A Server Action lançou em vez de devolver um Resultado: corpo grande demais,
-// rede caída ou deploy novo no meio ("Failed to find Server Action"). Recarregar
-// resolve os dois últimos.
-const ERRO_SEM_RESPOSTA = "Não foi possível enviar agora. Recarregue a página e tente de novo.";
-
-// O upload responde na hora com `status: "pendente"` e o parsing roda em
-// background, então o resultado só aparece consultando de novo.
-const INTERVALO_CONSULTA_MS = 1500;
-const ESPERA_MAXIMA_MS = 90_000;
-
-const TERMINAIS: readonly SituacaoExtrato["status"][] = [
-  "concluido",
-  "concluido_com_erros",
-  "erro",
-];
-
-type Etapa = "ocioso" | "conferindo" | "enviando" | "processando" | "conciliando";
-
-const RECADO: Record<Exclude<Etapa, "ocioso">, string> = {
-  conferindo: "Conferindo os arquivos…",
-  enviando: "Enviando os extratos…",
-  processando: "Lendo os lançamentos…",
-  conciliando: "Comparando banco e sistema…",
-};
-
-function esperar(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-type Origem = "banco" | "sistema";
-
-/** Um CSV que o backend não lê como está, esperando a pessoa apontar as colunas. */
-type Pendente = {
-  origem: Origem;
-  arquivo: File;
-  analise: Extract<Analise, { motivo: "colunas" | "formato" }>;
-};
-
-// o que cada lado aceita: o banco exporta OFX ou CSV; o ERP, CSV ou o PDF de lançamentos
-const FORMATOS: Record<Origem, string> = { banco: "OFX ou CSV", sistema: "CSV ou PDF" };
-
-/** O que o backend deixa saber de um extrato que ele recusou inteiro. */
-function motivoDaRecusa(situacao: SituacaoExtrato): string {
-  const [primeira] = situacao.erros;
-  if (primeira) {
-    // nenhuma linha passou: a primeira recusada já diz o que há de errado com o arquivo
-    return `Nenhuma linha do extrato do ${situacao.origem} pôde ser lida (linha ${primeira.identificador}: ${primeira.motivo}).`;
-  }
-  // erro do arquivo inteiro: o backend não grava o motivo, só o status
-  return `O servidor não conseguiu ler o extrato do ${situacao.origem}. Confira se é o arquivo certo, exportado em ${FORMATOS[situacao.origem]}.`;
-}
 
 export default function NovaConciliacaoPage() {
   const router = useRouter();
@@ -113,41 +58,15 @@ export default function NovaConciliacaoPage() {
     setErro(falha.erro);
   }
 
-  async function subir(arquivo: File, origem: "banco" | "sistema") {
-    const dados = new FormData();
-    dados.append("arquivo", arquivo);
-    // O campo que trava a integração (issue #20): obrigatório e sem default no
-    // backend — ausente, o FastAPI devolve 422 antes de olhar o arquivo.
-    dados.append("origem", origem);
-    return enviarExtrato(dados);
-  }
-
-  /** Consulta até o parsing terminar. Devolve null se desistiu de esperar. */
-  async function aguardarProcessamento(extratoId: string): Promise<SituacaoExtrato | Falha | null> {
-    const limite = Date.now() + ESPERA_MAXIMA_MS;
-    while (Date.now() < limite) {
-      const resposta = await situacaoDoExtrato(extratoId);
-      if (!resposta.ok) return resposta;
-      if (TERMINAIS.includes(resposta.dados.status)) return resposta.dados;
-      if (!vivo.current) return null;
-      await esperar(INTERVALO_CONSULTA_MS);
-    }
-    return null;
-  }
-
   /**
    * O CSV passa pelas regras do backend antes de subir. Devolve true se pode
    * subir como está; senão abre a importação interrompida ou mostra o erro.
    */
   async function conferir(arquivo: File, origem: Origem): Promise<boolean> {
-    if (!arquivo.name.toLowerCase().endsWith(".csv")) return true; // OFX e PDF o backend lê direto
-    const analise = analisarCsv(await lerBytes(arquivo));
-    if (analise.pronto) return true;
-    if (analise.motivo === "ilegivel") {
-      setErro(`Não foi possível ler "${arquivo.name}": ${analise.mensagem}`);
-    } else {
-      setPendente({ origem, arquivo, analise });
-    }
+    const conferido = await conferirCsv(arquivo, origem);
+    if (conferido.pronto) return true;
+    if ("erro" in conferido) setErro(conferido.erro);
+    else setPendente(conferido.pendente);
     return false;
   }
 
@@ -205,8 +124,8 @@ export default function NovaConciliacaoPage() {
 
     setEtapa("processando");
     const situacoes = await Promise.all([
-      aguardarProcessamento(banco.dados.extratoId),
-      aguardarProcessamento(sistema.dados.extratoId),
+      aguardarProcessamento(banco.dados.extratoId, () => vivo.current),
+      aguardarProcessamento(sistema.dados.extratoId, () => vivo.current),
     ]);
 
     const recados: string[] = [];
