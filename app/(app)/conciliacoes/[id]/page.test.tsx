@@ -175,15 +175,117 @@ describe("ConciliacaoPage", () => {
     const linha = (await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" })).closest("tr")!;
     const celulas = within(linha).getAllByRole("cell");
     // o Intl separa "R$" do valor com espaço não separável
-    expect(celulas.map((celula) => celula.textContent?.replace(/\s/g, " "))).toEqual([
-      "04/09",
-      "Boleto Aço Norte Bobinas",
-      "R$ 12.640,00",
-      "05/09",
-      "Pagamento fornecedor Aço Norte",
-      "R$ 12.604,00",
-      "Match por tolerância de data",
+    const textos = celulas.map((celula) => celula.textContent?.replace(/\s/g, " "));
+    expect(textos.slice(0, 3)).toEqual(["04/09", "Boleto Aço Norte Bobinas", "R$ 12.640,00"]);
+    expect(textos.slice(4)).toEqual(["05/09", "Pagamento fornecedor Aço Norte", "R$ 12.604,00"]);
+  });
+
+  it("puts the status between the two sheets, as the verdict on the pair", async () => {
+    buscarConciliacao.mockReturnValue(conciliacaoEmAndamento);
+    render(<ConciliacaoPage />);
+
+    await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" });
+    const [, colunas, linha] = screen.getAllByRole("row");
+    // a seta diz quem ordena: a data, de saída
+    expect(within(colunas).getAllByRole("columnheader").map((coluna) => coluna.textContent)).toEqual([
+      "Data▲",
+      "Descrição↕",
+      "Banco↕",
+      "Status↕",
+      "Data",
+      "Descrição",
+      "Sistema↕",
     ]);
+    expect(within(linha).getAllByRole("cell")[3]).toHaveAttribute("data-rotulo", "Status");
+  });
+
+  it("names the status in a few words, and keeps the full name for screen readers", async () => {
+    buscarConciliacao.mockReturnValue(conciliacaoMista);
+    render(<ConciliacaoPage />);
+
+    const divergente = (await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" })).closest("tr")!;
+    const status = within(divergente).getAllByRole("cell")[3];
+    const curto = within(status).getByText("Valor diverge");
+    expect(curto).toHaveClass("selo", "selo-risco");
+    expect(curto).toHaveAttribute("aria-hidden", "true");
+    expect(within(status).getByText("Valor diverge na mesma data")).toHaveClass("sr-only");
+
+    // o que bateu fica quieto: o nome sem selo, para o olho ir direto ao que pede revisão
+    const batida = screen.getByRole("button", { name: "Pagamento batido" }).closest("tr")!;
+    expect(within(batida).getByText("Bate")).not.toHaveClass("selo");
+  });
+
+  it("marks the field that diverges: the values when the value differs, the dates when the date does", async () => {
+    buscarConciliacao.mockReturnValue({
+      ...conciliacaoMista,
+      linhas: [
+        conciliacaoMista.linhas[1],
+        {
+          id: "lc-3",
+          descricao: "DAS Simples Nacional",
+          data: "25/09",
+          dataSistema: "20/09",
+          valorBanco: -1320,
+          valorSistema: -1320,
+          status: "divergente_data",
+          explicacao: null,
+          historico: [],
+        },
+      ],
+    });
+    render(<ConciliacaoPage />);
+
+    const diverge = (celula: HTMLElement) => celula.hasAttribute("data-diverge");
+    const valor = (await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" })).closest("tr")!;
+    // data, descrição, valor | status | data, descrição, valor
+    expect(within(valor).getAllByRole("cell").map(diverge)).toEqual([
+      false, false, true, false, false, false, true,
+    ]);
+    const data = screen.getByRole("button", { name: "DAS Simples Nacional" }).closest("tr")!;
+    expect(within(data).getAllByRole("cell").map(diverge)).toEqual([
+      true, false, false, false, true, false, false,
+    ]);
+    // o texto do campo vai numa marca, que acende de leve quando o ponteiro está na linha
+    expect(within(valor).getByText(/12\.640,00/)).toHaveClass("marca-diverge");
+    expect(within(data).getByText("20/09")).toHaveClass("marca-diverge");
+  });
+
+  it("gives the full description on hover where the table cuts it to one line, unless the card already does", async () => {
+    buscarConciliacao.mockReturnValue({
+      ...conciliacaoMista,
+      linhas: [
+        {
+          ...conciliacaoMista.linhas[0],
+          descricao: "PIX RECEBIDO - CONSTRUTORA ALVO EMPREENDIMENTOS IMOBILIARIOS LTDA",
+          descricaoSistema: "Recebimento NF 4521 - Construtora Alvo Empreendimentos Imobiliários Ltda",
+        },
+        conciliacaoMista.linhas[1],
+      ],
+    });
+    render(<ConciliacaoPage />);
+
+    const batida = (await screen.findByRole("button", { name: /^PIX RECEBIDO/ })).closest("tr")!;
+    const [, banco, , , , sistema] = within(batida).getAllByRole("cell");
+    expect(banco).toHaveAttribute("title", "PIX RECEBIDO - CONSTRUTORA ALVO EMPREENDIMENTOS IMOBILIARIOS LTDA");
+    expect(sistema).toHaveAttribute(
+      "title",
+      "Recebimento NF 4521 - Construtora Alvo Empreendimentos Imobiliários Ltda",
+    );
+    // a linha em revisão abre o cartão, que mostra as duas descrições inteiras: sem dica dupla
+    const divergente = screen.getByRole("button", { name: "Boleto Aço Norte Bobinas" }).closest("tr")!;
+    expect(within(divergente).getAllByRole("cell")[1]).not.toHaveAttribute("title");
+  });
+
+  it("widens the value column for a conciliação with values past the millions", async () => {
+    buscarConciliacao.mockReturnValue({
+      ...conciliacaoMista,
+      linhas: [...conciliacaoMista.linhas, { ...conciliacaoMista.linhas[0], id: "lc-9", valorBanco: -12345678.9 }],
+    });
+    const { container } = render(<ConciliacaoPage />);
+
+    await screen.findByText("Comparação direta");
+    const tabela = container.querySelector("table")!;
+    expect(tabela.style.getPropertyValue("--valor-largura")).toBe("11.28rem");
   });
 
   it("leaves the bank sheet empty when only the system has the lançamento, and opens it from there", async () => {
@@ -203,8 +305,11 @@ describe("ConciliacaoPage", () => {
     render(<ConciliacaoPage />);
 
     const linha = (await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" })).closest("tr")!;
-    const [data, descricao, valor] = within(linha).getAllByRole("cell");
-    expect([data.textContent, descricao.textContent, valor.textContent]).toEqual(["—", "—", "—"]);
+    // uma célula só no lugar de três traços: a folha diz que falta, não que está em branco
+    const [vazia, status] = within(linha).getAllByRole("cell");
+    expect(vazia).toHaveTextContent("sem lançamento no banco");
+    expect(vazia).toHaveAttribute("colspan", "3");
+    expect(status).toHaveTextContent("Falta no banco");
 
     await user.click(within(linha).getByRole("button", { name: "Boleto Aço Norte Bobinas" }));
     expect(screen.getByRole("link", { name: "Abrir detalhe" })).toBeInTheDocument();
@@ -539,14 +644,15 @@ describe("ConciliacaoPage", () => {
     const user = userEvent.setup();
     render(<ConciliacaoPage />);
 
-    const compacta = await screen.findByRole("button", { name: "Compacta" });
-    expect(screen.getByRole("button", { name: "Padrão" })).toHaveAttribute("aria-pressed", "true");
+    const padrao = await screen.findByRole("button", { name: "Padrão" });
+    // a compacta é o padrão: facilita a leitura de uma tabela longa
+    expect(screen.getByRole("button", { name: "Compacta" })).toHaveAttribute("aria-pressed", "true");
 
-    await user.click(compacta);
+    await user.click(padrao);
 
-    expect(compacta).toHaveAttribute("aria-pressed", "true");
-    expect(document.documentElement.dataset.densidade).toBe("compacta");
-    expect(window.localStorage.getItem("ledgr_densidade")).toBe("compacta");
+    expect(padrao).toHaveAttribute("aria-pressed", "true");
+    expect(document.documentElement.dataset.densidade).toBe("padrao");
+    expect(window.localStorage.getItem("ledgr_densidade")).toBe("padrao");
   });
 
   it("paginates past the page size and keeps the count honest", async () => {

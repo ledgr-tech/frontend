@@ -258,7 +258,7 @@ export function Configuracoes({
   const [secaoId, setSecaoId] = useState("aparencia");
   const [busca, setBusca] = useState("");
   const [tema, setTema] = useState<EscolhaDeTema>("sistema");
-  const [densidade, setDensidade] = useState<Densidade>("padrao");
+  const [densidade, setDensidade] = useState<Densidade>("compacta");
   const [recolhido, setRecolhido] = useState(false);
   const [toleranciaDias, setToleranciaDias] = useState<number | null | undefined>(undefined);
   const ctrl = useTeclaDeAtalho();

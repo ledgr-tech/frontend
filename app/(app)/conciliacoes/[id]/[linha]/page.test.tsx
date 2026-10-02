@@ -296,6 +296,17 @@ describe("DetalheDivergenciaPage", () => {
     expect(screen.queryByRole("button", { name: /Explicar/ })).not.toBeInTheDocument();
   });
 
+  it("shows the explanation the backend wrote during the conciliação, marked when the AI wrote it", async () => {
+    doBackend({ explicacao: "O banco cobrou R$ 36 de juros pelo atraso.", explicacaoPorIa: true });
+    render(<DetalheDivergenciaPage />);
+
+    expect(await screen.findByText("O banco cobrou R$ 36 de juros pelo atraso.")).toBeInTheDocument();
+    // os Termos prometem o selo em todo texto escrito pela IA
+    expect(screen.getByText("Gerada por IA · confira antes de decidir")).toBeInTheDocument();
+    // já explicada: não há o que pedir
+    expect(screen.queryByRole("button", { name: /Explicar/ })).not.toBeInTheDocument();
+  });
+
   it("keeps the mock's own explanation, which the backend does not know", async () => {
     buscarConciliacao.mockReturnValue(conciliacao);
     render(<DetalheDivergenciaPage />);

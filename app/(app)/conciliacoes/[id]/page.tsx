@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState, type CSSProperties } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ehDivergencia } from "@/lib/adaptadores";
@@ -11,7 +11,13 @@ import {
   type Conciliacao,
   type LinhaComparacao,
 } from "@/lib/mock-data";
-import { estaResolvida, formatarInteiro, seloDoStatus, statusDaLinha } from "../../dashboard/resumo";
+import {
+  estaResolvida,
+  formatarInteiro,
+  rotuloCurto,
+  seloDoStatus,
+  statusDaLinha,
+} from "../../dashboard/resumo";
 import { FALHA_AO_CARREGAR, useConciliacao } from "../usar-conciliacao";
 import { EsqueletoTela } from "../../esqueleto";
 import { filtrarLinhas, ordenarLinhas, type Coluna, type Filtro, type Ordem } from "./ordenar";
@@ -19,8 +25,10 @@ import { aplicarDensidade, densidadeAtual, type Densidade } from "../../densidad
 import { IconeOrigem, type Origem } from "../../icone-origem";
 import { CartaoLancamento, ladosDaLinha, type CartaoAberto } from "./cartao-lancamento";
 import { Relatorio } from "./relatorio";
+import { larguraDoValor } from "./largura";
 import { Reveal } from "@/app/reveal";
 import { Cabecalho } from "../../cabecalho";
+import { SeloIa } from "../../selo-ia";
 
 /** Quantas linhas por página. 4.218 lançamentos não cabem numa tela. */
 const POR_PAGINA = 25;
@@ -41,6 +49,7 @@ function CabecalhoOrdenavel({
   onOrdenar,
   children,
   direita = false,
+  centro = false,
   folha,
 }: {
   coluna: Coluna;
@@ -48,11 +57,14 @@ function CabecalhoOrdenavel({
   onOrdenar: (coluna: Coluna) => void;
   children: React.ReactNode;
   direita?: boolean;
+  centro?: boolean;
   /** Em qual das duas folhas a coluna mora; sem folha, fica no fundo da página. */
   folha?: Origem;
 }) {
   const ativa = ordem.coluna === coluna;
-  const classes = [direita && "th-direita", folha && `folha-${folha}`].filter(Boolean).join(" ");
+  const classes = [direita && "th-direita", centro && "th-centro", folha && `folha-${folha}`]
+    .filter(Boolean)
+    .join(" ");
   return (
     <th
       className={classes || undefined}
@@ -143,6 +155,7 @@ export default function ConciliacaoPage() {
   }
 
   const emRevisao = filtrarLinhas(conciliacao.linhas, "revisao");
+  const larguraValor = larguraDoValor(conciliacao.linhas);
   const categoria = ehDivergencia(filtro) ? filtro : null;
   const ordenadas = ordenarLinhas(filtrarLinhas(conciliacao.linhas, filtro), ordem);
   const totalPaginas = Math.max(1, Math.ceil(ordenadas.length / POR_PAGINA));
@@ -247,11 +260,28 @@ export default function ConciliacaoPage() {
 
         <Reveal delay={0.08}>
           <div className="dash-tabela-rolagem tabela-cartoes">
-            <table className="table tabela-folhas" role="table">
+            <table
+              className="table tabela-folhas folhas-com-eixo"
+              role="table"
+              // a coluna de valor cresce para o maior valor da conciliação, quando passa dos milhões
+              style={larguraValor ? ({ "--valor-largura": larguraValor } as CSSProperties) : undefined}
+            >
+              {/* larguras fixas (globals.css): as folhas saem iguais dos dois lados do eixo,
+                  e as colunas não mudam de largura ao trocar de página ou de filtro */}
+              <colgroup>
+                <col className="col-data" />
+                <col />
+                <col className="col-valor" />
+                <col className="col-eixo" />
+                <col className="col-data" />
+                <col />
+                <col className="col-valor" />
+              </colgroup>
               <thead role="rowgroup">
                 {/* Duas folhas, como a "folha a folha" do design: o extrato do banco
-                    e o do sistema são coisas diferentes, cada um com seu tom e um vão
-                    entre os dois. O status fica fora das folhas — é o veredito. */}
+                    e o do sistema são coisas diferentes, cada um com seu tom. O status
+                    fica no eixo entre as duas, como no design: é o veredito sobre o par,
+                    e o olho passa por ele no caminho de um lado ao outro. */}
                 <tr role="row" className="folhas-titulos">
                   <th colSpan={3} scope="colgroup" className="folha-banco folha-titulo">
                     <span className="folha-titulo-conteudo">
@@ -260,14 +290,13 @@ export default function ConciliacaoPage() {
                       <span className="folha-etiqueta">Fonte da verdade</span>
                     </span>
                   </th>
-                  <td className="folha-vao" aria-hidden="true" />
+                  <td className="folha-fora" aria-hidden="true" />
                   <th colSpan={3} scope="colgroup" className="folha-sistema folha-titulo">
                     <span className="folha-titulo-conteudo">
                       <IconeOrigem origem="sistema" />
                       <span className="folha-nome">Sistema de gestão</span>
                     </span>
                   </th>
-                  <td className="folha-fora" aria-hidden="true" />
                 </tr>
                 <tr role="row">
                   <CabecalhoOrdenavel coluna="data" ordem={ordem} onOrdenar={alternarOrdem} folha="banco">
@@ -285,7 +314,9 @@ export default function ConciliacaoPage() {
                   >
                     Banco
                   </CabecalhoOrdenavel>
-                  <td className="folha-vao" aria-hidden="true" />
+                  <CabecalhoOrdenavel coluna="status" ordem={ordem} onOrdenar={alternarOrdem} centro>
+                    Status
+                  </CabecalhoOrdenavel>
                   {/* ponytail: sem ordenar — a data e a descrição que ordenam são as do
                       banco. Ordenar pelo lado do sistema entra se alguém pedir. */}
                   <th className="folha-sistema">Data</th>
@@ -299,9 +330,6 @@ export default function ConciliacaoPage() {
                   >
                     Sistema
                   </CabecalhoOrdenavel>
-                  <CabecalhoOrdenavel coluna="status" ordem={ordem} onOrdenar={alternarOrdem} direita>
-                    Status
-                  </CabecalhoOrdenavel>
                 </tr>
               </thead>
               <tbody role="rowgroup">
@@ -310,8 +338,19 @@ export default function ConciliacaoPage() {
                   const { banco, sistema } = ladosDaLinha(linha);
                   // o cartão só nas linhas que pedem revisão, como na landing: nas batidas seria ruído
                   const comCartao = !estaResolvida(linha.status);
-                  const abrirCartao = (elemento: Element) =>
-                    setCartao({ linha, ancora: elemento.getBoundingClientRect() });
+                  // a divergência pinta o campo em questão dos dois lados, como um diff
+                  // destaca o trecho que mudou: os valores, ou as datas
+                  const diverge = (campo: "valor" | "data") =>
+                    linha.status === `divergente_${campo}` ? "true" : undefined;
+                  // e o texto dele vai numa marca, que acende de leve com o ponteiro na linha
+                  const marcar = (campo: "valor" | "data", texto: string) =>
+                    diverge(campo) ? <span className="marca-diverge">{texto}</span> : texto;
+                  // a descrição fica numa linha só (globals.css); o texto inteiro vem na dica do
+                  // navegador, menos onde o cartão abre, que já traz as duas inteiras
+                  const dica = (descricao: string) => (comCartao ? undefined : descricao);
+                  // o cartão sai da célula do status, centrado nela: é o veredito que ele explica
+                  const abrirCartao = (tr: Element) =>
+                    setCartao({ linha, ancora: (tr.querySelector(".celula-status") ?? tr).getBoundingClientRect() });
                   const fecharCartao = () =>
                     setCartao((atual) => (atual?.linha.id === linha.id ? null : atual));
                   // botão de verdade: a linha inteira com onClick não era alcançável por
@@ -343,38 +382,84 @@ export default function ConciliacaoPage() {
                       }
                       onMouseLeave={comCartao ? fecharCartao : undefined}
                     >
-                      <td role="cell" data-rotulo="Data" className="dash-celula-fraca folha-banco">
-                        {banco?.data ?? "—"}
+                      {banco ? (
+                        <>
+                          <td
+                            role="cell"
+                            data-rotulo="Data"
+                            data-diverge={diverge("data")}
+                            className="dash-celula-fraca folha-banco"
+                          >
+                            {marcar("data", banco.data)}
+                          </td>
+                          <td
+                            role="cell"
+                            data-rotulo="Descrição"
+                            data-destaque="true"
+                            className="folha-banco celula-descricao"
+                            title={dica(banco.descricao)}
+                          >
+                            {abrir(banco.descricao)}
+                          </td>
+                          <td
+                            role="cell"
+                            data-rotulo="Banco"
+                            data-diverge={diverge("valor")}
+                            className="dash-valor-celula folha-banco"
+                          >
+                            {linha.valorBanco !== null ? marcar("valor", formatarMoeda(linha.valorBanco)) : "—"}
+                          </td>
+                        </>
+                      ) : (
+                        // uma célula só no lugar de três traços: a folha diz que falta, não que está em branco
+                        <td role="cell" colSpan={3} data-rotulo="Banco" className="folha-banco folha-vazia">
+                          <span className="folha-vazia-marca">sem lançamento no banco</span>
+                        </td>
+                      )}
+                      {/* o nome curto cabe no eixo; o inteiro fica para o leitor de tela. O que
+                          bateu vai sem selo: só o que pede revisão ganha cor, e o olho vai direto nele */}
+                      <td role="cell" data-rotulo="Status" className="celula-status">
+                        <span
+                          className={comCartao ? `selo selo-${status.tom}` : "status-batido"}
+                          aria-hidden="true"
+                        >
+                          {rotuloCurto(linha)}
+                        </span>
+                        <span className="sr-only">{status.rotulo}</span>
                       </td>
-                      <td
-                        role="cell"
-                        data-rotulo="Descrição"
-                        data-destaque={banco ? "true" : undefined}
-                        className="folha-banco"
-                      >
-                        {banco ? abrir(banco.descricao) : "—"}
-                      </td>
-                      <td role="cell" data-rotulo="Banco" className="dash-valor-celula folha-banco">
-                        {linha.valorBanco !== null ? formatarMoeda(linha.valorBanco) : "—"}
-                      </td>
-                      <td className="folha-vao" aria-hidden="true" />
-                      <td role="cell" data-rotulo="Data no sistema" className="dash-celula-fraca folha-sistema">
-                        {sistema?.data ?? "—"}
-                      </td>
-                      <td
-                        role="cell"
-                        data-rotulo="Descrição no sistema"
-                        data-destaque={banco ? undefined : "true"}
-                        className="folha-sistema"
-                      >
-                        {sistema ? (banco ? sistema.descricao : abrir(sistema.descricao)) : "—"}
-                      </td>
-                      <td role="cell" data-rotulo="Sistema" className="dash-valor-celula folha-sistema">
-                        {linha.valorSistema !== null ? formatarMoeda(linha.valorSistema) : "—"}
-                      </td>
-                      <td role="cell" data-rotulo="Status" style={{ textAlign: "right" }}>
-                        <span className={`selo selo-${status.tom}`}>{status.rotulo}</span>
-                      </td>
+                      {sistema ? (
+                        <>
+                          <td
+                            role="cell"
+                            data-rotulo="Data no sistema"
+                            data-diverge={diverge("data")}
+                            className="dash-celula-fraca folha-sistema"
+                          >
+                            {marcar("data", sistema.data)}
+                          </td>
+                          <td
+                            role="cell"
+                            data-rotulo="Descrição no sistema"
+                            data-destaque={banco ? undefined : "true"}
+                            className="folha-sistema celula-descricao"
+                            title={dica(sistema.descricao)}
+                          >
+                            {banco ? sistema.descricao : abrir(sistema.descricao)}
+                          </td>
+                          <td
+                            role="cell"
+                            data-rotulo="Sistema"
+                            data-diverge={diverge("valor")}
+                            className="dash-valor-celula folha-sistema"
+                          >
+                            {linha.valorSistema !== null ? marcar("valor", formatarMoeda(linha.valorSistema)) : "—"}
+                          </td>
+                        </>
+                      ) : (
+                        <td role="cell" colSpan={3} data-rotulo="Sistema" className="folha-sistema folha-vazia">
+                          <span className="folha-vazia-marca">sem lançamento no sistema</span>
+                        </td>
+                      )}
                     </tr>
                   );
                 })}
@@ -528,7 +613,13 @@ function EspiaDaLinha({
             </div>
           </div>
         </div>
-        {linha.explicacao && <p className="dialog-body">{linha.explicacao}</p>}
+        {linha.explicacao && (
+          <div>
+            {/* os Termos prometem o selo em todo texto escrito pela IA */}
+            {linha.explicacaoPorIa && <SeloIa />}
+            <p className="dialog-body">{linha.explicacao}</p>
+          </div>
+        )}
         {/* o backend não registra eventos por lançamento: sem evento, sem tabela vazia */}
         {linha.historico.length > 0 && (
           <table className="table">

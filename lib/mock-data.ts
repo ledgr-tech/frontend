@@ -63,6 +63,8 @@ export type LinhaComparacao = {
   valorSistema: number | null;
   status: StatusLinha;
   explicacao: string | null;
+  /** A explicação foi escrita pela IA: leva o selo "Gerada por IA", como os Termos prometem. */
+  explicacaoPorIa?: boolean;
   historico: EventoHistorico[];
   /** Metadados do extrato, mostrados no detalhe. Opcionais: só a divergência que o
    *  design descreve por inteiro os tem; as outras linhas degradam sem eles. */

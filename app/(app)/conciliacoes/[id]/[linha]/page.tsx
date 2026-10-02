@@ -19,6 +19,7 @@ import { IconeOrigem, type Origem } from "../../../icone-origem";
 import { ExplicacaoDaDivergencia } from "./explicacao";
 import { Cabecalho } from "../../../cabecalho";
 import { InkHover, Reveal } from "@/app/reveal";
+import { SeloIa } from "../../../selo-ia";
 
 function CartaoExtrato({
   titulo,
@@ -219,9 +220,10 @@ export default function DetalheDivergenciaPage() {
           />
         </Reveal>
 
-        {/* Com dado do backend, só a linha casada chega com o porquê (a regra que
-            casou). A divergência é explicada sob pedido, pelo POST /explicacoes;
-            o key zera o estado ao trocar de linha. */}
+        {/* Com dado do backend, a linha chega com o porquê: a regra que casou ou,
+            quando o backend gerar na conciliação (backend#28), a explicação da
+            divergência. Sem ele, a divergência é explicada sob pedido, pelo
+            POST /explicacoes; o key zera o estado ao trocar de linha. */}
         {!linha.explicacao && real && !estaResolvida(linha.status) && (
           <Reveal delay={0.08}>
             <ExplicacaoDaDivergencia
@@ -249,6 +251,8 @@ export default function DetalheDivergenciaPage() {
                 O que provavelmente aconteceu
               </h6>
               {linha.causa && <div className="det-causa-titulo">{linha.causa}</div>}
+              {/* os Termos prometem o selo em todo texto escrito pela IA */}
+              {linha.explicacaoPorIa && <SeloIa />}
               <p className="det-causa-texto">{linha.explicacao}</p>
             </div>
           </Reveal>

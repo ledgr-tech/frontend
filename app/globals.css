@@ -1551,6 +1551,9 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
 }
 /* o topo de toda tela (cabecalho.tsx): o mesmo título, a mesma linha, as ações à direita */
 .tela-titulo { margin: 0; font-size: 30px; font-weight: 600; }
+/* o título do detalhe e o da janela da linha são a descrição do extrato, que pode ser um código
+   de barras sem espaço nenhum: quebra em qualquer ponto em vez de sair da tela */
+.tela-titulo, .espia .dialog-title { overflow-wrap: anywhere; }
 .tela-contexto { display: block; margin-top: 4px; }
 .tela-acoes { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 
@@ -1905,7 +1908,8 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
    ficam no mesmo matiz quente e neutro e se distinguem só pela claridade: um azul
    diria "isto é outra coisa" (link, informação) em vez de "isto é outra folha".
    O banco, fonte da verdade, é o papel mais claro; o sistema, um cinza quente.
-   O status fica fora das folhas: é o veredito. */
+   O status fica fora das folhas: é o veredito. No app ele fica no eixo entre as
+   duas (.folhas-com-eixo); a réplica da landing ainda o põe na ponta direita. */
 .app-shell {
   --folha-banco: #fdfcfa; --folha-sistema: #ebe8e3;
   /* o que sobe acima do trilho: a opção escolhida do controle segmentado */
@@ -1927,12 +1931,68 @@ html[data-tema="escuro"] .app-shell {
 .tabela-folhas { border-collapse: separate; border-spacing: 0; }
 .tabela-folhas .folha-titulo { border-radius: var(--radius-md) var(--radius-md) 0 0; }
 .tabela-folhas tbody tr:last-child > td { border-bottom: none; }
-.tabela-folhas tbody tr:last-child > td:first-child { border-bottom-left-radius: var(--radius-md); }
-.tabela-folhas tbody tr:last-child > td.folha-banco:nth-child(3) { border-bottom-right-radius: var(--radius-md); }
-.tabela-folhas tbody tr:last-child > td.folha-sistema:nth-child(5) { border-bottom-left-radius: var(--radius-md); }
-.tabela-folhas tbody tr:last-child > td.folha-sistema:nth-child(7) { border-bottom-right-radius: var(--radius-md); }
-/* a estrutura é das folhas; a coluna do status não precisa de filete próprio */
-.tabela-folhas :is(th, td):last-child { border-bottom: none; }
+/* Os cantos de baixo de cada folha, pela classe e não pela posição: o lado que falta é uma
+   célula só, e o status pode estar no meio (app) ou na ponta (landing). */
+.tabela-folhas tbody tr:last-child > td:is(
+  .folha-banco:first-child,
+  :not(.folha-sistema) + .folha-sistema
+) { border-bottom-left-radius: var(--radius-md); }
+.tabela-folhas tbody tr:last-child > td:is(
+  .folha-banco:has(+ :not(.folha-banco)),
+  .folha-sistema:has(+ :not(.folha-sistema)),
+  .folha-sistema:last-child
+) { border-bottom-right-radius: var(--radius-md); }
+/* a estrutura é das folhas; o que fica fora delas (o status, o vão) não tem filete próprio */
+.tabela-folhas :is(th, td):not(.folha-banco, .folha-sistema) { border-bottom: none; }
+
+/* O eixo: o status entre as duas folhas, como no design ("folha a folha", o eixo de 44px de
+   Ledgr.dc.html), em texto curto em vez dos símbolos de lá, que pediam legenda.
+   Larguras fixas: as duas descrições dividem o que sobra por igual, e as folhas saem do mesmo
+   tamanho; com a largura pelo conteúdo, cada página de 25 linhas tinha colunas de outro
+   tamanho. O valor cabe até a casa dos milhões ("-R$ 1.234.567,89" mede 150px). Abaixo de
+   900px a tabela rola na horizontal em vez de espremer as descrições. */
+.folhas-com-eixo { table-layout: fixed; }
+.folhas-com-eixo col.col-data { width: 4.5rem; }
+.folhas-com-eixo col.col-valor { width: var(--valor-largura, 10rem); }
+.folhas-com-eixo col.col-eixo { width: 9rem; }
+.dash-tabela-rolagem .folhas-com-eixo { min-width: 900px; }
+/* com a largura fixa, uma palavra mais longa que a coluna (um código de PIX) vazaria da folha */
+.folhas-com-eixo td { overflow-wrap: break-word; }
+/* A descrição numa linha só, com reticências, como o Histórico da "folha a folha" do design:
+   descrição de extrato é longa por natureza ("PIX RECEBIDO - CONSTRUTORA ... - CNPJ ..."), e
+   quebrar em três ou quatro linhas acabava com o ritmo da tabela. O texto inteiro vem na dica
+   do navegador, no cartão das linhas em revisão e na janela do clique; o leitor de tela lê
+   tudo. O botão trunca por si: reticências não entram num botão, só no texto dele. */
+.folhas-com-eixo .celula-descricao,
+.folhas-com-eixo .celula-descricao .celula-abrir {
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.folhas-com-eixo .celula-descricao .celula-abrir { display: block; max-width: 100%; }
+.celula-status, .th-centro { text-align: center; white-space: nowrap; }
+.th-centro .th-ordena { justify-content: center; }
+/* o que bateu fica quieto, sem selo: só o que pede revisão ganha cor. Os 70% (e não o
+   --texto-apagado) seguram 4,5:1 sobre a página e sobre a folha cinza do sistema. */
+.status-batido { font-size: 12.5px; color: color-mix(in srgb, var(--color-text) 70%, transparent); }
+/* o campo que diverge, dos dois lados, na cor do status: os valores ou as datas */
+.tabela-folhas tbody tr[data-tom="risco"] > td[data-diverge] { color: var(--color-risco-700); }
+.tabela-folhas tbody tr[data-tom="atencao"] > td[data-diverge] { color: var(--color-accent-700); }
+/* com o ponteiro (ou o foco) na linha, o campo que diverge acende de leve, como marca-texto.
+   A sombra estende o fundo sem mexer na largura do texto: a linha não muda de tamanho. */
+.marca-diverge {
+  border-radius: 4px;
+  transition: background-color 0.16s ease, box-shadow 0.16s ease;
+}
+.tabela-folhas tbody tr:is(:hover, :focus-within) .marca-diverge {
+  background: color-mix(in srgb, currentColor 13%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 13%, transparent);
+}
+/* o lado sem lançamento: um encaixe tracejado, não três traços */
+.folha-vazia { text-align: center; }
+.folha-vazia-marca {
+  display: block; padding: 2px 10px; border: 1px dashed var(--color-divider);
+  border-radius: var(--radius-sm);
+  font-size: 13px; font-style: italic; color: color-mix(in srgb, var(--color-text) 70%, transparent);
+}
 
 /* O hover acende a linha na cor do veredito dela: verde se casou, terracota se
    custa dinheiro, dourado se falta par, cinza se já está explicado. Vale para
@@ -2887,10 +2947,12 @@ html:has(.app-shell) { scrollbar-gutter: stable; }
 }
 
 /* Densidade da tabela. Só o miolo da linha muda: o cabeçalho e a tipografia
-   ficam, para a tabela não virar outra coisa quando aperta. */
-html[data-densidade="compacta"] .table td { padding-block: 4px; }
-html[data-densidade="compacta"] .table th { padding-block: 6px; }
-html[data-densidade="compacta"] .selo { padding-block: 1px; }
+   ficam, para a tabela não virar outra coisa quando aperta. A compacta é o padrão
+   do app (densidade.ts); só quem escolheu a padrão volta ao espaço maior. Fica no
+   .app-shell: as tabelas da landing não têm a escolha e seguem como são. */
+html:not([data-densidade="padrao"]) .app-shell .table td { padding-block: 4px; }
+html:not([data-densidade="padrao"]) .app-shell .table th { padding-block: 6px; }
+html:not([data-densidade="padrao"]) .app-shell .selo { padding-block: 1px; }
 
 /* Tabela em cartões no celular.
    `display: block` apaga o papel implícito de tabela, então as linhas e células
@@ -2932,6 +2994,17 @@ html[data-densidade="compacta"] .selo { padding-block: 1px; }
   /* no cartão não há colunas lado a lado: o vão some e as folhas perdem o tom */
   .tabela-cartoes .table td.folha-vao { display: none; }
   .tabela-cartoes .table :is(td.folha-banco, td.folha-sistema) { background: transparent; }
+  /* sem colunas, as larguras do eixo não têm o que medir; e o status, que na tela larga fica
+     entre as folhas, volta ao pé do cartão, depois dos dois lados */
+  .tabela-cartoes .table colgroup { display: none; }
+  .tabela-cartoes .folhas-com-eixo tr { display: flex; flex-direction: column; }
+  .tabela-cartoes .folhas-com-eixo .celula-status { order: 1; }
+  /* no cartão há espaço: a descrição volta a quebrar, e um código de barras quebra em qualquer
+     ponto em vez de vazar do cartão */
+  .tabela-cartoes .folhas-com-eixo .celula-descricao,
+  .tabela-cartoes .folhas-com-eixo .celula-descricao .celula-abrir {
+    white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere;
+  }
 
   /* dentro do cartão a rolagem horizontal não faz mais sentido */
   .tabela-cartoes.dash-tabela-rolagem { overflow-x: visible; }
@@ -3166,6 +3239,33 @@ th:is([aria-sort="ascending"], [aria-sort="descending"]) .th-ordena-seta { opaci
 .cartao-lancamento dt { flex: none; color: color-mix(in srgb, var(--color-text) 56%, transparent); }
 .cartao-lancamento dd { margin: 0; text-align: right; }
 .cartao-lancamento p { margin: 0; line-height: 1.6; }
+/* No app o cartão sai do status: centrado na coluna do meio (cartao-lancamento.tsx calcula
+   o left e a --seta-x), com a seta apontando para o selo da linha. É mais largo e com letra
+   maior que o da landing: é nele que se lê a divergência e o porquê dela. */
+.cartao-lancamento.cartao-no-eixo {
+  width: min(440px, calc(100vw - 32px)); gap: 14px; padding: 18px 20px;
+}
+.cartao-no-eixo dl > div { font-size: 14px; }
+/* o título e a descrição no sistema vêm inteiros, e um código de barras quebra em vez de vazar */
+.cartao-no-eixo .cartao-lancamento-titulo { overflow-wrap: anywhere; }
+.cartao-lancamento dl > div.cartao-lancamento-texto { flex-direction: column; gap: 2px; }
+.cartao-lancamento-texto dd { text-align: left; overflow-wrap: anywhere; }
+/* a diferença do "Valor diverge", na cor dele: é o tamanho do problema */
+.cartao-lancamento-diferenca {
+  font-weight: 600; font-variant-numeric: tabular-nums; color: var(--color-risco-700);
+}
+.cartao-no-eixo .dialog-body {
+  font-size: 15px; line-height: 1.6; opacity: 1;
+  color: color-mix(in srgb, var(--color-text) 84%, transparent);
+}
+.cartao-no-eixo::after {
+  content: ""; position: absolute; left: var(--seta-x, 50%);
+  width: 12px; height: 12px;
+  background: var(--color-surface); border: 1px solid var(--color-divider);
+  transform: translateX(-50%) rotate(45deg);
+}
+.cartao-no-eixo[data-lado="acima"]::after { bottom: -7px; border-top: none; border-left: none; }
+.cartao-no-eixo[data-lado="abaixo"]::after { top: -7px; border-bottom: none; border-right: none; }
 @keyframes cartao-lancamento-surgir {
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: none; }

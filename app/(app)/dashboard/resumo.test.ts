@@ -3,6 +3,7 @@ import type { Conciliacao, LinhaComparacao, StatusLinha } from "@/lib/mock-data"
 import {
   resumir,
   statusDaLinha,
+  rotuloCurto,
   origemDaLinha,
   formatarPercentual,
   formatarDataHora,
@@ -92,6 +93,22 @@ describe("statusDaLinha", () => {
       "Sem correspondência no banco",
     );
     expect(statusDaLinha(linha("sem_correspondencia", 4180, null)).tom).toBe("atencao");
+  });
+});
+
+describe("rotuloCurto", () => {
+  it("dá a cada categoria um nome curto, que cabe entre as duas folhas da comparação", () => {
+    expect(rotuloCurto(linha("match_exato", 100, 100))).toBe("Bate");
+    expect(rotuloCurto(linha("match_tolerancia", 100, 100))).toBe("Bate na tolerância");
+    expect(rotuloCurto(linha("divergente_valor", 12640, 12604))).toBe("Valor diverge");
+    expect(rotuloCurto(linha("divergente_data", 1320, 1320))).toBe("Data diverge");
+    expect(rotuloCurto(linha("duplicado", 560, null))).toBe("Duplicidade");
+    expect(rotuloCurto(linha("tarifa_bancaria", 42, null))).toBe("Tarifa");
+  });
+
+  it("diz qual lado falta, como o rótulo inteiro", () => {
+    expect(rotuloCurto(linha("sem_correspondencia", 4180, null))).toBe("Falta no sistema");
+    expect(rotuloCurto(linha("sem_correspondencia", null, 2150))).toBe("Falta no banco");
   });
 });
 

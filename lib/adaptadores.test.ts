@@ -124,6 +124,44 @@ describe("adaptarLinha", () => {
       item({ status: "match_tolerancia", regra_aplicada: "tolerancia", score_confianca: "0.67" }),
     );
     expect(linha.explicacao).toBe('Conciliado pela regra "tolerancia". Confiança de 67%.');
+    expect(linha.explicacaoPorIa).toBe(false);
+  });
+
+  it("mostra a explicação que o backend gerou na conciliação, com o selo quando veio da IA", () => {
+    const divergente = item({
+      status: "divergente_valor",
+      regra_aplicada: null,
+      score_confianca: null,
+      explicacao: "O banco cobrou R$ 36 de juros pelo atraso, que o sistema não lançou.",
+      gerada_por_ia: true,
+    });
+    const linha = adaptarLinha(divergente);
+    expect(linha.explicacao).toBe("O banco cobrou R$ 36 de juros pelo atraso, que o sistema não lançou.");
+    expect(linha.explicacaoPorIa).toBe(true);
+
+    // o texto fixo do motor, quando a IA não respondeu, sai sem o selo
+    expect(adaptarLinha({ ...divergente, gerada_por_ia: false }).explicacaoPorIa).toBe(false);
+  });
+
+  it("diz que não há descrição quando o extrato não trouxe uma, nos dois lados", () => {
+    // OFX sem MEMO: a descrição chega vazia, e a linha não pode ficar sem ter onde clicar
+    const linha = adaptarLinha(
+      item({
+        lancamento_banco: { ...item().lancamento_banco!, descricao: "" },
+        lancamento_sistema: { ...item().lancamento_sistema!, descricao: "   " },
+      }),
+    );
+    expect(linha.descricao).toBe("Sem descrição");
+    expect(linha.descricaoSistema).toBe("Sem descrição");
+  });
+
+  it("prefere a explicação do backend à frase da regra, e ignora uma explicação em branco", () => {
+    expect(adaptarLinha(item({ explicacao: "Mesmo boleto nos dois lados.", gerada_por_ia: true })).explicacao).toBe(
+      "Mesmo boleto nos dois lados.",
+    );
+    const emBranco = adaptarLinha(item({ explicacao: "  ", gerada_por_ia: true }));
+    expect(emBranco.explicacao).toBe('Conciliado pela regra "exata". Confiança de 100%.');
+    expect(emBranco.explicacaoPorIa).toBe(false);
   });
 
   it("não inventa histórico: o backend não guarda linha do tempo por lançamento", () => {

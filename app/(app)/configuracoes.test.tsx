@@ -80,8 +80,10 @@ describe("Configuracoes", () => {
     const user = userEvent.setup();
     abrir();
 
-    await user.click(screen.getByRole("button", { name: "Compacta" }));
-    expect(document.documentElement.dataset.densidade).toBe("compacta");
+    // a compacta é o padrão de quem nunca escolheu
+    expect(screen.getByRole("button", { name: "Compacta" })).toHaveAttribute("aria-pressed", "true");
+    await user.click(screen.getByRole("button", { name: "Padrão" }));
+    expect(document.documentElement.dataset.densidade).toBe("padrao");
 
     await user.click(screen.getByRole("button", { name: "Recolhido" }));
     expect(document.documentElement.dataset.menu).toBe("recolhido");

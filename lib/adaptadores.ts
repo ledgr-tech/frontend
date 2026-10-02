@@ -28,6 +28,15 @@ export type ItemConciliacaoAPI = {
   score_confianca: string | null;
   lancamento_banco: LancamentoAPI | null;
   lancamento_sistema: LancamentoAPI | null;
+  /**
+   * ponytail: o porquê de cada linha, que o backend vai gerar junto com a conciliação
+   * (backend#28). Ainda sem contrato: os nomes são os do `POST /explicacoes`
+   * (`explicarDivergencia` em conciliacoes/acoes.ts). Se o backend chamar diferente, a
+   * troca é aqui e em `adaptarLinha`. Texto puro: vem de descrição de extrato de
+   * terceiro e nunca vira HTML.
+   */
+  explicacao?: string | null;
+  gerada_por_ia?: boolean;
 };
 
 export type ListaConciliacaoAPI = {
@@ -82,21 +91,31 @@ function explicar(item: ItemConciliacaoAPI): string | null {
   return `Conciliado pela regra "${item.regra_aplicada}".${confianca}`;
 }
 
+/** A descrição do extrato, ou "Sem descrição" quando ele não trouxe nenhuma. */
+function semVazio(descricao: string | null | undefined): string {
+  return descricao?.trim() || "Sem descrição";
+}
+
 export function adaptarLinha(item: ItemConciliacaoAPI): LinhaComparacao {
   // Banco é a fonte da verdade (a "regra de ouro" da tela de nova conciliação):
   // quando existe, é dele a descrição e a data mostradas.
   const referencia = item.lancamento_banco ?? item.lancamento_sistema;
+  // a explicação que o backend gerou vale mais que a frase da regra; em branco é nenhuma
+  const doBackend = item.explicacao?.trim() || null;
   return {
     id: item.id,
-    descricao: referencia?.descricao ?? "Lançamento sem descrição",
+    // OFX sem MEMO chega com a descrição vazia: sem texto, a linha ficava sem ter onde clicar
+    descricao: semVazio(referencia?.descricao),
     data: referencia ? paraDiaMes(referencia.data) : "",
     dataISO: referencia?.data,
     dataSistema: item.lancamento_sistema ? paraDiaMes(item.lancamento_sistema.data) : undefined,
-    descricaoSistema: item.lancamento_sistema?.descricao,
+    descricaoSistema: item.lancamento_sistema ? semVazio(item.lancamento_sistema.descricao) : undefined,
     valorBanco: paraNumero(item.lancamento_banco?.valor),
     valorSistema: paraNumero(item.lancamento_sistema?.valor),
     status: item.status,
-    explicacao: explicar(item),
+    explicacao: doBackend ?? explicar(item),
+    // só com `true` a tela marca como gerada por IA, como no POST /explicacoes
+    explicacaoPorIa: doBackend !== null && item.gerada_por_ia === true,
     // O backend não guarda linha do tempo por lançamento; o histórico do detalhe
     // fica vazio até existir (nada de inventar evento que ninguém registrou).
     historico: [],
