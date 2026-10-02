@@ -49,6 +49,12 @@ export type MesCronico = {
 
 export type LinhaComparacao = {
   id: string;
+  /**
+   * A mesma linha em todas as rodadas da conciliação (o id muda a cada rodada).
+   * Do backend: o lançamento do banco, ou data, valor e descrição do sistema
+   * (`lib/adaptadores.ts`). O mock não tem: vale o id (`chaveDaLinha`).
+   */
+  chave?: string;
   descricao: string;
   /** "DD/MM", como o design mostra na tabela. */
   data: string;

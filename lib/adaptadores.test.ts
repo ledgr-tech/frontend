@@ -191,6 +191,36 @@ describe("adaptarConciliacao", () => {
     expect(vazia.linhas).toEqual([]);
     expect(vazia.mes).toBe("Conciliação");
   });
+
+  describe("a chave de cada linha, a mesma em todas as rodadas", () => {
+    const soDoSistema = (id: string, descricao = "  Estorno  Maquininha ") =>
+      item({
+        id,
+        status: "sem_correspondencia",
+        lancamento_banco: null,
+        lancamento_sistema: { id: `ls-${id}`, data: "2026-09-12", valor: "-980", descricao, tipo: "debito" },
+      });
+    const comItens = (itens: ItemConciliacaoAPI[]) => adaptarConciliacao({ ...lista, total: itens.length, itens });
+
+    it("a chave é o lançamento do banco, que é o mesmo em todas as rodadas", () => {
+      expect(comItens([item()]).linhas[0].chave).toBe("b:lb-1");
+    });
+
+    it("sem banco, a chave é data, valor e descrição do sistema", () => {
+      expect(comItens([soDoSistema("c1")]).linhas[0].chave).toBe("s:2026-09-12|-980.00|estorno maquininha");
+    });
+
+    it("duas linhas só do sistema iguais não dividem a chave", () => {
+      expect(comItens([soDoSistema("c1"), soDoSistema("c2", "Estorno maquininha")]).linhas.map((l) => l.chave)).toEqual([
+        "s:2026-09-12|-980.00|estorno maquininha",
+        "s:2026-09-12|-980.00|estorno maquininha#2",
+      ]);
+    });
+
+    it("prefere a chave que o backend mandar", () => {
+      expect(comItens([item({ chave: "k-1" })]).linhas[0].chave).toBe("k-1");
+    });
+  });
 });
 
 describe("pareceUuid", () => {

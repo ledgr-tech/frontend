@@ -22,6 +22,8 @@ export type LancamentoAPI = {
 
 export type ItemConciliacaoAPI = {
   id: string;
+  /** A chave estável da linha, se o backend mandar; senão o adaptador monta a sua. */
+  chave?: string;
   extrato_sistema_id: string;
   status: StatusLinha;
   regra_aplicada: string | null;
@@ -91,6 +93,20 @@ function explicar(item: ItemConciliacaoAPI): string | null {
   return `Conciliado pela regra "${item.regra_aplicada}".${confianca}`;
 }
 
+/**
+ * A linha em qualquer rodada: o extrato do banco é o mesmo em todas, então o
+ * lançamento do banco a identifica. Sem ele, o lançamento do sistema é outro a cada
+ * envio, e o que sobra é o conteúdo: data, valor e descrição, normalizados.
+ */
+function chaveBase(item: ItemConciliacaoAPI): string {
+  if (item.lancamento_banco) return `b:${item.lancamento_banco.id}`;
+  const sistema = item.lancamento_sistema;
+  if (!sistema) return `i:${item.id}`;
+  const valor = Number(sistema.valor);
+  const descricao = sistema.descricao.trim().toLowerCase().replace(/\s+/g, " ");
+  return `s:${sistema.data}|${Number.isFinite(valor) ? valor.toFixed(2) : sistema.valor}|${descricao}`;
+}
+
 /** A descrição do extrato, ou "Sem descrição" quando ele não trouxe nenhuma. */
 function semVazio(descricao: string | null | undefined): string {
   return descricao?.trim() || "Sem descrição";
@@ -104,6 +120,7 @@ export function adaptarLinha(item: ItemConciliacaoAPI): LinhaComparacao {
   const doBackend = item.explicacao?.trim() || null;
   return {
     id: item.id,
+    chave: item.chave ?? chaveBase(item),
     // OFX sem MEMO chega com a descrição vazia: sem texto, a linha ficava sem ter onde clicar
     descricao: semVazio(referencia?.descricao),
     data: referencia ? paraDiaMes(referencia.data) : "",
@@ -132,7 +149,15 @@ export function adaptarConciliacao(
   lista: ListaConciliacaoAPI,
   extratoSistemaId?: string,
 ): Conciliacao {
-  const linhas = lista.itens.map(adaptarLinha);
+  // duas linhas só do sistema iguais teriam a mesma chave e dividiriam a decisão de
+  // uma: a segunda vira "#2", a terceira "#3", na ordem em que o backend manda
+  const vistas = new Map<string, number>();
+  const linhas = lista.itens.map(adaptarLinha).map((linha) => {
+    const chave = linha.chave ?? linha.id;
+    const vezes = (vistas.get(chave) ?? 0) + 1;
+    vistas.set(chave, vezes);
+    return vezes === 1 ? linha : { ...linha, chave: `${chave}#${vezes}` };
+  });
   const primeira = linhas.find((linha) => linha.dataISO)?.dataISO;
   return {
     id: lista.extrato_id,
