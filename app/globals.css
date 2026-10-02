@@ -2418,7 +2418,10 @@ html[data-tema="escuro"] .app-shell {
   font-family: var(--font-heading); font-size: 13px; font-weight: 600;
   color: color-mix(in srgb, var(--color-text) 72%, transparent);
 }
-.app-conta-texto { flex: 1 1 auto; display: flex; flex-direction: column; gap: 1px; }
+/* min-width: 0 deixa o texto encolher abaixo do nome inteiro, como no .app-rotulo do menu: sem ele,
+   o item flex mede o nome da empresa (nowrap), passa por baixo do botão de tema e empurra a seta
+   para fora do rodapé, e as reticências nunca entram */
+.app-conta-texto { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
 .app-conta-nome, .app-conta-empresa {
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
