@@ -35,10 +35,12 @@ export type MesDeFechamento = {
   lancamentos: number;
   conciliados: number;
   divergentes: number;
-  /** O que ainda pede decisão, do mais grave para o mais leve. */
+  /** Das divergências, as justificadas: decididas, mas não batidas. */
+  justificadas: number;
+  /** As divergências do mês por categoria do motor, da mais grave para a mais leve. */
   pendencias: Pendencia[];
   naoLidas: { nome: string; linhas: number }[];
-  /** Nada pede decisão e os arquivos foram lidos por inteiro. */
+  /** Toda divergência justificada e os arquivos lidos por inteiro. */
   pronto: boolean;
 };
 
@@ -98,6 +100,8 @@ function montarMes(chave: string, pares: ParDoFechamento[]): MesDeFechamento {
 
   const lancamentos = pares.reduce((soma, par) => soma + par.execucao.lancamentos, 0);
   const divergentes = pendencias.reduce((soma, pendencia) => soma + pendencia.quantidade, 0);
+  // a contagem do backend não diz a categoria da justificada: ela desconta do total, não de cada uma
+  const justificadas = pares.reduce((soma, par) => soma + par.execucao.justificadas, 0);
   const naoLidas = pares.flatMap((par) => par.naoLidas);
 
   return {
@@ -110,9 +114,10 @@ function montarMes(chave: string, pares: ParDoFechamento[]): MesDeFechamento {
     lancamentos,
     conciliados: lancamentos - divergentes,
     divergentes,
+    justificadas,
     pendencias,
     naoLidas,
-    pronto: divergentes === 0 && naoLidas.length === 0,
+    pronto: divergentes - justificadas === 0 && naoLidas.length === 0,
   };
 }
 

@@ -1,7 +1,7 @@
 import { caminhoDaConciliacao } from "@/lib/caminhos";
 import type { Tom } from "@/lib/mock-data";
 import type { VisaoGeral } from "./conciliacoes/acoes";
-import { estaResolvida, formatarDataHora, formatarMoedaCurta, valorEmAberto } from "./dashboard/resumo";
+import { formatarDataHora, formatarMoedaCurta, pedeDecisao, valorEmAberto } from "./dashboard/resumo";
 import { pendencias } from "./visao-geral/pendencias";
 
 export type Aviso = {
@@ -32,7 +32,8 @@ export function avisosDoMes(visao: VisaoGeral): Aviso[] {
   const quando = `Conciliação de ${formatarDataHora(execucao.executadaEm)}`;
   const avisos: Aviso[] = [];
 
-  const emAberto = conciliacao.linhas.filter((linha) => !estaResolvida(linha.status));
+  // a mesma regra das pendências: a justificada já tem o motivo no registro e não pede decisão
+  const emAberto = conciliacao.linhas.filter(pedeDecisao);
   if (emAberto.length > 0) {
     const maisComum = [...pendencias(conciliacao)].sort((a, b) => b.quantidade - a.quantidade)[0];
     const valor = valorEmAberto(emAberto);

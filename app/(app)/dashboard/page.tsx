@@ -1,355 +1,112 @@
-"use client";
-
-import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { caminhoDaConciliacao } from "@/lib/caminhos";
-import { formatarMoeda } from "@/lib/mock-data";
-import { carregarPainel, type Painel } from "../conciliacoes/acoes";
-import {
-  formatarDataHora,
-  formatarInteiro,
-  estaResolvida,
-  formatarMoedaCurta,
-  formatarPercentual,
-  origemDaLinha,
-  periodoDasLinhas,
-  resumir,
-  statusDaLinha,
-  valorDaLinha,
-} from "./resumo";
-import { InkHover, Reveal, SpotlightHover } from "@/app/reveal";
-import { Barra, EsqueletoTabela, EsqueletoTela } from "../esqueleto";
-import { IconeOrigem } from "../icone-origem";
+import { redirect } from "next/navigation";
+import { carregarConciliacoes } from "../conciliacoes/acoes";
+import { InkHover, Reveal } from "@/app/reveal";
 import { Cabecalho } from "../cabecalho";
+import { formatarInteiro } from "./resumo";
+import { ordemDeTrabalho, pedemDecisao } from "./lista";
+import { EmAndamento } from "./em-andamento";
+import { ListaDeTrabalho } from "./lista-de-trabalho";
 
-// ponytail: "O que o Ledgr sugere" (as três leituras de padrão do design) saiu
-// enquanto não há de onde tirá-las — eram frases fixas, com números inventados,
-// ao lado de dados reais que podiam contradizê-las. Voltam quando o backend
-// tiver o que comparar entre execuções.
+/**
+ * Conciliações como lista de trabalho: cada extrato do banco uma vez, na rodada que vale, com o
+ * que ainda falta decidir, e no topo a que está em andamento. O resumo do mês fica na visão geral,
+ * o trabalho linha a linha na comparação e o que já aconteceu no histórico.
+ */
 
 const FALHA_AO_CARREGAR =
   "Não foi possível carregar suas conciliações. Recarregue a página e tente de novo.";
 
-type Estado =
-  | { situacao: "carregando" }
-  | { situacao: "falhou" }
-  | { situacao: "pronto"; painel: Painel };
-
-/** "2026-09-04" → "04/09/2026"; o mock só tem "04/09". */
-function dataCompleta(dataISO: string | undefined, data: string): string {
-  return dataISO ? dataISO.split("-").reverse().join("/") : data;
+function plural(quantidade: number, singular: string, plural: string): string {
+  return `${formatarInteiro(quantidade)} ${quantidade === 1 ? singular : plural}`;
 }
 
-export default function DashboardPage() {
-  const router = useRouter();
-  const [estado, setEstado] = useState<Estado>({ situacao: "carregando" });
+export default async function DashboardPage() {
+  const resposta = await carregarConciliacoes();
+  if (!resposta.ok && resposta.status === 401) redirect("/login");
 
-  // O router fica numa ref, fora das dependências: se ele trocar de identidade
-  // entre renders, o efeito recarregaria o painel a cada render. O único uso é
-  // redirecionar num 401 (mesmo arranjo de `useConciliacao`).
-  const irPara = useRef(router);
-  useEffect(() => {
-    irPara.current = router;
-  });
-
-  useEffect(() => {
-    let cancelado = false;
-    carregarPainel().then(
-      (resposta) => {
-        if (cancelado) return;
-        if (!resposta.ok) {
-          if (resposta.status === 401) irPara.current.push("/login");
-          setEstado({ situacao: "falhou" });
-          return;
-        }
-        setEstado({ situacao: "pronto", painel: resposta.dados });
-      },
-      // a action lançou em vez de devolver Resultado (rede, deploy novo no meio)
-      () => {
-        if (!cancelado) setEstado({ situacao: "falhou" });
-      },
-    );
-    return () => {
-      cancelado = true;
-    };
-  }, []);
-
-  if (estado.situacao === "carregando") {
-    return (
-      <EsqueletoTela>
-        <div className="grade-colunas dash-resumo esq-resumo">
-          {[0, 1, 2].map((i) => (
-            <div key={i}>
-              <Barra largura={140} altura={11} />
-              <Barra largura={96} altura={38} />
-              <Barra largura={170} altura={12} />
-            </div>
-          ))}
-        </div>
-        <EsqueletoTabela />
-      </EsqueletoTela>
-    );
-  }
-
-  const recente = estado.situacao === "pronto" ? estado.painel.recente : null;
-  const anteriores = estado.situacao === "pronto" ? estado.painel.anteriores : [];
+  const conciliacoes = resposta.ok ? resposta.dados.conciliacoes : [];
+  const pendentes = conciliacoes.filter((conciliacao) => pedemDecisao(conciliacao) > 0).length;
 
   return (
-    <>
+    <div>
       {/* o menu chama esta tela de Conciliações: o título é o mesmo */}
-      <Cabecalho titulo="Conciliações" contexto={[recente && `competência ${recente.mes.toLowerCase()}`]} />
+      <Cabecalho
+        titulo="Conciliações"
+        contexto={[
+          conciliacoes.length > 0 && plural(conciliacoes.length, "conciliação", "conciliações"),
+          pendentes > 0 && `${formatarInteiro(pendentes)} com pendência`,
+        ]}
+      />
 
-      {estado.situacao === "falhou" ? (
-        <p role="alert" style={{ padding: "48px 0" }}>
+      {!resposta.ok ? (
+        <p role="alert" className="extratos-vazio">
           {FALHA_AO_CARREGAR}
         </p>
-      ) : recente === null ? (
-        <div
-          style={{
-            padding: "76px 0",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            textAlign: "center",
-            gap: 18,
-          }}
-        >
-          <InkHover style={{ flex: "none" }}>
-            <Image
-              src="/mascotes/mascote-sentado.png"
-              alt="Mascote Ledgr sentado com uma folha"
-              width={1000}
-              height={1000}
-              sizes="250px"
-              style={{ width: 250, height: "auto", display: "block" }}
-            />
-          </InkHover>
-          <h2
-            style={{ margin: 0, fontSize: 32, fontWeight: 400, maxWidth: "24ch", textWrap: "balance" }}
-          >
-            Nenhum extrato por aqui ainda.
-          </h2>
-          <p
-            style={{
-              margin: 0,
-              fontSize: 15,
-              lineHeight: 1.75,
-              maxWidth: "48ch",
-              color: "color-mix(in srgb, var(--color-text) 78%, transparent)",
-            }}
-          >
-            Suba o extrato do banco e o extrato do sistema de gestão. A primeira conciliação fica
-            pronta em poucos minutos.
-          </p>
-          <Link
-            href="/conciliacoes/nova"
-            className="btn btn-primary"
-            style={{ fontSize: 15, padding: "12px 22px" }}
-          >
-            Fazer o primeiro upload
-          </Link>
-        </div>
+      ) : conciliacoes.length === 0 ? (
+        <SemConciliacoes />
       ) : (
-        <Conteudo recente={recente} anteriores={anteriores} />
+        <div className="conc-corpo">
+          <Reveal>
+            <EmAndamento
+              conciliacao={
+                // a que está em andamento, ou, sem nenhuma, a mais recente
+                conciliacoes.find((item) => item.extratoBancoId === resposta.dados.emAndamento?.extratoBancoId) ??
+                ordemDeTrabalho(conciliacoes)[0]
+              }
+              contagem={resposta.dados.emAndamento}
+            />
+          </Reveal>
+          <Reveal delay={0.08}>
+            <ListaDeTrabalho conciliacoes={conciliacoes} parcial={resposta.dados.parcial} />
+          </Reveal>
+        </div>
       )}
-    </>
+    </div>
   );
 }
 
-function Conteudo({
-  recente,
-  anteriores,
-}: {
-  recente: NonNullable<Painel["recente"]>;
-  anteriores: Painel["anteriores"];
-}) {
-  const resumo = resumir([recente]);
-  const periodo = periodoDasLinhas(recente.linhas);
-  // A tabela do design mostra os sete primeiros lançamentos da competência.
-  const lancamentos = recente.linhas.slice(0, 7);
-  // "Revisar agora" abre a primeira divergência em aberto; sem nenhuma, vai para a lista.
-  const primeiraEmAberto = recente.linhas.find((linha) => !estaResolvida(linha.status)) ?? null;
-  const hrefPrimeiroCaso = caminhoDaConciliacao(
-    recente.id,
-    recente.extratoSistemaId,
-    primeiraEmAberto?.id,
-  );
-
+function SemConciliacoes() {
   return (
-    <div style={{ padding: "32px 0 56px", display: "flex", flexDirection: "column", gap: 36 }}>
-      {/* ponytail: o resumo não entra no reveal. É o dado principal da tela e
-          fica acima da dobra — se o observer ou o rAF não rodarem, os números
-          não podem ficar invisíveis. O que está abaixo da dobra pode animar. */}
-      <div className="grade-colunas dash-resumo">
-        <div>
-          <span className="dash-rotulo">Lançamentos processados</span>
-          <span className="dash-valor">{formatarInteiro(resumo.processados)}</span>
-          {periodo && <span className="dash-nota">Período {periodo}</span>}
-        </div>
-        <div>
-          <span className="dash-rotulo">Match automático</span>
-          <span className="dash-valor" style={{ color: "var(--color-ok)" }}>
-            {formatarPercentual(resumo.taxaMatch)}
-          </span>
-          <span className="dash-nota">{formatarInteiro(resumo.batidos)} casados sem intervenção</span>
-        </div>
-        <div>
-          <span className="dash-rotulo">Valor em divergência</span>
-          <span className="dash-valor" style={{ color: "var(--color-risco)" }}>
-            {formatarMoedaCurta(resumo.valorDivergente)}
-          </span>
-          <span className="dash-nota">
-            Distribuído em {formatarInteiro(resumo.divergentes)}{" "}
-            {resumo.divergentes === 1 ? "lançamento" : "lançamentos"}
-          </span>
-        </div>
-      </div>
-
-      {resumo.semCorrespondente > 0 && (
-        <Reveal className="dash-analise">
-          <SpotlightHover className="dash-destaque dash-destaque-faixa">
-            <Image
-              src="/mascotes/mascote-explicando.png"
-              alt="Mascote Ledgr apontando"
-              width={1000}
-              height={1000}
-              sizes="88px"
-              style={{ width: 88, height: "auto", flex: "none" }}
-            />
-            <span className="dash-destaque-corpo">
-              <span className="dash-destaque-titulo">
-                Comece pelas {formatarInteiro(resumo.semCorrespondente)} sem correspondente
-              </span>
-              <span className="dash-destaque-texto">
-                São elas que respondem por {formatarMoedaCurta(resumo.valorSemCorrespondente)} dos{" "}
-                {formatarMoedaCurta(resumo.valorDivergente)} em divergência.
-              </span>
-            </span>
-            <Link href={hrefPrimeiroCaso} className="btn btn-primary">
-              Revisar agora
-            </Link>
-          </SpotlightHover>
-        </Reveal>
-      )}
-
-      <Reveal delay={0.08}>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "baseline",
-            justifyContent: "space-between",
-            gap: 20,
-            marginBottom: 12,
-          }}
-        >
-          <h3 style={{ margin: 0, fontSize: 22, fontWeight: 600 }}>Conciliações recentes</h3>
-          <Link
-            href={caminhoDaConciliacao(recente.id, recente.extratoSistemaId)}
-            className="btn btn-secondary"
-            style={{ fontSize: 13.5 }}
-          >
-            Ver a conciliação
-          </Link>
-        </div>
-        <div className="dash-tabela-rolagem tabela-cartoes">
-          <table className="table" role="table">
-            <thead role="rowgroup">
-              <tr role="row">
-                <th style={{ width: 110 }}>Data</th>
-                <th>Descrição</th>
-                <th style={{ width: 140, textAlign: "right" }}>Valor</th>
-                <th style={{ width: 250 }}>Status</th>
-                <th style={{ width: 110, textAlign: "right" }}>Origem</th>
-              </tr>
-            </thead>
-            <tbody role="rowgroup">
-              {lancamentos.map((linha) => {
-                const status = statusDaLinha(linha);
-                return (
-                  <tr key={linha.id} role="row" data-tom={status.tom}>
-                    <td role="cell" data-rotulo="Data" className="dash-celula-fraca">
-                      {dataCompleta(linha.dataISO, linha.data)}
-                    </td>
-                    <td role="cell" data-rotulo="Descrição" data-destaque="true">
-                      {linha.descricao}
-                    </td>
-                    <td role="cell" data-rotulo="Valor" className="dash-valor-celula">
-                      {formatarMoeda(valorDaLinha(linha))}
-                    </td>
-                    <td role="cell" data-rotulo="Status">
-                      <span className={`selo selo-${status.tom}`}>{status.rotulo}</span>
-                    </td>
-                    <td
-                      role="cell"
-                      data-rotulo="Origem"
-                      className="dash-celula-fraca"
-                      style={{ textAlign: "right", fontSize: 14 }}
-                    >
-                      <span className="rotulo-origem rotulo-origem-celula">
-                        <IconeOrigem
-                          origem={origemDaLinha(linha) === "Banco" ? "banco" : "sistema"}
-                          tamanho={15}
-                        />
-                        {origemDaLinha(linha)}
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </Reveal>
-
-      {/* As outras execuções atuais (as refeitas depois ficam só no histórico). */}
-      {anteriores.length > 0 && (
-        <Reveal delay={0.16}>
-          <h3 style={{ margin: "0 0 12px", fontSize: 22, fontWeight: 600 }}>
-            Conciliações anteriores
-          </h3>
-          <div className="dash-tabela-rolagem">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th style={{ width: 160 }}>Executada em</th>
-                  <th>Arquivos</th>
-                  <th style={{ width: 120, textAlign: "right" }}>Lançamentos</th>
-                  <th style={{ width: 100, textAlign: "right" }}>Match</th>
-                  <th style={{ width: 90 }}></th>
-                </tr>
-              </thead>
-              <tbody>
-                {anteriores.map((execucao) => (
-                  <tr key={execucao.id}>
-                    <td style={{ fontVariantNumeric: "tabular-nums" }}>
-                      {formatarDataHora(execucao.executadaEm)}
-                    </td>
-                    <td style={{ overflowWrap: "anywhere" }}>
-                      {execucao.arquivoBanco} × {execucao.arquivoSistema}
-                    </td>
-                    <td style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
-                      {formatarInteiro(execucao.lancamentos)}
-                    </td>
-                    <td className="dash-valor-celula">
-                      {execucao.acerto === null ? "—" : formatarPercentual(execucao.acerto)}
-                    </td>
-                    <td style={{ textAlign: "right" }}>
-                      <Link
-                        href={caminhoDaConciliacao(execucao.extratoBancoId, execucao.extratoSistemaId)}
-                        className="btn btn-secondary"
-                      >
-                        Ver
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Reveal>
-      )}
+    <div
+      style={{
+        padding: "76px 0",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        textAlign: "center",
+        gap: 18,
+      }}
+    >
+      <InkHover style={{ flex: "none" }}>
+        <Image
+          src="/mascotes/mascote-sentado.png"
+          alt="Mascote Ledgr sentado com uma folha"
+          width={1000}
+          height={1000}
+          sizes="250px"
+          style={{ width: 250, height: "auto", display: "block" }}
+        />
+      </InkHover>
+      <h2 style={{ margin: 0, fontSize: 32, fontWeight: 400, maxWidth: "24ch", textWrap: "balance" }}>
+        Nenhum extrato por aqui ainda.
+      </h2>
+      <p
+        style={{
+          margin: 0,
+          fontSize: 15,
+          lineHeight: 1.75,
+          maxWidth: "48ch",
+          color: "color-mix(in srgb, var(--color-text) 78%, transparent)",
+        }}
+      >
+        Suba o extrato do banco e o extrato do sistema de gestão. A primeira conciliação fica pronta em
+        poucos minutos.
+      </p>
+      <Link href="/conciliacoes/nova" className="btn btn-primary" style={{ fontSize: 15, padding: "12px 22px" }}>
+        Fazer o primeiro upload
+      </Link>
     </div>
   );
 }

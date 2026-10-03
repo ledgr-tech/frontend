@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
   aceitarValorDoBanco,
   criarConciliacao,
@@ -7,6 +7,7 @@ import {
   buscarConciliacao,
   fecharConciliacao,
   formatarMoeda,
+  registrarDecisaoNoMock,
 } from "./mock-data";
 
 describe("mock-data store", () => {
@@ -100,6 +101,66 @@ describe("aceitarValorDoBanco", () => {
 
   it("returns null for an unknown conciliação", () => {
     expect(aceitarValorDoBanco("nao-existe", "lc-1")).toBeNull();
+  });
+});
+
+describe("registrarDecisaoNoMock", () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-09-30T13:12:00Z"));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  // o mock não tem chave: a da linha é o id dela (chaveDaLinha)
+  function divergenteDe(criada: ReturnType<typeof criarConciliacao>) {
+    return criada.linhas.find((linha) => linha.status === "divergente_valor")!;
+  }
+
+  it("checks a linha in the first round, as you, and keeps it", () => {
+    const criada = criarConciliacao();
+    const divergente = divergenteDe(criada);
+
+    const atualizada = registrarDecisaoNoMock(criada.id, divergente.id, "conferida", null);
+
+    const esperada = { tipo: "conferida", texto: null, autor: "Você", em: "2026-09-30T13:12:00.000Z", rodada: 1 };
+    const linha = atualizada?.linhas.find((item) => item.id === divergente.id);
+    expect(linha?.decisao).toEqual(esperada);
+    expect(linha?.eventos).toEqual([esperada]);
+    expect(buscarConciliacao(criada.id)?.linhas.find((item) => item.id === divergente.id)?.decisao).toEqual(esperada);
+  });
+
+  it("undoing clears the decision with a new event, and keeps the old one", () => {
+    const criada = criarConciliacao();
+    const divergente = divergenteDe(criada);
+
+    registrarDecisaoNoMock(criada.id, divergente.id, "justificada", "Juros de dois dias de atraso.");
+    const desfeita = registrarDecisaoNoMock(criada.id, divergente.id, "justificativa_desfeita", null);
+
+    const linha = desfeita?.linhas.find((item) => item.id === divergente.id);
+    expect(linha?.decisao).toBeNull();
+    expect(linha?.eventos?.map((evento) => [evento.tipo, evento.texto])).toEqual([
+      ["justificada", "Juros de dois dias de atraso."],
+      ["justificativa_desfeita", null],
+    ]);
+  });
+
+  it("leaves the other linhas alone", () => {
+    const criada = criarConciliacao();
+    const outra = criada.linhas.find((linha) => linha.status === "sem_correspondencia")!;
+
+    const atualizada = registrarDecisaoNoMock(criada.id, divergenteDe(criada).id, "conferida", null);
+
+    expect(atualizada?.linhas.find((item) => item.id === outra.id)).toEqual(outra);
+  });
+
+  it("returns null for an unknown conciliação or linha", () => {
+    expect(registrarDecisaoNoMock("nao-existe", "lc-2", "conferida", null)).toBeNull();
+    const criada = criarConciliacao();
+    expect(registrarDecisaoNoMock(criada.id, "lc-nao-existe", "conferida", null)).toBeNull();
   });
 });
 

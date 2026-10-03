@@ -10,10 +10,10 @@ preenchimento**, filete carregando a estrutura, identidade tipográfica.
 
 **Regras de 24/09/2026** (ver `docs/superpowers/specs/2026-09-24-refino-visual-design.md`):
 
-- **O dourado é para quatro coisas:** a ação principal (`.btn-primary`, "Nova
-  conciliação"), o foco do teclado, o status "atenção" e, desde 27/09, o rótulo
+- **O dourado é para cinco coisas:** a ação principal (`.btn-primary`, "Nova
+  conciliação"), o foco do teclado, o status "atenção", desde 27/09 o rótulo
   de cartão flutuante (o `h6` do cartão de lançamento e o do assistente, que
-  aparecem por cima da tela). Hover e seleção usam `--tinta-hover` /
+  aparecem por cima da tela) e, desde 02/10, o fio da linha das rodadas. Hover e seleção usam `--tinta-hover` /
   `--tinta-ativa`, neutros. Cabeçalho de tabela, aba selecionada, rótulo pequeno
   (`h6`) fora de cartão flutuante, item ativo do menu, botão fantasma
   (`.btn-ghost`), link de ação dentro de lista ("Revisar") e numeral decorativo
@@ -37,6 +37,27 @@ preenchimento**, filete carregando a estrutura, identidade tipográfica.
   decidir", com o ícone `Sparkles`), nunca dourado: a IA explica, quem decide é
   quem concilia. Texto que não veio da IA não leva selo. A geração só acontece no
   clique, porque custa e tem limite diário (`ExplicacaoDaDivergencia`).
+- **A comparação também decide, desde 02/10** (ver
+  `docs/superpowers/specs/2026-10-02-conciliacao-em-rodadas-design.md`). Desde 03/10 a
+  conferência tem coluna própria, "Conferida", no fim da linha, depois da folha do sistema: um
+  círculo (`aria-pressed`, alcançável por teclado), não uma caixa ao lado do selo, que parecia
+  "selecionar a linha" e entortava o eixo. Vazio a conferir, cheio com ✓ conferida; a linha
+  conferida e a justificada saem da cor da categoria (selo neutro, `data-tom="neutro"`), e a
+  conferida fica apagada (texto a 70%, que segura 4,5:1 nas duas folhas). Na justificada,
+  "Justificada" toma o lugar do rótulo curto, sem círculo. Quando a versão nova do extrato do
+  sistema não resolve uma linha conferida numa rodada passada, o círculo volta vazio com um ↻
+  dourado dentro (status de atenção). O eixo leva só o veredito, **alinhado à esquerda** como o
+  texto das folhas, e fica nos 9rem de sempre.
+- **Gráfico é fio, não bloco (03/10).** A taxa de match mês a mês (Histórico e visão geral) é
+  uma linha fina no verde dos acertos, com pontos vazados e o mês de agora cheio; os 100% num
+  tracejado claro e a base num filete. Um ponto por mês do extrato, como Fechamentos, com a taxa
+  pesada pelos lançamentos do mês. A linha se desenha uma vez ao abrir, como o fio das rodadas, e
+  aparece inteira com movimento reduzido.
+- **A linha das rodadas é o quinto uso do dourado**, pedido em 02/10. Ela fica na
+  faixa da rodada e liga os quadrados das rodadas com o fio em onda de "Por
+  dentro" da landing, deitado. O fio se desenha uma vez ao abrir a tela, e aparece
+  inteiro com movimento reduzido. O trecho até o fechamento fica tracejado enquanto
+  alguma linha pede decisão.
 
 ## Tier 1 — buracos, não polimento
 

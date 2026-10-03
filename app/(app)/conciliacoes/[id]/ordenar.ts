@@ -1,6 +1,7 @@
 import type { Divergencia } from "@/lib/adaptadores";
 import type { LinhaComparacao } from "@/lib/mock-data";
-import { estaResolvida, statusDaLinha } from "../../dashboard/resumo";
+import { statusDaLinha } from "../../dashboard/resumo";
+import { situacaoDaLinha } from "./situacao";
 
 export type Coluna = "data" | "descricao" | "valorBanco" | "valorSistema" | "status";
 
@@ -54,11 +55,19 @@ export function ordenarLinhas(
   });
 }
 
-/** Todas, só as que pedem revisão (o "só revisão" do design), ou uma categoria do relatório. */
-export type Filtro = "todos" | "revisao" | Divergencia;
+/**
+ * Todas; só as que pedem revisão (o "só revisão" do design), que é o que ainda
+ * impede o fechamento; as justificadas; ou uma categoria do relatório.
+ */
+export type Filtro = "todos" | "revisao" | "justificadas" | Divergencia;
 
-export function filtrarLinhas(linhas: LinhaComparacao[], filtro: Filtro): LinhaComparacao[] {
+export function filtrarLinhas(linhas: LinhaComparacao[], filtro: Filtro, rodada = 1): LinhaComparacao[] {
   if (filtro === "todos") return linhas;
-  if (filtro === "revisao") return linhas.filter((linha) => !estaResolvida(linha.status));
-  return linhas.filter((linha) => linha.status === filtro);
+  return linhas.filter((linha) => {
+    const situacao = situacaoDaLinha(linha, rodada);
+    if (filtro === "revisao") return situacao === "a_conferir" || situacao === "conferida";
+    if (filtro === "justificadas") return situacao === "justificada";
+    // a justificada continua na categoria do motor, mas sai dela aqui: tem o filtro dela
+    return linha.status === filtro && situacao !== "justificada";
+  });
 }

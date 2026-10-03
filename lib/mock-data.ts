@@ -1,3 +1,5 @@
+import { chaveDaLinha } from "./rodadas";
+
 /**
  * As 7 categorias que o motor de conciliação do backend produz
  * (`StatusConciliacao` em `app/api/conciliacoes.py`, ADR-006/007/009).
@@ -25,6 +27,34 @@ export type EventoHistorico = {
 };
 
 /**
+ * O que alguém registrou sobre uma linha divergente: conferir ("já olhei, vou
+ * corrigir no sistema") e justificar ("não vai ser corrigida, e o motivo é este"),
+ * e desfazer cada um. O registro não apaga: desfazer é um evento novo
+ * (spec 2026-10-02-conciliacao-em-rodadas).
+ */
+export type TipoEvento = "conferida" | "conferencia_desfeita" | "justificada" | "justificativa_desfeita";
+
+/** A decisão em vigor numa linha. O status do motor não muda por ela. */
+export type Decisao = {
+  tipo: "conferida" | "justificada";
+  /** A justificativa; null na conferência. */
+  texto: string | null;
+  autor: string;
+  /** ISO 8601. */
+  em: string;
+  /** Em que rodada foi tomada: uma conferência de rodada passada perde o valor. */
+  rodada: number;
+};
+
+export type EventoDecisao = {
+  tipo: TipoEvento;
+  texto: string | null;
+  autor: string;
+  em: string;
+  rodada: number;
+};
+
+/**
  * Papel de cor de um status. O design tinha uma escala de gravidade em ouro
  * (leve/medio/forte), então só a intensidade distinguia um problema do outro.
  * Aqui o matiz é que carrega o significado: verde resolvido, terracota
@@ -49,6 +79,12 @@ export type MesCronico = {
 
 export type LinhaComparacao = {
   id: string;
+  /**
+   * A mesma linha em todas as rodadas da conciliação (o id muda a cada rodada).
+   * Do backend: o lançamento do banco, ou data, valor e descrição do sistema
+   * (`lib/adaptadores.ts`). O mock não tem: vale o id (`chaveDaLinha`).
+   */
+  chave?: string;
   descricao: string;
   /** "DD/MM", como o design mostra na tabela. */
   data: string;
@@ -62,7 +98,16 @@ export type LinhaComparacao = {
   valorBanco: number | null;
   valorSistema: number | null;
   status: StatusLinha;
+  /**
+   * A decisão em vigor. Ausente (undefined) quando o backend ainda não guarda
+   * decisões: a tela não oferece decidir. Null quando guarda e ninguém decidiu.
+   */
+  decisao?: Decisao | null;
+  /** O registro da linha, em ordem; o detalhe mostra no histórico. */
+  eventos?: EventoDecisao[];
   explicacao: string | null;
+  /** A explicação foi escrita pela IA: leva o selo "Gerada por IA", como os Termos prometem. */
+  explicacaoPorIa?: boolean;
   historico: EventoHistorico[];
   /** Metadados do extrato, mostrados no detalhe. Opcionais: só a divergência que o
    *  design descreve por inteiro os tem; as outras linhas degradam sem eles. */
@@ -81,6 +126,8 @@ export type Conciliacao = {
   mes: string;
   status: "em_andamento" | "fechada";
   linhas: LinhaComparacao[];
+  /** A rodada destas linhas (1 quando ausente: o mock e o extrato fora das execuções). */
+  rodada?: number;
 };
 
 // O sufixo é versão de formato, não enfeite: os status das linhas mudaram para
@@ -274,6 +321,36 @@ export function restaurarLinha(conciliacaoId: string, linha: LinhaComparacao): C
   const atualizada: Conciliacao = {
     ...lista[index],
     linhas: lista[index].linhas.map((atual) => (atual.id === linha.id ? linha : atual)),
+  };
+  lista[index] = atualizada;
+  salvarConciliacoes(lista);
+  return atualizada;
+}
+
+/**
+ * Uma decisão sobre uma linha do mock (conferir, justificar, desfazer), guardada
+ * no navegador como o "Fechar mês". O registro só cresce: desfazer é um evento
+ * novo, e a decisão em vigor volta a null. O mock não tem rodadas, então tudo
+ * acontece na primeira; com dado do backend, quem grava é `registrarDecisao`.
+ */
+export function registrarDecisaoNoMock(
+  conciliacaoId: string,
+  chave: string,
+  tipo: TipoEvento,
+  texto: string | null,
+): Conciliacao | null {
+  const lista = lerConciliacoes();
+  const index = lista.findIndex((conciliacao) => conciliacao.id === conciliacaoId);
+  if (index === -1) return null;
+  if (!lista[index].linhas.some((linha) => chaveDaLinha(linha) === chave)) return null;
+
+  const evento: EventoDecisao = { tipo, texto, autor: "Você", em: new Date().toISOString(), rodada: 1 };
+  const decisao: Decisao | null = tipo === "conferida" || tipo === "justificada" ? { ...evento, tipo } : null;
+  const atualizada: Conciliacao = {
+    ...lista[index],
+    linhas: lista[index].linhas.map((linha) =>
+      chaveDaLinha(linha) === chave ? { ...linha, decisao, eventos: [...(linha.eventos ?? []), evento] } : linha,
+    ),
   };
   lista[index] = atualizada;
   salvarConciliacoes(lista);

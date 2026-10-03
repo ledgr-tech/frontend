@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import type { LinhaComparacao, StatusLinha } from "@/lib/mock-data";
+import type { Decisao, LinhaComparacao, StatusLinha } from "@/lib/mock-data";
 import { filtrarLinhas, ordenarLinhas } from "./ordenar";
 
 function linha(
@@ -81,5 +81,38 @@ describe("filtrarLinhas", () => {
   it("deixa só a categoria escolhida no relatório", () => {
     expect(filtrarLinhas(lista, "sem_correspondencia").map((l) => l.id)).toEqual(["d"]);
     expect(filtrarLinhas(lista, "duplicado")).toEqual([]);
+  });
+
+  describe("com decisões, vistas na rodada 2", () => {
+    const decisao = (tipo: Decisao["tipo"], rodada: number): Decisao => ({
+      tipo,
+      texto: tipo === "justificada" ? "Juros de dois dias de atraso." : null,
+      autor: "Eduardo Sichelero",
+      em: "2026-09-30T13:12:00Z",
+      rodada,
+    });
+
+    const comDecisoes = [
+      linha("b", "15/09", "Folha de pagamento", 48200, 48200),
+      { ...linha("a", "04/09", "Aço Norte", 12640, 12604, "divergente_valor"), decisao: decisao("justificada", 1) },
+      // conferida nesta rodada, e conferida na anterior sem resolver: as duas ainda pedem revisão
+      { ...linha("d", "08/09", "TED sem par", 3150, null, "sem_correspondencia"), decisao: decisao("conferida", 2) },
+      { ...linha("e", "10/09", "PIX sem par", 500, null, "sem_correspondencia"), decisao: decisao("conferida", 1) },
+      linha("f", "12/09", "Juros Aço Sul", 990, 980, "divergente_valor"),
+      // justificada na rodada 1 e batida na 2: bateu, não é mais justificada
+      { ...linha("g", "20/09", "Energia elétrica", 2104, 2104), decisao: decisao("justificada", 1) },
+    ];
+
+    it("'revisão' é o que ainda impede o fechamento: a conferir e conferidas, sem as justificadas", () => {
+      expect(filtrarLinhas(comDecisoes, "revisao", 2).map((l) => l.id)).toEqual(["d", "e", "f"]);
+    });
+
+    it("'justificadas' traz só as divergências justificadas", () => {
+      expect(filtrarLinhas(comDecisoes, "justificadas", 2).map((l) => l.id)).toEqual(["a"]);
+    });
+
+    it("a categoria deixa a justificada de fora: ela tem o filtro dela", () => {
+      expect(filtrarLinhas(comDecisoes, "divergente_valor", 2).map((l) => l.id)).toEqual(["f"]);
+    });
   });
 });

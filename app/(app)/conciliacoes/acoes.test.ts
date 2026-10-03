@@ -3,12 +3,15 @@ import type { ExecucaoAPI, ItemConciliacaoAPI } from "@/lib/adaptadores";
 import { ErroBackend } from "@/lib/backend";
 import {
   carregarConciliacao,
+  carregarConciliacaoEmRodadas,
   carregarFechamentos,
-  carregarPainel,
+  carregarConciliacoes,
+  carregarHistorico,
   carregarVisaoGeral,
   explicarDivergencia,
   listarExecucoes,
   listarExtratos,
+  registrarDecisao,
   situacaoDoExtrato,
 } from "./acoes";
 
@@ -63,6 +66,35 @@ const itemConciliacao: ItemConciliacaoAPI = {
   },
   lancamento_sistema: null,
 };
+
+const SISTEMA_V1 = "1a1a1a1a-1e3f-4a5b-8c6d-9e0f1a2b3c4d";
+const SISTEMA_V2 = "2b2b2b2b-1e3f-4a5b-8c6d-9e0f1a2b3c4d";
+
+/**
+ * O mesmo extrato do banco em duas rodadas: a v1 do sistema em 23/09 e a v2 em 24/09,
+ * as duas `atual` do próprio par. Da mais recente para a mais antiga, como o backend.
+ */
+function duasRodadas(): ExecucaoAPI[] {
+  return [
+    { ...execucao("e-v2", BANCO_RECENTE), extrato_sistema_id: SISTEMA_V2, executada_em: "2026-09-24T17:02:11Z" },
+    { ...execucao("e-v1", BANCO_RECENTE), extrato_sistema_id: SISTEMA_V1, executada_em: "2026-09-23T12:00:00Z" },
+  ];
+}
+
+/** O backend com as duas rodadas: linhas, situação dos arquivos e execuções. */
+function backendComRodadas(execucoes: ExecucaoAPI[] = duasRodadas()) {
+  chamarBackend.mockImplementation(async (caminho: string) => {
+    if (caminho.startsWith("/execucoes")) return { total: execucoes.length, limit: 50, offset: 0, itens: execucoes };
+    if (caminho.startsWith(`/conciliacoes/${BANCO_RECENTE}`)) {
+      return { extrato_id: BANCO_RECENTE, total: 1, limit: 1000, offset: 0, itens: [itemConciliacao] };
+    }
+    if (caminho.startsWith("/extratos/")) {
+      const id = caminho.replace("/extratos/", "");
+      return { extrato_id: id, status: "concluido", origem: "banco", quantidade_lancamentos: 2, erros: [] };
+    }
+    throw new Error(`caminho inesperado: ${caminho}`);
+  });
+}
 
 /** Responde como o backend, pelo caminho pedido. */
 function backendCom(execucoes: ExecucaoAPI[]) {
@@ -124,6 +156,49 @@ describe("listarExecucoes", () => {
   });
 });
 
+describe("carregarHistorico", () => {
+  beforeEach(() => {
+    chamarBackend.mockReset();
+  });
+
+  /** A página com uma execução por extrato do banco; a primeira linha de cada um, pela data pedida. */
+  function backendDoHistorico(datas: Record<string, string>) {
+    chamarBackend.mockImplementation(async (caminho: string) => {
+      if (caminho.startsWith("/execucoes")) {
+        return { total: 52, limit: 50, offset: 50, itens: [execucao("e-2", BANCO_RECENTE), execucao("e-1", BANCO_ANTERIOR)] };
+      }
+      const banco = caminho.slice("/conciliacoes/".length, caminho.indexOf("?"));
+      const data = datas[banco];
+      if (!data) throw new ErroBackend(500, "O servidor respondeu 500.");
+      const item = { ...itemConciliacao, lancamento_banco: { ...itemConciliacao.lancamento_banco!, data } };
+      return { extrato_id: banco, total: 1, limit: 1, offset: 0, itens: [item] };
+    });
+  }
+
+  it("diz o mês do extrato de cada conciliação da página, pela primeira data da rodada que vale", async () => {
+    // a do banco anterior falha: ela entra pelo mês em que foi conciliada (24/09)
+    backendDoHistorico({ [BANCO_RECENTE]: "2026-08-28" });
+
+    const resultado = await carregarHistorico(1);
+
+    if (!resultado.ok) throw new Error(resultado.erro);
+    expect(chamarBackend).toHaveBeenCalledWith("/execucoes?limit=50&offset=50");
+    expect(chamarBackend).toHaveBeenCalledWith(
+      `/conciliacoes/${BANCO_RECENTE}?limit=1&offset=0&extrato_sistema_id=${SISTEMA}`,
+    );
+    expect(resultado.dados).toMatchObject({ total: 52, porPagina: 50 });
+    expect(resultado.dados.execucoes).toHaveLength(2);
+    expect(resultado.dados.competencias).toEqual({ [BANCO_RECENTE]: "2026-08", [BANCO_ANTERIOR]: "2026-09" });
+  });
+
+  it("devolve o erro da lista, sem perguntar o mês de nada", async () => {
+    chamarBackend.mockRejectedValue(new ErroBackend(401, "Sessão expirada."));
+    const resultado = await carregarHistorico();
+    expect(resultado).toMatchObject({ ok: false, status: 401 });
+    expect(chamarBackend).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("carregarConciliacao", () => {
   beforeEach(() => {
     chamarBackend.mockReset();
@@ -180,56 +255,72 @@ describe("carregarConciliacao", () => {
   });
 });
 
-describe("carregarPainel", () => {
+describe("carregarConciliacoes", () => {
   beforeEach(() => {
     chamarBackend.mockReset();
   });
 
-  it("sem execução nenhuma, não tem o que carregar", async () => {
+  it("sem execução nenhuma, não tem o que listar", async () => {
     backendCom([]);
-
-    expect(await carregarPainel()).toEqual({
+    expect(await carregarConciliacoes()).toEqual({
       ok: true,
-      dados: { recente: null, anteriores: [] },
+      dados: { conciliacoes: [], emAndamento: null, parcial: false },
     });
     expect(chamarBackend).toHaveBeenCalledTimes(1);
   });
 
-  it("abre as linhas da execução mais recente e lista as outras atuais", async () => {
-    backendCom([
-      execucao("e-3", BANCO_RECENTE),
-      execucao("e-2", BANCO_ANTERIOR, false),
-      execucao("e-1", BANCO_ANTERIOR),
+  it("lista cada extrato do banco uma vez, na rodada que vale, com o mês do extrato", async () => {
+    // o banco recente em duas rodadas; o anterior com uma refeita, que não conta
+    backendComRodadas([
+      ...duasRodadas(),
+      { ...execucao("e-a2", BANCO_ANTERIOR), executada_em: "2026-09-02T12:00:00Z" },
+      { ...execucao("e-a1", BANCO_ANTERIOR, false), executada_em: "2026-09-01T12:00:00Z" },
     ]);
 
-    const resultado = await carregarPainel();
-
-    // só as linhas do par da execução: o mesmo extrato do banco pode ter sido
-    // conciliado com outro arquivo do sistema
-    expect(chamarBackend).toHaveBeenCalledWith(
-      `/conciliacoes/${BANCO_RECENTE}?limit=1000&offset=0&extrato_sistema_id=${SISTEMA}`,
-    );
+    const resultado = await carregarConciliacoes();
     if (!resultado.ok) throw new Error(resultado.erro);
-    expect(resultado.dados.recente?.id).toBe(BANCO_RECENTE);
-    expect(resultado.dados.recente?.extratoSistemaId).toBe(SISTEMA);
-    expect(resultado.dados.recente?.linhas.map((linha) => linha.id)).toEqual(["c-1"]);
-    // a substituída (e-2) fica só no histórico; no painel, cada par aparece uma vez
-    expect(resultado.dados.anteriores.map((item) => item.id)).toEqual(["e-1"]);
+    expect(
+      resultado.dados.conciliacoes.map((item) => [item.extratoBancoId, item.execucao.id, item.rodada, item.rodadas, item.competencia]),
+    ).toEqual([
+      // o recente pela primeira linha (04/09); o anterior sem ela, pelo mês em que rodou
+      [BANCO_RECENTE, "e-v2", 2, 2, "2026-09"],
+      [BANCO_ANTERIOR, "e-a2", 1, 1, "2026-09"],
+    ]);
+    // as quatro execuções vieram numa página só
+    expect(resultado.dados.parcial).toBe(false);
   });
 
-  it("devolve a falha quando as linhas da mais recente não carregam", async () => {
-    chamarBackend.mockImplementation(async (caminho: string) => {
-      if (caminho.startsWith("/execucoes")) {
-        return { total: 1, limit: 50, offset: 0, itens: [execucao("e-1", BANCO_RECENTE)] };
-      }
-      throw new ErroBackend(404, "Extrato não encontrado.");
-    });
+  it("abre as linhas da que está em andamento, para contar o que já foi decidido", async () => {
+    // a única linha do backend: sem par no sistema, ainda sem decisão
+    backendComRodadas(duasRodadas());
 
-    expect(await carregarPainel()).toEqual({
-      ok: false,
-      status: 404,
-      erro: "Extrato não encontrado.",
+    const resultado = await carregarConciliacoes();
+    if (!resultado.ok) throw new Error(resultado.erro);
+    expect(chamarBackend).toHaveBeenCalledWith(
+      `/conciliacoes/${BANCO_RECENTE}?limit=1000&offset=0&extrato_sistema_id=${SISTEMA_V2}`,
+    );
+    expect(resultado.dados.emAndamento).toEqual({
+      extratoBancoId: BANCO_RECENTE,
+      batem: 0,
+      pedemDecisao: 1,
+      justificadas: 0,
+      // o backend não manda `decisao`: não há conferência para contar
+      conferidas: null,
     });
+  });
+
+  it("não tem nada em andamento quando nada pede decisão", async () => {
+    backendCom([{ ...execucao("e-1", BANCO_RECENTE), contagens: { ...execucao("e-1", BANCO_RECENTE).contagens, match_exato: 2, sem_correspondencia: 0 } }]);
+
+    const resultado = await carregarConciliacoes();
+    if (!resultado.ok) throw new Error(resultado.erro);
+    expect(resultado.dados.emAndamento).toBeNull();
+    expect(resultado.dados.conciliacoes).toHaveLength(1);
+  });
+
+  it("devolve a falha da lista", async () => {
+    chamarBackend.mockRejectedValue(new ErroBackend(401, "Sessão expirada."));
+    expect(await carregarConciliacoes()).toMatchObject({ ok: false, status: 401 });
   });
 });
 
@@ -298,6 +389,8 @@ describe("listarExtratos", () => {
       origem: "sistema",
       conciliadoEm: "2026-09-24T17:02:11Z",
       resultado: `/conciliacoes/${BANCO_RECENTE}?sistema=${SISTEMA}`,
+      // a única rodada do extrato do banco mais recente
+      rodada: { numero: 1, total: 1 },
       situacao: "concluido_com_erros",
       lancamentos: 12,
       erros: [{ identificador: "linha 14", motivo: "valor ilegível" }],
@@ -371,6 +464,16 @@ describe("carregarVisaoGeral", () => {
     chamarBackend.mockReset();
   });
 
+  it("abre a rodada vigente, mesmo que a versão antiga tenha sido reconciliada depois", async () => {
+    // a v1 conciliada de novo em 25/09 é a execução mais recente, mas a rodada que vale é a da v2
+    const [v2, v1] = duasRodadas();
+    backendComRodadas([{ ...v1, id: "e-v1b", executada_em: "2026-09-25T09:00:00Z" }, v2, { ...v1, atual: false }]);
+
+    const resultado = await carregarVisaoGeral();
+    if (!resultado.ok) throw new Error(resultado.erro);
+    expect(resultado.dados.recente?.execucao.extratoSistemaId).toBe(SISTEMA_V2);
+  });
+
   function situacao(id: string, erros: { identificador: string; motivo: string }[] = []) {
     return { extrato_id: id, status: "concluido", origem: "banco", quantidade_lancamentos: 2, erros };
   }
@@ -390,6 +493,24 @@ describe("carregarVisaoGeral", () => {
       throw new Error(`caminho inesperado: ${caminho}`);
     });
   }
+
+  it("diz o mês do extrato de cada conciliação só quando a tela pede, e não a cada abertura da barra do topo", async () => {
+    backendComVisao(
+      // o banco anterior não tem a primeira linha: fica no mês em que rodou
+      [execucao("e-3", BANCO_RECENTE), { ...execucao("e-1", BANCO_ANTERIOR), executada_em: "2026-10-02T12:00:00Z" }],
+      { [BANCO_RECENTE]: situacao(BANCO_RECENTE), [SISTEMA]: situacao(SISTEMA) },
+    );
+
+    const semMes = await carregarVisaoGeral();
+    if (!semMes.ok) throw new Error(semMes.erro);
+    expect(semMes.dados.competencias).toBeUndefined();
+    expect(chamarBackend).not.toHaveBeenCalledWith(expect.stringContaining("?limit=1&offset=0"));
+
+    const comMes = await carregarVisaoGeral({ competencias: true });
+    if (!comMes.ok) throw new Error(comMes.erro);
+    // a primeira linha do banco recente é de 04/09
+    expect(comMes.dados.competencias).toEqual({ [BANCO_RECENTE]: "2026-09", [BANCO_ANTERIOR]: "2026-10" });
+  });
 
   it("sem execução nenhuma, não tem o que abrir", async () => {
     backendCom([]);
@@ -538,6 +659,57 @@ describe("explicarDivergencia", () => {
   });
 });
 
+describe("registrarDecisao", () => {
+  beforeEach(() => {
+    chamarBackend.mockReset();
+  });
+
+  it("grava na rota de decisões do extrato do banco e devolve a decisão em vigor", async () => {
+    const emVigor = {
+      tipo: "justificada",
+      texto: "Juros de dois dias de atraso.",
+      autor: "Eduardo Sichelero",
+      em: "2026-09-30T10:12:00-03:00",
+      rodada: 2,
+    };
+    chamarBackend.mockResolvedValue(emVigor);
+
+    const resultado = await registrarDecisao(BANCO_RECENTE, "lb-1", "justificada", "Juros de dois dias de atraso.");
+
+    expect(chamarBackend).toHaveBeenCalledWith(`/conciliacoes/${BANCO_RECENTE}/decisoes`, {
+      method: "POST",
+      corpo: { chave: "lb-1", tipo: "justificada", texto: "Juros de dois dias de atraso." },
+    });
+    expect(resultado).toEqual({ ok: true, dados: emVigor });
+  });
+
+  it("desfazer deixa a linha sem decisão", async () => {
+    chamarBackend.mockResolvedValue(null);
+
+    expect(await registrarDecisao(BANCO_RECENTE, "lb-1", "conferencia_desfeita")).toEqual({ ok: true, dados: null });
+  });
+
+  it("avisa que a linha mudou quando outra rodada entrou no meio", async () => {
+    // a chave que a tela tem não existe mais na conciliação de agora
+    chamarBackend.mockRejectedValue(new ErroBackend(404, "Linha não encontrada."));
+
+    expect(await registrarDecisao(BANCO_RECENTE, "lb-1", "conferida")).toEqual({
+      ok: false,
+      status: 404,
+      erro: "Esta linha mudou: a conciliação foi refeita depois que a tela abriu.",
+    });
+  });
+
+  it("recusa um id que não é UUID, sem chamar o backend", async () => {
+    expect(await registrarDecisao("../extratos", "lb-1", "conferida")).toEqual({
+      ok: false,
+      status: 404,
+      erro: "Conciliação não encontrada.",
+    });
+    expect(chamarBackend).not.toHaveBeenCalled();
+  });
+});
+
 describe("situacaoDoExtrato", () => {
   beforeEach(() => {
     chamarBackend.mockReset();
@@ -612,6 +784,14 @@ describe("carregarFechamentos", () => {
     );
   });
 
+  it("conta um par por extrato do banco: a versão nova do sistema substitui a antiga", async () => {
+    backendComRodadas();
+
+    const resultado = await carregarFechamentos();
+    if (!resultado.ok) throw new Error(resultado.erro);
+    expect(resultado.dados.map((par) => par.execucao.extratoSistemaId)).toEqual([SISTEMA_V2]);
+  });
+
   it("mantém o par sem a data quando a primeira linha não vem", async () => {
     chamarBackend.mockImplementation(async (caminho: string) => {
       if (caminho.startsWith("/execucoes")) {
@@ -631,5 +811,99 @@ describe("carregarFechamentos", () => {
     chamarBackend.mockRejectedValue(new ErroBackend(401, "Token inválido."));
 
     expect(await carregarFechamentos()).toMatchObject({ ok: false, status: 401 });
+  });
+});
+
+describe("carregarConciliacaoEmRodadas", () => {
+  beforeEach(() => {
+    chamarBackend.mockReset();
+  });
+
+  const caminhoDasLinhas = (sistema?: string) =>
+    `/conciliacoes/${BANCO_RECENTE}?limit=1000&offset=0${sistema ? `&extrato_sistema_id=${sistema}` : ""}`;
+
+  it("sem o sistema na URL, abre a rodada mais recente", async () => {
+    backendComRodadas();
+
+    const resultado = await carregarConciliacaoEmRodadas(BANCO_RECENTE);
+    if (!resultado.ok) throw new Error(resultado.erro);
+    expect(chamarBackend).toHaveBeenCalledWith(caminhoDasLinhas(SISTEMA_V2));
+    expect(resultado.dados.rodada).toEqual({
+      numero: 2,
+      total: 2,
+      extratoSistemaId: SISTEMA_V2,
+      arquivoSistema: "e-v2-sistema.csv",
+      executadaEm: "2026-09-24T17:02:11Z",
+    });
+    expect(resultado.dados.conciliacao.extratoSistemaId).toBe(SISTEMA_V2);
+    // a rodada vai junto da conciliação: é por ela que uma conferência antiga perde o valor
+    expect(resultado.dados.conciliacao.rodada).toBe(2);
+  });
+
+  it("traz todas as rodadas do extrato, da primeira à mais recente, para a linha das rodadas", async () => {
+    backendComRodadas();
+
+    const resultado = await carregarConciliacaoEmRodadas(BANCO_RECENTE, SISTEMA_V1);
+    if (!resultado.ok) throw new Error(resultado.erro);
+    expect(resultado.dados.rodadas).toEqual([
+      {
+        numero: 1,
+        total: 2,
+        extratoSistemaId: SISTEMA_V1,
+        arquivoSistema: "e-v1-sistema.csv",
+        executadaEm: "2026-09-23T12:00:00Z",
+      },
+      {
+        numero: 2,
+        total: 2,
+        extratoSistemaId: SISTEMA_V2,
+        arquivoSistema: "e-v2-sistema.csv",
+        executadaEm: "2026-09-24T17:02:11Z",
+      },
+    ]);
+  });
+
+  it("com o sistema de uma rodada antiga, abre aquela, sem comparação", async () => {
+    backendComRodadas();
+
+    const resultado = await carregarConciliacaoEmRodadas(BANCO_RECENTE, SISTEMA_V1);
+    if (!resultado.ok) throw new Error(resultado.erro);
+    expect(chamarBackend).toHaveBeenCalledWith(caminhoDasLinhas(SISTEMA_V1));
+    expect(resultado.dados.rodada?.numero).toBe(1);
+    expect(resultado.dados.mudancas).toBeNull();
+  });
+
+  it("compara com a rodada anterior", async () => {
+    const execucoes = duasRodadas();
+    chamarBackend.mockImplementation(async (caminho: string) => {
+      if (caminho.startsWith("/execucoes")) return { total: 2, limit: 50, offset: 0, itens: execucoes };
+      // na v1 a transferência não tinha par; a v2 do sistema trouxe o lançamento
+      const bateu = caminho.endsWith(SISTEMA_V2);
+      const itens = [bateu ? { ...itemConciliacao, status: "match_exato" } : itemConciliacao];
+      return { extrato_id: BANCO_RECENTE, total: 1, limit: 1000, offset: 0, itens };
+    });
+
+    const resultado = await carregarConciliacaoEmRodadas(BANCO_RECENTE);
+    if (!resultado.ok) throw new Error(resultado.erro);
+    expect(resultado.dados.mudancas).toEqual({ passaramABater: 1, continuamDivergindo: 0, novas: 0 });
+  });
+
+  it("sem execução do extrato, abre como antes, sem rodada", async () => {
+    // o extrato é mais antigo que as páginas de /execucoes que a tela lê
+    chamarBackend.mockImplementation(async (caminho: string) => {
+      if (caminho.startsWith("/execucoes")) {
+        return { total: 1, limit: 50, offset: 0, itens: [execucao("e-outro", BANCO_ANTERIOR)] };
+      }
+      return { extrato_id: BANCO_RECENTE, total: 1, limit: 1000, offset: 0, itens: [itemConciliacao] };
+    });
+
+    const resultado = await carregarConciliacaoEmRodadas(BANCO_RECENTE);
+    expect(resultado).toMatchObject({ ok: true, dados: { rodada: null, rodadas: [], mudancas: null } });
+    expect(chamarBackend).toHaveBeenCalledWith(caminhoDasLinhas());
+  });
+
+  it("recusa um id que não é de extrato sem chamar o backend", async () => {
+    expect(await carregarConciliacaoEmRodadas("../etc")).toMatchObject({ ok: false, status: 404 });
+    expect(chamarBackend).not.toHaveBeenCalled();
   });
 });

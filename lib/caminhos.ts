@@ -18,6 +18,11 @@ export function caminhoDaConciliacao(
   return `/conciliacoes/${extratoBancoId}${linha}${par}`;
 }
 
+/** Fechamentos já aberto num mês (AAAA-MM), como a linha das rodadas leva até lá. */
+export function caminhoDoFechamento(mes: string): string {
+  return `/fechamentos?mes=${encodeURIComponent(mes)}`;
+}
+
 /**
  * A conciliação já no recorte de uma categoria do relatório (`?status=`): a tela
  * abre com a tabela filtrada nela.

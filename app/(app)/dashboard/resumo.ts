@@ -4,22 +4,26 @@ import type { Conciliacao, LinhaComparacao, StatusLinha, Tom } from "@/lib/mock-
 // (`StatusConciliacao` em `app/api/conciliacoes.py`). O tom segue a regra que o
 // trabalho de cores fechou: verde o que está resolvido, terracota o que custa
 // dinheiro, ouro o que está incompleto, neutro o que já tem explicação.
-const STATUS: Record<StatusLinha, { rotulo: string; tom: Tom }> = {
-  match_exato: { rotulo: "Match exato", tom: "ok" },
+//
+// O nome curto é o que cabe no eixo entre as duas folhas da comparação; o inteiro
+// segue nos cartões de categoria, no cartão do hover e para o leitor de tela.
+// "Bate" é o do design (o `curto` da prévia em Ledgr.dc.html).
+const STATUS: Record<StatusLinha, { rotulo: string; curto: string; tom: Tom }> = {
+  match_exato: { rotulo: "Match exato", curto: "Bate", tom: "ok" },
   // casou dentro da tolerância de dias da empresa (ADR-008): resolvido, com a
   // ressalva no próprio rótulo em vez de num tom mais fraco
-  match_tolerancia: { rotulo: "Match por tolerância de data", tom: "ok" },
+  match_tolerancia: { rotulo: "Match por tolerância de data", curto: "Bate na tolerância", tom: "ok" },
   // achou lançamento do outro lado na mesma data e o valor não bate: dinheiro
-  divergente_valor: { rotulo: "Valor diverge na mesma data", tom: "risco" },
+  divergente_valor: { rotulo: "Valor diverge na mesma data", curto: "Valor diverge", tom: "risco" },
   // achou o mesmo valor em outra data: está tudo lá, no dia errado
-  divergente_data: { rotulo: "Mesmo valor em outra data", tom: "atencao" },
+  divergente_data: { rotulo: "Mesmo valor em outra data", curto: "Data diverge", tom: "atencao" },
   // sobra de um grupo que já formou par (ADR-006): pagamento repetido custa caro
-  duplicado: { rotulo: "Possível duplicidade", tom: "risco" },
+  duplicado: { rotulo: "Possível duplicidade", curto: "Duplicidade", tom: "risco" },
   // ponytail: neutro de propósito. Tarifa ganhou categoria própria na issue #24
   // justamente por ser a sobra que o sistema já sabe explicar — deixar em ouro
   // junto com o que ninguém identificou desperdiçaria a classificação.
-  tarifa_bancaria: { rotulo: "Tarifa bancária", tom: "neutro" },
-  sem_correspondencia: { rotulo: "Sem correspondência", tom: "atencao" },
+  tarifa_bancaria: { rotulo: "Tarifa bancária", curto: "Tarifa", tom: "neutro" },
+  sem_correspondencia: { rotulo: "Sem correspondência", curto: "Falta", tom: "atencao" },
 };
 
 /** Match exato e match por tolerância; o resto ainda pede decisão de alguém. */
@@ -27,18 +31,36 @@ export function estaResolvida(status: StatusLinha): boolean {
   return status === "match_exato" || status === "match_tolerancia";
 }
 
+/**
+ * Diverge e ninguém justificou: é o que ainda segura o fechamento. A justificada não
+ * bateu, mas já tem o motivo no registro (spec 2026-10-02-conciliacao-em-rodadas); a
+ * conferida continua aqui, porque conferir é a promessa de corrigir no sistema.
+ */
+export function pedeDecisao(linha: LinhaComparacao): boolean {
+  return !estaResolvida(linha.status) && linha.decisao?.tipo !== "justificada";
+}
+
 /** Rótulo e tom de um código do motor, sem a linha (as contagens de `/execucoes`). */
 export function seloDoStatus(status: StatusLinha): { rotulo: string; tom: Tom } {
-  return STATUS[status];
+  const { rotulo, tom } = STATUS[status];
+  return { rotulo, tom };
+}
+
+/** O backend tem um status só para a linha sem par; quem diz algo útil é o lado que falta. */
+function ladoQueFalta(linha: LinhaComparacao): "banco" | "sistema" {
+  return linha.valorBanco === null ? "banco" : "sistema";
 }
 
 export function statusDaLinha(linha: LinhaComparacao): { rotulo: string; tom: Tom } {
-  const base = STATUS[linha.status];
+  const base = seloDoStatus(linha.status);
   if (linha.status !== "sem_correspondencia") return base;
-  // O backend tem um status só pra isso; quem dá o rótulo útil é o lado que falta.
-  const rotulo =
-    linha.valorBanco === null ? "Sem correspondência no banco" : "Sem correspondência no sistema";
-  return { ...base, rotulo };
+  return { ...base, rotulo: `Sem correspondência no ${ladoQueFalta(linha)}` };
+}
+
+/** O status em poucas palavras ("Valor diverge", "Falta no banco"), para o eixo da comparação. */
+export function rotuloCurto(linha: LinhaComparacao): string {
+  const { curto } = STATUS[linha.status];
+  return linha.status === "sem_correspondencia" ? `${curto} no ${ladoQueFalta(linha)}` : curto;
 }
 
 /** O extrato do banco é a fonte da verdade; sem ele, cai para o valor do sistema. */
@@ -90,15 +112,16 @@ export function valorEmAberto(linhas: LinhaComparacao[]): number {
 export function resumir(conciliacoes: Conciliacao[]): Resumo {
   const linhas = conciliacoes.flatMap((conciliacao) => conciliacao.linhas);
   const resolvidas = linhas.filter((linha) => estaResolvida(linha.status));
-  const emAberto = linhas.filter((linha) => !estaResolvida(linha.status));
-  const orfas = linhas.filter((linha) => linha.status === "sem_correspondencia");
+  // as justificadas ficam à parte: nem batidas, nem em aberto
+  const emAberto = linhas.filter(pedeDecisao);
+  const orfas = emAberto.filter((linha) => linha.status === "sem_correspondencia");
 
   return {
     processados: linhas.length,
     batidos: resolvidas.length,
     taxaMatch: linhas.length === 0 ? 0 : (resolvidas.length / linhas.length) * 100,
     divergentes: emAberto.length,
-    valorDivergente: valorEmAberto(linhas),
+    valorDivergente: valorEmAberto(emAberto),
     semCorrespondente: orfas.length,
     valorSemCorrespondente: valorEmAberto(orfas),
   };

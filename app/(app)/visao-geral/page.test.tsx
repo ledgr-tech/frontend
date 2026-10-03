@@ -6,9 +6,9 @@ import type { Resultado, VisaoGeral } from "../conciliacoes/acoes";
 import VisaoGeralPage from "./page";
 
 // quem fala com o backend é a action; aqui ela só devolve o que ele responderia
-const carregarVisaoGeral = vi.fn<() => Promise<Resultado<VisaoGeral>>>();
+const carregarVisaoGeral = vi.fn<(opcoes?: { competencias?: boolean }) => Promise<Resultado<VisaoGeral>>>();
 vi.mock("../conciliacoes/acoes", () => ({
-  carregarVisaoGeral: () => carregarVisaoGeral(),
+  carregarVisaoGeral: (opcoes?: { competencias?: boolean }) => carregarVisaoGeral(opcoes),
 }));
 
 const redirect = vi.fn();
@@ -32,6 +32,7 @@ function execucao(parcial: Partial<Execucao> & Pick<Execucao, "id">): Execucao {
     divergencias: {},
     toleranciaDias: 1,
     atual: true,
+    justificadas: 0,
     ...parcial,
   };
 }
@@ -55,7 +56,14 @@ function linha(
   };
 }
 
-const RECENTE = execucao({ id: "e7", executadaEm: "2026-09-24T17:02:11Z" });
+// 12 de 22: o backend manda 54.55, arredondado; a tela conta as linhas
+const RECENTE = execucao({
+  id: "e7",
+  executadaEm: "2026-09-24T17:02:11Z",
+  lancamentos: 22,
+  acerto: 54.55,
+  divergencias: { divergente_valor: 10 },
+});
 
 // da mais recente para a mais antiga, como o backend devolve
 const EXECUCOES: Execucao[] = [
@@ -145,7 +153,20 @@ describe("VisaoGeralPage", () => {
     const historico = within(atalhos).getByRole("link", { name: /Histórico/ });
     expect(historico).toHaveAttribute("href", "/historico");
     expect(historico).toHaveTextContent("7 execuções");
-    expect(historico).toHaveTextContent("Match de 50,0% na última");
+    expect(historico).toHaveTextContent("Match de 54,5% na última");
+  });
+
+  it("counts a new version of the system extrato as the same conciliação, not another one", async () => {
+    // a primeira versão do extrato do sistema continua "atual" do par dela
+    const execucoes = [
+      execucao({ id: "v2", extratoBancoId: "banco-x", extratoSistemaId: "sistema-v2" }),
+      execucao({ id: "v1", extratoBancoId: "banco-x", extratoSistemaId: "sistema-v1", executadaEm: "2026-09-23T12:00:00Z" }),
+    ];
+    com({ execucoes, total: execucoes.length });
+    await renderizar();
+
+    const atalhos = screen.getByRole("navigation", { name: "Atalhos" });
+    expect(within(atalhos).getByRole("link", { name: /Conciliações/ })).toHaveTextContent("1 conciliação");
   });
 
   it("tells the shortcuts about unread lines, and about a latest conciliação with nothing pending", async () => {
@@ -266,15 +287,24 @@ describe("VisaoGeralPage", () => {
     expect(screen.getByText("Nenhum valor em aberto")).toBeInTheDocument();
   });
 
-  it("draws the match-rate trend of the last six executions", async () => {
+  it("draws the match-rate trend month by month, by the month of the extrato", async () => {
     com();
     await renderizar();
 
-    expect(document.querySelectorAll(".hist-barra-coluna")).toHaveLength(6);
+    // o gráfico conta pelo mês do extrato, que a tela pede ao carregar
+    expect(carregarVisaoGeral).toHaveBeenCalledWith({ competencias: true });
+    // sem o mês do extrato, cada uma fica no mês em que rodou: de maio a setembro, e a e6 foi refeita
+    expect([...document.querySelectorAll(".grafico-fio-meses > span")].map((mes) => mes.textContent)).toEqual([
+      "mai",
+      "jun",
+      "jul",
+      "ago",
+      "set/26",
+    ]);
     expect(screen.getByRole("link", { name: "Ver histórico" })).toHaveAttribute("href", "/historico");
   });
 
-  it("lists the five most recent executions", async () => {
+  it("lists the five most recent conciliações, one row each", async () => {
     com();
     await renderizar();
 
@@ -282,34 +312,58 @@ describe("VisaoGeralPage", () => {
     const linhas = within(tabela).getAllByRole("row").slice(1);
     expect(linhas).toHaveLength(5);
     expect(within(linhas[0]).getByText("24/09/2026 14:02")).toBeInTheDocument();
-    expect(within(linhas[0]).getByText("sicredi-e7.ofx × erp-e7.csv")).toBeInTheDocument();
-    expect(within(linhas[0]).getByRole("link", { name: "Ver" })).toHaveAttribute(
+    expect(linhas[0]).toHaveTextContent("sicredi-e7.ofx × erp-e7.csv");
+    // pelo endereço só do banco, que abre a rodada que vale, como no histórico
+    expect(within(linhas[0]).getByRole("link", { name: "Ver sicredi-e7.ofx" })).toHaveAttribute(
       "href",
-      "/conciliacoes/banco-e7?sistema=sistema-e7",
+      "/conciliacoes/banco-e7",
     );
+    expect(screen.getByText("As 5 conciliações mais recentes. As outras estão no histórico.")).toBeInTheDocument();
   });
 
-  it("says a redone execution opens the current result of its pair", async () => {
-    com();
+  it("shows a conciliação in rounds once, with the numbers of the round that counts", async () => {
+    const setembro = { extratoBancoId: "banco-set", arquivoBanco: "sicredi-setembro.ofx" };
+    const execucoes = [
+      execucao({
+        id: "v2",
+        ...setembro,
+        extratoSistemaId: "s2",
+        arquivoSistema: "erp-v2.csv",
+        lancamentos: 22,
+        acerto: 54.55,
+        divergencias: { divergente_valor: 10 },
+      }),
+      execucao({
+        id: "v2-antes",
+        ...setembro,
+        extratoSistemaId: "s2",
+        arquivoSistema: "erp-v2.csv",
+        executadaEm: "2026-09-24T09:10:00Z",
+        acerto: 41.7,
+        atual: false,
+      }),
+      execucao({ id: "v1", ...setembro, extratoSistemaId: "s1", arquivoSistema: "erp-v1.csv", executadaEm: "2026-09-23T12:00:00Z", acerto: 33.3 }),
+      execucao({ id: "e5", executadaEm: "2026-09-02T19:20:00Z", acerto: 91.8 }),
+    ];
+    com({ execucoes, total: execucoes.length, competencias: { "banco-set": "2026-09", "banco-e5": "2026-08" } });
     await renderizar();
 
-    const tabela = screen.getByRole("table", { name: "Atividade recente" });
-    const refeita = within(tabela).getAllByRole("row")[2];
-    // e6 foi refeita: o backend só guarda a rodada mais nova de cada par, e é
-    // ela que abre — o link diz isso em vez de fingir que abre a de 23/09
-    expect(within(refeita).getByRole("link", { name: "Ver atual" })).toHaveAttribute(
-      "href",
-      "/conciliacoes/banco-e6?sistema=sistema-e6",
-    );
-    expect(screen.getByText(/Só o resultado mais recente fica guardado/)).toBeInTheDocument();
-  });
-
-  it("does not explain Ver atual when no recent execution was redone", async () => {
-    com({ execucoes: EXECUCOES.filter((item) => item.atual) });
-    await renderizar();
-
-    expect(screen.getByRole("table", { name: "Atividade recente" })).toBeInTheDocument();
+    const linhas = within(screen.getByRole("table", { name: "Atividade recente" })).getAllByRole("row").slice(1);
+    expect(linhas).toHaveLength(2);
+    expect(linhas[0]).toHaveTextContent("sicredi-setembro.ofx × erp-v2.csv · rodada 2");
+    // o mesmo 54,5% do gráfico logo abaixo, pelas contagens
+    expect(linhas[0]).toHaveTextContent("54,5%");
+    expect(linhas[1]).toHaveTextContent("sicredi-e5.ofx × erp-e5.csv");
+    expect(linhas[1]).not.toHaveTextContent("rodada");
+    // a refeita e a rodada 1 foram substituídas: nem linha, nem barra no gráfico, nem "Ver atual"
+    expect(screen.queryByRole("link", { name: "Ver atual" })).not.toBeInTheDocument();
     expect(screen.queryByText(/Só o resultado mais recente fica guardado/)).not.toBeInTheDocument();
+    // setembro só com a rodada que vale: 12 de 22
+    expect([...document.querySelectorAll(".grafico-fio-valor")].map((taxa) => taxa.textContent)).toEqual([
+      "100,0%",
+      "54,5%",
+    ]);
+    expect(screen.queryByText(/mais recentes. As outras/)).not.toBeInTheDocument();
   });
 
   it("walks through the first steps when there is no conciliação yet", async () => {

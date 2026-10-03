@@ -124,6 +124,66 @@ describe("adaptarLinha", () => {
       item({ status: "match_tolerancia", regra_aplicada: "tolerancia", score_confianca: "0.67" }),
     );
     expect(linha.explicacao).toBe('Conciliado pela regra "tolerancia". Confiança de 67%.');
+    expect(linha.explicacaoPorIa).toBe(false);
+  });
+
+  it("mostra a explicação que o backend gerou na conciliação, com o selo quando veio da IA", () => {
+    const divergente = item({
+      status: "divergente_valor",
+      regra_aplicada: null,
+      score_confianca: null,
+      explicacao: "O banco cobrou R$ 36 de juros pelo atraso, que o sistema não lançou.",
+      gerada_por_ia: true,
+    });
+    const linha = adaptarLinha(divergente);
+    expect(linha.explicacao).toBe("O banco cobrou R$ 36 de juros pelo atraso, que o sistema não lançou.");
+    expect(linha.explicacaoPorIa).toBe(true);
+
+    // o texto fixo do motor, quando a IA não respondeu, sai sem o selo
+    expect(adaptarLinha({ ...divergente, gerada_por_ia: false }).explicacaoPorIa).toBe(false);
+  });
+
+  it("lê a decisão e os eventos que o backend mandar", () => {
+    const decisao = {
+      tipo: "justificada" as const,
+      texto: "Juros de dois dias de atraso.",
+      autor: "Eduardo Sichelero",
+      em: "2026-09-30T13:12:00Z",
+      rodada: 2,
+    };
+    const eventos = [{ ...decisao, tipo: "conferida" as const, texto: null, rodada: 1 }, decisao];
+    const linha = adaptarLinha(item({ status: "divergente_valor", decisao, eventos }));
+    expect(linha.decisao).toEqual(decisao);
+    expect(linha.eventos).toEqual(eventos);
+    // sem decisão nenhuma ainda, o backend manda null: a tela sabe que pode decidir
+    expect(adaptarLinha(item({ decisao: null })).decisao).toBeNull();
+  });
+
+  it("sem o campo, a linha não tem decisão (undefined, não null)", () => {
+    const linha = adaptarLinha(item());
+    expect(linha.decisao).toBeUndefined();
+    expect("decisao" in linha).toBe(false);
+  });
+
+  it("diz que não há descrição quando o extrato não trouxe uma, nos dois lados", () => {
+    // OFX sem MEMO: a descrição chega vazia, e a linha não pode ficar sem ter onde clicar
+    const linha = adaptarLinha(
+      item({
+        lancamento_banco: { ...item().lancamento_banco!, descricao: "" },
+        lancamento_sistema: { ...item().lancamento_sistema!, descricao: "   " },
+      }),
+    );
+    expect(linha.descricao).toBe("Sem descrição");
+    expect(linha.descricaoSistema).toBe("Sem descrição");
+  });
+
+  it("prefere a explicação do backend à frase da regra, e ignora uma explicação em branco", () => {
+    expect(adaptarLinha(item({ explicacao: "Mesmo boleto nos dois lados.", gerada_por_ia: true })).explicacao).toBe(
+      "Mesmo boleto nos dois lados.",
+    );
+    const emBranco = adaptarLinha(item({ explicacao: "  ", gerada_por_ia: true }));
+    expect(emBranco.explicacao).toBe('Conciliado pela regra "exata". Confiança de 100%.');
+    expect(emBranco.explicacaoPorIa).toBe(false);
   });
 
   it("não inventa histórico: o backend não guarda linha do tempo por lançamento", () => {
@@ -152,6 +212,44 @@ describe("adaptarConciliacao", () => {
     const vazia = adaptarConciliacao({ ...lista, total: 0, itens: [] });
     expect(vazia.linhas).toEqual([]);
     expect(vazia.mes).toBe("Conciliação");
+  });
+
+  describe("a chave de cada linha, a mesma em todas as rodadas", () => {
+    const soDoSistema = (id: string, descricao = "  Estorno  Maquininha ") =>
+      item({
+        id,
+        status: "sem_correspondencia",
+        lancamento_banco: null,
+        lancamento_sistema: { id: `ls-${id}`, data: "2026-09-12", valor: "-980", descricao, tipo: "debito" },
+      });
+    const comItens = (itens: ItemConciliacaoAPI[]) => adaptarConciliacao({ ...lista, total: itens.length, itens });
+
+    it("a chave é o lançamento do banco, que é o mesmo em todas as rodadas", () => {
+      expect(comItens([item()]).linhas[0].chave).toBe("b:lb-1");
+    });
+
+    it("sem banco, a chave é data, valor e descrição do sistema", () => {
+      expect(comItens([soDoSistema("c1")]).linhas[0].chave).toBe("s:2026-09-12|-980.00|estorno maquininha");
+    });
+
+    it("duas linhas só do sistema iguais não dividem a chave", () => {
+      expect(comItens([soDoSistema("c1"), soDoSistema("c2", "Estorno maquininha")]).linhas.map((l) => l.chave)).toEqual([
+        "s:2026-09-12|-980.00|estorno maquininha",
+        "s:2026-09-12|-980.00|estorno maquininha#2",
+      ]);
+    });
+
+    it("prefere a chave que o backend mandar", () => {
+      expect(comItens([item({ chave: "k-1" })]).linhas[0].chave).toBe("k-1");
+    });
+
+    it("monta a chave de uma linha só do sistema sem descrição, sem derrubar a conciliação", () => {
+      // a descrição nula é a mesma que o adaptador já trata como "Sem descrição"
+      const semDescricao = soDoSistema("c1", null as unknown as string);
+      const conciliacao = comItens([semDescricao]);
+      expect(conciliacao.linhas[0].chave).toBe("s:2026-09-12|-980.00|");
+      expect(conciliacao.linhas[0].descricao).toBe("Sem descrição");
+    });
   });
 });
 
@@ -208,7 +306,15 @@ describe("adaptarExecucao", () => {
       },
       toleranciaDias: 2,
       atual: true,
+      // o backend que ainda não guarda decisões não manda a contagem: nenhuma justificada
+      justificadas: 0,
     });
+  });
+
+  it("lê quantas divergências estão justificadas", () => {
+    const comJustificadas = execucao();
+    comJustificadas.contagens = { ...comJustificadas.contagens, justificadas: 3 };
+    expect(adaptarExecucao(comJustificadas).justificadas).toBe(3);
   });
 
   it("deixa de fora das divergências as categorias sem nenhuma linha", () => {
@@ -260,6 +366,7 @@ describe("extratosDasExecucoes", () => {
       divergencias: {},
       toleranciaDias: 1,
       atual: true,
+      justificadas: 0,
     };
   }
 
@@ -282,12 +389,13 @@ describe("extratosDasExecucoes", () => {
 
   it("guarda a origem, o nome e a conciliação mais recente de cada arquivo", () => {
     const [bancoSetembro, sistemaNovo, sistemaAntigo] = extratosDasExecucoes(execucoes);
+    // o extrato do banco é a conciliação: abre pelo endereço só dele, na rodada que vale
     expect(bancoSetembro).toEqual({
       id: "b-set",
       nome: "sicredi-set.ofx",
       origem: "banco",
       conciliadoEm: "2026-09-24T17:00:00Z",
-      resultado: "/conciliacoes/b-set?sistema=s-set-v2",
+      resultado: "/conciliacoes/b-set",
     });
     expect(sistemaNovo.origem).toBe("sistema");
     // o extrato do banco de setembro entrou em dois pares: cada arquivo do
@@ -297,6 +405,13 @@ describe("extratosDasExecucoes", () => {
       conciliadoEm: "2026-09-23T12:00:00Z",
       resultado: "/conciliacoes/b-set?sistema=s-set",
     });
+  });
+
+  it("diz em que rodada cada extrato do sistema entrou, e quantas a conciliação tem", () => {
+    const [, sistemaNovo, sistemaAntigo, , sistemaAgosto] = extratosDasExecucoes(execucoes);
+    expect(sistemaNovo.rodada).toEqual({ numero: 2, total: 2 });
+    expect(sistemaAntigo.rodada).toEqual({ numero: 1, total: 2 });
+    expect(sistemaAgosto.rodada).toEqual({ numero: 1, total: 1 });
   });
 
   it("não tem arquivo nenhum sem execução", () => {

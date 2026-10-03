@@ -418,6 +418,14 @@ dialog::backdrop {
   border: none; background: transparent; color: var(--color-text); overflow: visible;
 }
 .espia .dialog { width: 100%; }
+/* justificar na janela da linha: o campo, o aviso do registro e o botão; ou a justificativa feita */
+.espia-decisao {
+  display: flex; flex-direction: column; gap: 8px;
+  padding-top: var(--space-3); border-top: 1px solid var(--color-divider);
+}
+.espia-decisao textarea.input { min-height: 76px; resize: vertical; line-height: 1.5; }
+.espia-decisao .btn { align-self: flex-start; }
+.espia-aviso { margin: 0; font-size: 13px; color: color-mix(in srgb, var(--color-text) 70%, transparent); }
 
 /* Landing page: grids that split into fixed-ratio columns and need to
    stack on narrow screens instead of squeezing every column down to a
@@ -1551,6 +1559,9 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
 }
 /* o topo de toda tela (cabecalho.tsx): o mesmo título, a mesma linha, as ações à direita */
 .tela-titulo { margin: 0; font-size: 30px; font-weight: 600; }
+/* o título do detalhe e o da janela da linha são a descrição do extrato, que pode ser um código
+   de barras sem espaço nenhum: quebra em qualquer ponto em vez de sair da tela */
+.tela-titulo, .espia .dialog-title { overflow-wrap: anywhere; }
 .tela-contexto { display: block; margin-top: 4px; }
 .tela-acoes { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 
@@ -1563,10 +1574,6 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
 }
 .dash-nota { font-size: 14px; color: color-mix(in srgb, var(--color-text) 62%, transparent); }
 
-.dash-analise {
-  display: flex; flex-wrap: wrap; gap: 26px 32px; align-items: stretch;
-  border-bottom: 1px solid var(--color-divider); padding-bottom: 32px;
-}
 .dash-destaque {
   flex: 0 1 250px; min-width: 210px;
   border: 1px solid var(--color-accent); border-radius: var(--radius-md); padding: 22px;
@@ -1760,32 +1767,61 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
   display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between;
   gap: 12px 20px; margin-bottom: 22px;
 }
+.hist-grafico-titulo { margin: 0 0 6px; }
 .hist-destaque {
   font-family: var(--font-heading); font-size: 30px; font-weight: 400;
-  line-height: 1; font-variant-numeric: tabular-nums;
+  line-height: 1; font-variant-numeric: tabular-nums; color: var(--color-ok-700);
 }
 .hist-nota {
   font-size: 14px; line-height: 1.6; max-width: 32ch; text-align: right;
   color: color-mix(in srgb, var(--color-text) 62%, transparent);
 }
-.hist-barras {
-  display: grid; grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 18px; align-items: end; height: 176px;
+/* A taxa de match mês a mês como um fio: a cor no traço, sem blocos preenchidos. A área
+   tem os 100% num tracejado claro em cima e o filete da base embaixo; a linha (SVG que estica)
+   e os pontos (HTML por cima) usam a mesma conta de posição, em porcentagem da área. */
+.grafico-fio { --fio-cor: var(--color-ok-700); }
+.grafico-fio-area {
+  position: relative; height: 120px; margin-top: 30px;
+  border-top: 1px dashed color-mix(in srgb, var(--color-text) 22%, transparent);
+  border-bottom: 1px solid var(--color-divider);
 }
-.hist-barra-coluna {
-  display: flex; flex-direction: column; justify-content: flex-end;
-  align-items: stretch; gap: 8px; height: 100%;
+.grafico-fio-linha {
+  position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible;
+  animation: rodadas-fio-desenha 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
-.hist-barra-taxa {
-  font-size: 13.5px; font-variant-numeric: tabular-nums; text-align: center;
+.grafico-fio-linha polyline {
+  fill: none; stroke: var(--fio-cor); stroke-width: 1.6; stroke-linejoin: round; stroke-linecap: round;
+}
+.grafico-fio-pontos { list-style: none; margin: 0; padding: 0; }
+/* o ponto é a quina do <li>, sem tamanho: o círculo e o número se penduram nele */
+.grafico-fio-ponto {
+  position: absolute; width: 0; height: 0;
+  animation: grafico-fio-ponto 0.25s ease-out both; animation-delay: var(--atraso, 0s);
+}
+.grafico-fio-ponto::before {
+  content: ""; position: absolute; left: -4.5px; top: -4.5px; width: 9px; height: 9px;
+  box-sizing: border-box; border-radius: 50%; border: 1.6px solid var(--fio-cor); background: var(--color-bg);
+}
+/* o mês de agora: o ponto cheio e o número em destaque */
+.grafico-fio-ponto[data-atual]::before { left: -5.5px; top: -5.5px; width: 11px; height: 11px; background: var(--fio-cor); }
+.grafico-fio-valor {
+  position: absolute; bottom: 10px; left: 0; transform: translateX(-50%); white-space: nowrap;
+  font-size: 12.5px; font-variant-numeric: tabular-nums;
   color: color-mix(in srgb, var(--color-text) 70%, transparent);
 }
-.hist-barra {
-  /* a cor da borda vem do tom da barra, no style do gráfico */
-  border: 1px solid;
-  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+.grafico-fio-ponto[data-atual] .grafico-fio-valor { color: var(--color-text); font-weight: 600; }
+.grafico-fio-meses {
+  display: grid; grid-template-columns: repeat(var(--meses, 6), minmax(0, 1fr)); margin-top: 8px;
+  text-align: center; font-size: 12.5px; color: color-mix(in srgb, var(--color-text) 62%, transparent);
 }
-.hist-barra-mes { text-align: center; }
+.grafico-fio-meses [data-atual] { color: var(--color-text); font-weight: 600; }
+@keyframes grafico-fio-ponto {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .grafico-fio-linha, .grafico-fio-ponto { animation: none; }
+}
 .hist-economia {
   display: flex; flex-wrap: wrap; gap: 26px 34px; align-items: center;
   border-top: 1px solid var(--color-divider); padding-top: 28px;
@@ -1804,76 +1840,188 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
   font-variant-numeric: tabular-nums; color: var(--color-ok-700);
 }
 
-/* a linha do tempo: um trilho à esquerda, um cartão por execução, agrupados por mês */
-.hist-linha .vg-secao-topo { flex-wrap: wrap; }
+/* conciliação a conciliação: uma tabela por ano, um bloco de linhas por mês, uma linha por
+   extrato do banco com a rodada que vale, e as outras execuções dele abertas embaixo */
 .hist-legenda {
-  list-style: none; margin: 0 0 18px; padding: 0;
-  display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 13px;
+  list-style: none; margin: 0; padding: 0;
+  display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12.5px;
   color: color-mix(in srgb, var(--color-text) 66%, transparent);
 }
 .hist-legenda li { display: flex; align-items: center; gap: 7px; }
 .hist-legenda-cor { width: 14px; height: 8px; border-radius: 2px; }
-:is(.hist-legenda-cor, .hist-evento-barra > span)[data-tom="ok"] { background: var(--color-ok); }
-:is(.hist-legenda-cor, .hist-evento-barra > span)[data-tom="risco"] { background: var(--color-risco); }
-:is(.hist-legenda-cor, .hist-evento-barra > span)[data-tom="atencao"] { background: var(--color-accent); }
-:is(.hist-legenda-cor, .hist-evento-barra > span)[data-tom="neutro"] {
+:is(.hist-legenda-cor, .hist-resultado-barra > span)[data-tom="ok"] { background: var(--color-ok); }
+:is(.hist-legenda-cor, .hist-resultado-barra > span)[data-tom="risco"] { background: var(--color-risco); }
+:is(.hist-legenda-cor, .hist-resultado-barra > span)[data-tom="atencao"] { background: var(--color-accent); }
+:is(.hist-legenda-cor, .hist-resultado-barra > span)[data-tom="neutro"] {
   background: color-mix(in srgb, var(--color-text) 32%, transparent);
 }
 
-.hist-mes + .hist-mes { margin-top: 10px; }
+.hist-tabela { table-layout: fixed; }
+:is(.hist-num, .hist-taxa, .hist-c-quando) { font-variant-numeric: tabular-nums; }
+.hist-col-rodadas { width: 7.5rem; }
+.hist-col-lancamentos { width: 7.5rem; }
+.hist-col-match { width: 20%; }
+.hist-col-revisar { width: 10rem; }
+.hist-col-quando { width: 7rem; }
+.hist-col-acao { width: 4.75rem; }
+.hist-tabela td { vertical-align: middle; }
+/* o cabeçalho gruda logo abaixo da faixa dos filtros, que gruda sob a barra do topo: numa lista
+   longa, a coluna continua dizendo o que é. O filete vira sombra, que o sticky não perde. */
+.hist-tabela thead th {
+  position: sticky; z-index: 5; top: calc(var(--app-topo-altura, 0px) + var(--extratos-filtros-altura, 58px));
+  background: var(--color-bg); border-bottom: 0; box-shadow: inset 0 -1px 0 var(--color-divider);
+}
+@media (max-width: 1000px) {
+  /* aqui a faixa dos filtros não gruda */
+  .hist-tabela thead th { top: var(--app-topo-altura, 0px); }
+}
+.hist-tabela .hist-num { text-align: right; }
+.hist-tabela .hist-mes-linha th {
+  padding: 22px var(--space-2) 8px; font-size: inherit; letter-spacing: normal; text-transform: none;
+  color: var(--color-text);
+}
+.hist-tabela tbody tr.hist-mes-linha:hover { background: transparent; }
 .hist-mes-titulo {
-  margin: 0 0 14px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px;
+  margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px;
   font-size: 20px; font-weight: 600;
 }
 .hist-mes-conta {
   font-family: var(--font-body); font-size: 13px; font-weight: 400;
   color: color-mix(in srgb, var(--color-text) 58%, transparent);
 }
-.hist-eventos { list-style: none; margin: 0; padding: 0; }
-.hist-evento { position: relative; display: flex; gap: 16px; padding-bottom: 16px; }
-/* o trilho liga a marca de um cartão à do próximo */
-.hist-evento::before {
-  content: ""; position: absolute; left: 5px; top: 30px; bottom: -2px; width: 1px;
-  background: var(--color-divider);
+
+.hist-conciliacao-nome { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.hist-abrir {
+  flex: none; display: inline-grid; place-items: center; width: 24px; height: 24px; padding: 0;
+  border: 0; border-radius: var(--radius-sm); background: transparent; cursor: pointer;
+  color: color-mix(in srgb, var(--color-text) 60%, transparent);
 }
-.hist-evento:last-child::before { content: none; }
-.hist-evento-marca {
-  position: relative; flex: none; width: 11px; height: 11px; margin-top: 19px;
-  border-radius: 50%; border: 2px solid var(--color-ok); background: var(--color-bg);
+.hist-abrir:hover { background: var(--tinta-hover); color: var(--color-text); }
+.hist-abrir svg { transition: transform 180ms cubic-bezier(0.23, 1, 0.32, 1); }
+.hist-abrir[aria-expanded="true"] svg { transform: rotate(90deg); }
+.hist-abrir-vazio { flex: none; width: 24px; }
+.hist-arquivos { display: flex; flex-direction: column; min-width: 0; }
+.hist-arquivo { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.hist-arquivo .icone-origem { flex: none; }
+.hist-arquivo-nome { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hist-arquivo-sistema { font-size: 12.5px; color: color-mix(in srgb, var(--color-text) 62%, transparent); }
+
+/* os quadrados das rodadas, como na faixa da comparação, menores e sem o fio se desenhando */
+.hist-rodadas { display: inline-flex; align-items: center; }
+.hist-rodadas .rodadas-quadrado { width: 18px; height: 18px; font-size: 11px; border-width: 1px; }
+.hist-rodadas .rodadas-quadrado[data-vale] {
+  border-color: var(--color-text); background: var(--color-text); color: var(--color-bg);
 }
-.hist-evento[data-atual="false"] .hist-evento-marca {
-  border-color: color-mix(in srgb, var(--color-text) 35%, transparent);
-}
-.hist-evento-corpo {
-  flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 7px;
-  padding: 14px 16px; border: 1px solid var(--color-divider); border-radius: var(--radius-md);
-}
-/* a rodada refeita depois fica em traço: está no histórico, mas não vale mais */
-.hist-evento[data-atual="false"] .hist-evento-corpo { border-style: dashed; }
-.hist-evento-topo { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.hist-evento-quando {
-  font-family: var(--font-heading); font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums;
-}
-.hist-evento-arquivos { display: flex; flex-wrap: wrap; gap: 4px 18px; font-size: 14px; }
-.hist-evento-arquivos > span { display: inline-flex; align-items: center; gap: 6px; min-width: 0; overflow-wrap: anywhere; }
-.hist-evento-arquivos .icone-origem { flex: none; }
-.hist-evento-numeros {
-  font-size: 13.5px; font-variant-numeric: tabular-nums;
-  color: color-mix(in srgb, var(--color-text) 62%, transparent);
-}
-.hist-evento-barra { display: flex; gap: 2px; height: 8px; margin: 3px 0; border-radius: 999px; overflow: hidden; }
-.hist-evento-barra > span { min-width: 3px; }
-.hist-evento-rodape { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; }
-.hist-evento-resumo {
-  font-size: 13.5px; font-variant-numeric: tabular-nums;
+.hist-rodadas .rodadas-fio { flex: none; width: 12px; min-width: 0; margin: 0 2px; animation: none; }
+
+.hist-resultado { display: flex; align-items: center; gap: 10px; }
+.hist-resultado-barra { flex: 1; display: flex; gap: 2px; height: 6px; border-radius: 999px; overflow: hidden; }
+.hist-resultado-barra > span { min-width: 3px; }
+.hist-taxa { flex: none; min-width: 3.6em; margin-left: auto; text-align: right; }
+/* o que ainda pede revisão pesa; o zero some */
+.hist-conciliacao[data-pendente] .hist-c-revisar { font-weight: 600; }
+.hist-conciliacao:not([data-pendente]) .hist-c-revisar { color: color-mix(in srgb, var(--color-text) 55%, transparent); }
+.hist-justificadas { font-weight: 400; color: color-mix(in srgb, var(--color-text) 62%, transparent); }
+.hist-c-quando { white-space: nowrap; color: color-mix(in srgb, var(--color-text) 70%, transparent); }
+.hist-c-acao { text-align: right; }
+.hist-ver { padding: 3px 10px; font-size: 13px; }
+
+/* as outras execuções, debaixo da conciliação: menores, recuadas sob o nome, em traço */
+.hist-execucao td {
+  font-size: 13px; border-bottom-style: dashed;
   color: color-mix(in srgb, var(--color-text) 72%, transparent);
 }
+.hist-execucao-nome { display: block; padding-left: 30px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* refeita depois com os mesmos arquivos: está no histórico, mas não vale mais */
+.hist-selo-substituida { border-style: dashed; }
+.hist-rotulo-movel { display: none; }
+
+.hist-resumo-nota { margin: 10px 0 0; }
+.paginacao-botoes { display: flex; align-items: center; gap: 8px; }
 
 @media (max-width: 680px) {
   .hist-nota { text-align: left; }
-  .hist-barras { gap: 8px; }
-  .hist-barra-taxa { font-size: 11px; }
+  .grafico-fio-valor { font-size: 11.5px; }
   .hist-economia-texto { text-align: left; }
+
+  /* a tabela vira um bloco por linha: o nome e o Ver em cima; as rodadas e a barra; e os números
+     com rótulo. A coluna das rodadas cresce com os quadrados, sem invadir a vizinha. */
+  .hist-tabela thead {
+    position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+  }
+  .hist-tabela, .hist-tabela tbody { display: block; }
+  .hist-tabela tr {
+    display: grid; grid-template-columns: auto repeat(2, minmax(0, 1fr)) auto; gap: 8px 16px; align-items: end;
+    padding: 10px 0; border-bottom: 1px solid var(--color-divider);
+  }
+  .hist-tabela tr[hidden] { display: none; }
+  .hist-tabela :is(td, th) { display: block; padding: 0; border: 0; }
+  .hist-tabela .hist-num { text-align: left; }
+  .hist-tabela .hist-mes-linha { padding: 20px 0 6px; }
+  .hist-tabela .hist-mes-linha th { grid-column: 1 / -1; padding: 0; }
+  .hist-c-conciliacao { grid-column: 1 / 4; grid-row: 1; min-width: 0; }
+  .hist-c-acao { grid-column: 4; grid-row: 1; align-self: center; }
+  .hist-c-rodadas { grid-column: 1; grid-row: 2; }
+  .hist-c-match { grid-column: 2 / -1; grid-row: 2; }
+  .hist-tabela .hist-c-match { padding-bottom: 4px; }
+  .hist-c-lancamentos { grid-column: 1; grid-row: 3; }
+  .hist-c-revisar { grid-column: 2; grid-row: 3; }
+  .hist-c-quando { grid-column: 3 / -1; grid-row: 3; text-align: right; }
+  .hist-rotulo-movel {
+    display: block; font-size: 11.5px; font-weight: 400;
+    color: color-mix(in srgb, var(--color-text) 58%, transparent);
+  }
+  .hist-execucao-nome { padding-left: 0; }
+}
+
+/* ── Conciliações: a lista de trabalho ──────────────────────────────────────────
+   No topo, a que está em andamento, no cartão de destaque de sempre (o mascote apontando); embaixo,
+   uma linha por conciliação, compacta como a do histórico, com as mesmas peças: os arquivos, a
+   barra do resultado e o selo da situação. */
+.conc-corpo { padding: 30px 0 64px; display: flex; flex-direction: column; gap: 30px; }
+.conc-andamento-rotulo { margin: 0 0 10px; }
+.conc-andamento-mascote { width: 88px; height: auto; flex: none; }
+.conc-andamento .dash-destaque-corpo { gap: 7px; }
+.conc-andamento-rodada {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 13px;
+  font-variant-numeric: tabular-nums; color: color-mix(in srgb, var(--color-text) 62%, transparent);
+}
+.conc-andamento .hist-resultado-barra { flex: none; width: min(100%, 420px); height: 7px; }
+.conc-andamento-frase { font-variant-numeric: tabular-nums; }
+.conc-historico { font-size: 13.5px; }
+
+.conc-tabela { table-layout: fixed; }
+.conc-col-mes { width: 6.5rem; }
+.conc-col-rodada { width: 5.5rem; }
+.conc-col-match { width: 18%; }
+.conc-col-decisao { width: 9.5rem; }
+.conc-col-situacao { width: 9.5rem; }
+.conc-col-acao { width: 6.5rem; }
+.conc-tabela td { vertical-align: middle; }
+:is(.conc-c-mes, .conc-c-rodada, .conc-c-decisao) { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.conc-linha[data-pendente] .conc-c-decisao { font-weight: 600; }
+.conc-linha:not([data-pendente]) .conc-c-decisao { color: color-mix(in srgb, var(--color-text) 55%, transparent); }
+.conc-c-acao { text-align: right; }
+
+@media (max-width: 680px) {
+  /* como o histórico: um bloco por conciliação, com o nome e o botão em cima, a barra, e os números
+     com rótulo */
+  .conc-tabela thead {
+    position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+  }
+  .conc-tabela, .conc-tabela tbody { display: block; }
+  .conc-tabela tr {
+    display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) auto; gap: 8px 14px; align-items: end;
+    padding: 10px 0; border-bottom: 1px solid var(--color-divider);
+  }
+  .conc-tabela :is(td, th) { display: block; padding: 0; border: 0; }
+  .conc-c-conciliacao { grid-column: 1 / 4; grid-row: 1; min-width: 0; }
+  .conc-c-acao { grid-column: 4; grid-row: 1; align-self: center; }
+  .conc-c-match { grid-column: 1 / -1; grid-row: 2; }
+  .conc-c-mes { grid-column: 1; grid-row: 3; }
+  .conc-c-rodada { grid-column: 2; grid-row: 3; }
+  .conc-c-decisao { grid-column: 3; grid-row: 3; }
+  .conc-c-situacao { grid-column: 4; grid-row: 3; text-align: right; }
 }
 
 /* ── Tipografia do app ─────────────────────────────────────────────────────────
@@ -1894,7 +2042,7 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
 /* Rótulo pequeno em caixa alta: o "lançamentos processados" em cima do número, o "atual" do plano,
    o "assistente" do menu. Uma régua só, com o espaçamento do h6 do guia (+0,08em); o h6, em 14px, é
    o rótulo de seção, e o cabeçalho de tabela fica nos 11px dele, junto com a tabela. */
-.rotulo, .dash-rotulo, .det-kicker, .hist-barra-mes, .app-assistente-chamada, .ass-plano-atual {
+.rotulo, .dash-rotulo, .det-kicker, .app-assistente-chamada, .ass-plano-atual {
   font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--texto-apagado);
 }
 
@@ -1905,7 +2053,8 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
    ficam no mesmo matiz quente e neutro e se distinguem só pela claridade: um azul
    diria "isto é outra coisa" (link, informação) em vez de "isto é outra folha".
    O banco, fonte da verdade, é o papel mais claro; o sistema, um cinza quente.
-   O status fica fora das folhas: é o veredito. */
+   O status fica fora das folhas: é o veredito. No app ele fica no eixo entre as
+   duas (.folhas-com-eixo); a réplica da landing ainda o põe na ponta direita. */
 .app-shell {
   --folha-banco: #fdfcfa; --folha-sistema: #ebe8e3;
   /* o que sobe acima do trilho: a opção escolhida do controle segmentado */
@@ -1927,12 +2076,162 @@ html[data-tema="escuro"] .app-shell {
 .tabela-folhas { border-collapse: separate; border-spacing: 0; }
 .tabela-folhas .folha-titulo { border-radius: var(--radius-md) var(--radius-md) 0 0; }
 .tabela-folhas tbody tr:last-child > td { border-bottom: none; }
-.tabela-folhas tbody tr:last-child > td:first-child { border-bottom-left-radius: var(--radius-md); }
-.tabela-folhas tbody tr:last-child > td.folha-banco:nth-child(3) { border-bottom-right-radius: var(--radius-md); }
-.tabela-folhas tbody tr:last-child > td.folha-sistema:nth-child(5) { border-bottom-left-radius: var(--radius-md); }
-.tabela-folhas tbody tr:last-child > td.folha-sistema:nth-child(7) { border-bottom-right-radius: var(--radius-md); }
-/* a estrutura é das folhas; a coluna do status não precisa de filete próprio */
-.tabela-folhas :is(th, td):last-child { border-bottom: none; }
+/* Os cantos de baixo de cada folha, pela classe e não pela posição: o lado que falta é uma
+   célula só, e o status pode estar no meio (app) ou na ponta (landing). */
+.tabela-folhas tbody tr:last-child > td:is(
+  .folha-banco:first-child,
+  :not(.folha-sistema) + .folha-sistema
+) { border-bottom-left-radius: var(--radius-md); }
+.tabela-folhas tbody tr:last-child > td:is(
+  .folha-banco:has(+ :not(.folha-banco)),
+  .folha-sistema:has(+ :not(.folha-sistema)),
+  .folha-sistema:last-child
+) { border-bottom-right-radius: var(--radius-md); }
+/* a estrutura é das folhas; o que fica fora delas (o status, o vão) não tem filete próprio */
+.tabela-folhas :is(th, td):not(.folha-banco, .folha-sistema) { border-bottom: none; }
+
+/* O eixo: o status entre as duas folhas, como no design ("folha a folha", o eixo de 44px de
+   Ledgr.dc.html), em texto curto em vez dos símbolos de lá, que pediam legenda.
+   Larguras fixas: as duas descrições dividem o que sobra por igual, e as folhas saem do mesmo
+   tamanho; com a largura pelo conteúdo, cada página de 25 linhas tinha colunas de outro
+   tamanho. O valor cabe até a casa dos milhões ("-R$ 1.234.567,89" mede 150px). Abaixo de
+   900px a tabela rola na horizontal em vez de espremer as descrições. */
+.folhas-com-eixo { table-layout: fixed; }
+.folhas-com-eixo col.col-data { width: 4.5rem; }
+.folhas-com-eixo col.col-valor { width: var(--valor-largura, 10rem); }
+.folhas-com-eixo col.col-eixo { width: 9rem; }
+/* a conferência fica numa coluna dela, depois da folha do sistema: o eixo leva só o veredito */
+.folhas-com-eixo col.col-conferir { width: 3rem; }
+.dash-tabela-rolagem .folhas-com-eixo { min-width: 900px; }
+/* com a largura fixa, uma palavra mais longa que a coluna (um código de PIX) vazaria da folha */
+.folhas-com-eixo td { overflow-wrap: break-word; }
+/* A descrição numa linha só, com reticências, como o Histórico da "folha a folha" do design:
+   descrição de extrato é longa por natureza ("PIX RECEBIDO - CONSTRUTORA ... - CNPJ ..."), e
+   quebrar em três ou quatro linhas acabava com o ritmo da tabela. O texto inteiro vem na dica
+   do navegador, no cartão das linhas em revisão e na janela do clique; o leitor de tela lê
+   tudo. O botão trunca por si: reticências não entram num botão, só no texto dele. */
+.folhas-com-eixo .celula-descricao,
+.folhas-com-eixo .celula-descricao .celula-abrir {
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.folhas-com-eixo .celula-descricao .celula-abrir { display: block; max-width: 100%; }
+/* o status alinhado à esquerda, como o texto das folhas: o olho acha o começo de cada selo na
+   mesma vertical, em vez de procurar o meio de rótulos de tamanhos diferentes */
+.celula-status { text-align: left; white-space: nowrap; }
+.th-centro { text-align: center; white-space: nowrap; }
+.th-centro .th-ordena { justify-content: center; }
+/* A conferência, na coluna dela no fim da linha: um botão (aria-pressed) desenhado como círculo,
+   e não como caixa, para não parecer "selecionar a linha", como o "conferido" do QuickBooks. O
+   desenho tem 20px; o alvo, 30px, para o dedo e o ponteiro. */
+.th-conferir { width: 3rem; text-align: center; color: color-mix(in srgb, var(--color-text) 62%, transparent); }
+.th-conferir svg { vertical-align: middle; }
+.celula-conferir { text-align: center; }
+.conferir-circulo {
+  position: relative; display: inline-grid; place-items: center; vertical-align: middle;
+  width: 20px; height: 20px; padding: 0; border-radius: 50%;
+  border: 1.5px solid color-mix(in srgb, var(--color-text) 45%, transparent);
+  background: transparent; color: var(--color-bg); cursor: pointer;
+  transition: border-color 150ms ease, background-color 150ms ease, transform 160ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+.conferir-circulo::after { content: ""; position: absolute; inset: -5px; border-radius: 50%; }
+.conferir-circulo:active { transform: scale(0.92); }
+/* com o ponteiro na linha, o círculo vazio se mostra: é ali que se marca */
+.tabela-folhas tbody tr:hover .conferir-circulo,
+.conferir-circulo:hover,
+.conferir-circulo:focus-visible { border-color: var(--color-text); }
+.conferir-circulo[aria-pressed="true"] { border-color: var(--color-text); background: var(--color-text); }
+/* conferida numa rodada passada, e a versão nova não resolveu: o ↻ dourado dentro do círculo */
+.conferir-circulo[data-voltou] { border-color: var(--color-accent); color: var(--color-accent-700); }
+@media (prefers-reduced-motion: reduce) {
+  .conferir-circulo { transition: none; }
+}
+/* o selo neutro do eixo ("Justificada", "Tarifa") a 70%: o .selo de sempre, a 62%, dava 4,48:1 */
+.celula-status .selo-neutro { color: color-mix(in srgb, var(--color-text) 70%, transparent); }
+/* a conferida fica apagada: alguém já cuidou dela. Os 70% seguram 4,5:1 nas duas folhas. */
+.tabela-folhas tbody tr[data-situacao="conferida"] > td:not(.celula-status) {
+  color: color-mix(in srgb, var(--color-text) 70%, transparent);
+}
+/* o que bateu fica quieto, sem selo: só o que pede revisão ganha cor. Os 70% (e não o
+   --texto-apagado) seguram 4,5:1 sobre a página e sobre a folha cinza do sistema. */
+.status-batido { font-size: 12.5px; color: color-mix(in srgb, var(--color-text) 70%, transparent); }
+/* o campo que diverge, dos dois lados, na cor do status: os valores ou as datas */
+.tabela-folhas tbody tr[data-tom="risco"] > td[data-diverge] { color: var(--color-risco-700); }
+.tabela-folhas tbody tr[data-tom="atencao"] > td[data-diverge] { color: var(--color-accent-700); }
+/* com o ponteiro (ou o foco) na linha, o campo que diverge acende de leve, como marca-texto.
+   A sombra estende o fundo sem mexer na largura do texto: a linha não muda de tamanho. */
+.marca-diverge {
+  border-radius: 4px;
+  transition: background-color 0.16s ease, box-shadow 0.16s ease;
+}
+.tabela-folhas tbody tr:is(:hover, :focus-within) .marca-diverge {
+  background: color-mix(in srgb, currentColor 13%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 13%, transparent);
+}
+/* A rodada: o aviso de rodada passada ou o que mudou desde a anterior, e à direita a linha das
+   rodadas (no celular, ela desce para baixo do texto). */
+.rodada-faixa {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 24px;
+  margin: 0; padding: 8px 12px; border-radius: var(--radius-sm);
+  background: var(--tinta-ativa); font-size: 13.5px; font-variant-numeric: tabular-nums;
+}
+.rodada-faixa p { margin: 0; }
+.rodada-faixa p a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
+
+/* A linha das rodadas: o fio em onda de "Por dentro" na landing, deitado, com o mesmo período de
+   17px, entre um quadrado por extrato do sistema. Lá a rolagem desenha o fio; aqui ele se desenha
+   uma vez, da esquerda para a direita, quando a tela abre. No fim, a chegada ao fechamento. */
+.rodadas-linha { max-width: 100%; }
+.rodadas-linha ol { display: flex; align-items: center; margin: 0; padding: 0; list-style: none; }
+.rodadas-linha li { display: flex; align-items: center; min-width: 0; }
+.rodadas-quadrado {
+  display: inline-grid; place-items: center; flex: none; width: 22px; height: 22px;
+  border: 1.5px solid color-mix(in srgb, var(--color-text) 55%, transparent); border-radius: 4px;
+  font-size: 12px; font-weight: 600; line-height: 1; color: var(--color-text); text-decoration: none;
+}
+a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--tinta-hover); }
+.rodadas-quadrado[aria-current] { border-color: var(--color-text); background: var(--color-text); color: var(--color-bg); }
+.rodadas-fio {
+  flex: 0 1 34px; min-width: 12px; height: 8px; margin: 0 4px;
+  background: var(--color-accent);
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='17' height='8'%3E%3Cpath d='M0 4Q4.25 1 8.5 4T17 4' fill='none' stroke='%23000' stroke-width='1.2'/%3E%3C/svg%3E") 0 50% / 17px 8px repeat-x;
+  animation: rodadas-fio-desenha 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--ordem, 0) * 0.14s);
+}
+/* o que falta até o fechamento: o mesmo fio, tracejado e mais claro, até tudo bater ou estar justificado */
+.rodadas-fio[data-falta] {
+  opacity: 0.55;
+  mask:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='17' height='8'%3E%3Cpath d='M0 4Q4.25 1 8.5 4T17 4' fill='none' stroke='%23000' stroke-width='1.2'/%3E%3C/svg%3E") 0 50% / 17px 8px repeat-x,
+    repeating-linear-gradient(90deg, #000 0 5px, transparent 5px 9px);
+  mask-composite: intersect;
+}
+@keyframes rodadas-fio-desenha {
+  from { clip-path: inset(0 100% 0 0); }
+  to { clip-path: inset(0); }
+}
+.rodadas-chegada {
+  display: inline-flex; align-items: center; gap: 6px; padding: 2px 4px; white-space: nowrap;
+  color: color-mix(in srgb, var(--color-text) 70%, transparent); text-decoration: none;
+}
+.rodadas-chegada:hover { color: var(--color-text); }
+.rodadas-chegada[data-pronto] { color: var(--color-accent-700); font-weight: 600; }
+@media (prefers-reduced-motion: reduce) {
+  .rodadas-fio { animation: none; }
+}
+
+/* a janela da nova versão do extrato do sistema */
+.nova-versao-campo { display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
+.nova-versao-erro, .decisao-erro { white-space: normal; border-radius: var(--radius-sm); }
+/* a decisão que não gravou, acima da tabela, do tamanho do texto */
+.decisao-erro { align-self: flex-start; }
+
+/* o lado sem lançamento: um encaixe tracejado, não três traços */
+.folha-vazia { text-align: center; }
+.folha-vazia-marca {
+  display: block; padding: 2px 10px; border: 1px dashed var(--color-divider);
+  border-radius: var(--radius-sm);
+  font-size: 13px; font-style: italic; color: color-mix(in srgb, var(--color-text) 70%, transparent);
+}
 
 /* O hover acende a linha na cor do veredito dela: verde se casou, terracota se
    custa dinheiro, dourado se falta par, cinza se já está explicado. Vale para
@@ -2033,6 +2332,8 @@ html[data-tema="escuro"] .app-shell {
   margin-bottom: 12px;
 }
 .vg-secao-topo .vg-secao-titulo { margin: 0; }
+/* a rodada que vale, quando a conciliação já teve mais de uma (atividade recente) */
+.vg-rodada { color: color-mix(in srgb, var(--color-text) 62%, transparent); }
 .vg-tendencia .hist-grafico-bloco { border-top: none; padding-top: 4px; }
 
 .vg-lista { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--color-divider); }
@@ -2887,10 +3188,12 @@ html:has(.app-shell) { scrollbar-gutter: stable; }
 }
 
 /* Densidade da tabela. Só o miolo da linha muda: o cabeçalho e a tipografia
-   ficam, para a tabela não virar outra coisa quando aperta. */
-html[data-densidade="compacta"] .table td { padding-block: 4px; }
-html[data-densidade="compacta"] .table th { padding-block: 6px; }
-html[data-densidade="compacta"] .selo { padding-block: 1px; }
+   ficam, para a tabela não virar outra coisa quando aperta. A compacta é o padrão
+   do app (densidade.ts); só quem escolheu a padrão volta ao espaço maior. Fica no
+   .app-shell: as tabelas da landing não têm a escolha e seguem como são. */
+html:not([data-densidade="padrao"]) .app-shell .table td { padding-block: 4px; }
+html:not([data-densidade="padrao"]) .app-shell .table th { padding-block: 6px; }
+html:not([data-densidade="padrao"]) .app-shell .selo { padding-block: 1px; }
 
 /* Tabela em cartões no celular.
    `display: block` apaga o papel implícito de tabela, então as linhas e células
@@ -2932,6 +3235,18 @@ html[data-densidade="compacta"] .selo { padding-block: 1px; }
   /* no cartão não há colunas lado a lado: o vão some e as folhas perdem o tom */
   .tabela-cartoes .table td.folha-vao { display: none; }
   .tabela-cartoes .table :is(td.folha-banco, td.folha-sistema) { background: transparent; }
+  /* sem colunas, as larguras do eixo não têm o que medir; e o status, que na tela larga fica
+     entre as folhas, volta ao pé do cartão, depois dos dois lados */
+  .tabela-cartoes .table colgroup { display: none; }
+  .tabela-cartoes .folhas-com-eixo tr { display: flex; flex-direction: column; }
+  .tabela-cartoes .folhas-com-eixo .celula-status { order: 1; }
+  .tabela-cartoes .folhas-com-eixo .celula-conferir { order: 2; text-align: left; }
+  /* no cartão há espaço: a descrição volta a quebrar, e um código de barras quebra em qualquer
+     ponto em vez de vazar do cartão */
+  .tabela-cartoes .folhas-com-eixo .celula-descricao,
+  .tabela-cartoes .folhas-com-eixo .celula-descricao .celula-abrir {
+    white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere;
+  }
 
   /* dentro do cartão a rolagem horizontal não faz mais sentido */
   .tabela-cartoes.dash-tabela-rolagem { overflow-x: visible; }
@@ -3036,6 +3351,13 @@ html[data-densidade="compacta"] .selo { padding-block: 1px; }
   display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
   gap: 12px 20px;
 }
+/* os filtros e, logo ao lado, quantas das linhas em revisão já foram conferidas */
+.tabela-filtros { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+/* 70%, como o .status-batido: os 62% davam 4,48:1 sobre a página, abaixo dos 4,5 */
+.tabela-progresso {
+  font-size: 13.5px; font-variant-numeric: tabular-nums;
+  color: color-mix(in srgb, var(--color-text) 70%, transparent);
+}
 .exportar-csv { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
 .exportar-csv-erro { margin: 0; max-width: 320px; font-size: 13px; color: var(--color-risco-700); text-align: right; }
 
@@ -3046,9 +3368,10 @@ html[data-densidade="compacta"] .selo { padding-block: 1px; }
   display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 20px;
 }
 .relatorio-titulo { margin: 0; font-size: 20px; font-weight: 600; }
+/* 70%: com 62% o total dava 4,48:1 sobre a página, abaixo dos 4,5 (medido em 02/10) */
 .relatorio-total, .relatorio-valor {
   font-size: 13.5px; font-variant-numeric: tabular-nums;
-  color: color-mix(in srgb, var(--color-text) 62%, transparent);
+  color: color-mix(in srgb, var(--color-text) 70%, transparent);
 }
 /* Sempre cinco categorias, e nenhuma sobrando sozinha numa linha: duas colunas
    com a quinta na largura toda; depois três em cima e duas embaixo, as duas
@@ -3166,6 +3489,36 @@ th:is([aria-sort="ascending"], [aria-sort="descending"]) .th-ordena-seta { opaci
 .cartao-lancamento dt { flex: none; color: color-mix(in srgb, var(--color-text) 56%, transparent); }
 .cartao-lancamento dd { margin: 0; text-align: right; }
 .cartao-lancamento p { margin: 0; line-height: 1.6; }
+/* No app o cartão sai do status: centrado na coluna do meio (cartao-lancamento.tsx calcula
+   o left e a --seta-x), com a seta apontando para o selo da linha. É mais largo e com letra
+   maior que o da landing: é nele que se lê a divergência e o porquê dela. */
+.cartao-lancamento.cartao-no-eixo {
+  width: min(440px, calc(100vw - 32px)); gap: 14px; padding: 18px 20px;
+}
+.cartao-no-eixo dl > div { font-size: 14px; }
+/* o título e a descrição no sistema vêm inteiros, e um código de barras quebra em vez de vazar */
+.cartao-no-eixo .cartao-lancamento-titulo { overflow-wrap: anywhere; }
+.cartao-lancamento dl > div.cartao-lancamento-texto { flex-direction: column; gap: 2px; }
+.cartao-lancamento-texto dd { text-align: left; overflow-wrap: anywhere; }
+/* a diferença do "Valor diverge", na cor dele: é o tamanho do problema */
+.cartao-lancamento-diferenca {
+  font-weight: 600; font-variant-numeric: tabular-nums; color: var(--color-risco-700);
+}
+/* a decisão sobre a linha: quem justificou, quando e por quê; ou a conferência que voltou */
+.cartao-lancamento-nota { display: flex; flex-direction: column; gap: 4px; font-size: 14px; }
+.cartao-lancamento-nota strong { font-weight: 600; }
+.cartao-no-eixo .dialog-body {
+  font-size: 15px; line-height: 1.6; opacity: 1;
+  color: color-mix(in srgb, var(--color-text) 84%, transparent);
+}
+.cartao-no-eixo::after {
+  content: ""; position: absolute; left: var(--seta-x, 50%);
+  width: 12px; height: 12px;
+  background: var(--color-surface); border: 1px solid var(--color-divider);
+  transform: translateX(-50%) rotate(45deg);
+}
+.cartao-no-eixo[data-lado="acima"]::after { bottom: -7px; border-top: none; border-left: none; }
+.cartao-no-eixo[data-lado="abaixo"]::after { top: -7px; border-bottom: none; border-right: none; }
 @keyframes cartao-lancamento-surgir {
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: none; }

@@ -1,251 +1,201 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import type { Execucao } from "@/lib/adaptadores";
-import type { Conciliacao, LinhaComparacao, StatusLinha } from "@/lib/mock-data";
-import type { Painel, Resultado } from "../conciliacoes/acoes";
+import type { StatusLinha } from "@/lib/mock-data";
+import type { ListaDeConciliacoes, Resultado } from "../conciliacoes/acoes";
+import type { ConciliacaoNaLista } from "./lista";
 import DashboardPage from "./page";
 
-vi.mock("@/lib/mock-data", () => ({
-  formatarMoeda: (valor: number) =>
-    valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }),
-}));
-
 // quem fala com o backend é a action; aqui ela só devolve o que ele responderia
-const carregarPainel = vi.fn<() => Promise<Resultado<Painel>>>();
+const carregarConciliacoes = vi.fn<() => Promise<Resultado<ListaDeConciliacoes>>>();
 vi.mock("../conciliacoes/acoes", () => ({
-  carregarPainel: () => carregarPainel(),
+  carregarConciliacoes: () => carregarConciliacoes(),
 }));
 
-const push = vi.fn();
+const redirect = vi.fn();
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push }),
+  // o redirect do Next interrompe a renderização lançando; o mock imita isso
+  redirect: (destino: string) => {
+    redirect(destino);
+    throw new Error("NEXT_REDIRECT");
+  },
 }));
 
-function linha(
+function conciliacao(
   id: string,
-  status: StatusLinha,
-  valorBanco: number | null,
-  valorSistema: number | null,
-  descricao = "Lançamento",
-  dataISO = "2026-09-04",
-): LinhaComparacao {
-  return {
-    id,
-    descricao,
-    data: dataISO.split("-").reverse().slice(0, 2).join("/"),
-    dataISO,
-    valorBanco,
-    valorSistema,
-    status,
-    explicacao: null,
-    historico: [],
-  };
-}
-
-function conciliacao(id: string, linhas: LinhaComparacao[]): Conciliacao {
-  return { id, mes: "Setembro/2026", status: "em_andamento", linhas };
-}
-
-function execucao(parcial: Partial<Execucao> & Pick<Execucao, "id">): Execucao {
-  return {
-    extratoBancoId: `banco-${parcial.id}`,
-    extratoSistemaId: `sistema-${parcial.id}`,
-    arquivoBanco: `sicredi-${parcial.id}.ofx`,
-    arquivoSistema: `erp-${parcial.id}.csv`,
-    executadaEm: "2026-09-02T19:20:00Z",
-    lancamentos: 3980,
-    acerto: 97.3,
-    divergencias: {},
-    toleranciaDias: 1,
+  parcial: {
+    competencia?: string;
+    rodada?: number;
+    rodadas?: number;
+    lancamentos?: number;
+    divergencias?: Partial<Record<StatusLinha, number>>;
+    justificadas?: number;
+  } = {},
+): ConciliacaoNaLista {
+  const execucao: Execucao = {
+    id: `e-${id}`,
+    extratoBancoId: id,
+    extratoSistemaId: `s-${id}`,
+    arquivoBanco: `sicredi-${id}.ofx`,
+    arquivoSistema: `erp-${id}.csv`,
+    executadaEm: "2026-09-24T17:02:11Z",
+    lancamentos: parcial.lancamentos ?? 22,
+    acerto: 50,
+    divergencias: parcial.divergencias ?? {},
+    toleranciaDias: 2,
     atual: true,
-    ...parcial,
+    justificadas: parcial.justificadas ?? 0,
+  };
+  return {
+    extratoBancoId: id,
+    extratoSistemaId: execucao.extratoSistemaId,
+    arquivoBanco: execucao.arquivoBanco,
+    arquivoSistema: execucao.arquivoSistema,
+    competencia: parcial.competencia ?? "2026-09",
+    rodada: parcial.rodada ?? 1,
+    rodadas: parcial.rodadas ?? 1,
+    execucao,
   };
 }
 
-function painel(recente: Conciliacao | null, anteriores: Execucao[] = []) {
-  carregarPainel.mockResolvedValue({ ok: true, dados: { recente, anteriores } });
+// setembro em duas rodadas, com 10 divergências (1 justificada); agosto sem pendência
+const SETEMBRO = conciliacao("set", {
+  rodada: 2,
+  rodadas: 2,
+  divergencias: { divergente_valor: 6, sem_correspondencia: 4 },
+  justificadas: 1,
+});
+const AGOSTO = conciliacao("ago", { competencia: "2026-08", lancamentos: 100 });
+
+function com(dados: Partial<ListaDeConciliacoes> = {}) {
+  carregarConciliacoes.mockResolvedValue({
+    ok: true,
+    dados: {
+      conciliacoes: [SETEMBRO, AGOSTO],
+      emAndamento: { extratoBancoId: "set", batem: 12, pedemDecisao: 9, justificadas: 1, conferidas: 3 },
+      parcial: false,
+      ...dados,
+    },
+  });
+}
+
+async function renderizar() {
+  render(await DashboardPage());
+}
+
+/** As linhas da lista, na ordem da tela. */
+function linhas() {
+  return [...document.querySelectorAll<HTMLElement>("tr.conc-linha")];
 }
 
 describe("DashboardPage", () => {
   beforeEach(() => {
-    carregarPainel.mockReset();
-    push.mockClear();
+    carregarConciliacoes.mockReset();
+    redirect.mockClear();
+  });
+
+  it("is titled like the menu, and counts the conciliações and what still asks for a decision", async () => {
+    com();
+    await renderizar();
+    expect(screen.getByRole("heading", { level: 1, name: "Conciliações" })).toBeInTheDocument();
+    expect(screen.getByText("2 conciliações · 1 com pendência")).toBeInTheDocument();
+  });
+
+  it("puts the conciliação in progress on top, with what is left and a way back to the comparison", async () => {
+    com();
+    await renderizar();
+
+    const andamento = screen.getByRole("region", { name: "Em andamento" });
+    expect(andamento).toHaveTextContent("sicredi-set.ofx");
+    expect(andamento).toHaveTextContent("erp-set.csv · setembro de 2026");
+    expect(andamento).toHaveTextContent("Rodada 2 de 2");
+    expect(andamento).toHaveTextContent("12 batem · 9 pedem decisão · 3 de 9 conferidas · 1 justificada");
+    // pelo endereço só do banco, que abre a rodada que vale
+    expect(within(andamento).getByRole("link", { name: "Continuar na comparação" })).toHaveAttribute(
+      "href",
+      "/conciliacoes/set",
+    );
+  });
+
+  it("leaves the checks out when the backend does not keep them", async () => {
+    com({ emAndamento: { extratoBancoId: "set", batem: 12, pedemDecisao: 9, justificadas: 1, conferidas: null } });
+    await renderizar();
+    expect(screen.getByRole("region", { name: "Em andamento" })).toHaveTextContent(
+      "12 batem · 9 pedem decisão · 1 justificada",
+    );
+    expect(screen.queryByText(/conferidas/)).not.toBeInTheDocument();
+  });
+
+  it("says so when nothing asks for a decision, pointing to the most recent", async () => {
+    com({ conciliacoes: [AGOSTO], emAndamento: null });
+    await renderizar();
+    const andamento = screen.getByRole("region", { name: "Em andamento" });
+    expect(andamento).toHaveTextContent("Nenhuma conciliação pede decisão.");
+    expect(within(andamento).getByRole("link", { name: "Ver a comparação" })).toHaveAttribute(
+      "href",
+      "/conciliacoes/ago",
+    );
+  });
+
+  it("lists one row per conciliação, the open ones first, and opens on them", async () => {
+    const user = userEvent.setup();
+    com();
+    await renderizar();
+
+    expect(screen.getByRole("button", { name: "Com pendência (1)" })).toHaveAttribute("aria-pressed", "true");
+    expect(linhas()).toHaveLength(1);
+    const [setembro] = linhas();
+    expect(setembro.querySelector(".conc-c-mes")).toHaveTextContent("set/2026");
+    expect(setembro.querySelector(".conc-c-rodada")).toHaveTextContent("2 de 2");
+    // 12 de 22: a taxa pelas contagens, como o gráfico e a comparação
+    expect(setembro.querySelector(".conc-c-match")).toHaveTextContent("54,5%");
+    expect(setembro.querySelector(".conc-c-decisao")).toHaveTextContent("9 · 1 justificada");
+    expect(within(setembro).getByText("9 pendências")).toHaveClass("selo", "selo-risco");
+    expect(within(setembro).getByRole("link", { name: "Continuar sicredi-set.ofx" })).toHaveAttribute(
+      "href",
+      "/conciliacoes/set",
+    );
+
+    await user.click(screen.getByRole("button", { name: "Todas (2)" }));
+    expect(linhas()).toHaveLength(2);
+    const agosto = linhas()[1];
+    expect(within(agosto).getByText("Sem pendência")).toHaveClass("selo", "selo-ok");
+    expect(within(agosto).getByRole("link", { name: "Ver sicredi-ago.ofx" })).toHaveAttribute("href", "/conciliacoes/ago");
+  });
+
+  it("opens on all of them when nothing is pending", async () => {
+    com({ conciliacoes: [AGOSTO], emAndamento: null });
+    await renderizar();
+    expect(screen.getByRole("button", { name: "Todas (1)" })).toHaveAttribute("aria-pressed", "true");
+    expect(linhas()).toHaveLength(1);
+  });
+
+  it("points to the history for the earlier rounds and everything older", async () => {
+    com({ parcial: true });
+    await renderizar();
+    expect(screen.getByRole("link", { name: "Ver o histórico" })).toHaveAttribute("href", "/historico");
+    expect(screen.getByText(/as últimas 50 execuções/)).toBeInTheDocument();
   });
 
   it("shows the empty state when there are no conciliações", async () => {
-    painel(null);
-    render(<DashboardPage />);
-    expect(await screen.findByText("Nenhum extrato por aqui ainda.")).toBeInTheDocument();
-    expect(screen.queryByText(/Competência/)).not.toBeInTheDocument();
-  });
-
-  it("derives the summary row from the most recent conciliação", async () => {
-    painel(
-      conciliacao("banco-1", [
-        linha("l-1", "match_exato", 7300, 7300),
-        linha("l-2", "divergente_valor", 12640, 12604),
-        linha("l-3", "sem_correspondencia", 4180, null),
-        linha("l-4", "sem_correspondencia", null, 2150),
-      ]),
-    );
-    render(<DashboardPage />);
-
-    expect(await screen.findByText("Lançamentos processados")).toBeInTheDocument();
-    expect(screen.getByText("4")).toBeInTheDocument();
-    expect(screen.getByText("25,0%")).toBeInTheDocument();
-    // 36 da divergência de valor + 4.180 + 2.150 das órfãs
-    expect(screen.getByText("R$ 6.366")).toBeInTheDocument();
-    expect(screen.getByText("Distribuído em 3 lançamentos")).toBeInTheDocument();
-  });
-
-  it("takes the competência and the period from the conciliação itself", async () => {
-    painel(
-      conciliacao("banco-1", [
-        linha("l-1", "match_exato", 100, 100, "Primeiro", "2026-09-01"),
-        linha("l-2", "match_exato", 100, 100, "Último", "2026-09-30"),
-      ]),
-    );
-    render(<DashboardPage />);
-
-    // o título é o nome que o menu dá à tela; a empresa e o mês ficam na linha de baixo
-    expect(await screen.findByRole("heading", { level: 1, name: "Conciliações" })).toBeInTheDocument();
-    expect(screen.getByText("competência setembro/2026")).toBeInTheDocument();
-    expect(screen.getByText("Período 01–30 de setembro")).toBeInTheDocument();
-  });
-
-  it("writes the full date of each lançamento", async () => {
-    painel(conciliacao("banco-1", [linha("l-1", "match_exato", 100, 100, "Pix", "2025-12-31")]));
-    render(<DashboardPage />);
-    // o ano vem do lançamento, não é mais fixo em 2026
-    expect(await screen.findByText("31/12/2025")).toBeInTheDocument();
-  });
-
-  it("labels each lançamento with the status wording from the design", async () => {
-    painel(
-      conciliacao("banco-1", [
-        linha("l-1", "match_exato", 7300, 7300, "Pagamento Vale Verde"),
-        linha("l-2", "divergente_valor", 12640, 12604, "Boleto Aço Norte"),
-        linha("l-3", "sem_correspondencia", 4180, null, "Transferência recebida"),
-      ]),
-    );
-    render(<DashboardPage />);
-
-    expect(await screen.findByText("Conciliações recentes")).toBeInTheDocument();
-    expect(screen.getByText("Match exato")).toBeInTheDocument();
-    expect(screen.getByText("Valor diverge na mesma data")).toBeInTheDocument();
-    expect(screen.getByText("Sem correspondência no sistema")).toBeInTheDocument();
-    // a origem é o banco sempre que o banco tem a linha
-    expect(screen.getAllByText("Banco")).toHaveLength(3);
-  });
-
-  it("tags each lançamento row with the tone of its status", async () => {
-    painel(
-      conciliacao("banco-1", [
-        linha("l-1", "match_exato", 7300, 7300, "Pagamento Vale Verde"),
-        linha("l-2", "divergente_valor", 12640, 12604, "Boleto Aço Norte"),
-      ]),
-    );
-    render(<DashboardPage />);
-
-    expect((await screen.findByText("Pagamento Vale Verde")).closest("tr")).toHaveAttribute("data-tom", "ok");
-    expect(screen.getByText("Boleto Aço Norte").closest("tr")).toHaveAttribute("data-tom", "risco");
-  });
-
-  it("shows where each lançamento came from with the icon of its origin", async () => {
-    painel(
-      conciliacao("banco-1", [
-        linha("l-1", "sem_correspondencia", 4180, null, "Transferência recebida"),
-        linha("l-2", "sem_correspondencia", null, 980, "Estorno maquininha"),
-      ]),
-    );
-    render(<DashboardPage />);
-
-    const doBanco = (await screen.findByText("Banco")).closest("td");
-    expect(doBanco?.querySelector('[data-origem="banco"]')).not.toBeNull();
-    const doSistema = screen.getByText("Sistema").closest("td");
-    expect(doSistema?.querySelector('[data-origem="sistema"]')).not.toBeNull();
-  });
-
-  it("points the highlight card at the linhas without a counterpart", async () => {
-    painel({
-      ...conciliacao("banco-9", [
-        linha("l-1", "sem_correspondencia", 4180, null),
-        linha("l-2", "sem_correspondencia", null, 2150),
-      ]),
-      extratoSistemaId: "sistema-9",
-    });
-    render(<DashboardPage />);
-
-    expect(await screen.findByText("Comece pelas 2 sem correspondente")).toBeInTheDocument();
-    // vai direto para a primeira divergência em aberto, não para a lista, e
-    // leva o par junto
-    expect(screen.getByRole("link", { name: "Revisar agora" })).toHaveAttribute(
-      "href",
-      "/conciliacoes/banco-9/l-1?sistema=sistema-9",
-    );
-    expect(screen.getByRole("link", { name: "Ver a conciliação" })).toHaveAttribute(
-      "href",
-      "/conciliacoes/banco-9?sistema=sistema-9",
-    );
-  });
-
-  it("does not show the suggestions, which have no data behind them yet", async () => {
-    painel(conciliacao("banco-1", [linha("l-1", "divergente_valor", 12640, 12604)]));
-    render(<DashboardPage />);
-
-    expect(await screen.findByText("Conciliações recentes")).toBeInTheDocument();
-    expect(screen.queryByText("O que o Ledgr sugere")).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Criar regra" })).not.toBeInTheDocument();
-  });
-
-  it("hides the highlight card when every linha has a counterpart", async () => {
-    painel(conciliacao("banco-1", [linha("l-1", "match_exato", 100, 100)]));
-    render(<DashboardPage />);
-
-    expect(await screen.findByText("Conciliações recentes")).toBeInTheDocument();
-    expect(screen.queryByText(/sem correspondente$/)).not.toBeInTheDocument();
-  });
-
-  it("lists the other current executions, each opening its own result", async () => {
-    painel(conciliacao("banco-2", [linha("l-1", "match_exato", 100, 100)]), [execucao({ id: "e1" })]);
-    render(<DashboardPage />);
-
-    expect(await screen.findByText("Conciliações anteriores")).toBeInTheDocument();
-    const linhaAnterior = within(screen.getByText("sicredi-e1.ofx × erp-e1.csv").closest("tr")!);
-    expect(linhaAnterior.getByText("02/09/2026 16:20")).toBeInTheDocument();
-    expect(linhaAnterior.getByText("3.980")).toBeInTheDocument();
-    expect(linhaAnterior.getByText("97,3%")).toBeInTheDocument();
-    expect(linhaAnterior.getByRole("link", { name: "Ver" })).toHaveAttribute(
-      "href",
-      "/conciliacoes/banco-e1?sistema=sistema-e1",
-    );
-  });
-
-  it("only lists earlier conciliações when there are some", async () => {
-    painel(conciliacao("banco-2", [linha("l-1", "match_exato", 100, 100)]));
-    render(<DashboardPage />);
-    expect(await screen.findByText("Conciliações recentes")).toBeInTheDocument();
-    expect(screen.queryByText("Conciliações anteriores")).not.toBeInTheDocument();
+    com({ conciliacoes: [], emAndamento: null });
+    await renderizar();
+    expect(screen.getByText("Nenhum extrato por aqui ainda.")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Fazer o primeiro upload" })).toHaveAttribute("href", "/conciliacoes/nova");
   });
 
   it("asks for a reload when the backend fails", async () => {
-    carregarPainel.mockResolvedValue({ ok: false, status: 0, erro: "Não foi possível falar com o servidor." });
-    render(<DashboardPage />);
-    expect(await screen.findByRole("alert")).toHaveTextContent(
+    carregarConciliacoes.mockResolvedValue({ ok: false, status: 0, erro: "Não foi possível falar com o servidor." });
+    await renderizar();
+    expect(screen.getByRole("alert")).toHaveTextContent(
       "Não foi possível carregar suas conciliações. Recarregue a página e tente de novo.",
     );
   });
 
-  it("asks for a reload instead of an endless skeleton when the action throws", async () => {
-    carregarPainel.mockRejectedValue(new Error("Failed to fetch"));
-    render(<DashboardPage />);
-    expect(await screen.findByRole("alert")).toHaveTextContent("Recarregue a página");
-    expect(document.querySelector('[aria-busy="true"]')).toBeNull();
-  });
-
   it("sends an expired session back to the login", async () => {
-    carregarPainel.mockResolvedValue({ ok: false, status: 401, erro: "Sua sessão expirou." });
-    render(<DashboardPage />);
-    await waitFor(() => expect(push).toHaveBeenCalledWith("/login"));
+    carregarConciliacoes.mockResolvedValue({ ok: false, status: 401, erro: "Sua sessão expirou." });
+    await expect(DashboardPage()).rejects.toThrow("NEXT_REDIRECT");
+    expect(redirect).toHaveBeenCalledWith("/login");
   });
 });

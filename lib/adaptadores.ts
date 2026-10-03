@@ -1,5 +1,13 @@
 import { caminhoDaConciliacao } from "./caminhos";
-import type { CampoLancamento, Conciliacao, LinhaComparacao, StatusLinha } from "./mock-data";
+import { rodadasDoBanco } from "./rodadas";
+import type {
+  CampoLancamento,
+  Conciliacao,
+  Decisao,
+  EventoDecisao,
+  LinhaComparacao,
+  StatusLinha,
+} from "./mock-data";
 
 /**
  * Traduz o que `GET /conciliacoes/{extrato_id}` devolve para a forma que as
@@ -22,12 +30,29 @@ export type LancamentoAPI = {
 
 export type ItemConciliacaoAPI = {
   id: string;
+  /** A chave estável da linha, se o backend mandar; senão o adaptador monta a sua. */
+  chave?: string;
   extrato_sistema_id: string;
   status: StatusLinha;
   regra_aplicada: string | null;
   score_confianca: string | null;
   lancamento_banco: LancamentoAPI | null;
   lancamento_sistema: LancamentoAPI | null;
+  /**
+   * ponytail: o porquê de cada linha, que o backend vai gerar junto com a conciliação
+   * (backend#28). Ainda sem contrato: os nomes são os do `POST /explicacoes`
+   * (`explicarDivergencia` em conciliacoes/acoes.ts). Se o backend chamar diferente, a
+   * troca é aqui e em `adaptarLinha`. Texto puro: vem de descrição de extrato de
+   * terceiro e nunca vira HTML.
+   */
+  explicacao?: string | null;
+  gerada_por_ia?: boolean;
+  /**
+   * ponytail: decisões por linha, propostas ao backend na spec 2026-10-02 (mesmos
+   * nomes de lá). A chave ausente quer dizer que o backend ainda não as guarda.
+   */
+  decisao?: Decisao | null;
+  eventos?: EventoDecisao[];
 };
 
 export type ListaConciliacaoAPI = {
@@ -82,21 +107,50 @@ function explicar(item: ItemConciliacaoAPI): string | null {
   return `Conciliado pela regra "${item.regra_aplicada}".${confianca}`;
 }
 
+/**
+ * A linha em qualquer rodada: o extrato do banco é o mesmo em todas, então o
+ * lançamento do banco a identifica. Sem ele, o lançamento do sistema é outro a cada
+ * envio, e o que sobra é o conteúdo: data, valor e descrição, normalizados.
+ */
+function chaveBase(item: ItemConciliacaoAPI): string {
+  if (item.lancamento_banco) return `b:${item.lancamento_banco.id}`;
+  const sistema = item.lancamento_sistema;
+  if (!sistema) return `i:${item.id}`;
+  const valor = Number(sistema.valor);
+  // sem descrição (o mesmo caso do "Sem descrição"), a chave fica com data e valor
+  const descricao = (sistema.descricao ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+  return `s:${sistema.data}|${Number.isFinite(valor) ? valor.toFixed(2) : sistema.valor}|${descricao}`;
+}
+
+/** A descrição do extrato, ou "Sem descrição" quando ele não trouxe nenhuma. */
+function semVazio(descricao: string | null | undefined): string {
+  return descricao?.trim() || "Sem descrição";
+}
+
 export function adaptarLinha(item: ItemConciliacaoAPI): LinhaComparacao {
   // Banco é a fonte da verdade (a "regra de ouro" da tela de nova conciliação):
   // quando existe, é dele a descrição e a data mostradas.
   const referencia = item.lancamento_banco ?? item.lancamento_sistema;
+  // a explicação que o backend gerou vale mais que a frase da regra; em branco é nenhuma
+  const doBackend = item.explicacao?.trim() || null;
   return {
     id: item.id,
-    descricao: referencia?.descricao ?? "Lançamento sem descrição",
+    chave: item.chave ?? chaveBase(item),
+    // OFX sem MEMO chega com a descrição vazia: sem texto, a linha ficava sem ter onde clicar
+    descricao: semVazio(referencia?.descricao),
     data: referencia ? paraDiaMes(referencia.data) : "",
     dataISO: referencia?.data,
     dataSistema: item.lancamento_sistema ? paraDiaMes(item.lancamento_sistema.data) : undefined,
-    descricaoSistema: item.lancamento_sistema?.descricao,
+    descricaoSistema: item.lancamento_sistema ? semVazio(item.lancamento_sistema.descricao) : undefined,
     valorBanco: paraNumero(item.lancamento_banco?.valor),
     valorSistema: paraNumero(item.lancamento_sistema?.valor),
     status: item.status,
-    explicacao: explicar(item),
+    explicacao: doBackend ?? explicar(item),
+    // só com `true` a tela marca como gerada por IA, como no POST /explicacoes
+    explicacaoPorIa: doBackend !== null && item.gerada_por_ia === true,
+    // só com a chave no item: sem ela, o backend não guarda decisões e a tela não oferece
+    ...("decisao" in item ? { decisao: item.decisao ?? null } : {}),
+    ...(item.eventos ? { eventos: item.eventos } : {}),
     // O backend não guarda linha do tempo por lançamento; o histórico do detalhe
     // fica vazio até existir (nada de inventar evento que ninguém registrou).
     historico: [],
@@ -113,7 +167,15 @@ export function adaptarConciliacao(
   lista: ListaConciliacaoAPI,
   extratoSistemaId?: string,
 ): Conciliacao {
-  const linhas = lista.itens.map(adaptarLinha);
+  // duas linhas só do sistema iguais teriam a mesma chave e dividiriam a decisão de
+  // uma: a segunda vira "#2", a terceira "#3", na ordem em que o backend manda
+  const vistas = new Map<string, number>();
+  const linhas = lista.itens.map(adaptarLinha).map((linha) => {
+    const chave = linha.chave ?? linha.id;
+    const vezes = (vistas.get(chave) ?? 0) + 1;
+    vistas.set(chave, vezes);
+    return vezes === 1 ? linha : { ...linha, chave: `${chave}#${vezes}` };
+  });
   const primeira = linhas.find((linha) => linha.dataISO)?.dataISO;
   return {
     id: lista.extrato_id,
@@ -166,6 +228,11 @@ export type ExecucaoAPI = {
     tarifa_bancaria: number;
     divergente_valor: number;
     divergente_data: number;
+    /**
+     * Das divergências, quantas estão justificadas (spec 2026-10-02-conciliacao-em-rodadas).
+     * Proposta ao backend: ausente enquanto ele não guarda decisões.
+     */
+    justificadas?: number;
   };
   /** Decimal (0 a 100, duas casas) — o Pydantic manda como string. Null sem lançamentos. */
   percentual_acerto: string | number | null;
@@ -196,6 +263,8 @@ export type Execucao = {
   /** A tolerância de data daquela rodada, em dias — não a configuração de hoje. */
   toleranciaDias: number;
   atual: boolean;
+  /** Das divergências, quantas estão justificadas: liberam o fechamento sem contar como batidas. */
+  justificadas: number;
 };
 
 /**
@@ -236,6 +305,7 @@ export function adaptarExecucao(item: ExecucaoAPI): Execucao {
     ),
     toleranciaDias: item.tolerancia_dias,
     atual: item.atual,
+    justificadas: item.contagens.justificadas ?? 0,
   };
 }
 
@@ -246,8 +316,13 @@ export type ArquivoConciliado = {
   origem: "banco" | "sistema";
   /** ISO da rodada mais recente que usou o arquivo. */
   conciliadoEm: string;
-  /** O resultado daquela rodada: o par de extratos dela. */
+  /**
+   * Onde o arquivo abre: o extrato do banco, pelo endereço só dele (a rodada que vale); o do
+   * sistema, na rodada em que entrou.
+   */
   resultado: string;
+  /** Só do extrato do sistema: a rodada da conciliação em que ele entrou, e quantas ela tem. */
+  rodada?: { numero: number; total: number };
 };
 
 /**
@@ -261,15 +336,27 @@ export function extratosDasExecucoes(execucoes: Execucao[]): ArquivoConciliado[]
   const vistos = new Map<string, ArquivoConciliado>();
   // a lista chega da mais recente para a mais antiga: o primeiro uso é o último
   for (const execucao of execucoes) {
-    const resultado = caminhoDaConciliacao(execucao.extratoBancoId, execucao.extratoSistemaId);
-    const lados = [
-      { id: execucao.extratoBancoId, nome: execucao.arquivoBanco, origem: "banco" as const },
-      { id: execucao.extratoSistemaId, nome: execucao.arquivoSistema, origem: "sistema" as const },
-    ];
-    for (const lado of lados) {
-      if (!vistos.has(lado.id)) {
-        vistos.set(lado.id, { ...lado, conciliadoEm: execucao.executadaEm, resultado });
-      }
+    const { extratoBancoId: banco, extratoSistemaId: sistema, executadaEm: conciliadoEm } = execucao;
+    if (!vistos.has(banco)) {
+      vistos.set(banco, {
+        id: banco,
+        nome: execucao.arquivoBanco,
+        origem: "banco",
+        conciliadoEm,
+        resultado: caminhoDaConciliacao(banco),
+      });
+    }
+    if (!vistos.has(sistema)) {
+      const rodadas = rodadasDoBanco(execucoes, banco);
+      const numero = rodadas.find((rodada) => rodada.extratoSistemaId === sistema)?.numero ?? rodadas.length;
+      vistos.set(sistema, {
+        id: sistema,
+        nome: execucao.arquivoSistema,
+        origem: "sistema",
+        conciliadoEm,
+        resultado: caminhoDaConciliacao(banco, sistema),
+        rodada: { numero, total: rodadas.length },
+      });
     }
   }
   return [...vistos.values()];

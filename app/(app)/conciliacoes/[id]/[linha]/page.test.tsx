@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { Conciliacao } from "@/lib/mock-data";
 import DetalheDivergenciaPage from "./page";
@@ -18,6 +18,11 @@ const carregarConciliacao = vi.fn();
 const explicarDivergencia = vi.fn();
 vi.mock("../../acoes", () => ({
   carregarConciliacao: (...args: unknown[]) => carregarConciliacao(...args),
+  // a tela carrega pela rodada; aqui ela embrulha a carga de sempre, sem rodada
+  carregarConciliacaoEmRodadas: async (...args: unknown[]) => {
+    const resposta = await carregarConciliacao(...args);
+    return resposta.ok ? { ...resposta, dados: { rodada: null, rodadas: [], mudancas: null, ...resposta.dados } } : resposta;
+  },
   explicarDivergencia: (...args: unknown[]) => explicarDivergencia(...args),
 }));
 
@@ -181,6 +186,83 @@ describe("DetalheDivergenciaPage", () => {
     expect(screen.getByText("Sistema")).toBeInTheDocument();
   });
 
+  describe("decisions in the history", () => {
+    const conferida = { tipo: "conferida" as const, texto: null, autor: "Eduardo", em: "2026-09-24T18:40:00Z", rodada: 1 };
+    const justificada = {
+      tipo: "justificada" as const,
+      texto: "Juros de dois dias de atraso, lançados como despesa financeira.",
+      autor: "Eduardo",
+      em: "2026-09-30T13:12:00Z",
+      rodada: 1,
+    };
+
+    it("lists who checked and who justified the lançamento, after what came from the extratos", async () => {
+      buscarConciliacao.mockReturnValue({
+        ...conciliacao,
+        linhas: conciliacao.linhas.map((linha) =>
+          linha.id === "lc-2" ? { ...linha, decisao: justificada, eventos: [conferida, justificada] } : linha,
+        ),
+      });
+      render(<DetalheDivergenciaPage />);
+
+      const evento = await screen.findByText("Justificada por Eduardo: Juros de dois dias de atraso, lançados como despesa financeira.");
+      const linhas = [...evento.closest("tbody")!.querySelectorAll("tr")].map((tr) => tr.children[1].textContent);
+      expect(linhas).toEqual([
+        "Título emitido",
+        "Boleto liquidado",
+        "Conferida por Eduardo",
+        "Justificada por Eduardo: Juros de dois dias de atraso, lançados como despesa financeira.",
+      ]);
+      expect(evento.closest("tr")).toHaveTextContent("30/09/2026 10:12");
+    });
+
+    it("treats a justified lançamento as decided: neutral seal and out of the open count", async () => {
+      buscarConciliacao.mockReturnValue({
+        ...conciliacao,
+        linhas: conciliacao.linhas.map((linha) => (linha.id === "lc-2" ? { ...linha, decisao: justificada } : linha)),
+      });
+      render(<DetalheDivergenciaPage />);
+
+      // como no eixo da comparação: o status com a decisão, sem número entre as que pedem decisão
+      expect(await screen.findByText("Valor diverge na mesma data · justificada")).toBeInTheDocument();
+      expect(screen.queryByText(/item \d+ de/)).not.toBeInTheDocument();
+      const sistema = screen.getByText("Extrato do sistema").closest(".det-cartao") as HTMLElement;
+      expect(within(sistema).getByText("Justificada")).toHaveAttribute("class", "selo");
+      expect(screen.queryByText("Precisa de ajuste")).not.toBeInTheDocument();
+    });
+
+    it("says when a check stopped holding: the time of the new round", async () => {
+      rota.id = BANCO;
+      rota.busca = `sistema=${SISTEMA}`;
+      carregarConciliacao.mockResolvedValue({
+        ok: true,
+        dados: {
+          conciliacao: {
+            ...conciliacao,
+            id: BANCO,
+            extratoSistemaId: SISTEMA,
+            rodada: 2,
+            linhas: conciliacao.linhas.map((linha) =>
+              linha.id === "lc-2" ? { ...linha, decisao: conferida, eventos: [conferida] } : linha,
+            ),
+          },
+          truncada: false,
+          rodada: {
+            numero: 2,
+            total: 2,
+            extratoSistemaId: SISTEMA,
+            arquivoSistema: "erp-setembro-v2.csv",
+            executadaEm: "2026-09-29T17:02:00Z",
+          },
+        },
+      });
+      render(<DetalheDivergenciaPage />);
+
+      const evento = await screen.findByText("Continua divergindo (rodada 2)");
+      expect(evento.closest("tr")).toHaveTextContent("29/09/2026 14:02");
+    });
+  });
+
   it("accepts the bank value in place, without navigating away", async () => {
     buscarConciliacao.mockReturnValue(conciliacao);
     aceitarValorDoBanco.mockReturnValue(comLc2Aceita(conciliacao));
@@ -293,6 +375,17 @@ describe("DetalheDivergenciaPage", () => {
     render(<DetalheDivergenciaPage />);
 
     expect(await screen.findByText('Conciliado pela regra "exato".')).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Explicar/ })).not.toBeInTheDocument();
+  });
+
+  it("shows the explanation the backend wrote during the conciliação, marked when the AI wrote it", async () => {
+    doBackend({ explicacao: "O banco cobrou R$ 36 de juros pelo atraso.", explicacaoPorIa: true });
+    render(<DetalheDivergenciaPage />);
+
+    expect(await screen.findByText("O banco cobrou R$ 36 de juros pelo atraso.")).toBeInTheDocument();
+    // os Termos prometem o selo em todo texto escrito pela IA
+    expect(screen.getByText("Gerada por IA · confira antes de decidir")).toBeInTheDocument();
+    // já explicada: não há o que pedir
     expect(screen.queryByRole("button", { name: /Explicar/ })).not.toBeInTheDocument();
   });
 

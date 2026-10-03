@@ -1,10 +1,10 @@
 import { caminhoDaConciliacao } from "@/lib/caminhos";
 import type { VisaoGeral } from "../conciliacoes/acoes";
 import {
-  estaResolvida,
   formatarInteiro,
   formatarMoedaCurta,
   formatarPercentual,
+  pedeDecisao,
   resumir,
   statusDaLinha,
   valorEmAberto,
@@ -45,7 +45,8 @@ export function montarContexto(visao: VisaoGeral): Contexto | null {
   const resumo = resumir([conciliacao]);
   const Mes = conciliacao.mes.split("/")[0];
 
-  const emAberto = conciliacao.linhas.filter((linha) => !estaResolvida(linha.status));
+  // a justificada já tem o porquê: não é "a maior divergência" a explicar
+  const emAberto = conciliacao.linhas.filter(pedeDecisao);
   const maior = emAberto.reduce<(typeof emAberto)[number] | null>(
     (atual, linha) => (atual === null || valorEmAberto([linha]) > valorEmAberto([atual]) ? linha : atual),
     null,

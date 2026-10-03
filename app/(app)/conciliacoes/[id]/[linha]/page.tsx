@@ -11,14 +11,16 @@ import {
   restaurarLinha,
   type LinhaComparacao,
 } from "@/lib/mock-data";
-import { estaResolvida, statusDaLinha } from "../../../dashboard/resumo";
+import { estaResolvida, pedeDecisao, statusDaLinha } from "../../../dashboard/resumo";
 import { Barra, EsqueletoTela } from "../../../esqueleto";
 import { NumeroAnimado } from "../../../numero-animado";
 import { FALHA_AO_CARREGAR, useConciliacao } from "../../usar-conciliacao";
 import { IconeOrigem, type Origem } from "../../../icone-origem";
 import { ExplicacaoDaDivergencia } from "./explicacao";
+import { historicoDaLinha } from "../situacao";
 import { Cabecalho } from "../../../cabecalho";
 import { InkHover, Reveal } from "@/app/reveal";
+import { SeloIa } from "../../../selo-ia";
 
 function CartaoExtrato({
   titulo,
@@ -132,7 +134,9 @@ export default function DetalheDivergenciaPage() {
 
   const { conciliacao, real } = estado;
   const status = statusDaLinha(linha);
-  const emAberto = conciliacao.linhas.filter((item) => !estaResolvida(item.status));
+  // as que ainda pedem decisão: a justificada já foi decidida e sai da conta, como no eixo da comparação
+  const emAberto = conciliacao.linhas.filter(pedeDecisao);
+  const justificada = linha.decisao?.tipo === "justificada";
   const posicao = emAberto.findIndex((item) => item.id === linha.id);
   const delta =
     linha.valorBanco !== null && linha.valorSistema !== null
@@ -161,7 +165,7 @@ export default function DetalheDivergenciaPage() {
         titulo={linha.descricao}
         sobretitulo={
           <>
-            {status.rotulo}
+            {justificada ? `${status.rotulo} · justificada` : status.rotulo}
             {posicao === -1
               ? null
               : ` · item ${String(posicao + 1).padStart(2, "0")} de ${emAberto.length}`}
@@ -211,17 +215,18 @@ export default function DetalheDivergenciaPage() {
           </div>
           <CartaoExtrato
             titulo="Extrato do sistema"
-            marca={estaResolvida(linha.status) ? "Conciliado" : "Precisa de ajuste"}
-            marcaClasse={estaResolvida(linha.status) ? "selo selo-ok" : "selo selo-risco"}
+            marca={estaResolvida(linha.status) ? "Conciliado" : justificada ? "Justificada" : "Precisa de ajuste"}
+            marcaClasse={estaResolvida(linha.status) ? "selo selo-ok" : justificada ? "selo" : "selo selo-risco"}
             valor={linha.valorSistema}
             campos={linha.camposSistema}
             origem="sistema"
           />
         </Reveal>
 
-        {/* Com dado do backend, só a linha casada chega com o porquê (a regra que
-            casou). A divergência é explicada sob pedido, pelo POST /explicacoes;
-            o key zera o estado ao trocar de linha. */}
+        {/* Com dado do backend, a linha chega com o porquê: a regra que casou ou,
+            quando o backend gerar na conciliação (backend#28), a explicação da
+            divergência. Sem ele, a divergência é explicada sob pedido, pelo
+            POST /explicacoes; o key zera o estado ao trocar de linha. */}
         {!linha.explicacao && real && !estaResolvida(linha.status) && (
           <Reveal delay={0.08}>
             <ExplicacaoDaDivergencia
@@ -249,6 +254,8 @@ export default function DetalheDivergenciaPage() {
                 O que provavelmente aconteceu
               </h6>
               {linha.causa && <div className="det-causa-titulo">{linha.causa}</div>}
+              {/* os Termos prometem o selo em todo texto escrito pela IA */}
+              {linha.explicacaoPorIa && <SeloIa />}
               <p className="det-causa-texto">{linha.explicacao}</p>
             </div>
           </Reveal>
@@ -317,8 +324,10 @@ export default function DetalheDivergenciaPage() {
                 </tr>
               </thead>
               <tbody>
-                {linha.historico.map((evento) => (
-                  <tr key={`${evento.quando}-${evento.evento}`}>
+                {/* as decisões entram depois do que veio dos extratos; conferir, desfazer e
+                    conferir de novo no mesmo minuto dá eventos iguais, daí o índice na chave */}
+                {historicoDaLinha(linha, conciliacao.rodada ?? 1, estado.rodada?.executadaEm).map((evento, indice) => (
+                  <tr key={`${indice}-${evento.evento}`}>
                     <td className="dash-celula-fraca">{evento.quando}</td>
                     <td>{evento.evento}</td>
                     <td className="dash-celula-fraca" style={{ textAlign: "right", fontSize: 14 }}>
