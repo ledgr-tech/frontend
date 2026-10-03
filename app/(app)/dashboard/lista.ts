@@ -1,6 +1,6 @@
 import type { Execucao } from "@/lib/adaptadores";
 import type { StatusLinha, Tom } from "@/lib/mock-data";
-import { conciliados, paraRevisar } from "../historico/execucoes";
+import { paraRevisar } from "../historico/execucoes";
 import { formatarInteiro, seloDoStatus } from "./resumo";
 
 /**
@@ -64,10 +64,4 @@ const MES_ABREVIADO = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "
 export function mesDaLista(chave: string): string {
   const [ano, mes] = chave.split("-");
   return `${MES_ABREVIADO[Number(mes) - 1] ?? mes}/${ano}`;
-}
-
-/** A taxa de match pelas contagens, como o gráfico e a comparação; null sem lançamento. */
-export function taxaDaConciliacao(conciliacao: ConciliacaoNaLista): number | null {
-  const { lancamentos } = conciliacao.execucao;
-  return lancamentos === 0 ? null : (conciliados(conciliacao.execucao) / lancamentos) * 100;
 }

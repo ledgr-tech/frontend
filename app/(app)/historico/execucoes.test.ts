@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Execucao } from "@/lib/adaptadores";
 import {
   alturasNoGrafico,
+  matchNaTela,
   paraRevisar,
   porAno,
   porConciliacao,
@@ -9,7 +10,9 @@ import {
   rotulosDaSerie,
   segmentos,
   serieMensal,
+  taxaDeMatch,
 } from "./execucoes";
+import { formatarPercentual } from "../dashboard/resumo";
 
 function execucao(id: string, acerto: number | null, atual = true): Execucao {
   return {
@@ -178,6 +181,20 @@ describe("paraRevisar", () => {
       justificadas: 2,
     };
     expect(paraRevisar(vinteEDois)).toBe(8);
+  });
+});
+
+describe("taxaDeMatch", () => {
+  it("conta as linhas que casaram, não o percentual que o backend já arredondou", () => {
+    // 12 de 22 é 54,54%: o backend manda 54.55, que na tela viraria 54,6%
+    const vinteEDois = { ...execucao("e1", 54.55), lancamentos: 22, divergencias: { divergente_valor: 10 } };
+    expect(formatarPercentual(taxaDeMatch(vinteEDois)!)).toBe("54,5%");
+    expect(matchNaTela(vinteEDois)).toBe("54,5%");
+  });
+
+  it("não tem taxa sem lançamento", () => {
+    expect(taxaDeMatch({ ...execucao("e1", null), lancamentos: 0 })).toBeNull();
+    expect(matchNaTela({ ...execucao("e1", null), lancamentos: 0 })).toBe("—");
   });
 });
 

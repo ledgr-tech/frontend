@@ -22,13 +22,21 @@ function execucao(parcial: Partial<Execucao>): Execucao {
 
 describe("csvDoHistorico", () => {
   it("sai no padrão do Excel em português: BOM, ponto e vírgula, CRLF e vírgula decimal", () => {
-    const csv = csvDoHistorico([execucao({ justificadas: 5 }), execucao({ id: "e0", acerto: null, atual: false })]);
+    const csv = csvDoHistorico([
+      execucao({ justificadas: 5 }),
+      execucao({ id: "e0", lancamentos: 0, acerto: null, divergencias: {}, atual: false }),
+    ]);
     expect(csv.startsWith("﻿")).toBe(true);
     expect(csv.slice(1).split("\r\n")).toEqual([
       "Executada em;Arquivo do banco;Rodada;Arquivo do sistema;Lançamentos;Conciliados;Justificadas;Match;Tolerância (dias);Situação",
       "24/09/2026 14:02;sicredi.ofx;1;erp.csv;140;98;5;70,00;1;Vale",
-      "24/09/2026 14:02;sicredi.ofx;1;erp.csv;140;98;0;;1;Substituída",
+      "24/09/2026 14:02;sicredi.ofx;1;erp.csv;0;0;0;;1;Substituída",
     ]);
+  });
+
+  it("calcula o match pelas contagens, como as telas, sem depender do percentual do backend", () => {
+    const [, linha] = csvDoHistorico([execucao({ acerto: null })]).slice(1).split("\r\n");
+    expect(linha).toContain(";140;98;0;70,00;");
   });
 
   it("numera as rodadas de cada extrato do banco e marca a anterior", () => {

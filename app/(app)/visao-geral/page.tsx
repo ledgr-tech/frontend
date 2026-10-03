@@ -15,7 +15,7 @@ import {
   resumir,
 } from "../dashboard/resumo";
 import { InkHover, Reveal } from "@/app/reveal";
-import { porConciliacao } from "../historico/execucoes";
+import { matchNaTela, porConciliacao } from "../historico/execucoes";
 import { GraficoDeMatch } from "../historico/grafico";
 import { IconeOrigem } from "../icone-origem";
 import { pendencias } from "./pendencias";
@@ -232,8 +232,8 @@ function Atalhos({
           nome="Histórico"
           numero={plural(visao.total, "execução", "execuções")}
         >
-          {execucao.acerto !== null && (
-            <span className="vg-atalho-detalhe">{`Match de ${formatarPercentual(execucao.acerto)} na última`}</span>
+          {execucao.lancamentos > 0 && (
+            <span className="vg-atalho-detalhe">{`Match de ${matchNaTela(execucao)} na última`}</span>
           )}
         </Atalho>
       </ul>
@@ -377,9 +377,7 @@ function AtividadeRecente({ execucoes, total }: { execucoes: Execucao[]; total: 
                 <td style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
                   {formatarInteiro(execucao.lancamentos)}
                 </td>
-                <td className="dash-valor-celula">
-                  {execucao.acerto === null ? "—" : formatarPercentual(execucao.acerto)}
-                </td>
+                <td className="dash-valor-celula">{matchNaTela(execucao)}</td>
                 <td style={{ textAlign: "right" }}>
                   <Link href={caminhoDaConciliacao(extratoBancoId)} className="btn btn-secondary" style={{ whiteSpace: "nowrap" }}>
                     Ver<span className="sr-only"> {arquivoBanco}</span>

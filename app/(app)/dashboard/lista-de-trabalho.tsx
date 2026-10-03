@@ -5,14 +5,14 @@ import Link from "next/link";
 import { caminhoDaConciliacao } from "@/lib/caminhos";
 import { FaixaFiltros } from "../faixa-filtros";
 import { IconeOrigem } from "../icone-origem";
+import { matchNaTela } from "../historico/execucoes";
 import { BarraDoResultado } from "../historico/por-conciliacao";
-import { formatarInteiro, formatarPercentual } from "./resumo";
+import { formatarInteiro } from "./resumo";
 import {
   mesDaLista,
   ordemDeTrabalho,
   pedemDecisao,
   seloDaConciliacao,
-  taxaDaConciliacao,
   type ConciliacaoNaLista,
 } from "./lista";
 
@@ -119,7 +119,6 @@ function Linha({ conciliacao }: { conciliacao: ConciliacaoNaLista }) {
   const { extratoBancoId, arquivoBanco, arquivoSistema, competencia, rodada, rodadas, execucao } = conciliacao;
   const pendentes = pedemDecisao(conciliacao);
   const selo = seloDaConciliacao(conciliacao);
-  const taxa = taxaDaConciliacao(conciliacao);
   return (
     <tr className="conc-linha" data-pendente={pendentes > 0 || undefined}>
       <td className="conc-c-conciliacao">
@@ -145,7 +144,7 @@ function Linha({ conciliacao }: { conciliacao: ConciliacaoNaLista }) {
       <td className="conc-c-match">
         <span className="hist-resultado">
           {execucao.lancamentos > 0 && <BarraDoResultado execucao={execucao} />}
-          <span className="hist-taxa">{taxa === null ? "—" : formatarPercentual(taxa)}</span>
+          <span className="hist-taxa">{matchNaTela(execucao)}</span>
         </span>
       </td>
       <td className="conc-c-decisao">

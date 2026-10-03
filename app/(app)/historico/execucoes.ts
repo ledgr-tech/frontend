@@ -1,7 +1,7 @@
 import { mesPorExtenso, type Execucao } from "@/lib/adaptadores";
 import type { StatusLinha, Tom } from "@/lib/mock-data";
 import { rodadasDoBanco } from "@/lib/rodadas";
-import { seloDoStatus } from "../dashboard/resumo";
+import { formatarPercentual, seloDoStatus } from "../dashboard/resumo";
 
 /** Quantos meses o gráfico da taxa de match mostra. */
 const MESES_NO_GRAFICO = 6;
@@ -205,6 +205,21 @@ export function segmentos(execucao: Execucao): Segmento[] {
 /** Quantos lançamentos casaram sozinhos na execução. */
 export function conciliados(execucao: Execucao): number {
   return segmentos(execucao).find((parte) => parte.tom === "ok")?.quantidade ?? 0;
+}
+
+/**
+ * A taxa de match da execução, de 0 a 100, pelas contagens; null sem lançamento. Toda tela usa
+ * esta, não o `acerto` do backend: ele chega arredondado em duas casas, e 12 de 22 (54,54%) viraria
+ * 54,6% numa tela e 54,5% no gráfico, que soma as contagens.
+ */
+export function taxaDeMatch(execucao: Execucao): number | null {
+  return execucao.lancamentos === 0 ? null : (conciliados(execucao) / execucao.lancamentos) * 100;
+}
+
+/** A taxa de match como as tabelas escrevem: "54,5%", ou "—" sem lançamento. */
+export function matchNaTela(execucao: Execucao): string {
+  const taxa = taxaDeMatch(execucao);
+  return taxa === null ? "—" : formatarPercentual(taxa);
 }
 
 /**

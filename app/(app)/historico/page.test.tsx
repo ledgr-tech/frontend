@@ -54,7 +54,9 @@ const RODADAS: Execucao[] = [
     arquivoSistema: "erp-setembro-v2.csv",
     executadaEm: "2026-09-24T17:02:11Z",
     lancamentos: 22,
-    acerto: 58.3,
+    // o backend manda 12 de 22 arredondado; a tela conta as linhas
+    acerto: 54.55,
+    divergencias: { divergente_valor: 10 },
   }),
   execucao({
     id: "b2",
@@ -63,7 +65,8 @@ const RODADAS: Execucao[] = [
     arquivoSistema: "erp-setembro-v2.csv",
     executadaEm: "2026-09-24T09:10:00Z",
     lancamentos: 12,
-    acerto: 41.7,
+    acerto: 41.67,
+    divergencias: { divergente_valor: 7 },
     atual: false,
   }),
   execucao({
@@ -73,7 +76,8 @@ const RODADAS: Execucao[] = [
     arquivoSistema: "erp-setembro.csv",
     executadaEm: "2026-09-23T12:41:00Z",
     lancamentos: 3,
-    acerto: 33.3,
+    acerto: 33.33,
+    divergencias: { sem_correspondencia: 2 },
   }),
   execucao({
     id: "a1",
@@ -82,7 +86,7 @@ const RODADAS: Execucao[] = [
     arquivoSistema: "erp-agosto.csv",
     executadaEm: "2026-09-02T19:20:00Z",
     lancamentos: 3980,
-    acerto: 91.8,
+    acerto: 100,
   }),
 ];
 
@@ -210,7 +214,8 @@ describe("HistoricoPage", () => {
     expect(setembro).toHaveTextContent("erp-setembro-v2.csv");
     expect(setembro).toHaveTextContent("Rodada 2 de 2");
     expect(setembro.querySelector(".hist-c-lancamentos")).toHaveTextContent("22");
-    expect(setembro.querySelector(".hist-c-match")).toHaveTextContent("58,3%");
+    // 12 de 22 pelas contagens, como o gráfico e a lista de Conciliações
+    expect(setembro.querySelector(".hist-c-match")).toHaveTextContent("54,5%");
     expect(setembro.querySelector(".hist-c-quando")).toHaveTextContent("24/09 14:02");
     // pelo endereço só do banco, que abre a rodada mais recente
     expect(within(setembro).getByRole("link", { name: "Ver sicredi-setembro.ofx" })).toHaveAttribute(

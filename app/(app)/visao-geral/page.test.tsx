@@ -56,7 +56,14 @@ function linha(
   };
 }
 
-const RECENTE = execucao({ id: "e7", executadaEm: "2026-09-24T17:02:11Z" });
+// 12 de 22: o backend manda 54.55, arredondado; a tela conta as linhas
+const RECENTE = execucao({
+  id: "e7",
+  executadaEm: "2026-09-24T17:02:11Z",
+  lancamentos: 22,
+  acerto: 54.55,
+  divergencias: { divergente_valor: 10 },
+});
 
 // da mais recente para a mais antiga, como o backend devolve
 const EXECUCOES: Execucao[] = [
@@ -146,7 +153,7 @@ describe("VisaoGeralPage", () => {
     const historico = within(atalhos).getByRole("link", { name: /Histórico/ });
     expect(historico).toHaveAttribute("href", "/historico");
     expect(historico).toHaveTextContent("7 execuções");
-    expect(historico).toHaveTextContent("Match de 50,0% na última");
+    expect(historico).toHaveTextContent("Match de 54,5% na última");
   });
 
   it("counts a new version of the system extrato as the same conciliação, not another one", async () => {
@@ -323,7 +330,7 @@ describe("VisaoGeralPage", () => {
         extratoSistemaId: "s2",
         arquivoSistema: "erp-v2.csv",
         lancamentos: 22,
-        acerto: 58.3,
+        acerto: 54.55,
         divergencias: { divergente_valor: 10 },
       }),
       execucao({
@@ -344,7 +351,8 @@ describe("VisaoGeralPage", () => {
     const linhas = within(screen.getByRole("table", { name: "Atividade recente" })).getAllByRole("row").slice(1);
     expect(linhas).toHaveLength(2);
     expect(linhas[0]).toHaveTextContent("sicredi-setembro.ofx × erp-v2.csv · rodada 2");
-    expect(linhas[0]).toHaveTextContent("58,3%");
+    // o mesmo 54,5% do gráfico logo abaixo, pelas contagens
+    expect(linhas[0]).toHaveTextContent("54,5%");
     expect(linhas[1]).toHaveTextContent("sicredi-e5.ofx × erp-e5.csv");
     expect(linhas[1]).not.toHaveTextContent("rodada");
     // a refeita e a rodada 1 foram substituídas: nem linha, nem barra no gráfico, nem "Ver atual"

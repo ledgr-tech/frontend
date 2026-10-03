@@ -6,18 +6,20 @@ import { ChevronRight } from "lucide-react";
 import type { Execucao } from "@/lib/adaptadores";
 import { caminhoDaConciliacao } from "@/lib/caminhos";
 import { salvar } from "../conciliacoes/[id]/exportar-csv";
-import { formatarDataHora, formatarInteiro, formatarPercentual } from "../dashboard/resumo";
+import { formatarDataHora, formatarInteiro } from "../dashboard/resumo";
 import { FaixaFiltros } from "../faixa-filtros";
 import { Grupo, alternarNoConjunto } from "../grupo";
 import { IconeOrigem } from "../icone-origem";
 import {
   LEGENDA_DOS_TONS,
   conciliados,
+  matchNaTela,
   paraRevisar,
   porAno,
   porConciliacao,
   porMes,
   segmentos,
+  taxaDeMatch,
   type ConciliacaoNoHistorico,
   type ExecucaoDaConciliacao,
   type MesDoHistorico,
@@ -288,7 +290,7 @@ function LinhasDaConciliacao({
         <td className="hist-c-match">
           <span className="hist-resultado">
             {execucao.lancamentos > 0 && <BarraDoResultado execucao={execucao} />}
-            <span className="hist-taxa">{execucao.acerto === null ? "—" : formatarPercentual(execucao.acerto)}</span>
+            <span className="hist-taxa">{matchNaTela(execucao)}</span>
           </span>
         </td>
         <td className="hist-c-revisar hist-num">
@@ -345,7 +347,7 @@ function LinhaDaExecucao({
         {formatarInteiro(execucao.lancamentos)}
       </td>
       <td className="hist-c-match">
-        <span className="hist-taxa">{execucao.acerto === null ? "—" : formatarPercentual(execucao.acerto)}</span>
+        <span className="hist-taxa">{matchNaTela(execucao)}</span>
       </td>
       <td className="hist-c-revisar hist-num">
         <RotuloMovel>Para revisar</RotuloMovel>
@@ -441,6 +443,8 @@ export function csvDoHistorico(execucoes: Execucao[]): string {
   ];
   const linhas = execucoes.map((execucao) => {
     const item = porId.get(execucao.id)!;
+    // pelas contagens, como as telas: o mesmo número da coluna Conciliados
+    const taxa = taxaDeMatch(execucao);
     return [
       formatarDataHora(execucao.executadaEm),
       execucao.arquivoBanco,
@@ -449,7 +453,7 @@ export function csvDoHistorico(execucoes: Execucao[]): string {
       String(execucao.lancamentos),
       String(conciliados(execucao)),
       String(execucao.justificadas),
-      execucao.acerto === null ? "" : execucao.acerto.toFixed(2).replace(".", ","),
+      taxa === null ? "" : taxa.toFixed(2).replace(".", ","),
       String(execucao.toleranciaDias),
       SITUACAO_NO_CSV[item.situacao],
     ]
