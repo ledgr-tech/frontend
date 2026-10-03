@@ -2026,9 +2026,8 @@ html[data-tema="escuro"] .app-shell {
 .folhas-com-eixo col.col-data { width: 4.5rem; }
 .folhas-com-eixo col.col-valor { width: var(--valor-largura, 10rem); }
 .folhas-com-eixo col.col-eixo { width: 9rem; }
-/* com as decisões ligadas, o eixo leva ↻, caixa e selo: o mais largo ("Falta no sistema" com os
-   dois) mede 158px no navegador, e a coluna dá 162 além do padding. Sem decisões, fica como era. */
-.folhas-com-eixo.eixo-com-decisao col.col-eixo { width: 11.25rem; }
+/* a conferência fica numa coluna dela, depois da folha do sistema: o eixo leva só o veredito */
+.folhas-com-eixo col.col-conferir { width: 3rem; }
 .dash-tabela-rolagem .folhas-com-eixo { min-width: 900px; }
 /* com a largura fixa, uma palavra mais longa que a coluna (um código de PIX) vazaria da folha */
 .folhas-com-eixo td { overflow-wrap: break-word; }
@@ -2042,23 +2041,38 @@ html[data-tema="escuro"] .app-shell {
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .folhas-com-eixo .celula-descricao .celula-abrir { display: block; max-width: 100%; }
-.celula-status, .th-centro { text-align: center; white-space: nowrap; }
+/* o status alinhado à esquerda, como o texto das folhas: o olho acha o começo de cada selo na
+   mesma vertical, em vez de procurar o meio de rótulos de tamanhos diferentes */
+.celula-status { text-align: left; white-space: nowrap; }
+.th-centro { text-align: center; white-space: nowrap; }
 .th-centro .th-ordena { justify-content: center; }
-/* A conferência no eixo: a caixa é um botão (aria-pressed) desenhado como caixa de marcar,
-   antes do selo. O desenho tem 16px; o alvo, 24px, para o dedo e o ponteiro. */
-.eixo-caixa {
+/* A conferência, na coluna dela no fim da linha: um botão (aria-pressed) desenhado como círculo,
+   e não como caixa, para não parecer "selecionar a linha", como o "conferido" do QuickBooks. O
+   desenho tem 20px; o alvo, 30px, para o dedo e o ponteiro. */
+.th-conferir { width: 3rem; text-align: center; color: color-mix(in srgb, var(--color-text) 62%, transparent); }
+.th-conferir svg { vertical-align: middle; }
+.celula-conferir { text-align: center; }
+.conferir-circulo {
   position: relative; display: inline-grid; place-items: center; vertical-align: middle;
-  width: 16px; height: 16px; margin-right: 6px; padding: 0;
-  border: 1.5px solid color-mix(in srgb, var(--color-text) 55%, transparent); border-radius: 4px;
+  width: 20px; height: 20px; padding: 0; border-radius: 50%;
+  border: 1.5px solid color-mix(in srgb, var(--color-text) 45%, transparent);
   background: transparent; color: var(--color-bg); cursor: pointer;
+  transition: border-color 150ms ease, background-color 150ms ease, transform 160ms cubic-bezier(0.23, 1, 0.32, 1);
 }
-.eixo-caixa::after { content: ""; position: absolute; inset: -5px; }
+.conferir-circulo::after { content: ""; position: absolute; inset: -5px; border-radius: 50%; }
+.conferir-circulo:active { transform: scale(0.92); }
+/* com o ponteiro na linha, o círculo vazio se mostra: é ali que se marca */
+.tabela-folhas tbody tr:hover .conferir-circulo,
+.conferir-circulo:hover,
+.conferir-circulo:focus-visible { border-color: var(--color-text); }
+.conferir-circulo[aria-pressed="true"] { border-color: var(--color-text); background: var(--color-text); }
+/* conferida numa rodada passada, e a versão nova não resolveu: o ↻ dourado dentro do círculo */
+.conferir-circulo[data-voltou] { border-color: var(--color-accent); color: var(--color-accent-700); }
+@media (prefers-reduced-motion: reduce) {
+  .conferir-circulo { transition: none; }
+}
 /* o selo neutro do eixo ("Justificada", "Tarifa") a 70%: o .selo de sempre, a 62%, dava 4,48:1 */
 .celula-status .selo-neutro { color: color-mix(in srgb, var(--color-text) 70%, transparent); }
-.eixo-caixa:hover { border-color: var(--color-text); }
-.eixo-caixa[aria-pressed="true"] { border-color: var(--color-text); background: var(--color-text); }
-/* conferida numa rodada passada, e a versão nova não resolveu: o ↻ dourado antes da caixa */
-.eixo-voltou { display: inline-flex; vertical-align: middle; margin-right: 4px; color: var(--color-accent-700); }
 /* a conferida fica apagada: alguém já cuidou dela. Os 70% seguram 4,5:1 nas duas folhas. */
 .tabela-folhas tbody tr[data-situacao="conferida"] > td:not(.celula-status) {
   color: color-mix(in srgb, var(--color-text) 70%, transparent);
@@ -3152,6 +3166,7 @@ html:not([data-densidade="padrao"]) .app-shell .selo { padding-block: 1px; }
   .tabela-cartoes .table colgroup { display: none; }
   .tabela-cartoes .folhas-com-eixo tr { display: flex; flex-direction: column; }
   .tabela-cartoes .folhas-com-eixo .celula-status { order: 1; }
+  .tabela-cartoes .folhas-com-eixo .celula-conferir { order: 2; text-align: left; }
   /* no cartão há espaço: a descrição volta a quebrar, e um código de barras quebra em qualquer
      ponto em vez de vazar do cartão */
   .tabela-cartoes .folhas-com-eixo .celula-descricao,

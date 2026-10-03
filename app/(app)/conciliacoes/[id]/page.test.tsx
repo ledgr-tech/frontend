@@ -200,7 +200,8 @@ describe("ConciliacaoPage", () => {
     // o Intl separa "R$" do valor com espaço não separável
     const textos = celulas.map((celula) => celula.textContent?.replace(/\s/g, " "));
     expect(textos.slice(0, 3)).toEqual(["04/09", "Boleto Aço Norte Bobinas", "R$ 12.640,00"]);
-    expect(textos.slice(4)).toEqual(["05/09", "Pagamento fornecedor Aço Norte", "R$ 12.604,00"]);
+    // depois da folha do sistema, só a coluna da conferência
+    expect(textos.slice(4, 7)).toEqual(["05/09", "Pagamento fornecedor Aço Norte", "R$ 12.604,00"]);
   });
 
   it("puts the status between the two sheets, as the verdict on the pair", async () => {
@@ -218,6 +219,8 @@ describe("ConciliacaoPage", () => {
       "Data",
       "Descrição",
       "Sistema↕",
+      // a conferência, no fim da linha
+      "Conferida",
     ]);
     expect(within(linha).getAllByRole("cell")[3]).toHaveAttribute("data-rotulo", "Status");
   });
@@ -260,13 +263,13 @@ describe("ConciliacaoPage", () => {
 
     const diverge = (celula: HTMLElement) => celula.hasAttribute("data-diverge");
     const valor = (await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" })).closest("tr")!;
-    // data, descrição, valor | status | data, descrição, valor
+    // data, descrição, valor | status | data, descrição, valor | conferida
     expect(within(valor).getAllByRole("cell").map(diverge)).toEqual([
-      false, false, true, false, false, false, true,
+      false, false, true, false, false, false, true, false,
     ]);
     const data = screen.getByRole("button", { name: "DAS Simples Nacional" }).closest("tr")!;
     expect(within(data).getAllByRole("cell").map(diverge)).toEqual([
-      true, false, false, false, true, false, false,
+      true, false, false, false, true, false, false, false,
     ]);
     // o texto do campo vai numa marca, que acende de leve quando o ponteiro está na linha
     expect(within(valor).getByText(/12\.640,00/)).toHaveClass("marca-diverge");
@@ -893,6 +896,30 @@ describe("ConciliacaoPage", () => {
       expect(screen.getByRole("button", { name: "Marcar Boleto Aço Norte Bobinas como conferida" })).toBeInTheDocument();
     });
 
+    it("keeps the check in its own column at the end of the row, so the axis holds only the verdict", async () => {
+      doBackend(comCampo);
+      render(<ConciliacaoPage />);
+
+      const caixa = await screen.findByRole("button", { name: "Marcar Boleto Aço Norte Bobinas como conferida" });
+      const celula = caixa.closest("td")!;
+      // a última célula da linha, com o nome da coluna para o cartão do celular
+      expect(celula).toHaveAttribute("data-rotulo", "Conferida");
+      expect(celula).toBe(celula.parentElement!.lastElementChild);
+      expect(caixa).toHaveAttribute("title", "Marcar como conferida");
+      // o status fica sozinho no eixo
+      const status = celula.parentElement!.querySelector(".celula-status") as HTMLElement;
+      expect(within(status).queryByRole("button")).not.toBeInTheDocument();
+      // a coluna tem nome: não é "selecionar a linha"
+      expect(screen.getByRole("columnheader", { name: "Conferida" })).toBeInTheDocument();
+    });
+
+    it("has no check column where nothing can be decided", async () => {
+      doBackend(conciliacaoMista);
+      render(<ConciliacaoPage />);
+      expect(await screen.findByRole("button", { name: "Só revisão (1)" })).toBeInTheDocument();
+      expect(screen.queryByRole("columnheader", { name: "Conferida" })).not.toBeInTheDocument();
+    });
+
     it("does not count a check from an earlier round when the line still diverges", async () => {
       doBackend({
         ...conciliacaoDoRelatorio,
@@ -1074,9 +1101,14 @@ describe("ConciliacaoPage", () => {
 
       const caixa = await screen.findByRole("button", { name: "Marcar Boleto Aço Norte Bobinas como conferida" });
       expect(caixa).toHaveAttribute("aria-pressed", "false");
+      // o ↻ vai no próprio círculo, na coluna da conferência, e não empurra o status
+      expect(caixa).toHaveAttribute("data-voltou", "true");
+      expect(caixa).toHaveAttribute("title", "Conferida na rodada 1, continua divergindo");
       expect(
         within(caixa.closest("td")!).getByText("Conferida na rodada 1, continua divergindo depois da nova versão"),
       ).toHaveClass("sr-only");
+      const status = caixa.closest("tr")!.querySelector(".celula-status") as HTMLElement;
+      expect(within(status).queryByText(/continua divergindo/)).not.toBeInTheDocument();
     });
 
     describe("justifying in the line's window", () => {

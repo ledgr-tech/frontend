@@ -77,16 +77,19 @@ Como está hoje:
   bater · 2 continuam divergindo · 1 nova divergência". "Continuam divergindo"
   conta toda linha divergente nas duas rodadas; o ↻ do eixo marca só as dessas
   que tinham sido conferidas.
-- **O eixo do status, por linha:**
-  - Bate: como hoje, sem caixa.
-  - A conferir: caixa vazia e selo na cor da categoria.
-  - Conferida: caixa marcada, selo neutro, a linha apagada.
-  - Continua divergindo: ↻ dourado antes da caixa vazia; o balão diz "Conferida na
-    rodada 1, continua divergindo depois da nova versão".
-  - Justificada: selo neutro "Justificada", sem caixa; o balão traz o texto, quem
+- **O eixo do status, por linha** (revisto em 03/10: a conferência saiu do eixo para uma
+  coluna própria no fim da linha, e o status ficou alinhado à esquerda; a caixa ao lado
+  do selo parecia "selecionar a linha" e entortava o eixo):
+  - Bate: como hoje, sem círculo.
+  - A conferir: círculo vazio e selo na cor da categoria.
+  - Conferida: círculo preenchido com ✓, selo neutro, a linha apagada.
+  - Continua divergindo: o ↻ dourado dentro do círculo vazio; a dica diz "Conferida
+    na rodada 1, continua divergindo".
+  - Justificada: selo neutro "Justificada", sem círculo; o balão traz o texto, quem
     e quando.
-- **A caixa** é um botão de verdade ("Marcar Boleto Aço Norte como conferida"),
-  alcançável por teclado. Só nas linhas divergentes.
+- **O círculo** é um botão de verdade ("Marcar Boleto Aço Norte como conferida"),
+  alcançável por teclado, na coluna "Conferida" (cabeçalho com ✓), depois da folha do
+  sistema. Só nas linhas divergentes; a coluna só existe onde dá para decidir.
 - **Justificar** fica na janela da linha (o clique; o balão do hover não aceita
   clique): campo de texto obrigatório, o aviso "Fica no registro com o seu nome e
   o horário. Desfazer depois gera um novo registro.", e o botão "Justificar". Com a

@@ -3,7 +3,7 @@
 import { useEffect, useId, useRef, useState, type CSSProperties, type FormEvent } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Check, RotateCw } from "lucide-react";
+import { CircleCheck } from "lucide-react";
 import { ehDivergencia } from "@/lib/adaptadores";
 import { caminhoDaConciliacao } from "@/lib/caminhos";
 import {
@@ -34,6 +34,7 @@ import { CartaoLancamento, ladosDaLinha, type CartaoAberto } from "./cartao-lanc
 import { Relatorio } from "./relatorio";
 import { NovaVersao } from "./nova-versao";
 import { LinhaDasRodadas } from "./linha-das-rodadas";
+import { CirculoDeConferir } from "./circulo-de-conferir";
 import { competencia } from "../../fechamentos/fechamento";
 import { larguraDoValor } from "./largura";
 import { Reveal } from "@/app/reveal";
@@ -439,7 +440,7 @@ export default function ConciliacaoPage() {
         <Reveal delay={0.08}>
           <div className="dash-tabela-rolagem tabela-cartoes">
             <table
-              className={`table tabela-folhas folhas-com-eixo${ligadas ? " eixo-com-decisao" : ""}`}
+              className="table tabela-folhas folhas-com-eixo"
               role="table"
               // a coluna de valor cresce para o maior valor da conciliação, quando passa dos milhões
               style={larguraValor ? ({ "--valor-largura": larguraValor } as CSSProperties) : undefined}
@@ -454,6 +455,7 @@ export default function ConciliacaoPage() {
                 <col className="col-data" />
                 <col />
                 <col className="col-valor" />
+                {podeDecidir && <col className="col-conferir" />}
               </colgroup>
               <thead role="rowgroup">
                 {/* Duas folhas, como a "folha a folha" do design: o extrato do banco
@@ -475,6 +477,7 @@ export default function ConciliacaoPage() {
                       <span className="folha-nome">Sistema de gestão</span>
                     </span>
                   </th>
+                  {podeDecidir && <td className="folha-fora" aria-hidden="true" />}
                 </tr>
                 <tr role="row">
                   <CabecalhoOrdenavel coluna="data" ordem={ordem} onOrdenar={alternarOrdem} folha="banco">
@@ -492,7 +495,7 @@ export default function ConciliacaoPage() {
                   >
                     Banco
                   </CabecalhoOrdenavel>
-                  <CabecalhoOrdenavel coluna="status" ordem={ordem} onOrdenar={alternarOrdem} centro>
+                  <CabecalhoOrdenavel coluna="status" ordem={ordem} onOrdenar={alternarOrdem}>
                     Status
                   </CabecalhoOrdenavel>
                   {/* ponytail: sem ordenar — a data e a descrição que ordenam são as do
@@ -508,6 +511,13 @@ export default function ConciliacaoPage() {
                   >
                     Sistema
                   </CabecalhoOrdenavel>
+                  {/* a conferência no fim da linha, com nome: depois de ler o par, "já conferi" */}
+                  {podeDecidir && (
+                    <th className="th-conferir" title="Conferida">
+                      <CircleCheck size={15} aria-hidden="true" />
+                      <span className="sr-only">Conferida</span>
+                    </th>
+                  )}
                 </tr>
               </thead>
               <tbody role="rowgroup">
@@ -529,9 +539,12 @@ export default function ConciliacaoPage() {
                   // a descrição fica numa linha só (globals.css); o texto inteiro vem na dica do
                   // navegador, menos onde o cartão abre, que já traz as duas inteiras
                   const dica = (descricao: string) => (comCartao ? undefined : descricao);
-                  // o cartão sai da célula do status, centrado nela: é o veredito que ele explica
+                  // o cartão sai do selo do status, centrado nele: é o veredito que ele explica
                   const abrirCartao = (tr: Element) =>
-                    setCartao({ linha, ancora: (tr.querySelector(".celula-status") ?? tr).getBoundingClientRect() });
+                    setCartao({
+                      linha,
+                      ancora: (tr.querySelector(".celula-status .selo") ?? tr.querySelector(".celula-status") ?? tr).getBoundingClientRect(),
+                    });
                   const fecharCartao = () =>
                     setCartao((atual) => (atual?.linha.id === linha.id ? null : atual));
                   // botão de verdade: a linha inteira com onClick não era alcançável por
@@ -601,25 +614,6 @@ export default function ConciliacaoPage() {
                       {/* o nome curto cabe no eixo; o inteiro fica para o leitor de tela. O que
                           bateu vai sem selo: só o que pede revisão ganha cor, e o olho vai direto nele */}
                       <td role="cell" data-rotulo="Status" className="celula-status">
-                        {continuaDivergindo(linha, rodadaDasLinhas) && (
-                          <span className="eixo-voltou">
-                            <RotateCw size={14} aria-hidden="true" />
-                            <span className="sr-only">
-                              {`Conferida na rodada ${linha.decisao?.rodada}, continua divergindo depois da nova versão`}
-                            </span>
-                          </span>
-                        )}
-                        {podeDecidir && (situacao === "a_conferir" || situacao === "conferida") && (
-                          <button
-                            type="button"
-                            className="eixo-caixa"
-                            aria-pressed={situacao === "conferida"}
-                            aria-label={`Marcar ${linha.descricao} como conferida`}
-                            onClick={() => conferir(linha)}
-                          >
-                            {situacao === "conferida" && <Check size={12} aria-hidden="true" />}
-                          </button>
-                        )}
                         <span className={comCartao ? `selo selo-${tom}` : "status-batido"} aria-hidden="true">
                           {situacao === "justificada" ? "Justificada" : rotuloCurto(linha)}
                         </span>
@@ -658,6 +652,18 @@ export default function ConciliacaoPage() {
                       ) : (
                         <td role="cell" colSpan={3} data-rotulo="Sistema" className="folha-sistema folha-vazia">
                           <span className="folha-vazia-marca">sem lançamento no sistema</span>
+                        </td>
+                      )}
+                      {podeDecidir && (
+                        <td role="cell" data-rotulo="Conferida" className="celula-conferir">
+                          {(situacao === "a_conferir" || situacao === "conferida") && (
+                            <CirculoDeConferir
+                              linha={linha}
+                              conferida={situacao === "conferida"}
+                              voltou={continuaDivergindo(linha, rodadaDasLinhas)}
+                              onConferir={() => conferir(linha)}
+                            />
+                          )}
                         </td>
                       )}
                     </tr>
