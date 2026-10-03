@@ -14,7 +14,10 @@ import { chamarBackend, ErroBackend } from "@/lib/backend";
 import { compararRodadas, execucoesVigentes, rodadasDoBanco, type Mudancas } from "@/lib/rodadas";
 import type { Conciliacao, Decisao, TipoEvento } from "@/lib/mock-data";
 import { competencia } from "../fechamentos/fechamento";
-import { porConciliacao } from "../historico/execucoes";
+import { conciliados, porConciliacao } from "../historico/execucoes";
+import { ordemDeTrabalho, pedemDecisao, type ConciliacaoNaLista } from "../dashboard/lista";
+import { estaResolvida, pedeDecisao } from "../dashboard/resumo";
+import { decisoesLigadas, situacaoDaLinha } from "./[id]/situacao";
 
 /**
  * O fluxo real de conciliação, ponta a ponta, contra a API do backend:
@@ -291,39 +294,86 @@ export async function listarExecucoes(pagina = 0): Promise<Resultado<ListaExecuc
   }
 }
 
-export type Painel = {
-  /** As linhas da execução mais recente, que alimentam o resumo; null sem execução. */
-  recente: Conciliacao | null;
-  /** As outras execuções atuais, da mais recente para a mais antiga. */
-  anteriores: Execucao[];
-  /** Quantas rodadas cada extrato do banco tem na página: a atual é sempre a última. */
-  rodadas: Record<string, number>;
+export type ListaDeConciliacoes = {
+  /** Cada extrato do banco uma vez, na rodada que vale, na ordem da página. */
+  conciliacoes: ConciliacaoNaLista[];
+  /**
+   * A primeira da fila que ainda pede decisão, contada pelas linhas dela: batem, pedem decisão,
+   * justificadas e conferidas (null quando o backend não guarda decisões). Null sem nenhuma aberta.
+   */
+  emAndamento: {
+    extratoBancoId: string;
+    batem: number;
+    pedemDecisao: number;
+    justificadas: number;
+    conferidas: number | null;
+  } | null;
+  /** O backend tem mais execuções que a primeira página, a única que a lista enxerga. */
+  parcial: boolean;
 };
 
 /**
- * O que a dashboard precisa numa ida só ao servidor: a lista de execuções diz
- * qual é a mais recente, e as linhas dela dão o resumo com valores em reais —
- * que `/execucoes` não tem, porque só guarda contagens.
+ * A tela Conciliações como lista de trabalho (spec 2026-10-02-conciliacao-em-rodadas): cada
+ * extrato do banco na rodada que vale, com o mês do extrato, e as linhas da primeira da fila que
+ * ainda pede decisão, que `/execucoes` não conta (ele não sabe das conferidas).
+ *
+ * ponytail: só a primeira página de `/execucoes`, e uma chamada por conciliação para o mês do
+ * extrato, como o histórico. O filtro `?extrato_banco_id=` e o período em `/execucoes` resolvem.
  */
-export async function carregarPainel(): Promise<Resultado<Painel>> {
+export async function carregarConciliacoes(): Promise<Resultado<ListaDeConciliacoes>> {
   const lista = await listarExecucoes();
   if (!lista.ok) return lista;
+  const { execucoes, total } = lista.dados;
+  const parcial = total > execucoes.length;
 
-  // As refeitas depois e as versões antigas do extrato do sistema ficam só no
-  // histórico: aqui cada extrato do banco aparece uma vez, na rodada que vale.
-  const { execucoes } = lista.dados;
-  const [maisRecente, ...anteriores] = execucoesVigentes(execucoes);
-  if (!maisRecente) return { ok: true, dados: { recente: null, anteriores: [], rodadas: {} } };
-  const rodadas = Object.fromEntries(
-    [...new Set(execucoes.map((execucao) => execucao.extratoBancoId))].map((banco) => [
-      banco,
-      rodadasDoBanco(execucoes, banco).length,
-    ]),
-  );
+  const competencias = await competenciasDas(execucoes);
+  const conciliacoes = porConciliacao(execucoes, competencias)
+    .filter(({ principal }) => principal.situacao === "vale")
+    .map(({ extratoBancoId, arquivoBanco, competencia: mes, rodadas, principal: { execucao, rodada } }) => ({
+      extratoBancoId,
+      extratoSistemaId: execucao.extratoSistemaId,
+      arquivoBanco,
+      arquivoSistema: execucao.arquivoSistema,
+      competencia: mes,
+      rodada,
+      rodadas,
+      execucao,
+    }));
 
-  const conciliacao = await carregarConciliacao(maisRecente.extratoBancoId, maisRecente.extratoSistemaId);
-  if (!conciliacao.ok) return conciliacao;
-  return { ok: true, dados: { recente: conciliacao.dados.conciliacao, anteriores, rodadas } };
+  const [primeira] = ordemDeTrabalho(conciliacoes);
+  if (!primeira || pedemDecisao(primeira) === 0) {
+    return { ok: true, dados: { conciliacoes, emAndamento: null, parcial } };
+  }
+  const aberta = await carregarConciliacao(primeira.extratoBancoId, primeira.extratoSistemaId);
+  // sem as linhas, a lista ainda serve: o cartão conta pelo que `/execucoes` sabe
+  const emAndamento = aberta.ok
+    ? contarDecisoes(primeira, aberta.dados.conciliacao)
+    : {
+        extratoBancoId: primeira.extratoBancoId,
+        batem: conciliados(primeira.execucao),
+        pedemDecisao: pedemDecisao(primeira),
+        justificadas: primeira.execucao.justificadas,
+        conferidas: null,
+      };
+  return { ok: true, dados: { conciliacoes, emAndamento, parcial } };
+}
+
+/** O que já foi decidido na conciliação aberta, contado pelas linhas dela. */
+function contarDecisoes(
+  conciliacao: ConciliacaoNaLista,
+  aberta: Conciliacao,
+): NonNullable<ListaDeConciliacoes["emAndamento"]> {
+  const { linhas } = aberta;
+  return {
+    extratoBancoId: conciliacao.extratoBancoId,
+    batem: linhas.filter((linha) => estaResolvida(linha.status)).length,
+    pedemDecisao: linhas.filter(pedeDecisao).length,
+    justificadas: linhas.filter((linha) => linha.decisao?.tipo === "justificada").length,
+    // sem o campo `decisao` nas linhas, o backend não guarda conferência: não há o que contar
+    conferidas: decisoesLigadas(aberta, true)
+      ? linhas.filter((linha) => situacaoDaLinha(linha, conciliacao.rodada) === "conferida").length
+      : null,
+  };
 }
 
 /**

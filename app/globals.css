@@ -1574,10 +1574,6 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
 }
 .dash-nota { font-size: 14px; color: color-mix(in srgb, var(--color-text) 62%, transparent); }
 
-.dash-analise {
-  display: flex; flex-wrap: wrap; gap: 26px 32px; align-items: stretch;
-  border-bottom: 1px solid var(--color-divider); padding-bottom: 32px;
-}
 .dash-destaque {
   flex: 0 1 250px; min-width: 210px;
   border: 1px solid var(--color-accent); border-radius: var(--radius-md); padding: 22px;
@@ -1976,6 +1972,56 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
     color: color-mix(in srgb, var(--color-text) 58%, transparent);
   }
   .hist-execucao-nome { padding-left: 0; }
+}
+
+/* ── Conciliações: a lista de trabalho ──────────────────────────────────────────
+   No topo, a que está em andamento, no cartão de destaque de sempre (o mascote apontando); embaixo,
+   uma linha por conciliação, compacta como a do histórico, com as mesmas peças: os arquivos, a
+   barra do resultado e o selo da situação. */
+.conc-corpo { padding: 30px 0 64px; display: flex; flex-direction: column; gap: 30px; }
+.conc-andamento-rotulo { margin: 0 0 10px; }
+.conc-andamento-mascote { width: 88px; height: auto; flex: none; }
+.conc-andamento .dash-destaque-corpo { gap: 7px; }
+.conc-andamento-rodada {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 13px;
+  font-variant-numeric: tabular-nums; color: color-mix(in srgb, var(--color-text) 62%, transparent);
+}
+.conc-andamento .hist-resultado-barra { flex: none; width: min(100%, 420px); height: 7px; }
+.conc-andamento-frase { font-variant-numeric: tabular-nums; }
+.conc-historico { font-size: 13.5px; }
+
+.conc-tabela { table-layout: fixed; }
+.conc-col-mes { width: 6.5rem; }
+.conc-col-rodada { width: 5.5rem; }
+.conc-col-match { width: 18%; }
+.conc-col-decisao { width: 9.5rem; }
+.conc-col-situacao { width: 9.5rem; }
+.conc-col-acao { width: 6.5rem; }
+.conc-tabela td { vertical-align: middle; }
+:is(.conc-c-mes, .conc-c-rodada, .conc-c-decisao) { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.conc-linha[data-pendente] .conc-c-decisao { font-weight: 600; }
+.conc-linha:not([data-pendente]) .conc-c-decisao { color: color-mix(in srgb, var(--color-text) 55%, transparent); }
+.conc-c-acao { text-align: right; }
+
+@media (max-width: 680px) {
+  /* como o histórico: um bloco por conciliação, com o nome e o botão em cima, a barra, e os números
+     com rótulo */
+  .conc-tabela thead {
+    position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+  }
+  .conc-tabela, .conc-tabela tbody { display: block; }
+  .conc-tabela tr {
+    display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) auto; gap: 8px 14px; align-items: end;
+    padding: 10px 0; border-bottom: 1px solid var(--color-divider);
+  }
+  .conc-tabela :is(td, th) { display: block; padding: 0; border: 0; }
+  .conc-c-conciliacao { grid-column: 1 / 4; grid-row: 1; min-width: 0; }
+  .conc-c-acao { grid-column: 4; grid-row: 1; align-self: center; }
+  .conc-c-match { grid-column: 1 / -1; grid-row: 2; }
+  .conc-c-mes { grid-column: 1; grid-row: 3; }
+  .conc-c-rodada { grid-column: 2; grid-row: 3; }
+  .conc-c-decisao { grid-column: 3; grid-row: 3; }
+  .conc-c-situacao { grid-column: 4; grid-row: 3; text-align: right; }
 }
 
 /* ── Tipografia do app ─────────────────────────────────────────────────────────

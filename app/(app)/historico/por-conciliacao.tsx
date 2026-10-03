@@ -278,16 +278,7 @@ function LinhasDaConciliacao({
         </td>
         <td className="hist-c-rodadas">
           <RotuloMovel>Rodadas</RotuloMovel>
-          <span className="hist-rodadas" aria-hidden="true">
-            {Array.from({ length: rodadas }, (_, indice) => (
-              <Fragment key={indice}>
-                {indice > 0 && <span className="rodadas-fio" />}
-                <span className="rodadas-quadrado" data-vale={indice + 1 === principal.rodada || undefined}>
-                  {indice + 1}
-                </span>
-              </Fragment>
-            ))}
-          </span>
+          <QuadradosDasRodadas rodada={principal.rodada} rodadas={rodadas} />
           <span className="sr-only">{`Rodada ${principal.rodada} de ${rodadas}`}</span>
         </td>
         <td className="hist-c-lancamentos hist-num">
@@ -383,8 +374,27 @@ function LinhaDaExecucao({
   );
 }
 
-/** A barra do que casou e do que pediu revisão; a coluna ao lado diz o mesmo em texto. */
-function BarraDoResultado({ execucao }: { execucao: Execucao }) {
+/**
+ * Os quadrados das rodadas, ligados pelo fio, com o da rodada que vale cheio: o desenho da faixa
+ * da comparação, menor. Só para o olho; quem usa diz a rodada em texto ao lado.
+ */
+export function QuadradosDasRodadas({ rodada, rodadas }: { rodada: number; rodadas: number }) {
+  return (
+    <span className="hist-rodadas" aria-hidden="true">
+      {Array.from({ length: rodadas }, (_, indice) => (
+        <Fragment key={indice}>
+          {indice > 0 && <span className="rodadas-fio" />}
+          <span className="rodadas-quadrado" data-vale={indice + 1 === rodada || undefined}>
+            {indice + 1}
+          </span>
+        </Fragment>
+      ))}
+    </span>
+  );
+}
+
+/** A barra do que casou e do que pediu revisão; quem usa diz o mesmo em texto ao lado. */
+export function BarraDoResultado({ execucao }: { execucao: Execucao }) {
   return (
     <span className="hist-resultado-barra" aria-hidden="true">
       {segmentos(execucao).map((parte) => (

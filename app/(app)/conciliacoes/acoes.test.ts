@@ -5,8 +5,8 @@ import {
   carregarConciliacao,
   carregarConciliacaoEmRodadas,
   carregarFechamentos,
+  carregarConciliacoes,
   carregarHistorico,
-  carregarPainel,
   carregarVisaoGeral,
   explicarDivergencia,
   listarExecucoes,
@@ -255,79 +255,72 @@ describe("carregarConciliacao", () => {
   });
 });
 
-describe("carregarPainel", () => {
+describe("carregarConciliacoes", () => {
   beforeEach(() => {
     chamarBackend.mockReset();
   });
 
-  it("sem execução nenhuma, não tem o que carregar", async () => {
+  it("sem execução nenhuma, não tem o que listar", async () => {
     backendCom([]);
-
-    expect(await carregarPainel()).toEqual({
+    expect(await carregarConciliacoes()).toEqual({
       ok: true,
-      dados: { recente: null, anteriores: [], rodadas: {} },
+      dados: { conciliacoes: [], emAndamento: null, parcial: false },
     });
     expect(chamarBackend).toHaveBeenCalledTimes(1);
   });
 
-  it("abre as linhas da execução mais recente e lista as outras atuais", async () => {
-    backendCom([
-      execucao("e-3", BANCO_RECENTE),
-      execucao("e-2", BANCO_ANTERIOR, false),
-      execucao("e-1", BANCO_ANTERIOR),
+  it("lista cada extrato do banco uma vez, na rodada que vale, com o mês do extrato", async () => {
+    // o banco recente em duas rodadas; o anterior com uma refeita, que não conta
+    backendComRodadas([
+      ...duasRodadas(),
+      { ...execucao("e-a2", BANCO_ANTERIOR), executada_em: "2026-09-02T12:00:00Z" },
+      { ...execucao("e-a1", BANCO_ANTERIOR, false), executada_em: "2026-09-01T12:00:00Z" },
     ]);
 
-    const resultado = await carregarPainel();
+    const resultado = await carregarConciliacoes();
+    if (!resultado.ok) throw new Error(resultado.erro);
+    expect(
+      resultado.dados.conciliacoes.map((item) => [item.extratoBancoId, item.execucao.id, item.rodada, item.rodadas, item.competencia]),
+    ).toEqual([
+      // o recente pela primeira linha (04/09); o anterior sem ela, pelo mês em que rodou
+      [BANCO_RECENTE, "e-v2", 2, 2, "2026-09"],
+      [BANCO_ANTERIOR, "e-a2", 1, 1, "2026-09"],
+    ]);
+    // as quatro execuções vieram numa página só
+    expect(resultado.dados.parcial).toBe(false);
+  });
 
-    // só as linhas do par da execução: o mesmo extrato do banco pode ter sido
-    // conciliado com outro arquivo do sistema
+  it("abre as linhas da que está em andamento, para contar o que já foi decidido", async () => {
+    // a única linha do backend: sem par no sistema, ainda sem decisão
+    backendComRodadas(duasRodadas());
+
+    const resultado = await carregarConciliacoes();
+    if (!resultado.ok) throw new Error(resultado.erro);
     expect(chamarBackend).toHaveBeenCalledWith(
-      `/conciliacoes/${BANCO_RECENTE}?limit=1000&offset=0&extrato_sistema_id=${SISTEMA}`,
+      `/conciliacoes/${BANCO_RECENTE}?limit=1000&offset=0&extrato_sistema_id=${SISTEMA_V2}`,
     );
-    if (!resultado.ok) throw new Error(resultado.erro);
-    expect(resultado.dados.recente?.id).toBe(BANCO_RECENTE);
-    expect(resultado.dados.recente?.extratoSistemaId).toBe(SISTEMA);
-    expect(resultado.dados.recente?.linhas.map((linha) => linha.id)).toEqual(["c-1"]);
-    // a substituída (e-2) fica só no histórico; no painel, cada par aparece uma vez
-    expect(resultado.dados.anteriores.map((item) => item.id)).toEqual(["e-1"]);
-  });
-
-  it("diz quantas rodadas cada conciliação tem, para a lista das anteriores", async () => {
-    backendCom([
-      execucao("e-3", BANCO_RECENTE),
-      { ...execucao("e-2", BANCO_ANTERIOR), extrato_sistema_id: "sistema-v2", executada_em: "2026-09-24T10:00:00Z" },
-      { ...execucao("e-1", BANCO_ANTERIOR), executada_em: "2026-09-23T10:00:00Z" },
-    ]);
-
-    const resultado = await carregarPainel();
-    if (!resultado.ok) throw new Error(resultado.erro);
-    // o banco anterior está na rodada 2: a 1 (e-1) fica só no histórico
-    expect(resultado.dados.anteriores.map((item) => item.id)).toEqual(["e-2"]);
-    expect(resultado.dados.rodadas).toEqual({ [BANCO_RECENTE]: 1, [BANCO_ANTERIOR]: 2 });
-  });
-
-  it("a versão antiga do extrato do sistema não aparece como outra conciliação", async () => {
-    backendComRodadas();
-
-    const resultado = await carregarPainel();
-    if (!resultado.ok) throw new Error(resultado.erro);
-    expect(resultado.dados.recente?.extratoSistemaId).toBe(SISTEMA_V2);
-    expect(resultado.dados.anteriores).toEqual([]);
-  });
-
-  it("devolve a falha quando as linhas da mais recente não carregam", async () => {
-    chamarBackend.mockImplementation(async (caminho: string) => {
-      if (caminho.startsWith("/execucoes")) {
-        return { total: 1, limit: 50, offset: 0, itens: [execucao("e-1", BANCO_RECENTE)] };
-      }
-      throw new ErroBackend(404, "Extrato não encontrado.");
+    expect(resultado.dados.emAndamento).toEqual({
+      extratoBancoId: BANCO_RECENTE,
+      batem: 0,
+      pedemDecisao: 1,
+      justificadas: 0,
+      // o backend não manda `decisao`: não há conferência para contar
+      conferidas: null,
     });
+  });
 
-    expect(await carregarPainel()).toEqual({
-      ok: false,
-      status: 404,
-      erro: "Extrato não encontrado.",
-    });
+  it("não tem nada em andamento quando nada pede decisão", async () => {
+    backendCom([{ ...execucao("e-1", BANCO_RECENTE), contagens: { ...execucao("e-1", BANCO_RECENTE).contagens, match_exato: 2, sem_correspondencia: 0 } }]);
+
+    const resultado = await carregarConciliacoes();
+    if (!resultado.ok) throw new Error(resultado.erro);
+    expect(resultado.dados.emAndamento).toBeNull();
+    expect(resultado.dados.conciliacoes).toHaveLength(1);
+  });
+
+  it("devolve a falha da lista", async () => {
+    chamarBackend.mockRejectedValue(new ErroBackend(401, "Sessão expirada."));
+    expect(await carregarConciliacoes()).toMatchObject({ ok: false, status: 401 });
   });
 });
 
