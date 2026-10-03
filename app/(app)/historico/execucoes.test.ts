@@ -1,14 +1,14 @@
 import { describe, expect, it } from "vitest";
 import type { Execucao } from "@/lib/adaptadores";
 import {
-  alturasDasBarras,
-  paraGrafico,
+  alturasNoGrafico,
   paraRevisar,
   porAno,
   porConciliacao,
   porMes,
+  rotulosDaSerie,
   segmentos,
-  variacaoEmPontos,
+  serieMensal,
 } from "./execucoes";
 
 function execucao(id: string, acerto: number | null, atual = true): Execucao {
@@ -28,48 +28,79 @@ function execucao(id: string, acerto: number | null, atual = true): Execucao {
   };
 }
 
-describe("paraGrafico", () => {
-  it("pega as seis mais recentes e põe a mais antiga primeiro", () => {
-    // a lista chega da mais recente para a mais antiga, como a tabela
-    const lista = ["e8", "e7", "e6", "e5", "e4", "e3", "e2", "e1"].map((id) => execucao(id, 90));
-    expect(paraGrafico(lista).map((item) => item.id)).toEqual(["e3", "e4", "e5", "e6", "e7", "e8"]);
+/** Uma execução de `lancamentos` linhas, das quais `divergentes` não casaram. */
+function doMes(id: string, banco: string, executadaEm: string, lancamentos: number, divergentes: number): Execucao {
+  return {
+    ...execucao(id, null),
+    extratoBancoId: banco,
+    executadaEm,
+    lancamentos,
+    divergencias: divergentes > 0 ? { divergente_valor: divergentes } : {},
+  };
+}
+
+describe("serieMensal", () => {
+  it("um ponto por mês do extrato, pesado pelos lançamentos, do mais antigo ao mais novo", () => {
+    const serie = serieMensal(
+      [
+        // setembro rodou em outubro, mas é de setembro
+        doMes("s", "B-set", "2026-10-02T12:00:00Z", 22, 10),
+        doMes("a", "B-ago", "2026-09-02T12:00:00Z", 100, 8),
+        // dois bancos em junho: 370 de 400, não a média de 100% e 90%
+        doMes("j1", "itau-jun", "2026-07-06T12:00:00Z", 100, 0),
+        doMes("j2", "sicredi-jun", "2026-07-06T12:00:00Z", 300, 30),
+      ],
+      { "B-set": "2026-09", "B-ago": "2026-08", "itau-jun": "2026-06", "sicredi-jun": "2026-06" },
+    );
+    expect(serie.map((ponto) => [ponto.chave, ponto.conciliados, ponto.lancamentos, ponto.conciliacoes])).toEqual([
+      ["2026-06", 370, 400, 2],
+      ["2026-08", 92, 100, 1],
+      ["2026-09", 12, 22, 1],
+    ]);
+    expect(serie.map((ponto) => ponto.taxa)).toEqual([92.5, 92, (12 / 22) * 100]);
   });
 
-  it("deixa de fora execução sem percentual, que não tem barra pra desenhar", () => {
-    const lista = [execucao("e3", 95), execucao("e2", null), execucao("e1", 80)];
-    expect(paraGrafico(lista).map((item) => item.id)).toEqual(["e1", "e3"]);
+  it("sem o mês do extrato, usa o mês em que rodou, no fuso de Brasília", () => {
+    // 01/10 às 02h em UTC ainda é 30/09 em Brasília
+    expect(serieMensal([doMes("e", "B", "2026-10-01T02:00:00Z", 10, 1)]).map((ponto) => ponto.chave)).toEqual([
+      "2026-09",
+    ]);
+  });
+
+  it("fica com os seis meses mais recentes, e deixa de fora o mês sem lançamento", () => {
+    const meses = ["2026-01", "2026-02", "2026-03", "2026-04", "2026-05", "2026-06", "2026-07"];
+    const serie = serieMensal(
+      [...meses.map((mes) => doMes(mes, `B${mes}`, `${mes}-20T12:00:00Z`, 10, 0)), doMes("vazio", "Bv", "2026-08-20T12:00:00Z", 0, 0)],
+      Object.fromEntries(meses.map((mes) => [`B${mes}`, mes])),
+    );
+    expect(serie.map((ponto) => ponto.chave)).toEqual(meses.slice(1));
   });
 });
 
-describe("alturasDasBarras", () => {
-  it("dá barra mais alta a acerto maior", () => {
-    const [menor, maior] = alturasDasBarras([91.8, 97.3]);
-    expect(maior).toBeGreaterThan(menor);
-  });
-
-  it("mantém as barras dentro do gráfico mesmo com acerto baixo", () => {
-    // a escala antiga (28 + (taxa - 90) * 11) dava altura negativa abaixo de 87,5%
-    for (const altura of alturasDasBarras([0, 12.5, 40, 100])) {
-      expect(altura).toBeGreaterThanOrEqual(12);
-      expect(altura).toBeLessThanOrEqual(116);
-    }
-  });
-
-  it("amplia a diferença quando tudo está acima de 90%, como no design", () => {
-    const [noventaEUm, noventaENove] = alturasDasBarras([91, 99]);
-    // de 0 a 100 a diferença seria de ~8px; com a base em 90 fica visível
-    expect(noventaENove - noventaEUm).toBeGreaterThan(60);
+describe("rotulosDaSerie", () => {
+  it("o mês abreviado, com o ano no último ponto de cada ano", () => {
+    const chaves = (lista: string[]) => lista.map((chave) => ({ chave }));
+    expect(rotulosDaSerie(chaves(["2026-05", "2026-06", "2026-09"]))).toEqual(["mai", "jun", "set/26"]);
+    expect(rotulosDaSerie(chaves(["2025-11", "2025-12", "2026-01", "2026-02"]))).toEqual([
+      "nov",
+      "dez/25",
+      "jan",
+      "fev/26",
+    ]);
   });
 });
 
-describe("variacaoEmPontos", () => {
-  it("compara a mais recente com a mais antiga do gráfico", () => {
-    const grafico = paraGrafico([execucao("e3", 96.3), execucao("e2", 70), execucao("e1", 91.8)]);
-    expect(variacaoEmPontos(grafico)).toBeCloseTo(4.5);
+describe("alturasNoGrafico", () => {
+  it("vai de 0 (a base) a 1 (100%), com a base em 90% enquanto tudo estiver acima dela", () => {
+    // de 0 a 100, 91% e 99% quase se encostariam; com a base em 90, a diferença aparece
+    expect(alturasNoGrafico([91, 99, 100])).toEqual([0.1, 0.9, 1]);
   });
 
-  it("não tem variação com uma barra só", () => {
-    expect(variacaoEmPontos(paraGrafico([execucao("e1", 96.3)]))).toBeNull();
+  it("desce a base de 10 em 10 quando uma taxa cai abaixo dela", () => {
+    const [queda, cheia] = alturasNoGrafico([54.5, 100]);
+    expect(cheia).toBe(1);
+    // base em 50
+    expect(queda).toBeCloseTo(0.09);
   });
 });
 

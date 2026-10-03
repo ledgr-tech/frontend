@@ -6,9 +6,9 @@ import type { Resultado, VisaoGeral } from "../conciliacoes/acoes";
 import VisaoGeralPage from "./page";
 
 // quem fala com o backend é a action; aqui ela só devolve o que ele responderia
-const carregarVisaoGeral = vi.fn<() => Promise<Resultado<VisaoGeral>>>();
+const carregarVisaoGeral = vi.fn<(opcoes?: { competencias?: boolean }) => Promise<Resultado<VisaoGeral>>>();
 vi.mock("../conciliacoes/acoes", () => ({
-  carregarVisaoGeral: () => carregarVisaoGeral(),
+  carregarVisaoGeral: (opcoes?: { competencias?: boolean }) => carregarVisaoGeral(opcoes),
 }));
 
 const redirect = vi.fn();
@@ -280,11 +280,20 @@ describe("VisaoGeralPage", () => {
     expect(screen.getByText("Nenhum valor em aberto")).toBeInTheDocument();
   });
 
-  it("draws the match-rate trend of the last six executions", async () => {
+  it("draws the match-rate trend month by month, by the month of the extrato", async () => {
     com();
     await renderizar();
 
-    expect(document.querySelectorAll(".hist-barra-coluna")).toHaveLength(6);
+    // o gráfico conta pelo mês do extrato, que a tela pede ao carregar
+    expect(carregarVisaoGeral).toHaveBeenCalledWith({ competencias: true });
+    // sem o mês do extrato, cada uma fica no mês em que rodou: de maio a setembro, e a e6 foi refeita
+    expect([...document.querySelectorAll(".grafico-fio-meses > span")].map((mes) => mes.textContent)).toEqual([
+      "mai",
+      "jun",
+      "jul",
+      "ago",
+      "set/26",
+    ]);
     expect(screen.getByRole("link", { name: "Ver histórico" })).toHaveAttribute("href", "/historico");
   });
 
@@ -308,7 +317,15 @@ describe("VisaoGeralPage", () => {
   it("shows a conciliação in rounds once, with the numbers of the round that counts", async () => {
     const setembro = { extratoBancoId: "banco-set", arquivoBanco: "sicredi-setembro.ofx" };
     const execucoes = [
-      execucao({ id: "v2", ...setembro, extratoSistemaId: "s2", arquivoSistema: "erp-v2.csv", lancamentos: 22, acerto: 58.3 }),
+      execucao({
+        id: "v2",
+        ...setembro,
+        extratoSistemaId: "s2",
+        arquivoSistema: "erp-v2.csv",
+        lancamentos: 22,
+        acerto: 58.3,
+        divergencias: { divergente_valor: 10 },
+      }),
       execucao({
         id: "v2-antes",
         ...setembro,
@@ -321,7 +338,7 @@ describe("VisaoGeralPage", () => {
       execucao({ id: "v1", ...setembro, extratoSistemaId: "s1", arquivoSistema: "erp-v1.csv", executadaEm: "2026-09-23T12:00:00Z", acerto: 33.3 }),
       execucao({ id: "e5", executadaEm: "2026-09-02T19:20:00Z", acerto: 91.8 }),
     ];
-    com({ execucoes, total: execucoes.length });
+    com({ execucoes, total: execucoes.length, competencias: { "banco-set": "2026-09", "banco-e5": "2026-08" } });
     await renderizar();
 
     const linhas = within(screen.getByRole("table", { name: "Atividade recente" })).getAllByRole("row").slice(1);
@@ -333,9 +350,10 @@ describe("VisaoGeralPage", () => {
     // a refeita e a rodada 1 foram substituídas: nem linha, nem barra no gráfico, nem "Ver atual"
     expect(screen.queryByRole("link", { name: "Ver atual" })).not.toBeInTheDocument();
     expect(screen.queryByText(/Só o resultado mais recente fica guardado/)).not.toBeInTheDocument();
-    expect([...document.querySelectorAll(".hist-barra-taxa")].map((taxa) => taxa.textContent)).toEqual([
-      "91,8%",
-      "58,3%",
+    // setembro só com a rodada que vale: 12 de 22
+    expect([...document.querySelectorAll(".grafico-fio-valor")].map((taxa) => taxa.textContent)).toEqual([
+      "100,0%",
+      "54,5%",
     ]);
     expect(screen.queryByText(/mais recentes. As outras/)).not.toBeInTheDocument();
   });

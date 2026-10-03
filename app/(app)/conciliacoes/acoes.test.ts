@@ -501,6 +501,24 @@ describe("carregarVisaoGeral", () => {
     });
   }
 
+  it("diz o mês do extrato de cada conciliação só quando a tela pede, e não a cada abertura da barra do topo", async () => {
+    backendComVisao(
+      // o banco anterior não tem a primeira linha: fica no mês em que rodou
+      [execucao("e-3", BANCO_RECENTE), { ...execucao("e-1", BANCO_ANTERIOR), executada_em: "2026-10-02T12:00:00Z" }],
+      { [BANCO_RECENTE]: situacao(BANCO_RECENTE), [SISTEMA]: situacao(SISTEMA) },
+    );
+
+    const semMes = await carregarVisaoGeral();
+    if (!semMes.ok) throw new Error(semMes.erro);
+    expect(semMes.dados.competencias).toBeUndefined();
+    expect(chamarBackend).not.toHaveBeenCalledWith(expect.stringContaining("?limit=1&offset=0"));
+
+    const comMes = await carregarVisaoGeral({ competencias: true });
+    if (!comMes.ok) throw new Error(comMes.erro);
+    // a primeira linha do banco recente é de 04/09
+    expect(comMes.dados.competencias).toEqual({ [BANCO_RECENTE]: "2026-09", [BANCO_ANTERIOR]: "2026-10" });
+  });
+
   it("sem execução nenhuma, não tem o que abrir", async () => {
     backendCom([]);
 

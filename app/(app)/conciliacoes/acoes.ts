@@ -408,6 +408,8 @@ export type VisaoGeral = {
   recente: { execucao: Execucao; conciliacao: Conciliacao } | null;
   /** Os arquivos da mais recente com linhas que o parser não conseguiu ler. */
   arquivosComLinhasNaoLidas: { nome: string; linhas: number }[];
+  /** O mês do extrato de cada extrato do banco, só quando pedido (o gráfico da tela da visão geral). */
+  competencias?: Record<string, string>;
 };
 
 /**
@@ -416,7 +418,11 @@ export type VisaoGeral = {
  * dos dois arquivos dela. Só dos dois: varrer todos os arquivos, como a tela de
  * extratos faz, custaria uma chamada por arquivo para abrir a home.
  */
-export async function carregarVisaoGeral(): Promise<Resultado<VisaoGeral>> {
+export async function carregarVisaoGeral(
+  // o gráfico da tela pede o mês do extrato; a barra do topo e o assistente, que também leem a
+  // visão geral, não, para não custar uma chamada por conciliação a cada tela aberta
+  opcoes: { competencias?: boolean } = {},
+): Promise<Resultado<VisaoGeral>> {
   const lista = await listarExecucoes();
   if (!lista.ok) return lista;
   const { execucoes, total } = lista.dados;
@@ -428,10 +434,11 @@ export async function carregarVisaoGeral(): Promise<Resultado<VisaoGeral>> {
     return { ok: true, dados: { execucoes, total, recente: null, arquivosComLinhasNaoLidas: [] } };
   }
 
-  const [conciliacao, banco, sistema] = await Promise.all([
+  const [conciliacao, banco, sistema, competencias] = await Promise.all([
     carregarConciliacao(maisRecente.extratoBancoId, maisRecente.extratoSistemaId),
     situacaoDoExtrato(maisRecente.extratoBancoId),
     situacaoDoExtrato(maisRecente.extratoSistemaId),
+    opcoes.competencias ? competenciasDas(execucoes) : undefined,
   ]);
   if (!conciliacao.ok) return conciliacao;
 
@@ -454,6 +461,7 @@ export async function carregarVisaoGeral(): Promise<Resultado<VisaoGeral>> {
       total,
       recente: { execucao: maisRecente, conciliacao: conciliacao.dados.conciliacao },
       arquivosComLinhasNaoLidas,
+      ...(competencias ? { competencias } : {}),
     },
   };
 }
@@ -496,13 +504,21 @@ export async function carregarHistorico(pagina = 0): Promise<Resultado<Historico
   const lista = await listarExecucoes(pagina);
   if (!lista.ok) return lista;
 
+  return { ok: true, dados: { ...lista.dados, competencias: await competenciasDas(lista.dados.execucoes) } };
+}
+
+/**
+ * O mês do extrato de cada conciliação da lista: pela primeira data da rodada que vale, e sem ela
+ * pelo mês em que rodou. Uma chamada por conciliação, em paralelo (ver o `ponytail:` acima).
+ */
+async function competenciasDas(execucoes: Execucao[]): Promise<Record<string, string>> {
   const meses = await Promise.all(
-    porConciliacao(lista.dados.execucoes).map(async ({ extratoBancoId, principal: { execucao } }) => [
+    porConciliacao(execucoes).map(async ({ extratoBancoId, principal: { execucao } }) => [
       extratoBancoId,
       competencia(await primeiraData(execucao), execucao.executadaEm),
     ]),
   );
-  return { ok: true, dados: { ...lista.dados, competencias: Object.fromEntries(meses) } };
+  return Object.fromEntries(meses);
 }
 
 /**

@@ -150,7 +150,7 @@ function Historico({
       </Reveal>
 
       <Reveal delay={0.08}>
-        <GraficoDeMatch execucoes={vigentes} />
+        <GraficoDeMatch execucoes={vigentes} competencias={competencias} />
       </Reveal>
 
       <Reveal delay={0.16}>

@@ -117,47 +117,87 @@ describe("HistoricoPage", () => {
     redirect.mockClear();
   });
 
-  it("headlines the most recent taxa de match", async () => {
-    com(EXECUCOES);
+  /** 100 lançamentos, `divergentes` deles sem par, numa execução do extrato do banco `banco`. */
+  function comTaxa(id: string, banco: string, executadaEm: string, divergentes: number): Execucao {
+    return execucao({
+      id,
+      extratoBancoId: banco,
+      executadaEm,
+      lancamentos: 100,
+      divergencias: divergentes > 0 ? { divergente_valor: divergentes } : {},
+    });
+  }
+
+  /** O mês e o número de cada ponto do gráfico, do mais antigo ao mais novo. */
+  function pontosDoGrafico() {
+    const meses = [...document.querySelectorAll(".grafico-fio-meses > span")].map((mes) => mes.textContent);
+    const taxas = [...document.querySelectorAll(".grafico-fio-valor")].map((taxa) => taxa.textContent);
+    return meses.map((mes, indice) => [mes, taxas[indice]]);
+  }
+
+  it("headlines the rate of the most recent month", async () => {
+    com([comTaxa("e3", "B", "2026-09-24T17:02:11Z", 4), comTaxa("e1", "A", "2026-08-02T19:20:00Z", 8)]);
     await renderizar();
     expect(screen.getByRole("heading", { level: 1, name: "Histórico" })).toBeInTheDocument();
-    expect(screen.getByText("96,3% em 24/09")).toBeInTheDocument();
-  });
-
-  it("derives the change from the oldest bar to the newest", async () => {
-    com(EXECUCOES);
-    await renderizar();
-    // 96,3 em 24/09 contra 91,8 em 02/09
-    expect(screen.getByText("Subiu 4,5 pontos desde 02/09.")).toBeInTheDocument();
+    expect(screen.getByText("96,0% em setembro")).toBeInTheDocument();
+    // de 92% em agosto para 96% em setembro
+    expect(screen.getByText("Subiu 4,0 pontos desde agosto.")).toBeInTheDocument();
   });
 
   it("says when the rate went down", async () => {
-    com([execucao({ id: "e2", acerto: 80 }), execucao({ id: "e1", acerto: 90, executadaEm: "2026-09-02T19:20:00Z" })]);
+    com([comTaxa("e2", "B", "2026-09-24T17:02:11Z", 20), comTaxa("e1", "A", "2026-08-02T19:20:00Z", 10)]);
     await renderizar();
-    expect(screen.getByText("Caiu 10,0 pontos desde 02/09.")).toBeInTheDocument();
+    expect(screen.getByText("Caiu 10,0 pontos desde agosto.")).toBeInTheDocument();
   });
 
-  it("has nothing to compare with a single execution", async () => {
-    com([execucao({ id: "e1", acerto: 90 })]);
+  it("has nothing to compare with a single month", async () => {
+    com([comTaxa("e1", "B", "2026-09-24T17:02:11Z", 10)]);
     await renderizar();
     expect(screen.queryByText(/pontos desde/)).not.toBeInTheDocument();
+    expect(pontosDoGrafico()).toEqual([["set/26", "90,0%"]]);
   });
 
-  it("draws one bar per conciliation, from the result that counts, oldest first", async () => {
-    com(EXECUCOES);
+  it("draws one point per month of the extrato, summing its conciliações, oldest first", async () => {
+    com(
+      [
+        // o extrato de setembro com a rodada nova em outubro conta em setembro
+        comTaxa("s", "B-set", "2026-10-02T12:00:00Z", 10),
+        // os dois bancos de agosto juntos: 180 de 200
+        comTaxa("a2", "itau-ago", "2026-09-02T12:00:00Z", 0),
+        comTaxa("a1", "sicredi-ago", "2026-09-02T11:00:00Z", 20),
+      ],
+      3,
+      { "B-set": "2026-09", "itau-ago": "2026-08", "sicredi-ago": "2026-08" },
+    );
     await renderizar();
-    // a e2 foi refeita depois: não vale mais e não ganha barra
-    const colunas = document.querySelectorAll(".hist-barra-coluna");
-    expect(colunas).toHaveLength(2);
-    expect(colunas[0].textContent).toContain("02/09");
-    expect(colunas[1].textContent).toContain("24/09");
+    expect(pontosDoGrafico()).toEqual([
+      ["ago", "90,0%"],
+      ["set/26", "90,0%"],
+    ]);
+    // o mês de agora é o ponto cheio
+    const pontos = document.querySelectorAll(".grafico-fio-ponto");
+    expect(pontos[1]).toHaveAttribute("data-atual", "true");
+    expect(pontos[0]).toHaveAttribute("title", "agosto de 2026 · 90,0% · 180 de 200 lançamentos");
   });
 
   it("leaves the older round and the redone execution out of the chart, so they don't read as a drop", async () => {
-    com(RODADAS);
+    com(
+      RODADAS.map((item) =>
+        // a rodada que vale bateu 12 de 22; a refeita e a rodada 1 eram piores
+        item.id === "b3"
+          ? { ...item, divergencias: { divergente_valor: 10 } }
+          : item.id.startsWith("b")
+            ? { ...item, divergencias: { sem_correspondencia: item.lancamentos } }
+            : item,
+      ),
+      RODADAS.length,
+      { B: "2026-09", A: "2026-08" },
+    );
     await renderizar();
-    const taxas = [...document.querySelectorAll(".hist-barra-taxa")].map((taxa) => taxa.textContent);
-    expect(taxas).toEqual(["91,8%", "58,3%"]);
+    expect(pontosDoGrafico()).toEqual([
+      ["ago", "100,0%"],
+      ["set/26", "54,5%"],
+    ]);
   });
 
   it("lists one row per conciliation, with the numbers of the round that counts", async () => {

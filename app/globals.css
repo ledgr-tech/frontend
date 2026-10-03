@@ -1771,32 +1771,61 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
   display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between;
   gap: 12px 20px; margin-bottom: 22px;
 }
+.hist-grafico-titulo { margin: 0 0 6px; }
 .hist-destaque {
   font-family: var(--font-heading); font-size: 30px; font-weight: 400;
-  line-height: 1; font-variant-numeric: tabular-nums;
+  line-height: 1; font-variant-numeric: tabular-nums; color: var(--color-ok-700);
 }
 .hist-nota {
   font-size: 14px; line-height: 1.6; max-width: 32ch; text-align: right;
   color: color-mix(in srgb, var(--color-text) 62%, transparent);
 }
-.hist-barras {
-  display: grid; grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 18px; align-items: end; height: 176px;
+/* A taxa de match mês a mês como um fio: a cor no traço, sem blocos preenchidos. A área
+   tem os 100% num tracejado claro em cima e o filete da base embaixo; a linha (SVG que estica)
+   e os pontos (HTML por cima) usam a mesma conta de posição, em porcentagem da área. */
+.grafico-fio { --fio-cor: var(--color-ok-700); }
+.grafico-fio-area {
+  position: relative; height: 120px; margin-top: 30px;
+  border-top: 1px dashed color-mix(in srgb, var(--color-text) 22%, transparent);
+  border-bottom: 1px solid var(--color-divider);
 }
-.hist-barra-coluna {
-  display: flex; flex-direction: column; justify-content: flex-end;
-  align-items: stretch; gap: 8px; height: 100%;
+.grafico-fio-linha {
+  position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible;
+  animation: rodadas-fio-desenha 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
-.hist-barra-taxa {
-  font-size: 13.5px; font-variant-numeric: tabular-nums; text-align: center;
+.grafico-fio-linha polyline {
+  fill: none; stroke: var(--fio-cor); stroke-width: 1.6; stroke-linejoin: round; stroke-linecap: round;
+}
+.grafico-fio-pontos { list-style: none; margin: 0; padding: 0; }
+/* o ponto é a quina do <li>, sem tamanho: o círculo e o número se penduram nele */
+.grafico-fio-ponto {
+  position: absolute; width: 0; height: 0;
+  animation: grafico-fio-ponto 0.25s ease-out both; animation-delay: var(--atraso, 0s);
+}
+.grafico-fio-ponto::before {
+  content: ""; position: absolute; left: -4.5px; top: -4.5px; width: 9px; height: 9px;
+  box-sizing: border-box; border-radius: 50%; border: 1.6px solid var(--fio-cor); background: var(--color-bg);
+}
+/* o mês de agora: o ponto cheio e o número em destaque */
+.grafico-fio-ponto[data-atual]::before { left: -5.5px; top: -5.5px; width: 11px; height: 11px; background: var(--fio-cor); }
+.grafico-fio-valor {
+  position: absolute; bottom: 10px; left: 0; transform: translateX(-50%); white-space: nowrap;
+  font-size: 12.5px; font-variant-numeric: tabular-nums;
   color: color-mix(in srgb, var(--color-text) 70%, transparent);
 }
-.hist-barra {
-  /* a cor da borda vem do tom da barra, no style do gráfico */
-  border: 1px solid;
-  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+.grafico-fio-ponto[data-atual] .grafico-fio-valor { color: var(--color-text); font-weight: 600; }
+.grafico-fio-meses {
+  display: grid; grid-template-columns: repeat(var(--meses, 6), minmax(0, 1fr)); margin-top: 8px;
+  text-align: center; font-size: 12.5px; color: color-mix(in srgb, var(--color-text) 62%, transparent);
 }
-.hist-barra-mes { text-align: center; }
+.grafico-fio-meses [data-atual] { color: var(--color-text); font-weight: 600; }
+@keyframes grafico-fio-ponto {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .grafico-fio-linha, .grafico-fio-ponto { animation: none; }
+}
 .hist-economia {
   display: flex; flex-wrap: wrap; gap: 26px 34px; align-items: center;
   border-top: 1px solid var(--color-divider); padding-top: 28px;
@@ -1916,8 +1945,7 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
 
 @media (max-width: 680px) {
   .hist-nota { text-align: left; }
-  .hist-barras { gap: 8px; }
-  .hist-barra-taxa { font-size: 11px; }
+  .grafico-fio-valor { font-size: 11.5px; }
   .hist-economia-texto { text-align: left; }
 
   /* a tabela vira um bloco por linha: o nome e o Ver em cima; as rodadas e a barra; e os números
@@ -1968,7 +1996,7 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
 /* Rótulo pequeno em caixa alta: o "lançamentos processados" em cima do número, o "atual" do plano,
    o "assistente" do menu. Uma régua só, com o espaçamento do h6 do guia (+0,08em); o h6, em 14px, é
    o rótulo de seção, e o cabeçalho de tabela fica nos 11px dele, junto com a tabela. */
-.rotulo, .dash-rotulo, .det-kicker, .hist-barra-mes, .app-assistente-chamada, .ass-plano-atual {
+.rotulo, .dash-rotulo, .det-kicker, .app-assistente-chamada, .ass-plano-atual {
   font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--texto-apagado);
 }
 

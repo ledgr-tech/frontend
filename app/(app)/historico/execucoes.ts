@@ -3,46 +3,65 @@ import type { StatusLinha, Tom } from "@/lib/mock-data";
 import { rodadasDoBanco } from "@/lib/rodadas";
 import { seloDoStatus } from "../dashboard/resumo";
 
-/** Quantas colunas o gráfico tem no CSS (`.hist-barras`). */
-const BARRAS_NO_GRAFICO = 6;
+/** Quantos meses o gráfico da taxa de match mostra. */
+const MESES_NO_GRAFICO = 6;
 
-// Altura útil da barra dentro dos 176px do gráfico, descontados o percentual
-// em cima e a data embaixo.
-const ALTURA_MINIMA = 12;
-const ALTURA_MAXIMA = 116;
-
-export type ExecucaoNoGrafico = Execucao & { acerto: number };
+/** Um mês no gráfico: todas as conciliações do mês do extrato, somadas. */
+export type PontoDoGrafico = {
+  /** AAAA-MM, o mês do extrato. */
+  chave: string;
+  /** Percentual de 0 a 100: o que casou sozinho sobre o total de lançamentos do mês. */
+  taxa: number;
+  conciliados: number;
+  lancamentos: number;
+  conciliacoes: number;
+};
 
 /**
- * As seis execuções mais recentes que têm percentual, da mais antiga para a
- * mais nova — a lista chega ao contrário, e o tempo do gráfico corre da
- * esquerda para a direita.
+ * A taxa de match por mês do extrato, dos seis meses mais recentes, do mais antigo ao mais novo:
+ * o tempo do gráfico corre da esquerda para a direita. O mês soma as conciliações dele (a taxa é
+ * pesada pelos lançamentos, não a média das taxas), e sem o mês do extrato vale o mês em que
+ * rodou. `execucoes` são as que valem (`execucoesVigentes`).
  */
-export function paraGrafico(execucoes: Execucao[]): ExecucaoNoGrafico[] {
-  return execucoes
-    .filter((execucao): execucao is ExecucaoNoGrafico => execucao.acerto !== null)
-    .slice(0, BARRAS_NO_GRAFICO)
-    .reverse();
+export function serieMensal(execucoes: Execucao[], competencias: Record<string, string> = {}): PontoDoGrafico[] {
+  const meses = new Map<string, PontoDoGrafico>();
+  for (const execucao of execucoes) {
+    if (execucao.lancamentos === 0) continue;
+    const chave = competencias[execucao.extratoBancoId] ?? ANO_MES.format(new Date(execucao.executadaEm));
+    const mes = meses.get(chave) ?? { chave, taxa: 0, conciliados: 0, lancamentos: 0, conciliacoes: 0 };
+    mes.conciliados += conciliados(execucao);
+    mes.lancamentos += execucao.lancamentos;
+    mes.conciliacoes += 1;
+    meses.set(chave, mes);
+  }
+  // AAAA-MM ordena como texto
+  return [...meses.values()]
+    .sort((a, b) => a.chave.localeCompare(b.chave))
+    .slice(-MESES_NO_GRAFICO)
+    .map((mes) => ({ ...mes, taxa: (mes.conciliados / mes.lancamentos) * 100 }));
+}
+
+const MES_ABREVIADO = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+
+/** "mai", "jun", "set/26": o mês abreviado, com o ano no último ponto de cada ano. */
+export function rotulosDaSerie(serie: Pick<PontoDoGrafico, "chave">[]): string[] {
+  return serie.map(({ chave }, indice) => {
+    const [ano, mes] = chave.split("-");
+    const nome = MES_ABREVIADO[Number(mes) - 1] ?? mes;
+    const fechaOAno = serie[indice + 1]?.chave.slice(0, 4) !== ano;
+    return fechaOAno ? `${nome}/${ano.slice(2)}` : nome;
+  });
 }
 
 /**
- * Altura de cada barra em px. O design parte de 90% pra que 91% e 97% não
- * pareçam iguais; com acerto abaixo disso, a base desce de 10 em 10 até caber —
- * a escala do design dava altura negativa abaixo de 87,5%.
+ * A altura de cada ponto, de 0 (a base) a 1 (100%). O design parte de 90% para que 91% e 97% não
+ * pareçam iguais; com taxa abaixo disso, a base desce de 10 em 10 até caber.
  */
-export function alturasDasBarras(acertos: number[]): number[] {
-  const menor = Math.min(90, ...acertos);
+export function alturasNoGrafico(taxas: number[]): number[] {
+  const menor = Math.min(90, ...taxas);
   const base = Math.max(0, Math.floor(menor / 10) * 10);
   const faixa = 100 - base || 1;
-  return acertos.map((acerto) =>
-    Math.round(ALTURA_MINIMA + ((acerto - base) / faixa) * (ALTURA_MAXIMA - ALTURA_MINIMA)),
-  );
-}
-
-/** Pontos percentuais entre a barra mais nova e a mais antiga; null com uma barra só. */
-export function variacaoEmPontos(grafico: ExecucaoNoGrafico[]): number | null {
-  if (grafico.length < 2) return null;
-  return grafico[grafico.length - 1].acerto - grafico[0].acerto;
+  return taxas.map((taxa) => (taxa - base) / faixa);
 }
 
 // "2026-09" no fuso de Brasília: o servidor roda em UTC, e uma conciliação de
