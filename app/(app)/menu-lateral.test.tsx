@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MenuLateral } from "./menu-lateral";
 
@@ -255,5 +255,133 @@ describe("MenuLateral", () => {
 
     await user.click(screen.getByRole("button", { name: "Fechar configurações" }));
     expect(screen.getByRole("button", { name: /Financeiro/ })).toHaveFocus();
+  });
+});
+
+// O jsdom não tem PointerEvent: sem ele o evento chega sem pointerType, e o menu não sabe se foi
+// o mouse ou o dedo.
+class PointerEventDeTeste extends MouseEvent {
+  readonly pointerType: string;
+  constructor(tipo: string, init: PointerEventInit = {}) {
+    super(tipo, init);
+    this.pointerType = init.pointerType ?? "";
+  }
+}
+
+// Recolhido, o menu abre por cima do conteúdo com o mouse parado nele, e fecha quando o mouse sai:
+// o "peek" do Notion e do Linear. Eventos síncronos com o relógio falso, como no teste da saudação
+// do login (o user-event espera um setTimeout que o relógio falso do vitest não solta). O jsdom não
+// anima (não tem element.animate), então aqui o estado troca direto; a animação se confere no
+// navegador.
+describe("MenuLateral recolhido, com o mouse em cima", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.stubGlobal("PointerEvent", PointerEventDeTeste);
+    caminho.mockReturnValue("/dashboard");
+    window.localStorage.clear();
+    document.documentElement.dataset.menu = "recolhido";
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+    delete document.documentElement.dataset.menu;
+  });
+
+  const menu = () => screen.getByRole("complementary");
+  const esperar = (ms: number) => act(() => vi.advanceTimersByTime(ms));
+  const mouseEntra = () => fireEvent.pointerEnter(menu(), { pointerType: "mouse" });
+  const mouseSai = () => fireEvent.pointerLeave(menu(), { pointerType: "mouse" });
+
+  it("abre por cima depois de um instante com o mouse parado nele, sem deixar de estar recolhido", () => {
+    montar();
+
+    mouseEntra();
+    expect(menu()).not.toHaveAttribute("data-espiar");
+
+    esperar(150);
+    expect(menu()).toHaveAttribute("data-espiar", "aberto");
+    expect(document.documentElement.dataset.menu).toBe("recolhido");
+  });
+
+  it("não abre quando o mouse só passa por cima", () => {
+    montar();
+
+    mouseEntra();
+    esperar(100);
+    mouseSai();
+    esperar(500);
+
+    expect(menu()).not.toHaveAttribute("data-espiar");
+  });
+
+  it("fecha um pouco depois que o mouse sai, para quem escorrega para fora e volta", () => {
+    montar();
+    mouseEntra();
+    esperar(150);
+
+    mouseSai();
+    esperar(250);
+    expect(menu()).toHaveAttribute("data-espiar", "aberto");
+
+    esperar(50);
+    expect(menu()).not.toHaveAttribute("data-espiar");
+  });
+
+  it("não abre com o menu fixo aberto", () => {
+    document.documentElement.dataset.menu = "aberto";
+    montar();
+
+    mouseEntra();
+    esperar(500);
+
+    expect(menu()).not.toHaveAttribute("data-espiar");
+  });
+
+  // no toque não existe "passar por cima": o toque num ícone já é para navegar
+  it("não abre com o toque", () => {
+    montar();
+
+    fireEvent.pointerEnter(menu(), { pointerType: "touch" });
+    esperar(500);
+
+    expect(menu()).not.toHaveAttribute("data-espiar");
+  });
+
+  it("aberto por cima, o botão do topo fixa o menu aberto", () => {
+    montar();
+    mouseEntra();
+    esperar(150);
+
+    fireEvent.click(screen.getByRole("button", { name: "Fixar menu" }));
+
+    expect(document.documentElement.dataset.menu).toBe("aberto");
+    expect(menu()).not.toHaveAttribute("data-espiar");
+  });
+
+  it("não fecha enquanto o menu da conta, aberto dali, continua aberto", () => {
+    montar();
+    mouseEntra();
+    esperar(150);
+    fireEvent.click(screen.getByRole("button", { name: /Financeiro/ }));
+
+    mouseSai();
+    esperar(1000);
+    expect(menu()).toHaveAttribute("data-espiar", "aberto");
+
+    fireEvent.keyDown(window, { key: "Escape" });
+    esperar(300);
+    expect(menu()).not.toHaveAttribute("data-espiar");
+  });
+
+  it("o Ctrl+B fecha o que estava aberto por cima e fixa o menu aberto", () => {
+    montar();
+    mouseEntra();
+    esperar(150);
+
+    fireEvent.keyDown(window, { key: "b", ctrlKey: true });
+
+    expect(document.documentElement.dataset.menu).toBe("aberto");
+    expect(menu()).not.toHaveAttribute("data-espiar");
   });
 });
