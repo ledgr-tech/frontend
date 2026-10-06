@@ -61,16 +61,19 @@ function estaAtivo(item: ItemMenu, caminho: string): boolean {
 const ATRASO_ABRIR_MS = 150;
 const ATRASO_FECHAR_MS = 300;
 
-// A revelação: o menu já na largura de aberto, recortado nos 64px do recolhido (globals.css), e o
-// recorte abrindo. clip-path em vez de width: não refaz o layout a cada quadro. O -48px deixa a
-// sombra do lado direito aparecer.
-const RECORTE_RECOLHIDO = "inset(0 calc(100% - 64px) 0 0)";
-const RECORTE_ABERTO = "inset(0 -48px 0 0)";
-// A curva forte de saída do app (a do .conferir-circulo). Abre dezenas de vezes por dia, então é
-// rápido, e fecha mais rápido do que abre.
-const CURVA = "cubic-bezier(0.23, 1, 0.32, 1)";
-const DURACAO_ABRIR_MS = 200;
-const DURACAO_FECHAR_MS = 160;
+// A largura do menu aberto por cima anima entre a coluna de ícones e a de aberto (as duas no
+// globals.css). É width, e não um recorte: os botões e o item aceso encolhem junto com o menu, e a
+// coluna de ícones é o próprio menu aberto estreitado, sem troca de layout no fim (o modo ícone do
+// shadcn/ui). Só o menu refaz o layout a cada quadro; ele passa por cima, e a página não se mexe.
+const LARGURA_RECOLHIDO = "64px";
+const LARGURA_ABERTO = "248px";
+// A curva de gaveta do iOS (Ionic): sai menos de supetão que a curva forte do app, que punha ~85%
+// do caminho no primeiro quarto do tempo e parecia um corte. 250 ms abrindo e 200 ms fechando, o
+// par do Material (225/195 ms para o que entra e sai da tela), um pouco acima dos 200 ms do
+// sidebar do shadcn/ui.
+const CURVA = "cubic-bezier(0.32, 0.72, 0, 1)";
+const DURACAO_ABRIR_MS = 250;
+const DURACAO_FECHAR_MS = 200;
 
 /** Anima só onde dá e onde a pessoa não pediu menos movimento (o jsdom não tem element.animate). */
 function podeAnimar(elemento: HTMLElement | null): elemento is HTMLElement {
@@ -141,25 +144,25 @@ export function MenuLateral({
     return () => clearTimeout(timer);
   }, [mouseDentro, espiar, algoAberto]);
 
-  // O recorte anda antes da pintura, junto com a troca de layout que o data-espiar faz no CSS.
-  // Interrompido no meio (o mouse voltou enquanto fechava), parte de onde está, não do começo.
+  // A largura anda antes da pintura, junto com a troca que o data-espiar faz no CSS. Interrompida no
+  // meio (o mouse voltou enquanto fechava), parte de onde está, não do começo.
   useLayoutEffect(() => {
     const elemento = menu.current;
     const anterior = revelacao.current;
-    const recorteAgora = anterior?.playState === "running" && elemento ? getComputedStyle(elemento).clipPath : null;
+    const larguraAgora = anterior?.playState === "running" && elemento ? getComputedStyle(elemento).width : null;
     anterior?.cancel();
     revelacao.current = null;
     if (espiar === null || !podeAnimar(elemento)) return;
     if (espiar === "aberto") {
       revelacao.current = elemento.animate(
-        { clipPath: [recorteAgora ?? RECORTE_RECOLHIDO, RECORTE_ABERTO] },
+        { width: [larguraAgora ?? LARGURA_RECOLHIDO, LARGURA_ABERTO] },
         { duration: DURACAO_ABRIR_MS, easing: CURVA },
       );
       return;
     }
-    // fechando: o recorte fica parado nos 64px até o layout de recolhido entrar no lugar
+    // fechando: a largura fica parada nos 64px até o estado de recolhido entrar no lugar
     const fechar = elemento.animate(
-      { clipPath: [recorteAgora ?? RECORTE_ABERTO, RECORTE_RECOLHIDO] },
+      { width: [larguraAgora ?? LARGURA_ABERTO, LARGURA_RECOLHIDO] },
       { duration: DURACAO_FECHAR_MS, easing: CURVA, fill: "forwards" },
     );
     fechar.onfinish = () => setEspiar(null);
@@ -226,22 +229,14 @@ export function MenuLateral({
   // O botão clicado some, então o foco passa para o que apareceu no lugar.
   function alternar() {
     const antes = document.querySelector(".app-principal")?.getBoundingClientRect().left;
-    const estavaPorCima = espiar === "aberto";
     const recolhido = alternarMenu();
     if (recolhido) {
-      // recolhe deslizando: o menu fica por cima, com o layout de aberto, e o recorte fecha. O mouse
-      // está no botão de recolher; só volta a abrir por cima depois de sair e voltar
+      // recolhe deslizando: o menu fica por cima e encolhe até a coluna de ícones. O mouse está no
+      // botão de recolher; só volta a abrir por cima depois de sair e voltar
       setMouseDentro(false);
       setEspiar(podeAnimar(menu.current) ? "fechando" : null);
     } else {
       setEspiar(null);
-      // do recolhido parado, o menu também se revela; aberto por cima, ele já está no lugar
-      if (!estavaPorCima && podeAnimar(menu.current)) {
-        menu.current.animate(
-          { clipPath: [RECORTE_RECOLHIDO, RECORTE_ABERTO] },
-          { duration: DURACAO_ABRIR_MS, easing: CURVA },
-        );
-      }
     }
     deslizarConteudo(antes, recolhido ? DURACAO_FECHAR_MS : DURACAO_ABRIR_MS);
     (recolhido ? botaoAbrir : botaoRecolher).current?.focus();
