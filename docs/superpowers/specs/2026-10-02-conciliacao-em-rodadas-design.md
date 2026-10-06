@@ -79,7 +79,8 @@ Como está hoje:
   que tinham sido conferidas.
 - **O eixo do status, por linha** (revisto em 03/10: a conferência saiu do eixo para uma
   coluna própria no fim da linha, e o status ficou alinhado à esquerda; a caixa ao lado
-  do selo parecia "selecionar a linha" e entortava o eixo):
+  do selo parecia "selecionar a linha" e entortava o eixo. Em 06/10 o status voltou ao
+  centro do eixo: sem a caixa, nada mais o tira do meio):
   - Bate: como hoje, sem círculo.
   - A conferir: círculo vazio e selo na cor da categoria.
   - Conferida: círculo preenchido com ✓, selo neutro, a linha apagada.

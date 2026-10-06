@@ -495,7 +495,7 @@ export default function ConciliacaoPage() {
                   >
                     Banco
                   </CabecalhoOrdenavel>
-                  <CabecalhoOrdenavel coluna="status" ordem={ordem} onOrdenar={alternarOrdem}>
+                  <CabecalhoOrdenavel coluna="status" ordem={ordem} onOrdenar={alternarOrdem} centro>
                     Status
                   </CabecalhoOrdenavel>
                   {/* ponytail: sem ordenar — a data e a descrição que ordenam são as do
