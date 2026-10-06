@@ -1599,8 +1599,10 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
 }
 
 /* a tabela de lançamentos tem 5 colunas: em tela estreita rola na horizontal
-   em vez de espremer a descrição até quebrar letra por letra */
-.dash-tabela-rolagem { overflow-x: auto; }
+   em vez de espremer a descrição até quebrar letra por letra. O relative faz da caixa o bloco
+   de contenção do que é absoluto lá dentro (o .sr-only das células): sem ele, o overflow não
+   o cortava, e a página inteira rolava para o lado no celular e no tablet */
+.dash-tabela-rolagem { overflow-x: auto; position: relative; }
 .dash-tabela-rolagem .table { min-width: 680px; }
 .dash-valor-celula {
   text-align: right; font-family: var(--font-heading); font-size: 17px; font-weight: 600;
@@ -1841,9 +1843,13 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
 
 /* o resumo é uma <dl>: sem as margens padrão de dl e dd */
 .hist-resumo { margin: 0; }
-.hist-resumo dd { margin: 0; }
+/* o número do .dash-valor não quebra; a taxa ao lado dele desce para baixo quando a coluna
+   estreita (768–1024px), em vez de passar da borda do conteúdo */
+.hist-resumo dd {
+  margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 10px; row-gap: 6px;
+}
 .hist-resumo-taxa {
-  margin-left: 10px; font-family: var(--font-body); font-size: 15px;
+  font-family: var(--font-body); font-size: 15px;
   font-variant-numeric: tabular-nums; color: var(--color-ok-700);
 }
 
@@ -3283,7 +3289,9 @@ html:not([data-densidade="padrao"]) .app-shell .selo { padding-block: 1px; }
 }
 
 @media (max-width: 900px) {
-  .app-shell { grid-template-columns: minmax(0, 1fr); }
+  /* menu em cima, conteúdo embaixo. Com linhas automáticas, a altura que sobra de uma tela curta
+     (esqueleto, erro, "não encontrada") ia meio a meio e abria um vão embaixo do menu */
+  .app-shell { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto 1fr; }
   .app-aside {
     position: static; height: auto; border-right: none;
     border-bottom: 1px solid var(--color-divider);
