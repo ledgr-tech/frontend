@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent as EventoPonteiro } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -24,7 +24,7 @@ import {
 import { PainelAssistente } from "./assistente/painel";
 import { Configuracoes } from "./configuracoes";
 import { LogoBarras } from "./logo-barras";
-import { alternarMenu } from "./menu";
+import { alternarMenu, menuRecolhido } from "./menu";
 import { aplicarTema, temaAtual, type Tema } from "./tema";
 
 type ItemMenu = {
@@ -55,6 +55,41 @@ function estaAtivo(item: ItemMenu, caminho: string): boolean {
   return (item.tambem ?? []).some((prefixo) => caminho.startsWith(prefixo));
 }
 
+// Recolhido, o menu abre por cima do conteúdo com o mouse parado nele: o "peek" do Notion e do
+// Linear. 150 ms para não abrir com o mouse só de passagem, e 300 ms para fechar, para quem
+// escorrega para fora e volta.
+const ATRASO_ABRIR_MS = 150;
+const ATRASO_FECHAR_MS = 300;
+
+// A revelação: o menu já na largura de aberto, recortado nos 64px do recolhido (globals.css), e o
+// recorte abrindo. clip-path em vez de width: não refaz o layout a cada quadro. O -48px deixa a
+// sombra do lado direito aparecer.
+const RECORTE_RECOLHIDO = "inset(0 calc(100% - 64px) 0 0)";
+const RECORTE_ABERTO = "inset(0 -48px 0 0)";
+// A curva forte de saída do app (a do .conferir-circulo). Abre dezenas de vezes por dia, então é
+// rápido, e fecha mais rápido do que abre.
+const CURVA = "cubic-bezier(0.23, 1, 0.32, 1)";
+const DURACAO_ABRIR_MS = 200;
+const DURACAO_FECHAR_MS = 160;
+
+/** Anima só onde dá e onde a pessoa não pediu menos movimento (o jsdom não tem element.animate). */
+function podeAnimar(elemento: HTMLElement | null): elemento is HTMLElement {
+  if (!elemento || typeof elemento.animate !== "function") return false;
+  return !(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false);
+}
+
+/**
+ * Desliza o conteúdo da posição de antes até a nova (FLIP): a página já está no lugar novo e só o
+ * transform anda, sem refazer o layout das tabelas a cada quadro.
+ */
+function deslizarConteudo(antes: number | undefined, duracao: number) {
+  const principal = document.querySelector<HTMLElement>(".app-principal");
+  if (antes === undefined || !podeAnimar(principal)) return;
+  const deslocamento = antes - principal.getBoundingClientRect().left;
+  if (deslocamento === 0) return;
+  principal.animate({ transform: [`translateX(${deslocamento}px)`, "translateX(0)"] }, { duration: duracao, easing: CURVA });
+}
+
 export function MenuLateral({
   email,
   empresa,
@@ -77,19 +112,81 @@ export function MenuLateral({
   const botaoConta = useRef<HTMLButtonElement>(null);
   const botaoRecolher = useRef<HTMLButtonElement>(null);
   const botaoAbrir = useRef<HTMLButtonElement>(null);
+  const menu = useRef<HTMLElement>(null);
+  // "aberto": recolhido, mas aberto por cima com o mouse; "fechando": o recorte voltando aos 64px
+  const [espiar, setEspiar] = useState<"aberto" | "fechando" | null>(null);
+  const [mouseDentro, setMouseDentro] = useState(false);
+  const revelacao = useRef<Animation | null>(null);
+  // o que foi aberto dali segura o menu aberto, mesmo com o mouse fora
+  const algoAberto = contaAberta || assistenteAberto || configAberta;
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setTema(temaAtual());
   }, []);
 
+  // abre por cima depois de um instante com o mouse parado no menu recolhido; deitado (até
+  // 900px) ele não recolhe
+  useEffect(() => {
+    if (!mouseDentro || espiar !== null || !menuRecolhido()) return;
+    if (window.matchMedia?.("(max-width: 900px)").matches) return;
+    const timer = setTimeout(() => setEspiar("aberto"), ATRASO_ABRIR_MS);
+    return () => clearTimeout(timer);
+  }, [mouseDentro, espiar]);
+
+  // e fecha um pouco depois que o mouse sai
+  useEffect(() => {
+    if (mouseDentro || espiar !== "aberto" || algoAberto) return;
+    const timer = setTimeout(() => setEspiar(podeAnimar(menu.current) ? "fechando" : null), ATRASO_FECHAR_MS);
+    return () => clearTimeout(timer);
+  }, [mouseDentro, espiar, algoAberto]);
+
+  // O recorte anda antes da pintura, junto com a troca de layout que o data-espiar faz no CSS.
+  // Interrompido no meio (o mouse voltou enquanto fechava), parte de onde está, não do começo.
+  useLayoutEffect(() => {
+    const elemento = menu.current;
+    const anterior = revelacao.current;
+    const recorteAgora = anterior?.playState === "running" && elemento ? getComputedStyle(elemento).clipPath : null;
+    anterior?.cancel();
+    revelacao.current = null;
+    if (espiar === null || !podeAnimar(elemento)) return;
+    if (espiar === "aberto") {
+      revelacao.current = elemento.animate(
+        { clipPath: [recorteAgora ?? RECORTE_RECOLHIDO, RECORTE_ABERTO] },
+        { duration: DURACAO_ABRIR_MS, easing: CURVA },
+      );
+      return;
+    }
+    // fechando: o recorte fica parado nos 64px até o layout de recolhido entrar no lugar
+    const fechar = elemento.animate(
+      { clipPath: [recorteAgora ?? RECORTE_ABERTO, RECORTE_RECOLHIDO] },
+      { duration: DURACAO_FECHAR_MS, easing: CURVA, fill: "forwards" },
+    );
+    fechar.onfinish = () => setEspiar(null);
+    revelacao.current = fechar;
+  }, [espiar]);
+
+  // só o mouse: no toque não existe "passar por cima", e o toque num ícone já é para navegar
+  function aoEntrar(evento: EventoPonteiro) {
+    if (evento.pointerType !== "mouse") return;
+    setMouseDentro(true);
+    if (espiar === "fechando") setEspiar("aberto");
+  }
+
+  function aoSair(evento: EventoPonteiro) {
+    if (evento.pointerType === "mouse") setMouseDentro(false);
+  }
+
   // Ctrl+B (⌘B no Mac) recolhe e abre — o atalho dos editores de código e do
   // sidebar do shadcn/ui, que é a referência de mercado para menu recolhível.
   useEffect(() => {
     function aoTeclar(evento: KeyboardEvent) {
+      // sem animação: atalho de teclado troca na hora, como o Raycast e os editores
       if (evento.key.toLowerCase() === "b" && (evento.metaKey || evento.ctrlKey)) {
         evento.preventDefault();
-        alternarMenu();
+        // recolhido com o mouse em cima, só volta a abrir por cima depois que o mouse sair e voltar
+        if (alternarMenu()) setMouseDentro(false);
+        setEspiar(null);
       }
       // Ctrl+, (⌘, no Mac): o atalho de preferências do Mac, do Claude e dos editores
       if (evento.key === "," && (evento.metaKey || evento.ctrlKey)) {
@@ -128,7 +225,25 @@ export function MenuLateral({
   // de <html>. Assim o menu já abre certo antes da hidratação, sem estado no React.
   // O botão clicado some, então o foco passa para o que apareceu no lugar.
   function alternar() {
+    const antes = document.querySelector(".app-principal")?.getBoundingClientRect().left;
+    const estavaPorCima = espiar === "aberto";
     const recolhido = alternarMenu();
+    if (recolhido) {
+      // recolhe deslizando: o menu fica por cima, com o layout de aberto, e o recorte fecha. O mouse
+      // está no botão de recolher; só volta a abrir por cima depois de sair e voltar
+      setMouseDentro(false);
+      setEspiar(podeAnimar(menu.current) ? "fechando" : null);
+    } else {
+      setEspiar(null);
+      // do recolhido parado, o menu também se revela; aberto por cima, ele já está no lugar
+      if (!estavaPorCima && podeAnimar(menu.current)) {
+        menu.current.animate(
+          { clipPath: [RECORTE_RECOLHIDO, RECORTE_ABERTO] },
+          { duration: DURACAO_ABRIR_MS, easing: CURVA },
+        );
+      }
+    }
+    deslizarConteudo(antes, recolhido ? DURACAO_FECHAR_MS : DURACAO_ABRIR_MS);
     (recolhido ? botaoAbrir : botaoRecolher).current?.focus();
   }
 
@@ -140,6 +255,8 @@ export function MenuLateral({
 
   // o rótulo diz para onde vai, não onde está — é o que o design faz
   const rotuloTema = tema === "escuro" ? "Tema claro" : "Tema escuro";
+  // aberto por cima, o mesmo botão deixa o menu aberto de vez
+  const rotuloAbrir = espiar ? "Fixar menu" : "Abrir menu";
 
   // "financeiro@telhacerta.com.br" → "Financeiro" e "FI"
   const apelido = email.split("@")[0] ?? "";
@@ -147,7 +264,13 @@ export function MenuLateral({
   const iniciais = apelido.slice(0, 2).toUpperCase();
 
   return (
-    <aside className="app-aside">
+    <aside
+      ref={menu}
+      className="app-aside"
+      data-espiar={espiar ?? undefined}
+      onPointerEnter={aoEntrar}
+      onPointerLeave={aoSair}
+    >
       <div className="app-aside-topo">
         <span className="app-aside-marca">
           <LogoBarras className="app-logo" />
@@ -163,13 +286,14 @@ export function MenuLateral({
         >
           <PanelLeftClose {...ICONE} />
         </button>
-        {/* recolhido, o logo é o próprio botão de abrir e vira o ícone no hover */}
+        {/* recolhido, o logo é o próprio botão de abrir e vira o ícone no hover; aberto por
+            cima, é só o ícone, ao lado da marca, e fixa o menu aberto */}
         <button
           ref={botaoAbrir}
           type="button"
           className="app-menu-abrir app-dica"
-          aria-label="Abrir menu"
-          data-dica="Abrir menu · Ctrl+B"
+          aria-label={rotuloAbrir}
+          data-dica={`${rotuloAbrir} · Ctrl+B`}
           onClick={alternar}
         >
           <LogoBarras className="app-logo" />

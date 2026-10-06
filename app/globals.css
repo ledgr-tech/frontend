@@ -3031,34 +3031,57 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
 
 @media (min-width: 901px) {
   html[data-menu="recolhido"] .app-shell { grid-template-columns: 64px minmax(0, 1fr); }
-  html[data-menu="recolhido"] .app-aside { padding: 18px 10px; align-items: center; }
-  html[data-menu="recolhido"] .app-aside-topo { padding: 0; }
-  html[data-menu="recolhido"] .app-aside-marca,
-  html[data-menu="recolhido"] .app-menu-recolher,
-  html[data-menu="recolhido"] .app-conta-seta { display: none; }
-  html[data-menu="recolhido"] .app-menu-abrir { display: inline-flex; }
+  /* O layout de ícones vale enquanto o menu não está aberto por cima ([data-espiar]): aberto por
+     cima, ele usa o layout de aberto inteiro (abaixo). */
+  html[data-menu="recolhido"] .app-aside:not([data-espiar]) { padding: 18px 10px; align-items: center; }
+  html[data-menu="recolhido"] .app-aside:not([data-espiar]) .app-aside-topo { padding: 0; }
+  html[data-menu="recolhido"] .app-aside:not([data-espiar]) :is(.app-aside-marca, .app-menu-recolher, .app-conta-seta) {
+    display: none;
+  }
+  html[data-menu="recolhido"] .app-aside:not([data-espiar]) .app-menu-abrir { display: inline-flex; }
   /* sem rolagem: o overflow cortaria as dicas, e cinco itens cabem em qualquer altura */
-  html[data-menu="recolhido"] .app-nav { overflow: visible; align-items: center; }
-  html[data-menu="recolhido"] .app-nav-item {
+  html[data-menu="recolhido"] .app-aside:not([data-espiar]) .app-nav { overflow: visible; align-items: center; }
+  html[data-menu="recolhido"] .app-aside:not([data-espiar]) .app-nav-item {
     width: 42px; height: 40px; padding: 0; justify-content: center;
   }
   /* o nome sai da tela mas nao do leitor de tela: o link continua "Extratos" */
-  html[data-menu="recolhido"] .app-rotulo {
+  html[data-menu="recolhido"] .app-aside:not([data-espiar]) .app-rotulo {
     position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
     overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0;
   }
-  html[data-menu="recolhido"] .app-assistente { padding: 4px; }
-  html[data-menu="recolhido"] .app-aside-rodape {
+  html[data-menu="recolhido"] .app-aside:not([data-espiar]) .app-assistente { padding: 4px; }
+  html[data-menu="recolhido"] .app-aside:not([data-espiar]) .app-aside-rodape {
     align-self: stretch; flex-direction: column-reverse; gap: 8px;
   }
-  html[data-menu="recolhido"] .app-conta-envelope { flex: none; }
-  html[data-menu="recolhido"] .app-conta { width: auto; padding: 4px; }
-  html[data-menu="recolhido"] .app-painel.app-conta-painel {
+  html[data-menu="recolhido"] .app-aside:not([data-espiar]) .app-conta-envelope { flex: none; }
+  html[data-menu="recolhido"] .app-aside:not([data-espiar]) .app-conta { width: auto; padding: 4px; }
+  html[data-menu="recolhido"] .app-aside:not([data-espiar]) .app-painel.app-conta-painel {
     bottom: 0; left: calc(100% + 12px); right: auto;
   }
-  html[data-menu="recolhido"] .app-dica::after { content: attr(data-dica) / ""; }
-  html[data-menu="recolhido"] .app-dica:hover::after,
-  html[data-menu="recolhido"] .app-dica:focus-visible::after { opacity: 1; visibility: visible; }
+  html[data-menu="recolhido"] .app-aside:not([data-espiar]) .app-dica::after { content: attr(data-dica) / ""; }
+  html[data-menu="recolhido"] .app-aside:not([data-espiar]) .app-dica:is(:hover, :focus-visible)::after {
+    opacity: 1; visibility: visible;
+  }
+
+  /* Aberto por cima, com o mouse parado no menu recolhido: a coluna continua com 64px e o menu,
+     na largura de aberto, passa por cima do conteúdo, com sombra, sem mexer na página. A revelação
+     é um clip-path animado em menu-lateral.tsx. */
+  html[data-menu="recolhido"] .app-aside[data-espiar] { width: 248px; box-shadow: var(--shadow-lg); }
+  /* no topo, no lugar de "Recolher", o ícone que fixa o menu aberto, do tamanho dele */
+  html[data-menu="recolhido"] .app-aside[data-espiar] .app-menu-recolher { display: none; }
+  html[data-menu="recolhido"] .app-aside[data-espiar] .app-menu-abrir {
+    display: inline-flex; margin-left: auto; width: 34px; height: 34px;
+    color: color-mix(in srgb, var(--color-text) 72%, transparent);
+  }
+  html[data-menu="recolhido"] .app-aside[data-espiar] .app-menu-abrir .app-logo { display: none; }
+  html[data-menu="recolhido"] .app-aside[data-espiar] .app-menu-abrir-icone { display: block; }
+  html[data-menu="recolhido"] .app-aside[data-espiar] .app-menu-abrir::after { content: attr(data-dica) / ""; }
+  html[data-menu="recolhido"] .app-aside[data-espiar] .app-menu-abrir:is(:hover, :focus-visible)::after {
+    opacity: 1; visibility: visible;
+  }
+  /* o conteúdo desliza quando o menu é fixado ou recolhido (o FLIP de menu-lateral.tsx): sem o
+     corte, ao recolher ele passaria da borda direita e abriria rolagem lateral no meio do caminho */
+  .app-shell { overflow-x: clip; }
 }
 
 /* Uma coluna só para todas as telas: até 1240px, centralizada no espaço ao lado
