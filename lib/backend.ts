@@ -14,6 +14,14 @@ import { cookies } from "next/headers";
 
 const URL_BASE = process.env.LEDGR_API_URL ?? "http://localhost:8000";
 
+/**
+ * Quanto uma chamada espera antes de desistir, quando quem chama não deu prazo. Sem isso, um
+ * backend que aceita a conexão e não responde prende a tela até a hospedagem cortar. As leituras
+ * voltam em menos de um segundo; 30 s cobre a partida a frio do Railway com folga. O estouro
+ * chega como `DOMException` "TimeoutError".
+ */
+export const PRAZO_PADRAO_MS = 30_000;
+
 /** Nomes de cookie do NextAuth v5 — o prefixo `__Secure-` aparece sob https. */
 const COOKIES_SESSAO = ["__Secure-authjs.session-token", "authjs.session-token"];
 
@@ -95,6 +103,7 @@ async function requisitar(caminho: string, init: Opcoes = {}): Promise<Response>
     headers: cabecalhos,
     body,
     cache: "no-store",
+    signal: resto.signal ?? AbortSignal.timeout(PRAZO_PADRAO_MS),
   });
 
   if (!resposta.ok) throw await erroDaResposta(resposta);

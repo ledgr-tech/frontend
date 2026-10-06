@@ -1599,8 +1599,10 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
 }
 
 /* a tabela de lançamentos tem 5 colunas: em tela estreita rola na horizontal
-   em vez de espremer a descrição até quebrar letra por letra */
-.dash-tabela-rolagem { overflow-x: auto; }
+   em vez de espremer a descrição até quebrar letra por letra. O relative faz da caixa o bloco
+   de contenção do que é absoluto lá dentro (o .sr-only das células): sem ele, o overflow não
+   o cortava, e a página inteira rolava para o lado no celular e no tablet */
+.dash-tabela-rolagem { overflow-x: auto; position: relative; }
 .dash-tabela-rolagem .table { min-width: 680px; }
 .dash-valor-celula {
   text-align: right; font-family: var(--font-heading); font-size: 17px; font-weight: 600;
@@ -1629,9 +1631,12 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
   display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   gap: 26px; align-items: stretch;
 }
+/* o cartão é contêiner: o valor grande mede a largura dele, que depende do menu
+   (aberto, recolhido ou deitado) e não só da janela */
 .det-cartao {
   border: 1px solid var(--color-divider); border-radius: var(--radius-md);
   padding: 22px 24px; display: flex; flex-direction: column; gap: 14px;
+  container-type: inline-size;
 }
 /* o selo desce para a linha de baixo quando não cabe: espremido, o título
    quebrava uma palavra por linha */
@@ -1646,9 +1651,13 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
 .det-cartao-titulo {
   display: flex; align-items: center; gap: 8px; font-size: 20px; font-weight: 600;
 }
+/* Débito vem negativo do backend: sem o nowrap, "-R$ 12.640,00" quebrava depois
+   do hífen. Numa linha só, o valor ocupa ~6,1em; com 15cqi ele cabe no cartão em
+   qualquer largura e só chega aos 42px quando há espaço (cartão de 280px ou mais). */
 .det-valor {
-  font-family: var(--font-heading); font-size: 42px; font-weight: 400;
+  font-family: var(--font-heading); font-size: clamp(24px, 15cqi, 42px); font-weight: 400;
   line-height: 1.04; letter-spacing: -0.01em; font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 .det-campo {
   display: flex; justify-content: space-between; gap: 16px; font-size: 15px;
@@ -1714,7 +1723,7 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
   .det-comparacao { grid-template-columns: minmax(0, 1fr); gap: 16px; }
   .det-delta { flex-direction: row; gap: 14px; }
   .det-delta-linha { width: auto; height: 1px; flex: 1; }
-  .det-valor { font-size: 34px; }
+  .det-valor { font-size: clamp(24px, 15cqi, 34px); }
   .det-causa-texto { text-align: left; }
   .det-cronico-nota { flex-basis: 100%; text-align: left; }
 }
@@ -1834,9 +1843,13 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
 
 /* o resumo é uma <dl>: sem as margens padrão de dl e dd */
 .hist-resumo { margin: 0; }
-.hist-resumo dd { margin: 0; }
+/* o número do .dash-valor não quebra; a taxa ao lado dele desce para baixo quando a coluna
+   estreita (768–1024px), em vez de passar da borda do conteúdo */
+.hist-resumo dd {
+  margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 10px; row-gap: 6px;
+}
 .hist-resumo-taxa {
-  margin-left: 10px; font-family: var(--font-body); font-size: 15px;
+  font-family: var(--font-body); font-size: 15px;
   font-variant-numeric: tabular-nums; color: var(--color-ok-700);
 }
 
@@ -3275,7 +3288,9 @@ html:not([data-densidade="padrao"]) .app-shell .selo { padding-block: 1px; }
 }
 
 @media (max-width: 900px) {
-  .app-shell { grid-template-columns: minmax(0, 1fr); }
+  /* menu em cima, conteúdo embaixo. Com linhas automáticas, a altura que sobra de uma tela curta
+     (esqueleto, erro, "não encontrada") ia meio a meio e abria um vão embaixo do menu */
+  .app-shell { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto 1fr; }
   .app-aside {
     position: static; height: auto; border-right: none;
     border-bottom: 1px solid var(--color-divider);

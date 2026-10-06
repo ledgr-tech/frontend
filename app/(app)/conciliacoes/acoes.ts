@@ -70,6 +70,10 @@ function traduzir(erro: unknown): Falha {
     }
     return { ok: false, status: erro.status, erro: erro.detalhe };
   }
+  // o prazo do lib/backend estourou: o servidor aceitou a conexão e não respondeu a tempo
+  if (erro instanceof DOMException && erro.name === "TimeoutError") {
+    return { ok: false, status: 504, erro: "O servidor demorou para responder. Tente de novo em instantes." };
+  }
   // fetch que nem chegou a sair (backend fora do ar, DNS, CORS de rede)
   return { ok: false, status: 0, erro: "Não foi possível falar com o servidor." };
 }
@@ -77,11 +81,15 @@ function traduzir(erro: unknown): Falha {
 /** O 404 de uma linha que a tela ainda mostra: o par foi conciliado de novo depois que ela abriu. */
 const LINHA_MUDOU = "Esta linha mudou: a conciliação foi refeita depois que a tela abriu.";
 
+// O upload sobe o arquivo inteiro e a conciliação roda o motor sobre milhares de linhas: os
+// dois passam dos 30 s do padrão do lib/backend num extrato grande ou numa rede lenta.
+const PRAZO_DO_PROCESSAMENTO_MS = 120_000;
+
 export async function enviarExtrato(dados: FormData): Promise<Resultado<{ extratoId: string }>> {
   try {
     const resposta = await chamarBackend<{ extrato_id: string; status: string }>(
       "/extratos/upload",
-      { method: "POST", corpo: dados },
+      { method: "POST", corpo: dados, signal: AbortSignal.timeout(PRAZO_DO_PROCESSAMENTO_MS) },
     );
     return { ok: true, dados: { extratoId: resposta.extrato_id } };
   } catch (erro) {
@@ -110,6 +118,7 @@ export async function conciliar(
     const dados = await chamarBackend<ContagensConciliacao>("/conciliacoes", {
       method: "POST",
       corpo: { extrato_banco_id: extratoBancoId, extrato_sistema_id: extratoSistemaId },
+      signal: AbortSignal.timeout(PRAZO_DO_PROCESSAMENTO_MS),
     });
     return { ok: true, dados };
   } catch (erro) {
