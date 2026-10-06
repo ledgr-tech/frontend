@@ -2115,10 +2115,9 @@ html[data-tema="escuro"] .app-shell {
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .folhas-com-eixo .celula-descricao .celula-abrir { display: block; max-width: 100%; }
-/* o status alinhado à esquerda, como o texto das folhas: o olho acha o começo de cada selo na
-   mesma vertical, em vez de procurar o meio de rótulos de tamanhos diferentes */
-.celula-status { text-align: left; white-space: nowrap; }
-.th-centro { text-align: center; white-space: nowrap; }
+/* o status no meio do eixo, entre as duas folhas: o veredito é do par, não de um lado. Com a
+   conferência na coluna dela, nada mais empurra o selo para fora do centro */
+.celula-status, .th-centro { text-align: center; white-space: nowrap; }
 .th-centro .th-ordena { justify-content: center; }
 /* A conferência, na coluna dela no fim da linha: um botão (aria-pressed) desenhado como círculo,
    e não como caixa, para não parecer "selecionar a linha", como o "conferido" do QuickBooks. O
