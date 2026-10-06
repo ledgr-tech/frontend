@@ -98,4 +98,25 @@ describe("chamarBackend", () => {
 
     expect(erro).toMatchObject({ status: 422, campos: ["cnpj", "razao_social"] });
   });
+
+  // sem prazo, um backend que aceita a conexão e não responde prende a tela até a hospedagem desistir
+  it("sai sempre com um prazo, mesmo quando quem chama não deu um", async () => {
+    fetch.mockResolvedValue(Response.json({}));
+
+    await chamarBackend("/execucoes");
+
+    const [, init] = fetch.mock.calls[0] as [string, RequestInit];
+    expect(init.signal).toBeInstanceOf(AbortSignal);
+    expect(init.signal!.aborted).toBe(false);
+  });
+
+  it("o prazo de quem chama vale no lugar do padrão", async () => {
+    fetch.mockResolvedValue(Response.json({}));
+    const prazo = new AbortController().signal;
+
+    await chamarBackend("/conciliacoes", { method: "POST", corpo: {}, signal: prazo });
+
+    const [, init] = fetch.mock.calls[0] as [string, RequestInit];
+    expect(init.signal).toBe(prazo);
+  });
 });

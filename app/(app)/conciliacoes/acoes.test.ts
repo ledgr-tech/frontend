@@ -8,6 +8,8 @@ import {
   carregarConciliacoes,
   carregarHistorico,
   carregarVisaoGeral,
+  conciliar,
+  enviarExtrato,
   explicarDivergencia,
   listarExecucoes,
   listarExtratos,
@@ -733,6 +735,39 @@ describe("situacaoDoExtrato", () => {
 
     expect(resultado).toEqual({ ok: false, status: 404, erro: "Extrato não encontrado." });
     expect(chamarBackend).not.toHaveBeenCalled();
+  });
+
+  // o prazo do lib/backend estourou: o servidor está lá, só não respondeu a tempo
+  it("diz que o servidor demorou quando o prazo estoura", async () => {
+    chamarBackend.mockRejectedValue(new DOMException("The operation timed out.", "TimeoutError"));
+
+    expect(await situacaoDoExtrato(SISTEMA)).toEqual({
+      ok: false,
+      status: 504,
+      erro: "O servidor demorou para responder. Tente de novo em instantes.",
+    });
+  });
+});
+
+// o upload sobe o arquivo inteiro e a conciliação roda o motor: os dois passam dos 30 s do padrão
+describe("prazo do upload e da conciliação", () => {
+  beforeEach(() => {
+    chamarBackend.mockReset();
+    chamarBackend.mockResolvedValue({ extrato_id: SISTEMA, status: "processando" });
+  });
+
+  it("o upload vai com prazo próprio", async () => {
+    await enviarExtrato(new FormData());
+
+    const [, opcoes] = chamarBackend.mock.calls[0] as [string, { signal?: AbortSignal }];
+    expect(opcoes.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it("a conciliação vai com prazo próprio", async () => {
+    await conciliar(BANCO_RECENTE, SISTEMA);
+
+    const [, opcoes] = chamarBackend.mock.calls[0] as [string, { signal?: AbortSignal }];
+    expect(opcoes.signal).toBeInstanceOf(AbortSignal);
   });
 });
 
