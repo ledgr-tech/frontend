@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent as EventoPonteiro } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type MouseEvent as EventoMouse,
+  type PointerEvent as EventoPonteiro,
+} from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -180,6 +187,15 @@ export function MenuLateral({
     if (evento.pointerType === "mouse") setMouseDentro(false);
   }
 
+  // Aberto por cima, ir para outra tela fecha o menu, como o peek do Notion e do Linear: aberto, ele
+  // ficava sobre a tela nova enquanto ela carregava. O mouse continua em cima; só volta a abrir por
+  // cima depois de sair e voltar. Ctrl+clique abre em outra aba, e aí a tela não muda.
+  function aoNavegar(evento: EventoMouse) {
+    if (!espiar || evento.ctrlKey || evento.metaKey || evento.shiftKey) return;
+    setMouseDentro(false);
+    setEspiar(podeAnimar(menu.current) ? "fechando" : null);
+  }
+
   // Ctrl+B (⌘B no Mac) recolhe e abre — o atalho dos editores de código e do
   // sidebar do shadcn/ui, que é a referência de mercado para menu recolhível.
   useEffect(() => {
@@ -300,6 +316,7 @@ export function MenuLateral({
         href="/conciliacoes/nova"
         className="app-nav-item app-nav-nova app-dica"
         data-dica="Nova conciliação"
+        onClick={aoNavegar}
       >
         <Plus {...ICONE} />
         <span className="app-rotulo">Nova conciliação</span>
@@ -317,6 +334,7 @@ export function MenuLateral({
               data-dica={item.nome}
               aria-current={ativo ? "page" : undefined}
               data-ativo={ativo ? "true" : undefined}
+              onClick={aoNavegar}
             >
               <Icone {...ICONE} />
               <span className="app-rotulo">{item.nome}</span>
