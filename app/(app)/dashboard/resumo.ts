@@ -46,8 +46,11 @@ export function seloDoStatus(status: StatusLinha): { rotulo: string; tom: Tom } 
   return { rotulo, tom };
 }
 
+/** O mínimo para dizer o lado que falta: serve à linha do app e à da demonstração da landing. */
+type ComLado = { status: StatusLinha; valorBanco: number | string | null };
+
 /** O backend tem um status só para a linha sem par; quem diz algo útil é o lado que falta. */
-function ladoQueFalta(linha: LinhaComparacao): "banco" | "sistema" {
+function ladoQueFalta(linha: ComLado): "banco" | "sistema" {
   return linha.valorBanco === null ? "banco" : "sistema";
 }
 
@@ -58,7 +61,7 @@ export function statusDaLinha(linha: LinhaComparacao): { rotulo: string; tom: To
 }
 
 /** O status em poucas palavras ("Valor diverge", "Falta no banco"), para o eixo da comparação. */
-export function rotuloCurto(linha: LinhaComparacao): string {
+export function rotuloCurto(linha: ComLado): string {
   const { curto } = STATUS[linha.status];
   return linha.status === "sem_correspondencia" ? `${curto} no ${ladoQueFalta(linha)}` : curto;
 }
