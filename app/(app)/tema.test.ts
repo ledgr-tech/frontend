@@ -65,4 +65,20 @@ describe("tema", () => {
     getItem.mockRestore();
     setItem.mockRestore();
   });
+
+  it("fades between the themes where the browser has view transitions", async () => {
+    const startViewTransition = vi.fn((trocar: () => void) => {
+      trocar();
+      return { finished: Promise.resolve() };
+    });
+    Object.assign(document, { startViewTransition });
+
+    aplicarTema("escuro");
+
+    expect(startViewTransition).toHaveBeenCalledOnce();
+    expect(document.documentElement.dataset.tema).toBe("escuro");
+    expect(document.documentElement).toHaveAttribute("data-trocando-tema");
+    await vi.waitFor(() => expect(document.documentElement).not.toHaveAttribute("data-trocando-tema"));
+    delete (document as { startViewTransition?: unknown }).startViewTransition;
+  });
 });

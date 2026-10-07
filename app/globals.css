@@ -625,6 +625,12 @@ dialog::backdrop {
   from { opacity: 0; transform: translateY(12px); filter: blur(2px); }
   to { opacity: 1; transform: none; filter: blur(0); }
 }
+/* troca de tema (tema.ts): a página clara e a escura se fundem, sem nada se mexer */
+html[data-trocando-tema]::view-transition-old(root),
+html[data-trocando-tema]::view-transition-new(root) {
+  animation-duration: 320ms;
+  animation-timing-function: ease;
+}
 /* cliques durante a transição chegam à página nova */
 ::view-transition { pointer-events: none; }
 @media (prefers-reduced-motion: reduce) {
