@@ -11,17 +11,19 @@ import { TRACO_ICONE } from "./traco-icone";
 export function Shell({
   email,
   empresa,
+  temSenha,
   children,
 }: {
   email: string;
   empresa: string;
+  temSenha: boolean;
   children: ReactNode;
 }) {
   return (
     <EmpresaDaSessao value={empresa}>
       <LucideProvider strokeWidth={TRACO_ICONE}>
         <div className="app-shell">
-          <MenuLateral email={email} empresa={empresa} onSair={() => void sair()} />
+          <MenuLateral email={email} empresa={empresa} temSenha={temSenha} onSair={() => void sair()} />
           <main className="app-principal">
             <BarraSuperior />
             <div className="app-conteudo">{children}</div>
