@@ -424,8 +424,9 @@ export type ArquivoExtrato = Partial<Pick<ArquivoConciliado, "conciliadoEm" | "r
   /** Essas linhas, com o motivo; vazia quando o detalhe não carregou (a contagem fica). */
   erros: SituacaoExtrato["erros"];
   /**
-   * O mês (AAAA-MM) em que o extrato começa, a mesma regra do fechamento; a galeria agrupa por
-   * ele. Null enquanto ele não tem período (processando, ou sem lançamento válido).
+   * O mês (AAAA-MM) do extrato, a regra do fechamento: o da conciliação em que entrou (o início
+   * do extrato do banco) e, fora de conciliação, o início do próprio período. A galeria agrupa
+   * por ele. Null enquanto ele não tem período (processando, ou sem lançamento válido).
    */
   competencia: string | null;
   enviadoEm: string;
@@ -465,9 +466,16 @@ export async function listarExtratos(): Promise<Resultado<ListaDeExtratos>> {
   }
 
   // sem as execuções a lista ainda serve: só o extrato do sistema fica sem saber onde abre
-  const conciliacoes = new Map(
-    extratosDasExecucoes(execucoes.ok ? execucoes.dados.execucoes : []).map((arquivo) => [arquivo.id, arquivo]),
-  );
+  const doBackend = execucoes.ok ? execucoes.dados.execucoes : [];
+  const conciliacoes = new Map(extratosDasExecucoes(doBackend).map((arquivo) => [arquivo.id, arquivo]));
+  // o mês de um extrato do sistema conciliado é o da conciliação, que é o do extrato do banco (o
+  // período do sistema pode começar antes, numa linha que o banco não tem); vale a mais recente
+  const inicioDaConciliacao = new Map<string, string | null>();
+  for (const execucao of doBackend) {
+    if (!inicioDaConciliacao.has(execucao.extratoSistemaId)) {
+      inicioDaConciliacao.set(execucao.extratoSistemaId, execucao.periodoInicio);
+    }
+  }
   const detalhes = await Promise.all(
     lista.itens.map((item) => (item.linhas_nao_lidas > 0 ? situacaoDoExtrato(item.extrato_id) : null)),
   );
@@ -487,7 +495,7 @@ export async function listarExtratos(): Promise<Resultado<ListaDeExtratos>> {
           lancamentos: item.quantidade_lancamentos,
           naoLidas: item.linhas_nao_lidas,
           erros: detalhe?.ok ? detalhe.dados.erros : [],
-          competencia: item.periodo_inicio?.slice(0, 7) ?? null,
+          competencia: (inicioDaConciliacao.get(item.extrato_id) ?? item.periodo_inicio)?.slice(0, 7) ?? null,
           enviadoEm: item.enviado_em,
           conciliado: item.conciliado,
         };

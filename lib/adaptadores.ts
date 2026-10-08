@@ -176,13 +176,17 @@ export function adaptarConciliacao(
     vistas.set(chave, vezes);
     return vezes === 1 ? linha : { ...linha, chave: `${chave}#${vezes}` };
   });
-  const primeira = linhas.find((linha) => linha.dataISO)?.dataISO;
+  // A competência é o mês em que o extrato do BANCO começa, a regra com que o backend fecha o
+  // mês (`periodo_inicio`, backend #82): a menor data dele, que está nas linhas, porque todo
+  // lançamento do banco entra numa. Uma linha só do sistema mais antiga não muda o mês.
+  const inicioDoBanco = lista.itens.reduce<string | null>((menor, item) => {
+    const data = item.lancamento_banco?.data;
+    return data && (menor === null || data < menor) ? data : menor;
+  }, null);
   return {
     id: lista.extrato_id,
     extratoSistemaId,
-    // A competência sai da primeira data que apareceu; o backend não tem campo
-    // de mês, e o extrato é sempre de um período.
-    mes: primeira ? mesPorExtenso(primeira) : "Conciliação",
+    mes: inicioDoBanco ? mesPorExtenso(inicioDoBanco) : "Conciliação",
     status: "em_andamento",
     linhas,
   };

@@ -208,6 +208,18 @@ describe("adaptarConciliacao", () => {
     expect(adaptarConciliacao(lista).mes).toBe("Setembro/2026");
   });
 
+  it("tira a competência do extrato do banco, mesmo com uma linha só do sistema mais antiga", () => {
+    // a regra do fechamento do backend: o mês em que o extrato do banco começa
+    const agostoSoNoSistema = item({
+      id: "c0",
+      status: "sem_correspondencia",
+      lancamento_banco: null,
+      lancamento_sistema: { id: "ls-0", data: "2026-08-29", valor: "-80", descricao: "Despesa", tipo: "debito" },
+    });
+    const comAgosto = { ...lista, total: 3, itens: [agostoSoNoSistema, ...lista.itens] };
+    expect(adaptarConciliacao(comAgosto).mes).toBe("Setembro/2026");
+  });
+
   it("sobrevive a uma conciliação vazia", () => {
     const vazia = adaptarConciliacao({ ...lista, total: 0, itens: [] });
     expect(vazia.linhas).toEqual([]);

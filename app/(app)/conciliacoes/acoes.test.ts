@@ -414,6 +414,20 @@ describe("listarExtratos", () => {
     expect(resultado.dados.arquivos[0]).toMatchObject({ naoLidas: 3, erros: [] });
   });
 
+  it("põe o extrato do sistema no mês da conciliação em que entrou, que é o do extrato do banco", async () => {
+    // o sistema tem uma linha de 29/08 que o banco não tem: o período dele começa em agosto, mas a
+    // conciliação (e o fechamento) é de setembro, o mês do extrato do banco
+    backendComExtratos([
+      extrato(SISTEMA, { periodo_inicio: "2026-08-29" }),
+      extrato(NAO_CONCILIADO, { periodo_inicio: "2026-08-29", conciliado: false }),
+    ]);
+
+    const resultado = await listarExtratos();
+
+    if (!resultado.ok) throw new Error(resultado.erro);
+    expect(resultado.dados.arquivos.map(({ competencia }) => competencia)).toEqual(["2026-09", "2026-08"]);
+  });
+
   it("deixa sem mês o extrato que ainda não tem período", async () => {
     backendComExtratos([
       extrato(NAO_CONCILIADO, {
