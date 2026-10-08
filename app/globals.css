@@ -3028,6 +3028,7 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
 .cfg-numero-botao:disabled { opacity: 0.4; cursor: default; }
 .cfg-numero-campo { width: 4.2em; text-align: center; font-variant-numeric: tabular-nums; }
 .cfg-numero-unidade { font-size: 14px; }
+.cfg-numero-botoes { flex-basis: 100%; display: flex; justify-content: flex-end; gap: 8px; }
 .cfg-numero-aviso { flex-basis: 100%; margin: 0; max-width: 40ch; margin-left: auto; text-align: right; font-size: 13.5px; line-height: 1.5; }
 .cfg-numero-aviso[role="alert"], .cfg-numero-aviso:not([role]) { color: var(--color-erro); }
 .cfg-valor {

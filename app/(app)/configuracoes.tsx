@@ -329,15 +329,17 @@ function ToleranciaEditavel({
           +
         </button>
       </div>
+      {/* numa linha embaixo: ao lado, eles empurrariam o − e o + para a esquerda no primeiro clique,
+          e o segundo cairia fora do botão */}
       {mudou && (
-        <>
+        <div className="cfg-numero-botoes">
           <button type="button" className="btn btn-primary" disabled={salvando || !valido} onClick={() => void salvar()}>
             Salvar
           </button>
           <button type="button" className="btn btn-ghost" disabled={salvando} onClick={() => mudar(String(regras.toleranciaDias))}>
             Descartar
           </button>
-        </>
+        </div>
       )}
       {!valido && texto.trim() !== "" && <p className="cfg-numero-aviso">{limite}</p>}
       {erro && (
