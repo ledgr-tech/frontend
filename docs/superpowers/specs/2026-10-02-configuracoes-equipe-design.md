@@ -1,5 +1,39 @@
 # Ledgr — Configurações: equipe, regras da conciliação, segurança e dados
 
+## Revisão de 08/10/2026: conta única no MVP
+
+O backend respondeu a esta especificação em 07/10 (`ledgr-docs`,
+`07-tecnico/frontend/respostas-do-backend-aos-pedidos-do-front.md`), com as decisões
+de Eduardo de 05 e 06/10. O que vale agora, no lugar do que está abaixo:
+
+1. **Conta única até o congelamento de 28/10.** Saem os três papéis, `lib/papeis.ts`,
+   `SoQuemPode`, a Equipe, os convites e a página `/convite`. O `GET /me` não tem
+   `papel`, e todo mundo é administrador. Também fica para depois o "Exportar todos
+   os dados".
+2. **Só a tolerância de data é editável**, de 0 até `tolerancia_dias_maximo` (hoje 5),
+   pelo `GET` e `PUT /empresa/configuracoes` (backend #85). Tolerância de valor e
+   semelhança da descrição saem (ADR-006 e ADR-008): o backend recusa as duas com
+   422. Também sai a parte de "as regras em cada rodada", que eram essas duas; a
+   rodada já mostra a tolerância de data que usou.
+3. **Continuam escondidos:** "Sair de todos os aparelhos" (#75, decisão de ADR
+   pendente), trocar o e-mail (#66, Sprint 7) e excluir a conta (#68, bloqueada pela
+   definição jurídica da LGPD).
+
+O que já foi feito desta especificação:
+
+- **`GET /me`** (ledgr-tech/frontend#101): `contaDaSessao` lê a razão social e os
+  `metodos_login` numa chamada por carregamento do layout; sem `"senha"`, a troca de
+  senha some.
+- **A tolerância de data editável** (o PR desta revisão), na seção Conciliação: campo
+  com − e +, salvar por botão, "Descartar", quem mudou por último e o texto de depois
+  de salvar, como descrito em "Conciliação" abaixo. Sem a rota, fica a tolerância da
+  última conciliação para leitura; com outra falha, "Não foi possível carregar agora."
+  e "Tentar de novo". Com um campo só, a pergunta ao fechar a janela com mudança
+  pendente ficou de fora: fechar descarta, e a janela lê o valor salvo de novo.
+
+O resto do documento fica como registro do que foi proposto. Volta a valer, em
+partes, quando as decisões acima mudarem.
+
 ## Contexto
 
 Pedido de 02/10/2026: "em relação à tela de configuração, sinto que faltam coisas

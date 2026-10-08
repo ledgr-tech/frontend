@@ -1,5 +1,22 @@
 # Configurações: equipe, regras, segurança e dados — Implementation Plan
 
+> **Não executar este plano como está (revisão de 08/10/2026).** Com a conta única no
+> MVP e só a tolerância de data editável (decisões de 05 e 06/10, resumidas no topo da
+> spec), as tarefas ficam assim:
+>
+> - **Tasks 1, 3, 5, 6 e 7** (papéis, o que cada papel vê, Dados e privacidade, Equipe,
+>   `/convite`): fora do MVP, até depois de 28/10.
+> - **Task 2** (quem sou eu): feita no ledgr-tech/frontend#101, sem o papel, como
+>   `contaDaSessao` em `app/(auth)/acoes.ts`.
+> - **Task 4** (a janela reorganizada): não feita. Conta continua com a senha;
+>   Segurança só faria sentido com "Sair de todos os aparelhos" (#75).
+> - **Task 8** (regras do motor): feita só com a tolerância de data, em
+>   `app/(app)/configuracoes.tsx` (`ToleranciaEditavel`) e `carregarRegras`/
+>   `salvarToleranciaDias` em `app/(app)/conciliacoes/acoes.ts`.
+> - **Task 9** (as regras em cada rodada): fora; eram a tolerância de valor e a
+>   semelhança.
+> - **Task 10**: a documentação é esta revisão e a da spec.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Pôr na janela de Configurações a Equipe (com a página `/convite`), as regras do motor editáveis, Segurança e Dados e privacidade, com três papéis, cada parte ligando sozinha quando o backend tiver a rota.

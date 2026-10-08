@@ -27,6 +27,7 @@ vi.mock("./conciliacoes/acoes", () => ({
     dados: { execucoes: [], total: 0, recente: null, arquivosComLinhasNaoLidas: [] },
   }),
   toleranciaDaUltimaConciliacao: async () => null,
+  carregarRegras: async () => ({ ok: false, status: 404, erro: "Not Found" }),
 }));
 
 const EMAIL = "financeiro@telhacerta.com.br";
