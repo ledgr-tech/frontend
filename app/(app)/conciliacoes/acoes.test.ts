@@ -6,6 +6,7 @@ import {
   carregarConciliacaoEmRodadas,
   carregarFechamentos,
   carregarConciliacoes,
+  carregarRegras,
   carregarVisaoGeral,
   conciliar,
   enviarExtrato,
