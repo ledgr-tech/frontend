@@ -168,7 +168,7 @@ export function NovaVersao({
                   <span>Extrato do sistema de gestão</span>
                   <input
                     type="file"
-                    accept=".csv,.pdf"
+                    accept=".csv"
                     disabled={ocupado}
                     onChange={(evento) => {
                       setErro(null);

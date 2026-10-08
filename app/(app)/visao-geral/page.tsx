@@ -408,7 +408,7 @@ const PASSOS = [
   {
     numeral: "II",
     titulo: "Suba o extrato do sistema de gestão",
-    texto: "O CSV ou o PDF exportado do seu ERP funciona: Cigam, Bling, Tiny ou outro.",
+    texto: "O CSV exportado do seu ERP funciona: Cigam, Bling, Tiny ou outro.",
   },
   {
     numeral: "III",

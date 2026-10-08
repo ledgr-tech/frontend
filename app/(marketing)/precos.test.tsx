@@ -137,7 +137,7 @@ describe("Precos", () => {
     expect(demo.getByText("Extrato do banco")).toBeInTheDocument();
     expect(demo.getByText("OFX ou CSV")).toBeInTheDocument();
     expect(demo.getByText("Extrato do sistema")).toBeInTheDocument();
-    expect(demo.getByText("CSV ou PDF")).toBeInTheDocument();
+    expect(demo.getByText("CSV", { exact: true })).toBeInTheDocument();
   });
 
   it("shows the month's report in the last demo, with the summary it is given", () => {

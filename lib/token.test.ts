@@ -3,9 +3,12 @@
 // jose confere o tipo da chave contra o Uint8Array global; no jsdom o global é
 // outro e a mesma chave é recusada. Este módulo só roda no servidor de qualquer
 // forma, então o ambiente certo pra testar é o node.
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { decodeJwt, decodeProtectedHeader, SignJWT } from "jose";
 import { DURACAO_SESSAO_SEGUNDOS, assinarToken, lerToken } from "./token";
+// O vetor do contrato, copiado de `02-decisoes/anexos/05-contrato-jwt-vetor.json` do vault.
+// O backend tem o mesmo arquivo e prova que aceita este token (issue #71 dele).
+import vetor from "./contrato_jwt.json";
 
 const SEGREDO = "segredo-de-teste-compartilhado-com-o-backend";
 
@@ -22,6 +25,18 @@ describe("token do backend", () => {
 
   afterEach(() => {
     delete process.env.NEXTAUTH_SECRET;
+    vi.useRealTimers();
+  });
+
+  it("assina exatamente o token do vetor do contrato com o backend", async () => {
+    // Se isto quebrar, o formato mudou (claims, algoritmo ou validade) e o backend precisa
+    // saber: gere o vetor de novo com o assinarToken (mesmo relógio, segredo e claims) e
+    // atualize o vault e o `tests/fixtures/contrato_jwt.json` do backend.
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(vetor.instante_utc));
+    process.env.NEXTAUTH_SECRET = vetor.segredo;
+
+    expect(await assinarToken(vetor.claims_entrada)).toBe(vetor.token);
   });
 
   it("assina em HS256, que é o que o PyJWT do backend espera", async () => {

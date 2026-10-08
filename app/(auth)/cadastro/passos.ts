@@ -181,7 +181,7 @@ export const PASSOS: PassoCadastro[] = [
     rotuloEtapa: "Sistema de gestão",
     eyebrow: "Passo III de III",
     titulo: "E o sistema de gestão?",
-    texto: "Diga de qual sistema sai o segundo extrato. Se o seu ERP não for um dos compatíveis, o CSV ou o PDF de lançamentos exportado dele também funciona.",
+    texto: "Diga de qual sistema sai o segundo extrato. Se o seu ERP não for um dos compatíveis, o CSV exportado dele também funciona.",
     campos: [
       {
         id: "sistema",
