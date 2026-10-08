@@ -3018,6 +3018,19 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
 .cfg-form { display: flex; flex-direction: column; gap: 12px; max-width: 380px; }
 .cfg-form-aviso { margin: 0; font-size: 13.5px; line-height: 1.55; color: var(--color-erro); }
 .cfg-form-botoes { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+/* a tolerância de data: − campo + numa peça só, e as mensagens embaixo, alinhadas ao controle */
+.cfg-numero { display: inline-flex; align-items: center; gap: 6px; }
+.cfg-numero-botao {
+  width: 32px; height: 32px; border-radius: var(--radius-md); border: 1px solid var(--color-divider);
+  background: none; color: var(--color-text); font-size: 16px; line-height: 1; cursor: pointer;
+}
+.cfg-numero-botao:hover:not(:disabled) { background: var(--tinta-hover); }
+.cfg-numero-botao:disabled { opacity: 0.4; cursor: default; }
+.cfg-numero-campo { width: 4.2em; text-align: center; font-variant-numeric: tabular-nums; }
+.cfg-numero-unidade { font-size: 14px; }
+.cfg-numero-botoes { flex-basis: 100%; display: flex; justify-content: flex-end; gap: 8px; }
+.cfg-numero-aviso { flex-basis: 100%; margin: 0; max-width: 40ch; margin-left: auto; text-align: right; font-size: 13.5px; line-height: 1.5; }
+.cfg-numero-aviso[role="alert"], .cfg-numero-aviso:not([role]) { color: var(--color-erro); }
 .cfg-valor {
   font-size: 14px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere;
   color: color-mix(in srgb, var(--color-text) 80%, transparent);

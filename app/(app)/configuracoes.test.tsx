@@ -2,12 +2,24 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Configuracoes } from "./configuracoes";
+import type { RegrasDaEmpresa, Resultado } from "./conciliacoes/acoes";
 
-// a tolerância é do backend; aqui a action devolve o que ele responderia
+// a tolerância é do backend; aqui as actions devolvem o que ele responderia
 const toleranciaDaUltimaConciliacao = vi.fn<() => Promise<number | null>>();
+const carregarRegras = vi.fn<() => Promise<Resultado<RegrasDaEmpresa>>>();
+const salvarToleranciaDias = vi.fn<(dias: number) => Promise<Resultado<RegrasDaEmpresa>>>();
 vi.mock("./conciliacoes/acoes", () => ({
   toleranciaDaUltimaConciliacao: () => toleranciaDaUltimaConciliacao(),
+  carregarRegras: () => carregarRegras(),
+  salvarToleranciaDias: (dias: number) => salvarToleranciaDias(dias),
 }));
+
+const REGRAS: RegrasDaEmpresa = {
+  toleranciaDias: 2,
+  toleranciaDiasMaximo: 5,
+  atualizadoPor: "Maria Financeiro",
+  atualizadoEm: "2026-10-06T12:30:00Z",
+};
 
 // a troca de senha é do backend; aqui a action devolve o que ele responderia
 const trocarSenha = vi.fn();
@@ -42,6 +54,8 @@ describe("Configuracoes", () => {
     toleranciaDaUltimaConciliacao.mockReset();
     trocarSenha.mockReset().mockResolvedValue({ ok: true });
     toleranciaDaUltimaConciliacao.mockResolvedValue(2);
+    carregarRegras.mockReset().mockResolvedValue({ ok: true, dados: REGRAS });
+    salvarToleranciaDias.mockReset();
     window.localStorage.clear();
     delete document.documentElement.dataset.tema;
     delete document.documentElement.dataset.densidade;
@@ -91,23 +105,122 @@ describe("Configuracoes", () => {
     expect(document.documentElement.dataset.menu).toBe("aberto");
   });
 
-  it("shows the date tolerance the backend used last, with no control that pretends to save it", async () => {
-    const user = userEvent.setup();
-    abrir();
+  describe("the date tolerance", () => {
+    /** O campo da tolerância, na linha dela. */
+    async function campo() {
+      return screen.findByRole("spinbutton", { name: "Tolerância de data, em dias" });
+    }
 
-    await user.click(secao("Conciliação"));
-    const linha = (await screen.findByText("2 dias")).closest("li")!;
-    expect(within(linha).getByText("Tolerância de data")).toBeInTheDocument();
-    expect(within(linha).queryByRole("button")).not.toBeInTheDocument();
-  });
+    it("shows the tolerance the next conciliation will use, its limit and who changed it last", async () => {
+      const user = userEvent.setup();
+      abrir();
 
-  it("says when there is no conciliation to read the tolerance from", async () => {
-    toleranciaDaUltimaConciliacao.mockResolvedValue(null);
-    const user = userEvent.setup();
-    abrir();
+      await user.click(secao("Conciliação"));
+      expect(await campo()).toHaveValue(2);
+      const linha = linhaDe("Tolerância de data");
+      expect(linha).toHaveTextContent("de 0 a 5 dias");
+      expect(linha).toHaveTextContent("Alterada por Maria Financeiro em 06/10/2026 09:30.");
+      // nada a salvar enquanto não muda
+      expect(within(linha).queryByRole("button", { name: "Salvar" })).not.toBeInTheDocument();
+    });
 
-    await user.click(secao("Conciliação"));
-    expect(await screen.findByText("Sem conciliação ainda")).toBeInTheDocument();
+    it("changes it with − and +, within the limit the backend gives, and saves it", async () => {
+      salvarToleranciaDias.mockResolvedValue({ ok: true, dados: { ...REGRAS, toleranciaDias: 4, atualizadoPor: "Ana" } });
+      const user = userEvent.setup();
+      abrir();
+      await user.click(secao("Conciliação"));
+      await campo();
+      const linha = linhaDe("Tolerância de data");
+
+      await user.click(within(linha).getByRole("button", { name: "Um dia a mais" }));
+      await user.click(within(linha).getByRole("button", { name: "Um dia a mais" }));
+      expect(await campo()).toHaveValue(4);
+      await user.click(within(linha).getByRole("button", { name: "Salvar" }));
+
+      expect(salvarToleranciaDias).toHaveBeenCalledWith(4);
+      expect(await within(linha).findByRole("status")).toHaveTextContent(
+        "Regras salvas. Valem a partir da próxima conciliação; as que já rodaram continuam com as regras de quando rodaram.",
+      );
+      expect(linha).toHaveTextContent("Alterada por Ana");
+      expect(within(linha).queryByRole("button", { name: "Salvar" })).not.toBeInTheDocument();
+    });
+
+    it("stops at the limits", async () => {
+      carregarRegras.mockResolvedValue({ ok: true, dados: { ...REGRAS, toleranciaDias: 5 } });
+      const user = userEvent.setup();
+      abrir();
+      await user.click(secao("Conciliação"));
+      await campo();
+      const linha = linhaDe("Tolerância de data");
+
+      expect(within(linha).getByRole("button", { name: "Um dia a mais" })).toBeDisabled();
+      await user.clear(await campo());
+      await user.type(await campo(), "9");
+      expect(within(linha).getByRole("button", { name: "Salvar" })).toBeDisabled();
+      expect(within(linha).getByText("Escolha de 0 a 5 dias.")).toBeInTheDocument();
+    });
+
+    it("discards a change that was not saved", async () => {
+      const user = userEvent.setup();
+      abrir();
+      await user.click(secao("Conciliação"));
+      await campo();
+      const linha = linhaDe("Tolerância de data");
+
+      await user.click(within(linha).getByRole("button", { name: "Um dia a menos" }));
+      await user.click(within(linha).getByRole("button", { name: "Descartar" }));
+
+      expect(await campo()).toHaveValue(2);
+      expect(salvarToleranciaDias).not.toHaveBeenCalled();
+    });
+
+    it("says the limit when the backend refuses the value", async () => {
+      salvarToleranciaDias.mockResolvedValue({ ok: false, status: 422, erro: "Confira os campos." });
+      const user = userEvent.setup();
+      abrir();
+      await user.click(secao("Conciliação"));
+      await campo();
+      const linha = linhaDe("Tolerância de data");
+
+      await user.click(within(linha).getByRole("button", { name: "Um dia a mais" }));
+      await user.click(within(linha).getByRole("button", { name: "Salvar" }));
+
+      expect(await within(linha).findByRole("alert")).toHaveTextContent("Escolha de 0 a 5 dias.");
+    });
+
+    it("offers to try again when the settings could not be loaded", async () => {
+      carregarRegras.mockResolvedValueOnce({ ok: false, status: 0, erro: "Não foi possível falar com o servidor." });
+      const user = userEvent.setup();
+      abrir();
+      await user.click(secao("Conciliação"));
+
+      const linha = linhaDe("Tolerância de data");
+      expect(await within(linha).findByText("Não foi possível carregar agora.")).toBeInTheDocument();
+      await user.click(within(linha).getByRole("button", { name: "Tentar de novo" }));
+      expect(await campo()).toHaveValue(2);
+    });
+
+    it("keeps the last conciliation's tolerance, read only, while the backend has no route for the settings", async () => {
+      carregarRegras.mockResolvedValue({ ok: false, status: 404, erro: "Not Found" });
+      const user = userEvent.setup();
+      abrir();
+
+      await user.click(secao("Conciliação"));
+      const linha = (await screen.findByText("2 dias")).closest("li")!;
+      expect(within(linha).getByText("Tolerância de data")).toBeInTheDocument();
+      expect(within(linha).queryByRole("button")).not.toBeInTheDocument();
+      expect(within(linha).queryByRole("spinbutton")).not.toBeInTheDocument();
+    });
+
+    it("says when there is no conciliation to read the tolerance from, without the route", async () => {
+      carregarRegras.mockResolvedValue({ ok: false, status: 404, erro: "Not Found" });
+      toleranciaDaUltimaConciliacao.mockResolvedValue(null);
+      const user = userEvent.setup();
+      abrir();
+
+      await user.click(secao("Conciliação"));
+      expect(await screen.findByText("Sem conciliação ainda")).toBeInTheDocument();
+    });
   });
 
   it("shows the account email and signs out from there", async () => {

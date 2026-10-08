@@ -429,12 +429,9 @@ function contarDecisoes(
 
 /**
  * A tolerância de data da conciliação mais recente, em dias: é a configuração
- * que o motor usou por último. Null sem conciliação ou sem resposta — quem mostra
- * é a janela de configurações, que abre sem ela.
- *
- * ponytail: lida de `/execucoes` porque o backend guarda a configuração da
- * empresa (`configuracoes`) mas não tem rota para ela. Com a rota, é lá que se lê
- * e se ajusta.
+ * que o motor usou por último. Null sem conciliação ou sem resposta. A janela de
+ * configurações só a usa com o backend sem `GET /empresa/configuracoes`
+ * (`carregarRegras` responde 404), para mostrar a regra como estava.
  */
 export async function toleranciaDaUltimaConciliacao(): Promise<number | null> {
   try {
@@ -442,6 +439,66 @@ export async function toleranciaDaUltimaConciliacao(): Promise<number | null> {
     return lista.itens[0]?.tolerancia_dias ?? null;
   } catch {
     return null;
+  }
+}
+
+/**
+ * As regras do motor que a empresa ajusta (backend #85). Só a tolerância em dias: a de valor e a
+ * semelhança mínima ficaram fora (ADR-006 e ADR-008), e o backend recusa mandá-las.
+ */
+export type RegrasDaEmpresa = {
+  /** A tolerância que a próxima conciliação vai usar, em dias corridos. */
+  toleranciaDias: number;
+  /** O maior valor que o backend aceita; a tela não fixa o limite. */
+  toleranciaDiasMaximo: number;
+  /** Quem mudou por último e quando (ISO em UTC); null antes da primeira mudança. */
+  atualizadoPor: string | null;
+  atualizadoEm: string | null;
+};
+
+type ConfiguracoesAPI = {
+  tolerancia_dias: number;
+  tolerancia_dias_maximo: number;
+  atualizado_por: string | null;
+  atualizado_em: string | null;
+};
+
+function adaptarRegras(configuracoes: ConfiguracoesAPI): RegrasDaEmpresa {
+  return {
+    toleranciaDias: configuracoes.tolerancia_dias,
+    toleranciaDiasMaximo: configuracoes.tolerancia_dias_maximo,
+    atualizadoPor: configuracoes.atualizado_por,
+    atualizadoEm: configuracoes.atualizado_em,
+  };
+}
+
+/** `GET /empresa/configuracoes`. O 404 é o backend sem a rota: a janela mostra a regra como estava. */
+export async function carregarRegras(): Promise<Resultado<RegrasDaEmpresa>> {
+  try {
+    return { ok: true, dados: adaptarRegras(await chamarBackend<ConfiguracoesAPI>("/empresa/configuracoes")) };
+  } catch (erro) {
+    return traduzir(erro);
+  }
+}
+
+/**
+ * `PUT /empresa/configuracoes`, só com a tolerância em dias. Vale a partir da próxima conciliação:
+ * as que já rodaram ficam com a de quando rodaram (`tolerancia_dias` de cada execução). Acima do
+ * máximo, o backend responde 422.
+ */
+export async function salvarToleranciaDias(dias: number): Promise<Resultado<RegrasDaEmpresa>> {
+  // Server Action é endpoint público: só dia inteiro, não negativo, chega ao backend
+  if (!Number.isSafeInteger(dias) || dias < 0) {
+    return { ok: false, status: 422, erro: "A tolerância é um número inteiro de dias." };
+  }
+  try {
+    const configuracoes = await chamarBackend<ConfiguracoesAPI>("/empresa/configuracoes", {
+      method: "PUT",
+      corpo: { tolerancia_dias: dias },
+    });
+    return { ok: true, dados: adaptarRegras(configuracoes) };
+  } catch (erro) {
+    return traduzir(erro);
   }
 }
 

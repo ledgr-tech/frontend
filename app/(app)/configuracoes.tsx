@@ -16,7 +16,14 @@ import {
 import { trocarSenha, type ResultadoConta } from "../(auth)/acoes";
 import { MensagemErro } from "../(auth)/_compartilhado/mensagem-erro";
 import { SENHA_MINIMA } from "../(auth)/cadastro/passos";
-import { toleranciaDaUltimaConciliacao } from "./conciliacoes/acoes";
+import {
+  carregarRegras,
+  salvarToleranciaDias,
+  toleranciaDaUltimaConciliacao,
+  type RegrasDaEmpresa,
+  type Resultado,
+} from "./conciliacoes/acoes";
+import { formatarDataHora } from "./dashboard/resumo";
 import { aplicarDensidade, densidadeAtual, type Densidade } from "./densidade";
 import { alternarMenu, menuRecolhido } from "./menu";
 import { aplicarTema, escolhaDeTema, seguirSistema, temaDoSistema, type EscolhaDeTema, type Tema } from "./tema";
@@ -28,9 +35,9 @@ import { useTeclaDeAtalho } from "@/lib/plataforma";
  * `showModal()`, que já prende o foco, fecha no Esc e devolve o foco ao sair.
  *
  * Só entra o que funciona de verdade: o que é preferência deste navegador (tema,
- * densidade, menu) muda na hora; o que é do backend aparece como ele está, sem
- * controle que finja salvar — a tolerância de data, por exemplo, não tem rota
- * para ser ajustada.
+ * densidade, menu) muda na hora; o que é do backend aparece como ele está, e só
+ * ganha controle quando ele guarda: a tolerância de data é ajustada pela
+ * `PUT /empresa/configuracoes` (backend #85); sem a rota, fica para leitura.
  */
 
 type Linha = { titulo: string; descricao?: string; controle?: ReactNode };
@@ -224,6 +231,139 @@ function validarSenhaNova(valores: Record<string, string>): string | null {
   return null;
 }
 
+/** As regras da empresa na janela: lidas na primeira vez que ela abre. */
+type EstadoDasRegras =
+  | { situacao: "prontas"; regras: RegrasDaEmpresa }
+  /** O backend sem `GET /empresa/configuracoes`: a tolerância da última conciliação, para leitura. */
+  | { situacao: "sem-rota" }
+  | { situacao: "falhou" };
+
+function estadoDasRegras(resposta: Resultado<RegrasDaEmpresa>): EstadoDasRegras {
+  if (resposta.ok) return { situacao: "prontas", regras: resposta.dados };
+  return resposta.status === 404 || resposta.status === 405 ? { situacao: "sem-rota" } : { situacao: "falhou" };
+}
+
+const REGRAS_SALVAS =
+  "Regras salvas. Valem a partir da próxima conciliação; as que já rodaram continuam com as regras de quando rodaram.";
+
+/**
+ * A tolerância de data, de 0 ao máximo que o backend diz, com − e +. Salvar é por botão, que só
+ * aparece com alguma mudança; "Descartar" volta ao valor salvo.
+ */
+function ToleranciaEditavel({
+  regras,
+  onSalvas,
+}: {
+  regras: RegrasDaEmpresa;
+  onSalvas: (regras: RegrasDaEmpresa) => void;
+}) {
+  const [texto, setTexto] = useState(String(regras.toleranciaDias));
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+  const [salvas, setSalvas] = useState(false);
+  const maximo = regras.toleranciaDiasMaximo;
+  const dias = texto.trim() === "" ? Number.NaN : Number(texto);
+  const valido = Number.isInteger(dias) && dias >= 0 && dias <= maximo;
+  const mudou = texto !== String(regras.toleranciaDias);
+  const limite = `Escolha de 0 a ${maximo} dias.`;
+
+  function mudar(proximo: string) {
+    setTexto(proximo);
+    setErro(null);
+    setSalvas(false);
+  }
+
+  async function salvar() {
+    setSalvando(true);
+    setErro(null);
+    let resposta: Resultado<RegrasDaEmpresa>;
+    try {
+      resposta = await salvarToleranciaDias(dias);
+    } catch {
+      // a Server Action lançou (rede caída, deploy novo no meio) em vez de devolver um Resultado
+      resposta = { ok: false, status: 0, erro: "Não foi possível falar com o servidor." };
+    }
+    setSalvando(false);
+    if (resposta.ok) {
+      onSalvas(resposta.dados);
+      setTexto(String(resposta.dados.toleranciaDias));
+      setSalvas(true);
+      return;
+    }
+    // o 422 é o valor fora do limite do backend: diz o limite, não "confira os campos"
+    setErro(resposta.status === 422 ? limite : resposta.erro);
+  }
+
+  return (
+    <div className="cfg-acao">
+      <div className="cfg-numero">
+        <button
+          type="button"
+          className="cfg-numero-botao"
+          aria-label="Um dia a menos"
+          disabled={salvando || !valido || dias <= 0}
+          onClick={() => mudar(String(dias - 1))}
+        >
+          −
+        </button>
+        <input
+          type="number"
+          className="input cfg-numero-campo"
+          aria-label="Tolerância de data, em dias"
+          min={0}
+          max={maximo}
+          step={1}
+          inputMode="numeric"
+          value={texto}
+          disabled={salvando}
+          onChange={(evento) => mudar(evento.target.value)}
+        />
+        <span className="cfg-numero-unidade">{dias === 1 ? "dia" : "dias"}</span>
+        <button
+          type="button"
+          className="cfg-numero-botao"
+          aria-label="Um dia a mais"
+          disabled={salvando || !valido || dias >= maximo}
+          onClick={() => mudar(String(dias + 1))}
+        >
+          +
+        </button>
+      </div>
+      {/* numa linha embaixo: ao lado, eles empurrariam o − e o + para a esquerda no primeiro clique,
+          e o segundo cairia fora do botão */}
+      {mudou && (
+        <div className="cfg-numero-botoes">
+          <button type="button" className="btn btn-primary" disabled={salvando || !valido} onClick={() => void salvar()}>
+            Salvar
+          </button>
+          <button type="button" className="btn btn-ghost" disabled={salvando} onClick={() => mudar(String(regras.toleranciaDias))}>
+            Descartar
+          </button>
+        </div>
+      )}
+      {!valido && texto.trim() !== "" && <p className="cfg-numero-aviso">{limite}</p>}
+      {erro && (
+        <p role="alert" className="cfg-numero-aviso">
+          {erro}
+        </p>
+      )}
+      {salvas && (
+        <p role="status" className="cfg-feito cfg-numero-aviso">
+          {REGRAS_SALVAS}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/** A frase da linha da tolerância: o que ela faz, o limite e quem mudou por último. */
+function descricaoDaTolerancia(regras: RegrasDaEmpresa): string {
+  const base = `Até quantos dias de diferença dois lançamentos de mesmo valor ainda casam, de 0 a ${regras.toleranciaDiasMaximo} dias. Vale a partir da próxima conciliação.`;
+  return regras.atualizadoPor && regras.atualizadoEm
+    ? `${base} Alterada por ${regras.atualizadoPor} em ${formatarDataHora(regras.atualizadoEm)}.`
+    : base;
+}
+
 function Tecla({ children }: { children: ReactNode }) {
   return <kbd className="cfg-tecla">{children}</kbd>;
 }
@@ -264,6 +404,8 @@ export function Configuracoes({
   const [densidade, setDensidade] = useState<Densidade>("compacta");
   const [recolhido, setRecolhido] = useState(false);
   const [toleranciaDias, setToleranciaDias] = useState<number | null | undefined>(undefined);
+  // undefined até a janela abrir pela primeira vez (e de novo no "Tentar de novo")
+  const [regras, setRegras] = useState<EstadoDasRegras | undefined>(undefined);
   const ctrl = useTeclaDeAtalho();
 
   useEffect(() => {
@@ -283,13 +425,22 @@ export function Configuracoes({
     }
   }, [aberta]);
 
-  // a tolerância é do backend: busca na primeira vez que a janela abre
+  // as regras são do backend: busca na primeira vez que a janela abre
   useEffect(() => {
-    if (!aberta || toleranciaDias !== undefined) return;
+    if (!aberta || regras !== undefined) return;
+    carregarRegras().then(
+      (resposta) => setRegras(estadoDasRegras(resposta)),
+      () => setRegras({ situacao: "falhou" }),
+    );
+  }, [aberta, regras]);
+
+  // sem a rota das configurações, a tolerância que se mostra é a da última conciliação
+  useEffect(() => {
+    if (regras?.situacao !== "sem-rota" || toleranciaDias !== undefined) return;
     toleranciaDaUltimaConciliacao()
       .then(setToleranciaDias)
       .catch(() => setToleranciaDias(null));
-  }, [aberta, toleranciaDias]);
+  }, [regras, toleranciaDias]);
 
   function escolherTema(escolha: EscolhaDeTema) {
     if (escolha === "sistema") seguirSistema();
@@ -437,12 +588,41 @@ export function Configuracoes({
       icone: ArrowLeftRight,
       grupo: "Configurações",
       linhas: [
-        {
-          titulo: "Tolerância de data",
-          descricao:
-            "Quantos dias de diferença o motor aceita para casar dois lançamentos de mesmo valor. É a da última conciliação; ajustar por aqui chega quando o backend tiver a rota das configurações da empresa.",
-          controle: <span className="cfg-valor">{tolerancia(toleranciaDias)}</span>,
-        },
+        regras?.situacao === "prontas"
+          ? {
+              titulo: "Tolerância de data",
+              descricao: descricaoDaTolerancia(regras.regras),
+              controle: (
+                <ToleranciaEditavel
+                  regras={regras.regras}
+                  onSalvas={(salvas) => setRegras({ situacao: "prontas", regras: salvas })}
+                />
+              ),
+            }
+          : regras?.situacao === "falhou"
+            ? {
+                titulo: "Tolerância de data",
+                descricao: "Até quantos dias de diferença dois lançamentos de mesmo valor ainda casam.",
+                controle: (
+                  <div className="cfg-acao">
+                    <span className="cfg-valor">Não foi possível carregar agora.</span>
+                    <button type="button" className="btn btn-secondary" onClick={() => setRegras(undefined)}>
+                      Tentar de novo
+                    </button>
+                  </div>
+                ),
+              }
+            : {
+                titulo: "Tolerância de data",
+                descricao:
+                  "Quantos dias de diferença o motor aceita para casar dois lançamentos de mesmo valor. É a da última conciliação; ajustar por aqui chega quando o backend tiver a rota das configurações da empresa.",
+                // carregando as regras, ou o backend sem a rota: a da última conciliação, para leitura
+                controle: (
+                  <span className="cfg-valor">
+                    {regras === undefined ? "Carregando…" : tolerancia(toleranciaDias)}
+                  </span>
+                ),
+              },
         {
           titulo: "Fonte da verdade",
           descricao:

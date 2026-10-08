@@ -15,6 +15,7 @@ import {
   listarExtratos,
   reabrirMes,
   registrarDecisao,
+  salvarToleranciaDias,
   situacaoDoExtrato,
 } from "./acoes";
 
@@ -739,6 +740,61 @@ describe("registrarDecisao", () => {
       erro: "Conciliação não encontrada.",
     });
     expect(chamarBackend).not.toHaveBeenCalled();
+  });
+});
+
+describe("as regras da empresa", () => {
+  beforeEach(() => {
+    chamarBackend.mockReset();
+  });
+
+  // GET e PUT /empresa/configuracoes (backend #85): só a tolerância em dias
+  const CONFIGURACOES = {
+    tolerancia_dias: 2,
+    tolerancia_dias_maximo: 5,
+    atualizado_por: "Maria Financeiro",
+    atualizado_em: "2026-10-06T12:30:00.123456Z",
+  };
+
+  it("lê a tolerância que a próxima conciliação vai usar, o máximo e quem mudou por último", async () => {
+    chamarBackend.mockResolvedValue(CONFIGURACOES);
+
+    expect(await carregarRegras()).toEqual({
+      ok: true,
+      dados: {
+        toleranciaDias: 2,
+        toleranciaDiasMaximo: 5,
+        atualizadoPor: "Maria Financeiro",
+        atualizadoEm: "2026-10-06T12:30:00.123456Z",
+      },
+    });
+    expect(chamarBackend).toHaveBeenCalledWith("/empresa/configuracoes");
+  });
+
+  it("devolve o 404 do backend que ainda não tem a rota, para a tela ficar como antes", async () => {
+    chamarBackend.mockRejectedValue(new ErroBackend(404, "Not Found"));
+    expect(await carregarRegras()).toMatchObject({ ok: false, status: 404 });
+  });
+
+  it("salva só a tolerância em dias, e devolve as regras como ficaram", async () => {
+    chamarBackend.mockResolvedValue({ ...CONFIGURACOES, tolerancia_dias: 3 });
+
+    const resultado = await salvarToleranciaDias(3);
+
+    // tolerância de valor e semelhança dariam 422: o backend não as guarda
+    expect(chamarBackend).toHaveBeenCalledWith("/empresa/configuracoes", { method: "PUT", corpo: { tolerancia_dias: 3 } });
+    expect(resultado).toMatchObject({ ok: true, dados: { toleranciaDias: 3 } });
+  });
+
+  it("recusa um número que não é de dias inteiros sem chamar o backend", async () => {
+    expect(await salvarToleranciaDias(2.5)).toMatchObject({ ok: false, status: 422 });
+    expect(await salvarToleranciaDias(-1)).toMatchObject({ ok: false, status: 422 });
+    expect(chamarBackend).not.toHaveBeenCalled();
+  });
+
+  it("devolve o 422 do backend para o valor acima do máximo", async () => {
+    chamarBackend.mockRejectedValue(new ErroBackend(422, "Confira os campos.", ["tolerancia_dias"]));
+    expect(await salvarToleranciaDias(9)).toMatchObject({ ok: false, status: 422 });
   });
 });
 
