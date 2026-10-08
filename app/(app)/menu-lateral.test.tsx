@@ -14,6 +14,7 @@ vi.mock("next/navigation", () => ({
 // assistente, a última conciliação
 vi.mock("./conciliacoes/acoes", () => ({
   toleranciaDaUltimaConciliacao: async () => 1,
+  carregarRegras: async () => ({ ok: false, status: 404, erro: "Not Found" }),
   carregarVisaoGeral: async () => ({
     ok: true,
     dados: { execucoes: [], total: 0, recente: null, arquivosComLinhasNaoLidas: [] },
