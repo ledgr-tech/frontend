@@ -35,7 +35,7 @@ import { Relatorio } from "./relatorio";
 import { NovaVersao } from "./nova-versao";
 import { LinhaDasRodadas } from "./linha-das-rodadas";
 import { CirculoDeConferir } from "./circulo-de-conferir";
-import { competencia } from "../../fechamentos/fechamento";
+import { competencia, tituloDaCompetencia } from "../../fechamentos/fechamento";
 import { larguraDoValor } from "./largura";
 import { Reveal } from "@/app/reveal";
 import { MensagemErro } from "@/app/(auth)/_compartilhado/mensagem-erro";
@@ -179,7 +179,7 @@ export default function ConciliacaoPage() {
     );
   }
 
-  const { conciliacao, real, truncada, rodada, rodadas, mudancas } = estado;
+  const { conciliacao, real, truncada, rodada, rodadas, mudancas, fechamento } = estado;
 
   function fechar() {
     const atualizada = fecharConciliacao(conciliacao.id);
@@ -234,8 +234,9 @@ export default function ConciliacaoPage() {
     setPagina(0);
   }
 
-  // decidir só onde há onde gravar, e só na rodada que vale: a passada é para ler
-  const podeDecidir = ligadas && (!rodada || rodada.numero === rodada.total);
+  // decidir só onde há onde gravar, só na rodada que vale (a passada é para ler) e só com o mês
+  // aberto: no fechado, o backend recusa (409) até reabrir
+  const podeDecidir = ligadas && (!rodada || rodada.numero === rodada.total) && !fechamento;
   const linhaAberta = chaveAberta === null ? null : (conciliacao.linhas.find((linha) => chaveDaLinha(linha) === chaveAberta) ?? null);
 
   /** Troca uma linha na conciliação que estiver na tela quando a resposta chegar. */
@@ -303,8 +304,9 @@ export default function ConciliacaoPage() {
             `rodada ${rodada.numero} · ${rodada.arquivoSistema}, ${formatarDataHora(rodada.executadaEm)}`,
         ]}
         acoes={
-          // só conciliação de verdade, e só na rodada que vale: a passada é para ler
+          // só conciliação de verdade, só na rodada que vale (a passada é para ler) e com o mês aberto
           real &&
+          !fechamento &&
           (!rodada || rodada.numero === rodada.total) && (
             <NovaVersao
               extratoBancoId={conciliacao.id}
@@ -324,6 +326,14 @@ export default function ConciliacaoPage() {
         {truncada && (
           <p role="status" className="selo selo-atencao" style={{ alignSelf: "flex-start" }}>
             Mostrando as primeiras {conciliacao.linhas.length} linhas desta conciliação.
+          </p>
+        )}
+        {/* o mês fechado trava conferir, justificar e conciliar de novo (backend #86): a tela não
+            oferece o que o backend recusaria, e diz onde reabrir */}
+        {fechamento && (
+          <p role="status" aria-label="Mês fechado" className="mes-fechado-aviso">
+            {`${tituloDaCompetencia(fechamento.competencia)} está fechado. Para conferir, justificar ou conciliar de novo, reabra o fechamento. `}
+            <Link href={`/fechamentos?mes=${fechamento.competencia}`}>Ver o fechamento</Link>
           </p>
         )}
         {/* a faixa da rodada: o aviso da rodada passada (só para ler, leva à que vale) ou o que

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { pareceUuid } from "@/lib/adaptadores";
+import { pareceUuid, type Fechamento } from "@/lib/adaptadores";
 import { buscarConciliacao, type Conciliacao } from "@/lib/mock-data";
 import type { Mudancas } from "@/lib/rodadas";
 import { carregarConciliacaoEmRodadas, type RodadaVista } from "./acoes";
@@ -34,6 +34,8 @@ export type EstadoConciliacao =
       /** Todas as rodadas do extrato do banco, da primeira à mais recente; vazia no mock. */
       rodadas: RodadaVista[];
       mudancas: Mudancas | null;
+      /** O mês da conciliação fechado: conferir, justificar e conciliar de novo esperam reabrir. */
+      fechamento: Fechamento | null;
     };
 
 /**
@@ -75,7 +77,16 @@ export function useConciliacao(
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setEstado(
         mock
-          ? { situacao: "pronta", conciliacao: mock, real: false, truncada: false, rodada: null, rodadas: [], mudancas: null }
+          ? {
+              situacao: "pronta",
+              conciliacao: mock,
+              real: false,
+              truncada: false,
+              rodada: null,
+              rodadas: [],
+              mudancas: null,
+              fechamento: null,
+            }
           : { situacao: "ausente" },
       );
       return;
@@ -98,6 +109,7 @@ export function useConciliacao(
           rodada: resposta.dados.rodada,
           rodadas: resposta.dados.rodadas,
           mudancas: resposta.dados.mudancas,
+          fechamento: resposta.dados.fechamento,
         });
       },
       () => {

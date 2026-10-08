@@ -3,9 +3,11 @@
 import { useState, type ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Circle, CircleCheck, FileDown } from "lucide-react";
 import { caminhoDaConciliacao } from "@/lib/caminhos";
 import type { Tom } from "@/lib/mock-data";
+import { fecharMes, reabrirMes, type Resultado } from "../conciliacoes/acoes";
 import { ExportarCsv } from "../conciliacoes/[id]/exportar-csv";
 import { formatarDataHora, formatarInteiro, formatarPercentual } from "../dashboard/resumo";
 import { FaixaFiltros } from "../faixa-filtros";
@@ -14,21 +16,34 @@ import type { MesDeFechamento } from "./fechamento";
 
 /**
  * A mesa de fechamento: cada mês é uma folha, e o selecionado abre ao lado o
- * que falta para fechá-lo — o mesmo desenho da galeria de extratos. Fica no
- * cliente só pelo filtro e pela seleção; os meses chegam prontos do servidor.
+ * que falta para fechá-lo e o fechamento em si — o mesmo desenho da galeria de
+ * extratos. Fica no cliente pelo filtro, pela seleção e por fechar e reabrir,
+ * que leem a tela de novo; os meses chegam prontos do servidor.
  */
 
-type Filtro = "todos" | "prontos" | "pendentes";
+type Filtro = "todos" | "prontos" | "pendentes" | "fechados";
 
 const FILTROS: { id: Filtro; rotulo: string; vazio: string }[] = [
   { id: "todos", rotulo: "Todos", vazio: "Nenhum mês." },
   { id: "prontos", rotulo: "Prontos para fechar", vazio: "Nenhum mês pronto para fechar ainda." },
   { id: "pendentes", rotulo: "Com pendência", vazio: "Nenhum mês com pendência." },
+  { id: "fechados", rotulo: "Fechados", vazio: "Nenhum mês fechado ainda." },
 ];
 
+/** Fechado agora: o registro mais recente do mês não foi reaberto. */
+function estaFechado(mes: MesDeFechamento): boolean {
+  return mes.fechamento?.estado === "fechado";
+}
+
+/** Nada mais a fazer no mês: fechado, ou pronto para fechar. É o que recolhe nos anos passados. */
+function resolvido(mes: MesDeFechamento): boolean {
+  return estaFechado(mes) || mes.pronto;
+}
+
 function passaNoFiltro(mes: MesDeFechamento, filtro: Filtro): boolean {
-  if (filtro === "prontos") return mes.pronto;
-  if (filtro === "pendentes") return !mes.pronto;
+  if (filtro === "prontos") return mes.pronto && !estaFechado(mes);
+  if (filtro === "pendentes") return !mes.pronto && !estaFechado(mes);
+  if (filtro === "fechados") return estaFechado(mes);
   return true;
 }
 
@@ -46,6 +61,9 @@ function pendentes(mes: MesDeFechamento): number {
 }
 
 function seloDoMes(mes: MesDeFechamento): { rotulo: string; tom: Tom } {
+  if (estaFechado(mes)) {
+    return mes.fechamento?.ressalva ? { rotulo: "Fechado com ressalva", tom: "atencao" } : { rotulo: "Fechado", tom: "ok" };
+  }
   if (mes.pronto) return { rotulo: "Pronto para fechar", tom: "ok" };
   // sem divergência por decidir, o que segura o mês são as linhas que o parser não leu
   if (pendentes(mes) === 0) return { rotulo: "Linhas não lidas", tom: "atencao" };
@@ -69,7 +87,7 @@ function agruparPorAno(meses: MesDeFechamento[]): Ano[] {
 }
 
 function resumoDoAno(meses: MesDeFechamento[]): string {
-  const pendentes = meses.filter((mes) => !mes.pronto).length;
+  const pendentes = meses.filter((mes) => !resolvido(mes)).length;
   const situacao =
     pendentes > 0 ? `${formatarInteiro(pendentes)} com pendência` : meses.length === 1 ? "pronta" : "todas prontas";
   return `${plural(meses.length, "competência", "competências")} · ${situacao}`;
@@ -78,10 +96,13 @@ function resumoDoAno(meses: MesDeFechamento[]): string {
 export function MesaDeFechamento({
   meses,
   inicial,
+  podeFechar,
 }: {
   meses: MesDeFechamento[];
   /** A competência (AAAA-MM) que abre no painel; sem ela, ou sem esse mês, a mais recente. */
   inicial?: string;
+  /** Falso quando os fechamentos não carregaram: sem saber o que está fechado, a mesa só mostra. */
+  podeFechar: boolean;
 }) {
   const [filtro, setFiltro] = useState<Filtro>("todos");
   const [selecionado, setSelecionado] = useState<string | null>(
@@ -131,10 +152,10 @@ export function MesaDeFechamento({
             {anos.map(({ ano, meses: doAno }) => {
               const recolhivel = comTitulo && filtro === "todos" && ano !== anoCorrente;
               const expandido = !recolhivel || prontosAbertos.has(ano);
-              // o mês aberto no painel fica à vista mesmo pronto, para a folha não sumir debaixo dele
-              const mostrados = expandido ? doAno : doAno.filter((mes) => !mes.pronto || mes.chave === aberto.chave);
+              // o mês aberto no painel fica à vista mesmo resolvido, para a folha não sumir debaixo dele
+              const mostrados = expandido ? doAno : doAno.filter((mes) => !resolvido(mes) || mes.chave === aberto.chave);
               const ocultos = doAno.length - mostrados.length;
-              const temProntos = doAno.some((mes) => mes.pronto);
+              const temProntos = doAno.some(resolvido);
               const id = `fech-ano-${ano}`;
               const conteudo = (
                 <>
@@ -170,7 +191,7 @@ export function MesaDeFechamento({
                       onClick={() => setProntosAbertos(alternarNoConjunto(ano))}
                     >
                       {expandido
-                        ? doAno.filter((mes) => mes.pronto).length === 1
+                        ? doAno.filter(resolvido).length === 1
                           ? "Esconder o mês pronto"
                           : "Esconder os meses prontos"
                         : ocultos === 1
@@ -198,7 +219,7 @@ export function MesaDeFechamento({
               );
             })}
           </div>
-          <Painel mes={aberto} />
+          <Painel mes={aberto} podeFechar={podeFechar} />
         </div>
       )}
     </div>
@@ -208,7 +229,7 @@ export function MesaDeFechamento({
 /** A folha do mês, como uma página de calendário: o mês, o ano e quanto já bateu. */
 function FolhaDoMes({ mes }: { mes: MesDeFechamento }) {
   return (
-    <span className="extrato-folha mes-folha" data-pronto={mes.pronto || undefined} aria-hidden="true">
+    <span className="extrato-folha mes-folha" data-pronto={resolvido(mes) || undefined} aria-hidden="true">
       <span className="extrato-folha-titulo">Competência</span>
       <span className="mes-folha-nome">{mes.nome}</span>
       <span className="mes-folha-ano">{mes.ano}</span>
@@ -238,8 +259,7 @@ function Passo({ feito, icone, titulo, children }: { feito?: boolean; icone?: Re
   );
 }
 
-/** Exportado também para a landing, que mostra o painel de um mês de exemplo. */
-export function Painel({ mes }: { mes: MesDeFechamento }) {
+function Painel({ mes, podeFechar }: { mes: MesDeFechamento; podeFechar: boolean }) {
   const conciliadas = mes.pares.map((par) => ({
     ...par,
     caminho: caminhoDaConciliacao(par.execucao.extratoBancoId, par.execucao.extratoSistemaId),
@@ -248,13 +268,14 @@ export function Painel({ mes }: { mes: MesDeFechamento }) {
   const comPendencia =
     conciliadas.find((par) => Object.keys(par.execucao.divergencias).length > 0) ?? conciliadas[0];
   const ultima = mes.pares[0].execucao.executadaEm;
+  const fechado = estaFechado(mes) ? mes.fechamento : null;
 
   return (
     <section className="extrato-painel fech-painel" aria-label="Mês selecionado">
-      <h6 style={{ margin: 0 }}>Fechamento · {mes.pronto ? "pronto para fechar" : "em aberto"}</h6>
+      <h6 style={{ margin: 0 }}>Fechamento · {fechado ? "fechado" : mes.pronto ? "pronto para fechar" : "em aberto"}</h6>
       <div className="extrato-painel-topo">
         <h3 className="extrato-painel-nome">{mes.titulo}</h3>
-        {mes.pronto && (
+        {resolvido(mes) && (
           <Image
             src="/mascotes/mascote-comemorando.png"
             alt=""
@@ -265,6 +286,26 @@ export function Painel({ mes }: { mes: MesDeFechamento }) {
           />
         )}
       </div>
+
+      {fechado && (
+        <div className="fech-encerrado">
+          <p className="fech-passo-texto" style={{ margin: 0 }}>
+            {`Fechado em ${formatarDataHora(fechado.fechadoEm)} por ${fechado.fechadoPor}.`}
+          </p>
+          {fechado.ressalva && (
+            <blockquote className="fech-ressalva">
+              <span className="fech-ressalva-rotulo">Ressalva</span>
+              <span>{fechado.ressalva}</span>
+            </blockquote>
+          )}
+        </div>
+      )}
+      {/* reaberto: foi fechado e alguém abriu de novo; fechar outra vez cria outro registro */}
+      {mes.fechamento?.estado === "reaberto" && mes.fechamento.reabertoEm && (
+        <p className="fech-passo-texto" style={{ margin: 0 }}>
+          {`Reaberto em ${formatarDataHora(mes.fechamento.reabertoEm)} por ${mes.fechamento.reabertoPor}.`}
+        </p>
+      )}
 
       <div className="fech-progresso">
         <span className="vg-nota">
@@ -359,25 +400,148 @@ export function Painel({ mes }: { mes: MesDeFechamento }) {
         </Passo>
       </ol>
 
-      {mes.pronto ? (
-        <Link href="/conciliacoes/nova" className="btn btn-primary" style={{ alignSelf: "flex-start" }}>
-          {`Começar ${mes.proximo}`}
-        </Link>
-      ) : pendentes(mes) > 0 ? (
-        <Link href={comPendencia.caminho} className="btn btn-primary" style={{ alignSelf: "flex-start" }}>
-          Revisar pendências
-        </Link>
+      {podeFechar ? (
+        <AcoesDoFechamento mes={mes} revisar={comPendencia.caminho} />
       ) : (
-        <Link href="/extratos" className="btn btn-primary" style={{ alignSelf: "flex-start" }}>
-          Ver extratos
-        </Link>
+        // sem a lista de fechamentos, o caminho de antes: começar o próximo, revisar ou ver os extratos
+        <div className="fech-acoes">
+          {mes.pronto ? (
+            <Link href="/conciliacoes/nova" className="btn btn-primary">
+              {`Começar ${mes.proximo}`}
+            </Link>
+          ) : (
+            <Link href={pendentes(mes) > 0 ? comPendencia.caminho : "/extratos"} className="btn btn-primary">
+              {pendentes(mes) > 0 ? "Revisar pendências" : "Ver extratos"}
+            </Link>
+          )}
+        </div>
       )}
 
-      {/* ponytail: o backend não registra o encerramento do mês. Quando registrar,
-          é aqui que entram o "encerrado em" e o botão de fechar. */}
       <p className="vg-nota" style={{ margin: 0, fontSize: 13 }}>
-        {`Última conciliação em ${formatarDataHora(ultima)}. O Ledgr ainda não registra o encerramento: o mês fica pronto quando nada pede decisão.`}
+        {`Última conciliação em ${formatarDataHora(ultima)}.`}
       </p>
     </section>
+  );
+}
+
+/**
+ * Fechar e reabrir o mês (backend #86). Pronto, o botão principal fecha; com pendência, o
+ * principal continua sendo revisar, e "Fechar mesmo assim" pergunta ao backend o que falta: o 409
+ * vem com o texto, e a tela pede a ressalva para fechar com ela. Fechado, o mês leva ao próximo e
+ * pode ser reaberto. Depois de cada um, a tela é lida de novo.
+ */
+function AcoesDoFechamento({ mes, revisar }: { mes: MesDeFechamento; revisar: string }) {
+  const router = useRouter();
+  const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+  // o backend recusou por pendência (409): a ressalva é o que falta para fechar
+  const [pedeRessalva, setPedeRessalva] = useState(false);
+  const [ressalva, setRessalva] = useState("");
+  const mesSozinho = mes.nome.toLowerCase();
+
+  async function executar(acao: () => Promise<Resultado<unknown>>) {
+    setEnviando(true);
+    setErro(null);
+    let resposta: Resultado<unknown>;
+    try {
+      resposta = await acao();
+    } catch {
+      // a Server Action lançou (rede caída, deploy novo no meio) em vez de devolver um Resultado
+      resposta = { ok: false, status: 0, erro: "Não foi possível falar com o servidor." };
+    }
+    setEnviando(false);
+    if (resposta.ok) {
+      setPedeRessalva(false);
+      setRessalva("");
+      router.refresh();
+      return;
+    }
+    if (resposta.status === 401) router.push("/login");
+    setErro(resposta.erro);
+    if (resposta.status === 409) {
+      setPedeRessalva(true);
+      // se o 409 for de um mês que outra aba já fechou, a tela relida o mostra fechado
+      router.refresh();
+    }
+  }
+
+  if (estaFechado(mes)) {
+    return (
+      <div className="fech-acoes">
+        <Link href="/conciliacoes/nova" className="btn btn-primary">
+          {`Começar ${mes.proximo}`}
+        </Link>
+        <button type="button" className="btn btn-secondary" disabled={enviando} onClick={() => executar(() => reabrirMes(mes.chave))}>
+          {`Reabrir ${mesSozinho}`}
+        </button>
+        {erro && (
+          <p role="alert" className="selo selo-risco fech-erro">
+            {erro}
+          </p>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="fech-acoes">
+      {mes.pronto ? (
+        <button type="button" className="btn btn-primary" disabled={enviando} onClick={() => executar(() => fecharMes(mes.chave))}>
+          {`Fechar ${mesSozinho}`}
+        </button>
+      ) : (
+        <>
+          <Link href={pendentes(mes) > 0 ? revisar : "/extratos"} className="btn btn-primary">
+            {pendentes(mes) > 0 ? "Revisar pendências" : "Ver extratos"}
+          </Link>
+          {!pedeRessalva && (
+            <button type="button" className="btn btn-secondary" disabled={enviando} onClick={() => executar(() => fecharMes(mes.chave))}>
+              Fechar mesmo assim
+            </button>
+          )}
+        </>
+      )}
+      {erro && (
+        <p role="alert" className="selo selo-risco fech-erro">
+          {erro}
+        </p>
+      )}
+      {pedeRessalva && (
+        <form
+          className="fech-ressalva-form"
+          onSubmit={(evento) => {
+            evento.preventDefault();
+            void executar(() => fecharMes(mes.chave, ressalva));
+          }}
+        >
+          <label className="fech-campo">
+            <span>Ressalva</span>
+            <textarea
+              className="input"
+              rows={3}
+              maxLength={1000}
+              value={ressalva}
+              onChange={(evento) => setRessalva(evento.target.value)}
+            />
+          </label>
+          <span className="vg-nota">Fica registrada no fechamento, com o seu nome e o horário.</span>
+          <div className="fech-acoes">
+            <button type="submit" className="btn btn-primary" disabled={enviando || ressalva.trim() === ""}>
+              Fechar com ressalva
+            </button>
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={() => {
+                setPedeRessalva(false);
+                setErro(null);
+              }}
+            >
+              Cancelar
+            </button>
+          </div>
+        </form>
+      )}
+    </div>
   );
 }

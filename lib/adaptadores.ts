@@ -326,6 +326,47 @@ export function adaptarExecucao(item: ExecucaoAPI): Execucao {
   };
 }
 
+/**
+ * Um fechamento de competência, como `/fechamentos` devolve (backend #86). Nada é apagado: reabrir
+ * marca o registro como `reaberto`, e fechar de novo cria outro. O `resumo` congelado no fechamento
+ * fica de fora: a tela mostra o mês como está agora.
+ */
+export type FechamentoAPI = {
+  id: string;
+  competencia: string;
+  estado: "fechado" | "reaberto";
+  ressalva: string | null;
+  /** O nome de quem fechou, gravado no momento. */
+  fechado_por: string;
+  /** ISO 8601 em UTC. */
+  fechado_em: string;
+  reaberto_por: string | null;
+  reaberto_em: string | null;
+};
+
+export type Fechamento = {
+  /** AAAA-MM. */
+  competencia: string;
+  estado: "fechado" | "reaberto";
+  ressalva: string | null;
+  fechadoPor: string;
+  fechadoEm: string;
+  reabertoPor: string | null;
+  reabertoEm: string | null;
+};
+
+export function adaptarFechamento(item: FechamentoAPI): Fechamento {
+  return {
+    competencia: item.competencia,
+    estado: item.estado,
+    ressalva: item.ressalva,
+    fechadoPor: item.fechado_por,
+    fechadoEm: item.fechado_em,
+    reabertoPor: item.reaberto_por,
+    reabertoEm: item.reaberto_em,
+  };
+}
+
 /** Um extrato enviado, como `GET /extratos` lista (backend #70): do envio mais recente ao mais antigo. */
 export type ItemExtratoAPI = {
   extrato_id: string;
