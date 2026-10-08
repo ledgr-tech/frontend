@@ -198,20 +198,28 @@ export async function sair(): Promise<void> {
   await signOut({ redirectTo: "/login" });
 }
 
+/** O que o app guarda da conta logada, lido uma vez por carregamento do layout. */
+export type ContaDaSessao = {
+  /** A razão social, para o cabeçalho e o menu. Vazia quando o backend não respondeu. */
+  empresa: string;
+  /** Falso na conta que só entra pelo Google: para ela, `POST /me/senha` responde 409. */
+  temSenha: boolean;
+};
+
 /**
- * A razão social da empresa logada, para o cabeçalho e o menu. Vem de
- * `GET /me`, que o `/login` não cobre: ele devolve só o usuário.
+ * A conta logada, de `GET /me` (backend #81), que o `/login` não cobre: ele devolve só
+ * o usuário. Sem `papel`, porque o MVP tem conta única. Limite de 60 chamadas por
+ * minuto por usuário, por isso só o layout chama.
  *
- * ponytail: `GET /me` ainda não existe no backend (proposta em
- * `integracao-backend-sprint5.md`). Até existir, o 404 vira nome vazio e as telas
- * escondem a empresa — melhor que mostrar o nome de outra.
+ * Se a rota falhar, a empresa fica vazia e as telas a escondem, melhor que mostrar o
+ * nome de outra; a troca de senha fica à mostra, e o backend diz o motivo se recusar.
  */
-export async function razaoSocialDaEmpresa(): Promise<string> {
+export async function contaDaSessao(): Promise<ContaDaSessao> {
   try {
-    const eu = await chamarBackend<UsuarioAPI & { razao_social?: string }>("/me");
-    return eu.razao_social?.trim() ?? "";
+    const eu = await chamarBackend<UsuarioAPI & { razao_social: string; metodos_login: string[] }>("/me");
+    return { empresa: eu.razao_social?.trim() ?? "", temSenha: eu.metodos_login?.includes("senha") ?? true };
   } catch {
-    return "";
+    return { empresa: "", temSenha: true };
   }
 }
 

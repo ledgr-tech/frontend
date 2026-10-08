@@ -54,8 +54,9 @@ export type Pendente = {
   analise: Extract<Analise, { motivo: "colunas" | "formato" }>;
 };
 
-// o que cada lado aceita: o banco exporta OFX ou CSV; o ERP, CSV ou o PDF de lançamentos
-const FORMATOS: Record<Origem, string> = { banco: "OFX ou CSV", sistema: "CSV ou PDF" };
+// o que cada lado aceita: o banco exporta OFX ou CSV; o ERP, CSV. O PDF de lançamentos do ERP
+// espera o spike do backend (#84), que decide até 13/10 se ele entra no MVP.
+const FORMATOS: Record<Origem, string> = { banco: "OFX ou CSV", sistema: "CSV" };
 
 /** O que o backend deixa saber de um extrato que ele recusou inteiro. */
 export function motivoDaRecusa(situacao: SituacaoExtrato): string {
@@ -96,7 +97,7 @@ export async function aguardarProcessamento(
 /**
  * O CSV passa pelas regras do backend antes de subir: pronto para subir como está,
  * ilegível (o erro), ou esperando a pessoa apontar as colunas (a importação
- * interrompida). OFX e PDF o backend lê direto.
+ * interrompida). OFX o backend lê direto.
  */
 export async function conferirCsv(
   arquivo: File,

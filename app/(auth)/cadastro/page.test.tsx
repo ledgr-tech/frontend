@@ -125,7 +125,7 @@ describe("CadastroPage", () => {
     expect(titulo()).toHaveTextContent("E o sistema de gestão?");
     expect(screen.getByText("Passo III de III")).toBeInTheDocument();
     expect(
-      screen.getByText(/o CSV ou o PDF de lançamentos exportado dele também funciona\./),
+      screen.getByText(/o CSV exportado dele também funciona\./),
     ).toBeInTheDocument();
     expect(screen.getByLabelText("E-mail do responsável")).toHaveValue("financeiro@telhacerta.com.br");
     expect(screen.getByLabelText("Sistema de gestão")).toHaveAttribute("placeholder", "Omie, Bling, Tiny, outro…");
