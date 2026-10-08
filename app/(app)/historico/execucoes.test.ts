@@ -28,15 +28,27 @@ function execucao(id: string, acerto: number | null, atual = true): Execucao {
     toleranciaDias: 1,
     atual,
     justificadas: 0,
+    periodoInicio: null,
   };
 }
 
-/** Uma execução de `lancamentos` linhas, das quais `divergentes` não casaram. */
-function doMes(id: string, banco: string, executadaEm: string, lancamentos: number, divergentes: number): Execucao {
+/**
+ * Uma execução de `lancamentos` linhas, das quais `divergentes` não casaram, com o extrato do banco
+ * começando em `periodoInicio`.
+ */
+function doMes(
+  id: string,
+  banco: string,
+  executadaEm: string,
+  lancamentos: number,
+  divergentes: number,
+  periodoInicio: string | null = null,
+): Execucao {
   return {
     ...execucao(id, null),
     extratoBancoId: banco,
     executadaEm,
+    periodoInicio,
     lancamentos,
     divergencias: divergentes > 0 ? { divergente_valor: divergentes } : {},
   };
@@ -46,14 +58,13 @@ describe("serieMensal", () => {
   it("um ponto por mês do extrato, pesado pelos lançamentos, do mais antigo ao mais novo", () => {
     const serie = serieMensal(
       [
-        // setembro rodou em outubro, mas é de setembro
-        doMes("s", "B-set", "2026-10-02T12:00:00Z", 22, 10),
-        doMes("a", "B-ago", "2026-09-02T12:00:00Z", 100, 8),
+        // setembro rodou em outubro, mas o extrato do banco começa em setembro
+        doMes("s", "B-set", "2026-10-02T12:00:00Z", 22, 10, "2026-09-01"),
+        doMes("a", "B-ago", "2026-09-02T12:00:00Z", 100, 8, "2026-08-01"),
         // dois bancos em junho: 370 de 400, não a média de 100% e 90%
-        doMes("j1", "itau-jun", "2026-07-06T12:00:00Z", 100, 0),
-        doMes("j2", "sicredi-jun", "2026-07-06T12:00:00Z", 300, 30),
+        doMes("j1", "itau-jun", "2026-07-06T12:00:00Z", 100, 0, "2026-06-01"),
+        doMes("j2", "sicredi-jun", "2026-07-06T12:00:00Z", 300, 30, "2026-06-02"),
       ],
-      { "B-set": "2026-09", "B-ago": "2026-08", "itau-jun": "2026-06", "sicredi-jun": "2026-06" },
     );
     expect(serie.map((ponto) => [ponto.chave, ponto.conciliados, ponto.lancamentos, ponto.conciliacoes])).toEqual([
       ["2026-06", 370, 400, 2],
@@ -63,7 +74,7 @@ describe("serieMensal", () => {
     expect(serie.map((ponto) => ponto.taxa)).toEqual([92.5, 92, (12 / 22) * 100]);
   });
 
-  it("sem o mês do extrato, usa o mês em que rodou, no fuso de Brasília", () => {
+  it("sem o período do extrato do banco, usa o mês em que rodou, no fuso de Brasília", () => {
     // 01/10 às 02h em UTC ainda é 30/09 em Brasília
     expect(serieMensal([doMes("e", "B", "2026-10-01T02:00:00Z", 10, 1)]).map((ponto) => ponto.chave)).toEqual([
       "2026-09",
@@ -73,8 +84,10 @@ describe("serieMensal", () => {
   it("fica com os seis meses mais recentes, e deixa de fora o mês sem lançamento", () => {
     const meses = ["2026-01", "2026-02", "2026-03", "2026-04", "2026-05", "2026-06", "2026-07"];
     const serie = serieMensal(
-      [...meses.map((mes) => doMes(mes, `B${mes}`, `${mes}-20T12:00:00Z`, 10, 0)), doMes("vazio", "Bv", "2026-08-20T12:00:00Z", 0, 0)],
-      Object.fromEntries(meses.map((mes) => [`B${mes}`, mes])),
+      [
+        ...meses.map((mes) => doMes(mes, `B${mes}`, `${mes}-20T12:00:00Z`, 10, 0, `${mes}-01`)),
+        doMes("vazio", "Bv", "2026-08-20T12:00:00Z", 0, 0, "2026-08-01"),
+      ],
     );
     expect(serie.map((ponto) => ponto.chave)).toEqual(meses.slice(1));
   });
@@ -108,7 +121,14 @@ describe("alturasNoGrafico", () => {
 });
 
 /** Uma execução do extrato do banco `banco` com o extrato do sistema `sistema`. */
-function doPar(id: string, banco: string, sistema: string, executadaEm: string, atual = true): Execucao {
+function doPar(
+  id: string,
+  banco: string,
+  sistema: string,
+  executadaEm: string,
+  atual = true,
+  periodoInicio: string | null = null,
+): Execucao {
   return {
     ...execucao(id, 90, atual),
     extratoBancoId: banco,
@@ -116,6 +136,7 @@ function doPar(id: string, banco: string, sistema: string, executadaEm: string, 
     arquivoBanco: `${banco}.ofx`,
     arquivoSistema: `${sistema}.csv`,
     executadaEm,
+    periodoInicio,
   };
 }
 
@@ -199,19 +220,17 @@ describe("taxaDeMatch", () => {
 });
 
 describe("porMes e porAno", () => {
-  it("agrupa pelo mês do extrato, como Fechamentos, e ordena os meses por ele", () => {
+  it("agrupa pelo mês em que o extrato do banco começa, como Fechamentos, e ordena os meses por ele", () => {
     const meses = porMes(
-      porConciliacao(
-        [
-          // o extrato de setembro com a rodada nova em outubro fica em setembro
-          doPar("e3", "B3", "S3", "2026-10-02T12:00:00Z"),
-          doPar("e2", "B2", "S2", "2026-10-01T12:00:00Z"),
-          // o de agosto conciliado atrasado, depois de um de setembro
-          doPar("e1", "B1", "S1", "2026-09-30T12:00:00Z"),
-          doPar("e0", "B0", "S0", "2026-09-29T12:00:00Z"),
-        ],
-        { B3: "2026-09", B2: "2026-10", B1: "2026-08", B0: "2026-09" },
-      ),
+      porConciliacao([
+        // o extrato de setembro com a rodada nova em outubro fica em setembro
+        doPar("e3", "B3", "S3", "2026-10-02T12:00:00Z", true, "2026-09-01"),
+        doPar("e2", "B2", "S2", "2026-10-01T12:00:00Z", true, "2026-10-01"),
+        // o de agosto conciliado atrasado, depois de um de setembro; e um que cruza agosto e
+        // setembro fica no mês em que começa
+        doPar("e1", "B1", "S1", "2026-09-30T12:00:00Z", true, "2026-08-01"),
+        doPar("e0", "B0", "S0", "2026-09-29T12:00:00Z", true, "2026-09-15"),
+      ]),
     );
     expect(meses.map((mes) => [mes.titulo, mes.conciliacoes.map((item) => item.principal.execucao.id)])).toEqual([
       ["Outubro de 2026", ["e2"]],
@@ -220,7 +239,7 @@ describe("porMes e porAno", () => {
     ]);
   });
 
-  it("sem o mês do extrato, cai no mês em que a que vale rodou, no fuso de Brasília; e os meses vão por ano", () => {
+  it("sem o período do extrato do banco, cai no mês em que a que vale rodou, no fuso de Brasília; e os meses vão por ano", () => {
     const meses = porMes(
       porConciliacao([
         // 01/01 às 02h em UTC ainda é 31/12 em Brasília

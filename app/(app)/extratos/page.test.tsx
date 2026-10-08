@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
-import type { ArquivoExtrato, Resultado } from "../conciliacoes/acoes";
+import type { ArquivoExtrato, ListaDeExtratos, Resultado } from "../conciliacoes/acoes";
 import ExtratosPage from "./page";
 
 // quem fala com o backend é a action; aqui ela só devolve o que ele responderia
-const listarExtratos = vi.fn<() => Promise<Resultado<ArquivoExtrato[]>>>();
+const listarExtratos = vi.fn<() => Promise<Resultado<ListaDeExtratos>>>();
 vi.mock("../conciliacoes/acoes", () => ({
   listarExtratos: () => listarExtratos(),
 }));
@@ -27,8 +27,11 @@ const ARQUIVOS: ArquivoExtrato[] = [
     resultado: "/conciliacoes/b-set",
     situacao: "concluido",
     lancamentos: 4218,
+    naoLidas: 0,
     erros: [],
     competencia: "2026-09",
+    enviadoEm: "2026-09-24T16:58:00Z",
+    conciliado: true,
   },
   {
     id: "s-set",
@@ -38,8 +41,11 @@ const ARQUIVOS: ArquivoExtrato[] = [
     resultado: "/conciliacoes/b-set",
     situacao: "concluido",
     lancamentos: 4203,
+    naoLidas: 0,
     erros: [],
     competencia: "2026-09",
+    enviadoEm: "2026-09-24T16:59:00Z",
+    conciliado: true,
   },
 ];
 
@@ -54,7 +60,7 @@ describe("ExtratosPage", () => {
   });
 
   it("shows the files under the same title the menu uses", async () => {
-    listarExtratos.mockResolvedValue({ ok: true, dados: ARQUIVOS });
+    listarExtratos.mockResolvedValue({ ok: true, dados: { arquivos: ARQUIVOS, total: 2 } });
     await renderizar();
 
     const titulo = screen.getByRole("heading", { level: 1, name: "Extratos" });
@@ -65,16 +71,24 @@ describe("ExtratosPage", () => {
     expect(screen.getByRole("button", { name: /sicredi-setembro\.ofx/ })).toBeInTheDocument();
   });
 
-  it("says which files the list covers, since the backend only knows them through conciliações", async () => {
-    listarExtratos.mockResolvedValue({ ok: true, dados: ARQUIVOS });
+  it("lists every file sent, without saying it only knows the conciliated ones", async () => {
+    listarExtratos.mockResolvedValue({ ok: true, dados: { arquivos: ARQUIVOS, total: 2 } });
     await renderizar();
-    expect(
-      screen.getByText("Aparecem aqui os arquivos que já entraram numa conciliação."),
-    ).toBeInTheDocument();
+    expect(screen.queryByText(/já entraram numa conciliação/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/enviados por último/)).not.toBeInTheDocument();
+  });
+
+  it("says when only the files sent last fit in the list", async () => {
+    listarExtratos.mockResolvedValue({ ok: true, dados: { arquivos: ARQUIVOS, total: 1200 } });
+    await renderizar();
+
+    const titulo = screen.getByRole("heading", { level: 1, name: "Extratos" });
+    expect(titulo.nextElementSibling).toHaveTextContent("1.200 arquivos");
+    expect(screen.getByText("Aparecem os 2 arquivos enviados por último, de 1.200.")).toBeInTheDocument();
   });
 
   it("invites the first upload when there is no file yet", async () => {
-    listarExtratos.mockResolvedValue({ ok: true, dados: [] });
+    listarExtratos.mockResolvedValue({ ok: true, dados: { arquivos: [], total: 0 } });
     await renderizar();
 
     expect(screen.getByText("Nenhum extrato carregado ainda.")).toBeInTheDocument();

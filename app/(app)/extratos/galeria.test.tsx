@@ -11,13 +11,16 @@ function arquivo(parcial: Partial<ArquivoExtrato> & Pick<ArquivoExtrato, "id" | 
     resultado: "/conciliacoes/b-set",
     situacao: "concluido",
     lancamentos: 4218,
+    naoLidas: 0,
     erros: [],
     competencia: "2026-09",
+    enviadoEm: "2026-09-24T16:58:00Z",
+    conciliado: true,
     ...parcial,
   };
 }
 
-// do uso mais recente para o mais antigo, como a action devolve
+// do envio mais recente para o mais antigo, como a action devolve
 const ARQUIVOS: ArquivoExtrato[] = [
   arquivo({ id: "b-set", nome: "sicredi-setembro.ofx" }),
   arquivo({
@@ -26,6 +29,7 @@ const ARQUIVOS: ArquivoExtrato[] = [
     origem: "sistema",
     situacao: "concluido_com_erros",
     lancamentos: 4203,
+    naoLidas: 2,
     erros: [
       { identificador: "linha 14", motivo: "valor ilegível" },
       { identificador: "linha 98", motivo: "data fora do formato" },
@@ -39,12 +43,14 @@ const ARQUIVOS: ArquivoExtrato[] = [
     lancamentos: 3980,
     competencia: "2026-08",
   }),
+  // enviado e ainda fora de qualquer conciliação: não tem onde abrir
   arquivo({
     id: "s-ago",
     nome: "erp-agosto.csv",
     origem: "sistema",
-    situacao: null,
-    lancamentos: null,
+    conciliadoEm: undefined,
+    resultado: undefined,
+    conciliado: false,
     competencia: "2026-08",
   }),
 ];
@@ -91,10 +97,45 @@ describe("Galeria de extratos", () => {
     expect(setembro.getByText("Conciliado")).toBeInTheDocument();
 
     expect(within(cartao("erp-setembro.csv")).getByText("Com linhas não lidas")).toBeInTheDocument();
-    // o detalhe desse não carregou: o arquivo fica, sem inventar situação
-    const semDetalhe = within(cartao("erp-agosto.csv"));
-    expect(semDetalhe.getByText("Sem detalhes")).toBeInTheDocument();
-    expect(semDetalhe.getByText("Conteúdo indisponível")).toBeInTheDocument();
+    expect(within(cartao("erp-agosto.csv")).getByText("Não conciliado")).toBeInTheDocument();
+    expect(cartao("erp-agosto.csv")).toHaveAttribute("data-tom", "neutro");
+  });
+
+  it("shows a file still being read without inventing its content", () => {
+    render(
+      <Galeria
+        arquivos={[arquivo({ id: "b-out", nome: "sicredi-outubro.ofx", situacao: "processando", lancamentos: null, competencia: null })]}
+      />,
+    );
+    const lendo = within(cartao("sicredi-outubro.ofx"));
+    expect(lendo.getByText("Processando")).toBeInTheDocument();
+    expect(lendo.getByText("Conteúdo indisponível")).toBeInTheDocument();
+  });
+
+  it("says when a file was sent, and offers no conciliation for one that never entered one", async () => {
+    const user = userEvent.setup();
+    render(<Galeria arquivos={ARQUIVOS} />);
+
+    await user.click(cartao("erp-agosto.csv"));
+
+    expect(painel().getByText("Enviado em")).toBeInTheDocument();
+    expect(painel().getByText("24/09/2026 13:58")).toBeInTheDocument();
+    expect(painel().queryByText("Última conciliação")).not.toBeInTheDocument();
+    expect(painel().queryByRole("link")).not.toBeInTheDocument();
+  });
+
+  it("counts the unread lines even when their detail did not load", async () => {
+    const user = userEvent.setup();
+    render(
+      <Galeria
+        arquivos={[arquivo({ id: "s-set", nome: "erp-setembro.csv", situacao: "concluido_com_erros", naoLidas: 3, erros: [] })]}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Com problema (1)" })).toBeInTheDocument();
+    await user.click(cartao("erp-setembro.csv"));
+    expect(painel().getByText("3 linhas não lidas")).toBeInTheDocument();
+    expect(painel().queryByRole("listitem")).not.toBeInTheDocument();
   });
 
   it("calls an older version of the system extrato what it is, and opens its own round", async () => {
@@ -198,7 +239,7 @@ describe("Galeria de extratos", () => {
 
   it("explains an empty filter instead of an empty grid", async () => {
     const user = userEvent.setup();
-    render(<Galeria arquivos={ARQUIVOS.filter((item) => item.erros.length === 0)} />);
+    render(<Galeria arquivos={ARQUIVOS.filter((item) => item.naoLidas === 0)} />);
 
     await user.click(screen.getByRole("button", { name: "Com problema (0)" }));
 
@@ -244,6 +285,20 @@ describe("Galeria de extratos", () => {
       expect(grupo("Setembro de 2026").getByRole("button", { name: /sicredi-setembro/ })).toBeInTheDocument();
       expect(grupo("Agosto de 2026").getByText("2 arquivos")).toBeInTheDocument();
       expect(grupo("Agosto de 2026").getByRole("button", { name: /sicredi-agosto/ })).toBeInTheDocument();
+    });
+
+    it("puts the files without a period yet in a group of their own, after the months", () => {
+      render(
+        <Galeria
+          arquivos={[
+            arquivo({ id: "b-out", nome: "sicredi-outubro.ofx", situacao: "processando", lancamentos: null, competencia: null }),
+            ...ARQUIVOS,
+          ]}
+        />,
+      );
+
+      expect(titulos()).toEqual(["Setembro de 2026", "Agosto de 2026", "Sem período"]);
+      expect(grupo("Sem período").getByRole("button", { name: /sicredi-outubro/ })).toBeInTheDocument();
     });
 
     it("groups by year when asked", async () => {

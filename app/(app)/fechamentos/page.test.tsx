@@ -44,9 +44,9 @@ function par(
       toleranciaDias: 1,
       atual: true,
       justificadas: 0,
+      periodoInicio: "2026-09-01",
       ...parcial,
     },
-    primeiraData: "2026-09-01",
     naoLidas: [],
     ...extra,
   };
@@ -56,7 +56,7 @@ const SETEMBRO_EM_ABERTO = par("set", {
   acerto: 70,
   divergencias: { divergente_valor: 7, sem_correspondencia: 35 },
 });
-const AGOSTO_PRONTO = par("ago", { executadaEm: "2026-09-02T10:00:00Z" }, { primeiraData: "2026-08-01" });
+const AGOSTO_PRONTO = par("ago", { executadaEm: "2026-09-02T10:00:00Z", periodoInicio: "2026-08-01" });
 
 async function renderizar(dados: ParDoFechamento[] = [SETEMBRO_EM_ABERTO, AGOSTO_PRONTO], busca: Record<string, string> = {}) {
   carregarFechamentos.mockResolvedValue({ ok: true, dados });
@@ -200,8 +200,8 @@ describe("FechamentosPage", () => {
   });
 
   describe("with months from more than one year", () => {
-    const mes = (id: string, primeiraData: string, divergencias: Execucao["divergencias"] = {}) =>
-      par(id, { executadaEm: `${primeiraData.slice(0, 7)}-28T12:00:00Z`, divergencias }, { primeiraData });
+    const mes = (id: string, periodoInicio: string, divergencias: Execucao["divergencias"] = {}) =>
+      par(id, { executadaEm: `${periodoInicio.slice(0, 7)}-28T12:00:00Z`, divergencias, periodoInicio });
     const VARIOS_ANOS = [
       SETEMBRO_EM_ABERTO,
       AGOSTO_PRONTO,

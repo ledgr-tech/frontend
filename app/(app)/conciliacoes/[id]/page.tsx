@@ -57,14 +57,6 @@ function textoDasMudancas(anterior: number, { passaramABater, continuamDivergind
   return `Desde a rodada ${anterior}: ${partes.join(" · ")}`;
 }
 
-/** A data mais antiga das linhas (AAAA-MM-DD); null no mock, que só tem "DD/MM". */
-function primeiraDataDas(linhas: LinhaComparacao[]): string | null {
-  return linhas.reduce<string | null>(
-    (menor, linha) => (linha.dataISO && (menor === null || linha.dataISO < menor) ? linha.dataISO : menor),
-    null,
-  );
-}
-
 /** Por que a tabela ficou vazia no filtro escolhido. */
 function textoDoVazio(filtro: Filtro, justificadas: number): string {
   if (ehDivergencia(filtro)) return `Nenhuma linha em “${seloDoStatus(filtro).rotulo}” nesta conciliação.`;
@@ -351,8 +343,8 @@ export default function ConciliacaoPage() {
                 extratoBancoId={conciliacao.id}
                 rodadas={rodadas}
                 aberta={rodada.numero}
-                // o mês do fechamento como Fechamentos o calcula: o da primeira data do extrato
-                mes={competencia(primeiraDataDas(conciliacao.linhas), rodada.executadaEm)}
+                // o mês do fechamento como Fechamentos o calcula: o do período do extrato do banco
+                mes={competencia(rodada.periodoInicio, rodada.executadaEm)}
                 // o que falta é o da rodada que vale; numa passada, a conta não diria nada
                 pendentes={rodada.numero === rodada.total ? emRevisao.length : null}
               />

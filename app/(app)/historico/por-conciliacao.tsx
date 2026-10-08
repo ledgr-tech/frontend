@@ -76,16 +76,9 @@ function resumoDoAno(meses: MesDoHistorico[]): string {
   return `${plural(doAno.length, "conciliação", "conciliações")} · ${situacao}`;
 }
 
-export function HistoricoPorConciliacao({
-  execucoes,
-  competencias = {},
-}: {
-  execucoes: Execucao[];
-  /** O mês do extrato de cada extrato do banco (`carregarHistorico`); sem ele, o mês em que rodou. */
-  competencias?: Record<string, string>;
-}) {
+export function HistoricoPorConciliacao({ execucoes }: { execucoes: Execucao[] }) {
   const [filtro, setFiltro] = useState<Filtro>("todas");
-  const todas = porConciliacao(execucoes, competencias);
+  const todas = porConciliacao(execucoes);
   const anos = porAno(porMes(todas.filter((conciliacao) => passaNoFiltro(conciliacao, filtro))));
   // os anos passados começam recolhidos: o que se procura no histórico costuma ser recente, e o
   // título de cada um já diz quantas conciliações ainda pedem revisão

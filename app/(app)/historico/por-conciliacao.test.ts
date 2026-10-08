@@ -16,6 +16,7 @@ function execucao(parcial: Partial<Execucao>): Execucao {
     toleranciaDias: 1,
     atual: true,
     justificadas: 0,
+    periodoInicio: null,
     ...parcial,
   };
 }

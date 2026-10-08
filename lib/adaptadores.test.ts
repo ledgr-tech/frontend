@@ -208,6 +208,18 @@ describe("adaptarConciliacao", () => {
     expect(adaptarConciliacao(lista).mes).toBe("Setembro/2026");
   });
 
+  it("tira a competência do extrato do banco, mesmo com uma linha só do sistema mais antiga", () => {
+    // a regra do fechamento do backend: o mês em que o extrato do banco começa
+    const agostoSoNoSistema = item({
+      id: "c0",
+      status: "sem_correspondencia",
+      lancamento_banco: null,
+      lancamento_sistema: { id: "ls-0", data: "2026-08-29", valor: "-80", descricao: "Despesa", tipo: "debito" },
+    });
+    const comAgosto = { ...lista, total: 3, itens: [agostoSoNoSistema, ...lista.itens] };
+    expect(adaptarConciliacao(comAgosto).mes).toBe("Setembro/2026");
+  });
+
   it("sobrevive a uma conciliação vazia", () => {
     const vazia = adaptarConciliacao({ ...lista, total: 0, itens: [] });
     expect(vazia.linhas).toEqual([]);
@@ -282,6 +294,8 @@ function execucao(parcial: Partial<ExecucaoAPI> = {}): ExecucaoAPI {
     },
     percentual_acerto: "96.30",
     atual: true,
+    periodo_inicio: "2026-09-01",
+    periodo_fim: "2026-09-30",
     ...parcial,
   };
 }
@@ -308,7 +322,15 @@ describe("adaptarExecucao", () => {
       atual: true,
       // o backend que ainda não guarda decisões não manda a contagem: nenhuma justificada
       justificadas: 0,
+      periodoInicio: "2026-09-01",
     });
+  });
+
+  it("não inventa período para extrato do banco que ainda não tem, nem para backend que não o manda", () => {
+    expect(adaptarExecucao(execucao({ periodo_inicio: null })).periodoInicio).toBeNull();
+    const semPeriodo = execucao();
+    delete semPeriodo.periodo_inicio;
+    expect(adaptarExecucao(semPeriodo).periodoInicio).toBeNull();
   });
 
   it("lê quantas divergências estão justificadas", () => {
@@ -367,6 +389,7 @@ describe("extratosDasExecucoes", () => {
       toleranciaDias: 1,
       atual: true,
       justificadas: 0,
+      periodoInicio: null,
     };
   }
 
