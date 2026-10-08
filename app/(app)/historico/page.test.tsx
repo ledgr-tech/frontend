@@ -2,13 +2,13 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { Execucao } from "@/lib/adaptadores";
-import type { Historico, Resultado } from "../conciliacoes/acoes";
+import type { ListaExecucoes, Resultado } from "../conciliacoes/acoes";
 import HistoricoPage from "./page";
 
 // quem fala com o backend é a action; aqui ela só devolve o que ele responderia
-const carregarHistorico = vi.fn<(pagina?: number) => Promise<Resultado<Historico>>>();
+const listarExecucoes = vi.fn<(pagina?: number) => Promise<Resultado<ListaExecucoes>>>();
 vi.mock("../conciliacoes/acoes", () => ({
-  carregarHistorico: (pagina?: number) => carregarHistorico(pagina),
+  listarExecucoes: (pagina?: number) => listarExecucoes(pagina),
 }));
 
 const redirect = vi.fn();
@@ -33,6 +33,7 @@ function execucao(parcial: Partial<Execucao> & Pick<Execucao, "id">): Execucao {
     toleranciaDias: 1,
     atual: true,
     justificadas: 0,
+    periodoInicio: null,
     ...parcial,
   };
 }
@@ -90,8 +91,15 @@ const RODADAS: Execucao[] = [
   }),
 ];
 
-function com(execucoes: Execucao[], total = execucoes.length, competencias: Record<string, string> = {}) {
-  carregarHistorico.mockResolvedValue({ ok: true, dados: { execucoes, total, porPagina: 50, competencias } });
+/**
+ * A página do backend. `meses` é o mês (AAAA-MM) em que o extrato do banco de cada conciliação
+ * começa, que vem em cada execução (`periodoInicio`); sem ele, a execução vem sem período.
+ */
+function com(execucoes: Execucao[], total = execucoes.length, meses: Record<string, string> = {}) {
+  const comPeriodo = execucoes.map((item) =>
+    meses[item.extratoBancoId] ? { ...item, periodoInicio: `${meses[item.extratoBancoId]}-01` } : item,
+  );
+  listarExecucoes.mockResolvedValue({ ok: true, dados: { execucoes: comPeriodo, total, porPagina: 50 } });
 }
 
 function props(pagina?: string) {
@@ -117,7 +125,7 @@ function execucoesAbertas() {
 
 describe("HistoricoPage", () => {
   beforeEach(() => {
-    carregarHistorico.mockReset();
+    listarExecucoes.mockReset();
     redirect.mockClear();
   });
 
@@ -399,7 +407,7 @@ describe("HistoricoPage", () => {
     com(EXECUCOES, 120);
     await renderizar("1");
 
-    expect(carregarHistorico).toHaveBeenCalledWith(1);
+    expect(listarExecucoes).toHaveBeenCalledWith(1);
     expect(screen.getByText("51–53 de 120")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Mais recentes" })).toHaveAttribute("href", "/historico");
     expect(screen.getByRole("link", { name: "Mais antigas" })).toHaveAttribute("href", "/historico?pagina=2");
@@ -409,7 +417,7 @@ describe("HistoricoPage", () => {
   it("starts from the first page when the page in the URL makes no sense", async () => {
     com(EXECUCOES);
     await renderizar("-3");
-    expect(carregarHistorico).toHaveBeenCalledWith(0);
+    expect(listarExecucoes).toHaveBeenCalledWith(0);
     expect(screen.queryByRole("navigation", { name: "Páginas do histórico" })).not.toBeInTheDocument();
   });
 
@@ -431,7 +439,7 @@ describe("HistoricoPage", () => {
   });
 
   it("asks for a reload when the backend fails", async () => {
-    carregarHistorico.mockResolvedValue({ ok: false, status: 0, erro: "Não foi possível falar com o servidor." });
+    listarExecucoes.mockResolvedValue({ ok: false, status: 0, erro: "Não foi possível falar com o servidor." });
     await renderizar();
     expect(screen.getByRole("alert")).toHaveTextContent(
       "Não foi possível carregar o histórico. Recarregue a página e tente de novo.",
@@ -439,7 +447,7 @@ describe("HistoricoPage", () => {
   });
 
   it("sends an expired session back to the login", async () => {
-    carregarHistorico.mockResolvedValue({ ok: false, status: 401, erro: "Sua sessão expirou." });
+    listarExecucoes.mockResolvedValue({ ok: false, status: 401, erro: "Sua sessão expirou." });
     await expect(HistoricoPage(props())).rejects.toThrow("NEXT_REDIRECT");
     expect(redirect).toHaveBeenCalledWith("/login");
   });

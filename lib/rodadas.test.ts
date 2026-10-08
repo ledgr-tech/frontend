@@ -38,6 +38,7 @@ function execucao(id: string, banco: string, sistema: string, executadaEm: strin
     toleranciaDias: 2,
     atual,
     justificadas: 0,
+    periodoInicio: null,
   };
 }
 

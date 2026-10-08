@@ -282,6 +282,8 @@ function execucao(parcial: Partial<ExecucaoAPI> = {}): ExecucaoAPI {
     },
     percentual_acerto: "96.30",
     atual: true,
+    periodo_inicio: "2026-09-01",
+    periodo_fim: "2026-09-30",
     ...parcial,
   };
 }
@@ -308,7 +310,15 @@ describe("adaptarExecucao", () => {
       atual: true,
       // o backend que ainda não guarda decisões não manda a contagem: nenhuma justificada
       justificadas: 0,
+      periodoInicio: "2026-09-01",
     });
+  });
+
+  it("não inventa período para extrato do banco que ainda não tem, nem para backend que não o manda", () => {
+    expect(adaptarExecucao(execucao({ periodo_inicio: null })).periodoInicio).toBeNull();
+    const semPeriodo = execucao();
+    delete semPeriodo.periodo_inicio;
+    expect(adaptarExecucao(semPeriodo).periodoInicio).toBeNull();
   });
 
   it("lê quantas divergências estão justificadas", () => {
@@ -367,6 +377,7 @@ describe("extratosDasExecucoes", () => {
       toleranciaDias: 1,
       atual: true,
       justificadas: 0,
+      periodoInicio: null,
     };
   }
 

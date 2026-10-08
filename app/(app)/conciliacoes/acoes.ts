@@ -183,6 +183,8 @@ export type RodadaVista = {
   extratoSistemaId: string;
   arquivoSistema: string;
   executadaEm: string;
+  /** O início do período do extrato do banco, o mesmo em todas as rodadas: dá o mês dela. */
+  periodoInicio: string | null;
 };
 
 export type ConciliacaoEmRodadas = {
@@ -196,20 +198,26 @@ export type ConciliacaoEmRodadas = {
   mudancas: Mudancas | null;
 };
 
-// ponytail: as rodadas saem das primeiras páginas de /execucoes (as de um mesmo
-// extrato do banco são recentes entre si). Um filtro `?extrato_banco_id=` no
-// backend tira esta varredura.
-const PAGINAS_DE_RODADAS = 3;
+// O teto do backend por página de /execucoes. Um extrato do banco com mais de 100 rodadas
+// vira outra página, até o mesmo teto de páginas das linhas.
+const RODADAS_POR_PAGINA = 100;
 
-async function execucoesRecentes(): Promise<Resultado<Execucao[]>> {
-  const todas: Execucao[] = [];
-  for (let pagina = 0; pagina < PAGINAS_DE_RODADAS; pagina += 1) {
-    const lista = await listarExecucoes(pagina);
-    if (!lista.ok) return lista;
-    todas.push(...lista.dados.execucoes);
-    if ((pagina + 1) * lista.dados.porPagina >= lista.dados.total) break;
+/** Todas as execuções de um extrato do banco, pelo filtro `?extrato_banco_id=` (backend #82). */
+async function execucoesDoBanco(extratoBancoId: string): Promise<Resultado<Execucao[]>> {
+  const pagina = (numero: number) =>
+    `/execucoes?extrato_banco_id=${extratoBancoId}&limit=${RODADAS_POR_PAGINA}&offset=${numero * RODADAS_POR_PAGINA}`;
+  try {
+    const primeira = await chamarBackend<ListaExecucoesAPI>(pagina(0));
+    const itens = [...primeira.itens];
+    for (let numero = 1; itens.length < primeira.total && numero < MAXIMO_DE_PAGINAS; numero += 1) {
+      const proxima = await chamarBackend<ListaExecucoesAPI>(pagina(numero));
+      if (proxima.itens.length === 0) break;
+      itens.push(...proxima.itens);
+    }
+    return { ok: true, dados: itens.map(adaptarExecucao) };
+  } catch (erro) {
+    return traduzir(erro);
   }
-  return { ok: true, dados: todas };
 }
 
 /**
@@ -226,7 +234,8 @@ export async function carregarConciliacaoEmRodadas(
     return { ok: false, status: 404, erro: "Conciliação não encontrada." };
   }
 
-  const execucoes = await execucoesRecentes();
+  const execucoes = await execucoesDoBanco(extratoBancoId);
+  // `rodadasDoBanco` filtra de novo: um backend de antes da #82 ignora o filtro e manda todas
   const rodadas = execucoes.ok ? rodadasDoBanco(execucoes.dados, extratoBancoId) : [];
   const alvo = extratoSistemaId
     ? rodadas.find((rodada) => rodada.extratoSistemaId === extratoSistemaId)
@@ -246,6 +255,7 @@ export async function carregarConciliacaoEmRodadas(
     extratoSistemaId: item.extratoSistemaId,
     arquivoSistema: item.arquivoSistema,
     executadaEm: item.execucao.executadaEm,
+    periodoInicio: item.execucao.periodoInicio,
   }));
   const rodada = vistas[alvo.numero - 1];
 
@@ -326,8 +336,7 @@ export type ListaDeConciliacoes = {
  * extrato do banco na rodada que vale, com o mês do extrato, e as linhas da primeira da fila que
  * ainda pede decisão, que `/execucoes` não conta (ele não sabe das conferidas).
  *
- * ponytail: só a primeira página de `/execucoes`, e uma chamada por conciliação para o mês do
- * extrato, como o histórico. O filtro `?extrato_banco_id=` e o período em `/execucoes` resolvem.
+ * ponytail: só a primeira página de `/execucoes`.
  */
 export async function carregarConciliacoes(): Promise<Resultado<ListaDeConciliacoes>> {
   const lista = await listarExecucoes();
@@ -335,8 +344,7 @@ export async function carregarConciliacoes(): Promise<Resultado<ListaDeConciliac
   const { execucoes, total } = lista.dados;
   const parcial = total > execucoes.length;
 
-  const competencias = await competenciasDas(execucoes);
-  const conciliacoes = porConciliacao(execucoes, competencias)
+  const conciliacoes = porConciliacao(execucoes)
     .filter(({ principal }) => principal.situacao === "vale")
     .map(({ extratoBancoId, arquivoBanco, competencia: mes, rodadas, principal: { execucao, rodada } }) => ({
       extratoBancoId,
@@ -428,14 +436,11 @@ export async function listarExtratos(): Promise<Resultado<ArquivoExtrato[]>> {
 
   const { execucoes } = lista.dados;
   const arquivos = extratosDasExecucoes(execucoes);
-  const [detalhes, datas] = await Promise.all([
-    Promise.all(arquivos.map((arquivo) => situacaoDoExtrato(arquivo.id))),
-    Promise.all(execucoes.map(primeiraData)),
-  ]);
+  const detalhes = await Promise.all(arquivos.map((arquivo) => situacaoDoExtrato(arquivo.id)));
   // o mês de cada arquivo vem da execução mais recente em que ele aparece, a mesma que dá o nome
   const mesDoArquivo = new Map<string, string>();
-  execucoes.forEach((execucao, i) => {
-    const mes = competencia(datas[i], execucao.executadaEm);
+  execucoes.forEach((execucao) => {
+    const mes = competencia(execucao.periodoInicio, execucao.executadaEm);
     for (const id of [execucao.extratoBancoId, execucao.extratoSistemaId]) {
       if (!mesDoArquivo.has(id)) mesDoArquivo.set(id, mes);
     }
@@ -467,8 +472,6 @@ export type VisaoGeral = {
   recente: { execucao: Execucao; conciliacao: Conciliacao } | null;
   /** Os arquivos da mais recente com linhas que o parser não conseguiu ler. */
   arquivosComLinhasNaoLidas: { nome: string; linhas: number }[];
-  /** O mês do extrato de cada extrato do banco, só quando pedido (o gráfico da tela da visão geral). */
-  competencias?: Record<string, string>;
 };
 
 /**
@@ -477,11 +480,7 @@ export type VisaoGeral = {
  * dos dois arquivos dela. Só dos dois: varrer todos os arquivos, como a tela de
  * extratos faz, custaria uma chamada por arquivo para abrir a home.
  */
-export async function carregarVisaoGeral(
-  // o gráfico da tela pede o mês do extrato; a barra do topo e o assistente, que também leem a
-  // visão geral, não, para não custar uma chamada por conciliação a cada tela aberta
-  opcoes: { competencias?: boolean } = {},
-): Promise<Resultado<VisaoGeral>> {
+export async function carregarVisaoGeral(): Promise<Resultado<VisaoGeral>> {
   const lista = await listarExecucoes();
   if (!lista.ok) return lista;
   const { execucoes, total } = lista.dados;
@@ -493,11 +492,10 @@ export async function carregarVisaoGeral(
     return { ok: true, dados: { execucoes, total, recente: null, arquivosComLinhasNaoLidas: [] } };
   }
 
-  const [conciliacao, banco, sistema, competencias] = await Promise.all([
+  const [conciliacao, banco, sistema] = await Promise.all([
     carregarConciliacao(maisRecente.extratoBancoId, maisRecente.extratoSistemaId),
     situacaoDoExtrato(maisRecente.extratoBancoId),
     situacaoDoExtrato(maisRecente.extratoSistemaId),
-    opcoes.competencias ? competenciasDas(execucoes) : undefined,
   ]);
   if (!conciliacao.ok) return conciliacao;
 
@@ -520,74 +518,24 @@ export async function carregarVisaoGeral(
       total,
       recente: { execucao: maisRecente, conciliacao: conciliacao.dados.conciliacao },
       arquivosComLinhasNaoLidas,
-      ...(competencias ? { competencias } : {}),
     },
   };
 }
 
 export type ParDoFechamento = {
+  /** O mês do par vem do período do extrato do banco, em `execucao.periodoInicio`. */
   execucao: Execucao;
-  /** A primeira data do extrato (AAAA-MM-DD), que diz de que mês ele é; null se não veio. */
-  primeiraData: string | null;
   /** Os arquivos do par com linhas que o parser não conseguiu ler. */
   naoLidas: { nome: string; linhas: number }[];
 };
 
-/** A primeira linha da conciliação, só pela data: a lista vem em ordem de data. */
-async function primeiraData(execucao: Execucao): Promise<string | null> {
-  try {
-    const pagina = await chamarBackend<ListaConciliacaoAPI>(
-      `/conciliacoes/${execucao.extratoBancoId}?limit=1&offset=0&extrato_sistema_id=${execucao.extratoSistemaId}`,
-    );
-    const item = pagina.itens[0];
-    return (item?.lancamento_banco ?? item?.lancamento_sistema)?.data ?? null;
-  } catch {
-    // sem a data o par ainda entra, pelo mês em que foi conciliado
-    return null;
-  }
-}
-
-export type Historico = ListaExecucoes & {
-  /** O mês do extrato (AAAA-MM) de cada extrato do banco da página, pela rodada que vale. */
-  competencias: Record<string, string>;
-};
-
 /**
- * Uma página do histórico e o mês do extrato de cada conciliação nela, para a tela agrupar como
- * Fechamentos e Extratos: pela primeira data da rodada que vale, e sem ela pelo mês em que rodou.
+ * Cada par de extratos conciliado, com as linhas não lidas dos dois arquivos: é o
+ * que a mesa de fechamento agrupa por mês (o do período do extrato do banco, que
+ * vem na execução). Só as rodadas atuais: a refeita depois substitui a anterior.
  *
- * ponytail: uma chamada por conciliação da página (até 50, em paralelo). Some quando
- * `/execucoes` trouxer o período do extrato.
- */
-export async function carregarHistorico(pagina = 0): Promise<Resultado<Historico>> {
-  const lista = await listarExecucoes(pagina);
-  if (!lista.ok) return lista;
-
-  return { ok: true, dados: { ...lista.dados, competencias: await competenciasDas(lista.dados.execucoes) } };
-}
-
-/**
- * O mês do extrato de cada conciliação da lista: pela primeira data da rodada que vale, e sem ela
- * pelo mês em que rodou. Uma chamada por conciliação, em paralelo (ver o `ponytail:` acima).
- */
-async function competenciasDas(execucoes: Execucao[]): Promise<Record<string, string>> {
-  const meses = await Promise.all(
-    porConciliacao(execucoes).map(async ({ extratoBancoId, principal: { execucao } }) => [
-      extratoBancoId,
-      competencia(await primeiraData(execucao), execucao.executadaEm),
-    ]),
-  );
-  return Object.fromEntries(meses);
-}
-
-/**
- * Cada par de extratos conciliado, com o mês a que pertence e as linhas não
- * lidas dos dois arquivos: é o que a mesa de fechamento agrupa por mês. Só as
- * rodadas atuais — a refeita depois substitui a anterior.
- *
- * ponytail: três chamadas por par (a primeira linha, pela data, e os dois
- * arquivos), em paralelo. Some quando `/execucoes` trouxer o período do extrato
- * e `GET /extratos` (backend #70) a situação dos arquivos.
+ * ponytail: duas chamadas por par (os dois arquivos), em paralelo. `GET /extratos`
+ * (backend #70) traz as linhas não lidas de todos numa lista.
  */
 export async function carregarFechamentos(): Promise<Resultado<ParDoFechamento[]>> {
   const lista = await listarExecucoes();
@@ -597,8 +545,7 @@ export async function carregarFechamentos(): Promise<Resultado<ParDoFechamento[]
   const atuais = execucoesVigentes(lista.dados.execucoes);
   const pares = await Promise.all(
     atuais.map(async (execucao) => {
-      const [data, banco, sistema] = await Promise.all([
-        primeiraData(execucao),
+      const [banco, sistema] = await Promise.all([
         situacaoDoExtrato(execucao.extratoBancoId),
         situacaoDoExtrato(execucao.extratoSistemaId),
       ]);
@@ -611,7 +558,7 @@ export async function carregarFechamentos(): Promise<Resultado<ParDoFechamento[]
           ? [{ nome, linhas: situacao.dados.erros.length }]
           : [],
       );
-      return { execucao, primeiraData: data, naoLidas };
+      return { execucao, naoLidas };
     }),
   );
   return { ok: true, dados: pares };

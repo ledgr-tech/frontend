@@ -6,7 +6,6 @@ import {
   carregarConciliacaoEmRodadas,
   carregarFechamentos,
   carregarConciliacoes,
-  carregarHistorico,
   carregarVisaoGeral,
   conciliar,
   enviarExtrato,
@@ -50,6 +49,9 @@ function execucao(id: string, extratoBancoId: string, atual = true): ExecucaoAPI
     },
     percentual_acerto: "50.00",
     atual,
+    // o período é sempre o do extrato do banco (backend #82)
+    periodo_inicio: "2026-09-01",
+    periodo_fim: "2026-09-30",
   };
 }
 
@@ -86,7 +88,12 @@ function duasRodadas(): ExecucaoAPI[] {
 /** O backend com as duas rodadas: linhas, situação dos arquivos e execuções. */
 function backendComRodadas(execucoes: ExecucaoAPI[] = duasRodadas()) {
   chamarBackend.mockImplementation(async (caminho: string) => {
-    if (caminho.startsWith("/execucoes")) return { total: execucoes.length, limit: 50, offset: 0, itens: execucoes };
+    if (caminho.startsWith("/execucoes")) {
+      // com `?extrato_banco_id=`, só as daquele extrato, e o total conta só elas
+      const banco = new URLSearchParams(caminho.split("?")[1]).get("extrato_banco_id");
+      const itens = banco ? execucoes.filter((item) => item.extrato_banco_id === banco) : execucoes;
+      return { total: itens.length, limit: 50, offset: 0, itens };
+    }
     if (caminho.startsWith(`/conciliacoes/${BANCO_RECENTE}`)) {
       return { extrato_id: BANCO_RECENTE, total: 1, limit: 1000, offset: 0, itens: [itemConciliacao] };
     }
@@ -155,49 +162,6 @@ describe("listarExecucoes", () => {
       status: 401,
       erro: "Sua sessão expirou. Entre de novo para continuar.",
     });
-  });
-});
-
-describe("carregarHistorico", () => {
-  beforeEach(() => {
-    chamarBackend.mockReset();
-  });
-
-  /** A página com uma execução por extrato do banco; a primeira linha de cada um, pela data pedida. */
-  function backendDoHistorico(datas: Record<string, string>) {
-    chamarBackend.mockImplementation(async (caminho: string) => {
-      if (caminho.startsWith("/execucoes")) {
-        return { total: 52, limit: 50, offset: 50, itens: [execucao("e-2", BANCO_RECENTE), execucao("e-1", BANCO_ANTERIOR)] };
-      }
-      const banco = caminho.slice("/conciliacoes/".length, caminho.indexOf("?"));
-      const data = datas[banco];
-      if (!data) throw new ErroBackend(500, "O servidor respondeu 500.");
-      const item = { ...itemConciliacao, lancamento_banco: { ...itemConciliacao.lancamento_banco!, data } };
-      return { extrato_id: banco, total: 1, limit: 1, offset: 0, itens: [item] };
-    });
-  }
-
-  it("diz o mês do extrato de cada conciliação da página, pela primeira data da rodada que vale", async () => {
-    // a do banco anterior falha: ela entra pelo mês em que foi conciliada (24/09)
-    backendDoHistorico({ [BANCO_RECENTE]: "2026-08-28" });
-
-    const resultado = await carregarHistorico(1);
-
-    if (!resultado.ok) throw new Error(resultado.erro);
-    expect(chamarBackend).toHaveBeenCalledWith("/execucoes?limit=50&offset=50");
-    expect(chamarBackend).toHaveBeenCalledWith(
-      `/conciliacoes/${BANCO_RECENTE}?limit=1&offset=0&extrato_sistema_id=${SISTEMA}`,
-    );
-    expect(resultado.dados).toMatchObject({ total: 52, porPagina: 50 });
-    expect(resultado.dados.execucoes).toHaveLength(2);
-    expect(resultado.dados.competencias).toEqual({ [BANCO_RECENTE]: "2026-08", [BANCO_ANTERIOR]: "2026-09" });
-  });
-
-  it("devolve o erro da lista, sem perguntar o mês de nada", async () => {
-    chamarBackend.mockRejectedValue(new ErroBackend(401, "Sessão expirada."));
-    const resultado = await carregarHistorico();
-    expect(resultado).toMatchObject({ ok: false, status: 401 });
-    expect(chamarBackend).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -272,11 +236,12 @@ describe("carregarConciliacoes", () => {
   });
 
   it("lista cada extrato do banco uma vez, na rodada que vale, com o mês do extrato", async () => {
-    // o banco recente em duas rodadas; o anterior com uma refeita, que não conta
+    // o banco recente em duas rodadas; o anterior, de agosto, com uma refeita, que não conta
+    const deAgosto = { periodo_inicio: "2026-08-01", periodo_fim: "2026-08-31" };
     backendComRodadas([
       ...duasRodadas(),
-      { ...execucao("e-a2", BANCO_ANTERIOR), executada_em: "2026-09-02T12:00:00Z" },
-      { ...execucao("e-a1", BANCO_ANTERIOR, false), executada_em: "2026-09-01T12:00:00Z" },
+      { ...execucao("e-a2", BANCO_ANTERIOR), ...deAgosto, executada_em: "2026-09-02T12:00:00Z" },
+      { ...execucao("e-a1", BANCO_ANTERIOR, false), ...deAgosto, executada_em: "2026-09-01T12:00:00Z" },
     ]);
 
     const resultado = await carregarConciliacoes();
@@ -284,10 +249,12 @@ describe("carregarConciliacoes", () => {
     expect(
       resultado.dados.conciliacoes.map((item) => [item.extratoBancoId, item.execucao.id, item.rodada, item.rodadas, item.competencia]),
     ).toEqual([
-      // o recente pela primeira linha (04/09); o anterior sem ela, pelo mês em que rodou
+      // o mês é o do período do extrato do banco, não o de quando rodou
       [BANCO_RECENTE, "e-v2", 2, 2, "2026-09"],
-      [BANCO_ANTERIOR, "e-a2", 1, 1, "2026-09"],
+      [BANCO_ANTERIOR, "e-a2", 1, 1, "2026-08"],
     ]);
+    // o mês vem de /execucoes: nenhuma conciliação é aberta só para saber a primeira data
+    expect(chamarBackend).not.toHaveBeenCalledWith(expect.stringContaining("?limit=1&"));
     // as quatro execuções vieram numa página só
     expect(resultado.dados.parcial).toBe(false);
   });
@@ -332,25 +299,21 @@ describe("listarExtratos", () => {
   });
 
   /**
-   * /execucoes com duas rodadas que dividem o extrato do sistema. `datas` é a primeira data de
-   * cada conciliação, pelo extrato do banco; sem ela, a conciliação responde erro.
+   * /execucoes com duas rodadas que dividem o extrato do sistema. `periodos` é o início do
+   * período de cada extrato do banco; sem ele, null.
    */
-  function backendComExtratos(detalhes: Record<string, unknown>, datas: Record<string, string> = {}) {
+  function backendComExtratos(detalhes: Record<string, unknown>, periodos: Record<string, string> = {}) {
     chamarBackend.mockImplementation(async (caminho: string) => {
       if (caminho.startsWith("/execucoes")) {
         return {
           total: 2,
           limit: 50,
           offset: 0,
-          itens: [execucao("e-2", BANCO_RECENTE), execucao("e-1", BANCO_ANTERIOR)],
+          itens: [execucao("e-2", BANCO_RECENTE), execucao("e-1", BANCO_ANTERIOR)].map((item) => ({
+            ...item,
+            periodo_inicio: periodos[item.extrato_banco_id] ?? null,
+          })),
         };
-      }
-      if (caminho.startsWith("/conciliacoes/")) {
-        const banco = caminho.slice("/conciliacoes/".length, caminho.indexOf("?"));
-        const data = datas[banco];
-        if (!data) throw new ErroBackend(500, "O servidor respondeu 500.");
-        const item = { ...itemConciliacao, lancamento_banco: { ...itemConciliacao.lancamento_banco!, data } };
-        return { extrato_id: banco, total: 1, limit: 1, offset: 0, itens: [item] };
       }
       const id = caminho.replace("/extratos/", "");
       const detalhe = detalhes[id];
@@ -401,7 +364,7 @@ describe("listarExtratos", () => {
     expect(chamarBackend).toHaveBeenCalledWith(`/extratos/${SISTEMA}`);
   });
 
-  it("diz de que mês é cada arquivo pela primeira data da conciliação em que ele entrou", async () => {
+  it("diz de que mês é cada arquivo pelo período do extrato do banco da conciliação em que ele entrou", async () => {
     backendComExtratos(
       {
         [BANCO_RECENTE]: detalhe(BANCO_RECENTE, "banco"),
@@ -422,7 +385,7 @@ describe("listarExtratos", () => {
     ]);
   });
 
-  it("sem a data da conciliação, usa o mês em que o arquivo foi conciliado", async () => {
+  it("sem o período do extrato do banco, usa o mês em que o arquivo foi conciliado", async () => {
     backendComExtratos({
       [BANCO_RECENTE]: detalhe(BANCO_RECENTE, "banco"),
       [SISTEMA]: detalhe(SISTEMA, "sistema"),
@@ -495,24 +458,6 @@ describe("carregarVisaoGeral", () => {
       throw new Error(`caminho inesperado: ${caminho}`);
     });
   }
-
-  it("diz o mês do extrato de cada conciliação só quando a tela pede, e não a cada abertura da barra do topo", async () => {
-    backendComVisao(
-      // o banco anterior não tem a primeira linha: fica no mês em que rodou
-      [execucao("e-3", BANCO_RECENTE), { ...execucao("e-1", BANCO_ANTERIOR), executada_em: "2026-10-02T12:00:00Z" }],
-      { [BANCO_RECENTE]: situacao(BANCO_RECENTE), [SISTEMA]: situacao(SISTEMA) },
-    );
-
-    const semMes = await carregarVisaoGeral();
-    if (!semMes.ok) throw new Error(semMes.erro);
-    expect(semMes.dados.competencias).toBeUndefined();
-    expect(chamarBackend).not.toHaveBeenCalledWith(expect.stringContaining("?limit=1&offset=0"));
-
-    const comMes = await carregarVisaoGeral({ competencias: true });
-    if (!comMes.ok) throw new Error(comMes.erro);
-    // a primeira linha do banco recente é de 04/09
-    expect(comMes.dados.competencias).toEqual({ [BANCO_RECENTE]: "2026-09", [BANCO_ANTERIOR]: "2026-10" });
-  });
 
   it("sem execução nenhuma, não tem o que abrir", async () => {
     backendCom([]);
@@ -780,7 +725,7 @@ describe("carregarFechamentos", () => {
     return { extrato_id: id, status: "concluido", origem: "banco", quantidade_lancamentos: 2, erros };
   }
 
-  it("dá a cada par atual o mês do extrato e as linhas não lidas dos dois arquivos", async () => {
+  it("dá a cada par atual as linhas não lidas dos dois arquivos, sem abrir a conciliação", async () => {
     chamarBackend.mockImplementation(async (caminho: string) => {
       if (caminho.startsWith("/execucoes")) {
         return {
@@ -789,9 +734,6 @@ describe("carregarFechamentos", () => {
           offset: 0,
           itens: [execucao("e-2", BANCO_RECENTE), execucao("e-1", BANCO_ANTERIOR, false)],
         };
-      }
-      if (caminho.startsWith(`/conciliacoes/${BANCO_RECENTE}`)) {
-        return { extrato_id: BANCO_RECENTE, total: 140, limit: 1, offset: 0, itens: [itemConciliacao] };
       }
       if (caminho === `/extratos/${BANCO_RECENTE}`) return situacao(BANCO_RECENTE);
       if (caminho === `/extratos/${SISTEMA}`) {
@@ -807,16 +749,12 @@ describe("carregarFechamentos", () => {
       ok: true,
       dados: [
         {
-          execucao: { id: "e-2" },
-          primeiraData: "2026-09-04",
+          // o mês do par é o do período do extrato do banco, que vem na execução
+          execucao: { id: "e-2", periodoInicio: "2026-09-01" },
           naoLidas: [{ nome: "e-2-sistema.csv", linhas: 1 }],
         },
       ],
     });
-    // só a primeira linha, pela data: a lista vem em ordem de data
-    expect(chamarBackend).toHaveBeenCalledWith(
-      `/conciliacoes/${BANCO_RECENTE}?limit=1&offset=0&extrato_sistema_id=${SISTEMA}`,
-    );
   });
 
   it("conta um par por extrato do banco: a versão nova do sistema substitui a antiga", async () => {
@@ -825,21 +763,6 @@ describe("carregarFechamentos", () => {
     const resultado = await carregarFechamentos();
     if (!resultado.ok) throw new Error(resultado.erro);
     expect(resultado.dados.map((par) => par.execucao.extratoSistemaId)).toEqual([SISTEMA_V2]);
-  });
-
-  it("mantém o par sem a data quando a primeira linha não vem", async () => {
-    chamarBackend.mockImplementation(async (caminho: string) => {
-      if (caminho.startsWith("/execucoes")) {
-        return { total: 1, limit: 50, offset: 0, itens: [execucao("e-1", BANCO_RECENTE)] };
-      }
-      if (caminho.startsWith("/conciliacoes/")) throw new ErroBackend(500, "Erro interno.");
-      return situacao(caminho.replace("/extratos/", ""));
-    });
-
-    expect(await carregarFechamentos()).toMatchObject({
-      ok: true,
-      dados: [{ execucao: { id: "e-1" }, primeiraData: null, naoLidas: [] }],
-    });
   });
 
   it("devolve a falha quando nem a lista de execuções vem", async () => {
@@ -857,6 +780,35 @@ describe("carregarConciliacaoEmRodadas", () => {
   const caminhoDasLinhas = (sistema?: string) =>
     `/conciliacoes/${BANCO_RECENTE}?limit=1000&offset=0${sistema ? `&extrato_sistema_id=${sistema}` : ""}`;
 
+  it("pede as rodadas só deste extrato do banco, numa chamada", async () => {
+    // outro extrato do banco no meio: o filtro do backend o deixa de fora
+    backendComRodadas([...duasRodadas(), execucao("e-outro", BANCO_ANTERIOR)]);
+
+    const resultado = await carregarConciliacaoEmRodadas(BANCO_RECENTE);
+    if (!resultado.ok) throw new Error(resultado.erro);
+    const pedidas = chamarBackend.mock.calls
+      .map(([caminho]) => caminho as string)
+      .filter((caminho) => caminho.startsWith("/execucoes"));
+    expect(pedidas).toEqual([`/execucoes?extrato_banco_id=${BANCO_RECENTE}&limit=100&offset=0`]);
+    expect(resultado.dados.rodadas.map((rodada) => rodada.extratoSistemaId)).toEqual([SISTEMA_V1, SISTEMA_V2]);
+  });
+
+  it("vira a página quando o extrato tem mais rodadas que cabem numa", async () => {
+    const [v2, v1] = duasRodadas();
+    chamarBackend.mockImplementation(async (caminho: string) => {
+      if (caminho.startsWith("/execucoes")) {
+        const offset = Number(new URLSearchParams(caminho.split("?")[1]).get("offset"));
+        return { total: 101, limit: 100, offset, itens: offset === 0 ? [v2] : [v1] };
+      }
+      return { extrato_id: BANCO_RECENTE, total: 1, limit: 1000, offset: 0, itens: [itemConciliacao] };
+    });
+
+    const resultado = await carregarConciliacaoEmRodadas(BANCO_RECENTE);
+    if (!resultado.ok) throw new Error(resultado.erro);
+    expect(chamarBackend).toHaveBeenCalledWith(`/execucoes?extrato_banco_id=${BANCO_RECENTE}&limit=100&offset=100`);
+    expect(resultado.dados.rodadas).toHaveLength(2);
+  });
+
   it("sem o sistema na URL, abre a rodada mais recente", async () => {
     backendComRodadas();
 
@@ -869,6 +821,8 @@ describe("carregarConciliacaoEmRodadas", () => {
       extratoSistemaId: SISTEMA_V2,
       arquivoSistema: "e-v2-sistema.csv",
       executadaEm: "2026-09-24T17:02:11Z",
+      // o mês da conciliação, o mesmo de Fechamentos
+      periodoInicio: "2026-09-01",
     });
     expect(resultado.dados.conciliacao.extratoSistemaId).toBe(SISTEMA_V2);
     // a rodada vai junto da conciliação: é por ela que uma conferência antiga perde o valor
@@ -887,6 +841,7 @@ describe("carregarConciliacaoEmRodadas", () => {
         extratoSistemaId: SISTEMA_V1,
         arquivoSistema: "e-v1-sistema.csv",
         executadaEm: "2026-09-23T12:00:00Z",
+        periodoInicio: "2026-09-01",
       },
       {
         numero: 2,
@@ -894,6 +849,7 @@ describe("carregarConciliacaoEmRodadas", () => {
         extratoSistemaId: SISTEMA_V2,
         arquivoSistema: "e-v2-sistema.csv",
         executadaEm: "2026-09-24T17:02:11Z",
+        periodoInicio: "2026-09-01",
       },
     ]);
   });
@@ -924,10 +880,10 @@ describe("carregarConciliacaoEmRodadas", () => {
   });
 
   it("sem execução do extrato, abre como antes, sem rodada", async () => {
-    // o extrato é mais antigo que as páginas de /execucoes que a tela lê
+    // o backend não tem execução deste extrato do banco
     chamarBackend.mockImplementation(async (caminho: string) => {
       if (caminho.startsWith("/execucoes")) {
-        return { total: 1, limit: 50, offset: 0, itens: [execucao("e-outro", BANCO_ANTERIOR)] };
+        return { total: 0, limit: 100, offset: 0, itens: [] };
       }
       return { extrato_id: BANCO_RECENTE, total: 1, limit: 1000, offset: 0, itens: [itemConciliacao] };
     });

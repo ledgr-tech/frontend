@@ -238,6 +238,13 @@ export type ExecucaoAPI = {
   percentual_acerto: string | number | null;
   /** Falso quando o mesmo par de extratos foi conciliado de novo depois. */
   atual: boolean;
+  /**
+   * A primeira e a última data do extrato do BANCO, nunca do par (backend #82): AAAA-MM-DD, ou
+   * null enquanto ele é processado ou quando não sobrou lançamento válido. Opcionais porque o
+   * backend de antes da #82 não os manda.
+   */
+  periodo_inicio?: string | null;
+  periodo_fim?: string | null;
 };
 
 export type ListaExecucoesAPI = {
@@ -265,6 +272,11 @@ export type Execucao = {
   atual: boolean;
   /** Das divergências, quantas estão justificadas: liberam o fechamento sem contar como batidas. */
   justificadas: number;
+  /**
+   * A primeira data do extrato do banco (AAAA-MM-DD), a mesma em todas as rodadas dele: o mês
+   * dela é o mês da conciliação, no fechamento do backend e em todas as telas. Null sem período.
+   */
+  periodoInicio: string | null;
 };
 
 /**
@@ -306,6 +318,7 @@ export function adaptarExecucao(item: ExecucaoAPI): Execucao {
     toleranciaDias: item.tolerancia_dias,
     atual: item.atual,
     justificadas: item.contagens.justificadas ?? 0,
+    periodoInicio: item.periodo_inicio ?? null,
   };
 }
 

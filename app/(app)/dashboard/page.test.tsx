@@ -46,6 +46,7 @@ function conciliacao(
     toleranciaDias: 2,
     atual: true,
     justificadas: parcial.justificadas ?? 0,
+    periodoInicio: null,
   };
   return {
     extratoBancoId: id,
