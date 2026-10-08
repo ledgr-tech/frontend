@@ -21,7 +21,9 @@ vi.mock("../acoes", () => ({
   // a tela carrega pela rodada; aqui ela embrulha a carga de sempre, sem rodada
   carregarConciliacaoEmRodadas: async (...args: unknown[]) => {
     const resposta = await carregarConciliacao(...args);
-    return resposta.ok ? { ...resposta, dados: { rodada: null, rodadas: [], mudancas: null, ...resposta.dados } } : resposta;
+    return resposta.ok
+      ? { ...resposta, dados: { rodada: null, rodadas: [], mudancas: null, fechamento: null, ...resposta.dados } }
+      : resposta;
   },
   registrarDecisao: (...args: unknown[]) => registrarDecisao(...args),
 }));
@@ -894,6 +896,34 @@ describe("ConciliacaoPage", () => {
       expect(await screen.findByRole("button", { name: "Justificadas (0)" })).toBeInTheDocument();
       expect(screen.getByText("0 de 1 conferida")).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Marcar Boleto Aço Norte Bobinas como conferida" })).toBeInTheDocument();
+    });
+
+    it("locks checking, justifying and a new round in a closed month, and says how to open it again", async () => {
+      doBackend(comCampo, {
+        fechamento: {
+          competencia: "2026-09",
+          estado: "fechado",
+          ressalva: null,
+          fechadoPor: "Maria Financeiro",
+          fechadoEm: "2026-10-06T15:20:00Z",
+          reabertoPor: null,
+          reabertoEm: null,
+        },
+      });
+      render(<ConciliacaoPage />);
+
+      const aviso = await screen.findByRole("status", { name: "Mês fechado" });
+      expect(aviso).toHaveTextContent(
+        "Setembro de 2026 está fechado. Para conferir, justificar ou conciliar de novo, reabra o fechamento.",
+      );
+      expect(within(aviso).getByRole("link", { name: "Ver o fechamento" })).toHaveAttribute(
+        "href",
+        "/fechamentos?mes=2026-09",
+      );
+      // o que já foi decidido continua à vista; o que gravaria, não
+      expect(screen.getByRole("button", { name: "Justificadas (0)" })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /como conferida$/ })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Enviar nova versão do extrato do sistema" })).not.toBeInTheDocument();
     });
 
     it("keeps the check in its own column at the end of the row, so the axis holds only the verdict", async () => {

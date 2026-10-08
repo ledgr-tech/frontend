@@ -68,6 +68,27 @@ describe("agruparPorMes", () => {
     expect(mes.chave).toBe("2026-09");
   });
 
+  it("diz se o mês está fechado pelo fechamento mais recente dele, que pode ter sido reaberto", () => {
+    const fechado = (competencia: string, estado: "fechado" | "reaberto") => ({
+      competencia,
+      estado,
+      ressalva: null,
+      fechadoPor: "Maria",
+      fechadoEm: "2026-10-06T15:20:00Z",
+      reabertoPor: estado === "reaberto" ? "Ana" : null,
+      reabertoEm: estado === "reaberto" ? "2026-10-07T10:00:00Z" : null,
+    });
+    const [setembro, agosto] = agruparPorMes(
+      [par("set"), par("ago", { periodoInicio: "2026-08-01" })],
+      // do mais recente para o mais antigo, como o backend: agosto foi fechado, reaberto e fechado de novo
+      [fechado("2026-09", "reaberto"), fechado("2026-08", "fechado"), fechado("2026-08", "reaberto")],
+    );
+
+    expect(setembro.fechamento?.estado).toBe("reaberto");
+    expect(agosto.fechamento?.estado).toBe("fechado");
+    expect(agruparPorMes([par("set")])[0].fechamento).toBeNull();
+  });
+
   it("lista as pendências da mais grave para a mais leve, e na mesma cor a maior antes", () => {
     const [mes] = agruparPorMes([
       par("a", {

@@ -1,14 +1,18 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { Execucao } from "@/lib/adaptadores";
-import type { ParDoFechamento, Resultado } from "../conciliacoes/acoes";
+import type { Execucao, Fechamento } from "@/lib/adaptadores";
+import type { DadosDoFechamento, ParDoFechamento, Resultado } from "../conciliacoes/acoes";
 import FechamentosPage from "./page";
 
 // quem fala com o backend é a action; aqui ela só devolve o que ele responderia
-const carregarFechamentos = vi.fn<() => Promise<Resultado<ParDoFechamento[]>>>();
+const carregarFechamentos = vi.fn<() => Promise<Resultado<DadosDoFechamento>>>();
+const fecharMes = vi.fn<(competencia: string, ressalva?: string) => Promise<Resultado<Fechamento>>>();
+const reabrirMes = vi.fn<(competencia: string) => Promise<Resultado<Fechamento>>>();
 vi.mock("../conciliacoes/acoes", () => ({
   carregarFechamentos: () => carregarFechamentos(),
+  fecharMes: (competencia: string, ressalva?: string) => fecharMes(competencia, ressalva),
+  reabrirMes: (competencia: string) => reabrirMes(competencia),
 }));
 
 const redirect = vi.fn();
@@ -18,9 +22,25 @@ vi.mock("next/navigation", () => ({
     redirect(destino);
     throw new Error("NEXT_REDIRECT");
   },
-  // o botão de exportar CSV do painel usa o router para mandar ao login
-  useRouter: () => ({ push: vi.fn() }),
+  // o botão de exportar CSV do painel usa o router para mandar ao login; fechar e reabrir, para
+  // ler a tela de novo
+  useRouter: () => ({ push: vi.fn(), refresh }),
 }));
+const refresh = vi.fn();
+
+/** Um fechamento como a action devolve. */
+function fechamento(competencia: string, parcial: Partial<Fechamento> = {}): Fechamento {
+  return {
+    competencia,
+    estado: "fechado",
+    ressalva: null,
+    fechadoPor: "Maria Financeiro",
+    fechadoEm: "2026-10-06T15:20:00Z",
+    reabertoPor: null,
+    reabertoEm: null,
+    ...parcial,
+  };
+}
 
 const BANCO = "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20";
 const SISTEMA = "7a2b9c4d-1e3f-4a5b-8c6d-9e0f1a2b3c4d";
@@ -58,8 +78,12 @@ const SETEMBRO_EM_ABERTO = par("set", {
 });
 const AGOSTO_PRONTO = par("ago", { executadaEm: "2026-09-02T10:00:00Z", periodoInicio: "2026-08-01" });
 
-async function renderizar(dados: ParDoFechamento[] = [SETEMBRO_EM_ABERTO, AGOSTO_PRONTO], busca: Record<string, string> = {}) {
-  carregarFechamentos.mockResolvedValue({ ok: true, dados });
+async function renderizar(
+  pares: ParDoFechamento[] = [SETEMBRO_EM_ABERTO, AGOSTO_PRONTO],
+  busca: Record<string, string> = {},
+  fechamentos: Fechamento[] | null = [],
+) {
+  carregarFechamentos.mockResolvedValue({ ok: true, dados: { pares, fechamentos } });
   render(await FechamentosPage({ searchParams: Promise.resolve(busca) }));
 }
 
@@ -71,6 +95,9 @@ describe("FechamentosPage", () => {
   beforeEach(() => {
     carregarFechamentos.mockReset();
     redirect.mockReset();
+    fecharMes.mockReset();
+    reabrirMes.mockReset();
+    refresh.mockReset();
   });
 
   it("shows one sheet per month, the most recent first and open in the panel", async () => {
@@ -116,7 +143,7 @@ describe("FechamentosPage", () => {
     expect(screen.getByRole("button", { name: /Setembro de 2026/ })).toHaveTextContent("42 pendências");
   });
 
-  it("opens another month when its sheet is picked, and offers to start the next one when it is ready", async () => {
+  it("opens another month when its sheet is picked, and offers to close it when it is ready", async () => {
     const user = userEvent.setup();
     await renderizar();
 
@@ -125,11 +152,114 @@ describe("FechamentosPage", () => {
     const pronto = painel();
     expect(within(pronto).getByText("Fechamento · pronto para fechar")).toBeInTheDocument();
     expect(within(pronto).getByText("Nenhuma divergência pede decisão.")).toBeInTheDocument();
-    expect(within(pronto).getByRole("link", { name: "Começar setembro" })).toHaveAttribute(
-      "href",
-      "/conciliacoes/nova",
-    );
+    expect(within(pronto).getByRole("button", { name: "Fechar agosto" })).toBeInTheDocument();
+    // o próximo mês começa depois de fechar este
+    expect(within(pronto).queryByRole("link", { name: /Começar/ })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Agosto de 2026/ })).toHaveTextContent("Pronto para fechar");
+  });
+
+  describe("closing the month", () => {
+    it("closes a ready month and reads the screen again", async () => {
+      const user = userEvent.setup();
+      fecharMes.mockResolvedValue({ ok: true, dados: fechamento("2026-08") });
+      await renderizar(undefined, { mes: "2026-08" });
+
+      await user.click(within(painel()).getByRole("button", { name: "Fechar agosto" }));
+
+      expect(fecharMes).toHaveBeenCalledWith("2026-08", undefined);
+      expect(refresh).toHaveBeenCalled();
+    });
+
+    it("shows a closed month as closed, by whom, and offers the next month and reopening", async () => {
+      await renderizar(undefined, { mes: "2026-08" }, [fechamento("2026-08")]);
+
+      expect(screen.getByRole("button", { name: /Agosto de 2026/ })).toHaveTextContent("Fechado");
+      const fechado = painel();
+      expect(within(fechado).getByText("Fechamento · fechado")).toBeInTheDocument();
+      expect(within(fechado).getByText("Fechado em 06/10/2026 12:20 por Maria Financeiro.")).toBeInTheDocument();
+      expect(within(fechado).getByRole("link", { name: "Começar setembro" })).toHaveAttribute("href", "/conciliacoes/nova");
+      expect(within(fechado).getByRole("button", { name: "Reabrir agosto" })).toBeInTheDocument();
+      expect(within(fechado).queryByRole("button", { name: "Fechar agosto" })).not.toBeInTheDocument();
+    });
+
+    it("reopens a closed month", async () => {
+      const user = userEvent.setup();
+      reabrirMes.mockResolvedValue({ ok: true, dados: fechamento("2026-08", { estado: "reaberto" }) });
+      await renderizar(undefined, { mes: "2026-08" }, [fechamento("2026-08")]);
+
+      await user.click(within(painel()).getByRole("button", { name: "Reabrir agosto" }));
+
+      expect(reabrirMes).toHaveBeenCalledWith("2026-08");
+      expect(refresh).toHaveBeenCalled();
+    });
+
+    it("asks for a ressalva when the backend says what still holds the month, and closes with it", async () => {
+      const user = userEvent.setup();
+      const falta = "Há 42 divergências sem justificativa nesta competência. Justifique, corrija ou feche com ressalva.";
+      fecharMes.mockResolvedValueOnce({ ok: false, status: 409, erro: falta });
+      fecharMes.mockResolvedValueOnce({ ok: true, dados: fechamento("2026-09", { ressalva: "Em análise com o banco." }) });
+      await renderizar();
+
+      const aberto = painel();
+      // com pendência, o caminho principal continua sendo revisar
+      expect(within(aberto).getByRole("link", { name: "Revisar pendências" })).toBeInTheDocument();
+      await user.click(within(aberto).getByRole("button", { name: "Fechar mesmo assim" }));
+
+      expect(fecharMes).toHaveBeenCalledWith("2026-09", undefined);
+      expect(within(aberto).getByRole("alert")).toHaveTextContent(falta);
+      await user.type(within(aberto).getByLabelText("Ressalva"), "Em análise com o banco.");
+      await user.click(within(aberto).getByRole("button", { name: "Fechar com ressalva" }));
+
+      expect(fecharMes).toHaveBeenLastCalledWith("2026-09", "Em análise com o banco.");
+      expect(refresh).toHaveBeenCalled();
+    });
+
+    it("does not send an empty ressalva", async () => {
+      const user = userEvent.setup();
+      fecharMes.mockResolvedValue({ ok: false, status: 409, erro: "Há 42 divergências sem justificativa nesta competência." });
+      await renderizar();
+
+      await user.click(within(painel()).getByRole("button", { name: "Fechar mesmo assim" }));
+
+      expect(within(painel()).getByRole("button", { name: "Fechar com ressalva" })).toBeDisabled();
+    });
+
+    it("shows the ressalva of a month closed with one", async () => {
+      await renderizar(undefined, {}, [fechamento("2026-09", { ressalva: "Diferença de R$ 25,50 em análise com o banco." })]);
+
+      expect(screen.getByRole("button", { name: /Setembro de 2026/ })).toHaveTextContent("Fechado com ressalva");
+      expect(within(painel()).getByText("Diferença de R$ 25,50 em análise com o banco.")).toBeInTheDocument();
+    });
+
+    it("says when a month was reopened, and lets it be closed again", async () => {
+      await renderizar(undefined, { mes: "2026-08" }, [
+        fechamento("2026-08", { estado: "reaberto", reabertoPor: "Ana", reabertoEm: "2026-10-07T10:00:00Z" }),
+      ]);
+
+      const reaberto = painel();
+      expect(within(reaberto).getByText("Reaberto em 07/10/2026 07:00 por Ana.")).toBeInTheDocument();
+      expect(within(reaberto).getByRole("button", { name: "Fechar agosto" })).toBeInTheDocument();
+    });
+
+    it("filters the closed months", async () => {
+      const user = userEvent.setup();
+      await renderizar(undefined, {}, [fechamento("2026-08")]);
+
+      // fechado, agosto não está mais "pronto para fechar"
+      expect(screen.getByRole("button", { name: "Prontos para fechar (0)" })).toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: "Fechados (1)" }));
+
+      expect(screen.queryByRole("button", { name: /Setembro de 2026/ })).not.toBeInTheDocument();
+      expect(within(painel()).getByRole("heading", { name: "Agosto de 2026" })).toBeInTheDocument();
+    });
+
+    it("offers no closing when the closures could not be read, and the ready month leads to the next", async () => {
+      await renderizar(undefined, { mes: "2026-08" }, null);
+
+      const pronto = painel();
+      expect(within(pronto).queryByRole("button", { name: /Fechar/ })).not.toBeInTheDocument();
+      expect(within(pronto).getByRole("link", { name: "Começar setembro" })).toBeInTheDocument();
+    });
   });
 
   describe("justified divergences", () => {
@@ -142,7 +272,7 @@ describe("FechamentosPage", () => {
       const passos = within(pronto).getByRole("list", { name: "Para fechar o mês" });
       expect(within(passos).getByText(/Divergências decididas/)).toHaveTextContent("(feito)");
       expect(within(passos).getByText("2 divergências justificadas")).toBeInTheDocument();
-      expect(within(pronto).getByRole("link", { name: "Começar outubro" })).toBeInTheDocument();
+      expect(within(pronto).getByRole("button", { name: "Fechar setembro" })).toBeInTheDocument();
     });
 
     it("keeps the month open while one of two divergences has no justification", async () => {
@@ -185,6 +315,11 @@ describe("FechamentosPage", () => {
   it("guides the first upload when nothing was conciliated yet", async () => {
     await renderizar([]);
     expect(screen.getByRole("heading", { name: "Nenhum mês para fechar ainda." })).toBeInTheDocument();
+  });
+
+  it("no longer says the Ledgr does not record the closing", async () => {
+    await renderizar();
+    expect(screen.queryByText(/ainda não registra o encerramento/)).not.toBeInTheDocument();
   });
 
   it("says so when the backend fails", async () => {

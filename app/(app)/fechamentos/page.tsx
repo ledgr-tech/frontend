@@ -10,14 +10,15 @@ import { Cabecalho } from "../cabecalho";
 
 /**
  * Os fechamentos, mês a mês: cada competência com o que ainda segura o
- * fechamento (divergência sem decisão, linha que o parser não leu) e o caminho
- * até lá. Um mês é todos os pares de extratos conciliados dele.
+ * fechamento (divergência sem decisão, linha que o parser não leu), o caminho
+ * até lá e o fechamento em si (`/fechamentos`, backend #86): fechar, com
+ * ressalva quando falta algo, e reabrir. Um mês é todos os pares de extratos
+ * conciliados dele.
  *
- * Do FECHAMENTO do design (Ledgr.dc.html) ficam o "Começar outubro" e a
- * comemoração do mês pronto. O resto — "encerrado em", o parágrafo das decisões,
- * os marcos e o "Entregar o fechamento" — pede o que o backend não guarda: o
- * encerramento do mês e as decisões de cada linha. O relatório para o contador
- * é o CSV da conciliação, que existe.
+ * Do FECHAMENTO do design (Ledgr.dc.html) ficam o "Começar outubro", a
+ * comemoração do mês pronto e o "encerrado em". O parágrafo das decisões, os
+ * marcos e o "Entregar o fechamento" seguem fora. O relatório para o contador é
+ * o CSV da conciliação.
  */
 
 const FALHA_AO_CARREGAR =
@@ -31,7 +32,7 @@ export default async function FechamentosPage({
   const resposta = await carregarFechamentos();
   if (!resposta.ok && resposta.status === 401) redirect("/login");
 
-  const meses = resposta.ok ? agruparPorMes(resposta.dados) : [];
+  const meses = resposta.ok ? agruparPorMes(resposta.dados.pares, resposta.dados.fechamentos ?? []) : [];
   // ?mes=AAAA-MM: a linha das rodadas de uma conciliação chega aqui no mês dela
   const { mes } = await searchParams;
 
@@ -53,7 +54,12 @@ export default async function FechamentosPage({
         <SemConciliacao />
       ) : (
         <Reveal style={{ padding: "28px 0 56px" }}>
-          <MesaDeFechamento meses={meses} inicial={typeof mes === "string" ? mes : undefined} />
+          <MesaDeFechamento
+            meses={meses}
+            inicial={typeof mes === "string" ? mes : undefined}
+            // sem a lista de fechamentos não dá para saber o que já está fechado: a mesa só mostra
+            podeFechar={resposta.dados.fechamentos !== null}
+          />
         </Reveal>
       )}
     </div>

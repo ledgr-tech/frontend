@@ -3,10 +3,13 @@
 import {
   adaptarConciliacao,
   adaptarExecucao,
+  adaptarFechamento,
   extratosDasExecucoes,
   pareceUuid,
   type ArquivoConciliado,
   type Execucao,
+  type Fechamento,
+  type FechamentoAPI,
   type ItemExtratoAPI,
   type ListaConciliacaoAPI,
   type ListaExecucoesAPI,
@@ -200,6 +203,11 @@ export type ConciliacaoEmRodadas = {
   rodadas: RodadaVista[];
   /** O que mudou desde a rodada anterior; só na mais recente, a partir da segunda. */
   mudancas: Mudancas | null;
+  /**
+   * O fechamento ativo do mês da conciliação (o do extrato do banco): com ele, o backend recusa
+   * conciliar e decidir (409) até reabrir. Null com o mês aberto, sem período ou sem resposta.
+   */
+  fechamento: Fechamento | null;
 };
 
 // O teto do backend por página de /execucoes. Um extrato do banco com mais de 100 rodadas
@@ -247,10 +255,15 @@ export async function carregarConciliacaoEmRodadas(
 
   if (!alvo) {
     const simples = await carregarConciliacao(extratoBancoId, extratoSistemaId);
-    return simples.ok ? { ok: true, dados: { ...simples.dados, rodada: null, rodadas: [], mudancas: null } } : simples;
+    return simples.ok
+      ? { ok: true, dados: { ...simples.dados, rodada: null, rodadas: [], mudancas: null, fechamento: null } }
+      : simples;
   }
 
-  const atual = await carregarConciliacao(extratoBancoId, alvo.extratoSistemaId);
+  const [atual, fechamento] = await Promise.all([
+    carregarConciliacao(extratoBancoId, alvo.extratoSistemaId),
+    fechamentoAtivo(alvo.execucao.periodoInicio),
+  ]);
   if (!atual.ok) return atual;
 
   const vistas: RodadaVista[] = rodadas.map((item) => ({
@@ -280,8 +293,25 @@ export async function carregarConciliacaoEmRodadas(
       rodada,
       rodadas: vistas,
       mudancas,
+      fechamento,
     },
   };
+}
+
+/**
+ * O fechamento em vigor no mês que começa em `periodoInicio`: o mais recente da competência, se
+ * ainda está fechado. Sem período não há competência; sem resposta, a tela abre como aberta e o
+ * backend ainda recusa a escrita com o 409, que ela mostra.
+ */
+async function fechamentoAtivo(periodoInicio: string | null): Promise<Fechamento | null> {
+  if (!periodoInicio) return null;
+  try {
+    const lista = await chamarBackend<{ itens: FechamentoAPI[] }>(`/fechamentos?competencia=${periodoInicio.slice(0, 7)}`);
+    const [maisRecente] = lista.itens;
+    return maisRecente?.estado === "fechado" ? adaptarFechamento(maisRecente) : null;
+  } catch {
+    return null;
+  }
 }
 
 // 50 por página (o backend aceita até 100). As telas que resumem — visão geral,
@@ -583,16 +613,26 @@ export type ParDoFechamento = {
   naoLidas: { nome: string; linhas: number }[];
 };
 
+export type DadosDoFechamento = {
+  pares: ParDoFechamento[];
+  /**
+   * Os fechamentos da empresa (`GET /fechamentos`), do mais recente para o mais antigo, os
+   * reabertos inclusive. Null quando a rota não respondeu: a mesa mostra os meses sem fechar nada.
+   */
+  fechamentos: Fechamento[] | null;
+};
+
 /**
  * Cada par de extratos conciliado, com as linhas não lidas dos dois arquivos: é o
  * que a mesa de fechamento agrupa por mês (o do período do extrato do banco, que
  * vem na execução). Só as rodadas atuais: a refeita depois substitui a anterior.
+ * E os fechamentos, que dizem quais meses já estão fechados.
  *
  * ponytail: duas chamadas por par (os dois arquivos), em paralelo. `GET /extratos`
  * (backend #70) traz as linhas não lidas de todos numa lista.
  */
-export async function carregarFechamentos(): Promise<Resultado<ParDoFechamento[]>> {
-  const lista = await listarExecucoes();
+export async function carregarFechamentos(): Promise<Resultado<DadosDoFechamento>> {
+  const [lista, fechamentos] = await Promise.all([listarExecucoes(), listarFechamentos()]);
   if (!lista.ok) return lista;
 
   // a versão nova do extrato do sistema substitui a antiga: um par por extrato do banco
@@ -615,7 +655,55 @@ export async function carregarFechamentos(): Promise<Resultado<ParDoFechamento[]
       return { execucao, naoLidas };
     }),
   );
-  return { ok: true, dados: pares };
+  return { ok: true, dados: { pares, fechamentos } };
+}
+
+async function listarFechamentos(): Promise<Fechamento[] | null> {
+  try {
+    const lista = await chamarBackend<{ itens: FechamentoAPI[] }>("/fechamentos");
+    return lista.itens.map(adaptarFechamento);
+  } catch {
+    return null;
+  }
+}
+
+/** AAAA-MM com mês de 01 a 12, o formato que o backend aceita. Vai no caminho do DELETE. */
+const COMPETENCIA = /^\d{4}-(0[1-9]|1[0-2])$/;
+
+const COMPETENCIA_INVALIDA: Falha = {
+  ok: false,
+  status: 422,
+  erro: "A competência deve estar no formato AAAA-MM, com mês de 01 a 12.",
+};
+
+/**
+ * Fecha o mês (`POST /fechamentos`). Com pendências e sem ressalva, o backend responde 409 com o
+ * que falta, em texto para a tela; com a ressalva, fecha mesmo assim. O mês fechado trava conciliar
+ * e decidir nele até reabrir.
+ */
+export async function fecharMes(competencia: string, ressalva?: string): Promise<Resultado<Fechamento>> {
+  if (!COMPETENCIA.test(competencia)) return COMPETENCIA_INVALIDA;
+  const texto = ressalva?.trim();
+  try {
+    const fechamento = await chamarBackend<FechamentoAPI>("/fechamentos", {
+      method: "POST",
+      corpo: texto ? { competencia, ressalva: texto } : { competencia },
+    });
+    return { ok: true, dados: adaptarFechamento(fechamento) };
+  } catch (erro) {
+    return traduzir(erro);
+  }
+}
+
+/** Reabre o mês (`DELETE /fechamentos/{competencia}`). Nada se apaga: o fechamento fica como reaberto. */
+export async function reabrirMes(competencia: string): Promise<Resultado<Fechamento>> {
+  if (!COMPETENCIA.test(competencia)) return COMPETENCIA_INVALIDA;
+  try {
+    const fechamento = await chamarBackend<FechamentoAPI>(`/fechamentos/${competencia}`, { method: "DELETE" });
+    return { ok: true, dados: adaptarFechamento(fechamento) };
+  } catch (erro) {
+    return traduzir(erro);
+  }
 }
 
 /** Por que o texto é o fixo do motor, e não o da IA; null quando veio da IA. */
