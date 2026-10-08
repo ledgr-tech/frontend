@@ -7,9 +7,9 @@ import { Galeria } from "./galeria";
 import { Cabecalho } from "../cabecalho";
 
 /**
- * "Extratos carregados" do design, com o que o backend sabe hoje: os arquivos
- * que entraram em alguma conciliação, cada um com a situação da leitura e as
- * linhas que o parser não conseguiu ler.
+ * "Extratos carregados" do design, com o que o backend sabe hoje: todos os
+ * arquivos enviados (`GET /extratos`), cada um com a situação da leitura, as
+ * linhas que o parser não conseguiu ler e, se já entrou numa, a conciliação.
  */
 
 const FALHA_AO_CARREGAR =
@@ -28,7 +28,7 @@ export default async function ExtratosPage() {
         titulo="Extratos"
         contexto={[
           resposta.ok &&
-            `${formatarInteiro(resposta.dados.length)} ${resposta.dados.length === 1 ? "arquivo" : "arquivos"}`,
+            `${formatarInteiro(resposta.dados.total)} ${resposta.dados.total === 1 ? "arquivo" : "arquivos"}`,
         ]}
       />
 
@@ -36,7 +36,7 @@ export default async function ExtratosPage() {
         <p role="alert" style={{ padding: "48px 0" }}>
           {FALHA_AO_CARREGAR}
         </p>
-      ) : resposta.dados.length === 0 ? (
+      ) : resposta.dados.arquivos.length === 0 ? (
         <div
           style={{
             padding: "76px 0",
@@ -59,13 +59,15 @@ export default async function ExtratosPage() {
       ) : (
         <div style={{ padding: "28px 0 56px", display: "flex", flexDirection: "column", gap: 20 }}>
           <Reveal>
-            <Galeria arquivos={resposta.dados} />
+            <Galeria arquivos={resposta.dados.arquivos} />
           </Reveal>
-          {/* ponytail: o backend não lista extratos, então a lista sai das
-              conciliações (ver `extratosDasExecucoes`). Some com `GET /extratos`. */}
-          <p style={{ margin: 0, fontSize: 13.5, color: cinza(62) }}>
-            Aparecem aqui os arquivos que já entraram numa conciliação.
-          </p>
+          {/* a lista para no teto de páginas da action: diz que há mais que os da tela */}
+          {resposta.dados.arquivos.length < resposta.dados.total && (
+            <p style={{ margin: 0, fontSize: 13.5, color: cinza(62) }}>
+              Aparecem os {formatarInteiro(resposta.dados.arquivos.length)} arquivos enviados por último, de{" "}
+              {formatarInteiro(resposta.dados.total)}.
+            </p>
+          )}
         </div>
       )}
     </div>

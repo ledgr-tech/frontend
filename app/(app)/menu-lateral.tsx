@@ -103,11 +103,14 @@ function deslizarConteudo(antes: number | undefined, duracao: number) {
 export function MenuLateral({
   email,
   empresa,
+  temSenha,
   onSair,
 }: {
   email: string;
   /** Vazia enquanto o backend não devolve a razão social: aí o cartão mostra só o nome. */
   empresa: string;
+  /** Falso na conta que só entra pelo Google: as configurações não oferecem trocar a senha. */
+  temSenha: boolean;
   onSair: () => void;
 }) {
   const caminho = usePathname();
@@ -443,6 +446,7 @@ export function MenuLateral({
         aberta={configAberta}
         onFechar={() => setConfigAberta(false)}
         email={email}
+        temSenha={temSenha}
         onSair={onSair}
         onTema={setTema}
       />

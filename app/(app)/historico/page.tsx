@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { Execucao } from "@/lib/adaptadores";
 import { execucoesVigentes } from "@/lib/rodadas";
-import { carregarHistorico } from "../conciliacoes/acoes";
+import { listarExecucoes } from "../conciliacoes/acoes";
 import { formatarInteiro, formatarPercentual } from "../dashboard/resumo";
 import { conciliados as conciliadosDa } from "./execucoes";
 import { Reveal } from "@/app/reveal";
@@ -29,7 +29,7 @@ function lerPagina(valor: string | string[] | undefined): number {
 
 export default async function HistoricoPage({ searchParams }: PageProps<"/historico">) {
   const pagina = lerPagina((await searchParams).pagina);
-  const resposta = await carregarHistorico(pagina);
+  const resposta = await listarExecucoes(pagina);
   if (!resposta.ok && resposta.status === 401) redirect("/login");
 
   return (
@@ -55,7 +55,6 @@ export default async function HistoricoPage({ searchParams }: PageProps<"/histor
       ) : (
         <Historico
           execucoes={resposta.dados.execucoes}
-          competencias={resposta.dados.competencias}
           total={resposta.dados.total}
           pagina={pagina}
           porPagina={resposta.dados.porPagina}
@@ -127,13 +126,11 @@ function Resumo({ vigentes, parcial }: { vigentes: Execucao[]; parcial: boolean 
 
 function Historico({
   execucoes,
-  competencias,
   total,
   pagina,
   porPagina,
 }: {
   execucoes: Execucao[];
-  competencias: Record<string, string>;
   total: number;
   pagina: number;
   porPagina: number;
@@ -150,11 +147,11 @@ function Historico({
       </Reveal>
 
       <Reveal delay={0.08}>
-        <GraficoDeMatch execucoes={vigentes} competencias={competencias} />
+        <GraficoDeMatch execucoes={vigentes} />
       </Reveal>
 
       <Reveal delay={0.16}>
-        <HistoricoPorConciliacao execucoes={execucoes} competencias={competencias} />
+        <HistoricoPorConciliacao execucoes={execucoes} />
 
         {(temAnterior || temProxima) && (
           <nav className="paginacao" aria-label="Páginas do histórico">

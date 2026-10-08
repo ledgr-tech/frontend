@@ -6,9 +6,9 @@ import type { Resultado, VisaoGeral } from "../conciliacoes/acoes";
 import VisaoGeralPage from "./page";
 
 // quem fala com o backend é a action; aqui ela só devolve o que ele responderia
-const carregarVisaoGeral = vi.fn<(opcoes?: { competencias?: boolean }) => Promise<Resultado<VisaoGeral>>>();
+const carregarVisaoGeral = vi.fn<() => Promise<Resultado<VisaoGeral>>>();
 vi.mock("../conciliacoes/acoes", () => ({
-  carregarVisaoGeral: (opcoes?: { competencias?: boolean }) => carregarVisaoGeral(opcoes),
+  carregarVisaoGeral: () => carregarVisaoGeral(),
 }));
 
 const redirect = vi.fn();
@@ -33,6 +33,7 @@ function execucao(parcial: Partial<Execucao> & Pick<Execucao, "id">): Execucao {
     toleranciaDias: 1,
     atual: true,
     justificadas: 0,
+    periodoInicio: null,
     ...parcial,
   };
 }
@@ -291,8 +292,6 @@ describe("VisaoGeralPage", () => {
     com();
     await renderizar();
 
-    // o gráfico conta pelo mês do extrato, que a tela pede ao carregar
-    expect(carregarVisaoGeral).toHaveBeenCalledWith({ competencias: true });
     // sem o mês do extrato, cada uma fica no mês em que rodou: de maio a setembro, e a e6 foi refeita
     expect([...document.querySelectorAll(".grafico-fio-meses > span")].map((mes) => mes.textContent)).toEqual([
       "mai",
@@ -322,7 +321,7 @@ describe("VisaoGeralPage", () => {
   });
 
   it("shows a conciliação in rounds once, with the numbers of the round that counts", async () => {
-    const setembro = { extratoBancoId: "banco-set", arquivoBanco: "sicredi-setembro.ofx" };
+    const setembro = { extratoBancoId: "banco-set", arquivoBanco: "sicredi-setembro.ofx", periodoInicio: "2026-09-01" };
     const execucoes = [
       execucao({
         id: "v2",
@@ -343,9 +342,10 @@ describe("VisaoGeralPage", () => {
         atual: false,
       }),
       execucao({ id: "v1", ...setembro, extratoSistemaId: "s1", arquivoSistema: "erp-v1.csv", executadaEm: "2026-09-23T12:00:00Z", acerto: 33.3 }),
-      execucao({ id: "e5", executadaEm: "2026-09-02T19:20:00Z", acerto: 91.8 }),
+      // de agosto, conciliado em setembro: o gráfico o põe em agosto, pelo período do extrato do banco
+      execucao({ id: "e5", executadaEm: "2026-09-02T19:20:00Z", acerto: 91.8, periodoInicio: "2026-08-01" }),
     ];
-    com({ execucoes, total: execucoes.length, competencias: { "banco-set": "2026-09", "banco-e5": "2026-08" } });
+    com({ execucoes, total: execucoes.length });
     await renderizar();
 
     const linhas = within(screen.getByRole("table", { name: "Atividade recente" })).getAllByRole("row").slice(1);
@@ -377,7 +377,7 @@ describe("VisaoGeralPage", () => {
       "Suba o extrato do sistema de gestão",
       "Revise o que não bateu",
     ]);
-    expect(screen.getByText("O CSV ou o PDF exportado do seu ERP funciona: Cigam, Bling, Tiny ou outro.")).toBeInTheDocument();
+    expect(screen.getByText("O CSV exportado do seu ERP funciona: Cigam, Bling, Tiny ou outro.")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Fazer o primeiro upload" })).toHaveAttribute(
       "href",
       "/conciliacoes/nova",

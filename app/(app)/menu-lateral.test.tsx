@@ -25,7 +25,7 @@ vi.mock("./conciliacoes/acoes", () => ({
 const EMAIL = "financeiro@telhacerta.com.br";
 
 function montar(props: Partial<Parameters<typeof MenuLateral>[0]> = {}) {
-  return render(<MenuLateral email={EMAIL} empresa="Telha Certa Ltda" onSair={vi.fn()} {...props} />);
+  return render(<MenuLateral email={EMAIL} empresa="Telha Certa Ltda" temSenha onSair={vi.fn()} {...props} />);
 }
 
 describe("MenuLateral", () => {
@@ -256,6 +256,15 @@ describe("MenuLateral", () => {
 
     await user.click(screen.getByRole("button", { name: "Fechar configurações" }));
     expect(screen.getByRole("button", { name: /Financeiro/ })).toHaveFocus();
+  });
+
+  it("passes on to the settings window that the account has no password to change", async () => {
+    const user = userEvent.setup();
+    montar({ temSenha: false });
+
+    await user.keyboard("{Control>},{/Control}");
+    await user.click(screen.getByRole("button", { name: "Conta" }));
+    expect(screen.queryByRole("button", { name: "Trocar senha" })).not.toBeInTheDocument();
   });
 });
 

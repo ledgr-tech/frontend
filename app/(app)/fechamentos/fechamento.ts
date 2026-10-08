@@ -53,19 +53,16 @@ const ANO_MES = new Intl.DateTimeFormat("en-CA", {
 });
 
 /**
- * O mês do par é o do extrato, pela primeira data dele. Sem ela (conciliação
- * vazia, ou a consulta falhou), cai no mês em que foi conciliado.
+ * O mês (AAAA-MM) de uma conciliação: o de `periodo_inicio` do extrato do BANCO, a regra com que o
+ * backend fecha o mês (um extrato que cruza dois meses fica no mês em que começa). Sem período,
+ * o mês em que foi conciliada, no fuso de São Paulo. É o mesmo mês em todas as telas.
  */
-/**
- * O mês (AAAA-MM) de um extrato: o da primeira data da conciliação, e sem ela o mês em que foi
- * conciliado, no fuso de São Paulo. É o mesmo mês no fechamento e na galeria de extratos.
- */
-export function competencia(primeiraData: string | null, executadaEm: string): string {
-  return primeiraData?.slice(0, 7) ?? ANO_MES.format(new Date(executadaEm));
+export function competencia(periodoInicio: string | null, executadaEm: string): string {
+  return periodoInicio?.slice(0, 7) ?? ANO_MES.format(new Date(executadaEm));
 }
 
 function chaveDoPar(par: ParDoFechamento): string {
-  return competencia(par.primeiraData, par.execucao.executadaEm);
+  return competencia(par.execucao.periodoInicio, par.execucao.executadaEm);
 }
 
 // a régua das cores de status: o que custa dinheiro antes, o já explicado por último

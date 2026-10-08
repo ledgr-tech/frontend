@@ -176,13 +176,17 @@ export function adaptarConciliacao(
     vistas.set(chave, vezes);
     return vezes === 1 ? linha : { ...linha, chave: `${chave}#${vezes}` };
   });
-  const primeira = linhas.find((linha) => linha.dataISO)?.dataISO;
+  // A competência é o mês em que o extrato do BANCO começa, a regra com que o backend fecha o
+  // mês (`periodo_inicio`, backend #82): a menor data dele, que está nas linhas, porque todo
+  // lançamento do banco entra numa. Uma linha só do sistema mais antiga não muda o mês.
+  const inicioDoBanco = lista.itens.reduce<string | null>((menor, item) => {
+    const data = item.lancamento_banco?.data;
+    return data && (menor === null || data < menor) ? data : menor;
+  }, null);
   return {
     id: lista.extrato_id,
     extratoSistemaId,
-    // A competência sai da primeira data que apareceu; o backend não tem campo
-    // de mês, e o extrato é sempre de um período.
-    mes: primeira ? mesPorExtenso(primeira) : "Conciliação",
+    mes: inicioDoBanco ? mesPorExtenso(inicioDoBanco) : "Conciliação",
     status: "em_andamento",
     linhas,
   };
@@ -238,6 +242,13 @@ export type ExecucaoAPI = {
   percentual_acerto: string | number | null;
   /** Falso quando o mesmo par de extratos foi conciliado de novo depois. */
   atual: boolean;
+  /**
+   * A primeira e a última data do extrato do BANCO, nunca do par (backend #82): AAAA-MM-DD, ou
+   * null enquanto ele é processado ou quando não sobrou lançamento válido. Opcionais porque o
+   * backend de antes da #82 não os manda.
+   */
+  periodo_inicio?: string | null;
+  periodo_fim?: string | null;
 };
 
 export type ListaExecucoesAPI = {
@@ -265,6 +276,11 @@ export type Execucao = {
   atual: boolean;
   /** Das divergências, quantas estão justificadas: liberam o fechamento sem contar como batidas. */
   justificadas: number;
+  /**
+   * A primeira data do extrato do banco (AAAA-MM-DD), a mesma em todas as rodadas dele: o mês
+   * dela é o mês da conciliação, no fechamento do backend e em todas as telas. Null sem período.
+   */
+  periodoInicio: string | null;
 };
 
 /**
@@ -306,8 +322,36 @@ export function adaptarExecucao(item: ExecucaoAPI): Execucao {
     toleranciaDias: item.tolerancia_dias,
     atual: item.atual,
     justificadas: item.contagens.justificadas ?? 0,
+    periodoInicio: item.periodo_inicio ?? null,
   };
 }
+
+/** Um extrato enviado, como `GET /extratos` lista (backend #70): do envio mais recente ao mais antigo. */
+export type ItemExtratoAPI = {
+  extrato_id: string;
+  nome_arquivo: string;
+  origem: "banco" | "sistema";
+  formato: string;
+  status: "pendente" | "processando" | "concluido" | "concluido_com_erros" | "erro";
+  /** Lançamentos válidos; null enquanto não processou. */
+  quantidade_lancamentos: number | null;
+  /** As linhas que o parser não leu; o motivo de cada uma só vem em `GET /extratos/{id}`. */
+  linhas_nao_lidas: number;
+  /** A primeira e a última data dos lançamentos (AAAA-MM-DD); null enquanto processa ou sem lançamento válido. */
+  periodo_inicio: string | null;
+  periodo_fim: string | null;
+  /** ISO 8601 em UTC. */
+  enviado_em: string;
+  /** Já entrou em alguma conciliação, como extrato do banco ou do sistema. */
+  conciliado: boolean;
+};
+
+export type ListaExtratosAPI = {
+  total: number;
+  limit: number;
+  offset: number;
+  itens: ItemExtratoAPI[];
+};
 
 /** Um arquivo enviado, visto pelas conciliações em que ele entrou. */
 export type ArquivoConciliado = {
@@ -326,11 +370,8 @@ export type ArquivoConciliado = {
 };
 
 /**
- * Os arquivos que aparecem nas execuções, cada um uma vez.
- *
- * ponytail: o backend não lista extratos (só tem `GET /extratos/{id}`), então a
- * tela de extratos parte das conciliações — extrato enviado e nunca conciliado
- * fica de fora. Quando existir `GET /extratos`, é ele que substitui isto.
+ * Os arquivos que aparecem nas execuções, cada um uma vez: onde cada um abre e em que rodada
+ * entrou, que `GET /extratos` não diz. A tela de extratos usa para ligar o arquivo à conciliação.
  */
 export function extratosDasExecucoes(execucoes: Execucao[]): ArquivoConciliado[] {
   const vistos = new Map<string, ArquivoConciliado>();

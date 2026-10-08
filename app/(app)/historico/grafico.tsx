@@ -18,14 +18,11 @@ function mesNaFrase(chave: string): string {
  */
 export function GraficoDeMatch({
   execucoes,
-  competencias,
 }: {
-  /** As que valem (`execucoesVigentes`). */
+  /** As que valem (`execucoesVigentes`). Cada uma traz o período do extrato do banco, que dá o mês. */
   execucoes: Execucao[];
-  /** O mês do extrato de cada extrato do banco; sem ele, o mês em que rodou. */
-  competencias?: Record<string, string>;
 }) {
-  const serie = serieMensal(execucoes, competencias);
+  const serie = serieMensal(execucoes);
   const atual = serie.at(-1);
   if (!atual) return null;
 

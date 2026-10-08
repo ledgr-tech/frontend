@@ -7,7 +7,7 @@ import {
   entrarNaDemonstracao,
   excluirConta,
   pedirRecuperacaoSenha,
-  razaoSocialDaEmpresa,
+  contaDaSessao,
   redefinirSenha,
   trocarEmail,
   trocarSenha,
@@ -368,24 +368,41 @@ describe("a conta de quem está logado", () => {
   });
 });
 
-describe("razaoSocialDaEmpresa", () => {
+describe("contaDaSessao", () => {
+  // o corpo de GET /me (backend #81): sem `papel`, porque o MVP tem conta única
+  const EU = {
+    id: "u",
+    empresa_id: "e",
+    nome: "Ana",
+    email: "a@b.com",
+    razao_social: " Telha Certa Ltda ",
+    cnpj: "12345678000195",
+    metodos_login: ["senha", "google"],
+  };
+
   beforeEach(() => {
     cookiesExistentes.set("authjs.session-token", "jwt-da-sessao");
   });
 
-  it("lê a razão social de GET /me", async () => {
-    fetch.mockResolvedValue(
-      Response.json({ id: "u", empresa_id: "e", nome: "Ana", email: "a@b.com", razao_social: "Telha Certa Ltda" }),
-    );
+  it("lê a razão social de GET /me, e que a conta tem senha para trocar", async () => {
+    fetch.mockResolvedValue(Response.json(EU));
 
-    expect(await razaoSocialDaEmpresa()).toBe("Telha Certa Ltda");
+    expect(await contaDaSessao()).toEqual({ empresa: "Telha Certa Ltda", temSenha: true });
+    expect(fetch).toHaveBeenCalledTimes(1);
     expect(fetch.mock.calls[0][0]).toBe("http://localhost:8000/me");
   });
 
-  it("devolve vazio enquanto a rota não existe, em vez de inventar um nome", async () => {
+  it("conta que só entra pelo Google não tem senha para trocar", async () => {
+    // para ela, POST /me/senha responde 409
+    fetch.mockResolvedValue(Response.json({ ...EU, metodos_login: ["google"] }));
+
+    expect(await contaDaSessao()).toEqual({ empresa: "Telha Certa Ltda", temSenha: false });
+  });
+
+  it("sem resposta, esconde a empresa em vez de inventar um nome e deixa a troca de senha à mostra", async () => {
     fetch.mockResolvedValue(Response.json({ detail: "Not Found" }, { status: 404 }));
 
-    expect(await razaoSocialDaEmpresa()).toBe("");
+    expect(await contaDaSessao()).toEqual({ empresa: "", temSenha: true });
   });
 });
 

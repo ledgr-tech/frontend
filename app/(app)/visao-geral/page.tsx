@@ -40,8 +40,7 @@ function plural(quantidade: number, singular: string, plural: string): string {
 }
 
 export default async function VisaoGeralPage() {
-  // o gráfico conta pelo mês do extrato, como o histórico
-  const resposta = await carregarVisaoGeral({ competencias: true });
+  const resposta = await carregarVisaoGeral();
   if (!resposta.ok && resposta.status === 401) redirect("/login");
 
   const recente = resposta.ok ? resposta.dados.recente : null;
@@ -91,7 +90,7 @@ function Conteudo({
         <PedeAtencao conciliacao={conciliacao} arquivos={visao.arquivosComLinhasNaoLidas} />
         <section className="vg-tendencia" aria-label="Tendência da taxa de match">
           {/* só a rodada que vale: a refeita e a anterior pareceriam uma queda que não houve */}
-          <GraficoDeMatch execucoes={execucoesVigentes(visao.execucoes)} competencias={visao.competencias} />
+          <GraficoDeMatch execucoes={execucoesVigentes(visao.execucoes)} />
         </section>
       </Reveal>
 
@@ -409,7 +408,7 @@ const PASSOS = [
   {
     numeral: "II",
     titulo: "Suba o extrato do sistema de gestão",
-    texto: "O CSV ou o PDF exportado do seu ERP funciona: Cigam, Bling, Tiny ou outro.",
+    texto: "O CSV exportado do seu ERP funciona: Cigam, Bling, Tiny ou outro.",
   },
   {
     numeral: "III",

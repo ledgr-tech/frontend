@@ -2,6 +2,7 @@ import { mesPorExtenso, type Execucao } from "@/lib/adaptadores";
 import type { StatusLinha, Tom } from "@/lib/mock-data";
 import { rodadasDoBanco } from "@/lib/rodadas";
 import { formatarPercentual, seloDoStatus } from "../dashboard/resumo";
+import { competencia } from "../fechamentos/fechamento";
 
 /** Quantos meses o gráfico da taxa de match mostra. */
 const MESES_NO_GRAFICO = 6;
@@ -20,14 +21,14 @@ export type PontoDoGrafico = {
 /**
  * A taxa de match por mês do extrato, dos seis meses mais recentes, do mais antigo ao mais novo:
  * o tempo do gráfico corre da esquerda para a direita. O mês soma as conciliações dele (a taxa é
- * pesada pelos lançamentos, não a média das taxas), e sem o mês do extrato vale o mês em que
- * rodou. `execucoes` são as que valem (`execucoesVigentes`).
+ * pesada pelos lançamentos, não a média das taxas), e é o de `competencia`: o do período do
+ * extrato do banco, ou o mês em que rodou. `execucoes` são as que valem (`execucoesVigentes`).
  */
-export function serieMensal(execucoes: Execucao[], competencias: Record<string, string> = {}): PontoDoGrafico[] {
+export function serieMensal(execucoes: Execucao[]): PontoDoGrafico[] {
   const meses = new Map<string, PontoDoGrafico>();
   for (const execucao of execucoes) {
     if (execucao.lancamentos === 0) continue;
-    const chave = competencias[execucao.extratoBancoId] ?? ANO_MES.format(new Date(execucao.executadaEm));
+    const chave = competencia(execucao.periodoInicio, execucao.executadaEm);
     const mes = meses.get(chave) ?? { chave, taxa: 0, conciliados: 0, lancamentos: 0, conciliacoes: 0 };
     mes.conciliados += conciliados(execucao);
     mes.lancamentos += execucao.lancamentos;
@@ -64,14 +65,6 @@ export function alturasNoGrafico(taxas: number[]): number[] {
   return taxas.map((taxa) => (taxa - base) / faixa);
 }
 
-// "2026-09" no fuso de Brasília: o servidor roda em UTC, e uma conciliação de
-// 30/09 à noite cairia em outubro
-const ANO_MES = new Intl.DateTimeFormat("en-CA", {
-  timeZone: "America/Sao_Paulo",
-  year: "numeric",
-  month: "2-digit",
-});
-
 /**
  * Como uma execução fica na conciliação dela: a que vale (a atual da rodada mais recente),
  * a de uma rodada anterior (o extrato do sistema ganhou versão nova depois), ou substituída
@@ -85,7 +78,7 @@ export type ExecucaoDaConciliacao = { execucao: Execucao; rodada: number; situac
 export type ConciliacaoNoHistorico = {
   extratoBancoId: string;
   arquivoBanco: string;
-  /** O mês do extrato (AAAA-MM), o mesmo de Fechamentos; sem ele, o mês em que a que vale rodou. */
+  /** O mês da conciliação (AAAA-MM), o mesmo de Fechamentos: ver `competencia`. */
   competencia: string;
   /** Quantas rodadas a página mostra. */
   rodadas: number;
@@ -97,18 +90,15 @@ export type ConciliacaoNoHistorico = {
 
 /**
  * As execuções da página juntas por extrato do banco, como a comparação abre: uma conciliação
- * com as rodadas dela. Ordena pela data da que vale, que é a que a linha mostra. `competencias`
- * diz o mês do extrato de cada extrato do banco (`carregarHistorico`); quem não tem, cai no mês
- * em que a que vale rodou.
+ * com as rodadas dela. Ordena pela data da que vale, que é a que a linha mostra. O mês é o do
+ * período do extrato do banco, e sem ele o mês em que a que vale rodou (`competencia`).
  *
  * ponytail: só enxerga a página. Uma conciliação com rodadas dos dois lados da quebra de página
- * aparece nas duas, cada uma com as rodadas que tem; o filtro `?extrato_banco_id=` proposto ao
- * backend (ver `acoes.ts`) resolveria isso aqui também.
+ * aparece nas duas, cada uma com as rodadas que tem. O backend já filtra por extrato do banco
+ * (`?extrato_banco_id=`, que a comparação usa), mas aqui seria uma chamada por conciliação da
+ * página: vale quando o histórico tiver extratos com muitas rodadas.
  */
-export function porConciliacao(
-  execucoes: Execucao[],
-  competencias: Record<string, string> = {},
-): ConciliacaoNoHistorico[] {
+export function porConciliacao(execucoes: Execucao[]): ConciliacaoNoHistorico[] {
   const bancos = [...new Set(execucoes.map((execucao) => execucao.extratoBancoId))];
   const conciliacoes = bancos.map((banco): ConciliacaoNoHistorico => {
     const rodadas = rodadasDoBanco(execucoes, banco);
@@ -128,7 +118,7 @@ export function porConciliacao(
     return {
       extratoBancoId: banco,
       arquivoBanco: doBanco[0].execucao.arquivoBanco,
-      competencia: competencias[banco] ?? ANO_MES.format(new Date(principal.execucao.executadaEm)),
+      competencia: competencia(principal.execucao.periodoInicio, principal.execucao.executadaEm),
       rodadas: ultima,
       principal,
       execucoes: doBanco,

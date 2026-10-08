@@ -219,12 +219,12 @@ export default function NovaConciliacaoPage() {
               Extrato do sistema de gestão
             </span>
             <span style={{ fontSize: 14, color: "color-mix(in srgb, var(--color-text) 66%, transparent)" }}>
-              {arquivoSistema ? arquivoSistema.name : "Arquivo CSV ou PDF exportado do seu sistema de gestão"}
+              {arquivoSistema ? arquivoSistema.name : "Arquivo CSV exportado do seu sistema de gestão"}
             </span>
             <input
               aria-label="Extrato do sistema de gestão"
               type="file"
-              accept=".csv,.pdf"
+              accept=".csv"
               disabled={ocupado}
               onChange={selecionarSistema}
               style={{ position: "absolute", width: 1, height: 1, opacity: 0 }}

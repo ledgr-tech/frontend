@@ -22,9 +22,9 @@ function par(
       toleranciaDias: 1,
       atual: true,
       justificadas: 0,
+      periodoInicio: "2026-09-01",
       ...parcial,
     },
-    primeiraData: "2026-09-01",
     naoLidas: [],
     ...extra,
   };
@@ -34,7 +34,7 @@ describe("agruparPorMes", () => {
   it("põe no mesmo mês os pares de extratos daquele mês, somando o que cada um deixou", () => {
     const [setembro] = agruparPorMes([
       par("itau", { lancamentos: 140, divergencias: { divergente_valor: 7, duplicado: 3 } }),
-      par("sicredi", { lancamentos: 60, divergencias: { divergente_valor: 2 } }, { primeiraData: "2026-09-03" }),
+      par("sicredi", { lancamentos: 60, divergencias: { divergente_valor: 2 }, periodoInicio: "2026-09-03" }),
     ]);
 
     expect(setembro).toMatchObject({
@@ -51,20 +51,20 @@ describe("agruparPorMes", () => {
 
   it("ordena os meses do mais recente para o mais antigo", () => {
     const meses = agruparPorMes([
-      par("ago", {}, { primeiraData: "2026-08-01" }),
-      par("set", {}, { primeiraData: "2026-09-01" }),
-      par("dez", {}, { primeiraData: "2025-12-01" }),
+      par("ago", { periodoInicio: "2026-08-01" }),
+      par("set", { periodoInicio: "2026-09-01" }),
+      par("dez", { periodoInicio: "2025-12-01" }),
     ]);
     expect(meses.map((mes) => mes.chave)).toEqual(["2026-09", "2026-08", "2025-12"]);
   });
 
   it("vira o ano no mês seguinte a dezembro", () => {
-    expect(agruparPorMes([par("dez", {}, { primeiraData: "2025-12-01" })])[0].proximo).toBe("janeiro");
+    expect(agruparPorMes([par("dez", { periodoInicio: "2025-12-01" })])[0].proximo).toBe("janeiro");
   });
 
-  it("usa o mês em que foi conciliado, no fuso de Brasília, quando o extrato não tem data", () => {
+  it("usa o mês em que foi conciliado, no fuso de Brasília, quando o extrato do banco não tem período", () => {
     // 01/10 às 02h em UTC ainda é 30/09 em Brasília
-    const [mes] = agruparPorMes([par("vazio", { executadaEm: "2026-10-01T02:00:00Z" }, { primeiraData: null })]);
+    const [mes] = agruparPorMes([par("vazio", { executadaEm: "2026-10-01T02:00:00Z", periodoInicio: null })]);
     expect(mes.chave).toBe("2026-09");
   });
 

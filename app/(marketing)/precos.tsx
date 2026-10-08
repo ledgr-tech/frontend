@@ -66,7 +66,7 @@ const BENEFICIOS: Beneficio[] = [
     texto: "O Ledgr usa o que o seu sistema de gestão já exporta. Você sobe dois arquivos: o extrato do banco e o do sistema.",
     itens: [
       "Extrato do banco em OFX ou CSV, direto do internet banking",
-      "Razão do ERP ou do sistema de gestão em CSV ou PDF",
+      "Razão do ERP ou do sistema de gestão em CSV",
       "Nenhuma credencial bancária",
       "CSV em outro formato: você aponta as colunas na importação",
     ],
@@ -152,7 +152,7 @@ function DoisArquivos() {
           <IconeOrigem origem="sistema" tamanho={16} />
           Extrato do sistema
         </span>
-        <span className="amostra-folha-formato">CSV ou PDF</span>
+        <span className="amostra-folha-formato">CSV</span>
         <span className="amostra-folha-linhas" />
       </div>
       <div className="amostra-folha amostra-folha-banco">

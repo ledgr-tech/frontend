@@ -144,7 +144,7 @@ describe("LandingPage", () => {
       screen.getByText("Não. O Ledgr lê o arquivo que o internet banking já exporta, em OFX ou CSV, e não pede nenhuma credencial bancária."),
     ).toBeInTheDocument();
     expect(
-      screen.getByText("Exporte o razão do seu ERP ou sistema de gestão no mesmo período, em CSV ou PDF."),
+      screen.getByText("Exporte o razão do seu ERP ou sistema de gestão no mesmo período, em CSV."),
     ).toBeInTheDocument();
   });
 
