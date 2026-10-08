@@ -46,11 +46,13 @@ export type SituacaoExtrato = {
   erros: { identificador: string; motivo: string }[];
 };
 
+/** O `total` é a soma das sete categorias. */
 export type ContagensConciliacao = {
   extrato_banco_id: string;
   extrato_sistema_id: string;
   total: number;
   match_exato: number;
+  match_tolerancia: number;
   duplicado: number;
   sem_correspondencia: number;
   tarifa_bancaria: number;

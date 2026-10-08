@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { razaoSocialDaEmpresa } from "../(auth)/acoes";
+import { contaDaSessao } from "../(auth)/acoes";
 import { Shell } from "./shell";
 
 /**
@@ -16,8 +16,9 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   const sessao = await auth();
   if (!sessao?.user?.email) redirect("/login");
 
+  const conta = await contaDaSessao();
   return (
-    <Shell email={sessao.user.email} empresa={await razaoSocialDaEmpresa()}>
+    <Shell email={sessao.user.email} empresa={conta.empresa} temSenha={conta.temSenha}>
       {children}
     </Shell>
   );

@@ -244,12 +244,15 @@ export function Configuracoes({
   aberta,
   onFechar,
   email,
+  temSenha,
   onSair,
   onTema,
 }: {
   aberta: boolean;
   onFechar: () => void;
   email: string;
+  /** Falso na conta que só entra pelo Google (`metodos_login` do `GET /me`): não há senha para trocar. */
+  temSenha: boolean;
   onSair: () => void;
   /** Avisa o menu lateral, que mostra o botão de tema com o ícone do tema atual. */
   onTema: (tema: Tema) => void;
@@ -319,29 +322,33 @@ export function Configuracoes({
           // ser um AcaoDaConta com `trocarEmail`, que já está pronta e testada em (auth)/acoes.ts.
           controle: <span className="cfg-valor">{email}</span>,
         },
-        {
-          titulo: "Senha",
-          descricao: "Troque quando quiser, e na hora se desconfiar que mais alguém sabe.",
-          controle: (
-            <AcaoDaConta
-              abrir="Trocar senha"
-              confirmar="Trocar senha"
-              feito="Senha trocada."
-              campos={[
-                SENHA_ATUAL,
-                { id: "senha_nova", rotulo: "Senha nova", tipo: "password", autoComplete: "new-password" },
-                {
-                  id: "senha_confirmacao",
-                  rotulo: "Repita a senha nova",
-                  tipo: "password",
-                  autoComplete: "new-password",
-                },
-              ]}
-              validar={validarSenhaNova}
-              enviar={(valores) => trocarSenha(valores.senha_atual, valores.senha_nova)}
-            />
-          ),
-        },
+        ...(temSenha
+          ? [
+              {
+                titulo: "Senha",
+                descricao: "Troque quando quiser, e na hora se desconfiar que mais alguém sabe.",
+                controle: (
+                  <AcaoDaConta
+                    abrir="Trocar senha"
+                    confirmar="Trocar senha"
+                    feito="Senha trocada."
+                    campos={[
+                      SENHA_ATUAL,
+                      { id: "senha_nova", rotulo: "Senha nova", tipo: "password", autoComplete: "new-password" },
+                      {
+                        id: "senha_confirmacao",
+                        rotulo: "Repita a senha nova",
+                        tipo: "password",
+                        autoComplete: "new-password",
+                      },
+                    ]}
+                    validar={validarSenhaNova}
+                    enviar={(valores) => trocarSenha(valores.senha_atual, valores.senha_nova)}
+                  />
+                ),
+              },
+            ]
+          : []),
         {
           titulo: "Sessão",
           descricao:

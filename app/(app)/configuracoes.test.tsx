@@ -22,7 +22,7 @@ function abrir(props: Partial<Parameters<typeof Configuracoes>[0]> = {}) {
   const onSair = vi.fn();
   const onTema = vi.fn();
   render(
-    <Configuracoes aberta email={EMAIL} onFechar={onFechar} onSair={onSair} onTema={onTema} {...props} />,
+    <Configuracoes aberta email={EMAIL} temSenha onFechar={onFechar} onSair={onSair} onTema={onTema} {...props} />,
   );
   return { onFechar, onSair, onTema };
 }
@@ -139,6 +139,16 @@ describe("Configuracoes", () => {
     expect(trocarSenha).toHaveBeenCalledWith("s3nha-velha", "s3nha-nova");
     expect(await screen.findByRole("status")).toHaveTextContent("Senha trocada.");
     expect(screen.queryByRole("form", { name: "Trocar senha" })).not.toBeInTheDocument();
+  });
+
+  it("has no password to change on an account that signs in only with Google", async () => {
+    const user = userEvent.setup();
+    abrir({ temSenha: false });
+    await user.click(secao("Conta"));
+
+    expect(screen.getByText(EMAIL)).toBeInTheDocument();
+    expect(screen.queryByText("Senha", { selector: ".cfg-linha-titulo" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Trocar senha" })).not.toBeInTheDocument();
   });
 
   // o backend ainda não tem POST /me/email nem DELETE /me: um formulário que pede a senha
