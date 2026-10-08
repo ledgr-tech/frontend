@@ -10,8 +10,10 @@ import {
   conciliar,
   enviarExtrato,
   explicarDivergencia,
+  fecharMes,
   listarExecucoes,
   listarExtratos,
+  reabrirMes,
   registrarDecisao,
   situacaoDoExtrato,
 } from "./acoes";
@@ -85,9 +87,36 @@ function duasRodadas(): ExecucaoAPI[] {
   ];
 }
 
-/** O backend com as duas rodadas: linhas, situação dos arquivos e execuções. */
-function backendComRodadas(execucoes: ExecucaoAPI[] = duasRodadas()) {
+/** Um fechamento como `/fechamentos` devolve (backend #86). */
+function fechamento(competencia: string, parcial: Record<string, unknown> = {}) {
+  return {
+    id: `f-${competencia}`,
+    competencia,
+    estado: "fechado",
+    ressalva: null,
+    fechado_por: "Maria Financeiro",
+    fechado_em: "2026-10-06T15:20:00.123456Z",
+    reaberto_por: null,
+    reaberto_em: null,
+    resumo: {
+      pares: [],
+      contagens: {},
+      justificadas: 0,
+      pendentes: 0,
+      linhas_nao_lidas: 0,
+      valor_em_aberto: "0.00",
+    },
+    ...parcial,
+  };
+}
+
+/** O backend com as duas rodadas: linhas, situação dos arquivos, execuções e fechamentos (nenhum). */
+function backendComRodadas(execucoes: ExecucaoAPI[] = duasRodadas(), fechamentos: unknown[] = []) {
   chamarBackend.mockImplementation(async (caminho: string) => {
+    if (caminho.startsWith("/fechamentos")) {
+      const competencia = new URLSearchParams(caminho.split("?")[1]).get("competencia");
+      return { itens: fechamentos.filter((item) => !competencia || (item as { competencia: string }).competencia === competencia) };
+    }
     if (caminho.startsWith("/execucoes")) {
       // com `?extrato_banco_id=`, só as daquele extrato, e o total conta só elas
       const banco = new URLSearchParams(caminho.split("?")[1]).get("extrato_banco_id");
@@ -783,6 +812,7 @@ describe("carregarFechamentos", () => {
 
   it("dá a cada par atual as linhas não lidas dos dois arquivos, sem abrir a conciliação", async () => {
     chamarBackend.mockImplementation(async (caminho: string) => {
+      if (caminho === "/fechamentos") return { itens: [] };
       if (caminho.startsWith("/execucoes")) {
         return {
           total: 2,
@@ -803,14 +833,68 @@ describe("carregarFechamentos", () => {
     // a rodada substituída (e-1, atual: false) não entra
     expect(resultado).toMatchObject({
       ok: true,
-      dados: [
-        {
-          // o mês do par é o do período do extrato do banco, que vem na execução
-          execucao: { id: "e-2", periodoInicio: "2026-09-01" },
-          naoLidas: [{ nome: "e-2-sistema.csv", linhas: 1 }],
-        },
-      ],
+      dados: {
+        pares: [
+          {
+            // o mês do par é o do período do extrato do banco, que vem na execução
+            execucao: { id: "e-2", periodoInicio: "2026-09-01" },
+            naoLidas: [{ nome: "e-2-sistema.csv", linhas: 1 }],
+          },
+        ],
+        fechamentos: [],
+      },
     });
+  });
+
+  it("traz os fechamentos da empresa, os ativos e os reabertos, como o backend os ordena", async () => {
+    backendComRodadas(duasRodadas(), [
+      fechamento("2026-09", { ressalva: "Tarifa em análise com o banco." }),
+      fechamento("2026-08", {
+        id: "f-ago-2",
+        estado: "reaberto",
+        reaberto_por: "Ana",
+        reaberto_em: "2026-10-07T10:00:00Z",
+      }),
+    ]);
+
+    const resultado = await carregarFechamentos();
+
+    if (!resultado.ok) throw new Error(resultado.erro);
+    expect(chamarBackend).toHaveBeenCalledWith("/fechamentos");
+    expect(resultado.dados.fechamentos).toEqual([
+      {
+        competencia: "2026-09",
+        estado: "fechado",
+        ressalva: "Tarifa em análise com o banco.",
+        fechadoPor: "Maria Financeiro",
+        fechadoEm: "2026-10-06T15:20:00.123456Z",
+        reabertoPor: null,
+        reabertoEm: null,
+      },
+      {
+        competencia: "2026-08",
+        estado: "reaberto",
+        ressalva: null,
+        fechadoPor: "Maria Financeiro",
+        fechadoEm: "2026-10-06T15:20:00.123456Z",
+        reabertoPor: "Ana",
+        reabertoEm: "2026-10-07T10:00:00Z",
+      },
+    ]);
+  });
+
+  it("segue sem saber dos fechamentos quando a rota deles falha", async () => {
+    chamarBackend.mockImplementation(async (caminho: string) => {
+      if (caminho === "/fechamentos") throw new ErroBackend(404, "Not Found");
+      if (caminho.startsWith("/execucoes")) return { total: 1, limit: 50, offset: 0, itens: [execucao("e-1", BANCO_RECENTE)] };
+      return situacao(caminho.replace("/extratos/", ""));
+    });
+
+    const resultado = await carregarFechamentos();
+
+    if (!resultado.ok) throw new Error(resultado.erro);
+    expect(resultado.dados.pares).toHaveLength(1);
+    expect(resultado.dados.fechamentos).toBeNull();
   });
 
   it("conta um par por extrato do banco: a versão nova do sistema substitui a antiga", async () => {
@@ -818,13 +902,72 @@ describe("carregarFechamentos", () => {
 
     const resultado = await carregarFechamentos();
     if (!resultado.ok) throw new Error(resultado.erro);
-    expect(resultado.dados.map((par) => par.execucao.extratoSistemaId)).toEqual([SISTEMA_V2]);
+    expect(resultado.dados.pares.map((par) => par.execucao.extratoSistemaId)).toEqual([SISTEMA_V2]);
   });
 
   it("devolve a falha quando nem a lista de execuções vem", async () => {
     chamarBackend.mockRejectedValue(new ErroBackend(401, "Token inválido."));
 
     expect(await carregarFechamentos()).toMatchObject({ ok: false, status: 401 });
+  });
+});
+
+describe("fecharMes", () => {
+  beforeEach(() => {
+    chamarBackend.mockReset();
+  });
+
+  it("fecha a competência e devolve o fechamento", async () => {
+    chamarBackend.mockResolvedValue(fechamento("2026-09"));
+
+    const resultado = await fecharMes("2026-09");
+
+    expect(chamarBackend).toHaveBeenCalledWith("/fechamentos", { method: "POST", corpo: { competencia: "2026-09" } });
+    expect(resultado).toMatchObject({ ok: true, dados: { competencia: "2026-09", estado: "fechado", fechadoPor: "Maria Financeiro" } });
+  });
+
+  it("manda a ressalva, sem os espaços das pontas, quando há uma", async () => {
+    chamarBackend.mockResolvedValue(fechamento("2026-09", { ressalva: "Tarifa em análise." }));
+
+    await fecharMes("2026-09", "  Tarifa em análise.  ");
+
+    expect(chamarBackend).toHaveBeenCalledWith("/fechamentos", {
+      method: "POST",
+      corpo: { competencia: "2026-09", ressalva: "Tarifa em análise." },
+    });
+  });
+
+  it("devolve o que falta, no texto do backend, quando há pendência sem ressalva", async () => {
+    const falta =
+      "Há 2 divergências sem justificativa nesta competência. Justifique, corrija ou feche com ressalva.";
+    chamarBackend.mockRejectedValue(new ErroBackend(409, falta));
+
+    expect(await fecharMes("2026-09")).toEqual({ ok: false, status: 409, erro: falta });
+  });
+
+  it("recusa uma competência fora do formato sem chamar o backend", async () => {
+    expect(await fecharMes("2026-13")).toMatchObject({ ok: false, status: 422 });
+    expect(chamarBackend).not.toHaveBeenCalled();
+  });
+});
+
+describe("reabrirMes", () => {
+  beforeEach(() => {
+    chamarBackend.mockReset();
+  });
+
+  it("reabre a competência pelo DELETE, e o fechamento volta como reaberto", async () => {
+    chamarBackend.mockResolvedValue(fechamento("2026-09", { estado: "reaberto", reaberto_por: "Ana" }));
+
+    const resultado = await reabrirMes("2026-09");
+
+    expect(chamarBackend).toHaveBeenCalledWith("/fechamentos/2026-09", { method: "DELETE" });
+    expect(resultado).toMatchObject({ ok: true, dados: { estado: "reaberto", reabertoPor: "Ana" } });
+  });
+
+  it("recusa uma competência que não é AAAA-MM sem chamar o backend, porque ela vai no caminho", async () => {
+    expect(await reabrirMes("../extratos")).toMatchObject({ ok: false, status: 422 });
+    expect(chamarBackend).not.toHaveBeenCalled();
   });
 });
 
@@ -947,6 +1090,42 @@ describe("carregarConciliacaoEmRodadas", () => {
     const resultado = await carregarConciliacaoEmRodadas(BANCO_RECENTE);
     expect(resultado).toMatchObject({ ok: true, dados: { rodada: null, rodadas: [], mudancas: null } });
     expect(chamarBackend).toHaveBeenCalledWith(caminhoDasLinhas());
+  });
+
+  it("diz se o mês da conciliação, o do extrato do banco, está fechado", async () => {
+    backendComRodadas(duasRodadas(), [fechamento("2026-09")]);
+
+    const resultado = await carregarConciliacaoEmRodadas(BANCO_RECENTE);
+
+    if (!resultado.ok) throw new Error(resultado.erro);
+    expect(chamarBackend).toHaveBeenCalledWith("/fechamentos?competencia=2026-09");
+    expect(resultado.dados.fechamento).toMatchObject({ competencia: "2026-09", estado: "fechado" });
+  });
+
+  it("não trava o mês que foi reaberto depois de fechado", async () => {
+    // do fechamento mais recente para o mais antigo, como o backend
+    backendComRodadas(duasRodadas(), [
+      fechamento("2026-09", { id: "f-2", estado: "reaberto", reaberto_por: "Ana", reaberto_em: "2026-10-07T10:00:00Z" }),
+    ]);
+
+    const resultado = await carregarConciliacaoEmRodadas(BANCO_RECENTE);
+
+    if (!resultado.ok) throw new Error(resultado.erro);
+    expect(resultado.dados.fechamento).toBeNull();
+  });
+
+  it("abre a conciliação mesmo quando não dá para saber do fechamento", async () => {
+    const execucoes = duasRodadas();
+    chamarBackend.mockImplementation(async (caminho: string) => {
+      if (caminho.startsWith("/fechamentos")) throw new ErroBackend(500, "O servidor respondeu 500.");
+      if (caminho.startsWith("/execucoes")) return { total: 2, limit: 100, offset: 0, itens: execucoes };
+      return { extrato_id: BANCO_RECENTE, total: 1, limit: 1000, offset: 0, itens: [itemConciliacao] };
+    });
+
+    const resultado = await carregarConciliacaoEmRodadas(BANCO_RECENTE);
+
+    if (!resultado.ok) throw new Error(resultado.erro);
+    expect(resultado.dados.fechamento).toBeNull();
   });
 
   it("recusa um id que não é de extrato sem chamar o backend", async () => {

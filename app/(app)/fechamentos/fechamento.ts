@@ -1,3 +1,4 @@
+import type { Fechamento } from "@/lib/adaptadores";
 import type { StatusLinha, Tom } from "@/lib/mock-data";
 import type { ParDoFechamento } from "../conciliacoes/acoes";
 import { seloDoStatus } from "../dashboard/resumo";
@@ -42,6 +43,11 @@ export type MesDeFechamento = {
   naoLidas: { nome: string; linhas: number }[];
   /** Toda divergência justificada e os arquivos lidos por inteiro. */
   pronto: boolean;
+  /**
+   * O registro mais recente de fechamento do mês: `fechado` é o mês fechado agora, `reaberto` foi
+   * fechado e reaberto depois. Null quando nunca foi fechado.
+   */
+  fechamento: Fechamento | null;
 };
 
 // "2026-09" no fuso de Brasília: o servidor da Vercel roda em UTC, e uma
@@ -80,7 +86,7 @@ export function tituloDaCompetencia(chave: string): string {
   return `${nomeDoMes(chave)} de ${chave.split("-")[0]}`;
 }
 
-function montarMes(chave: string, pares: ParDoFechamento[]): MesDeFechamento {
+function montarMes(chave: string, pares: ParDoFechamento[]): Omit<MesDeFechamento, "fechamento"> {
   const [ano, mes] = chave.split("-");
   const indice = Number(mes) - 1;
   const nome = nomeDoMes(chave);
@@ -119,13 +125,18 @@ function montarMes(chave: string, pares: ParDoFechamento[]): MesDeFechamento {
 }
 
 /** Os pares agrupados por mês, do mais recente para o mais antigo. */
-export function agruparPorMes(pares: ParDoFechamento[]): MesDeFechamento[] {
+export function agruparPorMes(pares: ParDoFechamento[], fechamentos: Fechamento[] = []): MesDeFechamento[] {
   const porMes = new Map<string, ParDoFechamento[]>();
   for (const par of pares) {
     const chave = chaveDoPar(par);
     porMes.set(chave, [...(porMes.get(chave) ?? []), par]);
   }
+  // a lista vem do fechamento mais recente para o mais antigo: o primeiro de cada mês é o que vale
+  const atual = new Map<string, Fechamento>();
+  for (const fechamento of fechamentos) {
+    if (!atual.has(fechamento.competencia)) atual.set(fechamento.competencia, fechamento);
+  }
   return [...porMes]
     .sort(([a], [b]) => b.localeCompare(a))
-    .map(([chave, doMes]) => montarMes(chave, doMes));
+    .map(([chave, doMes]) => ({ ...montarMes(chave, doMes), fechamento: atual.get(chave) ?? null }));
 }

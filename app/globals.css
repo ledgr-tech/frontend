@@ -3826,6 +3826,28 @@ html[data-tema="escuro"] .app-shell {
 .fech-link:hover { text-decoration-color: var(--color-text); }
 /* o arquivo e o botão na mesma linha; quebra só se o nome não couber */
 .fech-relatorio { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; }
+/* o aviso da comparação de um mês fechado: informação, não alerta, num filete neutro */
+.mes-fechado-aviso {
+  margin: 0; padding: 10px 14px; border-radius: var(--radius-md); border: 1px solid var(--color-divider);
+  font-size: 14px; line-height: 1.6; color: var(--texto-apagado);
+}
+.mes-fechado-aviso a { color: var(--color-text); text-decoration: underline; text-underline-offset: 3px; }
+
+/* fechar e reabrir (backend #86): os botões numa linha; o erro e a ressalva, embaixo deles */
+.fech-acoes { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.fech-erro { flex-basis: 100%; margin: 0; }
+.fech-ressalva-form { flex-basis: 100%; display: flex; flex-direction: column; gap: 8px; max-width: 520px; }
+.fech-campo { display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
+.fech-campo textarea { resize: vertical; min-height: 72px; }
+.fech-encerrado { display: flex; flex-direction: column; gap: 8px; }
+/* a ressalva que vai com o fechamento: um filete à esquerda, como citação */
+.fech-ressalva {
+  margin: 0; padding: 6px 12px; border-left: 2px solid var(--color-accent);
+  display: flex; flex-direction: column; gap: 2px; font-size: 13.5px; line-height: 1.5;
+}
+.fech-ressalva-rotulo {
+  font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--texto-apagado);
+}
 
 /* ── Assinatura ───────────────────────────────────────────────────────────────
    Plano, planos e faturas (isAssinatura em Ledgr.dc.html). O resumo e a tabela
