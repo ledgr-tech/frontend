@@ -374,6 +374,33 @@ describe("MenuLateral recolhido, com o mouse em cima", () => {
     expect(menu()).not.toHaveAttribute("data-espiar");
   });
 
+  it("fecha ao ir para outra tela, em vez de ficar por cima dela enquanto carrega", () => {
+    montar();
+    mouseEntra();
+    esperar(150);
+
+    fireEvent.click(screen.getByRole("link", { name: "Histórico" }));
+    expect(menu()).not.toHaveAttribute("data-espiar");
+
+    // o mouse continua em cima: só volta a abrir depois de sair e voltar
+    esperar(500);
+    expect(menu()).not.toHaveAttribute("data-espiar");
+    mouseSai();
+    mouseEntra();
+    esperar(150);
+    expect(menu()).toHaveAttribute("data-espiar", "aberto");
+  });
+
+  it("continua aberto no Ctrl+clique, que abre a tela em outra aba", () => {
+    montar();
+    mouseEntra();
+    esperar(150);
+
+    fireEvent.click(screen.getByRole("link", { name: "Histórico" }), { ctrlKey: true });
+
+    expect(menu()).toHaveAttribute("data-espiar", "aberto");
+  });
+
   it("o Ctrl+B fecha o que estava aberto por cima e fixa o menu aberto", () => {
     montar();
     mouseEntra();

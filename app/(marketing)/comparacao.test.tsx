@@ -39,20 +39,46 @@ describe("ExtratoComparacao", () => {
         "Data",
         "Descrição",
         "Banco",
+        "Status",
         "Data",
         "Descrição",
         "Sistema",
-        "Status",
       ]);
     });
 
-    it("shows each pair in one line, both sides beside the verdict in the app's seal", () => {
+    it("shows each pair in one line, with the verdict in the axis between the two sheets, as the app does", () => {
       render(<ExtratoComparacao banco={[LINHA, BATIDA]} sistema={[LINHA, BATIDA]} />);
       expect(document.querySelectorAll("tbody tr")).toHaveLength(2);
+      const tr = linhaDaTabela("Pagamento fornecedor #1082");
+      const linha = within(tr);
+      expect(linha.getByText("R$ 12.640,00").closest("td")).toHaveClass("folha-banco");
+      expect(linha.getByText("R$ 12.604,00").closest("td")).toHaveClass("folha-sistema");
+      // o nome curto no selo, o inteiro para o leitor de tela
+      const status = tr.querySelector("td.celula-status")!;
+      expect(status.previousElementSibling).toHaveClass("folha-banco");
+      expect(status.nextElementSibling).toHaveClass("folha-sistema");
+      expect(within(status as HTMLElement).getByText("Valor diverge")).toHaveClass("selo", `selo-${seloDoStatus("divergente_valor").tom}`);
+      expect(within(status as HTMLElement).getByText("Valor diverge na mesma data")).toHaveClass("sr-only");
+    });
+
+    it("leaves a matched line quiet, without a seal, as the app does", () => {
+      render(<ExtratoComparacao banco={[BATIDA]} sistema={[BATIDA]} />);
+      expect(screen.getByText("Bate")).toHaveClass("status-batido");
+      expect(screen.getByText("Match exato")).toHaveClass("sr-only");
+    });
+
+    it("marks the diverging field on both sides", () => {
+      render(<ExtratoComparacao banco={[LINHA]} sistema={[LINHA]} />);
       const linha = within(linhaDaTabela("Pagamento fornecedor #1082"));
-      expect(linha.getByText("R$ 12.640,00")).toHaveClass("folha-banco");
-      expect(linha.getByText("R$ 12.604,00")).toHaveClass("folha-sistema");
-      expect(linha.getByText("Valor diverge na mesma data")).toHaveClass("selo", `selo-${seloDoStatus("divergente_valor").tom}`);
+      expect(linha.getByText("R$ 12.640,00")).toHaveClass("marca-diverge");
+      expect(linha.getByText("R$ 12.604,00")).toHaveClass("marca-diverge");
+      expect(linha.getAllByText("04/10")[0]).not.toHaveClass("marca-diverge");
+    });
+
+    it("shows the missing side as one empty slot, not three dashes", () => {
+      const tarifa: LinhaExtrato = { ...LINHA, desc: "Tarifa", valorSistema: null, status: "tarifa_bancaria" };
+      render(<ExtratoComparacao banco={[tarifa]} sistema={[]} />);
+      expect(screen.getByText("sem lançamento no sistema").closest("td")).toHaveAttribute("colspan", "3");
     });
 
     it("joins the two sides of a line booked on different days, each with its own date", () => {
@@ -60,8 +86,8 @@ describe("ExtratoComparacao", () => {
       const sistema = { ...LINHA, data: "12/08", status: "divergente_data" as const };
       render(<ExtratoComparacao banco={[banco]} sistema={[sistema]} />);
       const linha = within(linhaDaTabela("Pagamento fornecedor #1082"));
-      expect(linha.getByText("11/08")).toHaveClass("folha-banco");
-      expect(linha.getByText("12/08")).toHaveClass("folha-sistema");
+      expect(linha.getByText("11/08").closest("td")).toHaveClass("folha-banco");
+      expect(linha.getByText("12/08").closest("td")).toHaveClass("folha-sistema");
     });
 
     it("lays the lines out as cards on the phone, with the app's field labels", () => {
@@ -72,10 +98,10 @@ describe("ExtratoComparacao", () => {
         "Data",
         "Descrição",
         "Banco",
+        "Status",
         "Data no sistema",
         "Descrição no sistema",
         "Sistema",
-        "Status",
       ]);
       // a descrição do banco é o título do cartão
       expect(linhaDaTabela("Pagamento fornecedor #1082").querySelector('td[data-destaque="true"]')).toHaveTextContent(

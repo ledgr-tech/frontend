@@ -13,6 +13,7 @@ import { InkHover, MotionRoot, Reveal } from "../reveal";
 import { fonteDestaque } from "./fonte-destaque";
 import { PorDentro } from "./por-dentro";
 import { Precos, type ResumoDoMes } from "./precos";
+import { RedesSociais } from "./redes-sociais";
 
 // O agosto da demonstração: o cartão do hero e o relatório do último card de Preços mostram o
 // mesmo mês, com os mesmos números
@@ -828,6 +829,7 @@ export default function LandingPage() {
               Conciliação bancária sem planilha, para quem fecha o mês com o extrato na mão. Passo
               Fundo, RS.
             </span>
+            <RedesSociais />
           </div>
           {RODAPE_COLUNAS.map((coluna) => (
             <div key={coluna.titulo} style={{ flex: "0 1 170px", display: "flex", flexDirection: "column", gap: 10 }}>

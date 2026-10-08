@@ -625,6 +625,12 @@ dialog::backdrop {
   from { opacity: 0; transform: translateY(12px); filter: blur(2px); }
   to { opacity: 1; transform: none; filter: blur(0); }
 }
+/* troca de tema (tema.ts): a página clara e a escura se fundem, sem nada se mexer */
+html[data-trocando-tema]::view-transition-old(root),
+html[data-trocando-tema]::view-transition-new(root) {
+  animation-duration: 320ms;
+  animation-timing-function: ease;
+}
 /* cliques durante a transição chegam à página nova */
 ::view-transition { pointer-events: none; }
 @media (prefers-reduced-motion: reduce) {
@@ -1027,24 +1033,22 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
 .vitrine-app .table tbody tr[data-destacada] > .folha-sistema {
   background: color-mix(in srgb, var(--tom-linha) 14%, var(--folha-sistema));
 }
-.vitrine-app .table tbody tr[data-destacada] > td:last-child {
+.vitrine-app .table tbody tr[data-destacada] > .celula-status {
   position: relative;
   background: color-mix(in srgb, var(--tom-linha) 14%, transparent);
 }
-/* o cartão do hover do app aberto sobre essa linha. No app ele é fixo na tela, a 12px da ponta
-   da linha e 4px sobre ela; aqui a âncora é a última célula, que termina onde a linha termina */
-.vitrine-app .cartao-lancamento {
-  position: absolute; right: 12px; bottom: calc(100% - 4px);
-  width: 340px; text-align: left; animation: none;
+/* O cartão do hover do app aberto sobre o selo da linha, como no app: centrado na coluna do
+   status, com a seta apontando para ele (.cartao-no-eixo). No app ele é fixo na tela porque a
+   tabela rola de lado; aqui a âncora é a própria célula do status */
+:is(.vitrine-app, .demonstracao-folhas) .cartao-lancamento {
+  --cartao-largura: min(440px, calc(100vw - 32px));
+  position: absolute; left: 50%; bottom: calc(100% - 2px);
+  width: var(--cartao-largura); margin-left: calc(var(--cartao-largura) / -2); text-align: left;
 }
-/* a demonstração de "O problema" (comparacao.tsx): a mesma tabela, com o cartão do hover preso à
-   linha como na réplica. No app ele é fixo na tela porque a tabela rola de lado; aqui ela cabe na
-   largura e não rola. Ele sobe ao abrir, menos quando o ponteiro vem direto de outra linha */
-.demonstracao-folhas .table tbody td:last-child { position: relative; }
-.demonstracao-folhas .cartao-lancamento {
-  position: absolute; right: 12px; bottom: calc(100% - 4px);
-  width: min(340px, calc(100vw - 40px)); text-align: left;
-}
+.vitrine-app .cartao-lancamento { animation: none; }
+/* a demonstração de "O problema" (comparacao.tsx): a mesma tabela, com o cartão preso à linha
+   como na réplica. Ele sobe ao abrir, menos quando o ponteiro vem direto de outra linha */
+.demonstracao-folhas .table tbody .celula-status { position: relative; }
 .demonstracao-folhas .cartao-lancamento[data-na-hora] { animation: none; }
 /* aberta pelo teclado ou pelo toque, a linha acende como no hover do app */
 @media (min-width: 901px) {
@@ -1057,10 +1061,12 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
   }
 }
 /* abaixo de 900px a linha vira cartão: o cartão do hover abre acima do cartão da linha inteira,
-   não da célula do status, que é a última dele */
+   a 12px da ponta, não da célula do status; e sem a seta, que não teria para onde apontar */
 @media (max-width: 900px) {
   .demonstracao-folhas .table tbody tr { position: relative; }
-  .demonstracao-folhas .table tbody td:last-child { position: static; }
+  .demonstracao-folhas .table tbody .celula-status { position: static; }
+  .demonstracao-folhas .cartao-lancamento { left: auto; right: 12px; margin-left: 0; }
+  .demonstracao-folhas .cartao-no-eixo::after { content: none; }
   /* no cartão as folhas perdem o tom, e o hover do app pintaria faixas nas células: acende o cartão */
   .demonstracao-folhas .table tbody tr[data-tom]:hover > :is(.folha-banco, .folha-sistema) { background: transparent; }
 }
@@ -1093,8 +1099,28 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
     font-family: var(--font-heading); font-size: 16px; font-weight: 600;
   }
   .demonstracao-folhas .table td[data-destaque="true"]::before { content: none; }
-  .demonstracao-folhas .table td.folha-vao { display: none; }
   .demonstracao-folhas .table :is(td.folha-banco, td.folha-sistema) { background: transparent; }
+  /* como no celular do app: sem colunas, o status sai do eixo e vai ao pé do cartão */
+  .demonstracao-folhas .table colgroup { display: none; }
+  .demonstracao-folhas .folhas-com-eixo tbody tr { display: flex; flex-direction: column; }
+  .demonstracao-folhas .folhas-com-eixo .celula-status { order: 1; }
+}
+/* as redes no rodapé: o círculo com o filete das folhas, e o dourado do Ledgr no hover */
+.rodape-redes { display: flex; gap: 10px; margin: 8px 0 0; padding: 0; list-style: none; }
+.rodape-rede {
+  display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%;
+  border: 1px solid var(--color-divider);
+  color: color-mix(in srgb, var(--color-text) 68%, transparent);
+  transition: color 160ms ease, border-color 160ms ease, background-color 160ms ease, transform 160ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+.rodape-rede:hover, .rodape-rede:focus-visible {
+  color: var(--color-accent-700); border-color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 10%, transparent);
+  transform: translateY(-2px);
+}
+@media (prefers-reduced-motion: reduce) {
+  .rodape-rede { transition: none; }
+  .rodape-rede:hover, .rodape-rede:focus-visible { transform: none; }
 }
 .numeros-grade { --grade-recuo: 28px; --grade-linha: color-mix(in srgb, var(--color-neutral-100) 22%, transparent); }
 .passos-grade { --grade-recuo: 30px; }
@@ -2066,8 +2092,8 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
    ficam no mesmo matiz quente e neutro e se distinguem só pela claridade: um azul
    diria "isto é outra coisa" (link, informação) em vez de "isto é outra folha".
    O banco, fonte da verdade, é o papel mais claro; o sistema, um cinza quente.
-   O status fica fora das folhas: é o veredito. No app ele fica no eixo entre as
-   duas (.folhas-com-eixo); a réplica da landing ainda o põe na ponta direita. */
+   O status fica fora das folhas: é o veredito, no eixo entre as duas (.folhas-com-eixo),
+   no app e nas réplicas da landing. */
 .app-shell {
   --folha-banco: #fdfcfa; --folha-sistema: #ebe8e3;
   /* o que sobe acima do trilho: a opção escolhida do controle segmentado */
@@ -2090,7 +2116,7 @@ html[data-tema="escuro"] .app-shell {
 .tabela-folhas .folha-titulo { border-radius: var(--radius-md) var(--radius-md) 0 0; }
 .tabela-folhas tbody tr:last-child > td { border-bottom: none; }
 /* Os cantos de baixo de cada folha, pela classe e não pela posição: o lado que falta é uma
-   célula só, e o status pode estar no meio (app) ou na ponta (landing). */
+   célula só, e o status fica no meio. */
 .tabela-folhas tbody tr:last-child > td:is(
   .folha-banco:first-child,
   :not(.folha-sistema) + .folha-sistema
