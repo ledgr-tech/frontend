@@ -27,13 +27,16 @@ function situacao(status: "concluido" | "erro", erros: { identificador: string; 
   };
 }
 
-function pdf(tamanho?: number) {
-  const arquivo = new File(["%PDF"], "erp-setembro-v3.pdf", { type: "application/pdf" });
+// um CSV que o backend lê como está, então passa pela checagem de colunas
+const CSV_PRONTO = "data;valor;descricao\n2026-09-04;-12604.00;Boleto Aço Norte\n";
+
+function csv(tamanho?: number) {
+  const arquivo = new File([CSV_PRONTO], "erp-setembro-v3.csv", { type: "text/csv" });
   if (tamanho) Object.defineProperty(arquivo, "size", { value: tamanho });
   return arquivo;
 }
 
-async function enviar(arquivo = pdf()) {
+async function enviar(arquivo = csv()) {
   const user = userEvent.setup();
   render(<NovaVersao extratoBancoId={BANCO} onConcluida={onConcluida} />);
   await user.click(screen.getByRole("button", { name: "Enviar nova versão do extrato do sistema" }));
@@ -64,11 +67,19 @@ describe("NovaVersao", () => {
     expect(conciliar).toHaveBeenCalledWith(BANCO, "extrato-novo");
   });
 
+  it("accepts only CSV, because the backend does not read the ERP's PDF yet", async () => {
+    const user = userEvent.setup();
+    render(<NovaVersao extratoBancoId={BANCO} onConcluida={onConcluida} />);
+    await user.click(screen.getByRole("button", { name: "Enviar nova versão do extrato do sistema" }));
+
+    expect(screen.getByLabelText("Extrato do sistema de gestão")).toHaveAttribute("accept", ".csv");
+  });
+
   it("refuses a file over 4MB without sending it", async () => {
-    await enviar(pdf(5 * 1024 * 1024));
+    await enviar(csv(5 * 1024 * 1024));
 
     expect(screen.getByRole("alert")).toHaveTextContent(
-      'O arquivo "erp-setembro-v3.pdf" passa de 4MB. Exporte um período menor.',
+      'O arquivo "erp-setembro-v3.csv" passa de 4MB. Exporte um período menor.',
     );
     expect(enviarExtrato).not.toHaveBeenCalled();
   });
@@ -78,7 +89,7 @@ describe("NovaVersao", () => {
     await enviar();
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      "O servidor não conseguiu ler o extrato do sistema. Confira se é o arquivo certo, exportado em CSV ou PDF.",
+      "O servidor não conseguiu ler o extrato do sistema. Confira se é o arquivo certo, exportado em CSV.",
     );
     expect(conciliar).not.toHaveBeenCalled();
     expect(onConcluida).not.toHaveBeenCalled();

@@ -80,22 +80,12 @@ describe("NovaConciliacaoPage", () => {
     });
   });
 
-  it("aceita o PDF do sistema de gestão, e só do lado do sistema", () => {
+  it("aceita só CSV do sistema de gestão, porque o backend ainda não lê o PDF do ERP", () => {
     render(<NovaConciliacaoPage />);
 
-    expect(screen.getByLabelText("Extrato do sistema de gestão")).toHaveAttribute("accept", ".csv,.pdf");
-    expect(screen.getByText("Arquivo CSV ou PDF exportado do seu sistema de gestão")).toBeInTheDocument();
+    expect(screen.getByLabelText("Extrato do sistema de gestão")).toHaveAttribute("accept", ".csv");
+    expect(screen.getByText("Arquivo CSV exportado do seu sistema de gestão")).toBeInTheDocument();
     expect(screen.getByLabelText("Extrato do banco")).toHaveAttribute("accept", ".ofx,.csv");
-  });
-
-  it("sobe o PDF do sistema como está, sem a checagem de colunas do CSV", async () => {
-    await enviarOsDois(arquivo("RAZAO-SETEMBRO.PDF"));
-
-    await waitFor(() => expect(enviarExtrato).toHaveBeenCalledTimes(2));
-    const [segundo] = enviarExtrato.mock.calls[1] as [FormData];
-    expect(segundo.get("origem")).toBe("sistema");
-    expect((segundo.get("arquivo") as File).name).toBe("RAZAO-SETEMBRO.PDF");
-    await waitFor(() => expect(conciliar).toHaveBeenCalledWith("extrato-banco", "extrato-sistema"));
   });
 
   it("diz a regra de ouro em frases, sem travessão", () => {
@@ -279,7 +269,7 @@ describe("NovaConciliacaoPage", () => {
 
       const botao = screen.getByRole("button", { name: "Conciliar extratos" });
       expect(botao).toBeDisabled();
-      expect(screen.getByText("Arquivo CSV ou PDF exportado do seu sistema de gestão")).toBeInTheDocument();
+      expect(screen.getByText("Arquivo CSV exportado do seu sistema de gestão")).toBeInTheDocument();
       expect(enviarExtrato).not.toHaveBeenCalled();
     });
 
@@ -313,7 +303,7 @@ describe("NovaConciliacaoPage", () => {
       await enviarOsDois();
 
       expect(await screen.findByRole("alert")).toHaveTextContent(
-        "O servidor não conseguiu ler o extrato do sistema. Confira se é o arquivo certo, exportado em CSV ou PDF.",
+        "O servidor não conseguiu ler o extrato do sistema. Confira se é o arquivo certo, exportado em CSV.",
       );
       expect(conciliar).not.toHaveBeenCalled();
     });
