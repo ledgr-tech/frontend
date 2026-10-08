@@ -298,126 +298,168 @@ describe("listarExtratos", () => {
     chamarBackend.mockReset();
   });
 
+  const NAO_CONCILIADO = "5c5c5c5c-1e3f-4a5b-8c6d-9e0f1a2b3c4d";
+
+  /** Um item de `GET /extratos` (backend #70). */
+  function extrato(id: string, parcial: Record<string, unknown> = {}) {
+    return {
+      extrato_id: id,
+      nome_arquivo: `${id}.csv`,
+      origem: "sistema",
+      formato: "csv",
+      status: "concluido",
+      quantidade_lancamentos: 12,
+      linhas_nao_lidas: 0,
+      periodo_inicio: "2026-09-01",
+      periodo_fim: "2026-09-30",
+      enviado_em: "2026-09-24T17:00:00Z",
+      conciliado: true,
+      ...parcial,
+    };
+  }
+
   /**
-   * /execucoes com duas rodadas que dividem o extrato do sistema. `periodos` é o início do
-   * período de cada extrato do banco; sem ele, null.
+   * `GET /extratos` com `extratos` (paginado de 100 em 100), `/execucoes` com a rodada do banco
+   * recente e o detalhe de cada extrato em `detalhes`.
    */
-  function backendComExtratos(detalhes: Record<string, unknown>, periodos: Record<string, string> = {}) {
+  function backendComExtratos(extratos: unknown[], detalhes: Record<string, unknown> = {}) {
     chamarBackend.mockImplementation(async (caminho: string) => {
-      if (caminho.startsWith("/execucoes")) {
-        return {
-          total: 2,
-          limit: 50,
-          offset: 0,
-          itens: [execucao("e-2", BANCO_RECENTE), execucao("e-1", BANCO_ANTERIOR)].map((item) => ({
-            ...item,
-            periodo_inicio: periodos[item.extrato_banco_id] ?? null,
-          })),
-        };
+      if (caminho.startsWith("/extratos?")) {
+        const offset = Number(new URLSearchParams(caminho.split("?")[1]).get("offset"));
+        return { total: extratos.length, limit: 100, offset, itens: extratos.slice(offset, offset + 100) };
       }
-      const id = caminho.replace("/extratos/", "");
-      const detalhe = detalhes[id];
+      if (caminho.startsWith("/execucoes")) {
+        return { total: 1, limit: 50, offset: 0, itens: [execucao("e-2", BANCO_RECENTE)] };
+      }
+      const detalhe = detalhes[caminho.replace("/extratos/", "")];
       if (detalhe instanceof Error) throw detalhe;
       if (detalhe) return detalhe;
       throw new Error(`caminho inesperado: ${caminho}`);
     });
   }
 
-  function detalhe(id: string, origem: "banco" | "sistema", erros: { identificador: string; motivo: string }[] = []) {
-    return {
-      extrato_id: id,
-      status: erros.length > 0 ? "concluido_com_erros" : "concluido",
-      origem,
-      quantidade_lancamentos: 12,
-      erros,
-    };
-  }
-
-  it("junta cada arquivo das execuções com a situação que o backend guarda dele", async () => {
-    backendComExtratos(
-      {
-        [BANCO_RECENTE]: detalhe(BANCO_RECENTE, "banco"),
-        [SISTEMA]: detalhe(SISTEMA, "sistema", [{ identificador: "linha 14", motivo: "valor ilegível" }]),
-        [BANCO_ANTERIOR]: detalhe(BANCO_ANTERIOR, "banco"),
-      },
-      { [BANCO_RECENTE]: "2026-09-04", [BANCO_ANTERIOR]: "2026-08-03" },
-    );
-
-    const resultado = await listarExtratos();
-
-    if (!resultado.ok) throw new Error(resultado.erro);
-    // o extrato do sistema aparece uma vez só, mesmo usado nas duas rodadas
-    expect(resultado.dados.map((arquivo) => arquivo.id)).toEqual([BANCO_RECENTE, SISTEMA, BANCO_ANTERIOR]);
-    expect(resultado.dados[1]).toEqual({
-      id: SISTEMA,
-      nome: "e-2-sistema.csv",
-      origem: "sistema",
-      conciliadoEm: "2026-09-24T17:02:11Z",
-      resultado: `/conciliacoes/${BANCO_RECENTE}?sistema=${SISTEMA}`,
-      // a única rodada do extrato do banco mais recente
-      rodada: { numero: 1, total: 1 },
-      situacao: "concluido_com_erros",
-      lancamentos: 12,
-      erros: [{ identificador: "linha 14", motivo: "valor ilegível" }],
-      competencia: "2026-09",
-    });
-    expect(chamarBackend).toHaveBeenCalledWith(`/extratos/${SISTEMA}`);
-  });
-
-  it("diz de que mês é cada arquivo pelo período do extrato do banco da conciliação em que ele entrou", async () => {
-    backendComExtratos(
-      {
-        [BANCO_RECENTE]: detalhe(BANCO_RECENTE, "banco"),
-        [SISTEMA]: detalhe(SISTEMA, "sistema"),
-        [BANCO_ANTERIOR]: detalhe(BANCO_ANTERIOR, "banco"),
-      },
-      // agosto conciliado em setembro: o mês é o do extrato, não o da conciliação
-      { [BANCO_RECENTE]: "2026-09-04", [BANCO_ANTERIOR]: "2026-08-03" },
-    );
-
-    const resultado = await listarExtratos();
-
-    if (!resultado.ok) throw new Error(resultado.erro);
-    expect(resultado.dados.map(({ id, competencia }) => [id, competencia])).toEqual([
-      [BANCO_RECENTE, "2026-09"],
-      [SISTEMA, "2026-09"],
-      [BANCO_ANTERIOR, "2026-08"],
+  it("lista todos os extratos enviados, inclusive os que ainda não entraram em conciliação", async () => {
+    backendComExtratos([
+      extrato(NAO_CONCILIADO, { nome_arquivo: "erp-outubro.csv", conciliado: false, periodo_inicio: "2026-10-01" }),
+      extrato(SISTEMA, { nome_arquivo: "erp-setembro.csv" }),
     ]);
-  });
-
-  it("sem o período do extrato do banco, usa o mês em que o arquivo foi conciliado", async () => {
-    backendComExtratos({
-      [BANCO_RECENTE]: detalhe(BANCO_RECENTE, "banco"),
-      [SISTEMA]: detalhe(SISTEMA, "sistema"),
-      [BANCO_ANTERIOR]: detalhe(BANCO_ANTERIOR, "banco"),
-    });
 
     const resultado = await listarExtratos();
 
     if (!resultado.ok) throw new Error(resultado.erro);
-    expect(resultado.dados[2].competencia).toBe("2026-09");
-  });
-
-  it("mantém o arquivo na lista quando o detalhe dele não carrega", async () => {
-    backendComExtratos({
-      [BANCO_RECENTE]: new ErroBackend(404, "Extrato não encontrado."),
-      [SISTEMA]: detalhe(SISTEMA, "sistema"),
-      [BANCO_ANTERIOR]: detalhe(BANCO_ANTERIOR, "banco"),
-    });
-
-    const resultado = await listarExtratos();
-
-    if (!resultado.ok) throw new Error(resultado.erro);
-    expect(resultado.dados[0]).toMatchObject({
-      id: BANCO_RECENTE,
-      situacao: null,
-      lancamentos: null,
+    expect(chamarBackend).toHaveBeenCalledWith("/extratos?limit=100&offset=0");
+    expect(resultado.dados.total).toBe(2);
+    expect(resultado.dados.arquivos[0]).toEqual({
+      id: NAO_CONCILIADO,
+      nome: "erp-outubro.csv",
+      origem: "sistema",
+      situacao: "concluido",
+      lancamentos: 12,
+      naoLidas: 0,
       erros: [],
+      competencia: "2026-10",
+      enviadoEm: "2026-09-24T17:00:00Z",
+      conciliado: false,
     });
-    expect(resultado.dados[1].situacao).toBe("concluido");
   });
 
-  it("devolve a falha quando nem as execuções carregam", async () => {
+  it("liga cada arquivo conciliado à conciliação em que ele abre", async () => {
+    // o banco anterior não está na página de /execucoes, mas o extrato do banco abre pelo próprio id
+    backendComExtratos([
+      extrato(SISTEMA, { nome_arquivo: "erp-setembro.csv" }),
+      extrato(BANCO_RECENTE, { origem: "banco", nome_arquivo: "sicredi-setembro.ofx" }),
+      extrato(BANCO_ANTERIOR, { origem: "banco", nome_arquivo: "sicredi-agosto.ofx" }),
+    ]);
+
+    const resultado = await listarExtratos();
+
+    if (!resultado.ok) throw new Error(resultado.erro);
+    const [sistema, banco, anterior] = resultado.dados.arquivos;
+    expect(sistema).toMatchObject({
+      resultado: `/conciliacoes/${BANCO_RECENTE}?sistema=${SISTEMA}`,
+      conciliadoEm: "2026-09-24T17:02:11Z",
+      rodada: { numero: 1, total: 1 },
+    });
+    expect(banco).toMatchObject({ resultado: `/conciliacoes/${BANCO_RECENTE}`, conciliadoEm: "2026-09-24T17:02:11Z" });
+    expect(anterior.resultado).toBe(`/conciliacoes/${BANCO_ANTERIOR}`);
+    expect(anterior.conciliadoEm).toBeUndefined();
+  });
+
+  it("pede o detalhe só dos arquivos com linha não lida, para mostrar o motivo de cada uma", async () => {
+    const erros = [{ identificador: "linha 14", motivo: "valor ilegível" }];
+    backendComExtratos(
+      [
+        extrato(SISTEMA, { status: "concluido_com_erros", linhas_nao_lidas: 1 }),
+        extrato(BANCO_RECENTE, { origem: "banco" }),
+      ],
+      { [SISTEMA]: { extrato_id: SISTEMA, status: "concluido_com_erros", origem: "sistema", quantidade_lancamentos: 12, erros } },
+    );
+
+    const resultado = await listarExtratos();
+
+    if (!resultado.ok) throw new Error(resultado.erro);
+    expect(resultado.dados.arquivos[0]).toMatchObject({ naoLidas: 1, erros });
+    expect(chamarBackend).toHaveBeenCalledWith(`/extratos/${SISTEMA}`);
+    expect(chamarBackend).not.toHaveBeenCalledWith(`/extratos/${BANCO_RECENTE}`);
+  });
+
+  it("mantém a contagem das linhas não lidas quando o detalhe delas não carrega", async () => {
+    backendComExtratos([extrato(SISTEMA, { status: "concluido_com_erros", linhas_nao_lidas: 3 })], {
+      [SISTEMA]: new ErroBackend(500, "O servidor respondeu 500."),
+    });
+
+    const resultado = await listarExtratos();
+
+    if (!resultado.ok) throw new Error(resultado.erro);
+    expect(resultado.dados.arquivos[0]).toMatchObject({ naoLidas: 3, erros: [] });
+  });
+
+  it("deixa sem mês o extrato que ainda não tem período", async () => {
+    backendComExtratos([
+      extrato(NAO_CONCILIADO, {
+        status: "processando",
+        quantidade_lancamentos: null,
+        periodo_inicio: null,
+        periodo_fim: null,
+        conciliado: false,
+      }),
+    ]);
+
+    const resultado = await listarExtratos();
+
+    if (!resultado.ok) throw new Error(resultado.erro);
+    expect(resultado.dados.arquivos[0]).toMatchObject({ competencia: null, situacao: "processando", lancamentos: null });
+  });
+
+  it("vira a página até trazer todos", async () => {
+    const muitos = Array.from({ length: 150 }, (_, i) =>
+      extrato(`${String(i).padStart(8, "0")}-1e3f-4a5b-8c6d-9e0f1a2b3c4d`, { conciliado: false }),
+    );
+    backendComExtratos(muitos);
+
+    const resultado = await listarExtratos();
+
+    if (!resultado.ok) throw new Error(resultado.erro);
+    expect(chamarBackend).toHaveBeenCalledWith("/extratos?limit=100&offset=100");
+    expect(resultado.dados.arquivos).toHaveLength(150);
+  });
+
+  it("segue sem a conciliação do extrato do sistema quando as execuções não carregam", async () => {
+    chamarBackend.mockImplementation(async (caminho: string) => {
+      if (caminho.startsWith("/extratos?")) {
+        return { total: 1, limit: 100, offset: 0, itens: [extrato(SISTEMA)] };
+      }
+      throw new ErroBackend(500, "O servidor respondeu 500.");
+    });
+
+    const resultado = await listarExtratos();
+
+    if (!resultado.ok) throw new Error(resultado.erro);
+    expect(resultado.dados.arquivos[0]).toMatchObject({ id: SISTEMA, conciliado: true });
+    expect(resultado.dados.arquivos[0].resultado).toBeUndefined();
+  });
+
+  it("devolve a falha quando a lista de extratos não vem", async () => {
     chamarBackend.mockRejectedValue(new ErroBackend(401, "Token expirado"));
 
     expect(await listarExtratos()).toMatchObject({ ok: false, status: 401 });

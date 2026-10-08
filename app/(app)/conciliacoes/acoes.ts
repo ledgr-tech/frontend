@@ -7,13 +7,15 @@ import {
   pareceUuid,
   type ArquivoConciliado,
   type Execucao,
+  type ItemExtratoAPI,
   type ListaConciliacaoAPI,
   type ListaExecucoesAPI,
+  type ListaExtratosAPI,
 } from "@/lib/adaptadores";
 import { chamarBackend, ErroBackend } from "@/lib/backend";
+import { caminhoDaConciliacao } from "@/lib/caminhos";
 import { compararRodadas, execucoesVigentes, rodadasDoBanco, type Mudancas } from "@/lib/rodadas";
 import type { Conciliacao, Decisao, TipoEvento } from "@/lib/mock-data";
-import { competencia } from "../fechamentos/fechamento";
 import { conciliados, porConciliacao } from "../historico/execucoes";
 import { ordemDeTrabalho, pedemDecisao, type ConciliacaoNaLista } from "../dashboard/lista";
 import { estaResolvida, pedeDecisao } from "../dashboard/resumo";
@@ -411,57 +413,99 @@ export async function toleranciaDaUltimaConciliacao(): Promise<number | null> {
   }
 }
 
-export type ArquivoExtrato = ArquivoConciliado & {
-  /** Null quando o detalhe do arquivo não carregou; o resto da lista segue. */
-  situacao: SituacaoExtrato["status"] | null;
+export type ArquivoExtrato = Partial<Pick<ArquivoConciliado, "conciliadoEm" | "resultado" | "rodada">> & {
+  id: string;
+  nome: string;
+  origem: "banco" | "sistema";
+  situacao: SituacaoExtrato["status"];
   lancamentos: number | null;
-  /** As linhas que o parser não conseguiu ler, com o motivo. */
+  /** Quantas linhas o parser não conseguiu ler. */
+  naoLidas: number;
+  /** Essas linhas, com o motivo; vazia quando o detalhe não carregou (a contagem fica). */
   erros: SituacaoExtrato["erros"];
-  /** O mês do extrato (AAAA-MM), o mesmo do fechamento: a galeria agrupa por ele. */
-  competencia: string;
+  /**
+   * O mês (AAAA-MM) em que o extrato começa, a mesma regra do fechamento; a galeria agrupa por
+   * ele. Null enquanto ele não tem período (processando, ou sem lançamento válido).
+   */
+  competencia: string | null;
+  enviadoEm: string;
+  /** Já entrou em alguma conciliação. Onde ela abre (`resultado`) só se sabe quando aparece em `/execucoes`. */
+  conciliado: boolean;
 };
 
-/**
- * Os arquivos enviados, para a tela de extratos: os nomes vêm das execuções, a
- * situação de cada um de `GET /extratos/{id}` e o mês, da primeira data da
- * conciliação mais recente em que o arquivo entrou (como no fechamento).
- *
- * ponytail: uma chamada por arquivo e outra por execução (em paralelo, até ~150
- * com as 50 execuções da página). Some quando o backend tiver `GET /extratos`
- * com a lista pronta e o período de cada extrato.
- */
-export async function listarExtratos(): Promise<Resultado<ArquivoExtrato[]>> {
-  const lista = await listarExecucoes();
-  if (!lista.ok) return lista;
+export type ListaDeExtratos = {
+  arquivos: ArquivoExtrato[];
+  /** Quantos o backend tem; mais que `arquivos` quando a lista passou do teto de páginas. */
+  total: number;
+};
 
-  const { execucoes } = lista.dados;
-  const arquivos = extratosDasExecucoes(execucoes);
-  const detalhes = await Promise.all(arquivos.map((arquivo) => situacaoDoExtrato(arquivo.id)));
-  // o mês de cada arquivo vem da execução mais recente em que ele aparece, a mesma que dá o nome
-  const mesDoArquivo = new Map<string, string>();
-  execucoes.forEach((execucao) => {
-    const mes = competencia(execucao.periodoInicio, execucao.executadaEm);
-    for (const id of [execucao.extratoBancoId, execucao.extratoSistemaId]) {
-      if (!mesDoArquivo.has(id)) mesDoArquivo.set(id, mes);
+const EXTRATOS_POR_PAGINA = 100;
+
+/**
+ * Os arquivos enviados, para a tela de extratos, de `GET /extratos` (backend #70): todos, do envio
+ * mais recente ao mais antigo, inclusive os que ainda não entraram em conciliação.
+ *
+ * O que a lista não diz vem de outro lugar. Onde o arquivo abre e em que rodada entrou, da primeira
+ * página de `/execucoes` (o extrato do banco abre pelo próprio id, esteja ou não nela). O motivo de
+ * cada linha não lida, de `GET /extratos/{id}`, só dos arquivos que têm alguma.
+ */
+export async function listarExtratos(): Promise<Resultado<ListaDeExtratos>> {
+  const pagina = (numero: number) => `/extratos?limit=${EXTRATOS_POR_PAGINA}&offset=${numero * EXTRATOS_POR_PAGINA}`;
+  let lista: ListaExtratosAPI;
+  let execucoes: Resultado<ListaExecucoes>;
+  try {
+    [lista, execucoes] = await Promise.all([chamarBackend<ListaExtratosAPI>(pagina(0)), listarExecucoes()]);
+    for (let numero = 1; lista.itens.length < lista.total && numero < MAXIMO_DE_PAGINAS; numero += 1) {
+      const proxima = await chamarBackend<ListaExtratosAPI>(pagina(numero));
+      if (proxima.itens.length === 0) break;
+      lista = { ...lista, itens: [...lista.itens, ...proxima.itens] };
     }
-  });
+  } catch (erro) {
+    return traduzir(erro);
+  }
+
+  // sem as execuções a lista ainda serve: só o extrato do sistema fica sem saber onde abre
+  const conciliacoes = new Map(
+    extratosDasExecucoes(execucoes.ok ? execucoes.dados.execucoes : []).map((arquivo) => [arquivo.id, arquivo]),
+  );
+  const detalhes = await Promise.all(
+    lista.itens.map((item) => (item.linhas_nao_lidas > 0 ? situacaoDoExtrato(item.extrato_id) : null)),
+  );
 
   return {
     ok: true,
-    dados: arquivos.map((arquivo, i) => {
-      const detalhe = detalhes[i];
-      const mes = mesDoArquivo.get(arquivo.id) ?? competencia(null, arquivo.conciliadoEm);
-      return detalhe.ok
-        ? {
-            ...arquivo,
-            situacao: detalhe.dados.status,
-            lancamentos: detalhe.dados.quantidade_lancamentos,
-            erros: detalhe.dados.erros,
-            competencia: mes,
-          }
-        : { ...arquivo, situacao: null, lancamentos: null, erros: [], competencia: mes };
-    }),
+    dados: {
+      total: lista.total,
+      arquivos: lista.itens.map((item, i) => {
+        const detalhe = detalhes[i];
+        return {
+          ...ondeAbre(item, conciliacoes.get(item.extrato_id)),
+          id: item.extrato_id,
+          nome: item.nome_arquivo,
+          origem: item.origem,
+          situacao: item.status,
+          lancamentos: item.quantidade_lancamentos,
+          naoLidas: item.linhas_nao_lidas,
+          erros: detalhe?.ok ? detalhe.dados.erros : [],
+          competencia: item.periodo_inicio?.slice(0, 7) ?? null,
+          enviadoEm: item.enviado_em,
+          conciliado: item.conciliado,
+        };
+      }),
+    },
   };
+}
+
+/** Onde um extrato conciliado abre: pelas execuções, e o do banco, sem elas, pelo próprio id. */
+function ondeAbre(
+  item: ItemExtratoAPI,
+  conciliacao: ArquivoConciliado | undefined,
+): Partial<Pick<ArquivoConciliado, "conciliadoEm" | "resultado" | "rodada">> {
+  if (conciliacao) {
+    const { conciliadoEm, resultado, rodada } = conciliacao;
+    return rodada ? { conciliadoEm, resultado, rodada } : { conciliadoEm, resultado };
+  }
+  return item.conciliado && item.origem === "banco" ? { resultado: caminhoDaConciliacao(item.extrato_id) } : {};
 }
 
 export type VisaoGeral = {

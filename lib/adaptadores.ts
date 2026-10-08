@@ -322,6 +322,33 @@ export function adaptarExecucao(item: ExecucaoAPI): Execucao {
   };
 }
 
+/** Um extrato enviado, como `GET /extratos` lista (backend #70): do envio mais recente ao mais antigo. */
+export type ItemExtratoAPI = {
+  extrato_id: string;
+  nome_arquivo: string;
+  origem: "banco" | "sistema";
+  formato: string;
+  status: "pendente" | "processando" | "concluido" | "concluido_com_erros" | "erro";
+  /** Lançamentos válidos; null enquanto não processou. */
+  quantidade_lancamentos: number | null;
+  /** As linhas que o parser não leu; o motivo de cada uma só vem em `GET /extratos/{id}`. */
+  linhas_nao_lidas: number;
+  /** A primeira e a última data dos lançamentos (AAAA-MM-DD); null enquanto processa ou sem lançamento válido. */
+  periodo_inicio: string | null;
+  periodo_fim: string | null;
+  /** ISO 8601 em UTC. */
+  enviado_em: string;
+  /** Já entrou em alguma conciliação, como extrato do banco ou do sistema. */
+  conciliado: boolean;
+};
+
+export type ListaExtratosAPI = {
+  total: number;
+  limit: number;
+  offset: number;
+  itens: ItemExtratoAPI[];
+};
+
 /** Um arquivo enviado, visto pelas conciliações em que ele entrou. */
 export type ArquivoConciliado = {
   id: string;
@@ -339,11 +366,8 @@ export type ArquivoConciliado = {
 };
 
 /**
- * Os arquivos que aparecem nas execuções, cada um uma vez.
- *
- * ponytail: o backend não lista extratos (só tem `GET /extratos/{id}`), então a
- * tela de extratos parte das conciliações — extrato enviado e nunca conciliado
- * fica de fora. Quando existir `GET /extratos`, é ele que substitui isto.
+ * Os arquivos que aparecem nas execuções, cada um uma vez: onde cada um abre e em que rodada
+ * entrou, que `GET /extratos` não diz. A tela de extratos usa para ligar o arquivo à conciliação.
  */
 export function extratosDasExecucoes(execucoes: Execucao[]): ArquivoConciliado[] {
   const vistos = new Map<string, ArquivoConciliado>();

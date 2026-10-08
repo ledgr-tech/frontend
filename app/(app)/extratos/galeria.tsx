@@ -38,21 +38,25 @@ const AGRUPAMENTOS: { id: Agrupamento; rotulo: string }[] = [
 
 type GrupoDeArquivos = { chave: string; titulo: string; arquivos: ArquivoExtrato[] };
 
+/** O grupo de quem ainda não tem período: enviado e não lido, ou sem lançamento válido. */
+const SEM_PERIODO = "sem-periodo";
+
 /**
- * Os arquivos por competência (o mês do extrato, o mesmo do fechamento) ou por ano dela, do mais
- * recente para o mais antigo. Dentro do grupo seguem na ordem em que chegam: o mais recente antes.
+ * Os arquivos por competência (o mês em que o extrato começa, o mesmo do fechamento) ou por ano
+ * dela, do mais recente para o mais antigo, e no fim os que ainda não têm período. Dentro do grupo
+ * seguem na ordem em que chegam: o enviado por último antes.
  */
 function agrupar(arquivos: ArquivoExtrato[], como: "mes" | "ano"): GrupoDeArquivos[] {
   const grupos = new Map<string, ArquivoExtrato[]>();
   for (const arquivo of arquivos) {
-    const chave = como === "mes" ? arquivo.competencia : arquivo.competencia.slice(0, 4);
+    const chave = arquivo.competencia === null ? SEM_PERIODO : como === "mes" ? arquivo.competencia : arquivo.competencia.slice(0, 4);
     grupos.set(chave, [...(grupos.get(chave) ?? []), arquivo]);
   }
   return [...grupos]
-    .sort(([a], [b]) => b.localeCompare(a))
+    .sort(([a], [b]) => (a === SEM_PERIODO ? 1 : b === SEM_PERIODO ? -1 : b.localeCompare(a)))
     .map(([chave, doGrupo]) => ({
       chave,
-      titulo: como === "mes" ? tituloDaCompetencia(chave) : chave,
+      titulo: chave === SEM_PERIODO ? "Sem período" : como === "mes" ? tituloDaCompetencia(chave) : chave,
       arquivos: doGrupo,
     }));
 }
@@ -69,11 +73,7 @@ const ORIGEM = { banco: "Extrato do banco", sistema: "Extrato do sistema de gest
 const LINHAS_DA_FOLHA = 9;
 
 function temProblema(arquivo: ArquivoExtrato): boolean {
-  return (
-    arquivo.situacao === "erro" ||
-    arquivo.situacao === "concluido_com_erros" ||
-    arquivo.erros.length > 0
-  );
+  return arquivo.situacao === "erro" || arquivo.situacao === "concluido_com_erros" || arquivo.naoLidas > 0;
 }
 
 function passaNoFiltro(arquivo: ArquivoExtrato, filtro: Filtro): boolean {
@@ -90,6 +90,8 @@ function versaoAnterior(arquivo: ArquivoExtrato): number | null {
 function situacao(arquivo: ArquivoExtrato): { rotulo: string; tom: Tom } {
   switch (arquivo.situacao) {
     case "concluido": {
+      // lido, e ainda fora de qualquer conciliação
+      if (!arquivo.conciliado) return { rotulo: "Não conciliado", tom: "neutro" };
       // entrou numa rodada que já não vale: foi conciliado, mas não é ele que conta
       const anterior = versaoAnterior(arquivo);
       return anterior === null
@@ -103,9 +105,6 @@ function situacao(arquivo: ArquivoExtrato): { rotulo: string; tom: Tom } {
     case "pendente":
     case "processando":
       return { rotulo: "Processando", tom: "neutro" };
-    default:
-      // o detalhe do arquivo não carregou: não inventa situação
-      return { rotulo: "Sem detalhes", tom: "neutro" };
   }
 }
 
@@ -269,7 +268,7 @@ export function Galeria({ arquivos }: { arquivos: ArquivoExtrato[] }) {
 
 function Painel({ arquivo }: { arquivo: ArquivoExtrato }) {
   const selo = situacao(arquivo);
-  const naoLidas = arquivo.erros.length;
+  const { naoLidas } = arquivo;
   return (
     <section className="extrato-painel" aria-label="Arquivo selecionado">
       <h6 style={{ margin: 0 }}>Arquivo · {selo.rotulo.toLowerCase()}</h6>
@@ -288,9 +287,15 @@ function Painel({ arquivo }: { arquivo: ArquivoExtrato }) {
           <dd>{conteudo(arquivo)}</dd>
         </div>
         <div>
-          <dt>Última conciliação</dt>
-          <dd>{formatarDataHora(arquivo.conciliadoEm)}</dd>
+          <dt>Enviado em</dt>
+          <dd>{formatarDataHora(arquivo.enviadoEm)}</dd>
         </div>
+        {arquivo.conciliadoEm && (
+          <div>
+            <dt>Última conciliação</dt>
+            <dd>{formatarDataHora(arquivo.conciliadoEm)}</dd>
+          </div>
+        )}
         {arquivo.rodada && arquivo.rodada.total > 1 && (
           <div>
             <dt>Rodada</dt>
@@ -308,20 +313,25 @@ function Painel({ arquivo }: { arquivo: ArquivoExtrato }) {
           <h4>
             {formatarInteiro(naoLidas)} {naoLidas === 1 ? "linha não lida" : "linhas não lidas"}
           </h4>
-          <ul>
-            {arquivo.erros.map((erro) => (
-              <li key={`${erro.identificador}-${erro.motivo}`}>
-                <span className="extrato-nao-lida-onde">{erro.identificador}</span>
-                <span>{erro.motivo}</span>
-              </li>
-            ))}
-          </ul>
+          {/* o motivo de cada uma vem do detalhe do arquivo; se ele não carregou, fica a contagem */}
+          {arquivo.erros.length > 0 && (
+            <ul>
+              {arquivo.erros.map((erro) => (
+                <li key={`${erro.identificador}-${erro.motivo}`}>
+                  <span className="extrato-nao-lida-onde">{erro.identificador}</span>
+                  <span>{erro.motivo}</span>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
 
-      <Link href={arquivo.resultado} className="btn btn-secondary" style={{ alignSelf: "flex-start" }}>
-        {versaoAnterior(arquivo) === null ? "Ver conciliação" : `Ver a rodada ${versaoAnterior(arquivo)}`}
-      </Link>
+      {arquivo.resultado && (
+        <Link href={arquivo.resultado} className="btn btn-secondary" style={{ alignSelf: "flex-start" }}>
+          {versaoAnterior(arquivo) === null ? "Ver conciliação" : `Ver a rodada ${versaoAnterior(arquivo)}`}
+        </Link>
+      )}
     </section>
   );
 }
