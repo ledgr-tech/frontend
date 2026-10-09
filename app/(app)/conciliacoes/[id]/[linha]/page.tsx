@@ -250,10 +250,10 @@ export default function DetalheDivergenciaPage() {
           <Reveal delay={0.08} className="det-causa">
             <InkHover style={{ flex: "none" }}>
               <Image
-                src="/mascotes/mascote-lendo.png"
-                alt="Mascote Ledgr lendo"
-                width={900}
-                height={808}
+                src="/mascotes/mascote-lupa.png"
+                alt="Mascote Ledgr com a lupa"
+                width={977}
+                height={1122}
                 sizes="130px"
                 style={{ width: 130, height: "auto", display: "block" }}
               />

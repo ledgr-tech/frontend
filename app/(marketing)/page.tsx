@@ -822,7 +822,7 @@ export default function LandingPage() {
         >
           <div style={{ flex: "1 1 300px", minWidth: 0, display: "flex", flexDirection: "column", gap: 10 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
-              <Image src="/mascotes/logo-barras.png" alt="Ledgr" width={1280} height={1041} sizes="30px" style={{ height: 24, width: "auto" }} />
+              <Image src="/mascotes/logo-barras.png" alt="Ledgr" width={1237} height={998} sizes="30px" style={{ height: 24, width: "auto" }} />
               <span style={{ fontFamily: "var(--font-heading)", fontSize: 19, fontWeight: 600 }}>Ledgr</span>
             </div>
             <span style={{ fontSize: 14, lineHeight: 1.7, maxWidth: "40ch", color: "color-mix(in srgb, var(--color-text) 68%, transparent)" }}>

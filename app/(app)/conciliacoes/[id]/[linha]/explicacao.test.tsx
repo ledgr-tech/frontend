@@ -42,6 +42,8 @@ describe("ExplicacaoDaDivergencia", () => {
 
     expect(screen.getByRole("button", { name: "Explicar esta divergência" })).toBeInTheDocument();
     expect(explicarDivergencia).not.toHaveBeenCalled();
+    // antes da explicação, o mascote investiga de lupa
+    expect(document.querySelector("img")?.getAttribute("src")).toContain("mascote-lupa");
   });
 
   it("trava o botão e avisa que pode demorar enquanto a IA responde", async () => {
@@ -62,6 +64,8 @@ describe("ExplicacaoDaDivergencia", () => {
     expect(await screen.findByText(TEXTO_IA)).toBeInTheDocument();
     expect(screen.getByText("Gerada por IA · confira antes de decidir")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Explicar/ })).not.toBeInTheDocument();
+    // com a explicação pronta, ele explica
+    expect(document.querySelector("img")?.getAttribute("src")).toContain("mascote-explicando");
   });
 
   it("não rotula como IA o texto fixo do motor", async () => {
