@@ -1074,6 +1074,44 @@ describe("ConciliacaoPage", () => {
       expect(carregarConciliacao).toHaveBeenCalledTimes(2);
     });
 
+    // alguém fechou o mês com a tela aberta: o 409 diz por quê, e a tela trava sem esperar recarregar à mão
+    it("reloads into the locked view when the month was closed meanwhile", async () => {
+      doBackend(comCampo);
+      carregarConciliacao.mockResolvedValueOnce({
+        ok: true,
+        dados: { conciliacao: { ...comCampo, id: BANCO, extratoSistemaId: SISTEMA }, truncada: false },
+      });
+      carregarConciliacao.mockResolvedValue({
+        ok: true,
+        dados: {
+          conciliacao: { ...comCampo, id: BANCO, extratoSistemaId: SISTEMA },
+          truncada: false,
+          fechamento: {
+            competencia: "2026-09",
+            estado: "fechado",
+            ressalva: null,
+            fechadoPor: "Maria Financeiro",
+            fechadoEm: "2026-10-06T15:20:00Z",
+            reabertoPor: null,
+            reabertoEm: null,
+          },
+        },
+      });
+      registrarDecisao.mockResolvedValue({
+        ok: false,
+        status: 409,
+        erro: "A competência 2026-09 está fechada. Reabra o fechamento para alterar.",
+      });
+      const user = userEvent.setup();
+      render(<ConciliacaoPage />);
+
+      await user.click(await screen.findByRole("button", { name: "Marcar Tarifa TED como conferida" }));
+      expect(await screen.findByRole("status", { name: "Mês fechado" })).toBeInTheDocument();
+      expect(screen.getByRole("alert")).toHaveTextContent("A competência 2026-09 está fechada.");
+      expect(carregarConciliacao).toHaveBeenCalledTimes(2);
+      expect(screen.queryByRole("button", { name: /como conferida$/ })).not.toBeInTheDocument();
+    });
+
     it("keeps a line checked meanwhile when an earlier answer arrives, and does not send twice", async () => {
       doBackend(comCampo);
       const respostas: ((resposta: unknown) => void)[] = [];
