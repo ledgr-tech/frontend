@@ -12,9 +12,14 @@ vi.mock("next/navigation", () => ({
 // o fim do cadastro é uma Server Action (POST /register e já entra); aqui ela só
 // devolve o que o servidor decidiu
 const cadastrar = vi.fn();
+// ao sair do passo da empresa, e-mail e CNPJ são conferidos antes (POST /register/verificar)
+const verificarCadastro = vi.fn();
 vi.mock("../acoes", () => ({
   cadastrar: (...args: unknown[]) => cadastrar(...args),
+  verificarCadastro: (...args: unknown[]) => verificarCadastro(...args),
 }));
+
+const LIVRES = { ok: true, emailDisponivel: true, cnpjDisponivel: true };
 
 type Usuario = ReturnType<typeof userEvent.setup>;
 
@@ -41,6 +46,8 @@ describe("CadastroPage", () => {
     push.mockClear();
     cadastrar.mockReset();
     cadastrar.mockResolvedValue({ ok: true, entrou: true });
+    verificarCadastro.mockReset();
+    verificarCadastro.mockResolvedValue(LIVRES);
   });
 
   afterEach(() => {
@@ -441,5 +448,119 @@ describe("CadastroPage", () => {
     expect(screen.getByRole("button", { name: "Concluir e subir extratos" })).toBeEnabled();
     // o formulário foi recriado: o foco volta ao botão, e não ao <body> (num efeito: waitFor, como os vizinhos)
     await waitFor(() => expect(screen.getByRole("button", { name: "Concluir e subir extratos" })).toHaveFocus());
+  });
+
+  // A rota recebe os dois juntos: a conferência acontece ao sair do passo da empresa, o primeiro em
+  // que o CNPJ existe, e não só no fim do cadastro (#78).
+  describe("checking e-mail and CNPJ before the last step", () => {
+    async function ateAEmpresa(user: Usuario) {
+      await preencher(user, ACESSO);
+      await continuar(user);
+      await preencher(user, EMPRESA);
+      await continuar(user);
+    }
+
+    it("checks both when leaving the company step and moves on when they are free", async () => {
+      const user = userEvent.setup();
+      render(<CadastroPage />);
+
+      await preencher(user, ACESSO);
+      await continuar(user);
+      // o passo de acesso não confere: o CNPJ ainda não existe
+      expect(verificarCadastro).not.toHaveBeenCalled();
+      await preencher(user, EMPRESA);
+      await continuar(user);
+
+      expect(verificarCadastro).toHaveBeenCalledWith({
+        email: "financeiro@telhacerta.com.br",
+        cnpj: "12.345.678/0001-95",
+      });
+      expect(await screen.findByLabelText("Banco e agência")).toBeInTheDocument();
+      expect(cadastrar).not.toHaveBeenCalled();
+    });
+
+    it("says it is checking and holds both buttons while the answer doesn't come", async () => {
+      verificarCadastro.mockReturnValue(new Promise(() => {}));
+      const user = userEvent.setup();
+      render(<CadastroPage />);
+
+      await ateAEmpresa(user);
+
+      expect(screen.getByRole("button", { name: "Conferindo…" })).toBeDisabled();
+      expect(screen.getByRole("button", { name: "Voltar" })).toBeDisabled();
+      expect(screen.getByLabelText("CNPJ")).toBeInTheDocument();
+    });
+
+    it("goes back to the access step when the e-mail already has an account", async () => {
+      verificarCadastro.mockResolvedValue({ ...LIVRES, emailDisponivel: false });
+      const user = userEvent.setup();
+      render(<CadastroPage />);
+
+      await ateAEmpresa(user);
+
+      const email = await screen.findByLabelText("E-mail");
+      expect(email).toHaveAccessibleDescription("Já existe conta com este e-mail. Entre pela tela de login.");
+      await waitFor(() => expect(email).toHaveFocus());
+      expect(titulo()).toHaveTextContent(PASSOS[0].titulo);
+    });
+
+    it("stays on the company step, on the CNPJ, when the company already has an account", async () => {
+      verificarCadastro.mockResolvedValue({ ...LIVRES, cnpjDisponivel: false });
+      const user = userEvent.setup();
+      render(<CadastroPage />);
+
+      await ateAEmpresa(user);
+
+      const cnpj = screen.getByLabelText("CNPJ");
+      await waitFor(() => expect(cnpj).toHaveAccessibleDescription("Esta empresa já tem cadastro no Ledgr."));
+      expect(cnpj).toHaveFocus();
+      expect(titulo()).toHaveTextContent("Vamos cadastrar a empresa.");
+    });
+
+    it("points out the e-mail first and keeps the CNPJ warning for its step when both are taken", async () => {
+      verificarCadastro.mockResolvedValue({ ok: true, emailDisponivel: false, cnpjDisponivel: false });
+      const user = userEvent.setup();
+      render(<CadastroPage />);
+
+      await ateAEmpresa(user);
+      await user.clear(await screen.findByLabelText("E-mail"));
+      await user.type(screen.getByLabelText("E-mail"), "ana@telhacerta.com.br");
+      await continuar(user);
+
+      expect(screen.getByLabelText("CNPJ")).toHaveAccessibleDescription("Esta empresa já tem cadastro no Ledgr.");
+    });
+
+    it("points out the field the server refused", async () => {
+      verificarCadastro.mockResolvedValue({ ok: false, erro: "invalido", campos: ["email"] });
+      const user = userEvent.setup();
+      render(<CadastroPage />);
+
+      await ateAEmpresa(user);
+
+      expect(await screen.findByLabelText("E-mail")).toHaveAccessibleDescription(
+        "Confira o e-mail: o formato não foi aceito.",
+      );
+    });
+
+    // a conferência é um adianto: o /register confere tudo de novo no fim
+    it("moves on when the check can't answer", async () => {
+      verificarCadastro.mockResolvedValue({ ok: false, erro: "indisponivel" });
+      const user = userEvent.setup();
+      render(<CadastroPage />);
+
+      await ateAEmpresa(user);
+
+      expect(await screen.findByLabelText("Banco e agência")).toBeInTheDocument();
+    });
+
+    it("moves on when the action itself fails", async () => {
+      verificarCadastro.mockRejectedValue(new Error("Failed to fetch"));
+      const user = userEvent.setup();
+      render(<CadastroPage />);
+
+      await ateAEmpresa(user);
+
+      expect(await screen.findByLabelText("Banco e agência")).toBeInTheDocument();
+    });
   });
 });
