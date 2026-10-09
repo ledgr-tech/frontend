@@ -249,7 +249,7 @@ export default function ConciliacaoPage() {
 
   /**
    * Grava uma decisão e põe na tela a linha como voltou. Devolve o motivo de não ter
-   * gravado, ou null. Sessão vencida vai ao login; linha que mudou recarrega a tela.
+   * gravado, ou null. Sessão vencida vai ao login; linha que mudou ou mês fechado recarrega a tela.
    */
   async function gravarDecisao(linha: LinhaComparacao, tipo: TipoEvento, texto?: string): Promise<string | null> {
     const chave = chaveDaLinha(linha);
@@ -266,8 +266,9 @@ export default function ConciliacaoPage() {
       return null;
     }
     if (resposta.status === 401) router.push("/login");
-    // outra rodada entrou no meio: a linha que a tela tem não existe mais
-    if (resposta.status === 404) recarregar();
+    // outra rodada entrou no meio (404), ou fecharam o mês com a tela aberta (409): recarregar
+    // traz a linha de agora, ou a tela travada com o aviso de mês fechado
+    if (resposta.status === 404 || resposta.status === 409) recarregar();
     return resposta.erro;
   }
 
