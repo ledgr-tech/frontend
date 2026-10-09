@@ -813,9 +813,29 @@ dialog::backdrop {
   from { opacity: 0; transform: translateY(12px); filter: blur(2px); }
   to { opacity: 1; transform: none; filter: blur(0); }
 }
-/* troca de tema (tema.ts): a página clara e a escura se fundem, sem nada se mexer */
-html[data-trocando-tema]::view-transition-old(root),
-html[data-trocando-tema]::view-transition-new(root) {
+/* As telas que trocam são desenhadas numa camada acima da página, onde o z-index não vale. Sem
+   nome próprio, o menu (com o painel do assistente, que mora nele) e a barra do topo iam no retrato
+   da raiz, por baixo das telas: a que saía e o esqueleto da que entrava passavam por cima do menu
+   aberto por cima e do assistente. Com nome, cada um vira um grupo, empilhado como na página. */
+.app-aside { view-transition-name: menu-lateral; }
+.app-topo { view-transition-name: barra-superior; }
+::view-transition-group(barra-superior) { z-index: 1; }
+::view-transition-group(menu-lateral) { z-index: 2; }
+/* e na troca de tela os dois ficam parados: só a imagem ao vivo, sem o fade nem o grupo andando */
+html:not([data-trocando-tema])::view-transition-group(menu-lateral),
+html:not([data-trocando-tema])::view-transition-group(barra-superior),
+html:not([data-trocando-tema])::view-transition-new(menu-lateral),
+html:not([data-trocando-tema])::view-transition-new(barra-superior) {
+  animation: none;
+}
+html:not([data-trocando-tema])::view-transition-old(menu-lateral),
+html:not([data-trocando-tema])::view-transition-old(barra-superior) {
+  display: none;
+}
+/* troca de tema (tema.ts): a página clara e a escura se fundem, sem nada se mexer; o menu e a
+   barra, que têm grupo próprio, no mesmo passo da raiz */
+html[data-trocando-tema]::view-transition-old(*),
+html[data-trocando-tema]::view-transition-new(*) {
   animation-duration: 320ms;
   animation-timing-function: ease;
 }
