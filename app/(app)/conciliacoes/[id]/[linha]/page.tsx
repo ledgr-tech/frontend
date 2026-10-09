@@ -122,6 +122,15 @@ export default function DetalheDivergenciaPage() {
   if (estado.situacao === "ausente" || linha === undefined) {
     return (
       <div style={{ padding: "76px 0", textAlign: "center" }}>
+        {/* o que não foi achado, o mascote procura de lupa */}
+        <Image
+          src="/mascotes/mascote-lupa.png"
+          alt=""
+          width={977}
+          height={1122}
+          sizes="140px"
+          style={{ width: 140, height: "auto", display: "block", margin: "0 auto 18px" }}
+        />
         <h1 style={{ margin: "0 0 12px", fontSize: 30, fontWeight: 600 }}>
           Lançamento não encontrado.
         </h1>
@@ -241,10 +250,10 @@ export default function DetalheDivergenciaPage() {
           <Reveal delay={0.08} className="det-causa">
             <InkHover style={{ flex: "none" }}>
               <Image
-                src="/mascotes/mascote-lendo.png"
-                alt="Mascote Ledgr lendo"
-                width={900}
-                height={808}
+                src="/mascotes/mascote-lupa.png"
+                alt="Mascote Ledgr com a lupa"
+                width={977}
+                height={1122}
                 sizes="130px"
                 style={{ width: 130, height: "auto", display: "block" }}
               />

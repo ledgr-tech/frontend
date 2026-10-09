@@ -69,10 +69,11 @@ export function ExplicacaoDaDivergencia({
     <div className="det-causa">
       <InkHover style={{ flex: "none" }}>
         <Image
-          src={pronta ? "/mascotes/mascote-explicando.png" : "/mascotes/mascote-lendo.png"}
-          alt={pronta ? "Mascote Ledgr explicando" : "Mascote Ledgr lendo"}
-          width={900}
-          height={808}
+          // antes da explicação, o mascote investiga de lupa; com ela pronta, explica
+          src={pronta ? "/mascotes/mascote-explicando.png" : "/mascotes/mascote-lupa.png"}
+          alt={pronta ? "Mascote Ledgr explicando" : "Mascote Ledgr com a lupa"}
+          width={pronta ? 1000 : 977}
+          height={pronta ? 1000 : 1122}
           sizes="130px"
           style={{ width: 130, height: "auto", display: "block" }}
         />

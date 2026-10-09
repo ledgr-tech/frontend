@@ -1,7 +1,8 @@
 /**
- * As três barras do logo, redesenhadas em SVG com as proporções de
- * `/mascotes/logo-barras.png`. O PNG é quase todo preto e sumiria no tema escuro;
- * aqui as barras pintam com `currentColor` e seguem a cor do texto.
+ * As três barras do logo, lisas, em SVG para o menu do app: pintam com
+ * `currentColor` e seguem a cor do texto, no claro e no escuro. O logo de
+ * adesivo (`/mascotes/logo-barras.png`, barras desenhadas num contorno branco
+ * só) fica no site, nas telas de acesso e na imagem de compartilhamento.
  */
 export function LogoBarras({ className }: { className?: string }) {
   return (

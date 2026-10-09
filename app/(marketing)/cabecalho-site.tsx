@@ -111,8 +111,8 @@ export function CabecalhoSite() {
               className="site-logo-marca"
               src="/mascotes/logo-barras.png"
               alt=""
-              width={1280}
-              height={1041}
+              width={1237}
+              height={998}
               sizes="32px"
               loading="eager"
               style={{ height: 26, width: "auto" }}

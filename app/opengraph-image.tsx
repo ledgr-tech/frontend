@@ -62,7 +62,7 @@ export default async function ImagemDeCompartilhamento() {
         <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 26 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
             {/* eslint-disable-next-line @next/next/no-img-element -- ImageResponse só entende <img> */}
-            <img src={logo} width={44} height={36} alt="" />
+            <img src={logo} width={45} height={36} alt="" />
             <span style={{ fontSize: 34, fontWeight: 700 }}>Ledgr</span>
             <span style={{ marginLeft: 10, fontSize: 17, fontWeight: 700, letterSpacing: 2.5, color: "#7d5411" }}>
               {ROTULO}

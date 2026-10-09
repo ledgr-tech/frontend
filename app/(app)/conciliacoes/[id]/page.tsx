@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, useState, type CSSProperties, type FormEvent } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
+import Image from "next/image";
 import Link from "next/link";
 import { CircleCheck } from "lucide-react";
 import { ehDivergencia } from "@/lib/adaptadores";
@@ -165,8 +166,17 @@ export default function ConciliacaoPage() {
 
   if (estado.situacao === "ausente") {
     return (
-      <div style={{ padding: "48px 0" }}>
-        <p>Conciliação não encontrada.</p>
+      <div className="vg-inicio">
+        {/* o que não foi achado, o mascote procura de lupa */}
+        <Image
+          src="/mascotes/mascote-lupa.png"
+          alt=""
+          width={977}
+          height={1122}
+          sizes="140px"
+          style={{ width: 140, height: "auto", display: "block" }}
+        />
+        <p style={{ margin: 0 }}>Conciliação não encontrada.</p>
       </div>
     );
   }

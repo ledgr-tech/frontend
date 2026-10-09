@@ -71,8 +71,8 @@ function SemConciliacao() {
     <div className="vg-inicio">
       <InkHover style={{ flex: "none" }}>
         <Image
-          src="/mascotes/mascote-sentado.png"
-          alt="Mascote Ledgr sentado com uma folha"
+          src="/mascotes/mascote-explicando.png"
+          alt="Mascote Ledgr apontando para você"
           width={1000}
           height={1000}
           sizes="200px"

@@ -301,8 +301,8 @@ export default function LoginPage() {
           <Image
             src="/mascotes/logo-barras.png"
             alt="Ledgr"
-            width={1280}
-            height={1041}
+            width={1237}
+            height={998}
             sizes="30px"
             loading="eager"
             style={{ height: 24, width: "auto" }}

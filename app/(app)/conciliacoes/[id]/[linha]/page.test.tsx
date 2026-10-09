@@ -385,6 +385,7 @@ describe("DetalheDivergenciaPage", () => {
     expect(await screen.findByText("O banco cobrou R$ 36 de juros pelo atraso.")).toBeInTheDocument();
     // os Termos prometem o selo em todo texto escrito pela IA
     expect(screen.getByText("Gerada por IA · confira antes de decidir")).toBeInTheDocument();
+    expect(document.querySelector(".det-causa img")?.getAttribute("src")).toContain("mascote-lupa");
     // já explicada: não há o que pedir
     expect(screen.queryByRole("button", { name: /Explicar/ })).not.toBeInTheDocument();
   });
@@ -403,6 +404,7 @@ describe("DetalheDivergenciaPage", () => {
     buscarConciliacao.mockReturnValue({ ...conciliacao, linhas: [] });
     render(<DetalheDivergenciaPage />);
     expect(await screen.findByText("Lançamento não encontrado.")).toBeInTheDocument();
+    expect(document.querySelector("img")?.getAttribute("src")).toContain("mascote-lupa");
   });
 
   it("shows a not found message when the conciliação does not exist", async () => {

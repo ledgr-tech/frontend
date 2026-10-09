@@ -112,6 +112,8 @@ describe("DashboardPage", () => {
     expect(andamento).toHaveTextContent("erp-set.csv · setembro de 2026");
     expect(andamento).toHaveTextContent("Rodada 2 de 2");
     expect(andamento).toHaveTextContent("12 batem · 9 pedem decisão · 3 de 9 conferidas · 1 justificada");
+    // em andamento, o mascote vai andando
+    expect(andamento.querySelector("img")?.getAttribute("src")).toContain("mascote-caminhando");
     // pelo endereço só do banco, que abre a rodada que vale
     expect(within(andamento).getByRole("link", { name: "Continuar na comparação" })).toHaveAttribute(
       "href",
@@ -184,6 +186,8 @@ describe("DashboardPage", () => {
     await renderizar();
     expect(screen.getByText("Nenhum extrato por aqui ainda.")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Fazer o primeiro upload" })).toHaveAttribute("href", "/conciliacoes/nova");
+    // vazio é um convite: o mascote aponta para quem vai agir
+    expect(document.querySelector("img")?.getAttribute("src")).toContain("mascote-explicando");
   });
 
   it("asks for a reload when the backend fails", async () => {

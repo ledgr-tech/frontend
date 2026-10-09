@@ -14,7 +14,11 @@ export const metadata: Metadata = { title: "Página não encontrada · Ledgr" };
 export default function NaoEncontrada() {
   return (
     <main className="aviso-pagina">
-      <TelaDeAviso titulo="Esta página não existe." texto="O endereço pode ter mudado, ou o link chegou incompleto.">
+      <TelaDeAviso
+        titulo="Esta página não existe."
+        texto="O endereço pode ter mudado, ou o link chegou incompleto."
+        mascote="lupa"
+      >
         <Link href="/visao-geral" className="btn btn-primary">
           Ir para o Ledgr
         </Link>
