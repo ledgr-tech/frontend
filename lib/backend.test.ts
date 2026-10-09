@@ -3,11 +3,17 @@ import { baixarDoBackend, chamarBackend, ErroBackend } from "./backend";
 
 // o cookie da sessão é o JWT; aqui ele é só uma string conhecida
 const cookie = vi.hoisted(() => ({ valor: "jwt-de-teste" as string | undefined }));
+// os cabeçalhos que a Vercel escreve na requisição do navegador; `null` = fora de uma requisição
+const requisicao = vi.hoisted(() => ({ cabecalhos: {} as Record<string, string> | null }));
 vi.mock("next/headers", () => ({
   cookies: async () => ({
     get: (nome: string) =>
       nome === "authjs.session-token" && cookie.valor ? { value: cookie.valor } : undefined,
   }),
+  headers: async () => {
+    if (!requisicao.cabecalhos) throw new Error("`headers` was called outside a request scope.");
+    return new Headers(requisicao.cabecalhos);
+  },
 }));
 
 // "Status;Valor" com o BOM do UTF-8 na frente, como o backend manda o CSV
@@ -118,5 +124,80 @@ describe("chamarBackend", () => {
 
     const [, init] = fetch.mock.calls[0] as [string, RequestInit];
     expect(init.signal).toBe(prazo);
+  });
+});
+
+// O backend limita /login, /register e /senha/* por IP (backend #64), e quem chama é o servidor do
+// Next: sem repassar o IP do navegador, uma pessoa errando a senha trava o login de todo mundo.
+describe("IP do navegador nas chamadas públicas", () => {
+  const SEGREDO = "segredo-de-teste";
+
+  beforeEach(() => {
+    cookie.valor = "jwt-de-teste";
+    requisicao.cabecalhos = { "x-real-ip": "203.0.113.7", "x-forwarded-for": "198.51.100.1, 10.0.0.1" };
+    fetch.mockReset();
+    fetch.mockResolvedValue(Response.json({}));
+    vi.stubGlobal("fetch", fetch);
+    vi.stubEnv("LEDGR_SEGREDO_PROXY", SEGREDO);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  });
+
+  async function cabecalhosDoLogin() {
+    await chamarBackend("/login", { method: "POST", corpo: {}, publica: true });
+    const [, init] = fetch.mock.calls[0] as [string, RequestInit];
+    return new Headers(init.headers);
+  }
+
+  it("manda o IP do x-real-ip junto com o segredo", async () => {
+    const cabecalhos = await cabecalhosDoLogin();
+
+    expect(cabecalhos.get("X-Ledgr-IP-Cliente")).toBe("203.0.113.7");
+    expect(cabecalhos.get("X-Ledgr-Segredo-Proxy")).toBe(SEGREDO);
+  });
+
+  it("sem x-real-ip, usa o primeiro item do x-forwarded-for", async () => {
+    requisicao.cabecalhos = { "x-forwarded-for": "198.51.100.1, 10.0.0.1" };
+
+    expect((await cabecalhosDoLogin()).get("X-Ledgr-IP-Cliente")).toBe("198.51.100.1");
+  });
+
+  it("sem o segredo configurado, não manda nenhum dos dois", async () => {
+    vi.stubEnv("LEDGR_SEGREDO_PROXY", "");
+
+    const cabecalhos = await cabecalhosDoLogin();
+
+    expect(cabecalhos.has("X-Ledgr-IP-Cliente")).toBe(false);
+    expect(cabecalhos.has("X-Ledgr-Segredo-Proxy")).toBe(false);
+  });
+
+  it("fora de uma requisição (headers() lança), chama o backend sem eles", async () => {
+    requisicao.cabecalhos = null;
+
+    const cabecalhos = await cabecalhosDoLogin();
+
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(cabecalhos.has("X-Ledgr-IP-Cliente")).toBe(false);
+    expect(cabecalhos.has("X-Ledgr-Segredo-Proxy")).toBe(false);
+  });
+
+  it("sem IP na requisição, não manda o segredo sozinho", async () => {
+    requisicao.cabecalhos = {};
+
+    const cabecalhos = await cabecalhosDoLogin();
+
+    expect(cabecalhos.has("X-Ledgr-IP-Cliente")).toBe(false);
+    expect(cabecalhos.has("X-Ledgr-Segredo-Proxy")).toBe(false);
+  });
+
+  // as rotas logadas limitam pelo token: o segredo não precisa sair nelas
+  it("nas chamadas com sessão, não manda", async () => {
+    await chamarBackend("/execucoes");
+
+    const [, init] = fetch.mock.calls[0] as [string, RequestInit];
+    expect(new Headers(init.headers).has("X-Ledgr-Segredo-Proxy")).toBe(false);
   });
 });
