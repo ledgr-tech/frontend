@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState, type ChangeEvent } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type DragEvent } from "react";
 import { useRouter } from "next/navigation";
+import { ArrowRight, Check, FileUp, Link2, Scale, ShieldCheck } from "lucide-react";
 import { caminhoDaConciliacao } from "@/lib/caminhos";
 import { conciliar, type Falha } from "../acoes";
 import {
@@ -38,14 +39,10 @@ export default function NovaConciliacaoPage() {
     };
   }, []);
 
-  function selecionarBanco(event: ChangeEvent<HTMLInputElement>) {
+  function escolher(origem: Origem, arquivo: File) {
     setErro(null);
-    setArquivoBanco(event.target.files?.[0] ?? null);
-  }
-
-  function selecionarSistema(event: ChangeEvent<HTMLInputElement>) {
-    setErro(null);
-    setArquivoSistema(event.target.files?.[0] ?? null);
+    if (origem === "banco") setArquivoBanco(arquivo);
+    else setArquivoSistema(arquivo);
   }
 
   function falhar(falha: Falha) {
@@ -163,6 +160,12 @@ export default function NovaConciliacaoPage() {
 
   const podeConciliar = arquivoBanco !== null && arquivoSistema !== null;
   const ocupado = etapa !== "ocioso";
+  const falta =
+    !arquivoBanco && !arquivoSistema
+      ? "Envie os dois extratos para conciliar."
+      : !arquivoBanco
+        ? "Falta o extrato do banco."
+        : "Falta o extrato do sistema de gestão.";
 
   if (pendente) {
     return (
@@ -179,66 +182,96 @@ export default function NovaConciliacaoPage() {
   }
 
   return (
-    <div>
+    <div className="nova-tela">
       {/* o mês só se sabe depois de ler as datas dos extratos: a linha fica só com a empresa */}
       <Cabecalho titulo="Nova conciliação" contexto={[]} />
-      <div style={{ padding: "8px 0 64px" }}>
+      <div className="nova-corpo">
+        {ocupado && arquivoBanco && arquivoSistema ? (
+          <Casamento banco={arquivoBanco.name} sistema={arquivoSistema.name} etapa={etapa} />
+        ) : (
+          <Reveal>
+            {/* o encaixe (globals.css): cada lado acende quando o seu extrato entra, e o elo do meio
+                quando entraram os dois */}
+            <div
+              className="nova-encaixe"
+              data-banco={arquivoBanco ? "pronto" : "vazio"}
+              data-sistema={arquivoSistema ? "pronto" : "vazio"}
+            >
+              <CartaoDeExtrato
+                titulo="Extrato do banco"
+                dica="Arquivo OFX ou CSV exportado do internet banking"
+                accept=".ofx,.csv"
+                formatos="OFX ou CSV"
+                arquivo={arquivoBanco}
+                onArquivo={(arquivo) => escolher("banco", arquivo)}
+                onRecusado={setErro}
+              />
+              <span className="nova-elo" aria-hidden="true">
+                <span className="nova-elo-traco nova-elo-traco-banco" />
+                <span className="nova-elo-no">
+                  <Link2 />
+                </span>
+                <span className="nova-elo-traco nova-elo-traco-sistema" />
+              </span>
+              <CartaoDeExtrato
+                titulo="Extrato do sistema de gestão"
+                dica="Arquivo CSV exportado do seu sistema de gestão"
+                accept=".csv"
+                formatos="CSV"
+                arquivo={arquivoSistema}
+                onArquivo={(arquivo) => escolher("sistema", arquivo)}
+                onRecusado={setErro}
+              />
+            </div>
+          </Reveal>
+        )}
 
-        <Reveal
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
-            gap: 20,
-            margin: "24px 0",
-          }}
-        >
-          <label
-            className="card cartao-arquivo"
-            style={{ position: "relative", cursor: "pointer", alignItems: "center", textAlign: "center", padding: "32px 20px" }}
-          >
-            <span className="font-titulo" style={{ fontSize: 20, fontWeight: 600 }}>
-              Extrato do banco
-            </span>
-            <span style={{ fontSize: 14, color: "color-mix(in srgb, var(--color-text) 66%, transparent)" }}>
-              {arquivoBanco ? arquivoBanco.name : "Arquivo OFX ou CSV exportado do internet banking"}
-            </span>
-            <input
-              aria-label="Extrato do banco"
-              type="file"
-              accept=".ofx,.csv"
-              disabled={ocupado}
-              onChange={selecionarBanco}
-              style={{ position: "absolute", width: 1, height: 1, opacity: 0 }}
-            />
-          </label>
-          <label
-            className="card cartao-arquivo"
-            style={{ position: "relative", cursor: "pointer", alignItems: "center", textAlign: "center", padding: "32px 20px" }}
-          >
-            <span className="font-titulo" style={{ fontSize: 20, fontWeight: 600 }}>
-              Extrato do sistema de gestão
-            </span>
-            <span style={{ fontSize: 14, color: "color-mix(in srgb, var(--color-text) 66%, transparent)" }}>
-              {arquivoSistema ? arquivoSistema.name : "Arquivo CSV exportado do seu sistema de gestão"}
-            </span>
-            <input
-              aria-label="Extrato do sistema de gestão"
-              type="file"
-              accept=".csv"
-              disabled={ocupado}
-              onChange={selecionarSistema}
-              style={{ position: "absolute", width: 1, height: 1, opacity: 0 }}
-            />
-          </label>
-        </Reveal>
-
-        <Reveal delay={0.08} className="card" style={{ marginBottom: 28 }}>
-          <h6 style={{ margin: "0 0 8px" }}>Regra de ouro</h6>
-          <p style={{ margin: 0, fontSize: 14 }}>
-            O extrato do banco é sempre a fonte da verdade. Toda divergência aparece como
-            &ldquo;o sistema diverge do banco&rdquo;. Se o valor no seu sistema estiver diferente,
-            é ele que precisa de ajuste.
-          </p>
+        {/* o ciclo, dito antes do envio: o Ledgr só lê e confere, quem corrige é a pessoa, no
+            próprio sistema, e cada nova versão do extrato do sistema vira uma rodada */}
+        <Reveal delay={0.08} className="card nova-como-funciona">
+          <section aria-labelledby="nova-como-funciona-titulo">
+            <h2 id="nova-como-funciona-titulo" className="font-titulo nova-como-titulo">
+              Como funciona
+            </h2>
+            <p className="nova-como-subtitulo">Três passos, a cada mês.</p>
+            <ol className="nova-passos">
+              <li>
+                <span className="nova-passo-numero" aria-hidden="true">
+                  1
+                </span>
+                <strong>Envie os dois extratos</strong>
+                <span>O do banco e o do seu sistema de gestão, do mesmo período.</span>
+              </li>
+              <li>
+                <span className="nova-passo-numero" aria-hidden="true">
+                  2
+                </span>
+                <strong>Confira e aponte</strong>
+                <span>Marque o que conferiu e justifique o que fica como está.</span>
+              </li>
+              <li>
+                <span className="nova-passo-numero" aria-hidden="true">
+                  3
+                </span>
+                <strong>Corrija no seu sistema e envie de novo</strong>
+                <span>Cada nova versão do extrato do sistema vira uma rodada.</span>
+              </li>
+            </ol>
+            <div className="nova-notas">
+              <p className="nova-nota nova-nota-destaque">
+                <ShieldCheck aria-hidden="true" />
+                <span>O Ledgr não altera nada no seu banco nem no seu sistema: ele só lê os extratos e confere.</span>
+              </p>
+              <p className="nova-nota">
+                <Scale aria-hidden="true" />
+                <span>
+                  O extrato do banco é sempre a fonte da verdade. Toda divergência aparece como
+                  &ldquo;o sistema diverge do banco&rdquo;. Se o valor no seu sistema estiver diferente,
+                  é ele que precisa de ajuste.
+                </span>
+              </p>
+            </div>
+          </section>
         </Reveal>
 
         {erro && (
@@ -258,13 +291,13 @@ export default function NovaConciliacaoPage() {
         <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "10px 16px" }}>
           <button
             type="button"
-            className="btn btn-primary"
+            className="btn nova-conciliar"
             disabled={!podeConciliar || ocupado}
             aria-describedby={podeConciliar ? undefined : "nova-conciliacao-pendente"}
             onClick={() => void conciliarExtratos()}
-            style={{ fontSize: 15, padding: "12px 22px" }}
           >
             {ocupado ? "Conciliando…" : "Conciliar extratos"}
+            {!ocupado && <ArrowRight aria-hidden="true" />}
           </button>
           {ocupado && (
             <span
@@ -279,10 +312,151 @@ export default function NovaConciliacaoPage() {
               id="nova-conciliacao-pendente"
               style={{ fontSize: 14, color: "color-mix(in srgb, var(--color-text) 66%, transparent)" }}
             >
-              Envie os dois extratos para conciliar.
+              {falta}
             </span>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function tamanho(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} MB`;
+}
+
+/**
+ * Uma área de soltar: o cartão é o rótulo de um input de arquivo invisível, então clicar em
+ * qualquer lugar dele abre a escolha, e "Trocar arquivo" é só o aviso de que dá para escolher de
+ * novo. O que é solto em cima não passa pelo accept do input: a extensão é conferida aqui.
+ */
+function CartaoDeExtrato({
+  titulo,
+  dica,
+  accept,
+  formatos,
+  arquivo,
+  onArquivo,
+  onRecusado,
+}: {
+  titulo: string;
+  dica: string;
+  accept: string;
+  /** Como o accept aparece no recado de arquivo recusado ("OFX ou CSV"). */
+  formatos: string;
+  arquivo: File | null;
+  onArquivo: (arquivo: File) => void;
+  onRecusado: (recado: string) => void;
+}) {
+  const [arrastando, setArrastando] = useState(false);
+
+  function aoSoltar(event: DragEvent<HTMLLabelElement>) {
+    event.preventDefault();
+    setArrastando(false);
+    const solto = event.dataTransfer.files[0];
+    if (!solto) return;
+    const nome = solto.name.toLowerCase();
+    if (!accept.split(",").some((extensao) => nome.endsWith(extensao))) {
+      onRecusado(`O ${titulo.toLowerCase()} precisa ser um arquivo ${formatos}.`);
+      return;
+    }
+    onArquivo(solto);
+  }
+
+  return (
+    <label
+      className="card cartao-arquivo"
+      data-pronto={arquivo ? "" : undefined}
+      data-arrastando={arrastando ? "" : undefined}
+      onDragOver={(event) => {
+        event.preventDefault();
+        setArrastando(true);
+      }}
+      onDragLeave={(event) => {
+        // sair do cartão para um filho dele também dispara o dragleave
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setArrastando(false);
+      }}
+      onDrop={aoSoltar}
+    >
+      <span className="cartao-arquivo-icone" aria-hidden="true">
+        {arquivo ? <Check /> : <FileUp />}
+      </span>
+      <span className="font-titulo cartao-arquivo-titulo">{titulo}</span>
+      {arquivo ? (
+        <>
+          <span className="cartao-arquivo-nome">{arquivo.name}</span>
+          <span className="cartao-arquivo-meta">
+            <span>{tamanho(arquivo.size)}</span> · <span className="cartao-arquivo-trocar">Trocar arquivo</span>
+          </span>
+        </>
+      ) : (
+        <>
+          <span className="cartao-arquivo-dica">{dica}</span>
+          <span className="cartao-arquivo-acao">Arraste o arquivo ou clique para escolher</span>
+        </>
+      )}
+      <input
+        aria-label={titulo}
+        className="cartao-arquivo-input"
+        type="file"
+        accept={accept}
+        onChange={(event) => {
+          // cancelar a janela de escolha não apaga o arquivo que já estava
+          const escolhido = event.target.files?.[0];
+          if (escolhido) onArquivo(escolhido);
+        }}
+      />
+    </label>
+  );
+}
+
+// as etapas do envio na ordem em que acontecem (envio.ts)
+const ETAPAS: Etapa[] = ["conferindo", "enviando", "processando", "conciliando"];
+// as larguras das linhas de mentira, do banco e do sistema: parecidas, nunca iguais
+const PARES = [
+  [72, 64],
+  [88, 92],
+  [58, 70],
+  [80, 74],
+];
+
+/**
+ * No envio, os cartões dão lugar ao casamento: linhas do banco e do sistema que se aproximam e
+ * ganham o ✓, uma depois da outra, enquanto a barra de baixo anda com a etapa real. As linhas são
+ * só ilustração (o progresso de verdade é a etapa, anunciada ao lado do botão).
+ */
+function Casamento({ banco, sistema, etapa }: { banco: string; sistema: string; etapa: Etapa }) {
+  const indice = ETAPAS.indexOf(etapa) + 1;
+  return (
+    <div className="card nova-casamento">
+      <div className="nova-casamento-topo">
+        <span className="nova-casamento-lado">
+          <small>Banco</small>
+          <span>{banco}</span>
+        </span>
+        <span className="nova-casamento-lado nova-casamento-lado-sistema">
+          <small>Sistema de gestão</small>
+          <span>{sistema}</span>
+        </span>
+      </div>
+      <div className="nova-pares" aria-hidden="true">
+        {PARES.map(([larguraBanco, larguraSistema], i) => (
+          <div key={i} className="nova-par" style={{ "--i": i } as CSSProperties}>
+            <span className="nova-par-banco" style={{ width: `${larguraBanco}%` }} />
+            <Check className="nova-par-check" />
+            <span className="nova-par-sistema" style={{ width: `${larguraSistema}%` }} />
+          </div>
+        ))}
+      </div>
+      <div className="nova-etapas">
+        <span className="nova-etapas-barra" aria-hidden="true">
+          {ETAPAS.map((nome, i) => (
+            <span key={nome} data-feita={i < indice ? "" : undefined} />
+          ))}
+        </span>
+        <span className="nova-etapas-texto">{`Etapa ${indice} de ${ETAPAS.length}`}</span>
       </div>
     </div>
   );
