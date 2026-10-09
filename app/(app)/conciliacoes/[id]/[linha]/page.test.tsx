@@ -403,6 +403,7 @@ describe("DetalheDivergenciaPage", () => {
     buscarConciliacao.mockReturnValue({ ...conciliacao, linhas: [] });
     render(<DetalheDivergenciaPage />);
     expect(await screen.findByText("Lançamento não encontrado.")).toBeInTheDocument();
+    expect(document.querySelector("img")?.getAttribute("src")).toContain("mascote-lupa");
   });
 
   it("shows a not found message when the conciliação does not exist", async () => {

@@ -11,6 +11,8 @@ describe("NaoEncontrada (404)", () => {
     // quem não está logado cai no login pelo layout do app: o mesmo link serve aos dois
     expect(screen.getByRole("link", { name: "Ir para o Ledgr" })).toHaveAttribute("href", "/visao-geral");
     expect(screen.getByRole("link", { name: "Ver o site" })).toHaveAttribute("href", "/");
+    // o que não foi achado, o mascote procura de lupa
+    expect(document.querySelector("img")?.getAttribute("src")).toContain("mascote-lupa");
   });
 });
 
@@ -24,6 +26,7 @@ describe("ErroInesperado", () => {
     render(<ErroInesperado error={erro} retry={retry} voltar={voltar} />);
 
     expect(screen.getByRole("heading", { name: "Algo deu errado nesta tela." })).toBeInTheDocument();
+    expect(document.querySelector("img")?.getAttribute("src")).toContain("mascote-neutro");
     expect(screen.getByText("3141592653")).toBeInTheDocument();
     expect(screen.queryByText(/does not exist/)).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "ledgrtech@gmail.com" })).toHaveAttribute("href", "mailto:ledgrtech@gmail.com");

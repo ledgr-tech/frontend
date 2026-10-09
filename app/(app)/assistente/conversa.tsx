@@ -26,10 +26,14 @@ type Mensagem = {
   ia?: boolean;
 };
 
-function Mascote({ tamanho }: { tamanho: number }) {
+/**
+ * No topo, o mascote acenando com o balão; ao lado de cada mensagem, em 28px, só o rosto: a mão e
+ * o balão viravam ruído nesse tamanho.
+ */
+function Mascote({ tamanho, rosto = false }: { tamanho: number; rosto?: boolean }) {
   return (
     <Image
-      src="/mascotes/mascote-chatbot.png"
+      src={rosto ? "/mascotes/mascote-avatar.png" : "/mascotes/mascote-chatbot.png"}
       alt=""
       width={1254}
       height={1254}
@@ -130,7 +134,7 @@ export function Conversa({ contexto, onFechar }: { contexto: Contexto; onFechar:
         {mensagens.map((mensagem) =>
           mensagem.de === "ledgr" ? (
             <div key={mensagem.id} className="asst-linha">
-              <Mascote tamanho={28} />
+              <Mascote tamanho={28} rosto />
               <div className="asst-bolha asst-bolha-ledgr">
                 {mensagem.ia && (
                   <span className="asst-selo-ia">
@@ -155,7 +159,7 @@ export function Conversa({ contexto, onFechar }: { contexto: Contexto; onFechar:
         )}
         {lendo && (
           <div className="asst-linha" aria-label="O Ledgr está lendo o extrato">
-            <Mascote tamanho={28} />
+            <Mascote tamanho={28} rosto />
             <span className="asst-bolha asst-digitando" aria-hidden="true">
               <span />
               <span />

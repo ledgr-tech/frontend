@@ -53,6 +53,11 @@ describe("Conversa", () => {
       "Setembro está 70,0% conciliado. Sobraram 42 linhas para revisar, a maior parte em “Sem correspondência no banco”.",
     );
     expect(screen.getByRole("heading", { level: 6 })).toHaveTextContent("Assistente · olhando setembro");
+    // em 28px, ao lado de cada mensagem, vai só o rosto; o mascote acenando com o balão fica no topo
+    const avatares = [...conversa().querySelectorAll("img")].map((img) => img.getAttribute("src"));
+    expect(avatares.length).toBeGreaterThan(0);
+    expect(avatares.every((src) => src?.includes("mascote-avatar"))).toBe(true);
+    expect(document.querySelector(".asst-topo img")?.getAttribute("src")).toContain("mascote-chatbot");
     // o painel abriu para uma pergunta
     expect(screen.getByRole("textbox", { name: "Sua pergunta" })).toHaveFocus();
   });

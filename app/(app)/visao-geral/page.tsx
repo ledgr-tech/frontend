@@ -285,10 +285,10 @@ function PedeAtencao({
       {grupos.length === 0 && arquivos.length === 0 ? (
         <div className="vg-tudo-certo">
           <Image
-            src="/mascotes/mascote-comemorando.png"
+            src="/mascotes/mascote-joinha.png"
             alt=""
-            width={1000}
-            height={1000}
+            width={1073}
+            height={1173}
             sizes="72px"
             style={{ width: 72, height: "auto", flex: "none" }}
           />
@@ -422,10 +422,10 @@ function PrimeirosPassos() {
     <div className="vg-inicio">
       <InkHover style={{ flex: "none" }}>
         <Image
-          src="/mascotes/mascote-sentado.png"
-          alt="Mascote Ledgr sentado com uma folha"
-          width={1000}
-          height={1000}
+          src="/mascotes/mascote-apresenta.png"
+          alt="Mascote Ledgr com a prancheta da conciliação"
+          width={824}
+          height={720}
           sizes="200px"
           style={{ width: 200, height: "auto", display: "block" }}
         />

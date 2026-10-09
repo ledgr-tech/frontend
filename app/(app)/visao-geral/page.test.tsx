@@ -263,6 +263,10 @@ describe("VisaoGeralPage", () => {
     expect(screen.getByText("Nada pede sua atenção agora.")).toBeInTheDocument();
     expect(screen.queryByRole("list", { name: "Pede sua atenção" })).not.toBeInTheDocument();
     expect(screen.getByText("Nenhum valor em aberto")).toBeInTheDocument();
+    // tudo certo é um joinha; a festa fica para os momentos grandes
+    const imagens = [...document.querySelectorAll("img")].map((img) => img.getAttribute("src")).join(" ");
+    expect(imagens).toContain("mascote-joinha");
+    expect(imagens).not.toContain("mascote-comemorando");
   });
 
   it("leaves the amount out when a group has no money open", async () => {
@@ -371,6 +375,8 @@ describe("VisaoGeralPage", () => {
     await renderizar();
 
     expect(screen.getByText("Nenhum extrato por aqui ainda.")).toBeInTheDocument();
+    // a prancheta com o checklist da conciliação é o próprio passo a passo
+    expect(document.querySelector("img")?.getAttribute("src")).toContain("mascote-apresenta");
     const passos = screen.getByRole("list", { name: "Primeiros passos" });
     expect(within(passos).getAllByRole("listitem").map((item) => item.querySelector("h3")?.textContent)).toEqual([
       "Suba o extrato do banco",

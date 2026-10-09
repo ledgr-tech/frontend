@@ -47,10 +47,10 @@ export function EmAndamento({
       </h6>
       <SpotlightHover className="dash-destaque dash-destaque-faixa">
         <Image
-          src="/mascotes/mascote-explicando.png"
+          src="/mascotes/mascote-caminhando.png"
           alt=""
-          width={1000}
-          height={1000}
+          width={1152}
+          height={1125}
           sizes="88px"
           className="conc-andamento-mascote"
         />

@@ -10,23 +10,32 @@ import type { ReactNode } from "react";
  * Sem "use client" de propósito: o 404 é Server Component e as páginas de erro
  * são Client Components, e as duas usam esta.
  */
+const MASCOTES = {
+  neutro: { src: "/mascotes/mascote-neutro.png", largura: 881, altura: 900 },
+  // o que não foi achado, o mascote procura de lupa
+  lupa: { src: "/mascotes/mascote-lupa.png", largura: 977, altura: 1122 },
+};
+
 export function TelaDeAviso({
   titulo,
   texto,
+  mascote = "neutro",
   children,
 }: {
   titulo: string;
   texto: ReactNode;
+  mascote?: keyof typeof MASCOTES;
   /** As ações: um botão ou link principal e, se fizer sentido, um secundário. */
   children: ReactNode;
 }) {
+  const { src, largura, altura } = MASCOTES[mascote];
   return (
     <div className="vg-inicio">
       <Image
-        src="/mascotes/mascote-neutro.png"
+        src={src}
         alt=""
-        width={881}
-        height={900}
+        width={largura}
+        height={altura}
         sizes="150px"
         // é o primeiro e quase o único conteúdo da tela: carregar na hora, sem surgir depois do texto
         loading="eager"

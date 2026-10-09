@@ -275,12 +275,13 @@ function Painel({ mes, podeFechar }: { mes: MesDeFechamento; podeFechar: boolean
       <h6 style={{ margin: 0 }}>Fechamento · {fechado ? "fechado" : mes.pronto ? "pronto para fechar" : "em aberto"}</h6>
       <div className="extrato-painel-topo">
         <h3 className="extrato-painel-nome">{mes.titulo}</h3>
+        {/* fechado, o mês tem cadeado; pronto para fechar, um joinha */}
         {resolvido(mes) && (
           <Image
-            src="/mascotes/mascote-comemorando.png"
+            src={fechado ? "/mascotes/mascote-cadeado.png" : "/mascotes/mascote-joinha.png"}
             alt=""
-            width={1000}
-            height={1000}
+            width={fechado ? 1033 : 1073}
+            height={fechado ? 1130 : 1173}
             sizes="56px"
             style={{ width: 56, height: "auto", flex: "none" }}
           />

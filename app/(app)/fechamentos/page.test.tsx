@@ -153,6 +153,8 @@ describe("FechamentosPage", () => {
     expect(within(pronto).getByText("Fechamento · pronto para fechar")).toBeInTheDocument();
     expect(within(pronto).getByText("Nenhuma divergência pede decisão.")).toBeInTheDocument();
     expect(within(pronto).getByRole("button", { name: "Fechar agosto" })).toBeInTheDocument();
+    // pronto para fechar é um joinha; o cadeado fica para depois de fechado
+    expect(pronto.querySelector("img")?.getAttribute("src")).toContain("mascote-joinha");
     // o próximo mês começa depois de fechar este
     expect(within(pronto).queryByRole("link", { name: /Começar/ })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Agosto de 2026/ })).toHaveTextContent("Pronto para fechar");
@@ -177,6 +179,7 @@ describe("FechamentosPage", () => {
       const fechado = painel();
       expect(within(fechado).getByText("Fechamento · fechado")).toBeInTheDocument();
       expect(within(fechado).getByText("Fechado em 06/10/2026 12:20 por Maria Financeiro.")).toBeInTheDocument();
+      expect(fechado.querySelector("img")?.getAttribute("src")).toContain("mascote-cadeado");
       expect(within(fechado).getByRole("link", { name: "Começar setembro" })).toHaveAttribute("href", "/conciliacoes/nova");
       expect(within(fechado).getByRole("button", { name: "Reabrir agosto" })).toBeInTheDocument();
       expect(within(fechado).queryByRole("button", { name: "Fechar agosto" })).not.toBeInTheDocument();
@@ -315,6 +318,7 @@ describe("FechamentosPage", () => {
   it("guides the first upload when nothing was conciliated yet", async () => {
     await renderizar([]);
     expect(screen.getByRole("heading", { name: "Nenhum mês para fechar ainda." })).toBeInTheDocument();
+    expect(document.querySelector("img")?.getAttribute("src")).toContain("mascote-explicando");
   });
 
   it("no longer says the Ledgr does not record the closing", async () => {

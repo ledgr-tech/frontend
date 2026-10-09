@@ -482,6 +482,7 @@ describe("ConciliacaoPage", () => {
     expect(
       await screen.findByText("Conciliação não encontrada.")
     ).toBeInTheDocument();
+    expect(document.querySelector("img")?.getAttribute("src")).toContain("mascote-lupa");
   });
 
   it("loads only the lines of the pair named in the URL, and keeps it in the link to a line", async () => {
