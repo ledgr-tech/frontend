@@ -144,6 +144,38 @@ export async function cadastrar(dados: DadosCadastro): Promise<ResultadoCadastro
   return { ok: true, entrou: sessao.ok };
 }
 
+export type ResultadoVerificacao =
+  | { ok: true; emailDisponivel: boolean; cnpjDisponivel: boolean }
+  /** O backend recusou o formato, com as mesmas regras do `POST /register`. */
+  | { ok: false; erro: "invalido"; campos: CampoCadastroAPI[] }
+  /** Sem resposta que sirva (limite por minuto, backend sem a rota, fora do ar): o cadastro segue. */
+  | { ok: false; erro: "indisponivel" };
+
+/**
+ * Confere se o e-mail e o CNPJ ainda estão livres antes do fim do cadastro
+ * (`POST /register/verificar`, backend #80). A rota recebe os dois juntos, por
+ * isso a tela chama ao sair do passo da empresa. Não cria nada: o `/register`
+ * confere tudo de novo no fim, e o 409 dele continua cobrindo quem cadastrar o
+ * mesmo e-mail no meio do caminho.
+ */
+export async function verificarCadastro(
+  dados: Pick<DadosCadastro, "email" | "cnpj">,
+): Promise<ResultadoVerificacao> {
+  try {
+    const resposta = await chamarBackend<{ email_disponivel: boolean; cnpj_disponivel: boolean }>(
+      "/register/verificar",
+      { method: "POST", corpo: { email: dados.email, cnpj: dados.cnpj }, publica: true },
+    );
+    return { ok: true, emailDisponivel: resposta.email_disponivel, cnpjDisponivel: resposta.cnpj_disponivel };
+  } catch (erro) {
+    if (erro instanceof ErroBackend && erro.status === 422) {
+      const campos = erro.campos.map((campo) => CAMPO_DO_FORMULARIO[campo]).filter(Boolean);
+      if (campos.length > 0) return { ok: false, erro: "invalido", campos };
+    }
+    return { ok: false, erro: "indisponivel" };
+  }
+}
+
 export type ResultadoRecuperacao =
   | { ok: true }
   | { ok: false; erro: "indisponivel" | "muitas_tentativas" | "falha" };

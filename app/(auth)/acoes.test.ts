@@ -11,6 +11,7 @@ import {
   redefinirSenha,
   trocarEmail,
   trocarSenha,
+  verificarCadastro,
 } from "./acoes";
 
 // NextAuth, cookies e o backend são a fronteira externa: o que se testa aqui é
@@ -264,6 +265,53 @@ describe("cadastrar", () => {
 
     respostaDoBackend(500, { detail: "Internal Server Error" });
     expect(await cadastrar(DADOS)).toEqual({ ok: false, erro: "falha" });
+  });
+});
+
+describe("verificarCadastro", () => {
+  const DADOS = { email: "ana@telhacerta.com.br", cnpj: "12.345.678/0001-95" };
+
+  function respostaDoBackend(status: number, corpo: object) {
+    fetch.mockResolvedValue(Response.json(corpo, { status }));
+  }
+
+  it("confere e-mail e CNPJ juntos, sem Bearer e sem criar nada", async () => {
+    respostaDoBackend(200, { email_disponivel: true, cnpj_disponivel: true });
+
+    expect(await verificarCadastro(DADOS)).toEqual({ ok: true, emailDisponivel: true, cnpjDisponivel: true });
+
+    const [url, init] = fetch.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe("http://localhost:8000/register/verificar");
+    expect(init.method).toBe("POST");
+    expect(new Headers(init.headers).has("Authorization")).toBe(false);
+    expect(JSON.parse(String(init.body))).toEqual(DADOS);
+    expect(signIn).not.toHaveBeenCalled();
+  });
+
+  it("diz qual dos dois já está em uso", async () => {
+    respostaDoBackend(200, { email_disponivel: false, cnpj_disponivel: true });
+    expect(await verificarCadastro(DADOS)).toEqual({ ok: true, emailDisponivel: false, cnpjDisponivel: true });
+
+    respostaDoBackend(200, { email_disponivel: true, cnpj_disponivel: false });
+    expect(await verificarCadastro(DADOS)).toEqual({ ok: true, emailDisponivel: true, cnpjDisponivel: false });
+  });
+
+  it("devolve o campo recusado no 422 com o nome do formulário", async () => {
+    respostaDoBackend(422, { detail: [{ loc: ["body", "cnpj"], msg: "Value error, CNPJ inválido" }] });
+
+    expect(await verificarCadastro(DADOS)).toEqual({ ok: false, erro: "invalido", campos: ["cnpj"] });
+  });
+
+  // a conferência é um adianto: sem ela o cadastro segue, e o /register confere tudo no fim
+  it("fica indisponível no limite por minuto, sem a rota ou com o backend fora do ar", async () => {
+    respostaDoBackend(429, { detail: "Rate limit exceeded" });
+    expect(await verificarCadastro(DADOS)).toEqual({ ok: false, erro: "indisponivel" });
+
+    respostaDoBackend(404, { detail: "Not Found" });
+    expect(await verificarCadastro(DADOS)).toEqual({ ok: false, erro: "indisponivel" });
+
+    fetch.mockRejectedValue(new TypeError("fetch failed"));
+    expect(await verificarCadastro(DADOS)).toEqual({ ok: false, erro: "indisponivel" });
   });
 });
 
