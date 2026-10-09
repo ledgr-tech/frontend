@@ -183,9 +183,52 @@ export default function NovaConciliacaoPage() {
 
   return (
     <div className="nova-tela">
-      {/* o mês só se sabe depois de ler as datas dos extratos: a linha fica só com a empresa */}
-      <Cabecalho titulo="Nova conciliação" contexto={[]} />
+      {/* o mês só se sabe depois de ler as datas dos extratos: a linha fica só com a empresa. A
+          ação principal fica no topo, à direita, como "Enviar nova versão" na comparação */}
+      <Cabecalho
+        titulo="Nova conciliação"
+        contexto={[]}
+        acoes={
+          <>
+            {ocupado && (
+              <span aria-live="polite" className="nova-recado">
+                {RECADO[etapa]}
+              </span>
+            )}
+            {!podeConciliar && !ocupado && (
+              <span id="nova-conciliacao-pendente" className="nova-recado">
+                {falta}
+              </span>
+            )}
+            <button
+              type="button"
+              className="btn nova-conciliar"
+              disabled={!podeConciliar || ocupado}
+              aria-describedby={podeConciliar ? undefined : "nova-conciliacao-pendente"}
+              onClick={() => void conciliarExtratos()}
+            >
+              {ocupado ? "Conciliando…" : "Conciliar extratos"}
+              {!ocupado && <ArrowRight aria-hidden="true" />}
+            </button>
+          </>
+        }
+      />
       <div className="nova-corpo">
+        {/* em cima dos cartões, perto do botão que a pessoa acabou de clicar */}
+        {erro && (
+          <p role="alert" className="selo selo-risco nova-erro">
+            {erro}
+          </p>
+        )}
+
+        {avisos.length > 0 && (
+          <ul className="nova-avisos">
+            {avisos.map((aviso) => (
+              <li key={aviso}>{aviso}</li>
+            ))}
+          </ul>
+        )}
+
         {ocupado && arquivoBanco && arquivoSistema ? (
           <Casamento banco={arquivoBanco.name} sistema={arquivoSistema.name} etapa={etapa} />
         ) : (
@@ -273,49 +316,6 @@ export default function NovaConciliacaoPage() {
             </div>
           </section>
         </Reveal>
-
-        {erro && (
-          <p role="alert" className="selo selo-risco" style={{ marginBottom: 20 }}>
-            {erro}
-          </p>
-        )}
-
-        {avisos.length > 0 && (
-          <ul style={{ margin: "0 0 20px", paddingLeft: 18, fontSize: 14 }}>
-            {avisos.map((aviso) => (
-              <li key={aviso}>{aviso}</li>
-            ))}
-          </ul>
-        )}
-
-        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "10px 16px" }}>
-          <button
-            type="button"
-            className="btn nova-conciliar"
-            disabled={!podeConciliar || ocupado}
-            aria-describedby={podeConciliar ? undefined : "nova-conciliacao-pendente"}
-            onClick={() => void conciliarExtratos()}
-          >
-            {ocupado ? "Conciliando…" : "Conciliar extratos"}
-            {!ocupado && <ArrowRight aria-hidden="true" />}
-          </button>
-          {ocupado && (
-            <span
-              aria-live="polite"
-              style={{ fontSize: 14, color: "color-mix(in srgb, var(--color-text) 66%, transparent)" }}
-            >
-              {RECADO[etapa]}
-            </span>
-          )}
-          {!podeConciliar && !ocupado && (
-            <span
-              id="nova-conciliacao-pendente"
-              style={{ fontSize: 14, color: "color-mix(in srgb, var(--color-text) 66%, transparent)" }}
-            >
-              {falta}
-            </span>
-          )}
-        </div>
       </div>
     </div>
   );

@@ -124,6 +124,15 @@ describe("NovaConciliacaoPage", () => {
     expect(garantia.closest(".nova-nota")).toHaveClass("nova-nota-destaque");
   });
 
+  it("põe o botão de conciliar no topo, à direita do título, como o de enviar nova versão", () => {
+    render(<NovaConciliacaoPage />);
+
+    const acoes = screen.getByRole("button", { name: "Conciliar extratos" }).closest(".tela-acoes") as HTMLElement;
+    expect(acoes).not.toBeNull();
+    // o motivo de estar desligado sobe junto com ele
+    expect(within(acoes).getByText("Envie os dois extratos para conciliar.")).toBeInTheDocument();
+  });
+
   it("deixa o botão desligado até os dois arquivos estarem escolhidos", async () => {
     const user = userEvent.setup();
     render(<NovaConciliacaoPage />);
@@ -384,8 +393,11 @@ describe("NovaConciliacaoPage", () => {
       // o accept do input só vale para a janela de escolher; o que é solto chega sem filtro
       fireEvent.drop(sistema, { dataTransfer: { files: [arquivo("lancamentos.pdf")] } });
 
-      expect(screen.getByRole("alert")).toHaveTextContent("O extrato do sistema de gestão precisa ser um arquivo CSV.");
+      const alerta = screen.getByRole("alert");
+      expect(alerta).toHaveTextContent("O extrato do sistema de gestão precisa ser um arquivo CSV.");
       expect(encaixe()).toHaveAttribute("data-sistema", "vazio");
+      // com o botão no topo, o erro fica em cima dos cartões, à vista de quem acabou de clicar
+      expect(alerta.compareDocumentPosition(encaixe() as Element) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
 
     it("troca os cartões pelo casamento das linhas enquanto concilia, com a etapa em curso", async () => {

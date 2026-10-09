@@ -464,6 +464,10 @@ p.eyebrow {
   background: var(--color-accent-700); border-color: var(--color-accent-700); color: var(--color-bg);
 }
 .nova-conciliar:not(:disabled):hover { background: var(--color-accent-800); border-color: var(--color-accent-800); }
+/* ao lado do botão, no topo: o que falta, ou a etapa do envio */
+.nova-recado { font-size: 14px; color: color-mix(in srgb, var(--color-text) 66%, transparent); }
+.nova-erro { margin: 24px 0 0; }
+.nova-avisos { margin: 16px 0 0; padding-left: 18px; font-size: 14px; }
 
 /* estreito, um cartão embaixo do outro, com o elo entre os dois, de pé */
 @container nova (max-width: 559px) {
