@@ -531,6 +531,18 @@ export type ListaDeExtratos = {
 
 const EXTRATOS_POR_PAGINA = 100;
 
+/** Todos os arquivos de `GET /extratos` (backend #70), até o teto de páginas. Falha do backend sobe. */
+async function todosOsExtratos(): Promise<ListaExtratosAPI> {
+  const pagina = (numero: number) => `/extratos?limit=${EXTRATOS_POR_PAGINA}&offset=${numero * EXTRATOS_POR_PAGINA}`;
+  let lista = await chamarBackend<ListaExtratosAPI>(pagina(0));
+  for (let numero = 1; lista.itens.length < lista.total && numero < MAXIMO_DE_PAGINAS; numero += 1) {
+    const proxima = await chamarBackend<ListaExtratosAPI>(pagina(numero));
+    if (proxima.itens.length === 0) break;
+    lista = { ...lista, itens: [...lista.itens, ...proxima.itens] };
+  }
+  return lista;
+}
+
 /**
  * Os arquivos enviados, para a tela de extratos, de `GET /extratos` (backend #70): todos, do envio
  * mais recente ao mais antigo, inclusive os que ainda não entraram em conciliação.
@@ -540,16 +552,10 @@ const EXTRATOS_POR_PAGINA = 100;
  * cada linha não lida, de `GET /extratos/{id}`, só dos arquivos que têm alguma.
  */
 export async function listarExtratos(): Promise<Resultado<ListaDeExtratos>> {
-  const pagina = (numero: number) => `/extratos?limit=${EXTRATOS_POR_PAGINA}&offset=${numero * EXTRATOS_POR_PAGINA}`;
   let lista: ListaExtratosAPI;
   let execucoes: Resultado<ListaExecucoes>;
   try {
-    [lista, execucoes] = await Promise.all([chamarBackend<ListaExtratosAPI>(pagina(0)), listarExecucoes()]);
-    for (let numero = 1; lista.itens.length < lista.total && numero < MAXIMO_DE_PAGINAS; numero += 1) {
-      const proxima = await chamarBackend<ListaExtratosAPI>(pagina(numero));
-      if (proxima.itens.length === 0) break;
-      lista = { ...lista, itens: [...lista.itens, ...proxima.itens] };
-    }
+    [lista, execucoes] = await Promise.all([todosOsExtratos(), listarExecucoes()]);
   } catch (erro) {
     return traduzir(erro);
   }
@@ -685,33 +691,27 @@ export type DadosDoFechamento = {
  * vem na execução). Só as rodadas atuais: a refeita depois substitui a anterior.
  * E os fechamentos, que dizem quais meses já estão fechados.
  *
- * ponytail: duas chamadas por par (os dois arquivos), em paralelo. `GET /extratos`
- * (backend #70) traz as linhas não lidas de todos numa lista.
+ * As linhas não lidas vêm da contagem de `GET /extratos` (backend #70), numa lista só, em vez de
+ * uma chamada por arquivo: com dezenas de pares, isso esbarrava no limite de requisições.
  */
 export async function carregarFechamentos(): Promise<Resultado<DadosDoFechamento>> {
-  const [lista, fechamentos] = await Promise.all([listarExecucoes(), listarFechamentos()]);
+  const [lista, fechamentos, extratos] = await Promise.all([
+    listarExecucoes(),
+    listarFechamentos(),
+    // o aviso de linhas não lidas é extra: sem a lista, a mesa abre sem ele
+    todosOsExtratos().catch(() => null),
+  ]);
   if (!lista.ok) return lista;
 
+  const naoLidasPorExtrato = new Map(extratos?.itens.map((item) => [item.extrato_id, item.linhas_nao_lidas]));
   // a versão nova do extrato do sistema substitui a antiga: um par por extrato do banco
-  const atuais = execucoesVigentes(lista.dados.execucoes);
-  const pares = await Promise.all(
-    atuais.map(async (execucao) => {
-      const [banco, sistema] = await Promise.all([
-        situacaoDoExtrato(execucao.extratoBancoId),
-        situacaoDoExtrato(execucao.extratoSistemaId),
-      ]);
-      const arquivos = [
-        { nome: execucao.arquivoBanco, situacao: banco },
-        { nome: execucao.arquivoSistema, situacao: sistema },
-      ];
-      const naoLidas = arquivos.flatMap(({ nome, situacao }) =>
-        situacao.ok && situacao.dados.erros.length > 0
-          ? [{ nome, linhas: situacao.dados.erros.length }]
-          : [],
-      );
-      return { execucao, naoLidas };
-    }),
-  );
+  const pares = execucoesVigentes(lista.dados.execucoes).map((execucao) => ({
+    execucao,
+    naoLidas: [
+      { nome: execucao.arquivoBanco, linhas: naoLidasPorExtrato.get(execucao.extratoBancoId) ?? 0 },
+      { nome: execucao.arquivoSistema, linhas: naoLidasPorExtrato.get(execucao.extratoSistemaId) ?? 0 },
+    ].filter((arquivo) => arquivo.linhas > 0),
+  }));
   return { ok: true, dados: { pares, fechamentos } };
 }
 

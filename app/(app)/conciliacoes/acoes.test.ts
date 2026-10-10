@@ -867,7 +867,12 @@ describe("carregarFechamentos", () => {
     return { extrato_id: id, status: "concluido", origem: "banco", quantidade_lancamentos: 2, erros };
   }
 
-  it("dá a cada par atual as linhas não lidas dos dois arquivos, sem abrir a conciliação", async () => {
+  /** Um item de `GET /extratos`, só com o que a mesa lê. */
+  function extrato(id: string, linhasNaoLidas: number) {
+    return { extrato_id: id, linhas_nao_lidas: linhasNaoLidas };
+  }
+
+  it("dá a cada par atual as linhas não lidas dos dois arquivos, pela lista de extratos", async () => {
     chamarBackend.mockImplementation(async (caminho: string) => {
       if (caminho === "/fechamentos") return { itens: [] };
       if (caminho.startsWith("/execucoes")) {
@@ -878,15 +883,16 @@ describe("carregarFechamentos", () => {
           itens: [execucao("e-2", BANCO_RECENTE), execucao("e-1", BANCO_ANTERIOR, false)],
         };
       }
-      if (caminho === `/extratos/${BANCO_RECENTE}`) return situacao(BANCO_RECENTE);
-      if (caminho === `/extratos/${SISTEMA}`) {
-        return situacao(SISTEMA, [{ identificador: "linha 14", motivo: "valor ilegível" }]);
+      if (caminho.startsWith("/extratos?")) {
+        return { total: 2, limit: 100, offset: 0, itens: [extrato(BANCO_RECENTE, 0), extrato(SISTEMA, 1)] };
       }
       throw new Error(`caminho inesperado: ${caminho}`);
     });
 
     const resultado = await carregarFechamentos();
 
+    // uma chamada para a lista, nenhuma por arquivo
+    expect(chamarBackend.mock.calls.filter(([caminho]) => String(caminho).startsWith("/extratos/"))).toEqual([]);
     // a rodada substituída (e-1, atual: false) não entra
     expect(resultado).toMatchObject({
       ok: true,
@@ -952,6 +958,19 @@ describe("carregarFechamentos", () => {
     if (!resultado.ok) throw new Error(resultado.erro);
     expect(resultado.dados.pares).toHaveLength(1);
     expect(resultado.dados.fechamentos).toBeNull();
+  });
+
+  it("abre os pares sem o aviso de linhas não lidas quando a lista de extratos falha", async () => {
+    chamarBackend.mockImplementation(async (caminho: string) => {
+      if (caminho === "/fechamentos") return { itens: [] };
+      if (caminho.startsWith("/execucoes")) return { total: 1, limit: 50, offset: 0, itens: [execucao("e-1", BANCO_RECENTE)] };
+      throw new ErroBackend(429, "Too Many Requests");
+    });
+
+    const resultado = await carregarFechamentos();
+
+    if (!resultado.ok) throw new Error(resultado.erro);
+    expect(resultado.dados.pares).toMatchObject([{ execucao: { id: "e-1" }, naoLidas: [] }]);
   });
 
   it("conta um par por extrato do banco: a versão nova do sistema substitui a antiga", async () => {
