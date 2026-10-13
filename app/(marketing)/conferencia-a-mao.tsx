@@ -112,9 +112,6 @@ export function ConferenciaAMao({
         <p>
           <em>O Ledgr confere todas as linhas</em> e aponta só as que não batem, com o motivo.
         </p>
-        <a href="#como" className="btn btn-primary">
-          Veja como funciona<span aria-hidden="true"> →</span>
-        </a>
       </div>
     </div>
   );

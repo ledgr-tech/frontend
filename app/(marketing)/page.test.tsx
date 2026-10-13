@@ -331,14 +331,13 @@ describe("LandingPage", () => {
       ]);
     });
 
-    it("bridges to Como funciona in a band with one button", () => {
+    it("bridges to Como funciona in a band, without a button to the section right below", () => {
       render(<LandingPage />);
       const ponte = problema().querySelector(".mao-ponte")!;
       expect(ponte.querySelector("p")!.textContent).toBe("O Ledgr confere todas as linhas e aponta só as que não batem, com o motivo.");
       expect(ponte.querySelector("p em")!.textContent).toBe("O Ledgr confere todas as linhas");
-      const botao = within(ponte as HTMLElement).getByRole("link", { name: "Veja como funciona" });
-      expect(botao).toHaveAttribute("href", "#como");
-      expect(botao).toHaveClass("btn", "btn-primary");
+      // Como funciona começa logo abaixo: um botão para ela só repetiria a rolagem
+      expect(within(problema()).queryByRole("link")).not.toBeInTheDocument();
       expect(problema().nextElementSibling).toBe(document.getElementById("como"));
     });
   });

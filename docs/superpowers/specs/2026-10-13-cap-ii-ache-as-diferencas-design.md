@@ -14,7 +14,7 @@
 >   "Aparece depois". Os números saem das constantes de agosto do `page.tsx`, as mesmas do hero
 >   (`LANCAMENTOS_DE_AGOSTO`; o R$ 0,05 é a diferença do cartão);
 > - a ponte numa faixa de filete dourado: "O Ledgr confere todas as linhas e aponta só as que não
->   batem, com o motivo.", com o botão "Veja como funciona";
+>   batem, com o motivo.", sem botão: Como funciona começa logo abaixo;
 > - "Na prática", a demonstração com as marcas do Ledgr, foi para o fim do Cap. III, depois dos três
 >   passos, como o resultado de "Receba as divergências".
 

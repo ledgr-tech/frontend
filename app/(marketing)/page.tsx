@@ -492,7 +492,7 @@ export default function LandingPage() {
               style={{
                 display: "flex",
                 flexWrap: "wrap",
-                alignItems: "flex-end",
+                alignItems: "center",
                 justifyContent: "space-between",
                 gap: "24px 48px",
                 marginBottom: 42,
