@@ -6,9 +6,9 @@ import { depoimentosDaLanding } from "@/lib/depoimentos";
 import { LogoBarras } from "@/app/(app)/logo-barras";
 import { CabecalhoSite } from "./cabecalho-site";
 import { CATEGORIAS, QUANTAS_CATEGORIAS } from "./categorias";
-import { ExtratoComparacao, type LinhaExtrato } from "./comparacao";
+import { AcheAsDiferencas } from "./ache-as-diferencas";
+import type { LinhaExtrato } from "./comparacao";
 import { Depoimentos } from "./depoimentos";
-import { DicaDoMouse } from "./dica-do-mouse";
 import { InkHover, MotionRoot, Reveal } from "../reveal";
 import { fonteDestaque } from "./fonte-destaque";
 import { PorDentro } from "./por-dentro";
@@ -101,6 +101,14 @@ const TARIFA_BANCO: LinhaExtrato = {
 
 const EXTRATO_BANCO: LinhaExtrato[] = [...TRANSACOES_CASADAS, TARIFA_BANCO, ALUGUEL_BANCO];
 const EXTRATO_SISTEMA: LinhaExtrato[] = [...TRANSACOES_CASADAS, ALUGUEL_SISTEMA];
+
+// O que os próprios números de cada linha divergente dizem, para a revelação do jogo do Cap. II
+const FATOS_DE_AGOSTO: Record<string, string> = {
+  "Pagamento fornecedor #1082": "R$ 36,00 a mais no banco",
+  "Crédito cartão D+30": "R$ 0,05 de diferença",
+  "Tarifa de manutenção da conta": "não está no sistema",
+  "Aluguel sede agosto": "no sistema, 12/08",
+};
 
 const PASSOS = [
   {
@@ -401,8 +409,8 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* o problema, numa seção só: como é feito hoje (a dor, e as duas saídas de sempre), onde o
-          Ledgr entra (a terceira coluna) e, na prática, as mesmas duas telas conferidas por ele */}
+      {/* o problema é só a dor: o texto e o jogo "Ache as diferenças", com as duas folhas de agosto
+          sem as marcas do Ledgr. O Ledgr aparece numa frase-ponte para o Cap. III, no fim do jogo */}
       <section id="problema" className="onda onda-escura">
         <div style={{ maxWidth: 1600, margin: "0 auto", padding: "clamp(64px, 9vw, 96px) clamp(20px, 4.2vw, 56px)" }}>
           <Reveal>
@@ -422,31 +430,14 @@ export default function LandingPage() {
                   lineHeight: 1.75,
                 }}
               >
-                Conferir o extrato do banco contra o extrato do sistema de gestão linha a linha é lento,
-                cansa e deixa passar erro. Quanto maior o volume de lançamentos, pior fica. E o mês
-                fecha sempre no aperto.
+                Todo fim de mês, alguém confere o extrato do banco contra o do sistema de gestão, item por
+                item. É lento, cansa e um erro passa sem ninguém ver. Quanto maior o volume de lançamentos,
+                pior fica, e o mês fecha sempre no aperto.
               </p>
             </InkHover>
           </Reveal>
-          {/* na prática: a demonstração é o resultado do Ledgr (os selos e os motivos são dele), sobre
-              as mesmas duas telas da conferência à mão */}
-          <Reveal className="problema-pratica">
-            <p className="rotulo-parte rotulo-parte-ledgr">Na prática</p>
-            <h3 className="problema-pratica-titulo">As mesmas duas telas, conferidas pelo Ledgr.</h3>
-            <p className="problema-pratica-texto">
-              Os dois extratos de agosto lado a lado, como na conferência à mão. A diferença é que cada
-              linha já vem marcada, e as que não batem vêm com o motivo.
-            </p>
-          </Reveal>
           <Reveal delay={0.1}>
-            <ExtratoComparacao banco={EXTRATO_BANCO} sistema={EXTRATO_SISTEMA} />
-          </Reveal>
-          <Reveal delay={0.15}>
-            {/* dica de hover: as linhas divergentes do comparativo abrem detalhes */}
-            <DicaDoMouse style={{ justifyContent: "center", margin: "22px 0 0" }}>
-              <span className="so-mouse">Passe o mouse sobre as linhas</span>
-              <span className="so-toque">Toque nas linhas</span> para ver os detalhes
-            </DicaDoMouse>
+            <AcheAsDiferencas banco={EXTRATO_BANCO} sistema={EXTRATO_SISTEMA} fatos={FATOS_DE_AGOSTO} />
           </Reveal>
         </div>
       </section>

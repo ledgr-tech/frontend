@@ -541,8 +541,6 @@ p.eyebrow {
   .so-toque { display: inline; }
 }
 /* quem já abriu uma linha da comparação entendeu o hover: o anel some e a rodinha para */
-section:has(.demonstracao-folhas[data-explorado]) .hover-hint-roda { animation: none; }
-section:has(.demonstracao-folhas[data-explorado]) .hover-hint-icone::after { animation: none; opacity: 0; }
 @media (prefers-reduced-motion: reduce) {
   .hover-hint-roda, .hover-hint-icone::after { animation: none; }
 }
@@ -1184,9 +1182,9 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
   background: color-mix(in srgb, var(--color-text) 16%, transparent);
 }
 /* as variáveis que o app declara no .app-shell, no tema claro: a landing não tem tema escuro. Valem
-   para a réplica da janela, para a demonstração de "O problema" e para os cards de Preços, que usam
+   para a réplica da janela, para o jogo de "O problema" e para os cards de Preços, que usam
    as classes do app (e as folhas, no painel da demonstração do card aberto) */
-:is(.vitrine-app, .demonstracao-folhas, .ache, .beneficio) {
+:is(.vitrine-app, .ache, .beneficio) {
   --tinta-hover: color-mix(in srgb, var(--color-text) 6%, transparent);
   --tinta-ativa: color-mix(in srgb, var(--color-text) 9%, transparent);
   --texto-apagado: color-mix(in srgb, var(--color-text) 58%, transparent);
@@ -1252,71 +1250,12 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
 /* O cartão do hover do app aberto sobre o selo da linha, como no app: centrado na coluna do
    status, com a seta apontando para ele (.cartao-no-eixo). No app ele é fixo na tela porque a
    tabela rola de lado; aqui a âncora é a própria célula do status */
-:is(.vitrine-app, .demonstracao-folhas) .cartao-lancamento {
+.vitrine-app .cartao-lancamento {
   --cartao-largura: min(440px, calc(100vw - 32px));
   position: absolute; left: 50%; bottom: calc(100% - 2px);
   width: var(--cartao-largura); margin-left: calc(var(--cartao-largura) / -2); text-align: left;
 }
 .vitrine-app .cartao-lancamento { animation: none; }
-/* a demonstração de "O problema" (comparacao.tsx): a mesma tabela, com o cartão preso à linha
-   como na réplica. Ele sobe ao abrir, menos quando o ponteiro vem direto de outra linha */
-.demonstracao-folhas .table tbody .celula-status { position: relative; }
-.demonstracao-folhas .cartao-lancamento[data-na-hora] { animation: none; }
-/* aberta pelo teclado ou pelo toque, a linha acende como no hover do app */
-@media (min-width: 901px) {
-  .demonstracao-folhas .table tbody tr[data-aberta] { background: color-mix(in srgb, var(--tom-linha) 9%, transparent); }
-  .demonstracao-folhas .table tbody tr[data-aberta] > .folha-banco {
-    background: color-mix(in srgb, var(--tom-linha) 9%, var(--folha-banco));
-  }
-  .demonstracao-folhas .table tbody tr[data-aberta] > .folha-sistema {
-    background: color-mix(in srgb, var(--tom-linha) 9%, var(--folha-sistema));
-  }
-}
-/* abaixo de 900px a linha vira cartão: o cartão do hover abre acima do cartão da linha inteira,
-   a 12px da ponta, não da célula do status; e sem a seta, que não teria para onde apontar */
-@media (max-width: 900px) {
-  .demonstracao-folhas .table tbody tr { position: relative; }
-  .demonstracao-folhas .table tbody .celula-status { position: static; }
-  .demonstracao-folhas .cartao-lancamento { left: auto; right: 12px; margin-left: 0; }
-  .demonstracao-folhas .cartao-no-eixo::after { content: none; }
-  /* no cartão as folhas perdem o tom, e o hover do app pintaria faixas nas células: acende o cartão */
-  .demonstracao-folhas .table tbody tr[data-tom]:hover > :is(.folha-banco, .folha-sistema) { background: transparent; }
-}
-/* no tablet a tabela do app (uns 830px) não cabe na coluna da landing. No app ela rola de lado, com
-   o cartão fixo na tela; numa página que se lê rolando, a demonstração vira cartões já aqui, com as
-   regras do .tabela-cartoes do app, que só valem até 680px (bloco "Tabela em cartões no celular").
-   Dois por linha, que a largura dá */
-@media (min-width: 681px) and (max-width: 900px) {
-  .demonstracao-folhas .table,
-  .demonstracao-folhas .table tr,
-  .demonstracao-folhas .table td { display: block; width: auto; }
-  .demonstracao-folhas .table thead { display: none; }
-  .demonstracao-folhas .table tbody { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-  .demonstracao-folhas .table tr {
-    border: 1px solid var(--color-divider); border-radius: var(--radius-md);
-    padding: 12px 14px; background: var(--color-surface);
-  }
-  .demonstracao-folhas .table td {
-    display: flex; align-items: baseline; justify-content: space-between; gap: 14px;
-    border: 0; padding: 5px 0; text-align: left !important;
-  }
-  .demonstracao-folhas .table td::before {
-    content: attr(data-rotulo); flex: none;
-    font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
-    color: color-mix(in srgb, var(--color-text) 62%, transparent);
-  }
-  .demonstracao-folhas .table td[data-destaque="true"] {
-    display: block; padding-bottom: 8px; margin-bottom: 4px;
-    border-bottom: 1px solid var(--color-divider);
-    font-family: var(--font-heading); font-size: 16px; font-weight: 600;
-  }
-  .demonstracao-folhas .table td[data-destaque="true"]::before { content: none; }
-  .demonstracao-folhas .table :is(td.folha-banco, td.folha-sistema) { background: transparent; }
-  /* como no celular do app: sem colunas, o status sai do eixo e vai ao pé do cartão */
-  .demonstracao-folhas .table colgroup { display: none; }
-  .demonstracao-folhas .folhas-com-eixo tbody tr { display: flex; flex-direction: column; }
-  .demonstracao-folhas .folhas-com-eixo .celula-status { order: 1; }
-}
 /* as redes no rodapé: o círculo com o filete das folhas, e o dourado do Ledgr no hover */
 .rodape-redes { display: flex; gap: 10px; margin: 8px 0 0; padding: 0; list-style: none; }
 .rodape-rede {
@@ -1340,7 +1279,7 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
 
 /* Os rótulos das partes, na monoespaçada dos capítulos, menores que o "Cap. II" para não
    disputarem com ele, com um filete até o fim do grupo: o apagado ("Hoje") e o do Ledgr em dourado.
-   Servem ao jogo do Cap. II ("Tente você"), a "Na prática" e a "Por que o Ledgr" */
+   Servem ao jogo do Cap. II ("Tente você") e a "Por que o Ledgr" */
 .rotulo-parte {
   display: flex; align-items: center; gap: 14px; margin: 0;
   font-family: var(--font-mono); font-size: 12px; font-weight: 500; line-height: 1.2;
@@ -1407,17 +1346,6 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
   }
   .por-que-tabela tbody td.por-que-ledgr::before { color: var(--color-accent-700); }
 }
-
-/* na prática: a apresentação da demonstração, depois da comparação */
-.problema-pratica {
-  display: flex; flex-direction: column; gap: 14px;
-  margin: clamp(64px, 8vw, 104px) 0 30px;
-}
-.problema-pratica-titulo {
-  margin: 4px 0 0; font-family: var(--font-heading);
-  font-size: clamp(22px, 1.9vw, 28px); font-weight: 600; line-height: 1.2; letter-spacing: -0.015em;
-}
-.problema-pratica-texto { margin: 0; max-width: 62ch; font-size: 15.5px; line-height: 1.75; }
 
 /* Ache as diferenças (Cap. II, ache-as-diferencas.tsx): as duas folhas de agosto sem as marcas do
    Ledgr, lado a lado em toda largura (comparar é o jogo; empilhadas, a pessoa rolaria para cima e
@@ -1530,7 +1458,7 @@ button.ache-linha:focus-visible { outline: 2px solid var(--color-accent); outlin
 .preco-dica .hover-hint-texto { color: var(--color-neutral-400); }
 .preco-dica .hover-hint-icone::after, .preco-dica .hover-hint-roda { animation-iteration-count: 3; }
 
-/* "Em todo plano" e "Os planos": rótulo de grupo, como o "Hoje" de "O problema", em dourado claro */
+/* "Em todo plano" e "Os planos": rótulo de grupo, como o "Hoje" de "Por que o Ledgr", em dourado claro */
 .preco-rotulo {
   margin: 0; font-family: var(--font-mono); font-size: 12px; font-weight: 500; line-height: 1.2;
   letter-spacing: 0.14em; text-transform: uppercase; color: var(--color-accent-300);
@@ -2359,14 +2287,14 @@ button.ache-linha:focus-visible { outline: 2px solid var(--color-accent); outlin
    olho pequeno, não aguentava o corpo de título de tela. Só do tamanho de
    título para cima: lista, tabela e botão seguem em Inter. Algarismos
    alinhados: os de estilo antigo sobem e descem, e em valor isso atrapalha. */
-:is(.app-shell, .vitrine-app, .demonstracao-folhas) :is(h1, h2, h3),
-:is(.app-shell, .vitrine-app, .demonstracao-folhas) :is(.dash-valor, .hist-destaque, .det-valor, .det-delta-valor, .vg-estado-aberto, .folha-nome, .det-cartao-titulo, .det-causa-titulo, .dialog-title),
+:is(.app-shell, .vitrine-app) :is(h1, h2, h3),
+:is(.app-shell, .vitrine-app) :is(.dash-valor, .hist-destaque, .det-valor, .det-delta-valor, .vg-estado-aberto, .folha-nome, .det-cartao-titulo, .det-causa-titulo, .dialog-title),
 .font-titulo {
   font-family: var(--font-titulo); font-variant-numeric: lining-nums tabular-nums;
 }
 /* título de passo tem 18px: fica na Inter, como o resto do texto corrido */
 .app-shell .vg-passo-titulo { font-family: var(--font-heading); }
-:is(.app-shell, .vitrine-app, .demonstracao-folhas) h6 { color: var(--texto-apagado); }
+:is(.app-shell, .vitrine-app) h6 { color: var(--texto-apagado); }
 /* Rótulo pequeno em caixa alta: o "lançamentos processados" em cima do número, o "atual" do plano,
    o "assistente" do menu. Uma régua só, com o espaçamento do h6 do guia (+0,08em); o h6, em 14px, é
    o rótulo de seção, e o cabeçalho de tabela fica nos 11px dele, junto com a tabela. */

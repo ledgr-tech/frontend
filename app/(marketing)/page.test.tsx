@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { PLANOS } from "@/lib/planos";
+import { PONTE } from "./ache-as-diferencas";
 import { fonteDestaque } from "./fonte-destaque";
 import LandingPage from "./page";
 
@@ -90,12 +91,10 @@ describe("LandingPage", () => {
     expect(container.querySelector("main")!.className).toContain(fonteDestaque.variable);
   });
 
-  it("keeps the sticky header above the hover cards of the page", () => {
+  it("keeps the sticky header above the app card in Por dentro", () => {
     const { container } = render(<LandingPage />);
-    fireEvent.mouseEnter(screen.getByRole("button", { name: "Pagamento fornecedor #1082" }));
-
-    // o cartão do hover é o do app (.cartao-lancamento, z-index 20 no globals.css)
-    expect(within(document.getElementById("problema")!).getByRole("tooltip")).toHaveClass("cartao-lancamento");
+    // o cartão do app aberto na janela de Por dentro (.cartao-lancamento, z-index 20 no globals.css)
+    expect(document.querySelector("#por-dentro .cartao-lancamento")).not.toBeNull();
     expect(Number(container.querySelector("header")!.style.zIndex)).toBeGreaterThan(20);
   });
 
@@ -280,34 +279,70 @@ describe("LandingPage", () => {
     expect(screen.getByText(/o cartão dela aberto com o motivo da diferença/)).toBeInTheDocument();
   });
 
-  // a demonstração banco × sistema; "Por dentro do Ledgr" repete alguns destes valores
-  const demonstracao = () => within(document.getElementById("problema")!);
+  describe("the problem, as a game of finding the differences", () => {
+    const problema = () => document.getElementById("problema")!;
+    const revelar = () => fireEvent.click(within(problema()).getByRole("button", { name: "Ver o que passou" }));
 
-  it("shows the bank vs. system statement comparison with a mismatch", () => {
-    render(<LandingPage />);
-    expect(demonstracao().getByText("R$ 12.640,00")).toBeInTheDocument();
-    expect(demonstracao().getByText("R$ 12.604,00")).toBeInTheDocument();
-  });
+    it("tells the pain first: slow, tiring, and errors slip through", () => {
+      render(<LandingPage />);
+      expect(
+        within(problema()).getByText(
+          "Todo fim de mês, alguém confere o extrato do banco contra o do sistema de gestão, item por item. É lento, cansa e um erro passa sem ninguém ver. Quanto maior o volume de lançamentos, pior fica, e o mês fecha sempre no aperto.",
+        ),
+      ).toBeInTheDocument();
+    });
 
-  it("names each line's status with the same labels the app uses", () => {
-    render(<LandingPage />);
-    // uma linha por par, como no app: o selo aparece uma vez, na coluna de status
-    expect(demonstracao().getAllByText("Match exato")).toHaveLength(1);
-    expect(demonstracao().getAllByText("Valor diverge na mesma data")).toHaveLength(2);
-    expect(demonstracao().getAllByText("Mesmo valor em outra data")).toHaveLength(1);
-    // a tarifa só do lado do banco é a categoria própria do motor, não uma sobra qualquer
-    expect(demonstracao().getByText("Tarifa bancária")).toBeInTheDocument();
-  });
+    it("puts the game right under the pain, and only the pain", () => {
+      render(<LandingPage />);
+      const titulo = within(problema()).getByRole("heading", { level: 2, name: "Duas telas abertas, um dedo em cada linha." });
+      const jogo = problema().querySelector(".ache")!;
+      expect(titulo.compareDocumentPosition(jogo) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(within(problema()).queryByText("Na prática")).not.toBeInTheDocument();
+      expect(within(problema()).queryByRole("tooltip")).not.toBeInTheDocument();
+      expect(problema().querySelector("table")).toBeNull();
+      expect(problema().querySelector(".demonstracao-folhas")).toBeNull();
+      expect(problema().nextElementSibling).toBe(document.getElementById("como"));
+    });
 
-  it("draws the demo with the same two-sheet table as the app window in Por dentro", () => {
-    render(<LandingPage />);
-    const titulos = (raiz: Element) => raiz.querySelector(".tabela-folhas .folhas-titulos")!.textContent;
-    const vitrine = document.querySelector("#por-dentro .vitrine-app")!;
-    expect(titulos(document.getElementById("problema")!)).toBe(titulos(vitrine));
-    // as mesmas cinco linhas de agosto, na mesma ordem
-    const descricoes = (raiz: Element) =>
-      [...raiz.querySelectorAll(".tabela-folhas tbody tr")].map((linha) => linha.querySelector("td:nth-child(2)")!.textContent);
-    expect(descricoes(document.getElementById("problema")!)).toEqual(descricoes(vitrine));
+    it("plays with the same August lines as Por dentro", () => {
+      render(<LandingPage />);
+      const vitrine = [...document.querySelectorAll("#por-dentro .vitrine-app .tabela-folhas tbody tr")].map(
+        (linha) => `${linha.querySelector("td:nth-child(1)")!.textContent}, ${linha.querySelector("td:nth-child(2)")!.textContent}, `,
+      );
+      const banco = within(within(problema()).getByRole("list", { name: "Extrato do banco" })).getAllByRole("button");
+      expect(banco).toHaveLength(vitrine.length);
+      banco.forEach((botao, i) => expect(botao.getAttribute("aria-label")!.startsWith(vitrine[i])).toBe(true));
+      const sistema = within(within(problema()).getByRole("list", { name: "Sistema de gestão" })).getAllByRole("listitem");
+      expect(sistema).toHaveLength(4);
+      expect(sistema.some((item) => item.textContent!.includes("R$ 12.604,00"))).toBe(true);
+    });
+
+    it("says how many lines and differences there are", () => {
+      render(<LandingPage />);
+      expect(within(problema()).getByText("Cinco lançamentos de agosto. Marque os do banco que não batem com o sistema.")).toBeInTheDocument();
+      revelar();
+      expect(within(problema()).getByText("Você não marcou nenhuma: passaram as 4.")).toBeInTheDocument();
+    });
+
+    it("reveals every difference with the app's label and the fact", () => {
+      render(<LandingPage />);
+      revelar();
+      for (const nota of [
+        "Passou. Valor diverge · R$ 36,00 a mais no banco",
+        "Passou. Valor diverge · R$ 0,05 de diferença",
+        "Passou. Tarifa · não está no sistema",
+        "Passou. Data diverge · no sistema, 12/08",
+      ]) {
+        expect(within(problema()).getByText(nota)).toBeInTheDocument();
+      }
+    });
+
+    it("bridges to Como funciona after the reveal", () => {
+      render(<LandingPage />);
+      revelar();
+      expect(within(problema()).getByText(PONTE)).toBeInTheDocument();
+      expect(within(problema()).getByRole("link", { name: "Ver como funciona" })).toHaveAttribute("href", "#como");
+    });
   });
 
   it("lists the five categories by the app's names, once, in the third step", () => {
@@ -317,36 +352,6 @@ describe("LandingPage", () => {
     expect(screen.getByText(`Relatório nas 5 categorias: ${lista}.`)).toBeInTheDocument();
     // o convite que repetia a lista (e o resto da página) saiu
     expect(screen.queryByText(/Cada divergência vem com o nome da categoria/)).not.toBeInTheDocument();
-  });
-
-  it("explains the divergence when hovering a mismatched line", () => {
-    render(<LandingPage />);
-
-    fireEvent.mouseEnter(screen.getAllByRole("button", { name: /Pagamento fornecedor #1082/ })[0]);
-
-    expect(demonstracao().getByText(/juros por atraso/)).toBeInTheDocument();
-  });
-
-  it("tells mouse users to hover and touch users to tap the comparison lines", () => {
-    render(<LandingPage />);
-    expect(screen.getByText("Passe o mouse sobre as linhas")).toHaveClass("so-mouse");
-    expect(screen.getByText("Toque nas linhas")).toHaveClass("so-toque");
-  });
-
-  it("does not treat a matched line as clickable", () => {
-    render(<LandingPage />);
-
-    expect(screen.queryByRole("button", { name: /Recebimento cliente Alfa Comércio/ })).not.toBeInTheDocument();
-  });
-
-  it("hides the divergence details when the mouse leaves the line", async () => {
-    render(<LandingPage />);
-    const linha = screen.getAllByRole("button", { name: /Pagamento fornecedor #1082/ })[0];
-    fireEvent.mouseEnter(linha);
-
-    fireEvent.mouseLeave(linha);
-
-    await waitFor(() => expect(demonstracao().queryByText(/juros por atraso/)).not.toBeInTheDocument());
   });
 
   it("lists the three how-it-works steps", () => {
