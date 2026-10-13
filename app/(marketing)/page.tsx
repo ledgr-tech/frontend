@@ -7,6 +7,7 @@ import { LogoBarras } from "@/app/(app)/logo-barras";
 import { CabecalhoSite } from "./cabecalho-site";
 import { CATEGORIAS, QUANTAS_CATEGORIAS } from "./categorias";
 import { ExtratoComparacao, type LinhaExtrato } from "./comparacao";
+import { ConferenciaAMao, type Dor } from "./conferencia-a-mao";
 import { Depoimentos } from "./depoimentos";
 import { DicaDoMouse } from "./dica-do-mouse";
 import { InkHover, MotionRoot, Reveal } from "../reveal";
@@ -18,7 +19,13 @@ import { RedesSociais } from "./redes-sociais";
 
 // O agosto da demonstração: o cartão do hero e o relatório do último card de Preços mostram o
 // mesmo mês, com os mesmos números
-const AGOSTO: ResumoDoMes = { periodo: "Agosto · 2026", conciliado: "96,3%", paraRevisar: "157 de 4.218 para revisar" };
+// quantos lançamentos o extrato do banco tem no agosto do exemplo: a escala do Cap. II e do hero
+const LANCAMENTOS_DE_AGOSTO = 4218;
+const AGOSTO: ResumoDoMes = {
+  periodo: "Agosto · 2026",
+  conciliado: "96,3%",
+  paraRevisar: `157 de ${LANCAMENTOS_DE_AGOSTO.toLocaleString("pt-BR")} para revisar`,
+};
 
 // A faixa logo abaixo do hero, só com o que é quantidade, e por extenso: algarismo solto em
 // tamanho grande ficava com cara de letra. Abre com o argumento central do pitch (não trocar de
@@ -101,6 +108,26 @@ const TARIFA_BANCO: LinhaExtrato = {
 
 const EXTRATO_BANCO: LinhaExtrato[] = [...TRANSACOES_CASADAS, TARIFA_BANCO, ALUGUEL_BANCO];
 const EXTRATO_SISTEMA: LinhaExtrato[] = [...TRANSACOES_CASADAS, ALUGUEL_SISTEMA];
+
+// As três dores do Cap. II, uma por número nas telas, com os números dos próprios lançamentos: a
+// escala do mês, os cinco centavos do cartão e a tarifa que só o banco tem
+const CARTAO = TRANSACOES_CASADAS[2];
+const DORES: Dor[] = [
+  {
+    titulo: "Horas que não voltam",
+    texto: `Cada linha do banco é procurada no sistema, uma a uma. No agosto do exemplo, são ${LANCAMENTOS_DE_AGOSTO.toLocaleString("pt-BR")}.`,
+  },
+  {
+    titulo: "O olho cansa",
+    texto: `Depois da centésima linha, ${CARTAO.valorBanco} e ${CARTAO.valorSistema} parecem o mesmo número.`,
+    linha: CARTAO.desc,
+  },
+  {
+    titulo: "O que passa aparece depois",
+    texto: `A tarifa de ${TARIFA_BANCO.valorBanco} que ninguém lançou só aparece quando o saldo não fecha.`,
+    linha: TARIFA_BANCO.desc,
+  },
+];
 
 const PASSOS = [
   {
@@ -401,8 +428,8 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* o problema, numa seção só: como é feito hoje (a dor, e as duas saídas de sempre), onde o
-          Ledgr entra (a terceira coluna) e, na prática, as mesmas duas telas conferidas por ele */}
+      {/* o problema é só a dor: as duas telas de agosto como chegam à mão, as três dores numeradas
+          nelas, e uma frase-ponte para o Cap. III, onde o Ledgr aparece conferindo as mesmas telas */}
       <section id="problema" className="onda onda-escura">
         <div style={{ maxWidth: 1600, margin: "0 auto", padding: "clamp(64px, 9vw, 96px) clamp(20px, 4.2vw, 56px)" }}>
           <Reveal>
@@ -422,31 +449,12 @@ export default function LandingPage() {
                   lineHeight: 1.75,
                 }}
               >
-                Conferir o extrato do banco contra o extrato do sistema de gestão linha a linha é lento,
-                cansa e deixa passar erro. Quanto maior o volume de lançamentos, pior fica. E o mês
-                fecha sempre no aperto.
+                Assim é o fechamento de agosto à mão: o extrato do banco de um lado, o do sistema do outro.
               </p>
             </InkHover>
           </Reveal>
-          {/* na prática: a demonstração é o resultado do Ledgr (os selos e os motivos são dele), sobre
-              as mesmas duas telas da conferência à mão */}
-          <Reveal className="problema-pratica">
-            <p className="rotulo-parte rotulo-parte-ledgr">Na prática</p>
-            <h3 className="problema-pratica-titulo">As mesmas duas telas, conferidas pelo Ledgr.</h3>
-            <p className="problema-pratica-texto">
-              Os dois extratos de agosto lado a lado, como na conferência à mão. A diferença é que cada
-              linha já vem marcada, e as que não batem vêm com o motivo.
-            </p>
-          </Reveal>
           <Reveal delay={0.1}>
-            <ExtratoComparacao banco={EXTRATO_BANCO} sistema={EXTRATO_SISTEMA} />
-          </Reveal>
-          <Reveal delay={0.15}>
-            {/* dica de hover: as linhas divergentes do comparativo abrem detalhes */}
-            <DicaDoMouse style={{ justifyContent: "center", margin: "22px 0 0" }}>
-              <span className="so-mouse">Passe o mouse sobre as linhas</span>
-              <span className="so-toque">Toque nas linhas</span> para ver os detalhes
-            </DicaDoMouse>
+            <ConferenciaAMao banco={EXTRATO_BANCO} sistema={EXTRATO_SISTEMA} total={LANCAMENTOS_DE_AGOSTO} dores={DORES} />
           </Reveal>
         </div>
       </section>
@@ -530,6 +538,26 @@ export default function LandingPage() {
               </Reveal>
             ))}
           </div>
+          {/* na prática: o resultado do terceiro passo, as mesmas duas telas do Cap. II, agora
+              conferidas pelo Ledgr (os selos e os motivos são dele) */}
+          <Reveal className="pratica">
+            <p className="rotulo-parte rotulo-parte-ledgr">Na prática</p>
+            <h3 className="pratica-titulo">As mesmas duas telas, conferidas pelo Ledgr.</h3>
+            <p className="pratica-texto">
+              Os dois extratos de agosto lado a lado, como na conferência à mão. A diferença é que cada
+              linha já vem marcada, e as que não batem vêm com o motivo.
+            </p>
+          </Reveal>
+          <Reveal delay={0.1}>
+            <ExtratoComparacao banco={EXTRATO_BANCO} sistema={EXTRATO_SISTEMA} />
+          </Reveal>
+          <Reveal delay={0.15}>
+            {/* dica de hover: as linhas divergentes do comparativo abrem detalhes */}
+            <DicaDoMouse style={{ justifyContent: "center", margin: "22px 0 0" }}>
+              <span className="so-mouse">Passe o mouse sobre as linhas</span>
+              <span className="so-toque">Toque nas linhas</span> para ver os detalhes
+            </DicaDoMouse>
+          </Reveal>
         </div>
       </section>
 

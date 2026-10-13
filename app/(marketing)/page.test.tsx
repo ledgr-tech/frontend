@@ -95,7 +95,7 @@ describe("LandingPage", () => {
     fireEvent.mouseEnter(screen.getByRole("button", { name: "Pagamento fornecedor #1082" }));
 
     // o cartão do hover é o do app (.cartao-lancamento, z-index 20 no globals.css)
-    expect(within(document.getElementById("problema")!).getByRole("tooltip")).toHaveClass("cartao-lancamento");
+    expect(within(document.getElementById("como")!).getByRole("tooltip")).toHaveClass("cartao-lancamento");
     expect(Number(container.querySelector("header")!.style.zIndex)).toBeGreaterThan(20);
   });
 
@@ -280,8 +280,71 @@ describe("LandingPage", () => {
     expect(screen.getByText(/o cartão dela aberto com o motivo da diferença/)).toBeInTheDocument();
   });
 
-  // a demonstração banco × sistema; "Por dentro do Ledgr" repete alguns destes valores
-  const demonstracao = () => within(document.getElementById("problema")!);
+  describe("the problem, read as the closing done by hand", () => {
+    const problema = () => document.getElementById("problema")!;
+    const lista = (nome: string) => within(within(problema()).getByRole("list", { name: nome })).getAllByRole("listitem");
+    const linha = (nome: string, texto: string) => lista(nome).find((item) => item.textContent!.includes(texto))!;
+    const marca = (item: HTMLElement) => item.querySelector(".mao-marca")?.textContent;
+
+    it("opens with the closing of August as it is done by hand", () => {
+      render(<LandingPage />);
+      expect(
+        within(problema()).getByText("Assim é o fechamento de agosto à mão: o extrato do banco de um lado, o do sistema do outro."),
+      ).toBeInTheDocument();
+    });
+
+    it("shows the two statements as they come, without the Ledgr's marks", () => {
+      render(<LandingPage />);
+      // as cinco linhas de agosto e a escala do mês, a mesma do cartão do hero
+      expect(lista("Extrato do banco")).toHaveLength(6);
+      expect(linha("Extrato do banco", "mais 4.213 lançamentos")).toBeInTheDocument();
+      expect(lista("Sistema de gestão").some((item) => item.textContent!.includes("R$ 12.604,00"))).toBe(true);
+      expect(within(problema()).queryByText("Valor diverge")).not.toBeInTheDocument();
+      expect(within(problema()).queryByRole("tooltip")).not.toBeInTheDocument();
+      expect(problema().querySelector(".demonstracao-folhas")).toBeNull();
+    });
+
+    it("numbers the lines behind each pain", () => {
+      render(<LandingPage />);
+      expect(marca(linha("Extrato do banco", "mais 4.213 lançamentos"))).toBe("1");
+      expect(marca(linha("Extrato do banco", "Crédito cartão D+30"))).toBe("2");
+      expect(marca(linha("Sistema de gestão", "Crédito cartão D+30"))).toBe("2");
+      expect(marca(linha("Extrato do banco", "Tarifa de manutenção da conta"))).toBe("3");
+      expect(marca(linha("Extrato do banco", "Pagamento fornecedor #1082"))).toBeUndefined();
+    });
+
+    it("names three pains, each with the August numbers", () => {
+      render(<LandingPage />);
+      const dores = within(problema()).getByRole("list", { name: "O que custa conferir à mão" });
+      expect(within(dores).getAllByRole("heading", { level: 3 }).map((titulo) => titulo.textContent)).toEqual([
+        "Horas que não voltam",
+        "O olho cansa",
+        "O que passa aparece depois",
+      ]);
+      expect(within(dores).getByText("Cada linha do banco é procurada no sistema, uma a uma. No agosto do exemplo, são 4.218.")).toBeInTheDocument();
+      expect(within(dores).getByText("Depois da centésima linha, R$ 7.912,45 e R$ 7.912,40 parecem o mesmo número.")).toBeInTheDocument();
+      expect(within(dores).getByText("A tarifa de R$ 45,00 que ninguém lançou só aparece quando o saldo não fecha.")).toBeInTheDocument();
+    });
+
+    it("bridges to Como funciona in one sentence", () => {
+      render(<LandingPage />);
+      expect(within(problema()).getByText(/^O Ledgr confere todas as linhas e aponta só as que não batem, com o motivo\./)).toBeInTheDocument();
+      expect(within(problema()).getByRole("link", { name: "Veja como funciona" })).toHaveAttribute("href", "#como");
+      expect(problema().nextElementSibling).toBe(document.getElementById("como"));
+    });
+  });
+
+  it("shows the Ledgr's result at the end of Como funciona, after the three steps", () => {
+    render(<LandingPage />);
+    const como = document.getElementById("como")!;
+    const terceiro = within(como).getByText("Receba as divergências");
+    const pratica = within(como).getByRole("heading", { level: 3, name: "As mesmas duas telas, conferidas pelo Ledgr." });
+    expect(terceiro.compareDocumentPosition(pratica) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(pratica.compareDocumentPosition(como.querySelector(".demonstracao-folhas")!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  // a demonstração banco × sistema, no fim de Como funciona; "Por dentro do Ledgr" repete alguns destes valores
+  const demonstracao = () => within(document.getElementById("como")!);
 
   it("shows the bank vs. system statement comparison with a mismatch", () => {
     render(<LandingPage />);
@@ -303,11 +366,11 @@ describe("LandingPage", () => {
     render(<LandingPage />);
     const titulos = (raiz: Element) => raiz.querySelector(".tabela-folhas .folhas-titulos")!.textContent;
     const vitrine = document.querySelector("#por-dentro .vitrine-app")!;
-    expect(titulos(document.getElementById("problema")!)).toBe(titulos(vitrine));
+    expect(titulos(document.getElementById("como")!)).toBe(titulos(vitrine));
     // as mesmas cinco linhas de agosto, na mesma ordem
     const descricoes = (raiz: Element) =>
       [...raiz.querySelectorAll(".tabela-folhas tbody tr")].map((linha) => linha.querySelector("td:nth-child(2)")!.textContent);
-    expect(descricoes(document.getElementById("problema")!)).toEqual(descricoes(vitrine));
+    expect(descricoes(document.getElementById("como")!)).toEqual(descricoes(vitrine));
   });
 
   it("lists the five categories by the app's names, once, in the third step", () => {

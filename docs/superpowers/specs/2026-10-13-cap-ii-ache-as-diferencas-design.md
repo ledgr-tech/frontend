@@ -2,9 +2,20 @@
 
 > **Revisão de 13/10/2026, depois de ver no navegador:** o jogo "Ache as diferenças" saiu. A landing
 > é uma página de leitura, e um jogo pede uma interação que ninguém veio fazer. **Vale desta spec só a
-> seção "Por que o Ledgr"** (a comparação numa tabela, entre "Por dentro" e "Regra de ouro"). O Cap. II
-> fica como antes do jogo: o texto da dor e "Na prática", agora sem a comparação. O novo desenho do
-> Cap. II, para mostrar a dor só com leitura, ainda vai ser decidido.
+> seção "Por que o Ledgr"** (a comparação numa tabela, entre "Por dentro" e "Regra de ouro"). O Cap. II,
+> para mostrar a dor só com leitura, ficou assim (aprovado no chat em 13/10, a partir da Ramp, que
+> mostra o jeito velho como ele é, e do Pilot, que fala a dor na voz de quem lê):
+>
+> - as duas telas de agosto como chegam à mão, sem a coluna do status, com "… mais 4.213 lançamentos"
+>   no fim do banco (`conferencia-a-mao.tsx`);
+> - três dores numeradas, com o número na margem da linha por trás de cada uma: "Horas que não voltam"
+>   (a escala, 4.218 lançamentos), "O olho cansa" (R$ 7.912,45 e R$ 7.912,40) e "O que passa aparece
+>   depois" (a tarifa de R$ 45,00). Os números saem das constantes de agosto do `page.tsx`, as mesmas
+>   do hero (`LANCAMENTOS_DE_AGOSTO`);
+> - a ponte "O Ledgr confere todas as linhas e aponta só as que não batem, com o motivo.", com o link
+>   "Veja como funciona";
+> - "Na prática", a demonstração com as marcas do Ledgr, foi para o fim do Cap. III, depois dos três
+>   passos, como o resultado de "Receba as divergências".
 
 ## Contexto
 
