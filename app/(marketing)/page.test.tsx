@@ -313,23 +313,32 @@ describe("LandingPage", () => {
       expect(marca(linha("Extrato do banco", "Pagamento fornecedor #1082"))).toBeUndefined();
     });
 
-    it("names three pains, each with the August numbers", () => {
+    it("names three pains, each led by its August number", () => {
       render(<LandingPage />);
-      const dores = within(problema()).getByRole("list", { name: "O que custa conferir à mão" });
-      expect(within(dores).getAllByRole("heading", { level: 3 }).map((titulo) => titulo.textContent)).toEqual([
+      const dores = within(problema()).getAllByRole("listitem").filter((item) => item.classList.contains("mao-dor"));
+      expect(dores.map((dor) => dor.querySelector(".mao-dor-rotulo")!.textContent)).toEqual(["Tempo", "Erro humano", "O que passa"]);
+      // o número de cada dor sai dos próprios lançamentos: a escala do hero, a diferença do cartão, a tarifa
+      expect(dores.map((dor) => dor.querySelector(".mao-dor-numero")!.textContent)).toEqual(["4.218 linhas", "R$ 0,05", "R$ 45,00"]);
+      expect(dores.map((dor) => within(dor).getByRole("heading", { level: 3 }).textContent)).toEqual([
         "Horas que não voltam",
         "O olho cansa",
-        "O que passa aparece depois",
+        "Aparece depois",
       ]);
-      expect(within(dores).getByText("Cada linha do banco é procurada no sistema, uma a uma. No agosto do exemplo, são 4.218.")).toBeInTheDocument();
-      expect(within(dores).getByText("Depois da centésima linha, R$ 7.912,45 e R$ 7.912,40 parecem o mesmo número.")).toBeInTheDocument();
-      expect(within(dores).getByText("A tarifa de R$ 45,00 que ninguém lançou só aparece quando o saldo não fecha.")).toBeInTheDocument();
+      expect(dores.map((dor) => dor.querySelector(".mao-dor-texto")!.textContent)).toEqual([
+        "Cada linha do banco é procurada no sistema, uma a uma, todo mês.",
+        "Depois da centésima linha, R$ 7.912,45 e R$ 7.912,40 parecem o mesmo número.",
+        "A tarifa que ninguém lançou só aparece quando o saldo não fecha.",
+      ]);
     });
 
-    it("bridges to Como funciona in one sentence", () => {
+    it("bridges to Como funciona in a band with one button", () => {
       render(<LandingPage />);
-      expect(within(problema()).getByText(/^O Ledgr confere todas as linhas e aponta só as que não batem, com o motivo\./)).toBeInTheDocument();
-      expect(within(problema()).getByRole("link", { name: "Veja como funciona" })).toHaveAttribute("href", "#como");
+      const ponte = problema().querySelector(".mao-ponte")!;
+      expect(ponte.querySelector("p")!.textContent).toBe("O Ledgr confere todas as linhas e aponta só as que não batem, com o motivo.");
+      expect(ponte.querySelector("p em")!.textContent).toBe("O Ledgr confere todas as linhas");
+      const botao = within(ponte as HTMLElement).getByRole("link", { name: "Veja como funciona" });
+      expect(botao).toHaveAttribute("href", "#como");
+      expect(botao).toHaveClass("btn", "btn-primary");
       expect(problema().nextElementSibling).toBe(document.getElementById("como"));
     });
   });

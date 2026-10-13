@@ -110,21 +110,34 @@ const EXTRATO_BANCO: LinhaExtrato[] = [...TRANSACOES_CASADAS, TARIFA_BANCO, ALUG
 const EXTRATO_SISTEMA: LinhaExtrato[] = [...TRANSACOES_CASADAS, ALUGUEL_SISTEMA];
 
 // As três dores do Cap. II, uma por número nas telas, com os números dos próprios lançamentos: a
-// escala do mês, os cinco centavos do cartão e a tarifa que só o banco tem
+// escala do mês (a mesma do hero), os cinco centavos do cartão e a tarifa que só o banco tem
 const CARTAO = TRANSACOES_CASADAS[2];
+const emReais = (valor: string) => Number(valor.replace(/[^\d,]/g, "").replace(",", "."));
+// no formato dos outros valores da página ("R$ 0,05", com espaço comum: o Intl poria um não separável)
+const DIFERENCA_DO_CARTAO = `R$ ${(emReais(CARTAO.valorBanco!) - emReais(CARTAO.valorSistema!)).toLocaleString("pt-BR", {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+})}`;
 const DORES: Dor[] = [
   {
+    rotulo: "Tempo",
+    numero: LANCAMENTOS_DE_AGOSTO.toLocaleString("pt-BR"),
+    unidade: "linhas",
     titulo: "Horas que não voltam",
-    texto: `Cada linha do banco é procurada no sistema, uma a uma. No agosto do exemplo, são ${LANCAMENTOS_DE_AGOSTO.toLocaleString("pt-BR")}.`,
+    texto: "Cada linha do banco é procurada no sistema, uma a uma, todo mês.",
   },
   {
+    rotulo: "Erro humano",
+    numero: DIFERENCA_DO_CARTAO,
     titulo: "O olho cansa",
     texto: `Depois da centésima linha, ${CARTAO.valorBanco} e ${CARTAO.valorSistema} parecem o mesmo número.`,
     linha: CARTAO.desc,
   },
   {
-    titulo: "O que passa aparece depois",
-    texto: `A tarifa de ${TARIFA_BANCO.valorBanco} que ninguém lançou só aparece quando o saldo não fecha.`,
+    rotulo: "O que passa",
+    numero: TARIFA_BANCO.valorBanco!,
+    titulo: "Aparece depois",
+    texto: "A tarifa que ninguém lançou só aparece quando o saldo não fecha.",
     linha: TARIFA_BANCO.desc,
   },
 ];

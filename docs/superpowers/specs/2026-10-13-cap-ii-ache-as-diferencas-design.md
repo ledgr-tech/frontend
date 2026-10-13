@@ -8,12 +8,13 @@
 >
 > - as duas telas de agosto como chegam à mão, sem a coluna do status, com "… mais 4.213 lançamentos"
 >   no fim do banco (`conferencia-a-mao.tsx`);
-> - três dores numeradas, com o número na margem da linha por trás de cada uma: "Horas que não voltam"
->   (a escala, 4.218 lançamentos), "O olho cansa" (R$ 7.912,45 e R$ 7.912,40) e "O que passa aparece
->   depois" (a tarifa de R$ 45,00). Os números saem das constantes de agosto do `page.tsx`, as mesmas
->   do hero (`LANCAMENTOS_DE_AGOSTO`);
-> - a ponte "O Ledgr confere todas as linhas e aponta só as que não batem, com o motivo.", com o link
->   "Veja como funciona";
+> - três dores numeradas, com o círculo na margem da linha por trás de cada uma, cada dor aberta pelo
+>   seu número em destaque (padrão de número em destaque, como Stripe e Ramp): Tempo, "4.218 linhas",
+>   "Horas que não voltam"; Erro humano, "R$ 0,05", "O olho cansa"; O que passa, "R$ 45,00",
+>   "Aparece depois". Os números saem das constantes de agosto do `page.tsx`, as mesmas do hero
+>   (`LANCAMENTOS_DE_AGOSTO`; o R$ 0,05 é a diferença do cartão);
+> - a ponte numa faixa de filete dourado: "O Ledgr confere todas as linhas e aponta só as que não
+>   batem, com o motivo.", com o botão "Veja como funciona";
 > - "Na prática", a demonstração com as marcas do Ledgr, foi para o fim do Cap. III, depois dos três
 >   passos, como o resultado de "Receba as divergências".
 

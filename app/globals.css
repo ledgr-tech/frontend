@@ -1434,13 +1434,27 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
   border: 1px solid var(--color-accent); color: var(--color-accent-700);
   font-size: 12px; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums;
 }
-.mao-dores { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; margin: 0; padding: 0; list-style: none; }
-.mao-dor { display: flex; flex-direction: column; gap: 8px; }
-.mao-dor-topo { display: flex; align-items: center; gap: 10px; }
-.mao-dor-titulo { margin: 0; font-family: var(--font-heading); font-size: 19px; font-weight: 600; line-height: 1.3; }
-.mao-dor-texto { margin: 0; max-width: 46ch; font-size: 15.5px; line-height: 1.7; color: color-mix(in srgb, var(--color-text) 78%, transparent); }
-.mao-ponte { margin: 0; max-width: 70ch; font-size: 15.5px; line-height: 1.7; }
-.mao-ponte a { color: var(--color-accent-700); font-weight: 600; text-underline-offset: 3px; white-space: nowrap; }
+/* as dores, cada uma aberta pelo número que a mostra, grande, na fonte de destaque da landing (a da
+   faixa de números), sob um filete dourado; o círculo é o mesmo das linhas nas telas */
+.mao-dores { display: grid; grid-template-columns: minmax(0, 1fr); gap: 28px; margin: 0; padding: 0; list-style: none; }
+.mao-dor { display: flex; flex-direction: column; padding-top: 16px; border-top: 1px solid var(--color-accent); }
+.mao-dor-topo { display: flex; align-items: center; gap: 8px; }
+.mao-dor-rotulo {
+  margin: 0; font-family: var(--font-mono); font-size: 12px; font-weight: 500; line-height: 1.2;
+  letter-spacing: 0.14em; text-transform: uppercase; color: var(--color-accent-700);
+}
+.mao-dor-numero { margin: 14px 0 12px; font-size: clamp(40px, 3.6vw, 52px); font-weight: 400; line-height: 1; }
+.mao-dor-unidade { font-family: var(--font-body); font-size: 17px; color: color-mix(in srgb, var(--color-text) 60%, transparent); }
+.mao-dor-titulo { margin: 0 0 6px; font-family: var(--font-heading); font-size: 18px; font-weight: 600; line-height: 1.3; }
+.mao-dor-texto { margin: 0; max-width: 42ch; font-size: 15px; line-height: 1.7; color: color-mix(in srgb, var(--color-text) 72%, transparent); }
+/* a ponte: uma faixa de filete dourado, a frase com o começo em itálico e o botão para o Cap. III */
+.mao-ponte {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px 32px; flex-wrap: wrap;
+  padding: 20px 24px; border: 1px solid var(--color-accent); border-radius: var(--radius-md);
+}
+.mao-ponte p { flex: 1 1 340px; margin: 0; font-size: 15.5px; line-height: 1.6; }
+.mao-ponte em { font-family: var(--font-destaque-family), var(--font-display), serif; font-size: 1.3em; font-style: italic; font-weight: 500; }
+.mao-ponte .btn { flex: none; white-space: nowrap; }
 @media (min-width: 760px) {
   .mao-dores { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 32px; }
 }

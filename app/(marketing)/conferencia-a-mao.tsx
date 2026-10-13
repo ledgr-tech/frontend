@@ -1,8 +1,11 @@
 import { IconeOrigem } from "@/app/(app)/icone-origem";
 import type { LinhaExtrato } from "./comparacao";
 
-/** Uma dor do fechamento à mão. Com `linha`, o número dela marca essa linha nas duas telas; sem, marca a escala do mês. */
-export type Dor = { titulo: string; texto: string; linha?: string };
+/**
+ * Uma dor do fechamento à mão, aberta pelo número que a mostra (`numero`, com `unidade` menor ao
+ * lado). Com `linha`, o círculo dela marca essa linha nas duas telas; sem, marca a escala do mês.
+ */
+export type Dor = { rotulo: string; numero: string; unidade?: string; titulo: string; texto: string; linha?: string };
 
 function Marca({ numero }: { numero: number }) {
   return (
@@ -93,17 +96,26 @@ export function ConferenciaAMao({
               <span className="mao-marca" aria-hidden="true">
                 {i + 1}
               </span>
-              <h3 className="mao-dor-titulo">{dor.titulo}</h3>
+              <p className="mao-dor-rotulo">{dor.rotulo}</p>
             </div>
+            <p className="mao-dor-numero numero-destaque">
+              {dor.numero}
+              {dor.unidade && <span className="mao-dor-unidade"> {dor.unidade}</span>}
+            </p>
+            <h3 className="mao-dor-titulo">{dor.titulo}</h3>
             <p className="mao-dor-texto">{dor.texto}</p>
           </li>
         ))}
       </ol>
 
-      <p className="mao-ponte">
-        O Ledgr confere todas as linhas e aponta só as que não batem, com o motivo.{" "}
-        <a href="#como">Veja como funciona</a>
-      </p>
+      <div className="mao-ponte">
+        <p>
+          <em>O Ledgr confere todas as linhas</em> e aponta só as que não batem, com o motivo.
+        </p>
+        <a href="#como" className="btn btn-primary">
+          Veja como funciona<span aria-hidden="true"> →</span>
+        </a>
+      </div>
     </div>
   );
 }
