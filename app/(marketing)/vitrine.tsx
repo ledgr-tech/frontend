@@ -193,7 +193,7 @@ export function Vitrine({
                     </button>
                   </div>
                 </div>
-                {/* a tabela da Comparação direta do app, parada, com a linha do fluxo
+                {/* a mesma tabela da demonstração de "O problema", parada, com a linha do fluxo
                     acesa e o cartão dela aberto, como se o mouse estivesse ali */}
                 <TabelaFolhas banco={banco} sistema={sistema} setas destacada={destaque} />
               </div>

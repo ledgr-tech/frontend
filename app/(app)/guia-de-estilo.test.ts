@@ -99,7 +99,7 @@ postcss.parse(readFileSync(join(RAIZ, "app", "globals.css"), "utf8")).walkRules(
 });
 
 // o que só delimita onde a regra vale, não o que ela pinta
-const ESCOPOS = new Set(["app-shell", "vitrine-app", "legal"]);
+const ESCOPOS = new Set(["app-shell", "vitrine-app", "demonstracao-folhas", "legal"]);
 const regrasDoApp = regras.filter((r) => r.classes.some((c) => !ESCOPOS.has(c) && palavrasDoApp.has(c)));
 const maiorPx = (valor = "") => Math.max(0, ...[...valor.matchAll(/([\d.]+)px/g)].map((m) => Number(m[1])));
 const naInter = (familia = "") => /--font-(heading|body)\b/.test(familia);

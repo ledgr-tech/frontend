@@ -3,6 +3,17 @@ import { estaResolvida, rotuloCurto, seloDoStatus } from "@/app/(app)/dashboard/
 import { IconeOrigem } from "@/app/(app)/icone-origem";
 import type { LinhaExtrato } from "./comparacao";
 
+/** A interação da demonstração de "O problema"; sem ela, a tabela é só desenho. */
+export type InteracaoFolhas = {
+  /** a descrição da linha com o cartão aberto */
+  aberta: string | null;
+  idCartao: string;
+  /** o cartão abre sem a subida: o ponteiro veio direto de outra linha */
+  naHora: boolean;
+  abrir: (desc: string) => void;
+  fechar: (desc: string) => void;
+};
+
 function Coluna({
   folha,
   direita,
@@ -34,8 +45,9 @@ function Coluna({
 }
 
 /**
- * A tabela da Comparação direta do app, em duas folhas, com as linhas de agosto da landing: a tela do
- * app na janela de "Por dentro", parada, com uma linha acesa e o cartão dela aberto.
+ * A tabela da Comparação direta do app, em duas folhas, com as linhas de agosto da landing. Desenha a
+ * demonstração de "O problema", que abre o cartão do hover como o app, e a tela do app na janela de
+ * "Por dentro", parada, com uma linha acesa e o cartão dela aberto. As duas mostram a mesma tabela.
  *
  * As classes e os campos são os do app (app/(app)/conciliacoes/[id]/page.tsx), inclusive os
  * `role` e o `data-rotulo` que viram cartão no celular: o status no eixo entre as duas folhas, em
@@ -47,6 +59,7 @@ export function TabelaFolhas({
   sistema,
   setas = false,
   destacada,
+  interacao,
 }: {
   banco: LinhaExtrato[];
   sistema: LinhaExtrato[];
@@ -54,6 +67,7 @@ export function TabelaFolhas({
   setas?: boolean;
   /** a linha acesa da réplica, com o cartão aberto */
   destacada?: string;
+  interacao?: InteracaoFolhas;
 }) {
   return (
     <table className="table tabela-folhas folhas-com-eixo" role="table">
@@ -113,8 +127,12 @@ export function TabelaFolhas({
         {banco.map((b) => {
           const s = sistema.find((linha) => linha.desc === b.desc);
           const selo = seloDoStatus(b.status);
-          // só o que pede revisão ganha selo, como no app: nas batidas seria ruído
+          // o cartão só nas linhas que pedem revisão, como no app: nas batidas seria ruído
           const revisar = !estaResolvida(b.status);
+          const comCartao = interacao && revisar ? interacao : null;
+          const aberta = comCartao?.aberta === b.desc;
+          const abrir = () => comCartao?.abrir(b.desc);
+          const fechar = () => comCartao?.fechar(b.desc);
           // a divergência pinta o campo em questão dos dois lados, numa marca que acende com o
           // ponteiro na linha, como no app
           const diverge = (campo: "valor" | "data") => (b.status === `divergente_${campo}` ? "true" : undefined);
@@ -128,12 +146,30 @@ export function TabelaFolhas({
               role="row"
               data-tom={selo.tom}
               data-destacada={b.desc === destacada || undefined}
+              data-aberta={aberta || undefined}
+              onMouseEnter={comCartao ? abrir : undefined}
+              onMouseLeave={comCartao ? fechar : undefined}
             >
               <td role="cell" data-rotulo="Data" data-diverge={diverge("data")} className="dash-celula-fraca folha-banco">
                 {marcar("data", b.data)}
               </td>
               <td role="cell" data-rotulo="Descrição" data-destaque="true" className="folha-banco celula-descricao">
-                {b.desc}
+                {comCartao ? (
+                  // botão de verdade, como no app: foco e toque abrem o cartão, que não tem hover
+                  <button
+                    type="button"
+                    className="celula-abrir"
+                    aria-describedby={aberta ? comCartao.idCartao : undefined}
+                    onClick={abrir}
+                    onFocus={abrir}
+                    onBlur={fechar}
+                    onKeyDown={(evento) => evento.key === "Escape" && fechar()}
+                  >
+                    {b.desc}
+                  </button>
+                ) : (
+                  b.desc
+                )}
               </td>
               <td role="cell" data-rotulo="Banco" data-diverge={diverge("valor")} className="dash-valor-celula folha-banco">
                 {b.valorBanco ? marcar("valor", b.valorBanco) : "—"}
@@ -146,8 +182,14 @@ export function TabelaFolhas({
                 </span>
                 <span className="sr-only">{selo.rotulo}</span>
                 {/* o cartão sai do selo, como no app, com a seta apontando para ele (globals.css) */}
-                {b.desc === destacada && (
-                  <div className="cartao-lancamento cartao-no-eixo" data-lado="acima">
+                {(aberta || b.desc === destacada) && (
+                  <div
+                    id={aberta ? comCartao?.idCartao : undefined}
+                    role={aberta ? "tooltip" : undefined}
+                    className="cartao-lancamento cartao-no-eixo"
+                    data-lado="acima"
+                    data-na-hora={(aberta && comCartao?.naHora) || undefined}
+                  >
                     <ConteudoCartao
                       rotulo={selo.rotulo}
                       titulo={b.desc}

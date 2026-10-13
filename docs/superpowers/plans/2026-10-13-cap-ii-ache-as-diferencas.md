@@ -1,5 +1,8 @@
 # Cap. II "Ache as diferenças" e "Por que o Ledgr": plano de implementação
 
+> **Revisão de 13/10/2026:** o jogo das Tasks 1 e 3 foi feito e depois retirado, a pedido, porque a
+> landing é uma página de leitura. Ficou só a Task 2 ("Por que o Ledgr"). Ver a revisão no topo da spec.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** trocar o Cap. II da landing pelo jogo "Ache as diferenças" (só a dor, com uma ponte para o

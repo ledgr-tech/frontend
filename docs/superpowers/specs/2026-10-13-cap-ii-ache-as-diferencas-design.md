@@ -1,5 +1,11 @@
 # Ledgr: Cap. II como "Ache as diferenças", e a comparação em "Por que o Ledgr"
 
+> **Revisão de 13/10/2026, depois de ver no navegador:** o jogo "Ache as diferenças" saiu. A landing
+> é uma página de leitura, e um jogo pede uma interação que ninguém veio fazer. **Vale desta spec só a
+> seção "Por que o Ledgr"** (a comparação numa tabela, entre "Por dentro" e "Regra de ouro"). O Cap. II
+> fica como antes do jogo: o texto da dor e "Na prática", agora sem a comparação. O novo desenho do
+> Cap. II, para mostrar a dor só com leitura, ainda vai ser decidido.
+
 ## Contexto
 
 Pedido de 13/10/2026. O Cap. II da landing (`#problema`, "O problema" no menu) incomodava como um
