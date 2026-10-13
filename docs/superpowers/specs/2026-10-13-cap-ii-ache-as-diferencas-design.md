@@ -171,7 +171,8 @@ Sem travessão, como o resto da landing.
   link do rodapé; as ondas (`#por-que` com `onda-faixa-clara`, `#regra` com `onda-superficie`). Sai o
   teste que comparava a demonstração do Cap. II com a janela de "Por dentro".
 - `npm run test && npm run lint && npm run build`.
-- No navegador: 1440, 768 e 390 px, tema claro e escuro; jogar com mouse, com teclado e no toque;
+- No navegador: 1440, 768 e 390 px, no tema claro (a landing não tem tema escuro: o escuro do
+  `globals.css` vale só para o `.app-shell`); jogar com mouse, com teclado e no toque;
   movimento reduzido; a coluna do Ledgr dentro da margem; a altura do Cap. II no celular comparada
   com os ~3.700 px de hoje.
 
