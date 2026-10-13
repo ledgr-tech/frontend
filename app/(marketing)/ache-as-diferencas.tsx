@@ -122,7 +122,7 @@ export function AcheAsDiferencas({
   return (
     <div className="ache" data-revelado={revelado || undefined}>
       <div className="ache-topo">
-        <p className="problema-rotulo problema-rotulo-ledgr">Tente você</p>
+        <p className="rotulo-parte rotulo-parte-ledgr">Tente você</p>
         <div className="ache-enunciado">
           <p className="ache-instrucao">
             <span className="so-mouse">{quantas} lançamentos de agosto. Marque os do banco que não batem com o sistema.</span>

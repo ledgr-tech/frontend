@@ -78,6 +78,7 @@ describe("LandingPage", () => {
       ["Duas telas abertas, um dedo em cada linha.", ["cada linha."]],
       ["Três passos. A conferência linha por linha fica com o Ledgr.", ["com o Ledgr."]],
       ["Cada lançamento, do extrato ao seu sistema.", ["ao seu sistema."]],
+      ["Sem trocar de sistema, e sem voltar para o manual.", ["e sem voltar para o manual."]],
       ["O extrato do banco é sempre a fonte da verdade.", ["a fonte da verdade."]],
       ["Perguntas que sempre aparecem", ["sempre aparecem"]],
       ["Preço fechado, por volume.", ["por volume."]],
@@ -377,88 +378,80 @@ describe("LandingPage", () => {
     expect(preco.getByRole("list", { name: "Os planos" })).toBeInTheDocument();
   });
 
-  describe("the comparison with the other ways out", () => {
+  describe("Por que o Ledgr", () => {
     const porQue = () => document.getElementById("por-que")!;
-    const colunas = () => [...porQue().querySelectorAll<HTMLElement>(".por-que-coluna")];
-    const depois = (antes: Node, agora: Node) => Boolean(antes.compareDocumentPosition(agora) & Node.DOCUMENT_POSITION_FOLLOWING);
+    const tabela = () => within(porQue()).getByRole("table", { name: "As saídas de hoje e o Ledgr, pergunta por pergunta" });
+    const linhas = () => [...porQue().querySelectorAll<HTMLTableRowElement>("tbody tr")];
 
-    // uma seção só: como é feito hoje, onde o Ledgr entra, e as duas telas conferidas por ele
-    it("sits inside the problem, between the pain and the demo of the two statements", () => {
+    it("sits on its own between Por dentro and Regra de ouro", () => {
       render(<LandingPage />);
-      const problema = document.getElementById("problema")!;
-      expect(problema).toContainElement(porQue());
-      const dor = within(problema).getByRole("heading", { level: 2, name: "Duas telas abertas, um dedo em cada linha." });
-      const pratica = within(problema).getByRole("heading", { level: 3, name: "As mesmas duas telas, conferidas pelo Ledgr." });
-      const demonstracao = problema.querySelector(".demonstracao-folhas")!;
-      expect(depois(dor, porQue())).toBe(true);
-      expect(depois(porQue(), pratica)).toBe(true);
-      expect(depois(pratica, demonstracao)).toBe(true);
-      // sem seção própria: depois do problema vem Como funciona
-      expect(problema.nextElementSibling).toBe(document.getElementById("como"));
+      expect(porQue().tagName).toBe("SECTION");
+      expect(document.getElementById("por-dentro")!.nextElementSibling).toBe(porQue());
+      expect(porQue().nextElementSibling).toBe(document.getElementById("regra"));
+      expect(document.getElementById("problema")!.querySelector(".por-que-tabela")).toBeNull();
     });
 
-    it("presents the demo as the Ledgr's result, not as the manual way", () => {
+    it("opens with its label and title, without taking a chapter label", () => {
       render(<LandingPage />);
-      const problema = within(document.getElementById("problema")!);
-      // os selos e os motivos da demonstração são do Ledgr: o texto acima dela diz isso
-      expect(problema.getByText(/cada linha já vem marcada, e as que não batem vêm com o motivo\./)).toBeInTheDocument();
+      expect(within(porQue()).getByText("Por que o Ledgr")).toHaveClass("rotulo-parte");
+      const titulo = within(porQue()).getByRole("heading", { level: 2, name: "Sem trocar de sistema, e sem voltar para o manual." });
+      expect(titulo.querySelector("em")!.textContent).toBe("e sem voltar para o manual.");
     });
 
-    it("groups the two ways of today apart from the Ledgr", () => {
+    it("is a table of the three ways, with each question once", () => {
       render(<LandingPage />);
-      const hoje = within(porQue()).getByRole("group", { name: "Hoje" });
-      expect(within(hoje).getAllByRole("heading", { level: 3 }).map((titulo) => titulo.textContent)).toEqual([
-        "Conferir à mão",
-        "Migrar para um sistema com conciliação",
-      ]);
-      const comLedgr = within(porQue()).getByRole("group", { name: "Com o Ledgr" });
-      expect(within(comLedgr).getByRole("heading", { level: 3 }).textContent).toBe("Ledgr");
-      // o rótulo "Hoje" diz o que o texto de apoio dizia
-      expect(screen.queryByText(/havia dois caminhos/)).not.toBeInTheDocument();
-    });
-
-    it("puts the Ledgr beside checking by hand and switching systems, and highlights it", () => {
-      render(<LandingPage />);
-      expect(colunas().map((coluna) => within(coluna).getByRole("heading", { level: 3 }).textContent)).toEqual([
+      expect(within(tabela()).getAllByRole("columnheader").map((celula) => celula.textContent)).toEqual([
+        "Hoje",
+        "Com o Ledgr",
         "Conferir à mão",
         "Migrar para um sistema com conciliação",
         "Ledgr",
       ]);
-      expect(colunas().map((coluna) => coluna.classList.contains("por-que-destaque"))).toEqual([false, false, true]);
-    });
-
-    it("answers the same four questions in every column, in the same order", () => {
-      render(<LandingPage />);
-      for (const coluna of colunas()) {
-        expect([...coluna.querySelectorAll("dt")].map((item) => item.textContent)).toEqual([
-          "Trocar de sistema",
-          "Quem confere, todo mês",
-          "Para começar",
-          "O que custa",
-        ]);
-      }
+      expect(within(tabela()).getAllByRole("rowheader").map((celula) => celula.textContent)).toEqual([
+        "Trocar de sistema",
+        "Quem confere, todo mês",
+        "Para começar",
+        "O que custa",
+      ]);
     });
 
     it("leads each answer with the direct answer in bold, so reading across a row compares the three ways", () => {
       render(<LandingPage />);
-      const destaques = colunas().map((coluna) =>
-        [...coluna.querySelectorAll("dd")].map((resposta) => resposta.querySelector("strong")?.textContent),
-      );
+      const destaques = linhas().map((linha) => [...linha.querySelectorAll("td")].map((celula) => celula.querySelector("strong")?.textContent));
       expect(destaques).toEqual([
-        ["Não precisa.", "Alguém que entenda de contabilidade", "A planilha de sempre.", "As horas de quem confere"],
-        ["Precisa.", "O sistema novo", "Migrar cadastros, contas e histórico", "A mensalidade do sistema novo"],
-        ["Não precisa.", "O Ledgr, linha por linha", "Subir dois arquivos", "Pelo volume de lançamentos do mês"],
+        ["Não precisa.", "Precisa.", "Não precisa."],
+        ["Alguém que entenda de contabilidade", "O sistema novo", "O Ledgr, linha por linha"],
+        ["A planilha de sempre.", "Migrar cadastros, contas e histórico", "Subir dois arquivos"],
+        ["As horas de quem confere", "A mensalidade do sistema novo", "Pelo volume de lançamentos do mês"],
       ]);
       // o negrito abre a resposta: o resto da frase continua lá, logo depois dele
-      for (const resposta of porQue().querySelectorAll("dd")) {
-        expect(resposta.firstChild).toBe(resposta.querySelector("strong"));
+      for (const celula of porQue().querySelectorAll("tbody td")) {
+        expect(celula.firstChild).toBe(celula.querySelector("strong"));
       }
-      expect(colunas()[1].querySelectorAll("dd")[0].textContent).toBe("Precisa. A empresa inteira passa para o sistema novo.");
+      expect(linhas()[0].querySelectorAll("td")[1].textContent).toBe("Precisa. A empresa inteira passa para o sistema novo.");
+    });
+
+    it("highlights only the Ledgr column", () => {
+      render(<LandingPage />);
+      const destacadas = [...porQue().querySelectorAll("td.por-que-ledgr")];
+      expect(destacadas).toHaveLength(4);
+      expect(destacadas).toEqual(linhas().map((linha) => linha.querySelectorAll("td")[2]));
+    });
+
+    it("names each answer by its way, for the phone layout", () => {
+      render(<LandingPage />);
+      for (const linha of linhas()) {
+        expect([...linha.querySelectorAll("td")].map((celula) => celula.dataset.rotulo)).toEqual([
+          "Conferir à mão",
+          "Migrar para um sistema com conciliação",
+          "Ledgr",
+        ]);
+      }
     });
 
     it("says the Ledgr keeps your system and leaves you only what does not match", () => {
       render(<LandingPage />);
-      const [trocar, quem] = [...colunas()[2].querySelectorAll("dd")].map((item) => item.textContent);
+      const [trocar, quem] = [...porQue().querySelectorAll("td.por-que-ledgr")].map((celula) => celula.textContent);
       expect(trocar).toMatch(/^Não precisa\./);
       expect(quem).toMatch(/você revisa só o que não bate, já com o motivo/);
     });
@@ -468,13 +461,14 @@ describe("LandingPage", () => {
       expect(porQue().textContent).not.toMatch(/Conta Azul|Omie|Nibo|Domínio/);
     });
 
-    it("keeps the bands alternating as before, with no band of its own", () => {
+    it("keeps the bands alternating", () => {
       render(<LandingPage />);
       // a onda de cada seção leva a cor da seção de cima: papel (o problema), superfície (Como
-      // funciona), faixa clara (Por dentro)
+      // funciona), faixa clara (Por dentro), superfície (Por que o Ledgr)
       expect(document.getElementById("como")).toHaveClass("onda", "onda-papel");
       expect(document.getElementById("por-dentro")).toHaveClass("onda", "onda-superficie");
-      expect(document.getElementById("regra")).toHaveClass("onda", "onda-faixa-clara");
+      expect(porQue()).toHaveClass("onda", "onda-faixa-clara");
+      expect(document.getElementById("regra")).toHaveClass("onda", "onda-superficie");
     });
   });
 
