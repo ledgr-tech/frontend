@@ -311,6 +311,11 @@ describe("LandingPage", () => {
       expect(marca(linha("Sistema de gestão", "Crédito cartão D+30"))).toBe("2");
       expect(marca(linha("Extrato do banco", "Tarifa de manutenção da conta"))).toBe("3");
       expect(marca(linha("Extrato do banco", "Pagamento fornecedor #1082"))).toBeUndefined();
+      // a linha por trás de uma dor acende, para o olho achar as três de cara
+      expect(linha("Extrato do banco", "Crédito cartão D+30")).toHaveAttribute("data-marcada");
+      expect(linha("Sistema de gestão", "Crédito cartão D+30")).toHaveAttribute("data-marcada");
+      expect(linha("Extrato do banco", "mais 4.213 lançamentos")).toHaveAttribute("data-marcada");
+      expect(linha("Extrato do banco", "Pagamento fornecedor #1082")).not.toHaveAttribute("data-marcada");
     });
 
     it("names three pains, each led by its August number", () => {

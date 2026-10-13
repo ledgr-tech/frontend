@@ -1428,11 +1428,16 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
 .mao-valor { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .mao-escala { grid-template-columns: minmax(0, 1fr) 22px; }
 .mao-reticencias { font-style: italic; color: color-mix(in srgb, var(--color-text) 55%, transparent); }
-/* o número da dor: um círculo de filete dourado, o mesmo na linha e na dor */
+/* o número da dor, como a caneta de quem revisa: um círculo cheio no terracota de erro, o mesmo na
+   linha e na dor, e a linha por trás dela acesa no mesmo tom, para o olho achar as três de cara */
 .mao-marca {
   display: inline-grid; place-items: center; flex: none; width: 22px; height: 22px; border-radius: 50%;
-  border: 1px solid var(--color-accent); color: var(--color-accent-700);
-  font-size: 12px; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums;
+  background: var(--color-erro); color: #fff;
+  font-size: 12px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums;
+}
+.mao-linha[data-marcada] {
+  background: color-mix(in srgb, var(--color-erro) 9%, transparent);
+  box-shadow: inset 3px 0 0 var(--color-erro);
 }
 /* as dores, cada uma aberta pelo número que a mostra, grande, na fonte de destaque da landing (a da
    faixa de números), sob um filete dourado; o círculo é o mesmo das linhas nas telas */

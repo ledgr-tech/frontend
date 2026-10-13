@@ -20,7 +20,7 @@ function Marca({ numero }: { numero: number }) {
 
 function Linha({ linha, valor, marca }: { linha: LinhaExtrato; valor: string | null; marca?: number }) {
   return (
-    <li className="mao-linha">
+    <li className="mao-linha" data-marcada={marca ? true : undefined}>
       <span className="mao-data">{linha.data}</span>
       <span className="mao-desc">{linha.desc}</span>
       <span className="mao-valor">{valor}</span>
@@ -67,7 +67,7 @@ export function ConferenciaAMao({
             {banco.map((linha) => (
               <Linha key={linha.desc} linha={linha} valor={linha.valorBanco} marca={marcaDa(linha.desc)} />
             ))}
-            <li className="mao-linha mao-escala">
+            <li className="mao-linha mao-escala" data-marcada={marcaDaEscala ? true : undefined}>
               <span className="mao-reticencias">… mais {resto} lançamentos</span>
               {marcaDaEscala ? <Marca numero={marcaDaEscala} /> : <span aria-hidden="true" />}
             </li>
