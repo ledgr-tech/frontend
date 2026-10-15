@@ -68,6 +68,6 @@ export function pendenciasDoMes(conciliacoes: Conciliacao[]): Pendencia[] {
     }
   }
   return [...grupos.values()]
-    .map(({ maior: _maior, ...grupo }) => grupo)
+    .map(({ rotulo, tom, quantidade, valor, href }) => ({ rotulo, tom, quantidade, valor, href }))
     .sort((a, b) => PESO[a.tom] - PESO[b.tom] || b.valor - a.valor);
 }
