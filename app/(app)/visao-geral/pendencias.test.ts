@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { Conciliacao, LinhaComparacao, StatusLinha } from "@/lib/mock-data";
-import { pendencias } from "./pendencias";
+import { pendencias, pendenciasDoMes } from "./pendencias";
 
 function linha(
   id: string,
@@ -98,5 +98,22 @@ describe("pendencias", () => {
         href: "/conciliacoes/banco-1?sistema=sistema-1&status=tarifa_bancaria",
       },
     ]);
+  });
+});
+
+describe("pendenciasDoMes", () => {
+  it("soma as categorias de todas as conciliações do mês, e cada grupo abre onde há mais", () => {
+    const a = { ...conciliacao([linha("a1", "divergente_valor", -100, -90)]), id: "banco-a", extratoSistemaId: "sistema-a" };
+    const b = {
+      ...conciliacao([linha("b1", "divergente_valor", -50, -40), linha("b2", "divergente_valor", -30, -20), linha("b3", "tarifa_bancaria", -45, null)]),
+      id: "banco-b",
+      extratoSistemaId: "sistema-b",
+    };
+    const grupos = pendenciasDoMes([a, b]);
+    expect(grupos.map((grupo) => [grupo.rotulo, grupo.quantidade, grupo.valor])).toEqual([
+      ["Valor diverge na mesma data", 3, 30],
+      ["Tarifa bancária", 1, 45],
+    ]);
+    expect(grupos[0].href).toBe("/conciliacoes/banco-b?sistema=sistema-b&status=divergente_valor");
   });
 });

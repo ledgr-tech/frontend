@@ -149,7 +149,7 @@ describe("VisaoGeralPage", () => {
     const fechamentos = within(atalhos).getByRole("link", { name: /Fechamentos/ });
     expect(fechamentos).toHaveAttribute("href", "/fechamentos");
     expect(fechamentos).toHaveTextContent("Setembro de 2026");
-    expect(fechamentos).toHaveTextContent("3 pendências na última conciliação");
+    expect(fechamentos).toHaveTextContent("3 pendências no mês");
 
     const historico = within(atalhos).getByRole("link", { name: /Histórico/ });
     expect(historico).toHaveAttribute("href", "/historico");
@@ -192,7 +192,41 @@ describe("VisaoGeralPage", () => {
     await renderizar();
     expect(
       within(screen.getByRole("navigation", { name: "Atalhos" })).getByRole("link", { name: /Fechamentos/ }),
-    ).toHaveTextContent("Última conciliação sem pendência");
+    ).toHaveTextContent("Pronto para fechar");
+  });
+
+  it("looks at the whole open month, not only the latest conciliação", async () => {
+    // a mais recente bateu tudo; a outra do mesmo mês ainda tem três pendências
+    const limpa = { id: "banco-e7", extratoSistemaId: "sistema-e7", mes: "Setembro/2026", status: "em_andamento" as const, linhas: [linha("l0", "match_exato", 100, 100)] };
+    const outra = { id: "banco-x", extratoSistemaId: "sistema-x", mes: "Setembro/2026", status: "em_andamento" as const, linhas: LINHAS };
+    com({
+      recente: { execucao: RECENTE, conciliacao: limpa },
+      mes: { competencia: "2026-09", fechado: false, conciliacoes: [limpa, outra] },
+    });
+    await renderizar();
+
+    expect(screen.getByText("4 de 7 lançamentos conciliados")).toBeInTheDocument();
+    expect(screen.queryByText("Nada pede sua atenção agora.")).not.toBeInTheDocument();
+    const lista = screen.getByRole("list", { name: "Pede sua atenção" });
+    expect(within(lista).getAllByRole("link")[0]).toHaveAttribute(
+      "href",
+      "/conciliacoes/banco-x?sistema=sistema-x&status=divergente_valor",
+    );
+    expect(
+      within(screen.getByRole("navigation", { name: "Atalhos" })).getByRole("link", { name: /Fechamentos/ }),
+    ).toHaveTextContent("3 pendências no mês");
+  });
+
+  it("says the month is closed on the Fechamentos shortcut", async () => {
+    const limpa = { id: "banco-e7", extratoSistemaId: "sistema-e7", mes: "Setembro/2026", status: "em_andamento" as const, linhas: [linha("l0", "match_exato", 100, 100)] };
+    com({
+      recente: { execucao: RECENTE, conciliacao: limpa },
+      mes: { competencia: "2026-09", fechado: true, conciliacoes: [limpa] },
+    });
+    await renderizar();
+    expect(
+      within(screen.getByRole("navigation", { name: "Atalhos" })).getByRole("link", { name: /Fechamentos/ }),
+    ).toHaveTextContent("Mês fechado");
   });
 
   it("says how much of the month is settled, with a progress bar", async () => {
