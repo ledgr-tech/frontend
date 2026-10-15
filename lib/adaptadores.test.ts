@@ -47,7 +47,7 @@ describe("adaptarLinha", () => {
     expect(linha.dataISO).toBe("2026-09-04");
   });
 
-  it("mostra só o começo do id do lançamento, que é do Ledgr e não do banco", () => {
+  it("não mostra o id interno do lançamento e escreve o tipo como se lê", () => {
     const linha = adaptarLinha(
       item({
         lancamento_banco: {
@@ -59,7 +59,10 @@ describe("adaptarLinha", () => {
         },
       }),
     );
-    expect(linha.camposBanco?.find((campo) => campo.rotulo === "Identificador")?.valor).toBe("3cf85879");
+    // o id é do banco de dados do Ledgr: não diz nada a quem concilia (revisão de 15/10)
+    expect(linha.camposBanco?.map((campo) => campo.rotulo)).toEqual(["Data do lançamento", "Tipo"]);
+    expect(linha.camposBanco?.find((campo) => campo.rotulo === "Tipo")?.valor).toBe("Débito");
+    expect(adaptarLinha(item({ lancamento_sistema: { ...item().lancamento_sistema!, tipo: "credito" } })).camposSistema?.[1].valor).toBe("Crédito");
   });
 
   it("deixa null o lado que o motor não pareou", () => {
@@ -119,11 +122,19 @@ describe("adaptarLinha", () => {
     expect(linha.descricaoSistema).toBeUndefined();
   });
 
-  it("explica o match com a regra e a confiança que o backend devolveu", () => {
+  it("explica o match em português, com a diferença de dias da tolerância", () => {
     const linha = adaptarLinha(
-      item({ status: "match_tolerancia", regra_aplicada: "tolerancia", score_confianca: "0.67" }),
+      item({
+        status: "match_tolerancia",
+        regra_aplicada: "tolerancia",
+        score_confianca: "0.67",
+        lancamento_banco: { ...item().lancamento_banco!, data: "2026-07-08" },
+        lancamento_sistema: { ...item().lancamento_sistema!, data: "2026-07-07" },
+      }),
     );
-    expect(linha.explicacao).toBe('Conciliado pela regra "tolerancia". Confiança de 67%.');
+    expect(linha.explicacao).toBe(
+      "Bateu com 1 dia de diferença (08/07 no banco, 07/07 no sistema), dentro da tolerância da empresa.",
+    );
     expect(linha.explicacaoPorIa).toBe(false);
   });
 
@@ -182,7 +193,7 @@ describe("adaptarLinha", () => {
       "Mesmo boleto nos dois lados.",
     );
     const emBranco = adaptarLinha(item({ explicacao: "  ", gerada_por_ia: true }));
-    expect(emBranco.explicacao).toBe('Conciliado pela regra "exata". Confiança de 100%.');
+    expect(emBranco.explicacao).toBe("Bateu: mesmo valor e mesma data nos dois extratos.");
     expect(emBranco.explicacaoPorIa).toBe(false);
   });
 

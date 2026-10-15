@@ -7,8 +7,9 @@
   --color-accent: #b68235;
   --color-accent-2: #ac803e;
   --color-divider: color-mix(in srgb, #201f1d 16%, transparent);
-  /* erro de formulário: terracota que conversa com o dourado (contraste ~5:1 sobre o fundo claro) */
-  --color-erro: #a94f33;
+  /* erro de formulário: o passo 700 da terracota (o mesmo do texto do selo de risco, 5,1:1 sobre o
+     fundo claro). Era #a94f33, fora da rampa, entre o 600 e o 700 (dívida do guia v3). */
+  --color-erro: #8a4934;
   --ledgr-tinta: #f3f2f2;
 
   --color-neutral-100: #f8f4f4;
@@ -1978,6 +1979,8 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
   font-family: var(--font-heading); font-size: 24px;
   color: var(--color-risco); font-variant-numeric: tabular-nums; white-space: nowrap;
 }
+/* num match o Δ é zero: cor de divergência ali diria que algo está errado */
+.det-delta-valor[data-resolvida] { color: var(--texto-apagado); }
 .det-causa {
   display: flex; flex-wrap: wrap; gap: 24px 30px; align-items: center;
   border-block: 1px solid var(--color-divider); padding: 26px 0;
@@ -2036,6 +2039,33 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
   .det-causa-texto { text-align: left; }
   .det-cronico-nota { flex-basis: 100%; text-align: left; }
 }
+
+/* ── Painel lateral (revisão de estilo de 15/10) ─────────────────────────────────
+   O detalhe da linha abre à direita, sobre a comparação, que continua legível atrás: o fundo
+   escurece menos que o de janela modal e não desfoca. Dentro dele o detalhe usa o mesmo arranjo
+   empilhado do celular (o painel tem a largura de um). */
+.painel-fundo { position: fixed; inset: 0; z-index: 90; background: rgb(12 11 10 / 0.32); }
+.painel-lateral {
+  position: fixed; top: 0; right: 0; bottom: 0; z-index: 91;
+  width: min(560px, 100vw); overflow-y: auto; overscroll-behavior: contain;
+  padding: 0 24px; background: var(--color-bg);
+  border-left: 1px solid var(--color-divider); box-shadow: var(--shadow-lg);
+  animation: painel-entrar 0.24s cubic-bezier(0.23, 1, 0.32, 1);
+}
+.painel-lateral:focus { outline: none; }
+@keyframes painel-entrar { from { transform: translateX(24px); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .painel-lateral { animation: none; } }
+.painel-nav { display: flex; align-items: center; gap: 4px; }
+.painel-nav-icone { padding: 6px 8px; }
+.painel-lateral .dash-cabecalho { padding: 18px 0; align-items: flex-start; flex-direction: column-reverse; }
+.painel-lateral .tela-titulo { font-size: 26px; }
+.painel-lateral .det-corpo { padding: 20px 0 40px; gap: 22px; }
+.painel-lateral .det-comparacao { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+.painel-lateral .det-delta { flex-direction: row; gap: 14px; }
+.painel-lateral .det-delta-linha { width: auto; height: 1px; flex: 1; }
+.painel-lateral .det-valor { font-size: clamp(24px, 15cqi, 34px); }
+.painel-lateral .det-causa-texto { text-align: left; }
+.painel-lateral .det-cronico-nota { flex-basis: 100%; text-align: left; }
 
 /* ── Regras ─────────────────────────────────────────────────────────────────── */
 .regras-corpo {
@@ -2296,54 +2326,77 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
   .hist-execucao-nome { padding-left: 0; }
 }
 
-/* ── Conciliações: a lista de trabalho ──────────────────────────────────────────
-   No topo, a que está em andamento, no cartão de destaque de sempre (o mascote apontando); embaixo,
-   uma linha por conciliação, compacta como a do histórico, com as mesmas peças: os arquivos, a
-   barra do resultado e o selo da situação. */
-.conc-corpo { padding: 30px 0 64px; display: flex; flex-direction: column; gap: 30px; }
-.conc-andamento-rotulo { margin: 0 0 10px; }
-.conc-andamento-mascote { width: 88px; height: auto; flex: none; }
-.conc-andamento .dash-destaque-corpo { gap: 7px; }
-.conc-andamento-rodada {
-  display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 13px;
-  font-variant-numeric: tabular-nums; color: color-mix(in srgb, var(--color-text) 62%, transparent);
+/* ── Conciliações: a lista de trabalho (revisão de estilo de 15/10) ─────────────
+   No topo, uma faixa de uma linha para continuar de onde parou (o cartão grande repetia a primeira
+   linha). Embaixo, a lista agrupada pelo mês do extrato, os abertos primeiro; em cada linha uma
+   situação só, o progresso e a última atividade, e a linha inteira abre a conciliação. */
+.conc-corpo { padding: 30px 0 64px; display: flex; flex-direction: column; gap: 28px; }
+.conc-continuar {
+  display: flex; align-items: center; gap: 18px; padding: 14px 18px;
+  border: 1px solid var(--color-divider); border-radius: var(--radius-md); background: var(--folha-banco);
 }
-.conc-andamento .hist-resultado-barra { flex: none; width: min(100%, 420px); height: 7px; }
-.conc-andamento-frase { font-variant-numeric: tabular-nums; }
+.conc-continuar-mascote { width: 48px; height: auto; flex: none; }
+.conc-continuar-corpo { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0; }
+.conc-continuar-titulo { font-size: 15.5px; font-weight: 600; overflow-wrap: anywhere; }
+.conc-continuar-arquivos { font-weight: 400; color: var(--texto-apagado); }
+.conc-continuar-texto { font-size: 13.5px; color: var(--texto-apagado); font-variant-numeric: tabular-nums; }
+.conc-continuar .btn { flex: none; }
 .conc-historico { font-size: 13.5px; }
 
 .conc-tabela { table-layout: fixed; }
-.conc-col-mes { width: 6.5rem; }
-.conc-col-rodada { width: 5.5rem; }
-.conc-col-match { width: 18%; }
-.conc-col-decisao { width: 9.5rem; }
-.conc-col-situacao { width: 9.5rem; }
-.conc-col-acao { width: 6.5rem; }
+.conc-col-progresso { width: 16rem; }
+.conc-col-situacao { width: 10.5rem; }
+.conc-col-atividade { width: 10rem; }
+.conc-col-abrir { width: 2.5rem; }
 .conc-tabela td { vertical-align: middle; }
-:is(.conc-c-mes, .conc-c-rodada, .conc-c-decisao) { font-variant-numeric: tabular-nums; white-space: nowrap; }
-.conc-linha[data-pendente] .conc-c-decisao { font-weight: 600; }
-.conc-linha:not([data-pendente]) .conc-c-decisao { color: color-mix(in srgb, var(--color-text) 55%, transparent); }
-.conc-c-acao { text-align: right; }
+/* o cabeçalho do mês: título na Newsreader, o estado ao lado e o fechamento à direita */
+.conc-mes th {
+  padding: 26px 8px 10px; text-transform: none; letter-spacing: 0; font-weight: 400;
+  color: var(--color-text); border-bottom: 1px solid var(--color-divider);
+}
+.conc-tabela tbody:first-of-type .conc-mes th { padding-top: 14px; }
+.conc-mes-conteudo { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
+.conc-mes-titulo { font-family: var(--font-titulo); font-size: 22px; }
+.conc-mes-meta { flex: 1; font-size: 13px; color: var(--texto-apagado); }
+.conc-mes-link {
+  font-size: 13.5px; font-weight: 500; color: var(--color-text); text-decoration: none;
+  border-bottom: 1px solid var(--color-divider);
+}
+.conc-mes-link:hover { border-bottom-color: var(--color-text); }
+/* a linha inteira é o link da conciliação: o ::after do nome cobre a linha */
+.conc-linha { position: relative; }
+.conc-linha:hover { background: var(--tinta-hover); }
+.conc-abrir { color: inherit; text-decoration: none; font-weight: 500; }
+.conc-abrir::after { content: ""; position: absolute; inset: 0; }
+.conc-abrir:focus-visible { outline: none; }
+.conc-linha:has(.conc-abrir:focus-visible) { outline: 2px solid var(--color-accent); outline-offset: -2px; }
+.conc-c-conciliacao { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.conc-progresso { display: flex; flex-direction: column; gap: 6px; }
+.conc-progresso .hist-resultado-barra { flex: none; width: 100%; }
+.conc-progresso-texto, .conc-atividade { font-size: 12.5px; color: var(--texto-apagado); font-variant-numeric: tabular-nums; }
+.conc-atividade { display: flex; flex-direction: column; gap: 2px; font-size: 13px; color: var(--color-text); }
+.conc-atividade-rodada { color: var(--texto-apagado); }
+.conc-c-abrir { text-align: right; color: var(--texto-apagado); }
 
 @media (max-width: 680px) {
-  /* como o histórico: um bloco por conciliação, com o nome e o botão em cima, a barra, e os números
-     com rótulo */
+  /* um bloco por conciliação: o nome e a situação em cima, o progresso e a atividade embaixo */
+  .conc-continuar { flex-wrap: wrap; }
   .conc-tabela thead {
     position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap;
   }
   .conc-tabela, .conc-tabela tbody { display: block; }
-  .conc-tabela tr {
-    display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) auto; gap: 8px 14px; align-items: end;
-    padding: 10px 0; border-bottom: 1px solid var(--color-divider);
+  .conc-tabela tr.conc-linha {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 14px; align-items: center;
+    padding: 12px 0; border-bottom: 1px solid var(--color-divider);
   }
+  .conc-tabela tr.conc-mes { display: block; }
   .conc-tabela :is(td, th) { display: block; padding: 0; border: 0; }
-  .conc-c-conciliacao { grid-column: 1 / 4; grid-row: 1; min-width: 0; }
-  .conc-c-acao { grid-column: 4; grid-row: 1; align-self: center; }
-  .conc-c-match { grid-column: 1 / -1; grid-row: 2; }
-  .conc-c-mes { grid-column: 1; grid-row: 3; }
-  .conc-c-rodada { grid-column: 2; grid-row: 3; }
-  .conc-c-decisao { grid-column: 3; grid-row: 3; }
-  .conc-c-situacao { grid-column: 4; grid-row: 3; text-align: right; }
+  .conc-mes th { padding: 22px 0 8px; border-bottom: 1px solid var(--color-divider); }
+  .conc-c-conciliacao { grid-column: 1; grid-row: 1; }
+  .conc-c-situacao { grid-column: 2; grid-row: 1; text-align: right; }
+  .conc-c-progresso { grid-column: 1 / -1; grid-row: 2; }
+  .conc-c-atividade { grid-column: 1 / -1; grid-row: 3; }
+  .conc-c-abrir { display: none; }
 }
 
 /* ── Tipografia do app ─────────────────────────────────────────────────────────
@@ -2423,7 +2476,8 @@ html[data-tema="escuro"] .app-shell {
 .folhas-com-eixo col.col-valor { width: var(--valor-largura, 10rem); }
 .folhas-com-eixo col.col-eixo { width: 9rem; }
 /* a conferência fica numa coluna dela, depois da folha do sistema: o eixo leva só o veredito */
-.folhas-com-eixo col.col-conferir { width: 3rem; }
+/* com o nome escrito no cabeçalho, e não só um ícone, a coluna precisa caber "CONFERIDA" */
+.folhas-com-eixo col.col-conferir { width: 6.5rem; }
 .dash-tabela-rolagem .folhas-com-eixo { min-width: 900px; }
 /* com a largura fixa, uma palavra mais longa que a coluna (um código de PIX) vazaria da folha */
 .folhas-com-eixo td { overflow-wrap: break-word; }
@@ -2444,7 +2498,7 @@ html[data-tema="escuro"] .app-shell {
 /* A conferência, na coluna dela no fim da linha: um botão (aria-pressed) desenhado como círculo,
    e não como caixa, para não parecer "selecionar a linha", como o "conferido" do QuickBooks. O
    desenho tem 20px; o alvo, 30px, para o dedo e o ponteiro. */
-.th-conferir { width: 3rem; text-align: center; color: color-mix(in srgb, var(--color-text) 62%, transparent); }
+.th-conferir { width: 6.5rem; white-space: nowrap; cursor: help; text-align: center; color: color-mix(in srgb, var(--color-text) 62%, transparent); }
 .th-conferir svg { vertical-align: middle; }
 .celula-conferir { text-align: center; }
 .conferir-circulo {
@@ -2893,13 +2947,19 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
 .extrato-cartao[data-tom="ok"] { --tom-cartao: var(--color-ok); }
 .extrato-cartao[data-tom="atencao"] { --tom-cartao: var(--color-accent); }
 .extrato-cartao[data-tom="risco"] { --tom-cartao: var(--color-risco); }
+/* hover e seleção em tinta neutra (guia v3): a cor fica no selo da situação, não na escolha */
 .extrato-cartao:hover .extrato-folha {
-  border-color: color-mix(in srgb, var(--tom-cartao) 60%, transparent);
+  border-color: color-mix(in srgb, var(--color-text) 40%, transparent);
 }
 .extrato-cartao[aria-pressed="true"] .extrato-folha {
-  border-color: var(--tom-cartao);
-  box-shadow: 0 0 0 1px var(--tom-cartao), var(--shadow-md);
+  border-color: var(--color-text);
+  box-shadow: 0 0 0 1px var(--color-text), var(--shadow-md);
 }
+.extrato-conciliar { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; padding-top: 14px; border-top: 1px solid var(--color-divider); }
+.extrato-conciliar h4 { margin: 0; font-size: 15px; }
+.extrato-conciliar-campo { display: flex; flex-direction: column; gap: 6px; width: 100%; font-size: 13px; color: var(--texto-apagado); }
+.extrato-conciliar-campo select { width: 100%; color: var(--color-text); }
+.extrato-conciliar-erro { margin: 0; font-size: 13px; color: var(--color-erro); }
 .extrato-folha-titulo {
   font-family: var(--font-heading); font-size: 12px; font-weight: 600;
   color: color-mix(in srgb, var(--color-text) 70%, transparent);
@@ -2970,13 +3030,16 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
    ícones — o estado vem de html[data-menu], que o script do <head> escreve antes
    da primeira pintura. Até 900px vira uma coluna, o menu deita e não recolhe. */
 .app-shell {
-  /* O dourado fica para quatro coisas: a ação principal, o foco do teclado, o
-     status "atenção" e o rótulo de cartão flutuante. Hover e seleção usam estes dois tons neutros — é o que o
+  /* O dourado fica para seis coisas (guia v3): a ação principal, o foco do teclado, o status
+     "atenção", o rótulo de cartão flutuante, a linha das rodadas e o envio dos extratos. Hover e
+     seleção usam estes dois tons neutros — é o que o
      mercado faz (Stripe, Linear, Mercury) e o que impede a cor da marca de virar
      papel de parede. Declarados aqui para herdar o --color-text do tema escuro. */
   --tinta-hover: color-mix(in srgb, var(--color-text) 6%, transparent);
   --tinta-ativa: color-mix(in srgb, var(--color-text) 9%, transparent);
   --texto-apagado: color-mix(in srgb, var(--color-text) 58%, transparent);
+  /* o erro acompanha a rampa: no tema escuro o 700 é espelhado e continua legível */
+  --color-erro: var(--color-risco-700);
   display: grid; grid-template-columns: minmax(180px, 248px) minmax(0, 1fr);
   min-height: 100vh; background: var(--color-bg);
   /* precisa declarar a cor, nao so herdar: o tema escuro redefine --color-text
@@ -3297,7 +3360,7 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
 /* as trocas da conta: aberto, o formulário desce para a linha de baixo, na largura toda */
 .cfg-linha-controle:has(.cfg-form) { flex-basis: 100%; }
 .cfg-acao { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 10px 14px; }
-.cfg-feito { font-size: 14px; color: var(--color-accent-700); }
+.cfg-feito { font-size: 14px; color: var(--color-ok-700); }
 .cfg-form { display: flex; flex-direction: column; gap: 12px; max-width: 380px; }
 .cfg-form-aviso { margin: 0; font-size: 13.5px; line-height: 1.55; color: var(--color-erro); }
 .cfg-form-botoes { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
@@ -3454,8 +3517,8 @@ html:has(.app-shell) { scrollbar-gutter: stable; }
   display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px;
   padding: 12px var(--recuo-lateral);
   border-bottom: 1px solid var(--color-divider);
-  background: color-mix(in srgb, var(--color-bg) 94%, transparent);
-  backdrop-filter: blur(6px);
+  /* opaca: o guia deixa de fora a superfície de vidro (o desfoque fica só atrás de janela modal) */
+  background: var(--color-bg);
 }
 .app-conteudo { padding: 0 var(--recuo-lateral); }
 

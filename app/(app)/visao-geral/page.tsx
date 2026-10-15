@@ -18,7 +18,7 @@ import { InkHover, Reveal } from "@/app/reveal";
 import { matchNaTela, porConciliacao } from "../historico/execucoes";
 import { GraficoDeMatch } from "../historico/grafico";
 import { IconeOrigem } from "../icone-origem";
-import { pendencias } from "./pendencias";
+import { pendenciasDoMes } from "./pendencias";
 import { Cabecalho } from "../cabecalho";
 
 /**
@@ -74,7 +74,9 @@ function Conteudo({
   execucao: Execucao;
   conciliacao: Conciliacao;
 }) {
-  const resumo = resumir([conciliacao]);
+  // o mês em foco inteiro; sem ele (alguma conciliação não carregou), só a mais recente
+  const doMes = visao.mes?.conciliacoes ?? [conciliacao];
+  const resumo = resumir(doMes);
 
   return (
     <div className="vg-corpo">
@@ -83,11 +85,17 @@ function Conteudo({
       </Reveal>
 
       <Reveal delay={0.08}>
-        <Atalhos visao={visao} execucao={execucao} conciliacao={conciliacao} divergentes={resumo.divergentes} />
+        <Atalhos
+          visao={visao}
+          execucao={execucao}
+          conciliacao={conciliacao}
+          divergentes={resumo.divergentes}
+          mesFechado={visao.mes?.fechado ?? false}
+        />
       </Reveal>
 
       <Reveal delay={0.16} className="vg-grade">
-        <PedeAtencao conciliacao={conciliacao} arquivos={visao.arquivosComLinhasNaoLidas} />
+        <PedeAtencao conciliacoes={doMes} arquivos={visao.arquivosComLinhasNaoLidas} />
         <section className="vg-tendencia" aria-label="Tendência da taxa de match">
           {/* só a rodada que vale: a refeita e a anterior pareceriam uma queda que não houve */}
           <GraficoDeMatch execucoes={execucoesVigentes(visao.execucoes)} />
@@ -158,11 +166,14 @@ function Atalhos({
   execucao,
   conciliacao,
   divergentes,
+  mesFechado,
 }: {
   visao: VisaoGeral;
   execucao: Execucao;
   conciliacao: Conciliacao;
+  /** As do mês em foco inteiro, não só da última conciliação. */
   divergentes: number;
+  mesFechado: boolean;
 }) {
   const arquivos = extratosDasExecucoes(visao.execucoes);
   const doBanco = arquivos.filter((arquivo) => arquivo.origem === "banco").length;
@@ -213,15 +224,16 @@ function Atalhos({
           nome="Fechamentos"
           numero={conciliacao.mes.replace("/", " de ")}
         >
-          {/* a home só carrega a última conciliação: o mês inteiro, com todos os
-              pares dele, é a tela de fechamentos que soma */}
+          {/* o mês em foco inteiro, como Fechamentos o fecharia */}
           <span className="vg-atalho-aviso">
-            <span className={`vg-ponto vg-ponto-${pronto ? "ok" : "atencao"}`} aria-hidden="true" />
-            {pronto
-              ? "Última conciliação sem pendência"
-              : divergentes > 0
-                ? `${plural(divergentes, "pendência", "pendências")} na última conciliação`
-                : "Linhas não lidas na última conciliação"}
+            <span className={`vg-ponto vg-ponto-${mesFechado || pronto ? "ok" : "atencao"}`} aria-hidden="true" />
+            {mesFechado
+              ? "Mês fechado"
+              : pronto
+                ? "Pronto para fechar"
+                : divergentes > 0
+                  ? `${plural(divergentes, "pendência", "pendências")} no mês`
+                  : "Linhas não lidas na última conciliação"}
           </span>
         </Atalho>
 
@@ -269,13 +281,14 @@ function Atalho({
 }
 
 function PedeAtencao({
-  conciliacao,
+  conciliacoes,
   arquivos,
 }: {
-  conciliacao: Conciliacao;
+  /** As conciliações do mês em foco. */
+  conciliacoes: Conciliacao[];
   arquivos: VisaoGeral["arquivosComLinhasNaoLidas"];
 }) {
-  const grupos = pendencias(conciliacao);
+  const grupos = pendenciasDoMes(conciliacoes);
 
   return (
     <section className="vg-atencao">

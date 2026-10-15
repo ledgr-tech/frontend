@@ -74,6 +74,7 @@ function com(dados: Partial<ListaDeConciliacoes> = {}) {
     ok: true,
     dados: {
       conciliacoes: [SETEMBRO, AGOSTO],
+      fechamentos: [],
       emAndamento: { extratoBancoId: "set", batem: 12, pedemDecisao: 9, justificadas: 1, conferidas: 3 },
       parcial: false,
       ...dados,
@@ -100,71 +101,90 @@ describe("DashboardPage", () => {
     com();
     await renderizar();
     expect(screen.getByRole("heading", { level: 1, name: "Conciliações" })).toBeInTheDocument();
-    expect(screen.getByText("2 conciliações · 1 com pendência")).toBeInTheDocument();
+    expect(screen.getByText("2 conciliações · 1 pede decisão")).toBeInTheDocument();
   });
 
-  it("puts the conciliação in progress on top, with what is left and a way back to the comparison", async () => {
+  it("offers to continue where it stopped in one line, instead of repeating the first row in a big card", async () => {
     com();
     await renderizar();
 
-    const andamento = screen.getByRole("region", { name: "Em andamento" });
-    expect(andamento).toHaveTextContent("sicredi-set.ofx");
-    expect(andamento).toHaveTextContent("erp-set.csv · setembro de 2026");
-    expect(andamento).toHaveTextContent("Rodada 2 de 2");
-    expect(andamento).toHaveTextContent("12 batem · 9 pedem decisão · 3 de 9 conferidas · 1 justificada");
-    // em andamento, o mascote vai andando
-    expect(andamento.querySelector("img")?.getAttribute("src")).toContain("mascote-caminhando");
+    const continuar = screen.getByRole("region", { name: "Continue de onde parou" });
+    expect(continuar).toHaveTextContent("Setembro de 2026");
+    expect(continuar).toHaveTextContent("sicredi-set.ofx × erp-set.csv");
+    expect(continuar).toHaveTextContent("9 linhas pedem decisão · 3 de 9 conferidas · rodada 2 de 2");
+    expect(continuar.querySelector("img")?.getAttribute("src")).toContain("mascote-caminhando");
     // pelo endereço só do banco, que abre a rodada que vale
-    expect(within(andamento).getByRole("link", { name: "Continuar na comparação" })).toHaveAttribute(
-      "href",
-      "/conciliacoes/set",
-    );
+    expect(within(continuar).getByRole("link", { name: "Continuar" })).toHaveAttribute("href", "/conciliacoes/set");
   });
 
-  it("leaves the checks out when the backend does not keep them", async () => {
+  it("leaves the checks out of the line when the backend does not keep them", async () => {
     com({ emAndamento: { extratoBancoId: "set", batem: 12, pedemDecisao: 9, justificadas: 1, conferidas: null } });
     await renderizar();
-    expect(screen.getByRole("region", { name: "Em andamento" })).toHaveTextContent(
-      "12 batem · 9 pedem decisão · 1 justificada",
+    expect(screen.getByRole("region", { name: "Continue de onde parou" })).toHaveTextContent(
+      "9 linhas pedem decisão · rodada 2 de 2",
     );
     expect(screen.queryByText(/conferidas/)).not.toBeInTheDocument();
   });
 
-  it("says so when nothing asks for a decision, pointing to the most recent", async () => {
+  it("has nothing to continue when nothing asks for a decision", async () => {
     com({ conciliacoes: [AGOSTO], emAndamento: null });
     await renderizar();
-    const andamento = screen.getByRole("region", { name: "Em andamento" });
-    expect(andamento).toHaveTextContent("Nenhuma conciliação pede decisão.");
-    expect(within(andamento).getByRole("link", { name: "Ver a comparação" })).toHaveAttribute(
-      "href",
-      "/conciliacoes/ago",
-    );
+    expect(screen.queryByRole("region", { name: "Continue de onde parou" })).not.toBeInTheDocument();
   });
 
-  it("lists one row per conciliação, the open ones first, and opens on them", async () => {
+  it("groups the rows by month, each row with one situation, its progress and its last activity", async () => {
     const user = userEvent.setup();
     com();
     await renderizar();
 
-    expect(screen.getByRole("button", { name: "Com pendência (1)" })).toHaveAttribute("aria-pressed", "true");
+    // abre no que pede trabalho
+    expect(screen.getByRole("button", { name: "Pedem decisão (1)" })).toHaveAttribute("aria-pressed", "true");
     expect(linhas()).toHaveLength(1);
     const [setembro] = linhas();
-    expect(setembro.querySelector(".conc-c-mes")).toHaveTextContent("set/2026");
-    expect(setembro.querySelector(".conc-c-rodada")).toHaveTextContent("2 de 2");
-    // 12 de 22: a taxa pelas contagens, como o gráfico e a comparação
-    expect(setembro.querySelector(".conc-c-match")).toHaveTextContent("54,5%");
-    expect(setembro.querySelector(".conc-c-decisao")).toHaveTextContent("9 · 1 justificada");
-    expect(within(setembro).getByText("9 pendências")).toHaveClass("selo", "selo-risco");
-    expect(within(setembro).getByRole("link", { name: "Continuar sicredi-set.ofx" })).toHaveAttribute(
-      "href",
-      "/conciliacoes/set",
-    );
+    expect(within(setembro).getByRole("link", { name: /sicredi-set\.ofx/ })).toHaveAttribute("href", "/conciliacoes/set");
+    expect(setembro).toHaveTextContent("× erp-set.csv");
+    // 12 de 22: o que bateu, e a justificada à parte; sem a taxa repetida em número
+    expect(setembro.querySelector(".conc-c-progresso")).toHaveTextContent("12 de 22 batem · 1 justificada");
+    expect(within(setembro).getByText("9 pedem decisão")).toHaveClass("selo", "selo-risco");
+    expect(setembro.querySelector(".conc-c-atividade")).toHaveTextContent("Rodada 2 de 2");
 
     await user.click(screen.getByRole("button", { name: "Todas (2)" }));
-    expect(linhas()).toHaveLength(2);
-    const agosto = linhas()[1];
-    expect(within(agosto).getByText("Sem pendência")).toHaveClass("selo", "selo-ok");
-    expect(within(agosto).getByRole("link", { name: "Ver sicredi-ago.ofx" })).toHaveAttribute("href", "/conciliacoes/ago");
+    const grupos = screen.getAllByRole("rowgroup").filter((grupo) => grupo.tagName === "TBODY");
+    expect(grupos.map((grupo) => within(grupo).getByRole("rowheader").textContent)).toEqual([
+      expect.stringContaining("Setembro de 2026"),
+      expect.stringContaining("Agosto de 2026"),
+    ]);
+    expect(within(grupos[0]).getByRole("rowheader")).toHaveTextContent("Aberto · 1 conciliação · 9 linhas pedem decisão");
+    expect(within(grupos[0]).getByRole("link", { name: "Fechamento de setembro" })).toHaveAttribute(
+      "href",
+      "/fechamentos?mes=2026-09",
+    );
+    expect(within(linhas()[1]).getByText("Sem pendência")).toHaveClass("selo", "selo-ok");
+  });
+
+  it("puts a closed month after the open ones, says who closed it, and its rows as month closed", async () => {
+    const user = userEvent.setup();
+    com({
+      fechamentos: [
+        {
+          competencia: "2026-08",
+          estado: "fechado",
+          ressalva: null,
+          fechadoPor: "Maria Financeiro",
+          fechadoEm: "2026-10-09T16:33:00Z",
+          reabertoPor: null,
+          reabertoEm: null,
+        },
+      ],
+    });
+    await renderizar();
+
+    await user.click(screen.getByRole("button", { name: "Mês fechado (1)" }));
+    const [agosto] = linhas();
+    expect(within(agosto).getByText("Mês fechado")).toHaveClass("selo");
+    const grupo = agosto.closest("tbody")!;
+    expect(within(grupo).getByRole("rowheader")).toHaveTextContent("Fechado em 09/10/2026 por Maria Financeiro");
+    expect(within(grupo).getByRole("link", { name: "Ver o fechamento" })).toHaveAttribute("href", "/fechamentos?mes=2026-08");
   });
 
   it("opens on all of them when nothing is pending", async () => {

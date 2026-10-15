@@ -1,0 +1,446 @@
+"use client";
+
+import { useState } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { ChevronLeft, ChevronRight, X } from "lucide-react";
+import Image from "next/image";
+import Link from "next/link";
+import { caminhoDaConciliacao } from "@/lib/caminhos";
+import {
+  aceitarValorDoBanco,
+  formatarMoeda,
+  restaurarLinha,
+  type LinhaComparacao,
+} from "@/lib/mock-data";
+import { estaResolvida, pedeDecisao, statusDaLinha } from "../../../dashboard/resumo";
+import { Barra, EsqueletoTela } from "../../../esqueleto";
+import { NumeroAnimado } from "../../../numero-animado";
+import { FALHA_AO_CARREGAR, useConciliacao } from "../../usar-conciliacao";
+import { IconeOrigem, type Origem } from "../../../icone-origem";
+import { ExplicacaoDaDivergencia } from "./explicacao";
+import { historicoDaLinha } from "../situacao";
+import { parDoOutroLado } from "../par";
+import { Cabecalho } from "../../../cabecalho";
+import { InkHover, Reveal } from "@/app/reveal";
+import { SeloIa } from "../../../selo-ia";
+
+function CartaoExtrato({
+  titulo,
+  marca,
+  marcaClasse,
+  valor,
+  campos,
+  origem,
+  diverge,
+}: {
+  titulo: string;
+  marca: string;
+  marcaClasse: string;
+  valor: number | null;
+  campos: { rotulo: string; valor: string }[] | undefined;
+  /** O banco é a fonte da verdade; o valor do sistema é o que diverge dele. */
+  origem: Origem;
+  /** A linha ainda diverge: só então o valor do sistema vai na cor da divergência. */
+  diverge: boolean;
+}) {
+  // cada cartão no tom da sua folha, como na comparação direta
+  return (
+    <div className={`det-cartao folha-${origem}`}>
+      <div className="det-cartao-topo">
+        <span className="det-cartao-titulo">
+          <IconeOrigem origem={origem} />
+          {titulo}
+        </span>
+        <span className={marcaClasse}>{marca}</span>
+      </div>
+      <div
+        className="det-valor"
+        style={origem === "sistema" && diverge ? { color: "var(--color-risco-700)" } : undefined}
+      >
+        {valor === null ? "—" : <NumeroAnimado valor={valor} formatar={formatarMoeda} />}
+      </div>
+      {campos?.map((campo) => (
+        <div key={campo.rotulo} className="det-campo">
+          <span style={{ color: "color-mix(in srgb, var(--color-text) 58%, transparent)" }}>
+            {campo.rotulo}
+          </span>
+          <span
+            style={{
+              fontSize: 16,
+              fontWeight: 600,
+              fontVariantNumeric: "tabular-nums",
+              textAlign: "right",
+            }}
+          >
+            {campo.valor}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * O detalhe de uma linha. Na página inteira (`/conciliacoes/[id]/[linha]`, link colado ou
+ * recarregado) e no painel lateral sobre a comparação (`@painel/(.)[linha]`, aberto pela tabela):
+ * no painel, o cabeçalho troca "Voltar para a conciliação" por anterior/próxima, fechar e
+ * "Abrir em página inteira" (revisão de estilo de 15/10).
+ */
+export function DetalheDivergencia({ painel = false }: { painel?: boolean }) {
+  const params = useParams<{ id: string; linha: string }>();
+  const sistema = useSearchParams().get("sistema") || undefined;
+  const { estado, substituir } = useConciliacao(params.id, sistema);
+  // retrato da linha antes da decisão; existir significa "dá para desfazer"
+  const [desfazivel, setDesfazivel] = useState<LinhaComparacao | null>(null);
+
+  // A linha sai da conciliação carregada, em vez de virar um segundo estado:
+  // com duas cópias, uma decisão precisaria lembrar de atualizar as duas.
+  const linha =
+    estado.situacao === "pronta"
+      ? estado.conciliacao.linhas.find((item) => item.id === params.linha)
+      : undefined;
+
+  if (estado.situacao === "carregando") {
+    return (
+      <EsqueletoTela>
+        <div className="det-comparacao">
+          {[0, 1].map((i) => (
+            <div key={i} className="det-cartao" style={{ gap: 16 }}>
+              <Barra largura={150} altura={17} />
+              <Barra largura={190} altura={36} />
+              <Barra />
+              <Barra largura="64%" />
+            </div>
+          ))}
+        </div>
+      </EsqueletoTela>
+    );
+  }
+
+  if (estado.situacao === "falhou") {
+    return (
+      <div style={{ padding: "76px 0", textAlign: "center" }}>
+        <p role="alert" style={{ margin: "0 0 20px" }}>
+          {FALHA_AO_CARREGAR}
+        </p>
+        <Link href="/dashboard" className="btn btn-secondary">
+          Voltar para Conciliações
+        </Link>
+      </div>
+    );
+  }
+
+  if (estado.situacao === "ausente" || linha === undefined) {
+    return (
+      <div style={{ padding: "76px 0", textAlign: "center" }}>
+        {/* o que não foi achado, o mascote procura de lupa */}
+        <Image
+          src="/mascotes/mascote-lupa.png"
+          alt=""
+          width={977}
+          height={1122}
+          sizes="140px"
+          style={{ width: 140, height: "auto", display: "block", margin: "0 auto 18px" }}
+        />
+        <h1 style={{ margin: "0 0 12px", fontSize: 30, fontWeight: 600 }}>
+          Lançamento não encontrado.
+        </h1>
+        <Link href="/dashboard" className="btn btn-secondary">
+          Voltar para Conciliações
+        </Link>
+      </div>
+    );
+  }
+
+  const { conciliacao, real } = estado;
+  const status = statusDaLinha(linha);
+  // as que ainda pedem decisão: a justificada já foi decidida e sai da conta, como no eixo da comparação
+  const emAberto = conciliacao.linhas.filter(pedeDecisao);
+  const justificada = linha.decisao?.tipo === "justificada";
+  const posicao = emAberto.findIndex((item) => item.id === linha.id);
+  // no painel, anda entre as que pedem decisão; de uma linha fora delas, a próxima é a primeira
+  const anterior = posicao > 0 ? emAberto[posicao - 1] : null;
+  const proxima = posicao === -1 ? (emAberto[0] ?? null) : (emAberto[posicao + 1] ?? null);
+  // "Valor diverge" e "Data diverge" chegam com um lado só: o outro é o par que o motor quase
+  // casou, achado como no balão da comparação (par.ts)
+  const par = parDoOutroLado(linha, conciliacao.linhas);
+  const valorBanco = par?.lado === "banco" ? par.valor : linha.valorBanco;
+  const valorSistema = par?.lado === "sistema" ? par.valor : linha.valorSistema;
+  const delta = valorBanco !== null && valorSistema !== null ? Math.abs(valorBanco - valorSistema) : null;
+
+  // A decisão acontece aqui mesmo, sem navegar: assim a consequência fica visível
+  // e o desfazer não precisa sobreviver a uma troca de tela.
+  function aceitar() {
+    const atualizada = aceitarValorDoBanco(conciliacao.id, linha!.id);
+    if (!atualizada) return;
+    substituir(atualizada);
+    setDesfazivel(linha!);
+  }
+
+  function desfazer() {
+    if (!desfazivel) return;
+    const atualizada = restaurarLinha(conciliacao.id, desfazivel);
+    if (atualizada) substituir(atualizada);
+    setDesfazivel(null);
+  }
+
+  return (
+    <div>
+      <Cabecalho
+        titulo={linha.descricao}
+        sobretitulo={
+          <>
+            {justificada ? `${status.rotulo} · justificada` : status.rotulo}
+            {posicao === -1
+              ? null
+              : ` · item ${String(posicao + 1).padStart(2, "0")} de ${emAberto.length}`}
+          </>
+        }
+        acoes={
+          <>
+          {painel ? (
+            <NavegacaoDoPainel
+              anterior={anterior && caminhoDaConciliacao(conciliacao.id, conciliacao.extratoSistemaId, anterior.id)}
+              proxima={proxima && caminhoDaConciliacao(conciliacao.id, conciliacao.extratoSistemaId, proxima.id)}
+              paginaInteira={caminhoDaConciliacao(conciliacao.id, conciliacao.extratoSistemaId, linha.id)}
+            />
+          ) : (
+          <Link
+            href={caminhoDaConciliacao(conciliacao.id, conciliacao.extratoSistemaId)}
+            className="btn btn-secondary"
+          >
+            {/* "Ignorar por ora" prometia uma decisão que nada grava: é só voltar */}
+            Voltar para a conciliação
+          </Link>
+          )}
+          {/* ponytail: só faz sentido aceitar o banco quando ele tem a linha.
+              E com dado do backend o botão não aparece: não existe endpoint que
+              grave a decisão, então ele mudaria a tela e nada mais. */}
+          {!real && linha.valorBanco !== null && !estaResolvida(linha.status) && (
+            <button type="button" className="btn btn-primary" onClick={aceitar}>
+              Aceitar valor do banco
+            </button>
+          )}
+          </>
+        }
+      />
+
+      <div className="det-corpo">
+        <Reveal className="det-comparacao">
+          <CartaoExtrato
+            titulo="Extrato do banco"
+            marca="Fonte da verdade"
+            marcaClasse="folha-etiqueta"
+            valor={valorBanco}
+            campos={linha.camposBanco}
+            origem="banco"
+            diverge={!estaResolvida(linha.status)}
+          />
+          <div className="det-delta">
+            <div className="det-delta-linha" />
+            <div className="det-delta-valor" data-resolvida={estaResolvida(linha.status) || undefined}>
+              {/* o Δ do design vai sem símbolo de moeda; formatar o número direto evita
+                  depender do espaço não-quebrável que o formato de moeda insere */}
+              {delta === null
+                ? "sem par"
+                : `Δ ${delta.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+            </div>
+            <div className="det-delta-linha" />
+          </div>
+          <CartaoExtrato
+            titulo="Extrato do sistema"
+            marca={estaResolvida(linha.status) ? "Conciliado" : justificada ? "Justificada" : "Precisa de ajuste"}
+            marcaClasse={estaResolvida(linha.status) ? "selo selo-ok" : justificada ? "selo" : "selo selo-risco"}
+            valor={valorSistema}
+            campos={linha.camposSistema}
+            origem="sistema"
+            diverge={!estaResolvida(linha.status)}
+          />
+        </Reveal>
+
+        {/* Com dado do backend, a linha chega com o porquê: a regra que casou ou,
+            quando o backend gerar na conciliação (backend#28), a explicação da
+            divergência. Sem ele, a divergência é explicada sob pedido, pelo
+            POST /explicacoes; o key zera o estado ao trocar de linha. */}
+        {!linha.explicacao && real && !estaResolvida(linha.status) && (
+          <Reveal delay={0.08}>
+            <ExplicacaoDaDivergencia
+              key={linha.id}
+              linhaId={linha.id}
+              voltarPara={caminhoDaConciliacao(conciliacao.id, conciliacao.extratoSistemaId)}
+            />
+          </Reveal>
+        )}
+
+        {linha.explicacao && (
+          <Reveal delay={0.08} className="det-causa">
+            <InkHover style={{ flex: "none" }}>
+              <Image
+                src="/mascotes/mascote-lupa.png"
+                alt="Mascote Ledgr com a lupa"
+                width={977}
+                height={1122}
+                sizes="130px"
+                style={{ width: 130, height: "auto", display: "block" }}
+              />
+            </InkHover>
+            <div style={{ flex: "1 1 340px", minWidth: 0 }}>
+              <h6 style={{ margin: "0 0 8px" }}>
+                O que provavelmente aconteceu
+              </h6>
+              {linha.causa && <div className="det-causa-titulo">{linha.causa}</div>}
+              {/* os Termos prometem o selo em todo texto escrito pela IA */}
+              {linha.explicacaoPorIa && <SeloIa />}
+              <p className="det-causa-texto">{linha.explicacao}</p>
+            </div>
+          </Reveal>
+        )}
+
+        {linha.cronico && linha.cronico.length > 0 && (
+          /* aberto por padrão: é a leitura que muda o que você faz a seguir */
+          <Reveal delay={0.16}>
+            <details className="det-cronico recolhivel" open>
+              <summary className="recolhivel-titulo">
+                <span>
+                  <span
+                    className="det-kicker"
+                    style={{ display: "block", marginBottom: 6 }}
+                  >
+                    Crônico, não pontual
+                  </span>
+                  <span className="font-titulo" style={{ fontSize: 21, fontWeight: 600, lineHeight: 1.26 }}>
+                    O mesmo fornecedor divergiu nos {linha.cronico.length} últimos meses.
+                  </span>
+                </span>
+              </summary>
+              {/* o CTA fica no corpo, não no summary: botão dentro de summary vira
+                  dois alvos disputando o mesmo clique */}
+              <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
+                <Link href="/regras" className="btn btn-primary" style={{ fontSize: 13.5 }}>
+                  Criar regra para este fornecedor
+                </Link>
+              </div>
+              <div style={{ borderTop: "1px solid var(--color-divider)" }}>
+                {linha.cronico.map((mes) => (
+                  <div key={mes.mes} className="det-cronico-linha">
+                    <span className="det-cronico-mes">{mes.mes}</span>
+                    <span className="det-cronico-num">{formatarMoeda(mes.valorBanco)}</span>
+                    <span style={{ flex: "none", fontSize: 14, color: "color-mix(in srgb, var(--color-text) 50%, transparent)" }}>
+                      contra
+                    </span>
+                    <span className="det-cronico-num" style={{ color: "var(--color-risco-700)" }}>
+                      {formatarMoeda(mes.valorSistema)}
+                    </span>
+                    <span className="det-cronico-nota">
+                      diferença de {formatarMoeda(Math.abs(mes.valorBanco - mes.valorSistema))} ·{" "}
+                      {mes.nota}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </details>
+          </Reveal>
+        )}
+
+        {/* fechado por padrão: procedência é consulta, não leitura de rotina */}
+        <Reveal delay={0.16}>
+          <details className="recolhivel">
+            <summary className="recolhivel-titulo">
+              <span className="font-titulo" style={{ fontSize: 22, fontWeight: 600 }}>
+                Histórico do lançamento
+              </span>
+            </summary>
+            <table className="table">
+              <thead>
+                <tr>
+                  <th style={{ width: 130 }}>Quando</th>
+                  <th>Evento</th>
+                  <th style={{ width: 150, textAlign: "right" }}>Origem</th>
+                </tr>
+              </thead>
+              <tbody>
+                {/* as decisões entram depois do que veio dos extratos; conferir, desfazer e
+                    conferir de novo no mesmo minuto dá eventos iguais, daí o índice na chave */}
+                {historicoDaLinha(linha, conciliacao.rodada ?? 1, estado.rodada?.executadaEm).map((evento, indice) => (
+                  <tr key={`${indice}-${evento.evento}`}>
+                    <td className="dash-celula-fraca">{evento.quando}</td>
+                    <td>{evento.evento}</td>
+                    <td className="dash-celula-fraca" style={{ textAlign: "right", fontSize: 14 }}>
+                      {evento.origem ?? "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </details>
+        </Reveal>
+
+        {desfazivel && (
+          <div className="desfazer" role="status">
+            <span className="desfazer-texto">
+              Valor do banco aceito. <strong>{linha.descricao}</strong> agora está conciliado em{" "}
+              {formatarMoeda(linha.valorBanco ?? 0)}.
+            </span>
+            <button type="button" className="btn btn-primary" onClick={desfazer}>
+              Desfazer
+            </button>
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={() => setDesfazivel(null)}
+              style={{ fontSize: 13.5 }}
+            >
+              Pronto
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * O cabeçalho do detalhe dentro do painel: a comparação já está atrás, então "voltar" é fechar
+ * (o histórico do navegador desfaz a abertura) e as setas trocam a linha no lugar, sem empilhar
+ * cada uma no histórico. "Abrir em página inteira" é um link comum: a navegação inteira não é
+ * interceptada e abre a página de sempre.
+ */
+function NavegacaoDoPainel({
+  anterior,
+  proxima,
+  paginaInteira,
+}: {
+  anterior: string | null;
+  proxima: string | null;
+  paginaInteira: string;
+}) {
+  const router = useRouter();
+  return (
+    <div className="painel-nav">
+      {anterior ? (
+        <Link href={anterior} replace className="btn btn-ghost painel-nav-icone" aria-label="Divergência anterior">
+          <ChevronLeft size={18} aria-hidden="true" />
+        </Link>
+      ) : (
+        <button type="button" className="btn btn-ghost painel-nav-icone" aria-label="Divergência anterior" disabled>
+          <ChevronLeft size={18} aria-hidden="true" />
+        </button>
+      )}
+      {proxima ? (
+        <Link href={proxima} replace className="btn btn-ghost painel-nav-icone" aria-label="Próxima divergência">
+          <ChevronRight size={18} aria-hidden="true" />
+        </Link>
+      ) : (
+        <button type="button" className="btn btn-ghost painel-nav-icone" aria-label="Próxima divergência" disabled>
+          <ChevronRight size={18} aria-hidden="true" />
+        </button>
+      )}
+      <a href={paginaInteira} className="btn btn-ghost">
+        Abrir em página inteira
+      </a>
+      <button type="button" className="btn btn-ghost painel-nav-icone" aria-label="Fechar" onClick={() => router.back()}>
+        <X size={18} aria-hidden="true" />
+      </button>
+    </div>
+  );
+}

@@ -25,6 +25,7 @@ import { conciliados, porConciliacao } from "../historico/execucoes";
 import { ordemDeTrabalho, pedemDecisao, type ConciliacaoNaLista } from "../dashboard/lista";
 import { estaResolvida, pedeDecisao } from "../dashboard/resumo";
 import { decisoesLigadas, situacaoDaLinha } from "./[id]/situacao";
+import { competencia } from "../fechamentos/fechamento";
 import type { ConciliacaoDoPar } from "../fechamentos/relatorio";
 
 /**
@@ -353,6 +354,8 @@ export async function listarExecucoes(pagina = 0): Promise<Resultado<ListaExecuc
 export type ListaDeConciliacoes = {
   /** Cada extrato do banco uma vez, na rodada que vale, na ordem da página. */
   conciliacoes: ConciliacaoNaLista[];
+  /** Os fechamentos da empresa, para a lista dizer que meses estão fechados; null se não vieram. */
+  fechamentos: Fechamento[] | null;
   /**
    * A primeira da fila que ainda pede decisão, contada pelas linhas dela: batem, pedem decisão,
    * justificadas e conferidas (null quando o backend não guarda decisões). Null sem nenhuma aberta.
@@ -376,7 +379,7 @@ export type ListaDeConciliacoes = {
  * ponytail: só a primeira página de `/execucoes`.
  */
 export async function carregarConciliacoes(): Promise<Resultado<ListaDeConciliacoes>> {
-  const lista = await listarExecucoes();
+  const [lista, fechamentos] = await Promise.all([listarExecucoes(), listarFechamentos()]);
   if (!lista.ok) return lista;
   const { execucoes, total } = lista.dados;
   const parcial = total > execucoes.length;
@@ -396,7 +399,7 @@ export async function carregarConciliacoes(): Promise<Resultado<ListaDeConciliac
 
   const [primeira] = ordemDeTrabalho(conciliacoes);
   if (!primeira || pedemDecisao(primeira) === 0) {
-    return { ok: true, dados: { conciliacoes, emAndamento: null, parcial } };
+    return { ok: true, dados: { conciliacoes, fechamentos, emAndamento: null, parcial } };
   }
   const aberta = await carregarConciliacao(primeira.extratoBancoId, primeira.extratoSistemaId);
   // sem as linhas, a lista ainda serve: o cartão conta pelo que `/execucoes` sabe
@@ -409,7 +412,7 @@ export async function carregarConciliacoes(): Promise<Resultado<ListaDeConciliac
         justificadas: primeira.execucao.justificadas,
         conferidas: null,
       };
-  return { ok: true, dados: { conciliacoes, emAndamento, parcial } };
+  return { ok: true, dados: { conciliacoes, fechamentos, emAndamento, parcial } };
 }
 
 /** O que já foi decidido na conciliação aberta, contado pelas linhas dela. */
@@ -616,6 +619,13 @@ export type VisaoGeral = {
   recente: { execucao: Execucao; conciliacao: Conciliacao } | null;
   /** Os arquivos da mais recente com linhas que o parser não conseguiu ler. */
   arquivosComLinhasNaoLidas: { nome: string; linhas: number }[];
+  /**
+   * O mês em foco (revisão de 15/10): o aberto mais recente, ou o mais recente se todos estão
+   * fechados, com as linhas de todas as conciliações dele. O número do topo, "Pede sua atenção" e
+   * o atalho de Fechamentos olham o mês inteiro, não só a última conciliação. Ausente quando alguma
+   * conciliação do mês não carregou: a home cai para só a recente, como era.
+   */
+  mes?: { competencia: string; fechado: boolean; conciliacoes: Conciliacao[] };
 };
 
 /**
@@ -625,22 +635,37 @@ export type VisaoGeral = {
  * extratos faz, custaria uma chamada por arquivo para abrir a home.
  */
 export async function carregarVisaoGeral(): Promise<Resultado<VisaoGeral>> {
-  const lista = await listarExecucoes();
+  const [lista, fechamentos] = await Promise.all([listarExecucoes(), listarFechamentos()]);
   if (!lista.ok) return lista;
   const { execucoes, total } = lista.dados;
 
-  // a rodada que vale do extrato do banco mais recente: a v1 reconciliada depois da
-  // v2 é a execução mais nova, mas não a rodada de agora
-  const [maisRecente] = execucoesVigentes(execucoes);
-  if (!maisRecente) {
+  // a rodada que vale de cada extrato do banco: a v1 reconciliada depois da v2 é a execução mais
+  // nova, mas não a rodada de agora
+  const vigentes = execucoesVigentes(execucoes);
+  if (vigentes.length === 0) {
     return { ok: true, dados: { execucoes, total, recente: null, arquivosComLinhasNaoLidas: [] } };
   }
 
-  const [conciliacao, banco, sistema] = await Promise.all([
-    carregarConciliacao(maisRecente.extratoBancoId, maisRecente.extratoSistemaId),
+  // o mês em foco: o aberto mais recente (é onde está o trabalho); todos fechados, o mais recente
+  const mesDe = (execucao: Execucao) => competencia(execucao.periodoInicio, execucao.executadaEm);
+  const fechados = new Set<string>();
+  const vistos = new Set<string>();
+  for (const fechamento of fechamentos ?? []) {
+    if (vistos.has(fechamento.competencia)) continue;
+    vistos.add(fechamento.competencia);
+    if (fechamento.estado === "fechado") fechados.add(fechamento.competencia);
+  }
+  const meses = [...new Set(vigentes.map(mesDe))].sort((a, b) => b.localeCompare(a));
+  const foco = meses.find((mes) => !fechados.has(mes)) ?? meses[0];
+  const doMes = vigentes.filter((execucao) => mesDe(execucao) === foco);
+  const [maisRecente] = doMes;
+
+  const [conciliacoes, banco, sistema] = await Promise.all([
+    Promise.all(doMes.map((execucao) => carregarConciliacao(execucao.extratoBancoId, execucao.extratoSistemaId))),
     situacaoDoExtrato(maisRecente.extratoBancoId),
     situacaoDoExtrato(maisRecente.extratoSistemaId),
   ]);
+  const [conciliacao] = conciliacoes;
   if (!conciliacao.ok) return conciliacao;
 
   // o detalhe do arquivo é aviso a mais, não o dado principal: se não carregar,
@@ -654,6 +679,7 @@ export async function carregarVisaoGeral(): Promise<Resultado<VisaoGeral>> {
       ? [{ nome, linhas: situacao.dados.erros.length }]
       : [],
   );
+  const todasCarregaram = conciliacoes.every((resultado) => resultado.ok);
 
   return {
     ok: true,
@@ -662,6 +688,13 @@ export async function carregarVisaoGeral(): Promise<Resultado<VisaoGeral>> {
       total,
       recente: { execucao: maisRecente, conciliacao: conciliacao.dados.conciliacao },
       arquivosComLinhasNaoLidas,
+      ...(todasCarregaram && {
+        mes: {
+          competencia: foco,
+          fechado: fechados.has(foco),
+          conciliacoes: conciliacoes.flatMap((resultado) => (resultado.ok ? [resultado.dados.conciliacao] : [])),
+        },
+      }),
     },
   };
 }
