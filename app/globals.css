@@ -2424,7 +2424,8 @@ html[data-tema="escuro"] .app-shell {
 .folhas-com-eixo col.col-valor { width: var(--valor-largura, 10rem); }
 .folhas-com-eixo col.col-eixo { width: 9rem; }
 /* a conferência fica numa coluna dela, depois da folha do sistema: o eixo leva só o veredito */
-.folhas-com-eixo col.col-conferir { width: 3rem; }
+/* com o nome escrito no cabeçalho, e não só um ícone, a coluna precisa caber "CONFERIDA" */
+.folhas-com-eixo col.col-conferir { width: 6.5rem; }
 .dash-tabela-rolagem .folhas-com-eixo { min-width: 900px; }
 /* com a largura fixa, uma palavra mais longa que a coluna (um código de PIX) vazaria da folha */
 .folhas-com-eixo td { overflow-wrap: break-word; }
@@ -2445,7 +2446,7 @@ html[data-tema="escuro"] .app-shell {
 /* A conferência, na coluna dela no fim da linha: um botão (aria-pressed) desenhado como círculo,
    e não como caixa, para não parecer "selecionar a linha", como o "conferido" do QuickBooks. O
    desenho tem 20px; o alvo, 30px, para o dedo e o ponteiro. */
-.th-conferir { width: 3rem; text-align: center; color: color-mix(in srgb, var(--color-text) 62%, transparent); }
+.th-conferir { width: 6.5rem; white-space: nowrap; cursor: help; text-align: center; color: color-mix(in srgb, var(--color-text) 62%, transparent); }
 .th-conferir svg { vertical-align: middle; }
 .celula-conferir { text-align: center; }
 .conferir-circulo {

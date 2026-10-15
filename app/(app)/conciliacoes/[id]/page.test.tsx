@@ -941,7 +941,10 @@ describe("ConciliacaoPage", () => {
       const status = celula.parentElement!.querySelector(".celula-status") as HTMLElement;
       expect(within(status).queryByRole("button")).not.toBeInTheDocument();
       // a coluna tem nome: não é "selecionar a linha"
-      expect(screen.getByRole("columnheader", { name: "Conferida" })).toBeInTheDocument();
+      // e o nome está escrito, com a dica do que marcar (antes era só um ícone)
+      const cabecalho = screen.getByRole("columnheader", { name: "Conferida" });
+      expect(cabecalho).toHaveTextContent("Conferida");
+      expect(cabecalho).toHaveAttribute("title", "Marque as divergências que você já olhou. As que bateram não precisam.");
     });
 
     it("has no check column where nothing can be decided", async () => {
