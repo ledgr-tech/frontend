@@ -4,7 +4,13 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { cadastrar, type CampoCadastroAPI, type ResultadoCadastro } from "../acoes";
+import {
+  cadastrar,
+  verificarCadastro,
+  type CampoCadastroAPI,
+  type ResultadoCadastro,
+  type ResultadoVerificacao,
+} from "../acoes";
 import { CampoTexto } from "../_compartilhado/campo-texto";
 import { MensagemErro } from "../_compartilhado/mensagem-erro";
 import { MolduraAuth } from "../_compartilhado/moldura-auth";
@@ -59,6 +65,8 @@ export default function CadastroPage() {
   // contador por campo: cada erro novo alterna data-tremor entre "a" e "b" para o CSS repetir o tremor
   const [tremor, setTremor] = useState<Record<string, number>>({});
   const [concluindo, setConcluindo] = useState(false);
+  // e-mail e CNPJ sendo conferidos ao sair do passo da empresa
+  const [verificando, setVerificando] = useState(false);
   const [fase, setFase] = useState<FaseCriacao>("criando");
   const botaoEnviar = useRef<HTMLButtonElement>(null);
   const [erroGeral, setErroGeral] = useState<string>();
@@ -115,8 +123,42 @@ export default function CadastroPage() {
     const primeiro = PASSOS[destino].campos.find((campo) => ids.includes(campo.id))!;
     setErros(novos);
     tremer(ids);
+    // no mesmo passo o efeito da troca não roda: o foco vai direto
+    if (destino === indicePasso) {
+      campos.current[primeiro.id]?.focus();
+      return;
+    }
     campoAFocar.current = primeiro.id;
     setIndicePasso(destino);
+  }
+
+  /**
+   * Ao sair do passo da empresa, o primeiro em que o CNPJ existe, o backend diz se e-mail e CNPJ
+   * estão livres (#78): quem já tem conta descobre aqui, e não depois do banco e do sistema. Sem
+   * resposta, segue: o `/register` confere tudo de novo no fim.
+   */
+  async function livres(): Promise<boolean> {
+    setVerificando(true);
+    let resultado: ResultadoVerificacao;
+    try {
+      resultado = await verificarCadastro({ email: (valores.email ?? "").trim(), cnpj: valores.cnpj ?? "" });
+    } catch {
+      resultado = { ok: false, erro: "indisponivel" };
+    }
+    setVerificando(false);
+    if (resultado.ok) {
+      const novos: Erros = {};
+      if (!resultado.emailDisponivel) novos.email = JA_CADASTRADO.email_cadastrado.mensagem;
+      if (!resultado.cnpjDisponivel) novos.cnpj = JA_CADASTRADO.cnpj_cadastrado.mensagem;
+      if (Object.keys(novos).length === 0) return true;
+      voltarAoCampo(novos);
+      return false;
+    }
+    if (resultado.erro === "invalido") {
+      voltarAoCampo(Object.fromEntries(resultado.campos.map((campo) => [campo, INVALIDO[campo]])));
+      return false;
+    }
+    return true;
   }
 
   async function concluir() {
@@ -162,8 +204,8 @@ export default function CadastroPage() {
     return resto;
   }
 
-  function avancar() {
-    if (concluindo) return;
+  async function avancar() {
+    if (concluindo || verificando) return;
     const novos: Erros = {};
     for (const campo of passo.campos) {
       const mensagem = validarCampo(campo, valores[campo.id] ?? "");
@@ -185,6 +227,7 @@ export default function CadastroPage() {
       timer.current = setTimeout(concluir, ATRASO_CONCLUSAO_MS);
       return;
     }
+    if (passo.id === "empresa" && !(await livres())) return;
 
     const proximoPasso = PASSOS[indicePasso + 1];
     // o e-mail do responsável começa igual ao e-mail de acesso
@@ -202,7 +245,7 @@ export default function CadastroPage() {
 
   function enviar(evento: FormEvent<HTMLFormElement>) {
     evento.preventDefault();
-    avancar();
+    void avancar();
   }
 
   return (
@@ -289,7 +332,8 @@ export default function CadastroPage() {
 
         <div className="cadastro-acoes" style={{ display: "flex", alignItems: "center", gap: 12, marginTop: "clamp(16px, 2.6vh, 24px)" }}>
           {indicePasso > 0 && (
-            <button type="button" className="btn btn-ghost" onClick={voltar}>
+            // voltar no meio da conferência faria a resposta avançar a partir do passo errado
+            <button type="button" className="btn btn-ghost" onClick={voltar} disabled={verificando}>
               Voltar
             </button>
           )}
@@ -297,9 +341,11 @@ export default function CadastroPage() {
             ref={botaoEnviar}
             type="submit"
             className="btn btn-primary"
+            disabled={verificando}
+            aria-busy={verificando || undefined}
             style={{ flex: 1, fontSize: 15.5, padding: "clamp(10px, 1.6vh, 13px) 22px" }}
           >
-            {passo.botao}
+            {verificando ? "Conferindo…" : passo.botao}
           </button>
         </div>
 
