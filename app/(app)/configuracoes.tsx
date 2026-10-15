@@ -383,6 +383,7 @@ function tolerancia(dias: number | null | undefined): string {
 
 export function Configuracoes({
   aberta,
+  secao: secaoPedida,
   onFechar,
   email,
   temSenha,
@@ -390,6 +391,8 @@ export function Configuracoes({
   onTema,
 }: {
   aberta: boolean;
+  /** A seção para abrir, quando quem abre pede uma (o roteiro da Visão geral pede "conciliacao"). */
+  secao?: string;
   onFechar: () => void;
   email: string;
   /** Falso na conta que só entra pelo Google (`metodos_login` do `GET /me`): não há senha para trocar. */
@@ -417,6 +420,9 @@ export function Configuracoes({
       setTema(escolhaDeTema());
       setDensidade(densidadeAtual());
       setRecolhido(menuRecolhido());
+      // a seção pedida vale no momento em que a janela abre; depois a pessoa navega à vontade
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (secaoPedida) setSecaoId(secaoPedida);
       if (typeof elemento.showModal === "function") elemento.showModal();
       else elemento.setAttribute("open", "");
     }
@@ -424,7 +430,7 @@ export function Configuracoes({
       if (typeof elemento.close === "function") elemento.close();
       else elemento.removeAttribute("open");
     }
-  }, [aberta]);
+  }, [aberta, secaoPedida]);
 
   // as regras são do backend: busca na primeira vez que a janela abre
   useEffect(() => {

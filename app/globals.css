@@ -4514,3 +4514,25 @@ html[data-tema="escuro"] .app-shell {
   height: 36px;
   flex: none;
 }
+
+/* Roteiro de primeiros passos (primeiro uso, 15/10) */
+.roteiro { display: flex; flex-direction: column; gap: 18px; padding: 26px 28px; max-width: 760px; }
+.roteiro-topo { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.roteiro-cabeca { display: flex; flex-direction: column; gap: 4px; }
+.roteiro-titulo { margin: 0; font-family: var(--font-titulo); font-size: 26px; font-weight: 600; }
+.roteiro-sub, .roteiro-conta, .roteiro-passo-detalhe { font-size: 14px; color: var(--texto-apagado); }
+.roteiro-progresso { display: flex; align-items: center; gap: 14px; }
+.roteiro-barra { flex: 1; height: 6px; border-radius: 999px; background: var(--color-divider); overflow: hidden; }
+.roteiro-barra span { display: block; height: 100%; background: var(--color-ok-700); }
+.roteiro-conta { font-variant-numeric: tabular-nums; }
+.roteiro-passos { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.roteiro-passo { display: flex; align-items: center; gap: 14px; padding: 13px 0; }
+.roteiro-passo + .roteiro-passo { border-top: 1px solid var(--color-divider); }
+.roteiro-marca { width: 26px; height: 26px; border-radius: 50%; border: 1.5px solid var(--color-divider); display: grid; place-items: center; flex: none; font-size: 13px; }
+.roteiro-passo[data-agora] .roteiro-marca { border-color: var(--color-text); }
+.roteiro-passo[data-feito] .roteiro-marca { background: var(--color-ok-700); border-color: var(--color-ok-700); color: var(--color-bg); }
+.roteiro-texto { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.roteiro-passo-titulo { font-size: 15.5px; }
+.roteiro-passo[data-agora] .roteiro-passo-titulo { font-weight: 600; }
+.roteiro-passo[data-feito] .roteiro-passo-titulo { color: var(--texto-apagado); text-decoration: line-through; }
+@media (max-width: 640px) { .roteiro { padding: 20px 18px; } .roteiro-passo { flex-wrap: wrap; } }

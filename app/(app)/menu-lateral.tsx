@@ -33,6 +33,7 @@ import { Configuracoes } from "./configuracoes";
 import { LogoBarras } from "./logo-barras";
 import { alternarMenu, menuRecolhido } from "./menu";
 import { aplicarTema, temaAtual, type Tema } from "./tema";
+import { ABRIR_CONFIGURACOES } from "@/lib/eventos";
 
 type ItemMenu = {
   nome: string;
@@ -119,10 +120,21 @@ export function MenuLateral({
   const [tema, setTema] = useState<Tema | null>(null);
   const [contaAberta, setContaAberta] = useState(false);
   const [configAberta, setConfigAberta] = useState(false);
+  // a seção pedida por fora (o "Definir agora" do roteiro da Visão geral)
+  const [secaoPedida, setSecaoPedida] = useState<string | undefined>();
   const [assistenteAberto, setAssistenteAberto] = useState(false);
   const botaoAssistente = useRef<HTMLButtonElement>(null);
   const caixaConta = useRef<HTMLDivElement>(null);
   const botaoConta = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    const abrir = (evento: Event) => {
+      setSecaoPedida((evento as CustomEvent<{ secao: string }>).detail?.secao);
+      setConfigAberta(true);
+    };
+    window.addEventListener(ABRIR_CONFIGURACOES, abrir);
+    return () => window.removeEventListener(ABRIR_CONFIGURACOES, abrir);
+  }, []);
   const botaoRecolher = useRef<HTMLButtonElement>(null);
   const botaoAbrir = useRef<HTMLButtonElement>(null);
   const menu = useRef<HTMLElement>(null);
@@ -444,7 +456,11 @@ export function MenuLateral({
 
       <Configuracoes
         aberta={configAberta}
-        onFechar={() => setConfigAberta(false)}
+        secao={secaoPedida}
+        onFechar={() => {
+          setConfigAberta(false);
+          setSecaoPedida(undefined);
+        }}
         email={email}
         temSenha={temSenha}
         onSair={onSair}
