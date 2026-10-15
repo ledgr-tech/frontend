@@ -44,7 +44,7 @@ describe("token do backend", () => {
     expect(decodeProtectedHeader(token).alg).toBe("HS256");
   });
 
-  it("leva os quatro claims do contrato, com empresa_id em snake_case", async () => {
+  it("leva os claims do contrato, com empresa_id em snake_case", async () => {
     const payload = decodeJwt(await assinarToken(CLAIMS));
     // é o único claim que o backend lê para resolver o tenant — sem ele, 401
     expect(payload.empresa_id).toBe(CLAIMS.empresaId);
@@ -61,6 +61,36 @@ describe("token do backend", () => {
 
   it("volta a ler o que assinou", async () => {
     expect(await lerToken(await assinarToken(CLAIMS))).toEqual(CLAIMS);
+  });
+
+  it("leva o auth_time do login quando ele existe (#75)", async () => {
+    const payload = decodeJwt(await assinarToken({ ...CLAIMS, authTime: 1791374400 }));
+    expect(payload.auth_time).toBe(1791374400);
+  });
+
+  it("sem auth_time, não inventa um: o backend recusa e a pessoa entra de novo", async () => {
+    const payload = decodeJwt(await assinarToken(CLAIMS));
+    expect(payload).not.toHaveProperty("auth_time");
+  });
+
+  it("volta a ler o auth_time que assinou", async () => {
+    const comLogin = { ...CLAIMS, authTime: 1791374400 };
+    expect(await lerToken(await assinarToken(comLogin))).toEqual(comLogin);
+  });
+
+  it("renovar a sessão troca iat e exp, mas mantém o auth_time do login", async () => {
+    // a renovação do NextAuth é exatamente isto: decode do cookie atual, encode de novo
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-07T12:00:00Z"));
+    const primeiro = await assinarToken({ ...CLAIMS, authTime: 1791374400 });
+
+    vi.setSystemTime(new Date("2026-10-09T08:30:00Z"));
+    const renovado = await assinarToken((await lerToken(primeiro))!);
+
+    const antes = decodeJwt(primeiro);
+    const depois = decodeJwt(renovado);
+    expect(depois.iat).toBeGreaterThan(antes.iat!);
+    expect(depois.auth_time).toBe(1791374400);
   });
 
   it("recusa token assinado com outro segredo", async () => {

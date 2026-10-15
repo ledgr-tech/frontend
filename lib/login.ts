@@ -11,8 +11,11 @@ import { ErroBackend, chamarBackend } from "./backend";
  * precisa de teste, e o `auth.ts` não se importa sem subir o NextAuth inteiro.
  */
 
-/** O corpo que `POST /login` e `POST /register` devolvem. */
-export type UsuarioAPI = { id: string; empresa_id: string; nome: string; email: string };
+/**
+ * O corpo que `POST /login` e `POST /register` devolvem. `auth_time` só vem do
+ * `/login`, e só do backend com a revogação de sessão (#75).
+ */
+export type UsuarioAPI = { id: string; empresa_id: string; nome: string; email: string; auth_time?: number };
 
 /**
  * O 429 do backend. Tem que ser um `CredentialsSignin` pra chegar inteiro na
@@ -35,7 +38,13 @@ export async function autorizar(email: string, senha: string) {
       corpo: { email, senha },
       publica: true,
     });
-    return { id: usuario.id, email: usuario.email, name: usuario.nome, empresaId: usuario.empresa_id };
+    return {
+      id: usuario.id,
+      email: usuario.email,
+      name: usuario.nome,
+      empresaId: usuario.empresa_id,
+      ...(Number.isInteger(usuario.auth_time) && { authTime: usuario.auth_time }),
+    };
   } catch (erro) {
     if (erro instanceof ErroBackend && erro.status === 401) return null;
     if (erro instanceof ErroBackend && erro.status === 429) throw new MuitasEntradas();

@@ -6,6 +6,8 @@ import type { DefaultSession } from "next-auth";
 declare module "next-auth" {
   interface User {
     empresaId: string;
+    /** `auth_time` do `POST /login` (backend #75); ver `lib/token.ts`. */
+    authTime?: number;
   }
   interface Session {
     user: { empresaId: string } & DefaultSession["user"];
@@ -15,5 +17,6 @@ declare module "next-auth" {
 declare module "next-auth/jwt" {
   interface JWT {
     empresaId: string;
+    authTime?: number;
   }
 }

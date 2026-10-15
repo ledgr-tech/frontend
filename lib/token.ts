@@ -4,9 +4,10 @@ import { SignJWT, jwtVerify } from "jose";
  * O contrato do JWT com o backend, num lugar só.
  *
  * Fechado em `02-decisoes/05-contrato-jwt-empresa-id`: HS256, assinado com
- * `NEXTAUTH_SECRET`, claims `sub` / `empresa_id` / `email` / `iat` / `exp`. O
- * backend (`app/core/auth.py`) decodifica com PyJWT, exige `exp` e lê só
- * `empresa_id` — token sem esse claim, ou com valor que não é UUID, é 401.
+ * `NEXTAUTH_SECRET`, claims `sub` / `empresa_id` / `email` / `iat` / `exp` e,
+ * desde a revogação de sessão (backend #75, ADR-016), `auth_time`. O backend
+ * (`app/core/auth.py`) decodifica com PyJWT, exige `exp` e `auth_time` e resolve
+ * o tenant pelo `empresa_id` — token sem esses claims é 401.
  *
  * Isto existe separado do `auth.ts` porque é a parte que precisa de teste: se
  * um claim sair errado, nada no app funciona e o sintoma é um 401 sem pista.
@@ -21,6 +22,14 @@ export type ClaimsSessao = {
   usuarioId: string;
   email: string;
   empresaId: string;
+  /**
+   * O momento do login, em segundos desde a época, no relógio do backend: vem
+   * da resposta do `POST /login` e nunca do `Date.now()` daqui (com dois
+   * relógios, o login logo depois de trocar a senha nasceria revogado). Gravado
+   * no login e mantido nas renovações, porque a sessão vale 7 dias a partir
+   * dele, e não do último `iat`. Ausente com backend antigo: sem valor, sem claim.
+   */
+  authTime?: number;
 };
 
 function segredo(): Uint8Array {
@@ -34,7 +43,11 @@ function segredo(): Uint8Array {
 }
 
 export async function assinarToken(claims: ClaimsSessao): Promise<string> {
-  return new SignJWT({ empresa_id: claims.empresaId, email: claims.email })
+  return new SignJWT({
+    empresa_id: claims.empresaId,
+    email: claims.email,
+    ...(claims.authTime !== undefined && { auth_time: claims.authTime }),
+  })
     .setProtectedHeader({ alg: ALGORITMO })
     .setSubject(claims.usuarioId)
     .setIssuedAt()
@@ -50,6 +63,7 @@ export async function lerToken(token: string): Promise<ClaimsSessao | null> {
       usuarioId: String(payload.sub ?? ""),
       email: typeof payload.email === "string" ? payload.email : "",
       empresaId: String(payload.empresa_id ?? ""),
+      ...(Number.isInteger(payload.auth_time) && { authTime: payload.auth_time as number }),
     };
   } catch {
     return null;
