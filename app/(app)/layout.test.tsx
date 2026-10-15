@@ -47,4 +47,10 @@ describe("AppLayout", () => {
     expect(redirect).not.toHaveBeenCalled();
     expect(elemento.props.email).toBe("financeiro@telhacerta.com.br");
   });
+
+  it("entrega as preferências da conta para o shell, null quando o /me não manda", async () => {
+    auth.mockResolvedValue({ user: { email: "financeiro@telhacerta.com.br" } });
+    const elemento = await AppLayout({ children: "conteúdo" });
+    expect(elemento.props.preferencias).toBeNull();
+  });
 });

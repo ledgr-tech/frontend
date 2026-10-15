@@ -7,6 +7,7 @@ import { auth, signIn, signOut } from "@/auth";
 import { ErroBackend, chamarBackend } from "@/lib/backend";
 import { demoAberta } from "@/lib/demo";
 import { MuitasEntradas, type UsuarioAPI } from "@/lib/login";
+import { ehTela, type Preferencias } from "@/lib/preferencias";
 
 /**
  * Abrir e fechar sessão, e criar conta. Vive numa Server Action porque o
@@ -236,7 +237,17 @@ export type ContaDaSessao = {
   empresa: string;
   /** Falso na conta que só entra pelo Google: para ela, `POST /me/senha` responde 409. */
   temSenha: boolean;
+  /** O que a pessoa dispensou no primeiro uso; null quando o `GET /me` ainda não manda o campo. */
+  preferencias: Preferencias | null;
 };
+
+type PreferenciasAPI = { tutoriais_dispensados?: unknown; roteiro_dispensado?: unknown };
+
+function adaptarPreferencias(bruto: PreferenciasAPI | null | undefined): Preferencias | null {
+  if (!bruto || typeof bruto !== "object") return null;
+  const telas = Array.isArray(bruto.tutoriais_dispensados) ? bruto.tutoriais_dispensados.filter(ehTela) : [];
+  return { tutoriaisDispensados: telas, roteiroDispensado: bruto.roteiro_dispensado === true };
+}
 
 /**
  * A conta logada, de `GET /me` (backend #81), que o `/login` não cobre: ele devolve só
@@ -248,10 +259,35 @@ export type ContaDaSessao = {
  */
 export async function contaDaSessao(): Promise<ContaDaSessao> {
   try {
-    const eu = await chamarBackend<UsuarioAPI & { razao_social: string; metodos_login: string[] }>("/me");
-    return { empresa: eu.razao_social?.trim() ?? "", temSenha: eu.metodos_login?.includes("senha") ?? true };
+    const eu = await chamarBackend<
+      UsuarioAPI & { razao_social: string; metodos_login: string[]; preferencias?: PreferenciasAPI }
+    >("/me");
+    return {
+      empresa: eu.razao_social?.trim() ?? "",
+      temSenha: eu.metodos_login?.includes("senha") ?? true,
+      preferencias: adaptarPreferencias(eu.preferencias),
+    };
   } catch {
-    return { empresa: "", temSenha: true };
+    return { empresa: "", temSenha: true, preferencias: null };
+  }
+}
+
+/**
+ * Guarda as preferências do primeiro uso na conta (`PATCH /me/preferencias`). Falso quando o
+ * backend ainda não tem a rota ou não respondeu: o navegador já guardou, a tela não avisa nada.
+ */
+export async function salvarPreferencias(preferencias: Preferencias): Promise<boolean> {
+  try {
+    await chamarBackend("/me/preferencias", {
+      method: "PATCH",
+      corpo: {
+        tutoriais_dispensados: preferencias.tutoriaisDispensados,
+        roteiro_dispensado: preferencias.roteiroDispensado,
+      },
+    });
+    return true;
+  } catch {
+    return false;
   }
 }
 

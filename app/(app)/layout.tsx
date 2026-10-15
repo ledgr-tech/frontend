@@ -18,7 +18,12 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
 
   const conta = await contaDaSessao();
   return (
-    <Shell email={sessao.user.email} empresa={conta.empresa} temSenha={conta.temSenha}>
+    <Shell
+      email={sessao.user.email}
+      empresa={conta.empresa}
+      temSenha={conta.temSenha}
+      preferencias={conta.preferencias}
+    >
       {children}
     </Shell>
   );

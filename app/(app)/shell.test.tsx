@@ -13,6 +13,7 @@ vi.mock("next/navigation", () => ({
 const sair = vi.fn();
 vi.mock("../(auth)/acoes", () => ({
   sair: () => sair(),
+  salvarPreferencias: async () => true,
 }));
 
 vi.mock("@/lib/mock-data", () => ({
@@ -39,7 +40,7 @@ describe("Shell", () => {
 
   it("põe o conteúdo dentro do menu lateral e da barra superior", async () => {
     render(
-      <Shell email={EMAIL} empresa="Telha Certa Ltda" temSenha>
+      <Shell email={EMAIL} empresa="Telha Certa Ltda" temSenha preferencias={null}>
         conteúdo autenticado
       </Shell>,
     );
@@ -53,7 +54,7 @@ describe("Shell", () => {
   it("encerra a sessão pelo servidor", async () => {
     const user = userEvent.setup();
     render(
-      <Shell email={EMAIL} empresa="Telha Certa Ltda" temSenha>
+      <Shell email={EMAIL} empresa="Telha Certa Ltda" temSenha preferencias={null}>
         conteúdo
       </Shell>,
     );
@@ -68,7 +69,7 @@ describe("Shell", () => {
 
   it("puts the session's empresa at the start of every screen's header", async () => {
     render(
-      <Shell email={EMAIL} empresa="Telha Certa Ltda" temSenha>
+      <Shell email={EMAIL} empresa="Telha Certa Ltda" temSenha preferencias={null}>
         <Cabecalho titulo="Extratos" contexto={["2 arquivos"]} />
       </Shell>,
     );
@@ -78,7 +79,7 @@ describe("Shell", () => {
 
   it("desenha os ícones do menu e das telas com o traço do guia (1,75)", async () => {
     const { container } = render(
-      <Shell email={EMAIL} empresa="Telha Certa Ltda" temSenha>
+      <Shell email={EMAIL} empresa="Telha Certa Ltda" temSenha preferencias={null}>
         <ArrowRight data-testid="icone-da-tela" />
       </Shell>,
     );
