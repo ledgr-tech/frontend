@@ -4,7 +4,6 @@ import { useEffect, useId, useRef, useState, type CSSProperties, type FormEvent 
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { CircleCheck } from "lucide-react";
 import { ehDivergencia } from "@/lib/adaptadores";
 import { caminhoDaConciliacao } from "@/lib/caminhos";
 import {
@@ -526,9 +525,8 @@ export default function ConciliacaoPage() {
                   </CabecalhoOrdenavel>
                   {/* a conferência no fim da linha, com nome: depois de ler o par, "já conferi" */}
                   {podeDecidir && (
-                    <th className="th-conferir" title="Conferida">
-                      <CircleCheck size={15} aria-hidden="true" />
-                      <span className="sr-only">Conferida</span>
+                    <th className="th-conferir" title="Marque as divergências que você já olhou. As que bateram não precisam.">
+                      Conferida
                     </th>
                   )}
                 </tr>
@@ -686,7 +684,7 @@ export default function ConciliacaoPage() {
             </table>
           </div>
 
-          {cartao && <CartaoLancamento id={idCartao} aberto={cartao} rodada={rodadaDasLinhas} />}
+          {cartao && <CartaoLancamento id={idCartao} aberto={cartao} rodada={rodadaDasLinhas} linhas={conciliacao.linhas} />}
 
           {ordenadas.length === 0 && (
             <p className="tabela-vazia">{textoDoVazio(filtro, justificadas.length)}</p>
@@ -949,7 +947,8 @@ function EspiaDaLinha({
           <button type="button" className="btn btn-secondary" onClick={onFechar}>
             Fechar
           </button>
-          <Link href={detalhe} className="btn btn-primary">
+          {/* o detalhe abre no painel sobre esta página, que fica montada: a janela sai antes */}
+          <Link href={detalhe} className="btn btn-primary" onClick={onFechar}>
             Abrir detalhe
           </Link>
         </div>

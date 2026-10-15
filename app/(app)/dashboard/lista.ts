@@ -1,6 +1,7 @@
-import type { Execucao } from "@/lib/adaptadores";
+import type { Execucao, Fechamento } from "@/lib/adaptadores";
 import type { StatusLinha, Tom } from "@/lib/mock-data";
 import { paraRevisar } from "../historico/execucoes";
+import { tituloDaCompetencia } from "../fechamentos/fechamento";
 import { formatarInteiro, seloDoStatus } from "./resumo";
 
 /**
@@ -53,7 +54,7 @@ export function seloDaConciliacao(conciliacao: ConciliacaoNaLista): { rotulo: st
     ([status, quantidade]) => quantidade > 0 && seloDoStatus(status).tom === "risco",
   );
   return {
-    rotulo: `${formatarInteiro(pendentes)} ${pendentes === 1 ? "pendência" : "pendências"}`,
+    rotulo: `${formatarInteiro(pendentes)} ${pendentes === 1 ? "pede" : "pedem"} decisão`,
     tom: custaDinheiro ? "risco" : "atencao",
   };
 }
@@ -64,4 +65,55 @@ const MES_ABREVIADO = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "
 export function mesDaLista(chave: string): string {
   const [ano, mes] = chave.split("-");
   return `${MES_ABREVIADO[Number(mes) - 1] ?? mes}/${ano}`;
+}
+
+/** Um mês na lista: as conciliações dele e se está fechado agora. */
+export type MesNaLista = {
+  /** "2026-07". */
+  chave: string;
+  /** "Julho de 2026". */
+  titulo: string;
+  /** O fechamento em vigor do mês; null quando está aberto (nunca fechado ou reaberto). */
+  fechamento: Fechamento | null;
+  /** Na ordem de trabalho: o que pede decisão primeiro. */
+  conciliacoes: ConciliacaoNaLista[];
+  /** O que ainda pede decisão no mês inteiro. */
+  pedemDecisao: number;
+};
+
+/**
+ * A lista agrupada pelo mês do extrato do banco, como Fechamentos (revisão de estilo de 15/10): os
+ * meses abertos primeiro, que é onde está o trabalho, e depois os fechados; cada lado do mais
+ * recente ao mais antigo. O estado do mês é o registro mais recente de `/fechamentos`; sem a lista
+ * (`null`), nenhum aparece fechado.
+ */
+export function agruparPorMes(lista: ConciliacaoNaLista[], fechamentos: Fechamento[] | null): MesNaLista[] {
+  const vigente = new Map<string, Fechamento>();
+  for (const fechamento of fechamentos ?? []) {
+    if (!vigente.has(fechamento.competencia)) vigente.set(fechamento.competencia, fechamento);
+  }
+  const porMes = new Map<string, ConciliacaoNaLista[]>();
+  for (const conciliacao of lista) porMes.set(conciliacao.competencia, [...(porMes.get(conciliacao.competencia) ?? []), conciliacao]);
+  return [...porMes]
+    .map(([chave, doMes]) => {
+      const atual = vigente.get(chave);
+      return {
+        chave,
+        titulo: tituloDaCompetencia(chave),
+        fechamento: atual?.estado === "fechado" ? atual : null,
+        conciliacoes: ordemDeTrabalho(doMes),
+        pedemDecisao: doMes.reduce((soma, item) => soma + Math.max(0, pedemDecisao(item)), 0),
+      };
+    })
+    .sort((a, b) => Number(a.fechamento !== null) - Number(b.fechamento !== null) || b.chave.localeCompare(a.chave));
+}
+
+export type FiltroDaLista = "pendentes" | "prontas" | "fechadas" | "todas";
+
+/** Num mês fechado nada mais se decide: a conciliação conta só em "Mês fechado" (e em "Todas"). */
+export function passaNoFiltro(conciliacao: ConciliacaoNaLista, mesFechado: boolean, filtro: FiltroDaLista): boolean {
+  if (filtro === "todas") return true;
+  if (filtro === "fechadas") return mesFechado;
+  if (mesFechado) return false;
+  return filtro === "pendentes" ? pedemDecisao(conciliacao) > 0 : pedemDecisao(conciliacao) <= 0;
 }

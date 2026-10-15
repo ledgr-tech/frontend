@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { caminhoDaConciliacao } from "@/lib/caminhos";
 import type { Tom } from "@/lib/mock-data";
-import type { ArquivoExtrato } from "../conciliacoes/acoes";
+import { conciliar, type ArquivoExtrato } from "../conciliacoes/acoes";
 import { formatarDataHora, formatarInteiro } from "../dashboard/resumo";
 import { tituloDaCompetencia } from "../fechamentos/fechamento";
 import { FaixaFiltros } from "../faixa-filtros";
@@ -259,14 +261,14 @@ export function Galeria({ arquivos }: { arquivos: ArquivoExtrato[] }) {
               ))}
             </div>
           )}
-          <Painel arquivo={aberto} />
+          <Painel key={aberto.id} arquivo={aberto} arquivos={arquivos} />
         </div>
       )}
     </div>
   );
 }
 
-function Painel({ arquivo }: { arquivo: ArquivoExtrato }) {
+function Painel({ arquivo, arquivos }: { arquivo: ArquivoExtrato; arquivos: ArquivoExtrato[] }) {
   const selo = situacao(arquivo);
   const { naoLidas } = arquivo;
   return (
@@ -302,10 +304,6 @@ function Painel({ arquivo }: { arquivo: ArquivoExtrato }) {
             <dd>{`${arquivo.rodada.numero} de ${arquivo.rodada.total}`}</dd>
           </div>
         )}
-        <div>
-          <dt>Identificador</dt>
-          <dd style={{ wordBreak: "break-all" }}>{arquivo.id}</dd>
-        </div>
       </dl>
 
       {naoLidas > 0 && (
@@ -327,11 +325,78 @@ function Painel({ arquivo }: { arquivo: ArquivoExtrato }) {
         </div>
       )}
 
+      {!arquivo.conciliado && lido(arquivo) && <ConciliarArquivo arquivo={arquivo} arquivos={arquivos} />}
+
       {arquivo.resultado && (
         <Link href={arquivo.resultado} className="btn btn-secondary" style={{ alignSelf: "flex-start" }}>
           {versaoAnterior(arquivo) === null ? "Ver conciliação" : `Ver a rodada ${versaoAnterior(arquivo)}`}
         </Link>
       )}
     </section>
+  );
+}
+
+/** Lido o bastante para entrar numa conciliação: o backend recusa o que ainda processa ou deu erro. */
+function lido(arquivo: ArquivoExtrato): boolean {
+  return arquivo.situacao === "concluido" || arquivo.situacao === "concluido_com_erros";
+}
+
+/**
+ * Um arquivo enviado que nunca entrou numa conciliação (revisão de 15/10): em vez de só dizer "Não
+ * conciliado", o painel oferece conciliá-lo com um arquivo do outro lado que já está no Ledgr
+ * (`POST /conciliacoes` com os dois ids), o do mesmo mês primeiro, sem enviar nada de novo.
+ */
+function ConciliarArquivo({ arquivo, arquivos }: { arquivo: ArquivoExtrato; arquivos: ArquivoExtrato[] }) {
+  const router = useRouter();
+  const outroLado = arquivo.origem === "banco" ? "sistema" : "banco";
+  // do mesmo mês primeiro; no resto, a ordem de chegada (o enviado por último antes)
+  const opcoes = arquivos
+    .filter((outro) => outro.origem === outroLado && lido(outro))
+    .sort((a, b) => Number(b.competencia === arquivo.competencia) - Number(a.competencia === arquivo.competencia));
+  const [escolhido, setEscolhido] = useState(opcoes[0]?.id ?? "");
+  const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+
+  if (opcoes.length === 0) {
+    return <p className="vg-nota">{`Envie um extrato do ${outroLado} para conciliar este.`}</p>;
+  }
+
+  async function enviar() {
+    const banco = arquivo.origem === "banco" ? arquivo.id : escolhido;
+    const sistema = arquivo.origem === "banco" ? escolhido : arquivo.id;
+    setEnviando(true);
+    setErro(null);
+    const resposta = await conciliar(banco, sistema);
+    if (resposta.ok) {
+      router.push(caminhoDaConciliacao(banco, sistema));
+      return;
+    }
+    setEnviando(false);
+    if (resposta.status === 401) router.push("/login");
+    else setErro(resposta.erro);
+  }
+
+  return (
+    <div className="extrato-conciliar">
+      <h4>Conciliar este extrato</h4>
+      <label className="extrato-conciliar-campo">
+        <span>{`Com o extrato do ${outroLado}`}</span>
+        <select className="input" value={escolhido} onChange={(evento) => setEscolhido(evento.target.value)}>
+          {opcoes.map((opcao) => (
+            <option key={opcao.id} value={opcao.id}>
+              {opcao.competencia ? `${opcao.nome} · ${tituloDaCompetencia(opcao.competencia).toLowerCase()}` : opcao.nome}
+            </option>
+          ))}
+        </select>
+      </label>
+      <button type="button" className="btn btn-primary" onClick={() => void enviar()} disabled={enviando} aria-busy={enviando || undefined}>
+        {enviando ? "Conciliando…" : "Conciliar"}
+      </button>
+      {erro && (
+        <p role="alert" className="extrato-conciliar-erro">
+          {erro}
+        </p>
+      )}
+    </div>
   );
 }

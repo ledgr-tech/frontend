@@ -3,15 +3,17 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { Conciliacao } from "@/lib/mock-data";
 import DetalheDivergenciaPage from "./page";
+import { DetalheDivergencia } from "./detalhe";
 
 // hoisted porque a fábrica do vi.mock roda antes das declarações do módulo
 const rota = vi.hoisted(() => ({ id: "conc-1", busca: "" }));
 
 const push = vi.fn();
+const back = vi.fn();
 vi.mock("next/navigation", () => ({
   useParams: () => ({ id: rota.id, linha: "lc-2" }),
   useSearchParams: () => new URLSearchParams(rota.busca),
-  useRouter: () => ({ push }),
+  useRouter: () => ({ push, back }),
 }));
 
 const carregarConciliacao = vi.fn();
@@ -108,6 +110,7 @@ describe("DetalheDivergenciaPage", () => {
     aceitarValorDoBanco.mockReset();
     restaurarLinha.mockReset();
     push.mockReset();
+    back.mockReset();
   });
 
   it("shows the two extratos side by side with the delta between them", async () => {
@@ -118,6 +121,32 @@ describe("DetalheDivergenciaPage", () => {
     expect(screen.getByText("Extrato do banco")).toBeInTheDocument();
     expect(screen.getByText("Fonte da verdade")).toBeInTheDocument();
     expect(screen.getByText("R$ 12.640,00")).toBeInTheDocument();
+    expect(screen.getByText("R$ 12.604,00")).toBeInTheDocument();
+    expect(screen.getByText("Δ 36,00")).toBeInTheDocument();
+  });
+
+  it("shows a matched line in neutral colours, not in the divergence terracotta", async () => {
+    buscarConciliacao.mockReturnValue(comLc2Aceita(conciliacao));
+    render(<DetalheDivergenciaPage />);
+
+    expect(await screen.findByText("Δ 0,00")).toHaveAttribute("data-resolvida");
+    for (const valor of document.querySelectorAll(".det-valor")) {
+      expect(valor.getAttribute("style") ?? "").not.toContain("risco");
+    }
+  });
+
+  it("fills the side the backend leaves empty with the other line the engine nearly matched", async () => {
+    // como o backend manda um "Valor diverge": o banco numa linha, o sistema em outra
+    buscarConciliacao.mockReturnValue({
+      ...conciliacao,
+      linhas: [
+        { id: "lc-2", descricao: "Boleto Aço Norte Bobinas", data: "04/09", dataISO: "2026-09-04", valorBanco: 12640, valorSistema: null, status: "divergente_valor", explicacao: null, historico: [] },
+        { id: "lc-9", descricao: "Pagamento Aço Norte", data: "04/09", dataISO: "2026-09-04", dataSistema: "04/09", valorBanco: null, valorSistema: 12604, status: "divergente_valor", explicacao: null, historico: [] },
+      ],
+    });
+    render(<DetalheDivergenciaPage />);
+
+    expect(await screen.findByText("R$ 12.640,00")).toBeInTheDocument();
     expect(screen.getByText("R$ 12.604,00")).toBeInTheDocument();
     expect(screen.getByText("Δ 36,00")).toBeInTheDocument();
   });
@@ -371,10 +400,10 @@ describe("DetalheDivergenciaPage", () => {
   });
 
   it("has nothing to explain on a line that matched", async () => {
-    doBackend({ status: "match_exato", explicacao: 'Conciliado pela regra "exato".' });
+    doBackend({ status: "match_exato", explicacao: "Bateu: mesmo valor e mesma data nos dois extratos." });
     render(<DetalheDivergenciaPage />);
 
-    expect(await screen.findByText('Conciliado pela regra "exato".')).toBeInTheDocument();
+    expect(await screen.findByText("Bateu: mesmo valor e mesma data nos dois extratos.")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Explicar/ })).not.toBeInTheDocument();
   });
 
@@ -398,6 +427,33 @@ describe("DetalheDivergenciaPage", () => {
       await screen.findByText("O boleto foi emitido em R$ 12.604,00 e pago com acréscimo de R$ 36,00."),
     ).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Explicar/ })).not.toBeInTheDocument();
+  });
+
+  describe("in the side panel over the comparison", () => {
+    it("swaps going back for previous and next, close and the full page", async () => {
+      buscarConciliacao.mockReturnValue(conciliacao);
+      const user = userEvent.setup();
+      render(<DetalheDivergencia painel />);
+
+      expect(await screen.findByText("Boleto Aço Norte Bobinas")).toBeInTheDocument();
+      // no painel a comparação já está atrás: voltar é fechar
+      expect(screen.queryByRole("link", { name: "Voltar para a conciliação" })).not.toBeInTheDocument();
+      // anda entre as que pedem decisão, sem empilhar cada uma no histórico do navegador
+      expect(screen.getByRole("button", { name: "Divergência anterior" })).toBeDisabled();
+      expect(screen.getByRole("link", { name: "Próxima divergência" })).toHaveAttribute("href", "/conciliacoes/conc-1/lc-3");
+      expect(screen.getByRole("link", { name: "Abrir em página inteira" })).toHaveAttribute("href", "/conciliacoes/conc-1/lc-2");
+
+      await user.click(screen.getByRole("button", { name: "Fechar" }));
+      expect(back).toHaveBeenCalledTimes(1);
+    });
+
+    it("keeps the full page as it was", async () => {
+      buscarConciliacao.mockReturnValue(conciliacao);
+      render(<DetalheDivergenciaPage />);
+
+      expect(await screen.findByRole("link", { name: "Voltar para a conciliação" })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Fechar" })).not.toBeInTheDocument();
+    });
   });
 
   it("shows a not found message when the linha does not belong to the conciliação", async () => {

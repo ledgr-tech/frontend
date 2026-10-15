@@ -47,3 +47,27 @@ export function pendencias(conciliacao: Conciliacao): Pendencia[] {
     }))
     .sort((a, b) => PESO[a.tom] - PESO[b.tom] || b.valor - a.valor);
 }
+
+/**
+ * As pendências do mês inteiro (revisão de 15/10): as categorias de todas as conciliações do mês,
+ * somadas. Cada grupo abre a conciliação onde ele tem mais lançamentos; a régua de cor e a ordem
+ * são as de `pendencias`.
+ */
+export function pendenciasDoMes(conciliacoes: Conciliacao[]): Pendencia[] {
+  const grupos = new Map<string, Pendencia & { maior: number }>();
+  for (const conciliacao of conciliacoes) {
+    for (const grupo of pendencias(conciliacao)) {
+      const atual = grupos.get(grupo.rotulo);
+      if (!atual) {
+        grupos.set(grupo.rotulo, { ...grupo, maior: grupo.quantidade });
+        continue;
+      }
+      atual.quantidade += grupo.quantidade;
+      atual.valor += grupo.valor;
+      if (grupo.quantidade > atual.maior) Object.assign(atual, { maior: grupo.quantidade, href: grupo.href });
+    }
+  }
+  return [...grupos.values()]
+    .map(({ rotulo, tom, quantidade, valor, href }) => ({ rotulo, tom, quantidade, valor, href }))
+    .sort((a, b) => PESO[a.tom] - PESO[b.tom] || b.valor - a.valor);
+}

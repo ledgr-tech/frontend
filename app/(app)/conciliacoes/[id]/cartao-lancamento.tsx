@@ -1,8 +1,9 @@
 "use client";
 
 import type { CSSProperties } from "react";
+import { parDoOutroLado } from "./par";
 import { formatarMoeda, type LinhaComparacao } from "@/lib/mock-data";
-import { formatarDataHora, statusDaLinha, valorEmAberto } from "../../dashboard/resumo";
+import { formatarDataHora, statusDaLinha } from "../../dashboard/resumo";
 import { SeloIa } from "../../selo-ia";
 import { continuaDivergindo, situacaoDaLinha } from "./situacao";
 
@@ -147,14 +148,21 @@ export function CartaoLancamento({
   id,
   aberto,
   rodada = 1,
+  linhas = [],
 }: {
   id: string;
   aberto: CartaoAberto;
   /** A rodada das linhas na tela: diz se uma conferência ainda vale. */
   rodada?: number;
+  /** Todas as linhas da conciliação: o lado que falta numa divergência está numa delas. */
+  linhas?: LinhaComparacao[];
 }) {
   const { linha, ancora } = aberto;
   const { banco, sistema } = ladosDaLinha(linha);
+  // "Valor diverge" e "Data diverge" chegam com um lado só; o outro é o par que o motor quase casou
+  const par = parDoOutroLado(linha, linhas);
+  const valorBanco = par?.lado === "banco" ? par.valor : linha.valorBanco;
+  const valorSistema = par?.lado === "sistema" ? par.valor : linha.valorSistema;
   const rotulo = statusDaLinha(linha).rotulo;
   const tela = document.documentElement;
   const acima = ancora.top > ESPACO_ACIMA;
@@ -181,15 +189,15 @@ export function CartaoLancamento({
         rotulo={situacaoDaLinha(linha, rodada) === "justificada" ? `${rotulo} · justificada` : rotulo}
         nota={notaDaLinha(linha, rodada)}
         titulo={linha.descricao}
-        banco={valorDoLado(banco, linha.valorBanco)}
-        sistema={valorDoLado(sistema, linha.valorSistema)}
+        banco={par?.lado === "banco" ? `${par.data} · ${formatarMoeda(par.valor)}` : valorDoLado(banco, linha.valorBanco)}
+        sistema={par?.lado === "sistema" ? `${par.data} · ${formatarMoeda(par.valor)}` : valorDoLado(sistema, linha.valorSistema)}
         explicacao={linha.explicacao}
         geradaPorIa={linha.explicacaoPorIa}
         descricaoSistema={sistema && sistema.descricao !== linha.descricao ? sistema.descricao : null}
         diferenca={
           // "R$ 15,32 × R$ 15,31" se lê mal; "Diferença: R$ 0,01" diz o tamanho do problema
-          linha.status === "divergente_valor" && linha.valorBanco !== null && linha.valorSistema !== null
-            ? formatarMoeda(valorEmAberto([linha]))
+          linha.status === "divergente_valor" && valorBanco !== null && valorSistema !== null
+            ? formatarMoeda(Math.abs(valorBanco - valorSistema))
             : null
         }
       />

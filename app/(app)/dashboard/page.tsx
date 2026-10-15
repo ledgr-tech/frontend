@@ -5,13 +5,13 @@ import { carregarConciliacoes } from "../conciliacoes/acoes";
 import { InkHover, Reveal } from "@/app/reveal";
 import { Cabecalho } from "../cabecalho";
 import { formatarInteiro } from "./resumo";
-import { ordemDeTrabalho, pedemDecisao } from "./lista";
-import { EmAndamento } from "./em-andamento";
+import { pedemDecisao } from "./lista";
+import { ContinueDeOndeParou } from "./em-andamento";
 import { ListaDeTrabalho } from "./lista-de-trabalho";
 
 /**
- * Conciliações como lista de trabalho: cada extrato do banco uma vez, na rodada que vale, com o
- * que ainda falta decidir, e no topo a que está em andamento. O resumo do mês fica na visão geral,
+ * Conciliações como lista de trabalho: cada extrato do banco uma vez, na rodada que vale, agrupada
+ * pelo mês, com o que ainda falta decidir, e no topo a faixa para continuar de onde parou. O resumo do mês fica na visão geral,
  * o trabalho linha a linha na comparação e o que já aconteceu no histórico.
  */
 
@@ -28,6 +28,10 @@ export default async function DashboardPage() {
 
   const conciliacoes = resposta.ok ? resposta.dados.conciliacoes : [];
   const pendentes = conciliacoes.filter((conciliacao) => pedemDecisao(conciliacao) > 0).length;
+  // a faixa "Continue de onde parou" só existe quando alguma conciliação ainda pede decisão
+  const contagem = resposta.ok ? resposta.dados.emAndamento : null;
+  const daContagem = contagem && conciliacoes.find((item) => item.extratoBancoId === contagem.extratoBancoId);
+  const emAndamento = contagem && daContagem ? { conciliacao: daContagem, contagem } : null;
 
   return (
     <div>
@@ -36,7 +40,7 @@ export default async function DashboardPage() {
         titulo="Conciliações"
         contexto={[
           conciliacoes.length > 0 && plural(conciliacoes.length, "conciliação", "conciliações"),
-          pendentes > 0 && `${formatarInteiro(pendentes)} com pendência`,
+          pendentes > 0 && `${formatarInteiro(pendentes)} ${pendentes === 1 ? "pede" : "pedem"} decisão`,
         ]}
       />
 
@@ -48,18 +52,17 @@ export default async function DashboardPage() {
         <SemConciliacoes />
       ) : (
         <div className="conc-corpo">
-          <Reveal>
-            <EmAndamento
-              conciliacao={
-                // a que está em andamento, ou, sem nenhuma, a mais recente
-                conciliacoes.find((item) => item.extratoBancoId === resposta.dados.emAndamento?.extratoBancoId) ??
-                ordemDeTrabalho(conciliacoes)[0]
-              }
-              contagem={resposta.dados.emAndamento}
-            />
-          </Reveal>
+          {emAndamento && (
+            <Reveal>
+              <ContinueDeOndeParou conciliacao={emAndamento.conciliacao} contagem={emAndamento.contagem} />
+            </Reveal>
+          )}
           <Reveal delay={0.08}>
-            <ListaDeTrabalho conciliacoes={conciliacoes} parcial={resposta.dados.parcial} />
+            <ListaDeTrabalho
+              conciliacoes={conciliacoes}
+              fechamentos={resposta.dados.fechamentos}
+              parcial={resposta.dados.parcial}
+            />
           </Reveal>
         </div>
       )}

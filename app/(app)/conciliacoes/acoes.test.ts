@@ -260,11 +260,12 @@ describe("carregarConciliacoes", () => {
 
   it("sem execução nenhuma, não tem o que listar", async () => {
     backendCom([]);
+    // os fechamentos vêm junto (aqui o backend não os tem: a lista segue sem saber os meses fechados)
     expect(await carregarConciliacoes()).toEqual({
       ok: true,
-      dados: { conciliacoes: [], emAndamento: null, parcial: false },
+      dados: { conciliacoes: [], fechamentos: null, emAndamento: null, parcial: false },
     });
-    expect(chamarBackend).toHaveBeenCalledTimes(1);
+    expect(chamarBackend.mock.calls.map(([caminho]) => String(caminho).split("?")[0]).sort()).toEqual(["/execucoes", "/fechamentos"]);
   });
 
   it("lista cada extrato do banco uma vez, na rodada que vale, com o mês do extrato", async () => {
@@ -547,6 +548,36 @@ describe("carregarVisaoGeral", () => {
     });
   }
 
+  it("olha o mês aberto inteiro, mesmo com um mês fechado mais recente", async () => {
+    // setembro fechado; agosto aberto com duas conciliações
+    const setembro = execucao("e-set", BANCO_RECENTE);
+    const agostoA = { ...execucao("e-ago-a", BANCO_ANTERIOR), periodo_inicio: "2026-08-01", executada_em: "2026-09-20T10:00:00Z" };
+    const agostoB = {
+      ...execucao("e-ago-b", "5c6d7e8f-9a0b-4c1d-8e2f-3a4b5c6d7e8f"),
+      periodo_inicio: "2026-08-01",
+      executada_em: "2026-09-19T10:00:00Z",
+    };
+    chamarBackend.mockImplementation(async (caminho: string) => {
+      if (caminho.startsWith("/fechamentos")) return { itens: [fechamento("2026-09")] };
+      if (caminho.startsWith("/execucoes")) return { total: 3, limit: 50, offset: 0, itens: [setembro, agostoA, agostoB] };
+      if (caminho.startsWith("/conciliacoes/")) {
+        const id = caminho.split("/")[2].split("?")[0];
+        return { extrato_id: id, total: 1, limit: 1000, offset: 0, itens: [itemConciliacao] };
+      }
+      if (caminho.startsWith("/extratos/")) {
+        return { extrato_id: "x", status: "concluido", origem: "banco", quantidade_lancamentos: 2, erros: [] };
+      }
+      throw new Error(`caminho inesperado: ${caminho}`);
+    });
+
+    const resultado = await carregarVisaoGeral();
+    if (!resultado.ok) throw new Error(resultado.erro);
+    expect(resultado.dados.mes).toMatchObject({ competencia: "2026-08", fechado: false });
+    expect(resultado.dados.mes?.conciliacoes).toHaveLength(2);
+    // a recente é a mais nova do mês em foco, não a de setembro
+    expect(resultado.dados.recente?.execucao.id).toBe("e-ago-a");
+  });
+
   it("sem execução nenhuma, não tem o que abrir", async () => {
     backendCom([]);
 
@@ -554,7 +585,8 @@ describe("carregarVisaoGeral", () => {
       ok: true,
       dados: { execucoes: [], total: 0, recente: null, arquivosComLinhasNaoLidas: [] },
     });
-    expect(chamarBackend).toHaveBeenCalledTimes(1);
+    // as execuções e os fechamentos, e nada mais
+    expect(chamarBackend.mock.calls.map(([caminho]) => String(caminho).split("?")[0]).sort()).toEqual(["/execucoes", "/fechamentos"]);
   });
 
   it("abre as linhas da mais recente e a situação só dos dois arquivos dela", async () => {
