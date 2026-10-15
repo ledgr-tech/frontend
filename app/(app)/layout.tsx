@@ -1,48 +1,25 @@
-"use client";
+import type { ReactNode } from "react";
+import { redirect } from "next/navigation";
+import { auth } from "@/auth";
+import { contaDaSessao } from "../(auth)/acoes";
+import { Shell } from "./shell";
 
-import { useEffect, useState, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { getSession, logout } from "@/lib/auth";
+/**
+ * Porta de entrada do app: sem sessão, ninguém passa daqui.
+ *
+ * A checagem é no servidor agora. Antes era um `useEffect` lendo o
+ * `localStorage`, o que obrigava a renderizar nada até saber se havia sessão —
+ * a tela piscava em branco a cada navegação, e o HTML da página protegida já
+ * tinha sido enviado.
+ */
+export default async function AppLayout({ children }: { children: ReactNode }) {
+  const sessao = await auth();
+  if (!sessao?.user?.email) redirect("/login");
 
-export default function AppLayout({ children }: { children: ReactNode }) {
-  const router = useRouter();
-  const [autorizado, setAutorizado] = useState(false);
-
-  useEffect(() => {
-    if (!getSession()) {
-      router.replace("/login");
-      return;
-    }
-    // localStorage is only readable client-side; this is the standard pattern for
-    // deferring a client-only read out of the render phase.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setAutorizado(true);
-  }, [router]);
-
-  if (!autorizado) {
-    return null;
-  }
-
-  function sair() {
-    logout();
-    router.replace("/login");
-  }
-
+  const conta = await contaDaSessao();
   return (
-    <div>
-      <nav className="nav">
-        <Link href="/dashboard" className="nav-brand" style={{ textDecoration: "none", color: "inherit" }}>
-          Ledgr
-        </Link>
-        <Link href="/dashboard">Dashboard</Link>
-        <button type="button" className="btn btn-ghost" onClick={sair}>
-          Sair
-        </button>
-      </nav>
-      <main style={{ maxWidth: 1180, margin: "0 auto", padding: "0 clamp(16px, 3.5vw, 40px)" }}>
-        {children}
-      </main>
-    </div>
+    <Shell email={sessao.user.email} empresa={conta.empresa} temSenha={conta.temSenha}>
+      {children}
+    </Shell>
   );
 }

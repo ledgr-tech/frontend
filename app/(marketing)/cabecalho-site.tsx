@@ -65,6 +65,12 @@ export function CabecalhoSite() {
   }, [aberto]);
 
   const fechar = () => setAberto(false);
+  // o Link para a mesma página só troca o endereço (tira o #secao), sem rolar; a subida é
+  // suave pelo scroll-behavior do html, e instantânea com movimento reduzido
+  const voltarAoInicio = () => {
+    fechar();
+    window.scrollTo({ top: 0 });
+  };
 
   return (
     <header
@@ -72,7 +78,9 @@ export function CabecalhoSite() {
       style={{
         position: "sticky",
         top: 0,
-        zIndex: 20,
+        // acima dos cartões de hover da página (z-index 20): empatado, o cartão vinha depois no
+        // HTML e passava por cima do cabeçalho
+        zIndex: 30,
         background: "color-mix(in srgb, var(--color-bg) 92%, transparent)",
         backdropFilter: "blur(6px)",
         borderBottom: "1px solid var(--color-divider)",
@@ -92,17 +100,25 @@ export function CabecalhoSite() {
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
-          <Image
-            className="site-logo-marca"
-            src="/mascotes/logo-barras.png"
-            alt="Ledgr"
-            width={1280}
-            height={1041}
-            sizes="32px"
-            loading="eager"
-            style={{ height: 26, width: "auto" }}
-          />
-          <span style={{ fontFamily: "var(--font-heading)", fontSize: 23, fontWeight: 600 }}>Ledgr</span>
+          {/* a marca leva ao início, como em qualquer site */}
+          <Link
+            href="/"
+            aria-label="Ledgr, voltar ao início"
+            onClick={voltarAoInicio}
+            style={{ display: "flex", alignItems: "center", gap: 12, color: "inherit", textDecoration: "none" }}
+          >
+            <Image
+              className="site-logo-marca"
+              src="/mascotes/logo-barras.png"
+              alt=""
+              width={1237}
+              height={998}
+              sizes="32px"
+              loading="eager"
+              style={{ height: 26, width: "auto" }}
+            />
+            <span style={{ fontFamily: "var(--font-heading)", fontSize: 23, fontWeight: 600 }}>Ledgr</span>
+          </Link>
           <span
             className="site-slogan"
             style={{
@@ -112,7 +128,7 @@ export function CabecalhoSite() {
               letterSpacing: "0.12em",
               textTransform: "uppercase",
               whiteSpace: "nowrap",
-              color: "color-mix(in srgb, var(--color-text) 50%, transparent)",
+              color: "color-mix(in srgb, var(--color-text) 68%, transparent)",
             }}
           >
             Conciliação bancária
@@ -125,7 +141,9 @@ export function CabecalhoSite() {
           style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "8px 28px" }}
         >
           {SECOES.map((secao) => (
-            <a key={secao.href} href={secao.href} style={linkNavegacao}>
+            // o traço dourado do "Esqueci a senha" do login, sem o filete cinza: a linha só aparece no
+            // hover. A cor do texto continua a do cabeçalho
+            <a key={secao.href} href={secao.href} className="link-animado sem-filete" style={linkNavegacao}>
               {secao.rotulo}
             </a>
           ))}
@@ -133,7 +151,7 @@ export function CabecalhoSite() {
             Entrar
           </Link>
           <Link href="/cadastro" className="btn btn-primary">
-            Começar
+            Começar agora
           </Link>
         </nav>
 
@@ -170,7 +188,7 @@ export function CabecalhoSite() {
                 Entrar
               </Link>
               <Link href="/cadastro" className="btn btn-primary" onClick={fechar}>
-                Começar
+                Começar agora
               </Link>
             </div>
           </nav>

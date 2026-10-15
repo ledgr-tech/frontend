@@ -1,0 +1,119 @@
+import { describe, it, expect } from "vitest";
+import type { Conciliacao, LinhaComparacao, StatusLinha } from "@/lib/mock-data";
+import { pendencias, pendenciasDoMes } from "./pendencias";
+
+function linha(
+  id: string,
+  status: StatusLinha,
+  valorBanco: number | null,
+  valorSistema: number | null,
+): LinhaComparacao {
+  return {
+    id,
+    descricao: `Lançamento ${id}`,
+    data: "04/09",
+    dataISO: "2026-09-04",
+    valorBanco,
+    valorSistema,
+    status,
+    explicacao: null,
+    historico: [],
+  };
+}
+
+function conciliacao(linhas: LinhaComparacao[]): Conciliacao {
+  return {
+    id: "banco-1",
+    extratoSistemaId: "sistema-1",
+    mes: "Setembro/2026",
+    status: "em_andamento",
+    linhas,
+  };
+}
+
+describe("pendencias", () => {
+  it("has nothing to list when every line is settled", () => {
+    expect(
+      pendencias(
+        conciliacao([
+          linha("a", "match_exato", 100, 100),
+          linha("b", "match_tolerancia", 250, 250),
+        ]),
+      ),
+    ).toEqual([]);
+  });
+
+  it("leaves a justified line out: it does not ask for attention anymore", () => {
+    const justificada: LinhaComparacao = {
+      ...linha("valor", "divergente_valor", -12640, -12604),
+      decisao: { tipo: "justificada", texto: "Juros de atraso.", autor: "Eduardo", em: "2026-09-30T13:12:00Z", rodada: 1 },
+    };
+
+    expect(
+      pendencias(conciliacao([justificada, linha("tarifa", "tarifa_bancaria", -45, null)])).map((grupo) => grupo.rotulo),
+    ).toEqual(["Tarifa bancária"]);
+  });
+
+  it("groups the open lines by what the backend found, riskiest first", () => {
+    const grupos = pendencias(
+      conciliacao([
+        linha("ok", "match_exato", 50, 50),
+        linha("tarifa", "tarifa_bancaria", -45, null),
+        linha("orfa-banco-pequena", "sem_correspondencia", null, -640),
+        linha("orfa-1", "sem_correspondencia", 4180, null),
+        linha("valor", "divergente_valor", -12640, -12604),
+        linha("orfa-2", "sem_correspondencia", 980, null),
+      ]),
+    );
+
+    // terracota (custa dinheiro) antes de ouro (incompleto), neutro por último; no
+    // mesmo tom, o que deixa mais dinheiro em aberto vem antes
+    expect(grupos).toEqual([
+      {
+        rotulo: "Valor diverge na mesma data",
+        tom: "risco",
+        quantidade: 1,
+        valor: 36,
+        href: "/conciliacoes/banco-1?sistema=sistema-1&status=divergente_valor",
+      },
+      {
+        rotulo: "Sem correspondência no sistema",
+        tom: "atencao",
+        quantidade: 2,
+        valor: 5160,
+        href: "/conciliacoes/banco-1?sistema=sistema-1&status=sem_correspondencia",
+      },
+      {
+        rotulo: "Sem correspondência no banco",
+        tom: "atencao",
+        quantidade: 1,
+        valor: 640,
+        href: "/conciliacoes/banco-1?sistema=sistema-1&status=sem_correspondencia",
+      },
+      {
+        rotulo: "Tarifa bancária",
+        tom: "neutro",
+        quantidade: 1,
+        valor: 45,
+        href: "/conciliacoes/banco-1?sistema=sistema-1&status=tarifa_bancaria",
+      },
+    ]);
+  });
+});
+
+describe("pendenciasDoMes", () => {
+  it("soma as categorias de todas as conciliações do mês, e cada grupo abre onde há mais", () => {
+    const a = { ...conciliacao([linha("a1", "divergente_valor", -100, -90)]), id: "banco-a", extratoSistemaId: "sistema-a" };
+    const b = {
+      ...conciliacao([linha("b1", "divergente_valor", -50, -40), linha("b2", "divergente_valor", -30, -20), linha("b3", "tarifa_bancaria", -45, null)]),
+      id: "banco-b",
+      extratoSistemaId: "sistema-b",
+    };
+    const grupos = pendenciasDoMes([a, b]);
+    expect(grupos.map((grupo) => [grupo.rotulo, grupo.quantidade, grupo.valor])).toEqual([
+      ["Valor diverge na mesma data", 3, 30],
+      ["Tarifa bancária", 1, 45],
+    ]);
+    expect(grupos[0].href).toBe("/conciliacoes/banco-b?sistema=sistema-b&status=divergente_valor");
+  });
+});

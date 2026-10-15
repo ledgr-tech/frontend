@@ -1,33 +1,50 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
 import AppLayout from "./layout";
 
-const replace = vi.fn();
-vi.mock("next/navigation", () => ({
-  useRouter: () => ({ replace }),
+const auth = vi.fn();
+vi.mock("@/auth", () => ({
+  auth: () => auth(),
 }));
 
-const getSession = vi.fn();
-vi.mock("@/lib/auth", () => ({
-  getSession: () => getSession(),
-  logout: vi.fn(),
+const redirect = vi.fn();
+vi.mock("next/navigation", () => ({
+  // o redirect do Next interrompe a renderização lançando; o mock imita isso,
+  // senão o teste seguiria para um caminho que na vida real nunca roda
+  redirect: (destino: string) => {
+    redirect(destino);
+    throw new Error("NEXT_REDIRECT");
+  },
+}));
+
+vi.mock("./shell", () => ({
+  Shell: ({ email, children }: { email: string; children: React.ReactNode }) => (
+    <div data-email={email}>{children}</div>
+  ),
 }));
 
 describe("AppLayout", () => {
   beforeEach(() => {
-    replace.mockClear();
-    getSession.mockReset();
+    auth.mockReset();
+    redirect.mockClear();
   });
 
-  it("redirects to /login when there's no session", () => {
-    getSession.mockReturnValue(null);
-    render(<AppLayout>conteúdo</AppLayout>);
-    expect(replace).toHaveBeenCalledWith("/login");
+  it("manda para o login quando não há sessão", async () => {
+    auth.mockResolvedValue(null);
+    // a checagem é no servidor: a página protegida nem chega a ser montada
+    await expect(AppLayout({ children: "conteúdo" })).rejects.toThrow("NEXT_REDIRECT");
+    expect(redirect).toHaveBeenCalledWith("/login");
   });
 
-  it("renders children when a session exists", () => {
-    getSession.mockReturnValue({ email: "financeiro@telhacerta.com.br" });
-    render(<AppLayout>conteúdo autenticado</AppLayout>);
-    expect(screen.getByText("conteúdo autenticado")).toBeInTheDocument();
+  it("manda para o login quando a sessão veio sem e-mail", async () => {
+    auth.mockResolvedValue({ user: {} });
+    await expect(AppLayout({ children: "conteúdo" })).rejects.toThrow("NEXT_REDIRECT");
+    expect(redirect).toHaveBeenCalledWith("/login");
+  });
+
+  it("entrega o e-mail da sessão para o shell", async () => {
+    auth.mockResolvedValue({ user: { email: "financeiro@telhacerta.com.br" } });
+    const elemento = await AppLayout({ children: "conteúdo" });
+    expect(redirect).not.toHaveBeenCalled();
+    expect(elemento.props.email).toBe("financeiro@telhacerta.com.br");
   });
 });

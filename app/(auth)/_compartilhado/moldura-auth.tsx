@@ -72,8 +72,8 @@ export function MolduraAuth({
           <Image
             src="/mascotes/logo-barras.png"
             alt="Ledgr"
-            width={1280}
-            height={1041}
+            width={1237}
+            height={998}
             sizes="30px"
             loading="eager"
             style={{ height: 24, width: "auto" }}
@@ -98,9 +98,10 @@ export function MolduraAuth({
         </Link>
       </header>
 
-      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "clamp(12px, 3vh, 40px) 0" }}>
+      {/* o <main> da página: sem ele, leitor de tela não tem como pular direto para o formulário */}
+      <main style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "clamp(12px, 3vh, 40px) 0" }}>
         {children}
-      </div>
+      </main>
 
       <footer
         style={{
@@ -113,12 +114,12 @@ export function MolduraAuth({
           color: "color-mix(in srgb, var(--color-text) 66%, transparent)",
         }}
       >
-        {/* páginas de termos e privacidade ainda não existem */}
-        <a href="#" className="login-link" style={linkRodape}>
+        {/* em outra aba: o que já foi digitado no formulário não se perde */}
+        <a href="/termos" target="_blank" rel="noopener" className="login-link" style={linkRodape}>
           Termos de uso
         </a>
         <span aria-hidden="true">·</span>
-        <a href="#" className="login-link" style={linkRodape}>
+        <a href="/privacidade" target="_blank" rel="noopener" className="login-link" style={linkRodape}>
           Política de privacidade
         </a>
       </footer>

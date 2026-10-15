@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { CabecalhoSite } from "./cabecalho-site";
@@ -12,11 +12,20 @@ describe("CabecalhoSite", () => {
     render(<CabecalhoSite />);
     const principal = within(screen.getByRole("navigation", { name: "Navegação principal" }));
     expect(principal.getByRole("link", { name: "O problema" })).toHaveAttribute("href", "#problema");
-    expect(principal.getByRole("link", { name: "Começar" })).toHaveAttribute("href", "/cadastro");
+    expect(principal.getByRole("link", { name: "Começar agora" })).toHaveAttribute("href", "/cadastro");
 
     const botao = screen.getByRole("button", { name: "Abrir menu" });
     expect(botao).toHaveAttribute("aria-expanded", "false");
     expect(menu()).not.toBeInTheDocument();
+  });
+
+  it("draws the gold line that loads on hover under the section links, like the login links", () => {
+    render(<CabecalhoSite />);
+    const principal = within(screen.getByRole("navigation", { name: "Navegação principal" }));
+    for (const secao of ["O problema", "Como funciona", "Assinatura"]) {
+      // sem o filete cinza do login: em repouso o link fica limpo, e a linha só aparece no hover
+      expect(principal.getByRole("link", { name: secao })).toHaveClass("link-animado", "sem-filete");
+    }
   });
 
   it("opens the options menu from the Ledgr bars, with the sections and the product links", async () => {
@@ -34,7 +43,7 @@ describe("CabecalhoSite", () => {
     expect(opcoes.getByRole("link", { name: /Como funciona/ })).toHaveAttribute("href", "#como");
     expect(opcoes.getByRole("link", { name: /Assinatura/ })).toHaveAttribute("href", "#preco");
     expect(opcoes.getByRole("link", { name: "Entrar" })).toHaveAttribute("href", "/login");
-    expect(opcoes.getByRole("link", { name: "Começar" })).toHaveAttribute("href", "/cadastro");
+    expect(opcoes.getByRole("link", { name: "Começar agora" })).toHaveAttribute("href", "/cadastro");
   });
 
   it("closes the menu after choosing an option", async () => {
@@ -57,6 +66,24 @@ describe("CabecalhoSite", () => {
 
     expect(menu()).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Abrir menu" })).toHaveFocus();
+  });
+
+  it("takes you back to the start from the Ledgr brand, closing the menu", async () => {
+    const user = userEvent.setup();
+    render(<CabecalhoSite />);
+    const marca = screen.getByRole("link", { name: "Ledgr, voltar ao início" });
+    expect(marca).toHaveAttribute("href", "/");
+    // o slogan acompanha a marca, mas não faz parte do link
+    expect(marca).not.toHaveTextContent("Conciliação bancária");
+    await user.click(screen.getByRole("button", { name: "Abrir menu" }));
+    const rolar = vi.spyOn(window, "scrollTo").mockImplementation(() => {});
+
+    await user.click(marca);
+
+    // o Link para a mesma página só troca o endereço; quem sobe é a marca
+    expect(rolar).toHaveBeenCalledWith({ top: 0 });
+    expect(menu()).not.toBeInTheDocument();
+    rolar.mockRestore();
   });
 
   it("closes when tapping outside the header", async () => {

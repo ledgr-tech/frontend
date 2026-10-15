@@ -1,0 +1,482 @@
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import type { Conciliacao } from "@/lib/mock-data";
+import DetalheDivergenciaPage from "./page";
+import { DetalheDivergencia } from "./detalhe";
+
+// hoisted porque a fábrica do vi.mock roda antes das declarações do módulo
+const rota = vi.hoisted(() => ({ id: "conc-1", busca: "" }));
+
+const push = vi.fn();
+const back = vi.fn();
+vi.mock("next/navigation", () => ({
+  useParams: () => ({ id: rota.id, linha: "lc-2" }),
+  useSearchParams: () => new URLSearchParams(rota.busca),
+  useRouter: () => ({ push, back }),
+}));
+
+const carregarConciliacao = vi.fn();
+const explicarDivergencia = vi.fn();
+vi.mock("../../acoes", () => ({
+  carregarConciliacao: (...args: unknown[]) => carregarConciliacao(...args),
+  // a tela carrega pela rodada; aqui ela embrulha a carga de sempre, sem rodada
+  carregarConciliacaoEmRodadas: async (...args: unknown[]) => {
+    const resposta = await carregarConciliacao(...args);
+    return resposta.ok ? { ...resposta, dados: { rodada: null, rodadas: [], mudancas: null, ...resposta.dados } } : resposta;
+  },
+  explicarDivergencia: (...args: unknown[]) => explicarDivergencia(...args),
+}));
+
+const BANCO = "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20";
+const SISTEMA = "7a2b9c4d-1e3f-4a5b-8c6d-9e0f1a2b3c4d";
+
+const buscarConciliacao = vi.fn();
+const aceitarValorDoBanco = vi.fn();
+const restaurarLinha = vi.fn();
+vi.mock("@/lib/mock-data", () => ({
+  buscarConciliacao: (id: string) => buscarConciliacao(id),
+  aceitarValorDoBanco: (id: string, linha: string) => aceitarValorDoBanco(id, linha),
+  restaurarLinha: (id: string, linha: unknown) => restaurarLinha(id, linha),
+  formatarMoeda: (valor: number) =>
+    valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }),
+}));
+
+/** A conciliação como fica depois de aceitar o valor do banco em lc-2. */
+function comLc2Aceita(base: Conciliacao): Conciliacao {
+  return {
+    ...base,
+    linhas: base.linhas.map((linha) =>
+      linha.id === "lc-2" ? { ...linha, valorSistema: 12640, status: "match_exato" as const } : linha,
+    ),
+  };
+}
+
+const conciliacao: Conciliacao = {
+  id: "conc-1",
+  mes: "Setembro 2026",
+  status: "em_andamento",
+  linhas: [
+    {
+      id: "lc-1",
+      descricao: "Pagamento Vale Verde",
+      data: "02/09",
+      valorBanco: 7300,
+      valorSistema: 7300,
+      status: "match_exato",
+      explicacao: null,
+      historico: [],
+    },
+    {
+      id: "lc-2",
+      descricao: "Boleto Aço Norte Bobinas",
+      data: "04/09",
+      valorBanco: 12640,
+      valorSistema: 12604,
+      status: "divergente_valor",
+      explicacao: "O boleto foi emitido em R$ 12.604,00 e pago com acréscimo de R$ 36,00.",
+      causa: "Juros de dois dias de atraso não lançados no sistema.",
+      historico: [
+        { quando: "28/08/2026", evento: "Título emitido", origem: "Sistema" },
+        { quando: "04/09/2026", evento: "Boleto liquidado", origem: "Banco" },
+      ],
+      camposBanco: [{ rotulo: "Documento", valor: "00071.4482-9" }],
+      camposSistema: [{ rotulo: "Conta contábil", valor: "2.01.01 Fornecedores" }],
+      cronico: [
+        { mes: "Julho", valorBanco: 11402, valorSistema: 11380, nota: "1 dia de atraso" },
+        { mes: "Agosto", valorBanco: 11905, valorSistema: 11870, nota: "2 dias de atraso" },
+      ],
+    },
+    {
+      id: "lc-3",
+      descricao: "TED sem par",
+      data: "08/09",
+      valorBanco: 3150,
+      valorSistema: null,
+      status: "sem_correspondencia",
+      explicacao: null,
+      historico: [],
+    },
+  ],
+};
+
+describe("DetalheDivergenciaPage", () => {
+  beforeEach(() => {
+    rota.id = "conc-1";
+    rota.busca = "";
+    carregarConciliacao.mockReset();
+    explicarDivergencia.mockReset();
+    buscarConciliacao.mockReset();
+    aceitarValorDoBanco.mockReset();
+    restaurarLinha.mockReset();
+    push.mockReset();
+    back.mockReset();
+  });
+
+  it("shows the two extratos side by side with the delta between them", async () => {
+    buscarConciliacao.mockReturnValue(conciliacao);
+    render(<DetalheDivergenciaPage />);
+
+    expect(await screen.findByText("Boleto Aço Norte Bobinas")).toBeInTheDocument();
+    expect(screen.getByText("Extrato do banco")).toBeInTheDocument();
+    expect(screen.getByText("Fonte da verdade")).toBeInTheDocument();
+    expect(screen.getByText("R$ 12.640,00")).toBeInTheDocument();
+    expect(screen.getByText("R$ 12.604,00")).toBeInTheDocument();
+    expect(screen.getByText("Δ 36,00")).toBeInTheDocument();
+  });
+
+  it("shows a matched line in neutral colours, not in the divergence terracotta", async () => {
+    buscarConciliacao.mockReturnValue(comLc2Aceita(conciliacao));
+    render(<DetalheDivergenciaPage />);
+
+    expect(await screen.findByText("Δ 0,00")).toHaveAttribute("data-resolvida");
+    for (const valor of document.querySelectorAll(".det-valor")) {
+      expect(valor.getAttribute("style") ?? "").not.toContain("risco");
+    }
+  });
+
+  it("fills the side the backend leaves empty with the other line the engine nearly matched", async () => {
+    // como o backend manda um "Valor diverge": o banco numa linha, o sistema em outra
+    buscarConciliacao.mockReturnValue({
+      ...conciliacao,
+      linhas: [
+        { id: "lc-2", descricao: "Boleto Aço Norte Bobinas", data: "04/09", dataISO: "2026-09-04", valorBanco: 12640, valorSistema: null, status: "divergente_valor", explicacao: null, historico: [] },
+        { id: "lc-9", descricao: "Pagamento Aço Norte", data: "04/09", dataISO: "2026-09-04", dataSistema: "04/09", valorBanco: null, valorSistema: 12604, status: "divergente_valor", explicacao: null, historico: [] },
+      ],
+    });
+    render(<DetalheDivergenciaPage />);
+
+    expect(await screen.findByText("R$ 12.640,00")).toBeInTheDocument();
+    expect(screen.getByText("R$ 12.604,00")).toBeInTheDocument();
+    expect(screen.getByText("Δ 36,00")).toBeInTheDocument();
+  });
+
+  it("marks each extrato card with the icon of its origin", async () => {
+    buscarConciliacao.mockReturnValue(conciliacao);
+    render(<DetalheDivergenciaPage />);
+
+    const banco = (await screen.findByText("Extrato do banco")).closest(".det-cartao");
+    expect(banco?.querySelector('[data-origem="banco"]')).not.toBeNull();
+    const sistema = screen.getByText("Extrato do sistema").closest(".det-cartao");
+    expect(sistema?.querySelector('[data-origem="sistema"]')).not.toBeNull();
+  });
+
+  it("numbers the item among the linhas still em aberto, not among all of them", async () => {
+    buscarConciliacao.mockReturnValue(conciliacao);
+    render(<DetalheDivergenciaPage />);
+    // lc-2 é a primeira das duas em aberto; lc-1 já está batida e não conta
+    expect(await screen.findByText(/item 01 de 2/)).toBeInTheDocument();
+  });
+
+  it("shows the causa above the long explanation", async () => {
+    buscarConciliacao.mockReturnValue(conciliacao);
+    render(<DetalheDivergenciaPage />);
+
+    expect(await screen.findByText("O que provavelmente aconteceu")).toBeInTheDocument();
+    expect(
+      screen.getByText("Juros de dois dias de atraso não lançados no sistema."),
+    ).toBeInTheDocument();
+  });
+
+  it("shows the chronic block with the difference computed per month", async () => {
+    buscarConciliacao.mockReturnValue(conciliacao);
+    render(<DetalheDivergenciaPage />);
+
+    expect(await screen.findByText("Crônico, não pontual")).toBeInTheDocument();
+    expect(screen.getByText("O mesmo fornecedor divergiu nos 2 últimos meses.")).toBeInTheDocument();
+    expect(screen.getByText(/diferença de R\$ 22,00 · 1 dia de atraso/)).toBeInTheDocument();
+    expect(screen.getByText(/diferença de R\$ 35,00 · 2 dias de atraso/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Criar regra para este fornecedor" })).toHaveAttribute(
+      "href",
+      "/regras",
+    );
+  });
+
+  it("collapses the history by default and leaves the chronic pattern open", async () => {
+    buscarConciliacao.mockReturnValue(conciliacao);
+    const { container } = render(<DetalheDivergenciaPage />);
+
+    await screen.findByText("Crônico, não pontual");
+    const blocos = [...container.querySelectorAll("details")];
+    const cronico = blocos.find((b) => b.textContent?.includes("Crônico"));
+    const historico = blocos.find((b) => b.textContent?.includes("Histórico do lançamento"));
+
+    // o padrão crônico muda o que você faz a seguir; procedência é consulta
+    expect(cronico?.open).toBe(true);
+    expect(historico?.open).toBe(false);
+  });
+
+  it("lists the lançamento history with its origem", async () => {
+    buscarConciliacao.mockReturnValue(conciliacao);
+    render(<DetalheDivergenciaPage />);
+
+    expect(await screen.findByText("Histórico do lançamento")).toBeInTheDocument();
+    expect(screen.getByText("Título emitido")).toBeInTheDocument();
+    expect(screen.getByText("Sistema")).toBeInTheDocument();
+  });
+
+  describe("decisions in the history", () => {
+    const conferida = { tipo: "conferida" as const, texto: null, autor: "Eduardo", em: "2026-09-24T18:40:00Z", rodada: 1 };
+    const justificada = {
+      tipo: "justificada" as const,
+      texto: "Juros de dois dias de atraso, lançados como despesa financeira.",
+      autor: "Eduardo",
+      em: "2026-09-30T13:12:00Z",
+      rodada: 1,
+    };
+
+    it("lists who checked and who justified the lançamento, after what came from the extratos", async () => {
+      buscarConciliacao.mockReturnValue({
+        ...conciliacao,
+        linhas: conciliacao.linhas.map((linha) =>
+          linha.id === "lc-2" ? { ...linha, decisao: justificada, eventos: [conferida, justificada] } : linha,
+        ),
+      });
+      render(<DetalheDivergenciaPage />);
+
+      const evento = await screen.findByText("Justificada por Eduardo: Juros de dois dias de atraso, lançados como despesa financeira.");
+      const linhas = [...evento.closest("tbody")!.querySelectorAll("tr")].map((tr) => tr.children[1].textContent);
+      expect(linhas).toEqual([
+        "Título emitido",
+        "Boleto liquidado",
+        "Conferida por Eduardo",
+        "Justificada por Eduardo: Juros de dois dias de atraso, lançados como despesa financeira.",
+      ]);
+      expect(evento.closest("tr")).toHaveTextContent("30/09/2026 10:12");
+    });
+
+    it("treats a justified lançamento as decided: neutral seal and out of the open count", async () => {
+      buscarConciliacao.mockReturnValue({
+        ...conciliacao,
+        linhas: conciliacao.linhas.map((linha) => (linha.id === "lc-2" ? { ...linha, decisao: justificada } : linha)),
+      });
+      render(<DetalheDivergenciaPage />);
+
+      // como no eixo da comparação: o status com a decisão, sem número entre as que pedem decisão
+      expect(await screen.findByText("Valor diverge na mesma data · justificada")).toBeInTheDocument();
+      expect(screen.queryByText(/item \d+ de/)).not.toBeInTheDocument();
+      const sistema = screen.getByText("Extrato do sistema").closest(".det-cartao") as HTMLElement;
+      expect(within(sistema).getByText("Justificada")).toHaveAttribute("class", "selo");
+      expect(screen.queryByText("Precisa de ajuste")).not.toBeInTheDocument();
+    });
+
+    it("says when a check stopped holding: the time of the new round", async () => {
+      rota.id = BANCO;
+      rota.busca = `sistema=${SISTEMA}`;
+      carregarConciliacao.mockResolvedValue({
+        ok: true,
+        dados: {
+          conciliacao: {
+            ...conciliacao,
+            id: BANCO,
+            extratoSistemaId: SISTEMA,
+            rodada: 2,
+            linhas: conciliacao.linhas.map((linha) =>
+              linha.id === "lc-2" ? { ...linha, decisao: conferida, eventos: [conferida] } : linha,
+            ),
+          },
+          truncada: false,
+          rodada: {
+            numero: 2,
+            total: 2,
+            extratoSistemaId: SISTEMA,
+            arquivoSistema: "erp-setembro-v2.csv",
+            executadaEm: "2026-09-29T17:02:00Z",
+          },
+        },
+      });
+      render(<DetalheDivergenciaPage />);
+
+      const evento = await screen.findByText("Continua divergindo (rodada 2)");
+      expect(evento.closest("tr")).toHaveTextContent("29/09/2026 14:02");
+    });
+  });
+
+  it("accepts the bank value in place, without navigating away", async () => {
+    buscarConciliacao.mockReturnValue(conciliacao);
+    aceitarValorDoBanco.mockReturnValue(comLc2Aceita(conciliacao));
+    const user = userEvent.setup();
+    render(<DetalheDivergenciaPage />);
+
+    await user.click(await screen.findByRole("button", { name: "Aceitar valor do banco" }));
+
+    expect(aceitarValorDoBanco).toHaveBeenCalledWith("conc-1", "lc-2");
+    // a decisão acontece aqui: sair da tela tiraria o desfazer de alcance
+    expect(push).not.toHaveBeenCalled();
+    // e a consequência aparece
+    expect(screen.getByText("Conciliado")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Aceitar valor do banco" })).not.toBeInTheDocument();
+  });
+
+  it("offers an undo after accepting", async () => {
+    buscarConciliacao.mockReturnValue(conciliacao);
+    aceitarValorDoBanco.mockReturnValue(comLc2Aceita(conciliacao));
+    const user = userEvent.setup();
+    render(<DetalheDivergenciaPage />);
+
+    await user.click(await screen.findByRole("button", { name: "Aceitar valor do banco" }));
+
+    expect(screen.getByRole("status")).toHaveTextContent(/Valor do banco aceito/);
+    expect(screen.getByRole("button", { name: "Desfazer" })).toBeInTheDocument();
+  });
+
+  it("puts the linha back when the undo is used", async () => {
+    buscarConciliacao.mockReturnValue(conciliacao);
+    aceitarValorDoBanco.mockReturnValue(comLc2Aceita(conciliacao));
+    restaurarLinha.mockReturnValue(conciliacao);
+    const user = userEvent.setup();
+    render(<DetalheDivergenciaPage />);
+
+    await user.click(await screen.findByRole("button", { name: "Aceitar valor do banco" }));
+    await user.click(screen.getByRole("button", { name: "Desfazer" }));
+
+    // recebe o retrato da linha como ela estava, não um id solto
+    expect(restaurarLinha).toHaveBeenCalledWith(
+      "conc-1",
+      expect.objectContaining({ id: "lc-2", status: "divergente_valor", valorSistema: 12604 }),
+    );
+    expect(screen.getByRole("button", { name: "Aceitar valor do banco" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Desfazer" })).not.toBeInTheDocument();
+  });
+
+  it("dismisses the undo bar without reverting", async () => {
+    buscarConciliacao.mockReturnValue(conciliacao);
+    aceitarValorDoBanco.mockReturnValue(comLc2Aceita(conciliacao));
+    const user = userEvent.setup();
+    render(<DetalheDivergenciaPage />);
+
+    await user.click(await screen.findByRole("button", { name: "Aceitar valor do banco" }));
+    await user.click(screen.getByRole("button", { name: "Pronto" }));
+
+    expect(restaurarLinha).not.toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: "Desfazer" })).not.toBeInTheDocument();
+    expect(screen.getByText("Conciliado")).toBeInTheDocument();
+  });
+
+
+  it("loads the pair named in the URL and goes back to the same pair", async () => {
+    rota.id = BANCO;
+    rota.busca = `sistema=${SISTEMA}`;
+    carregarConciliacao.mockResolvedValue({
+      ok: true,
+      dados: { conciliacao: { ...conciliacao, id: BANCO, extratoSistemaId: SISTEMA }, truncada: false },
+    });
+    render(<DetalheDivergenciaPage />);
+
+    expect(await screen.findByRole("link", { name: "Voltar para a conciliação" })).toHaveAttribute(
+      "href",
+      `/conciliacoes/${BANCO}?sistema=${SISTEMA}`,
+    );
+    expect(carregarConciliacao).toHaveBeenCalledWith(BANCO, SISTEMA);
+  });
+
+  /** A conciliação como o backend devolve: a divergência não traz explicação. */
+  function doBackend(lc2: Partial<Conciliacao["linhas"][number]>) {
+    rota.id = BANCO;
+    rota.busca = `sistema=${SISTEMA}`;
+    carregarConciliacao.mockResolvedValue({
+      ok: true,
+      dados: {
+        conciliacao: {
+          ...conciliacao,
+          id: BANCO,
+          extratoSistemaId: SISTEMA,
+          linhas: conciliacao.linhas.map((linha) =>
+            linha.id === "lc-2" ? { ...linha, causa: undefined, cronico: undefined, ...lc2 } : linha,
+          ),
+        },
+        truncada: false,
+      },
+    });
+  }
+
+  it("offers to explain a divergence from the backend, only when asked", async () => {
+    doBackend({ explicacao: null });
+    render(<DetalheDivergenciaPage />);
+
+    expect(await screen.findByRole("button", { name: "Explicar esta divergência" })).toBeInTheDocument();
+    // cada geração custa: nada é pedido só por abrir a tela
+    expect(explicarDivergencia).not.toHaveBeenCalled();
+  });
+
+  it("has nothing to explain on a line that matched", async () => {
+    doBackend({ status: "match_exato", explicacao: "Bateu: mesmo valor e mesma data nos dois extratos." });
+    render(<DetalheDivergenciaPage />);
+
+    expect(await screen.findByText("Bateu: mesmo valor e mesma data nos dois extratos.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Explicar/ })).not.toBeInTheDocument();
+  });
+
+  it("shows the explanation the backend wrote during the conciliação, marked when the AI wrote it", async () => {
+    doBackend({ explicacao: "O banco cobrou R$ 36 de juros pelo atraso.", explicacaoPorIa: true });
+    render(<DetalheDivergenciaPage />);
+
+    expect(await screen.findByText("O banco cobrou R$ 36 de juros pelo atraso.")).toBeInTheDocument();
+    // os Termos prometem o selo em todo texto escrito pela IA
+    expect(screen.getByText("Gerada por IA · confira antes de decidir")).toBeInTheDocument();
+    expect(document.querySelector(".det-causa img")?.getAttribute("src")).toContain("mascote-lupa");
+    // já explicada: não há o que pedir
+    expect(screen.queryByRole("button", { name: /Explicar/ })).not.toBeInTheDocument();
+  });
+
+  it("keeps the mock's own explanation, which the backend does not know", async () => {
+    buscarConciliacao.mockReturnValue(conciliacao);
+    render(<DetalheDivergenciaPage />);
+
+    expect(
+      await screen.findByText("O boleto foi emitido em R$ 12.604,00 e pago com acréscimo de R$ 36,00."),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Explicar/ })).not.toBeInTheDocument();
+  });
+
+  describe("in the side panel over the comparison", () => {
+    it("swaps going back for previous and next, close and the full page", async () => {
+      buscarConciliacao.mockReturnValue(conciliacao);
+      const user = userEvent.setup();
+      render(<DetalheDivergencia painel />);
+
+      expect(await screen.findByText("Boleto Aço Norte Bobinas")).toBeInTheDocument();
+      // no painel a comparação já está atrás: voltar é fechar
+      expect(screen.queryByRole("link", { name: "Voltar para a conciliação" })).not.toBeInTheDocument();
+      // anda entre as que pedem decisão, sem empilhar cada uma no histórico do navegador
+      expect(screen.getByRole("button", { name: "Divergência anterior" })).toBeDisabled();
+      expect(screen.getByRole("link", { name: "Próxima divergência" })).toHaveAttribute("href", "/conciliacoes/conc-1/lc-3");
+      expect(screen.getByRole("link", { name: "Abrir em página inteira" })).toHaveAttribute("href", "/conciliacoes/conc-1/lc-2");
+
+      await user.click(screen.getByRole("button", { name: "Fechar" }));
+      expect(back).toHaveBeenCalledTimes(1);
+    });
+
+    it("keeps the full page as it was", async () => {
+      buscarConciliacao.mockReturnValue(conciliacao);
+      render(<DetalheDivergenciaPage />);
+
+      expect(await screen.findByRole("link", { name: "Voltar para a conciliação" })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Fechar" })).not.toBeInTheDocument();
+    });
+  });
+
+  it("shows a not found message when the linha does not belong to the conciliação", async () => {
+    buscarConciliacao.mockReturnValue({ ...conciliacao, linhas: [] });
+    render(<DetalheDivergenciaPage />);
+    expect(await screen.findByText("Lançamento não encontrado.")).toBeInTheDocument();
+    expect(document.querySelector("img")?.getAttribute("src")).toContain("mascote-lupa");
+  });
+
+  it("shows a not found message when the conciliação does not exist", async () => {
+    buscarConciliacao.mockReturnValue(null);
+    render(<DetalheDivergenciaPage />);
+    expect(await screen.findByText("Lançamento não encontrado.")).toBeInTheDocument();
+  });
+
+  it("offers a reload instead of an endless skeleton when the backend call throws", async () => {
+    rota.id = "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20";
+    carregarConciliacao.mockRejectedValue(new Error("Failed to fetch"));
+    render(<DetalheDivergenciaPage />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Não foi possível carregar a conciliação. Recarregue a página e tente de novo.",
+    );
+    expect(screen.queryByText("Lançamento não encontrado.")).not.toBeInTheDocument();
+  });
+});

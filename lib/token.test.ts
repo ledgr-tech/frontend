@@ -1,0 +1,117 @@
+// @vitest-environment node
+//
+// jose confere o tipo da chave contra o Uint8Array global; no jsdom o global é
+// outro e a mesma chave é recusada. Este módulo só roda no servidor de qualquer
+// forma, então o ambiente certo pra testar é o node.
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { decodeJwt, decodeProtectedHeader, SignJWT } from "jose";
+import { DURACAO_SESSAO_SEGUNDOS, assinarToken, lerToken } from "./token";
+// O vetor do contrato, copiado de `02-decisoes/anexos/05-contrato-jwt-vetor.json` do vault.
+// O backend tem o mesmo arquivo e prova que aceita este token (issue #71 dele).
+import vetor from "./contrato_jwt.json";
+
+const SEGREDO = "segredo-de-teste-compartilhado-com-o-backend";
+
+const CLAIMS = {
+  usuarioId: "9f4b1a2c-3d5e-4f60-8a71-2b3c4d5e6f70",
+  email: "financeiro@telhacerta.com.br",
+  empresaId: "1a2b3c4d-5e6f-4071-8293-a4b5c6d7e8f9",
+};
+
+describe("token do backend", () => {
+  beforeEach(() => {
+    process.env.NEXTAUTH_SECRET = SEGREDO;
+  });
+
+  afterEach(() => {
+    delete process.env.NEXTAUTH_SECRET;
+    vi.useRealTimers();
+  });
+
+  it("assina exatamente o token do vetor do contrato com o backend", async () => {
+    // Se isto quebrar, o formato mudou (claims, algoritmo ou validade) e o backend precisa
+    // saber: gere o vetor de novo com o assinarToken (mesmo relógio, segredo e claims) e
+    // atualize o vault e o `tests/fixtures/contrato_jwt.json` do backend.
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(vetor.instante_utc));
+    process.env.NEXTAUTH_SECRET = vetor.segredo;
+
+    expect(await assinarToken(vetor.claims_entrada)).toBe(vetor.token);
+  });
+
+  it("assina em HS256, que é o que o PyJWT do backend espera", async () => {
+    const token = await assinarToken(CLAIMS);
+    expect(decodeProtectedHeader(token).alg).toBe("HS256");
+  });
+
+  it("leva os claims do contrato, com empresa_id em snake_case", async () => {
+    const payload = decodeJwt(await assinarToken(CLAIMS));
+    // é o único claim que o backend lê para resolver o tenant — sem ele, 401
+    expect(payload.empresa_id).toBe(CLAIMS.empresaId);
+    expect(payload.sub).toBe(CLAIMS.usuarioId);
+    expect(payload.email).toBe(CLAIMS.email);
+    expect(payload.iat).toBeTypeOf("number");
+    expect(payload.exp).toBeTypeOf("number");
+  });
+
+  it("vale 7 dias, e não os 30 que o NextAuth usaria por padrão", async () => {
+    const payload = decodeJwt(await assinarToken(CLAIMS));
+    expect(payload.exp! - payload.iat!).toBe(DURACAO_SESSAO_SEGUNDOS);
+  });
+
+  it("volta a ler o que assinou", async () => {
+    expect(await lerToken(await assinarToken(CLAIMS))).toEqual(CLAIMS);
+  });
+
+  it("leva o auth_time do login quando ele existe (#75)", async () => {
+    const payload = decodeJwt(await assinarToken({ ...CLAIMS, authTime: 1791374400 }));
+    expect(payload.auth_time).toBe(1791374400);
+  });
+
+  it("sem auth_time, não inventa um: o backend recusa e a pessoa entra de novo", async () => {
+    const payload = decodeJwt(await assinarToken(CLAIMS));
+    expect(payload).not.toHaveProperty("auth_time");
+  });
+
+  it("volta a ler o auth_time que assinou", async () => {
+    const comLogin = { ...CLAIMS, authTime: 1791374400 };
+    expect(await lerToken(await assinarToken(comLogin))).toEqual(comLogin);
+  });
+
+  it("renovar a sessão troca iat e exp, mas mantém o auth_time do login", async () => {
+    // a renovação do NextAuth é exatamente isto: decode do cookie atual, encode de novo
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-07T12:00:00Z"));
+    const primeiro = await assinarToken({ ...CLAIMS, authTime: 1791374400 });
+
+    vi.setSystemTime(new Date("2026-10-09T08:30:00Z"));
+    const renovado = await assinarToken((await lerToken(primeiro))!);
+
+    const antes = decodeJwt(primeiro);
+    const depois = decodeJwt(renovado);
+    expect(depois.iat).toBeGreaterThan(antes.iat!);
+    expect(depois.auth_time).toBe(1791374400);
+  });
+
+  it("recusa token assinado com outro segredo", async () => {
+    const token = await assinarToken(CLAIMS);
+    process.env.NEXTAUTH_SECRET = "outro-segredo-qualquer-com-tamanho-ok";
+    // é exatamente o que acontece se o valor divergir entre a Vercel e o Railway
+    expect(await lerToken(token)).toBeNull();
+  });
+
+  it("recusa token vencido em vez de estourar", async () => {
+    const vencido = await new SignJWT({ empresa_id: CLAIMS.empresaId })
+      .setProtectedHeader({ alg: "HS256" })
+      .setSubject(CLAIMS.usuarioId)
+      .setExpirationTime("-1s")
+      .sign(new TextEncoder().encode(SEGREDO));
+    expect(await lerToken(vencido)).toBeNull();
+  });
+
+  it("não assina com segredo ausente", async () => {
+    delete process.env.NEXTAUTH_SECRET;
+    // silêncio aqui significaria assinar com chave vazia, que qualquer um forja
+    await expect(assinarToken(CLAIMS)).rejects.toThrow("NEXTAUTH_SECRET");
+  });
+});

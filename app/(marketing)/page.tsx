@@ -1,22 +1,47 @@
 import Image from "next/image";
 import Link from "next/link";
 
+import { DIVERGENCIAS } from "@/lib/adaptadores";
+import { depoimentosDaLanding } from "@/lib/depoimentos";
+import { LogoBarras } from "@/app/(app)/logo-barras";
 import { CabecalhoSite } from "./cabecalho-site";
+import { CATEGORIAS, QUANTAS_CATEGORIAS } from "./categorias";
 import { ExtratoComparacao, type LinhaExtrato } from "./comparacao";
-import { InkHover, MotionRoot, PlanCard, Reveal } from "./reveal";
+import { ConferenciaAMao, type Dor } from "./conferencia-a-mao";
+import { Depoimentos } from "./depoimentos";
+import { DicaDoMouse } from "./dica-do-mouse";
+import { InkHover, MotionRoot, Reveal } from "../reveal";
+import { fonteDestaque } from "./fonte-destaque";
+import { PorDentro } from "./por-dentro";
+import { PorQueOLedgr } from "./por-que";
+import { Precos, type ResumoDoMes } from "./precos";
+import { RedesSociais } from "./redes-sociais";
 
-const PROVAS_HERO = [
-  { valor: "4+", rotulo: "bancos processados num só relatório" },
-  { valor: "Alto volume", rotulo: "de lançamentos conferidos por mês, sem esforço extra" },
-  { valor: "4", rotulo: "categorias de divergência, sempre nomeadas" },
-];
+// O agosto da demonstração: o cartão do hero e o relatório do último card de Preços mostram o
+// mesmo mês, com os mesmos números
+// quantos lançamentos o extrato do banco tem no agosto do exemplo: a escala do Cap. II e do hero
+const LANCAMENTOS_DE_AGOSTO = 4218;
+const AGOSTO: ResumoDoMes = {
+  periodo: "Agosto · 2026",
+  conciliado: "96,3%",
+  paraRevisar: `157 de ${LANCAMENTOS_DE_AGOSTO.toLocaleString("pt-BR")} para revisar`,
+};
 
+// A faixa logo abaixo do hero, só com o que é quantidade, e por extenso: algarismo solto em
+// tamanho grande ficava com cara de letra. Abre com o argumento central do pitch (não trocar de
+// sistema); o zero de credenciais bancárias continua na FAQ e no rodapé. "Alto volume" e
+// "Automático" não eram número.
 const NUMEROS = [
-  { valor: "Automático", rotulo: "a maior parte dos lançamentos casa sem precisar mexer em nada" },
-  { valor: "minutos", rotulo: "para ter o relatório pronto após subir os arquivos" },
-  { valor: "Sem instalar nada", rotulo: "nenhuma integração bancária pra configurar" },
+  { valor: "Zero", rotulo: "sistemas para trocar: o Ledgr usa o que o seu sistema de gestão já exporta" },
+  { valor: "Minutos", rotulo: "para o relatório ficar pronto depois que você sobe os arquivos" },
+  { valor: QUANTAS_CATEGORIAS, rotulo: "categorias de divergência, sempre nomeadas" },
 ];
 
+// ponytail: as `explicacao` desta demonstração são no estilo da IA, que estará
+// ligada no lançamento (hoje está desligada em produção, e o produto mostra o
+// motivo fixo do motor). Aparecem com o selo de IA, como no produto: decidido em
+// 01/10 no DESIGN.md ("Dívidas pontuais anotadas pelo caminho"). Se o lançamento
+// for sem IA, troque pelos motivos fixos.
 // Lançamentos que aparecem, com os mesmos valores, nos dois extratos.
 // Agosto/2026: mês já fechado (hoje é setembro/2026), coerente com o rótulo do hero.
 const TRANSACOES_CASADAS: LinhaExtrato[] = [
@@ -25,7 +50,7 @@ const TRANSACOES_CASADAS: LinhaExtrato[] = [
     desc: "Recebimento cliente Alfa Comércio",
     valorBanco: "R$ 3.250,00",
     valorSistema: "R$ 3.250,00",
-    status: "Batido",
+    status: "match_exato",
     explicacao: null,
   },
   {
@@ -33,7 +58,7 @@ const TRANSACOES_CASADAS: LinhaExtrato[] = [
     desc: "Pagamento fornecedor #1082",
     valorBanco: "R$ 12.640,00",
     valorSistema: "R$ 12.604,00",
-    status: "Valor divergente",
+    status: "divergente_valor",
     explicacao:
       "O banco descontou R$ 36,00 de juros por atraso no boleto; o sistema ainda mostra o valor original da emissão.",
   },
@@ -42,22 +67,22 @@ const TRANSACOES_CASADAS: LinhaExtrato[] = [
     desc: "Crédito cartão D+30",
     valorBanco: "R$ 7.912,45",
     valorSistema: "R$ 7.912,40",
-    status: "Valor divergente",
-    explicacao: "Diferença de R$ 0,05 — taxa de arredondamento aplicada pela operadora do cartão.",
+    status: "divergente_valor",
+    explicacao: "Diferença de R$ 0,05: taxa de arredondamento aplicada pela operadora do cartão.",
   },
 ];
 
 // Mesma descrição e mesmo valor dos dois lados, só que em dias diferentes —
-// por isso os dois aparecem com o status "Data divergente", não como ausência.
+// por isso os dois aparecem como "Mesmo valor em outra data", não como ausência.
 const ALUGUEL_EXPLICACAO =
-  "O banco debitou em 11/08; o sistema lançou a mesma despesa em 12/08. Mesmo valor, datas diferentes — o Ledgr não junta as duas automaticamente.";
+  "O banco debitou em 11/08; o sistema lançou a mesma despesa em 12/08. Mesmo valor, datas diferentes. O Ledgr não junta as duas automaticamente.";
 
 const ALUGUEL_BANCO: LinhaExtrato = {
   data: "11/08",
   desc: "Aluguel sede agosto",
   valorBanco: "R$ 9.800,00",
   valorSistema: "R$ 9.800,00",
-  status: "Data divergente",
+  status: "divergente_data",
   explicacao: ALUGUEL_EXPLICACAO,
 };
 
@@ -66,40 +91,72 @@ const ALUGUEL_SISTEMA: LinhaExtrato = {
   desc: "Aluguel sede agosto",
   valorBanco: "R$ 9.800,00",
   valorSistema: "R$ 9.800,00",
-  status: "Data divergente",
+  status: "divergente_data",
   explicacao: ALUGUEL_EXPLICACAO,
 };
 
-// Lançamento só do lado do banco, sem par no sistema — ilustra a categoria
-// "Sem correspondente" (que não tem exemplo entre as transações casadas acima).
+// Tarifa só do lado do banco: o motor a separa das outras sobras como
+// "Tarifa bancária", a sobra que ele já sabe explicar.
 const TARIFA_BANCO: LinhaExtrato = {
   data: "06/08",
   desc: "Tarifa de manutenção da conta",
   valorBanco: "R$ 45,00",
   valorSistema: null,
-  status: "Sem correspondente",
+  status: "tarifa_bancaria",
   explicacao: "O banco cobrou essa tarifa em 06/08; ainda não há lançamento correspondente no sistema.",
 };
 
 const EXTRATO_BANCO: LinhaExtrato[] = [...TRANSACOES_CASADAS, TARIFA_BANCO, ALUGUEL_BANCO];
 const EXTRATO_SISTEMA: LinhaExtrato[] = [...TRANSACOES_CASADAS, ALUGUEL_SISTEMA];
 
+// As três dores do Cap. II, uma por número nas telas, com os números dos próprios lançamentos: a
+// escala do mês (a mesma do hero), os cinco centavos do cartão e a tarifa que só o banco tem
+const CARTAO = TRANSACOES_CASADAS[2];
+const emReais = (valor: string) => Number(valor.replace(/[^\d,]/g, "").replace(",", "."));
+// no formato dos outros valores da página ("R$ 0,05", com espaço comum: o Intl poria um não separável)
+const DIFERENCA_DO_CARTAO = `R$ ${(emReais(CARTAO.valorBanco!) - emReais(CARTAO.valorSistema!)).toLocaleString("pt-BR", {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+})}`;
+const DORES: Dor[] = [
+  {
+    rotulo: "Tempo",
+    numero: LANCAMENTOS_DE_AGOSTO.toLocaleString("pt-BR"),
+    unidade: "linhas",
+    titulo: "Horas que não voltam",
+    texto: "Cada linha do banco é procurada no sistema, uma a uma, todo mês.",
+  },
+  {
+    rotulo: "Erro humano",
+    numero: DIFERENCA_DO_CARTAO,
+    titulo: "O olho cansa",
+    texto: `Depois da centésima linha, ${CARTAO.valorBanco} e ${CARTAO.valorSistema} parecem o mesmo número.`,
+    linha: CARTAO.desc,
+  },
+  {
+    rotulo: "O que passa",
+    numero: TARIFA_BANCO.valorBanco!,
+    titulo: "Aparece depois",
+    texto: "A tarifa que ninguém lançou só aparece quando o saldo não fecha.",
+    linha: TARIFA_BANCO.desc,
+  },
+];
+
 const PASSOS = [
   {
     num: "I",
-    titulo: "Suba os extratos dos bancos",
-    texto:
-      "OFX ou CSV, direto do internet banking — de quantos bancos você usar. O Ledgr consolida tudo num só relatório; é ele que define a verdade da conciliação.",
+    titulo: "Suba o extrato do banco",
+    texto: "OFX ou CSV, direto do internet banking. Quando os dois lados discordam, vale o que está nesse extrato.",
   },
   {
     num: "II",
     titulo: "Suba o extrato do sistema",
-    texto: "Exporte o razão do seu ERP ou sistema de gestão no mesmo período.",
+    texto: "Exporte o razão do seu ERP ou sistema de gestão no mesmo período, em CSV.",
   },
   {
     num: "III",
     titulo: "Receba as divergências",
-    texto: "Relatório categorizado: sem correspondente, valor divergente, data divergente, duplicidade.",
+    texto: `Relatório nas ${DIVERGENCIAS.length} categorias: ${CATEGORIAS}.`,
   },
 ];
 
@@ -107,49 +164,49 @@ const PERGUNTAS = [
   {
     pergunta: "Preciso instalar algo no meu banco?",
     resposta:
-      "Não. O Ledgr lê o arquivo que o internet banking já exporta — OFX ou CSV. Nenhuma credencial bancária é pedida.",
+      "Não. O Ledgr lê o arquivo que o internet banking já exporta, em OFX ou CSV, e não pede nenhuma credencial bancária.",
   },
   {
-    pergunta: "E se o meu ERP não estiver na lista?",
+    // só o que a política de privacidade (seção Segurança e "Por quanto tempo") já afirma
+    pergunta: "É seguro subir os meus extratos?",
+    resposta: (
+      <>
+        O Ledgr não pede nenhuma credencial bancária, e o arquivo que você sobe não fica guardado: ficam os
+        lançamentos lidos dele, que só a sua empresa vê. Os registros do servidor não guardam o valor nem a
+        descrição completa dos lançamentos. Os detalhes estão na{" "}
+        <Link href="/privacidade#seguranca">política de privacidade</Link>.
+      </>
+    ),
+  },
+  {
+    pergunta: "E se o CSV do meu sistema vier em outro formato?",
     resposta:
-      "Funciona também — é a única exceção que pede um passo a mais: na importação você aponta qual coluna é data, descrição e valor, uma única vez.",
+      "Funciona também: na importação você aponta qual coluna é data, descrição e valor, e o Ledgr ajusta o arquivo. Por enquanto, esse passo se repete a cada importação.",
   },
   {
     pergunta: "Quem decide o que é divergência?",
     resposta:
-      "Você. O Ledgr aponta, nomeia e explica cada caso; aceitar o valor do banco ou corrigir no sistema é sempre uma decisão sua.",
+      "Você. O Ledgr mostra cada caso com a categoria e o motivo provável, mas aceitar o valor do banco ou corrigir no sistema é decisão sua.",
   },
   {
     pergunta: "O contador consegue acessar?",
-    resposta: "Sim, com o papel de leitor: abre relatório e histórico, não altera lançamento nenhum.",
+    resposta:
+      "Ainda não tem acesso próprio: hoje cada empresa tem um login só. Mas o relatório de cada conciliação sai em CSV, pronto para mandar ao contador.",
   },
   {
     pergunta: "Consigo conciliar mais de um banco ao mesmo tempo?",
     resposta:
-      "Sim. Suba o extrato de quantos bancos usar — o Ledgr consolida tudo num único relatório, sem lançamento perdido entre contas.",
+      "Sim, uma conta por vez: cada conciliação cruza o extrato de uma conta com o do sistema no mesmo período, então exporte do sistema só os lançamentos daquela conta. Em Fechamentos, as conciliações do mesmo mês aparecem juntas.",
   },
   {
     pergunta: "Existe fidelidade ou taxa de implantação?",
     resposta:
-      "Não. Você paga só pelo volume de lançamentos conferidos no mês — sem contrato de fidelidade, taxa de setup ou cobrança por usuário adicional.",
+      "Não. Você paga só pelo volume de lançamentos conferidos no mês, sem contrato de fidelidade, taxa de implantação ou cobrança por usuário adicional.",
   },
   {
     pergunta: "Posso cancelar quando quiser?",
-    resposta: "Sim, direto pelo painel, sem burocracia — não há multa nem aviso prévio.",
-  },
-];
-
-const PLANOS = [
-  { nome: "Essencial", preco: "R$ 49,90", limite: "até 100 lançamentos por mês", destaque: false, contato: false },
-  { nome: "Padrão", preco: "R$ 79,90", limite: "até 200 lançamentos por mês", destaque: true, contato: false },
-  { nome: "Avançado", preco: "R$ 99,90", limite: "até 350 lançamentos por mês", destaque: false, contato: false },
-  { nome: "Escala", preco: "R$ 149,90", limite: "até 5.000 lançamentos por mês", destaque: false, contato: false },
-  {
-    nome: "Volume",
-    preco: "Sob consulta",
-    limite: "acima de 5.000 — indústria e multi-banco",
-    destaque: false,
-    contato: true,
+    resposta:
+      "Sim, sem multa nem aviso prévio: é só pedir por e-mail. E por enquanto ninguém paga nada, porque a cobrança ainda não está no ar.",
   },
 ];
 
@@ -157,6 +214,7 @@ const RODAPE_COLUNAS = [
   {
     titulo: "Produto",
     itens: [
+      { rotulo: "Por que o Ledgr", href: "#por-que" },
       { rotulo: "Como funciona", href: "#como" },
       { rotulo: "Regra de ouro", href: "#regra" },
       { rotulo: "Perguntas", href: "#perguntas" },
@@ -167,46 +225,31 @@ const RODAPE_COLUNAS = [
     itens: [
       { rotulo: "Assinatura", href: "#preco" },
       { rotulo: "Contato", href: "mailto:ledgrtech@gmail.com" },
-      { rotulo: "Segurança", href: "#regra" },
+      { rotulo: "Segurança", href: "/privacidade#seguranca" },
     ],
   },
   {
     titulo: "Legal",
     itens: [
-      { rotulo: "Termos de uso", href: "#preco" },
-      { rotulo: "Privacidade", href: "#preco" },
-      { rotulo: "LGPD", href: "#preco" },
+      { rotulo: "Termos de uso", href: "/termos" },
+      { rotulo: "Privacidade", href: "/privacidade" },
+      { rotulo: "LGPD", href: "/privacidade#direitos" },
     ],
   },
 ];
 
 export default function LandingPage() {
+  const depoimentos = depoimentosDaLanding();
   return (
-    <main>
+    <main className={fonteDestaque.variable}>
       <MotionRoot>
       <CabecalhoSite />
 
       {/* hero */}
       <section style={{ position: "relative", overflow: "hidden" }}>
-        <Image
-          src="/mascotes/logo-barras.png"
-          alt=""
-          className="hero-marca"
-          aria-hidden="true"
-          width={1280}
-          height={1041}
-          sizes="640px"
-          loading="eager"
-          style={{
-            position: "absolute",
-            top: -70,
-            right: -110,
-            width: 640,
-            height: "auto",
-            opacity: 0.05,
-            pointerEvents: "none",
-          }}
-        />
+        {/* SVG em linha, não <img>: a marca d'água quase invisível era a maior imagem do topo e
+            virava o LCP no celular, esperando o JavaScript para pintar */}
+        <LogoBarras className="hero-marca" />
         <div
           aria-hidden="true"
           style={{
@@ -246,22 +289,11 @@ export default function LandingPage() {
               </span>
               <span style={{ flex: 1, maxWidth: 120, height: 1, background: "var(--color-divider)" }} />
             </div>
-            <h1
-              className="font-display"
-              style={{
-                margin: "0 0 24px",
-                fontSize: "clamp(44px, 4.8vw, 88px)",
-                fontWeight: 400,
-                lineHeight: 1.02,
-                letterSpacing: "-0.022em",
-                textWrap: "balance",
-              }}
-            >
-              Pare de conciliar extrato à mão.
+            <h1 className="titulo-misto" style={{ margin: "0 0 24px", fontSize: "clamp(40px, 4.4vw, 72px)" }}>
+              Pare de conciliar extrato <em>à mão.</em>
             </h1>
             <div style={{ width: 84, height: 1, background: "var(--color-accent)", marginBottom: 26 }} />
             <p
-              className="texto-justificado"
               style={{
                 margin: "0 0 34px",
                 fontSize: "clamp(16px, 1.2vw, 19px)",
@@ -269,59 +301,13 @@ export default function LandingPage() {
                 maxWidth: "44ch",
               }}
             >
-              Suba o extrato do banco e o extrato do seu sistema de gestão. Em minutos você recebe o
-              relatório do que bate e do que não bate — lançamento por lançamento, sem planilha no
-              meio.
+              Continue no sistema de gestão que você já usa. Suba o extrato do banco e o do sistema:
+              em minutos o Ledgr confere linha por linha e aponta só o que não bate, com o motivo de
+              cada diferença.
             </p>
-            <div style={{ display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap", marginBottom: 34 }}>
-              <Link
-                href="/login"
-                className="btn btn-primary"
-                style={{ fontSize: 15.5, padding: "13px 24px" }}
-              >
-                Conciliar meu primeiro extrato
-              </Link>
-              <span
-                style={{
-                  fontSize: 14,
-                  color: "color-mix(in srgb, var(--color-text) 55%, transparent)",
-                }}
-              >
-                OFX ou CSV, direto do internet banking
-              </span>
-            </div>
-            <div className="grade-colunas hero-provas-grid" style={{ borderTop: "1px solid var(--color-divider)" }}>
-              {PROVAS_HERO.map((prova) => (
-                <div
-                  key={prova.rotulo}
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 6,
-                  }}
-                >
-                  <span
-                    style={{
-                      fontFamily: "var(--font-display)",
-                      fontSize: 30,
-                      fontWeight: 600,
-                      lineHeight: 1,
-                    }}
-                  >
-                    {prova.valor}
-                  </span>
-                  <span
-                    style={{
-                      fontSize: 13,
-                      lineHeight: 1.5,
-                      color: "color-mix(in srgb, var(--color-text) 60%, transparent)",
-                    }}
-                  >
-                    {prova.rotulo}
-                  </span>
-                </div>
-              ))}
-            </div>
+            <Link href="/cadastro" className="btn btn-primary" style={{ fontSize: 15.5, padding: "13px 24px" }}>
+              Começar agora
+            </Link>
           </div>
           <InkHover
             clip={false}
@@ -359,17 +345,17 @@ export default function LandingPage() {
                   fontSize: 12,
                   letterSpacing: "0.1em",
                   textTransform: "uppercase",
-                  color: "color-mix(in srgb, var(--color-text) 52%, transparent)",
+                  color: "color-mix(in srgb, var(--color-text) 68%, transparent)",
                   marginBottom: 8,
                 }}
               >
-                Agosto · 2026
+                {AGOSTO.periodo}
               </div>
               <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 8 }}>
-                <span style={{ fontFamily: "var(--font-display)", fontSize: 38, fontWeight: 600, lineHeight: 1 }}>
-                  96,3%
+                <span className="numero-destaque" style={{ fontSize: 38, fontWeight: 600, lineHeight: 1 }}>
+                  {AGOSTO.conciliado}
                 </span>
-                <span style={{ fontSize: 13.5, color: "color-mix(in srgb, var(--color-text) 62%, transparent)" }}>
+                <span style={{ fontSize: 13.5, color: "color-mix(in srgb, var(--color-text) 68%, transparent)" }}>
                   conciliado
                 </span>
               </div>
@@ -382,11 +368,11 @@ export default function LandingPage() {
                   display: "flex",
                 }}
               >
-                <div style={{ width: "96.3%", background: "var(--color-neutral-300)" }} />
+                <div style={{ width: AGOSTO.conciliado.replace(",", "."), background: "var(--color-neutral-300)" }} />
                 <div style={{ flex: 1, background: "var(--color-accent)" }} />
               </div>
-              <div style={{ marginTop: 8, fontSize: 12.5, color: "color-mix(in srgb, var(--color-text) 60%, transparent)" }}>
-                157 de 4.218 para revisar
+              <div style={{ marginTop: 8, fontSize: 12.5, color: "color-mix(in srgb, var(--color-text) 68%, transparent)" }}>
+                {AGOSTO.paraRevisar}
               </div>
             </div>
           </InkHover>
@@ -395,11 +381,11 @@ export default function LandingPage() {
 
       {/* em números */}
       <section
+        className="onda onda-papel grao"
         style={{
           position: "relative",
           overflow: "hidden",
-          borderTop: "1px solid var(--color-divider)",
-          background: "var(--color-neutral-900)",
+          backgroundColor: "var(--faixa-escura)",
         }}
       >
         {/* marca em traço fino, cortada na borda esquerda */}
@@ -426,25 +412,6 @@ export default function LandingPage() {
           </g>
         </svg>
         <div style={{ position: "relative", maxWidth: 1600, margin: "0 auto", padding: "clamp(52px, 7vw, 72px) clamp(20px, 4.2vw, 56px)" }}>
-          <Reveal>
-            <InkHover
-              tone="light"
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: 10,
-                marginBottom: 30,
-              }}
-            >
-              <span className="eyebrow" style={{ fontSize: 12, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--color-accent-300)" }}>
-                Em números
-              </span>
-              <span style={{ fontSize: 14, lineHeight: 1.6, maxWidth: "46ch", color: "var(--color-neutral-400)" }}>
-                O Ledgr cruza extrato do banco com o razão do ERP e entrega um relatório categorizado
-                — sem planilha, sem conferência manual linha por linha.
-              </span>
-            </InkHover>
-          </Reveal>
           <div className="grade-colunas numeros-grade">
             {NUMEROS.map((numero, i) => (
               <Reveal
@@ -457,8 +424,8 @@ export default function LandingPage() {
                 }}
               >
                 <span
+                  className="numero-destaque"
                   style={{
-                    fontFamily: "var(--font-display)",
                     fontSize: "clamp(36px, 3.4vw, 46px)",
                     fontWeight: 400,
                     lineHeight: 1,
@@ -474,70 +441,41 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* o problema */}
-      <section id="problema" style={{ borderTop: "1px solid var(--color-divider)" }}>
+      {/* o problema é só a dor: as duas telas de agosto como chegam à mão, as três dores numeradas
+          nelas, e uma frase-ponte para o Cap. III, onde o Ledgr aparece conferindo as mesmas telas */}
+      <section id="problema" className="onda onda-escura">
         <div style={{ maxWidth: 1600, margin: "0 auto", padding: "clamp(64px, 9vw, 96px) clamp(20px, 4.2vw, 56px)" }}>
           <Reveal>
-            <InkHover
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(min(300px, 100%), 1fr))",
-                gap: "24px 48px",
-                marginBottom: 42,
-              }}
-            >
+            {/* título e texto empilhados: um recado só, lido de cima para baixo */}
+            <InkHover style={{ display: "flex", flexDirection: "column", gap: 18, marginBottom: 42 }}>
               <div>
-                <h6 className="eyebrow" style={{ margin: "0 0 12px", color: "var(--color-accent-700)" }}>Cap. II · O jeito de hoje</h6>
-                <h2 style={{ margin: 0, fontSize: "clamp(30px, 2.8vw, 46px)", fontWeight: 400, lineHeight: 1.08 }}>
-                  Duas telas abertas, um dedo em cada linha.
+                <p className="eyebrow" style={{ margin: "0 0 12px", color: "var(--color-accent-700)" }}>Cap. II · O jeito de hoje</p>
+                <h2 className="titulo-misto" style={{ margin: 0, fontSize: "clamp(30px, 2.8vw, 46px)" }}>
+                  Duas telas abertas, um dedo em <em>cada linha.</em>
                 </h2>
               </div>
               <p
-                className="texto-justificado"
                 style={{
                   margin: 0,
-                  alignSelf: "end",
+                  maxWidth: "62ch",
                   fontSize: 15.5,
                   lineHeight: 1.75,
                 }}
               >
-                Conferir o extrato do banco contra o extrato do sistema de gestão linha a linha é lento,
-                cansa e deixa passar erro. Quanto maior o volume de lançamentos, pior fica — e o mês
-                fecha sempre no aperto.
+                Assim é o fechamento de agosto à mão: o extrato do banco de um lado, o do sistema do outro.
               </p>
             </InkHover>
           </Reveal>
           <Reveal delay={0.1}>
-            <ExtratoComparacao banco={EXTRATO_BANCO} sistema={EXTRATO_SISTEMA} />
-          </Reveal>
-          <Reveal delay={0.15}>
-            {/* dica de hover: as linhas divergentes do comparativo abrem detalhes */}
-            <div className="hover-hint" style={{ justifyContent: "center", margin: "22px 0 0" }}>
-              <span className="hover-hint-icone">
-                <svg
-                  aria-hidden="true"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth={1.25}
-                  strokeLinecap="round"
-                >
-                  <rect x="7" y="3" width="10" height="17" rx="5" />
-                  <path d="M12 3v5.5M7.2 8.5h9.6" />
-                  <path className="hover-hint-roda" d="M12 5v1.6" strokeWidth={1.75} />
-                </svg>
-              </span>
-              <span className="hover-hint-texto">
-                <span className="so-mouse">Passe o mouse sobre as linhas</span>
-                <span className="so-toque">Toque nas linhas</span> para ver os detalhes
-              </span>
-            </div>
+            <ConferenciaAMao banco={EXTRATO_BANCO} sistema={EXTRATO_SISTEMA} total={LANCAMENTOS_DE_AGOSTO} dores={DORES} />
           </Reveal>
         </div>
       </section>
 
       {/* como funciona */}
-      <section id="como" style={{ position: "relative", overflow: "hidden", borderTop: "1px solid var(--color-divider)", background: "var(--color-surface)" }}>
+      <section id="como" className="onda onda-papel" style={{ position: "relative", overflow: "hidden", background: "var(--color-surface)" }}>
+        {/* marca d'água no canto de baixo à esquerda, oposto ao mascote visível (como na FAQ),
+            saindo pelas bordas: atrás do título ela competia com ele */}
         <Image
           src="/mascotes/mascote-explicando.png"
           alt=""
@@ -546,7 +484,7 @@ export default function LandingPage() {
           height={1000}
           sizes="480px"
           className="como-marca"
-          style={{ position: "absolute", top: 30, left: -40, width: 480, height: "auto", opacity: 0.07, pointerEvents: "none" }}
+          style={{ position: "absolute", bottom: -170, left: -70, width: 480, height: "auto", opacity: 0.04, pointerEvents: "none" }}
         />
         <div style={{ position: "relative", maxWidth: 1600, margin: "0 auto", padding: "clamp(64px, 9vw, 96px) clamp(20px, 4.2vw, 56px)" }}>
           <Reveal>
@@ -554,16 +492,16 @@ export default function LandingPage() {
               style={{
                 display: "flex",
                 flexWrap: "wrap",
-                alignItems: "flex-end",
+                alignItems: "center",
                 justifyContent: "space-between",
                 gap: "24px 48px",
                 marginBottom: 42,
               }}
             >
               <div style={{ flex: "1 1 360px", minWidth: 0 }}>
-                <h6 className="eyebrow" style={{ margin: "0 0 12px", color: "var(--color-accent-700)" }}>Cap. III · Como funciona</h6>
-                <h2 style={{ margin: 0, fontSize: "clamp(30px, 2.8vw, 46px)", fontWeight: 400, lineHeight: 1.08 }}>
-                  Três passos, sem cruzar linha por linha.
+                <p className="eyebrow" style={{ margin: "0 0 12px", color: "var(--color-accent-700)" }}>Cap. III · Como funciona</p>
+                <h2 className="titulo-misto" style={{ margin: 0, fontSize: "clamp(30px, 2.8vw, 46px)" }}>
+                  Três passos. A conferência linha por linha fica <em>com o Ledgr.</em>
                 </h2>
               </div>
               <Image
@@ -571,7 +509,9 @@ export default function LandingPage() {
                 alt="Mascote Ledgr explicando"
                 width={1000}
                 height={1000}
-                sizes="240px"
+                // o mesmo sizes da marca d'água desta seção: as duas pegam a mesma largura do srcset,
+                // e a imagem baixa uma vez só
+                sizes="480px"
                 className="como-mascote"
                 style={{ flex: "none", width: 240, height: "auto" }}
               />
@@ -581,7 +521,7 @@ export default function LandingPage() {
             {PASSOS.map((passo, i) => (
               <Reveal
                 key={passo.num}
-                delay={i * 0.1}
+                delay={i * 0.06}
                 style={{
                   display: "flex",
                   flexDirection: "column",
@@ -605,17 +545,65 @@ export default function LandingPage() {
                 <div style={{ fontFamily: "var(--font-heading)", fontSize: 22, fontWeight: 600, lineHeight: 1.2 }}>
                   {passo.titulo}
                 </div>
-                <div className="texto-justificado" style={{ fontSize: 15, lineHeight: 1.72 }}>
+                <div style={{ fontSize: 15, lineHeight: 1.72 }}>
                   {passo.texto}
                 </div>
               </Reveal>
             ))}
           </div>
+          {/* na prática: o resultado do terceiro passo, as mesmas duas telas do Cap. II, agora
+              conferidas pelo Ledgr (os selos e os motivos são dele) */}
+          <Reveal className="pratica">
+            <p className="rotulo-parte rotulo-parte-ledgr">Na prática</p>
+            <h3 className="pratica-titulo">As mesmas duas telas, conferidas pelo Ledgr.</h3>
+            <p className="pratica-texto">
+              Os dois extratos de agosto lado a lado, como na conferência à mão. A diferença é que cada
+              linha já vem marcada, e as que não batem vêm com o motivo.
+            </p>
+          </Reveal>
+          <Reveal delay={0.1}>
+            <ExtratoComparacao banco={EXTRATO_BANCO} sistema={EXTRATO_SISTEMA} />
+          </Reveal>
+          <Reveal delay={0.15}>
+            {/* dica de hover: as linhas divergentes do comparativo abrem detalhes */}
+            <DicaDoMouse style={{ justifyContent: "center", margin: "22px 0 0" }}>
+              <span className="so-mouse">Passe o mouse sobre as linhas</span>
+              <span className="so-toque">Toque nas linhas</span> para ver os detalhes
+            </DicaDoMouse>
+          </Reveal>
+        </div>
+      </section>
+
+      {/* por dentro do ledgr: o que chega depois do terceiro passo, contado pela vida de uma
+          linha, a #1082 de "O problema", até o sistema de gestão, e a tela inteira do app embaixo.
+          overflow: clip, e não hidden: hidden faria da seção o contêiner de rolagem do título
+          parado (sticky), e ele deixaria de grudar */}
+      <section
+        id="por-dentro"
+        className="onda onda-superficie grao-claro"
+        style={{ position: "relative", overflow: "clip", backgroundColor: "var(--faixa-clara)" }}
+      >
+        <div style={{ position: "relative", maxWidth: 1600, margin: "0 auto", padding: "clamp(64px, 9vw, 96px) clamp(20px, 4.2vw, 56px)" }}>
+          <div className="por-dentro">
+            <PorDentro banco={EXTRATO_BANCO} sistema={EXTRATO_SISTEMA}>
+              <h2 className="titulo-misto por-dentro-intro">
+                Cada lançamento, do extrato <em>ao seu sistema.</em>
+              </h2>
+            </PorDentro>
+          </div>
+        </div>
+      </section>
+
+      {/* por que o Ledgr: as saídas de hoje e o Ledgr, pergunta por pergunta, depois que o produto
+          já foi explicado. O link "Por que o Ledgr" do rodapé desce até aqui */}
+      <section id="por-que" className="onda onda-faixa-clara" style={{ background: "var(--color-surface)" }}>
+        <div style={{ maxWidth: 1600, margin: "0 auto", padding: "clamp(64px, 9vw, 96px) clamp(20px, 4.2vw, 56px)" }}>
+          <PorQueOLedgr />
         </div>
       </section>
 
       {/* regra de ouro */}
-      <section id="regra" style={{ borderTop: "1px solid var(--color-divider)" }}>
+      <section id="regra" className="onda onda-superficie">
         <div style={{ maxWidth: 1600, margin: "0 auto", padding: "clamp(64px, 9vw, 96px) clamp(20px, 4.2vw, 56px)" }}>
           <Reveal>
             <InkHover
@@ -643,11 +631,8 @@ export default function LandingPage() {
                 §
               </div>
               <div>
-                <h6 className="eyebrow" style={{ margin: "0 0 10px", color: "var(--color-accent-700)" }}>
-                  Regra de ouro
-                </h6>
-                <h2 className="font-display" style={{ margin: "0 0 12px", fontSize: "clamp(26px, 2.4vw, 42px)", fontWeight: 500 }}>
-                  O extrato do banco é sempre a fonte da verdade.
+                <h2 className="titulo-misto" style={{ margin: "0 0 12px", fontSize: "clamp(26px, 2.4vw, 42px)" }}>
+                  O extrato do banco é sempre <em>a fonte da verdade.</em>
                 </h2>
                 <p
                   style={{
@@ -656,9 +641,9 @@ export default function LandingPage() {
                     lineHeight: 1.75,
                   }}
                 >
-                  Toda divergência é reportada na mesma direção: o sistema diverge do banco, nunca o
-                  contrário. Isso encerra a discussão sobre qual número vale e deixa claro o que
-                  precisa ser corrigido no seu sistema de gestão.
+                  O Ledgr aponta toda divergência do mesmo lado: é o sistema que difere do banco.
+                  Assim ninguém discute qual número vale, e fica claro o que corrigir no seu
+                  sistema de gestão.
                 </p>
               </div>
               <div className="font-display regra-icon regra-icon-mirror" aria-hidden style={{ fontSize: 82, lineHeight: 1, visibility: "hidden" }}>
@@ -669,8 +654,19 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* convite */}
-      <section style={{ position: "relative", overflow: "hidden", borderTop: "1px solid var(--color-divider)", background: "var(--color-surface)" }}>
+      {/* depoimentos, onde o export do Claude Design os punha: no site publicado só aparece quando há
+          depoimento real; os de exemplo, só no preview e no local (lib/depoimentos.ts) */}
+      <Depoimentos depoimentos={depoimentos} />
+
+      {/* perguntas, com o mascote que lia o panfleto no antigo convite: o convite repetia o que os
+          passos, os números e a FAQ já diziam, e saiu. O fundo de superfície também veio dele, para
+          as faixas continuarem alternando (a onda de cima é a cor da seção anterior: a faixa escura
+          dos depoimentos, ou a Regra de ouro, papel, enquanto não há depoimento) */}
+      <section
+        id="perguntas"
+        className={depoimentos.length > 0 ? "onda onda-escura" : "onda onda-papel"}
+        style={{ position: "relative", overflow: "hidden", background: "var(--color-surface)" }}
+      >
         <Image
           src="/mascotes/mascote-sentado.png"
           alt=""
@@ -678,89 +674,42 @@ export default function LandingPage() {
           width={1000}
           height={1000}
           sizes="480px"
-          className="convite-marca"
-          style={{ position: "absolute", bottom: 20, right: 24, width: 480, height: "auto", opacity: 0.07, pointerEvents: "none" }}
+          className="perguntas-marca"
+          style={{ position: "absolute", bottom: 20, right: 24, width: 480, height: "auto", opacity: 0.04, pointerEvents: "none" }}
         />
-        <div
-          className="convite-conteudo"
-          style={{
-            position: "relative",
-            maxWidth: 1600,
-            margin: "0 auto",
-            padding: "clamp(64px, 9vw, 96px) clamp(20px, 4.2vw, 56px)",
-            display: "flex",
-            flexWrap: "wrap",
-            gap: "32px 48px",
-            alignItems: "center",
-          }}
-        >
-          <InkHover style={{ flex: "none" }}>
-            <Image
-              src="/mascotes/mascote-sentado.png"
-              alt="Mascote Ledgr sentado lendo um panfleto"
-              width={1000}
-              height={1000}
-              sizes="220px"
-              className="convite-mascote"
-              style={{ width: 220, height: "auto", display: "block" }}
-            />
-          </InkHover>
-          <Reveal delay={0.1} className="convite-texto" style={{ flex: "1 1 420px", minWidth: 0, paddingLeft: 32, borderLeft: "1px solid var(--color-accent)" }}>
-            <h6 className="eyebrow" style={{ margin: "0 0 12px", color: "var(--color-accent-700)" }}>Sem configuração</h6>
-            <h2 style={{ margin: "0 0 16px", fontSize: "clamp(26px, 2.4vw, 40px)", fontWeight: 400, lineHeight: 1.12 }}>
-              Suba os arquivos e veja as divergências em minutos.
-            </h2>
-            <p
-              className="texto-justificado"
-              style={{
-                margin: "0 0 18px",
-                fontSize: 15.5,
-                lineHeight: 1.75,
-                maxWidth: "66ch",
-              }}
+        <div style={{ position: "relative", maxWidth: 1600, margin: "0 auto", padding: "clamp(64px, 9vw, 96px) clamp(20px, 4.2vw, 56px)" }}>
+          <div className="perguntas-topo" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "24px 40px", marginBottom: 34 }}>
+            <InkHover style={{ flex: "none" }}>
+              <Image
+                src="/mascotes/mascote-sentado.png"
+                alt="Mascote Ledgr sentado lendo um panfleto"
+                width={1000}
+                height={1000}
+                // o mesmo sizes da marca d'água desta seção, para a imagem baixar uma vez só
+                sizes="480px"
+                className="perguntas-mascote"
+                style={{ width: 180, height: "auto", display: "block" }}
+              />
+            </InkHover>
+            <Reveal
+              className="perguntas-titulo"
+              style={{ flex: "1 1 320px", minWidth: 0, paddingLeft: 32, borderLeft: "1px solid var(--color-accent)" }}
             >
-              O Ledgr aceita OFX e CSV de qualquer banco. Suba o extrato do banco, suba o razão do
-              seu ERP ou sistema de gestão no mesmo período e receba o relatório categorizado —
-              sem integração pra configurar, sem instalar nada.
-            </p>
-            <p
-              className="texto-justificado"
-              style={{
-                margin: "0 0 22px",
-                fontSize: 15.5,
-                lineHeight: 1.75,
-                maxWidth: "66ch",
-              }}
-            >
-              Cada divergência vem nomeada: sem correspondente, valor divergente, data divergente,
-              duplicidade. Você vê o problema, decide o que corrigir no sistema e fecha o mês com
-              segurança.
-            </p>
-            <Link href="/login" className="btn btn-primary">
-              Testar agora, gratuito
-            </Link>
-          </Reveal>
-        </div>
-      </section>
-
-      {/* perguntas */}
-      <section id="perguntas" style={{ borderTop: "1px solid var(--color-divider)" }}>
-        <div style={{ maxWidth: 1600, margin: "0 auto", padding: "clamp(64px, 9vw, 96px) clamp(20px, 4.2vw, 56px)" }}>
-          <Reveal style={{ marginBottom: 34 }}>
-            <h2 style={{ margin: 0, fontSize: "clamp(26px, 2.4vw, 40px)", fontWeight: 400, lineHeight: 1.1 }}>
-              Perguntas que sempre aparecem
-            </h2>
-            <span
-              style={{
-                display: "block",
-                marginTop: 12,
-                fontSize: 14,
-                color: "color-mix(in srgb, var(--color-text) 58%, transparent)",
-              }}
-            >
-              Qualquer outra dúvida: ledgrtech@gmail.com
-            </span>
-          </Reveal>
+              <h2 className="titulo-misto" style={{ margin: 0, fontSize: "clamp(26px, 2.4vw, 40px)" }}>
+                Perguntas que <em>sempre aparecem</em>
+              </h2>
+              <span
+                style={{
+                  display: "block",
+                  marginTop: 12,
+                  fontSize: 14,
+                  color: "color-mix(in srgb, var(--color-text) 68%, transparent)",
+                }}
+              >
+                Qualquer outra dúvida: ledgrtech@gmail.com
+              </span>
+            </Reveal>
+          </div>
           <div style={{ maxWidth: "72ch", margin: "0 auto", borderTop: "1px solid var(--color-divider)" }}>
             {PERGUNTAS.map((item, i) => (
               <Reveal key={item.pergunta} delay={i * 0.05}>
@@ -774,109 +723,38 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* preço / cta */}
+      {/* preço: o que vem em todo plano, numa trilha vertical como a de "Por dentro", até a régua dos
+          planos, e o convite embaixo. overflow: clip, e não hidden: hidden faria da seção o contêiner
+          de rolagem do título parado (sticky), e ele deixaria de grudar */}
       <section
         id="preco"
-        style={{
-          position: "relative",
-          overflow: "hidden",
-          borderTop: "1px solid var(--color-divider)",
-          background: "var(--color-neutral-900)",
-        }}
+        className="onda onda-superficie grao"
+        style={{ position: "relative", overflow: "clip", backgroundColor: "var(--faixa-escura)" }}
       >
+        {/* marca d'água atrás dos botões, saindo pela borda de baixo: no meio da seção ela ficaria
+            atrás dos cards */}
         <Image
           src="/mascotes/mascote-comemorando.png"
           alt=""
           aria-hidden="true"
           width={1000}
           height={1000}
-          sizes="520px"
+          sizes="480px"
           className="preco-mascote"
-          style={{
-            position: "absolute",
-            top: "50%",
-            left: "50%",
-            transform: "translate(-50%, -46%)",
-            width: 520,
-            height: "auto",
-            opacity: 0.1,
-            pointerEvents: "none",
-          }}
         />
-        <Reveal
-          style={{
-            position: "relative",
-            maxWidth: 1600,
-            margin: "0 auto",
-            padding: "clamp(72px, 10vw, 108px) clamp(20px, 4.2vw, 56px)",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            gap: 20,
-            textAlign: "center",
-          }}
-        >
-          <span className="eyebrow" style={{ fontSize: 12, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--color-accent-300)" }}>
-            Cap. IV · Começar
-          </span>
-          <h2
-            style={{
-              margin: 0,
-              fontSize: "clamp(36px, 3.5vw, 60px)",
-              fontWeight: 400,
-              lineHeight: 1.06,
-              maxWidth: "26ch",
-              textWrap: "balance",
-              color: "var(--ledgr-tinta)",
-            }}
-          >
-            Preço fechado, por volume.
-          </h2>
-          <div style={{ width: 84, height: 1, background: "var(--color-accent)" }} />
-          <p style={{ margin: 0, fontSize: 16.5, lineHeight: 1.72, maxWidth: "52ch", color: "var(--color-neutral-300)" }}>
-            Você paga pelo tanto de lançamento que conferir no mês. Sem fidelidade, sem taxa de
-            implantação, sem cobrar por usuário.
-          </p>
-          <div
-            className="planos-grade"
-            style={{
-              width: "100%",
-              maxWidth: 1180,
-              marginTop: 14,
-              textAlign: "left",
-            }}
-          >
-            {PLANOS.map((plano, i) => (
-              <PlanCard
-                key={plano.nome}
-                delay={0.1 + i * 0.07}
-                className="plano-card"
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 8,
-                  padding: "22px 20px",
-                  border: plano.destaque
-                    ? "1px solid var(--color-accent)"
-                    : plano.contato
-                      ? "1px dashed var(--color-accent-800)"
-                      : "1px solid var(--color-accent-800)",
-                  borderRadius: "var(--radius-md)",
-                }}
-              >
-                <span className="plano-nome" style={{ fontFamily: "var(--font-heading)", fontSize: 19, fontWeight: 600, color: "var(--ledgr-tinta)" }}>
-                  {plano.nome}
-                </span>
-                <span className="plano-preco" style={{ fontFamily: "var(--font-display)", fontSize: 30, fontWeight: 600, lineHeight: 1, color: "var(--ledgr-tinta)" }}>
-                  {plano.preco}
-                </span>
-                <span className="plano-limite" style={{ fontSize: 13.5, lineHeight: 1.6, color: "var(--color-neutral-400)" }}>
-                  {plano.limite}
-                </span>
-              </PlanCard>
-            ))}
-          </div>
-          <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "center", gap: 14, marginTop: 6 }}>
+        <div className="preco-conteudo">
+          <Precos banco={EXTRATO_BANCO} destaque="Pagamento fornecedor #1082" resumo={AGOSTO}>
+            <span className="eyebrow preco-capitulo">Cap. IV · Começar</span>
+            <h2 className="titulo-misto preco-titulo">
+              Preço fechado, <em>por volume.</em>
+            </h2>
+            <div className="preco-filete" aria-hidden="true" />
+            <p className="preco-texto">
+              Você paga pelo número de lançamentos que conferir no mês. Não tem fidelidade, taxa de
+              implantação nem cobrança por usuário.
+            </p>
+          </Precos>
+          <div className="preco-acoes">
             <Link
               href="/cadastro"
               className="btn btn-primary"
@@ -893,11 +771,11 @@ export default function LandingPage() {
               Ver o sistema por dentro
             </Link>
           </div>
-        </Reveal>
+        </div>
       </section>
 
       {/* rodapé */}
-      <footer style={{ borderTop: "1px solid var(--color-divider)", background: "var(--color-surface)" }}>
+      <footer className="onda onda-escura" style={{ background: "var(--color-surface)" }}>
         <div
           style={{
             maxWidth: 1600,
@@ -911,17 +789,18 @@ export default function LandingPage() {
         >
           <div style={{ flex: "1 1 300px", minWidth: 0, display: "flex", flexDirection: "column", gap: 10 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
-              <Image src="/mascotes/logo-barras.png" alt="Ledgr" width={1280} height={1041} sizes="30px" style={{ height: 24, width: "auto" }} />
+              <Image src="/mascotes/logo-barras.png" alt="Ledgr" width={1237} height={998} sizes="30px" style={{ height: 24, width: "auto" }} />
               <span style={{ fontFamily: "var(--font-heading)", fontSize: 19, fontWeight: 600 }}>Ledgr</span>
             </div>
-            <span style={{ fontSize: 14, lineHeight: 1.7, maxWidth: "40ch", color: "color-mix(in srgb, var(--color-text) 62%, transparent)" }}>
+            <span style={{ fontSize: 14, lineHeight: 1.7, maxWidth: "40ch", color: "color-mix(in srgb, var(--color-text) 68%, transparent)" }}>
               Conciliação bancária sem planilha, para quem fecha o mês com o extrato na mão. Passo
               Fundo, RS.
             </span>
+            <RedesSociais />
           </div>
           {RODAPE_COLUNAS.map((coluna) => (
             <div key={coluna.titulo} style={{ flex: "0 1 170px", display: "flex", flexDirection: "column", gap: 10 }}>
-              <span style={{ fontSize: 12, letterSpacing: "0.12em", textTransform: "uppercase", color: "color-mix(in srgb, var(--color-text) 50%, transparent)" }}>
+              <span style={{ fontSize: 12, letterSpacing: "0.12em", textTransform: "uppercase", color: "color-mix(in srgb, var(--color-text) 68%, transparent)" }}>
                 {coluna.titulo}
               </span>
               {coluna.itens.map((link) => (
@@ -942,7 +821,7 @@ export default function LandingPage() {
               justifyContent: "space-between",
               gap: "8px 24px",
               fontSize: 13,
-              color: "color-mix(in srgb, var(--color-text) 50%, transparent)",
+              color: "color-mix(in srgb, var(--color-text) 68%, transparent)",
             }}
           >
             <span>© 2026 Ledgr · Passo Fundo, RS</span>

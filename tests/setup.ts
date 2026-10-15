@@ -1,6 +1,19 @@
 import "@testing-library/jest-dom/vitest";
 import { cleanup } from "@testing-library/react";
-import { afterEach } from "vitest";
+import { afterEach, vi } from "vitest";
+
+// o next/font/local só existe compilado pelo Next (fora dele, a função só lança erro): nos testes,
+// cada fonte vira só o nome da classe e da variável CSS, tirado da própria variável
+vi.mock("next/font/local", () => ({
+  default: ({ variable = "--fonte" }: { variable?: string }) => {
+    const nome = variable.replace(/^--/, "");
+    return {
+      className: `fonte-${nome}`,
+      variable: `fonte-${nome}-variavel`,
+      style: { fontFamily: nome },
+    };
+  },
+}));
 
 afterEach(() => {
   cleanup();
@@ -13,7 +26,11 @@ if (!("IntersectionObserver" in globalThis)) {
     readonly root = null;
     readonly rootMargin = "";
     readonly thresholds: readonly number[] = [];
-    constructor(private cb: IntersectionObserverCallback) {}
+    // as opções ficam guardadas para um teste poder simular o limite (threshold) de verdade
+    constructor(
+      private cb: IntersectionObserverCallback,
+      readonly options?: IntersectionObserverInit,
+    ) {}
     observe(el: Element) {
       this.cb(
         [{ target: el, isIntersecting: true } as IntersectionObserverEntry],

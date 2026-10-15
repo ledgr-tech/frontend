@@ -1,0 +1,3 @@
+# Todo arquivo de texto entra no repositório com LF, venha de que editor ou
+# ferramenta vier no Windows. Binários (imagens, fontes) o git detecta sozinho.
+* text=auto eol=lf

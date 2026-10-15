@@ -1,21 +1,25 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import LoginPage from "./page";
 import { SAUDACOES } from "./saudacoes";
+import { LIMITE_TENTATIVAS, registrarSenhaErrada } from "@/lib/tentativas";
 
 const push = vi.fn();
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push }),
 }));
 
-const login = vi.fn();
-const autenticar = vi.fn();
-vi.mock("@/lib/auth", () => ({
-  CONTA_TESTE: { email: "financeiro@telhacerta.com.br", senha: "ledgr2026" },
-  login: (...args: unknown[]) => login(...args),
-  autenticar: (...args: unknown[]) => autenticar(...args),
+// quem confere a senha e abre a sessão são Server Actions; aqui elas só
+// devolvem o que o servidor responderia. O bloqueio por tentativas roda de verdade.
+const abrirSessao = vi.fn();
+const entrarNaDemonstracao = vi.fn();
+vi.mock("../acoes", () => ({
+  entrar: (...args: unknown[]) => abrirSessao(...args),
+  entrarNaDemonstracao: (...args: unknown[]) => entrarNaDemonstracao(...args),
 }));
+
+const FALHA_DE_SESSAO = "Não foi possível abrir a sessão. Tente de novo em instantes.";
 
 async function preencherEEntrar(email: string, senha: string) {
   const user = userEvent.setup();
@@ -28,10 +32,15 @@ async function preencherEEntrar(email: string, senha: string) {
 describe("LoginPage", () => {
   beforeEach(() => {
     push.mockClear();
-    login.mockClear();
-    autenticar.mockReset();
-    autenticar.mockReturnValue({ ok: true, sessao: { email: "financeiro@telhacerta.com.br" } });
+    abrirSessao.mockReset();
+    abrirSessao.mockResolvedValue({ ok: true });
+    entrarNaDemonstracao.mockReset();
+    entrarNaDemonstracao.mockResolvedValue(true);
     window.localStorage.clear();
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 
   it("shows a greeting from the list, the fields and the keep-session option", () => {
@@ -109,17 +118,17 @@ describe("LoginPage", () => {
     expect(senha).toHaveAttribute("type", "password");
   });
 
-  it("switches the mascot eye between its open and closed animated states", async () => {
+  it("keeps the mascot eye closed while the password is hidden, and open while it is visible", async () => {
     const user = userEvent.setup();
     render(<LoginPage />);
     const olho = () => screen.getByRole("button", { name: /(Mostrar|Ocultar) senha/ }).querySelector("svg");
-    expect(olho()).toHaveAttribute("data-estado", "aberto");
-
-    await user.click(screen.getByRole("button", { name: "Mostrar senha" }));
     expect(olho()).toHaveAttribute("data-estado", "fechado");
 
-    await user.click(screen.getByRole("button", { name: "Ocultar senha" }));
+    await user.click(screen.getByRole("button", { name: "Mostrar senha" }));
     expect(olho()).toHaveAttribute("data-estado", "aberto");
+
+    await user.click(screen.getByRole("button", { name: "Ocultar senha" }));
+    expect(olho()).toHaveAttribute("data-estado", "fechado");
   });
 
   it("opens the password recovery card with the typed e-mail and returns focus when it closes", async () => {
@@ -138,7 +147,8 @@ describe("LoginPage", () => {
     expect(gatilho).toHaveFocus();
   });
 
-  it("offers Google as the only alternative sign-in", () => {
+  it("offers Google as the only alternative sign-in when the demo is on", () => {
+    vi.stubEnv("NEXT_PUBLIC_LEDGR_DEMO_ABERTA", "1");
     render(<LoginPage />);
     // o botão mostra só o símbolo do Google; o nome fica para leitor de tela
     const google = screen.getByRole("button", { name: "Entrar com Google" });
@@ -148,16 +158,48 @@ describe("LoginPage", () => {
     expect(screen.queryByRole("button", { name: "Certificado digital" })).not.toBeInTheDocument();
   });
 
-  it("signs in with Google using the test account, without validating the empty fields", async () => {
+  it("hides the Google shortcut when the demo is off", () => {
+    render(<LoginPage />);
+    expect(screen.queryByRole("button", { name: "Entrar com Google" })).not.toBeInTheDocument();
+    expect(screen.queryByText("ou")).not.toBeInTheDocument();
+  });
+
+  it("signs in with Google through the demo shortcut, without validating the empty fields", async () => {
+    vi.stubEnv("NEXT_PUBLIC_LEDGR_DEMO_ABERTA", "1");
     const user = userEvent.setup();
     render(<LoginPage />);
 
     await user.click(screen.getByRole("button", { name: "Entrar com Google" }));
 
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-    await waitFor(() => expect(push).toHaveBeenCalledWith("/dashboard"));
-    expect(login).toHaveBeenCalledWith("financeiro@telhacerta.com.br", { manterSessao: true });
-    expect(autenticar).not.toHaveBeenCalled();
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/visao-geral"));
+    // a conta de teste fica no servidor: o navegador não manda credencial nenhuma
+    expect(entrarNaDemonstracao).toHaveBeenCalledWith(true);
+    expect(abrirSessao).not.toHaveBeenCalled();
+  });
+
+  it("shows the session failure when the server refuses the demo shortcut", async () => {
+    vi.stubEnv("NEXT_PUBLIC_LEDGR_DEMO_ABERTA", "1");
+    entrarNaDemonstracao.mockResolvedValue(false);
+    const user = userEvent.setup();
+    render(<LoginPage />);
+
+    await user.click(screen.getByRole("button", { name: "Entrar com Google" }));
+
+    await waitFor(() => expect(screen.getByLabelText("Senha")).toHaveAccessibleDescription(FALHA_DE_SESSAO));
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it("recovers the demo shortcut when the server can't be reached", async () => {
+    vi.stubEnv("NEXT_PUBLIC_LEDGR_DEMO_ABERTA", "1");
+    entrarNaDemonstracao.mockRejectedValue(new Error("Failed to fetch"));
+    const user = userEvent.setup();
+    render(<LoginPage />);
+
+    await user.click(screen.getByRole("button", { name: "Entrar com Google" }));
+
+    await waitFor(() => expect(screen.getByLabelText("Senha")).toHaveAccessibleDescription(FALHA_DE_SESSAO));
+    expect(screen.getByRole("button", { name: "Entrar com Google" })).toBeEnabled();
   });
 
   it("only keeps the session in this tab when 'Manter sessão ativa' is unchecked", async () => {
@@ -166,8 +208,8 @@ describe("LoginPage", () => {
     await user.click(screen.getByRole("checkbox", { name: "Manter sessão ativa" }));
     await preencherEEntrar("financeiro@telhacerta.com.br", "ledgr2026");
 
-    await waitFor(() => expect(push).toHaveBeenCalledWith("/dashboard"));
-    expect(autenticar).toHaveBeenCalledWith("financeiro@telhacerta.com.br", "ledgr2026", { manterSessao: false });
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/visao-geral"));
+    expect(abrirSessao).toHaveBeenCalledWith("financeiro@telhacerta.com.br", "ledgr2026", false);
   });
 
   it("links to the signup without promising a number of steps", () => {
@@ -187,7 +229,7 @@ describe("LoginPage", () => {
       expect(senha).toHaveAttribute("aria-invalid", "true");
       expect(senha).toHaveAccessibleDescription("Informe sua senha.");
       expect(screen.getAllByRole("alert")).toHaveLength(2);
-      expect(autenticar).not.toHaveBeenCalled();
+      expect(abrirSessao).not.toHaveBeenCalled();
     });
 
     it("flags an incomplete e-mail on the e-mail field", async () => {
@@ -197,34 +239,39 @@ describe("LoginPage", () => {
       const email = screen.getByLabelText("E-mail");
       expect(email).toHaveAccessibleDescription("Confira o e-mail: parece incompleto.");
       expect(screen.getByLabelText("Senha")).not.toHaveAttribute("aria-invalid");
-      expect(autenticar).not.toHaveBeenCalled();
+      expect(abrirSessao).not.toHaveBeenCalled();
       expect(push).not.toHaveBeenCalled();
     });
 
-    it("shows 'account not found' on the e-mail field after trying to sign in", async () => {
-      autenticar.mockReturnValue({ ok: false, erro: "conta_nao_encontrada" });
-      render(<LoginPage />);
-      await preencherEEntrar("outra@empresa.com.br", "ledgr2026");
-
-      const email = screen.getByLabelText("E-mail");
-      await waitFor(() => expect(email).toHaveAccessibleDescription("Não encontramos conta com este e-mail. Confira o endereço."));
-      expect(screen.getByRole("button", { name: "Entrar" })).toBeEnabled();
-      expect(push).not.toHaveBeenCalled();
-    });
-
-    it("shows 'wrong password' on the password field", async () => {
-      autenticar.mockReturnValue({ ok: false, erro: "senha_incorreta" });
+    // o backend responde igual para e-mail sem conta e senha errada, para não contar quais e-mails existem
+    it("says only that e-mail or password don't match, on the password field", async () => {
+      abrirSessao.mockResolvedValue({ ok: false, erro: "credenciais_invalidas" });
       render(<LoginPage />);
       await preencherEEntrar("financeiro@telhacerta.com.br", "errada");
 
       const senha = screen.getByLabelText("Senha");
-      await waitFor(() => expect(senha).toHaveAccessibleDescription("Senha incorreta. Confira e tente de novo."));
-      expect(autenticar).toHaveBeenCalledWith("financeiro@telhacerta.com.br", "errada", { manterSessao: true });
+      await waitFor(() => expect(senha).toHaveAccessibleDescription("E-mail ou senha incorretos. Confira e tente de novo."));
+      expect(abrirSessao).toHaveBeenCalledWith("financeiro@telhacerta.com.br", "errada", true);
       expect(screen.getByLabelText("E-mail")).not.toHaveAttribute("aria-invalid");
+      expect(screen.getByRole("button", { name: "Entrar" })).toBeEnabled();
+      expect(push).not.toHaveBeenCalled();
     });
 
-    it("shows 'too many attempts' on the password field", async () => {
-      autenticar.mockReturnValue({ ok: false, erro: "muitas_tentativas" });
+    it("asks to wait when the server limits the sign-ins", async () => {
+      abrirSessao.mockResolvedValue({ ok: false, erro: "muitas_tentativas" });
+      render(<LoginPage />);
+      await preencherEEntrar("financeiro@telhacerta.com.br", "ledgr2026");
+
+      await waitFor(() =>
+        expect(screen.getByLabelText("Senha")).toHaveAccessibleDescription(
+          "Acesso pausado por segurança. Tente de novo em alguns minutos.",
+        ),
+      );
+    });
+
+    it("pauses the form on the wrong password that reaches the limit", async () => {
+      for (let tentativa = 1; tentativa < LIMITE_TENTATIVAS; tentativa++) registrarSenhaErrada();
+      abrirSessao.mockResolvedValue({ ok: false, erro: "credenciais_invalidas" });
       render(<LoginPage />);
       await preencherEEntrar("financeiro@telhacerta.com.br", "errada");
 
@@ -233,6 +280,37 @@ describe("LoginPage", () => {
           "Acesso pausado por segurança. Tente de novo em alguns minutos.",
         ),
       );
+    });
+
+    it("does not ask the server while the form is paused", async () => {
+      for (let tentativa = 1; tentativa <= LIMITE_TENTATIVAS; tentativa++) registrarSenhaErrada();
+      render(<LoginPage />);
+      await preencherEEntrar("financeiro@telhacerta.com.br", "ledgr2026");
+
+      await waitFor(() =>
+        expect(screen.getByLabelText("Senha")).toHaveAccessibleDescription(
+          "Acesso pausado por segurança. Tente de novo em alguns minutos.",
+        ),
+      );
+      expect(abrirSessao).not.toHaveBeenCalled();
+    });
+
+    it("blames the environment, not the person, when the server can't open the session", async () => {
+      abrirSessao.mockResolvedValue({ ok: false, erro: "falha_sessao" });
+      render(<LoginPage />);
+      await preencherEEntrar("financeiro@telhacerta.com.br", "ledgr2026");
+
+      await waitFor(() => expect(screen.getByLabelText("Senha")).toHaveAccessibleDescription(FALHA_DE_SESSAO));
+      expect(screen.getByLabelText("E-mail")).not.toHaveAttribute("aria-invalid");
+    });
+
+    it("recovers the form when the server can't be reached", async () => {
+      abrirSessao.mockRejectedValue(new Error("Failed to fetch"));
+      render(<LoginPage />);
+      await preencherEEntrar("financeiro@telhacerta.com.br", "ledgr2026");
+
+      await waitFor(() => expect(screen.getByLabelText("Senha")).toHaveAccessibleDescription(FALHA_DE_SESSAO));
+      expect(screen.getByRole("button", { name: "Entrar" })).toBeEnabled();
     });
 
     it("clears a field's error as soon as the person types in it", async () => {
@@ -258,19 +336,30 @@ describe("LoginPage", () => {
     });
   });
 
-  it("shows the loading state, then signs in and redirects to the dashboard", async () => {
+  it("shows the loading state, then signs in and redirects to the overview", async () => {
     render(<LoginPage />);
     await preencherEEntrar("financeiro@telhacerta.com.br", "ledgr2026");
 
     expect(screen.getByRole("button", { name: "Entrando…" })).toBeDisabled();
-    await waitFor(() => expect(push).toHaveBeenCalledWith("/dashboard"));
-    expect(autenticar).toHaveBeenCalledWith("financeiro@telhacerta.com.br", "ledgr2026", { manterSessao: true });
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/visao-geral"));
+    expect(abrirSessao).toHaveBeenCalledWith("financeiro@telhacerta.com.br", "ledgr2026", true);
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("forgets earlier wrong passwords after signing in", async () => {
+    for (let tentativa = 1; tentativa < LIMITE_TENTATIVAS; tentativa++) registrarSenhaErrada();
+    render(<LoginPage />);
+    await preencherEEntrar("financeiro@telhacerta.com.br", "ledgr2026");
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/visao-geral"));
+
+    // se a contagem tivesse ficado, esta seria a senha errada que bloqueia
+    expect(registrarSenhaErrada()).toBe(false);
   });
 
   it("shows the terms and privacy links in the footer instead of the trust notes", () => {
     render(<LoginPage />);
-    expect(screen.getByRole("link", { name: "Termos de uso" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Termos de uso" })).toHaveAttribute("href", "/termos");
+    expect(screen.getByRole("link", { name: "Política de privacidade" })).toHaveAttribute("href", "/privacidade");
     expect(screen.getByRole("link", { name: "Política de privacidade" })).toBeInTheDocument();
     expect(screen.queryByText(/Sem credencial bancária/)).not.toBeInTheDocument();
     expect(screen.queryByText(/não movimenta dinheiro/)).not.toBeInTheDocument();

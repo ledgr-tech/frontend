@@ -4,18 +4,48 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { login } from "@/lib/auth";
+import {
+  cadastrar,
+  verificarCadastro,
+  type CampoCadastroAPI,
+  type ResultadoCadastro,
+  type ResultadoVerificacao,
+} from "../acoes";
 import { CampoTexto } from "../_compartilhado/campo-texto";
+import { MensagemErro } from "../_compartilhado/mensagem-erro";
 import { MolduraAuth } from "../_compartilhado/moldura-auth";
 import { TituloDigitado } from "../_compartilhado/titulo-digitado";
 import { EMAIL_VALIDO, MENSAGEM_EMAIL_INCOMPLETO } from "../_compartilhado/validacao";
 import { PASSOS, SENHA_MINIMA, type CampoCadastro } from "./passos";
+import { CriandoConta, type FaseCriacao } from "./criando-conta";
 
-// mesma pausa do login: dá tempo de ler "Concluindo…" antes de trocar de tela
+// mesma pausa do login: dá tempo de ler "Criando sua conta…" antes de trocar de tela
 const ATRASO_CONCLUSAO_MS = 700;
 
 type Valores = Record<string, string>;
 type Erros = Record<string, string | undefined>;
+
+// o backend confere e-mail e CNPJ contra as contas que já existem: o erro volta ao passo do campo
+const JA_CADASTRADO = {
+  email_cadastrado: { campo: "email", mensagem: "Já existe conta com este e-mail. Entre pela tela de login." },
+  cnpj_cadastrado: { campo: "cnpj", mensagem: "Esta empresa já tem cadastro no Ledgr." },
+} as const;
+
+// o backend recusou o formato de um campo que passou na checagem da tela (o e-mail ele confere com mais
+// rigor; a senha, até 72 caracteres, só ele limita)
+const INVALIDO: Record<CampoCadastroAPI, string> = {
+  nome: "Confira o nome.",
+  email: "Confira o e-mail: o formato não foi aceito.",
+  senha: "Senha longa demais. Use no máximo 72 caracteres.",
+  razaoSocial: "Confira a razão social.",
+  cnpj: "Os dígitos do CNPJ não conferem. Confira o número.",
+};
+
+// sem campo a apontar: não é erro de quem digitou
+const ERRO_GERAL = {
+  muitas_tentativas: "Muitos cadastros seguidos agora. Espere um minuto e tente de novo.",
+  falha: "Não foi possível concluir o cadastro. Tente de novo em instantes.",
+};
 
 function validarCampo(campo: CampoCadastro, valor: string): string | undefined {
   const limpo = valor.trim();
@@ -35,7 +65,14 @@ export default function CadastroPage() {
   // contador por campo: cada erro novo alterna data-tremor entre "a" e "b" para o CSS repetir o tremor
   const [tremor, setTremor] = useState<Record<string, number>>({});
   const [concluindo, setConcluindo] = useState(false);
+  // e-mail e CNPJ sendo conferidos ao sair do passo da empresa
+  const [verificando, setVerificando] = useState(false);
+  const [fase, setFase] = useState<FaseCriacao>("criando");
+  const botaoEnviar = useRef<HTMLButtonElement>(null);
+  const [erroGeral, setErroGeral] = useState<string>();
   const campos = useRef<Record<string, HTMLInputElement | null>>({});
+  // quando o backend recusa um campo de outro passo, o foco vai para o campo, e não para o título
+  const campoAFocar = useRef<string | null>(null);
   const titulo = useRef<HTMLHeadingElement>(null);
   const primeiraRenderizacao = useRef(true);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -53,12 +90,106 @@ export default function CadastroPage() {
       primeiraRenderizacao.current = false;
       return;
     }
+    if (campoAFocar.current) {
+      campos.current[campoAFocar.current]?.focus();
+      campoAFocar.current = null;
+      return;
+    }
     titulo.current?.focus();
   }, [indicePasso]);
+
+  // o erro geral não aponta campo: com o formulário recriado, o foco volta ao botão
+  useEffect(() => {
+    if (erroGeral) botaoEnviar.current?.focus();
+  }, [erroGeral]);
 
   function alterar(id: string, valor: string) {
     setValores((atual) => ({ ...atual, [id]: valor }));
     if (erros[id]) setErros((atual) => ({ ...atual, [id]: undefined }));
+  }
+
+  function tremer(ids: string[]) {
+    setTremor((atual) => {
+      const proximo = { ...atual };
+      for (const id of ids) proximo[id] = (atual[id] ?? 0) + 1;
+      return proximo;
+    });
+  }
+
+  // recusa do backend: volta ao primeiro passo com campo recusado e mostra o erro nele
+  function voltarAoCampo(novos: Erros) {
+    const ids = Object.keys(novos);
+    const destino = PASSOS.findIndex((etapa) => etapa.campos.some((campo) => ids.includes(campo.id)));
+    const primeiro = PASSOS[destino].campos.find((campo) => ids.includes(campo.id))!;
+    setErros(novos);
+    tremer(ids);
+    // no mesmo passo o efeito da troca não roda: o foco vai direto
+    if (destino === indicePasso) {
+      campos.current[primeiro.id]?.focus();
+      return;
+    }
+    campoAFocar.current = primeiro.id;
+    setIndicePasso(destino);
+  }
+
+  /**
+   * Ao sair do passo da empresa, o primeiro em que o CNPJ existe, o backend diz se e-mail e CNPJ
+   * estão livres (#78): quem já tem conta descobre aqui, e não depois do banco e do sistema. Sem
+   * resposta, segue: o `/register` confere tudo de novo no fim.
+   */
+  async function livres(): Promise<boolean> {
+    setVerificando(true);
+    let resultado: ResultadoVerificacao;
+    try {
+      resultado = await verificarCadastro({ email: (valores.email ?? "").trim(), cnpj: valores.cnpj ?? "" });
+    } catch {
+      resultado = { ok: false, erro: "indisponivel" };
+    }
+    setVerificando(false);
+    if (resultado.ok) {
+      const novos: Erros = {};
+      if (!resultado.emailDisponivel) novos.email = JA_CADASTRADO.email_cadastrado.mensagem;
+      if (!resultado.cnpjDisponivel) novos.cnpj = JA_CADASTRADO.cnpj_cadastrado.mensagem;
+      if (Object.keys(novos).length === 0) return true;
+      voltarAoCampo(novos);
+      return false;
+    }
+    if (resultado.erro === "invalido") {
+      voltarAoCampo(Object.fromEntries(resultado.campos.map((campo) => [campo, INVALIDO[campo]])));
+      return false;
+    }
+    return true;
+  }
+
+  async function concluir() {
+    let resultado: ResultadoCadastro;
+    try {
+      resultado = await cadastrar({
+        nome: (valores.nome ?? "").trim(),
+        email: (valores.email ?? "").trim(),
+        senha: valores.senha ?? "",
+        razaoSocial: (valores.razaoSocial ?? "").trim(),
+        cnpj: valores.cnpj ?? "",
+      });
+    } catch {
+      // a action nem respondeu (rede, deploy novo no meio)
+      resultado = { ok: false, erro: "falha" };
+    }
+    if (resultado.ok) {
+      setFase(resultado.entrou ? "abrindo" : "login");
+      // conta criada sem sessão (o login deu 429 logo depois do cadastro): falta só entrar
+      router.push(resultado.entrou ? "/conciliacoes/nova" : "/login");
+      return;
+    }
+    setConcluindo(false);
+    if (resultado.erro === "invalido") {
+      voltarAoCampo(Object.fromEntries(resultado.campos.map((campo) => [campo, INVALIDO[campo]])));
+    } else if (resultado.erro === "email_cadastrado" || resultado.erro === "cnpj_cadastrado") {
+      const { campo, mensagem } = JA_CADASTRADO[resultado.erro];
+      voltarAoCampo({ [campo]: mensagem });
+    } else {
+      setErroGeral(ERRO_GERAL[resultado.erro]);
+    }
   }
 
   function tremorDe(id: string) {
@@ -66,8 +197,15 @@ export default function CadastroPage() {
     return (tremor[id] ?? 0) % 2 === 1 ? "a" : "b";
   }
 
-  function avancar() {
-    if (concluindo) return;
+  // só os erros do passo em tela: o que o backend apontou em outro passo fica até a pessoa chegar nele
+  function errosForaDoPasso(atual: Erros): Erros {
+    const resto = { ...atual };
+    for (const campo of passo.campos) delete resto[campo.id];
+    return resto;
+  }
+
+  async function avancar() {
+    if (concluindo || verificando) return;
     const novos: Erros = {};
     for (const campo of passo.campos) {
       const mensagem = validarCampo(campo, valores[campo.id] ?? "");
@@ -75,25 +213,21 @@ export default function CadastroPage() {
     }
     const invalidos = passo.campos.filter((campo) => novos[campo.id]);
     if (invalidos.length > 0) {
-      setErros(novos);
-      setTremor((atual) => {
-        const proximo = { ...atual };
-        for (const campo of invalidos) proximo[campo.id] = (atual[campo.id] ?? 0) + 1;
-        return proximo;
-      });
+      setErros((atual) => ({ ...errosForaDoPasso(atual), ...novos }));
+      tremer(invalidos.map((campo) => campo.id));
       campos.current[invalidos[0].id]?.focus();
       return;
     }
 
-    setErros({});
+    setErros(errosForaDoPasso);
+    setErroGeral(undefined);
     if (ultimoPasso) {
+      setFase("criando");
       setConcluindo(true);
-      timer.current = setTimeout(() => {
-        login((valores.email ?? "").trim());
-        router.push("/conciliacoes/nova");
-      }, ATRASO_CONCLUSAO_MS);
+      timer.current = setTimeout(concluir, ATRASO_CONCLUSAO_MS);
       return;
     }
+    if (passo.id === "empresa" && !(await livres())) return;
 
     const proximoPasso = PASSOS[indicePasso + 1];
     // o e-mail do responsável começa igual ao e-mail de acesso
@@ -104,18 +238,22 @@ export default function CadastroPage() {
   }
 
   function voltar() {
-    setErros({});
+    setErros(errosForaDoPasso);
+    setErroGeral(undefined);
     setIndicePasso((atual) => Math.max(0, atual - 1));
   }
 
   function enviar(evento: FormEvent<HTMLFormElement>) {
     evento.preventDefault();
-    avancar();
+    void avancar();
   }
 
   return (
     <MolduraAuth rotulo="Cadastro" larguraConteudo={884} linhaDireitaNaBorda>
       <div className="cadastro-grid">
+      {concluindo ? (
+        <CriandoConta fase={fase} empresa={(valores.razaoSocial ?? "").trim()} />
+      ) : (
       <form className="login-form" onSubmit={enviar} noValidate style={{ width: "100%", maxWidth: 424 }}>
         <div className="login-eyebrow" style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: "clamp(10px, 2vh, 20px)" }}>
           <span className="eyebrow" style={{ fontSize: 12, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--color-accent-700)" }}>
@@ -186,19 +324,28 @@ export default function CadastroPage() {
           })}
         </div>
 
+        {erroGeral && (
+          <div style={{ marginTop: "clamp(12px, 2vh, 16px)" }}>
+            <MensagemErro id="cadastro-erro">{erroGeral}</MensagemErro>
+          </div>
+        )}
+
         <div className="cadastro-acoes" style={{ display: "flex", alignItems: "center", gap: 12, marginTop: "clamp(16px, 2.6vh, 24px)" }}>
           {indicePasso > 0 && (
-            <button type="button" className="btn btn-ghost" onClick={voltar} disabled={concluindo}>
+            // voltar no meio da conferência faria a resposta avançar a partir do passo errado
+            <button type="button" className="btn btn-ghost" onClick={voltar} disabled={verificando}>
               Voltar
             </button>
           )}
           <button
+            ref={botaoEnviar}
             type="submit"
             className="btn btn-primary"
-            disabled={concluindo}
+            disabled={verificando}
+            aria-busy={verificando || undefined}
             style={{ flex: 1, fontSize: 15.5, padding: "clamp(10px, 1.6vh, 13px) 22px" }}
           >
-            {concluindo ? "Concluindo…" : passo.botao}
+            {verificando ? "Conferindo…" : passo.botao}
           </button>
         </div>
 
@@ -214,12 +361,12 @@ export default function CadastroPage() {
             }}
           >
             Ao continuar, você aceita os{" "}
-            {/* páginas de termos e privacidade ainda não existem */}
-            <a href="#" className="login-link-animado">
+            {/* em outra aba: sair daqui apagaria o cadastro pela metade */}
+            <a href="/termos" target="_blank" rel="noopener" className="link-animado">
               Termos
             </a>{" "}
             e a{" "}
-            <a href="#" className="login-link-animado">
+            <a href="/privacidade" target="_blank" rel="noopener" className="link-animado">
               Política de privacidade
             </a>
             .
@@ -254,11 +401,12 @@ export default function CadastroPage() {
 
         <p className="cadastro-entrar" style={{ margin: "clamp(14px, 2.4vh, 22px) 0 0", fontSize: 14.5, lineHeight: 1.6, color: "color-mix(in srgb, var(--color-text) 66%, transparent)" }}>
           Já tem conta?{" "}
-          <Link href="/login" className="login-link-animado">
+          <Link href="/login" className="link-animado">
             Entrar
           </Link>
         </p>
       </form>
+      )}
 
       {/* o mascote acompanha o cadastro pela lateral direita, grande e apagado ao fundo (como no "Como funciona"
           da landing), com a dica por cima; a key troca a imagem a cada passo e repete a entrada */}

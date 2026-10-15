@@ -6,6 +6,10 @@ on:
   push:
     branches: [main, develop]
 
+# o CI só lê o código: sem isso o token herda o padrão da organização, que pode dar escrita (alerta do CodeQL)
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -15,6 +19,9 @@ jobs:
         with:
           node-version: "20"
       - run: npm ci
+      # só as dependências que vão para produção, e só o que é alto ou crítico:
+      # o resto vira PR do Dependabot sem travar o merge de ninguém
+      - run: npm audit --omit=dev --audit-level=high
       - run: npm run lint
       - run: npm run test
       - run: npm run build
