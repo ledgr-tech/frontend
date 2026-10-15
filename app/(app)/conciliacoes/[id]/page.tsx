@@ -684,7 +684,7 @@ export default function ConciliacaoPage() {
             </table>
           </div>
 
-          {cartao && <CartaoLancamento id={idCartao} aberto={cartao} rodada={rodadaDasLinhas} />}
+          {cartao && <CartaoLancamento id={idCartao} aberto={cartao} rodada={rodadaDasLinhas} linhas={conciliacao.linhas} />}
 
           {ordenadas.length === 0 && (
             <p className="tabela-vazia">{textoDoVazio(filtro, justificadas.length)}</p>

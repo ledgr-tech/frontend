@@ -373,6 +373,26 @@ describe("ConciliacaoPage", () => {
       expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
     });
 
+    it("fills the missing side from the other line the engine nearly matched, with the difference", async () => {
+      // como o backend manda um "Valor diverge": cada lado numa linha, o outro em branco
+      buscarConciliacao.mockReturnValue({
+        ...conciliacaoMista,
+        linhas: [
+          { id: "b", descricao: "BOLETO FORNECEDOR GAMA", data: "06/07", dataISO: "2026-07-06", valorBanco: -3200, valorSistema: null, status: "divergente_valor", explicacao: null, historico: [] },
+          { id: "s", descricao: "Pagamento Fornecedor Gama NF 77", data: "06/07", dataISO: "2026-07-06", dataSistema: "06/07", valorBanco: null, valorSistema: -3020, status: "divergente_valor", explicacao: null, historico: [] },
+        ],
+      });
+      const user = userEvent.setup();
+      render(<ConciliacaoPage />);
+
+      await user.hover((await screen.findByRole("button", { name: "BOLETO FORNECEDOR GAMA" })).closest("tr")!);
+
+      const cartao = screen.getByRole("tooltip");
+      expect(within(cartao).getByText("Extrato do banco").nextSibling).toHaveTextContent("06/07 · -R$ 3.200,00");
+      expect(within(cartao).getByText("Extrato do sistema").nextSibling).toHaveTextContent("06/07 · -R$ 3.020,00");
+      expect(within(cartao).getByText("Diferença").nextSibling).toHaveTextContent("R$ 180,00");
+    });
+
     it("stays quiet on lines that already matched", async () => {
       buscarConciliacao.mockReturnValue(conciliacaoMista);
       const user = userEvent.setup();
