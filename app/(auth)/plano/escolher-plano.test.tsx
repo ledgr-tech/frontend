@@ -35,4 +35,11 @@ describe("EscolherPlano", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Ainda não disponível");
     expect(screen.getByRole("button", { name: "Começar com o Essencial" })).toBeEnabled();
   });
+
+  it("com o teste acabado, os botões assinam", () => {
+    render(<EscolherPlano encerrado />);
+    expect(screen.getByRole("heading", { name: "Seu teste acabou. Escolha um plano." })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Assinar o Padrão" })).toBeInTheDocument();
+    expect(screen.queryByText(/14 dias grátis/)).not.toBeInTheDocument();
+  });
 });

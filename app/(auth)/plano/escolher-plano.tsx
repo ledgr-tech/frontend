@@ -12,7 +12,8 @@ const PARA: Record<PlanoId, { para: string; itens: string[]; tag?: string }> = {
   avancado: { para: "Para o escritório com equipe.", itens: ["Tudo do Padrão", "Convites para a equipe"] },
 };
 
-export function EscolherPlano() {
+/** `encerrado`: o teste acabou e a pessoa volta para assinar (o link do topo e o bloqueio levam aqui). */
+export function EscolherPlano({ encerrado = false }: { encerrado?: boolean }) {
   const router = useRouter();
   const [escolhendo, setEscolhendo] = useState<PlanoId | null>(null);
   const [erro, setErro] = useState<string | null>(null);
@@ -32,9 +33,13 @@ export function EscolherPlano() {
   return (
     <div className="plano-tela">
       <div className="plano-cabeca">
-        <span className="eyebrow plano-eyebrow">Último passo</span>
-        <h1 className="plano-titulo">Escolha seu plano.</h1>
-        <p className="plano-texto">14 dias grátis, sem cartão. No fim do teste você escolhe se continua, e pode trocar de plano quando quiser.</p>
+        <span className="eyebrow plano-eyebrow">{encerrado ? "Assinatura" : "Último passo"}</span>
+        <h1 className="plano-titulo">{encerrado ? "Seu teste acabou. Escolha um plano." : "Escolha seu plano."}</h1>
+        <p className="plano-texto">
+          {encerrado
+            ? "O que você já fez continua na conta. Com um plano, as novas conciliações voltam a funcionar."
+            : "14 dias grátis, sem cartão. No fim do teste você escolhe se continua, e pode trocar de plano quando quiser."}
+        </p>
       </div>
       <div className="plano-grade">
         {planosDoTeste().map((plano) => {
@@ -59,7 +64,7 @@ export function EscolherPlano() {
                 disabled={escolhendo !== null}
                 onClick={() => void escolher(plano.id)}
               >
-                {escolhendo === plano.id ? "Começando…" : `Começar com o ${plano.nome}`}
+                {escolhendo === plano.id ? "Um momento…" : `${encerrado ? "Assinar o" : "Começar com o"} ${plano.nome}`}
               </button>
             </article>
           );

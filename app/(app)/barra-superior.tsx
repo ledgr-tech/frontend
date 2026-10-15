@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { caminhoDaConciliacao } from "@/lib/caminhos";
 import { abrirTutorial } from "@/lib/eventos";
+import { diasRestantes, fraseDoTeste } from "@/lib/assinatura";
+import { useAssinatura } from "./conta";
 import { useTeclaDeAtalho } from "@/lib/plataforma";
 import { formatarMoeda, type LinhaComparacao } from "@/lib/mock-data";
 import { avisosDoMes, idsLidos, marcarLidos } from "./avisos";
@@ -30,6 +32,7 @@ type Leitura = { situacao: "lendo" } | { situacao: "falhou" } | { situacao: "pro
 
 // O tema e a conta (nome, empresa e Sair) moram no rodapé do menu lateral.
 export function BarraSuperior() {
+  const assinatura = useAssinatura();
   const [termo, setTermo] = useState("");
   const [buscaAberta, setBuscaAberta] = useState(false);
   const [avisosAbertos, setAvisosAbertos] = useState(false);
@@ -197,6 +200,18 @@ export function BarraSuperior() {
           </div>
         )}
       </div>
+
+      {/* o teste de 14 dias (spec 2026-10-15-primeiro-uso, parte 2); sem a informação, nada */}
+      {assinatura?.situacao === "teste" && assinatura.testeTerminaEm && (
+        <Link href="/assinatura" className="selo app-teste">
+          {fraseDoTeste(diasRestantes(assinatura.testeTerminaEm, new Date()))}
+        </Link>
+      )}
+      {assinatura?.situacao === "teste_encerrado" && (
+        <Link href="/plano" className="selo selo-risco app-teste">
+          Seu teste acabou · escolher um plano
+        </Link>
+      )}
 
       {/* reabre o tutorial do mascote da tela aberta, mesmo marcado como Não mostrar de novo */}
       <button

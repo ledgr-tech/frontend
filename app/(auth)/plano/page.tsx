@@ -9,10 +9,13 @@ export default async function PlanoPage() {
   const sessao = await auth();
   if (!sessao?.user?.email) redirect("/login");
   const { assinatura } = await contaDaSessao();
-  if (assinatura && assinatura.situacao !== "sem_plano") redirect("/visao-geral");
+  // sem plano escolhe o do teste; com o teste acabado, volta para assinar
+  if (assinatura && assinatura.situacao !== "sem_plano" && assinatura.situacao !== "teste_encerrado") {
+    redirect("/visao-geral");
+  }
   return (
     <MolduraAuth rotulo="Plano" larguraConteudo={1080}>
-      <EscolherPlano />
+      <EscolherPlano encerrado={assinatura?.situacao === "teste_encerrado"} />
     </MolduraAuth>
   );
 }

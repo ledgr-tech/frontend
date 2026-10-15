@@ -4658,3 +4658,74 @@ html[data-tema="escuro"] .app-shell {
     grid-template-columns: 1fr;
   }
 }
+
+/* ── Teste acabado: planos no lugar da nova conciliação (primeiro uso, 15/10) ── */
+.app-teste {
+  text-decoration: none;
+  white-space: nowrap;
+  font-size: 13.5px;
+  padding: 6px 12px;
+  flex: none;
+}
+.bloqueio {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  gap: 28px;
+  padding: 30px 32px;
+  align-items: start;
+}
+.bloqueio-mascote {
+  width: 150px;
+  height: auto;
+}
+.bloqueio-corpo {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+.bloqueio-corpo p {
+  margin: 0;
+  max-width: 62ch;
+  line-height: 1.6;
+}
+.bloqueio-titulo {
+  margin: 0;
+  font-family: var(--font-titulo);
+  font-size: 28px;
+  font-weight: 600;
+}
+.bloqueio-planos {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+.bloqueio-planos li {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 18px;
+}
+.bloqueio-planos span {
+  font-size: 14px;
+  color: var(--texto-apagado);
+}
+.bloqueio-corpo > .btn-ghost {
+  align-self: flex-start;
+}
+@media (max-width: 900px) {
+  .bloqueio {
+    grid-template-columns: 1fr;
+  }
+  .bloqueio-planos {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 640px) {
+  .app-teste {
+    display: none;
+  }
+}

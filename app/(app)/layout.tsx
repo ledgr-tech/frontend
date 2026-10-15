@@ -25,6 +25,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       empresa={conta.empresa}
       temSenha={conta.temSenha}
       preferencias={conta.preferencias}
+      assinatura={conta.assinatura}
     >
       {children}
     </Shell>

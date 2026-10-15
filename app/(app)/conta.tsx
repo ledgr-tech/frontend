@@ -10,6 +10,7 @@ import {
   type Preferencias,
   type TelaDoTutorial,
 } from "@/lib/preferencias";
+import type { Assinatura } from "@/lib/assinatura";
 
 type ValorDaConta = {
   /** Falso até ler o navegador: antes disso, ninguém abre tutorial nem roteiro. */
@@ -21,13 +22,23 @@ type ValorDaConta = {
 };
 
 const Contexto = createContext<ValorDaConta | null>(null);
+/** O plano e o teste de 14 dias; null sem a informação do backend (e fora do app). */
+const ContextoDaAssinatura = createContext<Assinatura | null>(null);
 
 /**
  * As preferências do primeiro uso (spec 2026-10-15-primeiro-uso): as da conta, do `GET /me`,
  * somadas às do navegador. Dispensar guarda nos dois; se o backend ainda não tem a rota, o
  * navegador basta.
  */
-export function ProvedorDaConta({ preferencias, children }: { preferencias: Preferencias | null; children: ReactNode }) {
+export function ProvedorDaConta({
+  preferencias,
+  assinatura = null,
+  children,
+}: {
+  preferencias: Preferencias | null;
+  assinatura?: Assinatura | null;
+  children: ReactNode;
+}) {
   const [atuais, setAtuais] = useState<Preferencias>(preferencias ?? PREFERENCIAS_VAZIAS);
   const [carregado, setCarregado] = useState(false);
 
@@ -56,11 +67,19 @@ export function ProvedorDaConta({ preferencias, children }: { preferencias: Pref
     [atuais, carregado, guardar],
   );
 
-  return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;
+  return (
+    <Contexto.Provider value={valor}>
+      <ContextoDaAssinatura.Provider value={assinatura}>{children}</ContextoDaAssinatura.Provider>
+    </Contexto.Provider>
+  );
 }
 
 export function usePreferencias(): ValorDaConta {
   const valor = useContext(Contexto);
   if (!valor) throw new Error("usePreferencias fora do ProvedorDaConta");
   return valor;
+}
+
+export function useAssinatura(): Assinatura | null {
+  return useContext(ContextoDaAssinatura);
 }

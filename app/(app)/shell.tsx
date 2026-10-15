@@ -10,12 +10,14 @@ import { TRACO_ICONE } from "./traco-icone";
 import { ProvedorDaConta } from "./conta";
 import { TutorialDaRota } from "./tutorial/tutorial-da-rota";
 import type { Preferencias } from "@/lib/preferencias";
+import type { Assinatura } from "@/lib/assinatura";
 
 export function Shell({
   email,
   empresa,
   temSenha,
   preferencias,
+  assinatura = null,
   children,
 }: {
   email: string;
@@ -23,11 +25,13 @@ export function Shell({
   temSenha: boolean;
   /** O que a pessoa dispensou no primeiro uso, do `GET /me`; null quando ele não manda. */
   preferencias: Preferencias | null;
+  /** O plano e o teste de 14 dias, do `GET /me`; null quando ele não manda. */
+  assinatura?: Assinatura | null;
   children: ReactNode;
 }) {
   return (
     <EmpresaDaSessao value={empresa}>
-      <ProvedorDaConta preferencias={preferencias}>
+      <ProvedorDaConta preferencias={preferencias} assinatura={assinatura}>
         <LucideProvider strokeWidth={TRACO_ICONE}>
           <div className="app-shell">
             <MenuLateral

@@ -18,6 +18,8 @@ import {
   type Pendente,
 } from "../envio";
 import { ImportacaoInterrompida } from "./importacao-interrompida";
+import { PlanosBloqueados } from "./planos-bloqueados";
+import { useAssinatura } from "../../conta";
 import { Reveal } from "@/app/reveal";
 import { Cabecalho } from "../../cabecalho";
 
@@ -27,6 +29,9 @@ export default function NovaConciliacaoPage() {
   const [arquivoSistema, setArquivoSistema] = useState<File | null>(null);
   const [etapa, setEtapa] = useState<Etapa>("ocioso");
   const [erro, setErro] = useState<string | null>(null);
+  const assinatura = useAssinatura();
+  // o backend recusou a conciliação pelo plano (402): o texto dele vai no lugar do envio
+  const [recusa, setRecusa] = useState<string | null>(null);
   const [avisos, setAvisos] = useState<string[]>([]);
   const [pendente, setPendente] = useState<Pendente | null>(null);
   // para o laço de consulta se a pessoa sair da tela no meio do processamento
@@ -150,6 +155,11 @@ export default function NovaConciliacaoPage() {
 
     setEtapa("conciliando");
     const resultado = await conciliar(banco.dados.extratoId, sistema.dados.extratoId);
+    if (!resultado.ok && resultado.status === 402) {
+      setEtapa("ocioso");
+      setRecusa(resultado.erro);
+      return;
+    }
     if (!resultado.ok) return falhar(resultado);
 
     // A listagem do resultado parte do extrato do banco (o do sistema seria
@@ -177,6 +187,18 @@ export default function NovaConciliacaoPage() {
           onPronto={retomar}
           onOutroArquivo={subirOutro}
         />
+      </div>
+    );
+  }
+
+  // teste acabado (spec 2026-10-15-primeiro-uso, parte 2): os planos no lugar do envio
+  if (assinatura?.situacao === "teste_encerrado" || recusa !== null) {
+    return (
+      <div className="nova-tela">
+        <Cabecalho titulo="Nova conciliação" contexto={[]} />
+        <div className="nova-corpo">
+          <PlanosBloqueados motivo={recusa ?? undefined} />
+        </div>
       </div>
     );
   }
