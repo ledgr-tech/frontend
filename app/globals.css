@@ -2947,13 +2947,19 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
 .extrato-cartao[data-tom="ok"] { --tom-cartao: var(--color-ok); }
 .extrato-cartao[data-tom="atencao"] { --tom-cartao: var(--color-accent); }
 .extrato-cartao[data-tom="risco"] { --tom-cartao: var(--color-risco); }
+/* hover e seleção em tinta neutra (guia v3): a cor fica no selo da situação, não na escolha */
 .extrato-cartao:hover .extrato-folha {
-  border-color: color-mix(in srgb, var(--tom-cartao) 60%, transparent);
+  border-color: color-mix(in srgb, var(--color-text) 40%, transparent);
 }
 .extrato-cartao[aria-pressed="true"] .extrato-folha {
-  border-color: var(--tom-cartao);
-  box-shadow: 0 0 0 1px var(--tom-cartao), var(--shadow-md);
+  border-color: var(--color-text);
+  box-shadow: 0 0 0 1px var(--color-text), var(--shadow-md);
 }
+.extrato-conciliar { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; padding-top: 14px; border-top: 1px solid var(--color-divider); }
+.extrato-conciliar h4 { margin: 0; font-size: 15px; }
+.extrato-conciliar-campo { display: flex; flex-direction: column; gap: 6px; width: 100%; font-size: 13px; color: var(--texto-apagado); }
+.extrato-conciliar-campo select { width: 100%; color: var(--color-text); }
+.extrato-conciliar-erro { margin: 0; font-size: 13px; color: var(--color-erro); }
 .extrato-folha-titulo {
   font-family: var(--font-heading); font-size: 12px; font-weight: 600;
   color: color-mix(in srgb, var(--color-text) 70%, transparent);

@@ -1,8 +1,16 @@
-import { beforeEach, describe, it, expect } from "vitest";
+import { beforeEach, describe, it, expect, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ArquivoExtrato } from "../conciliacoes/acoes";
 import { Galeria } from "./galeria";
+
+// conciliar um arquivo já enviado chama a action; aqui ela só responde como o backend
+const conciliar = vi.fn();
+vi.mock("../conciliacoes/acoes", () => ({
+  conciliar: (banco: string, sistema: string) => conciliar(banco, sistema),
+}));
+const push = vi.fn();
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
 
 function arquivo(parcial: Partial<ArquivoExtrato> & Pick<ArquivoExtrato, "id" | "nome">): ArquivoExtrato {
   return {
@@ -72,7 +80,7 @@ describe("Galeria de extratos", () => {
     expect(screen.getByRole("button", { name: "Com problema (1)" })).toBeInTheDocument();
   });
 
-  it("tags each card with the tone of its situation, which colors hover and selection", () => {
+  it("tags each card with the tone of its situation (the selection itself stays neutral)", () => {
     render(<Galeria arquivos={ARQUIVOS} />);
 
     expect(cartao("sicredi-setembro.ofx")).toHaveAttribute("data-tom", "ok");
@@ -181,7 +189,6 @@ describe("Galeria de extratos", () => {
     expect(painel().getByRole("heading", { name: "sicredi-setembro.ofx" })).toBeInTheDocument();
     expect(painel().getByText("Extrato do banco")).toBeInTheDocument();
     expect(painel().getByText("24/09/2026 14:02")).toBeInTheDocument();
-    expect(painel().getByText("b-set")).toBeInTheDocument();
     expect(painel().getByRole("link", { name: "Ver conciliação" })).toHaveAttribute(
       "href",
       "/conciliacoes/b-set",
@@ -332,6 +339,50 @@ describe("Galeria de extratos", () => {
       expect(agosto).toHaveAttribute("aria-expanded", "false");
       expect(screen.queryByRole("button", { name: /sicredi-agosto/ })).not.toBeInTheDocument();
       expect(cartao("sicredi-setembro")).toBeInTheDocument();
+    });
+  });
+
+  it("does not show the internal id of the file", () => {
+    render(<Galeria arquivos={ARQUIVOS} />);
+    expect(painel().queryByText("Identificador")).not.toBeInTheDocument();
+  });
+
+  describe("a file that never entered a conciliação", () => {
+    beforeEach(() => {
+      conciliar.mockReset();
+      push.mockReset();
+    });
+
+    it("offers to conciliate it with a file from the other side, the same month first", async () => {
+      const user = userEvent.setup();
+      conciliar.mockResolvedValue({ ok: true, dados: {} });
+      render(<Galeria arquivos={ARQUIVOS} />);
+      await user.click(cartao("erp-agosto.csv"));
+
+      const escolha = painel().getByRole("combobox", { name: "Com o extrato do banco" });
+      // o do mesmo mês já vem escolhido
+      expect(escolha).toHaveValue("b-ago");
+      await user.click(painel().getByRole("button", { name: "Conciliar" }));
+
+      // o banco é sempre o primeiro, seja qual for o arquivo aberto
+      expect(conciliar).toHaveBeenCalledWith("b-ago", "s-ago");
+      expect(push).toHaveBeenCalledWith("/conciliacoes/b-ago?sistema=s-ago");
+    });
+
+    it("says why when the backend refuses", async () => {
+      const user = userEvent.setup();
+      conciliar.mockResolvedValue({ ok: false, status: 409, erro: "O mês de agosto está fechado." });
+      render(<Galeria arquivos={ARQUIVOS} />);
+      await user.click(cartao("erp-agosto.csv"));
+      await user.click(painel().getByRole("button", { name: "Conciliar" }));
+
+      expect(painel().getByRole("alert")).toHaveTextContent("O mês de agosto está fechado.");
+      expect(push).not.toHaveBeenCalled();
+    });
+
+    it("has nothing to offer on a file already conciliated", () => {
+      render(<Galeria arquivos={ARQUIVOS} />);
+      expect(painel().queryByRole("button", { name: "Conciliar" })).not.toBeInTheDocument();
     });
   });
 });
