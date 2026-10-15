@@ -16,9 +16,10 @@ import { Cabecalho } from "../cabecalho";
  * conciliados dele.
  *
  * Do FECHAMENTO do design (Ledgr.dc.html) ficam o "Começar outubro", a
- * comemoração do mês pronto e o "encerrado em". O parágrafo das decisões, os
- * marcos e o "Entregar o fechamento" seguem fora. O relatório para o contador é
- * o CSV da conciliação.
+ * comemoração do mês pronto e o "encerrado em". O parágrafo das decisões e os
+ * marcos seguem fora. Do "Entregar o fechamento", o relatório para o contador:
+ * o PDF do mês fechado (`[competencia]/relatorio`, #117) e o CSV de cada
+ * conciliação; a planilha de ajustes e o envio por e-mail, não.
  */
 
 const FALHA_AO_CARREGAR =
