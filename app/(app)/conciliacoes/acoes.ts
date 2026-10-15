@@ -21,12 +21,13 @@ import { chamarBackend, ErroBackend } from "@/lib/backend";
 import { caminhoDaConciliacao } from "@/lib/caminhos";
 import { compararRodadas, execucoesVigentes, rodadasDoBanco, type Mudancas } from "@/lib/rodadas";
 import type { Conciliacao, Decisao, TipoEvento } from "@/lib/mock-data";
-import { conciliados, porConciliacao } from "../historico/execucoes";
+import { conciliados, paraRevisar, porConciliacao } from "../historico/execucoes";
 import { ordemDeTrabalho, pedemDecisao, type ConciliacaoNaLista } from "../dashboard/lista";
 import { estaResolvida, pedeDecisao } from "../dashboard/resumo";
 import { decisoesLigadas, situacaoDaLinha } from "./[id]/situacao";
 import { competencia } from "../fechamentos/fechamento";
 import type { ConciliacaoDoPar } from "../fechamentos/relatorio";
+import type { DadosDoRoteiro } from "../visao-geral/roteiro";
 
 /**
  * O fluxo real de conciliação, ponta a ponta, contra a API do backend:
@@ -939,4 +940,38 @@ export async function carregarRelatorioDoFechamento(competencia: string): Promis
   ]);
 
   return { ok: true, dados: { fechamento: adaptarFechamento(maisRecente), resumo, empresa, conciliacoes } };
+}
+
+/**
+ * O que o roteiro de primeiros passos da Visão geral precisa saber (spec 2026-10-15-primeiro-uso,
+ * parte 4). Null quando alguma leitura falhou: sem certeza, a Visão geral fica sem roteiro em vez
+ * de marcar um passo errado.
+ */
+export async function carregarRoteiro(): Promise<DadosDoRoteiro | null> {
+  try {
+    const [configuracoes, extratos, lista, fechamentos] = await Promise.all([
+      chamarBackend<ConfiguracoesAPI>("/empresa/configuracoes"),
+      chamarBackend<ListaExtratosAPI>("/extratos?limit=100&offset=0"),
+      listarExecucoes(),
+      listarFechamentos(),
+    ]);
+    if (!lista.ok || fechamentos === null) return null;
+    // a rodada que vale de cada extrato do banco, como na lista de Conciliações
+    const pendencias = porConciliacao(lista.dados.execucoes)
+      .filter(({ principal }) => principal.situacao === "vale")
+      .map(({ extratoBancoId, principal }) => ({ extratoBancoId, pedem: paraRevisar(principal.execucao) }));
+    const maisPendente = [...pendencias].sort((a, b) => b.pedem - a.pedem)[0];
+    return {
+      // null antes da primeira mudança (backend #85)
+      toleranciaRevisada: adaptarRegras(configuracoes).atualizadoEm !== null,
+      temExtratoDoBanco: extratos.itens.some((item) => item.origem === "banco"),
+      conciliou: lista.dados.execucoes.length > 0,
+      resolveuAlguma: pendencias.some(({ pedem }) => pedem === 0),
+      fechouAlgum: fechamentos.some((fechamento) => fechamento.estado === "fechado"),
+      conciliacaoComPendencia:
+        maisPendente && maisPendente.pedem > 0 ? caminhoDaConciliacao(maisPendente.extratoBancoId) : null,
+    };
+  } catch {
+    return null;
+  }
 }

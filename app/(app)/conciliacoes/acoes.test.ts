@@ -7,6 +7,7 @@ import {
   carregarFechamentos,
   carregarConciliacoes,
   carregarRegras,
+  carregarRoteiro,
   carregarRelatorioDoFechamento,
   carregarVisaoGeral,
   conciliar,
@@ -1319,5 +1320,78 @@ describe("carregarRelatorioDoFechamento", () => {
     chamarBackend.mockRejectedValue(new ErroBackend(401, "Not authenticated"));
 
     expect(await carregarRelatorioDoFechamento("2026-09")).toMatchObject({ ok: false, status: 401 });
+  });
+});
+
+describe("carregarRoteiro", () => {
+  beforeEach(() => {
+    chamarBackend.mockReset();
+  });
+
+  function backendDoRoteiro({
+    atualizadoEm = null as string | null,
+    extratos = [] as { origem: "banco" | "sistema" }[],
+    execucoes = [] as ExecucaoAPI[],
+    fechamentos = [] as unknown[],
+  } = {}) {
+    chamarBackend.mockImplementation(async (caminho: string) => {
+      if (caminho === "/empresa/configuracoes") {
+        return { tolerancia_dias: 2, tolerancia_dias_maximo: 5, atualizado_por: atualizadoEm && "Ana", atualizado_em: atualizadoEm };
+      }
+      if (caminho.startsWith("/extratos?")) return { total: extratos.length, limit: 100, offset: 0, itens: extratos };
+      if (caminho.startsWith("/execucoes")) return { total: execucoes.length, limit: 50, offset: 0, itens: execucoes };
+      if (caminho.startsWith("/fechamentos")) return { itens: fechamentos };
+      throw new Error(`caminho inesperado: ${caminho}`);
+    });
+  }
+
+  it("conta nova: nada feito", async () => {
+    backendDoRoteiro();
+    expect(await carregarRoteiro()).toEqual({
+      toleranciaRevisada: false,
+      temExtratoDoBanco: false,
+      conciliou: false,
+      resolveuAlguma: false,
+      fechouAlgum: false,
+      conciliacaoComPendencia: null,
+    });
+  });
+
+  it("marca a tolerância salva, o extrato do banco, a conciliação com pendência e o mês fechado", async () => {
+    backendDoRoteiro({
+      atualizadoEm: "2026-10-06T12:30:00Z",
+      extratos: [{ origem: "sistema" }, { origem: "banco" }],
+      execucoes: [execucao("e1", BANCO_RECENTE)],
+      fechamentos: [fechamento("2026-09")],
+    });
+    const dados = await carregarRoteiro();
+    expect(dados).toMatchObject({ toleranciaRevisada: true, temExtratoDoBanco: true, conciliou: true, fechouAlgum: true });
+    // a execução de teste tem uma linha sem correspondência: ainda pede decisão
+    expect(dados?.resolveuAlguma).toBe(false);
+    expect(dados?.conciliacaoComPendencia).toBe(`/conciliacoes/${BANCO_RECENTE}`);
+  });
+
+  it("uma conciliação sem nada pedindo decisão conta como resolvida", async () => {
+    const tudoBateu = execucao("e1", BANCO_RECENTE);
+    tudoBateu.contagens = { ...tudoBateu.contagens, match_exato: 2, sem_correspondencia: 0 };
+    backendDoRoteiro({ execucoes: [tudoBateu] });
+    const dados = await carregarRoteiro();
+    expect(dados?.resolveuAlguma).toBe(true);
+    expect(dados?.conciliacaoComPendencia).toBeNull();
+  });
+
+  it("um mês reaberto não conta como fechado", async () => {
+    backendDoRoteiro({ fechamentos: [fechamento("2026-09", { estado: "reaberto" })] });
+    expect((await carregarRoteiro())?.fechouAlgum).toBe(false);
+  });
+
+  it("se alguma leitura falha, não arrisca: devolve null", async () => {
+    backendDoRoteiro();
+    const normal = chamarBackend.getMockImplementation()!;
+    chamarBackend.mockImplementation(async (caminho: string) => {
+      if (caminho === "/empresa/configuracoes") throw new ErroBackend(500, "erro");
+      return normal(caminho);
+    });
+    expect(await carregarRoteiro()).toBeNull();
   });
 });
