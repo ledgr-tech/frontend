@@ -436,7 +436,7 @@ describe("contaDaSessao", () => {
   it("lê a razão social de GET /me, e que a conta tem senha para trocar", async () => {
     fetch.mockResolvedValue(Response.json(EU));
 
-    expect(await contaDaSessao()).toEqual({ empresa: "Telha Certa Ltda", temSenha: true, preferencias: null });
+    expect(await contaDaSessao()).toEqual({ empresa: "Telha Certa Ltda", temSenha: true, preferencias: null, assinatura: null });
     expect(fetch).toHaveBeenCalledTimes(1);
     expect(fetch.mock.calls[0][0]).toBe("http://localhost:8000/me");
   });
@@ -445,13 +445,19 @@ describe("contaDaSessao", () => {
     // para ela, POST /me/senha responde 409
     fetch.mockResolvedValue(Response.json({ ...EU, metodos_login: ["google"] }));
 
-    expect(await contaDaSessao()).toEqual({ empresa: "Telha Certa Ltda", temSenha: false, preferencias: null });
+    expect(await contaDaSessao()).toEqual({ empresa: "Telha Certa Ltda", temSenha: false, preferencias: null, assinatura: null });
   });
 
   it("sem resposta, esconde a empresa em vez de inventar um nome e deixa a troca de senha à mostra", async () => {
     fetch.mockResolvedValue(Response.json({ detail: "Not Found" }, { status: 404 }));
 
-    expect(await contaDaSessao()).toEqual({ empresa: "", temSenha: true, preferencias: null });
+    expect(await contaDaSessao()).toEqual({ empresa: "", temSenha: true, preferencias: null, assinatura: null });
+  });
+
+  it("lê o plano e o teste de 14 dias", async () => {
+    fetch.mockResolvedValue(Response.json({ ...EU, situacao: "teste", plano: "padrao", teste_termina_em: "2026-10-29" }));
+
+    expect((await contaDaSessao()).assinatura).toEqual({ situacao: "teste", plano: "padrao", testeTerminaEm: "2026-10-29" });
   });
 
   it("lê as preferências do primeiro uso, só com telas conhecidas", async () => {

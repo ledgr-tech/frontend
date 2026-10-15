@@ -8,6 +8,7 @@ import { ErroBackend, chamarBackend } from "@/lib/backend";
 import { demoAberta } from "@/lib/demo";
 import { MuitasEntradas, type UsuarioAPI } from "@/lib/login";
 import { ehTela, type Preferencias } from "@/lib/preferencias";
+import { adaptarAssinatura, type Assinatura } from "@/lib/assinatura";
 
 /**
  * Abrir e fechar sessão, e criar conta. Vive numa Server Action porque o
@@ -239,6 +240,8 @@ export type ContaDaSessao = {
   temSenha: boolean;
   /** O que a pessoa dispensou no primeiro uso; null quando o `GET /me` ainda não manda o campo. */
   preferencias: Preferencias | null;
+  /** O plano e o teste de 14 dias; null quando o `GET /me` ainda não manda `situacao`: nada bloqueia. */
+  assinatura: Assinatura | null;
 };
 
 type PreferenciasAPI = { tutoriais_dispensados?: unknown; roteiro_dispensado?: unknown };
@@ -260,15 +263,23 @@ function adaptarPreferencias(bruto: PreferenciasAPI | null | undefined): Prefere
 export async function contaDaSessao(): Promise<ContaDaSessao> {
   try {
     const eu = await chamarBackend<
-      UsuarioAPI & { razao_social: string; metodos_login: string[]; preferencias?: PreferenciasAPI }
+      UsuarioAPI & {
+        razao_social: string;
+        metodos_login: string[];
+        preferencias?: PreferenciasAPI;
+        situacao?: unknown;
+        plano?: unknown;
+        teste_termina_em?: unknown;
+      }
     >("/me");
     return {
       empresa: eu.razao_social?.trim() ?? "",
       temSenha: eu.metodos_login?.includes("senha") ?? true,
       preferencias: adaptarPreferencias(eu.preferencias),
+      assinatura: adaptarAssinatura(eu),
     };
   } catch {
-    return { empresa: "", temSenha: true, preferencias: null };
+    return { empresa: "", temSenha: true, preferencias: null, assinatura: null };
   }
 }
 
