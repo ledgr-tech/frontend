@@ -36,10 +36,15 @@ describe("EscolherPlano", () => {
     expect(screen.getByRole("button", { name: "Começar com o Essencial" })).toBeEnabled();
   });
 
-  it("com o teste acabado, os botões assinam", () => {
+  it("com o teste acabado, assinar fala com a equipe e não começa outro teste", () => {
+    escolherPlano.mockClear();
     render(<EscolherPlano encerrado />);
     expect(screen.getByRole("heading", { name: "Seu teste acabou. Escolha um plano." })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Assinar o Padrão" })).toBeInTheDocument();
+    const assinar = screen.getByRole("link", { name: "Assinar o Padrão" });
+    expect(assinar.getAttribute("href")).toMatch(/^mailto:ledgrtech@gmail\.com\?subject=/);
+    expect(decodeURIComponent(assinar.getAttribute("href")!)).toContain("Assinar o Padrão");
+    expect(screen.queryByRole("button", { name: /Assinar/ })).not.toBeInTheDocument();
     expect(screen.queryByText(/14 dias grátis/)).not.toBeInTheDocument();
+    expect(escolherPlano).not.toHaveBeenCalled();
   });
 });

@@ -5,7 +5,13 @@ import type { TelaDoTutorial } from "@/lib/preferencias";
  * `alvo` é o `data-tutorial` do elemento que o passo destaca; sem ele na tela, o passo aparece
  * sem destaque. Rascunho: o texto final passa pela revisão dos sócios.
  */
-export type PassoDoTutorial = { alvo: string; titulo: string; texto: string };
+export type PassoDoTutorial = {
+  alvo: string;
+  titulo: string;
+  texto: string;
+  /** Some do tutorial quando o alvo não está na tela (o roteiro, depois de dispensado ou do primeiro mês). */
+  opcional?: boolean;
+};
 export type TutorialDaTela = { nome: string; mascote: string; passos: PassoDoTutorial[] };
 
 export const TUTORIAIS: Record<TelaDoTutorial, TutorialDaTela> = {
@@ -13,7 +19,7 @@ export const TUTORIAIS: Record<TelaDoTutorial, TutorialDaTela> = {
     nome: "Visão geral",
     mascote: "/mascotes/mascote-apresenta.png",
     passos: [
-      { alvo: "roteiro", titulo: "Este é o seu roteiro.", texto: "Cada passo se marca sozinho quando você faz. Comece pela tolerância de dias: ela diz quantos dias de diferença entre o banco e o sistema ainda contam como bateu." },
+      { alvo: "roteiro", opcional: true, titulo: "Este é o seu roteiro.", texto: "Cada passo se marca sozinho quando você faz. Comece pela tolerância de dias: ela diz quantos dias de diferença entre o banco e o sistema ainda contam como bateu." },
       { alvo: "estado-do-mes", titulo: "O mês em um número.", texto: "Quantos lançamentos do mês aberto já bateram e quanto ainda está em aberto." },
       { alvo: "atalhos", titulo: "Atalhos para o resto.", texto: "Extratos, conciliações, fechamentos e histórico, com o que mudou desde a última vez." },
     ],

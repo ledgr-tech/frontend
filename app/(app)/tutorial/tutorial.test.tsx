@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { act, render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Tutorial } from "./tutorial";
 import { ProvedorDaConta } from "../conta";
@@ -20,7 +20,10 @@ function montar(conteudo = <div data-tutorial="filtros">filtros</div>) {
 }
 
 describe("Tutorial", () => {
-  beforeEach(() => window.localStorage.clear());
+  beforeEach(() => {
+    window.localStorage.clear();
+    window.sessionStorage.clear();
+  });
 
   it("abre sozinho na primeira visita e destaca o alvo do passo", async () => {
     montar();
@@ -49,7 +52,7 @@ describe("Tutorial", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
-  it("Esc fecha, devolve o foco e volta na próxima visita", async () => {
+  it("Esc fecha, devolve o foco e só volta numa próxima sessão", async () => {
     const user = userEvent.setup();
     const { unmount } = montar();
     screen.getByRole("button", { name: "fora" }).focus();
@@ -59,8 +62,39 @@ describe("Tutorial", () => {
     expect(screen.getByRole("button", { name: "fora" })).toHaveFocus();
     expect(document.querySelector("[data-tutorial-ativo]")).toBeNull();
     unmount();
+
+    // voltar à tela na mesma sessão (abrir uma linha e voltar) não reabre o cartão
+    const segunda = montar();
+    await esperar();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    segunda.unmount();
+
+    // numa sessão nova, sem a caixa marcada, ele volta
+    window.sessionStorage.clear();
     montar();
     expect(await screen.findByRole("dialog")).toBeInTheDocument();
+  });
+
+  it("espera a tela carregar: abre quando o alvo aparece, já com o destaque", async () => {
+    montar(<div id="vazio" />);
+    await esperar();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    const alvo = document.createElement("div");
+    alvo.setAttribute("data-tutorial", "filtros");
+    document.getElementById("vazio")!.append(alvo);
+    expect(await screen.findByRole("dialog", { name: "Separe o banco do sistema." })).toBeInTheDocument();
+    await waitFor(() => expect(alvo).toHaveAttribute("data-tutorial-ativo"));
+  });
+
+  it("pula o passo opcional cujo alvo não está na tela", async () => {
+    render(
+      <ProvedorDaConta preferencias={null}>
+        <section data-tutorial="estado-do-mes">mês</section>
+        <Tutorial tela="visao-geral" atraso={0} />
+      </ProvedorDaConta>,
+    );
+    expect(await screen.findByRole("dialog", { name: "O mês em um número." })).toBeInTheDocument();
+    expect(screen.getByText("Visão geral · 1 de 2")).toBeInTheDocument();
   });
 
   it("Esc fecha mesmo com o foco fora do cartão", async () => {

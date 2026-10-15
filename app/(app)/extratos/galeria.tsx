@@ -356,6 +356,8 @@ function ConciliarArquivo({ arquivo, arquivos }: { arquivo: ArquivoExtrato; arqu
   const [escolhido, setEscolhido] = useState(opcoes[0]?.id ?? "");
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  // 402: o teste acabou (spec 2026-10-15-primeiro-uso); o motivo vem com o caminho para os planos
+  const [semPlano, setSemPlano] = useState(false);
 
   if (opcoes.length === 0) {
     return <p className="vg-nota">{`Envie um extrato do ${outroLado} para conciliar este.`}</p>;
@@ -374,6 +376,7 @@ function ConciliarArquivo({ arquivo, arquivos }: { arquivo: ArquivoExtrato; arqu
     setEnviando(false);
     if (resposta.status === 401) router.push("/login");
     else setErro(resposta.erro);
+    setSemPlano(resposta.status === 402);
   }
 
   return (
@@ -396,6 +399,11 @@ function ConciliarArquivo({ arquivo, arquivos }: { arquivo: ArquivoExtrato; arqu
         <p role="alert" className="extrato-conciliar-erro">
           {erro}
         </p>
+      )}
+      {semPlano && (
+        <Link href="/plano" className="btn btn-secondary">
+          Ver os planos
+        </Link>
       )}
     </div>
   );

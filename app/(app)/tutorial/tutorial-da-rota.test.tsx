@@ -8,13 +8,16 @@ vi.mock("next/navigation", () => ({ usePathname: () => caminho }));
 vi.mock("../../(auth)/acoes", () => ({ salvarPreferencias: vi.fn(async () => true) }));
 
 describe("TutorialDaRota", () => {
-  beforeEach(() => window.localStorage.clear());
+  beforeEach(() => {
+    window.localStorage.clear();
+    window.sessionStorage.clear();
+  });
 
   it("abre o tutorial da tela do endereço", async () => {
     caminho = "/extratos";
     render(
       <ProvedorDaConta preferencias={null}>
-        <TutorialDaRota atraso={0} />
+        <TutorialDaRota atraso={0} espera={0} />
       </ProvedorDaConta>,
     );
     expect(await screen.findByText("Extratos · 1 de 3")).toBeInTheDocument();
@@ -24,7 +27,7 @@ describe("TutorialDaRota", () => {
     caminho = "/assinatura";
     render(
       <ProvedorDaConta preferencias={null}>
-        <TutorialDaRota atraso={0} />
+        <TutorialDaRota atraso={0} espera={0} />
       </ProvedorDaConta>,
     );
     await new Promise((r) => setTimeout(r, 20));

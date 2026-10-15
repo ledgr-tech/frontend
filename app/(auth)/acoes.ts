@@ -288,15 +288,18 @@ export async function contaDaSessao(): Promise<ContaDaSessao> {
  * backend ainda não tem a rota ou não respondeu: o navegador já guardou, a tela não avisa nada.
  */
 export async function salvarPreferencias(preferencias: Preferencias): Promise<boolean> {
+  // pela naConta: na conta de demonstração, um visitante não esconde o tutorial dos outros
   try {
-    await chamarBackend("/me/preferencias", {
-      method: "PATCH",
-      corpo: {
-        tutoriais_dispensados: preferencias.tutoriaisDispensados,
-        roteiro_dispensado: preferencias.roteiroDispensado,
-      },
-    });
-    return true;
+    const resposta = await naConta(() =>
+      chamarBackend("/me/preferencias", {
+        method: "PATCH",
+        corpo: {
+          tutoriais_dispensados: preferencias.tutoriaisDispensados,
+          roteiro_dispensado: preferencias.roteiroDispensado,
+        },
+      }),
+    );
+    return resposta.ok;
   } catch {
     return false;
   }
@@ -395,10 +398,7 @@ export async function excluirConta(senhaAtual: string): Promise<ResultadoConta> 
 export async function escolherPlano(plano: PlanoId): Promise<{ ok: true } | { ok: false; erro: string }> {
   // Server Action é endpoint público: só os três ids chegam ao backend
   if (!["essencial", "padrao", "avancado"].includes(plano)) return { ok: false, erro: FALHA_CONTA };
-  try {
-    await chamarBackend("/empresa/plano", { method: "POST", corpo: { plano } });
-    return { ok: true };
-  } catch (erro) {
-    return { ok: false, erro: mensagemDaConta(erro) };
-  }
+  // pela naConta: a conta de demonstração não escolhe plano
+  const resposta = await naConta(() => chamarBackend("/empresa/plano", { method: "POST", corpo: { plano } }));
+  return resposta.ok ? { ok: true } : resposta;
 }

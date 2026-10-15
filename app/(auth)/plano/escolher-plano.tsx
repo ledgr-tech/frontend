@@ -58,14 +58,25 @@ export function EscolherPlano({ encerrado = false }: { encerrado?: boolean }) {
                   <li key={item}><Check size={15} aria-hidden="true" />{item}</li>
                 ))}
               </ul>
-              <button
-                type="button"
-                className={tag ? "btn btn-primary" : "btn btn-secondary"}
-                disabled={escolhendo !== null}
-                onClick={() => void escolher(plano.id)}
-              >
-                {escolhendo === plano.id ? "Um momento…" : `${encerrado ? "Assinar o" : "Começar com o"} ${plano.nome}`}
-              </button>
+              {encerrado ? (
+                // a cobrança chega com o gateway, depois de 02/11: até lá, assinar é falar com a equipe, e
+                // a rota de escolher o plano (que começa o teste) não é chamada de novo
+                <a
+                  className={tag ? "btn btn-primary" : "btn btn-secondary"}
+                  href={`mailto:ledgrtech@gmail.com?subject=${encodeURIComponent(`Assinar o ${plano.nome}`)}`}
+                >
+                  {`Assinar o ${plano.nome}`}
+                </a>
+              ) : (
+                <button
+                  type="button"
+                  className={tag ? "btn btn-primary" : "btn btn-secondary"}
+                  disabled={escolhendo !== null}
+                  onClick={() => void escolher(plano.id)}
+                >
+                  {escolhendo === plano.id ? "Um momento…" : `Começar com o ${plano.nome}`}
+                </button>
+              )}
             </article>
           );
         })}

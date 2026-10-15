@@ -485,6 +485,13 @@ describe("salvarPreferencias", () => {
     expect(JSON.parse(init.body)).toEqual({ tutoriais_dispensados: ["historico"], roteiro_dispensado: false });
   });
 
+  it("na conta de demonstração, não grava na conta: um visitante não esconde o tutorial dos outros", async () => {
+    vi.stubEnv("LEDGR_CONTA_TESTE_EMAIL", "ana@telhacerta.com.br");
+
+    await expect(salvarPreferencias({ tutoriaisDispensados: ["extratos"], roteiroDispensado: true })).resolves.toBe(false);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
   it("sem a rota no backend, devolve falso sem lançar", async () => {
     fetch.mockResolvedValue(Response.json({ detail: "Not Found" }, { status: 404 }));
 
@@ -597,6 +604,13 @@ describe("escolherPlano", () => {
       ok: false,
       erro: "Ainda não disponível: o servidor do Ledgr ainda não tem esta função.",
     });
+  });
+
+  it("a conta de demonstração não escolhe plano", async () => {
+    vi.stubEnv("LEDGR_CONTA_TESTE_EMAIL", "ana@telhacerta.com.br");
+
+    await expect(escolherPlano("padrao")).resolves.toEqual({ ok: false, erro: "A conta de demonstração não pode ser alterada." });
+    expect(fetch).not.toHaveBeenCalled();
   });
 
   it("recusa um plano que não existe sem chamar o backend", async () => {

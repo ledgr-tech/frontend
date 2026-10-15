@@ -95,6 +95,15 @@ describe("NovaVersao", () => {
     expect(onConcluida).not.toHaveBeenCalled();
   });
 
+  it("teste acabado (402): diz o motivo e leva aos planos", async () => {
+    conciliar.mockResolvedValue({ ok: false, status: 402, erro: "O teste acabou. Escolha um plano para conciliar." });
+    await enviar();
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("O teste acabou. Escolha um plano para conciliar.");
+    expect(screen.getByRole("link", { name: "Ver os planos" })).toHaveAttribute("href", "/plano");
+    expect(onConcluida).not.toHaveBeenCalled();
+  });
+
   it("sends an expired session back to the login", async () => {
     enviarExtrato.mockResolvedValue({ ok: false, status: 401, erro: "Sua sessão expirou." });
     await enviar();

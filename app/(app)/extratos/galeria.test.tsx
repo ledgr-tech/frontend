@@ -369,6 +369,17 @@ describe("Galeria de extratos", () => {
       expect(push).toHaveBeenCalledWith("/conciliacoes/b-ago?sistema=s-ago");
     });
 
+    it("teste acabado (402): diz o motivo e leva aos planos", async () => {
+      const user = userEvent.setup();
+      conciliar.mockResolvedValue({ ok: false, status: 402, erro: "O teste acabou. Escolha um plano para conciliar." });
+      render(<Galeria arquivos={ARQUIVOS} />);
+      await user.click(cartao("erp-agosto.csv"));
+      await user.click(painel().getByRole("button", { name: "Conciliar" }));
+
+      expect(painel().getByRole("alert")).toHaveTextContent("O teste acabou. Escolha um plano para conciliar.");
+      expect(painel().getByRole("link", { name: "Ver os planos" })).toHaveAttribute("href", "/plano");
+    });
+
     it("says why when the backend refuses", async () => {
       const user = userEvent.setup();
       conciliar.mockResolvedValue({ ok: false, status: 409, erro: "O mês de agosto está fechado." });
