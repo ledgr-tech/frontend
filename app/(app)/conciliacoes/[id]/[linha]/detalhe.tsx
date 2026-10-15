@@ -313,13 +313,6 @@ export function DetalheDivergencia({ painel = false }: { painel?: boolean }) {
                   </span>
                 </span>
               </summary>
-              {/* o CTA fica no corpo, não no summary: botão dentro de summary vira
-                  dois alvos disputando o mesmo clique */}
-              <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
-                <Link href="/regras" className="btn btn-primary" style={{ fontSize: 13.5 }}>
-                  Criar regra para este fornecedor
-                </Link>
-              </div>
               <div style={{ borderTop: "1px solid var(--color-divider)" }}>
                 {linha.cronico.map((mes) => (
                   <div key={mes.mes} className="det-cronico-linha">

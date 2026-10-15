@@ -186,10 +186,8 @@ describe("DetalheDivergenciaPage", () => {
     expect(screen.getByText("O mesmo fornecedor divergiu nos 2 últimos meses.")).toBeInTheDocument();
     expect(screen.getByText(/diferença de R\$ 22,00 · 1 dia de atraso/)).toBeInTheDocument();
     expect(screen.getByText(/diferença de R\$ 35,00 · 2 dias de atraso/)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Criar regra para este fornecedor" })).toHaveAttribute(
-      "href",
-      "/regras",
-    );
+    // a tela de regras é de demonstração: o atalho saiu (spec 2026-10-15-primeiro-uso, parte 5)
+    expect(screen.queryByRole("link", { name: "Criar regra para este fornecedor" })).not.toBeInTheDocument();
   });
 
   it("collapses the history by default and leaves the chronic pattern open", async () => {
