@@ -78,6 +78,7 @@ describe("LandingPage", () => {
       ["Duas telas abertas, um dedo em cada linha.", ["cada linha."]],
       ["Três passos. A conferência linha por linha fica com o Ledgr.", ["com o Ledgr."]],
       ["Cada lançamento, do extrato ao seu sistema.", ["ao seu sistema."]],
+      ["Sem trocar de sistema, e sem voltar para o manual.", ["e sem voltar para o manual."]],
       ["O extrato do banco é sempre a fonte da verdade.", ["a fonte da verdade."]],
       ["Perguntas que sempre aparecem", ["sempre aparecem"]],
       ["Preço fechado, por volume.", ["por volume."]],
@@ -94,7 +95,7 @@ describe("LandingPage", () => {
     fireEvent.mouseEnter(screen.getByRole("button", { name: "Pagamento fornecedor #1082" }));
 
     // o cartão do hover é o do app (.cartao-lancamento, z-index 20 no globals.css)
-    expect(within(document.getElementById("problema")!).getByRole("tooltip")).toHaveClass("cartao-lancamento");
+    expect(within(document.getElementById("como")!).getByRole("tooltip")).toHaveClass("cartao-lancamento");
     expect(Number(container.querySelector("header")!.style.zIndex)).toBeGreaterThan(20);
   });
 
@@ -279,8 +280,84 @@ describe("LandingPage", () => {
     expect(screen.getByText(/o cartão dela aberto com o motivo da diferença/)).toBeInTheDocument();
   });
 
-  // a demonstração banco × sistema; "Por dentro do Ledgr" repete alguns destes valores
-  const demonstracao = () => within(document.getElementById("problema")!);
+  describe("the problem, read as the closing done by hand", () => {
+    const problema = () => document.getElementById("problema")!;
+    const lista = (nome: string) => within(within(problema()).getByRole("list", { name: nome })).getAllByRole("listitem");
+    const linha = (nome: string, texto: string) => lista(nome).find((item) => item.textContent!.includes(texto))!;
+    const marca = (item: HTMLElement) => item.querySelector(".mao-marca")?.textContent;
+
+    it("opens with the closing of August as it is done by hand", () => {
+      render(<LandingPage />);
+      expect(
+        within(problema()).getByText("Assim é o fechamento de agosto à mão: o extrato do banco de um lado, o do sistema do outro."),
+      ).toBeInTheDocument();
+    });
+
+    it("shows the two statements as they come, without the Ledgr's marks", () => {
+      render(<LandingPage />);
+      // as cinco linhas de agosto e a escala do mês, a mesma do cartão do hero
+      expect(lista("Extrato do banco")).toHaveLength(6);
+      expect(linha("Extrato do banco", "mais 4.213 lançamentos")).toBeInTheDocument();
+      expect(lista("Sistema de gestão").some((item) => item.textContent!.includes("R$ 12.604,00"))).toBe(true);
+      expect(within(problema()).queryByText("Valor diverge")).not.toBeInTheDocument();
+      expect(within(problema()).queryByRole("tooltip")).not.toBeInTheDocument();
+      expect(problema().querySelector(".demonstracao-folhas")).toBeNull();
+    });
+
+    it("numbers the lines behind each pain", () => {
+      render(<LandingPage />);
+      expect(marca(linha("Extrato do banco", "mais 4.213 lançamentos"))).toBe("1");
+      expect(marca(linha("Extrato do banco", "Crédito cartão D+30"))).toBe("2");
+      expect(marca(linha("Sistema de gestão", "Crédito cartão D+30"))).toBe("2");
+      expect(marca(linha("Extrato do banco", "Tarifa de manutenção da conta"))).toBe("3");
+      expect(marca(linha("Extrato do banco", "Pagamento fornecedor #1082"))).toBeUndefined();
+      // a linha por trás de uma dor acende, para o olho achar as três de cara
+      expect(linha("Extrato do banco", "Crédito cartão D+30")).toHaveAttribute("data-marcada");
+      expect(linha("Sistema de gestão", "Crédito cartão D+30")).toHaveAttribute("data-marcada");
+      expect(linha("Extrato do banco", "mais 4.213 lançamentos")).toHaveAttribute("data-marcada");
+      expect(linha("Extrato do banco", "Pagamento fornecedor #1082")).not.toHaveAttribute("data-marcada");
+    });
+
+    it("names three pains, each led by its August number", () => {
+      render(<LandingPage />);
+      const dores = within(problema()).getAllByRole("listitem").filter((item) => item.classList.contains("mao-dor"));
+      expect(dores.map((dor) => dor.querySelector(".mao-dor-rotulo")!.textContent)).toEqual(["Tempo", "Erro humano", "O que passa"]);
+      // o número de cada dor sai dos próprios lançamentos: a escala do hero, a diferença do cartão, a tarifa
+      expect(dores.map((dor) => dor.querySelector(".mao-dor-numero")!.textContent)).toEqual(["4.218 linhas", "R$ 0,05", "R$ 45,00"]);
+      expect(dores.map((dor) => within(dor).getByRole("heading", { level: 3 }).textContent)).toEqual([
+        "Horas que não voltam",
+        "O olho cansa",
+        "Aparece depois",
+      ]);
+      expect(dores.map((dor) => dor.querySelector(".mao-dor-texto")!.textContent)).toEqual([
+        "Cada linha do banco é procurada no sistema, uma a uma, todo mês.",
+        "Depois da centésima linha, R$ 7.912,45 e R$ 7.912,40 parecem o mesmo número.",
+        "A tarifa que ninguém lançou só aparece quando o saldo não fecha.",
+      ]);
+    });
+
+    it("bridges to Como funciona in a band, without a button to the section right below", () => {
+      render(<LandingPage />);
+      const ponte = problema().querySelector(".mao-ponte")!;
+      expect(ponte.querySelector("p")!.textContent).toBe("O Ledgr confere todas as linhas e aponta só as que não batem, com o motivo.");
+      expect(ponte.querySelector("p em")!.textContent).toBe("O Ledgr confere todas as linhas");
+      // Como funciona começa logo abaixo: um botão para ela só repetiria a rolagem
+      expect(within(problema()).queryByRole("link")).not.toBeInTheDocument();
+      expect(problema().nextElementSibling).toBe(document.getElementById("como"));
+    });
+  });
+
+  it("shows the Ledgr's result at the end of Como funciona, after the three steps", () => {
+    render(<LandingPage />);
+    const como = document.getElementById("como")!;
+    const terceiro = within(como).getByText("Receba as divergências");
+    const pratica = within(como).getByRole("heading", { level: 3, name: "As mesmas duas telas, conferidas pelo Ledgr." });
+    expect(terceiro.compareDocumentPosition(pratica) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(pratica.compareDocumentPosition(como.querySelector(".demonstracao-folhas")!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  // a demonstração banco × sistema, no fim de Como funciona; "Por dentro do Ledgr" repete alguns destes valores
+  const demonstracao = () => within(document.getElementById("como")!);
 
   it("shows the bank vs. system statement comparison with a mismatch", () => {
     render(<LandingPage />);
@@ -302,11 +379,11 @@ describe("LandingPage", () => {
     render(<LandingPage />);
     const titulos = (raiz: Element) => raiz.querySelector(".tabela-folhas .folhas-titulos")!.textContent;
     const vitrine = document.querySelector("#por-dentro .vitrine-app")!;
-    expect(titulos(document.getElementById("problema")!)).toBe(titulos(vitrine));
+    expect(titulos(document.getElementById("como")!)).toBe(titulos(vitrine));
     // as mesmas cinco linhas de agosto, na mesma ordem
     const descricoes = (raiz: Element) =>
       [...raiz.querySelectorAll(".tabela-folhas tbody tr")].map((linha) => linha.querySelector("td:nth-child(2)")!.textContent);
-    expect(descricoes(document.getElementById("problema")!)).toEqual(descricoes(vitrine));
+    expect(descricoes(document.getElementById("como")!)).toEqual(descricoes(vitrine));
   });
 
   it("lists the five categories by the app's names, once, in the third step", () => {
@@ -377,88 +454,80 @@ describe("LandingPage", () => {
     expect(preco.getByRole("list", { name: "Os planos" })).toBeInTheDocument();
   });
 
-  describe("the comparison with the other ways out", () => {
+  describe("Por que o Ledgr", () => {
     const porQue = () => document.getElementById("por-que")!;
-    const colunas = () => [...porQue().querySelectorAll<HTMLElement>(".por-que-coluna")];
-    const depois = (antes: Node, agora: Node) => Boolean(antes.compareDocumentPosition(agora) & Node.DOCUMENT_POSITION_FOLLOWING);
+    const tabela = () => within(porQue()).getByRole("table", { name: "As saídas de hoje e o Ledgr, pergunta por pergunta" });
+    const linhas = () => [...porQue().querySelectorAll<HTMLTableRowElement>("tbody tr")];
 
-    // uma seção só: como é feito hoje, onde o Ledgr entra, e as duas telas conferidas por ele
-    it("sits inside the problem, between the pain and the demo of the two statements", () => {
+    it("sits on its own between Por dentro and Regra de ouro", () => {
       render(<LandingPage />);
-      const problema = document.getElementById("problema")!;
-      expect(problema).toContainElement(porQue());
-      const dor = within(problema).getByRole("heading", { level: 2, name: "Duas telas abertas, um dedo em cada linha." });
-      const pratica = within(problema).getByRole("heading", { level: 3, name: "As mesmas duas telas, conferidas pelo Ledgr." });
-      const demonstracao = problema.querySelector(".demonstracao-folhas")!;
-      expect(depois(dor, porQue())).toBe(true);
-      expect(depois(porQue(), pratica)).toBe(true);
-      expect(depois(pratica, demonstracao)).toBe(true);
-      // sem seção própria: depois do problema vem Como funciona
-      expect(problema.nextElementSibling).toBe(document.getElementById("como"));
+      expect(porQue().tagName).toBe("SECTION");
+      expect(document.getElementById("por-dentro")!.nextElementSibling).toBe(porQue());
+      expect(porQue().nextElementSibling).toBe(document.getElementById("regra"));
+      expect(document.getElementById("problema")!.querySelector(".por-que-tabela")).toBeNull();
     });
 
-    it("presents the demo as the Ledgr's result, not as the manual way", () => {
+    it("opens with its label and title, without taking a chapter label", () => {
       render(<LandingPage />);
-      const problema = within(document.getElementById("problema")!);
-      // os selos e os motivos da demonstração são do Ledgr: o texto acima dela diz isso
-      expect(problema.getByText(/cada linha já vem marcada, e as que não batem vêm com o motivo\./)).toBeInTheDocument();
+      expect(within(porQue()).getByText("Por que o Ledgr")).toHaveClass("rotulo-parte");
+      const titulo = within(porQue()).getByRole("heading", { level: 2, name: "Sem trocar de sistema, e sem voltar para o manual." });
+      expect(titulo.querySelector("em")!.textContent).toBe("e sem voltar para o manual.");
     });
 
-    it("groups the two ways of today apart from the Ledgr", () => {
+    it("is a table of the three ways, with each question once", () => {
       render(<LandingPage />);
-      const hoje = within(porQue()).getByRole("group", { name: "Hoje" });
-      expect(within(hoje).getAllByRole("heading", { level: 3 }).map((titulo) => titulo.textContent)).toEqual([
-        "Conferir à mão",
-        "Migrar para um sistema com conciliação",
-      ]);
-      const comLedgr = within(porQue()).getByRole("group", { name: "Com o Ledgr" });
-      expect(within(comLedgr).getByRole("heading", { level: 3 }).textContent).toBe("Ledgr");
-      // o rótulo "Hoje" diz o que o texto de apoio dizia
-      expect(screen.queryByText(/havia dois caminhos/)).not.toBeInTheDocument();
-    });
-
-    it("puts the Ledgr beside checking by hand and switching systems, and highlights it", () => {
-      render(<LandingPage />);
-      expect(colunas().map((coluna) => within(coluna).getByRole("heading", { level: 3 }).textContent)).toEqual([
+      expect(within(tabela()).getAllByRole("columnheader").map((celula) => celula.textContent)).toEqual([
+        "Hoje",
+        "Com o Ledgr",
         "Conferir à mão",
         "Migrar para um sistema com conciliação",
         "Ledgr",
       ]);
-      expect(colunas().map((coluna) => coluna.classList.contains("por-que-destaque"))).toEqual([false, false, true]);
-    });
-
-    it("answers the same four questions in every column, in the same order", () => {
-      render(<LandingPage />);
-      for (const coluna of colunas()) {
-        expect([...coluna.querySelectorAll("dt")].map((item) => item.textContent)).toEqual([
-          "Trocar de sistema",
-          "Quem confere, todo mês",
-          "Para começar",
-          "O que custa",
-        ]);
-      }
+      expect(within(tabela()).getAllByRole("rowheader").map((celula) => celula.textContent)).toEqual([
+        "Trocar de sistema",
+        "Quem confere, todo mês",
+        "Para começar",
+        "O que custa",
+      ]);
     });
 
     it("leads each answer with the direct answer in bold, so reading across a row compares the three ways", () => {
       render(<LandingPage />);
-      const destaques = colunas().map((coluna) =>
-        [...coluna.querySelectorAll("dd")].map((resposta) => resposta.querySelector("strong")?.textContent),
-      );
+      const destaques = linhas().map((linha) => [...linha.querySelectorAll("td")].map((celula) => celula.querySelector("strong")?.textContent));
       expect(destaques).toEqual([
-        ["Não precisa.", "Alguém que entenda de contabilidade", "A planilha de sempre.", "As horas de quem confere"],
-        ["Precisa.", "O sistema novo", "Migrar cadastros, contas e histórico", "A mensalidade do sistema novo"],
-        ["Não precisa.", "O Ledgr, linha por linha", "Subir dois arquivos", "Pelo volume de lançamentos do mês"],
+        ["Não precisa.", "Precisa.", "Não precisa."],
+        ["Alguém que entenda de contabilidade", "O sistema novo", "O Ledgr, linha por linha"],
+        ["A planilha de sempre.", "Migrar cadastros, contas e histórico", "Subir dois arquivos"],
+        ["As horas de quem confere", "A mensalidade do sistema novo", "Pelo volume de lançamentos do mês"],
       ]);
       // o negrito abre a resposta: o resto da frase continua lá, logo depois dele
-      for (const resposta of porQue().querySelectorAll("dd")) {
-        expect(resposta.firstChild).toBe(resposta.querySelector("strong"));
+      for (const celula of porQue().querySelectorAll("tbody td")) {
+        expect(celula.firstChild).toBe(celula.querySelector("strong"));
       }
-      expect(colunas()[1].querySelectorAll("dd")[0].textContent).toBe("Precisa. A empresa inteira passa para o sistema novo.");
+      expect(linhas()[0].querySelectorAll("td")[1].textContent).toBe("Precisa. A empresa inteira passa para o sistema novo.");
+    });
+
+    it("highlights only the Ledgr column", () => {
+      render(<LandingPage />);
+      const destacadas = [...porQue().querySelectorAll("td.por-que-ledgr")];
+      expect(destacadas).toHaveLength(4);
+      expect(destacadas).toEqual(linhas().map((linha) => linha.querySelectorAll("td")[2]));
+    });
+
+    it("names each answer by its way, for the phone layout", () => {
+      render(<LandingPage />);
+      for (const linha of linhas()) {
+        expect([...linha.querySelectorAll("td")].map((celula) => celula.dataset.rotulo)).toEqual([
+          "Conferir à mão",
+          "Migrar para um sistema com conciliação",
+          "Ledgr",
+        ]);
+      }
     });
 
     it("says the Ledgr keeps your system and leaves you only what does not match", () => {
       render(<LandingPage />);
-      const [trocar, quem] = [...colunas()[2].querySelectorAll("dd")].map((item) => item.textContent);
+      const [trocar, quem] = [...porQue().querySelectorAll("td.por-que-ledgr")].map((celula) => celula.textContent);
       expect(trocar).toMatch(/^Não precisa\./);
       expect(quem).toMatch(/você revisa só o que não bate, já com o motivo/);
     });
@@ -468,13 +537,14 @@ describe("LandingPage", () => {
       expect(porQue().textContent).not.toMatch(/Conta Azul|Omie|Nibo|Domínio/);
     });
 
-    it("keeps the bands alternating as before, with no band of its own", () => {
+    it("keeps the bands alternating", () => {
       render(<LandingPage />);
       // a onda de cada seção leva a cor da seção de cima: papel (o problema), superfície (Como
-      // funciona), faixa clara (Por dentro)
+      // funciona), faixa clara (Por dentro), superfície (Por que o Ledgr)
       expect(document.getElementById("como")).toHaveClass("onda", "onda-papel");
       expect(document.getElementById("por-dentro")).toHaveClass("onda", "onda-superficie");
-      expect(document.getElementById("regra")).toHaveClass("onda", "onda-faixa-clara");
+      expect(porQue()).toHaveClass("onda", "onda-faixa-clara");
+      expect(document.getElementById("regra")).toHaveClass("onda", "onda-superficie");
     });
   });
 

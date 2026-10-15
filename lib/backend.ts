@@ -1,4 +1,4 @@
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 
 /**
  * Único ponto de contato com o backend (FastAPI). Roda **só no servidor**:
@@ -51,6 +51,29 @@ async function tokenDaSessao(): Promise<string | null> {
   return null;
 }
 
+/**
+ * O backend limita `/login`, `/register` e `/senha/*` por IP (backend #64), e quem chama é este
+ * servidor: sem repassar o IP do navegador, o backend vê o da Vercel, o mesmo para todo mundo, e
+ * dez senhas erradas de uma pessoa travam o login de todos. Ele só confia no IP repassado quando
+ * vem com `LEDGR_SEGREDO_PROXY`, o segredo que os dois lados guardam (nunca `NEXT_PUBLIC_`).
+ * Na Vercel, `x-real-ip` e `x-forwarded-for` são escritos por ela, não pelo navegador.
+ */
+async function ipDoNavegador(cabecalhos: Headers): Promise<void> {
+  const segredo = process.env.LEDGR_SEGREDO_PROXY;
+  if (!segredo) return;
+  let ip: string | undefined;
+  try {
+    const requisicao = await headers();
+    ip = requisicao.get("x-real-ip")?.trim() || requisicao.get("x-forwarded-for")?.split(",")[0]?.trim();
+  } catch {
+    // fora de uma requisição (o build, por exemplo): segue sem repassar
+    return;
+  }
+  if (!ip) return;
+  cabecalhos.set("X-Ledgr-IP-Cliente", ip);
+  cabecalhos.set("X-Ledgr-Segredo-Proxy", segredo);
+}
+
 async function erroDaResposta(resposta: Response): Promise<ErroBackend> {
   try {
     const corpo = await resposta.json();
@@ -87,6 +110,9 @@ async function requisitar(caminho: string, init: Opcoes = {}): Promise<Response>
     const token = await tokenDaSessao();
     if (!token) throw new ErroBackend(401, "Sessão expirada.");
     cabecalhos.set("Authorization", `Bearer ${token}`);
+  } else {
+    // as rotas logadas limitam pelo token; o IP só importa onde ainda não há sessão
+    await ipDoNavegador(cabecalhos);
   }
 
   let body: BodyInit | undefined;

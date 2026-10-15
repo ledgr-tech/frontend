@@ -1186,7 +1186,7 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
 /* as variáveis que o app declara no .app-shell, no tema claro: a landing não tem tema escuro. Valem
    para a réplica da janela, para a demonstração de "O problema" e para os cards de Preços, que usam
    as classes do app (e as folhas, no painel da demonstração do card aberto) */
-:is(.vitrine-app, .demonstracao-folhas, .beneficio) {
+:is(.vitrine-app, .demonstracao-folhas, .mao, .beneficio) {
   --tinta-hover: color-mix(in srgb, var(--color-text) 6%, transparent);
   --tinta-ativa: color-mix(in srgb, var(--color-text) 9%, transparent);
   --texto-apagado: color-mix(in srgb, var(--color-text) 58%, transparent);
@@ -1338,84 +1338,155 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
 .passos-grade { --grade-recuo: 30px; }
 .passos-grade > * { padding-block: 30px; }
 
-/* O problema (Cap. II) numa seção só, em três partes: a dor, como é feito hoje e onde o Ledgr
-   entra (a comparação), e na prática (a demonstração das duas telas). Os rótulos das partes, na
-   monoespaçada dos capítulos, menores que o "Cap. II" para não disputarem com ele, com um filete
-   até o fim do grupo: "Hoje" apagado, o que é do Ledgr em dourado */
-.problema-rotulo {
+/* Os rótulos das partes, na monoespaçada dos capítulos, menores que o "Cap. II" para não
+   disputarem com ele, com um filete até o fim do grupo: o apagado ("Hoje") e o do Ledgr em dourado.
+   Servem a "Na prática", no Cap. II, e a "Por que o Ledgr" */
+.rotulo-parte {
   display: flex; align-items: center; gap: 14px; margin: 0;
   font-family: var(--font-mono); font-size: 12px; font-weight: 500; line-height: 1.2;
   letter-spacing: 0.14em; text-transform: uppercase;
   color: color-mix(in srgb, var(--color-text) 58%, transparent);
 }
-.problema-rotulo::after { content: ""; flex: 1; height: 1px; background: var(--color-divider); }
-.problema-rotulo-ledgr { color: var(--color-accent-700); }
-.problema-rotulo-ledgr::after { background: color-mix(in srgb, var(--color-accent) 45%, transparent); }
+.rotulo-parte::after { content: ""; flex: 1; height: 1px; background: var(--color-divider); }
+.rotulo-parte-ledgr { color: var(--color-accent-700); }
+.rotulo-parte-ledgr::after { background: color-mix(in srgb, var(--color-accent) 45%, transparent); }
 
-/* a comparação: conferir à mão e migrar de sistema no grupo "Hoje", o Ledgr no outro, cada coluna
-   respondendo às mesmas quatro perguntas. O Ledgr vem numa caixa de filete dourado, sem fundo nem
-   sombra, como a Regra de ouro e os cards de Preços (cor como traço, não preenchimento); as outras
-   colunas têm a mesma caixa, transparente, para as três terem a mesma medida. No celular
-   empilham, com o Ledgr por último. O link "Por que o Ledgr" do rodapé desce até aqui, abaixo do
-   cabeçalho fixo */
-.por-que-grade { display: grid; grid-template-columns: minmax(0, 1fr); row-gap: 36px; scroll-margin-top: 110px; }
-.por-que-grupo { display: flex; flex-direction: column; gap: 12px; }
-.por-que-coluna {
-  display: flex; flex-direction: column;
-  padding: 26px 24px; border: 1px solid transparent; border-radius: var(--radius-md);
+/* Por que o Ledgr (por-que.tsx): a comparação numa tabela de verdade, a pergunta uma vez só, à
+   esquerda. A coluna do Ledgr vem num filete dourado de cima a baixo, sem fundo nem sombra, como a
+   Regra de ouro e os cards de Preços (cor como traço, não preenchimento), dentro da margem da
+   página. Abaixo de 760px a tabela vira um bloco por pergunta, com o nome de cada saída acima da
+   resposta (data-rotulo) e a do Ledgr por último, no filete */
+.por-que-abertura { display: flex; flex-direction: column; gap: 12px; margin-bottom: 42px; }
+.por-que-tabela { width: 100%; border-collapse: separate; border-spacing: 0; text-align: left; }
+.por-que-tabela :is(th, td) { padding: 16px 20px; vertical-align: top; text-align: left; font-weight: inherit; }
+.por-que-grupos > :is(th, td) { padding-bottom: 14px; }
+.por-que-grupos > th:first-of-type { padding-right: 32px; }
+.por-que-nomes > th {
+  font-family: var(--font-heading); font-size: clamp(17px, 1.35vw, 19px); font-weight: 600; line-height: 1.3;
 }
-.por-que-destaque { border-color: var(--color-accent); }
-.por-que-nome {
-  display: flex; align-items: center; gap: 10px; margin: 0; padding-bottom: 18px;
-  font-family: var(--font-heading); font-size: clamp(19px, 1.5vw, 22px); font-weight: 600; line-height: 1.25;
+.por-que-logo { display: inline-block; width: 24px; height: auto; margin-right: 10px; vertical-align: -3px; color: var(--color-text); }
+.por-que-tabela tbody th {
+  padding-left: 0; border-top: 1px solid var(--color-divider);
+  font-size: 13px; font-weight: 500; line-height: 1.5; color: color-mix(in srgb, var(--color-text) 62%, transparent);
 }
-.por-que-logo { flex: none; width: 24px; height: auto; color: var(--color-text); }
-.por-que-itens { display: flex; flex-direction: column; margin: 0; }
-.por-que-itens > div {
-  display: flex; flex-direction: column; gap: 5px;
-  padding-block: 14px; border-top: 1px solid var(--color-divider);
+.por-que-tabela tbody td {
+  border-top: 1px solid var(--color-divider);
+  font-size: 15.5px; line-height: 1.6; color: color-mix(in srgb, var(--color-text) 72%, transparent);
 }
-.por-que-destaque .por-que-itens > div { border-top-color: color-mix(in srgb, var(--color-accent) 40%, transparent); }
-.por-que-itens dt { font-size: 13px; font-weight: 500; color: color-mix(in srgb, var(--color-text) 62%, transparent); }
-/* o que responde à pergunta em negrito, na cor do texto; o resto da frase um tom abaixo (o mesmo dos
-   textos de apoio dos cards de Preços). Lendo só os negritos de uma linha, as três saídas se comparam */
-.por-que-itens dd { margin: 0; font-size: 15.5px; line-height: 1.6; color: color-mix(in srgb, var(--color-text) 72%, transparent); }
-.por-que-itens dd strong { font-weight: 600; color: var(--color-text); }
-/* lado a lado: uma grade de três colunas e seis linhas (rótulo, nome e as quatro respostas), que os
-   grupos, as colunas e as listas herdam (subgrid nas duas direções). Assim cada resposta fica na
-   altura da mesma pergunta nas três colunas, mesmo em grupos diferentes. A grade sai pelas laterais
-   na medida do recuo da caixa, para o texto alinhar com o título da seção */
-@media (min-width: 900px) {
-  .por-que-grade {
-    grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: 16px; row-gap: 0;
-    margin-inline: -25px;
+/* o que responde à pergunta em negrito, na cor do texto; o resto da frase um tom abaixo. Lendo só
+   os negritos de uma linha, as três saídas se comparam */
+.por-que-tabela tbody td strong { font-weight: 600; color: var(--color-text); }
+.por-que-tabela .por-que-ledgr { border-inline: 1px solid var(--color-accent); }
+.por-que-tabela th.por-que-ledgr { border-top: 1px solid var(--color-accent); border-radius: var(--radius-md) var(--radius-md) 0 0; }
+.por-que-tabela tbody td.por-que-ledgr { border-top-color: color-mix(in srgb, var(--color-accent) 40%, transparent); }
+.por-que-tabela tbody tr:last-child td.por-que-ledgr {
+  border-bottom: 1px solid var(--color-accent); border-radius: 0 0 var(--radius-md) var(--radius-md);
+}
+@media (min-width: 760px) {
+  .por-que-tabela { table-layout: fixed; }
+  .por-que-col-pergunta { width: 22%; }
+}
+@media (max-width: 759px) {
+  .por-que-tabela, .por-que-tabela :is(tbody, tr, th, td) { display: block; width: auto; }
+  .por-que-tabela :is(thead, colgroup) { display: none; }
+  .por-que-tabela tbody tr { padding: 20px 0 8px; border-top: 1px solid var(--color-divider); }
+  .por-que-tabela tbody th {
+    padding: 0 0 6px; border: 0;
+    font-family: var(--font-heading); font-size: 17px; font-weight: 600; color: var(--color-text);
   }
-  .por-que-grupo { display: grid; grid-row: span 6; grid-template-columns: subgrid; grid-template-rows: subgrid; gap: 0 16px; }
-  .por-que-grupo:not(.por-que-grupo-ledgr) { grid-column: span 2; }
-  .por-que-grupo > .problema-rotulo { grid-column: 1 / -1; padding: 0 25px 14px; }
-  .por-que-coluna { display: grid; grid-row: span 5; grid-template-rows: subgrid; }
-  .por-que-itens { display: grid; grid-row: span 4; grid-template-rows: subgrid; }
-}
-@media (max-width: 899px) {
-  /* empilhadas, as colunas de hoje saem da caixa e alinham com o texto da seção */
-  .por-que-coluna:not(.por-que-destaque) { padding: 4px 0 0; }
-  .por-que-destaque { padding: 22px 18px; }
-}
-/* no tablet, empilhada, a coluna fica larga: pergunta à esquerda e resposta à direita, como uma ficha */
-@media (min-width: 600px) and (max-width: 899px) {
-  .por-que-itens > div { display: grid; grid-template-columns: 170px minmax(0, 1fr); column-gap: 24px; align-items: baseline; }
+  .por-que-tabela tbody td { padding: 10px 0; border: 0; }
+  .por-que-tabela tbody td::before {
+    content: attr(data-rotulo); display: block; margin-bottom: 4px;
+    font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: color-mix(in srgb, var(--color-text) 58%, transparent);
+  }
+  .por-que-tabela tbody td.por-que-ledgr,
+  .por-que-tabela tbody tr:last-child td.por-que-ledgr {
+    margin: 6px 0 10px; padding: 14px 16px;
+    border: 1px solid var(--color-accent); border-radius: var(--radius-md);
+  }
+  .por-que-tabela tbody td.por-que-ledgr::before { color: var(--color-accent-700); }
 }
 
-/* na prática: a apresentação da demonstração, depois da comparação */
-.problema-pratica {
+/* O Cap. II (conferencia-a-mao.tsx), só leitura: as duas telas de agosto como chegam à mão, sem a
+   coluna do status (ela é o trabalho do Ledgr), lado a lado em toda largura, com o número de cada dor
+   na margem da linha por trás dela; embaixo, as três dores, uma por número. Seletores só com classes
+   próprias: com as do app (.table, .folha-banco), o guia de estilo do app valeria aqui */
+.mao { display: flex; flex-direction: column; gap: clamp(28px, 4vw, 40px); }
+.mao-folhas { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: start; margin: 0; }
+.mao-folha { border: 1px solid var(--color-divider); border-radius: var(--radius-md); overflow: hidden; }
+.mao-folha[data-folha="banco"] { background: var(--folha-banco); }
+.mao-folha[data-folha="sistema"] { background: var(--folha-sistema); }
+.mao-folha-nome { display: flex; align-items: center; gap: 8px; margin: 0; padding: 12px 14px; font-size: 14.5px; font-weight: 600; }
+.mao-linhas { margin: 0; padding: 0; list-style: none; }
+.mao-linha {
+  display: grid; grid-template-columns: 52px minmax(0, 1fr) auto 22px; column-gap: 12px; align-items: center;
+  padding: 11px 14px; border-top: 1px solid var(--color-divider); font-size: 14px; line-height: 1.45;
+}
+.mao-data { color: color-mix(in srgb, var(--color-text) 58%, transparent); font-variant-numeric: tabular-nums; }
+.mao-desc { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mao-valor { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.mao-escala { grid-template-columns: minmax(0, 1fr) 22px; }
+.mao-reticencias { font-style: italic; color: color-mix(in srgb, var(--color-text) 55%, transparent); }
+/* o número da dor, como a caneta de quem revisa: um círculo cheio no terracota de erro, o mesmo na
+   linha e na dor, e a linha por trás dela acesa no mesmo tom, para o olho achar as três de cara */
+.mao-marca {
+  display: inline-grid; place-items: center; flex: none; width: 22px; height: 22px; border-radius: 50%;
+  background: var(--color-erro); color: #fff;
+  font-size: 12px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums;
+}
+.mao-linha[data-marcada] {
+  background: color-mix(in srgb, var(--color-erro) 9%, transparent);
+  box-shadow: inset 3px 0 0 var(--color-erro);
+}
+/* as dores, cada uma aberta pelo número que a mostra, grande, na fonte de destaque da landing (a da
+   faixa de números), sob um filete dourado; o círculo é o mesmo das linhas nas telas */
+.mao-dores { display: grid; grid-template-columns: minmax(0, 1fr); gap: 28px; margin: 0; padding: 0; list-style: none; }
+.mao-dor { display: flex; flex-direction: column; padding-top: 16px; border-top: 1px solid var(--color-accent); }
+.mao-dor-topo { display: flex; align-items: center; gap: 8px; }
+.mao-dor-rotulo {
+  margin: 0; font-family: var(--font-mono); font-size: 12px; font-weight: 500; line-height: 1.2;
+  letter-spacing: 0.14em; text-transform: uppercase; color: var(--color-accent-700);
+}
+.mao-dor-numero { margin: 14px 0 12px; font-size: clamp(40px, 3.6vw, 52px); font-weight: 400; line-height: 1; }
+.mao-dor-unidade { font-family: var(--font-body); font-size: 17px; color: color-mix(in srgb, var(--color-text) 60%, transparent); }
+.mao-dor-titulo { margin: 0 0 6px; font-family: var(--font-heading); font-size: 18px; font-weight: 600; line-height: 1.3; }
+.mao-dor-texto { margin: 0; max-width: 42ch; font-size: 15px; line-height: 1.7; color: color-mix(in srgb, var(--color-text) 72%, transparent); }
+/* a ponte: uma faixa de filete dourado, a frase com o começo em itálico. Sem botão: Como funciona
+   começa logo abaixo */
+.mao-ponte {
+  padding: 20px 24px; border: 1px solid var(--color-accent); border-radius: var(--radius-md);
+}
+.mao-ponte p { margin: 0; font-size: 15.5px; line-height: 1.6; }
+.mao-ponte em { font-family: var(--font-destaque-family), var(--font-display), serif; font-size: 1.3em; font-style: italic; font-weight: 500; }
+@media (min-width: 760px) {
+  .mao-dores { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 32px; }
+}
+/* no celular cada tela tem uns 175px: data e valor em cima, a descrição embaixo, menor */
+@media (max-width: 599px) {
+  .mao-folha-nome { padding: 10px; font-size: 13.5px; }
+  .mao-linha {
+    grid-template-columns: auto minmax(0, 1fr) 22px; grid-template-areas: "data valor valor" "desc desc marca";
+    column-gap: 8px; row-gap: 2px; padding: 9px 10px; font-size: 13px;
+  }
+  .mao-linha > .mao-data { grid-area: data; }
+  .mao-linha > .mao-valor { grid-area: valor; justify-self: end; }
+  .mao-linha > .mao-desc { grid-area: desc; font-size: 12.5px; }
+  .mao-linha > .mao-marca, .mao-linha > span[aria-hidden="true"]:last-child { grid-area: marca; }
+  .mao-linha.mao-escala { grid-template-areas: none; grid-template-columns: minmax(0, 1fr) 22px; }
+  .mao-linha.mao-escala > * { grid-area: auto; }
+}
+
+/* na prática: a demonstração do Ledgr no fim de Como funciona, depois dos três passos */
+.pratica {
   display: flex; flex-direction: column; gap: 14px;
   margin: clamp(64px, 8vw, 104px) 0 30px;
 }
-.problema-pratica-titulo {
+.pratica-titulo {
   margin: 4px 0 0; font-family: var(--font-heading);
   font-size: clamp(22px, 1.9vw, 28px); font-weight: 600; line-height: 1.2; letter-spacing: -0.015em;
 }
-.problema-pratica-texto { margin: 0; max-width: 62ch; font-size: 15.5px; line-height: 1.75; }
+.pratica-texto { margin: 0; max-width: 62ch; font-size: 15.5px; line-height: 1.75; }
 
 /* ---------- Preços (app/(marketing)/precos.tsx) ----------
    O que vem em todo plano, em quatro cards numa trilha vertical como a de "Por dentro", na faixa
