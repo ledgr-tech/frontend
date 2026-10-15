@@ -106,8 +106,8 @@ const CAMPO_DO_FORMULARIO: Record<string, CampoCadastroAPI> = {
 
 /**
  * Cria empresa e usuário numa chamada só (`POST /register`) e já entra com a
- * mesma senha. Banco, conta e sistema de gestão, que o formulário também pede,
- * o backend ainda não guarda — ficam no navegador.
+ * mesma senha. O sistema de gestão, que o formulário também pede, o backend
+ * ainda não guarda: fica no navegador.
  */
 export async function cadastrar(dados: DadosCadastro): Promise<ResultadoCadastro> {
   try {

@@ -134,7 +134,7 @@ export default function CadastroPage() {
 
   /**
    * Ao sair do passo da empresa, o primeiro em que o CNPJ existe, o backend diz se e-mail e CNPJ
-   * estão livres (#78): quem já tem conta descobre aqui, e não depois do banco e do sistema. Sem
+   * estão livres (#78): quem já tem conta descobre aqui, e não depois do sistema. Sem
    * resposta, segue: o `/register` confere tudo de novo no fim.
    */
   async function livres(): Promise<boolean> {
@@ -178,7 +178,7 @@ export default function CadastroPage() {
     if (resultado.ok) {
       setFase(resultado.entrou ? "abrindo" : "login");
       // conta criada sem sessão (o login deu 429 logo depois do cadastro): falta só entrar
-      router.push(resultado.entrou ? "/conciliacoes/nova" : "/login");
+      router.push(resultado.entrou ? "/visao-geral" : "/login");
       return;
     }
     setConcluindo(false);

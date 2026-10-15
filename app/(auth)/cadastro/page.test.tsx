@@ -35,7 +35,6 @@ async function continuar(user: Usuario) {
 
 const ACESSO = { "Seu nome": "Ana Souza", "E-mail": "financeiro@telhacerta.com.br", Senha: "conciliar2026" };
 const EMPRESA = { "Razão social": "Telha Certa Ltda", CNPJ: "12.345.678/0001-95" };
-const BANCO = { "Banco e agência": "Sicredi · ag. 1234", "Conta corrente": "45678-9" };
 
 function titulo() {
   return screen.getByRole("heading", { level: 1 });
@@ -107,36 +106,28 @@ describe("CadastroPage", () => {
     expect(titulo()).toHaveTextContent(PASSOS[0].titulo);
   });
 
-  it("walks through the company, bank and management-system steps from the Claude Design", async () => {
+  it("walks through the company and management-system steps, without the bank step", async () => {
     const user = userEvent.setup();
     render(<CadastroPage />);
 
     await preencher(user, ACESSO);
     await continuar(user);
     expect(titulo()).toHaveTextContent("Vamos cadastrar a empresa.");
-    expect(screen.getByText("Passo I de III")).toBeInTheDocument();
+    expect(screen.getByText("Passo I de II")).toBeInTheDocument();
     expect(screen.getByText(PASSOS[1].dicaTitulo ?? "")).toBeInTheDocument();
 
     await preencher(user, EMPRESA);
     await continuar(user);
-    expect(titulo()).toHaveTextContent("Qual banco você vai conciliar?");
-    expect(screen.getByText("Passo II de III")).toBeInTheDocument();
-    expect(
-      screen.getByText(/Tem mais de um banco\? Comece por um\. Os outros entram depois, cada um na sua conciliação\./),
-    ).toBeInTheDocument();
-    // não existe tela de bancos nas configurações: o texto não pode mandar a pessoa para lá
-    expect(screen.queryByText(/configurações/i)).not.toBeInTheDocument();
-
-    await preencher(user, BANCO);
-    await continuar(user);
     expect(titulo()).toHaveTextContent("E o sistema de gestão?");
-    expect(screen.getByText("Passo III de III")).toBeInTheDocument();
+    expect(screen.getByText("Passo II de II")).toBeInTheDocument();
+    expect(screen.queryByText("Qual banco você vai conciliar?")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Conta corrente")).not.toBeInTheDocument();
     expect(
       screen.getByText(/o CSV exportado dele também funciona\./),
     ).toBeInTheDocument();
     expect(screen.getByLabelText("E-mail do responsável")).toHaveValue("financeiro@telhacerta.com.br");
     expect(screen.getByLabelText("Sistema de gestão")).toHaveAttribute("placeholder", "Omie, Bling, Tiny, outro…");
-    expect(screen.getByRole("button", { name: "Concluir e subir extratos" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Concluir cadastro" })).toBeInTheDocument();
   });
 
   it("requires the fields of each step before moving on", async () => {
@@ -210,10 +201,10 @@ describe("CadastroPage", () => {
     await user.type(screen.getByLabelText("CNPJ"), "95");
     expect(screen.getByLabelText("CNPJ")).toHaveValue("12.345.678/0001-95");
     await continuar(user);
-    expect(titulo()).toHaveTextContent("Qual banco você vai conciliar?");
+    expect(titulo()).toHaveTextContent("E o sistema de gestão?");
   });
 
-  // o mesmo cálculo do backend: sem ele, o CNPJ errado só aparecia depois dos quatro passos
+  // o mesmo cálculo do backend: sem ele, o CNPJ errado só aparecia depois dos três passos
   it("checks the CNPJ check digits on the company step", async () => {
     const user = userEvent.setup();
     render(<CadastroPage />);
@@ -241,17 +232,7 @@ describe("CadastroPage", () => {
     expect(screen.getByLabelText("CNPJ")).toHaveValue("12.ABC.345/01DE-35");
     expect(screen.getByLabelText("CNPJ")).not.toHaveAttribute("inputmode", "numeric");
     await continuar(user);
-    expect(titulo()).toHaveTextContent("Qual banco você vai conciliar?");
-  });
-
-  it("does not limit the account field to a numeric keyboard, since account digits can have a dash or an X", async () => {
-    const user = userEvent.setup();
-    render(<CadastroPage />);
-    await preencher(user, ACESSO);
-    await continuar(user);
-    await preencher(user, EMPRESA);
-    await continuar(user);
-    expect(screen.getByLabelText("Conta corrente")).not.toHaveAttribute("inputmode", "numeric");
+    expect(titulo()).toHaveTextContent("E o sistema de gestão?");
   });
 
   it("shows the step's mascot on the right side, changing as the person moves through the steps", async () => {
@@ -266,10 +247,6 @@ describe("CadastroPage", () => {
     expect(mascote()).toContain("mascote-neutro");
 
     await preencher(user, EMPRESA);
-    await continuar(user);
-    expect(mascote()).toContain("mascote-explicando");
-
-    await preencher(user, BANCO);
     await continuar(user);
     expect(mascote()).toContain("mascote-comemorando");
   });
@@ -292,10 +269,8 @@ describe("CadastroPage", () => {
     await continuar(user);
     await preencher(user, EMPRESA);
     await continuar(user);
-    await preencher(user, BANCO);
-    await continuar(user);
     await user.type(screen.getByLabelText("Sistema de gestão"), "Cigam");
-    await user.click(screen.getByRole("button", { name: "Concluir e subir extratos" }));
+    await user.click(screen.getByRole("button", { name: "Concluir cadastro" }));
   }
 
   it("swaps the form for a status panel while the account is being created", async () => {
@@ -310,7 +285,7 @@ describe("CadastroPage", () => {
     expect(status).toHaveTextContent("Cadastrando a empresa Telha Certa Ltda e o seu acesso.");
     expect(titulo()).toHaveTextContent("Criando sua conta…");
     await waitFor(() => expect(titulo()).toHaveFocus());
-    expect(screen.queryByRole("button", { name: "Concluir e subir extratos" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Concluir cadastro" })).not.toBeInTheDocument();
   });
 
   it("says the account was created while it opens the first conciliation", async () => {
@@ -319,7 +294,7 @@ describe("CadastroPage", () => {
 
     await concluirCadastro(user);
 
-    await waitFor(() => expect(push).toHaveBeenCalledWith("/conciliacoes/nova"));
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/visao-geral"));
     expect(screen.getByRole("status")).toHaveTextContent("Conta criada.");
     expect(screen.getByRole("status")).toHaveTextContent("Abrindo sua primeira conciliação…");
   });
@@ -343,13 +318,11 @@ describe("CadastroPage", () => {
     await continuar(user);
     await preencher(user, EMPRESA);
     await continuar(user);
-    await preencher(user, BANCO);
-    await continuar(user);
     await user.type(screen.getByLabelText("Sistema de gestão"), "Cigam");
 
     await user.keyboard("{Enter}{Enter}");
 
-    await waitFor(() => expect(push).toHaveBeenCalledWith("/conciliacoes/nova"));
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/visao-geral"));
     expect(cadastrar).toHaveBeenCalledTimes(1);
   });
 
@@ -359,8 +332,8 @@ describe("CadastroPage", () => {
 
     await concluirCadastro(user);
 
-    await waitFor(() => expect(push).toHaveBeenCalledWith("/conciliacoes/nova"));
-    // banco e sistema de gestão o backend ainda não guarda: não saem do navegador
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/visao-geral"));
+    // o sistema de gestão o backend ainda não guarda: não sai do navegador
     expect(cadastrar).toHaveBeenCalledWith({
       nome: "Ana Souza",
       email: "financeiro@telhacerta.com.br",
@@ -431,7 +404,7 @@ describe("CadastroPage", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Muitos cadastros seguidos agora. Espere um minuto e tente de novo.",
     );
-    expect(screen.getByRole("button", { name: "Concluir e subir extratos" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Concluir cadastro" })).toBeEnabled();
     expect(push).not.toHaveBeenCalled();
   });
 
@@ -445,9 +418,9 @@ describe("CadastroPage", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Não foi possível concluir o cadastro. Tente de novo em instantes.",
     );
-    expect(screen.getByRole("button", { name: "Concluir e subir extratos" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Concluir cadastro" })).toBeEnabled();
     // o formulário foi recriado: o foco volta ao botão, e não ao <body> (num efeito: waitFor, como os vizinhos)
-    await waitFor(() => expect(screen.getByRole("button", { name: "Concluir e subir extratos" })).toHaveFocus());
+    await waitFor(() => expect(screen.getByRole("button", { name: "Concluir cadastro" })).toHaveFocus());
   });
 
   // A rota recebe os dois juntos: a conferência acontece ao sair do passo da empresa, o primeiro em
@@ -475,7 +448,7 @@ describe("CadastroPage", () => {
         email: "financeiro@telhacerta.com.br",
         cnpj: "12.345.678/0001-95",
       });
-      expect(await screen.findByLabelText("Banco e agência")).toBeInTheDocument();
+      expect(await screen.findByLabelText("Sistema de gestão")).toBeInTheDocument();
       expect(cadastrar).not.toHaveBeenCalled();
     });
 
@@ -550,7 +523,7 @@ describe("CadastroPage", () => {
 
       await ateAEmpresa(user);
 
-      expect(await screen.findByLabelText("Banco e agência")).toBeInTheDocument();
+      expect(await screen.findByLabelText("Sistema de gestão")).toBeInTheDocument();
     });
 
     it("moves on when the action itself fails", async () => {
@@ -560,7 +533,7 @@ describe("CadastroPage", () => {
 
       await ateAEmpresa(user);
 
-      expect(await screen.findByLabelText("Banco e agência")).toBeInTheDocument();
+      expect(await screen.findByLabelText("Sistema de gestão")).toBeInTheDocument();
     });
   });
 });

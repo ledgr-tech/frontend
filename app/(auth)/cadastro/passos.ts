@@ -1,5 +1,5 @@
 // Passos do cadastro. O de acesso foi criado para esta tela (o Claude Design não pede senha);
-// os três seguintes vêm do onboarding do Claude Design (título, texto, campos, exemplos, botão, dica e mascote),
+// os dois seguintes vêm do onboarding do Claude Design (título, texto, campos, exemplos, botão, dica e mascote),
 // com ajustes de texto onde o original não batia com os campos da tela.
 // Decisões em docs/superpowers/specs/2026-09-15-tela-cadastro-design.md
 
@@ -30,7 +30,7 @@ export type MascotePasso = {
 };
 
 export type PassoCadastro = {
-  id: "acesso" | "empresa" | "banco" | "sistema";
+  id: "acesso" | "empresa" | "sistema";
   rotuloEtapa: string;
   eyebrow: string;
   titulo: string;
@@ -113,7 +113,7 @@ export const PASSOS: PassoCadastro[] = [
   {
     id: "empresa",
     rotuloEtapa: "Empresa",
-    eyebrow: "Passo I de III",
+    eyebrow: "Passo I de II",
     titulo: "Vamos cadastrar a empresa.",
     texto:
       "Cada empresa tem sua própria conciliação, seu histórico e seu fechamento. Você pode adicionar outras depois, sem custo de setup.",
@@ -146,40 +146,9 @@ export const PASSOS: PassoCadastro[] = [
     dicaTexto: "Misturar CNPJs no mesmo extrato é a causa mais comum de divergência falsa.",
   },
   {
-    id: "banco",
-    rotuloEtapa: "Banco",
-    eyebrow: "Passo II de III",
-    titulo: "Qual banco você vai conciliar?",
-    texto:
-      "Informe o banco e a conta de onde sai o extrato: é ele que define a verdade da conciliação. Tem mais de um banco? Comece por um. Os outros entram depois, cada um na sua conciliação.",
-    campos: [
-      {
-        id: "banco",
-        rotulo: "Banco e agência",
-        exemplo: "Banco do Brasil · ag. 1234",
-        tipo: "text",
-        autoComplete: "off",
-        mensagemVazio: "Informe o banco e a agência.",
-      },
-      // sem teclado numérico: o dígito da conta pode vir com hífen ou ser X
-      {
-        id: "conta",
-        rotulo: "Conta corrente",
-        exemplo: "45678-9",
-        tipo: "text",
-        autoComplete: "off",
-        mensagemVazio: "Informe o número da conta corrente.",
-      },
-    ],
-    botao: "Continuar",
-    mascote: { src: "/mascotes/mascote-explicando.png", largura: 1000, altura: 1000 },
-    dicaTitulo: "OFX é melhor que CSV",
-    dicaTexto: "O OFX já traz data, valor e identificador de cada lançamento, então mais lançamentos casam automaticamente.",
-  },
-  {
     id: "sistema",
     rotuloEtapa: "Sistema de gestão",
-    eyebrow: "Passo III de III",
+    eyebrow: "Passo II de II",
     titulo: "E o sistema de gestão?",
     texto: "Diga de qual sistema sai o segundo extrato. Se o seu ERP não for um dos compatíveis, o CSV exportado dele também funciona.",
     campos: [
@@ -201,7 +170,7 @@ export const PASSOS: PassoCadastro[] = [
         mensagemVazio: "Informe o e-mail do responsável.",
       },
     ],
-    botao: "Concluir e subir extratos",
+    botao: "Concluir cadastro",
     mascote: { src: "/mascotes/mascote-comemorando.png", largura: 1000, altura: 1000 },
     dicaTitulo: "O sistema é o que se ajusta",
     dicaTexto: "Toda divergência é apontada como “o sistema diverge do banco”, nunca o contrário.",
