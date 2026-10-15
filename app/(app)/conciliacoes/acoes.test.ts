@@ -1275,7 +1275,7 @@ describe("carregarRelatorioDoFechamento", () => {
     });
     // a conciliação do par, e só dele: o mesmo extrato do banco pode ter tido outro sistema
     expect(chamarBackend.mock.calls.map(([caminho]) => caminho)).toContainEqual(
-      expect.stringMatching(new RegExp(`^/conciliacoes/${BANCO_RECENTE}\?.*extrato_sistema_id=${SISTEMA}`)),
+      expect.stringMatching(new RegExp(`^/conciliacoes/${BANCO_RECENTE}\\?.*extrato_sistema_id=${SISTEMA}`)),
     );
   });
 

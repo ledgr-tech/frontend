@@ -91,7 +91,7 @@ describe("ExplicacaoDaDivergencia", () => {
     await pedir();
 
     expect(await screen.findByText(TEXTO_MOTOR)).toBeInTheDocument();
-    expect(screen.getByText(new RegExp(aviso.replace(/[()]/g, "\\$&")))).toBeInTheDocument();
+    expect(screen.getByText(new RegExp(aviso.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")))).toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
