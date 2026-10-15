@@ -1979,6 +1979,8 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
   font-family: var(--font-heading); font-size: 24px;
   color: var(--color-risco); font-variant-numeric: tabular-nums; white-space: nowrap;
 }
+/* num match o Δ é zero: cor de divergência ali diria que algo está errado */
+.det-delta-valor[data-resolvida] { color: var(--texto-apagado); }
 .det-causa {
   display: flex; flex-wrap: wrap; gap: 24px 30px; align-items: center;
   border-block: 1px solid var(--color-divider); padding: 26px 0;

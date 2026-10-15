@@ -29,6 +29,7 @@ function CartaoExtrato({
   valor,
   campos,
   origem,
+  diverge,
 }: {
   titulo: string;
   marca: string;
@@ -37,6 +38,8 @@ function CartaoExtrato({
   campos: { rotulo: string; valor: string }[] | undefined;
   /** O banco é a fonte da verdade; o valor do sistema é o que diverge dele. */
   origem: Origem;
+  /** A linha ainda diverge: só então o valor do sistema vai na cor da divergência. */
+  diverge: boolean;
 }) {
   // cada cartão no tom da sua folha, como na comparação direta
   return (
@@ -50,7 +53,7 @@ function CartaoExtrato({
       </div>
       <div
         className="det-valor"
-        style={origem === "banco" ? undefined : { color: "var(--color-risco-700)" }}
+        style={origem === "sistema" && diverge ? { color: "var(--color-risco-700)" } : undefined}
       >
         {valor === null ? "—" : <NumeroAnimado valor={valor} formatar={formatarMoeda} />}
       </div>
@@ -210,10 +213,11 @@ export default function DetalheDivergenciaPage() {
             valor={linha.valorBanco}
             campos={linha.camposBanco}
             origem="banco"
+            diverge={!estaResolvida(linha.status)}
           />
           <div className="det-delta">
             <div className="det-delta-linha" />
-            <div className="det-delta-valor">
+            <div className="det-delta-valor" data-resolvida={estaResolvida(linha.status) || undefined}>
               {/* o Δ do design vai sem símbolo de moeda; formatar o número direto evita
                   depender do espaço não-quebrável que o formato de moeda insere */}
               {delta === null
@@ -229,6 +233,7 @@ export default function DetalheDivergenciaPage() {
             valor={linha.valorSistema}
             campos={linha.camposSistema}
             origem="sistema"
+            diverge={!estaResolvida(linha.status)}
           />
         </Reveal>
 

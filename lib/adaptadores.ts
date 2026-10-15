@@ -82,14 +82,14 @@ function paraNumero(valor: string | null | undefined): number | null {
   return Number.isFinite(numero) ? numero : null;
 }
 
+const TIPOS: Record<string, string> = { credito: "Crédito", debito: "Débito" };
+
 function campos(lancamento: LancamentoAPI): CampoLancamento[] {
+  // o id do lançamento é do banco de dados do Ledgr e não diz nada a quem concilia: saiu na
+  // revisão de 15/10 (o suporte acha a linha pela data, valor e descrição)
   return [
     { rotulo: "Data do lançamento", valor: lancamento.data.split("-").reverse().join("/") },
-    { rotulo: "Tipo", valor: lancamento.tipo },
-    // ponytail: é o id do lançamento no banco de dados do Ledgr, não um código
-    // do banco. Os 8 primeiros caracteres bastam para achar a linha no suporte;
-    // inteiro, o UUID ocupava quatro linhas do cartão.
-    { rotulo: "Identificador", valor: lancamento.id.slice(0, 8) },
+    { rotulo: "Tipo", valor: TIPOS[lancamento.tipo] ?? lancamento.tipo },
   ];
 }
 
@@ -101,10 +101,13 @@ function campos(lancamento: LancamentoAPI): CampoLancamento[] {
  * além do próprio rótulo do status.
  */
 function explicar(item: ItemConciliacaoAPI): string | null {
-  if (!item.regra_aplicada) return null;
-  const score = paraNumero(item.score_confianca);
-  const confianca = score === null ? "" : ` Confiança de ${Math.round(score * 100)}%.`;
-  return `Conciliado pela regra "${item.regra_aplicada}".${confianca}`;
+  // o motor só pareia nos matches; as divergências esperam a explicação do backend
+  if (item.status === "match_exato") return "Bateu: mesmo valor e mesma data nos dois extratos.";
+  if (item.status !== "match_tolerancia" || !item.lancamento_banco || !item.lancamento_sistema) return null;
+  const banco = item.lancamento_banco.data;
+  const sistema = item.lancamento_sistema.data;
+  const dias = Math.round(Math.abs(Date.parse(banco) - Date.parse(sistema)) / 86_400_000);
+  return `Bateu com ${dias} ${dias === 1 ? "dia" : "dias"} de diferença (${paraDiaMes(banco)} no banco, ${paraDiaMes(sistema)} no sistema), dentro da tolerância da empresa.`;
 }
 
 /**

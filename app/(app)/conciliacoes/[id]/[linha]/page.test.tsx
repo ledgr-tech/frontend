@@ -122,6 +122,16 @@ describe("DetalheDivergenciaPage", () => {
     expect(screen.getByText("Δ 36,00")).toBeInTheDocument();
   });
 
+  it("shows a matched line in neutral colours, not in the divergence terracotta", async () => {
+    buscarConciliacao.mockReturnValue(comLc2Aceita(conciliacao));
+    render(<DetalheDivergenciaPage />);
+
+    expect(await screen.findByText("Δ 0,00")).toHaveAttribute("data-resolvida");
+    for (const valor of document.querySelectorAll(".det-valor")) {
+      expect(valor.getAttribute("style") ?? "").not.toContain("risco");
+    }
+  });
+
   it("marks each extrato card with the icon of its origin", async () => {
     buscarConciliacao.mockReturnValue(conciliacao);
     render(<DetalheDivergenciaPage />);
@@ -371,10 +381,10 @@ describe("DetalheDivergenciaPage", () => {
   });
 
   it("has nothing to explain on a line that matched", async () => {
-    doBackend({ status: "match_exato", explicacao: 'Conciliado pela regra "exato".' });
+    doBackend({ status: "match_exato", explicacao: "Bateu: mesmo valor e mesma data nos dois extratos." });
     render(<DetalheDivergenciaPage />);
 
-    expect(await screen.findByText('Conciliado pela regra "exato".')).toBeInTheDocument();
+    expect(await screen.findByText("Bateu: mesmo valor e mesma data nos dois extratos.")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Explicar/ })).not.toBeInTheDocument();
   });
 
