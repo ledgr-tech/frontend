@@ -7,8 +7,9 @@
   --color-accent: #b68235;
   --color-accent-2: #ac803e;
   --color-divider: color-mix(in srgb, #201f1d 16%, transparent);
-  /* erro de formulário: terracota que conversa com o dourado (contraste ~5:1 sobre o fundo claro) */
-  --color-erro: #a94f33;
+  /* erro de formulário: o passo 700 da terracota (o mesmo do texto do selo de risco, 5,1:1 sobre o
+     fundo claro). Era #a94f33, fora da rampa, entre o 600 e o 700 (dívida do guia v3). */
+  --color-erro: #8a4934;
   --ledgr-tinta: #f3f2f2;
 
   --color-neutral-100: #f8f4f4;
@@ -2970,13 +2971,16 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
    ícones — o estado vem de html[data-menu], que o script do <head> escreve antes
    da primeira pintura. Até 900px vira uma coluna, o menu deita e não recolhe. */
 .app-shell {
-  /* O dourado fica para quatro coisas: a ação principal, o foco do teclado, o
-     status "atenção" e o rótulo de cartão flutuante. Hover e seleção usam estes dois tons neutros — é o que o
+  /* O dourado fica para seis coisas (guia v3): a ação principal, o foco do teclado, o status
+     "atenção", o rótulo de cartão flutuante, a linha das rodadas e o envio dos extratos. Hover e
+     seleção usam estes dois tons neutros — é o que o
      mercado faz (Stripe, Linear, Mercury) e o que impede a cor da marca de virar
      papel de parede. Declarados aqui para herdar o --color-text do tema escuro. */
   --tinta-hover: color-mix(in srgb, var(--color-text) 6%, transparent);
   --tinta-ativa: color-mix(in srgb, var(--color-text) 9%, transparent);
   --texto-apagado: color-mix(in srgb, var(--color-text) 58%, transparent);
+  /* o erro acompanha a rampa: no tema escuro o 700 é espelhado e continua legível */
+  --color-erro: var(--color-risco-700);
   display: grid; grid-template-columns: minmax(180px, 248px) minmax(0, 1fr);
   min-height: 100vh; background: var(--color-bg);
   /* precisa declarar a cor, nao so herdar: o tema escuro redefine --color-text
@@ -3297,7 +3301,7 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
 /* as trocas da conta: aberto, o formulário desce para a linha de baixo, na largura toda */
 .cfg-linha-controle:has(.cfg-form) { flex-basis: 100%; }
 .cfg-acao { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 10px 14px; }
-.cfg-feito { font-size: 14px; color: var(--color-accent-700); }
+.cfg-feito { font-size: 14px; color: var(--color-ok-700); }
 .cfg-form { display: flex; flex-direction: column; gap: 12px; max-width: 380px; }
 .cfg-form-aviso { margin: 0; font-size: 13.5px; line-height: 1.55; color: var(--color-erro); }
 .cfg-form-botoes { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
@@ -3454,8 +3458,8 @@ html:has(.app-shell) { scrollbar-gutter: stable; }
   display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px;
   padding: 12px var(--recuo-lateral);
   border-bottom: 1px solid var(--color-divider);
-  background: color-mix(in srgb, var(--color-bg) 94%, transparent);
-  backdrop-filter: blur(6px);
+  /* opaca: o guia deixa de fora a superfície de vidro (o desfoque fica só atrás de janela modal) */
+  background: var(--color-bg);
 }
 .app-conteudo { padding: 0 var(--recuo-lateral); }
 
