@@ -117,7 +117,7 @@ function EstadoDoMes({
   resumo: ReturnType<typeof resumir>;
 }) {
   return (
-    <section className="vg-estado" aria-labelledby="vg-estado-titulo">
+    <section className="vg-estado" aria-labelledby="vg-estado-titulo" data-tutorial="estado-do-mes">
       <div className="vg-estado-topo">
         <h2 id="vg-estado-titulo" className="vg-estado-titulo">
           {`${formatarInteiro(resumo.batidos)} de ${plural(resumo.processados, "lançamento conciliado", "lançamentos conciliados")}`}
@@ -183,7 +183,7 @@ function Atalhos({
   const pronto = divergentes === 0 && naoLidas === 0;
 
   return (
-    <nav aria-labelledby="vg-atalhos-titulo">
+    <nav aria-labelledby="vg-atalhos-titulo" data-tutorial="atalhos">
       <h2 id="vg-atalhos-titulo" className="vg-secao-titulo">
         Atalhos
       </h2>

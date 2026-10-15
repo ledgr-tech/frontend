@@ -70,7 +70,7 @@ export function ListaDeTrabalho({
 
   return (
     <div className="extratos-corpo">
-      <FaixaFiltros>
+      <FaixaFiltros tutorial="filtros">
         <div className="pills segmentado" role="group" aria-label="Filtrar conciliações">
           {FILTROS.map((item) => (
             <button
@@ -93,7 +93,7 @@ export function ListaDeTrabalho({
       {visiveis.length === 0 ? (
         <p className="extratos-vazio">{FILTROS.find((item) => item.id === filtro)?.vazio}</p>
       ) : (
-        <table className="table conc-tabela">
+        <table className="table conc-tabela" data-tutorial="lista">
           <colgroup>
             <col />
             <col className="conc-col-progresso" />

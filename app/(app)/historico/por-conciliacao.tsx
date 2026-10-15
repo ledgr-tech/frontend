@@ -162,7 +162,7 @@ function Tabela({
   onAlternar: (extratoBancoId: string) => void;
 }) {
   return (
-    <table className="table hist-tabela">
+    <table className="table hist-tabela" data-tutorial="lista">
       <colgroup>
         <col className="hist-col-conciliacao" />
         <col className="hist-col-rodadas" />

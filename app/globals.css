@@ -4424,7 +4424,7 @@ html[data-tema="escuro"] .app-shell {
 }
 .tutorial-contagem {
   font-size: 12px;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--texto-apagado);
 }
@@ -4505,4 +4505,12 @@ html[data-tema="escuro"] .app-shell {
     bottom: 16px;
     width: auto;
   }
+}
+.app-ajuda {
+  font-family: var(--font-titulo);
+  font-size: 17px;
+  font-weight: 600;
+  width: 36px;
+  height: 36px;
+  flex: none;
 }

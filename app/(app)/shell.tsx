@@ -8,6 +8,7 @@ import { BarraSuperior } from "./barra-superior";
 import { EmpresaDaSessao } from "./cabecalho";
 import { TRACO_ICONE } from "./traco-icone";
 import { ProvedorDaConta } from "./conta";
+import { TutorialDaRota } from "./tutorial/tutorial-da-rota";
 import type { Preferencias } from "@/lib/preferencias";
 
 export function Shell({
@@ -38,6 +39,7 @@ export function Shell({
             <main className="app-principal">
               <BarraSuperior />
               <div className="app-conteudo">{children}</div>
+              <TutorialDaRota />
             </main>
           </div>
         </LucideProvider>

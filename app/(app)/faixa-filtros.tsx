@@ -8,7 +8,7 @@ import { useEffect, useRef, type ReactNode } from "react";
  * da faixa — e ela muda: em tela estreita os filtros quebram em duas linhas. A faixa se mede e
  * passa a altura ao bloco de cima (`--extratos-filtros-altura`); sem medição, vale a de uma linha.
  */
-export function FaixaFiltros({ children }: { children: ReactNode }) {
+export function FaixaFiltros({ children, tutorial }: { children: ReactNode; tutorial?: string }) {
   const faixa = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -23,7 +23,7 @@ export function FaixaFiltros({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <div ref={faixa} className="extratos-filtros">
+    <div ref={faixa} className="extratos-filtros" data-tutorial={tutorial}>
       {children}
     </div>
   );

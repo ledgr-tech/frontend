@@ -69,6 +69,16 @@ describe("BarraSuperior", () => {
     push.mockReset();
     window.localStorage.clear();
   });
+  it("o ? pede o tutorial da tela", async () => {
+    const ouvinte = vi.fn();
+    window.addEventListener("ledgr:abrir-tutorial", ouvinte);
+    const user = userEvent.setup();
+    await montar();
+    await user.click(screen.getByRole("button", { name: "Ver o tutorial desta tela" }));
+    expect(ouvinte).toHaveBeenCalledTimes(1);
+    window.removeEventListener("ledgr:abrir-tutorial", ouvinte);
+  });
+
 
   afterEach(() => {
     delete (window.navigator as unknown as Record<string, unknown>).platform;

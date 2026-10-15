@@ -226,7 +226,7 @@ export function DetalheDivergencia({ painel = false }: { painel?: boolean }) {
       />
 
       <div className="det-corpo">
-        <Reveal className="det-comparacao">
+        <Reveal className="det-comparacao" tutorial="lados">
           <CartaoExtrato
             titulo="Extrato do banco"
             marca="Fonte da verdade"
@@ -273,7 +273,7 @@ export function DetalheDivergencia({ painel = false }: { painel?: boolean }) {
         )}
 
         {linha.explicacao && (
-          <Reveal delay={0.08} className="det-causa">
+          <Reveal delay={0.08} className="det-causa" tutorial="causa">
             <InkHover style={{ flex: "none" }}>
               <Image
                 src="/mascotes/mascote-lupa.png"

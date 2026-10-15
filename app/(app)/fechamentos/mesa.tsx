@@ -148,7 +148,7 @@ export function MesaDeFechamento({
         <p className="extratos-vazio">{FILTROS.find((item) => item.id === filtro)?.vazio}</p>
       ) : (
         <div className="extratos-area fech-area">
-          <div className="grupos">
+          <div className="grupos" data-tutorial="meses">
             {anos.map(({ ano, meses: doAno }) => {
               const recolhivel = comTitulo && filtro === "todos" && ano !== anoCorrente;
               const expandido = !recolhivel || prontosAbertos.has(ano);
@@ -271,7 +271,7 @@ function Painel({ mes, podeFechar }: { mes: MesDeFechamento; podeFechar: boolean
   const fechado = estaFechado(mes) ? mes.fechamento : null;
 
   return (
-    <section className="extrato-painel fech-painel" aria-label="Mês selecionado">
+    <section className="extrato-painel fech-painel" aria-label="Mês selecionado" data-tutorial="painel">
       <h6 style={{ margin: 0 }}>Fechamento · {fechado ? "fechado" : mes.pronto ? "pronto para fechar" : "em aberto"}</h6>
       <div className="extrato-painel-topo">
         <h3 className="extrato-painel-nome">{mes.titulo}</h3>

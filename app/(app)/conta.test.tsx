@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { ProvedorDaConta, usePreferencias } from "./conta";
 
-const salvarPreferencias = vi.fn(async (_p: unknown) => true);
+const salvarPreferencias = vi.fn<(p: unknown) => Promise<boolean>>(async () => true);
 vi.mock("../(auth)/acoes", () => ({ salvarPreferencias: (p: unknown) => salvarPreferencias(p) }));
 
 function Sonda() {

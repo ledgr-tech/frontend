@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { caminhoDaConciliacao } from "@/lib/caminhos";
+import { abrirTutorial } from "@/lib/eventos";
 import { useTeclaDeAtalho } from "@/lib/plataforma";
 import { formatarMoeda, type LinhaComparacao } from "@/lib/mock-data";
 import { avisosDoMes, idsLidos, marcarLidos } from "./avisos";
@@ -196,6 +197,17 @@ export function BarraSuperior() {
           </div>
         )}
       </div>
+
+      {/* reabre o tutorial do mascote da tela aberta, mesmo marcado como Não mostrar de novo */}
+      <button
+        type="button"
+        className="app-icone-botao app-dica app-ajuda"
+        aria-label="Ver o tutorial desta tela"
+        data-dica="Tutorial desta tela"
+        onClick={abrirTutorial}
+      >
+        ?
+      </button>
 
       <div style={{ position: "relative", flex: "none" }} ref={caixaAvisos}>
         <button

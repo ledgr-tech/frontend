@@ -28,6 +28,7 @@ import { aplicarDensidade, densidadeAtual, type Densidade } from "./densidade";
 import { alternarMenu, menuRecolhido } from "./menu";
 import { aplicarTema, escolhaDeTema, seguirSistema, temaDoSistema, type EscolhaDeTema, type Tema } from "./tema";
 import { useTeclaDeAtalho } from "@/lib/plataforma";
+import { Tutorial } from "./tutorial/tutorial";
 
 /**
  * As configurações, numa janela no meio da tela (como a do Claude): seções à
@@ -769,6 +770,8 @@ export function Configuracoes({
                   {secao.nome}
                 </h2>
                 <Linhas linhas={secao.linhas} />
+                {/* dentro da janela, para ficar na camada de cima com ela */}
+                {secao.id === "conciliacao" && <Tutorial tela="configuracoes" />}
               </section>
             ) : achados.length === 0 ? (
               <p className="cfg-vazio">{`Nada encontrado para “${busca.trim()}”.`}</p>
@@ -789,11 +792,14 @@ export function Configuracoes({
   );
 }
 
+/** As linhas que o tutorial do mascote destaca nas Configurações (tutorial/roteiros.ts). */
+const ALVO_DA_LINHA: Record<string, string> = { "Tolerância de data": "tolerancia", "Fonte da verdade": "fonte-da-verdade" };
+
 function Linhas({ linhas }: { linhas: Linha[] }) {
   return (
     <ul className="cfg-linhas">
       {linhas.map((linha) => (
-        <li key={linha.titulo} className="cfg-linha">
+        <li key={linha.titulo} className="cfg-linha" data-tutorial={ALVO_DA_LINHA[linha.titulo]}>
           <div className="cfg-linha-texto">
             <span className="cfg-linha-titulo">{linha.titulo}</span>
             {linha.descricao && <span className="cfg-linha-descricao">{linha.descricao}</span>}

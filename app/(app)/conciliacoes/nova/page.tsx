@@ -203,6 +203,7 @@ export default function NovaConciliacaoPage() {
             <button
               type="button"
               className="btn nova-conciliar"
+              data-tutorial="conciliar"
               disabled={!podeConciliar || ocupado}
               aria-describedby={podeConciliar ? undefined : "nova-conciliacao-pendente"}
               onClick={() => void conciliarExtratos()}
@@ -237,6 +238,7 @@ export default function NovaConciliacaoPage() {
                 quando entraram os dois */}
             <div
               className="nova-encaixe"
+              data-tutorial="encaixe"
               data-banco={arquivoBanco ? "pronto" : "vazio"}
               data-sistema={arquivoSistema ? "pronto" : "vazio"}
             >
