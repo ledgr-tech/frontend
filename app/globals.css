@@ -2040,6 +2040,33 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
   .det-cronico-nota { flex-basis: 100%; text-align: left; }
 }
 
+/* ── Painel lateral (revisão de estilo de 15/10) ─────────────────────────────────
+   O detalhe da linha abre à direita, sobre a comparação, que continua legível atrás: o fundo
+   escurece menos que o de janela modal e não desfoca. Dentro dele o detalhe usa o mesmo arranjo
+   empilhado do celular (o painel tem a largura de um). */
+.painel-fundo { position: fixed; inset: 0; z-index: 90; background: rgb(12 11 10 / 0.32); }
+.painel-lateral {
+  position: fixed; top: 0; right: 0; bottom: 0; z-index: 91;
+  width: min(560px, 100vw); overflow-y: auto; overscroll-behavior: contain;
+  padding: 0 24px; background: var(--color-bg);
+  border-left: 1px solid var(--color-divider); box-shadow: var(--shadow-lg);
+  animation: painel-entrar 0.24s cubic-bezier(0.23, 1, 0.32, 1);
+}
+.painel-lateral:focus { outline: none; }
+@keyframes painel-entrar { from { transform: translateX(24px); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .painel-lateral { animation: none; } }
+.painel-nav { display: flex; align-items: center; gap: 4px; }
+.painel-nav-icone { padding: 6px 8px; }
+.painel-lateral .dash-cabecalho { padding: 18px 0; align-items: flex-start; flex-direction: column-reverse; }
+.painel-lateral .tela-titulo { font-size: 26px; }
+.painel-lateral .det-corpo { padding: 20px 0 40px; gap: 22px; }
+.painel-lateral .det-comparacao { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+.painel-lateral .det-delta { flex-direction: row; gap: 14px; }
+.painel-lateral .det-delta-linha { width: auto; height: 1px; flex: 1; }
+.painel-lateral .det-valor { font-size: clamp(24px, 15cqi, 34px); }
+.painel-lateral .det-causa-texto { text-align: left; }
+.painel-lateral .det-cronico-nota { flex-basis: 100%; text-align: left; }
+
 /* ── Regras ─────────────────────────────────────────────────────────────────── */
 .regras-corpo {
   padding: 32px 0 64px;
