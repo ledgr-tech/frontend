@@ -29,6 +29,8 @@ regras" aparecem numa tela de demonstração que não salva nada.
 - `cadastrar` (`app/(auth)/acoes.ts`) deixa de guardar banco e conta no
   navegador; o comentário que fala deles muda.
 - Nada muda no `POST /register`.
+- O cadastro termina na Visão geral (o roteiro começa lá). Sem plano, o app
+  leva antes para `/plano`.
 
 ## 2. Plano e teste de 14 dias
 
@@ -98,7 +100,7 @@ se marca sozinho e, clicado, leva à tela:
 | Passo | Marcado quando | Leva a |
 |---|---|---|
 | Escolher o plano | `situacao` ≠ `sem_plano` (ou campo ausente) | — |
-| Definir a tolerância de dias | `tolerancia_revisada` do backend, ou salva neste navegador | Configurações › Conciliação |
+| Definir a tolerância de dias | `atualizado_em` de `/empresa/configuracoes` preenchido (vem `null` antes da primeira mudança) | Configurações › Conciliação |
 | Enviar o extrato do banco | Existe extrato de banco (`GET /extratos`) | Nova conciliação |
 | Enviar o extrato do sistema e conciliar | Existe execução (`/execucoes`) | Nova conciliação |
 | Resolver as divergências | Alguma conciliação sem nada que `pedeDecisao` | A conciliação com mais pendências |
@@ -108,8 +110,7 @@ se marca sozinho e, clicado, leva à tela:
   (`preferencias.roteiro_dispensado`, mesma reserva no navegador).
 - Só no primeiro mês: depois do primeiro mês fechado ele não volta, mesmo que a
   pessoa tenha dispensado sem terminar.
-- Os dados já são lidos pela Visão geral (`carregarVisaoGeral`); a única leitura
-  nova é a tolerância revisada.
+- Leitura nova: `carregarRoteiro` (configurações, extratos, execuções e fechamentos).
 
 ## 5. Regras
 
@@ -133,8 +134,9 @@ Texto para mandar ao backend (o front não abre nem muda issue de lá):
 >    continua liberado. A cota por plano fica para quando os números saírem.
 > 3. **Preferências do usuário.** `GET /me` com `preferencias: { tutoriais_dispensados: string[],
 >    roteiro_dispensado: boolean }`, e uma rota para salvar (sugestão: `PATCH /me/preferencias`).
-> 4. **Tolerância revisada.** Saber se a empresa já salvou a tolerância alguma vez (por exemplo
->    `tolerancia_revisada: boolean` no `GET /empresa/configuracoes`).
+
+A tolerância revisada não precisa de nada novo: `atualizado_em` de
+`/empresa/configuracoes` já vem `null` antes da primeira mudança.
 
 ## Ordem de entrega
 
