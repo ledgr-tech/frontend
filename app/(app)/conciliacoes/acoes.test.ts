@@ -7,6 +7,7 @@ import {
   carregarFechamentos,
   carregarConciliacoes,
   carregarRegras,
+  carregarRelatorioDoFechamento,
   carregarVisaoGeral,
   conciliar,
   enviarExtrato,
@@ -1188,5 +1189,103 @@ describe("carregarConciliacaoEmRodadas", () => {
   it("recusa um id que não é de extrato sem chamar o backend", async () => {
     expect(await carregarConciliacaoEmRodadas("../etc")).toMatchObject({ ok: false, status: 404 });
     expect(chamarBackend).not.toHaveBeenCalled();
+  });
+});
+
+describe("carregarRelatorioDoFechamento", () => {
+  beforeEach(() => {
+    chamarBackend.mockReset();
+  });
+
+  const EU = { razao_social: "Telha Certa Ltda", cnpj: "12345678000195" };
+  const RESUMO = {
+    pares: [
+      {
+        extrato_banco_id: BANCO_RECENTE,
+        extrato_sistema_id: SISTEMA,
+        execucao_id: "e-2",
+        rodada: 2,
+        nome_arquivo_banco: "extrato-092026.ofx",
+        nome_arquivo_sistema: "razao-092026.csv",
+      },
+    ],
+    contagens: { total: 2, match_exato: 1, match_tolerancia: 0, divergente_valor: 1 },
+    justificadas: 1,
+    pendentes: 0,
+    linhas_nao_lidas: 0,
+    valor_em_aberto: "36.00",
+  };
+
+  function backend(fechamentos: unknown[]) {
+    chamarBackend.mockImplementation(async (caminho: string) => {
+      if (caminho === "/fechamentos?competencia=2026-09") return { itens: fechamentos };
+      if (caminho === "/me") return EU;
+      if (caminho.startsWith(`/conciliacoes/${BANCO_RECENTE}?`)) {
+        return { extrato_id: BANCO_RECENTE, total: 0, limit: 500, offset: 0, itens: [] };
+      }
+      throw new Error(`caminho inesperado: ${caminho}`);
+    });
+  }
+
+  it("lê o fechamento da competência, com o resumo congelado, a empresa e a conciliação de cada par", async () => {
+    backend([fechamento("2026-09", { resumo: RESUMO })]);
+
+    const resultado = await carregarRelatorioDoFechamento("2026-09");
+
+    expect(resultado).toMatchObject({
+      ok: true,
+      dados: {
+        fechamento: { competencia: "2026-09", estado: "fechado" },
+        resumo: { valorEmAberto: 36, pares: [{ extratoBancoId: BANCO_RECENTE, arquivoBanco: "extrato-092026.ofx" }] },
+        empresa: { razaoSocial: "Telha Certa Ltda", cnpj: "12345678000195" },
+        conciliacoes: [{ truncada: false }],
+      },
+    });
+    // a conciliação do par, e só dele: o mesmo extrato do banco pode ter tido outro sistema
+    expect(chamarBackend.mock.calls.map(([caminho]) => caminho)).toContainEqual(
+      expect.stringMatching(new RegExp(`^/conciliacoes/${BANCO_RECENTE}\?.*extrato_sistema_id=${SISTEMA}`)),
+    );
+  });
+
+  it("mês reaberto não tem relatório: o último registro é o que vale", async () => {
+    backend([fechamento("2026-09", { estado: "reaberto", resumo: RESUMO }), fechamento("2026-09", { resumo: RESUMO })]);
+
+    expect(await carregarRelatorioDoFechamento("2026-09")).toEqual({ ok: true, dados: { fechamento: null } });
+  });
+
+  it("mês nunca fechado também não", async () => {
+    backend([]);
+
+    expect(await carregarRelatorioDoFechamento("2026-09")).toEqual({ ok: true, dados: { fechamento: null } });
+  });
+
+  it("ignora registro de outra competência, se o backend mandar", async () => {
+    backend([fechamento("2026-08", { resumo: RESUMO })]);
+
+    expect(await carregarRelatorioDoFechamento("2026-09")).toEqual({ ok: true, dados: { fechamento: null } });
+  });
+
+  it("recusa competência fora do formato sem chamar o backend", async () => {
+    expect(await carregarRelatorioDoFechamento("2026-13")).toMatchObject({ ok: false, status: 404 });
+    expect(await carregarRelatorioDoFechamento("../me")).toMatchObject({ ok: false, status: 404 });
+    expect(chamarBackend).not.toHaveBeenCalled();
+  });
+
+  it("par que falhou fica null; a empresa que falhou fica vazia; o relatório sai assim mesmo", async () => {
+    chamarBackend.mockImplementation(async (caminho: string) => {
+      if (caminho.startsWith("/fechamentos")) return { itens: [fechamento("2026-09", { resumo: RESUMO })] };
+      throw new ErroBackend(502, "Bad Gateway");
+    });
+
+    expect(await carregarRelatorioDoFechamento("2026-09")).toMatchObject({
+      ok: true,
+      dados: { empresa: { razaoSocial: "", cnpj: "" }, conciliacoes: [null] },
+    });
+  });
+
+  it("sessão vencida vira 401, para a página mandar ao login", async () => {
+    chamarBackend.mockRejectedValue(new ErroBackend(401, "Not authenticated"));
+
+    expect(await carregarRelatorioDoFechamento("2026-09")).toMatchObject({ ok: false, status: 401 });
   });
 });

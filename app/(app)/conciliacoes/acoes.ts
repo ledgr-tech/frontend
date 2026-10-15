@@ -4,6 +4,7 @@ import {
   adaptarConciliacao,
   adaptarExecucao,
   adaptarFechamento,
+  adaptarResumoDoFechamento,
   extratosDasExecucoes,
   pareceUuid,
   type ArquivoConciliado,
@@ -11,6 +12,7 @@ import {
   type Fechamento,
   type FechamentoAPI,
   type ItemExtratoAPI,
+  type ResumoDoFechamento,
   type ListaConciliacaoAPI,
   type ListaExecucoesAPI,
   type ListaExtratosAPI,
@@ -23,6 +25,7 @@ import { conciliados, porConciliacao } from "../historico/execucoes";
 import { ordemDeTrabalho, pedemDecisao, type ConciliacaoNaLista } from "../dashboard/lista";
 import { estaResolvida, pedeDecisao } from "../dashboard/resumo";
 import { decisoesLigadas, situacaoDaLinha } from "./[id]/situacao";
+import type { ConciliacaoDoPar } from "../fechamentos/relatorio";
 
 /**
  * O fluxo real de conciliação, ponta a ponta, contra a API do backend:
@@ -854,4 +857,53 @@ export async function registrarDecisao(
     }
     return traduzir(erro);
   }
+}
+
+export type DadosDoRelatorio =
+  /** O mês não está fechado agora: nunca foi, ou foi reaberto. */
+  | { fechamento: null }
+  | {
+      fechamento: Fechamento;
+      resumo: ResumoDoFechamento;
+      /** De `GET /me`; vazios quando ele falhou, para o relatório não mostrar o nome de outra. */
+      empresa: { razaoSocial: string; cnpj: string };
+      /** A conciliação de cada par do resumo, na mesma ordem; null no par que não carregou. */
+      conciliacoes: ConciliacaoDoPar[];
+    };
+
+/**
+ * O que o relatório do fechamento (#117) precisa: o fechamento em vigor da competência, com o
+ * resumo congelado, a empresa e as linhas de cada par do resumo (justificativas e pendências).
+ * Sem rota nova no backend. Só o fechamento é obrigatório: sem a empresa ou sem um par, o
+ * relatório sai com o que tem e diz o que faltou.
+ */
+export async function carregarRelatorioDoFechamento(competencia: string): Promise<Resultado<DadosDoRelatorio>> {
+  // vem da URL e vai para a query do backend
+  if (!COMPETENCIA.test(competencia)) return { ok: false, status: 404, erro: "Competência não encontrada." };
+
+  let maisRecente: FechamentoAPI | undefined;
+  try {
+    const lista = await chamarBackend<{ itens: FechamentoAPI[] }>(`/fechamentos?competencia=${competencia}`);
+    // do mais recente para o mais antigo: o primeiro da competência é o que vale
+    maisRecente = lista.itens.find((item) => item.competencia === competencia);
+  } catch (erro) {
+    return traduzir(erro);
+  }
+  if (maisRecente?.estado !== "fechado" || !maisRecente.resumo) return { ok: true, dados: { fechamento: null } };
+
+  const resumo = adaptarResumoDoFechamento(maisRecente.resumo);
+  const [empresa, conciliacoes] = await Promise.all([
+    chamarBackend<{ razao_social: string; cnpj: string }>("/me").then(
+      (eu) => ({ razaoSocial: eu.razao_social?.trim() ?? "", cnpj: eu.cnpj ?? "" }),
+      () => ({ razaoSocial: "", cnpj: "" }),
+    ),
+    Promise.all(
+      resumo.pares.map(async (par) => {
+        const lida = await carregarConciliacao(par.extratoBancoId, par.extratoSistemaId);
+        return lida.ok ? lida.dados : null;
+      }),
+    ),
+  ]);
+
+  return { ok: true, dados: { fechamento: adaptarFechamento(maisRecente), resumo, empresa, conciliacoes } };
 }

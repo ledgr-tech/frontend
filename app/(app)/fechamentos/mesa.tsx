@@ -387,6 +387,26 @@ function Painel({ mes, podeFechar }: { mes: MesDeFechamento; podeFechar: boolean
 
         {/* não é condição para fechar: é o que se entrega depois, por isso não tem marca */}
         <Passo icone={<FileDown size={18} />} titulo="Relatório para o contador">
+          {/* o documento do mês (#117): só existe com o mês fechado, porque leva o resumo do fechamento */}
+          <div className="fech-relatorio">
+            <span className="fech-passo-texto">
+              {fechado ? "Resumo do mês, divergências e como cada uma foi resolvida." : "Disponível depois de fechar o mês."}
+            </span>
+            {fechado ? (
+              <a
+                href={`/fechamentos/${mes.chave}/relatorio?imprimir=1`}
+                target="_blank"
+                rel="noopener"
+                className="btn btn-secondary"
+              >
+                Baixar PDF
+              </a>
+            ) : (
+              <button type="button" className="btn btn-secondary" disabled>
+                Baixar PDF
+              </button>
+            )}
+          </div>
           {conciliadas.map((par) => (
             <div key={par.execucao.id} className="fech-relatorio">
               {conciliadas.length > 1 && <span className="fech-passo-texto">{par.execucao.arquivoBanco}</span>}

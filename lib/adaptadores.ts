@@ -327,9 +327,63 @@ export function adaptarExecucao(item: ExecucaoAPI): Execucao {
 }
 
 /**
+ * O resumo do mês gravado no momento do fechamento (backend #86): não muda depois, mesmo que o mês
+ * seja reaberto. `contagens` traz as sete categorias e o `total`; `valor_em_aberto` é decimal em texto.
+ */
+export type ResumoFechamentoAPI = {
+  pares: {
+    extrato_banco_id: string;
+    extrato_sistema_id: string;
+    execucao_id: string;
+    rodada: number;
+    nome_arquivo_banco: string;
+    nome_arquivo_sistema: string;
+  }[];
+  contagens: Record<StatusLinha | "total", number>;
+  justificadas: number;
+  pendentes: number;
+  linhas_nao_lidas: number;
+  valor_em_aberto: string;
+};
+
+export type ResumoDoFechamento = {
+  pares: {
+    extratoBancoId: string;
+    extratoSistemaId: string;
+    rodada: number;
+    arquivoBanco: string;
+    arquivoSistema: string;
+  }[];
+  contagens: Record<StatusLinha | "total", number>;
+  justificadas: number;
+  pendentes: number;
+  linhasNaoLidas: number;
+  /** Em reais. */
+  valorEmAberto: number;
+};
+
+export function adaptarResumoDoFechamento(resumo: ResumoFechamentoAPI): ResumoDoFechamento {
+  const valor = Number(resumo.valor_em_aberto);
+  return {
+    pares: resumo.pares.map((par) => ({
+      extratoBancoId: par.extrato_banco_id,
+      extratoSistemaId: par.extrato_sistema_id,
+      rodada: par.rodada,
+      arquivoBanco: par.nome_arquivo_banco,
+      arquivoSistema: par.nome_arquivo_sistema,
+    })),
+    contagens: resumo.contagens,
+    justificadas: resumo.justificadas,
+    pendentes: resumo.pendentes,
+    linhasNaoLidas: resumo.linhas_nao_lidas,
+    valorEmAberto: Number.isFinite(valor) ? valor : 0,
+  };
+}
+
+/**
  * Um fechamento de competência, como `/fechamentos` devolve (backend #86). Nada é apagado: reabrir
  * marca o registro como `reaberto`, e fechar de novo cria outro. O `resumo` congelado no fechamento
- * fica de fora: a tela mostra o mês como está agora.
+ * só o relatório do mês lê (`adaptarResumoDoFechamento`); a mesa mostra o mês como está agora.
  */
 export type FechamentoAPI = {
   id: string;
@@ -342,6 +396,7 @@ export type FechamentoAPI = {
   fechado_em: string;
   reaberto_por: string | null;
   reaberto_em: string | null;
+  resumo?: ResumoFechamentoAPI;
 };
 
 export type Fechamento = {

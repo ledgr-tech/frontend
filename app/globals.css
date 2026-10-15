@@ -4145,6 +4145,80 @@ html[data-tema="escuro"] .app-shell {
   font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--texto-apagado);
 }
 
+/* ── Relatório do fechamento (#117) ───────────────────────────────────────────
+   A folha que o contador arquiva: na tela, uma prévia em papel; na impressão
+   (de onde sai o PDF), só a folha, em A4, sempre em preto no branco, mesmo com
+   o tema escuro ligado. */
+.rel-pagina { padding: 24px 0 56px; display: flex; flex-direction: column; gap: 20px; }
+.rel-barra { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.rel-aviso { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; padding: 32px 0; max-width: 560px; }
+.rel-aviso h1 { margin: 0; font-size: 28px; font-weight: 400; }
+.rel-aviso p { margin: 0; color: var(--texto-apagado); line-height: 1.6; }
+.rel-folha {
+  max-width: 860px; width: 100%; margin: 0 auto; padding: 48px 56px;
+  background: var(--folha-banco); border: 1px solid var(--color-divider);
+  border-radius: var(--radius-md); box-shadow: var(--shadow-sm);
+  display: flex; flex-direction: column; gap: 32px;
+}
+.rel-topo {
+  display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; flex-wrap: wrap;
+  padding-bottom: 24px; border-bottom: 1px solid var(--color-divider);
+}
+.rel-topo h1 { margin: 4px 0 8px; font-size: 34px; font-weight: 400; }
+.rel-empresa { margin: 0; font-size: 16px; }
+.rel-cnpj { margin: 2px 0 0; font-size: 14px; color: var(--texto-apagado); font-variant-numeric: tabular-nums; }
+.rel-situacao { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; text-align: right; }
+.rel-situacao p { margin: 0; font-size: 13.5px; color: var(--texto-apagado); max-width: 280px; }
+.rel-secao { display: flex; flex-direction: column; gap: 12px; }
+.rel-secao h2 { margin: 0; font-size: 22px; font-weight: 400; overflow-wrap: anywhere; }
+.rel-secao h3 { margin: 8px 0 0; font-size: 14px; font-weight: 600; }
+.rel-numeros {
+  margin: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px;
+  background: var(--color-divider); border: 1px solid var(--color-divider); border-radius: 10px; overflow: hidden;
+}
+.rel-numeros > div { background: var(--folha-banco); padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; }
+.rel-numeros dt { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--texto-apagado); }
+.rel-numeros dd { margin: 0; font-size: 20px; font-variant-numeric: tabular-nums lining-nums; }
+.rel-tabela { font-size: 13px; }
+.rel-tabela td { vertical-align: top; }
+.rel-tabela tbody tr:hover { background: none; }
+.rel-categorias { max-width: 420px; }
+.rel-num { text-align: right !important; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.rel-data { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.rel-quem { display: block; margin-top: 2px; font-size: 12px; color: var(--texto-apagado); }
+.rel-nota { margin: 0; font-size: 13px; color: var(--texto-apagado); }
+.rel-rodape { padding-top: 16px; border-top: 1px solid var(--color-divider); font-size: 12px; color: var(--texto-apagado); }
+@media (max-width: 760px) {
+  .rel-folha { padding: 24px 18px; }
+  .rel-numeros { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .rel-situacao { align-items: flex-start; text-align: left; }
+  .rel-tabela { display: block; overflow-x: auto; }
+}
+
+@media print {
+  @page { size: A4; margin: 14mm 12mm; }
+  html:has(.rel-folha), html:has(.rel-folha) body,
+  .app-shell:has(.rel-folha), .app-shell:has(.rel-folha) :is(.app-principal, .app-conteudo) { background: #fff !important; }
+  /* só a folha: sem menu, sem barra de busca, sem o botão de imprimir */
+  .app-shell:has(.rel-folha) { display: block; }
+  .app-shell:has(.rel-folha) .app-aside,
+  .app-shell:has(.rel-folha) .app-principal > :not(.app-conteudo),
+  .rel-barra { display: none !important; }
+  .rel-pagina { padding: 0; }
+  .rel-folha {
+    --color-text: #1f1d1b; --folha-banco: #fff; --color-divider: #d6d1c9; --texto-apagado: #5f5a53;
+    max-width: none; padding: 0; border: 0; border-radius: 0; box-shadow: none; gap: 22px;
+    color: var(--color-text); background: #fff;
+    print-color-adjust: exact; -webkit-print-color-adjust: exact;
+  }
+  .rel-numeros { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .rel-tabela { display: table; font-size: 10.5pt; }
+  /* uma linha nunca se parte entre duas páginas, e o cabeçalho da tabela se repete em cada uma */
+  .rel-tabela thead { display: table-header-group; }
+  .rel-tabela tr, .rel-numeros, .fech-ressalva { break-inside: avoid; }
+  .rel-secao h2, .rel-secao h3 { break-after: avoid; }
+}
+
 /* ── Assinatura ───────────────────────────────────────────────────────────────
    Plano, planos e faturas (isAssinatura em Ledgr.dc.html). O resumo e a tabela
    reaproveitam os da dashboard. O plano atual se destaca em neutro, não em

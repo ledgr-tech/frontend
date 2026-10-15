@@ -315,6 +315,21 @@ describe("FechamentosPage", () => {
     expect(within(painel()).getByRole("button", { name: "Exportar CSV" })).toBeInTheDocument();
   });
 
+  it("offers the month's PDF report once the month is closed, in a new tab that prints by itself (#117)", async () => {
+    await renderizar(undefined, { mes: "2026-08" }, [fechamento("2026-08")]);
+
+    const pdf = within(painel()).getByRole("link", { name: "Baixar PDF" });
+    expect(pdf).toHaveAttribute("href", "/fechamentos/2026-08/relatorio?imprimir=1");
+    expect(pdf).toHaveAttribute("target", "_blank");
+  });
+
+  it("keeps the PDF report off while the month is open, and says why", async () => {
+    await renderizar(undefined, { mes: "2026-08" }, [fechamento("2026-08", { estado: "reaberto" })]);
+
+    expect(within(painel()).getByRole("button", { name: "Baixar PDF" })).toBeDisabled();
+    expect(within(painel()).getByText("Disponível depois de fechar o mês.")).toBeInTheDocument();
+  });
+
   it("guides the first upload when nothing was conciliated yet", async () => {
     await renderizar([]);
     expect(screen.getByRole("heading", { name: "Nenhum mês para fechar ainda." })).toBeInTheDocument();
