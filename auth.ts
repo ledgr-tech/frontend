@@ -6,7 +6,7 @@ import { DURACAO_SESSAO_SEGUNDOS, assinarToken, lerToken } from "@/lib/token";
 /**
  * Sessão via NextAuth (ADR-003) com o payload fechado em
  * `02-decisoes/05-contrato-jwt-empresa-id`: HS256, assinado com
- * NEXTAUTH_SECRET, claims `sub` / `empresa_id` / `email` / `iat` / `exp`.
+ * NEXTAUTH_SECRET, claims `sub` / `empresa_id` / `email` / `auth_time` / `iat` / `exp`.
  *
  * O ponto não óbvio: por padrão o NextAuth **criptografa** o cookie de sessão
  * (JWE A256CBC-HS512) em vez de só assinar. O backend decodifica com PyJWT e
@@ -30,8 +30,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   ],
   callbacks: {
     jwt({ token, user }) {
-      // `user` só existe no login; depois disso o claim já está no token.
-      if (user) token.empresaId = String((user as { empresaId?: string }).empresaId ?? "");
+      // `user` só existe no login; depois disso os claims já estão no token, e
+      // o `auth_time` passa adiante sem mudar em cada renovação (backend #75).
+      if (user) {
+        token.empresaId = String(user.empresaId ?? "");
+        token.authTime = user.authTime;
+      }
       return token;
     },
     session({ session, token }) {
@@ -46,13 +50,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         usuarioId: String(token.sub ?? ""),
         email: String(token.email ?? ""),
         empresaId: String(token.empresaId ?? ""),
+        authTime: typeof token.authTime === "number" ? token.authTime : undefined,
       });
     },
     async decode({ token }) {
       if (!token) return null;
       const claims = await lerToken(token);
       if (!claims) return null;
-      return { sub: claims.usuarioId, email: claims.email, empresaId: claims.empresaId };
+      return { sub: claims.usuarioId, email: claims.email, empresaId: claims.empresaId, authTime: claims.authTime };
     },
   },
 });

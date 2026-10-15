@@ -41,6 +41,33 @@ describe("autorizar", () => {
     expect(new Headers(init.headers).has("Authorization")).toBe(false);
   });
 
+  it("repassa o auth_time do backend, sem calcular nada no front (#75)", async () => {
+    fetch.mockResolvedValue(
+      Response.json({
+        id: "7a2b9c4d-1e3f-4a5b-8c6d-9e0f1a2b3c4d",
+        empresa_id: "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20",
+        nome: "Ana Souza",
+        email: "ana@telhacerta.com.br",
+        auth_time: 1791374400,
+      }),
+    );
+
+    expect(await autorizar("ana@telhacerta.com.br", "s3nha-forte")).toMatchObject({ authTime: 1791374400 });
+  });
+
+  it("backend sem auth_time na resposta: o usuário entra sem ele", async () => {
+    fetch.mockResolvedValue(
+      Response.json({
+        id: "7a2b9c4d-1e3f-4a5b-8c6d-9e0f1a2b3c4d",
+        empresa_id: "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20",
+        nome: "Ana Souza",
+        email: "ana@telhacerta.com.br",
+      }),
+    );
+
+    expect(await autorizar("ana@telhacerta.com.br", "s3nha-forte")).not.toHaveProperty("authTime");
+  });
+
   it("recusa com null no 401, que é igual para e-mail sem conta e senha errada", async () => {
     fetch.mockResolvedValue(Response.json({ detail: "E-mail ou senha inválidos." }, { status: 401 }));
 
