@@ -424,6 +424,16 @@ describe("ConciliacaoPage", () => {
       expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
       expect(screen.getByRole("link", { name: "Abrir detalhe" })).toBeInTheDocument();
     });
+
+    it("closes the dialog when the detail opens, since the detail opens in the panel over this page", async () => {
+      buscarConciliacao.mockReturnValue(conciliacaoMista);
+      const user = userEvent.setup();
+      render(<ConciliacaoPage />);
+
+      await user.click(await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" }));
+      await user.click(screen.getByRole("link", { name: "Abrir detalhe" }));
+      expect(screen.queryByRole("link", { name: "Abrir detalhe" })).not.toBeInTheDocument();
+    });
   });
 
   it("tags each row with the tone of its status, which colors the hover", async () => {

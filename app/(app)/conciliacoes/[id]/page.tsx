@@ -947,7 +947,8 @@ function EspiaDaLinha({
           <button type="button" className="btn btn-secondary" onClick={onFechar}>
             Fechar
           </button>
-          <Link href={detalhe} className="btn btn-primary">
+          {/* o detalhe abre no painel sobre esta página, que fica montada: a janela sai antes */}
+          <Link href={detalhe} className="btn btn-primary" onClick={onFechar}>
             Abrir detalhe
           </Link>
         </div>

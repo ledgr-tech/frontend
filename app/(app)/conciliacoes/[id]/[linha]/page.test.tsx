@@ -135,6 +135,22 @@ describe("DetalheDivergenciaPage", () => {
     }
   });
 
+  it("fills the side the backend leaves empty with the other line the engine nearly matched", async () => {
+    // como o backend manda um "Valor diverge": o banco numa linha, o sistema em outra
+    buscarConciliacao.mockReturnValue({
+      ...conciliacao,
+      linhas: [
+        { id: "lc-2", descricao: "Boleto Aço Norte Bobinas", data: "04/09", dataISO: "2026-09-04", valorBanco: 12640, valorSistema: null, status: "divergente_valor", explicacao: null, historico: [] },
+        { id: "lc-9", descricao: "Pagamento Aço Norte", data: "04/09", dataISO: "2026-09-04", dataSistema: "04/09", valorBanco: null, valorSistema: 12604, status: "divergente_valor", explicacao: null, historico: [] },
+      ],
+    });
+    render(<DetalheDivergenciaPage />);
+
+    expect(await screen.findByText("R$ 12.640,00")).toBeInTheDocument();
+    expect(screen.getByText("R$ 12.604,00")).toBeInTheDocument();
+    expect(screen.getByText("Δ 36,00")).toBeInTheDocument();
+  });
+
   it("marks each extrato card with the icon of its origin", async () => {
     buscarConciliacao.mockReturnValue(conciliacao);
     render(<DetalheDivergenciaPage />);

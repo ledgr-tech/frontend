@@ -19,6 +19,7 @@ import { FALHA_AO_CARREGAR, useConciliacao } from "../../usar-conciliacao";
 import { IconeOrigem, type Origem } from "../../../icone-origem";
 import { ExplicacaoDaDivergencia } from "./explicacao";
 import { historicoDaLinha } from "../situacao";
+import { parDoOutroLado } from "../par";
 import { Cabecalho } from "../../../cabecalho";
 import { InkHover, Reveal } from "@/app/reveal";
 import { SeloIa } from "../../../selo-ia";
@@ -160,10 +161,12 @@ export function DetalheDivergencia({ painel = false }: { painel?: boolean }) {
   // no painel, anda entre as que pedem decisão; de uma linha fora delas, a próxima é a primeira
   const anterior = posicao > 0 ? emAberto[posicao - 1] : null;
   const proxima = posicao === -1 ? (emAberto[0] ?? null) : (emAberto[posicao + 1] ?? null);
-  const delta =
-    linha.valorBanco !== null && linha.valorSistema !== null
-      ? Math.abs(linha.valorBanco - linha.valorSistema)
-      : null;
+  // "Valor diverge" e "Data diverge" chegam com um lado só: o outro é o par que o motor quase
+  // casou, achado como no balão da comparação (par.ts)
+  const par = parDoOutroLado(linha, conciliacao.linhas);
+  const valorBanco = par?.lado === "banco" ? par.valor : linha.valorBanco;
+  const valorSistema = par?.lado === "sistema" ? par.valor : linha.valorSistema;
+  const delta = valorBanco !== null && valorSistema !== null ? Math.abs(valorBanco - valorSistema) : null;
 
   // A decisão acontece aqui mesmo, sem navegar: assim a consequência fica visível
   // e o desfazer não precisa sobreviver a uma troca de tela.
@@ -228,7 +231,7 @@ export function DetalheDivergencia({ painel = false }: { painel?: boolean }) {
             titulo="Extrato do banco"
             marca="Fonte da verdade"
             marcaClasse="folha-etiqueta"
-            valor={linha.valorBanco}
+            valor={valorBanco}
             campos={linha.camposBanco}
             origem="banco"
             diverge={!estaResolvida(linha.status)}
@@ -248,7 +251,7 @@ export function DetalheDivergencia({ painel = false }: { painel?: boolean }) {
             titulo="Extrato do sistema"
             marca={estaResolvida(linha.status) ? "Conciliado" : justificada ? "Justificada" : "Precisa de ajuste"}
             marcaClasse={estaResolvida(linha.status) ? "selo selo-ok" : justificada ? "selo" : "selo selo-risco"}
-            valor={linha.valorSistema}
+            valor={valorSistema}
             campos={linha.camposSistema}
             origem="sistema"
             diverge={!estaResolvida(linha.status)}
