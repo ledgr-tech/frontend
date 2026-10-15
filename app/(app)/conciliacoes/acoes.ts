@@ -353,6 +353,8 @@ export async function listarExecucoes(pagina = 0): Promise<Resultado<ListaExecuc
 export type ListaDeConciliacoes = {
   /** Cada extrato do banco uma vez, na rodada que vale, na ordem da página. */
   conciliacoes: ConciliacaoNaLista[];
+  /** Os fechamentos da empresa, para a lista dizer que meses estão fechados; null se não vieram. */
+  fechamentos: Fechamento[] | null;
   /**
    * A primeira da fila que ainda pede decisão, contada pelas linhas dela: batem, pedem decisão,
    * justificadas e conferidas (null quando o backend não guarda decisões). Null sem nenhuma aberta.
@@ -376,7 +378,7 @@ export type ListaDeConciliacoes = {
  * ponytail: só a primeira página de `/execucoes`.
  */
 export async function carregarConciliacoes(): Promise<Resultado<ListaDeConciliacoes>> {
-  const lista = await listarExecucoes();
+  const [lista, fechamentos] = await Promise.all([listarExecucoes(), listarFechamentos()]);
   if (!lista.ok) return lista;
   const { execucoes, total } = lista.dados;
   const parcial = total > execucoes.length;
@@ -396,7 +398,7 @@ export async function carregarConciliacoes(): Promise<Resultado<ListaDeConciliac
 
   const [primeira] = ordemDeTrabalho(conciliacoes);
   if (!primeira || pedemDecisao(primeira) === 0) {
-    return { ok: true, dados: { conciliacoes, emAndamento: null, parcial } };
+    return { ok: true, dados: { conciliacoes, fechamentos, emAndamento: null, parcial } };
   }
   const aberta = await carregarConciliacao(primeira.extratoBancoId, primeira.extratoSistemaId);
   // sem as linhas, a lista ainda serve: o cartão conta pelo que `/execucoes` sabe
@@ -409,7 +411,7 @@ export async function carregarConciliacoes(): Promise<Resultado<ListaDeConciliac
         justificadas: primeira.execucao.justificadas,
         conferidas: null,
       };
-  return { ok: true, dados: { conciliacoes, emAndamento, parcial } };
+  return { ok: true, dados: { conciliacoes, fechamentos, emAndamento, parcial } };
 }
 
 /** O que já foi decidido na conciliação aberta, contado pelas linhas dela. */

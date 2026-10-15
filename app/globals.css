@@ -2326,54 +2326,77 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
   .hist-execucao-nome { padding-left: 0; }
 }
 
-/* ── Conciliações: a lista de trabalho ──────────────────────────────────────────
-   No topo, a que está em andamento, no cartão de destaque de sempre (o mascote apontando); embaixo,
-   uma linha por conciliação, compacta como a do histórico, com as mesmas peças: os arquivos, a
-   barra do resultado e o selo da situação. */
-.conc-corpo { padding: 30px 0 64px; display: flex; flex-direction: column; gap: 30px; }
-.conc-andamento-rotulo { margin: 0 0 10px; }
-.conc-andamento-mascote { width: 88px; height: auto; flex: none; }
-.conc-andamento .dash-destaque-corpo { gap: 7px; }
-.conc-andamento-rodada {
-  display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 13px;
-  font-variant-numeric: tabular-nums; color: color-mix(in srgb, var(--color-text) 62%, transparent);
+/* ── Conciliações: a lista de trabalho (revisão de estilo de 15/10) ─────────────
+   No topo, uma faixa de uma linha para continuar de onde parou (o cartão grande repetia a primeira
+   linha). Embaixo, a lista agrupada pelo mês do extrato, os abertos primeiro; em cada linha uma
+   situação só, o progresso e a última atividade, e a linha inteira abre a conciliação. */
+.conc-corpo { padding: 30px 0 64px; display: flex; flex-direction: column; gap: 28px; }
+.conc-continuar {
+  display: flex; align-items: center; gap: 18px; padding: 14px 18px;
+  border: 1px solid var(--color-divider); border-radius: var(--radius-md); background: var(--folha-banco);
 }
-.conc-andamento .hist-resultado-barra { flex: none; width: min(100%, 420px); height: 7px; }
-.conc-andamento-frase { font-variant-numeric: tabular-nums; }
+.conc-continuar-mascote { width: 48px; height: auto; flex: none; }
+.conc-continuar-corpo { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0; }
+.conc-continuar-titulo { font-size: 15.5px; font-weight: 600; overflow-wrap: anywhere; }
+.conc-continuar-arquivos { font-weight: 400; color: var(--texto-apagado); }
+.conc-continuar-texto { font-size: 13.5px; color: var(--texto-apagado); font-variant-numeric: tabular-nums; }
+.conc-continuar .btn { flex: none; }
 .conc-historico { font-size: 13.5px; }
 
 .conc-tabela { table-layout: fixed; }
-.conc-col-mes { width: 6.5rem; }
-.conc-col-rodada { width: 5.5rem; }
-.conc-col-match { width: 18%; }
-.conc-col-decisao { width: 9.5rem; }
-.conc-col-situacao { width: 9.5rem; }
-.conc-col-acao { width: 6.5rem; }
+.conc-col-progresso { width: 16rem; }
+.conc-col-situacao { width: 10.5rem; }
+.conc-col-atividade { width: 10rem; }
+.conc-col-abrir { width: 2.5rem; }
 .conc-tabela td { vertical-align: middle; }
-:is(.conc-c-mes, .conc-c-rodada, .conc-c-decisao) { font-variant-numeric: tabular-nums; white-space: nowrap; }
-.conc-linha[data-pendente] .conc-c-decisao { font-weight: 600; }
-.conc-linha:not([data-pendente]) .conc-c-decisao { color: color-mix(in srgb, var(--color-text) 55%, transparent); }
-.conc-c-acao { text-align: right; }
+/* o cabeçalho do mês: título na Newsreader, o estado ao lado e o fechamento à direita */
+.conc-mes th {
+  padding: 26px 8px 10px; text-transform: none; letter-spacing: 0; font-weight: 400;
+  color: var(--color-text); border-bottom: 1px solid var(--color-divider);
+}
+.conc-tabela tbody:first-of-type .conc-mes th { padding-top: 14px; }
+.conc-mes-conteudo { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
+.conc-mes-titulo { font-family: var(--font-titulo); font-size: 22px; }
+.conc-mes-meta { flex: 1; font-size: 13px; color: var(--texto-apagado); }
+.conc-mes-link {
+  font-size: 13.5px; font-weight: 500; color: var(--color-text); text-decoration: none;
+  border-bottom: 1px solid var(--color-divider);
+}
+.conc-mes-link:hover { border-bottom-color: var(--color-text); }
+/* a linha inteira é o link da conciliação: o ::after do nome cobre a linha */
+.conc-linha { position: relative; }
+.conc-linha:hover { background: var(--tinta-hover); }
+.conc-abrir { color: inherit; text-decoration: none; font-weight: 500; }
+.conc-abrir::after { content: ""; position: absolute; inset: 0; }
+.conc-abrir:focus-visible { outline: none; }
+.conc-linha:has(.conc-abrir:focus-visible) { outline: 2px solid var(--color-accent); outline-offset: -2px; }
+.conc-c-conciliacao { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.conc-progresso { display: flex; flex-direction: column; gap: 6px; }
+.conc-progresso .hist-resultado-barra { flex: none; width: 100%; }
+.conc-progresso-texto, .conc-atividade { font-size: 12.5px; color: var(--texto-apagado); font-variant-numeric: tabular-nums; }
+.conc-atividade { display: flex; flex-direction: column; gap: 2px; font-size: 13px; color: var(--color-text); }
+.conc-atividade-rodada { color: var(--texto-apagado); }
+.conc-c-abrir { text-align: right; color: var(--texto-apagado); }
 
 @media (max-width: 680px) {
-  /* como o histórico: um bloco por conciliação, com o nome e o botão em cima, a barra, e os números
-     com rótulo */
+  /* um bloco por conciliação: o nome e a situação em cima, o progresso e a atividade embaixo */
+  .conc-continuar { flex-wrap: wrap; }
   .conc-tabela thead {
     position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap;
   }
   .conc-tabela, .conc-tabela tbody { display: block; }
-  .conc-tabela tr {
-    display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) auto; gap: 8px 14px; align-items: end;
-    padding: 10px 0; border-bottom: 1px solid var(--color-divider);
+  .conc-tabela tr.conc-linha {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 14px; align-items: center;
+    padding: 12px 0; border-bottom: 1px solid var(--color-divider);
   }
+  .conc-tabela tr.conc-mes { display: block; }
   .conc-tabela :is(td, th) { display: block; padding: 0; border: 0; }
-  .conc-c-conciliacao { grid-column: 1 / 4; grid-row: 1; min-width: 0; }
-  .conc-c-acao { grid-column: 4; grid-row: 1; align-self: center; }
-  .conc-c-match { grid-column: 1 / -1; grid-row: 2; }
-  .conc-c-mes { grid-column: 1; grid-row: 3; }
-  .conc-c-rodada { grid-column: 2; grid-row: 3; }
-  .conc-c-decisao { grid-column: 3; grid-row: 3; }
-  .conc-c-situacao { grid-column: 4; grid-row: 3; text-align: right; }
+  .conc-mes th { padding: 22px 0 8px; border-bottom: 1px solid var(--color-divider); }
+  .conc-c-conciliacao { grid-column: 1; grid-row: 1; }
+  .conc-c-situacao { grid-column: 2; grid-row: 1; text-align: right; }
+  .conc-c-progresso { grid-column: 1 / -1; grid-row: 2; }
+  .conc-c-atividade { grid-column: 1 / -1; grid-row: 3; }
+  .conc-c-abrir { display: none; }
 }
 
 /* ── Tipografia do app ─────────────────────────────────────────────────────────

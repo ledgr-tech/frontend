@@ -260,11 +260,12 @@ describe("carregarConciliacoes", () => {
 
   it("sem execução nenhuma, não tem o que listar", async () => {
     backendCom([]);
+    // os fechamentos vêm junto (aqui o backend não os tem: a lista segue sem saber os meses fechados)
     expect(await carregarConciliacoes()).toEqual({
       ok: true,
-      dados: { conciliacoes: [], emAndamento: null, parcial: false },
+      dados: { conciliacoes: [], fechamentos: null, emAndamento: null, parcial: false },
     });
-    expect(chamarBackend).toHaveBeenCalledTimes(1);
+    expect(chamarBackend.mock.calls.map(([caminho]) => String(caminho).split("?")[0]).sort()).toEqual(["/execucoes", "/fechamentos"]);
   });
 
   it("lista cada extrato do banco uma vez, na rodada que vale, com o mês do extrato", async () => {
