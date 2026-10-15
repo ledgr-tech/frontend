@@ -5,6 +5,7 @@ import {
   cadastrar,
   entrar,
   entrarNaDemonstracao,
+  escolherPlano,
   excluirConta,
   pedirRecuperacaoSenha,
   contaDaSessao,
@@ -571,5 +572,35 @@ describe("redefinirSenha", () => {
     fetch.mockRejectedValue(new TypeError("fetch failed"));
 
     expect(await redefinirSenha("token", "s3nha-nova")).toEqual({ ok: false, erro: "falha" });
+  });
+});
+
+describe("escolherPlano", () => {
+  beforeEach(() => {
+    cookiesExistentes.set("authjs.session-token", "jwt-da-sessao");
+  });
+
+  it("começa o teste pelo POST /empresa/plano", async () => {
+    fetch.mockResolvedValue(Response.json({}));
+
+    await expect(escolherPlano("padrao")).resolves.toEqual({ ok: true });
+    const [url, init] = fetch.mock.calls[0];
+    expect(url).toBe("http://localhost:8000/empresa/plano");
+    expect(init.method).toBe("POST");
+    expect(JSON.parse(init.body)).toEqual({ plano: "padrao" });
+  });
+
+  it("sem a rota no backend, diz que ainda não está disponível", async () => {
+    fetch.mockResolvedValue(Response.json({ detail: "Not Found" }, { status: 404 }));
+
+    await expect(escolherPlano("essencial")).resolves.toEqual({
+      ok: false,
+      erro: "Ainda não disponível: o servidor do Ledgr ainda não tem esta função.",
+    });
+  });
+
+  it("recusa um plano que não existe sem chamar o backend", async () => {
+    await expect(escolherPlano("ouro" as "padrao")).resolves.toMatchObject({ ok: false });
+    expect(fetch).not.toHaveBeenCalled();
   });
 });

@@ -4536,3 +4536,125 @@ html[data-tema="escuro"] .app-shell {
 .roteiro-passo[data-agora] .roteiro-passo-titulo { font-weight: 600; }
 .roteiro-passo[data-feito] .roteiro-passo-titulo { color: var(--texto-apagado); text-decoration: line-through; }
 @media (max-width: 640px) { .roteiro { padding: 20px 18px; } .roteiro-passo { flex-wrap: wrap; } }
+
+/* ── Escolha do plano (primeiro uso, 15/10): teste de 14 dias ──────────────── */
+.plano-tela {
+  width: 100%;
+  max-width: 1080px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+.plano-cabeca {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 620px;
+}
+.plano-eyebrow {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-accent-700);
+}
+.plano-titulo {
+  margin: 0;
+  font-size: clamp(28px, 3.4vw, 38px);
+  font-weight: 400;
+  line-height: 1.12;
+  letter-spacing: -0.016em;
+}
+.plano-texto {
+  margin: 0;
+  font-size: 15.5px;
+  line-height: 1.65;
+  color: color-mix(in srgb, var(--color-text) 72%, transparent);
+}
+.plano-grade {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+.plano-cartao {
+  background: var(--color-bg);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 24px;
+}
+.plano-cartao[data-destaque] {
+  border-color: var(--color-text);
+}
+.plano-cartao-topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.plano-nome {
+  margin: 0;
+  font-family: var(--font-titulo);
+  font-size: 26px;
+  font-weight: 600;
+}
+.plano-para {
+  margin: 0;
+  min-height: 3.1em;
+  font-size: 14.5px;
+  line-height: 1.55;
+  color: var(--texto-apagado);
+}
+.plano-preco {
+  margin: 0;
+}
+.plano-preco span {
+  font-family: var(--font-titulo);
+  font-size: 34px;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+.plano-preco small,
+.plano-limite {
+  font-size: 14px;
+  color: var(--texto-apagado);
+}
+.plano-limite {
+  margin: 0;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--color-divider);
+}
+.plano-itens {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  font-size: 14.5px;
+}
+.plano-itens li {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+}
+.plano-itens svg {
+  color: var(--color-ok-700);
+  flex: none;
+  margin-top: 3px;
+}
+.plano-cartao .btn {
+  margin-top: auto;
+}
+.plano-erro {
+  margin: 0;
+  color: var(--color-erro);
+}
+.plano-volume {
+  margin: 0;
+  font-size: 14.5px;
+  color: var(--texto-apagado);
+}
+@media (max-width: 900px) {
+  .plano-grade {
+    grid-template-columns: 1fr;
+  }
+}

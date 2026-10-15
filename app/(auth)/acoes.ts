@@ -8,7 +8,7 @@ import { ErroBackend, chamarBackend } from "@/lib/backend";
 import { demoAberta } from "@/lib/demo";
 import { MuitasEntradas, type UsuarioAPI } from "@/lib/login";
 import { ehTela, type Preferencias } from "@/lib/preferencias";
-import { adaptarAssinatura, type Assinatura } from "@/lib/assinatura";
+import { adaptarAssinatura, type Assinatura, type PlanoId } from "@/lib/assinatura";
 
 /**
  * Abrir e fechar sessão, e criar conta. Vive numa Server Action porque o
@@ -389,4 +389,16 @@ export async function excluirConta(senhaAtual: string): Promise<ResultadoConta> 
   if (!conta.ok) return conta;
   await signOut({ redirectTo: "/" });
   return { ok: true };
+}
+
+/** Começa o teste de 14 dias no plano escolhido (`POST /empresa/plano`, spec 2026-10-15-primeiro-uso). */
+export async function escolherPlano(plano: PlanoId): Promise<{ ok: true } | { ok: false; erro: string }> {
+  // Server Action é endpoint público: só os três ids chegam ao backend
+  if (!["essencial", "padrao", "avancado"].includes(plano)) return { ok: false, erro: FALHA_CONTA };
+  try {
+    await chamarBackend("/empresa/plano", { method: "POST", corpo: { plano } });
+    return { ok: true };
+  } catch (erro) {
+    return { ok: false, erro: mensagemDaConta(erro) };
+  }
 }
