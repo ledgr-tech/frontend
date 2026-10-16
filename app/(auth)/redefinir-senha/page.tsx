@@ -6,7 +6,12 @@ import { redefinirSenha, type ResultadoRedefinicao } from "../acoes";
 import { CampoTexto } from "../_compartilhado/campo-texto";
 import { MensagemErro } from "../_compartilhado/mensagem-erro";
 import { MolduraAuth } from "../_compartilhado/moldura-auth";
-import { VALIDADE_LINK_MINUTOS } from "../_compartilhado/validacao";
+import {
+  SENHA_MAXIMA_BYTES,
+  SENHA_MINIMA,
+  VALIDADE_LINK_MINUTOS,
+  validarSenhaNova,
+} from "../_compartilhado/validacao";
 
 /**
  * Onde cai o link do e-mail de "Esqueci a senha" (#66, ADR-012 no ledgr-docs):
@@ -17,10 +22,6 @@ import { VALIDADE_LINK_MINUTOS } from "../_compartilhado/validacao";
  * Não abre sessão: quem redefiniu entra pelo login, com a senha que acabou de
  * criar. O backend manda um aviso de senha alterada para o e-mail da conta.
  */
-
-// as mesmas regras do cadastro e do backend: 8 caracteres a 72 bytes (o bcrypt corta em 72)
-const SENHA_MINIMA = 8;
-const SENHA_MAXIMA_BYTES = 72;
 
 type Etapa = "lendo" | "sem_token" | "formulario" | "enviando" | "concluido" | "link_invalido";
 type ErroRedefinicao = Extract<ResultadoRedefinicao, { ok: false }>["erro"];
@@ -50,15 +51,6 @@ const estiloTexto: CSSProperties = {
 
 const estiloBotao: CSSProperties = { fontSize: 15.5, padding: "clamp(10px, 1.6vh, 13px) 22px" };
 
-function validar(senha: string, confirmacao: string): Erros {
-  if (senha.length < SENHA_MINIMA) return { senha: `A senha precisa ter pelo menos ${SENHA_MINIMA} caracteres.` };
-  // acento conta 2 bytes
-  if (new TextEncoder().encode(senha).length > SENHA_MAXIMA_BYTES) {
-    return { senha: `Senha longa demais. Use no máximo ${SENHA_MAXIMA_BYTES} caracteres.` };
-  }
-  if (senha !== confirmacao) return { confirmacao: "A confirmação não bate com a senha nova." };
-  return {};
-}
 
 export default function RedefinirSenhaPage() {
   const [etapa, setEtapa] = useState<Etapa>("lendo");
@@ -83,7 +75,7 @@ export default function RedefinirSenhaPage() {
   async function enviar(evento: FormEvent<HTMLFormElement>) {
     evento.preventDefault();
     if (etapa !== "formulario") return;
-    const invalidos = validar(senha, confirmacao);
+    const invalidos: Erros = validarSenhaNova(senha, confirmacao);
     setErros(invalidos);
     if (Object.keys(invalidos).length > 0) return;
 

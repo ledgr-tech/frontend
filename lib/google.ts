@@ -31,6 +31,9 @@ export const MENSAGEM_GOOGLE: Record<ErroGoogle, string> = {
   falha: "Não foi possível entrar com o Google. Tente de novo em instantes.",
 };
 
+/** O que volta a `/aceitar-convite?google=<motivo>` quando o Google não aceitou o convite. */
+export type ErroConviteGoogle = "email_diferente" | "convite_invalido" | "email_cadastrado" | "muitas_tentativas" | "falha";
+
 export function ehErroGoogle(valor: unknown): valor is ErroGoogle {
   return typeof valor === "string" && Object.hasOwn(MENSAGEM_GOOGLE, valor);
 }
