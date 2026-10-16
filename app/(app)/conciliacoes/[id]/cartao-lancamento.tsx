@@ -139,8 +139,7 @@ export function ConteudoCartao({
 }
 
 /**
- * O lançamento no hover, como o da landing ("duas telas abertas, um dedo em
- * cada linha"). Centrado na coluna do status, com a seta apontando para ele: o
+ * O lançamento no hover, como o de "Por dentro", na landing. Centrado na coluna do status, com a seta apontando para ele: o
  * balão sai do veredito que ele explica. Fixo na tela, e não dentro da tabela,
  * porque a rolagem horizontal da tabela cortaria o cartão da primeira linha.
  */

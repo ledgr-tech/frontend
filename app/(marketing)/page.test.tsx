@@ -75,7 +75,7 @@ describe("LandingPage", () => {
     for (const titulo of titulos) expect(titulo).toHaveClass("titulo-misto");
     expect(titulos.map((titulo) => [titulo.textContent, [...titulo.querySelectorAll("em")].map((em) => em.textContent)])).toEqual([
       ["Pare de conciliar extrato à mão.", ["à mão."]],
-      ["Duas telas abertas, um dedo em cada linha.", ["cada linha."]],
+      ["Fechar o mês ainda é procurar linha por linha.", ["linha por linha."]],
       ["Três passos. A conferência linha por linha fica com o Ledgr.", ["com o Ledgr."]],
       ["Cada lançamento, do extrato ao seu sistema.", ["ao seu sistema."]],
       ["Sem trocar de sistema, e sem voltar para o manual.", ["e sem voltar para o manual."]],
@@ -289,7 +289,7 @@ describe("LandingPage", () => {
     it("opens with the closing of August as it is done by hand", () => {
       render(<LandingPage />);
       expect(
-        within(problema()).getByText("Assim é o fechamento de agosto à mão: o extrato do banco de um lado, o do sistema do outro."),
+        within(problema()).getByText("O extrato do banco de um lado, o do sistema do outro, e os olhos indo e voltando entre os dois até o saldo fechar."),
       ).toBeInTheDocument();
     });
 
@@ -321,18 +321,18 @@ describe("LandingPage", () => {
     it("names three pains, each led by its August number", () => {
       render(<LandingPage />);
       const dores = within(problema()).getAllByRole("listitem").filter((item) => item.classList.contains("mao-dor"));
-      expect(dores.map((dor) => dor.querySelector(".mao-dor-rotulo")!.textContent)).toEqual(["Tempo", "Erro humano", "O que passa"]);
+      expect(dores.map((dor) => dor.querySelector(".mao-dor-rotulo")!.textContent)).toEqual(["Tempo", "Erro humano", "O que escapa"]);
       // o número de cada dor sai dos próprios lançamentos: a escala do hero, a diferença do cartão, a tarifa
       expect(dores.map((dor) => dor.querySelector(".mao-dor-numero")!.textContent)).toEqual(["4.218 linhas", "R$ 0,05", "R$ 45,00"]);
       expect(dores.map((dor) => within(dor).getByRole("heading", { level: 3 }).textContent)).toEqual([
         "Horas que não voltam",
         "O olho cansa",
-        "Aparece depois",
+        "Só aparece no saldo",
       ]);
       expect(dores.map((dor) => dor.querySelector(".mao-dor-texto")!.textContent)).toEqual([
-        "Cada linha do banco é procurada no sistema, uma a uma, todo mês.",
+        "Cada linha do banco é procurada no sistema, uma por uma, e no mês seguinte começa tudo de novo.",
         "Depois da centésima linha, R$ 7.912,45 e R$ 7.912,40 parecem o mesmo número.",
-        "A tarifa que ninguém lançou só aparece quando o saldo não fecha.",
+        "A tarifa que o banco cobrou e ninguém lançou só aparece quando o saldo não fecha, e aí a procura recomeça.",
       ]);
     });
 
