@@ -31,6 +31,8 @@ export class ErroBackend extends Error {
     readonly detalhe: string,
     /** Num 422 do FastAPI, os campos do corpo que não passaram na validação. */
     readonly campos: string[] = [],
+    /** A `msg` de cada campo desse 422, para quando o campo sozinho não diz o motivo (o CNPJ na Receita, #119). */
+    readonly mensagens: Record<string, string> = {},
   ) {
     super(detalhe);
     this.name = "ErroBackend";
@@ -82,10 +84,15 @@ async function erroDaResposta(resposta: Response): Promise<ErroBackend> {
     // campos do corpo falharam (`loc: ["body", "<campo>"]`).
     if (typeof corpo?.detail === "string") return new ErroBackend(resposta.status, corpo.detail);
     if (Array.isArray(corpo?.detail)) {
-      const campos = corpo.detail
-        .filter((item: { loc?: unknown[] }) => item?.loc?.[0] === "body")
-        .map((item: { loc: unknown[] }) => String(item.loc[1]));
-      return new ErroBackend(resposta.status, `O servidor respondeu ${resposta.status}.`, campos);
+      const itens: { loc: unknown[]; msg?: unknown }[] = corpo.detail.filter(
+        (item: { loc?: unknown[] }) => item?.loc?.[0] === "body",
+      );
+      const campos = itens.map((item) => String(item.loc[1]));
+      const mensagens: Record<string, string> = {};
+      for (const item of itens) {
+        if (typeof item.msg === "string") mensagens[String(item.loc[1])] ??= item.msg;
+      }
+      return new ErroBackend(resposta.status, `O servidor respondeu ${resposta.status}.`, campos, mensagens);
     }
   } catch {
     // resposta sem corpo JSON (502 do proxy, timeout do Railway)

@@ -94,7 +94,17 @@ export type CampoCadastroAPI = keyof DadosCadastro;
 export type ResultadoCadastro =
   /** `entrou: false` é conta criada com a sessão que não abriu: falta só entrar. */
   | { ok: true; entrou: boolean }
-  | { ok: false; erro: "email_cadastrado" | "cnpj_cadastrado" | "muitas_tentativas" | "falha" }
+  | {
+      ok: false;
+      erro:
+        | "email_cadastrado"
+        | "cnpj_cadastrado"
+        /** A Receita não conhece o CNPJ, ou ele não está ativo (backend #119): o cadastro não segue com ele. */
+        | "cnpj_nao_encontrado"
+        | "cnpj_inativo"
+        | "muitas_tentativas"
+        | "falha";
+    }
   /** O backend recusou o formato: são os campos a corrigir, com o nome do formulário. */
   | { ok: false; erro: "invalido"; campos: CampoCadastroAPI[] };
 
@@ -105,6 +115,17 @@ const CAMPO_DO_FORMULARIO: Record<string, CampoCadastroAPI> = {
   razao_social: "razaoSocial",
   cnpj: "cnpj",
 };
+
+/**
+ * Os dois 422 do CNPJ na Receita (backend #119) chegam no mesmo formato da recusa de formato, com
+ * `loc` no `cnpj`: só a `msg` os separa. O texto é o contrato, como o dos 409.
+ */
+function recusaDaReceita(erro: ErroBackend): "cnpj_nao_encontrado" | "cnpj_inativo" | null {
+  const mensagem = erro.mensagens?.cnpj ?? "";
+  if (mensagem.startsWith("CNPJ não encontrado na Receita")) return "cnpj_nao_encontrado";
+  if (mensagem.startsWith("CNPJ não está ativo na Receita")) return "cnpj_inativo";
+  return null;
+}
 
 /**
  * Cria empresa e usuário numa chamada só (`POST /register`) e já entra com a
@@ -127,6 +148,10 @@ export async function cadastrar(dados: DadosCadastro): Promise<ResultadoCadastro
   } catch (erro) {
     if (!(erro instanceof ErroBackend)) return { ok: false, erro: "falha" };
     if (erro.status === 429) return { ok: false, erro: "muitas_tentativas" };
+    if (erro.status === 422) {
+      const receita = recusaDaReceita(erro);
+      if (receita) return { ok: false, erro: receita };
+    }
     if (erro.status === 422 && erro.campos.length > 0) {
       const campos = erro.campos.map((campo) => CAMPO_DO_FORMULARIO[campo]).filter(Boolean);
       if (campos.length > 0) return { ok: false, erro: "invalido", campos };
@@ -146,8 +171,24 @@ export async function cadastrar(dados: DadosCadastro): Promise<ResultadoCadastro
   return { ok: true, entrou: sessao.ok };
 }
 
+/**
+ * O CNPJ na Receita (backend #119). `nao_verificado` é "não deu para saber" (consulta desligada,
+ * BrasilAPI fora, CNPJ já cadastrado) e nunca bloqueia.
+ */
+export type SituacaoCnpj = "ativa" | "inativa" | "nao_encontrado" | "nao_verificado";
+
+const SITUACOES_CNPJ: readonly SituacaoCnpj[] = ["ativa", "inativa", "nao_encontrado", "nao_verificado"];
+
 export type ResultadoVerificacao =
-  | { ok: true; emailDisponivel: boolean; cnpjDisponivel: boolean }
+  | {
+      ok: true;
+      emailDisponivel: boolean;
+      cnpjDisponivel: boolean;
+      /** `nao_verificado` também quando o backend ainda não manda o campo (antes do #119). */
+      cnpjSituacao: SituacaoCnpj;
+      /** A razão social que a Receita devolveu; null sem ela. */
+      razaoSocialReceita: string | null;
+    }
   /** O backend recusou o formato, com as mesmas regras do `POST /register`. */
   | { ok: false; erro: "invalido"; campos: CampoCadastroAPI[] }
   /** Sem resposta que sirva (limite por minuto, backend sem a rota, fora do ar): o cadastro segue. */
@@ -164,11 +205,21 @@ export async function verificarCadastro(
   dados: Pick<DadosCadastro, "email" | "cnpj">,
 ): Promise<ResultadoVerificacao> {
   try {
-    const resposta = await chamarBackend<{ email_disponivel: boolean; cnpj_disponivel: boolean }>(
-      "/register/verificar",
-      { method: "POST", corpo: { email: dados.email, cnpj: dados.cnpj }, publica: true },
-    );
-    return { ok: true, emailDisponivel: resposta.email_disponivel, cnpjDisponivel: resposta.cnpj_disponivel };
+    const resposta = await chamarBackend<{
+      email_disponivel: boolean;
+      cnpj_disponivel: boolean;
+      cnpj_situacao?: unknown;
+      razao_social?: unknown;
+    }>("/register/verificar", { method: "POST", corpo: { email: dados.email, cnpj: dados.cnpj }, publica: true });
+    const situacao = SITUACOES_CNPJ.find((valor) => valor === resposta.cnpj_situacao) ?? "nao_verificado";
+    const razaoSocial = typeof resposta.razao_social === "string" ? resposta.razao_social.trim() : "";
+    return {
+      ok: true,
+      emailDisponivel: resposta.email_disponivel,
+      cnpjDisponivel: resposta.cnpj_disponivel,
+      cnpjSituacao: situacao,
+      razaoSocialReceita: razaoSocial || null,
+    };
   } catch (erro) {
     if (erro instanceof ErroBackend && erro.status === 422) {
       const campos = erro.campos.map((campo) => CAMPO_DO_FORMULARIO[campo]).filter(Boolean);

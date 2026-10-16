@@ -102,7 +102,11 @@ describe("chamarBackend", () => {
       (e: unknown) => e,
     );
 
-    expect(erro).toMatchObject({ status: 422, campos: ["cnpj", "razao_social"] });
+    expect(erro).toMatchObject({
+      status: 422,
+      campos: ["cnpj", "razao_social"],
+      mensagens: { cnpj: "Value error, CNPJ inválido", razao_social: "Field required" },
+    });
   });
 
   // sem prazo, um backend que aceita a conexão e não responde prende a tela até a hospedagem desistir

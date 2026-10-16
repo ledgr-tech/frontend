@@ -31,6 +31,22 @@ const JA_CADASTRADO = {
   cnpj_cadastrado: { campo: "cnpj", mensagem: "Esta empresa já tem cadastro no Ledgr." },
 } as const;
 
+// a Receita não conhece o CNPJ ou ele não está ativo (backend #119): o mesmo texto do 422 do /register
+const RECUSA_RECEITA = {
+  cnpj_nao_encontrado: "CNPJ não encontrado na Receita Federal.",
+  cnpj_inativo: "CNPJ não está ativo na Receita Federal.",
+} as const;
+
+/** Para comparar a razão social digitada com a da Receita sem contar caixa, acento, pontuação e espaços. */
+function normalizarRazao(texto: string): string {
+  return texto
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, " ")
+    .trim();
+}
+
 // o backend recusou o formato de um campo que passou na checagem da tela (o e-mail ele confere com mais
 // rigor; a senha, até 72 caracteres, só ele limita)
 const INVALIDO: Record<CampoCadastroAPI, string> = {
@@ -76,6 +92,11 @@ export default function CadastroPage() {
   const titulo = useRef<HTMLHeadingElement>(null);
   const primeiraRenderizacao = useRef(true);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // a razão social que a Receita devolveu, oferecida (nunca trocada sozinha) quando difere da digitada
+  const [sugestaoRazao, setSugestaoRazao] = useState<string | null>(null);
+  const botaoSugestao = useRef<HTMLButtonElement>(null);
+  // e-mail e CNPJ cuja conferência só parou para mostrar a sugestão: o próximo "Continuar" segue sem conferir de novo
+  const sugestaoOferecida = useRef<string | null>(null);
 
   const passo = PASSOS[indicePasso];
   const ultimoPasso = indicePasso === PASSOS.length - 1;
@@ -103,8 +124,17 @@ export default function CadastroPage() {
     if (erroGeral) botaoEnviar.current?.focus();
   }, [erroGeral]);
 
+  // com a sugestão nova na tela, o foco vai para ela, e o leitor de tela a anuncia
+  useEffect(() => {
+    if (sugestaoRazao) botaoSugestao.current?.focus();
+  }, [sugestaoRazao]);
+
   function alterar(id: string, valor: string) {
     setValores((atual) => ({ ...atual, [id]: valor }));
+    // a sugestão vale para o CNPJ conferido e some quando a pessoa digita a mesma razão social
+    if (sugestaoRazao && (id === "cnpj" || (id === "razaoSocial" && normalizarRazao(valor) === normalizarRazao(sugestaoRazao)))) {
+      setSugestaoRazao(null);
+    }
     if (erros[id]) setErros((atual) => ({ ...atual, [id]: undefined }));
   }
 
@@ -138,10 +168,14 @@ export default function CadastroPage() {
    * resposta, segue: o `/register` confere tudo de novo no fim.
    */
   async function livres(): Promise<boolean> {
+    const email = (valores.email ?? "").trim();
+    const cnpj = valores.cnpj ?? "";
+    const chave = `${email}|${cnpj}`;
+    if (sugestaoOferecida.current === chave) return true;
     setVerificando(true);
     let resultado: ResultadoVerificacao;
     try {
-      resultado = await verificarCadastro({ email: (valores.email ?? "").trim(), cnpj: valores.cnpj ?? "" });
+      resultado = await verificarCadastro({ email, cnpj });
     } catch {
       resultado = { ok: false, erro: "indisponivel" };
     }
@@ -150,9 +184,21 @@ export default function CadastroPage() {
       const novos: Erros = {};
       if (!resultado.emailDisponivel) novos.email = JA_CADASTRADO.email_cadastrado.mensagem;
       if (!resultado.cnpjDisponivel) novos.cnpj = JA_CADASTRADO.cnpj_cadastrado.mensagem;
-      if (Object.keys(novos).length === 0) return true;
-      voltarAoCampo(novos);
-      return false;
+      // "nao_verificado" (consulta desligada, BrasilAPI fora, CNPJ já cadastrado) não avisa nem bloqueia
+      else if (resultado.cnpjSituacao === "nao_encontrado") novos.cnpj = RECUSA_RECEITA.cnpj_nao_encontrado;
+      else if (resultado.cnpjSituacao === "inativa") novos.cnpj = RECUSA_RECEITA.cnpj_inativo;
+      if (Object.keys(novos).length > 0) {
+        voltarAoCampo(novos);
+        return false;
+      }
+      const daReceita = resultado.cnpjSituacao === "ativa" ? resultado.razaoSocialReceita : null;
+      if (daReceita && normalizarRazao(daReceita) !== normalizarRazao(valores.razaoSocial ?? "")) {
+        // para uma vez no passo para mostrar a sugestão; seguir com a razão digitada continua valendo
+        sugestaoOferecida.current = chave;
+        setSugestaoRazao(daReceita);
+        return false;
+      }
+      return true;
     }
     if (resultado.erro === "invalido") {
       voltarAoCampo(Object.fromEntries(resultado.campos.map((campo) => [campo, INVALIDO[campo]])));
@@ -184,6 +230,8 @@ export default function CadastroPage() {
     setConcluindo(false);
     if (resultado.erro === "invalido") {
       voltarAoCampo(Object.fromEntries(resultado.campos.map((campo) => [campo, INVALIDO[campo]])));
+    } else if (resultado.erro === "cnpj_nao_encontrado" || resultado.erro === "cnpj_inativo") {
+      voltarAoCampo({ cnpj: RECUSA_RECEITA[resultado.erro] });
     } else if (resultado.erro === "email_cadastrado" || resultado.erro === "cnpj_cadastrado") {
       const { campo, mensagem } = JA_CADASTRADO[resultado.erro];
       voltarAoCampo({ [campo]: mensagem });
@@ -228,6 +276,7 @@ export default function CadastroPage() {
       return;
     }
     if (passo.id === "empresa" && !(await livres())) return;
+    setSugestaoRazao(null);
 
     const proximoPasso = PASSOS[indicePasso + 1];
     // o e-mail do responsável começa igual ao e-mail de acesso
@@ -238,6 +287,7 @@ export default function CadastroPage() {
   }
 
   function voltar() {
+    setSugestaoRazao(null);
     setErros(errosForaDoPasso);
     setErroGeral(undefined);
     setIndicePasso((atual) => Math.max(0, atual - 1));
@@ -288,6 +338,7 @@ export default function CadastroPage() {
             const valor = valores[campo.id] ?? "";
             const ehSenha = campo.tipo === "password";
             const senhaAtendida = valor.length >= SENHA_MINIMA;
+            const comSugestao = campo.id === "razaoSocial" && sugestaoRazao !== null;
             return (
               <CampoTexto
                 key={campo.id}
@@ -305,7 +356,7 @@ export default function CadastroPage() {
                 maxLength={campo.maxLength}
                 erro={erros[campo.id]}
                 tremor={tremorDe(campo.id)}
-                ajudaId={ehSenha ? `${id}-requisito` : undefined}
+                ajudaId={ehSenha ? `${id}-requisito` : comSugestao ? `${id}-sugestao` : undefined}
                 valor={valor}
                 onValor={(novo) => alterar(campo.id, campo.formatar ? campo.formatar(novo) : novo)}
               >
@@ -317,6 +368,22 @@ export default function CadastroPage() {
                     </svg>
                     Pelo menos {SENHA_MINIMA} caracteres
                     {senhaAtendida && <span className="sr-only"> (atendido)</span>}
+                  </p>
+                )}
+                {comSugestao && (
+                  <p id={`${id}-sugestao`} className="campo-requisito" style={{ display: "block" }}>
+                    <button
+                      ref={botaoSugestao}
+                      type="button"
+                      className="link-animado"
+                      onClick={() => {
+                        alterar("razaoSocial", sugestaoRazao ?? "");
+                        setSugestaoRazao(null);
+                        campos.current.razaoSocial?.focus();
+                      }}
+                    >
+                      Usar a razão social da Receita: {sugestaoRazao}
+                    </button>
                   </p>
                 )}
               </CampoTexto>

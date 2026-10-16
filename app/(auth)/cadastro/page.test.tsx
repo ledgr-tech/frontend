@@ -19,7 +19,13 @@ vi.mock("../acoes", () => ({
   verificarCadastro: (...args: unknown[]) => verificarCadastro(...args),
 }));
 
-const LIVRES = { ok: true, emailDisponivel: true, cnpjDisponivel: true };
+const LIVRES = {
+  ok: true,
+  emailDisponivel: true,
+  cnpjDisponivel: true,
+  cnpjSituacao: "nao_verificado",
+  razaoSocialReceita: null,
+};
 
 type Usuario = ReturnType<typeof userEvent.setup>;
 
@@ -381,6 +387,19 @@ describe("CadastroPage", () => {
     expect(screen.getByLabelText("Razão social")).toHaveValue("Telha Certa Ltda");
   });
 
+  // backend #119: o /register confere na Receita de novo e devolve o 422 no CNPJ
+  it("goes back to the CNPJ when the Receita refuses it at the end", async () => {
+    cadastrar.mockResolvedValue({ ok: false, erro: "cnpj_inativo" });
+    const user = userEvent.setup();
+    render(<CadastroPage />);
+
+    await concluirCadastro(user);
+
+    const cnpj = await screen.findByLabelText("CNPJ");
+    expect(cnpj).toHaveAccessibleDescription("CNPJ não está ativo na Receita Federal.");
+    await waitFor(() => expect(cnpj).toHaveFocus());
+  });
+
   it("points out every field the server refused, starting from the earliest step", async () => {
     cadastrar.mockResolvedValue({ ok: false, erro: "invalido", campos: ["razaoSocial", "email"] });
     const user = userEvent.setup();
@@ -501,6 +520,97 @@ describe("CadastroPage", () => {
       await continuar(user);
 
       expect(screen.getByLabelText("CNPJ")).toHaveAccessibleDescription("Esta empresa já tem cadastro no Ledgr.");
+    });
+
+    it("blocks the CNPJ the Receita doesn't know", async () => {
+      verificarCadastro.mockResolvedValue({ ...LIVRES, cnpjSituacao: "nao_encontrado" });
+      const user = userEvent.setup();
+      render(<CadastroPage />);
+
+      await ateAEmpresa(user);
+
+      const cnpj = screen.getByLabelText("CNPJ");
+      await waitFor(() => expect(cnpj).toHaveAccessibleDescription("CNPJ não encontrado na Receita Federal."));
+      expect(cnpj).toHaveFocus();
+
+      // continuar de novo com o mesmo CNPJ confere outra vez e segue bloqueado
+      await continuar(user);
+      await waitFor(() => expect(verificarCadastro).toHaveBeenCalledTimes(2));
+      expect(screen.queryByLabelText("Sistema de gestão")).not.toBeInTheDocument();
+    });
+
+    it("blocks the CNPJ that is not active in the Receita", async () => {
+      verificarCadastro.mockResolvedValue({ ...LIVRES, cnpjSituacao: "inativa", razaoSocialReceita: "TELHA CERTA LTDA" });
+      const user = userEvent.setup();
+      render(<CadastroPage />);
+
+      await ateAEmpresa(user);
+
+      const cnpj = screen.getByLabelText("CNPJ");
+      await waitFor(() => expect(cnpj).toHaveAccessibleDescription("CNPJ não está ativo na Receita Federal."));
+      expect(screen.queryByRole("button", { name: /Usar a razão social/ })).not.toBeInTheDocument();
+    });
+
+    it("offers the Receita's company name without replacing it, once", async () => {
+      verificarCadastro.mockResolvedValue({
+        ...LIVRES,
+        cnpjSituacao: "ativa",
+        razaoSocialReceita: "TELHA CERTA COMERCIO DE TELHAS LTDA",
+      });
+      const user = userEvent.setup();
+      render(<CadastroPage />);
+
+      await ateAEmpresa(user);
+
+      const sugestao = await screen.findByRole("button", {
+        name: "Usar a razão social da Receita: TELHA CERTA COMERCIO DE TELHAS LTDA",
+      });
+      await waitFor(() => expect(sugestao).toHaveFocus());
+      expect(screen.getByLabelText("Razão social")).toHaveValue("Telha Certa Ltda");
+
+      // seguir com a razão digitada vale, sem conferir de novo
+      await continuar(user);
+      expect(await screen.findByLabelText("Sistema de gestão")).toBeInTheDocument();
+      expect(verificarCadastro).toHaveBeenCalledTimes(1);
+    });
+
+    it("fills the company name when the suggestion is accepted", async () => {
+      verificarCadastro.mockResolvedValue({
+        ...LIVRES,
+        cnpjSituacao: "ativa",
+        razaoSocialReceita: "TELHA CERTA COMERCIO DE TELHAS LTDA",
+      });
+      const user = userEvent.setup();
+      render(<CadastroPage />);
+
+      await ateAEmpresa(user);
+      await user.click(await screen.findByRole("button", { name: /Usar a razão social da Receita/ }));
+
+      const razao = screen.getByLabelText("Razão social");
+      expect(razao).toHaveValue("TELHA CERTA COMERCIO DE TELHAS LTDA");
+      expect(razao).toHaveFocus();
+      expect(screen.queryByRole("button", { name: /Usar a razão social/ })).not.toBeInTheDocument();
+    });
+
+    it("doesn't offer the Receita's name when only case and punctuation differ", async () => {
+      verificarCadastro.mockResolvedValue({ ...LIVRES, cnpjSituacao: "ativa", razaoSocialReceita: "TELHA CERTA LTDA." });
+      const user = userEvent.setup();
+      render(<CadastroPage />);
+
+      await ateAEmpresa(user);
+
+      expect(await screen.findByLabelText("Sistema de gestão")).toBeInTheDocument();
+    });
+
+    // a consulta desligada, a BrasilAPI fora ou um backend de antes do #119: nada muda
+    it("moves on with no warning when the Receita wasn't checked", async () => {
+      verificarCadastro.mockResolvedValue({ ok: true, emailDisponivel: true, cnpjDisponivel: true });
+      const user = userEvent.setup();
+      render(<CadastroPage />);
+
+      await ateAEmpresa(user);
+
+      expect(await screen.findByLabelText("Sistema de gestão")).toBeInTheDocument();
     });
 
     it("points out the field the server refused", async () => {
