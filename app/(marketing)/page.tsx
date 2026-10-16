@@ -124,7 +124,7 @@ const DORES: Dor[] = [
     numero: LANCAMENTOS_DE_AGOSTO.toLocaleString("pt-BR"),
     unidade: "linhas",
     titulo: "Horas que não voltam",
-    texto: "Cada linha do banco é procurada no sistema, uma a uma, todo mês.",
+    texto: "Cada linha do banco é procurada no sistema, uma por uma, e no mês seguinte começa tudo de novo.",
   },
   {
     rotulo: "Erro humano",
@@ -134,10 +134,10 @@ const DORES: Dor[] = [
     linha: CARTAO.desc,
   },
   {
-    rotulo: "O que passa",
+    rotulo: "O que escapa",
     numero: TARIFA_BANCO.valorBanco!,
-    titulo: "Aparece depois",
-    texto: "A tarifa que ninguém lançou só aparece quando o saldo não fecha.",
+    titulo: "Só aparece no saldo",
+    texto: "A tarifa que o banco cobrou e ninguém lançou só aparece quando o saldo não fecha, e aí a procura recomeça.",
     linha: TARIFA_BANCO.desc,
   },
 ];
@@ -451,7 +451,7 @@ export default function LandingPage() {
               <div>
                 <p className="eyebrow" style={{ margin: "0 0 12px", color: "var(--color-accent-700)" }}>Cap. II · O jeito de hoje</p>
                 <h2 className="titulo-misto" style={{ margin: 0, fontSize: "clamp(30px, 2.8vw, 46px)" }}>
-                  Duas telas abertas, um dedo em <em>cada linha.</em>
+                  Fechar o mês ainda é procurar <em>linha por linha.</em>
                 </h2>
               </div>
               <p
@@ -462,7 +462,7 @@ export default function LandingPage() {
                   lineHeight: 1.75,
                 }}
               >
-                Assim é o fechamento de agosto à mão: o extrato do banco de um lado, o do sistema do outro.
+                O extrato do banco de um lado, o do sistema do outro, e os olhos indo e voltando entre os dois até o saldo fechar.
               </p>
             </InkHover>
           </Reveal>
