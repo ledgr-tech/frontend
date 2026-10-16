@@ -4551,7 +4551,13 @@ html[data-tema="escuro"] .app-shell {
 .roteiro-passo-titulo { font-size: 15.5px; }
 .roteiro-passo[data-agora] .roteiro-passo-titulo { font-weight: 600; }
 .roteiro-passo[data-feito] .roteiro-passo-titulo { color: var(--texto-apagado); text-decoration: line-through; }
-@media (max-width: 640px) { .roteiro { padding: 20px 18px; } .roteiro-passo { flex-wrap: wrap; } }
+/* no celular o botão do passo desce para a linha de baixo, alinhado ao texto, que fica com a largura toda */
+@media (max-width: 640px) {
+  .roteiro { padding: 20px 18px; }
+  .roteiro-passo { flex-wrap: wrap; row-gap: 10px; }
+  .roteiro-texto { flex-basis: calc(100% - 40px); }
+  .roteiro-passo .btn { margin-left: 40px; }
+}
 
 /* ── Escolha do plano (primeiro uso, 15/10): teste de 14 dias ──────────────── */
 .plano-tela {

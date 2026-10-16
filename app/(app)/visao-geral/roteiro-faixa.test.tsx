@@ -16,9 +16,11 @@ const NADA = {
   conciliacaoComPendencia: null,
 };
 
-function montar(passos = passosDoRoteiro(NADA)) {
+const EM_TESTE = { situacao: "teste", plano: "essencial", testeTerminaEm: "2026-10-29" } as const;
+
+function montar(passos = passosDoRoteiro(NADA), assinatura: typeof EM_TESTE | null = EM_TESTE) {
   return render(
-    <ProvedorDaConta preferencias={null}>
+    <ProvedorDaConta preferencias={null} assinatura={assinatura}>
       <RoteiroFaixa passos={passos} alternativa={<p>sem roteiro</p>} />
     </ProvedorDaConta>,
   );
@@ -35,6 +37,14 @@ describe("RoteiroFaixa", () => {
     expect(screen.getAllByRole("listitem")).toHaveLength(6);
     expect(screen.getByRole("button", { name: "Definir agora" })).toBeInTheDocument();
     expect(screen.getByText("Escolher o plano").closest("li")).toHaveTextContent("(feito)");
+  });
+
+  it("sem a situação da conta no /me, fica sem o passo do plano: não há teste para dizer que começou", async () => {
+    montar(passosDoRoteiro(NADA), null);
+    expect(await screen.findByText("0 de 5")).toBeInTheDocument();
+    expect(screen.getAllByRole("listitem")).toHaveLength(5);
+    expect(screen.queryByText("Escolher o plano")).not.toBeInTheDocument();
+    expect(screen.getByText("Definir a tolerância de dias").closest("li")).toHaveTextContent(/^1/);
   });
 
   it("Definir agora abre as Configurações na seção Conciliação", async () => {

@@ -4,18 +4,20 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { ArrowRight, Check } from "lucide-react";
 import { abrirConfiguracoes } from "@/lib/eventos";
-import { usePreferencias } from "../conta";
+import { useAssinatura, usePreferencias } from "../conta";
 import type { PassoDoRoteiro } from "./roteiro";
 
 /** A faixa de primeiros passos no topo da Visão geral, até a pessoa terminar ou dispensar. */
 export function RoteiroFaixa({
-  passos,
+  passos: todos,
   alternativa,
 }: {
   passos: PassoDoRoteiro[];
   alternativa: ReactNode;
 }) {
   const { carregado, roteiroDispensado, dispensarRoteiro } = usePreferencias();
+  // sem a situação da conta no /me (o backend de hoje), não há teste começado para mostrar
+  const passos = useAssinatura() ? todos : todos.filter((passo) => passo.id !== "plano");
   if (!carregado) return null;
   if (roteiroDispensado) return <>{alternativa}</>;
   const feitos = passos.filter((p) => p.feito).length;

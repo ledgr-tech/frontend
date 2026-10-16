@@ -1,7 +1,8 @@
 /**
  * O roteiro de primeiros passos da Visão geral (spec 2026-10-15-primeiro-uso, parte 4). Cada passo
  * se marca pelo que já existe na conta. "Escolher o plano" está sempre feito: quem chega à Visão
- * geral sem plano é levado antes para /plano.
+ * geral sem plano é levado antes para /plano. A faixa só o mostra quando o `GET /me` manda a
+ * situação da conta; sem ela não há teste para dizer que começou.
  */
 export type DadosDoRoteiro = {
   /** A tolerância já foi salva alguma vez (`atualizado_em` de `/empresa/configuracoes`). */
