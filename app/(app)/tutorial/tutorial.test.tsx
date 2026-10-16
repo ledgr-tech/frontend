@@ -36,7 +36,8 @@ describe("Tutorial", () => {
   it("abre sozinho na primeira visita e destaca o alvo do passo", async () => {
     montar();
     expect(await screen.findByRole("dialog", { name: "Separe o banco do sistema." })).toBeInTheDocument();
-    expect(screen.getByText("filtros")).toHaveAttribute("data-tutorial-ativo");
+    // o destaque entra num efeito depois do cartão: numa máquina lenta, um instante depois
+    await waitFor(() => expect(screen.getByText("filtros")).toHaveAttribute("data-tutorial-ativo"));
   });
 
   it("só entram os passos do que está na tela, e o destaque anda com eles", async () => {
@@ -48,7 +49,7 @@ describe("Tutorial", () => {
     expect(screen.getByRole("dialog", { name: "Todos os arquivos que você enviou." })).toBeInTheDocument();
     expect(screen.getByText("Extratos · 2 de 2")).toBeInTheDocument();
     expect(screen.getByText("filtros")).not.toHaveAttribute("data-tutorial-ativo");
-    expect(screen.getByText("arquivos")).toHaveAttribute("data-tutorial-ativo");
+    await waitFor(() => expect(screen.getByText("arquivos")).toHaveAttribute("data-tutorial-ativo"));
   });
 
   it("no último passo, Entendi fecha", async () => {
@@ -122,7 +123,7 @@ describe("Tutorial", () => {
     montar(<span />);
     await screen.findByRole("dialog");
     const recorte = document.querySelector<HTMLElement>(".tutorial-destaque")!;
-    expect(recorte).toBeVisible();
+    await waitFor(() => expect(recorte).toBeVisible());
     expect(recorte.style).toMatchObject({ top: "92px", left: "32px", width: "316px", height: "66px" });
     await user.click(screen.getByRole("button", { name: "Pular" }));
     expect(document.querySelector(".tutorial-destaque")).toBeNull();
@@ -164,7 +165,7 @@ describe("Tutorial", () => {
 
   it("desmontar com o tutorial aberto tira o destaque", async () => {
     const { unmount } = montar();
-    await screen.findByRole("dialog");
+    await waitFor(() => expect(screen.getByText("filtros")).toHaveAttribute("data-tutorial-ativo"));
     unmount();
     expect(document.querySelector("[data-tutorial-ativo]")).toBeNull();
   });
