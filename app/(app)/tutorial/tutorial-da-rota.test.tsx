@@ -17,6 +17,9 @@ describe("TutorialDaRota", () => {
     caminho = "/extratos";
     render(
       <ProvedorDaConta preferencias={null}>
+        <div data-tutorial="filtros" />
+        <div data-tutorial="arquivos" />
+        <div data-tutorial="painel" />
         <TutorialDaRota atraso={0} espera={0} />
       </ProvedorDaConta>,
     );

@@ -13,6 +13,8 @@ const ATIVO = "data-tutorial-ativo";
 const VISTOS = "ledgr:tutoriais-vistos";
 /** De quanto em quanto tempo o cartão olha se a tela já mostrou o que ele vai destacar. */
 const INTERVALO_MS = 100;
+/** A folga entre o alvo e o traço do destaque, para o conteúdo do alvo não encostar nele. */
+const FOLGA = 8;
 
 function vistosNestaSessao(): string[] {
   try {
@@ -32,7 +34,27 @@ function marcarVisto(tela: TelaDoTutorial) {
   }
 }
 
-const alvoDe = (passo: PassoDoTutorial) => document.querySelector<HTMLElement>(`[data-tutorial="${passo.alvo}"]`);
+/** O elemento do passo, se está desenhado: no celular, a coluna Conferida da comparação some. */
+function alvoDe(passo: PassoDoTutorial): HTMLElement | null {
+  const alvo = document.querySelector<HTMLElement>(`[data-tutorial="${passo.alvo}"]`);
+  return alvo && (alvo.checkVisibility?.() ?? true) ? alvo : null;
+}
+
+/**
+ * Rola até o alvo ficar na parte livre da tela: abaixo da barra do topo, que gruda na rolagem, e
+ * acima do cartão quando ele ocupa a largura toda (celular). Com "nearest", o que já está à vista
+ * não se mexe; o alvo mais alto que o espaço livre fica com o começo à vista.
+ */
+function trazerParaAVista(alvo: HTMLElement, cartao: HTMLElement | null) {
+  const naJanela = alvo.closest("dialog") !== null;
+  const topo = naJanela ? 0 : (document.querySelector(".app-topo")?.getBoundingClientRect().bottom ?? 0);
+  const caixa = cartao?.getBoundingClientRect();
+  const embaixo = caixa && caixa.width > window.innerWidth / 2 + 120 ? window.innerHeight - caixa.top : 0;
+  alvo.style.scrollMarginTop = `${Math.max(0, topo) + 2 * FOLGA}px`;
+  alvo.style.scrollMarginBottom = `${Math.max(0, embaixo) + 2 * FOLGA}px`;
+  const suave = !window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  alvo.scrollIntoView?.({ block: "nearest", behavior: suave ? "smooth" : "auto" });
+}
 
 /**
  * O tutorial de uma tela (spec 2026-10-15-primeiro-uso, parte 3): um cartão do mascote no canto,
@@ -51,18 +73,21 @@ export function Tutorial({
 }) {
   const { carregado, tutorialDispensado, dispensarTutorial } = usePreferencias();
   const { nome, mascote, passos: todos } = TUTORIAIS[tela];
-  // os passos desta abertura: os opcionais só entram se o alvo deles está na tela
+  // os passos desta abertura: só os do que está na tela
   const [passos, setPassos] = useState<PassoDoTutorial[]>(todos);
   const [aberto, setAberto] = useState(false);
   const [indice, setIndice] = useState(0);
   const [naoMostrar, setNaoMostrar] = useState(false);
   const cartao = useRef<HTMLDivElement>(null);
+  const destaque = useRef<HTMLDivElement>(null);
   const focoAnterior = useRef<HTMLElement | null>(null);
   const titulo = useId();
 
   function abrir() {
     focoAnterior.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    setPassos(todos.filter((passo) => !passo.opcional || alvoDe(passo)));
+    // numa tela vazia, só o "?" abre: aí vão todos os passos, sem destaque
+    const naTela = todos.filter((passo) => alvoDe(passo));
+    setPassos(naTela.length > 0 ? naTela : todos);
     setIndice(0);
     setNaoMostrar(false);
     setAberto(true);
@@ -80,19 +105,20 @@ export function Tutorial({
     acoes.current = { abrir, fechar };
   });
 
-  // primeira visita na sessão: abre depois que a tela mostrou algum alvo (ou desistiu de esperar)
+  // primeira visita na sessão: abre quando a tela mostra o que o tutorial explica. Numa tela vazia
+  // (a conta nova, sem extratos) não abre nem conta como vista: espera uma visita com conteúdo
   const dispensado = tutorialDispensado(tela);
   useEffect(() => {
     if (!carregado || dispensado || vistosNestaSessao().includes(tela)) return;
     const inicio = Date.now();
     let timer: ReturnType<typeof setTimeout>;
     const tentar = () => {
-      if (todos.some((passo) => alvoDe(passo)) || Date.now() - inicio >= espera) {
+      if (todos.some((passo) => alvoDe(passo))) {
         marcarVisto(tela);
         acoes.current.abrir();
-        return;
+      } else if (Date.now() - inicio < espera) {
+        timer = setTimeout(tentar, INTERVALO_MS);
       }
-      timer = setTimeout(tentar, INTERVALO_MS);
     };
     timer = setTimeout(tentar, atraso);
     return () => clearTimeout(timer);
@@ -119,32 +145,45 @@ export function Tutorial({
   }, [aberto]);
 
   // destaque do passo atual: espera o alvo aparecer (a tela pode ainda estar carregando) e sai ao
-  // trocar de passo, fechar ou desmontar
+  // trocar de passo, fechar ou desmontar. O recorte é uma camada fixa por cima da tela inteira (o
+  // menu escurece junto) que segue o alvo quadro a quadro, enquanto a página rola ou muda de tamanho
   useEffect(() => {
     if (!aberto) return;
     const passo = passos[indice];
+    const recorte = destaque.current;
     const inicio = Date.now();
     let alvo: HTMLElement | null = null;
-    let estatico = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
+    let quadro = 0;
+    const seguir = () => {
+      if (!alvo || !recorte) return;
+      const { top, left, width, height } = alvo.getBoundingClientRect();
+      recorte.hidden = width === 0 && height === 0;
+      recorte.style.top = `${top - FOLGA}px`;
+      recorte.style.left = `${left - FOLGA}px`;
+      recorte.style.width = `${width + 2 * FOLGA}px`;
+      recorte.style.height = `${height + 2 * FOLGA}px`;
+      quadro = requestAnimationFrame(seguir);
+    };
     const destacar = () => {
       alvo = alvoDe(passo);
       if (!alvo) {
         if (Date.now() - inicio < espera) timer = setTimeout(destacar, INTERVALO_MS);
         return;
       }
-      estatico = getComputedStyle(alvo).position === "static";
-      if (estatico) alvo.style.position = "relative";
       alvo.setAttribute(ATIVO, "");
-      const suave = !window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-      alvo.scrollIntoView?.({ block: "center", behavior: suave ? "smooth" : "auto" });
+      trazerParaAVista(alvo, cartao.current);
+      seguir();
     };
     destacar();
     return () => {
       clearTimeout(timer);
+      cancelAnimationFrame(quadro);
+      if (recorte) recorte.hidden = true;
       if (!alvo) return;
       alvo.removeAttribute(ATIVO);
-      if (estatico) alvo.style.position = "";
+      alvo.style.scrollMarginTop = "";
+      alvo.style.scrollMarginBottom = "";
     };
   }, [aberto, indice, passos, espera]);
 
@@ -157,48 +196,51 @@ export function Tutorial({
   const ultimo = indice === passos.length - 1;
 
   return (
-    <div
-      ref={cartao}
-      role="dialog"
-      aria-labelledby={titulo}
-      tabIndex={-1}
-      className="card tutorial"
-      onKeyDown={(evento) => {
-        if (evento.key !== "Escape") return;
-        // dentro da janela de Configurações, o Esc fecha só o tutorial, não a janela
-        evento.preventDefault();
-        evento.stopPropagation();
-        fechar();
-      }}
-    >
-      <div className="tutorial-topo">
-        <Image src={mascote} alt="" width={52} height={52} className="tutorial-mascote" />
-        <span className="tutorial-contagem">{`${nome} · ${indice + 1} de ${passos.length}`}</span>
-        <button type="button" className="app-icone-botao" aria-label="Fechar o tutorial" onClick={fechar}>
-          <X size={16} />
-        </button>
+    <>
+      <div ref={destaque} className="tutorial-destaque" aria-hidden="true" hidden />
+      <div
+        ref={cartao}
+        role="dialog"
+        aria-labelledby={titulo}
+        tabIndex={-1}
+        className="card tutorial"
+        onKeyDown={(evento) => {
+          if (evento.key !== "Escape") return;
+          // dentro da janela de Configurações, o Esc fecha só o tutorial, não a janela
+          evento.preventDefault();
+          evento.stopPropagation();
+          fechar();
+        }}
+      >
+        <div className="tutorial-topo">
+          <Image src={mascote} alt="" width={52} height={52} className="tutorial-mascote" />
+          <span className="tutorial-contagem">{`${nome} · ${indice + 1} de ${passos.length}`}</span>
+          <button type="button" className="app-icone-botao" aria-label="Fechar o tutorial" onClick={fechar}>
+            <X size={16} />
+          </button>
+        </div>
+        <h2 id={titulo} className="tutorial-titulo">
+          {passo.titulo}
+        </h2>
+        <p className="tutorial-texto">{passo.texto}</p>
+        <label className="tutorial-caixa">
+          <input type="checkbox" checked={naoMostrar} onChange={(evento) => setNaoMostrar(evento.target.checked)} />
+          Não mostrar de novo
+        </label>
+        <div className="tutorial-acoes">
+          <span className="tutorial-pontos" aria-hidden="true">
+            {passos.map((item, i) => (
+              <span key={item.alvo} data-atual={i === indice || undefined} />
+            ))}
+          </span>
+          <button type="button" className="btn btn-ghost" onClick={fechar}>
+            Pular
+          </button>
+          <button type="button" className="btn btn-primary" onClick={() => (ultimo ? fechar() : setIndice(indice + 1))}>
+            {ultimo ? "Entendi" : "Próximo"}
+          </button>
+        </div>
       </div>
-      <h2 id={titulo} className="tutorial-titulo">
-        {passo.titulo}
-      </h2>
-      <p className="tutorial-texto">{passo.texto}</p>
-      <label className="tutorial-caixa">
-        <input type="checkbox" checked={naoMostrar} onChange={(evento) => setNaoMostrar(evento.target.checked)} />
-        Não mostrar de novo
-      </label>
-      <div className="tutorial-acoes">
-        <span className="tutorial-pontos" aria-hidden="true">
-          {passos.map((item, i) => (
-            <span key={item.alvo} data-atual={i === indice || undefined} />
-          ))}
-        </span>
-        <button type="button" className="btn btn-ghost" onClick={fechar}>
-          Pular
-        </button>
-        <button type="button" className="btn btn-primary" onClick={() => (ultimo ? fechar() : setIndice(indice + 1))}>
-          {ultimo ? "Entendi" : "Próximo"}
-        </button>
-      </div>
-    </div>
+    </>
   );
 }

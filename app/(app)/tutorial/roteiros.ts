@@ -2,15 +2,14 @@ import type { TelaDoTutorial } from "@/lib/preferencias";
 
 /**
  * O tutorial de cada tela, apresentado pelo mascote (spec 2026-10-15-primeiro-uso, parte 3).
- * `alvo` é o `data-tutorial` do elemento que o passo destaca; sem ele na tela, o passo aparece
- * sem destaque. Rascunho: o texto final passa pela revisão dos sócios.
+ * `alvo` é o `data-tutorial` do elemento que o passo destaca; o passo só entra no tutorial quando
+ * o alvo está na tela (o roteiro dispensado, a conta sem conciliação). Numa tela vazia, o "?" mostra
+ * todos, sem destaque. Rascunho: o texto final passa pela revisão dos sócios.
  */
 export type PassoDoTutorial = {
   alvo: string;
   titulo: string;
   texto: string;
-  /** Some do tutorial quando o alvo não está na tela (o roteiro, depois de dispensado ou do primeiro mês). */
-  opcional?: boolean;
 };
 export type TutorialDaTela = { nome: string; mascote: string; passos: PassoDoTutorial[] };
 
@@ -19,7 +18,7 @@ export const TUTORIAIS: Record<TelaDoTutorial, TutorialDaTela> = {
     nome: "Visão geral",
     mascote: "/mascotes/mascote-apresenta.png",
     passos: [
-      { alvo: "roteiro", opcional: true, titulo: "Este é o seu roteiro.", texto: "Cada passo se marca sozinho quando você faz. Comece pela tolerância de dias: ela diz quantos dias de diferença entre o banco e o sistema ainda contam como bateu." },
+      { alvo: "roteiro", titulo: "Este é o seu roteiro.", texto: "Cada passo se marca sozinho quando você faz. Comece pela tolerância de dias: ela diz quantos dias de diferença entre o banco e o sistema ainda contam como bateu." },
       { alvo: "estado-do-mes", titulo: "O mês em um número.", texto: "Quantos lançamentos do mês aberto já bateram e quanto ainda está em aberto." },
       { alvo: "atalhos", titulo: "Atalhos para o resto.", texto: "Extratos, conciliações, fechamentos e histórico, com o que mudou desde a última vez." },
     ],
@@ -51,7 +50,7 @@ export const TUTORIAIS: Record<TelaDoTutorial, TutorialDaTela> = {
     ],
   },
   divergencia: {
-    nome: "Detalhe da divergência",
+    nome: "Divergência",
     mascote: "/mascotes/mascote-lupa.png",
     passos: [
       { alvo: "lados", titulo: "Banco de um lado, sistema do outro.", texto: "A diferença aparece entre os dois. É o sistema que diverge do banco, nunca o contrário." },

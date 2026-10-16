@@ -776,8 +776,9 @@ export function Configuracoes({
                   {secao.nome}
                 </h2>
                 <Linhas linhas={secao.linhas} />
-                {/* dentro da janela, para ficar na camada de cima com ela */}
-                {secao.id === "conciliacao" && <Tutorial tela="configuracoes" />}
+                {/* dentro da janela, para ficar na camada de cima com ela; só com ela aberta, ou o "?"
+                    da barra do topo abriria este também, escondido na janela fechada */}
+                {aberta && secao.id === "conciliacao" && <Tutorial tela="configuracoes" />}
               </section>
             ) : achados.length === 0 ? (
               <p className="cfg-vazio">{`Nada encontrado para “${busca.trim()}”.`}</p>

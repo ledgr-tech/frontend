@@ -9,12 +9,20 @@ vi.mock("../../(auth)/acoes", () => ({ salvarPreferencias: vi.fn(async () => tru
 
 const esperar = () => new Promise((r) => setTimeout(r, 20));
 
-function montar(conteudo = <div data-tutorial="filtros">filtros</div>) {
+// a tela de Extratos sem o painel do arquivo: o terceiro passo do tutorial não tem alvo
+const TELA = (
+  <>
+    <div data-tutorial="filtros">filtros</div>
+    <div data-tutorial="arquivos">arquivos</div>
+  </>
+);
+
+function montar(conteudo = TELA, espera?: number) {
   return render(
     <ProvedorDaConta preferencias={null}>
       {conteudo}
       <button>fora</button>
-      <Tutorial tela="extratos" atraso={0} />
+      <Tutorial tela="extratos" atraso={0} espera={espera} />
     </ProvedorDaConta>,
   );
 }
@@ -28,25 +36,25 @@ describe("Tutorial", () => {
   it("abre sozinho na primeira visita e destaca o alvo do passo", async () => {
     montar();
     expect(await screen.findByRole("dialog", { name: "Separe o banco do sistema." })).toBeInTheDocument();
-    expect(screen.getByText("Extratos · 1 de 3")).toBeInTheDocument();
     expect(screen.getByText("filtros")).toHaveAttribute("data-tutorial-ativo");
   });
 
-  it("anda pelos passos e o passo sem alvo aparece sem destaque", async () => {
+  it("só entram os passos do que está na tela, e o destaque anda com eles", async () => {
     const user = userEvent.setup();
     montar();
     await screen.findByRole("dialog");
+    expect(screen.getByText("Extratos · 1 de 2")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Próximo" }));
     expect(screen.getByRole("dialog", { name: "Todos os arquivos que você enviou." })).toBeInTheDocument();
+    expect(screen.getByText("Extratos · 2 de 2")).toBeInTheDocument();
     expect(screen.getByText("filtros")).not.toHaveAttribute("data-tutorial-ativo");
-    expect(document.querySelector("[data-tutorial-ativo]")).toBeNull();
+    expect(screen.getByText("arquivos")).toHaveAttribute("data-tutorial-ativo");
   });
 
   it("no último passo, Entendi fecha", async () => {
     const user = userEvent.setup();
     montar();
     await screen.findByRole("dialog");
-    await user.click(screen.getByRole("button", { name: "Próximo" }));
     await user.click(screen.getByRole("button", { name: "Próximo" }));
     await user.click(screen.getByRole("button", { name: "Entendi" }));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
@@ -86,15 +94,39 @@ describe("Tutorial", () => {
     await waitFor(() => expect(alvo).toHaveAttribute("data-tutorial-ativo"));
   });
 
-  it("pula o passo opcional cujo alvo não está na tela", async () => {
-    render(
-      <ProvedorDaConta preferencias={null}>
-        <section data-tutorial="estado-do-mes">mês</section>
-        <Tutorial tela="visao-geral" atraso={0} />
-      </ProvedorDaConta>,
-    );
-    expect(await screen.findByRole("dialog", { name: "O mês em um número." })).toBeInTheDocument();
-    expect(screen.getByText("Visão geral · 1 de 2")).toBeInTheDocument();
+  it("numa tela vazia não abre sozinho nem conta como visto: espera uma visita com conteúdo", async () => {
+    const { unmount } = montar(<p>Nenhum extrato carregado ainda.</p>, 30);
+    await new Promise((r) => setTimeout(r, 80));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    unmount();
+    montar();
+    expect(await screen.findByRole("dialog", { name: "Separe o banco do sistema." })).toBeInTheDocument();
+  });
+
+  it("numa tela vazia, o ? mostra todos os passos, sem destaque", async () => {
+    montar(<p>Nenhum extrato carregado ainda.</p>, 30);
+    act(() => abrirTutorial());
+    expect(await screen.findByRole("dialog", { name: "Separe o banco do sistema." })).toBeInTheDocument();
+    expect(screen.getByText("Extratos · 1 de 3")).toBeInTheDocument();
+    expect(document.querySelector(".tutorial-destaque")).not.toBeVisible();
+  });
+
+  it("o recorte segue o alvo, com folga, e some ao fechar", async () => {
+    const user = userEvent.setup();
+    const alvo = document.createElement("div");
+    alvo.setAttribute("data-tutorial", "filtros");
+    alvo.getBoundingClientRect = () => ({ top: 100, left: 40, width: 300, height: 50 }) as DOMRect;
+    const tela = document.createElement("div");
+    tela.append(alvo);
+    document.body.append(tela);
+    montar(<span />);
+    await screen.findByRole("dialog");
+    const recorte = document.querySelector<HTMLElement>(".tutorial-destaque")!;
+    expect(recorte).toBeVisible();
+    expect(recorte.style).toMatchObject({ top: "92px", left: "32px", width: "316px", height: "66px" });
+    await user.click(screen.getByRole("button", { name: "Pular" }));
+    expect(document.querySelector(".tutorial-destaque")).toBeNull();
+    tela.remove();
   });
 
   it("Esc fecha mesmo com o foco fora do cartão", async () => {
