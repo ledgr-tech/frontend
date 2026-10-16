@@ -195,6 +195,34 @@ describe("Galeria de extratos", () => {
     );
   });
 
+  it("mostra o saldo final e a data do extrato do banco, e o aviso quando o arquivo não traz (#118)", async () => {
+    const user = userEvent.setup();
+    render(
+      <Galeria
+        arquivos={[
+          arquivo({ id: "b-set", nome: "sicredi-setembro.ofx", saldo: { inicial: 750.25, final: -1000, data: "2026-09-10" } }),
+          arquivo({ id: "b-ago", nome: "sicredi-agosto.ofx", competencia: "2026-08", saldo: null }),
+          arquivo({ id: "b-jul", nome: "sicredi-julho.ofx", competencia: "2026-07" }),
+          arquivo({ id: "s-set", nome: "erp-setembro.csv", origem: "sistema", saldo: null }),
+        ]}
+      />,
+    );
+    const campo = (rotulo: string) => painel().queryByText(rotulo)?.nextElementSibling?.textContent?.replace(/ /g, " ");
+
+    expect(campo("Saldo final")).toBe("-R$ 1.000,00");
+    expect(campo("Data do saldo")).toBe("10/09/2026");
+
+    await user.click(cartao("sicredi-agosto.ofx"));
+    expect(campo("Saldo final")).toBe("Não informado no arquivo");
+    expect(painel().queryByText("Data do saldo")).not.toBeInTheDocument();
+
+    // sem os campos no backend, e no extrato do sistema, o painel não fala de saldo
+    await user.click(cartao("sicredi-julho.ofx"));
+    expect(painel().queryByText("Saldo final")).not.toBeInTheDocument();
+    await user.click(cartao("erp-setembro.csv"));
+    expect(painel().queryByText("Saldo final")).not.toBeInTheDocument();
+  });
+
   it("switches the panel to the clicked file", async () => {
     const user = userEvent.setup();
     render(<Galeria arquivos={ARQUIVOS} />);

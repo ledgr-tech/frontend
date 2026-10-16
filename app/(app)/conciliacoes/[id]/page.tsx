@@ -40,6 +40,7 @@ import { larguraDoValor } from "./largura";
 import { Reveal } from "@/app/reveal";
 import { MensagemErro } from "@/app/(auth)/_compartilhado/mensagem-erro";
 import { Cabecalho } from "../../cabecalho";
+import { FaixaDoSaldo } from "../../saldo";
 import { SeloIa } from "../../selo-ia";
 
 /**
@@ -371,6 +372,9 @@ export default function ConciliacaoPage() {
             )}
           </div>
         )}
+        {/* o saldo do extrato do banco (#118), o primeiro número que o contador procura: o mesmo em
+            todas as rodadas, junto do resumo do par */}
+        <FaixaDoSaldo saldo={conciliacao.saldo} />
         {/* desligar uma categoria volta ao "Só revisão": as cinco são o que ele junta.
             As justificadas saem das categorias e são contadas à parte. */}
         <Reveal>

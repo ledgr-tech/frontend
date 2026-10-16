@@ -1,3 +1,4 @@
+import type { SaldoDoExtrato } from "./adaptadores";
 import { chaveDaLinha } from "./rodadas";
 
 /**
@@ -128,6 +129,8 @@ export type Conciliacao = {
   linhas: LinhaComparacao[];
   /** A rodada destas linhas (1 quando ausente: o mock e o extrato fora das execuções). */
   rodada?: number;
+  /** O saldo do extrato do banco (backend #118); ausente quando o backend não manda. */
+  saldo?: SaldoDoExtrato | null;
 };
 
 // O sufixo é versão de formato, não enfeite: os status das linhas mudaram para

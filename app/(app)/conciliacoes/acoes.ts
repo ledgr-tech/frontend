@@ -5,9 +5,12 @@ import {
   adaptarExecucao,
   adaptarFechamento,
   adaptarResumoDoFechamento,
+  adaptarSaldo,
   extratosDasExecucoes,
   pareceUuid,
   type ArquivoConciliado,
+  type CamposDeSaldoAPI,
+  type SaldoDoExtrato,
   type Execucao,
   type Fechamento,
   type FechamentoAPI,
@@ -43,7 +46,7 @@ export type Falha = { ok: false; erro: string; status: number };
 export type Resultado<T> = { ok: true; dados: T } | Falha;
 
 /** Status do processamento assíncrono do extrato (`normalizar_extrato`). */
-export type SituacaoExtrato = {
+export type SituacaoExtrato = CamposDeSaldoAPI & {
   extrato_id: string;
   status: "pendente" | "processando" | "concluido" | "concluido_com_erros" | "erro";
   origem: "banco" | "sistema";
@@ -528,6 +531,8 @@ export type ArquivoExtrato = Partial<Pick<ArquivoConciliado, "conciliadoEm" | "r
   enviadoEm: string;
   /** Já entrou em alguma conciliação. Onde ela abre (`resultado`) só se sabe quando aparece em `/execucoes`. */
   conciliado: boolean;
+  /** O saldo que o arquivo informa (backend #118); ausente quando o backend não manda. */
+  saldo?: SaldoDoExtrato | null;
 };
 
 export type ListaDeExtratos = {
@@ -582,7 +587,9 @@ export async function listarExtratos(): Promise<Resultado<ListaDeExtratos>> {
       total: lista.total,
       arquivos: lista.itens.map((item, i) => {
         const detalhe = detalhes[i];
+        const saldo = adaptarSaldo(item);
         return {
+          ...(saldo !== undefined && { saldo }),
           ...ondeAbre(item, conciliacoes.get(item.extrato_id)),
           id: item.extrato_id,
           nome: item.nome_arquivo,
@@ -705,6 +712,8 @@ export type ParDoFechamento = {
   execucao: Execucao;
   /** Os arquivos do par com linhas que o parser não conseguiu ler. */
   naoLidas: { nome: string; linhas: number }[];
+  /** O saldo do extrato do banco (backend #118); ausente sem o detalhe dele ou sem a #118. */
+  saldo?: SaldoDoExtrato | null;
 };
 
 export type DadosDoFechamento = {
@@ -746,7 +755,9 @@ export async function carregarFechamentos(): Promise<Resultado<DadosDoFechamento
           ? [{ nome, linhas: situacao.dados.erros.length }]
           : [],
       );
-      return { execucao, naoLidas };
+      // o saldo vem no mesmo detalhe do extrato do banco que já diz as linhas não lidas
+      const saldo = banco.ok ? adaptarSaldo(banco.dados) : undefined;
+      return { execucao, naoLidas, ...(saldo !== undefined && { saldo }) };
     }),
   );
   return { ok: true, dados: { pares, fechamentos } };
