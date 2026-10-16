@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Configuracoes } from "./configuracoes";
 import { ProvedorDaConta } from "./conta";
@@ -128,7 +128,8 @@ describe("Configuracoes", () => {
         abrir();
         await user.click(secao("Conciliação"));
         expect(await screen.findByText("Configurações · 1 de 2", {}, { timeout: 2000 })).toBeInTheDocument();
-        expect(linhaDe("Tolerância de data")).toHaveAttribute("data-tutorial-ativo");
+        // o destaque entra num efeito depois do cartão: numa máquina lenta, um instante depois
+        await waitFor(() => expect(linhaDe("Tolerância de data")).toHaveAttribute("data-tutorial-ativo"));
       } finally {
         TUTORIAL_JA_VISTO = { tutoriaisDispensados: ["configuracoes"], roteiroDispensado: false };
       }
