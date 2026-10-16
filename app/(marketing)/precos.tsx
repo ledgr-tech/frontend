@@ -26,7 +26,7 @@ import { FioDaTrilha } from "./fio-da-trilha";
 const PONTA_DO_FIO = 60;
 const NA_PONTA_DO_FIO = { amount: 0, margin: `0px 0px -${100 - PONTA_DO_FIO}% 0px` };
 
-/** O mês da demonstração, o mesmo do cartão do hero. */
+/** O mês da demonstração, com a escala do Cap. II. */
 export type ResumoDoMes = { periodo: string; conciliado: string; paraRevisar: string };
 
 type Demonstracao = "linhas" | "explicacao" | "arquivos" | "relatorio";
@@ -167,7 +167,7 @@ function DoisArquivos() {
   );
 }
 
-/** IV: o resumo do mês, o mesmo do cartão do hero, como o relatório que vai para o contador. */
+/** IV: o resumo do mês, como o relatório que vai para o contador. */
 function Relatorio({ resumo }: { resumo: ResumoDoMes }) {
   return (
     <div className="amostra">

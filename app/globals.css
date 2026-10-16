@@ -1822,7 +1822,6 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
 }
 
 @media (max-width: 680px) {
-  .hero-stat-card { align-self: center !important; width: 100% !important; }
   .regra-card { grid-template-columns: 1fr !important; row-gap: 12px; padding: 30px 22px !important; }
   .regra-icon { font-size: 56px !important; }
   .regra-icon-mirror { display: none; }
