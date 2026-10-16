@@ -3402,6 +3402,8 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
   .cfg-item { width: auto; white-space: nowrap; }
   .cfg-conteudo { padding: 20px 18px 28px; }
   .cfg-linha { flex-direction: column; align-items: flex-start; }
+  /* na coluna, a base de 16rem (pensada para a largura) virava altura: um vão sob cada texto */
+  .cfg-linha-texto { flex-basis: auto; }
 }
 @media (prefers-reduced-motion: reduce) {
   .cfg[open] { animation: none; }
