@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MenuLateral } from "./menu-lateral";
+import { ProvedorDaConta } from "./conta";
+import { abrirConfiguracoes } from "@/lib/eventos";
 
 const caminho = vi.fn();
 const roteador = { push: vi.fn() };
@@ -22,10 +24,20 @@ vi.mock("./conciliacoes/acoes", () => ({
   explicarDivergencia: vi.fn(),
 }));
 
+// a seção Conciliação das configurações abre o tutorial do mascote (teste próprio); aqui ele já foi visto
+vi.mock("../(auth)/acoes", async (original) => ({
+  ...(await original<typeof import("../(auth)/acoes")>()),
+  salvarPreferencias: async () => true,
+}));
+
 const EMAIL = "financeiro@telhacerta.com.br";
 
 function montar(props: Partial<Parameters<typeof MenuLateral>[0]> = {}) {
-  return render(<MenuLateral email={EMAIL} empresa="Telha Certa Ltda" temSenha onSair={vi.fn()} {...props} />);
+  return render(
+    <ProvedorDaConta preferencias={{ tutoriaisDispensados: ["configuracoes"], roteiroDispensado: false }}>
+      <MenuLateral email={EMAIL} empresa="Telha Certa Ltda" temSenha onSair={vi.fn()} {...props} />
+    </ProvedorDaConta>,
+  );
 }
 
 describe("MenuLateral", () => {
@@ -245,6 +257,13 @@ describe("MenuLateral", () => {
 
     expect(screen.getByRole("dialog", { name: "Configurações" })).toHaveAttribute("open");
     expect(screen.getByRole("button", { name: /Financeiro/ })).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("abre as configurações na seção pedida pelo roteiro da Visão geral", async () => {
+    montar();
+    act(() => abrirConfiguracoes("conciliacao"));
+    expect(screen.getByRole("dialog", { name: "Configurações" })).toHaveAttribute("open");
+    expect(screen.getByRole("button", { name: "Conciliação" })).toHaveAttribute("aria-current", "page");
   });
 
   it("opens the settings window with Ctrl+comma, and gives the focus back to the account when it closes", async () => {

@@ -5,10 +5,12 @@ import {
   cadastrar,
   entrar,
   entrarNaDemonstracao,
+  escolherPlano,
   excluirConta,
   pedirRecuperacaoSenha,
   contaDaSessao,
   redefinirSenha,
+  salvarPreferencias,
   trocarEmail,
   trocarSenha,
   verificarCadastro,
@@ -435,7 +437,7 @@ describe("contaDaSessao", () => {
   it("lê a razão social de GET /me, e que a conta tem senha para trocar", async () => {
     fetch.mockResolvedValue(Response.json(EU));
 
-    expect(await contaDaSessao()).toEqual({ empresa: "Telha Certa Ltda", temSenha: true });
+    expect(await contaDaSessao()).toEqual({ empresa: "Telha Certa Ltda", temSenha: true, preferencias: null, assinatura: null });
     expect(fetch).toHaveBeenCalledTimes(1);
     expect(fetch.mock.calls[0][0]).toBe("http://localhost:8000/me");
   });
@@ -444,13 +446,56 @@ describe("contaDaSessao", () => {
     // para ela, POST /me/senha responde 409
     fetch.mockResolvedValue(Response.json({ ...EU, metodos_login: ["google"] }));
 
-    expect(await contaDaSessao()).toEqual({ empresa: "Telha Certa Ltda", temSenha: false });
+    expect(await contaDaSessao()).toEqual({ empresa: "Telha Certa Ltda", temSenha: false, preferencias: null, assinatura: null });
   });
 
   it("sem resposta, esconde a empresa em vez de inventar um nome e deixa a troca de senha à mostra", async () => {
     fetch.mockResolvedValue(Response.json({ detail: "Not Found" }, { status: 404 }));
 
-    expect(await contaDaSessao()).toEqual({ empresa: "", temSenha: true });
+    expect(await contaDaSessao()).toEqual({ empresa: "", temSenha: true, preferencias: null, assinatura: null });
+  });
+
+  it("lê o plano e o teste de 14 dias", async () => {
+    fetch.mockResolvedValue(Response.json({ ...EU, situacao: "teste", plano: "padrao", teste_termina_em: "2026-10-29" }));
+
+    expect((await contaDaSessao()).assinatura).toEqual({ situacao: "teste", plano: "padrao", testeTerminaEm: "2026-10-29" });
+  });
+
+  it("lê as preferências do primeiro uso, só com telas conhecidas", async () => {
+    fetch.mockResolvedValue(
+      Response.json({ ...EU, preferencias: { tutoriais_dispensados: ["extratos", "nao-existe"], roteiro_dispensado: true } }),
+    );
+
+    expect((await contaDaSessao()).preferencias).toEqual({ tutoriaisDispensados: ["extratos"], roteiroDispensado: true });
+  });
+});
+
+describe("salvarPreferencias", () => {
+  beforeEach(() => {
+    cookiesExistentes.set("authjs.session-token", "jwt-da-sessao");
+  });
+
+  it("manda pelo PATCH /me/preferencias e diz que deu certo", async () => {
+    fetch.mockResolvedValue(Response.json({}));
+
+    await expect(salvarPreferencias({ tutoriaisDispensados: ["historico"], roteiroDispensado: false })).resolves.toBe(true);
+    const [url, init] = fetch.mock.calls[0];
+    expect(url).toBe("http://localhost:8000/me/preferencias");
+    expect(init.method).toBe("PATCH");
+    expect(JSON.parse(init.body)).toEqual({ tutoriais_dispensados: ["historico"], roteiro_dispensado: false });
+  });
+
+  it("na conta de demonstração, não grava na conta: um visitante não esconde o tutorial dos outros", async () => {
+    vi.stubEnv("LEDGR_CONTA_TESTE_EMAIL", "ana@telhacerta.com.br");
+
+    await expect(salvarPreferencias({ tutoriaisDispensados: ["extratos"], roteiroDispensado: true })).resolves.toBe(false);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("sem a rota no backend, devolve falso sem lançar", async () => {
+    fetch.mockResolvedValue(Response.json({ detail: "Not Found" }, { status: 404 }));
+
+    await expect(salvarPreferencias({ tutoriaisDispensados: [], roteiroDispensado: true })).resolves.toBe(false);
   });
 });
 
@@ -534,5 +579,42 @@ describe("redefinirSenha", () => {
     fetch.mockRejectedValue(new TypeError("fetch failed"));
 
     expect(await redefinirSenha("token", "s3nha-nova")).toEqual({ ok: false, erro: "falha" });
+  });
+});
+
+describe("escolherPlano", () => {
+  beforeEach(() => {
+    cookiesExistentes.set("authjs.session-token", "jwt-da-sessao");
+  });
+
+  it("começa o teste pelo POST /empresa/plano", async () => {
+    fetch.mockResolvedValue(Response.json({}));
+
+    await expect(escolherPlano("padrao")).resolves.toEqual({ ok: true });
+    const [url, init] = fetch.mock.calls[0];
+    expect(url).toBe("http://localhost:8000/empresa/plano");
+    expect(init.method).toBe("POST");
+    expect(JSON.parse(init.body)).toEqual({ plano: "padrao" });
+  });
+
+  it("sem a rota no backend, diz que ainda não está disponível", async () => {
+    fetch.mockResolvedValue(Response.json({ detail: "Not Found" }, { status: 404 }));
+
+    await expect(escolherPlano("essencial")).resolves.toEqual({
+      ok: false,
+      erro: "Ainda não disponível: o servidor do Ledgr ainda não tem esta função.",
+    });
+  });
+
+  it("a conta de demonstração não escolhe plano", async () => {
+    vi.stubEnv("LEDGR_CONTA_TESTE_EMAIL", "ana@telhacerta.com.br");
+
+    await expect(escolherPlano("padrao")).resolves.toEqual({ ok: false, erro: "A conta de demonstração não pode ser alterada." });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("recusa um plano que não existe sem chamar o backend", async () => {
+    await expect(escolherPlano("ouro" as "padrao")).resolves.toMatchObject({ ok: false });
+    expect(fetch).not.toHaveBeenCalled();
   });
 });

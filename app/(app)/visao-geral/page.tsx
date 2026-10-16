@@ -6,7 +6,9 @@ import { extratosDasExecucoes, type Execucao } from "@/lib/adaptadores";
 import { caminhoDaConciliacao } from "@/lib/caminhos";
 import { execucoesVigentes } from "@/lib/rodadas";
 import { type Conciliacao } from "@/lib/mock-data";
-import { carregarVisaoGeral, type VisaoGeral } from "../conciliacoes/acoes";
+import { carregarRoteiro, carregarVisaoGeral, type VisaoGeral } from "../conciliacoes/acoes";
+import { passosDoRoteiro, roteiroVisivel } from "./roteiro";
+import { RoteiroFaixa } from "./roteiro-faixa";
 import {
   formatarDataHora,
   formatarInteiro,
@@ -40,10 +42,12 @@ function plural(quantidade: number, singular: string, plural: string): string {
 }
 
 export default async function VisaoGeralPage() {
-  const resposta = await carregarVisaoGeral();
+  const [resposta, roteiro] = await Promise.all([carregarVisaoGeral(), carregarRoteiro()]);
   if (!resposta.ok && resposta.status === 401) redirect("/login");
 
   const recente = resposta.ok ? resposta.dados.recente : null;
+  // o roteiro de primeiros passos (spec 2026-10-15-primeiro-uso, parte 4): só no primeiro mês
+  const roteiroAtivo = roteiro && roteiroVisivel(roteiro) ? roteiro : null;
 
   return (
     <div>
@@ -52,12 +56,17 @@ export default async function VisaoGeralPage() {
         contexto={[recente && `competência ${recente.conciliacao.mes.toLowerCase()}`]}
       />
 
+      {roteiroAtivo && (
+        // dispensado com "Já sei usar", a conta nova volta a ver o começo de antes
+        <RoteiroFaixa passos={passosDoRoteiro(roteiroAtivo)} alternativa={recente === null ? <PrimeirosPassos /> : null} />
+      )}
+
       {!resposta.ok ? (
         <p role="alert" style={{ padding: "48px 0" }}>
           {FALHA_AO_CARREGAR}
         </p>
       ) : recente === null ? (
-        <PrimeirosPassos />
+        !roteiroAtivo && <PrimeirosPassos />
       ) : (
         <Conteudo visao={resposta.dados} execucao={recente.execucao} conciliacao={recente.conciliacao} />
       )}
@@ -117,7 +126,7 @@ function EstadoDoMes({
   resumo: ReturnType<typeof resumir>;
 }) {
   return (
-    <section className="vg-estado" aria-labelledby="vg-estado-titulo">
+    <section className="vg-estado" aria-labelledby="vg-estado-titulo" data-tutorial="estado-do-mes">
       <div className="vg-estado-topo">
         <h2 id="vg-estado-titulo" className="vg-estado-titulo">
           {`${formatarInteiro(resumo.batidos)} de ${plural(resumo.processados, "lançamento conciliado", "lançamentos conciliados")}`}
@@ -183,7 +192,7 @@ function Atalhos({
   const pronto = divergentes === 0 && naoLidas === 0;
 
   return (
-    <nav aria-labelledby="vg-atalhos-titulo">
+    <nav aria-labelledby="vg-atalhos-titulo" data-tutorial="atalhos">
       <h2 id="vg-atalhos-titulo" className="vg-secao-titulo">
         Atalhos
       </h2>

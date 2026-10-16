@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { conciliar, type Falha } from "../acoes";
@@ -35,6 +36,8 @@ export function NovaVersao({
   const [arquivo, setArquivo] = useState<File | null>(null);
   const [etapa, setEtapa] = useState<Etapa>("ocioso");
   const [erro, setErro] = useState<string | null>(null);
+  // 402: o teste acabou (spec 2026-10-15-primeiro-uso); o motivo vem com o caminho para os planos
+  const [semPlano, setSemPlano] = useState(false);
   const [pendente, setPendente] = useState<Pendente | null>(null);
   const dialogo = useRef<HTMLDialogElement>(null);
   // para o laço de consulta se a tela sair no meio do processamento
@@ -111,6 +114,7 @@ export function NovaVersao({
 
       setEtapa("conciliando");
       const resultado = await conciliar(extratoBancoId, enviado.dados.extratoId);
+      setSemPlano(!resultado.ok && resultado.status === 402);
       if (!resultado.ok) return falhar(resultado);
 
       setEtapa("ocioso");
@@ -180,6 +184,11 @@ export function NovaVersao({
                   <p role="alert" className="selo selo-risco nova-versao-erro">
                     {erro}
                   </p>
+                )}
+                {erro && semPlano && (
+                  <Link href="/plano" className="btn btn-secondary">
+                    Ver os planos
+                  </Link>
                 )}
                 {ocupado && (
                   <p aria-live="polite" className="dialog-body">

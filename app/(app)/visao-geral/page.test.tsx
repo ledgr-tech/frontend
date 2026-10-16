@@ -4,12 +4,26 @@ import type { Execucao } from "@/lib/adaptadores";
 import type { LinhaComparacao, StatusLinha } from "@/lib/mock-data";
 import type { Resultado, VisaoGeral } from "../conciliacoes/acoes";
 import VisaoGeralPage from "./page";
+import { ProvedorDaConta } from "../conta";
+import type { DadosDoRoteiro } from "./roteiro";
 
 // quem fala com o backend é a action; aqui ela só devolve o que ele responderia
 const carregarVisaoGeral = vi.fn<() => Promise<Resultado<VisaoGeral>>>();
+const carregarRoteiro = vi.fn<() => Promise<DadosDoRoteiro | null>>();
 vi.mock("../conciliacoes/acoes", () => ({
   carregarVisaoGeral: () => carregarVisaoGeral(),
+  carregarRoteiro: () => carregarRoteiro(),
 }));
+vi.mock("../../(auth)/acoes", () => ({ salvarPreferencias: async () => true }));
+
+const CONTA_NOVA: DadosDoRoteiro = {
+  toleranciaRevisada: false,
+  temExtratoDoBanco: false,
+  conciliou: false,
+  resolveuAlguma: false,
+  fechouAlgum: false,
+  conciliacaoComPendencia: null,
+};
 
 const redirect = vi.fn();
 vi.mock("next/navigation", () => ({
@@ -109,11 +123,15 @@ function com(visao: Partial<VisaoGeral> = {}) {
 }
 
 async function renderizar() {
-  render(await VisaoGeralPage());
+  render(<ProvedorDaConta preferencias={null}>{await VisaoGeralPage()}</ProvedorDaConta>);
 }
 
 describe("VisaoGeralPage", () => {
   beforeEach(() => {
+    window.localStorage.clear();
+    // sem roteiro nos testes antigos: ele tem os testes dele abaixo
+    carregarRoteiro.mockReset();
+    carregarRoteiro.mockResolvedValue(null);
     carregarVisaoGeral.mockReset();
     redirect.mockClear();
   });
@@ -402,6 +420,34 @@ describe("VisaoGeralPage", () => {
       "54,5%",
     ]);
     expect(screen.queryByText(/mais recentes. As outras/)).not.toBeInTheDocument();
+  });
+
+  it("conta nova com roteiro: mostra os primeiros passos no lugar do Nenhum extrato", async () => {
+    carregarRoteiro.mockResolvedValue(CONTA_NOVA);
+    com({ execucoes: [], total: 0, recente: null });
+    await renderizar();
+
+    expect(await screen.findByRole("heading", { name: "Primeiros passos" })).toBeInTheDocument();
+    expect(screen.queryByText("Nenhum extrato por aqui ainda.")).not.toBeInTheDocument();
+  });
+
+  it("depois do primeiro mês fechado, o roteiro não aparece", async () => {
+    carregarRoteiro.mockResolvedValue({ ...CONTA_NOVA, conciliou: true, fechouAlgum: true });
+    com({ execucoes: [], total: 0, recente: null });
+    await renderizar();
+
+    expect(screen.queryByRole("heading", { name: "Primeiros passos" })).not.toBeInTheDocument();
+    expect(screen.getByText("Nenhum extrato por aqui ainda.")).toBeInTheDocument();
+  });
+
+  it("dispensado com Já sei usar, a conta nova volta a ver o Nenhum extrato", async () => {
+    window.localStorage.setItem("ledgr:preferencias", JSON.stringify({ tutoriaisDispensados: [], roteiroDispensado: true }));
+    carregarRoteiro.mockResolvedValue(CONTA_NOVA);
+    com({ execucoes: [], total: 0, recente: null });
+    await renderizar();
+
+    expect(await screen.findByText("Nenhum extrato por aqui ainda.")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Primeiros passos" })).not.toBeInTheDocument();
   });
 
   it("walks through the first steps when there is no conciliação yet", async () => {

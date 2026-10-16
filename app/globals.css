@@ -3402,6 +3402,8 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
   .cfg-item { width: auto; white-space: nowrap; }
   .cfg-conteudo { padding: 20px 18px 28px; }
   .cfg-linha { flex-direction: column; align-items: flex-start; }
+  /* na coluna, a base de 16rem (pensada para a largura) virava altura: um vão sob cada texto */
+  .cfg-linha-texto { flex-basis: auto; }
 }
 @media (prefers-reduced-motion: reduce) {
   .cfg[open] { animation: none; }
@@ -4391,3 +4393,375 @@ html[data-tema="escuro"] .app-shell {
 .ass-cancelar { padding-inline: var(--space-1); color: var(--texto-apagado); }
 .ass-cancelar:hover { color: var(--color-text); background: var(--tinta-hover); }
 .ass-dialogo-nota { margin: 0; text-align: right; font-size: 13px; color: var(--texto-apagado); }
+
+/* ── Tutorial do mascote (primeiro uso, 15/10) ───────────────────────────────
+   Cartão no canto, não modal; o destaque do passo é traço neutro, nunca dourado. */
+.tutorial {
+  position: fixed;
+  right: max(24px, env(safe-area-inset-right, 0px));
+  bottom: max(24px, env(safe-area-inset-bottom, 0px));
+  z-index: 60;
+  width: min(372px, calc(100vw - 32px));
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px 20px 16px;
+  background: var(--color-bg);
+  box-shadow: var(--shadow-lg);
+}
+/* o foco vai para o cartão ao abrir só para o leitor de tela começar por ele: sem contorno, que
+   competiria com o traço do destaque */
+.tutorial:focus {
+  outline: none;
+}
+.tutorial-topo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.tutorial-mascote {
+  width: 52px;
+  height: 52px;
+  object-fit: contain;
+  flex: none;
+}
+.tutorial-contagem {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--texto-apagado);
+}
+.tutorial-topo .app-icone-botao {
+  margin-left: auto;
+}
+.tutorial-titulo {
+  margin: 0;
+  font-family: var(--font-titulo);
+  font-size: 21px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+.tutorial-texto {
+  margin: 0;
+  font-size: 14.5px;
+  line-height: 1.6;
+}
+.tutorial-caixa {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 14px;
+  color: var(--texto-apagado);
+  cursor: pointer;
+}
+.tutorial-caixa input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--color-text);
+}
+.tutorial-acoes {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-top: 4px;
+}
+.tutorial-acoes .btn-ghost {
+  margin-left: auto;
+}
+.tutorial-pontos {
+  display: flex;
+  gap: 5px;
+}
+.tutorial-pontos span {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--color-divider);
+}
+.tutorial-pontos span[data-atual] {
+  width: 18px;
+  background: var(--color-text);
+}
+/* O recorte em volta do alvo: fixo e por cima de tudo, abaixo só do cartão, e o resto da tela
+   (menu incluído) escurece pela sombra. Não pega clique: o tutorial não é modal. */
+.tutorial-destaque {
+  position: fixed;
+  z-index: 59;
+  pointer-events: none;
+  border-radius: calc(var(--radius-md) + 4px);
+  box-shadow:
+    0 0 0 2px var(--color-text),
+    0 0 0 100vmax var(--veu-do-tutorial);
+}
+/* no tema escuro o véu claro some no fundo: mais forte, para o recorte ainda separar o alvo */
+.app-shell {
+  --veu-do-tutorial: rgb(12 11 10 / 0.28);
+}
+@media (prefers-color-scheme: dark) {
+  html:not([data-tema="claro"]) .app-shell {
+    --veu-do-tutorial: rgb(0 0 0 / 0.55);
+  }
+}
+html[data-tema="escuro"] .app-shell {
+  --veu-do-tutorial: rgb(0 0 0 / 0.55);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .tutorial {
+    animation: tutorial-entra 0.22s ease-out;
+  }
+  @keyframes tutorial-entra {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+  }
+}
+@media (max-width: 640px) {
+  .tutorial {
+    left: 16px;
+    right: 16px;
+    bottom: 16px;
+    width: auto;
+  }
+}
+.app-ajuda {
+  font-family: var(--font-titulo);
+  font-size: 17px;
+  font-weight: 600;
+  width: 36px;
+  height: 36px;
+  flex: none;
+}
+
+/* Roteiro de primeiros passos (primeiro uso, 15/10) */
+.roteiro { display: flex; flex-direction: column; gap: 18px; padding: 26px 28px; max-width: 760px; }
+.roteiro-topo { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.roteiro-cabeca { display: flex; flex-direction: column; gap: 4px; }
+.roteiro-titulo { margin: 0; font-family: var(--font-titulo); font-size: 26px; font-weight: 600; }
+.roteiro-sub, .roteiro-conta, .roteiro-passo-detalhe { font-size: 14px; color: var(--texto-apagado); }
+.roteiro-progresso { display: flex; align-items: center; gap: 14px; }
+.roteiro-barra { flex: 1; height: 6px; border-radius: 999px; background: var(--color-divider); overflow: hidden; }
+.roteiro-barra span { display: block; height: 100%; background: var(--color-ok-700); }
+.roteiro-conta { font-variant-numeric: tabular-nums; }
+.roteiro-passos { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.roteiro-passo { display: flex; align-items: center; gap: 14px; padding: 13px 0; }
+.roteiro-passo + .roteiro-passo { border-top: 1px solid var(--color-divider); }
+.roteiro-marca { width: 26px; height: 26px; border-radius: 50%; border: 1.5px solid var(--color-divider); display: grid; place-items: center; flex: none; font-size: 13px; }
+.roteiro-passo[data-agora] .roteiro-marca { border-color: var(--color-text); }
+.roteiro-passo[data-feito] .roteiro-marca { background: var(--color-ok-700); border-color: var(--color-ok-700); color: var(--color-bg); }
+.roteiro-texto { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.roteiro-passo-titulo { font-size: 15.5px; }
+.roteiro-passo[data-agora] .roteiro-passo-titulo { font-weight: 600; }
+.roteiro-passo[data-feito] .roteiro-passo-titulo { color: var(--texto-apagado); text-decoration: line-through; }
+/* no celular o botão do passo desce para a linha de baixo, alinhado ao texto, que fica com a largura toda */
+@media (max-width: 640px) {
+  .roteiro { padding: 20px 18px; }
+  .roteiro-passo { flex-wrap: wrap; row-gap: 10px; }
+  .roteiro-texto { flex-basis: calc(100% - 40px); }
+  .roteiro-passo .btn { margin-left: 40px; }
+}
+
+/* ── Escolha do plano (primeiro uso, 15/10): teste de 14 dias ──────────────── */
+.plano-tela {
+  width: 100%;
+  max-width: 1080px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+.plano-cabeca {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 620px;
+}
+.plano-eyebrow {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-accent-700);
+}
+.plano-titulo {
+  margin: 0;
+  font-size: clamp(28px, 3.4vw, 38px);
+  font-weight: 400;
+  line-height: 1.12;
+  letter-spacing: -0.016em;
+}
+.plano-texto {
+  margin: 0;
+  font-size: 15.5px;
+  line-height: 1.65;
+  color: color-mix(in srgb, var(--color-text) 72%, transparent);
+}
+.plano-grade {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+.plano-cartao {
+  background: var(--color-bg);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 24px;
+}
+.plano-cartao[data-destaque] {
+  border-color: var(--color-text);
+}
+.plano-cartao-topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.plano-nome {
+  margin: 0;
+  font-family: var(--font-titulo);
+  font-size: 26px;
+  font-weight: 600;
+}
+.plano-para {
+  margin: 0;
+  min-height: 3.1em;
+  font-size: 14.5px;
+  line-height: 1.55;
+  color: var(--texto-apagado);
+}
+.plano-preco {
+  margin: 0;
+}
+.plano-preco span {
+  font-family: var(--font-titulo);
+  font-size: 34px;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+.plano-preco small,
+.plano-limite {
+  font-size: 14px;
+  color: var(--texto-apagado);
+}
+.plano-limite {
+  margin: 0;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--color-divider);
+}
+.plano-itens {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  font-size: 14.5px;
+}
+.plano-itens li {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+}
+.plano-itens svg {
+  color: var(--color-ok-700);
+  flex: none;
+  margin-top: 3px;
+}
+.plano-cartao .btn {
+  margin-top: auto;
+}
+.plano-erro {
+  margin: 0;
+  color: var(--color-erro);
+}
+.plano-volume {
+  margin: 0;
+  font-size: 14.5px;
+  color: var(--texto-apagado);
+}
+@media (max-width: 900px) {
+  .plano-grade {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Teste acabado: planos no lugar da nova conciliação (primeiro uso, 15/10) ── */
+.app-teste {
+  text-decoration: none;
+  white-space: nowrap;
+  font-size: 13.5px;
+  padding: 6px 12px;
+  flex: none;
+}
+.bloqueio {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  gap: 28px;
+  padding: 30px 32px;
+  align-items: start;
+}
+.bloqueio-mascote {
+  width: 150px;
+  height: auto;
+}
+.bloqueio-corpo {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+.bloqueio-corpo p {
+  margin: 0;
+  max-width: 62ch;
+  font-size: 15.5px;
+  line-height: 1.6;
+}
+.bloqueio-titulo {
+  margin: 0;
+  font-family: var(--font-titulo);
+  font-size: 28px;
+  font-weight: 600;
+}
+.bloqueio-planos {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+.bloqueio-planos li {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 18px;
+}
+.bloqueio-planos strong {
+  font-family: var(--font-titulo);
+  font-size: 21px;
+  font-weight: 600;
+}
+.bloqueio-planos span {
+  font-size: 14px;
+  color: var(--texto-apagado);
+}
+.bloqueio-corpo > .btn-ghost {
+  align-self: flex-start;
+}
+@media (max-width: 900px) {
+  .bloqueio {
+    grid-template-columns: 1fr;
+  }
+  .bloqueio-planos {
+    grid-template-columns: 1fr;
+  }
+}
+.app-teste-curto {
+  display: none;
+}
+@media (max-width: 640px) {
+  .app-teste-longo {
+    display: none;
+  }
+  .app-teste-curto {
+    display: inline;
+  }
+}

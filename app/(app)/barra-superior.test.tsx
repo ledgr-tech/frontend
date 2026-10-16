@@ -4,6 +4,8 @@ import userEvent from "@testing-library/user-event";
 import type { Execucao } from "@/lib/adaptadores";
 import type { Resultado, VisaoGeral } from "./conciliacoes/acoes";
 import { BarraSuperior } from "./barra-superior";
+import { ProvedorDaConta } from "./conta";
+import type { Assinatura } from "@/lib/assinatura";
 
 const push = vi.fn();
 vi.mock("next/navigation", () => ({
@@ -69,6 +71,16 @@ describe("BarraSuperior", () => {
     push.mockReset();
     window.localStorage.clear();
   });
+  it("o ? pede o tutorial da tela", async () => {
+    const ouvinte = vi.fn();
+    window.addEventListener("ledgr:abrir-tutorial", ouvinte);
+    const user = userEvent.setup();
+    await montar();
+    await user.click(screen.getByRole("button", { name: "Ver o tutorial desta tela" }));
+    expect(ouvinte).toHaveBeenCalledTimes(1);
+    window.removeEventListener("ledgr:abrir-tutorial", ouvinte);
+  });
+
 
   afterEach(() => {
     delete (window.navigator as unknown as Record<string, unknown>).platform;
@@ -305,5 +317,39 @@ describe("BarraSuperior", () => {
     render(<BarraSuperior />);
     await user.click(screen.getByRole("button", { name: "Avisos" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Não foi possível ler os avisos agora.");
+  });
+
+  describe("o teste de 14 dias", () => {
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date("2026-10-20T12:00:00-03:00"));
+    });
+    afterEach(() => vi.useRealTimers());
+
+    async function montarBarra(assinatura: Assinatura | null) {
+      render(
+        <ProvedorDaConta preferencias={null} assinatura={assinatura}>
+          <BarraSuperior />
+        </ProvedorDaConta>,
+      );
+      await screen.findByRole("button", { name: /Avisos \d/ });
+    }
+
+    it("no teste, mostra quantos dias faltam com link para a Assinatura", async () => {
+      await montarBarra({ situacao: "teste", plano: "padrao", testeTerminaEm: "2026-10-29" });
+      expect(screen.getByRole("link", { name: "Teste grátis · faltam 9 dias" })).toHaveAttribute("href", "/assinatura");
+    });
+
+    it("teste acabado: aviso em tom de risco que leva aos planos", async () => {
+      await montarBarra({ situacao: "teste_encerrado", plano: "padrao", testeTerminaEm: "2026-10-15" });
+      const aviso = screen.getByRole("link", { name: "Seu teste acabou · escolher um plano" });
+      expect(aviso).toHaveClass("selo-risco");
+      expect(aviso).toHaveAttribute("href", "/plano");
+    });
+
+    it("sem assinatura ou com o plano ativo, não mostra nada", async () => {
+      await montarBarra(null);
+      expect(screen.queryByText(/Teste grátis|Seu teste acabou/)).not.toBeInTheDocument();
+    });
   });
 });

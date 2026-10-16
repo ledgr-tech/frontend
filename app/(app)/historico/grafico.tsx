@@ -35,7 +35,7 @@ export function GraficoDeMatch({
   const fio = serie.map((_, indice) => `${xDe(indice) * meses},${(1 - alturas[indice]) * 100}`).join(" ");
 
   return (
-    <div className="hist-grafico-bloco">
+    <div className="hist-grafico-bloco" data-tutorial="grafico">
       <div className="hist-grafico-topo">
         <div>
           <h6 className="hist-grafico-titulo">Taxa de match automático</h6>

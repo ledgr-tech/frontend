@@ -32,7 +32,7 @@ export function ContinueDeOndeParou({
 }) {
   const { extratoBancoId, arquivoBanco, arquivoSistema, competencia } = conciliacao;
   return (
-    <section className="conc-continuar" aria-labelledby="conc-continuar-titulo">
+    <section className="conc-continuar" aria-labelledby="conc-continuar-titulo" data-tutorial="continuar">
       <Image
         src="/mascotes/mascote-caminhando.png"
         alt=""

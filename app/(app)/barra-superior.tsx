@@ -4,6 +4,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { caminhoDaConciliacao } from "@/lib/caminhos";
+import { abrirTutorial } from "@/lib/eventos";
+import { diasRestantes, fraseCurtaDoTeste, fraseDoTeste } from "@/lib/assinatura";
+import { useAssinatura } from "./conta";
 import { useTeclaDeAtalho } from "@/lib/plataforma";
 import { formatarMoeda, type LinhaComparacao } from "@/lib/mock-data";
 import { avisosDoMes, idsLidos, marcarLidos } from "./avisos";
@@ -29,6 +32,9 @@ type Leitura = { situacao: "lendo" } | { situacao: "falhou" } | { situacao: "pro
 
 // O tema e a conta (nome, empresa e Sair) moram no rodapé do menu lateral.
 export function BarraSuperior() {
+  const assinatura = useAssinatura();
+  const diasDeTeste =
+    assinatura?.situacao === "teste" && assinatura.testeTerminaEm ? diasRestantes(assinatura.testeTerminaEm, new Date()) : null;
   const [termo, setTermo] = useState("");
   const [buscaAberta, setBuscaAberta] = useState(false);
   const [avisosAbertos, setAvisosAbertos] = useState(false);
@@ -197,6 +203,26 @@ export function BarraSuperior() {
         )}
       </div>
 
+      {/* o teste de 14 dias (spec 2026-10-15-primeiro-uso, parte 2); sem a informação, nada. No
+          celular vai a frase curta, para caber na linha do "?" e de Avisos; o leitor de tela ouve a inteira */}
+      {diasDeTeste !== null && (
+        <SeloDoTeste href="/assinatura" frase={fraseDoTeste(diasDeTeste)} curta={fraseCurtaDoTeste(diasDeTeste)} />
+      )}
+      {assinatura?.situacao === "teste_encerrado" && (
+        <SeloDoTeste href="/plano" risco frase="Seu teste acabou · escolher um plano" curta="Teste acabou" />
+      )}
+
+      {/* reabre o tutorial do mascote da tela aberta, mesmo marcado como Não mostrar de novo */}
+      <button
+        type="button"
+        className="app-icone-botao app-dica app-ajuda"
+        aria-label="Ver o tutorial desta tela"
+        data-dica="Tutorial desta tela"
+        onClick={abrirTutorial}
+      >
+        ?
+      </button>
+
       <div style={{ position: "relative", flex: "none" }} ref={caixaAvisos}>
         <button
           type="button"
@@ -252,5 +278,16 @@ export function BarraSuperior() {
         )}
       </div>
     </div>
+  );
+}
+
+function SeloDoTeste({ href, frase, curta, risco = false }: { href: string; frase: string; curta: string; risco?: boolean }) {
+  return (
+    <Link href={href} className={risco ? "selo selo-risco app-teste" : "selo app-teste"} aria-label={frase}>
+      <span className="app-teste-longo">{frase}</span>
+      <span className="app-teste-curto" aria-hidden="true">
+        {curta}
+      </span>
+    </Link>
   );
 }

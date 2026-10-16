@@ -205,7 +205,7 @@ export function Galeria({ arquivos }: { arquivos: ArquivoExtrato[] }) {
   return (
     <div className="extratos-corpo">
       {/* a faixa fica presa sob a barra do topo enquanto as folhas rolam */}
-      <FaixaFiltros>
+      <FaixaFiltros tutorial="filtros">
         <div className="pills segmentado" role="group" aria-label="Filtrar arquivos">
           {FILTROS.map((item) => (
             <button
@@ -246,7 +246,7 @@ export function Galeria({ arquivos }: { arquivos: ArquivoExtrato[] }) {
           {agrupamento === "nenhum" ? (
             grade(visiveis, aberto.id)
           ) : (
-            <div className="grupos">
+            <div className="grupos" data-tutorial="arquivos">
               {agrupar(visiveis, agrupamento).map((grupo) => (
                 <Grupo
                   key={grupo.chave}
@@ -272,7 +272,7 @@ function Painel({ arquivo, arquivos }: { arquivo: ArquivoExtrato; arquivos: Arqu
   const selo = situacao(arquivo);
   const { naoLidas } = arquivo;
   return (
-    <section className="extrato-painel" aria-label="Arquivo selecionado">
+    <section className="extrato-painel" aria-label="Arquivo selecionado" data-tutorial="painel">
       <h6 style={{ margin: 0 }}>Arquivo · {selo.rotulo.toLowerCase()}</h6>
       <div className="extrato-painel-topo">
         <h3 className="extrato-painel-nome">{arquivo.nome}</h3>
@@ -356,6 +356,8 @@ function ConciliarArquivo({ arquivo, arquivos }: { arquivo: ArquivoExtrato; arqu
   const [escolhido, setEscolhido] = useState(opcoes[0]?.id ?? "");
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  // 402: o teste acabou (spec 2026-10-15-primeiro-uso); o motivo vem com o caminho para os planos
+  const [semPlano, setSemPlano] = useState(false);
 
   if (opcoes.length === 0) {
     return <p className="vg-nota">{`Envie um extrato do ${outroLado} para conciliar este.`}</p>;
@@ -374,6 +376,7 @@ function ConciliarArquivo({ arquivo, arquivos }: { arquivo: ArquivoExtrato; arqu
     setEnviando(false);
     if (resposta.status === 401) router.push("/login");
     else setErro(resposta.erro);
+    setSemPlano(resposta.status === 402);
   }
 
   return (
@@ -396,6 +399,11 @@ function ConciliarArquivo({ arquivo, arquivos }: { arquivo: ArquivoExtrato; arqu
         <p role="alert" className="extrato-conciliar-erro">
           {erro}
         </p>
+      )}
+      {semPlano && (
+        <Link href="/plano" className="btn btn-secondary">
+          Ver os planos
+        </Link>
       )}
     </div>
   );

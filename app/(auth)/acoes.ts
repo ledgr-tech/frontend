@@ -7,6 +7,8 @@ import { auth, signIn, signOut } from "@/auth";
 import { ErroBackend, chamarBackend } from "@/lib/backend";
 import { demoAberta } from "@/lib/demo";
 import { MuitasEntradas, type UsuarioAPI } from "@/lib/login";
+import { ehTela, type Preferencias } from "@/lib/preferencias";
+import { adaptarAssinatura, type Assinatura, type PlanoId } from "@/lib/assinatura";
 
 /**
  * Abrir e fechar sessão, e criar conta. Vive numa Server Action porque o
@@ -106,8 +108,8 @@ const CAMPO_DO_FORMULARIO: Record<string, CampoCadastroAPI> = {
 
 /**
  * Cria empresa e usuário numa chamada só (`POST /register`) e já entra com a
- * mesma senha. Banco, conta e sistema de gestão, que o formulário também pede,
- * o backend ainda não guarda — ficam no navegador.
+ * mesma senha. O sistema de gestão, que o formulário também pede, o backend
+ * ainda não guarda: fica no navegador.
  */
 export async function cadastrar(dados: DadosCadastro): Promise<ResultadoCadastro> {
   try {
@@ -236,7 +238,19 @@ export type ContaDaSessao = {
   empresa: string;
   /** Falso na conta que só entra pelo Google: para ela, `POST /me/senha` responde 409. */
   temSenha: boolean;
+  /** O que a pessoa dispensou no primeiro uso; null quando o `GET /me` ainda não manda o campo. */
+  preferencias: Preferencias | null;
+  /** O plano e o teste de 14 dias; null quando o `GET /me` ainda não manda `situacao`: nada bloqueia. */
+  assinatura: Assinatura | null;
 };
+
+type PreferenciasAPI = { tutoriais_dispensados?: unknown; roteiro_dispensado?: unknown };
+
+function adaptarPreferencias(bruto: PreferenciasAPI | null | undefined): Preferencias | null {
+  if (!bruto || typeof bruto !== "object") return null;
+  const telas = Array.isArray(bruto.tutoriais_dispensados) ? bruto.tutoriais_dispensados.filter(ehTela) : [];
+  return { tutoriaisDispensados: telas, roteiroDispensado: bruto.roteiro_dispensado === true };
+}
 
 /**
  * A conta logada, de `GET /me` (backend #81), que o `/login` não cobre: ele devolve só
@@ -248,10 +262,46 @@ export type ContaDaSessao = {
  */
 export async function contaDaSessao(): Promise<ContaDaSessao> {
   try {
-    const eu = await chamarBackend<UsuarioAPI & { razao_social: string; metodos_login: string[] }>("/me");
-    return { empresa: eu.razao_social?.trim() ?? "", temSenha: eu.metodos_login?.includes("senha") ?? true };
+    const eu = await chamarBackend<
+      UsuarioAPI & {
+        razao_social: string;
+        metodos_login: string[];
+        preferencias?: PreferenciasAPI;
+        situacao?: unknown;
+        plano?: unknown;
+        teste_termina_em?: unknown;
+      }
+    >("/me");
+    return {
+      empresa: eu.razao_social?.trim() ?? "",
+      temSenha: eu.metodos_login?.includes("senha") ?? true,
+      preferencias: adaptarPreferencias(eu.preferencias),
+      assinatura: adaptarAssinatura(eu),
+    };
   } catch {
-    return { empresa: "", temSenha: true };
+    return { empresa: "", temSenha: true, preferencias: null, assinatura: null };
+  }
+}
+
+/**
+ * Guarda as preferências do primeiro uso na conta (`PATCH /me/preferencias`). Falso quando o
+ * backend ainda não tem a rota ou não respondeu: o navegador já guardou, a tela não avisa nada.
+ */
+export async function salvarPreferencias(preferencias: Preferencias): Promise<boolean> {
+  // pela naConta: na conta de demonstração, um visitante não esconde o tutorial dos outros
+  try {
+    const resposta = await naConta(() =>
+      chamarBackend("/me/preferencias", {
+        method: "PATCH",
+        corpo: {
+          tutoriais_dispensados: preferencias.tutoriaisDispensados,
+          roteiro_dispensado: preferencias.roteiroDispensado,
+        },
+      }),
+    );
+    return resposta.ok;
+  } catch {
+    return false;
   }
 }
 
@@ -342,4 +392,13 @@ export async function excluirConta(senhaAtual: string): Promise<ResultadoConta> 
   if (!conta.ok) return conta;
   await signOut({ redirectTo: "/" });
   return { ok: true };
+}
+
+/** Começa o teste de 14 dias no plano escolhido (`POST /empresa/plano`, spec 2026-10-15-primeiro-uso). */
+export async function escolherPlano(plano: PlanoId): Promise<{ ok: true } | { ok: false; erro: string }> {
+  // Server Action é endpoint público: só os três ids chegam ao backend
+  if (!["essencial", "padrao", "avancado"].includes(plano)) return { ok: false, erro: FALHA_CONTA };
+  // pela naConta: a conta de demonstração não escolhe plano
+  const resposta = await naConta(() => chamarBackend("/empresa/plano", { method: "POST", corpo: { plano } }));
+  return resposta.ok ? { ok: true } : resposta;
 }
