@@ -59,6 +59,19 @@ describe("AppLayout", () => {
     expect(elemento.props.preferencias).toBeNull();
   });
 
+  it("entrega ao shell se a pessoa é a administradora", async () => {
+    auth.mockResolvedValue({ user: { email: "financeiro@telhacerta.com.br" } });
+    contaDaSessao.mockResolvedValue({
+      empresa: "Telha Certa Ltda",
+      temSenha: true,
+      administrador: false,
+      preferencias: null,
+      assinatura: null,
+    });
+    const elemento = await AppLayout({ children: "conteúdo" });
+    expect(elemento.props.administrador).toBe(false);
+  });
+
   it("conta sem plano vai escolher o plano antes", async () => {
     auth.mockResolvedValue({ user: { email: "financeiro@telhacerta.com.br" } });
     contaDaSessao.mockResolvedValue({

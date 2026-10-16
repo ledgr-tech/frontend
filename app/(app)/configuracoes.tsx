@@ -387,6 +387,7 @@ export function Configuracoes({
   onFechar,
   email,
   temSenha,
+  administrador = true,
   onSair,
   onTema,
 }: {
@@ -397,6 +398,8 @@ export function Configuracoes({
   email: string;
   /** Falso na conta que só entra pelo Google (`metodos_login` do `GET /me`): não há senha para trocar. */
   temSenha: boolean;
+  /** Quem cadastrou a empresa: só ele convida e remove pessoas na seção Equipe. */
+  administrador?: boolean;
   onSair: () => void;
   /** Avisa o menu lateral, que mostra o botão de tema com o ícone do tema atual. */
   onTema: (tema: Tema) => void;
