@@ -4495,28 +4495,17 @@ html[data-tema="escuro"] .app-shell {
   width: 18px;
   background: var(--color-text);
 }
-/* O recorte em volta do alvo: fixo e por cima de tudo, abaixo só do cartão, e o resto da tela
-   (menu incluído) escurece pela sombra. Não pega clique: o tutorial não é modal. */
+/* O véu do tutorial: a tela inteira (menu incluído) escurece e desfoca como atrás das janelas
+   (.dialog-backdrop), abaixo só do cartão, com um buraco nítido no alvo; o buraco é o clip-path
+   que o tutorial recalcula quadro a quadro. Sem contorno: o contraste já aponta o alvo. Não pega
+   clique: o tutorial não é modal. */
 .tutorial-destaque {
   position: fixed;
+  inset: 0;
   z-index: 59;
   pointer-events: none;
-  border-radius: calc(var(--radius-md) + 4px);
-  box-shadow:
-    0 0 0 2px var(--color-text),
-    0 0 0 100vmax var(--veu-do-tutorial);
-}
-/* no tema escuro o véu claro some no fundo: mais forte, para o recorte ainda separar o alvo */
-.app-shell {
-  --veu-do-tutorial: rgb(12 11 10 / 0.28);
-}
-@media (prefers-color-scheme: dark) {
-  html:not([data-tema="claro"]) .app-shell {
-    --veu-do-tutorial: rgb(0 0 0 / 0.55);
-  }
-}
-html[data-tema="escuro"] .app-shell {
-  --veu-do-tutorial: rgb(0 0 0 / 0.55);
+  background: rgb(12 11 10 / 0.55);
+  backdrop-filter: blur(3px);
 }
 @media (prefers-reduced-motion: no-preference) {
   .tutorial {

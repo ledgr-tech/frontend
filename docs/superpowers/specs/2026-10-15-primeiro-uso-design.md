@@ -68,9 +68,11 @@ de custos. **Aberto:** qual tabela vale; a tela usa uma só fonte, então a troc
 - Cartão no canto inferior (no celular, embaixo, largura toda), com o mascote,
   "Tela · 1 de 3", o texto do passo, a caixa "Não mostrar de novo", "Pular" e
   "Próximo"/"Entendi" no último.
-- Cada passo aponta um elemento por `data-tutorial="<id>"`. O elemento ganha um
-  contorno e o resto da tela escurece levemente, menu incluído (sem bloquear
-  clique fora: o cartão não é modal). Só entram os passos cujo elemento está na
+- Cada passo aponta um elemento por `data-tutorial="<id>"`. O resto da tela,
+  menu incluído, escurece e desfoca como atrás das janelas (`.dialog-backdrop`),
+  e o elemento fica nítido num buraco de cantos redondos, sem contorno (revisão
+  de 16/10: o traço preto pesava; o contraste já aponta o alvo). Não bloqueia
+  clique fora: o cartão não é modal. Só entram os passos cujo elemento está na
   tela; a página rola até ele ficar entre a barra do topo e o cartão.
 - *Revisão de 16/10, na conferência visual:* numa tela vazia (conta nova, sem
   extratos) o tutorial **não abre sozinho** nem conta como visto: explicar
@@ -84,8 +86,8 @@ de custos. **Aberto:** qual tabela vale; a tela usa uma só fonte, então a troc
 - Teclado: foco vai para o cartão ao abrir e volta para onde estava ao fechar;
   `role="dialog"` com `aria-labelledby`. Com `prefers-reduced-motion`, sem
   animação de entrada nem de movimento do destaque.
-- Cor e forma seguem o guia v3: cartão `.card`, botões `.btn`, destaque em
-  traço neutro (não dourado).
+- Cor e forma seguem o guia v3: cartão `.card`, botões `.btn`, e o véu igual
+  ao fundo das janelas.
 
 **Textos** num arquivo só (`app/(app)/tutorial/roteiros.ts`), por rota, com o
 mascote de cada um (os de `public/mascotes/`): Visão geral, Conciliações,

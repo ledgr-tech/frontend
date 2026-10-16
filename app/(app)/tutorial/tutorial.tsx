@@ -13,8 +13,10 @@ const ATIVO = "data-tutorial-ativo";
 const VISTOS = "ledgr:tutoriais-vistos";
 /** De quanto em quanto tempo o cartão olha se a tela já mostrou o que ele vai destacar. */
 const INTERVALO_MS = 100;
-/** A folga entre o alvo e o traço do destaque, para o conteúdo do alvo não encostar nele. */
+/** A folga entre o alvo e a borda do buraco no véu, para o desfoque não encostar no conteúdo. */
 const FOLGA = 8;
+/** O canto do buraco: o --radius-md (16px) dos cartões mais a folga. */
+const RAIO = 20;
 
 function vistosNestaSessao(): string[] {
   try {
@@ -38,6 +40,21 @@ function marcarVisto(tela: TelaDoTutorial) {
 function alvoDe(passo: PassoDoTutorial): HTMLElement | null {
   const alvo = document.querySelector<HTMLElement>(`[data-tutorial="${passo.alvo}"]`);
   return alvo && (alvo.checkVisibility?.() ?? true) ? alvo : null;
+}
+
+/**
+ * O recorte do véu: a tela inteira menos um retângulo de cantos arredondados em volta do alvo, que
+ * fica nítido no meio do desfoque (o evenodd faz do segundo retângulo um buraco no primeiro).
+ */
+function furo(x: number, y: number, largura: number, altura: number): string {
+  const r = Math.min(RAIO, largura / 2, altura / 2);
+  const l = largura - 2 * r;
+  const a = altura - 2 * r;
+  const tela = `M0 0H${window.innerWidth}V${window.innerHeight}H0Z`;
+  const buraco =
+    `M${x + r} ${y}h${l}a${r} ${r} 0 0 1 ${r} ${r}v${a}a${r} ${r} 0 0 1 ${-r} ${r}` +
+    `h${-l}a${r} ${r} 0 0 1 ${-r} ${-r}v${-a}a${r} ${r} 0 0 1 ${r} ${-r}Z`;
+  return `path(evenodd, "${tela} ${buraco}")`;
 }
 
 /**
@@ -145,24 +162,24 @@ export function Tutorial({
   }, [aberto]);
 
   // destaque do passo atual: espera o alvo aparecer (a tela pode ainda estar carregando) e sai ao
-  // trocar de passo, fechar ou desmontar. O recorte é uma camada fixa por cima da tela inteira (o
-  // menu escurece junto) que segue o alvo quadro a quadro, enquanto a página rola ou muda de tamanho
+  // trocar de passo, fechar ou desmontar. O véu é uma camada fixa por cima da tela inteira (o menu
+  // desfoca junto) com um buraco que segue o alvo quadro a quadro, enquanto a página rola ou muda
+  // de tamanho; só reescreve o recorte quando ele muda, para não repintar o desfoque à toa
   useEffect(() => {
     if (!aberto) return;
     const passo = passos[indice];
-    const recorte = destaque.current;
+    const veu = destaque.current;
     const inicio = Date.now();
     let alvo: HTMLElement | null = null;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let quadro = 0;
+    let ultimo = "";
     const seguir = () => {
-      if (!alvo || !recorte) return;
+      if (!alvo || !veu) return;
       const { top, left, width, height } = alvo.getBoundingClientRect();
-      recorte.hidden = width === 0 && height === 0;
-      recorte.style.top = `${top - FOLGA}px`;
-      recorte.style.left = `${left - FOLGA}px`;
-      recorte.style.width = `${width + 2 * FOLGA}px`;
-      recorte.style.height = `${height + 2 * FOLGA}px`;
+      veu.hidden = width === 0 && height === 0;
+      const recorte = furo(left - FOLGA, top - FOLGA, width + 2 * FOLGA, height + 2 * FOLGA);
+      if (recorte !== ultimo) veu.style.clipPath = ultimo = recorte;
       quadro = requestAnimationFrame(seguir);
     };
     const destacar = () => {
@@ -179,7 +196,7 @@ export function Tutorial({
     return () => {
       clearTimeout(timer);
       cancelAnimationFrame(quadro);
-      if (recorte) recorte.hidden = true;
+      if (veu) veu.hidden = true;
       if (!alvo) return;
       alvo.removeAttribute(ATIVO);
       alvo.style.scrollMarginTop = "";
