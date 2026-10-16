@@ -176,3 +176,11 @@ export const PASSOS: PassoCadastro[] = [
     dicaTexto: "Toda divergência é apontada como “o sistema diverge do banco”, nunca o contrário.",
   },
 ];
+
+// Quem volta do Google sem conta (backend #73) não cria acesso: o e-mail é o da conta Google e não há
+// senha. O nome, que o Google já traz, vai para o passo da empresa, para a pessoa conferir.
+const [acesso, empresa, sistema] = PASSOS;
+export const PASSOS_GOOGLE: PassoCadastro[] = [
+  { ...empresa, campos: [acesso.campos.find((campo) => campo.id === "nome")!, ...empresa.campos] },
+  sistema,
+];

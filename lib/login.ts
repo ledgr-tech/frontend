@@ -1,6 +1,8 @@
 import "server-only";
-import { CredentialsSignin } from "next-auth";
+import { cookies } from "next/headers";
+import { CredentialsSignin, type User } from "next-auth";
 import { ErroBackend, chamarBackend } from "./backend";
+import { COOKIE_CADASTRO_GOOGLE, VALIDADE_ID_TOKEN_SEGUNDOS, type ErroGoogle } from "./google";
 
 /**
  * A conferência da senha, que é do backend (`POST /login`, issue #57 dele).
@@ -16,6 +18,17 @@ import { ErroBackend, chamarBackend } from "./backend";
  * `/login`, e só do backend com a revogação de sessão (#75).
  */
 export type UsuarioAPI = { id: string; empresa_id: string; nome: string; email: string; auth_time?: number };
+
+/** O usuário do NextAuth a partir da resposta do backend: o `id` e o `empresa_id` são sempre os dele. */
+function usuarioDaSessao(usuario: UsuarioAPI): User {
+  return {
+    id: usuario.id,
+    email: usuario.email,
+    name: usuario.nome,
+    empresaId: usuario.empresa_id,
+    ...(Number.isInteger(usuario.auth_time) && { authTime: usuario.auth_time }),
+  };
+}
 
 /**
  * O 429 do backend. Tem que ser um `CredentialsSignin` pra chegar inteiro na
@@ -38,16 +51,77 @@ export async function autorizar(email: string, senha: string) {
       corpo: { email, senha },
       publica: true,
     });
-    return {
-      id: usuario.id,
-      email: usuario.email,
-      name: usuario.nome,
-      empresaId: usuario.empresa_id,
-      ...(Number.isInteger(usuario.auth_time) && { authTime: usuario.auth_time }),
-    };
+    return usuarioDaSessao(usuario);
   } catch (erro) {
     if (erro instanceof ErroBackend && erro.status === 401) return null;
     if (erro instanceof ErroBackend && erro.status === 429) throw new MuitasEntradas();
     throw erro;
   }
+}
+
+export type ResultadoLoginGoogle = { ok: true; usuario: User } | { ok: false; erro: ErroGoogle | "sem_conta" };
+
+/**
+ * `POST /login/google` (backend #73) com o `id_token` do Google. O backend acha
+ * o usuário pelo `sub` do Google e devolve o mesmo corpo do `/login`: o `sub`
+ * do Google nunca vira o `id` da sessão.
+ */
+export async function entrarNoBackendComGoogle(idToken: string): Promise<ResultadoLoginGoogle> {
+  try {
+    const usuario = await chamarBackend<UsuarioAPI>("/login/google", {
+      method: "POST",
+      corpo: { id_token: idToken },
+      publica: true,
+    });
+    return { ok: true, usuario: usuarioDaSessao(usuario) };
+  } catch (erro) {
+    if (!(erro instanceof ErroBackend)) return { ok: false, erro: "falha" };
+    if (erro.status === 404) return { ok: false, erro: "sem_conta" };
+    if (erro.status === 409) return { ok: false, erro: "email_com_senha" };
+    if (erro.status === 401) return { ok: false, erro: "nao_confirmado" };
+    if (erro.status === 429) return { ok: false, erro: "muitas_tentativas" };
+    if (erro.status === 503) return { ok: false, erro: "indisponivel" };
+    return { ok: false, erro: "falha" };
+  }
+}
+
+/**
+ * O callback `signIn` do NextAuth na volta do Google. Com conta, o usuário do
+ * backend toma o lugar do perfil do Google no mesmo objeto, que o NextAuth
+ * passa adiante para o callback `jwt`. Sem conta, o `id_token` espera no
+ * cookie e a pessoa vai terminar o cadastro. O resto volta ao login com o
+ * motivo, nunca para a página de erro do NextAuth.
+ */
+export async function aoVoltarDoGoogle(usuario: User, idToken: string | undefined): Promise<true | string> {
+  if (!idToken) return "/login?google=falha";
+  const resultado = await entrarNoBackendComGoogle(idToken);
+  if (resultado.ok) {
+    Object.assign(usuario, resultado.usuario);
+    return true;
+  }
+  if (resultado.erro !== "sem_conta") return `/login?google=${resultado.erro}`;
+  (await cookies()).set(COOKIE_CADASTRO_GOOGLE, idToken, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: VALIDADE_ID_TOKEN_SEGUNDOS,
+  });
+  return "/cadastro/google";
+}
+
+/**
+ * O `authorize` da sessão logo depois do `/register/google`, que já é o login
+ * mas não abre a sessão do NextAuth: entra pelo `/login/google` com o mesmo
+ * `id_token`, lido do cookie httpOnly, nunca do navegador. Sem cookie ou sem
+ * conta, `null`.
+ */
+export async function autorizarDepoisDoCadastroGoogle(): Promise<User | null> {
+  const pote = await cookies();
+  const idToken = pote.get(COOKIE_CADASTRO_GOOGLE)?.value;
+  if (!idToken) return null;
+  const resultado = await entrarNoBackendComGoogle(idToken);
+  if (!resultado.ok) return null;
+  pote.delete(COOKIE_CADASTRO_GOOGLE);
+  return resultado.usuario;
 }

@@ -14,8 +14,10 @@ vi.mock("next/navigation", () => ({
 // devolvem o que o servidor responderia. O bloqueio por tentativas roda de verdade.
 const abrirSessao = vi.fn();
 const entrarNaDemonstracao = vi.fn();
+const entrarComGoogle = vi.fn();
 vi.mock("../acoes", () => ({
   entrar: (...args: unknown[]) => abrirSessao(...args),
+  entrarComGoogle: (...args: unknown[]) => entrarComGoogle(...args),
   entrarNaDemonstracao: (...args: unknown[]) => entrarNaDemonstracao(...args),
 }));
 
@@ -36,7 +38,11 @@ describe("LoginPage", () => {
     abrirSessao.mockResolvedValue({ ok: true });
     entrarNaDemonstracao.mockReset();
     entrarNaDemonstracao.mockResolvedValue(true);
+    // a action de verdade sai redirecionando para o Google: a promessa não volta
+    entrarComGoogle.mockReset();
+    entrarComGoogle.mockReturnValue(new Promise(() => {}));
     window.localStorage.clear();
+    window.history.replaceState(null, "", "/login");
   });
 
   afterEach(() => {
@@ -200,6 +206,55 @@ describe("LoginPage", () => {
 
     await waitFor(() => expect(screen.getByLabelText("Senha")).toHaveAccessibleDescription(FALHA_DE_SESSAO));
     expect(screen.getByRole("button", { name: "Entrar com Google" })).toBeEnabled();
+  });
+
+  // backend #73: com o Google ligado, o botão leva ao Google de verdade, e não à demonstração
+  it("goes to Google when Google sign-in is on", async () => {
+    vi.stubEnv("NEXT_PUBLIC_LEDGR_GOOGLE", "1");
+    vi.stubEnv("NEXT_PUBLIC_LEDGR_DEMO_ABERTA", "1");
+    const user = userEvent.setup();
+    render(<LoginPage />);
+
+    await user.click(screen.getByRole("button", { name: "Entrar com Google" }));
+
+    expect(entrarComGoogle).toHaveBeenCalledTimes(1);
+    expect(entrarNaDemonstracao).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Entrar com Google" })).toBeDisabled();
+  });
+
+  it("says Google is unavailable when the server has no Google provider", async () => {
+    vi.stubEnv("NEXT_PUBLIC_LEDGR_GOOGLE", "1");
+    entrarComGoogle.mockResolvedValue(false);
+    const user = userEvent.setup();
+    render(<LoginPage />);
+
+    await user.click(screen.getByRole("button", { name: "Entrar com Google" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "O login pelo Google está indisponível agora. Entre com e-mail e senha.",
+    );
+    expect(screen.getByRole("button", { name: "Entrar com Google" })).toBeEnabled();
+  });
+
+  it("shows why Google didn't open the session and clears it from the address", async () => {
+    vi.stubEnv("NEXT_PUBLIC_LEDGR_GOOGLE", "1");
+    window.history.replaceState(null, "", "/login?google=email_com_senha");
+    render(<LoginPage />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Já existe uma conta com este e-mail. Entre com e-mail e senha.",
+    );
+    expect(window.location.search).toBe("");
+  });
+
+  // a pessoa cancelou no Google, ou o NextAuth recusou a volta: ele manda ?error=
+  it("shows a generic Google failure for an unknown reason or a NextAuth error", async () => {
+    window.history.replaceState(null, "", "/login?error=AccessDenied");
+    render(<LoginPage />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Não foi possível entrar com o Google. Tente de novo em instantes.",
+    );
   });
 
   it("only keeps the session in this tab when 'Manter sessão ativa' is unchecked", async () => {
