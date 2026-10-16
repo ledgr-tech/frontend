@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CredentialsSignin } from "next-auth";
 import { MuitasEntradas } from "@/lib/login";
 import {
+  aceitarConvite,
   cadastrar,
   cadastrarComGoogle,
   entrar,
@@ -10,8 +11,10 @@ import {
   escolherPlano,
   excluirConta,
   pedirRecuperacaoSenha,
+  consultarConvite,
   contaDaSessao,
   redefinirSenha,
+  sairParaAceitarConvite,
   salvarPreferencias,
   trocarEmail,
   trocarSenha,
@@ -774,5 +777,80 @@ describe("escolherPlano", () => {
   it("recusa um plano que não existe sem chamar o backend", async () => {
     await expect(escolherPlano("ouro" as "padrao")).resolves.toMatchObject({ ok: false });
     expect(fetch).not.toHaveBeenCalled();
+  });
+});
+
+describe("consultarConvite", () => {
+  it("consulta o convite pelo corpo, sem sessão", async () => {
+    fetch.mockResolvedValue(
+      Response.json({ email: "ana@x.com", razao_social: "Padaria Ltda", expira_em: "2026-10-23T12:00:00Z" }),
+    );
+
+    expect(await consultarConvite("tok")).toEqual({
+      ok: true,
+      convite: { email: "ana@x.com", razaoSocial: "Padaria Ltda", valeAte: "23/10/2026" },
+    });
+    const [url, init] = fetch.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe("http://localhost:8000/convites/consultar");
+    expect(new Headers(init.headers).has("Authorization")).toBe(false);
+    expect(JSON.parse(String(init.body))).toEqual({ token: "tok" });
+  });
+
+  it.each([
+    [400, "convite_invalido"],
+    [422, "convite_invalido"],
+    [429, "muitas_tentativas"],
+    [500, "falha"],
+  ])("com %i responde %s", async (status, erro) => {
+    fetch.mockResolvedValue(Response.json({ detail: "x" }, { status }));
+
+    expect(await consultarConvite("tok")).toEqual({ ok: false, erro });
+  });
+
+  it("sem conseguir falar com o servidor, é falha", async () => {
+    fetch.mockRejectedValue(new TypeError("fetch failed"));
+
+    expect(await consultarConvite("tok")).toEqual({ ok: false, erro: "falha" });
+  });
+});
+
+describe("aceitarConvite", () => {
+  it("cria a conta pelo convite e já entra com o e-mail dele", async () => {
+    fetch.mockResolvedValue(Response.json({ id: "u", empresa_id: "e", nome: "Ana", email: "ana@x.com" }, { status: 201 }));
+
+    expect(await aceitarConvite("tok", "ana@x.com", "Ana", "senha-boa-1")).toEqual({ ok: true, entrou: true });
+    const [url, init] = fetch.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe("http://localhost:8000/convites/aceitar");
+    expect(new Headers(init.headers).has("Authorization")).toBe(false);
+    expect(JSON.parse(String(init.body))).toEqual({ token: "tok", nome: "Ana", senha: "senha-boa-1" });
+    expect(signIn).toHaveBeenCalledWith("credentials", { email: "ana@x.com", senha: "senha-boa-1", redirect: false });
+  });
+
+  it("conta criada com a sessão que não abriu: falta só entrar", async () => {
+    fetch.mockResolvedValue(Response.json({ id: "u", empresa_id: "e", nome: "Ana", email: "ana@x.com" }, { status: 201 }));
+    signIn.mockRejectedValue(new Error("NEXTAUTH_SECRET"));
+
+    expect(await aceitarConvite("tok", "ana@x.com", "Ana", "senha-boa-1")).toEqual({ ok: true, entrou: false });
+  });
+
+  it.each([
+    [400, { detail: "Convite inválido ou expirado. Peça um novo convite." }, "convite_invalido"],
+    [409, { detail: "E-mail já cadastrado." }, "email_cadastrado"],
+    [422, { detail: [{ loc: ["body", "senha"], msg: "curta" }] }, "senha_invalida"],
+    [429, { error: "Rate limit exceeded" }, "muitas_tentativas"],
+    [500, { detail: "x" }, "falha"],
+  ])("com %i responde %s, sem tentar entrar", async (status, corpo, erro) => {
+    fetch.mockResolvedValue(Response.json(corpo, { status }));
+
+    expect(await aceitarConvite("tok", "ana@x.com", "Ana", "senha-boa-1")).toEqual({ ok: false, erro });
+    expect(signIn).not.toHaveBeenCalled();
+  });
+});
+
+describe("sairParaAceitarConvite", () => {
+  it("encerra a sessão sem sair da página do convite", async () => {
+    await sairParaAceitarConvite();
+
+    expect(signOut).toHaveBeenCalledWith({ redirect: false });
   });
 });

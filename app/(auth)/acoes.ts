@@ -10,6 +10,7 @@ import { COOKIE_CADASTRO_GOOGLE } from "@/lib/google";
 import { MuitasEntradas, type UsuarioAPI } from "@/lib/login";
 import { ehTela, type Preferencias } from "@/lib/preferencias";
 import { adaptarAssinatura, type Assinatura, type PlanoId } from "@/lib/assinatura";
+import { adaptarConsultaConvite, type ConsultaConvite, type ConsultaConviteAPI } from "@/lib/adaptadores";
 
 /**
  * Abrir e fechar sessão, e criar conta. Vive numa Server Action porque o
@@ -346,6 +347,61 @@ export async function redefinirSenha(token: string, senhaNova: string): Promise<
     return { ok: false, erro: "falha" };
   }
   return { ok: true };
+}
+
+export type ResultadoConsultaConvite =
+  | { ok: true; convite: ConsultaConvite }
+  | { ok: false; erro: "convite_invalido" | "muitas_tentativas" | "falha" };
+
+/**
+ * Quem está convidando e para onde (`POST /convites/consultar`, backend #69), sem
+ * login e sem gastar o convite. O token vai no corpo, nunca no endereço. O 400 junta
+ * convite inexistente, vencido, usado e cancelado: o backend não diz qual.
+ */
+export async function consultarConvite(token: string): Promise<ResultadoConsultaConvite> {
+  try {
+    const convite = await chamarBackend<ConsultaConviteAPI>("/convites/consultar", {
+      method: "POST",
+      corpo: { token },
+      publica: true,
+    });
+    return { ok: true, convite: adaptarConsultaConvite(convite) };
+  } catch (erro) {
+    if (!(erro instanceof ErroBackend)) return { ok: false, erro: "falha" };
+    if (erro.status === 400 || erro.status === 422) return { ok: false, erro: "convite_invalido" };
+    if (erro.status === 429) return { ok: false, erro: "muitas_tentativas" };
+    return { ok: false, erro: "falha" };
+  }
+}
+
+export type ResultadoAceite =
+  /** `entrou: false` é conta criada com a sessão que não abriu: falta só entrar. */
+  | { ok: true; entrou: boolean }
+  | { ok: false; erro: "convite_invalido" | "email_cadastrado" | "senha_invalida" | "muitas_tentativas" | "falha" };
+
+/**
+ * Cria a conta pelo convite (`POST /convites/aceitar`), na empresa de quem convidou e
+ * com o e-mail do convite, e já entra com a senha nova, como o cadastro faz. O e-mail
+ * vem da consulta: o backend não aceita outro.
+ */
+export async function aceitarConvite(token: string, email: string, nome: string, senha: string): Promise<ResultadoAceite> {
+  try {
+    await chamarBackend("/convites/aceitar", { method: "POST", corpo: { token, nome, senha }, publica: true });
+  } catch (erro) {
+    if (!(erro instanceof ErroBackend)) return { ok: false, erro: "falha" };
+    if (erro.status === 400) return { ok: false, erro: "convite_invalido" };
+    if (erro.status === 409) return { ok: false, erro: "email_cadastrado" };
+    if (erro.status === 422 && erro.campos.includes("senha")) return { ok: false, erro: "senha_invalida" };
+    if (erro.status === 422) return { ok: false, erro: "convite_invalido" };
+    if (erro.status === 429) return { ok: false, erro: "muitas_tentativas" };
+    return { ok: false, erro: "falha" };
+  }
+  return { ok: true, entrou: (await entrar(email, senha, true)).ok };
+}
+
+/** "Sair e continuar" na página do convite: encerra a sessão de outra conta sem sair da página. */
+export async function sairParaAceitarConvite(): Promise<void> {
+  await signOut({ redirect: false });
 }
 
 export async function sair(): Promise<void> {
