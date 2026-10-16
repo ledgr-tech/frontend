@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
 import {
+  adaptarConsultaConvite,
+  adaptarConvite,
+  adaptarPessoa,
+  formatarDia,
   adaptarConciliacao,
   adaptarExecucao,
   adaptarLinha,
@@ -483,5 +487,27 @@ describe("extratosDasExecucoes", () => {
 
   it("não tem arquivo nenhum sem execução", () => {
     expect(extratosDasExecucoes([])).toEqual([]);
+  });
+});
+
+describe("equipe e convites", () => {
+  it("formata o dia em dd/mm/aaaa no fuso de Brasília", () => {
+    expect(formatarDia("2026-10-23T02:30:00Z")).toBe("22/10/2026"); // 23h30 em Brasília
+    expect(formatarDia("2026-10-23T15:00:00+00:00")).toBe("23/10/2026");
+  });
+
+  it("adapta convite e consulta com as datas formatadas", () => {
+    expect(
+      adaptarConvite({ id: "c1", email: "ana@x.com", criado_em: "2026-10-16T12:00:00Z", expira_em: "2026-10-23T12:00:00Z" }),
+    ).toEqual({ id: "c1", email: "ana@x.com", enviadoEm: "16/10/2026", valeAte: "23/10/2026" });
+    expect(
+      adaptarConsultaConvite({ email: "ana@x.com", razao_social: "Padaria Ltda", expira_em: "2026-10-23T12:00:00Z" }),
+    ).toEqual({ email: "ana@x.com", razaoSocial: "Padaria Ltda", valeAte: "23/10/2026" });
+  });
+
+  it("adapta a pessoa sem o criado_em", () => {
+    expect(
+      adaptarPessoa({ id: "u1", nome: "Ana", email: "ana@x.com", administrador: true, criado_em: "2026-10-01T00:00:00Z" }),
+    ).toEqual({ id: "u1", nome: "Ana", email: "ana@x.com", administrador: true });
   });
 });

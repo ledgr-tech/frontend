@@ -105,6 +105,7 @@ export function MenuLateral({
   email,
   empresa,
   temSenha,
+  administrador = true,
   onSair,
 }: {
   email: string;
@@ -112,6 +113,7 @@ export function MenuLateral({
   empresa: string;
   /** Falso na conta que só entra pelo Google: as configurações não oferecem trocar a senha. */
   temSenha: boolean;
+  administrador?: boolean;
   onSair: () => void;
 }) {
   const caminho = usePathname();
@@ -463,6 +465,7 @@ export function MenuLateral({
         }}
         email={email}
         temSenha={temSenha}
+        administrador={administrador}
         onSair={onSair}
         onTema={setTema}
       />

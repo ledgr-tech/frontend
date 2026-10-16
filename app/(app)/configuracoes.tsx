@@ -10,6 +10,7 @@ import {
   Search,
   ShieldCheck,
   UserRound,
+  Users,
   X,
   type LucideIcon,
 } from "lucide-react";
@@ -29,6 +30,7 @@ import { alternarMenu, menuRecolhido } from "./menu";
 import { aplicarTema, escolhaDeTema, seguirSistema, temaDoSistema, type EscolhaDeTema, type Tema } from "./tema";
 import { useTeclaDeAtalho } from "@/lib/plataforma";
 import { Tutorial } from "./tutorial/tutorial";
+import { useLinhasDaEquipe } from "./equipe/secao-equipe";
 
 /**
  * As configurações, numa janela no meio da tela (como a do Claude): seções à
@@ -41,7 +43,8 @@ import { Tutorial } from "./tutorial/tutorial";
  * `PUT /empresa/configuracoes` (backend #85); sem a rota, fica para leitura.
  */
 
-type Linha = { titulo: string; descricao?: string; controle?: ReactNode };
+/** `chave` quando o título pode se repetir (duas pessoas com o mesmo nome na Equipe). */
+type Linha = { chave?: string; titulo: string; descricao?: string; controle?: ReactNode };
 
 type Secao = {
   id: string;
@@ -387,6 +390,7 @@ export function Configuracoes({
   onFechar,
   email,
   temSenha,
+  administrador = true,
   onSair,
   onTema,
 }: {
@@ -397,6 +401,8 @@ export function Configuracoes({
   email: string;
   /** Falso na conta que só entra pelo Google (`metodos_login` do `GET /me`): não há senha para trocar. */
   temSenha: boolean;
+  /** Quem cadastrou a empresa: só ele convida e remove pessoas na seção Equipe. */
+  administrador?: boolean;
   onSair: () => void;
   /** Avisa o menu lateral, que mostra o botão de tema com o ícone do tema atual. */
   onTema: (tema: Tema) => void;
@@ -411,6 +417,7 @@ export function Configuracoes({
   // undefined até a janela abrir pela primeira vez (e de novo no "Tentar de novo")
   const [regras, setRegras] = useState<EstadoDasRegras | undefined>(undefined);
   const ctrl = useTeclaDeAtalho();
+  const linhasDaEquipe = useLinhasDaEquipe({ aberta, administrador, email });
 
   useEffect(() => {
     const elemento = dialogo.current;
@@ -534,6 +541,13 @@ export function Configuracoes({
           ),
         },
       ],
+    },
+    {
+      id: "equipe",
+      nome: "Equipe",
+      icone: Users,
+      grupo: "Configurações",
+      linhas: linhasDaEquipe,
     },
     {
       id: "aparencia",
@@ -806,7 +820,7 @@ function Linhas({ linhas }: { linhas: Linha[] }) {
   return (
     <ul className="cfg-linhas">
       {linhas.map((linha) => (
-        <li key={linha.titulo} className="cfg-linha" data-tutorial={ALVO_DA_LINHA[linha.titulo]}>
+        <li key={linha.chave ?? linha.titulo} className="cfg-linha" data-tutorial={ALVO_DA_LINHA[linha.titulo]}>
           <div className="cfg-linha-texto">
             <span className="cfg-linha-titulo">{linha.titulo}</span>
             {linha.descricao && <span className="cfg-linha-descricao">{linha.descricao}</span>}

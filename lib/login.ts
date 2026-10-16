@@ -2,7 +2,7 @@ import "server-only";
 import { cookies } from "next/headers";
 import { CredentialsSignin, type User } from "next-auth";
 import { ErroBackend, chamarBackend } from "./backend";
-import { COOKIE_CADASTRO_GOOGLE, VALIDADE_ID_TOKEN_SEGUNDOS, type ErroGoogle } from "./google";
+import { COOKIE_CADASTRO_GOOGLE, COOKIE_CONVITE_GOOGLE, type ErroConviteGoogle, VALIDADE_ID_TOKEN_SEGUNDOS, type ErroGoogle } from "./google";
 
 /**
  * A conferência da senha, que é do backend (`POST /login`, issue #57 dele).
@@ -85,6 +85,51 @@ export async function entrarNoBackendComGoogle(idToken: string): Promise<Resulta
   }
 }
 
+export type ResultadoConviteGoogle = { ok: true; usuario: User } | { ok: false; erro: ErroConviteGoogle };
+
+/**
+ * `POST /convites/aceitar/google` (backend #69/#73): cria a conta pelo convite com a
+ * identidade do Google e já responde como o login. O e-mail do Google tem de ser o do
+ * convite; o 409 desse caso só se distingue dos outros pelo texto.
+ */
+export async function aceitarConviteNoBackendComGoogle(token: string, idToken: string): Promise<ResultadoConviteGoogle> {
+  try {
+    const usuario = await chamarBackend<UsuarioAPI>("/convites/aceitar/google", {
+      method: "POST",
+      corpo: { token, id_token: idToken },
+      publica: true,
+    });
+    return { ok: true, usuario: usuarioDaSessao(usuario) };
+  } catch (erro) {
+    if (!(erro instanceof ErroBackend)) return { ok: false, erro: "falha" };
+    if (erro.status === 400) return { ok: false, erro: "convite_invalido" };
+    if (erro.status === 409) {
+      return { ok: false, erro: erro.detalhe.includes("diferente") ? "email_diferente" : "email_cadastrado" };
+    }
+    if (erro.status === 429) return { ok: false, erro: "muitas_tentativas" };
+    return { ok: false, erro: "falha" };
+  }
+}
+
+/**
+ * Na volta do Google com o cookie do convite: aceita o convite. Nas recusas em que tentar de
+ * novo pode dar certo (outra conta Google, limite, falha), o cookie fica, para a página mostrar
+ * o convite de novo (o fragmento do link se perdeu na ida ao Google).
+ */
+async function aceitarConviteNaVolta(usuario: User, token: string, idToken: string | undefined): Promise<true | string> {
+  if (!idToken) return "/aceitar-convite?google=falha";
+  const resultado = await aceitarConviteNoBackendComGoogle(token, idToken);
+  const pote = await cookies();
+  if (resultado.ok) {
+    pote.delete(COOKIE_CONVITE_GOOGLE);
+    Object.assign(usuario, resultado.usuario);
+    return true;
+  }
+  // convite que não vale mais, ou e-mail que já tem conta: tentar de novo não adianta
+  if (resultado.erro === "convite_invalido" || resultado.erro === "email_cadastrado") pote.delete(COOKIE_CONVITE_GOOGLE);
+  return `/aceitar-convite?google=${resultado.erro}`;
+}
+
 /**
  * O callback `signIn` do NextAuth na volta do Google. Com conta, o usuário do
  * backend toma o lugar do perfil do Google no mesmo objeto, que o NextAuth
@@ -93,6 +138,8 @@ export async function entrarNoBackendComGoogle(idToken: string): Promise<Resulta
  * motivo, nunca para a página de erro do NextAuth.
  */
 export async function aoVoltarDoGoogle(usuario: User, idToken: string | undefined): Promise<true | string> {
+  const convite = (await cookies()).get(COOKIE_CONVITE_GOOGLE)?.value;
+  if (convite) return aceitarConviteNaVolta(usuario, convite, idToken);
   if (!idToken) return "/login?google=falha";
   const resultado = await entrarNoBackendComGoogle(idToken);
   if (resultado.ok) {

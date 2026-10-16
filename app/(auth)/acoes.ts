@@ -6,10 +6,11 @@ import { CredentialsSignin } from "next-auth";
 import { auth, signIn, signOut } from "@/auth";
 import { ErroBackend, chamarBackend } from "@/lib/backend";
 import { demoAberta } from "@/lib/demo";
-import { COOKIE_CADASTRO_GOOGLE } from "@/lib/google";
+import { COOKIE_CADASTRO_GOOGLE, COOKIE_CONVITE_GOOGLE, VALIDADE_ID_TOKEN_SEGUNDOS } from "@/lib/google";
 import { MuitasEntradas, type UsuarioAPI } from "@/lib/login";
 import { ehTela, type Preferencias } from "@/lib/preferencias";
 import { adaptarAssinatura, type Assinatura, type PlanoId } from "@/lib/assinatura";
+import { adaptarConsultaConvite, type ConsultaConvite, type ConsultaConviteAPI } from "@/lib/adaptadores";
 
 /**
  * Abrir e fechar sessão, e criar conta. Vive numa Server Action porque o
@@ -89,6 +90,8 @@ export async function entrarNaDemonstracao(manterSessao: boolean): Promise<boole
  */
 export async function entrarComGoogle(): Promise<false> {
   if (!process.env.AUTH_GOOGLE_ID) return false;
+  // um aceite de convite pelo Google que ficou pela metade não pode virar este login
+  (await cookies()).delete(COOKIE_CONVITE_GOOGLE);
   await signIn("google", { redirectTo: "/visao-geral" });
   return false;
 }
@@ -348,6 +351,108 @@ export async function redefinirSenha(token: string, senhaNova: string): Promise<
   return { ok: true };
 }
 
+export type ResultadoConsultaConvite =
+  | { ok: true; convite: ConsultaConvite }
+  | { ok: false; erro: "convite_invalido" | "muitas_tentativas" | "falha" };
+
+/**
+ * Quem está convidando e para onde (`POST /convites/consultar`, backend #69), sem
+ * login e sem gastar o convite. O token vai no corpo, nunca no endereço. O 400 junta
+ * convite inexistente, vencido, usado e cancelado: o backend não diz qual.
+ */
+export async function consultarConvite(token: string): Promise<ResultadoConsultaConvite> {
+  try {
+    const convite = await chamarBackend<ConsultaConviteAPI>("/convites/consultar", {
+      method: "POST",
+      corpo: { token },
+      publica: true,
+    });
+    return { ok: true, convite: adaptarConsultaConvite(convite) };
+  } catch (erro) {
+    if (!(erro instanceof ErroBackend)) return { ok: false, erro: "falha" };
+    if (erro.status === 400 || erro.status === 422) return { ok: false, erro: "convite_invalido" };
+    if (erro.status === 429) return { ok: false, erro: "muitas_tentativas" };
+    return { ok: false, erro: "falha" };
+  }
+}
+
+export type ResultadoAceite =
+  /** `entrou: false` é conta criada com a sessão que não abriu: falta só entrar. */
+  | { ok: true; entrou: boolean }
+  | { ok: false; erro: "convite_invalido" | "email_cadastrado" | "senha_invalida" | "muitas_tentativas" | "falha" };
+
+/**
+ * Cria a conta pelo convite (`POST /convites/aceitar`), na empresa de quem convidou e
+ * com o e-mail do convite, e já entra com a senha nova, como o cadastro faz. O e-mail
+ * vem da consulta: o backend não aceita outro. Token vazio é a volta do Google com recusa,
+ * quando o token só existe no cookie do convite.
+ */
+export async function aceitarConvite(token: string, email: string, nome: string, senha: string): Promise<ResultadoAceite> {
+  const pote = await cookies();
+  const doCookie = !token;
+  const tokenDoConvite = token || pote.get(COOKIE_CONVITE_GOOGLE)?.value;
+  if (!tokenDoConvite) return { ok: false, erro: "convite_invalido" };
+  try {
+    await chamarBackend("/convites/aceitar", {
+      method: "POST",
+      corpo: { token: tokenDoConvite, nome, senha },
+      publica: true,
+    });
+  } catch (erro) {
+    if (!(erro instanceof ErroBackend)) return { ok: false, erro: "falha" };
+    if (erro.status === 400) return { ok: false, erro: "convite_invalido" };
+    if (erro.status === 409) return { ok: false, erro: "email_cadastrado" };
+    if (erro.status === 422 && erro.campos.includes("senha")) return { ok: false, erro: "senha_invalida" };
+    if (erro.status === 422) return { ok: false, erro: "convite_invalido" };
+    if (erro.status === 429) return { ok: false, erro: "muitas_tentativas" };
+    return { ok: false, erro: "falha" };
+  }
+  if (doCookie) pote.delete(COOKIE_CONVITE_GOOGLE);
+  return { ok: true, entrou: (await entrar(email, senha, true)).ok };
+}
+
+/**
+ * "Aceitar com Google": guarda o token do convite num cookie httpOnly e leva ao Google;
+ * na volta, o `aoVoltarDoGoogle` aceita o convite. Token vazio é tentar de novo depois de
+ * uma recusa: o cookie da primeira ida continua lá. Como o `entrarComGoogle`, só volta
+ * daqui quando não há como ir.
+ */
+export async function aceitarConviteComGoogle(token: string): Promise<false> {
+  if (!process.env.AUTH_GOOGLE_ID) return false;
+  const pote = await cookies();
+  if (token) {
+    pote.set(COOKIE_CONVITE_GOOGLE, token, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: VALIDADE_ID_TOKEN_SEGUNDOS,
+    });
+  } else if (!pote.get(COOKIE_CONVITE_GOOGLE)) {
+    return false;
+  }
+  await signIn("google", { redirectTo: "/visao-geral" });
+  return false;
+}
+
+/**
+ * O convite do cookie, na volta do Google com recusa: o servidor consulta, para o token
+ * nunca chegar ao navegador. Roda no render da página, onde o Next não deixa apagar cookie:
+ * um convite que não vale mais fica no cookie até a 1 hora dele, e o próximo login pelo
+ * Google (`entrarComGoogle`) o apaga antes de sair.
+ */
+export async function conviteDoCookie(): Promise<ConsultaConvite | null> {
+  const token = (await cookies()).get(COOKIE_CONVITE_GOOGLE)?.value;
+  if (!token) return null;
+  const resposta = await consultarConvite(token);
+  return resposta.ok ? resposta.convite : null;
+}
+
+/** "Sair e continuar" na página do convite: encerra a sessão de outra conta sem sair da página. */
+export async function sairParaAceitarConvite(): Promise<void> {
+  await signOut({ redirect: false });
+}
+
 export async function sair(): Promise<void> {
   await signOut({ redirectTo: "/login" });
 }
@@ -358,6 +463,8 @@ export type ContaDaSessao = {
   empresa: string;
   /** Falso na conta que só entra pelo Google: para ela, `POST /me/senha` responde 409. */
   temSenha: boolean;
+  /** Quem cadastrou a empresa: convida e remove pessoas (backend #69). Verdadeiro sem o campo, como na conta única. */
+  administrador: boolean;
   /** O que a pessoa dispensou no primeiro uso; null quando o `GET /me` ainda não manda o campo. */
   preferencias: Preferencias | null;
   /** O plano e o teste de 14 dias; null quando o `GET /me` ainda não manda `situacao`: nada bloqueia. */
@@ -374,7 +481,7 @@ function adaptarPreferencias(bruto: PreferenciasAPI | null | undefined): Prefere
 
 /**
  * A conta logada, de `GET /me` (backend #81), que o `/login` não cobre: ele devolve só
- * o usuário. Sem `papel`, porque o MVP tem conta única. Limite de 60 chamadas por
+ * o usuário. Um papel só, o `administrador` (backend #69). Limite de 60 chamadas por
  * minuto por usuário, por isso só o layout chama.
  *
  * Se a rota falhar, a empresa fica vazia e as telas a escondem, melhor que mostrar o
@@ -386,6 +493,7 @@ export async function contaDaSessao(): Promise<ContaDaSessao> {
       UsuarioAPI & {
         razao_social: string;
         metodos_login: string[];
+        administrador?: boolean;
         preferencias?: PreferenciasAPI;
         situacao?: unknown;
         plano?: unknown;
@@ -395,11 +503,12 @@ export async function contaDaSessao(): Promise<ContaDaSessao> {
     return {
       empresa: eu.razao_social?.trim() ?? "",
       temSenha: eu.metodos_login?.includes("senha") ?? true,
+      administrador: eu.administrador !== false,
       preferencias: adaptarPreferencias(eu.preferencias),
       assinatura: adaptarAssinatura(eu),
     };
   } catch {
-    return { empresa: "", temSenha: true, preferencias: null, assinatura: null };
+    return { empresa: "", temSenha: true, administrador: true, preferencias: null, assinatura: null };
   }
 }
 

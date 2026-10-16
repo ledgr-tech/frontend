@@ -85,6 +85,17 @@ describe("chamarBackend", () => {
     expect(new Headers(init.headers).get("Content-Type")).toBe("application/json");
   });
 
+  it("guarda o Retry-After do 429 em segundos", async () => {
+    fetch.mockResolvedValue(
+      Response.json({ detail: "Limite de convites por hora atingido." }, { status: 429, headers: { "Retry-After": "120" } }),
+    );
+
+    await expect(chamarBackend("/empresa/convites", { method: "POST", corpo: {} })).rejects.toMatchObject({
+      status: 429,
+      segundosParaTentar: 120,
+    });
+  });
+
   it("do 422 do FastAPI, guarda quais campos do corpo foram recusados", async () => {
     fetch.mockResolvedValue(
       Response.json(

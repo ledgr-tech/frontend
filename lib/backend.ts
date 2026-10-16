@@ -33,6 +33,8 @@ export class ErroBackend extends Error {
     readonly campos: string[] = [],
     /** A `msg` de cada campo desse 422, para quando o campo sozinho não diz o motivo (o CNPJ na Receita, #119). */
     readonly mensagens: Record<string, string> = {},
+    /** O `Retry-After` de um 429, em segundos, quando o backend manda (o limite de convites por hora). */
+    readonly segundosParaTentar?: number,
   ) {
     super(detalhe);
     this.name = "ErroBackend";
@@ -76,13 +78,20 @@ async function ipDoNavegador(cabecalhos: Headers): Promise<void> {
   cabecalhos.set("X-Ledgr-Segredo-Proxy", segredo);
 }
 
+/** Só o formato em segundos: o backend nunca manda a data HTTP. */
+function segundosDoRetryAfter(resposta: Response): number | undefined {
+  const valor = Number(resposta.headers.get("Retry-After"));
+  return Number.isInteger(valor) && valor > 0 ? valor : undefined;
+}
+
 async function erroDaResposta(resposta: Response): Promise<ErroBackend> {
+  const segundos = segundosDoRetryAfter(resposta);
   try {
     const corpo = await resposta.json();
     // FastAPI manda `{detail: "..."}`; num 422 de validação, `detail` é uma
     // lista de objetos, que não serve pra mostrar na tela — dela sai só quais
     // campos do corpo falharam (`loc: ["body", "<campo>"]`).
-    if (typeof corpo?.detail === "string") return new ErroBackend(resposta.status, corpo.detail);
+    if (typeof corpo?.detail === "string") return new ErroBackend(resposta.status, corpo.detail, [], {}, segundos);
     if (Array.isArray(corpo?.detail)) {
       const itens: { loc: unknown[]; msg?: unknown }[] = corpo.detail.filter(
         (item: { loc?: unknown[] }) => item?.loc?.[0] === "body",
@@ -97,7 +106,7 @@ async function erroDaResposta(resposta: Response): Promise<ErroBackend> {
   } catch {
     // resposta sem corpo JSON (502 do proxy, timeout do Railway)
   }
-  return new ErroBackend(resposta.status, `O servidor respondeu ${resposta.status}.`);
+  return new ErroBackend(resposta.status, `O servidor respondeu ${resposta.status}.`, [], {}, segundos);
 }
 
 type Opcoes = RequestInit & {

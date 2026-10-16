@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CredentialsSignin } from "next-auth";
 import { MuitasEntradas } from "@/lib/login";
 import {
+  aceitarConvite,
+  aceitarConviteComGoogle,
   cadastrar,
   cadastrarComGoogle,
   entrar,
@@ -10,8 +12,11 @@ import {
   escolherPlano,
   excluirConta,
   pedirRecuperacaoSenha,
+  consultarConvite,
   contaDaSessao,
+  conviteDoCookie,
   redefinirSenha,
+  sairParaAceitarConvite,
   salvarPreferencias,
   trocarEmail,
   trocarSenha,
@@ -290,6 +295,16 @@ describe("cadastrar", () => {
 });
 
 describe("entrarComGoogle", () => {
+  it("esquece um convite pelo Google que ficou pela metade, para o login não virar aceite", async () => {
+    vi.stubEnv("AUTH_GOOGLE_ID", "client-id");
+    cookiesExistentes.set("ledgr-convite-google", "tok");
+
+    await entrarComGoogle();
+
+    expect(cookiesApagados).toHaveBeenCalledWith("ledgr-convite-google");
+    expect(cookiesApagados.mock.invocationCallOrder[0]).toBeLessThan(signIn.mock.invocationCallOrder[0]);
+  });
+
   it("leva ao Google pelo NextAuth, voltando à visão geral", async () => {
     vi.stubEnv("AUTH_GOOGLE_ID", "client-id");
     await entrarComGoogle();
@@ -565,7 +580,7 @@ describe("a conta de quem está logado", () => {
 });
 
 describe("contaDaSessao", () => {
-  // o corpo de GET /me (backend #81): sem `papel`, porque o MVP tem conta única
+  // o corpo de GET /me (backend #81), sem o `administrador` (backend antes da #69)
   const EU = {
     id: "u",
     empresa_id: "e",
@@ -583,7 +598,7 @@ describe("contaDaSessao", () => {
   it("lê a razão social de GET /me, e que a conta tem senha para trocar", async () => {
     fetch.mockResolvedValue(Response.json(EU));
 
-    expect(await contaDaSessao()).toEqual({ empresa: "Telha Certa Ltda", temSenha: true, preferencias: null, assinatura: null });
+    expect(await contaDaSessao()).toEqual({ empresa: "Telha Certa Ltda", temSenha: true, administrador: true, preferencias: null, assinatura: null });
     expect(fetch).toHaveBeenCalledTimes(1);
     expect(fetch.mock.calls[0][0]).toBe("http://localhost:8000/me");
   });
@@ -592,13 +607,25 @@ describe("contaDaSessao", () => {
     // para ela, POST /me/senha responde 409
     fetch.mockResolvedValue(Response.json({ ...EU, metodos_login: ["google"] }));
 
-    expect(await contaDaSessao()).toEqual({ empresa: "Telha Certa Ltda", temSenha: false, preferencias: null, assinatura: null });
+    expect(await contaDaSessao()).toEqual({ empresa: "Telha Certa Ltda", temSenha: false, administrador: true, preferencias: null, assinatura: null });
   });
 
   it("sem resposta, esconde a empresa em vez de inventar um nome e deixa a troca de senha à mostra", async () => {
     fetch.mockResolvedValue(Response.json({ detail: "Not Found" }, { status: 404 }));
 
-    expect(await contaDaSessao()).toEqual({ empresa: "", temSenha: true, preferencias: null, assinatura: null });
+    expect(await contaDaSessao()).toEqual({ empresa: "", temSenha: true, administrador: true, preferencias: null, assinatura: null });
+  });
+
+  it("lê se a pessoa é a administradora da empresa", async () => {
+    fetch.mockResolvedValue(Response.json({ ...EU, administrador: false }));
+
+    expect((await contaDaSessao()).administrador).toBe(false);
+  });
+
+  it("sem o campo administrador, trata como administradora, como na conta única", async () => {
+    fetch.mockResolvedValue(Response.json(EU));
+
+    expect((await contaDaSessao()).administrador).toBe(true);
   });
 
   it("lê o plano e o teste de 14 dias", async () => {
@@ -761,6 +788,161 @@ describe("escolherPlano", () => {
 
   it("recusa um plano que não existe sem chamar o backend", async () => {
     await expect(escolherPlano("ouro" as "padrao")).resolves.toMatchObject({ ok: false });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+});
+
+describe("consultarConvite", () => {
+  it("consulta o convite pelo corpo, sem sessão", async () => {
+    fetch.mockResolvedValue(
+      Response.json({ email: "ana@x.com", razao_social: "Padaria Ltda", expira_em: "2026-10-23T12:00:00Z" }),
+    );
+
+    expect(await consultarConvite("tok")).toEqual({
+      ok: true,
+      convite: { email: "ana@x.com", razaoSocial: "Padaria Ltda", valeAte: "23/10/2026" },
+    });
+    const [url, init] = fetch.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe("http://localhost:8000/convites/consultar");
+    expect(new Headers(init.headers).has("Authorization")).toBe(false);
+    expect(JSON.parse(String(init.body))).toEqual({ token: "tok" });
+  });
+
+  it.each([
+    [400, "convite_invalido"],
+    [422, "convite_invalido"],
+    [429, "muitas_tentativas"],
+    [500, "falha"],
+  ])("com %i responde %s", async (status, erro) => {
+    fetch.mockResolvedValue(Response.json({ detail: "x" }, { status }));
+
+    expect(await consultarConvite("tok")).toEqual({ ok: false, erro });
+  });
+
+  it("sem conseguir falar com o servidor, é falha", async () => {
+    fetch.mockRejectedValue(new TypeError("fetch failed"));
+
+    expect(await consultarConvite("tok")).toEqual({ ok: false, erro: "falha" });
+  });
+});
+
+describe("aceitarConvite", () => {
+  it("cria a conta pelo convite e já entra com o e-mail dele", async () => {
+    fetch.mockResolvedValue(Response.json({ id: "u", empresa_id: "e", nome: "Ana", email: "ana@x.com" }, { status: 201 }));
+
+    expect(await aceitarConvite("tok", "ana@x.com", "Ana", "senha-boa-1")).toEqual({ ok: true, entrou: true });
+    const [url, init] = fetch.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe("http://localhost:8000/convites/aceitar");
+    expect(new Headers(init.headers).has("Authorization")).toBe(false);
+    expect(JSON.parse(String(init.body))).toEqual({ token: "tok", nome: "Ana", senha: "senha-boa-1" });
+    expect(signIn).toHaveBeenCalledWith("credentials", { email: "ana@x.com", senha: "senha-boa-1", redirect: false });
+  });
+
+  it("conta criada com a sessão que não abriu: falta só entrar", async () => {
+    fetch.mockResolvedValue(Response.json({ id: "u", empresa_id: "e", nome: "Ana", email: "ana@x.com" }, { status: 201 }));
+    signIn.mockRejectedValue(new Error("NEXTAUTH_SECRET"));
+
+    expect(await aceitarConvite("tok", "ana@x.com", "Ana", "senha-boa-1")).toEqual({ ok: true, entrou: false });
+  });
+
+  it.each([
+    [400, { detail: "Convite inválido ou expirado. Peça um novo convite." }, "convite_invalido"],
+    [409, { detail: "E-mail já cadastrado." }, "email_cadastrado"],
+    [422, { detail: [{ loc: ["body", "senha"], msg: "curta" }] }, "senha_invalida"],
+    [429, { error: "Rate limit exceeded" }, "muitas_tentativas"],
+    [500, { detail: "x" }, "falha"],
+  ])("com %i responde %s, sem tentar entrar", async (status, corpo, erro) => {
+    fetch.mockResolvedValue(Response.json(corpo, { status }));
+
+    expect(await aceitarConvite("tok", "ana@x.com", "Ana", "senha-boa-1")).toEqual({ ok: false, erro });
+    expect(signIn).not.toHaveBeenCalled();
+  });
+});
+
+describe("sairParaAceitarConvite", () => {
+  it("encerra a sessão sem sair da página do convite", async () => {
+    await sairParaAceitarConvite();
+
+    expect(signOut).toHaveBeenCalledWith({ redirect: false });
+  });
+});
+
+describe("aceitarConviteComGoogle", () => {
+  it("guarda o token do convite num cookie httpOnly de 1 hora e leva ao Google", async () => {
+    vi.stubEnv("AUTH_GOOGLE_ID", "client-id");
+
+    await aceitarConviteComGoogle("tok");
+
+    expect(cookiesGravados).toHaveBeenCalledWith(
+      "ledgr-convite-google",
+      "tok",
+      expect.objectContaining({ httpOnly: true, sameSite: "lax", path: "/", maxAge: 3600 }),
+    );
+    expect(signIn).toHaveBeenCalledWith("google", { redirectTo: "/visao-geral" });
+  });
+
+  it("sem token, tenta de novo com o cookie que já existe", async () => {
+    vi.stubEnv("AUTH_GOOGLE_ID", "client-id");
+    cookiesExistentes.set("ledgr-convite-google", "tok");
+
+    await aceitarConviteComGoogle("");
+
+    expect(cookiesGravados).not.toHaveBeenCalled();
+    expect(signIn).toHaveBeenCalledWith("google", { redirectTo: "/visao-geral" });
+  });
+
+  it("sem token e sem cookie, ou sem o provider, não vai ao Google", async () => {
+    vi.stubEnv("AUTH_GOOGLE_ID", "client-id");
+    expect(await aceitarConviteComGoogle("")).toBe(false);
+
+    vi.stubEnv("AUTH_GOOGLE_ID", "");
+    expect(await aceitarConviteComGoogle("tok")).toBe(false);
+    expect(signIn).not.toHaveBeenCalled();
+    expect(cookiesGravados).not.toHaveBeenCalled();
+  });
+});
+
+describe("conviteDoCookie", () => {
+  it("sem cookie não chama o backend", async () => {
+    expect(await conviteDoCookie()).toBeNull();
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("consulta o convite do cookie", async () => {
+    cookiesExistentes.set("ledgr-convite-google", "tok");
+    fetch.mockResolvedValue(
+      Response.json({ email: "ana@x.com", razao_social: "Padaria Ltda", expira_em: "2026-10-23T12:00:00Z" }),
+    );
+
+    expect(await conviteDoCookie()).toEqual({ email: "ana@x.com", razaoSocial: "Padaria Ltda", valeAte: "23/10/2026" });
+    expect(JSON.parse(String((fetch.mock.calls[0] as [string, RequestInit])[1].body))).toEqual({ token: "tok" });
+  });
+
+  it("convite inválido devolve null sem apagar o cookie, porque roda no render da página", async () => {
+    cookiesExistentes.set("ledgr-convite-google", "tok");
+    fetch.mockResolvedValue(Response.json({ detail: "x" }, { status: 400 }));
+
+    expect(await conviteDoCookie()).toBeNull();
+    expect(cookiesApagados).not.toHaveBeenCalled();
+  });
+});
+
+describe("aceitarConvite depois de uma recusa do Google", () => {
+  it("sem token na página, usa o do cookie do convite", async () => {
+    cookiesExistentes.set("ledgr-convite-google", "tok-do-cookie");
+    fetch.mockResolvedValue(Response.json({ id: "u", empresa_id: "e", nome: "Ana", email: "ana@x.com" }, { status: 201 }));
+
+    expect(await aceitarConvite("", "ana@x.com", "Ana", "senha-boa-1")).toEqual({ ok: true, entrou: true });
+    expect(JSON.parse(String((fetch.mock.calls[0] as [string, RequestInit])[1].body))).toEqual({
+      token: "tok-do-cookie",
+      nome: "Ana",
+      senha: "senha-boa-1",
+    });
+    expect(cookiesApagados).toHaveBeenCalledWith("ledgr-convite-google");
+  });
+
+  it("sem token e sem cookie, é convite inválido sem chamar o backend", async () => {
+    expect(await aceitarConvite("", "ana@x.com", "Ana", "senha-boa-1")).toEqual({ ok: false, erro: "convite_invalido" });
     expect(fetch).not.toHaveBeenCalled();
   });
 });
