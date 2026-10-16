@@ -103,12 +103,12 @@ describe("LandingPage", () => {
     const { container } = render(<LandingPage />);
     const numeros = [
       ...[...container.querySelectorAll(".numeros-grade > *")].map((item) => item.firstElementChild!),
-      // o cartão do hero e o relatório do último card de Preços, que mostra o mesmo agosto
+      // o relatório do último card de Preços, com o agosto da demonstração
       ...screen.getAllByText("96,3%"),
       // e o volume de cada plano na régua de Preços
       ...container.querySelectorAll(".preco-regua-num"),
     ];
-    expect(numeros).toHaveLength(3 + 2 + 5);
+    expect(numeros).toHaveLength(3 + 1 + 5);
     for (const numero of numeros) expect(numero).toHaveClass("numero-destaque");
   });
 
@@ -295,7 +295,7 @@ describe("LandingPage", () => {
 
     it("shows the two statements as they come, without the Ledgr's marks", () => {
       render(<LandingPage />);
-      // as cinco linhas de agosto e a escala do mês, a mesma do cartão do hero
+      // as cinco linhas de agosto e a escala do mês, a mesma do relatório de Preços
       expect(lista("Extrato do banco")).toHaveLength(6);
       expect(linha("Extrato do banco", "mais 4.213 lançamentos")).toBeInTheDocument();
       expect(lista("Sistema de gestão").some((item) => item.textContent!.includes("R$ 12.604,00"))).toBe(true);
@@ -448,7 +448,7 @@ describe("LandingPage", () => {
       "Sem trocar de sistema",
       "O relatório para o contador",
     ]);
-    // a #1082 de "O problema" e o mesmo agosto do cartão do hero
+    // a #1082 de "O problema" e o agosto da demonstração
     expect(preco.getByText(/^O banco descontou R\$ 36,00 de juros por atraso no boleto/)).toBeInTheDocument();
     expect(preco.getByText("157 de 4.218 para revisar")).toBeInTheDocument();
     expect(preco.getByRole("list", { name: "Os planos" })).toBeInTheDocument();
