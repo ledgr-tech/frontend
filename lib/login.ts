@@ -112,9 +112,9 @@ export async function aceitarConviteNoBackendComGoogle(token: string, idToken: s
 }
 
 /**
- * Na volta do Google com o cookie do convite: aceita o convite. Só o convite que não vale
- * mais apaga o cookie; nas outras recusas ele fica, para a página mostrar o convite de novo
- * (o fragmento do link se perdeu na ida ao Google) e a pessoa tentar com outra conta.
+ * Na volta do Google com o cookie do convite: aceita o convite. Nas recusas em que tentar de
+ * novo pode dar certo (outra conta Google, limite, falha), o cookie fica, para a página mostrar
+ * o convite de novo (o fragmento do link se perdeu na ida ao Google).
  */
 async function aceitarConviteNaVolta(usuario: User, token: string, idToken: string | undefined): Promise<true | string> {
   if (!idToken) return "/aceitar-convite?google=falha";
@@ -125,7 +125,8 @@ async function aceitarConviteNaVolta(usuario: User, token: string, idToken: stri
     Object.assign(usuario, resultado.usuario);
     return true;
   }
-  if (resultado.erro === "convite_invalido") pote.delete(COOKIE_CONVITE_GOOGLE);
+  // convite que não vale mais, ou e-mail que já tem conta: tentar de novo não adianta
+  if (resultado.erro === "convite_invalido" || resultado.erro === "email_cadastrado") pote.delete(COOKIE_CONVITE_GOOGLE);
   return `/aceitar-convite?google=${resultado.erro}`;
 }
 

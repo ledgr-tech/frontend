@@ -263,7 +263,7 @@ describe("aceite do convite pelo Google (backend #69/#73)", () => {
 
   it.each([
     [409, "O e-mail da conta Google é diferente do e-mail convidado.", "/aceitar-convite?google=email_diferente", false],
-    [409, "E-mail já cadastrado.", "/aceitar-convite?google=email_cadastrado", false],
+    [409, "E-mail já cadastrado.", "/aceitar-convite?google=email_cadastrado", true],
     [400, "Convite inválido ou expirado. Peça um novo convite.", "/aceitar-convite?google=convite_invalido", true],
     [429, "Rate limit exceeded", "/aceitar-convite?google=muitas_tentativas", false],
     [500, "x", "/aceitar-convite?google=falha", false],

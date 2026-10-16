@@ -90,6 +90,8 @@ export async function entrarNaDemonstracao(manterSessao: boolean): Promise<boole
  */
 export async function entrarComGoogle(): Promise<false> {
   if (!process.env.AUTH_GOOGLE_ID) return false;
+  // um aceite de convite pelo Google que ficou pela metade não pode virar este login
+  (await cookies()).delete(COOKIE_CONVITE_GOOGLE);
   await signIn("google", { redirectTo: "/visao-geral" });
   return false;
 }
@@ -382,11 +384,20 @@ export type ResultadoAceite =
 /**
  * Cria a conta pelo convite (`POST /convites/aceitar`), na empresa de quem convidou e
  * com o e-mail do convite, e já entra com a senha nova, como o cadastro faz. O e-mail
- * vem da consulta: o backend não aceita outro.
+ * vem da consulta: o backend não aceita outro. Token vazio é a volta do Google com recusa,
+ * quando o token só existe no cookie do convite.
  */
 export async function aceitarConvite(token: string, email: string, nome: string, senha: string): Promise<ResultadoAceite> {
+  const pote = await cookies();
+  const doCookie = !token;
+  const tokenDoConvite = token || pote.get(COOKIE_CONVITE_GOOGLE)?.value;
+  if (!tokenDoConvite) return { ok: false, erro: "convite_invalido" };
   try {
-    await chamarBackend("/convites/aceitar", { method: "POST", corpo: { token, nome, senha }, publica: true });
+    await chamarBackend("/convites/aceitar", {
+      method: "POST",
+      corpo: { token: tokenDoConvite, nome, senha },
+      publica: true,
+    });
   } catch (erro) {
     if (!(erro instanceof ErroBackend)) return { ok: false, erro: "falha" };
     if (erro.status === 400) return { ok: false, erro: "convite_invalido" };
@@ -396,6 +407,7 @@ export async function aceitarConvite(token: string, email: string, nome: string,
     if (erro.status === 429) return { ok: false, erro: "muitas_tentativas" };
     return { ok: false, erro: "falha" };
   }
+  if (doCookie) pote.delete(COOKIE_CONVITE_GOOGLE);
   return { ok: true, entrou: (await entrar(email, senha, true)).ok };
 }
 
@@ -425,16 +437,15 @@ export async function aceitarConviteComGoogle(token: string): Promise<false> {
 
 /**
  * O convite do cookie, na volta do Google com recusa: o servidor consulta, para o token
- * nunca chegar ao navegador. Convite que não vale mais leva o cookie junto.
+ * nunca chegar ao navegador. Roda no render da página, onde o Next não deixa apagar cookie:
+ * um convite que não vale mais fica no cookie até a 1 hora dele, e o próximo login pelo
+ * Google (`entrarComGoogle`) o apaga antes de sair.
  */
 export async function conviteDoCookie(): Promise<ConsultaConvite | null> {
-  const pote = await cookies();
-  const token = pote.get(COOKIE_CONVITE_GOOGLE)?.value;
+  const token = (await cookies()).get(COOKIE_CONVITE_GOOGLE)?.value;
   if (!token) return null;
   const resposta = await consultarConvite(token);
-  if (resposta.ok) return resposta.convite;
-  if (resposta.erro === "convite_invalido") pote.delete(COOKIE_CONVITE_GOOGLE);
-  return null;
+  return resposta.ok ? resposta.convite : null;
 }
 
 /** "Sair e continuar" na página do convite: encerra a sessão de outra conta sem sair da página. */

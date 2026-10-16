@@ -295,6 +295,16 @@ describe("cadastrar", () => {
 });
 
 describe("entrarComGoogle", () => {
+  it("esquece um convite pelo Google que ficou pela metade, para o login não virar aceite", async () => {
+    vi.stubEnv("AUTH_GOOGLE_ID", "client-id");
+    cookiesExistentes.set("ledgr-convite-google", "tok");
+
+    await entrarComGoogle();
+
+    expect(cookiesApagados).toHaveBeenCalledWith("ledgr-convite-google");
+    expect(cookiesApagados.mock.invocationCallOrder[0]).toBeLessThan(signIn.mock.invocationCallOrder[0]);
+  });
+
   it("leva ao Google pelo NextAuth, voltando à visão geral", async () => {
     vi.stubEnv("AUTH_GOOGLE_ID", "client-id");
     await entrarComGoogle();
@@ -908,11 +918,31 @@ describe("conviteDoCookie", () => {
     expect(JSON.parse(String((fetch.mock.calls[0] as [string, RequestInit])[1].body))).toEqual({ token: "tok" });
   });
 
-  it("convite inválido apaga o cookie", async () => {
+  it("convite inválido devolve null sem apagar o cookie, porque roda no render da página", async () => {
     cookiesExistentes.set("ledgr-convite-google", "tok");
     fetch.mockResolvedValue(Response.json({ detail: "x" }, { status: 400 }));
 
     expect(await conviteDoCookie()).toBeNull();
+    expect(cookiesApagados).not.toHaveBeenCalled();
+  });
+});
+
+describe("aceitarConvite depois de uma recusa do Google", () => {
+  it("sem token na página, usa o do cookie do convite", async () => {
+    cookiesExistentes.set("ledgr-convite-google", "tok-do-cookie");
+    fetch.mockResolvedValue(Response.json({ id: "u", empresa_id: "e", nome: "Ana", email: "ana@x.com" }, { status: 201 }));
+
+    expect(await aceitarConvite("", "ana@x.com", "Ana", "senha-boa-1")).toEqual({ ok: true, entrou: true });
+    expect(JSON.parse(String((fetch.mock.calls[0] as [string, RequestInit])[1].body))).toEqual({
+      token: "tok-do-cookie",
+      nome: "Ana",
+      senha: "senha-boa-1",
+    });
     expect(cookiesApagados).toHaveBeenCalledWith("ledgr-convite-google");
+  });
+
+  it("sem token e sem cookie, é convite inválido sem chamar o backend", async () => {
+    expect(await aceitarConvite("", "ana@x.com", "Ana", "senha-boa-1")).toEqual({ ok: false, erro: "convite_invalido" });
+    expect(fetch).not.toHaveBeenCalled();
   });
 });
