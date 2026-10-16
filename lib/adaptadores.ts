@@ -546,3 +546,39 @@ export function extratosDasExecucoes(execucoes: Execucao[]): ArquivoConciliado[]
 export function pareceUuid(valor: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(valor);
 }
+
+const DIA_EM_BRASILIA = new Intl.DateTimeFormat("pt-BR", {
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+  timeZone: "America/Sao_Paulo",
+});
+
+/** `dd/mm/aaaa` no fuso de Brasília: o backend manda as datas em UTC. */
+export function formatarDia(iso: string): string {
+  return DIA_EM_BRASILIA.format(new Date(iso));
+}
+
+/** Uma pessoa da empresa (`GET /empresa/usuarios`, backend #69). */
+export type PessoaAPI = { id: string; nome: string; email: string; administrador: boolean; criado_em: string };
+export type Pessoa = { id: string; nome: string; email: string; administrador: boolean };
+
+export function adaptarPessoa(api: PessoaAPI): Pessoa {
+  return { id: api.id, nome: api.nome, email: api.email, administrador: api.administrador };
+}
+
+/** Um convite pendente (`GET`/`POST /empresa/convites`). */
+export type ConviteAPI = { id: string; email: string; criado_em: string; expira_em: string };
+export type Convite = { id: string; email: string; enviadoEm: string; valeAte: string };
+
+export function adaptarConvite(api: ConviteAPI): Convite {
+  return { id: api.id, email: api.email, enviadoEm: formatarDia(api.criado_em), valeAte: formatarDia(api.expira_em) };
+}
+
+/** O que a página do convite mostra antes de pedir qualquer coisa (`POST /convites/consultar`). */
+export type ConsultaConviteAPI = { email: string; razao_social: string; expira_em: string };
+export type ConsultaConvite = { email: string; razaoSocial: string; valeAte: string };
+
+export function adaptarConsultaConvite(api: ConsultaConviteAPI): ConsultaConvite {
+  return { email: api.email, razaoSocial: api.razao_social, valeAte: formatarDia(api.expira_em) };
+}
