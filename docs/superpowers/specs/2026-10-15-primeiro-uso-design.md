@@ -69,9 +69,14 @@ de custos. **Aberto:** qual tabela vale; a tela usa uma só fonte, então a troc
   "Tela · 1 de 3", o texto do passo, a caixa "Não mostrar de novo", "Pular" e
   "Próximo"/"Entendi" no último.
 - Cada passo aponta um elemento por `data-tutorial="<id>"`. O elemento ganha um
-  contorno e o resto da tela escurece levemente (sem bloquear clique fora: o
-  cartão não é modal). Se o elemento não existir (tela vazia), o passo aparece
-  sem destaque.
+  contorno e o resto da tela escurece levemente, menu incluído (sem bloquear
+  clique fora: o cartão não é modal). Só entram os passos cujo elemento está na
+  tela; a página rola até ele ficar entre a barra do topo e o cartão.
+- *Revisão de 16/10, na conferência visual:* numa tela vazia (conta nova, sem
+  extratos) o tutorial **não abre sozinho** nem conta como visto: explicar
+  filtros e listas que não existem só confundia, e o estado vazio da tela já
+  guia. Ele abre na primeira visita com conteúdo; o "?" abre sempre, e numa
+  tela vazia mostra todos os passos, sem destaque.
 - Abre sozinho na primeira visita à tela, depois que ela carregou. Fechar com
   "Pular", Esc ou "Entendi" sem marcar a caixa: volta na próxima visita.
   Marcando: não volta mais.
@@ -99,7 +104,7 @@ se marca sozinho e, clicado, leva à tela:
 
 | Passo | Marcado quando | Leva a |
 |---|---|---|
-| Escolher o plano | `situacao` ≠ `sem_plano` (ou campo ausente) | — |
+| Escolher o plano | `situacao` ≠ `sem_plano`. *Revisão de 16/10:* sem o campo no `/me`, o passo não aparece (o roteiro fica com cinco), em vez de dizer que um teste começou | — |
 | Definir a tolerância de dias | `atualizado_em` de `/empresa/configuracoes` preenchido (vem `null` antes da primeira mudança) | Configurações › Conciliação |
 | Enviar o extrato do banco | Existe extrato de banco (`GET /extratos`) | Nova conciliação |
 | Enviar o extrato do sistema e conciliar | Existe execução (`/execucoes`) | Nova conciliação |
