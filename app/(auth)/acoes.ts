@@ -6,7 +6,7 @@ import { CredentialsSignin } from "next-auth";
 import { auth, signIn, signOut } from "@/auth";
 import { ErroBackend, chamarBackend } from "@/lib/backend";
 import { demoAberta } from "@/lib/demo";
-import { COOKIE_CADASTRO_GOOGLE } from "@/lib/google";
+import { COOKIE_CADASTRO_GOOGLE, COOKIE_CONVITE_GOOGLE, VALIDADE_ID_TOKEN_SEGUNDOS } from "@/lib/google";
 import { MuitasEntradas, type UsuarioAPI } from "@/lib/login";
 import { ehTela, type Preferencias } from "@/lib/preferencias";
 import { adaptarAssinatura, type Assinatura, type PlanoId } from "@/lib/assinatura";
@@ -397,6 +397,44 @@ export async function aceitarConvite(token: string, email: string, nome: string,
     return { ok: false, erro: "falha" };
   }
   return { ok: true, entrou: (await entrar(email, senha, true)).ok };
+}
+
+/**
+ * "Aceitar com Google": guarda o token do convite num cookie httpOnly e leva ao Google;
+ * na volta, o `aoVoltarDoGoogle` aceita o convite. Token vazio é tentar de novo depois de
+ * uma recusa: o cookie da primeira ida continua lá. Como o `entrarComGoogle`, só volta
+ * daqui quando não há como ir.
+ */
+export async function aceitarConviteComGoogle(token: string): Promise<false> {
+  if (!process.env.AUTH_GOOGLE_ID) return false;
+  const pote = await cookies();
+  if (token) {
+    pote.set(COOKIE_CONVITE_GOOGLE, token, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: VALIDADE_ID_TOKEN_SEGUNDOS,
+    });
+  } else if (!pote.get(COOKIE_CONVITE_GOOGLE)) {
+    return false;
+  }
+  await signIn("google", { redirectTo: "/visao-geral" });
+  return false;
+}
+
+/**
+ * O convite do cookie, na volta do Google com recusa: o servidor consulta, para o token
+ * nunca chegar ao navegador. Convite que não vale mais leva o cookie junto.
+ */
+export async function conviteDoCookie(): Promise<ConsultaConvite | null> {
+  const pote = await cookies();
+  const token = pote.get(COOKIE_CONVITE_GOOGLE)?.value;
+  if (!token) return null;
+  const resposta = await consultarConvite(token);
+  if (resposta.ok) return resposta.convite;
+  if (resposta.erro === "convite_invalido") pote.delete(COOKIE_CONVITE_GOOGLE);
+  return null;
 }
 
 /** "Sair e continuar" na página do convite: encerra a sessão de outra conta sem sair da página. */

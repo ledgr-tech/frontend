@@ -4,8 +4,14 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from "react";
 import type { ConsultaConvite } from "@/lib/adaptadores";
-import type { ErroConviteGoogle } from "@/lib/google";
-import { aceitarConvite, consultarConvite, sairParaAceitarConvite, type ResultadoAceite } from "../acoes";
+import { MENSAGEM_GOOGLE, type ErroConviteGoogle } from "@/lib/google";
+import {
+  aceitarConvite,
+  aceitarConviteComGoogle,
+  consultarConvite,
+  sairParaAceitarConvite,
+  type ResultadoAceite,
+} from "../acoes";
 import { CampoTexto } from "../_compartilhado/campo-texto";
 import { MensagemErro } from "../_compartilhado/mensagem-erro";
 import { MolduraAuth } from "../_compartilhado/moldura-auth";
@@ -58,6 +64,13 @@ const estiloTexto: CSSProperties = {
 
 const estiloBotao: CSSProperties = { fontSize: 15.5, padding: "clamp(10px, 1.6vh, 13px) 22px" };
 
+/** O que a página diz na volta do Google com recusa, com o convite já na tela. */
+function errosDaVolta(erro: Exclude<ErroConviteGoogle, "convite_invalido">, convite: ConsultaConvite): Erros {
+  if (erro === "email_diferente") return { geral: `Entre no Google com ${convite.email} para aceitar.` };
+  if (erro === "email_cadastrado") return ERROS_DO_ACEITE.email_cadastrado;
+  return { geral: MENSAGEM_GOOGLE[erro] };
+}
+
 export function AceitarConvite({ conectadoComo, google }: { conectadoComo: string | null; google: GoogleNoConvite }) {
   const router = useRouter();
   const [etapa, setEtapa] = useState<Etapa>("lendo");
@@ -86,6 +99,20 @@ export function AceitarConvite({ conectadoComo, google }: { conectadoComo: strin
   useEffect(() => {
     if (tokenLido.current) return;
     tokenLido.current = true;
+    if (google.erro) {
+      // a volta do Google com recusa: o token ficou no cookie e o convite veio consultado pelo servidor.
+      // O motivo vale para esta volta: recarregar a página não mostra de novo
+      window.history.replaceState(null, "", window.location.pathname);
+      if (google.convite && google.erro !== "convite_invalido") {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setConvite(google.convite);
+        setErros(errosDaVolta(google.erro, google.convite));
+        setEtapa("formulario");
+      } else {
+        setEtapa("invalido");
+      }
+      return;
+    }
     token.current = new URLSearchParams(window.location.hash.slice(1)).get("token") ?? "";
     if (window.location.hash) {
       window.history.replaceState(null, "", window.location.pathname + window.location.search);
@@ -99,6 +126,13 @@ export function AceitarConvite({ conectadoComo, google }: { conectadoComo: strin
     // lê o link uma vez só, ao abrir
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  async function irAoGoogle() {
+    setErros({});
+    // a action sai redirecionando para o Google; só volta quando não há como ir
+    const foi = await aceitarConviteComGoogle(token.current).catch(() => false);
+    if (!foi) setErros({ geral: MENSAGEM_GOOGLE.indisponivel });
+  }
 
   async function sairEContinuar() {
     setEtapa("lendo");
@@ -178,6 +212,27 @@ export function AceitarConvite({ conectadoComo, google }: { conectadoComo: strin
           <strong>{convite?.email}</strong>
         </p>
         <p style={estiloTexto}>O convite vale até {convite?.valeAte}</p>
+
+        {google.ligado && (
+          <>
+            <button
+              type="button"
+              className="btn btn-secondary btn-block"
+              style={estiloBotao}
+              disabled={enviando}
+              onClick={() => void irAoGoogle()}
+            >
+              Aceitar com Google
+            </button>
+            <div className="login-divisor" style={{ display: "flex", alignItems: "center", gap: 14, margin: "clamp(14px, 2.6vh, 22px) 0" }}>
+              <span style={{ flex: 1, height: 1, background: "var(--color-divider)" }} />
+              <span style={{ fontSize: 12, letterSpacing: "0.12em", textTransform: "uppercase", color: "color-mix(in srgb, var(--color-text) 66%, transparent)" }}>
+                ou
+              </span>
+              <span style={{ flex: 1, height: 1, background: "var(--color-divider)" }} />
+            </div>
+          </>
+        )}
 
         <div style={{ display: "flex", flexDirection: "column", gap: "clamp(10px, 1.8vh, 16px)" }}>
           <CampoTexto

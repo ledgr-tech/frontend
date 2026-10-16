@@ -40,6 +40,8 @@ beforeEach(() => {
   consultarConvite.mockResolvedValue({ ok: true, convite: CONVITE });
   aceitarConvite.mockResolvedValue({ ok: true, entrou: true });
   sairParaAceitarConvite.mockResolvedValue(undefined);
+  // a action sai redirecionando para o Google: no navegador, a promessa não volta
+  aceitarConviteComGoogle.mockReturnValue(new Promise(() => {}));
   abrirLink("/aceitar-convite#token=tok");
 });
 
@@ -152,6 +154,60 @@ describe("AceitarConvite", () => {
     await preencher("Ana", "senha-boa-1");
 
     expect(await screen.findByText("Muitas tentativas seguidas. Espere um minuto e tente de novo.")).toBeInTheDocument();
+  });
+
+  it("com email_diferente, pede o e-mail certo do convite e oferece o Google de novo", async () => {
+    const user = userEvent.setup();
+    abrirLink("/aceitar-convite?google=email_diferente");
+    render(<AceitarConvite conectadoComo={null} google={{ ligado: true, erro: "email_diferente", convite: CONVITE }} />);
+
+    expect(await screen.findByText("Entre no Google com ana@x.com para aceitar.")).toBeInTheDocument();
+    expect(consultarConvite).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "Aceitar com Google" }));
+    // depois da volta do Google, o token está no cookie, não na memória
+    expect(aceitarConviteComGoogle).toHaveBeenCalledWith("");
+  });
+
+  it("com erro do Google e sem convite no cookie, mostra convite inválido", async () => {
+    render(<AceitarConvite conectadoComo={null} google={{ ligado: true, erro: "email_diferente", convite: null }} />);
+
+    expect(await screen.findByText(INVALIDO)).toBeInTheDocument();
+    expect(screen.queryByLabelText("Senha")).not.toBeInTheDocument();
+  });
+
+  it("com email_cadastrado, manda entrar pelo login", async () => {
+    render(<AceitarConvite conectadoComo={null} google={{ ligado: true, erro: "email_cadastrado", convite: CONVITE }} />);
+
+    expect(await screen.findByText("Este e-mail já tem conta no Ledgr. Entre com ela.")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Entrar" })).toHaveAttribute("href", "/login");
+  });
+
+  it("muitas tentativas no Google usa o texto do login pelo Google", async () => {
+    render(<AceitarConvite conectadoComo={null} google={{ ligado: true, erro: "muitas_tentativas", convite: CONVITE }} />);
+
+    expect(await screen.findByText("Muitas tentativas seguidas agora. Espere um minuto e tente de novo.")).toBeInTheDocument();
+  });
+
+  it("o botão do Google só aparece ligado", async () => {
+    const { unmount } = render(<AceitarConvite conectadoComo={null} google={SEM_GOOGLE} />);
+    expect(await screen.findByLabelText("Senha")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Aceitar com Google" })).not.toBeInTheDocument();
+    expect(screen.queryByText("ou")).not.toBeInTheDocument();
+    unmount();
+
+    abrirLink("/aceitar-convite#token=tok");
+    render(<AceitarConvite conectadoComo={null} google={{ ligado: true, erro: null, convite: null }} />);
+    expect(await screen.findByRole("button", { name: "Aceitar com Google" })).toBeInTheDocument();
+    expect(screen.getByText("ou")).toBeInTheDocument();
+  });
+
+  it("Aceitar com Google manda o token guardado", async () => {
+    const user = userEvent.setup();
+    render(<AceitarConvite conectadoComo={null} google={{ ligado: true, erro: null, convite: null }} />);
+
+    await user.click(await screen.findByRole("button", { name: "Aceitar com Google" }));
+
+    expect(aceitarConviteComGoogle).toHaveBeenCalledWith("tok");
   });
 
   it("conectado em outra conta pede para sair primeiro, e Sair e continuar volta ao convite", async () => {

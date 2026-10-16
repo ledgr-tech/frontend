@@ -3,6 +3,7 @@ import { CredentialsSignin } from "next-auth";
 import { MuitasEntradas } from "@/lib/login";
 import {
   aceitarConvite,
+  aceitarConviteComGoogle,
   cadastrar,
   cadastrarComGoogle,
   entrar,
@@ -13,6 +14,7 @@ import {
   pedirRecuperacaoSenha,
   consultarConvite,
   contaDaSessao,
+  conviteDoCookie,
   redefinirSenha,
   sairParaAceitarConvite,
   salvarPreferencias,
@@ -852,5 +854,65 @@ describe("sairParaAceitarConvite", () => {
     await sairParaAceitarConvite();
 
     expect(signOut).toHaveBeenCalledWith({ redirect: false });
+  });
+});
+
+describe("aceitarConviteComGoogle", () => {
+  it("guarda o token do convite num cookie httpOnly de 1 hora e leva ao Google", async () => {
+    vi.stubEnv("AUTH_GOOGLE_ID", "client-id");
+
+    await aceitarConviteComGoogle("tok");
+
+    expect(cookiesGravados).toHaveBeenCalledWith(
+      "ledgr-convite-google",
+      "tok",
+      expect.objectContaining({ httpOnly: true, sameSite: "lax", path: "/", maxAge: 3600 }),
+    );
+    expect(signIn).toHaveBeenCalledWith("google", { redirectTo: "/visao-geral" });
+  });
+
+  it("sem token, tenta de novo com o cookie que já existe", async () => {
+    vi.stubEnv("AUTH_GOOGLE_ID", "client-id");
+    cookiesExistentes.set("ledgr-convite-google", "tok");
+
+    await aceitarConviteComGoogle("");
+
+    expect(cookiesGravados).not.toHaveBeenCalled();
+    expect(signIn).toHaveBeenCalledWith("google", { redirectTo: "/visao-geral" });
+  });
+
+  it("sem token e sem cookie, ou sem o provider, não vai ao Google", async () => {
+    vi.stubEnv("AUTH_GOOGLE_ID", "client-id");
+    expect(await aceitarConviteComGoogle("")).toBe(false);
+
+    vi.stubEnv("AUTH_GOOGLE_ID", "");
+    expect(await aceitarConviteComGoogle("tok")).toBe(false);
+    expect(signIn).not.toHaveBeenCalled();
+    expect(cookiesGravados).not.toHaveBeenCalled();
+  });
+});
+
+describe("conviteDoCookie", () => {
+  it("sem cookie não chama o backend", async () => {
+    expect(await conviteDoCookie()).toBeNull();
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("consulta o convite do cookie", async () => {
+    cookiesExistentes.set("ledgr-convite-google", "tok");
+    fetch.mockResolvedValue(
+      Response.json({ email: "ana@x.com", razao_social: "Padaria Ltda", expira_em: "2026-10-23T12:00:00Z" }),
+    );
+
+    expect(await conviteDoCookie()).toEqual({ email: "ana@x.com", razaoSocial: "Padaria Ltda", valeAte: "23/10/2026" });
+    expect(JSON.parse(String((fetch.mock.calls[0] as [string, RequestInit])[1].body))).toEqual({ token: "tok" });
+  });
+
+  it("convite inválido apaga o cookie", async () => {
+    cookiesExistentes.set("ledgr-convite-google", "tok");
+    fetch.mockResolvedValue(Response.json({ detail: "x" }, { status: 400 }));
+
+    expect(await conviteDoCookie()).toBeNull();
+    expect(cookiesApagados).toHaveBeenCalledWith("ledgr-convite-google");
   });
 });

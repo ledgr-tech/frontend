@@ -31,8 +31,27 @@ export const MENSAGEM_GOOGLE: Record<ErroGoogle, string> = {
   falha: "Não foi possível entrar com o Google. Tente de novo em instantes.",
 };
 
+/**
+ * Quem aceita um convite pelo Google (backend #69/#73) vai ao Google com o token do
+ * convite neste cookie httpOnly, pelo mesmo tempo do `id_token`. Na volta, o
+ * `aoVoltarDoGoogle` vê o cookie e aceita o convite em vez de entrar.
+ */
+export const COOKIE_CONVITE_GOOGLE = "ledgr-convite-google";
+
 /** O que volta a `/aceitar-convite?google=<motivo>` quando o Google não aceitou o convite. */
 export type ErroConviteGoogle = "email_diferente" | "convite_invalido" | "email_cadastrado" | "muitas_tentativas" | "falha";
+
+const ERROS_CONVITE_GOOGLE: readonly string[] = [
+  "email_diferente",
+  "convite_invalido",
+  "email_cadastrado",
+  "muitas_tentativas",
+  "falha",
+];
+
+export function ehErroConviteGoogle(valor: unknown): valor is ErroConviteGoogle {
+  return typeof valor === "string" && ERROS_CONVITE_GOOGLE.includes(valor);
+}
 
 export function ehErroGoogle(valor: unknown): valor is ErroGoogle {
   return typeof valor === "string" && Object.hasOwn(MENSAGEM_GOOGLE, valor);
