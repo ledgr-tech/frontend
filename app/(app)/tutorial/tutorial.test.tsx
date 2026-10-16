@@ -112,7 +112,7 @@ describe("Tutorial", () => {
     expect(document.querySelector(".tutorial-destaque")).not.toBeVisible();
   });
 
-  it("o recorte segue o alvo, com folga, e some ao fechar", async () => {
+  it("o véu tem um buraco no alvo, com folga e cantos redondos, e some ao fechar", async () => {
     const user = userEvent.setup();
     const alvo = document.createElement("div");
     alvo.setAttribute("data-tutorial", "filtros");
@@ -124,7 +124,11 @@ describe("Tutorial", () => {
     await screen.findByRole("dialog");
     const recorte = document.querySelector<HTMLElement>(".tutorial-destaque")!;
     await waitFor(() => expect(recorte).toBeVisible());
-    expect(recorte.style).toMatchObject({ top: "92px", left: "32px", width: "316px", height: "66px" });
+    // o alvo vai de (40, 100) a (340, 150); com a folga de 8, o buraco vai de (32, 92) a (348, 158),
+    // e o traçado começa no fim do canto de cima à esquerda (raio 20)
+    expect(recorte.style.clipPath).toContain(
+      "M52 92h276a20 20 0 0 1 20 20v26a20 20 0 0 1 -20 20h-276a20 20 0 0 1 -20 -20v-26a20 20 0 0 1 20 -20Z",
+    );
     await user.click(screen.getByRole("button", { name: "Pular" }));
     expect(document.querySelector(".tutorial-destaque")).toBeNull();
     tela.remove();
