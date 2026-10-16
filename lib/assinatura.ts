@@ -32,6 +32,12 @@ export function fraseDoTeste(dias: number): string {
   return dias === 1 ? "Teste grátis · falta 1 dia" : `Teste grátis · faltam ${dias} dias`;
 }
 
+/** A mesma, curta, para caber ao lado do "?" e de Avisos na barra do topo do celular. */
+export function fraseCurtaDoTeste(dias: number): string {
+  if (dias === 0) return "Teste · último dia";
+  return dias === 1 ? "Teste · 1 dia" : `Teste · ${dias} dias`;
+}
+
 /** Os três planos do teste, com preço e faixa de lib/planos (a tabela que vale ainda está aberta). */
 export function planosDoTeste(): (Plano & { id: PlanoId })[] {
   return (Object.keys(NOMES) as PlanoId[]).map((id) => {

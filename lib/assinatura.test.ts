@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { adaptarAssinatura, diasRestantes, fraseDoTeste, planosDoTeste } from "./assinatura";
+import { adaptarAssinatura, diasRestantes, fraseCurtaDoTeste, fraseDoTeste, planosDoTeste } from "./assinatura";
 
 describe("assinatura", () => {
   it("lê o que o /me manda", () => {
@@ -31,6 +31,9 @@ describe("assinatura", () => {
     expect(fraseDoTeste(9)).toBe("Teste grátis · faltam 9 dias");
     expect(fraseDoTeste(1)).toBe("Teste grátis · falta 1 dia");
     expect(fraseDoTeste(0)).toBe("Teste grátis · último dia");
+    expect(fraseCurtaDoTeste(9)).toBe("Teste · 9 dias");
+    expect(fraseCurtaDoTeste(1)).toBe("Teste · 1 dia");
+    expect(fraseCurtaDoTeste(0)).toBe("Teste · último dia");
   });
 
   it("os planos do teste vêm de lib/planos", () => {

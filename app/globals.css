@@ -4709,6 +4709,7 @@ html[data-tema="escuro"] .app-shell {
 .bloqueio-corpo p {
   margin: 0;
   max-width: 62ch;
+  font-size: 15.5px;
   line-height: 1.6;
 }
 .bloqueio-titulo {
@@ -4731,6 +4732,11 @@ html[data-tema="escuro"] .app-shell {
   gap: 8px;
   padding: 18px;
 }
+.bloqueio-planos strong {
+  font-family: var(--font-titulo);
+  font-size: 21px;
+  font-weight: 600;
+}
 .bloqueio-planos span {
   font-size: 14px;
   color: var(--texto-apagado);
@@ -4746,8 +4752,14 @@ html[data-tema="escuro"] .app-shell {
     grid-template-columns: 1fr;
   }
 }
+.app-teste-curto {
+  display: none;
+}
 @media (max-width: 640px) {
-  .app-teste {
+  .app-teste-longo {
     display: none;
+  }
+  .app-teste-curto {
+    display: inline;
   }
 }
