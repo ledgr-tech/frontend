@@ -29,6 +29,16 @@ vi.mock("../(auth)/acoes", () => ({
   salvarPreferencias: async () => true,
 }));
 
+// a equipe é do backend (#69); aqui a ação devolve a empresa com uma pessoa só
+const carregarEquipe = vi.fn();
+vi.mock("./equipe/acoes", () => ({
+  carregarEquipe: (...args: unknown[]) => carregarEquipe(...args),
+  convidar: vi.fn(),
+  cancelarConvite: vi.fn(),
+  removerPessoa: vi.fn(),
+}));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
+
 const EMAIL = "financeiro@telhacerta.com.br";
 
 // o tutorial do mascote tem teste próprio; aqui ele já foi visto, salvo no teste que o abre
@@ -66,6 +76,10 @@ describe("Configuracoes", () => {
     toleranciaDaUltimaConciliacao.mockResolvedValue(2);
     carregarRegras.mockReset().mockResolvedValue({ ok: true, dados: REGRAS });
     salvarToleranciaDias.mockReset();
+    carregarEquipe.mockReset().mockResolvedValue({
+      ok: true,
+      dados: { pessoas: [{ id: "u1", nome: "Ana", email: EMAIL, administrador: true }], convites: [] },
+    });
     window.localStorage.clear();
     delete document.documentElement.dataset.tema;
     delete document.documentElement.dataset.densidade;
@@ -336,6 +350,25 @@ describe("Configuracoes", () => {
     await user.clear(screen.getByRole("searchbox"));
     await user.type(screen.getByRole("searchbox"), "xyz");
     expect(screen.getByText("Nada encontrado para “xyz”.")).toBeInTheDocument();
+  });
+
+  it("lists Equipe between Conta and Aparência", () => {
+    abrir();
+    const nomes = within(screen.getByRole("navigation", { name: "Configurações" }))
+      .getAllByRole("button")
+      .map((botao) => botao.textContent);
+    expect(nomes.slice(0, 3)).toEqual(["Conta", "Equipe", "Aparência"]);
+  });
+
+  it("finds the invite line when searching, and only the administrator can invite", async () => {
+    const user = userEvent.setup();
+    abrir({ administrador: false });
+
+    await user.type(screen.getByRole("searchbox", { name: "Procurar nas configurações" }), "convid");
+    expect(await screen.findByRole("heading", { name: "Equipe" })).toBeInTheDocument();
+    expect(screen.getByText("Convidar pessoa")).toBeInTheDocument();
+    expect(screen.getByText("Só o administrador convida e remove pessoas.")).toBeInTheDocument();
+    expect(carregarEquipe).toHaveBeenCalledWith(false);
   });
 
   it("closes from the close button", async () => {
