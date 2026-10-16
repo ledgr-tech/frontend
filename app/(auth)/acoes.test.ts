@@ -255,6 +255,20 @@ describe("cadastrar", () => {
     expect(await cadastrar(DADOS)).toEqual({ ok: false, erro: "invalido", campos: ["razaoSocial", "cnpj"] });
   });
 
+  // backend #119: a recusa da Receita vem no mesmo 422 do formato, com loc no cnpj; só a msg a separa
+  it("separa os dois 422 da Receita da recusa de formato do CNPJ", async () => {
+    respostaDoBackend(422, {
+      detail: [{ type: "value_error", loc: ["body", "cnpj"], msg: "CNPJ não encontrado na Receita Federal." }],
+    });
+    expect(await cadastrar(DADOS)).toEqual({ ok: false, erro: "cnpj_nao_encontrado" });
+
+    respostaDoBackend(422, {
+      detail: [{ type: "value_error", loc: ["body", "cnpj"], msg: "CNPJ não está ativo na Receita Federal." }],
+    });
+    expect(await cadastrar(DADOS)).toEqual({ ok: false, erro: "cnpj_inativo" });
+    expect(signIn).not.toHaveBeenCalled();
+  });
+
   it("pede para esperar no limite de cadastros por minuto", async () => {
     respostaDoBackend(429, { detail: "Rate limit exceeded" });
 
@@ -280,7 +294,13 @@ describe("verificarCadastro", () => {
   it("confere e-mail e CNPJ juntos, sem Bearer e sem criar nada", async () => {
     respostaDoBackend(200, { email_disponivel: true, cnpj_disponivel: true });
 
-    expect(await verificarCadastro(DADOS)).toEqual({ ok: true, emailDisponivel: true, cnpjDisponivel: true });
+    expect(await verificarCadastro(DADOS)).toEqual({
+      ok: true,
+      emailDisponivel: true,
+      cnpjDisponivel: true,
+      cnpjSituacao: "nao_verificado",
+      razaoSocialReceita: null,
+    });
 
     const [url, init] = fetch.mock.calls[0] as [string, RequestInit];
     expect(url).toBe("http://localhost:8000/register/verificar");
@@ -292,10 +312,37 @@ describe("verificarCadastro", () => {
 
   it("diz qual dos dois já está em uso", async () => {
     respostaDoBackend(200, { email_disponivel: false, cnpj_disponivel: true });
-    expect(await verificarCadastro(DADOS)).toEqual({ ok: true, emailDisponivel: false, cnpjDisponivel: true });
+    expect(await verificarCadastro(DADOS)).toMatchObject({ ok: true, emailDisponivel: false, cnpjDisponivel: true });
 
     respostaDoBackend(200, { email_disponivel: true, cnpj_disponivel: false });
-    expect(await verificarCadastro(DADOS)).toEqual({ ok: true, emailDisponivel: true, cnpjDisponivel: false });
+    expect(await verificarCadastro(DADOS)).toMatchObject({ ok: true, emailDisponivel: true, cnpjDisponivel: false });
+  });
+
+  it("traz a situação do CNPJ na Receita e a razão social de lá (backend #119)", async () => {
+    respostaDoBackend(200, {
+      email_disponivel: true,
+      cnpj_disponivel: true,
+      cnpj_situacao: "ativa",
+      razao_social: "  TELHA CERTA COMERCIO LTDA ",
+    });
+    expect(await verificarCadastro(DADOS)).toMatchObject({
+      cnpjSituacao: "ativa",
+      razaoSocialReceita: "TELHA CERTA COMERCIO LTDA",
+    });
+
+    respostaDoBackend(200, {
+      email_disponivel: true,
+      cnpj_disponivel: true,
+      cnpj_situacao: "nao_encontrado",
+      razao_social: null,
+    });
+    expect(await verificarCadastro(DADOS)).toMatchObject({ cnpjSituacao: "nao_encontrado", razaoSocialReceita: null });
+  });
+
+  // um valor que esta tela não conhece não pode bloquear o cadastro
+  it("trata situação desconhecida como não verificada", async () => {
+    respostaDoBackend(200, { email_disponivel: true, cnpj_disponivel: true, cnpj_situacao: "suspensa", razao_social: "" });
+    expect(await verificarCadastro(DADOS)).toMatchObject({ cnpjSituacao: "nao_verificado", razaoSocialReceita: null });
   });
 
   it("devolve o campo recusado no 422 com o nome do formulário", async () => {
