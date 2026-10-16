@@ -3,6 +3,7 @@ import {
   adaptarConciliacao,
   adaptarExecucao,
   adaptarLinha,
+  adaptarSaldo,
   extratosDasExecucoes,
   pareceUuid,
   type Execucao,
@@ -202,6 +203,32 @@ describe("adaptarLinha", () => {
   });
 });
 
+describe("adaptarSaldo", () => {
+  it("sem as chaves é o backend de antes da #118: undefined, e a tela não fala de saldo", () => {
+    expect(adaptarSaldo({})).toBeUndefined();
+  });
+
+  it("com os três nulos o arquivo não trouxe saldo: null, nunca R$ 0,00", () => {
+    expect(adaptarSaldo({ saldo_inicial: null, saldo_final: null, saldo_data: null })).toBeNull();
+  });
+
+  it("converte o decimal em texto, com sinal quando negativo", () => {
+    expect(adaptarSaldo({ saldo_inicial: "1000.00", saldo_final: "-250.75", saldo_data: "2026-09-30" })).toEqual({
+      inicial: 1000,
+      final: -250.75,
+      data: "2026-09-30",
+    });
+  });
+
+  it("com linhas não lidas vem o final sem o inicial, e o front não calcula o inicial", () => {
+    expect(adaptarSaldo({ saldo_inicial: null, saldo_final: "1249.25", saldo_data: "2026-09-10" })).toEqual({
+      inicial: null,
+      final: 1249.25,
+      data: "2026-09-10",
+    });
+  });
+});
+
 describe("adaptarConciliacao", () => {
   const lista: ListaConciliacaoAPI = {
     extrato_id: "e-banco",
@@ -235,6 +262,12 @@ describe("adaptarConciliacao", () => {
     const vazia = adaptarConciliacao({ ...lista, total: 0, itens: [] });
     expect(vazia.linhas).toEqual([]);
     expect(vazia.mes).toBe("Conciliação");
+  });
+
+  it("traz o saldo do extrato do banco da raiz, e nada quando o backend não manda (#118)", () => {
+    const comSaldo = { ...lista, saldo_inicial: "750.25", saldo_final: "1000.00", saldo_data: "2026-09-10" };
+    expect(adaptarConciliacao(comSaldo).saldo).toEqual({ inicial: 750.25, final: 1000, data: "2026-09-10" });
+    expect(adaptarConciliacao(lista)).not.toHaveProperty("saldo");
   });
 
   describe("a chave de cada linha, a mesma em todas as rodadas", () => {

@@ -397,6 +397,27 @@ describe("listarExtratos", () => {
     });
   });
 
+  it("traz o saldo de cada arquivo quando o backend manda (#118), e nada sem os campos", async () => {
+    backendComExtratos([
+      extrato(BANCO_RECENTE, {
+        origem: "banco",
+        saldo_inicial: "750.25",
+        saldo_final: "1000.00",
+        saldo_data: "2026-09-10",
+      }),
+      extrato(BANCO_ANTERIOR, { origem: "banco", saldo_inicial: null, saldo_final: null, saldo_data: null }),
+      extrato(SISTEMA),
+    ]);
+
+    const resultado = await listarExtratos();
+
+    if (!resultado.ok) throw new Error(resultado.erro);
+    const [comSaldo, semSaldo, antigo] = resultado.dados.arquivos;
+    expect(comSaldo.saldo).toEqual({ inicial: 750.25, final: 1000, data: "2026-09-10" });
+    expect(semSaldo.saldo).toBeNull();
+    expect(antigo).not.toHaveProperty("saldo");
+  });
+
   it("liga cada arquivo conciliado à conciliação em que ele abre", async () => {
     // o banco anterior não está na página de /execucoes, mas o extrato do banco abre pelo próprio id
     backendComExtratos([
@@ -935,6 +956,23 @@ describe("carregarFechamentos", () => {
         fechamentos: [],
       },
     });
+  });
+
+  it("dá a cada par o saldo do extrato do banco, do mesmo detalhe das linhas não lidas (#118)", async () => {
+    chamarBackend.mockImplementation(async (caminho: string) => {
+      if (caminho === "/fechamentos") return { itens: [] };
+      if (caminho.startsWith("/execucoes")) return { total: 1, limit: 50, offset: 0, itens: [execucao("e-2", BANCO_RECENTE)] };
+      if (caminho === `/extratos/${BANCO_RECENTE}`) {
+        // com linha não lida o backend manda o saldo final, mas não o inicial
+        return { ...situacao(BANCO_RECENTE), saldo_inicial: null, saldo_final: "-120.50", saldo_data: "2026-09-30" };
+      }
+      return situacao(caminho.replace("/extratos/", ""));
+    });
+
+    const resultado = await carregarFechamentos();
+
+    if (!resultado.ok) throw new Error(resultado.erro);
+    expect(resultado.dados.pares[0].saldo).toEqual({ inicial: null, final: -120.5, data: "2026-09-30" });
   });
 
   it("traz os fechamentos da empresa, os ativos e os reabertos, como o backend os ordena", async () => {

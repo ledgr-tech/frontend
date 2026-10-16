@@ -2550,6 +2550,18 @@ html[data-tema="escuro"] .app-shell {
   background: var(--tinta-ativa); font-size: 13.5px; font-variant-numeric: tabular-nums;
 }
 .rodada-faixa p { margin: 0; }
+
+/* O saldo do extrato do banco (#118), no mesmo fundo da faixa da rodada: três pares rótulo e valor
+   numa linha, que quebram no celular */
+.saldo-faixa {
+  margin: 0; padding: 8px 12px; border-radius: var(--radius-sm);
+  background: var(--tinta-ativa); font-size: 13.5px; font-variant-numeric: tabular-nums;
+}
+.saldo-faixa p { margin: 0; color: color-mix(in srgb, var(--color-text) 66%, transparent); }
+.saldo-faixa dl { display: flex; flex-wrap: wrap; gap: 4px 28px; margin: 0; }
+.saldo-faixa dl > div { display: flex; gap: 8px; }
+.saldo-faixa dt { color: color-mix(in srgb, var(--color-text) 62%, transparent); }
+.saldo-faixa dd { margin: 0; font-weight: 600; }
 .rodada-faixa p a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
 
 /* A linha das rodadas: o fio em onda de "Por dentro" na landing, deitado, com o mesmo período de
@@ -4185,6 +4197,7 @@ html[data-tema="escuro"] .app-shell {
   text-underline-offset: 3px;
 }
 .fech-link:hover { text-decoration-color: var(--color-text); }
+.fech-saldo { margin: 0; font-variant-numeric: tabular-nums; }
 /* o arquivo e o botão na mesma linha; quebra só se o nome não couber */
 .fech-relatorio { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; }
 /* o aviso da comparação de um mês fechado: informação, não alerta, num filete neutro */

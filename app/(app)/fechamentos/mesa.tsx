@@ -12,6 +12,7 @@ import { ExportarCsv } from "../conciliacoes/[id]/exportar-csv";
 import { formatarDataHora, formatarInteiro, formatarPercentual } from "../dashboard/resumo";
 import { FaixaFiltros } from "../faixa-filtros";
 import { Grupo, alternarNoConjunto } from "../grupo";
+import { fraseDoSaldoFinal } from "../saldo";
 import type { MesDeFechamento } from "./fechamento";
 
 /**
@@ -333,6 +334,8 @@ function Painel({ mes, podeFechar }: { mes: MesDeFechamento; podeFechar: boolean
                 <Link href={par.caminho} className="fech-link">
                   {`${par.execucao.arquivoBanco} × ${par.execucao.arquivoSistema}`}
                 </Link>
+                {/* o saldo final do extrato do banco do par (#118): o número que fecha o mês */}
+                {par.saldo !== undefined && <p className="fech-passo-texto fech-saldo">{fraseDoSaldoFinal(par.saldo)}</p>}
               </li>
             ))}
           </ul>

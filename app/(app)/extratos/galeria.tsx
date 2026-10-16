@@ -11,6 +11,8 @@ import { tituloDaCompetencia } from "../fechamentos/fechamento";
 import { FaixaFiltros } from "../faixa-filtros";
 import { Grupo, alternarNoConjunto } from "../grupo";
 import { IconeOrigem } from "../icone-origem";
+import { formatarMoeda } from "@/lib/mock-data";
+import { data } from "../saldo";
 import { agrupamentoSalvo, salvarAgrupamento, type Agrupamento } from "./agrupamento";
 
 /**
@@ -288,6 +290,19 @@ function Painel({ arquivo, arquivos }: { arquivo: ArquivoExtrato; arquivos: Arqu
           <dt>Conteúdo</dt>
           <dd>{conteudo(arquivo)}</dd>
         </div>
+        {/* o saldo é do extrato do banco: é por ele que a conciliação fecha (#118) */}
+        {arquivo.origem === "banco" && arquivo.saldo !== undefined && (
+          <div>
+            <dt>Saldo final</dt>
+            <dd>{arquivo.saldo ? formatarMoeda(arquivo.saldo.final) : "Não informado no arquivo"}</dd>
+          </div>
+        )}
+        {arquivo.origem === "banco" && arquivo.saldo && (
+          <div>
+            <dt>Data do saldo</dt>
+            <dd>{data(arquivo.saldo.data)}</dd>
+          </div>
+        )}
         <div>
           <dt>Enviado em</dt>
           <dd>{formatarDataHora(arquivo.enviadoEm)}</dd>
