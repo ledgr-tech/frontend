@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import CadastroPage from "./page";
+import { FormularioCadastro } from "./formulario";
 import { PASSOS } from "./passos";
 
 const push = vi.fn();
@@ -12,10 +13,15 @@ vi.mock("next/navigation", () => ({
 // o fim do cadastro é uma Server Action (POST /register e já entra); aqui ela só
 // devolve o que o servidor decidiu
 const cadastrar = vi.fn();
+// quem voltou do Google sem conta termina pelo POST /register/google
+const cadastrarComGoogle = vi.fn();
+const entrarComGoogle = vi.fn();
 // ao sair do passo da empresa, e-mail e CNPJ são conferidos antes (POST /register/verificar)
 const verificarCadastro = vi.fn();
 vi.mock("../acoes", () => ({
   cadastrar: (...args: unknown[]) => cadastrar(...args),
+  cadastrarComGoogle: (...args: unknown[]) => cadastrarComGoogle(...args),
+  entrarComGoogle: (...args: unknown[]) => entrarComGoogle(...args),
   verificarCadastro: (...args: unknown[]) => verificarCadastro(...args),
 }));
 
@@ -53,6 +59,9 @@ describe("CadastroPage", () => {
     cadastrar.mockResolvedValue({ ok: true, entrou: true });
     verificarCadastro.mockReset();
     verificarCadastro.mockResolvedValue(LIVRES);
+    cadastrarComGoogle.mockReset();
+    cadastrarComGoogle.mockResolvedValue({ ok: true, entrou: true });
+    entrarComGoogle.mockReset();
   });
 
   afterEach(() => {
@@ -644,6 +653,71 @@ describe("CadastroPage", () => {
       await ateAEmpresa(user);
 
       expect(await screen.findByLabelText("Sistema de gestão")).toBeInTheDocument();
+    });
+  });
+
+  // backend #73: quem volta do Google sem conta não cria acesso; o e-mail e o nome vêm da conta Google
+  describe("finishing a Google sign-up", () => {
+    const GOOGLE = { email: "ana@gmail.com", nome: "Ana Souza" };
+
+    async function ateOFim(user: Usuario) {
+      await preencher(user, EMPRESA);
+      await continuar(user);
+      await user.type(await screen.findByLabelText("Sistema de gestão"), "Omie");
+      await user.click(screen.getByRole("button", { name: "Concluir cadastro" }));
+    }
+
+    it("starts on the company step, with the Google name to confirm and no password", () => {
+      render(<FormularioCadastro google={GOOGLE} />);
+      expect(titulo()).toHaveTextContent("Vamos cadastrar a empresa.");
+      expect(screen.getByLabelText("Seu nome")).toHaveValue("Ana Souza");
+      expect(screen.queryByLabelText("Senha")).not.toBeInTheDocument();
+      expect(screen.queryByLabelText("E-mail")).not.toBeInTheDocument();
+      expect(within(screen.getByRole("list", { name: "Etapas do cadastro" })).getAllByRole("listitem")).toHaveLength(2);
+    });
+
+    it("checks the Google e-mail with the CNPJ and finishes through the Google sign-up", async () => {
+      const user = userEvent.setup();
+      render(<FormularioCadastro google={GOOGLE} />);
+
+      await ateOFim(user);
+
+      expect(verificarCadastro).toHaveBeenCalledWith({ email: "ana@gmail.com", cnpj: "12.345.678/0001-95" });
+      // o e-mail do responsável começa igual ao da conta Google
+      expect(await screen.findByText(/Criando sua conta/)).toBeInTheDocument();
+      await waitFor(() =>
+        expect(cadastrarComGoogle).toHaveBeenCalledWith({
+          nome: "Ana Souza",
+          razaoSocial: "Telha Certa Ltda",
+          cnpj: "12.345.678/0001-95",
+        }),
+      );
+      expect(cadastrar).not.toHaveBeenCalled();
+      await waitFor(() => expect(push).toHaveBeenCalledWith("/visao-geral"));
+    });
+
+    it("shows a taken e-mail as a general error, since the field isn't on screen", async () => {
+      cadastrarComGoogle.mockResolvedValue({ ok: false, erro: "email_cadastrado" });
+      const user = userEvent.setup();
+      render(<FormularioCadastro google={GOOGLE} />);
+
+      await ateOFim(user);
+
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        "Já existe conta com este e-mail. Entre pela tela de login.",
+      );
+    });
+
+    it("offers Google again when its confirmation expired", async () => {
+      cadastrarComGoogle.mockResolvedValue({ ok: false, erro: "google_expirado" });
+      const user = userEvent.setup();
+      render(<FormularioCadastro google={GOOGLE} />);
+
+      await ateOFim(user);
+
+      expect(await screen.findByRole("alert")).toHaveTextContent("A confirmação do Google venceu.");
+      await user.click(screen.getByRole("button", { name: "Entrar com o Google de novo" }));
+      expect(entrarComGoogle).toHaveBeenCalledTimes(1);
     });
   });
 });

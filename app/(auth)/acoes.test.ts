@@ -3,7 +3,9 @@ import { CredentialsSignin } from "next-auth";
 import { MuitasEntradas } from "@/lib/login";
 import {
   cadastrar,
+  cadastrarComGoogle,
   entrar,
+  entrarComGoogle,
   entrarNaDemonstracao,
   escolherPlano,
   excluirConta,
@@ -37,12 +39,14 @@ vi.mock("next/navigation", () => ({
 }));
 
 const cookiesGravados = vi.fn();
+const cookiesApagados = vi.fn();
 const cookiesExistentes = new Map<string, string>();
 vi.mock("next/headers", () => ({
   cookies: async () => ({
     get: (nome: string) =>
       cookiesExistentes.has(nome) ? { name: nome, value: cookiesExistentes.get(nome) } : undefined,
     set: (...args: unknown[]) => cookiesGravados(...args),
+    delete: (...args: unknown[]) => cookiesApagados(...args),
   }),
 }));
 
@@ -56,6 +60,7 @@ beforeEach(() => {
   auth.mockReset();
   auth.mockResolvedValue({ user: { email: "ana@telhacerta.com.br", empresaId: "e" } });
   cookiesGravados.mockReset();
+  cookiesApagados.mockReset();
   cookiesExistentes.clear();
   fetch.mockReset();
   vi.stubGlobal("fetch", fetch);
@@ -281,6 +286,100 @@ describe("cadastrar", () => {
 
     respostaDoBackend(500, { detail: "Internal Server Error" });
     expect(await cadastrar(DADOS)).toEqual({ ok: false, erro: "falha" });
+  });
+});
+
+describe("entrarComGoogle", () => {
+  it("leva ao Google pelo NextAuth, voltando à visão geral", async () => {
+    vi.stubEnv("AUTH_GOOGLE_ID", "client-id");
+    await entrarComGoogle();
+    expect(signIn).toHaveBeenCalledWith("google", { redirectTo: "/visao-geral" });
+  });
+
+  it("não chama o NextAuth quando o servidor não tem o provider", async () => {
+    vi.stubEnv("AUTH_GOOGLE_ID", "");
+    expect(await entrarComGoogle()).toBe(false);
+    expect(signIn).not.toHaveBeenCalled();
+  });
+});
+
+describe("cadastrarComGoogle", () => {
+  const DADOS = { nome: "Ana Souza", razaoSocial: "Telha Certa Ltda", cnpj: "12.345.678/0001-95" };
+
+  function respostaDoBackend(status: number, corpo: object) {
+    fetch.mockResolvedValue(Response.json(corpo, { status }));
+  }
+
+  beforeEach(() => {
+    cookiesExistentes.set("ledgr-cadastro-google", "id-token-do-google");
+  });
+
+  it("cria a conta com o id_token do cookie, sem e-mail nem senha, e abre a sessão", async () => {
+    respostaDoBackend(201, { id: "u", empresa_id: "e", nome: "Ana Souza", email: "ana@gmail.com", auth_time: 1 });
+
+    expect(await cadastrarComGoogle(DADOS)).toEqual({ ok: true, entrou: true });
+
+    const [url, init] = fetch.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe("http://localhost:8000/register/google");
+    expect(new Headers(init.headers).has("Authorization")).toBe(false);
+    expect(JSON.parse(String(init.body))).toEqual({
+      id_token: "id-token-do-google",
+      razao_social: "Telha Certa Ltda",
+      cnpj: "12.345.678/0001-95",
+      nome: "Ana Souza",
+    });
+    expect(signIn).toHaveBeenCalledWith("google-cadastro", { redirect: false });
+  });
+
+  it("sem nome, deixa o backend usar o da conta Google", async () => {
+    respostaDoBackend(201, { id: "u", empresa_id: "e", nome: "Ana", email: "ana@gmail.com" });
+    await cadastrarComGoogle({ ...DADOS, nome: "" });
+    expect(JSON.parse(String((fetch.mock.calls[0] as [string, RequestInit])[1].body))).not.toHaveProperty("nome");
+  });
+
+  it("conta criada com a sessão que não abriu: falta só entrar", async () => {
+    respostaDoBackend(201, { id: "u", empresa_id: "e", nome: "Ana", email: "ana@gmail.com" });
+    signIn.mockRejectedValue(new CredentialsSignin());
+    expect(await cadastrarComGoogle(DADOS)).toEqual({ ok: true, entrou: false });
+  });
+
+  it("pede o Google de novo sem o cookie ou com o id_token vencido", async () => {
+    respostaDoBackend(401, { detail: "Não foi possível confirmar a conta Google." });
+    expect(await cadastrarComGoogle(DADOS)).toEqual({ ok: false, erro: "google_expirado" });
+    expect(cookiesApagados).toHaveBeenCalledWith("ledgr-cadastro-google");
+
+    cookiesExistentes.clear();
+    fetch.mockReset();
+    expect(await cadastrarComGoogle(DADOS)).toEqual({ ok: false, erro: "google_expirado" });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("separa os três 409 do cadastro pelo Google", async () => {
+    respostaDoBackend(409, { detail: "E-mail já cadastrado." });
+    expect(await cadastrarComGoogle(DADOS)).toEqual({ ok: false, erro: "email_cadastrado" });
+    respostaDoBackend(409, { detail: "CNPJ já cadastrado." });
+    expect(await cadastrarComGoogle(DADOS)).toEqual({ ok: false, erro: "cnpj_cadastrado" });
+    respostaDoBackend(409, { detail: "Já existe uma conta no Ledgr para esta conta Google." });
+    expect(await cadastrarComGoogle(DADOS)).toEqual({ ok: false, erro: "google_ja_cadastrado" });
+  });
+
+  it("trata os 422 como o /register, inclusive os da Receita (#119)", async () => {
+    respostaDoBackend(422, {
+      detail: [{ loc: ["body", "cnpj"], msg: "CNPJ não encontrado na Receita Federal." }],
+    });
+    expect(await cadastrarComGoogle(DADOS)).toEqual({ ok: false, erro: "cnpj_nao_encontrado" });
+
+    respostaDoBackend(422, { detail: [{ loc: ["body", "nome"], msg: "Field required" }] });
+    expect(await cadastrarComGoogle(DADOS)).toEqual({ ok: false, erro: "invalido", campos: ["nome"] });
+  });
+
+  it("separa o Google desligado, o limite por minuto e o backend fora do ar", async () => {
+    respostaDoBackend(503, { detail: "Login pelo Google indisponível." });
+    expect(await cadastrarComGoogle(DADOS)).toEqual({ ok: false, erro: "google_indisponivel" });
+    respostaDoBackend(429, { detail: "Rate limit exceeded" });
+    expect(await cadastrarComGoogle(DADOS)).toEqual({ ok: false, erro: "muitas_tentativas" });
+    fetch.mockRejectedValue(new TypeError("fetch failed"));
+    expect(await cadastrarComGoogle(DADOS)).toEqual({ ok: false, erro: "falha" });
   });
 });
 

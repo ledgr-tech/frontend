@@ -6,6 +6,7 @@ import { CredentialsSignin } from "next-auth";
 import { auth, signIn, signOut } from "@/auth";
 import { ErroBackend, chamarBackend } from "@/lib/backend";
 import { demoAberta } from "@/lib/demo";
+import { COOKIE_CADASTRO_GOOGLE } from "@/lib/google";
 import { MuitasEntradas, type UsuarioAPI } from "@/lib/login";
 import { ehTela, type Preferencias } from "@/lib/preferencias";
 import { adaptarAssinatura, type Assinatura, type PlanoId } from "@/lib/assinatura";
@@ -80,6 +81,18 @@ export async function entrarNaDemonstracao(manterSessao: boolean): Promise<boole
   return (await entrar(email, senha, manterSessao)).ok;
 }
 
+/**
+ * "Entrar com Google" (backend #73): leva ao Google, e a volta passa pelo
+ * callback `signIn` do `auth.ts`. O `signIn` do NextAuth sai lançando o
+ * redirect, que a Server Action entrega ao navegador; só volta daqui quando o
+ * provider não existe neste servidor.
+ */
+export async function entrarComGoogle(): Promise<false> {
+  if (!process.env.AUTH_GOOGLE_ID) return false;
+  await signIn("google", { redirectTo: "/visao-geral" });
+  return false;
+}
+
 /** Os campos do formulário que o `POST /register` recebe. */
 export type DadosCadastro = {
   nome: string;
@@ -103,7 +116,11 @@ export type ResultadoCadastro =
         | "cnpj_nao_encontrado"
         | "cnpj_inativo"
         | "muitas_tentativas"
-        | "falha";
+        | "falha"
+        /** Só no cadastro pelo Google: o `id_token` venceu (1 hora) ou sumiu, e é preciso passar pelo Google de novo. */
+        | "google_expirado"
+        | "google_ja_cadastrado"
+        | "google_indisponivel";
     }
   /** O backend recusou o formato: são os campos a corrigir, com o nome do formulário. */
   | { ok: false; erro: "invalido"; campos: CampoCadastroAPI[] };
@@ -178,6 +195,58 @@ export async function cadastrar(dados: DadosCadastro): Promise<ResultadoCadastro
 export type SituacaoCnpj = "ativa" | "inativa" | "nao_encontrado" | "nao_verificado";
 
 const SITUACOES_CNPJ: readonly SituacaoCnpj[] = ["ativa", "inativa", "nao_encontrado", "nao_verificado"];
+
+/**
+ * O fim do cadastro de quem voltou do Google sem conta (`POST /register/google`,
+ * backend #73): o `id_token` sai do cookie httpOnly que o callback do Google
+ * gravou, e o e-mail é o da conta Google. O backend já trata isso como login,
+ * mas a sessão do NextAuth abre pelo provider `google-cadastro`, com o mesmo
+ * `id_token`.
+ */
+export async function cadastrarComGoogle(
+  dados: Pick<DadosCadastro, "nome" | "razaoSocial" | "cnpj">,
+): Promise<ResultadoCadastro> {
+  const pote = await cookies();
+  const idToken = pote.get(COOKIE_CADASTRO_GOOGLE)?.value;
+  if (!idToken) return { ok: false, erro: "google_expirado" };
+  try {
+    await chamarBackend<UsuarioAPI>("/register/google", {
+      method: "POST",
+      corpo: {
+        id_token: idToken,
+        razao_social: dados.razaoSocial,
+        cnpj: dados.cnpj,
+        // sem nome, o backend usa o da conta Google; vazio ele recusa
+        ...(dados.nome && { nome: dados.nome }),
+      },
+      publica: true,
+    });
+  } catch (erro) {
+    if (!(erro instanceof ErroBackend)) return { ok: false, erro: "falha" };
+    if (erro.status === 401) {
+      pote.delete(COOKIE_CADASTRO_GOOGLE);
+      return { ok: false, erro: "google_expirado" };
+    }
+    if (erro.status === 429) return { ok: false, erro: "muitas_tentativas" };
+    if (erro.status === 503) return { ok: false, erro: "google_indisponivel" };
+    if (erro.status === 422) {
+      const receita = recusaDaReceita(erro);
+      if (receita) return { ok: false, erro: receita };
+      const campos = erro.campos.map((campo) => CAMPO_DO_FORMULARIO[campo]).filter(Boolean);
+      if (campos.length > 0) return { ok: false, erro: "invalido", campos };
+    }
+    if (erro.status === 409 && erro.detalhe.startsWith("E-mail já")) return { ok: false, erro: "email_cadastrado" };
+    if (erro.status === 409 && erro.detalhe.startsWith("CNPJ já")) return { ok: false, erro: "cnpj_cadastrado" };
+    if (erro.status === 409) return { ok: false, erro: "google_ja_cadastrado" };
+    return { ok: false, erro: "falha" };
+  }
+  try {
+    await signIn("google-cadastro", { redirect: false });
+  } catch {
+    return { ok: true, entrou: false };
+  }
+  return { ok: true, entrou: true };
+}
 
 export type ResultadoVerificacao =
   | {
