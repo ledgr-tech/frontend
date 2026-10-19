@@ -12,7 +12,13 @@ import { baixarDoBackend, ErroBackend } from "@/lib/backend";
  * UTF-8, e sem ele o Excel em português abre os acentos quebrados.
  */
 
-const REPASSADOS = ["Content-Type", "Content-Disposition", "Cache-Control"];
+/**
+ * Os cabeçalhos saem daqui, não do backend: o arquivo é da empresa (nenhum cache no caminho) e
+ * sempre baixa como CSV. Do backend fica só o nome sugerido, se for um nome simples de CSV.
+ */
+function nomeDoArquivo(disposicao: string | null, id: string): string {
+  return disposicao?.match(/filename="([\w.-]{1,100}\.csv)"/)?.[1] ?? `conciliacao-${id.slice(0, 8)}.csv`;
+}
 
 function erro(status: number, mensagem: string): Response {
   return Response.json({ erro: mensagem }, { status });
@@ -41,12 +47,14 @@ export async function GET(
     const query = filtros.toString();
     const arquivo = await baixarDoBackend(`/conciliacoes/${id}/exportar${query ? `?${query}` : ""}`);
 
-    const cabecalhos = new Headers({ "Cache-Control": "no-store" });
-    for (const nome of REPASSADOS) {
-      const valor = arquivo.headers.get(nome);
-      if (valor) cabecalhos.set(nome, valor);
-    }
-    return new Response(arquivo.body, { status: 200, headers: cabecalhos });
+    return new Response(arquivo.body, {
+      status: 200,
+      headers: {
+        "Cache-Control": "private, no-store",
+        "Content-Type": "text/csv; charset=utf-8",
+        "Content-Disposition": `attachment; filename="${nomeDoArquivo(arquivo.headers.get("Content-Disposition"), id)}"`,
+      },
+    });
   } catch (falha) {
     if (falha instanceof ErroBackend && falha.status === 401) {
       return erro(401, "Sua sessão expirou. Entre de novo para continuar.");
