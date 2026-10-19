@@ -28,6 +28,7 @@ const chamarBackend = vi.fn();
 vi.mock("@/lib/backend", async (original) => ({
   ...(await original<typeof import("@/lib/backend")>()),
   chamarBackend: (...args: unknown[]) => chamarBackend(...args),
+  emailDaSessao: async () => "ana@x.com",
 }));
 
 const BANCO_RECENTE = "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20";
@@ -846,6 +847,18 @@ describe("as regras da empresa", () => {
     expect(await salvarToleranciaDias(2.5)).toMatchObject({ ok: false, status: 422 });
     expect(await salvarToleranciaDias(-1)).toMatchObject({ ok: false, status: 422 });
     expect(chamarBackend).not.toHaveBeenCalled();
+  });
+
+  it("na conta de demonstração, não muda a regra da empresa que todo visitante divide", async () => {
+    vi.stubEnv("LEDGR_CONTA_TESTE_EMAIL", "Ana@X.com");
+
+    expect(await salvarToleranciaDias(3)).toEqual({
+      ok: false,
+      status: 403,
+      erro: "A conta de demonstração não pode ser alterada.",
+    });
+    expect(chamarBackend).not.toHaveBeenCalled();
+    vi.unstubAllEnvs();
   });
 
   it("devolve o 422 do backend para o valor acima do máximo", async () => {

@@ -8,7 +8,8 @@ import {
   type Pessoa,
   type PessoaAPI,
 } from "@/lib/adaptadores";
-import { ErroBackend, chamarBackend } from "@/lib/backend";
+import { ErroBackend, chamarBackend, emailDaSessao } from "@/lib/backend";
+import { RECUSA_DEMONSTRACAO, ehContaDeDemonstracao } from "@/lib/demo";
 import type { Falha, Resultado } from "../conciliacoes/acoes";
 
 /**
@@ -45,6 +46,11 @@ function traduzir(erro: unknown, aoConvidar = false): Falha {
   return { ok: false, status, erro: erro.detalhe };
 }
 
+/** Da conta de demonstração, um visitante mandaria convite do Ledgr para qualquer endereço ou tiraria gente da empresa. */
+async function recusaNaDemonstracao(): Promise<Falha | null> {
+  return ehContaDeDemonstracao(await emailDaSessao()) ? { ok: false, status: 403, erro: RECUSA_DEMONSTRACAO } : null;
+}
+
 export async function carregarEquipe(administrador: boolean): Promise<Resultado<Equipe>> {
   try {
     const [pessoas, convites] = await Promise.all([
@@ -65,6 +71,8 @@ export async function carregarEquipe(administrador: boolean): Promise<Resultado<
 
 /** O e-mail vai aparado; o backend normaliza o resto (maiúsculas) e cancela um convite pendente para o mesmo e-mail. */
 export async function convidar(email: string): Promise<Resultado<Convite>> {
+  const recusa = await recusaNaDemonstracao();
+  if (recusa) return recusa;
   try {
     const convite = await chamarBackend<ConviteAPI>("/empresa/convites", {
       method: "POST",
@@ -77,6 +85,8 @@ export async function convidar(email: string): Promise<Resultado<Convite>> {
 }
 
 export async function cancelarConvite(id: string): Promise<Resultado<null>> {
+  const recusa = await recusaNaDemonstracao();
+  if (recusa) return recusa;
   try {
     await chamarBackend(`/empresa/convites/${encodeURIComponent(id)}`, { method: "DELETE" });
     return { ok: true, dados: null };
@@ -87,6 +97,8 @@ export async function cancelarConvite(id: string): Promise<Resultado<null>> {
 
 /** Corta o acesso na hora (o backend encerra as sessões); as decisões dela continuam no histórico. */
 export async function removerPessoa(id: string): Promise<Resultado<null>> {
+  const recusa = await recusaNaDemonstracao();
+  if (recusa) return recusa;
   try {
     await chamarBackend(`/empresa/usuarios/${encodeURIComponent(id)}`, { method: "DELETE" });
     return { ok: true, dados: null };
