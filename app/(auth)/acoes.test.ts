@@ -55,9 +55,18 @@ vi.mock("next/headers", () => ({
   }),
 }));
 
+// quem está na sessão, pelo token que vai no Bearer (o jose não roda no jsdom; testado em lib/backend.test.ts)
+const emailDaSessao = vi.fn();
+vi.mock("@/lib/backend", async (original) => ({
+  ...(await original<typeof import("@/lib/backend")>()),
+  emailDaSessao: () => emailDaSessao(),
+}));
+
 const fetch = vi.fn();
 
 beforeEach(() => {
+  emailDaSessao.mockReset();
+  emailDaSessao.mockResolvedValue("ana@telhacerta.com.br");
   signIn.mockReset();
   signIn.mockResolvedValue(undefined);
   signOut.mockReset();
@@ -568,6 +577,26 @@ describe("a conta de quem está logado", () => {
       ok: false,
       erro: "A conta de demonstração não pode ser alterada.",
     });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("reconhece a demonstração pelo token que vai ao backend, mesmo com o auth() vendo outra conta", async () => {
+    // com dois cookies de sessão no navegador, o auth() e o Bearer podiam ler contas diferentes
+    vi.stubEnv("LEDGR_CONTA_TESTE_EMAIL", "ana@telhacerta.com.br");
+    auth.mockResolvedValue({ user: { email: "outra@empresa.com.br", empresaId: "e2" } });
+
+    expect(await trocarSenha("s3nha", "s3nha-nova")).toEqual({
+      ok: false,
+      erro: "A conta de demonstração não pode ser alterada.",
+    });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("sem token válido, manda para o login sem chamar o backend", async () => {
+    emailDaSessao.mockResolvedValue(null);
+
+    await expect(excluirConta("s3nha")).rejects.toThrow("NEXT_REDIRECT");
+    expect(redirect).toHaveBeenCalledWith("/login");
     expect(fetch).not.toHaveBeenCalled();
   });
 

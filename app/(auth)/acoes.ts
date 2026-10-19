@@ -3,9 +3,9 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { CredentialsSignin } from "next-auth";
-import { auth, signIn, signOut } from "@/auth";
-import { ErroBackend, chamarBackend } from "@/lib/backend";
-import { demoAberta } from "@/lib/demo";
+import { signIn, signOut } from "@/auth";
+import { ErroBackend, chamarBackend, emailDaSessao } from "@/lib/backend";
+import { RECUSA_DEMONSTRACAO, demoAberta, ehContaDeDemonstracao } from "@/lib/demo";
 import { COOKIE_CADASTRO_GOOGLE, COOKIE_CONVITE_GOOGLE, VALIDADE_ID_TOKEN_SEGUNDOS } from "@/lib/google";
 import { MuitasEntradas, type UsuarioAPI } from "@/lib/login";
 import { ehTela, type Preferencias } from "@/lib/preferencias";
@@ -566,12 +566,9 @@ function mensagemDaConta(erro: unknown): string {
 async function naConta(
   chamada: () => Promise<unknown>,
 ): Promise<{ ok: true; email: string } | { ok: false; erro: string }> {
-  const email = (await auth())?.user?.email;
+  const email = await emailDaSessao();
   if (!email) redirect("/login");
-  const demonstracao = process.env.LEDGR_CONTA_TESTE_EMAIL?.trim().toLowerCase();
-  if (demonstracao && email.toLowerCase() === demonstracao) {
-    return { ok: false, erro: "A conta de demonstração não pode ser alterada." };
-  }
+  if (ehContaDeDemonstracao(email)) return { ok: false, erro: RECUSA_DEMONSTRACAO };
   try {
     await chamada();
     return { ok: true, email };

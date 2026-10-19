@@ -1,13 +1,15 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ConviteAPI, PessoaAPI } from "@/lib/adaptadores";
 import { ErroBackend } from "@/lib/backend";
 import { cancelarConvite, carregarEquipe, convidar, removerPessoa } from "./acoes";
 
 // a rede é a fronteira; ErroBackend e a tradução dos erros rodam de verdade
 const chamarBackend = vi.fn();
+const emailDaSessao = vi.fn();
 vi.mock("@/lib/backend", async (original) => ({
   ...(await original<typeof import("@/lib/backend")>()),
   chamarBackend: (...args: unknown[]) => chamarBackend(...args),
+  emailDaSessao: () => emailDaSessao(),
 }));
 
 const pessoaApi: PessoaAPI = { id: "u1", nome: "Ana", email: "ana@x.com", administrador: true, criado_em: "2026-10-01T00:00:00Z" };
@@ -17,6 +19,32 @@ const convite = { id: "c1", email: "bia@x.com", enviadoEm: "16/10/2026", valeAte
 
 beforeEach(() => {
   chamarBackend.mockReset();
+  emailDaSessao.mockResolvedValue("ana@x.com");
+});
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
+
+describe("na conta de demonstração", () => {
+  // um visitante da demo mandaria convite do Ledgr para qualquer endereço, ou tiraria gente da empresa dos outros
+  it.each([
+    ["convidar", () => convidar("bia@x.com")],
+    ["cancelarConvite", () => cancelarConvite("c1")],
+    ["removerPessoa", () => removerPessoa("u1")],
+  ])("%s recusa sem chamar o backend", async (_, acao) => {
+    vi.stubEnv("LEDGR_CONTA_TESTE_EMAIL", " Ana@X.com ");
+
+    expect(await acao()).toEqual({ ok: false, status: 403, erro: "A conta de demonstração não pode ser alterada." });
+    expect(chamarBackend).not.toHaveBeenCalled();
+  });
+
+  it("outra conta segue normal", async () => {
+    vi.stubEnv("LEDGR_CONTA_TESTE_EMAIL", "demo@ledgr.com.br");
+    chamarBackend.mockResolvedValueOnce(undefined);
+
+    expect(await removerPessoa("u1")).toEqual({ ok: true, dados: null });
+  });
 });
 
 describe("carregarEquipe", () => {
