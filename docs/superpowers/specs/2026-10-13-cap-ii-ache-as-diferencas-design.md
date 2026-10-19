@@ -17,6 +17,11 @@
 >   batem, com o motivo.", sem botão: Como funciona começa logo abaixo;
 > - "Na prática", a demonstração com as marcas do Ledgr, foi para o fim do Cap. III, depois dos três
 >   passos, como o resultado de "Receba as divergências".
+>
+> **Revisão de 16/10/2026 (textos):** o título "Duas telas abertas, um dedo em *cada linha.*" deu lugar
+> a "Fechar o mês ainda é procurar *linha por linha.*", na voz de quem lê e preparando o título do
+> Cap. III ("A conferência linha por linha fica com o Ledgr"). O texto de abertura e as dores 1 e 3
+> foram reescritos; a terceira dor é "O que escapa" / "Só aparece no saldo".
 
 ## Contexto
 

@@ -1,4 +1,5 @@
 import { cookies, headers } from "next/headers";
+import { lerToken } from "./token";
 
 /**
  * Único ponto de contato com o backend (FastAPI). Roda **só no servidor**:
@@ -31,6 +32,10 @@ export class ErroBackend extends Error {
     readonly detalhe: string,
     /** Num 422 do FastAPI, os campos do corpo que não passaram na validação. */
     readonly campos: string[] = [],
+    /** A `msg` de cada campo desse 422, para quando o campo sozinho não diz o motivo (o CNPJ na Receita, #119). */
+    readonly mensagens: Record<string, string> = {},
+    /** O `Retry-After` de um 429, em segundos, quando o backend manda (o limite de convites por hora). */
+    readonly segundosParaTentar?: number,
   ) {
     super(detalhe);
     this.name = "ErroBackend";
@@ -49,6 +54,16 @@ async function tokenDaSessao(): Promise<string | null> {
     if (valor) return valor;
   }
   return null;
+}
+
+/**
+ * O e-mail do token que vai no Bearer, com a assinatura conferida; null sem sessão válida. A trava da
+ * conta de demonstração lê daqui, e não do `auth()`: ele lê os cookies de outro jeito, e com dois no
+ * navegador a trava via uma conta enquanto o backend recebia a outra.
+ */
+export async function emailDaSessao(): Promise<string | null> {
+  const token = await tokenDaSessao();
+  return (token && (await lerToken(token))?.email) || null;
 }
 
 /**
@@ -74,23 +89,35 @@ async function ipDoNavegador(cabecalhos: Headers): Promise<void> {
   cabecalhos.set("X-Ledgr-Segredo-Proxy", segredo);
 }
 
+/** Só o formato em segundos: o backend nunca manda a data HTTP. */
+function segundosDoRetryAfter(resposta: Response): number | undefined {
+  const valor = Number(resposta.headers.get("Retry-After"));
+  return Number.isInteger(valor) && valor > 0 ? valor : undefined;
+}
+
 async function erroDaResposta(resposta: Response): Promise<ErroBackend> {
+  const segundos = segundosDoRetryAfter(resposta);
   try {
     const corpo = await resposta.json();
     // FastAPI manda `{detail: "..."}`; num 422 de validação, `detail` é uma
     // lista de objetos, que não serve pra mostrar na tela — dela sai só quais
     // campos do corpo falharam (`loc: ["body", "<campo>"]`).
-    if (typeof corpo?.detail === "string") return new ErroBackend(resposta.status, corpo.detail);
+    if (typeof corpo?.detail === "string") return new ErroBackend(resposta.status, corpo.detail, [], {}, segundos);
     if (Array.isArray(corpo?.detail)) {
-      const campos = corpo.detail
-        .filter((item: { loc?: unknown[] }) => item?.loc?.[0] === "body")
-        .map((item: { loc: unknown[] }) => String(item.loc[1]));
-      return new ErroBackend(resposta.status, `O servidor respondeu ${resposta.status}.`, campos);
+      const itens: { loc: unknown[]; msg?: unknown }[] = corpo.detail.filter(
+        (item: { loc?: unknown[] }) => item?.loc?.[0] === "body",
+      );
+      const campos = itens.map((item) => String(item.loc[1]));
+      const mensagens: Record<string, string> = {};
+      for (const item of itens) {
+        if (typeof item.msg === "string") mensagens[String(item.loc[1])] ??= item.msg;
+      }
+      return new ErroBackend(resposta.status, `O servidor respondeu ${resposta.status}.`, campos, mensagens);
     }
   } catch {
     // resposta sem corpo JSON (502 do proxy, timeout do Railway)
   }
-  return new ErroBackend(resposta.status, `O servidor respondeu ${resposta.status}.`);
+  return new ErroBackend(resposta.status, `O servidor respondeu ${resposta.status}.`, [], {}, segundos);
 }
 
 type Opcoes = RequestInit & {

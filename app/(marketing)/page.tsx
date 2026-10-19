@@ -17,9 +17,8 @@ import { PorQueOLedgr } from "./por-que";
 import { Precos, type ResumoDoMes } from "./precos";
 import { RedesSociais } from "./redes-sociais";
 
-// O agosto da demonstração: o cartão do hero e o relatório do último card de Preços mostram o
-// mesmo mês, com os mesmos números
-// quantos lançamentos o extrato do banco tem no agosto do exemplo: a escala do Cap. II e do hero
+// O agosto da demonstração, no relatório do último card de Preços
+// quantos lançamentos o extrato do banco tem no agosto do exemplo: a escala do Cap. II e de Preços
 const LANCAMENTOS_DE_AGOSTO = 4218;
 const AGOSTO: ResumoDoMes = {
   periodo: "Agosto · 2026",
@@ -43,7 +42,7 @@ const NUMEROS = [
 // 01/10 no DESIGN.md ("Dívidas pontuais anotadas pelo caminho"). Se o lançamento
 // for sem IA, troque pelos motivos fixos.
 // Lançamentos que aparecem, com os mesmos valores, nos dois extratos.
-// Agosto/2026: mês já fechado (hoje é setembro/2026), coerente com o rótulo do hero.
+// Agosto/2026: mês já fechado (hoje é setembro/2026), coerente com o relatório de Preços.
 const TRANSACOES_CASADAS: LinhaExtrato[] = [
   {
     data: "03/08",
@@ -110,7 +109,7 @@ const EXTRATO_BANCO: LinhaExtrato[] = [...TRANSACOES_CASADAS, TARIFA_BANCO, ALUG
 const EXTRATO_SISTEMA: LinhaExtrato[] = [...TRANSACOES_CASADAS, ALUGUEL_SISTEMA];
 
 // As três dores do Cap. II, uma por número nas telas, com os números dos próprios lançamentos: a
-// escala do mês (a mesma do hero), os cinco centavos do cartão e a tarifa que só o banco tem
+// escala do mês (a mesma de Preços), os cinco centavos do cartão e a tarifa que só o banco tem
 const CARTAO = TRANSACOES_CASADAS[2];
 const emReais = (valor: string) => Number(valor.replace(/[^\d,]/g, "").replace(",", "."));
 // no formato dos outros valores da página ("R$ 0,05", com espaço comum: o Intl poria um não separável)
@@ -124,7 +123,7 @@ const DORES: Dor[] = [
     numero: LANCAMENTOS_DE_AGOSTO.toLocaleString("pt-BR"),
     unidade: "linhas",
     titulo: "Horas que não voltam",
-    texto: "Cada linha do banco é procurada no sistema, uma a uma, todo mês.",
+    texto: "Cada linha do banco é procurada no sistema, uma por uma, e no mês seguinte começa tudo de novo.",
   },
   {
     rotulo: "Erro humano",
@@ -134,10 +133,10 @@ const DORES: Dor[] = [
     linha: CARTAO.desc,
   },
   {
-    rotulo: "O que passa",
+    rotulo: "O que escapa",
     numero: TARIFA_BANCO.valorBanco!,
-    titulo: "Aparece depois",
-    texto: "A tarifa que ninguém lançou só aparece quando o saldo não fecha.",
+    titulo: "Só aparece no saldo",
+    texto: "A tarifa que o banco cobrou e ninguém lançou só aparece quando o saldo não fecha, e aí a procura recomeça.",
     linha: TARIFA_BANCO.desc,
   },
 ];
@@ -327,54 +326,6 @@ export default function LandingPage() {
               preload
               style={{ position: "relative", zIndex: 1, width: "96%", maxWidth: 440, height: "auto" }}
             />
-            <div
-              className="hero-stat-card"
-              style={{
-                alignSelf: "flex-start",
-                marginTop: 28,
-                width: "min(246px, 100%)",
-                padding: "16px 18px",
-                border: "1px solid var(--color-accent)",
-                borderRadius: "var(--radius-md)",
-                background: "var(--color-bg)",
-                boxShadow: "var(--shadow-md)",
-              }}
-            >
-              <div
-                style={{
-                  fontSize: 12,
-                  letterSpacing: "0.1em",
-                  textTransform: "uppercase",
-                  color: "color-mix(in srgb, var(--color-text) 68%, transparent)",
-                  marginBottom: 8,
-                }}
-              >
-                {AGOSTO.periodo}
-              </div>
-              <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 8 }}>
-                <span className="numero-destaque" style={{ fontSize: 38, fontWeight: 600, lineHeight: 1 }}>
-                  {AGOSTO.conciliado}
-                </span>
-                <span style={{ fontSize: 13.5, color: "color-mix(in srgb, var(--color-text) 68%, transparent)" }}>
-                  conciliado
-                </span>
-              </div>
-              <div
-                style={{
-                  height: 5,
-                  border: "1px solid var(--color-divider)",
-                  borderRadius: "var(--radius-sm)",
-                  overflow: "hidden",
-                  display: "flex",
-                }}
-              >
-                <div style={{ width: AGOSTO.conciliado.replace(",", "."), background: "var(--color-neutral-300)" }} />
-                <div style={{ flex: 1, background: "var(--color-accent)" }} />
-              </div>
-              <div style={{ marginTop: 8, fontSize: 12.5, color: "color-mix(in srgb, var(--color-text) 68%, transparent)" }}>
-                {AGOSTO.paraRevisar}
-              </div>
-            </div>
           </InkHover>
         </div>
       </section>
@@ -451,7 +402,7 @@ export default function LandingPage() {
               <div>
                 <p className="eyebrow" style={{ margin: "0 0 12px", color: "var(--color-accent-700)" }}>Cap. II · O jeito de hoje</p>
                 <h2 className="titulo-misto" style={{ margin: 0, fontSize: "clamp(30px, 2.8vw, 46px)" }}>
-                  Duas telas abertas, um dedo em <em>cada linha.</em>
+                  Fechar o mês ainda é procurar <em>linha por linha.</em>
                 </h2>
               </div>
               <p
@@ -462,7 +413,7 @@ export default function LandingPage() {
                   lineHeight: 1.75,
                 }}
               >
-                Assim é o fechamento de agosto à mão: o extrato do banco de um lado, o do sistema do outro.
+                O extrato do banco de um lado, o do sistema do outro, e os olhos indo e voltando entre os dois até o saldo fechar.
               </p>
             </InkHover>
           </Reveal>

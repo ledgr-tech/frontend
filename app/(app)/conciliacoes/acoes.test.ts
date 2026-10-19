@@ -7,6 +7,7 @@ import {
   carregarFechamentos,
   carregarConciliacoes,
   carregarRegras,
+  carregarRoteiro,
   carregarRelatorioDoFechamento,
   carregarVisaoGeral,
   conciliar,
@@ -27,6 +28,7 @@ const chamarBackend = vi.fn();
 vi.mock("@/lib/backend", async (original) => ({
   ...(await original<typeof import("@/lib/backend")>()),
   chamarBackend: (...args: unknown[]) => chamarBackend(...args),
+  emailDaSessao: async () => "ana@x.com",
 }));
 
 const BANCO_RECENTE = "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20";
@@ -396,6 +398,27 @@ describe("listarExtratos", () => {
     });
   });
 
+  it("traz o saldo de cada arquivo quando o backend manda (#118), e nada sem os campos", async () => {
+    backendComExtratos([
+      extrato(BANCO_RECENTE, {
+        origem: "banco",
+        saldo_inicial: "750.25",
+        saldo_final: "1000.00",
+        saldo_data: "2026-09-10",
+      }),
+      extrato(BANCO_ANTERIOR, { origem: "banco", saldo_inicial: null, saldo_final: null, saldo_data: null }),
+      extrato(SISTEMA),
+    ]);
+
+    const resultado = await listarExtratos();
+
+    if (!resultado.ok) throw new Error(resultado.erro);
+    const [comSaldo, semSaldo, antigo] = resultado.dados.arquivos;
+    expect(comSaldo.saldo).toEqual({ inicial: 750.25, final: 1000, data: "2026-09-10" });
+    expect(semSaldo.saldo).toBeNull();
+    expect(antigo).not.toHaveProperty("saldo");
+  });
+
   it("liga cada arquivo conciliado à conciliação em que ele abre", async () => {
     // o banco anterior não está na página de /execucoes, mas o extrato do banco abre pelo próprio id
     backendComExtratos([
@@ -655,6 +678,11 @@ describe("explicarDivergencia", () => {
     chamarBackend.mockReset();
   });
 
+  it("recusa linha com id fora do formato sem chamar o backend (a explicação custa)", async () => {
+    expect(await explicarDivergencia("qualquer")).toMatchObject({ ok: false, status: 404 });
+    expect(chamarBackend).not.toHaveBeenCalled();
+  });
+
   function resposta(parcial: Record<string, unknown> = {}) {
     return {
       conciliacao_id: LINHA,
@@ -826,6 +854,18 @@ describe("as regras da empresa", () => {
     expect(chamarBackend).not.toHaveBeenCalled();
   });
 
+  it("na conta de demonstração, não muda a regra da empresa que todo visitante divide", async () => {
+    vi.stubEnv("LEDGR_CONTA_TESTE_EMAIL", "Ana@X.com");
+
+    expect(await salvarToleranciaDias(3)).toEqual({
+      ok: false,
+      status: 403,
+      erro: "A conta de demonstração não pode ser alterada.",
+    });
+    expect(chamarBackend).not.toHaveBeenCalled();
+    vi.unstubAllEnvs();
+  });
+
   it("devolve o 422 do backend para o valor acima do máximo", async () => {
     chamarBackend.mockRejectedValue(new ErroBackend(422, "Confira os campos.", ["tolerancia_dias"]));
     expect(await salvarToleranciaDias(9)).toMatchObject({ ok: false, status: 422 });
@@ -876,11 +916,39 @@ describe("prazo do upload e da conciliação", () => {
     chamarBackend.mockResolvedValue({ extrato_id: SISTEMA, status: "processando" });
   });
 
+  function formulario(campos: Record<string, string | File>): FormData {
+    const dados = new FormData();
+    for (const [nome, valor] of Object.entries(campos)) dados.append(nome, valor);
+    return dados;
+  }
+
   it("o upload vai com prazo próprio", async () => {
-    await enviarExtrato(new FormData());
+    await enviarExtrato(formulario({ arquivo: new File(["x"], "extrato.ofx"), origem: "banco" }));
 
     const [, opcoes] = chamarBackend.mock.calls[0] as [string, { signal?: AbortSignal }];
     expect(opcoes.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it("o upload leva ao backend só o arquivo e a origem", async () => {
+    await enviarExtrato(formulario({ arquivo: new File(["x"], "extrato.ofx"), origem: "sistema", extra: "1" }));
+
+    const [, opcoes] = chamarBackend.mock.calls[0] as [string, { corpo: FormData }];
+    expect([...opcoes.corpo.keys()]).toEqual(["arquivo", "origem"]);
+    expect(opcoes.corpo.get("origem")).toBe("sistema");
+  });
+
+  it.each([
+    ["sem arquivo", { origem: "banco" }],
+    ["com origem desconhecida", { arquivo: new File(["x"], "a.csv"), origem: "outro" }],
+  ])("recusa o upload %s sem chamar o backend", async (_, campos) => {
+    expect(await enviarExtrato(formulario(campos))).toMatchObject({ ok: false, status: 422 });
+    expect(chamarBackend).not.toHaveBeenCalled();
+  });
+
+  it("recusa conciliar ids fora do formato sem chamar o backend", async () => {
+    expect(await conciliar(BANCO_RECENTE, "../execucoes")).toMatchObject({ ok: false, status: 404 });
+    expect(await conciliar("nao-e-id", SISTEMA)).toMatchObject({ ok: false, status: 404 });
+    expect(chamarBackend).not.toHaveBeenCalled();
   });
 
   it("a conciliação vai com prazo próprio", async () => {
@@ -934,6 +1002,23 @@ describe("carregarFechamentos", () => {
         fechamentos: [],
       },
     });
+  });
+
+  it("dá a cada par o saldo do extrato do banco, do mesmo detalhe das linhas não lidas (#118)", async () => {
+    chamarBackend.mockImplementation(async (caminho: string) => {
+      if (caminho === "/fechamentos") return { itens: [] };
+      if (caminho.startsWith("/execucoes")) return { total: 1, limit: 50, offset: 0, itens: [execucao("e-2", BANCO_RECENTE)] };
+      if (caminho === `/extratos/${BANCO_RECENTE}`) {
+        // com linha não lida o backend manda o saldo final, mas não o inicial
+        return { ...situacao(BANCO_RECENTE), saldo_inicial: null, saldo_final: "-120.50", saldo_data: "2026-09-30" };
+      }
+      return situacao(caminho.replace("/extratos/", ""));
+    });
+
+    const resultado = await carregarFechamentos();
+
+    if (!resultado.ok) throw new Error(resultado.erro);
+    expect(resultado.dados.pares[0].saldo).toEqual({ inicial: null, final: -120.5, data: "2026-09-30" });
   });
 
   it("traz os fechamentos da empresa, os ativos e os reabertos, como o backend os ordena", async () => {
@@ -1319,5 +1404,78 @@ describe("carregarRelatorioDoFechamento", () => {
     chamarBackend.mockRejectedValue(new ErroBackend(401, "Not authenticated"));
 
     expect(await carregarRelatorioDoFechamento("2026-09")).toMatchObject({ ok: false, status: 401 });
+  });
+});
+
+describe("carregarRoteiro", () => {
+  beforeEach(() => {
+    chamarBackend.mockReset();
+  });
+
+  function backendDoRoteiro({
+    atualizadoEm = null as string | null,
+    extratos = [] as { origem: "banco" | "sistema" }[],
+    execucoes = [] as ExecucaoAPI[],
+    fechamentos = [] as unknown[],
+  } = {}) {
+    chamarBackend.mockImplementation(async (caminho: string) => {
+      if (caminho === "/empresa/configuracoes") {
+        return { tolerancia_dias: 2, tolerancia_dias_maximo: 5, atualizado_por: atualizadoEm && "Ana", atualizado_em: atualizadoEm };
+      }
+      if (caminho.startsWith("/extratos?")) return { total: extratos.length, limit: 100, offset: 0, itens: extratos };
+      if (caminho.startsWith("/execucoes")) return { total: execucoes.length, limit: 50, offset: 0, itens: execucoes };
+      if (caminho.startsWith("/fechamentos")) return { itens: fechamentos };
+      throw new Error(`caminho inesperado: ${caminho}`);
+    });
+  }
+
+  it("conta nova: nada feito", async () => {
+    backendDoRoteiro();
+    expect(await carregarRoteiro()).toEqual({
+      toleranciaRevisada: false,
+      temExtratoDoBanco: false,
+      conciliou: false,
+      resolveuAlguma: false,
+      fechouAlgum: false,
+      conciliacaoComPendencia: null,
+    });
+  });
+
+  it("marca a tolerância salva, o extrato do banco, a conciliação com pendência e o mês fechado", async () => {
+    backendDoRoteiro({
+      atualizadoEm: "2026-10-06T12:30:00Z",
+      extratos: [{ origem: "sistema" }, { origem: "banco" }],
+      execucoes: [execucao("e1", BANCO_RECENTE)],
+      fechamentos: [fechamento("2026-09")],
+    });
+    const dados = await carregarRoteiro();
+    expect(dados).toMatchObject({ toleranciaRevisada: true, temExtratoDoBanco: true, conciliou: true, fechouAlgum: true });
+    // a execução de teste tem uma linha sem correspondência: ainda pede decisão
+    expect(dados?.resolveuAlguma).toBe(false);
+    expect(dados?.conciliacaoComPendencia).toBe(`/conciliacoes/${BANCO_RECENTE}`);
+  });
+
+  it("uma conciliação sem nada pedindo decisão conta como resolvida", async () => {
+    const tudoBateu = execucao("e1", BANCO_RECENTE);
+    tudoBateu.contagens = { ...tudoBateu.contagens, match_exato: 2, sem_correspondencia: 0 };
+    backendDoRoteiro({ execucoes: [tudoBateu] });
+    const dados = await carregarRoteiro();
+    expect(dados?.resolveuAlguma).toBe(true);
+    expect(dados?.conciliacaoComPendencia).toBeNull();
+  });
+
+  it("um mês reaberto não conta como fechado", async () => {
+    backendDoRoteiro({ fechamentos: [fechamento("2026-09", { estado: "reaberto" })] });
+    expect((await carregarRoteiro())?.fechouAlgum).toBe(false);
+  });
+
+  it("se alguma leitura falha, não arrisca: devolve null", async () => {
+    backendDoRoteiro();
+    const normal = chamarBackend.getMockImplementation()!;
+    chamarBackend.mockImplementation(async (caminho: string) => {
+      if (caminho === "/empresa/configuracoes") throw new ErroBackend(500, "erro");
+      return normal(caminho);
+    });
+    expect(await carregarRoteiro()).toBeNull();
   });
 });

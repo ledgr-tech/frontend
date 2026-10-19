@@ -1,5 +1,8 @@
 # Ledgr — Configurações: equipe, regras da conciliação, segurança e dados
 
+> **Revisão de 16/10/2026:** Equipe e convites estão em
+> `2026-10-16-equipe-e-convites-design.md`, com um papel só (o administrador).
+
 ## Revisão de 08/10/2026: conta única no MVP
 
 O backend respondeu a esta especificação em 07/10 (`ledgr-docs`,

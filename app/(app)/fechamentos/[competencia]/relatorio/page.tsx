@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
+import { caminhoDoFechamento } from "@/lib/caminhos";
 import { formatarMoeda } from "@/lib/mock-data";
 import { carregarRelatorioDoFechamento } from "../../../conciliacoes/acoes";
 import { formatarDataHora, formatarInteiro } from "../../../dashboard/resumo";
@@ -23,7 +24,7 @@ export default async function RelatorioPage({ params, searchParams }: PageProps<
   if (!resposta.ok && resposta.status === 401) redirect("/login");
   if (!resposta.ok && resposta.status === 404) notFound();
 
-  const voltar = `/fechamentos?mes=${competencia}`;
+  const voltar = caminhoDoFechamento(competencia);
   const dados = resposta.ok ? resposta.dados : null;
 
   return (

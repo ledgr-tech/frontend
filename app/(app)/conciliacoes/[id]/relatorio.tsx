@@ -66,7 +66,7 @@ export function Relatorio({
   const emRevisao = categorias.reduce((soma, categoria) => soma + categoria.quantidade, 0);
 
   return (
-    <section className="relatorio" aria-labelledby="relatorio-titulo">
+    <section className="relatorio" aria-labelledby="relatorio-titulo" data-tutorial="resumo">
       <div className="relatorio-topo">
         <h2 id="relatorio-titulo" className="relatorio-titulo">
           Divergências por categoria

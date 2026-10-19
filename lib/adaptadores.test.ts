@@ -1,8 +1,13 @@
 import { describe, it, expect } from "vitest";
 import {
+  adaptarConsultaConvite,
+  adaptarConvite,
+  adaptarPessoa,
+  formatarDia,
   adaptarConciliacao,
   adaptarExecucao,
   adaptarLinha,
+  adaptarSaldo,
   extratosDasExecucoes,
   pareceUuid,
   type Execucao,
@@ -202,6 +207,32 @@ describe("adaptarLinha", () => {
   });
 });
 
+describe("adaptarSaldo", () => {
+  it("sem as chaves é o backend de antes da #118: undefined, e a tela não fala de saldo", () => {
+    expect(adaptarSaldo({})).toBeUndefined();
+  });
+
+  it("com os três nulos o arquivo não trouxe saldo: null, nunca R$ 0,00", () => {
+    expect(adaptarSaldo({ saldo_inicial: null, saldo_final: null, saldo_data: null })).toBeNull();
+  });
+
+  it("converte o decimal em texto, com sinal quando negativo", () => {
+    expect(adaptarSaldo({ saldo_inicial: "1000.00", saldo_final: "-250.75", saldo_data: "2026-09-30" })).toEqual({
+      inicial: 1000,
+      final: -250.75,
+      data: "2026-09-30",
+    });
+  });
+
+  it("com linhas não lidas vem o final sem o inicial, e o front não calcula o inicial", () => {
+    expect(adaptarSaldo({ saldo_inicial: null, saldo_final: "1249.25", saldo_data: "2026-09-10" })).toEqual({
+      inicial: null,
+      final: 1249.25,
+      data: "2026-09-10",
+    });
+  });
+});
+
 describe("adaptarConciliacao", () => {
   const lista: ListaConciliacaoAPI = {
     extrato_id: "e-banco",
@@ -235,6 +266,12 @@ describe("adaptarConciliacao", () => {
     const vazia = adaptarConciliacao({ ...lista, total: 0, itens: [] });
     expect(vazia.linhas).toEqual([]);
     expect(vazia.mes).toBe("Conciliação");
+  });
+
+  it("traz o saldo do extrato do banco da raiz, e nada quando o backend não manda (#118)", () => {
+    const comSaldo = { ...lista, saldo_inicial: "750.25", saldo_final: "1000.00", saldo_data: "2026-09-10" };
+    expect(adaptarConciliacao(comSaldo).saldo).toEqual({ inicial: 750.25, final: 1000, data: "2026-09-10" });
+    expect(adaptarConciliacao(lista)).not.toHaveProperty("saldo");
   });
 
   describe("a chave de cada linha, a mesma em todas as rodadas", () => {
@@ -450,5 +487,27 @@ describe("extratosDasExecucoes", () => {
 
   it("não tem arquivo nenhum sem execução", () => {
     expect(extratosDasExecucoes([])).toEqual([]);
+  });
+});
+
+describe("equipe e convites", () => {
+  it("formata o dia em dd/mm/aaaa no fuso de Brasília", () => {
+    expect(formatarDia("2026-10-23T02:30:00Z")).toBe("22/10/2026"); // 23h30 em Brasília
+    expect(formatarDia("2026-10-23T15:00:00+00:00")).toBe("23/10/2026");
+  });
+
+  it("adapta convite e consulta com as datas formatadas", () => {
+    expect(
+      adaptarConvite({ id: "c1", email: "ana@x.com", criado_em: "2026-10-16T12:00:00Z", expira_em: "2026-10-23T12:00:00Z" }),
+    ).toEqual({ id: "c1", email: "ana@x.com", enviadoEm: "16/10/2026", valeAte: "23/10/2026" });
+    expect(
+      adaptarConsultaConvite({ email: "ana@x.com", razao_social: "Padaria Ltda", expira_em: "2026-10-23T12:00:00Z" }),
+    ).toEqual({ email: "ana@x.com", razaoSocial: "Padaria Ltda", valeAte: "23/10/2026" });
+  });
+
+  it("adapta a pessoa sem o criado_em", () => {
+    expect(
+      adaptarPessoa({ id: "u1", nome: "Ana", email: "ana@x.com", administrador: true, criado_em: "2026-10-01T00:00:00Z" }),
+    ).toEqual({ id: "u1", nome: "Ana", email: "ana@x.com", administrador: true });
   });
 });

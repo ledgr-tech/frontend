@@ -6,6 +6,8 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import userEvent from "@testing-library/user-event";
 import NovaConciliacaoPage from "./page";
 import { lerBytes } from "./ler-arquivo";
+import { ProvedorDaConta } from "../../conta";
+import type { Assinatura } from "@/lib/assinatura";
 
 const push = vi.fn();
 vi.mock("next/navigation", () => ({
@@ -20,6 +22,16 @@ vi.mock("../acoes", () => ({
   situacaoDoExtrato: (id: string) => situacaoDoExtrato(id),
   conciliar: (banco: string, sistema: string) => conciliar(banco, sistema),
 }));
+
+vi.mock("../../../(auth)/acoes", () => ({ salvarPreferencias: async () => true }));
+
+function montarComAssinatura(assinatura: Assinatura | null) {
+  return render(
+    <ProvedorDaConta preferencias={{ tutoriaisDispensados: [], roteiroDispensado: false }} assinatura={assinatura}>
+      <NovaConciliacaoPage />
+    </ProvedorDaConta>,
+  );
+}
 
 // Um CSV que o backend lê como está; OFX não passa pela checagem, então o
 // conteúdo dele não importa aqui.
@@ -540,5 +552,26 @@ describe("NovaConciliacaoPage", () => {
         "Nenhuma linha do extrato do sistema pôde ser lida (linha 2: Valor inválido no CSV: 'doze').",
       );
     });
+  });
+
+  it("teste acabado: mostra os planos no lugar do envio", () => {
+    montarComAssinatura({ situacao: "teste_encerrado", plano: "essencial", testeTerminaEm: "2026-10-01" });
+    expect(screen.getByRole("heading", { name: "Seu teste de 14 dias acabou." })).toBeInTheDocument();
+    expect(screen.queryByLabelText("Extrato do banco")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Conciliar extratos" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Ver minhas conciliações" })).toHaveAttribute("href", "/dashboard");
+    expect(screen.getByRole("link", { name: "Assinar o Padrão" })).toHaveAttribute("href", "/plano");
+  });
+
+  it("em teste, o envio segue normal", () => {
+    montarComAssinatura({ situacao: "teste", plano: "padrao", testeTerminaEm: "2026-10-29" });
+    expect(screen.getByLabelText("Extrato do banco")).toBeInTheDocument();
+  });
+
+  it("o backend recusou com 402: mostra os planos com o texto dele", async () => {
+    conciliar.mockResolvedValue({ ok: false, status: 402, erro: "O teste acabou. Escolha um plano para conciliar." });
+    await enviarOsDois();
+    expect(await screen.findByRole("heading", { name: "Seu teste de 14 dias acabou." })).toBeInTheDocument();
+    expect(screen.getByText("O teste acabou. Escolha um plano para conciliar.")).toBeInTheDocument();
   });
 });

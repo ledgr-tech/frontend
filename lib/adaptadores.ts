@@ -55,7 +55,41 @@ export type ItemConciliacaoAPI = {
   eventos?: EventoDecisao[];
 };
 
-export type ListaConciliacaoAPI = {
+/**
+ * O saldo do extrato (backend #118), em `GET /extratos`, `GET /extratos/{id}` e na raiz de
+ * `GET /conciliacoes/{id}` (o do extrato do banco). Opcionais porque o backend de antes da #118 não
+ * os manda: sem a chave, a tela não fala de saldo nenhum.
+ */
+export type CamposDeSaldoAPI = {
+  /** Decimal em string; null sem saldo ou com linhas não lidas (a soma sairia incompleta). */
+  saldo_inicial?: string | null;
+  /** Decimal em string: o saldo que o arquivo informa. */
+  saldo_final?: string | null;
+  /** AAAA-MM-DD, a data desse saldo. */
+  saldo_data?: string | null;
+};
+
+/** O saldo que o arquivo do banco informa. */
+export type SaldoDoExtrato = {
+  /** Em reais. Null quando o extrato tem linhas não lidas: o backend não calcula, e o front também não. */
+  inicial: number | null;
+  final: number;
+  /** AAAA-MM-DD. */
+  data: string;
+};
+
+/**
+ * `undefined` quando o backend ainda não manda saldo (a tela não mostra nada); `null` quando o
+ * arquivo não trouxe saldo, é antigo ou ainda processa (a tela diz que não foi informado).
+ */
+export function adaptarSaldo(api: CamposDeSaldoAPI): SaldoDoExtrato | null | undefined {
+  if (!("saldo_final" in api)) return undefined;
+  const final = paraNumero(api.saldo_final);
+  if (final === null || !api.saldo_data) return null;
+  return { inicial: paraNumero(api.saldo_inicial), final, data: api.saldo_data };
+}
+
+export type ListaConciliacaoAPI = CamposDeSaldoAPI & {
   extrato_id: string;
   total: number;
   limit: number;
@@ -186,12 +220,14 @@ export function adaptarConciliacao(
     const data = item.lancamento_banco?.data;
     return data && (menor === null || data < menor) ? data : menor;
   }, null);
+  const saldo = adaptarSaldo(lista);
   return {
     id: lista.extrato_id,
     extratoSistemaId,
     mes: inicioDoBanco ? mesPorExtenso(inicioDoBanco) : "Conciliação",
     status: "em_andamento",
     linhas,
+    ...(saldo !== undefined && { saldo }),
   };
 }
 
@@ -426,7 +462,7 @@ export function adaptarFechamento(item: FechamentoAPI): Fechamento {
 }
 
 /** Um extrato enviado, como `GET /extratos` lista (backend #70): do envio mais recente ao mais antigo. */
-export type ItemExtratoAPI = {
+export type ItemExtratoAPI = CamposDeSaldoAPI & {
   extrato_id: string;
   nome_arquivo: string;
   origem: "banco" | "sistema";
@@ -509,4 +545,40 @@ export function extratosDasExecucoes(execucoes: Execucao[]): ArquivoConciliado[]
  */
 export function pareceUuid(valor: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(valor);
+}
+
+const DIA_EM_BRASILIA = new Intl.DateTimeFormat("pt-BR", {
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+  timeZone: "America/Sao_Paulo",
+});
+
+/** `dd/mm/aaaa` no fuso de Brasília: o backend manda as datas em UTC. */
+export function formatarDia(iso: string): string {
+  return DIA_EM_BRASILIA.format(new Date(iso));
+}
+
+/** Uma pessoa da empresa (`GET /empresa/usuarios`, backend #69). */
+export type PessoaAPI = { id: string; nome: string; email: string; administrador: boolean; criado_em: string };
+export type Pessoa = { id: string; nome: string; email: string; administrador: boolean };
+
+export function adaptarPessoa(api: PessoaAPI): Pessoa {
+  return { id: api.id, nome: api.nome, email: api.email, administrador: api.administrador };
+}
+
+/** Um convite pendente (`GET`/`POST /empresa/convites`). */
+export type ConviteAPI = { id: string; email: string; criado_em: string; expira_em: string };
+export type Convite = { id: string; email: string; enviadoEm: string; valeAte: string };
+
+export function adaptarConvite(api: ConviteAPI): Convite {
+  return { id: api.id, email: api.email, enviadoEm: formatarDia(api.criado_em), valeAte: formatarDia(api.expira_em) };
+}
+
+/** O que a página do convite mostra antes de pedir qualquer coisa (`POST /convites/consultar`). */
+export type ConsultaConviteAPI = { email: string; razao_social: string; expira_em: string };
+export type ConsultaConvite = { email: string; razaoSocial: string; valeAte: string };
+
+export function adaptarConsultaConvite(api: ConsultaConviteAPI): ConsultaConvite {
+  return { email: api.email, razaoSocial: api.razao_social, valeAte: formatarDia(api.expira_em) };
 }

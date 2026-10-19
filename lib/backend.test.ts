@@ -1,5 +1,9 @@
+// @vitest-environment node
+//
+// node, e não jsdom: o `emailDaSessao` confere o token com o jose, que no jsdom recusa a chave (ver lib/token.test.ts).
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { baixarDoBackend, chamarBackend, ErroBackend } from "./backend";
+import { baixarDoBackend, chamarBackend, emailDaSessao, ErroBackend } from "./backend";
+import { assinarToken } from "./token";
 
 // o cookie da sessão é o JWT; aqui ele é só uma string conhecida
 const cookie = vi.hoisted(() => ({ valor: "jwt-de-teste" as string | undefined }));
@@ -85,6 +89,17 @@ describe("chamarBackend", () => {
     expect(new Headers(init.headers).get("Content-Type")).toBe("application/json");
   });
 
+  it("guarda o Retry-After do 429 em segundos", async () => {
+    fetch.mockResolvedValue(
+      Response.json({ detail: "Limite de convites por hora atingido." }, { status: 429, headers: { "Retry-After": "120" } }),
+    );
+
+    await expect(chamarBackend("/empresa/convites", { method: "POST", corpo: {} })).rejects.toMatchObject({
+      status: 429,
+      segundosParaTentar: 120,
+    });
+  });
+
   it("do 422 do FastAPI, guarda quais campos do corpo foram recusados", async () => {
     fetch.mockResolvedValue(
       Response.json(
@@ -102,7 +117,11 @@ describe("chamarBackend", () => {
       (e: unknown) => e,
     );
 
-    expect(erro).toMatchObject({ status: 422, campos: ["cnpj", "razao_social"] });
+    expect(erro).toMatchObject({
+      status: 422,
+      campos: ["cnpj", "razao_social"],
+      mensagens: { cnpj: "Value error, CNPJ inválido", razao_social: "Field required" },
+    });
   });
 
   // sem prazo, um backend que aceita a conexão e não responde prende a tela até a hospedagem desistir
@@ -199,5 +218,33 @@ describe("IP do navegador nas chamadas públicas", () => {
 
     const [, init] = fetch.mock.calls[0] as [string, RequestInit];
     expect(new Headers(init.headers).has("X-Ledgr-Segredo-Proxy")).toBe(false);
+  });
+});
+
+describe("emailDaSessao", () => {
+  beforeEach(() => {
+    vi.stubEnv("NEXTAUTH_SECRET", "segredo-de-teste-compartilhado-com-o-backend");
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("lê o e-mail do mesmo cookie que vai no Bearer, com a assinatura conferida", async () => {
+    cookie.valor = await assinarToken({ usuarioId: "u", email: "ana@telhacerta.com.br", empresaId: "e" });
+
+    expect(await emailDaSessao()).toBe("ana@telhacerta.com.br");
+  });
+
+  it("token que não confere é sessão ausente", async () => {
+    cookie.valor = "jwt-de-teste";
+
+    expect(await emailDaSessao()).toBeNull();
+  });
+
+  it("sem cookie, sem sessão", async () => {
+    cookie.valor = undefined;
+
+    expect(await emailDaSessao()).toBeNull();
   });
 });

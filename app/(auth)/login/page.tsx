@@ -5,15 +5,18 @@ import Link from "next/link";
 import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { demoAberta } from "@/lib/demo";
+import { MENSAGEM_GOOGLE, ehErroGoogle, googleLigado } from "@/lib/google";
 import { estaBloqueado, limparTentativas, registrarSenhaErrada } from "@/lib/tentativas";
 import {
   entrar as abrirSessao,
+  entrarComGoogle as irAoGoogle,
   entrarNaDemonstracao,
   type ErroEntrada,
   type ResultadoEntrada,
 } from "../acoes";
 import dynamic from "next/dynamic";
 import { CampoTexto } from "../_compartilhado/campo-texto";
+import { MensagemErro } from "../_compartilhado/mensagem-erro";
 import { EMAIL_VALIDO, MENSAGEM_EMAIL_INCOMPLETO } from "../_compartilhado/validacao";
 import { CHAVE_SAUDACAO, SAUDACOES, escolherSaudacao } from "./saudacoes";
 
@@ -101,6 +104,8 @@ export default function LoginPage() {
   const campoEmail = useRef<HTMLInputElement>(null);
   const campoSenha = useRef<HTMLInputElement>(null);
   const [saudacao, setSaudacao] = useState<string | null>(null);
+  // o motivo de o Google não ter aberto a sessão, que o callback manda em ?google= (ou o NextAuth em ?error=)
+  const [erroGoogle, setErroGoogle] = useState<string>();
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const titulo = useRef<HTMLHeadingElement>(null);
   // o StrictMode roda o efeito duas vezes em dev — sem isso o segundo sorteio podia repetir a visita anterior
@@ -119,6 +124,17 @@ export default function LoginPage() {
 
   useEffect(() => () => {
     if (timer.current) clearTimeout(timer.current);
+  }, []);
+
+  useEffect(() => {
+    const parametros = new URLSearchParams(window.location.search);
+    const motivo = parametros.get("google");
+    if (!motivo && !parametros.has("error")) return;
+    // a URL só existe no navegador: ler no render daria uma tela no servidor e outra no cliente
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setErroGoogle(MENSAGEM_GOOGLE[ehErroGoogle(motivo) ? motivo : "falha"]);
+    // o motivo vale para esta volta do Google: recarregar a página não mostra de novo
+    window.history.replaceState(null, "", window.location.pathname);
   }, []);
 
   useEffect(() => {
@@ -248,11 +264,25 @@ export default function LoginPage() {
     mostrarErros({ [campo]: mensagem });
   }
 
-  // ainda sem provedor: é o atalho que entra na conta de demonstração, sem validar os campos do formulário
+  // com o Google ligado, leva ao Google (a action sai redirecionando); sem ele, é o atalho que entra na
+  // conta de demonstração. Nos dois casos, sem validar os campos do formulário
   function entrarComGoogle() {
     if (entrando) return;
     setErros({});
+    setErroGoogle(undefined);
     setEntrando(true);
+    if (googleLigado()) {
+      irAoGoogle()
+        .then(() => {
+          setEntrando(false);
+          setErroGoogle(MENSAGEM_GOOGLE.indisponivel);
+        })
+        .catch(() => {
+          setEntrando(false);
+          setErroGoogle(MENSAGEM_GOOGLE.falha);
+        });
+      return;
+    }
     timer.current = setTimeout(async () => {
       const entrou = await entrarNaDemonstracao(manterSessao).catch(() => false);
       if (entrou) {
@@ -450,8 +480,9 @@ export default function LoginPage() {
             {entrando ? "Entrando…" : "Entrar"}
           </button>
 
-          {/* atalho de demonstração: só aparece onde NEXT_PUBLIC_LEDGR_DEMO_ABERTA=1 (ver lib/demo.ts) */}
-          {demoAberta() && (
+          {/* o Google de verdade onde NEXT_PUBLIC_LEDGR_GOOGLE=1 (lib/google.ts); sem ele, o atalho de demonstração,
+              onde NEXT_PUBLIC_LEDGR_DEMO_ABERTA=1 (lib/demo.ts) */}
+          {(googleLigado() || demoAberta()) && (
             <>
             <div className="login-divisor" style={{ display: "flex", alignItems: "center", gap: 14, margin: "clamp(14px, 2.6vh, 26px) 0" }}>
               <span style={{ flex: 1, height: 1, background: "var(--color-divider)" }} />
@@ -487,6 +518,12 @@ export default function LoginPage() {
               </span>
             </button>
             </>
+          )}
+
+          {erroGoogle && (
+            <div style={{ marginTop: "clamp(10px, 1.8vh, 14px)" }}>
+              <MensagemErro id="login-erro-google">{erroGoogle}</MensagemErro>
+            </div>
           )}
 
           <p className="login-criar" style={{ margin: "clamp(14px, 2.8vh, 28px) 0 0", fontSize: 14.5, lineHeight: 1.6, color: "color-mix(in srgb, var(--color-text) 66%, transparent)" }}>

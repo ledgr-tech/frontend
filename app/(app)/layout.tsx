@@ -17,8 +17,17 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   if (!sessao?.user?.email) redirect("/login");
 
   const conta = await contaDaSessao();
+  // sem plano, escolhe antes de entrar (spec 2026-10-15-primeiro-uso); sem a informação, segue
+  if (conta.assinatura?.situacao === "sem_plano") redirect("/plano");
   return (
-    <Shell email={sessao.user.email} empresa={conta.empresa} temSenha={conta.temSenha}>
+    <Shell
+      email={sessao.user.email}
+      empresa={conta.empresa}
+      temSenha={conta.temSenha}
+      administrador={conta.administrador}
+      preferencias={conta.preferencias}
+      assinatura={conta.assinatura}
+    >
       {children}
     </Shell>
   );

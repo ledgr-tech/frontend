@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import CadastroPage from "./page";
+import { FormularioCadastro } from "./formulario";
 import { PASSOS } from "./passos";
 
 const push = vi.fn();
@@ -12,14 +13,25 @@ vi.mock("next/navigation", () => ({
 // o fim do cadastro é uma Server Action (POST /register e já entra); aqui ela só
 // devolve o que o servidor decidiu
 const cadastrar = vi.fn();
+// quem voltou do Google sem conta termina pelo POST /register/google
+const cadastrarComGoogle = vi.fn();
+const entrarComGoogle = vi.fn();
 // ao sair do passo da empresa, e-mail e CNPJ são conferidos antes (POST /register/verificar)
 const verificarCadastro = vi.fn();
 vi.mock("../acoes", () => ({
   cadastrar: (...args: unknown[]) => cadastrar(...args),
+  cadastrarComGoogle: (...args: unknown[]) => cadastrarComGoogle(...args),
+  entrarComGoogle: (...args: unknown[]) => entrarComGoogle(...args),
   verificarCadastro: (...args: unknown[]) => verificarCadastro(...args),
 }));
 
-const LIVRES = { ok: true, emailDisponivel: true, cnpjDisponivel: true };
+const LIVRES = {
+  ok: true,
+  emailDisponivel: true,
+  cnpjDisponivel: true,
+  cnpjSituacao: "nao_verificado",
+  razaoSocialReceita: null,
+};
 
 type Usuario = ReturnType<typeof userEvent.setup>;
 
@@ -35,7 +47,6 @@ async function continuar(user: Usuario) {
 
 const ACESSO = { "Seu nome": "Ana Souza", "E-mail": "financeiro@telhacerta.com.br", Senha: "conciliar2026" };
 const EMPRESA = { "Razão social": "Telha Certa Ltda", CNPJ: "12.345.678/0001-95" };
-const BANCO = { "Banco e agência": "Sicredi · ag. 1234", "Conta corrente": "45678-9" };
 
 function titulo() {
   return screen.getByRole("heading", { level: 1 });
@@ -48,6 +59,9 @@ describe("CadastroPage", () => {
     cadastrar.mockResolvedValue({ ok: true, entrou: true });
     verificarCadastro.mockReset();
     verificarCadastro.mockResolvedValue(LIVRES);
+    cadastrarComGoogle.mockReset();
+    cadastrarComGoogle.mockResolvedValue({ ok: true, entrou: true });
+    entrarComGoogle.mockReset();
   });
 
   afterEach(() => {
@@ -107,36 +121,28 @@ describe("CadastroPage", () => {
     expect(titulo()).toHaveTextContent(PASSOS[0].titulo);
   });
 
-  it("walks through the company, bank and management-system steps from the Claude Design", async () => {
+  it("walks through the company and management-system steps, without the bank step", async () => {
     const user = userEvent.setup();
     render(<CadastroPage />);
 
     await preencher(user, ACESSO);
     await continuar(user);
     expect(titulo()).toHaveTextContent("Vamos cadastrar a empresa.");
-    expect(screen.getByText("Passo I de III")).toBeInTheDocument();
+    expect(screen.getByText("Passo I de II")).toBeInTheDocument();
     expect(screen.getByText(PASSOS[1].dicaTitulo ?? "")).toBeInTheDocument();
 
     await preencher(user, EMPRESA);
     await continuar(user);
-    expect(titulo()).toHaveTextContent("Qual banco você vai conciliar?");
-    expect(screen.getByText("Passo II de III")).toBeInTheDocument();
-    expect(
-      screen.getByText(/Tem mais de um banco\? Comece por um\. Os outros entram depois, cada um na sua conciliação\./),
-    ).toBeInTheDocument();
-    // não existe tela de bancos nas configurações: o texto não pode mandar a pessoa para lá
-    expect(screen.queryByText(/configurações/i)).not.toBeInTheDocument();
-
-    await preencher(user, BANCO);
-    await continuar(user);
     expect(titulo()).toHaveTextContent("E o sistema de gestão?");
-    expect(screen.getByText("Passo III de III")).toBeInTheDocument();
+    expect(screen.getByText("Passo II de II")).toBeInTheDocument();
+    expect(screen.queryByText("Qual banco você vai conciliar?")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Conta corrente")).not.toBeInTheDocument();
     expect(
       screen.getByText(/o CSV exportado dele também funciona\./),
     ).toBeInTheDocument();
     expect(screen.getByLabelText("E-mail do responsável")).toHaveValue("financeiro@telhacerta.com.br");
     expect(screen.getByLabelText("Sistema de gestão")).toHaveAttribute("placeholder", "Omie, Bling, Tiny, outro…");
-    expect(screen.getByRole("button", { name: "Concluir e subir extratos" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Concluir cadastro" })).toBeInTheDocument();
   });
 
   it("requires the fields of each step before moving on", async () => {
@@ -210,10 +216,10 @@ describe("CadastroPage", () => {
     await user.type(screen.getByLabelText("CNPJ"), "95");
     expect(screen.getByLabelText("CNPJ")).toHaveValue("12.345.678/0001-95");
     await continuar(user);
-    expect(titulo()).toHaveTextContent("Qual banco você vai conciliar?");
+    expect(titulo()).toHaveTextContent("E o sistema de gestão?");
   });
 
-  // o mesmo cálculo do backend: sem ele, o CNPJ errado só aparecia depois dos quatro passos
+  // o mesmo cálculo do backend: sem ele, o CNPJ errado só aparecia depois dos três passos
   it("checks the CNPJ check digits on the company step", async () => {
     const user = userEvent.setup();
     render(<CadastroPage />);
@@ -241,17 +247,7 @@ describe("CadastroPage", () => {
     expect(screen.getByLabelText("CNPJ")).toHaveValue("12.ABC.345/01DE-35");
     expect(screen.getByLabelText("CNPJ")).not.toHaveAttribute("inputmode", "numeric");
     await continuar(user);
-    expect(titulo()).toHaveTextContent("Qual banco você vai conciliar?");
-  });
-
-  it("does not limit the account field to a numeric keyboard, since account digits can have a dash or an X", async () => {
-    const user = userEvent.setup();
-    render(<CadastroPage />);
-    await preencher(user, ACESSO);
-    await continuar(user);
-    await preencher(user, EMPRESA);
-    await continuar(user);
-    expect(screen.getByLabelText("Conta corrente")).not.toHaveAttribute("inputmode", "numeric");
+    expect(titulo()).toHaveTextContent("E o sistema de gestão?");
   });
 
   it("shows the step's mascot on the right side, changing as the person moves through the steps", async () => {
@@ -266,10 +262,6 @@ describe("CadastroPage", () => {
     expect(mascote()).toContain("mascote-neutro");
 
     await preencher(user, EMPRESA);
-    await continuar(user);
-    expect(mascote()).toContain("mascote-explicando");
-
-    await preencher(user, BANCO);
     await continuar(user);
     expect(mascote()).toContain("mascote-comemorando");
   });
@@ -292,10 +284,8 @@ describe("CadastroPage", () => {
     await continuar(user);
     await preencher(user, EMPRESA);
     await continuar(user);
-    await preencher(user, BANCO);
-    await continuar(user);
     await user.type(screen.getByLabelText("Sistema de gestão"), "Cigam");
-    await user.click(screen.getByRole("button", { name: "Concluir e subir extratos" }));
+    await user.click(screen.getByRole("button", { name: "Concluir cadastro" }));
   }
 
   it("swaps the form for a status panel while the account is being created", async () => {
@@ -310,7 +300,7 @@ describe("CadastroPage", () => {
     expect(status).toHaveTextContent("Cadastrando a empresa Telha Certa Ltda e o seu acesso.");
     expect(titulo()).toHaveTextContent("Criando sua conta…");
     await waitFor(() => expect(titulo()).toHaveFocus());
-    expect(screen.queryByRole("button", { name: "Concluir e subir extratos" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Concluir cadastro" })).not.toBeInTheDocument();
   });
 
   it("says the account was created while it opens the first conciliation", async () => {
@@ -319,7 +309,7 @@ describe("CadastroPage", () => {
 
     await concluirCadastro(user);
 
-    await waitFor(() => expect(push).toHaveBeenCalledWith("/conciliacoes/nova"));
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/visao-geral"));
     expect(screen.getByRole("status")).toHaveTextContent("Conta criada.");
     expect(screen.getByRole("status")).toHaveTextContent("Abrindo sua primeira conciliação…");
   });
@@ -343,13 +333,11 @@ describe("CadastroPage", () => {
     await continuar(user);
     await preencher(user, EMPRESA);
     await continuar(user);
-    await preencher(user, BANCO);
-    await continuar(user);
     await user.type(screen.getByLabelText("Sistema de gestão"), "Cigam");
 
     await user.keyboard("{Enter}{Enter}");
 
-    await waitFor(() => expect(push).toHaveBeenCalledWith("/conciliacoes/nova"));
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/visao-geral"));
     expect(cadastrar).toHaveBeenCalledTimes(1);
   });
 
@@ -359,8 +347,8 @@ describe("CadastroPage", () => {
 
     await concluirCadastro(user);
 
-    await waitFor(() => expect(push).toHaveBeenCalledWith("/conciliacoes/nova"));
-    // banco e sistema de gestão o backend ainda não guarda: não saem do navegador
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/visao-geral"));
+    // o sistema de gestão o backend ainda não guarda: não sai do navegador
     expect(cadastrar).toHaveBeenCalledWith({
       nome: "Ana Souza",
       email: "financeiro@telhacerta.com.br",
@@ -408,6 +396,19 @@ describe("CadastroPage", () => {
     expect(screen.getByLabelText("Razão social")).toHaveValue("Telha Certa Ltda");
   });
 
+  // backend #119: o /register confere na Receita de novo e devolve o 422 no CNPJ
+  it("goes back to the CNPJ when the Receita refuses it at the end", async () => {
+    cadastrar.mockResolvedValue({ ok: false, erro: "cnpj_inativo" });
+    const user = userEvent.setup();
+    render(<CadastroPage />);
+
+    await concluirCadastro(user);
+
+    const cnpj = await screen.findByLabelText("CNPJ");
+    expect(cnpj).toHaveAccessibleDescription("CNPJ não está ativo na Receita Federal.");
+    await waitFor(() => expect(cnpj).toHaveFocus());
+  });
+
   it("points out every field the server refused, starting from the earliest step", async () => {
     cadastrar.mockResolvedValue({ ok: false, erro: "invalido", campos: ["razaoSocial", "email"] });
     const user = userEvent.setup();
@@ -431,7 +432,7 @@ describe("CadastroPage", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Muitos cadastros seguidos agora. Espere um minuto e tente de novo.",
     );
-    expect(screen.getByRole("button", { name: "Concluir e subir extratos" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Concluir cadastro" })).toBeEnabled();
     expect(push).not.toHaveBeenCalled();
   });
 
@@ -445,9 +446,9 @@ describe("CadastroPage", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Não foi possível concluir o cadastro. Tente de novo em instantes.",
     );
-    expect(screen.getByRole("button", { name: "Concluir e subir extratos" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Concluir cadastro" })).toBeEnabled();
     // o formulário foi recriado: o foco volta ao botão, e não ao <body> (num efeito: waitFor, como os vizinhos)
-    await waitFor(() => expect(screen.getByRole("button", { name: "Concluir e subir extratos" })).toHaveFocus());
+    await waitFor(() => expect(screen.getByRole("button", { name: "Concluir cadastro" })).toHaveFocus());
   });
 
   // A rota recebe os dois juntos: a conferência acontece ao sair do passo da empresa, o primeiro em
@@ -475,7 +476,7 @@ describe("CadastroPage", () => {
         email: "financeiro@telhacerta.com.br",
         cnpj: "12.345.678/0001-95",
       });
-      expect(await screen.findByLabelText("Banco e agência")).toBeInTheDocument();
+      expect(await screen.findByLabelText("Sistema de gestão")).toBeInTheDocument();
       expect(cadastrar).not.toHaveBeenCalled();
     });
 
@@ -530,6 +531,97 @@ describe("CadastroPage", () => {
       expect(screen.getByLabelText("CNPJ")).toHaveAccessibleDescription("Esta empresa já tem cadastro no Ledgr.");
     });
 
+    it("blocks the CNPJ the Receita doesn't know", async () => {
+      verificarCadastro.mockResolvedValue({ ...LIVRES, cnpjSituacao: "nao_encontrado" });
+      const user = userEvent.setup();
+      render(<CadastroPage />);
+
+      await ateAEmpresa(user);
+
+      const cnpj = screen.getByLabelText("CNPJ");
+      await waitFor(() => expect(cnpj).toHaveAccessibleDescription("CNPJ não encontrado na Receita Federal."));
+      expect(cnpj).toHaveFocus();
+
+      // continuar de novo com o mesmo CNPJ confere outra vez e segue bloqueado
+      await continuar(user);
+      await waitFor(() => expect(verificarCadastro).toHaveBeenCalledTimes(2));
+      expect(screen.queryByLabelText("Sistema de gestão")).not.toBeInTheDocument();
+    });
+
+    it("blocks the CNPJ that is not active in the Receita", async () => {
+      verificarCadastro.mockResolvedValue({ ...LIVRES, cnpjSituacao: "inativa", razaoSocialReceita: "TELHA CERTA LTDA" });
+      const user = userEvent.setup();
+      render(<CadastroPage />);
+
+      await ateAEmpresa(user);
+
+      const cnpj = screen.getByLabelText("CNPJ");
+      await waitFor(() => expect(cnpj).toHaveAccessibleDescription("CNPJ não está ativo na Receita Federal."));
+      expect(screen.queryByRole("button", { name: /Usar a razão social/ })).not.toBeInTheDocument();
+    });
+
+    it("offers the Receita's company name without replacing it, once", async () => {
+      verificarCadastro.mockResolvedValue({
+        ...LIVRES,
+        cnpjSituacao: "ativa",
+        razaoSocialReceita: "TELHA CERTA COMERCIO DE TELHAS LTDA",
+      });
+      const user = userEvent.setup();
+      render(<CadastroPage />);
+
+      await ateAEmpresa(user);
+
+      const sugestao = await screen.findByRole("button", {
+        name: "Usar a razão social da Receita: TELHA CERTA COMERCIO DE TELHAS LTDA",
+      });
+      await waitFor(() => expect(sugestao).toHaveFocus());
+      expect(screen.getByLabelText("Razão social")).toHaveValue("Telha Certa Ltda");
+
+      // seguir com a razão digitada vale, sem conferir de novo
+      await continuar(user);
+      expect(await screen.findByLabelText("Sistema de gestão")).toBeInTheDocument();
+      expect(verificarCadastro).toHaveBeenCalledTimes(1);
+    });
+
+    it("fills the company name when the suggestion is accepted", async () => {
+      verificarCadastro.mockResolvedValue({
+        ...LIVRES,
+        cnpjSituacao: "ativa",
+        razaoSocialReceita: "TELHA CERTA COMERCIO DE TELHAS LTDA",
+      });
+      const user = userEvent.setup();
+      render(<CadastroPage />);
+
+      await ateAEmpresa(user);
+      await user.click(await screen.findByRole("button", { name: /Usar a razão social da Receita/ }));
+
+      const razao = screen.getByLabelText("Razão social");
+      expect(razao).toHaveValue("TELHA CERTA COMERCIO DE TELHAS LTDA");
+      expect(razao).toHaveFocus();
+      expect(screen.queryByRole("button", { name: /Usar a razão social/ })).not.toBeInTheDocument();
+    });
+
+    it("doesn't offer the Receita's name when only case and punctuation differ", async () => {
+      verificarCadastro.mockResolvedValue({ ...LIVRES, cnpjSituacao: "ativa", razaoSocialReceita: "TELHA CERTA LTDA." });
+      const user = userEvent.setup();
+      render(<CadastroPage />);
+
+      await ateAEmpresa(user);
+
+      expect(await screen.findByLabelText("Sistema de gestão")).toBeInTheDocument();
+    });
+
+    // a consulta desligada, a BrasilAPI fora ou um backend de antes do #119: nada muda
+    it("moves on with no warning when the Receita wasn't checked", async () => {
+      verificarCadastro.mockResolvedValue({ ok: true, emailDisponivel: true, cnpjDisponivel: true });
+      const user = userEvent.setup();
+      render(<CadastroPage />);
+
+      await ateAEmpresa(user);
+
+      expect(await screen.findByLabelText("Sistema de gestão")).toBeInTheDocument();
+    });
+
     it("points out the field the server refused", async () => {
       verificarCadastro.mockResolvedValue({ ok: false, erro: "invalido", campos: ["email"] });
       const user = userEvent.setup();
@@ -550,7 +642,7 @@ describe("CadastroPage", () => {
 
       await ateAEmpresa(user);
 
-      expect(await screen.findByLabelText("Banco e agência")).toBeInTheDocument();
+      expect(await screen.findByLabelText("Sistema de gestão")).toBeInTheDocument();
     });
 
     it("moves on when the action itself fails", async () => {
@@ -560,7 +652,72 @@ describe("CadastroPage", () => {
 
       await ateAEmpresa(user);
 
-      expect(await screen.findByLabelText("Banco e agência")).toBeInTheDocument();
+      expect(await screen.findByLabelText("Sistema de gestão")).toBeInTheDocument();
+    });
+  });
+
+  // backend #73: quem volta do Google sem conta não cria acesso; o e-mail e o nome vêm da conta Google
+  describe("finishing a Google sign-up", () => {
+    const GOOGLE = { email: "ana@gmail.com", nome: "Ana Souza" };
+
+    async function ateOFim(user: Usuario) {
+      await preencher(user, EMPRESA);
+      await continuar(user);
+      await user.type(await screen.findByLabelText("Sistema de gestão"), "Omie");
+      await user.click(screen.getByRole("button", { name: "Concluir cadastro" }));
+    }
+
+    it("starts on the company step, with the Google name to confirm and no password", () => {
+      render(<FormularioCadastro google={GOOGLE} />);
+      expect(titulo()).toHaveTextContent("Vamos cadastrar a empresa.");
+      expect(screen.getByLabelText("Seu nome")).toHaveValue("Ana Souza");
+      expect(screen.queryByLabelText("Senha")).not.toBeInTheDocument();
+      expect(screen.queryByLabelText("E-mail")).not.toBeInTheDocument();
+      expect(within(screen.getByRole("list", { name: "Etapas do cadastro" })).getAllByRole("listitem")).toHaveLength(2);
+    });
+
+    it("checks the Google e-mail with the CNPJ and finishes through the Google sign-up", async () => {
+      const user = userEvent.setup();
+      render(<FormularioCadastro google={GOOGLE} />);
+
+      await ateOFim(user);
+
+      expect(verificarCadastro).toHaveBeenCalledWith({ email: "ana@gmail.com", cnpj: "12.345.678/0001-95" });
+      // o e-mail do responsável começa igual ao da conta Google
+      expect(await screen.findByText(/Criando sua conta/)).toBeInTheDocument();
+      await waitFor(() =>
+        expect(cadastrarComGoogle).toHaveBeenCalledWith({
+          nome: "Ana Souza",
+          razaoSocial: "Telha Certa Ltda",
+          cnpj: "12.345.678/0001-95",
+        }),
+      );
+      expect(cadastrar).not.toHaveBeenCalled();
+      await waitFor(() => expect(push).toHaveBeenCalledWith("/visao-geral"));
+    });
+
+    it("shows a taken e-mail as a general error, since the field isn't on screen", async () => {
+      cadastrarComGoogle.mockResolvedValue({ ok: false, erro: "email_cadastrado" });
+      const user = userEvent.setup();
+      render(<FormularioCadastro google={GOOGLE} />);
+
+      await ateOFim(user);
+
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        "Já existe conta com este e-mail. Entre pela tela de login.",
+      );
+    });
+
+    it("offers Google again when its confirmation expired", async () => {
+      cadastrarComGoogle.mockResolvedValue({ ok: false, erro: "google_expirado" });
+      const user = userEvent.setup();
+      render(<FormularioCadastro google={GOOGLE} />);
+
+      await ateOFim(user);
+
+      expect(await screen.findByRole("alert")).toHaveTextContent("A confirmação do Google venceu.");
+      await user.click(screen.getByRole("button", { name: "Entrar com o Google de novo" }));
+      expect(entrarComGoogle).toHaveBeenCalledTimes(1);
     });
   });
 });

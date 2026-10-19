@@ -226,7 +226,7 @@ export function DetalheDivergencia({ painel = false }: { painel?: boolean }) {
       />
 
       <div className="det-corpo">
-        <Reveal className="det-comparacao">
+        <Reveal className="det-comparacao" tutorial="lados">
           <CartaoExtrato
             titulo="Extrato do banco"
             marca="Fonte da verdade"
@@ -273,7 +273,7 @@ export function DetalheDivergencia({ painel = false }: { painel?: boolean }) {
         )}
 
         {linha.explicacao && (
-          <Reveal delay={0.08} className="det-causa">
+          <Reveal delay={0.08} className="det-causa" tutorial="causa">
             <InkHover style={{ flex: "none" }}>
               <Image
                 src="/mascotes/mascote-lupa.png"
@@ -313,13 +313,6 @@ export function DetalheDivergencia({ painel = false }: { painel?: boolean }) {
                   </span>
                 </span>
               </summary>
-              {/* o CTA fica no corpo, não no summary: botão dentro de summary vira
-                  dois alvos disputando o mesmo clique */}
-              <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
-                <Link href="/regras" className="btn btn-primary" style={{ fontSize: 13.5 }}>
-                  Criar regra para este fornecedor
-                </Link>
-              </div>
               <div style={{ borderTop: "1px solid var(--color-divider)" }}>
                 {linha.cronico.map((mes) => (
                   <div key={mes.mes} className="det-cronico-linha">

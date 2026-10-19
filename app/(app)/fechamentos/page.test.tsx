@@ -291,6 +291,19 @@ describe("FechamentosPage", () => {
     });
   });
 
+  it("mostra o saldo final do extrato do banco de cada conciliação do mês (#118)", async () => {
+    await renderizar([
+      par("set", {}, { saldo: { inicial: null, final: 48210.37, data: "2026-09-30" } }),
+      par("set-2", { id: "set-2", extratoBancoId: "9a8b7c6d-1e3f-4a5b-8c6d-9e0f1a2b3c4d" }, { saldo: null }),
+      par("set-3", { id: "set-3", extratoBancoId: "1a2b3c4d-1e3f-4a5b-8c6d-9e0f1a2b3c4d" }),
+    ]);
+    const regiao = within(painel());
+    expect(regiao.getByText((texto) => texto.replace(/ /g, " ") === "Saldo final de R$ 48.210,37 em 30/09/2026")).toBeInTheDocument();
+    expect(regiao.getByText("Saldo não informado no arquivo")).toBeInTheDocument();
+    // sem os campos no backend, a conciliação aparece sem linha de saldo
+    expect(regiao.getAllByText(/Saldo/)).toHaveLength(2);
+  });
+
   it("filters the months that are ready", async () => {
     const user = userEvent.setup();
     await renderizar();

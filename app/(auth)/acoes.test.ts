@@ -2,13 +2,23 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CredentialsSignin } from "next-auth";
 import { MuitasEntradas } from "@/lib/login";
 import {
+  aceitarConvite,
+  aceitarConviteComGoogle,
   cadastrar,
+  cadastrarComGoogle,
   entrar,
+  entrarComGoogle,
   entrarNaDemonstracao,
+  escolherPlano,
   excluirConta,
   pedirRecuperacaoSenha,
+  consultarConvite,
   contaDaSessao,
+  conviteDoCookie,
   redefinirSenha,
+  sair,
+  sairParaAceitarConvite,
+  salvarPreferencias,
   trocarEmail,
   trocarSenha,
   verificarCadastro,
@@ -35,18 +45,29 @@ vi.mock("next/navigation", () => ({
 }));
 
 const cookiesGravados = vi.fn();
+const cookiesApagados = vi.fn();
 const cookiesExistentes = new Map<string, string>();
 vi.mock("next/headers", () => ({
   cookies: async () => ({
     get: (nome: string) =>
       cookiesExistentes.has(nome) ? { name: nome, value: cookiesExistentes.get(nome) } : undefined,
     set: (...args: unknown[]) => cookiesGravados(...args),
+    delete: (...args: unknown[]) => cookiesApagados(...args),
   }),
+}));
+
+// quem está na sessão, pelo token que vai no Bearer (o jose não roda no jsdom; testado em lib/backend.test.ts)
+const emailDaSessao = vi.fn();
+vi.mock("@/lib/backend", async (original) => ({
+  ...(await original<typeof import("@/lib/backend")>()),
+  emailDaSessao: () => emailDaSessao(),
 }));
 
 const fetch = vi.fn();
 
 beforeEach(() => {
+  emailDaSessao.mockReset();
+  emailDaSessao.mockResolvedValue("ana@telhacerta.com.br");
   signIn.mockReset();
   signIn.mockResolvedValue(undefined);
   signOut.mockReset();
@@ -54,6 +75,7 @@ beforeEach(() => {
   auth.mockReset();
   auth.mockResolvedValue({ user: { email: "ana@telhacerta.com.br", empresaId: "e" } });
   cookiesGravados.mockReset();
+  cookiesApagados.mockReset();
   cookiesExistentes.clear();
   fetch.mockReset();
   vi.stubGlobal("fetch", fetch);
@@ -253,6 +275,20 @@ describe("cadastrar", () => {
     expect(await cadastrar(DADOS)).toEqual({ ok: false, erro: "invalido", campos: ["razaoSocial", "cnpj"] });
   });
 
+  // backend #119: a recusa da Receita vem no mesmo 422 do formato, com loc no cnpj; só a msg a separa
+  it("separa os dois 422 da Receita da recusa de formato do CNPJ", async () => {
+    respostaDoBackend(422, {
+      detail: [{ type: "value_error", loc: ["body", "cnpj"], msg: "CNPJ não encontrado na Receita Federal." }],
+    });
+    expect(await cadastrar(DADOS)).toEqual({ ok: false, erro: "cnpj_nao_encontrado" });
+
+    respostaDoBackend(422, {
+      detail: [{ type: "value_error", loc: ["body", "cnpj"], msg: "CNPJ não está ativo na Receita Federal." }],
+    });
+    expect(await cadastrar(DADOS)).toEqual({ ok: false, erro: "cnpj_inativo" });
+    expect(signIn).not.toHaveBeenCalled();
+  });
+
   it("pede para esperar no limite de cadastros por minuto", async () => {
     respostaDoBackend(429, { detail: "Rate limit exceeded" });
 
@@ -268,6 +304,110 @@ describe("cadastrar", () => {
   });
 });
 
+describe("entrarComGoogle", () => {
+  it("esquece um convite pelo Google que ficou pela metade, para o login não virar aceite", async () => {
+    vi.stubEnv("AUTH_GOOGLE_ID", "client-id");
+    cookiesExistentes.set("ledgr-convite-google", "tok");
+
+    await entrarComGoogle();
+
+    expect(cookiesApagados).toHaveBeenCalledWith("ledgr-convite-google");
+    expect(cookiesApagados.mock.invocationCallOrder[0]).toBeLessThan(signIn.mock.invocationCallOrder[0]);
+  });
+
+  it("leva ao Google pelo NextAuth, voltando à visão geral", async () => {
+    vi.stubEnv("AUTH_GOOGLE_ID", "client-id");
+    await entrarComGoogle();
+    expect(signIn).toHaveBeenCalledWith("google", { redirectTo: "/visao-geral" });
+  });
+
+  it("não chama o NextAuth quando o servidor não tem o provider", async () => {
+    vi.stubEnv("AUTH_GOOGLE_ID", "");
+    expect(await entrarComGoogle()).toBe(false);
+    expect(signIn).not.toHaveBeenCalled();
+  });
+});
+
+describe("cadastrarComGoogle", () => {
+  const DADOS = { nome: "Ana Souza", razaoSocial: "Telha Certa Ltda", cnpj: "12.345.678/0001-95" };
+
+  function respostaDoBackend(status: number, corpo: object) {
+    fetch.mockResolvedValue(Response.json(corpo, { status }));
+  }
+
+  beforeEach(() => {
+    cookiesExistentes.set("ledgr-cadastro-google", "id-token-do-google");
+  });
+
+  it("cria a conta com o id_token do cookie, sem e-mail nem senha, e abre a sessão", async () => {
+    respostaDoBackend(201, { id: "u", empresa_id: "e", nome: "Ana Souza", email: "ana@gmail.com", auth_time: 1 });
+
+    expect(await cadastrarComGoogle(DADOS)).toEqual({ ok: true, entrou: true });
+
+    const [url, init] = fetch.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe("http://localhost:8000/register/google");
+    expect(new Headers(init.headers).has("Authorization")).toBe(false);
+    expect(JSON.parse(String(init.body))).toEqual({
+      id_token: "id-token-do-google",
+      razao_social: "Telha Certa Ltda",
+      cnpj: "12.345.678/0001-95",
+      nome: "Ana Souza",
+    });
+    expect(signIn).toHaveBeenCalledWith("google-cadastro", { redirect: false });
+  });
+
+  it("sem nome, deixa o backend usar o da conta Google", async () => {
+    respostaDoBackend(201, { id: "u", empresa_id: "e", nome: "Ana", email: "ana@gmail.com" });
+    await cadastrarComGoogle({ ...DADOS, nome: "" });
+    expect(JSON.parse(String((fetch.mock.calls[0] as [string, RequestInit])[1].body))).not.toHaveProperty("nome");
+  });
+
+  it("conta criada com a sessão que não abriu: falta só entrar", async () => {
+    respostaDoBackend(201, { id: "u", empresa_id: "e", nome: "Ana", email: "ana@gmail.com" });
+    signIn.mockRejectedValue(new CredentialsSignin());
+    expect(await cadastrarComGoogle(DADOS)).toEqual({ ok: true, entrou: false });
+  });
+
+  it("pede o Google de novo sem o cookie ou com o id_token vencido", async () => {
+    respostaDoBackend(401, { detail: "Não foi possível confirmar a conta Google." });
+    expect(await cadastrarComGoogle(DADOS)).toEqual({ ok: false, erro: "google_expirado" });
+    expect(cookiesApagados).toHaveBeenCalledWith("ledgr-cadastro-google");
+
+    cookiesExistentes.clear();
+    fetch.mockReset();
+    expect(await cadastrarComGoogle(DADOS)).toEqual({ ok: false, erro: "google_expirado" });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("separa os três 409 do cadastro pelo Google", async () => {
+    respostaDoBackend(409, { detail: "E-mail já cadastrado." });
+    expect(await cadastrarComGoogle(DADOS)).toEqual({ ok: false, erro: "email_cadastrado" });
+    respostaDoBackend(409, { detail: "CNPJ já cadastrado." });
+    expect(await cadastrarComGoogle(DADOS)).toEqual({ ok: false, erro: "cnpj_cadastrado" });
+    respostaDoBackend(409, { detail: "Já existe uma conta no Ledgr para esta conta Google." });
+    expect(await cadastrarComGoogle(DADOS)).toEqual({ ok: false, erro: "google_ja_cadastrado" });
+  });
+
+  it("trata os 422 como o /register, inclusive os da Receita (#119)", async () => {
+    respostaDoBackend(422, {
+      detail: [{ loc: ["body", "cnpj"], msg: "CNPJ não encontrado na Receita Federal." }],
+    });
+    expect(await cadastrarComGoogle(DADOS)).toEqual({ ok: false, erro: "cnpj_nao_encontrado" });
+
+    respostaDoBackend(422, { detail: [{ loc: ["body", "nome"], msg: "Field required" }] });
+    expect(await cadastrarComGoogle(DADOS)).toEqual({ ok: false, erro: "invalido", campos: ["nome"] });
+  });
+
+  it("separa o Google desligado, o limite por minuto e o backend fora do ar", async () => {
+    respostaDoBackend(503, { detail: "Login pelo Google indisponível." });
+    expect(await cadastrarComGoogle(DADOS)).toEqual({ ok: false, erro: "google_indisponivel" });
+    respostaDoBackend(429, { detail: "Rate limit exceeded" });
+    expect(await cadastrarComGoogle(DADOS)).toEqual({ ok: false, erro: "muitas_tentativas" });
+    fetch.mockRejectedValue(new TypeError("fetch failed"));
+    expect(await cadastrarComGoogle(DADOS)).toEqual({ ok: false, erro: "falha" });
+  });
+});
+
 describe("verificarCadastro", () => {
   const DADOS = { email: "ana@telhacerta.com.br", cnpj: "12.345.678/0001-95" };
 
@@ -278,7 +418,13 @@ describe("verificarCadastro", () => {
   it("confere e-mail e CNPJ juntos, sem Bearer e sem criar nada", async () => {
     respostaDoBackend(200, { email_disponivel: true, cnpj_disponivel: true });
 
-    expect(await verificarCadastro(DADOS)).toEqual({ ok: true, emailDisponivel: true, cnpjDisponivel: true });
+    expect(await verificarCadastro(DADOS)).toEqual({
+      ok: true,
+      emailDisponivel: true,
+      cnpjDisponivel: true,
+      cnpjSituacao: "nao_verificado",
+      razaoSocialReceita: null,
+    });
 
     const [url, init] = fetch.mock.calls[0] as [string, RequestInit];
     expect(url).toBe("http://localhost:8000/register/verificar");
@@ -290,10 +436,37 @@ describe("verificarCadastro", () => {
 
   it("diz qual dos dois já está em uso", async () => {
     respostaDoBackend(200, { email_disponivel: false, cnpj_disponivel: true });
-    expect(await verificarCadastro(DADOS)).toEqual({ ok: true, emailDisponivel: false, cnpjDisponivel: true });
+    expect(await verificarCadastro(DADOS)).toMatchObject({ ok: true, emailDisponivel: false, cnpjDisponivel: true });
 
     respostaDoBackend(200, { email_disponivel: true, cnpj_disponivel: false });
-    expect(await verificarCadastro(DADOS)).toEqual({ ok: true, emailDisponivel: true, cnpjDisponivel: false });
+    expect(await verificarCadastro(DADOS)).toMatchObject({ ok: true, emailDisponivel: true, cnpjDisponivel: false });
+  });
+
+  it("traz a situação do CNPJ na Receita e a razão social de lá (backend #119)", async () => {
+    respostaDoBackend(200, {
+      email_disponivel: true,
+      cnpj_disponivel: true,
+      cnpj_situacao: "ativa",
+      razao_social: "  TELHA CERTA COMERCIO LTDA ",
+    });
+    expect(await verificarCadastro(DADOS)).toMatchObject({
+      cnpjSituacao: "ativa",
+      razaoSocialReceita: "TELHA CERTA COMERCIO LTDA",
+    });
+
+    respostaDoBackend(200, {
+      email_disponivel: true,
+      cnpj_disponivel: true,
+      cnpj_situacao: "nao_encontrado",
+      razao_social: null,
+    });
+    expect(await verificarCadastro(DADOS)).toMatchObject({ cnpjSituacao: "nao_encontrado", razaoSocialReceita: null });
+  });
+
+  // um valor que esta tela não conhece não pode bloquear o cadastro
+  it("trata situação desconhecida como não verificada", async () => {
+    respostaDoBackend(200, { email_disponivel: true, cnpj_disponivel: true, cnpj_situacao: "suspensa", razao_social: "" });
+    expect(await verificarCadastro(DADOS)).toMatchObject({ cnpjSituacao: "nao_verificado", razaoSocialReceita: null });
   });
 
   it("devolve o campo recusado no 422 com o nome do formulário", async () => {
@@ -367,6 +540,16 @@ describe("a conta de quem está logado", () => {
     });
   });
 
+  it("se a sessão não volta depois da troca, sai e manda ao login", async () => {
+    // a senha já mudou no backend: deixar a sessão antiga aberta seria pior que pedir o login de novo
+    respostaDoBackend(204);
+    signIn.mockRejectedValue(new Error("NEXTAUTH_SECRET"));
+
+    await trocarSenha("s3nha-velha", "s3nha-nova");
+
+    expect(signOut).toHaveBeenCalledWith({ redirectTo: "/login" });
+  });
+
   it("mostra o texto do backend para senha atual errada e e-mail já usado, sem refazer a sessão", async () => {
     respostaDoBackend(400, { detail: "Senha atual incorreta." });
     expect(await trocarSenha("errada", "s3nha-nova")).toEqual({ ok: false, erro: "Senha atual incorreta." });
@@ -408,6 +591,26 @@ describe("a conta de quem está logado", () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
+  it("reconhece a demonstração pelo token que vai ao backend, mesmo com o auth() vendo outra conta", async () => {
+    // com dois cookies de sessão no navegador, o auth() e o Bearer podiam ler contas diferentes
+    vi.stubEnv("LEDGR_CONTA_TESTE_EMAIL", "ana@telhacerta.com.br");
+    auth.mockResolvedValue({ user: { email: "outra@empresa.com.br", empresaId: "e2" } });
+
+    expect(await trocarSenha("s3nha", "s3nha-nova")).toEqual({
+      ok: false,
+      erro: "A conta de demonstração não pode ser alterada.",
+    });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("sem token válido, manda para o login sem chamar o backend", async () => {
+    emailDaSessao.mockResolvedValue(null);
+
+    await expect(excluirConta("s3nha")).rejects.toThrow("NEXT_REDIRECT");
+    expect(redirect).toHaveBeenCalledWith("/login");
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
   it("manda para o login quando a sessão acabou", async () => {
     respostaDoBackend(401, { detail: "Token inválido." });
 
@@ -417,7 +620,7 @@ describe("a conta de quem está logado", () => {
 });
 
 describe("contaDaSessao", () => {
-  // o corpo de GET /me (backend #81): sem `papel`, porque o MVP tem conta única
+  // o corpo de GET /me (backend #81), sem o `administrador` (backend antes da #69)
   const EU = {
     id: "u",
     empresa_id: "e",
@@ -435,7 +638,7 @@ describe("contaDaSessao", () => {
   it("lê a razão social de GET /me, e que a conta tem senha para trocar", async () => {
     fetch.mockResolvedValue(Response.json(EU));
 
-    expect(await contaDaSessao()).toEqual({ empresa: "Telha Certa Ltda", temSenha: true });
+    expect(await contaDaSessao()).toEqual({ empresa: "Telha Certa Ltda", temSenha: true, administrador: true, preferencias: null, assinatura: null });
     expect(fetch).toHaveBeenCalledTimes(1);
     expect(fetch.mock.calls[0][0]).toBe("http://localhost:8000/me");
   });
@@ -444,13 +647,68 @@ describe("contaDaSessao", () => {
     // para ela, POST /me/senha responde 409
     fetch.mockResolvedValue(Response.json({ ...EU, metodos_login: ["google"] }));
 
-    expect(await contaDaSessao()).toEqual({ empresa: "Telha Certa Ltda", temSenha: false });
+    expect(await contaDaSessao()).toEqual({ empresa: "Telha Certa Ltda", temSenha: false, administrador: true, preferencias: null, assinatura: null });
   });
 
   it("sem resposta, esconde a empresa em vez de inventar um nome e deixa a troca de senha à mostra", async () => {
     fetch.mockResolvedValue(Response.json({ detail: "Not Found" }, { status: 404 }));
 
-    expect(await contaDaSessao()).toEqual({ empresa: "", temSenha: true });
+    expect(await contaDaSessao()).toEqual({ empresa: "", temSenha: true, administrador: true, preferencias: null, assinatura: null });
+  });
+
+  it("lê se a pessoa é a administradora da empresa", async () => {
+    fetch.mockResolvedValue(Response.json({ ...EU, administrador: false }));
+
+    expect((await contaDaSessao()).administrador).toBe(false);
+  });
+
+  it("sem o campo administrador, trata como administradora, como na conta única", async () => {
+    fetch.mockResolvedValue(Response.json(EU));
+
+    expect((await contaDaSessao()).administrador).toBe(true);
+  });
+
+  it("lê o plano e o teste de 14 dias", async () => {
+    fetch.mockResolvedValue(Response.json({ ...EU, situacao: "teste", plano: "padrao", teste_termina_em: "2026-10-29" }));
+
+    expect((await contaDaSessao()).assinatura).toEqual({ situacao: "teste", plano: "padrao", testeTerminaEm: "2026-10-29" });
+  });
+
+  it("lê as preferências do primeiro uso, só com telas conhecidas", async () => {
+    fetch.mockResolvedValue(
+      Response.json({ ...EU, preferencias: { tutoriais_dispensados: ["extratos", "nao-existe"], roteiro_dispensado: true } }),
+    );
+
+    expect((await contaDaSessao()).preferencias).toEqual({ tutoriaisDispensados: ["extratos"], roteiroDispensado: true });
+  });
+});
+
+describe("salvarPreferencias", () => {
+  beforeEach(() => {
+    cookiesExistentes.set("authjs.session-token", "jwt-da-sessao");
+  });
+
+  it("manda pelo PATCH /me/preferencias e diz que deu certo", async () => {
+    fetch.mockResolvedValue(Response.json({}));
+
+    await expect(salvarPreferencias({ tutoriaisDispensados: ["historico"], roteiroDispensado: false })).resolves.toBe(true);
+    const [url, init] = fetch.mock.calls[0];
+    expect(url).toBe("http://localhost:8000/me/preferencias");
+    expect(init.method).toBe("PATCH");
+    expect(JSON.parse(init.body)).toEqual({ tutoriais_dispensados: ["historico"], roteiro_dispensado: false });
+  });
+
+  it("na conta de demonstração, não grava na conta: um visitante não esconde o tutorial dos outros", async () => {
+    vi.stubEnv("LEDGR_CONTA_TESTE_EMAIL", "ana@telhacerta.com.br");
+
+    await expect(salvarPreferencias({ tutoriaisDispensados: ["extratos"], roteiroDispensado: true })).resolves.toBe(false);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("sem a rota no backend, devolve falso sem lançar", async () => {
+    fetch.mockResolvedValue(Response.json({ detail: "Not Found" }, { status: 404 }));
+
+    await expect(salvarPreferencias({ tutoriaisDispensados: [], roteiroDispensado: true })).resolves.toBe(false);
   });
 });
 
@@ -534,5 +792,215 @@ describe("redefinirSenha", () => {
     fetch.mockRejectedValue(new TypeError("fetch failed"));
 
     expect(await redefinirSenha("token", "s3nha-nova")).toEqual({ ok: false, erro: "falha" });
+  });
+});
+
+describe("escolherPlano", () => {
+  beforeEach(() => {
+    cookiesExistentes.set("authjs.session-token", "jwt-da-sessao");
+  });
+
+  it("começa o teste pelo POST /empresa/plano", async () => {
+    fetch.mockResolvedValue(Response.json({}));
+
+    await expect(escolherPlano("padrao")).resolves.toEqual({ ok: true });
+    const [url, init] = fetch.mock.calls[0];
+    expect(url).toBe("http://localhost:8000/empresa/plano");
+    expect(init.method).toBe("POST");
+    expect(JSON.parse(init.body)).toEqual({ plano: "padrao" });
+  });
+
+  it("sem a rota no backend, diz que ainda não está disponível", async () => {
+    fetch.mockResolvedValue(Response.json({ detail: "Not Found" }, { status: 404 }));
+
+    await expect(escolherPlano("essencial")).resolves.toEqual({
+      ok: false,
+      erro: "Ainda não disponível: o servidor do Ledgr ainda não tem esta função.",
+    });
+  });
+
+  it("a conta de demonstração não escolhe plano", async () => {
+    vi.stubEnv("LEDGR_CONTA_TESTE_EMAIL", "ana@telhacerta.com.br");
+
+    await expect(escolherPlano("padrao")).resolves.toEqual({ ok: false, erro: "A conta de demonstração não pode ser alterada." });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("recusa um plano que não existe sem chamar o backend", async () => {
+    await expect(escolherPlano("ouro" as "padrao")).resolves.toMatchObject({ ok: false });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+});
+
+describe("consultarConvite", () => {
+  it("consulta o convite pelo corpo, sem sessão", async () => {
+    fetch.mockResolvedValue(
+      Response.json({ email: "ana@x.com", razao_social: "Padaria Ltda", expira_em: "2026-10-23T12:00:00Z" }),
+    );
+
+    expect(await consultarConvite("tok")).toEqual({
+      ok: true,
+      convite: { email: "ana@x.com", razaoSocial: "Padaria Ltda", valeAte: "23/10/2026" },
+    });
+    const [url, init] = fetch.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe("http://localhost:8000/convites/consultar");
+    expect(new Headers(init.headers).has("Authorization")).toBe(false);
+    expect(JSON.parse(String(init.body))).toEqual({ token: "tok" });
+  });
+
+  it.each([
+    [400, "convite_invalido"],
+    [422, "convite_invalido"],
+    [429, "muitas_tentativas"],
+    [500, "falha"],
+  ])("com %i responde %s", async (status, erro) => {
+    fetch.mockResolvedValue(Response.json({ detail: "x" }, { status }));
+
+    expect(await consultarConvite("tok")).toEqual({ ok: false, erro });
+  });
+
+  it("sem conseguir falar com o servidor, é falha", async () => {
+    fetch.mockRejectedValue(new TypeError("fetch failed"));
+
+    expect(await consultarConvite("tok")).toEqual({ ok: false, erro: "falha" });
+  });
+});
+
+describe("aceitarConvite", () => {
+  it("cria a conta pelo convite e já entra com o e-mail dele", async () => {
+    fetch.mockResolvedValue(Response.json({ id: "u", empresa_id: "e", nome: "Ana", email: "ana@x.com" }, { status: 201 }));
+
+    expect(await aceitarConvite("tok", "ana@x.com", "Ana", "senha-boa-1")).toEqual({ ok: true, entrou: true });
+    const [url, init] = fetch.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe("http://localhost:8000/convites/aceitar");
+    expect(new Headers(init.headers).has("Authorization")).toBe(false);
+    expect(JSON.parse(String(init.body))).toEqual({ token: "tok", nome: "Ana", senha: "senha-boa-1" });
+    expect(signIn).toHaveBeenCalledWith("credentials", { email: "ana@x.com", senha: "senha-boa-1", redirect: false });
+  });
+
+  it("conta criada com a sessão que não abriu: falta só entrar", async () => {
+    fetch.mockResolvedValue(Response.json({ id: "u", empresa_id: "e", nome: "Ana", email: "ana@x.com" }, { status: 201 }));
+    signIn.mockRejectedValue(new Error("NEXTAUTH_SECRET"));
+
+    expect(await aceitarConvite("tok", "ana@x.com", "Ana", "senha-boa-1")).toEqual({ ok: true, entrou: false });
+  });
+
+  it("entra com o e-mail que o backend devolveu, não com o que veio do navegador", async () => {
+    fetch.mockResolvedValue(Response.json({ id: "u", empresa_id: "e", nome: "Ana", email: "ana@convite.com" }, { status: 201 }));
+
+    await aceitarConvite("tok", "outra@x.com", "Ana", "senha-boa-1");
+
+    expect(signIn).toHaveBeenCalledWith("credentials", { email: "ana@convite.com", senha: "senha-boa-1", redirect: false });
+  });
+
+  it.each([
+    [400, { detail: "Convite inválido ou expirado. Peça um novo convite." }, "convite_invalido"],
+    [409, { detail: "E-mail já cadastrado." }, "email_cadastrado"],
+    [422, { detail: [{ loc: ["body", "senha"], msg: "curta" }] }, "senha_invalida"],
+    [429, { error: "Rate limit exceeded" }, "muitas_tentativas"],
+    [500, { detail: "x" }, "falha"],
+  ])("com %i responde %s, sem tentar entrar", async (status, corpo, erro) => {
+    fetch.mockResolvedValue(Response.json(corpo, { status }));
+
+    expect(await aceitarConvite("tok", "ana@x.com", "Ana", "senha-boa-1")).toEqual({ ok: false, erro });
+    expect(signIn).not.toHaveBeenCalled();
+  });
+});
+
+describe("sair", () => {
+  it("apaga os cookies do Google junto com a sessão", async () => {
+    await sair();
+
+    expect(cookiesApagados).toHaveBeenCalledWith("ledgr-cadastro-google");
+    expect(cookiesApagados).toHaveBeenCalledWith("ledgr-convite-google");
+    expect(signOut).toHaveBeenCalledWith({ redirectTo: "/login" });
+  });
+});
+
+describe("sairParaAceitarConvite", () => {
+  it("encerra a sessão sem sair da página do convite", async () => {
+    await sairParaAceitarConvite();
+
+    expect(signOut).toHaveBeenCalledWith({ redirect: false });
+  });
+});
+
+describe("aceitarConviteComGoogle", () => {
+  it("guarda o token do convite num cookie httpOnly de 1 hora e leva ao Google", async () => {
+    vi.stubEnv("AUTH_GOOGLE_ID", "client-id");
+
+    await aceitarConviteComGoogle("tok");
+
+    expect(cookiesGravados).toHaveBeenCalledWith(
+      "ledgr-convite-google",
+      "tok",
+      expect.objectContaining({ httpOnly: true, sameSite: "lax", path: "/", maxAge: 3600 }),
+    );
+    expect(signIn).toHaveBeenCalledWith("google", { redirectTo: "/visao-geral" });
+  });
+
+  it("sem token, tenta de novo com o cookie que já existe", async () => {
+    vi.stubEnv("AUTH_GOOGLE_ID", "client-id");
+    cookiesExistentes.set("ledgr-convite-google", "tok");
+
+    await aceitarConviteComGoogle("");
+
+    expect(cookiesGravados).not.toHaveBeenCalled();
+    expect(signIn).toHaveBeenCalledWith("google", { redirectTo: "/visao-geral" });
+  });
+
+  it("sem token e sem cookie, ou sem o provider, não vai ao Google", async () => {
+    vi.stubEnv("AUTH_GOOGLE_ID", "client-id");
+    expect(await aceitarConviteComGoogle("")).toBe(false);
+
+    vi.stubEnv("AUTH_GOOGLE_ID", "");
+    expect(await aceitarConviteComGoogle("tok")).toBe(false);
+    expect(signIn).not.toHaveBeenCalled();
+    expect(cookiesGravados).not.toHaveBeenCalled();
+  });
+});
+
+describe("conviteDoCookie", () => {
+  it("sem cookie não chama o backend", async () => {
+    expect(await conviteDoCookie()).toBeNull();
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("consulta o convite do cookie", async () => {
+    cookiesExistentes.set("ledgr-convite-google", "tok");
+    fetch.mockResolvedValue(
+      Response.json({ email: "ana@x.com", razao_social: "Padaria Ltda", expira_em: "2026-10-23T12:00:00Z" }),
+    );
+
+    expect(await conviteDoCookie()).toEqual({ email: "ana@x.com", razaoSocial: "Padaria Ltda", valeAte: "23/10/2026" });
+    expect(JSON.parse(String((fetch.mock.calls[0] as [string, RequestInit])[1].body))).toEqual({ token: "tok" });
+  });
+
+  it("convite inválido devolve null sem apagar o cookie, porque roda no render da página", async () => {
+    cookiesExistentes.set("ledgr-convite-google", "tok");
+    fetch.mockResolvedValue(Response.json({ detail: "x" }, { status: 400 }));
+
+    expect(await conviteDoCookie()).toBeNull();
+    expect(cookiesApagados).not.toHaveBeenCalled();
+  });
+});
+
+describe("aceitarConvite depois de uma recusa do Google", () => {
+  it("sem token na página, usa o do cookie do convite", async () => {
+    cookiesExistentes.set("ledgr-convite-google", "tok-do-cookie");
+    fetch.mockResolvedValue(Response.json({ id: "u", empresa_id: "e", nome: "Ana", email: "ana@x.com" }, { status: 201 }));
+
+    expect(await aceitarConvite("", "ana@x.com", "Ana", "senha-boa-1")).toEqual({ ok: true, entrou: true });
+    expect(JSON.parse(String((fetch.mock.calls[0] as [string, RequestInit])[1].body))).toEqual({
+      token: "tok-do-cookie",
+      nome: "Ana",
+      senha: "senha-boa-1",
+    });
+    expect(cookiesApagados).toHaveBeenCalledWith("ledgr-convite-google");
+  });
+
+  it("sem token e sem cookie, é convite inválido sem chamar o backend", async () => {
+    expect(await aceitarConvite("", "ana@x.com", "Ana", "senha-boa-1")).toEqual({ ok: false, erro: "convite_invalido" });
+    expect(fetch).not.toHaveBeenCalled();
   });
 });

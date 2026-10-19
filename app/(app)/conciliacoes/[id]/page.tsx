@@ -40,6 +40,7 @@ import { larguraDoValor } from "./largura";
 import { Reveal } from "@/app/reveal";
 import { MensagemErro } from "@/app/(auth)/_compartilhado/mensagem-erro";
 import { Cabecalho } from "../../cabecalho";
+import { FaixaDoSaldo } from "../../saldo";
 import { SeloIa } from "../../selo-ia";
 
 /**
@@ -371,6 +372,9 @@ export default function ConciliacaoPage() {
             )}
           </div>
         )}
+        {/* o saldo do extrato do banco (#118), o primeiro número que o contador procura: o mesmo em
+            todas as rodadas, junto do resumo do par */}
+        <FaixaDoSaldo saldo={conciliacao.saldo} />
         {/* desligar uma categoria volta ao "Só revisão": as cinco são o que ele junta.
             As justificadas saem das categorias e são contadas à parte. */}
         <Reveal>
@@ -384,7 +388,7 @@ export default function ConciliacaoPage() {
 
         {/* uma faixa só de controles, colada na tabela: o filtro à esquerda, a densidade à direita */}
         <Reveal delay={0.08} className="tabela-ferramentas">
-          <div className="tabela-filtros">
+          <div className="tabela-filtros" data-tutorial="filtros">
             <div className="pills segmentado" role="group" aria-label="Filtrar lançamentos">
               <button
                 type="button"
@@ -525,7 +529,7 @@ export default function ConciliacaoPage() {
                   </CabecalhoOrdenavel>
                   {/* a conferência no fim da linha, com nome: depois de ler o par, "já conferi" */}
                   {podeDecidir && (
-                    <th className="th-conferir" title="Marque as divergências que você já olhou. As que bateram não precisam.">
+                    <th className="th-conferir" data-tutorial="conferida" title="Marque as divergências que você já olhou. As que bateram não precisam.">
                       Conferida
                     </th>
                   )}

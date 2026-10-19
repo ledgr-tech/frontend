@@ -10,6 +10,7 @@ import {
   Search,
   ShieldCheck,
   UserRound,
+  Users,
   X,
   type LucideIcon,
 } from "lucide-react";
@@ -28,6 +29,8 @@ import { aplicarDensidade, densidadeAtual, type Densidade } from "./densidade";
 import { alternarMenu, menuRecolhido } from "./menu";
 import { aplicarTema, escolhaDeTema, seguirSistema, temaDoSistema, type EscolhaDeTema, type Tema } from "./tema";
 import { useTeclaDeAtalho } from "@/lib/plataforma";
+import { Tutorial } from "./tutorial/tutorial";
+import { useLinhasDaEquipe } from "./equipe/secao-equipe";
 
 /**
  * As configurações, numa janela no meio da tela (como a do Claude): seções à
@@ -40,7 +43,8 @@ import { useTeclaDeAtalho } from "@/lib/plataforma";
  * `PUT /empresa/configuracoes` (backend #85); sem a rota, fica para leitura.
  */
 
-type Linha = { titulo: string; descricao?: string; controle?: ReactNode };
+/** `chave` quando o título pode se repetir (duas pessoas com o mesmo nome na Equipe). */
+type Linha = { chave?: string; titulo: string; descricao?: string; controle?: ReactNode };
 
 type Secao = {
   id: string;
@@ -382,17 +386,23 @@ function tolerancia(dias: number | null | undefined): string {
 
 export function Configuracoes({
   aberta,
+  secao: secaoPedida,
   onFechar,
   email,
   temSenha,
+  administrador = true,
   onSair,
   onTema,
 }: {
   aberta: boolean;
+  /** A seção para abrir, quando quem abre pede uma (o roteiro da Visão geral pede "conciliacao"). */
+  secao?: string;
   onFechar: () => void;
   email: string;
   /** Falso na conta que só entra pelo Google (`metodos_login` do `GET /me`): não há senha para trocar. */
   temSenha: boolean;
+  /** Quem cadastrou a empresa: só ele convida e remove pessoas na seção Equipe. */
+  administrador?: boolean;
   onSair: () => void;
   /** Avisa o menu lateral, que mostra o botão de tema com o ícone do tema atual. */
   onTema: (tema: Tema) => void;
@@ -407,6 +417,7 @@ export function Configuracoes({
   // undefined até a janela abrir pela primeira vez (e de novo no "Tentar de novo")
   const [regras, setRegras] = useState<EstadoDasRegras | undefined>(undefined);
   const ctrl = useTeclaDeAtalho();
+  const linhasDaEquipe = useLinhasDaEquipe({ aberta, administrador, email });
 
   useEffect(() => {
     const elemento = dialogo.current;
@@ -416,6 +427,9 @@ export function Configuracoes({
       setTema(escolhaDeTema());
       setDensidade(densidadeAtual());
       setRecolhido(menuRecolhido());
+      // a seção pedida vale no momento em que a janela abre; depois a pessoa navega à vontade
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (secaoPedida) setSecaoId(secaoPedida);
       if (typeof elemento.showModal === "function") elemento.showModal();
       else elemento.setAttribute("open", "");
     }
@@ -423,7 +437,7 @@ export function Configuracoes({
       if (typeof elemento.close === "function") elemento.close();
       else elemento.removeAttribute("open");
     }
-  }, [aberta]);
+  }, [aberta, secaoPedida]);
 
   // as regras são do backend: busca na primeira vez que a janela abre
   useEffect(() => {
@@ -527,6 +541,13 @@ export function Configuracoes({
           ),
         },
       ],
+    },
+    {
+      id: "equipe",
+      nome: "Equipe",
+      icone: Users,
+      grupo: "Configurações",
+      linhas: linhasDaEquipe,
     },
     {
       id: "aparencia",
@@ -769,6 +790,9 @@ export function Configuracoes({
                   {secao.nome}
                 </h2>
                 <Linhas linhas={secao.linhas} />
+                {/* dentro da janela, para ficar na camada de cima com ela; só com ela aberta, ou o "?"
+                    da barra do topo abriria este também, escondido na janela fechada */}
+                {aberta && secao.id === "conciliacao" && <Tutorial tela="configuracoes" />}
               </section>
             ) : achados.length === 0 ? (
               <p className="cfg-vazio">{`Nada encontrado para “${busca.trim()}”.`}</p>
@@ -789,11 +813,14 @@ export function Configuracoes({
   );
 }
 
+/** As linhas que o tutorial do mascote destaca nas Configurações (tutorial/roteiros.ts). */
+const ALVO_DA_LINHA: Record<string, string> = { "Tolerância de data": "tolerancia", "Fonte da verdade": "fonte-da-verdade" };
+
 function Linhas({ linhas }: { linhas: Linha[] }) {
   return (
     <ul className="cfg-linhas">
       {linhas.map((linha) => (
-        <li key={linha.titulo} className="cfg-linha">
+        <li key={linha.chave ?? linha.titulo} className="cfg-linha" data-tutorial={ALVO_DA_LINHA[linha.titulo]}>
           <div className="cfg-linha-texto">
             <span className="cfg-linha-titulo">{linha.titulo}</span>
             {linha.descricao && <span className="cfg-linha-descricao">{linha.descricao}</span>}

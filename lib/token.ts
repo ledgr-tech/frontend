@@ -55,10 +55,16 @@ export async function assinarToken(claims: ClaimsSessao): Promise<string> {
     .sign(segredo());
 }
 
-/** Devolve null em token inválido ou vencido — é sessão ausente, não erro. */
+/**
+ * Devolve null em token inválido ou vencido — é sessão ausente, não erro. Exige `sub` e `exp`,
+ * como o backend, e o limite absoluto de 7 dias contado do `auth_time` (o `exp` anda a cada
+ * renovação; o login, não).
+ */
 export async function lerToken(token: string): Promise<ClaimsSessao | null> {
   try {
-    const { payload } = await jwtVerify(token, segredo(), { algorithms: [ALGORITMO] });
+    const { payload } = await jwtVerify(token, segredo(), { algorithms: [ALGORITMO], requiredClaims: ["sub", "exp"] });
+    const authTime = payload.auth_time;
+    if (Number.isInteger(authTime) && Date.now() / 1000 - (authTime as number) > DURACAO_SESSAO_SEGUNDOS) return null;
     return {
       usuarioId: String(payload.sub ?? ""),
       email: typeof payload.email === "string" ? payload.email : "",

@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Configuracoes } from "./configuracoes";
+import { ProvedorDaConta } from "./conta";
 import type { RegrasDaEmpresa, Resultado } from "./conciliacoes/acoes";
 
 // a tolerância é do backend; aqui as actions devolvem o que ele responderia
@@ -25,16 +26,35 @@ const REGRAS: RegrasDaEmpresa = {
 const trocarSenha = vi.fn();
 vi.mock("../(auth)/acoes", () => ({
   trocarSenha: (...args: unknown[]) => trocarSenha(...args),
+  salvarPreferencias: async () => true,
 }));
 
+// a equipe é do backend (#69); aqui a ação devolve a empresa com uma pessoa só
+const carregarEquipe = vi.fn();
+vi.mock("./equipe/acoes", () => ({
+  carregarEquipe: (...args: unknown[]) => carregarEquipe(...args),
+  convidar: vi.fn(),
+  cancelarConvite: vi.fn(),
+  removerPessoa: vi.fn(),
+}));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
+
 const EMAIL = "financeiro@telhacerta.com.br";
+
+// o tutorial do mascote tem teste próprio; aqui ele já foi visto, salvo no teste que o abre
+let TUTORIAL_JA_VISTO: { tutoriaisDispensados: "configuracoes"[]; roteiroDispensado: boolean } | null = {
+  tutoriaisDispensados: ["configuracoes"],
+  roteiroDispensado: false,
+};
 
 function abrir(props: Partial<Parameters<typeof Configuracoes>[0]> = {}) {
   const onFechar = vi.fn();
   const onSair = vi.fn();
   const onTema = vi.fn();
   render(
-    <Configuracoes aberta email={EMAIL} temSenha onFechar={onFechar} onSair={onSair} onTema={onTema} {...props} />,
+    <ProvedorDaConta preferencias={TUTORIAL_JA_VISTO}>
+      <Configuracoes aberta email={EMAIL} temSenha onFechar={onFechar} onSair={onSair} onTema={onTema} {...props} />
+    </ProvedorDaConta>,
   );
   return { onFechar, onSair, onTema };
 }
@@ -56,6 +76,10 @@ describe("Configuracoes", () => {
     toleranciaDaUltimaConciliacao.mockResolvedValue(2);
     carregarRegras.mockReset().mockResolvedValue({ ok: true, dados: REGRAS });
     salvarToleranciaDias.mockReset();
+    carregarEquipe.mockReset().mockResolvedValue({
+      ok: true,
+      dados: { pessoas: [{ id: "u1", nome: "Ana", email: EMAIL, administrador: true }], convites: [] },
+    });
     window.localStorage.clear();
     delete document.documentElement.dataset.tema;
     delete document.documentElement.dataset.densidade;
@@ -110,6 +134,20 @@ describe("Configuracoes", () => {
     async function campo() {
       return screen.findByRole("spinbutton", { name: "Tolerância de data, em dias" });
     }
+
+    it("na primeira visita à seção, o mascote explica a tolerância e a destaca", async () => {
+      TUTORIAL_JA_VISTO = null;
+      try {
+        const user = userEvent.setup();
+        abrir();
+        await user.click(secao("Conciliação"));
+        expect(await screen.findByText("Configurações · 1 de 2", {}, { timeout: 2000 })).toBeInTheDocument();
+        // o destaque entra num efeito depois do cartão: numa máquina lenta, um instante depois
+        await waitFor(() => expect(linhaDe("Tolerância de data")).toHaveAttribute("data-tutorial-ativo"));
+      } finally {
+        TUTORIAL_JA_VISTO = { tutoriaisDispensados: ["configuracoes"], roteiroDispensado: false };
+      }
+    });
 
     it("shows the tolerance the next conciliation will use, its limit and who changed it last", async () => {
       const user = userEvent.setup();
@@ -312,6 +350,25 @@ describe("Configuracoes", () => {
     await user.clear(screen.getByRole("searchbox"));
     await user.type(screen.getByRole("searchbox"), "xyz");
     expect(screen.getByText("Nada encontrado para “xyz”.")).toBeInTheDocument();
+  });
+
+  it("lists Equipe between Conta and Aparência", () => {
+    abrir();
+    const nomes = within(screen.getByRole("navigation", { name: "Configurações" }))
+      .getAllByRole("button")
+      .map((botao) => botao.textContent);
+    expect(nomes.slice(0, 3)).toEqual(["Conta", "Equipe", "Aparência"]);
+  });
+
+  it("finds the invite line when searching, and only the administrator can invite", async () => {
+    const user = userEvent.setup();
+    abrir({ administrador: false });
+
+    await user.type(screen.getByRole("searchbox", { name: "Procurar nas configurações" }), "convid");
+    expect(await screen.findByRole("heading", { name: "Equipe" })).toBeInTheDocument();
+    expect(screen.getByText("Convidar pessoa")).toBeInTheDocument();
+    expect(screen.getByText("Só o administrador convida e remove pessoas.")).toBeInTheDocument();
+    expect(carregarEquipe).toHaveBeenCalledWith(false);
   });
 
   it("closes from the close button", async () => {

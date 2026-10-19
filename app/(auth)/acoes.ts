@@ -3,10 +3,14 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { CredentialsSignin } from "next-auth";
-import { auth, signIn, signOut } from "@/auth";
-import { ErroBackend, chamarBackend } from "@/lib/backend";
-import { demoAberta } from "@/lib/demo";
+import { signIn, signOut } from "@/auth";
+import { ErroBackend, chamarBackend, emailDaSessao } from "@/lib/backend";
+import { RECUSA_DEMONSTRACAO, demoAberta, ehContaDeDemonstracao } from "@/lib/demo";
+import { COOKIE_CADASTRO_GOOGLE, COOKIE_CONVITE_GOOGLE, VALIDADE_ID_TOKEN_SEGUNDOS } from "@/lib/google";
 import { MuitasEntradas, type UsuarioAPI } from "@/lib/login";
+import { ehTela, type Preferencias } from "@/lib/preferencias";
+import { adaptarAssinatura, type Assinatura, type PlanoId } from "@/lib/assinatura";
+import { adaptarConsultaConvite, type ConsultaConvite, type ConsultaConviteAPI } from "@/lib/adaptadores";
 
 /**
  * Abrir e fechar sessão, e criar conta. Vive numa Server Action porque o
@@ -78,6 +82,20 @@ export async function entrarNaDemonstracao(manterSessao: boolean): Promise<boole
   return (await entrar(email, senha, manterSessao)).ok;
 }
 
+/**
+ * "Entrar com Google" (backend #73): leva ao Google, e a volta passa pelo
+ * callback `signIn` do `auth.ts`. O `signIn` do NextAuth sai lançando o
+ * redirect, que a Server Action entrega ao navegador; só volta daqui quando o
+ * provider não existe neste servidor.
+ */
+export async function entrarComGoogle(): Promise<false> {
+  if (!process.env.AUTH_GOOGLE_ID) return false;
+  // um aceite de convite pelo Google que ficou pela metade não pode virar este login
+  (await cookies()).delete(COOKIE_CONVITE_GOOGLE);
+  await signIn("google", { redirectTo: "/visao-geral" });
+  return false;
+}
+
 /** Os campos do formulário que o `POST /register` recebe. */
 export type DadosCadastro = {
   nome: string;
@@ -92,7 +110,21 @@ export type CampoCadastroAPI = keyof DadosCadastro;
 export type ResultadoCadastro =
   /** `entrou: false` é conta criada com a sessão que não abriu: falta só entrar. */
   | { ok: true; entrou: boolean }
-  | { ok: false; erro: "email_cadastrado" | "cnpj_cadastrado" | "muitas_tentativas" | "falha" }
+  | {
+      ok: false;
+      erro:
+        | "email_cadastrado"
+        | "cnpj_cadastrado"
+        /** A Receita não conhece o CNPJ, ou ele não está ativo (backend #119): o cadastro não segue com ele. */
+        | "cnpj_nao_encontrado"
+        | "cnpj_inativo"
+        | "muitas_tentativas"
+        | "falha"
+        /** Só no cadastro pelo Google: o `id_token` venceu (1 hora) ou sumiu, e é preciso passar pelo Google de novo. */
+        | "google_expirado"
+        | "google_ja_cadastrado"
+        | "google_indisponivel";
+    }
   /** O backend recusou o formato: são os campos a corrigir, com o nome do formulário. */
   | { ok: false; erro: "invalido"; campos: CampoCadastroAPI[] };
 
@@ -105,9 +137,20 @@ const CAMPO_DO_FORMULARIO: Record<string, CampoCadastroAPI> = {
 };
 
 /**
+ * Os dois 422 do CNPJ na Receita (backend #119) chegam no mesmo formato da recusa de formato, com
+ * `loc` no `cnpj`: só a `msg` os separa. O texto é o contrato, como o dos 409.
+ */
+function recusaDaReceita(erro: ErroBackend): "cnpj_nao_encontrado" | "cnpj_inativo" | null {
+  const mensagem = erro.mensagens?.cnpj ?? "";
+  if (mensagem.startsWith("CNPJ não encontrado na Receita")) return "cnpj_nao_encontrado";
+  if (mensagem.startsWith("CNPJ não está ativo na Receita")) return "cnpj_inativo";
+  return null;
+}
+
+/**
  * Cria empresa e usuário numa chamada só (`POST /register`) e já entra com a
- * mesma senha. Banco, conta e sistema de gestão, que o formulário também pede,
- * o backend ainda não guarda — ficam no navegador.
+ * mesma senha. O sistema de gestão, que o formulário também pede, o backend
+ * ainda não guarda: fica no navegador.
  */
 export async function cadastrar(dados: DadosCadastro): Promise<ResultadoCadastro> {
   try {
@@ -125,6 +168,10 @@ export async function cadastrar(dados: DadosCadastro): Promise<ResultadoCadastro
   } catch (erro) {
     if (!(erro instanceof ErroBackend)) return { ok: false, erro: "falha" };
     if (erro.status === 429) return { ok: false, erro: "muitas_tentativas" };
+    if (erro.status === 422) {
+      const receita = recusaDaReceita(erro);
+      if (receita) return { ok: false, erro: receita };
+    }
     if (erro.status === 422 && erro.campos.length > 0) {
       const campos = erro.campos.map((campo) => CAMPO_DO_FORMULARIO[campo]).filter(Boolean);
       if (campos.length > 0) return { ok: false, erro: "invalido", campos };
@@ -144,8 +191,76 @@ export async function cadastrar(dados: DadosCadastro): Promise<ResultadoCadastro
   return { ok: true, entrou: sessao.ok };
 }
 
+/**
+ * O CNPJ na Receita (backend #119). `nao_verificado` é "não deu para saber" (consulta desligada,
+ * BrasilAPI fora, CNPJ já cadastrado) e nunca bloqueia.
+ */
+export type SituacaoCnpj = "ativa" | "inativa" | "nao_encontrado" | "nao_verificado";
+
+const SITUACOES_CNPJ: readonly SituacaoCnpj[] = ["ativa", "inativa", "nao_encontrado", "nao_verificado"];
+
+/**
+ * O fim do cadastro de quem voltou do Google sem conta (`POST /register/google`,
+ * backend #73): o `id_token` sai do cookie httpOnly que o callback do Google
+ * gravou, e o e-mail é o da conta Google. O backend já trata isso como login,
+ * mas a sessão do NextAuth abre pelo provider `google-cadastro`, com o mesmo
+ * `id_token`.
+ */
+export async function cadastrarComGoogle(
+  dados: Pick<DadosCadastro, "nome" | "razaoSocial" | "cnpj">,
+): Promise<ResultadoCadastro> {
+  const pote = await cookies();
+  const idToken = pote.get(COOKIE_CADASTRO_GOOGLE)?.value;
+  if (!idToken) return { ok: false, erro: "google_expirado" };
+  try {
+    await chamarBackend<UsuarioAPI>("/register/google", {
+      method: "POST",
+      corpo: {
+        id_token: idToken,
+        razao_social: dados.razaoSocial,
+        cnpj: dados.cnpj,
+        // sem nome, o backend usa o da conta Google; vazio ele recusa
+        ...(dados.nome && { nome: dados.nome }),
+      },
+      publica: true,
+    });
+  } catch (erro) {
+    if (!(erro instanceof ErroBackend)) return { ok: false, erro: "falha" };
+    if (erro.status === 401) {
+      pote.delete(COOKIE_CADASTRO_GOOGLE);
+      return { ok: false, erro: "google_expirado" };
+    }
+    if (erro.status === 429) return { ok: false, erro: "muitas_tentativas" };
+    if (erro.status === 503) return { ok: false, erro: "google_indisponivel" };
+    if (erro.status === 422) {
+      const receita = recusaDaReceita(erro);
+      if (receita) return { ok: false, erro: receita };
+      const campos = erro.campos.map((campo) => CAMPO_DO_FORMULARIO[campo]).filter(Boolean);
+      if (campos.length > 0) return { ok: false, erro: "invalido", campos };
+    }
+    if (erro.status === 409 && erro.detalhe.startsWith("E-mail já")) return { ok: false, erro: "email_cadastrado" };
+    if (erro.status === 409 && erro.detalhe.startsWith("CNPJ já")) return { ok: false, erro: "cnpj_cadastrado" };
+    if (erro.status === 409) return { ok: false, erro: "google_ja_cadastrado" };
+    return { ok: false, erro: "falha" };
+  }
+  try {
+    await signIn("google-cadastro", { redirect: false });
+  } catch {
+    return { ok: true, entrou: false };
+  }
+  return { ok: true, entrou: true };
+}
+
 export type ResultadoVerificacao =
-  | { ok: true; emailDisponivel: boolean; cnpjDisponivel: boolean }
+  | {
+      ok: true;
+      emailDisponivel: boolean;
+      cnpjDisponivel: boolean;
+      /** `nao_verificado` também quando o backend ainda não manda o campo (antes do #119). */
+      cnpjSituacao: SituacaoCnpj;
+      /** A razão social que a Receita devolveu; null sem ela. */
+      razaoSocialReceita: string | null;
+    }
   /** O backend recusou o formato, com as mesmas regras do `POST /register`. */
   | { ok: false; erro: "invalido"; campos: CampoCadastroAPI[] }
   /** Sem resposta que sirva (limite por minuto, backend sem a rota, fora do ar): o cadastro segue. */
@@ -162,11 +277,21 @@ export async function verificarCadastro(
   dados: Pick<DadosCadastro, "email" | "cnpj">,
 ): Promise<ResultadoVerificacao> {
   try {
-    const resposta = await chamarBackend<{ email_disponivel: boolean; cnpj_disponivel: boolean }>(
-      "/register/verificar",
-      { method: "POST", corpo: { email: dados.email, cnpj: dados.cnpj }, publica: true },
-    );
-    return { ok: true, emailDisponivel: resposta.email_disponivel, cnpjDisponivel: resposta.cnpj_disponivel };
+    const resposta = await chamarBackend<{
+      email_disponivel: boolean;
+      cnpj_disponivel: boolean;
+      cnpj_situacao?: unknown;
+      razao_social?: unknown;
+    }>("/register/verificar", { method: "POST", corpo: { email: dados.email, cnpj: dados.cnpj }, publica: true });
+    const situacao = SITUACOES_CNPJ.find((valor) => valor === resposta.cnpj_situacao) ?? "nao_verificado";
+    const razaoSocial = typeof resposta.razao_social === "string" ? resposta.razao_social.trim() : "";
+    return {
+      ok: true,
+      emailDisponivel: resposta.email_disponivel,
+      cnpjDisponivel: resposta.cnpj_disponivel,
+      cnpjSituacao: situacao,
+      razaoSocialReceita: razaoSocial || null,
+    };
   } catch (erro) {
     if (erro instanceof ErroBackend && erro.status === 422) {
       const campos = erro.campos.map((campo) => CAMPO_DO_FORMULARIO[campo]).filter(Boolean);
@@ -226,7 +351,115 @@ export async function redefinirSenha(token: string, senhaNova: string): Promise<
   return { ok: true };
 }
 
+export type ResultadoConsultaConvite =
+  | { ok: true; convite: ConsultaConvite }
+  | { ok: false; erro: "convite_invalido" | "muitas_tentativas" | "falha" };
+
+/**
+ * Quem está convidando e para onde (`POST /convites/consultar`, backend #69), sem
+ * login e sem gastar o convite. O token vai no corpo, nunca no endereço. O 400 junta
+ * convite inexistente, vencido, usado e cancelado: o backend não diz qual.
+ */
+export async function consultarConvite(token: string): Promise<ResultadoConsultaConvite> {
+  try {
+    const convite = await chamarBackend<ConsultaConviteAPI>("/convites/consultar", {
+      method: "POST",
+      corpo: { token },
+      publica: true,
+    });
+    return { ok: true, convite: adaptarConsultaConvite(convite) };
+  } catch (erro) {
+    if (!(erro instanceof ErroBackend)) return { ok: false, erro: "falha" };
+    if (erro.status === 400 || erro.status === 422) return { ok: false, erro: "convite_invalido" };
+    if (erro.status === 429) return { ok: false, erro: "muitas_tentativas" };
+    return { ok: false, erro: "falha" };
+  }
+}
+
+export type ResultadoAceite =
+  /** `entrou: false` é conta criada com a sessão que não abriu: falta só entrar. */
+  | { ok: true; entrou: boolean }
+  | { ok: false; erro: "convite_invalido" | "email_cadastrado" | "senha_invalida" | "muitas_tentativas" | "falha" };
+
+/**
+ * Cria a conta pelo convite (`POST /convites/aceitar`), na empresa de quem convidou e
+ * com o e-mail do convite, e já entra com a senha nova, como o cadastro faz. O e-mail
+ * vem da consulta: o backend não aceita outro. Token vazio é a volta do Google com recusa,
+ * quando o token só existe no cookie do convite.
+ */
+export async function aceitarConvite(token: string, email: string, nome: string, senha: string): Promise<ResultadoAceite> {
+  const pote = await cookies();
+  const doCookie = !token;
+  const tokenDoConvite = token || pote.get(COOKIE_CONVITE_GOOGLE)?.value;
+  if (!tokenDoConvite) return { ok: false, erro: "convite_invalido" };
+  let usuario: UsuarioAPI;
+  try {
+    usuario = await chamarBackend<UsuarioAPI>("/convites/aceitar", {
+      method: "POST",
+      corpo: { token: tokenDoConvite, nome, senha },
+      publica: true,
+    });
+  } catch (erro) {
+    if (!(erro instanceof ErroBackend)) return { ok: false, erro: "falha" };
+    if (erro.status === 400) return { ok: false, erro: "convite_invalido" };
+    if (erro.status === 409) return { ok: false, erro: "email_cadastrado" };
+    if (erro.status === 422 && erro.campos.includes("senha")) return { ok: false, erro: "senha_invalida" };
+    if (erro.status === 422) return { ok: false, erro: "convite_invalido" };
+    if (erro.status === 429) return { ok: false, erro: "muitas_tentativas" };
+    return { ok: false, erro: "falha" };
+  }
+  if (doCookie) pote.delete(COOKIE_CONVITE_GOOGLE);
+  // o e-mail da conta é o do convite, que o backend devolve; o do navegador só mostra na tela
+  return { ok: true, entrou: (await entrar(usuario.email || email, senha, true)).ok };
+}
+
+/**
+ * "Aceitar com Google": guarda o token do convite num cookie httpOnly e leva ao Google;
+ * na volta, o `aoVoltarDoGoogle` aceita o convite. Token vazio é tentar de novo depois de
+ * uma recusa: o cookie da primeira ida continua lá. Como o `entrarComGoogle`, só volta
+ * daqui quando não há como ir.
+ */
+export async function aceitarConviteComGoogle(token: string): Promise<false> {
+  if (!process.env.AUTH_GOOGLE_ID) return false;
+  const pote = await cookies();
+  if (token) {
+    pote.set(COOKIE_CONVITE_GOOGLE, token, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: VALIDADE_ID_TOKEN_SEGUNDOS,
+    });
+  } else if (!pote.get(COOKIE_CONVITE_GOOGLE)) {
+    return false;
+  }
+  await signIn("google", { redirectTo: "/visao-geral" });
+  return false;
+}
+
+/**
+ * O convite do cookie, na volta do Google com recusa: o servidor consulta, para o token
+ * nunca chegar ao navegador. Roda no render da página, onde o Next não deixa apagar cookie:
+ * um convite que não vale mais fica no cookie até a 1 hora dele, e o próximo login pelo
+ * Google (`entrarComGoogle`) o apaga antes de sair.
+ */
+export async function conviteDoCookie(): Promise<ConsultaConvite | null> {
+  const token = (await cookies()).get(COOKIE_CONVITE_GOOGLE)?.value;
+  if (!token) return null;
+  const resposta = await consultarConvite(token);
+  return resposta.ok ? resposta.convite : null;
+}
+
+/** "Sair e continuar" na página do convite: encerra a sessão de outra conta sem sair da página. */
+export async function sairParaAceitarConvite(): Promise<void> {
+  await signOut({ redirect: false });
+}
+
 export async function sair(): Promise<void> {
+  // o id_token do cadastro pelo Google e o convite pela metade não ficam para quem usar o navegador depois
+  const pote = await cookies();
+  pote.delete(COOKIE_CADASTRO_GOOGLE);
+  pote.delete(COOKIE_CONVITE_GOOGLE);
   await signOut({ redirectTo: "/login" });
 }
 
@@ -236,11 +469,25 @@ export type ContaDaSessao = {
   empresa: string;
   /** Falso na conta que só entra pelo Google: para ela, `POST /me/senha` responde 409. */
   temSenha: boolean;
+  /** Quem cadastrou a empresa: convida e remove pessoas (backend #69). Verdadeiro sem o campo, como na conta única. */
+  administrador: boolean;
+  /** O que a pessoa dispensou no primeiro uso; null quando o `GET /me` ainda não manda o campo. */
+  preferencias: Preferencias | null;
+  /** O plano e o teste de 14 dias; null quando o `GET /me` ainda não manda `situacao`: nada bloqueia. */
+  assinatura: Assinatura | null;
 };
+
+type PreferenciasAPI = { tutoriais_dispensados?: unknown; roteiro_dispensado?: unknown };
+
+function adaptarPreferencias(bruto: PreferenciasAPI | null | undefined): Preferencias | null {
+  if (!bruto || typeof bruto !== "object") return null;
+  const telas = Array.isArray(bruto.tutoriais_dispensados) ? bruto.tutoriais_dispensados.filter(ehTela) : [];
+  return { tutoriaisDispensados: telas, roteiroDispensado: bruto.roteiro_dispensado === true };
+}
 
 /**
  * A conta logada, de `GET /me` (backend #81), que o `/login` não cobre: ele devolve só
- * o usuário. Sem `papel`, porque o MVP tem conta única. Limite de 60 chamadas por
+ * o usuário. Um papel só, o `administrador` (backend #69). Limite de 60 chamadas por
  * minuto por usuário, por isso só o layout chama.
  *
  * Se a rota falhar, a empresa fica vazia e as telas a escondem, melhor que mostrar o
@@ -248,10 +495,48 @@ export type ContaDaSessao = {
  */
 export async function contaDaSessao(): Promise<ContaDaSessao> {
   try {
-    const eu = await chamarBackend<UsuarioAPI & { razao_social: string; metodos_login: string[] }>("/me");
-    return { empresa: eu.razao_social?.trim() ?? "", temSenha: eu.metodos_login?.includes("senha") ?? true };
+    const eu = await chamarBackend<
+      UsuarioAPI & {
+        razao_social: string;
+        metodos_login: string[];
+        administrador?: boolean;
+        preferencias?: PreferenciasAPI;
+        situacao?: unknown;
+        plano?: unknown;
+        teste_termina_em?: unknown;
+      }
+    >("/me");
+    return {
+      empresa: eu.razao_social?.trim() ?? "",
+      temSenha: eu.metodos_login?.includes("senha") ?? true,
+      administrador: eu.administrador !== false,
+      preferencias: adaptarPreferencias(eu.preferencias),
+      assinatura: adaptarAssinatura(eu),
+    };
   } catch {
-    return { empresa: "", temSenha: true };
+    return { empresa: "", temSenha: true, administrador: true, preferencias: null, assinatura: null };
+  }
+}
+
+/**
+ * Guarda as preferências do primeiro uso na conta (`PATCH /me/preferencias`). Falso quando o
+ * backend ainda não tem a rota ou não respondeu: o navegador já guardou, a tela não avisa nada.
+ */
+export async function salvarPreferencias(preferencias: Preferencias): Promise<boolean> {
+  // pela naConta: na conta de demonstração, um visitante não esconde o tutorial dos outros
+  try {
+    const resposta = await naConta(() =>
+      chamarBackend("/me/preferencias", {
+        method: "PATCH",
+        corpo: {
+          tutoriais_dispensados: preferencias.tutoriaisDispensados,
+          roteiro_dispensado: preferencias.roteiroDispensado,
+        },
+      }),
+    );
+    return resposta.ok;
+  } catch {
+    return false;
   }
 }
 
@@ -287,12 +572,9 @@ function mensagemDaConta(erro: unknown): string {
 async function naConta(
   chamada: () => Promise<unknown>,
 ): Promise<{ ok: true; email: string } | { ok: false; erro: string }> {
-  const email = (await auth())?.user?.email;
+  const email = await emailDaSessao();
   if (!email) redirect("/login");
-  const demonstracao = process.env.LEDGR_CONTA_TESTE_EMAIL?.trim().toLowerCase();
-  if (demonstracao && email.toLowerCase() === demonstracao) {
-    return { ok: false, erro: "A conta de demonstração não pode ser alterada." };
-  }
+  if (ehContaDeDemonstracao(email)) return { ok: false, erro: RECUSA_DEMONSTRACAO };
   try {
     await chamada();
     return { ok: true, email };
@@ -309,6 +591,11 @@ async function naConta(
 // servidor não sabe o que a pessoa escolheu no login; errar para o lado que
 // termina com o navegador é o que não deixa sessão aberta sem ela querer.
 
+/** Sem a sessão nova, sai: a troca já valeu no backend, e o login de novo é o caminho seguro. */
+async function refazerSessao(email: string, senha: string): Promise<void> {
+  if (!(await entrar(email, senha, false)).ok) await signOut({ redirectTo: "/login" });
+}
+
 export async function trocarSenha(senhaAtual: string, senhaNova: string): Promise<ResultadoConta> {
   const conta = await naConta(() =>
     chamarBackend("/me/senha", {
@@ -317,7 +604,7 @@ export async function trocarSenha(senhaAtual: string, senhaNova: string): Promis
     }),
   );
   if (!conta.ok) return conta;
-  await entrar(conta.email, senhaNova, false);
+  await refazerSessao(conta.email, senhaNova);
   return { ok: true };
 }
 
@@ -330,7 +617,7 @@ export async function trocarEmail(emailNovo: string, senhaAtual: string): Promis
     }),
   );
   if (!conta.ok) return conta;
-  await entrar(email, senhaAtual, false);
+  await refazerSessao(email, senhaAtual);
   return { ok: true };
 }
 
@@ -342,4 +629,13 @@ export async function excluirConta(senhaAtual: string): Promise<ResultadoConta> 
   if (!conta.ok) return conta;
   await signOut({ redirectTo: "/" });
   return { ok: true };
+}
+
+/** Começa o teste de 14 dias no plano escolhido (`POST /empresa/plano`, spec 2026-10-15-primeiro-uso). */
+export async function escolherPlano(plano: PlanoId): Promise<{ ok: true } | { ok: false; erro: string }> {
+  // Server Action é endpoint público: só os três ids chegam ao backend
+  if (!["essencial", "padrao", "avancado"].includes(plano)) return { ok: false, erro: FALHA_CONTA };
+  // pela naConta: a conta de demonstração não escolhe plano
+  const resposta = await naConta(() => chamarBackend("/empresa/plano", { method: "POST", corpo: { plano } }));
+  return resposta.ok ? { ok: true } : resposta;
 }

@@ -39,16 +39,20 @@ export function Reveal({
   style,
   className,
   viewport,
+  tutorial,
 }: {
   children: ReactNode;
   delay?: number;
   style?: CSSProperties;
   className?: string;
   viewport?: { amount?: number; margin?: string };
+  /** O `data-tutorial` do bloco, para o tutorial do mascote destacar. */
+  tutorial?: string;
 }) {
   return (
     <m.div
       data-reveal
+      data-tutorial={tutorial}
       className={className}
       style={style}
       initial={{ opacity: 0, y: 16 }}

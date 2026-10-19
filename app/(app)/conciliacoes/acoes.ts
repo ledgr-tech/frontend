@@ -5,9 +5,12 @@ import {
   adaptarExecucao,
   adaptarFechamento,
   adaptarResumoDoFechamento,
+  adaptarSaldo,
   extratosDasExecucoes,
   pareceUuid,
   type ArquivoConciliado,
+  type CamposDeSaldoAPI,
+  type SaldoDoExtrato,
   type Execucao,
   type Fechamento,
   type FechamentoAPI,
@@ -17,16 +20,18 @@ import {
   type ListaExecucoesAPI,
   type ListaExtratosAPI,
 } from "@/lib/adaptadores";
-import { chamarBackend, ErroBackend } from "@/lib/backend";
+import { chamarBackend, emailDaSessao, ErroBackend } from "@/lib/backend";
+import { RECUSA_DEMONSTRACAO, ehContaDeDemonstracao } from "@/lib/demo";
 import { caminhoDaConciliacao } from "@/lib/caminhos";
 import { compararRodadas, execucoesVigentes, rodadasDoBanco, type Mudancas } from "@/lib/rodadas";
 import type { Conciliacao, Decisao, TipoEvento } from "@/lib/mock-data";
-import { conciliados, porConciliacao } from "../historico/execucoes";
+import { conciliados, paraRevisar, porConciliacao } from "../historico/execucoes";
 import { ordemDeTrabalho, pedemDecisao, type ConciliacaoNaLista } from "../dashboard/lista";
 import { estaResolvida, pedeDecisao } from "../dashboard/resumo";
 import { decisoesLigadas, situacaoDaLinha } from "./[id]/situacao";
 import { competencia } from "../fechamentos/fechamento";
 import type { ConciliacaoDoPar } from "../fechamentos/relatorio";
+import type { DadosDoRoteiro } from "../visao-geral/roteiro";
 
 /**
  * O fluxo real de conciliação, ponta a ponta, contra a API do backend:
@@ -42,7 +47,7 @@ export type Falha = { ok: false; erro: string; status: number };
 export type Resultado<T> = { ok: true; dados: T } | Falha;
 
 /** Status do processamento assíncrono do extrato (`normalizar_extrato`). */
-export type SituacaoExtrato = {
+export type SituacaoExtrato = CamposDeSaldoAPI & {
   extrato_id: string;
   status: "pendente" | "processando" | "concluido" | "concluido_com_erros" | "erro";
   origem: "banco" | "sistema";
@@ -97,10 +102,19 @@ const LINHA_MUDOU = "Esta linha mudou: a conciliação foi refeita depois que a 
 const PRAZO_DO_PROCESSAMENTO_MS = 120_000;
 
 export async function enviarExtrato(dados: FormData): Promise<Resultado<{ extratoId: string }>> {
+  // Server Action é endpoint público: ao backend vão só os dois campos que a tela manda
+  const arquivo = dados.get("arquivo");
+  const origem = dados.get("origem");
+  if (!(arquivo instanceof File) || (origem !== "banco" && origem !== "sistema")) {
+    return { ok: false, status: 422, erro: "Envie o arquivo do extrato do banco ou do sistema." };
+  }
+  const corpo = new FormData();
+  corpo.append("arquivo", arquivo);
+  corpo.append("origem", origem);
   try {
     const resposta = await chamarBackend<{ extrato_id: string; status: string }>(
       "/extratos/upload",
-      { method: "POST", corpo: dados, signal: AbortSignal.timeout(PRAZO_DO_PROCESSAMENTO_MS) },
+      { method: "POST", corpo, signal: AbortSignal.timeout(PRAZO_DO_PROCESSAMENTO_MS) },
     );
     return { ok: true, dados: { extratoId: resposta.extrato_id } };
   } catch (erro) {
@@ -125,6 +139,9 @@ export async function conciliar(
   extratoBancoId: string,
   extratoSistemaId: string,
 ): Promise<Resultado<ContagensConciliacao>> {
+  if (!pareceUuid(extratoBancoId) || !pareceUuid(extratoSistemaId)) {
+    return { ok: false, status: 404, erro: "Extrato não encontrado." };
+  }
   try {
     const dados = await chamarBackend<ContagensConciliacao>("/conciliacoes", {
       method: "POST",
@@ -308,9 +325,11 @@ export async function carregarConciliacaoEmRodadas(
  * backend ainda recusa a escrita com o 409, que ela mostra.
  */
 async function fechamentoAtivo(periodoInicio: string | null): Promise<Fechamento | null> {
-  if (!periodoInicio) return null;
+  // o período vem do backend, mas vira parte da URL: só segue com cara de AAAA-MM
+  const mes = periodoInicio?.slice(0, 7);
+  if (!mes || !COMPETENCIA.test(mes)) return null;
   try {
-    const lista = await chamarBackend<{ itens: FechamentoAPI[] }>(`/fechamentos?competencia=${periodoInicio.slice(0, 7)}`);
+    const lista = await chamarBackend<{ itens: FechamentoAPI[] }>(`/fechamentos?competencia=${mes}`);
     const [maisRecente] = lista.itens;
     return maisRecente?.estado === "fechado" ? adaptarFechamento(maisRecente) : null;
   } catch {
@@ -497,6 +516,8 @@ export async function salvarToleranciaDias(dias: number): Promise<Resultado<Regr
   if (!Number.isSafeInteger(dias) || dias < 0) {
     return { ok: false, status: 422, erro: "A tolerância é um número inteiro de dias." };
   }
+  // a regra vale para todo visitante da demo, que divide a mesma empresa
+  if (ehContaDeDemonstracao(await emailDaSessao())) return { ok: false, status: 403, erro: RECUSA_DEMONSTRACAO };
   try {
     const configuracoes = await chamarBackend<ConfiguracoesAPI>("/empresa/configuracoes", {
       method: "PUT",
@@ -527,6 +548,8 @@ export type ArquivoExtrato = Partial<Pick<ArquivoConciliado, "conciliadoEm" | "r
   enviadoEm: string;
   /** Já entrou em alguma conciliação. Onde ela abre (`resultado`) só se sabe quando aparece em `/execucoes`. */
   conciliado: boolean;
+  /** O saldo que o arquivo informa (backend #118); ausente quando o backend não manda. */
+  saldo?: SaldoDoExtrato | null;
 };
 
 export type ListaDeExtratos = {
@@ -581,7 +604,9 @@ export async function listarExtratos(): Promise<Resultado<ListaDeExtratos>> {
       total: lista.total,
       arquivos: lista.itens.map((item, i) => {
         const detalhe = detalhes[i];
+        const saldo = adaptarSaldo(item);
         return {
+          ...(saldo !== undefined && { saldo }),
           ...ondeAbre(item, conciliacoes.get(item.extrato_id)),
           id: item.extrato_id,
           nome: item.nome_arquivo,
@@ -704,6 +729,8 @@ export type ParDoFechamento = {
   execucao: Execucao;
   /** Os arquivos do par com linhas que o parser não conseguiu ler. */
   naoLidas: { nome: string; linhas: number }[];
+  /** O saldo do extrato do banco (backend #118); ausente sem o detalhe dele ou sem a #118. */
+  saldo?: SaldoDoExtrato | null;
 };
 
 export type DadosDoFechamento = {
@@ -745,7 +772,9 @@ export async function carregarFechamentos(): Promise<Resultado<DadosDoFechamento
           ? [{ nome, linhas: situacao.dados.erros.length }]
           : [],
       );
-      return { execucao, naoLidas };
+      // o saldo vem no mesmo detalhe do extrato do banco que já diz as linhas não lidas
+      const saldo = banco.ok ? adaptarSaldo(banco.dados) : undefined;
+      return { execucao, naoLidas, ...(saldo !== undefined && { saldo }) };
     }),
   );
   return { ok: true, dados: { pares, fechamentos } };
@@ -833,6 +862,8 @@ const PRAZO_DA_EXPLICACAO_MS = 30_000;
  * fixo do motor e o motivo em `indisponibilidade`.
  */
 export async function explicarDivergencia(conciliacaoId: string): Promise<Resultado<Explicacao>> {
+  // cada explicação custa: id que nem tem formato de linha não chega ao backend
+  if (!pareceUuid(conciliacaoId)) return { ok: false, status: 404, erro: "Linha não encontrada." };
   try {
     const resposta = await chamarBackend<ExplicacaoAPI>("/explicacoes", {
       method: "POST",
@@ -939,4 +970,38 @@ export async function carregarRelatorioDoFechamento(competencia: string): Promis
   ]);
 
   return { ok: true, dados: { fechamento: adaptarFechamento(maisRecente), resumo, empresa, conciliacoes } };
+}
+
+/**
+ * O que o roteiro de primeiros passos da Visão geral precisa saber (spec 2026-10-15-primeiro-uso,
+ * parte 4). Null quando alguma leitura falhou: sem certeza, a Visão geral fica sem roteiro em vez
+ * de marcar um passo errado.
+ */
+export async function carregarRoteiro(): Promise<DadosDoRoteiro | null> {
+  try {
+    const [configuracoes, extratos, lista, fechamentos] = await Promise.all([
+      chamarBackend<ConfiguracoesAPI>("/empresa/configuracoes"),
+      chamarBackend<ListaExtratosAPI>("/extratos?limit=100&offset=0"),
+      listarExecucoes(),
+      listarFechamentos(),
+    ]);
+    if (!lista.ok || fechamentos === null) return null;
+    // a rodada que vale de cada extrato do banco, como na lista de Conciliações
+    const pendencias = porConciliacao(lista.dados.execucoes)
+      .filter(({ principal }) => principal.situacao === "vale")
+      .map(({ extratoBancoId, principal }) => ({ extratoBancoId, pedem: paraRevisar(principal.execucao) }));
+    const maisPendente = [...pendencias].sort((a, b) => b.pedem - a.pedem)[0];
+    return {
+      // null antes da primeira mudança (backend #85)
+      toleranciaRevisada: adaptarRegras(configuracoes).atualizadoEm !== null,
+      temExtratoDoBanco: extratos.itens.some((item) => item.origem === "banco"),
+      conciliou: lista.dados.execucoes.length > 0,
+      resolveuAlguma: pendencias.some(({ pedem }) => pedem === 0),
+      fechouAlgum: fechamentos.some((fechamento) => fechamento.estado === "fechado"),
+      conciliacaoComPendencia:
+        maisPendente && maisPendente.pedem > 0 ? caminhoDaConciliacao(maisPendente.extratoBancoId) : null,
+    };
+  } catch {
+    return null;
+  }
 }

@@ -37,6 +37,12 @@ yarn-error.log*
 # vercel
 .vercel
 
+# chaves e credenciais que nunca entram no repositório (o repo é público)
+*.key
+*.p12
+*.pem
+credentials.json
+
 # git worktrees used for isolated agent work
 /.worktrees/
 
