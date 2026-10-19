@@ -37,6 +37,10 @@ describe("cabeçalhos de segurança", () => {
     expect((await cabecalhos()).get("X-Content-Type-Options")).toBe("nosniff");
   });
 
+  it("isola a janela do app de páginas de outros sites", async () => {
+    expect((await cabecalhos()).get("Cross-Origin-Opener-Policy")).toBe("same-origin");
+  });
+
   it("não vaza o caminho da página para outro site", async () => {
     // a URL da conciliação traz ids de extrato; para fora vai só a origem
     expect((await cabecalhos()).get("Referrer-Policy")).toBe("strict-origin-when-cross-origin");

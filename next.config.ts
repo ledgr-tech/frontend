@@ -55,6 +55,8 @@ const nextConfig: NextConfig = {
           // ninguém emoldura o app num iframe para induzir um clique
           { key: "X-Frame-Options", value: "DENY" },
           { key: "X-Content-Type-Options", value: "nosniff" },
+          // uma janela aberta por outro site não fica com referência a esta (window.opener)
+          { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
           // a URL da conciliação carrega ids de extrato: para fora vai só a origem
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           {
