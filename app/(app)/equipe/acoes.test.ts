@@ -15,6 +15,8 @@ vi.mock("@/lib/backend", async (original) => ({
 const pessoaApi: PessoaAPI = { id: "u1", nome: "Ana", email: "ana@x.com", administrador: true, criado_em: "2026-10-01T00:00:00Z" };
 const pessoa = { id: "u1", nome: "Ana", email: "ana@x.com", administrador: true };
 const conviteApi: ConviteAPI = { id: "c1", email: "bia@x.com", criado_em: "2026-10-16T12:00:00Z", expira_em: "2026-10-23T12:00:00Z" };
+const CONVITE = "5c0f2a8e-1b3d-4e6f-9a7b-2c4d6e8f0a1b";
+const PESSOA = "8e1d3c5b-7a9f-4b2d-8c6e-0f1a3b5c7d9e";
 const convite = { id: "c1", email: "bia@x.com", enviadoEm: "16/10/2026", valeAte: "23/10/2026" };
 
 beforeEach(() => {
@@ -30,8 +32,8 @@ describe("na conta de demonstração", () => {
   // um visitante da demo mandaria convite do Ledgr para qualquer endereço, ou tiraria gente da empresa dos outros
   it.each([
     ["convidar", () => convidar("bia@x.com")],
-    ["cancelarConvite", () => cancelarConvite("c1")],
-    ["removerPessoa", () => removerPessoa("u1")],
+    ["cancelarConvite", () => cancelarConvite(CONVITE)],
+    ["removerPessoa", () => removerPessoa(PESSOA)],
   ])("%s recusa sem chamar o backend", async (_, acao) => {
     vi.stubEnv("LEDGR_CONTA_TESTE_EMAIL", " Ana@X.com ");
 
@@ -43,7 +45,7 @@ describe("na conta de demonstração", () => {
     vi.stubEnv("LEDGR_CONTA_TESTE_EMAIL", "demo@ledgr.com.br");
     chamarBackend.mockResolvedValueOnce(undefined);
 
-    expect(await removerPessoa("u1")).toEqual({ ok: true, dados: null });
+    expect(await removerPessoa(PESSOA)).toEqual({ ok: true, dados: null });
   });
 });
 
@@ -106,16 +108,25 @@ describe("cancelarConvite e removerPessoa", () => {
   it("chamam DELETE com o id", async () => {
     chamarBackend.mockResolvedValue(undefined);
 
-    expect(await cancelarConvite("c1")).toEqual({ ok: true, dados: null });
-    expect(await removerPessoa("u2")).toEqual({ ok: true, dados: null });
-    expect(chamarBackend).toHaveBeenCalledWith("/empresa/convites/c1", { method: "DELETE" });
-    expect(chamarBackend).toHaveBeenCalledWith("/empresa/usuarios/u2", { method: "DELETE" });
+    expect(await cancelarConvite(CONVITE)).toEqual({ ok: true, dados: null });
+    expect(await removerPessoa(PESSOA)).toEqual({ ok: true, dados: null });
+    expect(chamarBackend).toHaveBeenCalledWith(`/empresa/convites/${CONVITE}`, { method: "DELETE" });
+    expect(chamarBackend).toHaveBeenCalledWith(`/empresa/usuarios/${PESSOA}`, { method: "DELETE" });
+  });
+
+  it.each([
+    ["cancelarConvite", () => cancelarConvite("..")],
+    ["removerPessoa", () => removerPessoa("../convites")],
+  ])("%s recusa id fora do formato sem chamar o backend", async (_, acao) => {
+    // Server Action é endpoint público: o id vai no caminho da chamada ao backend
+    expect(await acao()).toMatchObject({ ok: false, status: 404 });
+    expect(chamarBackend).not.toHaveBeenCalled();
   });
 
   it("o 409 do administrador volta com o texto do backend", async () => {
     chamarBackend.mockRejectedValueOnce(new ErroBackend(409, "O administrador da empresa não pode ser removido."));
 
-    expect(await removerPessoa("u1")).toEqual({
+    expect(await removerPessoa(PESSOA)).toEqual({
       ok: false,
       status: 409,
       erro: "O administrador da empresa não pode ser removido.",

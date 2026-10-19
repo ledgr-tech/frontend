@@ -102,10 +102,19 @@ const LINHA_MUDOU = "Esta linha mudou: a conciliação foi refeita depois que a 
 const PRAZO_DO_PROCESSAMENTO_MS = 120_000;
 
 export async function enviarExtrato(dados: FormData): Promise<Resultado<{ extratoId: string }>> {
+  // Server Action é endpoint público: ao backend vão só os dois campos que a tela manda
+  const arquivo = dados.get("arquivo");
+  const origem = dados.get("origem");
+  if (!(arquivo instanceof File) || (origem !== "banco" && origem !== "sistema")) {
+    return { ok: false, status: 422, erro: "Envie o arquivo do extrato do banco ou do sistema." };
+  }
+  const corpo = new FormData();
+  corpo.append("arquivo", arquivo);
+  corpo.append("origem", origem);
   try {
     const resposta = await chamarBackend<{ extrato_id: string; status: string }>(
       "/extratos/upload",
-      { method: "POST", corpo: dados, signal: AbortSignal.timeout(PRAZO_DO_PROCESSAMENTO_MS) },
+      { method: "POST", corpo, signal: AbortSignal.timeout(PRAZO_DO_PROCESSAMENTO_MS) },
     );
     return { ok: true, dados: { extratoId: resposta.extrato_id } };
   } catch (erro) {
@@ -130,6 +139,9 @@ export async function conciliar(
   extratoBancoId: string,
   extratoSistemaId: string,
 ): Promise<Resultado<ContagensConciliacao>> {
+  if (!pareceUuid(extratoBancoId) || !pareceUuid(extratoSistemaId)) {
+    return { ok: false, status: 404, erro: "Extrato não encontrado." };
+  }
   try {
     const dados = await chamarBackend<ContagensConciliacao>("/conciliacoes", {
       method: "POST",
@@ -313,9 +325,11 @@ export async function carregarConciliacaoEmRodadas(
  * backend ainda recusa a escrita com o 409, que ela mostra.
  */
 async function fechamentoAtivo(periodoInicio: string | null): Promise<Fechamento | null> {
-  if (!periodoInicio) return null;
+  // o período vem do backend, mas vira parte da URL: só segue com cara de AAAA-MM
+  const mes = periodoInicio?.slice(0, 7);
+  if (!mes || !COMPETENCIA.test(mes)) return null;
   try {
-    const lista = await chamarBackend<{ itens: FechamentoAPI[] }>(`/fechamentos?competencia=${periodoInicio.slice(0, 7)}`);
+    const lista = await chamarBackend<{ itens: FechamentoAPI[] }>(`/fechamentos?competencia=${mes}`);
     const [maisRecente] = lista.itens;
     return maisRecente?.estado === "fechado" ? adaptarFechamento(maisRecente) : null;
   } catch {
@@ -848,6 +862,8 @@ const PRAZO_DA_EXPLICACAO_MS = 30_000;
  * fixo do motor e o motivo em `indisponibilidade`.
  */
 export async function explicarDivergencia(conciliacaoId: string): Promise<Resultado<Explicacao>> {
+  // cada explicação custa: id que nem tem formato de linha não chega ao backend
+  if (!pareceUuid(conciliacaoId)) return { ok: false, status: 404, erro: "Linha não encontrada." };
   try {
     const resposta = await chamarBackend<ExplicacaoAPI>("/explicacoes", {
       method: "POST",
