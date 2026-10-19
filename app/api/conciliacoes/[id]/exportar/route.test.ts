@@ -49,7 +49,26 @@ describe("GET /api/conciliacoes/[id]/exportar", () => {
     expect(resposta.headers.get("Content-Disposition")).toBe(
       'attachment; filename="conciliacao-3f1c0d5e.csv"',
     );
-    expect(resposta.headers.get("Cache-Control")).toBe("no-store");
+    expect(resposta.headers.get("Cache-Control")).toBe("private, no-store");
+  });
+
+  it("os cabeçalhos da resposta são da rota, não do backend", async () => {
+    // um Cache-Control que liberasse cache compartilhado, ou um tipo que o navegador abrisse como página
+    baixarDoBackend.mockResolvedValue(
+      new Response(CSV, {
+        headers: {
+          "Content-Type": "text/html",
+          "Content-Disposition": 'inline; filename="relatorio.html"',
+          "Cache-Control": "public, s-maxage=600",
+        },
+      }),
+    );
+
+    const resposta = await pedir(BANCO, `?sistema=${SISTEMA}`);
+
+    expect(resposta.headers.get("Cache-Control")).toBe("private, no-store");
+    expect(resposta.headers.get("Content-Type")).toBe("text/csv; charset=utf-8");
+    expect(resposta.headers.get("Content-Disposition")).toBe('attachment; filename="conciliacao-3f1c0d5e.csv"');
   });
 
   it("sem o par, pede o extrato do banco inteiro", async () => {
@@ -59,7 +78,8 @@ describe("GET /api/conciliacoes/[id]/exportar", () => {
 
     expect(baixarDoBackend).toHaveBeenCalledWith(`/conciliacoes/${BANCO}/exportar`);
     // o arquivo é da empresa: nada de cache no caminho, mesmo se o backend esquecer
-    expect(resposta.headers.get("Cache-Control")).toBe("no-store");
+    expect(resposta.headers.get("Cache-Control")).toBe("private, no-store");
+    expect(resposta.headers.get("Content-Disposition")).toBe('attachment; filename="conciliacao-3f1c0d5e.csv"');
   });
 
   it.each([

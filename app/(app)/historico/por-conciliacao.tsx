@@ -404,10 +404,11 @@ export function BarraDoResultado({ execucao }: { execucao: Execucao }) {
   );
 }
 
-// Arquivo com nome que começa em = + - @ abriria no Excel como fórmula: o
-// apóstrofo na frente desliga isso, como o backend faz no CSV da conciliação.
+// Arquivo com nome que começa em = + - @ (ou tab, ou retorno de carro) abriria
+// no Excel como fórmula: o apóstrofo na frente desliga isso, como o backend faz
+// no CSV da conciliação.
 function celula(valor: string): string {
-  const seguro = /^[=+\-@\t]/.test(valor) ? `'${valor}` : valor;
+  const seguro = /^[=+\-@\t\r]/.test(valor) ? `'${valor}` : valor;
   return /[;"\r\n]/.test(seguro) ? `"${seguro.replaceAll('"', '""')}"` : seguro;
 }
 

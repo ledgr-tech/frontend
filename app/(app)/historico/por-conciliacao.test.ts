@@ -56,4 +56,9 @@ describe("csvDoHistorico", () => {
     const csv = csvDoHistorico([execucao({ arquivoBanco: "=HYPERLINK(1)", arquivoSistema: 'a;"b".csv' })]);
     expect(csv).toContain(`;'=HYPERLINK(1);1;"a;""b"".csv";`);
   });
+
+  it("o retorno de carro no começo também desliga a fórmula", () => {
+    const csv = csvDoHistorico([execucao({ arquivoBanco: "\r=HYPERLINK(1)" })]);
+    expect(csv).toContain(`;"'\r=HYPERLINK(1)";`);
+  });
 });
