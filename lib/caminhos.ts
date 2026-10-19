@@ -13,9 +13,9 @@ export function caminhoDaConciliacao(
   extratoSistemaId?: string,
   linhaId?: string,
 ): string {
-  const linha = linhaId ? `/${linhaId}` : "";
+  const linha = linhaId ? `/${encodeURIComponent(linhaId)}` : "";
   const par = extratoSistemaId ? `?sistema=${encodeURIComponent(extratoSistemaId)}` : "";
-  return `/conciliacoes/${extratoBancoId}${linha}${par}`;
+  return `/conciliacoes/${encodeURIComponent(extratoBancoId)}${linha}${par}`;
 }
 
 /** Fechamentos já aberto num mês (AAAA-MM), como a linha das rodadas leva até lá. */
@@ -35,7 +35,7 @@ export function caminhoDaCategoria(
   const busca = new URLSearchParams();
   if (extratoSistemaId) busca.set("sistema", extratoSistemaId);
   busca.set("status", status);
-  return `/conciliacoes/${extratoBancoId}?${busca}`;
+  return `/conciliacoes/${encodeURIComponent(extratoBancoId)}?${busca}`;
 }
 
 /**
@@ -48,5 +48,5 @@ export function caminhoDoCsv(extratoBancoId: string, extratoSistemaId?: string, 
   if (extratoSistemaId) busca.set("sistema", extratoSistemaId);
   if (status) busca.set("status", status);
   const query = busca.toString();
-  return `/api/conciliacoes/${extratoBancoId}/exportar${query ? `?${query}` : ""}`;
+  return `/api/conciliacoes/${encodeURIComponent(extratoBancoId)}/exportar${query ? `?${query}` : ""}`;
 }

@@ -15,6 +15,12 @@ describe("caminhoDaConciliacao", () => {
     );
   });
 
+  it("codifica os ids, que vêm do backend, para não mudarem o caminho", () => {
+    expect(caminhoDaConciliacao("a/b", undefined, "c#d")).toBe("/conciliacoes/a%2Fb/c%23d");
+    expect(caminhoDaCategoria("a/b", undefined, "duplicado")).toBe("/conciliacoes/a%2Fb?status=duplicado");
+    expect(caminhoDoCsv("a?b")).toBe("/api/conciliacoes/a%3Fb/exportar");
+  });
+
   it("sem o extrato do sistema (a conciliação do mock), fica só o id", () => {
     expect(caminhoDaConciliacao("conc-1")).toBe("/conciliacoes/conc-1");
     expect(caminhoDaConciliacao("conc-1", undefined, "lc-2")).toBe("/conciliacoes/conc-1/lc-2");

@@ -3,6 +3,7 @@
 import {
   adaptarConvite,
   adaptarPessoa,
+  pareceUuid,
   type Convite,
   type ConviteAPI,
   type Pessoa,
@@ -85,6 +86,8 @@ export async function convidar(email: string): Promise<Resultado<Convite>> {
 }
 
 export async function cancelarConvite(id: string): Promise<Resultado<null>> {
+  // Server Action é endpoint público: o id vai no caminho da chamada ao backend
+  if (!pareceUuid(id)) return { ok: false, status: 404, erro: "Convite não encontrado." };
   const recusa = await recusaNaDemonstracao();
   if (recusa) return recusa;
   try {
@@ -97,6 +100,7 @@ export async function cancelarConvite(id: string): Promise<Resultado<null>> {
 
 /** Corta o acesso na hora (o backend encerra as sessões); as decisões dela continuam no histórico. */
 export async function removerPessoa(id: string): Promise<Resultado<null>> {
+  if (!pareceUuid(id)) return { ok: false, status: 404, erro: "Pessoa não encontrada." };
   const recusa = await recusaNaDemonstracao();
   if (recusa) return recusa;
   try {

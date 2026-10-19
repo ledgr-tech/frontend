@@ -678,6 +678,11 @@ describe("explicarDivergencia", () => {
     chamarBackend.mockReset();
   });
 
+  it("recusa linha com id fora do formato sem chamar o backend (a explicação custa)", async () => {
+    expect(await explicarDivergencia("qualquer")).toMatchObject({ ok: false, status: 404 });
+    expect(chamarBackend).not.toHaveBeenCalled();
+  });
+
   function resposta(parcial: Record<string, unknown> = {}) {
     return {
       conciliacao_id: LINHA,
@@ -911,11 +916,39 @@ describe("prazo do upload e da conciliação", () => {
     chamarBackend.mockResolvedValue({ extrato_id: SISTEMA, status: "processando" });
   });
 
+  function formulario(campos: Record<string, string | File>): FormData {
+    const dados = new FormData();
+    for (const [nome, valor] of Object.entries(campos)) dados.append(nome, valor);
+    return dados;
+  }
+
   it("o upload vai com prazo próprio", async () => {
-    await enviarExtrato(new FormData());
+    await enviarExtrato(formulario({ arquivo: new File(["x"], "extrato.ofx"), origem: "banco" }));
 
     const [, opcoes] = chamarBackend.mock.calls[0] as [string, { signal?: AbortSignal }];
     expect(opcoes.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it("o upload leva ao backend só o arquivo e a origem", async () => {
+    await enviarExtrato(formulario({ arquivo: new File(["x"], "extrato.ofx"), origem: "sistema", extra: "1" }));
+
+    const [, opcoes] = chamarBackend.mock.calls[0] as [string, { corpo: FormData }];
+    expect([...opcoes.corpo.keys()]).toEqual(["arquivo", "origem"]);
+    expect(opcoes.corpo.get("origem")).toBe("sistema");
+  });
+
+  it.each([
+    ["sem arquivo", { origem: "banco" }],
+    ["com origem desconhecida", { arquivo: new File(["x"], "a.csv"), origem: "outro" }],
+  ])("recusa o upload %s sem chamar o backend", async (_, campos) => {
+    expect(await enviarExtrato(formulario(campos))).toMatchObject({ ok: false, status: 422 });
+    expect(chamarBackend).not.toHaveBeenCalled();
+  });
+
+  it("recusa conciliar ids fora do formato sem chamar o backend", async () => {
+    expect(await conciliar(BANCO_RECENTE, "../execucoes")).toMatchObject({ ok: false, status: 404 });
+    expect(await conciliar("nao-e-id", SISTEMA)).toMatchObject({ ok: false, status: 404 });
+    expect(chamarBackend).not.toHaveBeenCalled();
   });
 
   it("a conciliação vai com prazo próprio", async () => {
