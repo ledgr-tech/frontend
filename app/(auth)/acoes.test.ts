@@ -16,6 +16,7 @@ import {
   contaDaSessao,
   conviteDoCookie,
   redefinirSenha,
+  sair,
   sairParaAceitarConvite,
   salvarPreferencias,
   trocarEmail,
@@ -539,6 +540,16 @@ describe("a conta de quem está logado", () => {
     });
   });
 
+  it("se a sessão não volta depois da troca, sai e manda ao login", async () => {
+    // a senha já mudou no backend: deixar a sessão antiga aberta seria pior que pedir o login de novo
+    respostaDoBackend(204);
+    signIn.mockRejectedValue(new Error("NEXTAUTH_SECRET"));
+
+    await trocarSenha("s3nha-velha", "s3nha-nova");
+
+    expect(signOut).toHaveBeenCalledWith({ redirectTo: "/login" });
+  });
+
   it("mostra o texto do backend para senha atual errada e e-mail já usado, sem refazer a sessão", async () => {
     respostaDoBackend(400, { detail: "Senha atual incorreta." });
     expect(await trocarSenha("errada", "s3nha-nova")).toEqual({ ok: false, erro: "Senha atual incorreta." });
@@ -874,6 +885,14 @@ describe("aceitarConvite", () => {
     expect(await aceitarConvite("tok", "ana@x.com", "Ana", "senha-boa-1")).toEqual({ ok: true, entrou: false });
   });
 
+  it("entra com o e-mail que o backend devolveu, não com o que veio do navegador", async () => {
+    fetch.mockResolvedValue(Response.json({ id: "u", empresa_id: "e", nome: "Ana", email: "ana@convite.com" }, { status: 201 }));
+
+    await aceitarConvite("tok", "outra@x.com", "Ana", "senha-boa-1");
+
+    expect(signIn).toHaveBeenCalledWith("credentials", { email: "ana@convite.com", senha: "senha-boa-1", redirect: false });
+  });
+
   it.each([
     [400, { detail: "Convite inválido ou expirado. Peça um novo convite." }, "convite_invalido"],
     [409, { detail: "E-mail já cadastrado." }, "email_cadastrado"],
@@ -885,6 +904,16 @@ describe("aceitarConvite", () => {
 
     expect(await aceitarConvite("tok", "ana@x.com", "Ana", "senha-boa-1")).toEqual({ ok: false, erro });
     expect(signIn).not.toHaveBeenCalled();
+  });
+});
+
+describe("sair", () => {
+  it("apaga os cookies do Google junto com a sessão", async () => {
+    await sair();
+
+    expect(cookiesApagados).toHaveBeenCalledWith("ledgr-cadastro-google");
+    expect(cookiesApagados).toHaveBeenCalledWith("ledgr-convite-google");
+    expect(signOut).toHaveBeenCalledWith({ redirectTo: "/login" });
   });
 });
 

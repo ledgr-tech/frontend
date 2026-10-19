@@ -392,8 +392,9 @@ export async function aceitarConvite(token: string, email: string, nome: string,
   const doCookie = !token;
   const tokenDoConvite = token || pote.get(COOKIE_CONVITE_GOOGLE)?.value;
   if (!tokenDoConvite) return { ok: false, erro: "convite_invalido" };
+  let usuario: UsuarioAPI;
   try {
-    await chamarBackend("/convites/aceitar", {
+    usuario = await chamarBackend<UsuarioAPI>("/convites/aceitar", {
       method: "POST",
       corpo: { token: tokenDoConvite, nome, senha },
       publica: true,
@@ -408,7 +409,8 @@ export async function aceitarConvite(token: string, email: string, nome: string,
     return { ok: false, erro: "falha" };
   }
   if (doCookie) pote.delete(COOKIE_CONVITE_GOOGLE);
-  return { ok: true, entrou: (await entrar(email, senha, true)).ok };
+  // o e-mail da conta é o do convite, que o backend devolve; o do navegador só mostra na tela
+  return { ok: true, entrou: (await entrar(usuario.email || email, senha, true)).ok };
 }
 
 /**
@@ -454,6 +456,10 @@ export async function sairParaAceitarConvite(): Promise<void> {
 }
 
 export async function sair(): Promise<void> {
+  // o id_token do cadastro pelo Google e o convite pela metade não ficam para quem usar o navegador depois
+  const pote = await cookies();
+  pote.delete(COOKIE_CADASTRO_GOOGLE);
+  pote.delete(COOKIE_CONVITE_GOOGLE);
   await signOut({ redirectTo: "/login" });
 }
 
@@ -585,6 +591,11 @@ async function naConta(
 // servidor não sabe o que a pessoa escolheu no login; errar para o lado que
 // termina com o navegador é o que não deixa sessão aberta sem ela querer.
 
+/** Sem a sessão nova, sai: a troca já valeu no backend, e o login de novo é o caminho seguro. */
+async function refazerSessao(email: string, senha: string): Promise<void> {
+  if (!(await entrar(email, senha, false)).ok) await signOut({ redirectTo: "/login" });
+}
+
 export async function trocarSenha(senhaAtual: string, senhaNova: string): Promise<ResultadoConta> {
   const conta = await naConta(() =>
     chamarBackend("/me/senha", {
@@ -593,7 +604,7 @@ export async function trocarSenha(senhaAtual: string, senhaNova: string): Promis
     }),
   );
   if (!conta.ok) return conta;
-  await entrar(conta.email, senhaNova, false);
+  await refazerSessao(conta.email, senhaNova);
   return { ok: true };
 }
 
@@ -606,7 +617,7 @@ export async function trocarEmail(emailNovo: string, senhaAtual: string): Promis
     }),
   );
   if (!conta.ok) return conta;
-  await entrar(email, senhaAtual, false);
+  await refazerSessao(email, senhaAtual);
   return { ok: true };
 }
 

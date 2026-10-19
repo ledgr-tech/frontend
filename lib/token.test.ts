@@ -74,7 +74,8 @@ describe("token do backend", () => {
   });
 
   it("volta a ler o auth_time que assinou", async () => {
-    const comLogin = { ...CLAIMS, authTime: 1791374400 };
+    // um login recente: o de mais de 7 dias é recusado (teste abaixo)
+    const comLogin = { ...CLAIMS, authTime: Math.floor(Date.now() / 1000) - 3600 };
     expect(await lerToken(await assinarToken(comLogin))).toEqual(comLogin);
   });
 
@@ -107,6 +108,26 @@ describe("token do backend", () => {
       .setExpirationTime("-1s")
       .sign(new TextEncoder().encode(SEGREDO));
     expect(await lerToken(vencido)).toBeNull();
+  });
+
+  it.each([
+    ["sem sub", (jwt: SignJWT) => jwt.setExpirationTime("1h")],
+    ["sem exp", (jwt: SignJWT) => jwt.setSubject(CLAIMS.usuarioId)],
+  ])("recusa token %s, que o backend também recusaria", async (_, montar) => {
+    const token = await montar(new SignJWT({ empresa_id: CLAIMS.empresaId }).setProtectedHeader({ alg: "HS256" })).sign(
+      new TextEncoder().encode(SEGREDO),
+    );
+    expect(await lerToken(token)).toBeNull();
+  });
+
+  it("recusa a sessão com login de mais de 7 dias, mesmo renovada", async () => {
+    // o exp anda a cada renovação; o limite absoluto conta do auth_time (backend #75)
+    const agora = Math.floor(Date.now() / 1000);
+    const antigo = await assinarToken({ ...CLAIMS, authTime: agora - DURACAO_SESSAO_SEGUNDOS - 60 });
+    const recente = await assinarToken({ ...CLAIMS, authTime: agora - 60 });
+
+    expect(await lerToken(antigo)).toBeNull();
+    expect(await lerToken(recente)).toMatchObject({ email: CLAIMS.email, authTime: agora - 60 });
   });
 
   it("não assina com segredo ausente", async () => {
