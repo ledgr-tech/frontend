@@ -1,4 +1,5 @@
 import { cookies, headers } from "next/headers";
+import { lerToken } from "./token";
 
 /**
  * Único ponto de contato com o backend (FastAPI). Roda **só no servidor**:
@@ -53,6 +54,16 @@ async function tokenDaSessao(): Promise<string | null> {
     if (valor) return valor;
   }
   return null;
+}
+
+/**
+ * O e-mail do token que vai no Bearer, com a assinatura conferida; null sem sessão válida. A trava da
+ * conta de demonstração lê daqui, e não do `auth()`: ele lê os cookies de outro jeito, e com dois no
+ * navegador a trava via uma conta enquanto o backend recebia a outra.
+ */
+export async function emailDaSessao(): Promise<string | null> {
+  const token = await tokenDaSessao();
+  return (token && (await lerToken(token))?.email) || null;
 }
 
 /**

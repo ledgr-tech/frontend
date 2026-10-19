@@ -20,7 +20,8 @@ import {
   type ListaExecucoesAPI,
   type ListaExtratosAPI,
 } from "@/lib/adaptadores";
-import { chamarBackend, ErroBackend } from "@/lib/backend";
+import { chamarBackend, emailDaSessao, ErroBackend } from "@/lib/backend";
+import { RECUSA_DEMONSTRACAO, ehContaDeDemonstracao } from "@/lib/demo";
 import { caminhoDaConciliacao } from "@/lib/caminhos";
 import { compararRodadas, execucoesVigentes, rodadasDoBanco, type Mudancas } from "@/lib/rodadas";
 import type { Conciliacao, Decisao, TipoEvento } from "@/lib/mock-data";
@@ -501,6 +502,8 @@ export async function salvarToleranciaDias(dias: number): Promise<Resultado<Regr
   if (!Number.isSafeInteger(dias) || dias < 0) {
     return { ok: false, status: 422, erro: "A tolerância é um número inteiro de dias." };
   }
+  // a regra vale para todo visitante da demo, que divide a mesma empresa
+  if (ehContaDeDemonstracao(await emailDaSessao())) return { ok: false, status: 403, erro: RECUSA_DEMONSTRACAO };
   try {
     const configuracoes = await chamarBackend<ConfiguracoesAPI>("/empresa/configuracoes", {
       method: "PUT",
