@@ -596,7 +596,6 @@ describe("VisaoGeralPage", () => {
       await renderizar();
 
       expect(within(agora()).queryByText("Tudo em dia")).not.toBeInTheDocument();
-      expect(within(agora()).queryByText("Tudo em dia")).not.toBeInTheDocument();
       expect(within(agora()).queryByRole("link", { name: /pendências em/ })).not.toBeInTheDocument();
       expect(screen.getByTestId("pendente")).toHaveTextContent("false");
     });

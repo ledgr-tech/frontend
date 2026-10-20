@@ -63,6 +63,7 @@ function AgoraDaComparacao({
   pedemDecisao,
   conferidas,
   fechamentoHref,
+  fechamentoIncerto,
   onMostrarRevisao,
 }: {
   fechamento: string | null;
@@ -70,8 +71,12 @@ function AgoraDaComparacao({
   /** null quando não há onde gravar a conferência. */
   conferidas: number | null;
   fechamentoHref: string;
+  /** A consulta ao fechamento falhou: sem saber se o mês está aberto, não o chama de pronto. */
+  fechamentoIncerto: boolean;
   onMostrarRevisao: () => void;
 }) {
+  // sem pendência e sem saber do fechamento, a coluna fica em branco: "pronto para fechar" seria palpite
+  if (!fechamento && pedemDecisao === 0 && fechamentoIncerto) return <ColunaDaTela>{null}</ColunaDaTela>;
   return (
     <ColunaDaTela pendente={!fechamento && pedemDecisao > 0}>
       <div className="conc-continuar">
@@ -253,7 +258,7 @@ export default function ConciliacaoPage() {
     );
   }
 
-  const { conciliacao, real, truncada, rodada, rodadas, mudancas, fechamento } = estado;
+  const { conciliacao, real, truncada, rodada, rodadas, mudancas, fechamento, fechamentoIncerto } = estado;
 
   function fechar() {
     const atualizada = fecharConciliacao(conciliacao.id);
@@ -372,6 +377,7 @@ export default function ConciliacaoPage() {
         pedemDecisao={emRevisao.length}
         conferidas={ligadas ? conferidas : null}
         fechamentoHref={rodada ? caminhoDoFechamento(competencia(rodada.periodoInicio, rodada.executadaEm)) : "/fechamentos"}
+        fechamentoIncerto={fechamentoIncerto ?? false}
         onMostrarRevisao={() => escolherFiltro("revisao")}
       />
       <Cabecalho

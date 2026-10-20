@@ -27,7 +27,7 @@ export const TUTORIAIS: Record<TelaDoTutorial, TutorialDaTela> = {
     nome: "Conciliações",
     mascote: "/mascotes/mascote-caminhando.png",
     passos: [
-      { alvo: "continuar", titulo: "Continue de onde parou.", texto: "A conciliação que ainda pede decisão fica aqui em cima, com um botão que volta direto para ela." },
+      { alvo: "continuar", titulo: "Continue de onde parou.", texto: "A conciliação que ainda pede decisão fica na coluna ao lado, com um botão que volta direto para ela." },
       { alvo: "filtros", titulo: "Filtre a fila.", texto: "Veja só o que pede decisão, o que já está sem pendência ou os meses fechados." },
       { alvo: "lista", titulo: "Sua fila de conciliações.", texto: "Cada linha é um extrato do banco, com a rodada que vale. Clique na linha para abrir a comparação." },
     ],

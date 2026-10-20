@@ -218,6 +218,24 @@ describe("Galeria de extratos", () => {
     expect(screen.getByRole("button", { name: "Com problema (1)" })).toHaveAttribute("aria-pressed", "true");
   });
 
+  it("nas telas menores, escolher um arquivo abre o painel da coluna", async () => {
+    vi.stubGlobal("matchMedia", (q: string) => ({ matches: false, media: q, addEventListener() {}, removeEventListener() {} }));
+    try {
+      render(<Galeria arquivos={ARQUIVOS} />);
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      await userEvent.click(cartao("erp-setembro.csv"));
+      expect(screen.getByRole("dialog", { name: "O que fazer agora" })).toHaveTextContent("erp-setembro.csv");
+    } finally {
+      vi.stubGlobal("matchMedia", (q: string) => ({ matches: true, media: q, addEventListener() {}, removeEventListener() {} }));
+    }
+  });
+
+  it("com o filtro sem nenhum arquivo, a coluna diz Tudo em dia em vez de ficar em branco", async () => {
+    render(<Galeria arquivos={ARQUIVOS.filter((item) => item.naoLidas === 0)} />);
+    await userEvent.click(screen.getByRole("button", { name: "Com problema (0)" }));
+    expect(agora().getByText("Tudo em dia")).toBeInTheDocument();
+  });
+
   it("sem arquivo com problema, a coluna não acende nem oferece o atalho", () => {
     render(<Galeria arquivos={ARQUIVOS.filter((item) => item.naoLidas === 0)} />);
     expect(screen.getByTestId("pendente")).toHaveTextContent("false");

@@ -138,6 +138,26 @@ describe("FechamentosPage", () => {
     expect(screen.getByTestId("pendente")).toHaveTextContent("true");
   });
 
+  it("nas telas menores, escolher um mês abre o painel da coluna", async () => {
+    vi.stubGlobal("matchMedia", (q: string) => ({ matches: false, media: q, addEventListener() {}, removeEventListener() {} }));
+    try {
+      await renderizar();
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      await userEvent.click(screen.getByRole("button", { name: /Agosto de 2026/ }));
+      expect(screen.getByRole("dialog", { name: "O que fazer agora" })).toHaveTextContent("Agosto de 2026");
+    } finally {
+      vi.stubGlobal("matchMedia", (q: string) => ({ matches: true, media: q, addEventListener() {}, removeEventListener() {} }));
+    }
+  });
+
+  it("com o filtro sem nenhum mês, a coluna diz Tudo em dia em vez de ficar em branco", async () => {
+    await renderizar();
+    await userEvent.click(screen.getByRole("button", { name: /^Fechados/ }));
+    const coluna = within(document.querySelector<HTMLElement>(".coluna-agora-corpo")!);
+    expect(coluna.getByText("Tudo em dia")).toBeInTheDocument();
+    expect(screen.getByTestId("pendente")).toHaveTextContent("false");
+  });
+
   it("a coluna não acende quando o mês escolhido está pronto", async () => {
     await renderizar(undefined, { mes: "2026-08" });
     expect(screen.getByTestId("pendente")).toHaveTextContent("false");

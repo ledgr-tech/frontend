@@ -19,7 +19,8 @@ export function FioDoTutorial({
   const [fio, setFio] = useState<{ d: string; ponta: string } | null>(null);
 
   useEffect(() => {
-    if (!cartao || !alvo) return;
+    // o alvo na própria coluna fica ao lado do cartão: um fio de volta atravessaria o cartão
+    if (!cartao || !alvo || alvo.closest(".coluna-agora")) return;
     // nas telas menores o fio sai do painel que carrega o cartão, não do cartão
     const origem = largas ? cartao : (cartao.closest<HTMLElement>(".coluna-agora") ?? cartao);
     let quadro = 0;

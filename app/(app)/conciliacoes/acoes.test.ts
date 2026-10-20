@@ -1299,6 +1299,7 @@ describe("carregarConciliacaoEmRodadas", () => {
     if (!resultado.ok) throw new Error(resultado.erro);
     expect(chamarBackend).toHaveBeenCalledWith("/fechamentos?competencia=2026-09");
     expect(resultado.dados.fechamento).toMatchObject({ competencia: "2026-09", estado: "fechado" });
+    expect(resultado.dados.fechamentoIncerto).toBe(false);
   });
 
   it("não trava o mês que foi reaberto depois de fechado", async () => {
@@ -1325,6 +1326,7 @@ describe("carregarConciliacaoEmRodadas", () => {
 
     if (!resultado.ok) throw new Error(resultado.erro);
     expect(resultado.dados.fechamento).toBeNull();
+    expect(resultado.dados.fechamentoIncerto).toBe(true);
   });
 
   it("recusa um id que não é de extrato sem chamar o backend", async () => {

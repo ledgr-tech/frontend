@@ -15,6 +15,8 @@ type Valor = {
   encaixeAgora: HTMLElement | null;
   encaixeTutorial: HTMLElement | null;
   largas: boolean;
+  /** Falso no servidor e na primeira renderização: só depois de medir a janela se sabe se a coluna cabe. */
+  medido: boolean;
   painelAberto: boolean;
   abrirPainel(): void;
   fecharPainel(): void;
@@ -46,6 +48,7 @@ export function ProvedorDaColuna({ children }: { children: ReactNode }) {
   const [encaixeAgora, setAgora] = useState<HTMLElement | null>(null);
   const [encaixeTutorial, setTutorial] = useState<HTMLElement | null>(null);
   const [largas, setLargas] = useState(false);
+  const [medido, setMedido] = useState(false);
   // o painel guarda em que caminho foi aberto: trocar de tela o fecha sem efeito
   const caminho = usePathname();
   const [painelEm, setPainel] = useState<string | null>(null);
@@ -59,10 +62,18 @@ export function ProvedorDaColuna({ children }: { children: ReactNode }) {
     // o atributo só existe no navegador: lido depois da hidratação para não divergir do HTML do servidor
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setRecolhida(colunaRecolhida());
-    if (typeof window.matchMedia !== "function") return;
+    if (typeof window.matchMedia !== "function") {
+      setMedido(true);
+      return;
+    }
     const mq = window.matchMedia(LARGAS);
-    const ler = () => setLargas(mq.matches);
+    const ler = () => {
+      setLargas(mq.matches);
+      // largo outra vez: o painel das telas menores fica para trás, não reabre ao estreitar
+      if (mq.matches) setPainel(null);
+    };
     ler();
+    setMedido(true);
     mq.addEventListener("change", ler);
     return () => mq.removeEventListener("change", ler);
   }, []);
@@ -118,10 +129,10 @@ export function ProvedorDaColuna({ children }: { children: ReactNode }) {
 
   const valor = useMemo<Valor>(
     () => ({
-      encaixeAgora, encaixeTutorial, largas, painelAberto, abrirPainel, fecharPainel, mostrarParaTutorial,
+      encaixeAgora, encaixeTutorial, largas, medido, painelAberto, abrirPainel, fecharPainel, mostrarParaTutorial,
       pendente: pendentes > 0, pedidosDeAjuda, montadas, recolhida, alternar, refAgora: setAgora, refTutorial: setTutorial, registrar,
     }),
-    [encaixeAgora, encaixeTutorial, largas, painelAberto, abrirPainel, fecharPainel, mostrarParaTutorial, pendentes, pedidosDeAjuda, montadas, recolhida, alternar, registrar],
+    [encaixeAgora, encaixeTutorial, largas, medido, painelAberto, abrirPainel, fecharPainel, mostrarParaTutorial, pendentes, pedidosDeAjuda, montadas, recolhida, alternar, registrar],
   );
 
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;
@@ -143,17 +154,23 @@ export function BotaoAgora() {
       type="button"
       className="btn btn-ghost coluna-botao-agora"
       aria-expanded={painelAberto}
+      aria-controls={painelAberto ? "coluna-agora" : undefined}
       onClick={painelAberto ? fecharPainel : abrirPainel}
     >
       Agora
-      {pendente && <span className="coluna-ponto" aria-hidden="true" />}
+      {pendente && (
+        <>
+          <span className="coluna-ponto" aria-hidden="true" />
+          <span className="sr-only">, há pendências</span>
+        </>
+      )}
     </button>
   );
 }
 
 /** A coluna da direita. Na divergência só existe com a Comparação montada embaixo (uma ColunaDaTela). */
 export function ColunaAgora() {
-  const { recolhida, alternar, refAgora, refTutorial, largas, painelAberto, fecharPainel } = useColuna();
+  const { recolhida, alternar, refAgora, refTutorial, largas, medido, painelAberto, fecharPainel } = useColuna();
   const existe = useTemColuna();
   const painel = !largas && painelAberto;
   const aside = useRef<HTMLElement>(null);
@@ -162,9 +179,9 @@ export function ColunaAgora() {
     if (!painel) return;
     // o pedido de ajuda já pode ter focado o título (o efeito do filho roda antes)
     if (!aside.current?.contains(document.activeElement)) aside.current?.focus();
-    // dentro de uma janela <dialog>, o Esc é dela
+    // dentro de uma janela <dialog>, do tutorial ou do menu Ajuda, o Esc é deles
     const tecla = (evento: KeyboardEvent) => {
-      if (evento.key !== "Escape" || document.querySelector("dialog[open]")) return;
+      if (evento.key !== "Escape" || document.querySelector("dialog[open], .tutorial, #menu-de-ajuda")) return;
       fecharPainel();
       document.querySelector<HTMLButtonElement>(".coluna-botao-agora")?.focus();
     };
@@ -176,9 +193,12 @@ export function ColunaAgora() {
   return (
     <aside
       ref={aside}
+      id="coluna-agora"
       className="coluna-agora"
       aria-label="O que fazer agora"
-      hidden={!largas && !painelAberto}
+      // antes de medir a janela não se esconde: nas telas largas a coluna já vem no HTML do servidor
+      // (nas menores o CSS a esconde até lá)
+      hidden={medido && !largas && !painelAberto}
       tabIndex={painel ? -1 : undefined}
       role={painel ? "dialog" : undefined}
       data-painel={painel ? "aberto" : undefined}
@@ -196,7 +216,7 @@ export function ColunaAgora() {
           <X size={18} aria-hidden />
         </button>
       ) : (
-        <button type="button" className="coluna-agora-alternar btn btn-ghost" onClick={alternar}>
+        <button type="button" className="coluna-agora-alternar btn btn-ghost" aria-expanded={!recolhida} onClick={alternar}>
           {recolhida ? "Abrir a coluna" : "Recolher a coluna"}
         </button>
       )}

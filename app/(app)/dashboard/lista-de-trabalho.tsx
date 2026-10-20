@@ -106,7 +106,9 @@ export function ListaDeTrabalho({
               <th scope="col">Conciliação</th>
               <th scope="col">Progresso</th>
               <th scope="col">Situação</th>
-              <th scope="col">Última atividade</th>
+              <th scope="col" className="conc-c-atividade">
+                Última atividade
+              </th>
               <th scope="col">
                 <span className="sr-only">Abrir</span>
               </th>

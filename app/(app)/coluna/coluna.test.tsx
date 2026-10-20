@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { renderToString } from "react-dom/server";
 import { render, screen, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { mostrarAjudaNaColuna } from "@/lib/eventos";
@@ -48,6 +49,25 @@ describe("coluna Agora", () => {
     await user.click(screen.getByRole("button", { name: "Recolher a coluna" }));
     expect(document.documentElement.dataset.coluna).toBe("recolhida");
     expect(screen.getByRole("button", { name: "Abrir a coluna" })).toBeInTheDocument();
+  });
+
+  it("o botão de recolher diz se a coluna está aberta", async () => {
+    const user = userEvent.setup();
+    montar(<ColunaDaTela>x</ColunaDaTela>);
+    expect(screen.getByRole("button", { name: "Recolher a coluna" })).toHaveAttribute("aria-expanded", "true");
+    await user.click(screen.getByRole("button", { name: "Recolher a coluna" }));
+    expect(screen.getByRole("button", { name: "Abrir a coluna" })).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("no servidor e na primeira renderização a coluna não vem escondida", () => {
+    telas(false);
+    const html = renderToString(
+      <ProvedorDaColuna>
+        <ColunaAgora />
+      </ProvedorDaColuna>,
+    );
+    expect(html).toContain("coluna-agora");
+    expect(html).not.toMatch(/<aside[^>]* hidden/);
   });
 
   it("pendente fica true enquanto a tela pendente está montada", () => {
@@ -225,6 +245,60 @@ describe("coluna Agora", () => {
       await user.keyboard("{Escape}");
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Agora" })).toHaveFocus();
+    });
+
+    it("o Esc do tutorial ou do menu Ajuda não fecha o painel junto", async () => {
+      const user = userEvent.setup();
+      montarMenor();
+      await user.click(screen.getByRole("button", { name: "Agora" }));
+      for (const aberto of ['<div class="tutorial"></div>', '<div id="menu-de-ajuda"></div>']) {
+        document.body.insertAdjacentHTML("beforeend", aberto);
+        await user.keyboard("{Escape}");
+        expect(screen.getByRole("dialog")).toBeInTheDocument();
+        document.querySelector(".tutorial, #menu-de-ajuda")!.remove();
+      }
+      await user.keyboard("{Escape}");
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+
+    it("o botão aponta para o painel aberto, e o ponto também fala para o leitor de tela", async () => {
+      const user = userEvent.setup();
+      montarMenor(true);
+      const botao = screen.getByRole("button", { name: /^Agora/ });
+      expect(botao).not.toHaveAttribute("aria-controls");
+      expect(botao).toHaveTextContent("há pendências");
+      await user.click(botao);
+      const painel = screen.getByRole("dialog");
+      expect(botao).toHaveAttribute("aria-controls", painel.id);
+      expect(painel.id).not.toBe("");
+    });
+
+    it("alargar a janela para 1280px ou mais esquece o painel aberto", () => {
+      let ouvinte: (() => void) | undefined;
+      let largas = false;
+      window.matchMedia = ((q: string) => ({
+        get matches() {
+          return largas;
+        },
+        media: q,
+        addEventListener: (_: string, fn: () => void) => (ouvinte = fn),
+        removeEventListener() {},
+      })) as never;
+      render(
+        <ProvedorDaColuna>
+          <BotaoAgora />
+          <ColunaAgora />
+          <ColunaDaTela>x</ColunaDaTela>
+        </ProvedorDaColuna>,
+      );
+      act(() => screen.getByRole("button", { name: "Agora" }).click());
+      expect(screen.getByRole("dialog")).toBeInTheDocument();
+      largas = true;
+      act(() => ouvinte!());
+      largas = false;
+      act(() => ouvinte!());
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Agora" })).toHaveAttribute("aria-expanded", "false");
     });
 
     it("Fechar fecha e devolve o foco ao botão", async () => {

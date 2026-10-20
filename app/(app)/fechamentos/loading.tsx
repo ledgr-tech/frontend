@@ -6,13 +6,11 @@ export default function CarregandoFechamentos() {
   return (
     <EsqueletoTela>
       <Barra largura={340} altura={36} style={{ borderRadius: 999 }} />
-      <>
-        <div className="extratos-grade">
-          {[0, 1, 2].map((i) => (
-            <Barra key={i} largura="100%" altura={200} style={{ borderRadius: "var(--radius-sm)" }} />
-          ))}
-        </div>
-      </>
+      <div className="extratos-grade">
+        {[0, 1, 2].map((i) => (
+          <Barra key={i} largura="100%" altura={200} style={{ borderRadius: "var(--radius-sm)" }} />
+        ))}
+      </div>
     </EsqueletoTela>
   );
 }

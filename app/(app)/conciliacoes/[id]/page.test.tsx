@@ -219,6 +219,23 @@ describe("ConciliacaoPage", () => {
       expect(agora().getByRole("link", { name: /fechamento/i })).toHaveAttribute("href", "/fechamentos");
     });
 
+    it("does not call the month ready to close when the fechamento lookup failed", async () => {
+      rota.id = BANCO;
+      carregarConciliacao.mockResolvedValue({
+        ok: true,
+        dados: {
+          conciliacao: { ...conciliacaoFechada, status: "em_andamento", id: BANCO, extratoSistemaId: SISTEMA },
+          truncada: false,
+          fechamento: null,
+          fechamentoIncerto: true,
+        },
+      });
+      render(<ConciliacaoPage />);
+      await screen.findByText("Comparação direta");
+      expect(agora().queryByText("Mês pronto para fechar")).not.toBeInTheDocument();
+      expect(agora().queryByRole("link", { name: "Ir para Fechamentos" })).not.toBeInTheDocument();
+    });
+
     it("repeats the closed-month notice and the link to reopen it", async () => {
       rota.id = BANCO;
       carregarConciliacao.mockResolvedValue({

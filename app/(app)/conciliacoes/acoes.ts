@@ -229,6 +229,8 @@ export type ConciliacaoEmRodadas = {
    * conciliar e decidir (409) até reabrir. Null com o mês aberto, sem período ou sem resposta.
    */
   fechamento: Fechamento | null;
+  /** Verdadeiro quando a consulta ao fechamento falhou: "sem fechamento" aí é palpite, não resposta. */
+  fechamentoIncerto?: boolean;
 };
 
 // O teto do backend por página de /execucoes. Um extrato do banco com mais de 100 rodadas
@@ -281,7 +283,7 @@ export async function carregarConciliacaoEmRodadas(
       : simples;
   }
 
-  const [atual, fechamento] = await Promise.all([
+  const [atual, { fechamento, incerto }] = await Promise.all([
     carregarConciliacao(extratoBancoId, alvo.extratoSistemaId),
     fechamentoAtivo(alvo.execucao.periodoInicio),
   ]);
@@ -315,6 +317,7 @@ export async function carregarConciliacaoEmRodadas(
       rodadas: vistas,
       mudancas,
       fechamento,
+      fechamentoIncerto: incerto,
     },
   };
 }
@@ -324,16 +327,18 @@ export async function carregarConciliacaoEmRodadas(
  * ainda está fechado. Sem período não há competência; sem resposta, a tela abre como aberta e o
  * backend ainda recusa a escrita com o 409, que ela mostra.
  */
-async function fechamentoAtivo(periodoInicio: string | null): Promise<Fechamento | null> {
+async function fechamentoAtivo(
+  periodoInicio: string | null,
+): Promise<{ fechamento: Fechamento | null; incerto: boolean }> {
   // o período vem do backend, mas vira parte da URL: só segue com cara de AAAA-MM
   const mes = periodoInicio?.slice(0, 7);
-  if (!mes || !COMPETENCIA.test(mes)) return null;
+  if (!mes || !COMPETENCIA.test(mes)) return { fechamento: null, incerto: false };
   try {
     const lista = await chamarBackend<{ itens: FechamentoAPI[] }>(`/fechamentos?competencia=${mes}`);
     const [maisRecente] = lista.itens;
-    return maisRecente?.estado === "fechado" ? adaptarFechamento(maisRecente) : null;
+    return { fechamento: maisRecente?.estado === "fechado" ? adaptarFechamento(maisRecente) : null, incerto: false };
   } catch {
-    return null;
+    return { fechamento: null, incerto: true };
   }
 }
 

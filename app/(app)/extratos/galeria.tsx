@@ -9,7 +9,8 @@ import { ArrowRight } from "lucide-react";
 import { conciliar, type ArquivoExtrato, type ResumoDaRodada } from "../conciliacoes/acoes";
 import { formatarDataHora, formatarInteiro, formatarPercentual } from "../dashboard/resumo";
 import { tituloDaCompetencia } from "../fechamentos/fechamento";
-import { ColunaDaTela } from "../coluna/coluna";
+import { ColunaDaTela, useColuna } from "../coluna/coluna";
+import { TudoEmDia } from "../coluna/tudo-em-dia";
 import { FaixaFiltros } from "../faixa-filtros";
 import { Grupo, alternarNoConjunto } from "../grupo";
 import { IconeOrigem } from "../icone-origem";
@@ -158,6 +159,7 @@ function Folha({ arquivo }: { arquivo: ArquivoExtrato }) {
 
 export function Galeria({ arquivos }: { arquivos: ArquivoExtrato[] }) {
   const router = useRouter();
+  const { largas, abrirPainel } = useColuna();
   const [filtro, setFiltro] = useState<Filtro>("todos");
   const [selecionado, setSelecionado] = useState<string | null>(arquivos[0]?.id ?? null);
   // por mês de saída (com dezenas de arquivos, a grade solta virava uma parede de folhas), até ler a
@@ -193,7 +195,11 @@ export function Galeria({ arquivos }: { arquivos: ArquivoExtrato[] }) {
             // hover e seleção na cor da situação do arquivo, como o selo
             data-tom={selo.tom}
             aria-pressed={arquivo.id === selecionadoId}
-            onClick={() => setSelecionado(arquivo.id)}
+            onClick={() => {
+              setSelecionado(arquivo.id);
+              // nas telas menores o painel mora atrás do botão "Agora": escolher abre-o
+              if (!largas) abrirPainel();
+            }}
             // atalho de quem já conhece a tela; o botão do painel faz o mesmo para teclado e toque
             onDoubleClick={() => arquivo.resultado && router.push(arquivo.resultado)}
           >
@@ -279,7 +285,7 @@ export function Galeria({ arquivos }: { arquivos: ArquivoExtrato[] }) {
               : `Ver os ${formatarInteiro(comProblema)} arquivos com problema de leitura`}
           </button>
         )}
-        {aberto && <Painel key={aberto.id} arquivo={aberto} arquivos={arquivos} />}
+        {aberto ? <Painel key={aberto.id} arquivo={aberto} arquivos={arquivos} /> : !(comProblema > 0 && filtro !== "problema") && <TudoEmDia />}
       </ColunaDaTela>
     </div>
   );

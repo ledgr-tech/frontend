@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { TudoEmDia } from "../coluna/tudo-em-dia";
+import { formatarInteiro } from "../dashboard/resumo";
 
 /** O "Agora" do Histórico: a primeira conciliação com linhas para revisar, ou "Tudo em dia". */
 export function AgoraDoHistorico({
@@ -12,7 +13,7 @@ export function AgoraDoHistorico({
   return (
     <div className="conc-continuar">
       <Link href={href} className="btn btn-primary">
-        {`${quantidade} ${quantidade === 1 ? "pendência" : "pendências"} em ${titulo}`}
+        {`${formatarInteiro(quantidade)} ${quantidade === 1 ? "pendência" : "pendências"} em ${titulo}`}
       </Link>
     </div>
   );

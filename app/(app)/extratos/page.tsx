@@ -39,30 +39,30 @@ export default async function ExtratosPage() {
         </p>
       ) : resposta.dados.arquivos.length === 0 ? (
         <>
-        <ColunaDaTela>
-          <Link href="/conciliacoes/nova" className="btn btn-primary">
-            Envie o primeiro extrato
-          </Link>
-        </ColunaDaTela>
-        <div
-          style={{
-            padding: "76px 0",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            textAlign: "center",
-            gap: 18,
-          }}
-        >
-          <h2 style={{ margin: 0, fontSize: 32, fontWeight: 400 }}>Nenhum extrato carregado ainda.</h2>
-          <p style={{ margin: 0, fontSize: 15, lineHeight: 1.75, maxWidth: "48ch", color: cinza(78) }}>
-            Suba o extrato do banco e o extrato do sistema de gestão. A primeira conciliação fica
-            pronta em poucos minutos.
-          </p>
-          <Link href="/conciliacoes/nova" className="btn btn-primary">
-            Fazer o primeiro upload
-          </Link>
-        </div>
+          <ColunaDaTela>
+            <Link href="/conciliacoes/nova" className="btn btn-primary">
+              Envie o primeiro extrato
+            </Link>
+          </ColunaDaTela>
+          <div
+            style={{
+              padding: "76px 0",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              textAlign: "center",
+              gap: 18,
+            }}
+          >
+            <h2 style={{ margin: 0, fontSize: 32, fontWeight: 400 }}>Nenhum extrato carregado ainda.</h2>
+            <p style={{ margin: 0, fontSize: 15, lineHeight: 1.75, maxWidth: "48ch", color: cinza(78) }}>
+              Suba o extrato do banco e o extrato do sistema de gestão. A primeira conciliação fica
+              pronta em poucos minutos.
+            </p>
+            <Link href="/conciliacoes/nova" className="btn btn-primary">
+              Fazer o primeiro upload
+            </Link>
+          </div>
         </>
       ) : (
         <div style={{ padding: "28px 0 56px", display: "flex", flexDirection: "column", gap: 20 }}>

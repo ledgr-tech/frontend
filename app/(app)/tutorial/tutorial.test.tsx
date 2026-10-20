@@ -269,6 +269,22 @@ describe("Tutorial", () => {
       tela.remove();
     });
 
+    it("com o alvo dentro da coluna, ao lado do cartão, não desenha o fio", async () => {
+      const coluna = document.createElement("div");
+      coluna.className = "coluna-agora";
+      const filtros = document.createElement("div");
+      filtros.setAttribute("data-tutorial", "filtros");
+      filtros.getBoundingClientRect = () => caixa(40, 100, 300, 50);
+      coluna.append(filtros);
+      document.body.append(coluna);
+      montar(<span />);
+      const cartao = await screen.findByRole("dialog");
+      cartao.getBoundingClientRect = () => caixa(900, 100, 340, 400);
+      await esperar();
+      expect(document.querySelector(".tutorial-fio path")).toBeNull();
+      coluna.remove();
+    });
+
     it("se o alvo some no meio do passo, o fio some sem erro", async () => {
       const { tela, filtros } = alvos();
       montar(<span />);

@@ -36,6 +36,8 @@ export type EstadoConciliacao =
       mudancas: Mudancas | null;
       /** O mês da conciliação fechado: conferir, justificar e conciliar de novo esperam reabrir. */
       fechamento: Fechamento | null;
+      /** A consulta ao fechamento falhou: a tela fica só de leitura sobre ele em vez de adivinhar. */
+      fechamentoIncerto?: boolean;
     };
 
 /**
@@ -110,6 +112,7 @@ export function useConciliacao(
           rodadas: resposta.dados.rodadas,
           mudancas: resposta.dados.mudancas,
           fechamento: resposta.dados.fechamento,
+          fechamentoIncerto: resposta.dados.fechamentoIncerto,
         });
       },
       () => {

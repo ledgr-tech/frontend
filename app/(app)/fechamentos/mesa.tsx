@@ -10,7 +10,8 @@ import type { Tom } from "@/lib/mock-data";
 import { fecharMes, reabrirMes, type Resultado } from "../conciliacoes/acoes";
 import { ExportarCsv } from "../conciliacoes/[id]/exportar-csv";
 import { formatarDataHora, formatarInteiro, formatarPercentual } from "../dashboard/resumo";
-import { ColunaDaTela } from "../coluna/coluna";
+import { ColunaDaTela, useColuna } from "../coluna/coluna";
+import { TudoEmDia } from "../coluna/tudo-em-dia";
 import { FaixaFiltros } from "../faixa-filtros";
 import { Grupo, alternarNoConjunto } from "../grupo";
 import { fraseDoSaldoFinal } from "../saldo";
@@ -106,6 +107,7 @@ export function MesaDeFechamento({
   /** Falso quando os fechamentos não carregaram: sem saber o que está fechado, a mesa só mostra. */
   podeFechar: boolean;
 }) {
+  const { largas, abrirPainel } = useColuna();
   const [filtro, setFiltro] = useState<Filtro>("todos");
   const [selecionado, setSelecionado] = useState<string | null>(
     () => meses.find((mes) => mes.chave === inicial)?.chave ?? meses[0]?.chave ?? null,
@@ -149,83 +151,85 @@ export function MesaDeFechamento({
       {aberto === null ? (
         <p className="extratos-vazio">{FILTROS.find((item) => item.id === filtro)?.vazio}</p>
       ) : (
-        <>
-          <div className="grupos" data-tutorial="meses">
-            {anos.map(({ ano, meses: doAno }) => {
-              const recolhivel = comTitulo && filtro === "todos" && ano !== anoCorrente;
-              const expandido = !recolhivel || prontosAbertos.has(ano);
-              // o mês aberto no painel fica à vista mesmo resolvido, para a folha não sumir debaixo dele
-              const mostrados = expandido ? doAno : doAno.filter((mes) => !resolvido(mes) || mes.chave === aberto.chave);
-              const ocultos = doAno.length - mostrados.length;
-              const temProntos = doAno.some(resolvido);
-              const id = `fech-ano-${ano}`;
-              const conteudo = (
-                <>
-                  <div id={`${id}-meses`} className="extratos-grade" hidden={mostrados.length === 0}>
-                    {mostrados.map((mes) => {
-                      const selo = seloDoMes(mes);
-                      return (
-                        <button
-                          key={mes.chave}
-                          type="button"
-                          className="extrato-cartao"
-                          // hover e seleção na cor do selo, como na galeria de extratos
-                          data-tom={selo.tom}
-                          aria-pressed={mes.chave === aberto.chave}
-                          onClick={() => setSelecionado(mes.chave)}
-                        >
-                          <FolhaDoMes mes={mes} />
-                          <span className="extrato-nome">{mes.titulo}</span>
-                          <span className="extrato-meta">
-                            {`${formatarInteiro(mes.conciliados)} de ${plural(mes.lancamentos, "lançamento", "lançamentos")}`}
-                          </span>
-                          <span className={`selo selo-${selo.tom}`}>{selo.rotulo}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                  {recolhivel && (expandido ? temProntos : ocultos > 0) && (
-                    <button
-                      type="button"
-                      className="btn btn-ghost grupo-alternar"
-                      aria-expanded={expandido}
-                      aria-controls={`${id}-meses`}
-                      onClick={() => setProntosAbertos(alternarNoConjunto(ano))}
-                    >
-                      {expandido
-                        ? doAno.filter(resolvido).length === 1
-                          ? "Esconder o mês pronto"
-                          : "Esconder os meses prontos"
-                        : ocultos === 1
-                          ? "Mostrar o mês pronto"
-                          : `Mostrar os ${formatarInteiro(ocultos)} meses prontos`}
-                    </button>
-                  )}
-                </>
-              );
-              return comTitulo ? (
-                <Grupo
-                  key={ano}
-                  id={id}
-                  titulo={ano}
-                  resumo={resumoDoAno(doAno)}
-                  fechado={anosFechados.has(ano)}
-                  onAlternar={() => setAnosFechados(alternarNoConjunto(ano))}
-                >
-                  {conteudo}
-                </Grupo>
-              ) : (
-                <div key={ano} className="grupo-corpo">
-                  {conteudo}
+        <div className="grupos" data-tutorial="meses">
+          {anos.map(({ ano, meses: doAno }) => {
+            const recolhivel = comTitulo && filtro === "todos" && ano !== anoCorrente;
+            const expandido = !recolhivel || prontosAbertos.has(ano);
+            // o mês aberto no painel fica à vista mesmo resolvido, para a folha não sumir debaixo dele
+            const mostrados = expandido ? doAno : doAno.filter((mes) => !resolvido(mes) || mes.chave === aberto.chave);
+            const ocultos = doAno.length - mostrados.length;
+            const temProntos = doAno.some(resolvido);
+            const id = `fech-ano-${ano}`;
+            const conteudo = (
+              <>
+                <div id={`${id}-meses`} className="extratos-grade" hidden={mostrados.length === 0}>
+                  {mostrados.map((mes) => {
+                    const selo = seloDoMes(mes);
+                    return (
+                      <button
+                        key={mes.chave}
+                        type="button"
+                        className="extrato-cartao"
+                        // hover e seleção na cor do selo, como na galeria de extratos
+                        data-tom={selo.tom}
+                        aria-pressed={mes.chave === aberto.chave}
+                        onClick={() => {
+                          setSelecionado(mes.chave);
+                          // nas telas menores o painel mora atrás do botão "Agora": escolher abre-o
+                          if (!largas) abrirPainel();
+                        }}
+                      >
+                        <FolhaDoMes mes={mes} />
+                        <span className="extrato-nome">{mes.titulo}</span>
+                        <span className="extrato-meta">
+                          {`${formatarInteiro(mes.conciliados)} de ${plural(mes.lancamentos, "lançamento", "lançamentos")}`}
+                        </span>
+                        <span className={`selo selo-${selo.tom}`}>{selo.rotulo}</span>
+                      </button>
+                    );
+                  })}
                 </div>
-              );
-            })}
-          </div>
-          <ColunaDaTela pendente={!estaFechado(aberto) && aberto.pendencias.length > 0}>
-            <Painel mes={aberto} podeFechar={podeFechar} />
-          </ColunaDaTela>
-        </>
+                {recolhivel && (expandido ? temProntos : ocultos > 0) && (
+                  <button
+                    type="button"
+                    className="btn btn-ghost grupo-alternar"
+                    aria-expanded={expandido}
+                    aria-controls={`${id}-meses`}
+                    onClick={() => setProntosAbertos(alternarNoConjunto(ano))}
+                  >
+                    {expandido
+                      ? doAno.filter(resolvido).length === 1
+                        ? "Esconder o mês pronto"
+                        : "Esconder os meses prontos"
+                      : ocultos === 1
+                        ? "Mostrar o mês pronto"
+                        : `Mostrar os ${formatarInteiro(ocultos)} meses prontos`}
+                  </button>
+                )}
+              </>
+            );
+            return comTitulo ? (
+              <Grupo
+                key={ano}
+                id={id}
+                titulo={ano}
+                resumo={resumoDoAno(doAno)}
+                fechado={anosFechados.has(ano)}
+                onAlternar={() => setAnosFechados(alternarNoConjunto(ano))}
+              >
+                {conteudo}
+              </Grupo>
+            ) : (
+              <div key={ano} className="grupo-corpo">
+                {conteudo}
+              </div>
+            );
+          })}
+        </div>
       )}
+      <ColunaDaTela pendente={aberto !== null && !estaFechado(aberto) && aberto.pendencias.length > 0}>
+        {aberto ? <Painel mes={aberto} podeFechar={podeFechar} /> : <TudoEmDia />}
+      </ColunaDaTela>
     </div>
   );
 }
