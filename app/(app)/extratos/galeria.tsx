@@ -5,8 +5,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { caminhoDaConciliacao } from "@/lib/caminhos";
 import type { Tom } from "@/lib/mock-data";
-import { conciliar, type ArquivoExtrato } from "../conciliacoes/acoes";
-import { formatarDataHora, formatarInteiro } from "../dashboard/resumo";
+import { ArrowRight } from "lucide-react";
+import { conciliar, type ArquivoExtrato, type ResumoDaRodada } from "../conciliacoes/acoes";
+import { formatarDataHora, formatarInteiro, formatarPercentual } from "../dashboard/resumo";
 import { tituloDaCompetencia } from "../fechamentos/fechamento";
 import { FaixaFiltros } from "../faixa-filtros";
 import { Grupo, alternarNoConjunto } from "../grupo";
@@ -155,6 +156,7 @@ function Folha({ arquivo }: { arquivo: ArquivoExtrato }) {
 }
 
 export function Galeria({ arquivos }: { arquivos: ArquivoExtrato[] }) {
+  const router = useRouter();
   const [filtro, setFiltro] = useState<Filtro>("todos");
   const [selecionado, setSelecionado] = useState<string | null>(arquivos[0]?.id ?? null);
   // por mês de saída (com dezenas de arquivos, a grade solta virava uma parede de folhas), até ler a
@@ -190,6 +192,8 @@ export function Galeria({ arquivos }: { arquivos: ArquivoExtrato[] }) {
             data-tom={selo.tom}
             aria-pressed={arquivo.id === selecionadoId}
             onClick={() => setSelecionado(arquivo.id)}
+            // atalho de quem já conhece a tela; o botão do painel faz o mesmo para teclado e toque
+            onDoubleClick={() => arquivo.resultado && router.push(arquivo.resultado)}
           >
             <Folha arquivo={arquivo} />
             <span className="extrato-nome">
@@ -281,11 +285,23 @@ function Painel({ arquivo, arquivos }: { arquivo: ArquivoExtrato; arquivos: Arqu
         <IconeOrigem origem={arquivo.origem} tamanho={22} />
       </div>
 
+      {arquivo.ultimaRodada && <ResultadoDaRodada rodada={arquivo.ultimaRodada} />}
+
       <dl className="extrato-campos">
         <div>
           <dt>Origem</dt>
           <dd>{ORIGEM[arquivo.origem]}</dd>
         </div>
+        {arquivo.periodo && (
+          <div>
+            <dt>Período</dt>
+            <dd>
+              {arquivo.periodo.inicio === arquivo.periodo.fim
+                ? data(arquivo.periodo.inicio)
+                : `${data(arquivo.periodo.inicio)} a ${data(arquivo.periodo.fim)}`}
+            </dd>
+          </div>
+        )}
         <div>
           <dt>Conteúdo</dt>
           <dd>{conteudo(arquivo)}</dd>
@@ -307,10 +323,25 @@ function Painel({ arquivo, arquivos }: { arquivo: ArquivoExtrato; arquivos: Arqu
           <dt>Enviado em</dt>
           <dd>{formatarDataHora(arquivo.enviadoEm)}</dd>
         </div>
+        {arquivo.ultimaRodada && (
+          <div>
+            <dt>Conciliado com</dt>
+            <dd className="extrato-par">
+              <IconeOrigem origem={arquivo.origem === "banco" ? "sistema" : "banco"} tamanho={14} />
+              {arquivo.ultimaRodada.com}
+            </dd>
+          </div>
+        )}
         {arquivo.conciliadoEm && (
           <div>
             <dt>Última conciliação</dt>
             <dd>{formatarDataHora(arquivo.conciliadoEm)}</dd>
+          </div>
+        )}
+        {arquivo.ultimaRodada && (
+          <div>
+            <dt>Tolerância usada</dt>
+            <dd>{tolerancia(arquivo.ultimaRodada.toleranciaDias)}</dd>
           </div>
         )}
         {arquivo.rodada && arquivo.rodada.total > 1 && (
@@ -343,11 +374,49 @@ function Painel({ arquivo, arquivos }: { arquivo: ArquivoExtrato; arquivos: Arqu
       {!arquivo.conciliado && lido(arquivo) && <ConciliarArquivo arquivo={arquivo} arquivos={arquivos} />}
 
       {arquivo.resultado && (
-        <Link href={arquivo.resultado} className="btn btn-secondary" style={{ alignSelf: "flex-start" }}>
-          {versaoAnterior(arquivo) === null ? "Ver conciliação" : `Ver a rodada ${versaoAnterior(arquivo)}`}
-        </Link>
+        <div className="extrato-abrir">
+          <Link href={arquivo.resultado} className="btn btn-primary">
+            {versaoAnterior(arquivo) === null ? "Ver conciliação" : `Ver a rodada ${versaoAnterior(arquivo)}`}
+            <ArrowRight size={16} aria-hidden />
+          </Link>
+          <span className="extrato-abrir-dica">Ou clique duas vezes no arquivo.</span>
+        </div>
       )}
     </section>
+  );
+}
+
+/** "± 2 dias", como a tolerância aparece nas configurações. */
+function tolerancia(dias: number): string {
+  return dias === 0 ? "Mesmo dia" : `± ${dias} ${dias === 1 ? "dia" : "dias"}`;
+}
+
+/**
+ * O que a conciliação do arquivo deu, das contagens de `/execucoes`: quanto bateu e quantas
+ * divergências ainda pedem decisão (as que não estão justificadas, a regra de `pedeDecisao`).
+ */
+function ResultadoDaRodada({ rodada }: { rodada: ResumoDaRodada }) {
+  const pendentes = Math.max(rodada.divergencias - rodada.justificadas, 0);
+  return (
+    <div className="extrato-resultado">
+      {rodada.acerto !== null && (
+        <>
+          <p className="extrato-resultado-numero">
+            {formatarPercentual(rodada.acerto)} <span>bateu</span>
+          </p>
+          <span className="extrato-resultado-barra" aria-hidden="true">
+            <i style={{ width: `${Math.min(Math.max(rodada.acerto, 0), 100)}%` }} />
+          </span>
+        </>
+      )}
+      <p className="extrato-resultado-pendencias" data-pendente={pendentes > 0 ? "true" : undefined}>
+        {pendentes > 0
+          ? `${formatarInteiro(pendentes)} ${pendentes === 1 ? "divergência pede" : "divergências pedem"} sua decisão`
+          : "Nada pendente"}
+        {rodada.justificadas > 0 &&
+          ` · ${formatarInteiro(rodada.justificadas)} ${rodada.justificadas === 1 ? "justificada" : "justificadas"}`}
+      </p>
+    </div>
   );
 }
 

@@ -591,6 +591,15 @@ export default function ConciliacaoPage() {
                         comCartao ? (evento) => temHover() && abrirCartao(evento.currentTarget) : undefined
                       }
                       onMouseLeave={comCartao ? fecharCartao : undefined}
+                      // atalho para o detalhe inteiro; o círculo de conferir e a descrição (que abre o
+                      // espia, e trata o segundo clique lá) ficam com os cliques deles
+                      onDoubleClick={(evento) => {
+                        if ((evento.target as Element).closest("button, a, input")) return;
+                        // o duplo clique do navegador seleciona a palavra; ela ficaria azul atrás do painel
+                        window.getSelection()?.removeAllRanges();
+                        setCartao(null);
+                        router.push(caminhoDaConciliacao(conciliacao.id, conciliacao.extratoSistemaId, linha.id));
+                      }}
                     >
                       {banco ? (
                         <>
@@ -746,12 +755,19 @@ export default function ConciliacaoPage() {
             onJustificar={(texto) => gravarDecisao(linhaAberta, "justificada", texto)}
             onDesfazer={() => gravarDecisao(linhaAberta, "justificativa_desfeita")}
             onFechar={() => setChaveAberta(null)}
+            onAbrirDetalhe={() => {
+              setChaveAberta(null);
+              router.push(caminhoDaConciliacao(conciliacao.id, conciliacao.extratoSistemaId, linhaAberta.id));
+            }}
           />
         )}
       </div>
     </div>
   );
 }
+
+/** O meio segundo do duplo clique padrão do Windows: um clique depois disso é outro clique. */
+const JANELA_DO_DUPLO_CLIQUE_MS = 500;
 
 /**
  * O espia rápido de uma linha: os dois valores, a explicação e o caminho para o
@@ -770,6 +786,7 @@ function EspiaDaLinha({
   onJustificar,
   onDesfazer,
   onFechar,
+  onAbrirDetalhe,
 }: {
   linha: LinhaComparacao;
   /** A rodada das linhas na tela: diz se uma conferência ainda vale. */
@@ -781,8 +798,12 @@ function EspiaDaLinha({
   onJustificar: (texto: string) => Promise<string | null>;
   onDesfazer: () => Promise<string | null>;
   onFechar: () => void;
+  /** O duplo clique na descrição: o primeiro clique abriu esta janela, o segundo cai nela. */
+  onAbrirDetalhe: () => void;
 }) {
   const dialogo = useRef<HTMLDialogElement>(null);
+  // quando a janela abriu, para reconhecer o segundo clique do duplo clique que a abriu
+  const abertaEm = useRef(0);
   // quem estava com o foco antes de a janela abrir, lido uma vez só: o React de
   // desenvolvimento roda o efeito duas vezes, e na segunda o foco já está dentro dela
   const quemAbriu = useRef<Element | null>(null);
@@ -800,6 +821,7 @@ function EspiaDaLinha({
   useEffect(() => {
     const elemento = dialogo.current;
     quemAbriu.current ??= document.activeElement;
+    abertaEm.current = performance.now();
     if (elemento && !elemento.open) {
       // sem showModal (navegador antigo, jsdom), só abre
       if (typeof elemento.showModal === "function") elemento.showModal();
@@ -848,8 +870,17 @@ function EspiaDaLinha({
         onFechar();
       }}
       onClose={onFechar}
-      // o clique no fundo escuro cai no próprio <dialog>; dentro da caixa, num filho
-      onClick={(evento) => evento.target === evento.currentTarget && onFechar()}
+      onClick={(evento) => {
+        // o segundo clique de um duplo clique na descrição: vai ao detalhe em vez de só fechar. O
+        // navegador conta os cliques pela posição e pelo tempo, mesmo com a janela por cima
+        if (evento.detail >= 2 && performance.now() - abertaEm.current < JANELA_DO_DUPLO_CLIQUE_MS) {
+          window.getSelection()?.removeAllRanges();
+          onAbrirDetalhe();
+          return;
+        }
+        // o clique no fundo escuro cai no próprio <dialog>; dentro da caixa, num filho
+        if (evento.target === evento.currentTarget) onFechar();
+      }}
     >
       <div className="dialog">
         <span id={idTitulo} className="dialog-title">

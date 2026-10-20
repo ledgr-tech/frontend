@@ -223,6 +223,65 @@ describe("Galeria de extratos", () => {
     expect(painel().queryByText("Saldo final")).not.toBeInTheDocument();
   });
 
+  it("resume no painel a conciliação do arquivo: quanto bateu, o que pede decisão, o par e o período", () => {
+    render(
+      <Galeria
+        arquivos={[
+          arquivo({
+            id: "b-set",
+            nome: "sicredi-setembro.ofx",
+            periodo: { inicio: "2026-09-01", fim: "2026-09-30" },
+            ultimaRodada: { com: "erp-setembro.csv", acerto: 85.4, divergencias: 3, justificadas: 1, toleranciaDias: 2 },
+          }),
+        ]}
+      />,
+    );
+    expect(painel().getByText("85,4%")).toBeInTheDocument();
+    expect(painel().getByText(/2 divergências pedem sua decisão · 1 justificada/)).toBeInTheDocument();
+    expect(painel().getByText("Período").nextSibling).toHaveTextContent("01/09/2026 a 30/09/2026");
+    expect(painel().getByText("Conciliado com").nextSibling).toHaveTextContent("erp-setembro.csv");
+    expect(painel().getByText("Tolerância usada").nextSibling).toHaveTextContent("± 2 dias");
+  });
+
+  it("diz que nada está pendente quando todas as divergências foram justificadas", () => {
+    render(
+      <Galeria
+        arquivos={[
+          arquivo({
+            id: "b-set",
+            nome: "sicredi-setembro.ofx",
+            ultimaRodada: { com: "erp-setembro.csv", acerto: 90, divergencias: 2, justificadas: 2, toleranciaDias: 0 },
+          }),
+        ]}
+      />,
+    );
+    expect(painel().getByText(/Nada pendente · 2 justificadas/)).toBeInTheDocument();
+    expect(painel().getByText("Tolerância usada").nextSibling).toHaveTextContent("Mesmo dia");
+  });
+
+  it("sem o resumo da rodada, não inventa resultado nem par", () => {
+    render(<Galeria arquivos={ARQUIVOS} />);
+    expect(painel().queryByText(/bateu/)).not.toBeInTheDocument();
+    expect(painel().queryByText("Conciliado com")).not.toBeInTheDocument();
+  });
+
+  it("abre a conciliação com um duplo clique no arquivo", async () => {
+    push.mockReset();
+    const user = userEvent.setup();
+    render(<Galeria arquivos={ARQUIVOS} />);
+    await user.dblClick(cartao("sicredi-agosto.ofx"));
+    expect(push).toHaveBeenCalledWith("/conciliacoes/b-ago");
+  });
+
+  it("o duplo clique num arquivo que nunca foi conciliado só o seleciona", async () => {
+    push.mockReset();
+    const user = userEvent.setup();
+    render(<Galeria arquivos={ARQUIVOS} />);
+    await user.dblClick(cartao("erp-agosto.csv"));
+    expect(push).not.toHaveBeenCalled();
+    expect(cartao("erp-agosto.csv")).toHaveAttribute("aria-pressed", "true");
+  });
+
   it("switches the panel to the clicked file", async () => {
     const user = userEvent.setup();
     render(<Galeria arquivos={ARQUIVOS} />);

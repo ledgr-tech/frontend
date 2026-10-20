@@ -10,6 +10,7 @@ import type { Assinatura } from "@/lib/assinatura";
 const push = vi.fn();
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push }),
+  usePathname: () => "/conciliacoes/nova",
 }));
 
 // a busca e os avisos leem a conciliação mais recente, como a visão geral
@@ -71,12 +72,13 @@ describe("BarraSuperior", () => {
     push.mockReset();
     window.localStorage.clear();
   });
-  it("o ? pede o tutorial da tela", async () => {
+  it("a Ajuda, ao lado de Avisos, ainda reabre o tutorial da tela", async () => {
     const ouvinte = vi.fn();
     window.addEventListener("ledgr:abrir-tutorial", ouvinte);
     const user = userEvent.setup();
     await montar();
-    await user.click(screen.getByRole("button", { name: "Ver o tutorial desta tela" }));
+    await user.click(screen.getByRole("button", { name: "Ajuda" }));
+    await user.click(screen.getByRole("button", { name: /Rever o tutorial/ }));
     expect(ouvinte).toHaveBeenCalledTimes(1);
     window.removeEventListener("ledgr:abrir-tutorial", ouvinte);
   });

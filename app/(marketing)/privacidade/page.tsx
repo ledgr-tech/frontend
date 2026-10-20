@@ -31,17 +31,22 @@ export default function PrivacidadePage() {
           arquivo em seguida.
         </li>
         <li>
+          <strong>Das explicações por IA:</strong> o texto de cada explicação gerada, ligado à sua empresa.
+          O que foi enviado ao provedor para gerar a explicação não é guardado.
+        </li>
+        <li>
           <strong>O que fica só no seu navegador:</strong> as preferências de tela (tema, densidade das
           tabelas, menu recolhido), a saudação do login e a contagem de tentativas de entrada. O cadastro
-          também pergunta o banco, a conta e o sistema de gestão; hoje essas respostas não são enviadas nem
-          guardadas.
+          também pergunta o sistema de gestão e o e-mail do responsável; hoje essas respostas não são
+          enviadas nem guardadas.
         </li>
       </ul>
 
       <h2>Para que, e com que base legal</h2>
       <p>
-        Para prestar o serviço: ler os extratos, conciliar, mostrar as divergências, exportar o relatório
-        e manter você conectado. A base legal é a execução do contrato com a sua empresa (art. 7º, V, da
+        Para prestar o serviço: ler os extratos, conciliar, mostrar as divergências, gerar as explicações
+        por IA que você pedir, exportar o relatório, enviar os e-mails do serviço (como o de recuperação de
+        senha) e manter você conectado. A base legal é a execução do contrato com a sua empresa (art. 7º, V, da
         LGPD). O Ledgr não vende dados e não os usa para publicidade.
       </p>
 
@@ -55,18 +60,49 @@ export default function PrivacidadePage() {
       <h2>Explicações por IA</h2>
       <p>
         Na tela de uma divergência, você pode pedir uma explicação gerada por IA. Ela só é gerada quando
-        você clica. Antes de sair do Ledgr, a descrição do lançamento é mascarada: CPF, CNPJ, e-mail,
-        telefone e qualquer sequência de seis ou mais dígitos viram marcadores. Nomes de pessoas não são
-        mascarados. O provedor é a OpenAI, e a chamada pede que ela não guarde o conteúdo. A explicação
-        gerada fica guardada no Ledgr, para não ser gerada de novo. O recurso só é ligado depois de aceito
-        o acordo de tratamento de dados com o provedor. A IA explica; quem decide é você.
+        você clica em “Explicar esta divergência”; sem esse pedido, nada é enviado à IA. O provedor é a
+        OpenAI, com quem o Ledgr tem um acordo de tratamento de dados assinado. Pelo acordo, a OpenAI só
+        pode usar esses dados para prestar o serviço ao Ledgr.
       </p>
+      <ul>
+        <li>
+          <strong>O que é enviado:</strong> o status da linha, a data, o valor e o tipo do lançamento e dos
+          lançamentos parecidos do outro extrato, as diferenças de valor e de dias entre eles, quantos
+          lançamentos há de cada lado e a descrição reduzida de cada um.
+        </li>
+        <li>
+          <strong>Como a descrição é reduzida:</strong> antes de sair do Ledgr, CPF, CNPJ, e-mail, telefone
+          e qualquer sequência de seis ou mais dígitos viram marcadores. Depois, só passam as palavras de
+          uma lista fechada de termos bancários, como PIX, TED, BOLETO e TARIFA. Todo o resto, inclusive
+          nomes de pessoas e de empresas, vira um marcador. Por exemplo, “PIX ENVIADO MARIA SILVA
+          123.456.789-00” sai como “PIX ENVIADO [TEXTO] [CPF]”.
+        </li>
+        <li>
+          <strong>O que não é enviado:</strong> o nome e o CNPJ da sua empresa, o seu nome e o seu e-mail.
+          Cada pedido leva um código derivado da identificação da empresa, que a OpenAI usa para detectar
+          abuso e que não revela qual empresa é.
+        </li>
+        <li>
+          <strong>Por quanto tempo:</strong> o Ledgr pede que a OpenAI não guarde o pedido na conta do
+          Ledgr. Mesmo assim, a OpenAI mantém o conteúdo recebido em registros de monitoramento de abuso por
+          até 30 dias, salvo obrigação legal. A explicação gerada fica guardada no Ledgr, para não ser
+          gerada de novo.
+        </li>
+        <li>
+          <strong>Quem decide é você:</strong> a IA só explica. Ela não muda o status da linha, não marca
+          conferência e não registra decisão. Há um limite diário de explicações por empresa; quando ele
+          acaba, ou quando o provedor não responde, aparece o texto padrão do Ledgr.
+        </li>
+      </ul>
 
       <h2>Onde os dados ficam</h2>
       <p>
-        O Ledgr usa três fornecedores: a Vercel, que hospeda o site e o app; a Railway, que hospeda o
-        servidor e o banco de dados; e a OpenAI, para as explicações por IA. Os três processam dados fora
-        do Brasil.
+        O Ledgr usa quatro fornecedores: a Vercel, que hospeda o site e o app; a Railway, que hospeda o
+        servidor e o banco de dados; a OpenAI, para as explicações por IA; e o Resend, que envia os
+        e-mails do serviço, como o de recuperação de senha. Os quatro processam dados fora do Brasil,
+        principalmente nos Estados Unidos. Nos extratos, em que o Ledgr é o operador, esses fornecedores
+        atuam como suboperadores, com a autorização prevista nos{" "}
+        <Link href="/termos">Termos de uso</Link>.
       </p>
       <EmDefinicao>
         o registro das cláusulas-padrão de transferência internacional com cada fornecedor (Resolução
@@ -83,13 +119,20 @@ export default function PrivacidadePage() {
           O seu navegador nunca fala direto com o servidor do Ledgr: quem fala é o servidor do app, e o
           acesso fica no cookie que a página não lê.
         </li>
-        <li>Os registros do servidor não guardam o valor nem a descrição completa dos lançamentos.</li>
+        <li>
+          Os registros do servidor não guardam o valor nem a descrição completa dos lançamentos, nem o que
+          é enviado à IA.
+        </li>
       </ul>
 
       <h2>Por quanto tempo</h2>
       <ul>
         <li>O arquivo enviado não é guardado.</li>
         <li>Lançamentos, conciliações, histórico e explicações ficam enquanto a conta existir.</li>
+        <li>
+          O que vai para a OpenAI para gerar uma explicação fica até 30 dias nos registros de
+          monitoramento de abuso dela.
+        </li>
       </ul>
       <EmDefinicao>o prazo de exclusão dos dados depois que a conta é encerrada.</EmDefinicao>
 

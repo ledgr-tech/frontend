@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { act, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { Conciliacao, Decisao } from "@/lib/mock-data";
 import ConciliacaoPage from "./page";
@@ -454,6 +454,49 @@ describe("ConciliacaoPage", () => {
     expect(
       screen.getByText("Juros de dois dias de atraso não lançados no sistema.")
     ).toBeInTheDocument();
+  });
+
+  describe("duplo clique na linha", () => {
+    const linha = () => conciliacaoEmAndamento.linhas[0];
+
+    it("abre o detalhe da linha direto, sem passar pelo espia", async () => {
+      buscarConciliacao.mockReturnValue(conciliacaoEmAndamento);
+      navegar.push.mockReset();
+      const user = userEvent.setup();
+      render(<ConciliacaoPage />);
+
+      const tr = (await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" })).closest("tr")!;
+      // na data, fora do botão da descrição
+      await user.dblClick(within(tr).getAllByRole("cell")[0]);
+      expect(navegar.push).toHaveBeenCalledWith(expect.stringMatching(new RegExp(`/${linha().id}(\\?|$)`)));
+      expect(screen.queryByRole("link", { name: "Abrir detalhe" })).not.toBeInTheDocument();
+    });
+
+    it("na descrição, o segundo clique cai no espia que o primeiro abriu e vai ao detalhe", async () => {
+      buscarConciliacao.mockReturnValue(conciliacaoEmAndamento);
+      navegar.push.mockReset();
+      const user = userEvent.setup();
+      render(<ConciliacaoPage />);
+
+      await user.click(await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" }));
+      const espia = screen.getByRole("link", { name: "Abrir detalhe" }).closest("dialog")!;
+      // no navegador, a janela cobre a linha: o segundo clique (detail 2) chega nela
+      fireEvent.click(espia, { detail: 2 });
+      expect(navegar.push).toHaveBeenCalledWith(expect.stringMatching(new RegExp(`/${linha().id}(\\?|$)`)));
+      expect(screen.queryByRole("link", { name: "Abrir detalhe" })).not.toBeInTheDocument();
+    });
+
+    it("um clique simples no fundo do espia só fecha", async () => {
+      buscarConciliacao.mockReturnValue(conciliacaoEmAndamento);
+      navegar.push.mockReset();
+      const user = userEvent.setup();
+      render(<ConciliacaoPage />);
+
+      await user.click(await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" }));
+      fireEvent.click(screen.getByRole("link", { name: "Abrir detalhe" }).closest("dialog")!, { detail: 1 });
+      expect(navegar.push).not.toHaveBeenCalled();
+      expect(screen.queryByRole("link", { name: "Abrir detalhe" })).not.toBeInTheDocument();
+    });
   });
 
   it("peeks at a line in a native dialog, without an empty history, and gives the focus back", async () => {

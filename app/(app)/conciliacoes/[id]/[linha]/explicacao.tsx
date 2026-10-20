@@ -124,6 +124,11 @@ export function ExplicacaoDaDivergencia({
                 </span>
               )}
             </div>
+            {/* o aviso fica no momento em que o dado sai, não só na Política */}
+            <p className="explicacao-aviso">
+              Ao pedir, dados resumidos desta linha são enviados à OpenAI.{" "}
+              <Link href="/privacidade">Saiba mais</Link>
+            </p>
           </>
         )}
       </div>

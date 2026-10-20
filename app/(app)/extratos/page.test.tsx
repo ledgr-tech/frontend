@@ -16,6 +16,7 @@ vi.mock("next/navigation", () => ({
     redirect(destino);
     throw new Error("NEXT_REDIRECT");
   },
+  useRouter: () => ({ push: vi.fn() }),
 }));
 
 const ARQUIVOS: ArquivoExtrato[] = [

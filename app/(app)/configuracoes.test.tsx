@@ -132,7 +132,7 @@ describe("Configuracoes", () => {
   describe("the date tolerance", () => {
     /** O campo da tolerância, na linha dela. */
     async function campo() {
-      return screen.findByRole("spinbutton", { name: "Tolerância de data, em dias" });
+      return screen.findByRole("spinbutton", { name: "Tolerância de data, em dias para mais ou para menos" });
     }
 
     it("na primeira visita à seção, o mascote explica a tolerância e a destaca", async () => {
@@ -156,6 +156,7 @@ describe("Configuracoes", () => {
       await user.click(secao("Conciliação"));
       expect(await campo()).toHaveValue(2);
       const linha = linhaDe("Tolerância de data");
+      expect(linha).toHaveTextContent("para mais ou para menos");
       expect(linha).toHaveTextContent("de 0 a 5 dias");
       expect(linha).toHaveTextContent("Alterada por Maria Financeiro em 06/10/2026 09:30.");
       // nada a salvar enquanto não muda
@@ -177,7 +178,7 @@ describe("Configuracoes", () => {
 
       expect(salvarToleranciaDias).toHaveBeenCalledWith(4);
       expect(await within(linha).findByRole("status")).toHaveTextContent(
-        "Regras salvas. Valem a partir da próxima conciliação; as que já rodaram continuam com as regras de quando rodaram.",
+        "Tolerância salva: até 4 dias para mais ou para menos. Vale a partir da próxima conciliação; as que já rodaram continuam com a de quando rodaram.",
       );
       expect(linha).toHaveTextContent("Alterada por Ana");
       expect(within(linha).queryByRole("button", { name: "Salvar" })).not.toBeInTheDocument();
@@ -244,7 +245,7 @@ describe("Configuracoes", () => {
       abrir();
 
       await user.click(secao("Conciliação"));
-      const linha = (await screen.findByText("2 dias")).closest("li")!;
+      const linha = (await screen.findByText("± 2 dias")).closest("li")!;
       expect(within(linha).getByText("Tolerância de data")).toBeInTheDocument();
       expect(within(linha).queryByRole("button")).not.toBeInTheDocument();
       expect(within(linha).queryByRole("spinbutton")).not.toBeInTheDocument();
