@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { render, screen, within } from "@testing-library/react";
-import { PLANOS } from "@/lib/planos";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { MotionRoot } from "../reveal";
 import type { LinhaExtrato } from "./comparacao";
 import { Precos } from "./precos";
@@ -65,7 +64,7 @@ function renderPrecos() {
 
 const cards = () => screen.getAllByRole("article");
 const demonstracao = (card: HTMLElement) => card.querySelector<HTMLElement>(".beneficio-visual")!;
-const regua = () => screen.getByRole("list", { name: "Os planos" });
+const regua = () => document.querySelector<HTMLElement>(".preco-regua")!;
 
 describe("Precos", () => {
   it("lists what comes in every plan as four numbered cards, in reading order", () => {
@@ -155,37 +154,46 @@ describe("Precos", () => {
     expect(dica).toHaveClass("so-mouse");
   });
 
-  describe("the plan ruler at the end of the trail", () => {
-    it("lists the five plans in order, each with the volume it covers", () => {
+  describe("the plans at the end of the trail, as the guided choice of /plano", () => {
+    const medidor = () => screen.getByRole("slider", { name: /lançamentos/ });
+    const folha = () => screen.getByRole("region", { name: /O seu plano é o|Vamos combinar/ });
+    const arrastarPara = (passo: number) => fireEvent.change(medidor(), { target: { value: String(passo) } });
+
+    it("asks how many entries a month, and starts on the Padrão with its monthly price", () => {
       renderPrecos();
-      const planos = within(regua()).getAllByRole("listitem");
-      expect(
-        planos.map((plano) =>
-          [".preco-regua-num", ".preco-regua-nome", ".preco-regua-limite"].map((parte) => plano.querySelector(parte)!.textContent),
-        ),
-      ).toEqual([
-        ["100", "Essencial", "até 100 lançamentos por mês"],
-        ["200", "Padrão", "até 200 lançamentos por mês"],
-        ["350", "Avançado", "até 350 lançamentos por mês"],
-        ["5.000", "Escala", "até 5.000 lançamentos por mês"],
-        ["5.000+", "Volume", "acima de 5.000, para indústria e multi-banco"],
-      ]);
+      expect(screen.getByText(/Quantos lançamentos você/)).toBeInTheDocument();
+      expect(medidor()).toHaveAttribute("aria-valuetext", "180 lançamentos por mês");
+      expect(within(folha()).getByRole("heading", { name: "O seu plano é o Padrão." })).toBeInTheDocument();
+      expect(within(folha()).getByText("R$ 79,90")).toBeInTheDocument();
+      expect(within(folha()).getByText("14 dias grátis, sem cartão")).toBeInTheDocument();
     });
 
-    it("marks the highlighted plan, and the open-ended one sold by contact", () => {
-      renderPrecos();
-      const planos = within(regua()).getAllByRole("listitem");
-      expect(planos.filter((plano) => plano.hasAttribute("data-destaque")).map((plano) => plano.textContent)).toEqual([
-        "200Padrãoaté 200 lançamentos por mês",
-      ]);
-      expect(planos.filter((plano) => plano.hasAttribute("data-contato")).map((plano) => plano.textContent)).toEqual([
-        "5.000+Volumeacima de 5.000, para indústria e multi-banco",
-      ]);
+    it("lights the mark of the plan for the volume, on the same four marks as the ruler", () => {
+      const { container } = renderPrecos();
+      const marcas = () => [...container.querySelectorAll(".regua-mede-marcas span")];
+      expect(marcas().map((m) => m.textContent)).toEqual(["100", "200", "350", "5.000+"]);
+      expect(marcas().filter((m) => m.hasAttribute("data-acesa")).map((m) => m.textContent)).toEqual(["200"]);
+      arrastarPara(3);
+      expect(within(folha()).getByRole("heading", { name: "O seu plano é o Essencial." })).toBeInTheDocument();
+      expect(marcas().filter((m) => m.hasAttribute("data-acesa")).map((m) => m.textContent)).toEqual(["100"]);
     });
 
-    it("shows no price while billing is not defined", () => {
+    it("over 350, the plan is agreed with the team, by e-mail", () => {
       renderPrecos();
-      for (const plano of PLANOS) expect(regua().textContent).not.toContain(plano.preco);
+      arrastarPara(10);
+      expect(within(folha()).getByRole("heading", { name: "Vamos combinar juntos." })).toBeInTheDocument();
+      expect(within(folha()).getByRole("link", { name: "Fale com a gente" }).getAttribute("href")).toMatch(/^mailto:ledgrtech@gmail\.com/);
+      // sem preço de tabela: o Escala não está entre os planos do teste
+      expect(folha().textContent).not.toContain("R$");
+    });
+
+    it("starting keeps the plan for /plano and goes to the signup", () => {
+      sessionStorage.clear();
+      renderPrecos();
+      const comecar = within(folha()).getByRole("link", { name: "Começar com o Padrão" });
+      expect(comecar).toHaveAttribute("href", "/cadastro");
+      fireEvent.click(comecar);
+      expect(sessionStorage.getItem("ledgr:plano-escolhido")).toBe("padrao");
     });
   });
 
