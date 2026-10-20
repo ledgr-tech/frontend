@@ -19,6 +19,9 @@ vi.mock("./conciliacoes/acoes", () => ({
   carregarVisaoGeral: () => carregarVisaoGeral(),
 }));
 
+// o botão "Agora" precisa do provedor da coluna; o comportamento dele é testado em coluna/coluna.test.tsx
+vi.mock("./coluna/coluna", () => ({ BotaoAgora: () => <button type="button">Agora</button> }));
+
 const EXECUCAO = { id: "e7", executadaEm: "2026-09-26T13:28:00Z" } as Execucao;
 
 const VISAO: VisaoGeral = {
@@ -268,6 +271,11 @@ describe("BarraSuperior", () => {
 
     await user.type(campo, "l");
     expect(campo).not.toHaveAttribute("aria-activedescendant");
+  });
+
+  it("traz o botão Agora na barra do topo, junto da ajuda", () => {
+    render(<BarraSuperior />);
+    expect(screen.getByRole("button", { name: "Agora" })).toBeInTheDocument();
   });
 
   it("counts real notices, and leads each one to where it can be solved", async () => {

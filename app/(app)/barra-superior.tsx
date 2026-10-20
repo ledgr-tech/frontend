@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { caminhoDaConciliacao } from "@/lib/caminhos";
 import { MenuDeAjuda } from "./ajuda/menu-de-ajuda";
+import { BotaoAgora } from "./coluna/coluna";
 import { diasRestantes, fraseCurtaDoTeste, fraseDoTeste } from "@/lib/assinatura";
 import { useAssinatura } from "./conta";
 import { useTeclaDeAtalho } from "@/lib/plataforma";
@@ -212,6 +213,7 @@ export function BarraSuperior() {
         <SeloDoTeste href="/plano" risco frase="Seu teste acabou · escolher um plano" curta="Teste acabou" />
       )}
 
+      <BotaoAgora />
       <MenuDeAjuda />
 
       <div style={{ position: "relative", flex: "none" }} ref={caixaAvisos}>

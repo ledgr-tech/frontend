@@ -1,8 +1,9 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { usePathname } from "next/navigation";
+import { X } from "lucide-react";
 import { telaDoCaminho } from "../tutorial/roteiros";
 import { colunaRecolhida, definirColuna, temColuna } from "./estado";
 
@@ -39,7 +40,10 @@ export function ProvedorDaColuna({ children }: { children: ReactNode }) {
   const [encaixeAgora, setAgora] = useState<HTMLElement | null>(null);
   const [encaixeTutorial, setTutorial] = useState<HTMLElement | null>(null);
   const [largas, setLargas] = useState(false);
-  const [painelAberto, setPainel] = useState(false);
+  // o painel guarda em que caminho foi aberto: trocar de tela o fecha sem efeito
+  const caminho = usePathname();
+  const [painelEm, setPainel] = useState<string | null>(null);
+  const painelAberto = painelEm === caminho;
   const [recolhida, setRecolhida] = useState(false);
   const [montadas, setMontadas] = useState(0);
   const [pendentes, setPendentes] = useState(0);
@@ -56,8 +60,8 @@ export function ProvedorDaColuna({ children }: { children: ReactNode }) {
     return () => mq.removeEventListener("change", ler);
   }, []);
 
-  const abrirPainel = useCallback(() => setPainel(true), []);
-  const fecharPainel = useCallback(() => setPainel(false), []);
+  const abrirPainel = useCallback(() => setPainel(caminho), [caminho]);
+  const fecharPainel = useCallback(() => setPainel(null), []);
 
   const alternar = useCallback(() => {
     const nova = !colunaRecolhida();
@@ -77,9 +81,9 @@ export function ProvedorDaColuna({ children }: { children: ReactNode }) {
       };
     }
     if (painelAberto) return () => {};
-    setPainel(true);
-    return () => setPainel(false);
-  }, [largas, painelAberto]);
+    setPainel(caminho);
+    return () => setPainel(null);
+  }, [largas, painelAberto, caminho]);
 
   const registrar = useCallback((pendente: boolean) => {
     setMontadas((n) => n + 1);
@@ -101,17 +105,77 @@ export function ProvedorDaColuna({ children }: { children: ReactNode }) {
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;
 }
 
+function useTemColuna(): boolean {
+  const { montadas } = useColuna();
+  const tela = telaDoCaminho(usePathname());
+  return temColuna(tela) || (tela === "divergencia" && montadas > 0);
+}
+
+/** Nas telas menores, abre o "Agora" num painel por cima; fica na barra do topo. */
+export function BotaoAgora() {
+  const { largas, painelAberto, abrirPainel, fecharPainel, pendente } = useColuna();
+  if (!useTemColuna() || largas) return null;
+  return (
+    <button
+      type="button"
+      className="btn btn-ghost coluna-botao-agora"
+      aria-expanded={painelAberto}
+      onClick={painelAberto ? fecharPainel : abrirPainel}
+    >
+      Agora
+      {pendente && <span className="coluna-ponto" aria-hidden="true" />}
+    </button>
+  );
+}
+
 /** A coluna da direita. Na divergência só existe com a Comparação montada embaixo (uma ColunaDaTela). */
 export function ColunaAgora() {
-  const { montadas, recolhida, alternar, refAgora, refTutorial } = useColuna();
-  const tela = telaDoCaminho(usePathname());
-  const existe = temColuna(tela) || (tela === "divergencia" && montadas > 0);
+  const { recolhida, alternar, refAgora, refTutorial, largas, painelAberto, fecharPainel } = useColuna();
+  const existe = useTemColuna();
+  const painel = !largas && painelAberto;
+  const aside = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (!painel) return;
+    aside.current?.focus();
+    // dentro de uma janela <dialog>, o Esc é dela
+    const tecla = (evento: KeyboardEvent) => {
+      if (evento.key !== "Escape" || document.querySelector("dialog[open]")) return;
+      fecharPainel();
+      document.querySelector<HTMLButtonElement>(".coluna-botao-agora")?.focus();
+    };
+    window.addEventListener("keydown", tecla);
+    return () => window.removeEventListener("keydown", tecla);
+  }, [painel, fecharPainel]);
+
   if (!existe) return null;
   return (
-    <aside className="coluna-agora" aria-label="O que fazer agora">
-      <button type="button" className="coluna-agora-alternar btn btn-ghost" onClick={alternar}>
-        {recolhida ? "Abrir a coluna" : "Recolher a coluna"}
-      </button>
+    <aside
+      ref={aside}
+      className="coluna-agora"
+      aria-label="O que fazer agora"
+      hidden={!largas && !painelAberto}
+      tabIndex={painel ? -1 : undefined}
+      role={painel ? "dialog" : undefined}
+      data-painel={painel ? "aberto" : undefined}
+    >
+      {painel ? (
+        <button
+          type="button"
+          className="app-icone-botao coluna-agora-fechar"
+          aria-label="Fechar"
+          onClick={() => {
+            fecharPainel();
+            document.querySelector<HTMLButtonElement>(".coluna-botao-agora")?.focus();
+          }}
+        >
+          <X size={18} aria-hidden />
+        </button>
+      ) : (
+        <button type="button" className="coluna-agora-alternar btn btn-ghost" onClick={alternar}>
+          {recolhida ? "Abrir a coluna" : "Recolher a coluna"}
+        </button>
+      )}
       <div className="coluna-agora-corpo">
         <div ref={refAgora} />
         <div ref={refTutorial} />
