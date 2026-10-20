@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render as renderizar, screen, within } from "@testing-library/react";
+import type { ReactElement } from "react";
+import { ColunaAgora, ProvedorDaColuna } from "../../coluna/coluna";
 import userEvent from "@testing-library/user-event";
 import type { Conciliacao, Decisao } from "@/lib/mock-data";
 import ConciliacaoPage from "./page";
@@ -12,7 +14,24 @@ vi.mock("next/navigation", () => ({
   useParams: () => ({ id: rota.id }),
   useSearchParams: () => new URLSearchParams(rota.busca),
   useRouter: () => ({ push: navegar.push }),
+  usePathname: () => "/conciliacoes/conc-1",
 }));
+
+// a coluna "Agora" fica ao lado da tela, como no layout
+function render(ui: ReactElement) {
+  window.matchMedia = ((q: string) => ({ matches: true, media: q, addEventListener() {}, removeEventListener() {} })) as never;
+  return renderizar(
+    <ProvedorDaColuna>
+      <ColunaAgora />
+      {ui}
+    </ProvedorDaColuna>,
+  );
+}
+
+/** O "Agora" que a tela pôs na coluna. */
+function agora() {
+  return within(document.querySelector<HTMLElement>(".coluna-agora-corpo")!);
+}
 
 const carregarConciliacao = vi.fn();
 const registrarDecisao = vi.fn();
@@ -160,6 +179,70 @@ describe("ConciliacaoPage", () => {
     navegar.push.mockReset();
     window.localStorage.clear();
     delete document.documentElement.dataset.densidade;
+  });
+
+  describe("Agora column", () => {
+    const FECHAMENTO = {
+      competencia: "2026-09",
+      estado: "fechado",
+      ressalva: null,
+      fechadoPor: "Maria Financeiro",
+      fechadoEm: "2026-10-06T15:20:00Z",
+      reabertoPor: null,
+      reabertoEm: null,
+    };
+    const emRevisao = (quantidade: number): Conciliacao => ({
+      ...conciliacaoEmAndamento,
+      linhas: Array.from({ length: quantidade }, (_, i) => ({
+        ...conciliacaoEmAndamento.linhas[0],
+        id: `lc-${i}`,
+        descricao: `Boleto ${i}`,
+      })),
+    });
+
+    it("counts what asks for a decision and puts the revisão filter on from the column", async () => {
+      buscarConciliacao.mockReturnValue(emRevisao(30));
+      const user = userEvent.setup();
+      render(<ConciliacaoPage />);
+      await screen.findByText("Comparação direta");
+      expect(agora().getByText("30 linhas pedem decisão · 0 de 30 conferidas")).toBeInTheDocument();
+
+      await user.click(agora().getByRole("button", { name: "Mostrar só o que pede decisão" }));
+      expect(screen.getByRole("button", { name: "Só revisão (30)" })).toHaveAttribute("aria-pressed", "true");
+    });
+
+    it("says the month is ready to close, with a link to Fechamentos, when nothing asks for a decision", async () => {
+      buscarConciliacao.mockReturnValue({ ...conciliacaoFechada, status: "em_andamento" });
+      render(<ConciliacaoPage />);
+      await screen.findByText("Comparação direta");
+      expect(agora().getByText("Mês pronto para fechar")).toBeInTheDocument();
+      expect(agora().getByRole("link", { name: /fechamento/i })).toHaveAttribute("href", "/fechamentos");
+    });
+
+    it("repeats the closed-month notice and the link to reopen it", async () => {
+      rota.id = BANCO;
+      carregarConciliacao.mockResolvedValue({
+        ok: true,
+        dados: {
+          conciliacao: { ...emRevisao(2), id: BANCO, extratoSistemaId: SISTEMA },
+          truncada: false,
+          fechamento: FECHAMENTO,
+        },
+      });
+      render(<ConciliacaoPage />);
+      await screen.findByText("Comparação direta");
+      expect(agora().getByText(/Setembro de 2026 está fechado\./i)).toBeInTheDocument();
+      expect(agora().getByRole("link", { name: "Ver o fechamento" })).toHaveAttribute("href", "/fechamentos?mes=2026-09");
+      expect(agora().queryByText(/pedem decisão/)).not.toBeInTheDocument();
+    });
+
+    it("puts nothing in the column when the load fails", async () => {
+      rota.id = BANCO;
+      carregarConciliacao.mockRejectedValue(new Error("sem rede"));
+      render(<ConciliacaoPage />);
+      await screen.findByRole("alert");
+      expect(agora().queryByText(/decisão|pronto para fechar|fechado/)).not.toBeInTheDocument();
+    });
   });
 
   it("lists comparison rows for a conciliação em andamento", async () => {

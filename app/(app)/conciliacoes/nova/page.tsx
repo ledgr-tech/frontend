@@ -22,6 +22,7 @@ import { PlanosBloqueados } from "./planos-bloqueados";
 import { useAssinatura } from "../../conta";
 import { Reveal } from "@/app/reveal";
 import { Cabecalho } from "../../cabecalho";
+import { ColunaDaTela } from "../../coluna/coluna";
 
 export default function NovaConciliacaoPage() {
   const router = useRouter();
@@ -205,6 +206,7 @@ export default function NovaConciliacaoPage() {
 
   return (
     <div className="nova-tela">
+      <AgoraDaNova banco={arquivoBanco !== null} sistema={arquivoSistema !== null} />
       {/* o mês só se sabe depois de ler as datas dos extratos: a linha fica só com a empresa. A
           ação principal fica no topo, à direita, como "Enviar nova versão" na comparação */}
       <Cabecalho
@@ -342,6 +344,30 @@ export default function NovaConciliacaoPage() {
         </Reveal>
       </div>
     </div>
+  );
+}
+
+/**
+ * O "Agora" da Nova conciliação: os três passos, cada um marcado quando feito. "Conciliar" só
+ * termina quando a tela segue para a comparação, então aqui nunca chega a ficar marcado.
+ */
+function AgoraDaNova({ banco, sistema }: { banco: boolean; sistema: boolean }) {
+  const passos = [
+    ["Extrato do banco", banco],
+    ["Extrato do sistema", sistema],
+    ["Conciliar", false],
+  ] as const;
+  return (
+    <ColunaDaTela>
+      <ul className="conc-continuar" style={{ listStyle: "none", margin: 0, padding: 0, flexDirection: "column", alignItems: "stretch" }}>
+        {passos.map(([nome, feito]) => (
+          <li key={nome} data-feito={feito}>
+            <span aria-hidden="true">{feito ? "✓" : "○"}</span> {nome}
+            {feito && <span className="sr-only">feito</span>}
+          </li>
+        ))}
+      </ul>
+    </ColunaDaTela>
   );
 }
 

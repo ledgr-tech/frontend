@@ -5,7 +5,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { ehDivergencia } from "@/lib/adaptadores";
-import { caminhoDaConciliacao } from "@/lib/caminhos";
+import { caminhoDaConciliacao, caminhoDoFechamento } from "@/lib/caminhos";
 import {
   fecharConciliacao,
   formatarMoeda,
@@ -40,8 +40,72 @@ import { larguraDoValor } from "./largura";
 import { Reveal } from "@/app/reveal";
 import { MensagemErro } from "@/app/(auth)/_compartilhado/mensagem-erro";
 import { Cabecalho } from "../../cabecalho";
+import { ColunaDaTela } from "../../coluna/coluna";
 import { FaixaDoSaldo } from "../../saldo";
 import { SeloIa } from "../../selo-ia";
+
+/** O aviso de mês fechado, o mesmo na tela e na coluna "Agora". */
+function MesFechado({ competencia: mes }: { competencia: string }) {
+  return (
+    <>
+      {`${tituloDaCompetencia(mes)} está fechado. Para conferir, justificar ou conciliar de novo, reabra o fechamento. `}
+      <Link href={`/fechamentos?mes=${mes}`}>Ver o fechamento</Link>
+    </>
+  );
+}
+
+/**
+ * O "Agora" da Comparação: o que pede decisão (com o atalho para o recorte), o mês pronto para
+ * fechar, ou o aviso de mês fechado.
+ */
+function AgoraDaComparacao({
+  fechamento,
+  pedemDecisao,
+  conferidas,
+  fechamentoHref,
+  onMostrarRevisao,
+}: {
+  fechamento: string | null;
+  pedemDecisao: number;
+  /** null quando não há onde gravar a conferência. */
+  conferidas: number | null;
+  fechamentoHref: string;
+  onMostrarRevisao: () => void;
+}) {
+  return (
+    <ColunaDaTela pendente={!fechamento && pedemDecisao > 0}>
+      <div className="conc-continuar">
+        {fechamento ? (
+          <span className="conc-continuar-texto">
+            <MesFechado competencia={fechamento} />
+          </span>
+        ) : pedemDecisao > 0 ? (
+          <>
+            <span className="conc-continuar-texto">
+              {[
+                `${formatarInteiro(pedemDecisao)} ${pedemDecisao === 1 ? "linha pede" : "linhas pedem"} decisão`,
+                conferidas !== null &&
+                  `${formatarInteiro(conferidas)} de ${formatarInteiro(pedemDecisao)} ${pedemDecisao === 1 ? "conferida" : "conferidas"}`,
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+            </span>
+            <button type="button" className="btn btn-primary" onClick={onMostrarRevisao}>
+              Mostrar só o que pede decisão
+            </button>
+          </>
+        ) : (
+          <>
+            <span className="conc-continuar-titulo">Mês pronto para fechar</span>
+            <Link href={fechamentoHref} className="btn btn-primary">
+              Ir para Fechamentos
+            </Link>
+          </>
+        )}
+      </div>
+    </ColunaDaTela>
+  );
+}
 
 /**
  * "Desde a rodada 1: 4 passaram a bater · 2 continuam divergindo · 1 nova divergência".
@@ -303,6 +367,13 @@ export default function ConciliacaoPage() {
 
   return (
     <div>
+      <AgoraDaComparacao
+        fechamento={fechamento?.competencia ?? null}
+        pedemDecisao={emRevisao.length}
+        conferidas={ligadas ? conferidas : null}
+        fechamentoHref={rodada ? caminhoDoFechamento(competencia(rodada.periodoInicio, rodada.executadaEm)) : "/fechamentos"}
+        onMostrarRevisao={() => escolherFiltro("revisao")}
+      />
       <Cabecalho
         titulo="Comparação direta"
         contexto={[
@@ -343,8 +414,7 @@ export default function ConciliacaoPage() {
             oferece o que o backend recusaria, e diz onde reabrir */}
         {fechamento && (
           <p role="status" aria-label="Mês fechado" className="mes-fechado-aviso">
-            {`${tituloDaCompetencia(fechamento.competencia)} está fechado. Para conferir, justificar ou conciliar de novo, reabra o fechamento. `}
-            <Link href={`/fechamentos?mes=${fechamento.competencia}`}>Ver o fechamento</Link>
+            <MesFechado competencia={fechamento.competencia} />
           </p>
         )}
         {/* a faixa da rodada: o aviso da rodada passada (só para ler, leva à que vale) ou o que

@@ -2,7 +2,9 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import postcss, { type AtRule } from "postcss";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render as renderizar, screen, waitFor, within } from "@testing-library/react";
+import type { ReactElement } from "react";
+import { ColunaAgora, ProvedorDaColuna } from "../../coluna/coluna";
 import userEvent from "@testing-library/user-event";
 import NovaConciliacaoPage from "./page";
 import { lerBytes } from "./ler-arquivo";
@@ -12,7 +14,24 @@ import type { Assinatura } from "@/lib/assinatura";
 const push = vi.fn();
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push }),
+  usePathname: () => "/conciliacoes/nova",
 }));
+
+// a coluna "Agora" fica ao lado da tela, como no layout
+function render(ui: ReactElement) {
+  window.matchMedia = ((q: string) => ({ matches: true, media: q, addEventListener() {}, removeEventListener() {} })) as never;
+  return renderizar(
+    <ProvedorDaColuna>
+      <ColunaAgora />
+      {ui}
+    </ProvedorDaColuna>,
+  );
+}
+
+/** O "Agora" que a tela pôs na coluna. */
+function agora() {
+  return document.querySelector<HTMLElement>(".coluna-agora-corpo")!;
+}
 
 const enviarExtrato = vi.fn();
 const situacaoDoExtrato = vi.fn();
@@ -77,6 +96,26 @@ async function enviarOsDois(sistema = arquivo("sistema.csv")) {
 }
 
 describe("NovaConciliacaoPage", () => {
+  it("lists the three steps in the Agora column and ticks each extrato as it is chosen", async () => {
+    const user = userEvent.setup();
+    render(<NovaConciliacaoPage />);
+    const passo = (nome: string) => within(agora()).getByText(nome).closest("li")!;
+    for (const nome of ["Extrato do banco", "Extrato do sistema", "Conciliar"]) {
+      expect(passo(nome)).toHaveAttribute("data-feito", "false");
+      expect(within(passo(nome)).queryByText("feito")).not.toBeInTheDocument();
+    }
+
+    await user.upload(screen.getByLabelText("Extrato do banco"), arquivo("banco.ofx"));
+    expect(passo("Extrato do banco")).toHaveAttribute("data-feito", "true");
+    expect(within(passo("Extrato do banco")).getByText("feito")).toBeInTheDocument();
+    expect(passo("Extrato do sistema")).toHaveAttribute("data-feito", "false");
+
+    await user.upload(screen.getByLabelText("Extrato do sistema de gestão"), arquivo("sistema.csv"));
+    expect(passo("Extrato do sistema")).toHaveAttribute("data-feito", "true");
+    // conciliar só termina quando a tela segue para a comparação: aqui ainda não
+    expect(passo("Conciliar")).toHaveAttribute("data-feito", "false");
+  });
+
   beforeEach(() => {
     push.mockClear();
     enviarExtrato.mockReset();
@@ -105,7 +144,7 @@ describe("NovaConciliacaoPage", () => {
 
   it("diz a regra de ouro em frases, sem travessão", () => {
     render(<NovaConciliacaoPage />);
-    const regra = screen.getByText(/O extrato do banco é sempre a fonte da verdade\./);
+    const regra = within(document.querySelector<HTMLElement>(".nova-tela")!).getByText(/O extrato do banco é sempre a fonte da verdade\./);
 
     expect(regra).toHaveTextContent(
       "O extrato do banco é sempre a fonte da verdade. Toda divergência aparece como “o sistema diverge do banco”. Se o valor no seu sistema estiver diferente, é ele que precisa de ajuste.",
