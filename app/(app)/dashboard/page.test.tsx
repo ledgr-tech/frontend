@@ -249,6 +249,20 @@ describe("DashboardPage", () => {
     expect(document.querySelector("img")?.getAttribute("src")).toContain("mascote-explicando");
   });
 
+  it("still gives the column an Agora when the account is empty: start a conciliação", async () => {
+    com({ conciliacoes: [], emAndamento: null });
+    await renderizar();
+    expect(within(agora()).getByRole("link", { name: "Nova conciliação" })).toHaveAttribute("href", "/conciliacoes/nova");
+    expect(screen.getByTestId("pendente")).toHaveTextContent("false");
+  });
+
+  it("puts nothing in the Agora when the load fails, since we do not know", async () => {
+    carregarConciliacoes.mockResolvedValue({ ok: false, status: 0, erro: "x" });
+    await renderizar();
+    expect(within(agora()).queryByRole("link", { name: "Nova conciliação" })).not.toBeInTheDocument();
+    expect(within(agora()).queryByRole("link", { name: /Fechamento de/ })).not.toBeInTheDocument();
+  });
+
   it("asks for a reload when the backend fails", async () => {
     carregarConciliacoes.mockResolvedValue({ ok: false, status: 0, erro: "Não foi possível falar com o servidor." });
     await renderizar();

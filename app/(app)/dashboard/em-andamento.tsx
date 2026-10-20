@@ -72,7 +72,7 @@ export function AgoraDeConciliacoes({
 }) {
   if (emAndamento) return <ContinueDeOndeParou conciliacao={emAndamento.conciliacao} contagem={emAndamento.contagem} />;
   return (
-    <section className="conc-continuar" aria-label="Agora">
+    <div className="conc-continuar">
       {prontoParaFechar ? (
         <Link href={caminhoDoFechamento(prontoParaFechar.competencia)} className="btn btn-primary">
           {`Fechamento de ${prontoParaFechar.titulo.split(" ")[0].toLowerCase()}`}
@@ -82,6 +82,6 @@ export function AgoraDeConciliacoes({
           Nova conciliação
         </Link>
       )}
-    </section>
+    </div>
   );
 }

@@ -209,7 +209,7 @@ export function ColunaAgora() {
   );
 }
 
-/** O "Agora" de uma tela: vai para dentro da coluna. `pendente` = a tela ainda carrega e o Agora não sabe o que dizer. */
+/** O "Agora" de uma tela: vai para dentro da coluna. `pendente` = a tela tem algo pendente para a pessoa (acende o ponto no botão "Agora" das telas menores). */
 export function ColunaDaTela({ children, pendente = false }: { children: ReactNode; pendente?: boolean }) {
   const { encaixeAgora, registrar } = useColuna();
   useEffect(() => registrar(pendente), [registrar, pendente]);

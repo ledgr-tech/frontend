@@ -56,7 +56,12 @@ export default async function DashboardPage() {
           {FALHA_AO_CARREGAR}
         </p>
       ) : conciliacoes.length === 0 ? (
-        <SemConciliacoes />
+        <>
+          <ColunaDaTela>
+            <AgoraDeConciliacoes emAndamento={null} prontoParaFechar={null} />
+          </ColunaDaTela>
+          <SemConciliacoes />
+        </>
       ) : (
         <div className="conc-corpo">
           <ColunaDaTela pendente={emAndamento !== null}>
