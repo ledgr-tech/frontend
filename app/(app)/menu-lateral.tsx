@@ -33,7 +33,7 @@ import { Configuracoes } from "./configuracoes";
 import { LogoBarras } from "./logo-barras";
 import { alternarMenu, menuRecolhido } from "./menu";
 import { aplicarTema, temaAtual, type Tema } from "./tema";
-import { ABRIR_CONFIGURACOES } from "@/lib/eventos";
+import { ABRIR_ASSISTENTE, ABRIR_CONFIGURACOES } from "@/lib/eventos";
 
 type ItemMenu = {
   nome: string;
@@ -136,6 +136,12 @@ export function MenuLateral({
     };
     window.addEventListener(ABRIR_CONFIGURACOES, abrir);
     return () => window.removeEventListener(ABRIR_CONFIGURACOES, abrir);
+  }, []);
+  // "Pergunte sobre esta tela", na Central de ajuda
+  useEffect(() => {
+    const abrir = () => setAssistenteAberto(true);
+    window.addEventListener(ABRIR_ASSISTENTE, abrir);
+    return () => window.removeEventListener(ABRIR_ASSISTENTE, abrir);
   }, []);
   const botaoRecolher = useRef<HTMLButtonElement>(null);
   const botaoAbrir = useRef<HTMLButtonElement>(null);

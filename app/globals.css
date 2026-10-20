@@ -4525,13 +4525,196 @@ html[data-tema="escuro"] .app-shell {
     width: auto;
   }
 }
-.app-ajuda {
-  font-family: var(--font-titulo);
-  font-size: 17px;
-  font-weight: 600;
-  width: 36px;
-  height: 36px;
-  flex: none;
+/* Ajuda (#171): o botão da barra com o menu, o painel da tela e a Central de ajuda (app/(app)/ajuda/).
+   O botão segue o "Avisos" ao lado; o painel, o cartão do tutorial; os passos, o "Como funciona". */
+.ajd-menu-envelope { position: relative; flex: none; }
+.ajd-botao { font-size: 15px; }
+.ajd-botao svg { color: color-mix(in srgb, var(--color-text) 72%, transparent); }
+.ajd-botao[aria-expanded="true"] { background: var(--tinta-hover); }
+.ajd-menu { right: 0; width: 290px; padding: 6px; display: grid; gap: 2px; }
+.ajd-menu-item {
+  display: grid; grid-template-columns: 18px minmax(0, 1fr); column-gap: 10px; row-gap: 1px;
+  padding: 9px 10px; border: 0; border-radius: 12px; background: none; cursor: pointer;
+  text-align: left; text-decoration: none; color: var(--color-text); font-family: var(--font-body);
+}
+.ajd-menu-item:hover, .ajd-menu-item:focus-visible { background: var(--tinta-hover); }
+.ajd-menu-item svg { margin-top: 2px; color: color-mix(in srgb, var(--color-text) 66%, transparent); }
+.ajd-menu-titulo { font-size: 14.5px; font-weight: 600; }
+.ajd-menu-detalhe { grid-column: 2; font-size: 13px; line-height: 1.45; color: var(--texto-apagado); }
+
+.ajd-link { color: var(--color-accent-700); text-underline-offset: 3px; }
+
+.ajd-passos { display: grid; gap: 16px; margin: 0; padding: 0; list-style: none; }
+.ajd-passos-em-linha { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 18px 24px; }
+.ajd-passos li { display: grid; grid-template-columns: 32px minmax(0, 1fr); column-gap: 12px; row-gap: 3px; align-content: start; }
+.ajd-passo-numero {
+  grid-row: span 2; display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 50%; font-size: 14px; font-weight: 600;
+  font-variant-numeric: tabular-nums; color: var(--color-bg); background: var(--color-accent-700);
+}
+.ajd-passos strong { padding-top: 5px; font-size: 15px; font-weight: 600; line-height: 1.35; }
+.ajd-passos li > span:last-child { font-size: 13.5px; line-height: 1.5; color: color-mix(in srgb, var(--color-text) 66%, transparent); }
+
+/* o painel da tela: abaixo da barra, à direita, sem cobrir o menu */
+.ajd-painel {
+  position: fixed; z-index: 44; top: 64px; right: 0; bottom: 0; width: min(400px, 100vw);
+  display: flex; flex-direction: column;
+  background: var(--color-bg); border-left: 1px solid var(--color-divider); box-shadow: var(--shadow-lg);
+}
+.ajd-painel-topo { display: flex; align-items: center; gap: 12px; padding: 18px 20px 0; }
+.ajd-painel-topo .tutorial-contagem { flex: 1; min-width: 0; }
+.ajd-painel-corpo { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 18px; padding: 14px 20px 20px; }
+.ajd-painel-corpo .tutorial-titulo:focus { outline: none; }
+.ajd-painel-texto { margin: 6px 0 0; font-size: 14.5px; line-height: 1.6; }
+.ajd-painel-rodape {
+  display: flex; justify-content: flex-end; padding: 12px 20px max(16px, env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--color-divider);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .ajd-painel { animation: ajd-painel-entra 0.24s cubic-bezier(0.22, 1, 0.36, 1); }
+  @keyframes ajd-painel-entra { from { transform: translateX(24px); opacity: 0; } }
+}
+
+.ajd-video { margin: 0; border: 1px solid var(--color-divider); border-radius: var(--radius-md); overflow: hidden; background: var(--color-surface); }
+.ajd-video video { display: block; width: 100%; aspect-ratio: 16 / 9; background: #11100f; }
+.ajd-capitulos { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 10px 12px; font-size: 13px; color: var(--texto-apagado); }
+.ajd-capitulo {
+  border: 1px solid var(--color-divider); border-radius: 12px; background: var(--color-bg);
+  padding: 3px 10px; font: 13px var(--font-body); color: var(--color-text); cursor: pointer;
+}
+.ajd-capitulo:hover { border-color: var(--color-accent); }
+.ajd-capitulo b { margin-right: 6px; color: var(--color-accent-700); font-variant-numeric: tabular-nums; }
+
+/* a miniatura da tela: medidas em em sobre um tamanho que segue a largura do cartão; cada número
+   (.ajd-marca) fica no canto do elemento que o passo aponta */
+.ajd-passo-a-passo { container-type: inline-size; }
+.ajd-planta {
+  display: flex; flex-direction: column; gap: 1.6em; max-width: 100%; padding: 2.4em 2.6em 2.8em;
+  border: 1px solid var(--color-divider); border-radius: 12px; background: var(--color-bg);
+  font-size: clamp(7px, 1.55cqi, 12px); line-height: 1.4;
+}
+.ajd-planta-titulo { position: relative; align-self: flex-start; font-family: var(--font-titulo); font-weight: 600; font-size: 2.3em; line-height: 1.1; }
+.ajd-planta-linha { display: flex; gap: 5%; }
+.ajd-planta-arquivo {
+  position: relative; flex: 1; display: flex; flex-direction: column; align-items: center; gap: .3em; padding: 2em 1em;
+  border: 1px dashed color-mix(in srgb, var(--color-text) 30%, transparent); border-radius: 8px;
+  text-align: center; font-size: 1.2em; color: var(--texto-apagado);
+}
+.ajd-planta-arquivo b { font-family: var(--font-titulo); font-size: 1.3em; color: var(--color-text); }
+.ajd-planta-lado { align-items: flex-start; padding: 1.2em 1.2em; text-align: left; border-style: solid; border-color: var(--color-divider); }
+.ajd-planta-botao {
+  position: relative; align-self: flex-start; border: 1px solid var(--color-divider); border-radius: 6px;
+  padding: .3em 1em; font-size: 1.2em; font-weight: 600;
+}
+.ajd-planta-botao-ouro { border-color: var(--color-accent); color: var(--color-accent-700); }
+.ajd-planta-acoes { gap: 2.5%; align-items: center; }
+.ajd-planta-fim { justify-content: flex-end; }
+.ajd-planta-fim-linha { margin-left: auto; }
+.ajd-planta-tabela { position: relative; display: flex; flex-direction: column; border: 1px solid var(--color-divider); border-radius: 6px; font-size: 1.2em; }
+.ajd-planta-tabela > span { display: grid; grid-template-columns: 1fr 2fr 1fr; gap: .6em; padding: .4em .8em; border-top: 1px solid var(--color-divider); font-variant-numeric: tabular-nums; }
+.ajd-planta-tabela > span:first-of-type { border-top: 0; border-radius: 6px 6px 0 0; background: var(--color-surface); font-weight: 600; }
+.ajd-planta-tabela > span:first-of-type > span { position: relative; justify-self: start; }
+.ajd-planta-barra { position: relative; height: .8em; border-radius: 4px; background: color-mix(in srgb, var(--color-text) 10%, transparent); }
+.ajd-planta-barra i { display: block; width: 72%; height: 100%; border-radius: 4px; background: var(--color-ok-700); }
+.ajd-planta-ponto { display: inline-block; width: .7em; height: .7em; margin-right: .4em; border-radius: 50%; background: var(--color-accent); }
+.ajd-planta-config { justify-content: space-between; align-items: center; }
+.ajd-planta-texto { display: flex; flex-direction: column; gap: .5em; width: 52%; font-size: 1.2em; }
+.ajd-planta-texto i { height: .8em; border-radius: 3px; background: color-mix(in srgb, var(--color-text) 10%, transparent); }
+.ajd-planta-texto i:last-child { width: 70%; }
+.ajd-planta-numero { position: relative; display: inline-flex; align-items: center; gap: .4em; font-size: 1.2em; }
+.ajd-planta-numero span { display: grid; place-items: center; width: 1.9em; height: 1.9em; border: 1px solid var(--color-divider); border-radius: 50%; }
+.ajd-planta-numero em { font-style: normal; border: 1px solid var(--color-divider); border-radius: 6px; padding: .1em .9em; }
+.ajd-marca {
+  position: absolute; z-index: 1; top: 0; left: 0; translate: -45% -45%;
+  display: grid; place-items: center; width: 26px; height: 26px;
+  border-radius: 50%; font: 600 13px/1 var(--font-body); font-variant-numeric: tabular-nums;
+  color: var(--color-bg); background: var(--color-accent-700);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-accent) 22%, transparent);
+  transition: scale 0.15s ease-out;
+}
+.ajd-marca[data-realce] { scale: 1.2; }
+/* no botão, o número vai para o canto direito: à esquerda cobriria o começo do rótulo */
+.ajd-planta-botao > .ajd-marca { left: auto; right: 0; translate: 55% -55%; }
+@container (max-width: 520px) {
+  .ajd-marca { width: 20px; height: 20px; font-size: 11px; box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 22%, transparent); }
+}
+
+/* a Central */
+.ajd-central-corpo { display: grid; grid-template-columns: 236px minmax(0, 1fr); gap: 40px; align-items: start; padding: 28px 0 64px; }
+.ajd-indice { position: sticky; top: 88px; display: flex; flex-direction: column; gap: 4px; }
+.ajd-procurar {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 8px; padding: 6px 12px;
+  border: 1px solid var(--color-divider); border-radius: var(--radius-md); background: var(--color-surface);
+  color: var(--texto-apagado);
+}
+.ajd-procurar .input { border: 0; background: none; padding: 2px 0; font-size: 14.5px; box-shadow: none; outline: none; }
+.ajd-procurar:focus-within { border-color: var(--color-accent); }
+.ajd-indice-grupo { padding: 8px 10px 4px; font-size: 13px; color: var(--texto-apagado); }
+.ajd-indice-item {
+  display: flex; align-items: center; gap: 10px; padding: 8px 11px; border: 1px solid transparent; border-radius: var(--radius-md);
+  font-size: 15px; font-weight: 600; text-decoration: none; color: color-mix(in srgb, var(--color-text) 78%, transparent);
+}
+.ajd-indice-item:hover { background: var(--tinta-hover); }
+.ajd-indice-item[aria-current="page"] { background: var(--tinta-ativa); color: var(--color-text); }
+.ajd-indice-vazio { margin: 0; padding: 8px 10px; font-size: 13.5px; color: var(--texto-apagado); }
+.ajd-artigo { display: flex; flex-direction: column; gap: 26px; max-width: 760px; min-width: 0; }
+.ajd-artigo-cabeca { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.ajd-artigo-titulo { margin: 0; font-size: 30px; font-weight: 600; }
+.ajd-artigo-resumo { margin: 0; max-width: 62ch; font-size: 16px; line-height: 1.6; color: color-mix(in srgb, var(--color-text) 70%, transparent); }
+.ajd-onde {
+  display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px; border: 1px solid var(--color-divider);
+  border-radius: 999px; font-size: 13px; color: var(--texto-apagado);
+}
+.ajd-bloco { display: flex; flex-direction: column; gap: 14px; }
+.ajd-bloco-titulo { margin: 0; font-size: 20px; font-weight: 600; }
+.ajd-passo-a-passo { display: flex; flex-direction: column; gap: 20px; padding: 22px 24px; background: var(--color-surface); border-color: transparent; }
+.ajd-perguntas { border-top: 1px solid var(--color-divider); }
+.ajd-perguntas details { border-bottom: 1px solid var(--color-divider); }
+.ajd-perguntas summary {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 14px 4px; list-style: none; cursor: pointer; font-size: 15px; font-weight: 600;
+}
+.ajd-perguntas summary::-webkit-details-marker { display: none; }
+.ajd-perguntas summary svg { flex: none; color: var(--texto-apagado); transition: transform 0.2s; }
+.ajd-perguntas details[open] summary svg { transform: rotate(90deg); }
+.ajd-perguntas p { margin: 0; padding: 0 4px 16px; max-width: 64ch; font-size: 14.5px; color: color-mix(in srgb, var(--color-text) 70%, transparent); }
+.ajd-assistente {
+  display: flex; align-items: center; gap: 14px; padding: 14px 16px; text-align: left; cursor: pointer;
+  border: 1px solid color-mix(in srgb, var(--color-text) 20%, transparent); border-radius: var(--radius-md);
+  background: none; color: var(--color-text); font-family: var(--font-body);
+}
+.ajd-assistente:hover { background: var(--tinta-hover); }
+.ajd-assistente img { width: 44px; height: 44px; flex: none; }
+.ajd-assistente > span { display: flex; flex-direction: column; }
+.ajd-assistente strong { font-family: var(--font-titulo); font-size: 18px; font-weight: 600; }
+.ajd-assistente > span > span:last-child { font-size: 13.5px; color: var(--texto-apagado); }
+.ajd-vizinhas { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding-top: 18px; border-top: 1px solid var(--color-divider); }
+.ajd-vizinha { display: flex; flex-direction: column; gap: 2px; padding: 6px 8px; border-radius: 10px; text-decoration: none; color: var(--color-text); }
+.ajd-vizinha:hover { background: var(--tinta-hover); }
+.ajd-vizinha strong { font-family: var(--font-titulo); font-size: 18px; font-weight: 600; }
+.ajd-vizinha-proxima { margin-left: auto; align-items: flex-end; text-align: right; }
+
+@media (max-width: 1100px) {
+  .ajd-central-corpo { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+  .ajd-indice { position: static; flex-direction: row; overflow-x: auto; padding-bottom: 4px; }
+  .ajd-procurar { flex: 0 0 220px; margin: 0; }
+  .ajd-indice-grupo { display: none; }
+  .ajd-indice-item { flex: none; white-space: nowrap; border-color: var(--color-divider); }
+}
+/* no celular o botão fica só com o ícone e o painel sobe de baixo, como o cartão do tutorial */
+@media (max-width: 640px) {
+  .ajd-botao { padding: 7px 9px; }
+  .ajd-botao-rotulo { display: none; }
+  .ajd-menu { width: min(290px, calc(100vw - 32px)); }
+  /* acima da barra do topo (z 45), que no celular é alta, e abaixo do tutorial (z 60) */
+  .ajd-painel {
+    z-index: 55; top: auto; left: 0; height: 82vh; width: 100%; border-left: 0; border-top: 1px solid var(--color-divider);
+    border-radius: 22px 22px 0 0;
+  }
+}
+@media (max-width: 640px) and (prefers-reduced-motion: no-preference) {
+  .ajd-painel { animation-name: ajd-painel-sobe; }
+  @keyframes ajd-painel-sobe { from { transform: translateY(40px); opacity: 0; } }
 }
 
 /* Roteiro de primeiros passos (primeiro uso, 15/10) */
