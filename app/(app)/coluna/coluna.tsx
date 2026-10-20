@@ -223,8 +223,11 @@ function AjudaDaTela() {
   const bloco = useRef<HTMLElement>(null);
   const titulo = useRef<HTMLHeadingElement>(null);
 
+  // o contador vive no provedor: só um pedido maior que o visto na montagem rola e foca
+  const visto = useRef(pedidosDeAjuda);
   useEffect(() => {
-    if (pedidosDeAjuda === 0) return;
+    if (pedidosDeAjuda <= visto.current) return;
+    visto.current = pedidosDeAjuda;
     bloco.current?.scrollIntoView?.({ block: "start" });
     titulo.current?.focus();
   }, [pedidosDeAjuda]);

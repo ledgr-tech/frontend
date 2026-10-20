@@ -156,6 +156,22 @@ describe("coluna Agora", () => {
       expect(screen.getByRole("heading", { name: "Ajuda desta tela" })).toHaveFocus();
     });
 
+    it("voltar a uma tela com coluna não rola nem foca sem um pedido novo", () => {
+      caminho = "/conciliacoes/b";
+      const arvore = () => (
+        <ProvedorDaColuna>
+          <ColunaAgora />
+        </ProvedorDaColuna>
+      );
+      const { rerender } = render(arvore());
+      act(() => mostrarAjudaNaColuna());
+      caminho = "/configuracoes";
+      rerender(arvore());
+      caminho = "/conciliacoes/b";
+      rerender(arvore());
+      expect(screen.getByRole("heading", { name: "Ajuda desta tela" })).not.toHaveFocus();
+    });
+
     it("nas telas menores, o pedido abre o painel", () => {
       caminho = "/conciliacoes/b";
       telas(false);

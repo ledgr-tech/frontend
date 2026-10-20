@@ -72,7 +72,9 @@ export function MenuDeAjuda() {
               <BookOpen {...ICONE} />
               <span className="ajd-menu-titulo">Ajuda desta tela</span>
               <span className="ajd-menu-detalhe">
-                Os passos e o que fazer se der errado.
+                {pagina
+                  ? "Os passos e o que fazer se der errado."
+                  : "O caminho para a Central de ajuda."}
               </span>
             </button>
           )}
