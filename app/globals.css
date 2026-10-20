@@ -3018,6 +3018,20 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
 }
 .extrato-campos dt { flex: none; color: color-mix(in srgb, var(--color-text) 62%, transparent); }
 .extrato-campos dd { margin: 0; min-width: 0; text-align: right; font-variant-numeric: tabular-nums; }
+.extrato-par { display: inline-flex; align-items: center; gap: 6px; overflow-wrap: anywhere; }
+.extrato-par .icone-origem { flex: none; color: color-mix(in srgb, var(--color-text) 58%, transparent); }
+/* o que a conciliação do arquivo deu: o número grande e a barra no verde de "bateu", como a Visão geral */
+.extrato-resultado { display: flex; flex-direction: column; gap: 8px; padding: 14px 16px; border-radius: var(--radius-md); background: var(--color-surface); }
+.extrato-resultado-numero { margin: 0; font-family: var(--font-titulo); font-size: 26px; font-weight: 600; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.extrato-resultado-numero span { font-size: 17px; font-weight: 500; color: color-mix(in srgb, var(--color-text) 66%, transparent); }
+.extrato-resultado-barra { height: 6px; border-radius: 999px; background: var(--color-divider); overflow: hidden; }
+.extrato-resultado-barra i { display: block; height: 100%; background: var(--color-ok-700); }
+.extrato-resultado-pendencias { margin: 0; font-size: 13.5px; color: color-mix(in srgb, var(--color-text) 66%, transparent); }
+.extrato-resultado-pendencias[data-pendente] { color: var(--color-accent-700); font-weight: 500; }
+/* a ação do painel: o botão principal do app, na largura toda, e o atalho do duplo clique embaixo */
+.extrato-abrir { display: flex; flex-direction: column; gap: 6px; padding-top: 4px; }
+.extrato-abrir .btn { justify-content: center; width: 100%; }
+.extrato-abrir-dica { font-size: 12.5px; text-align: center; color: var(--texto-apagado); }
 .extrato-nao-lidas h4 { margin: 0 0 8px; font-size: 15px; font-weight: 600; color: var(--color-accent-700); }
 .extrato-nao-lidas ul {
   margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px;

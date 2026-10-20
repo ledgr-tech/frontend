@@ -550,7 +550,41 @@ export type ArquivoExtrato = Partial<Pick<ArquivoConciliado, "conciliadoEm" | "r
   conciliado: boolean;
   /** O saldo que o arquivo informa (backend #118); ausente quando o backend não manda. */
   saldo?: SaldoDoExtrato | null;
+  /** A primeira e a última data dos lançamentos (AAAA-MM-DD); null enquanto não há período. */
+  periodo?: { inicio: string; fim: string } | null;
+  /** A rodada em que o arquivo conta hoje, para o painel: só quando ela está em `/execucoes`. */
+  ultimaRodada?: ResumoDaRodada;
 };
+
+/** O que a rodada de um arquivo deu, das contagens de `/execucoes`, sem abrir a conciliação. */
+export type ResumoDaRodada = {
+  /** O arquivo do outro lado da conciliação. */
+  com: string;
+  /** Percentual de 0 a 100 do que bateu (exato e na tolerância); null quando o backend não manda. */
+  acerto: number | null;
+  divergencias: number;
+  justificadas: number;
+  toleranciaDias: number;
+};
+
+/**
+ * A rodada que vale para o arquivo: a do extrato do banco é a vigente dele; a do sistema, a mais
+ * recente em que ele entrou (a lista chega da mais nova para a mais antiga).
+ */
+function rodadaDoArquivo(execucoes: Execucao[], id: string, origem: "banco" | "sistema"): ResumoDaRodada | undefined {
+  const execucao =
+    origem === "banco"
+      ? rodadasDoBanco(execucoes, id).at(-1)?.execucao
+      : execucoes.find((cada) => cada.extratoSistemaId === id);
+  if (!execucao) return undefined;
+  return {
+    com: origem === "banco" ? execucao.arquivoSistema : execucao.arquivoBanco,
+    acerto: execucao.acerto,
+    divergencias: Object.values(execucao.divergencias).reduce((soma, n) => soma + (n ?? 0), 0),
+    justificadas: execucao.justificadas,
+    toleranciaDias: execucao.toleranciaDias,
+  };
+}
 
 export type ListaDeExtratos = {
   arquivos: ArquivoExtrato[];
@@ -605,9 +639,12 @@ export async function listarExtratos(): Promise<Resultado<ListaDeExtratos>> {
       arquivos: lista.itens.map((item, i) => {
         const detalhe = detalhes[i];
         const saldo = adaptarSaldo(item);
+        const ultimaRodada = item.conciliado ? rodadaDoArquivo(doBackend, item.extrato_id, item.origem) : undefined;
         return {
           ...(saldo !== undefined && { saldo }),
+          ...(ultimaRodada && { ultimaRodada }),
           ...ondeAbre(item, conciliacoes.get(item.extrato_id)),
+          periodo: item.periodo_inicio && item.periodo_fim ? { inicio: item.periodo_inicio, fim: item.periodo_fim } : null,
           id: item.extrato_id,
           nome: item.nome_arquivo,
           origem: item.origem,
