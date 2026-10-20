@@ -9,6 +9,7 @@ import { EmpresaDaSessao } from "./cabecalho";
 import { TRACO_ICONE } from "./traco-icone";
 import { ProvedorDaConta } from "./conta";
 import { TutorialDaRota } from "./tutorial/tutorial-da-rota";
+import { PainelDaRota } from "./ajuda/painel-de-ajuda";
 import type { Preferencias } from "@/lib/preferencias";
 import type { Assinatura } from "@/lib/assinatura";
 
@@ -48,6 +49,7 @@ export function Shell({
               <BarraSuperior />
               <div className="app-conteudo">{children}</div>
               <TutorialDaRota />
+              <PainelDaRota />
             </main>
           </div>
         </LucideProvider>
