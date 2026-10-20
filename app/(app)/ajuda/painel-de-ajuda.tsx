@@ -7,8 +7,9 @@ import { usePathname } from "next/navigation";
 import { ArrowRight, X } from "lucide-react";
 import { ABRIR_AJUDA } from "@/lib/eventos";
 import { telaDoCaminho } from "../tutorial/roteiros";
-import { Texto } from "./blocos";
-import { ajudaDaTela, type PaginaDeAjuda } from "./paginas";
+import { Texto } from "../../(ajuda)/ajuda/blocos";
+import { ajudaDaTela, type PaginaDeAjuda } from "../../(ajuda)/ajuda/paginas";
+import { lembrarDeOndeVeio } from "../../(ajuda)/ajuda/voltar";
 
 /**
  * A ajuda da tela aberta (#171), num painel à direita que o "Ajuda desta tela" do menu abre. Não é
@@ -49,6 +50,12 @@ function PainelDeAjuda({ pagina }: { pagina: PaginaDeAjuda }) {
     window.addEventListener("keydown", tecla);
     return () => window.removeEventListener("keydown", tecla);
   }, [aberto]);
+
+  // a Central abre em tela cheia; o "Voltar ao Ledgr" de lá traz de volta a esta tela
+  function irParaACentral() {
+    lembrarDeOndeVeio();
+    setAberto(false);
+  }
 
   function fechar() {
     setAberto(false);
@@ -92,7 +99,7 @@ function PainelDeAjuda({ pagina }: { pagina: PaginaDeAjuda }) {
             <li key={funcao.id}>
               <Link
                 href={`/ajuda/${pagina.id}#${funcao.id}`}
-                onClick={() => setAberto(false)}
+                onClick={irParaACentral}
               >
                 <strong>{funcao.titulo}</strong>
                 <span>
@@ -107,7 +114,7 @@ function PainelDeAjuda({ pagina }: { pagina: PaginaDeAjuda }) {
         <Link
           href={`/ajuda/${pagina.id}`}
           className="btn btn-primary"
-          onClick={() => setAberto(false)}
+          onClick={irParaACentral}
         >
           Abrir a página completa
           <ArrowRight size={16} aria-hidden />

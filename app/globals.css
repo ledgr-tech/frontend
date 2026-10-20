@@ -4590,6 +4590,20 @@ html[data-tema="escuro"] .app-shell {
 .ajd-painel-funcoes strong { font-size: 15px; font-weight: 600; }
 .ajd-painel-funcoes span { font-size: 13.5px; line-height: 1.5; color: var(--texto-apagado); }
 
+/* a Central como sistema à parte (app/(ajuda)/): tela cheia, sem o menu e a barra do app; o
+   app-shell só empresta os tokens e o tema. A barra tem a marca e a única saída, "Voltar ao Ledgr" */
+.app-shell.ajd-sistema { display: block; }
+.ajd-barra {
+  position: sticky; top: 0; z-index: 40; display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  height: 64px; padding: 0 max(24px, env(safe-area-inset-right, 0px)) 0 max(24px, env(safe-area-inset-left, 0px));
+  border-bottom: 1px solid var(--color-divider);
+  background: color-mix(in srgb, var(--color-bg) 92%, transparent); backdrop-filter: blur(8px);
+}
+.ajd-barra-marca { display: flex; align-items: center; gap: 9px; text-decoration: none; color: var(--color-text); font-weight: 600; font-size: 16px; }
+.ajd-barra-marca .app-logo { width: 24px; }
+.ajd-barra-nome { padding-left: 10px; border-left: 1px solid var(--color-divider); font-weight: 400; color: var(--texto-apagado); }
+.ajd-sistema .ajd-central { padding-inline: 24px; }
+
 /* a Central: feita para ler. As telas à esquerda, discretas; o texto no centro (~68 caracteres);
    "Nesta página" à direita com as funcionalidades da tela */
 .ajd-central {
@@ -4683,7 +4697,7 @@ html[data-tema="escuro"] .app-shell {
 .ajd-indice a[aria-current] { color: var(--color-text); font-weight: 600; }
 /* o traço dourado da seção atual desliza de um título ao outro (o JS só dá a posição) */
 .ajd-indice-marca {
-  position: absolute; width: 2px; height: 0; margin-left: -0.5px; border-radius: 2px; background: var(--color-accent);
+  position: absolute; top: 0; left: 0; width: 2px; height: 0; margin-left: -0.5px; border-radius: 2px; background: var(--color-accent);
   transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), height 0.35s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
