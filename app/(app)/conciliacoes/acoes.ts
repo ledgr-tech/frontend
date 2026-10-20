@@ -32,6 +32,8 @@ import { decisoesLigadas, situacaoDaLinha } from "./[id]/situacao";
 import { competencia } from "../fechamentos/fechamento";
 import type { ConciliacaoDoPar } from "../fechamentos/relatorio";
 import type { DadosDoRoteiro } from "../visao-geral/roteiro";
+import { contaDaSessao } from "../../(auth)/acoes";
+import { SO_O_GESTOR_FECHA, SO_O_GESTOR_JUSTIFICA } from "@/lib/gestor";
 
 /**
  * O fluxo real de conciliação, ponta a ponta, contra a API do backend:
@@ -92,6 +94,21 @@ function traduzir(erro: unknown): Falha {
   }
   // fetch que nem chegou a sair (backend fora do ar, DNS, CORS de rede)
   return { ok: false, status: 0, erro: "Não foi possível falar com o servidor." };
+}
+
+/**
+ * Justificar e fechar ou reabrir o mês são do gestor da conta (#168). A Server Action é endpoint
+ * público, então recusa aqui também, e não só esconde o botão; a trava que vale é a do backend
+ * (backend #132), que responde 403. Sem o `/me`, `contaDaSessao` diz gestor e o backend decide.
+ */
+async function recusaSeNaoForGestor(erro: string): Promise<Falha | null> {
+  const { administrador } = await contaDaSessao();
+  return administrador ? null : { ok: false, status: 403, erro };
+}
+
+/** O 403 do backend para quem não é o gestor chega com o mesmo texto da tela. */
+function traduzirDoGestor(erro: unknown, texto: string): Falha {
+  return erro instanceof ErroBackend && erro.status === 403 ? { ok: false, status: 403, erro: texto } : traduzir(erro);
 }
 
 /** O 404 de uma linha que a tela ainda mostra: o par foi conciliado de novo depois que ela abriu. */
@@ -842,6 +859,8 @@ const COMPETENCIA_INVALIDA: Falha = {
  */
 export async function fecharMes(competencia: string, ressalva?: string): Promise<Resultado<Fechamento>> {
   if (!COMPETENCIA.test(competencia)) return COMPETENCIA_INVALIDA;
+  const recusa = await recusaSeNaoForGestor(SO_O_GESTOR_FECHA);
+  if (recusa) return recusa;
   const texto = ressalva?.trim();
   try {
     const fechamento = await chamarBackend<FechamentoAPI>("/fechamentos", {
@@ -850,18 +869,20 @@ export async function fecharMes(competencia: string, ressalva?: string): Promise
     });
     return { ok: true, dados: adaptarFechamento(fechamento) };
   } catch (erro) {
-    return traduzir(erro);
+    return traduzirDoGestor(erro, SO_O_GESTOR_FECHA);
   }
 }
 
 /** Reabre o mês (`DELETE /fechamentos/{competencia}`). Nada se apaga: o fechamento fica como reaberto. */
 export async function reabrirMes(competencia: string): Promise<Resultado<Fechamento>> {
   if (!COMPETENCIA.test(competencia)) return COMPETENCIA_INVALIDA;
+  const recusa = await recusaSeNaoForGestor(SO_O_GESTOR_FECHA);
+  if (recusa) return recusa;
   try {
     const fechamento = await chamarBackend<FechamentoAPI>(`/fechamentos/${competencia}`, { method: "DELETE" });
     return { ok: true, dados: adaptarFechamento(fechamento) };
   } catch (erro) {
-    return traduzir(erro);
+    return traduzirDoGestor(erro, SO_O_GESTOR_FECHA);
   }
 }
 
@@ -945,6 +966,12 @@ export async function registrarDecisao(
   texto?: string,
 ): Promise<Resultado<Decisao | null>> {
   if (!pareceUuid(extratoBancoId)) return { ok: false, status: 404, erro: "Conciliação não encontrada." };
+  // conferir é de todos; justificar e desfazer a justificativa, só do gestor
+  const justificativa = tipo === "justificada" || tipo === "justificativa_desfeita";
+  if (justificativa) {
+    const recusa = await recusaSeNaoForGestor(SO_O_GESTOR_JUSTIFICA);
+    if (recusa) return recusa;
+  }
   try {
     const decisao = await chamarBackend<Decisao | null>(`/conciliacoes/${extratoBancoId}/decisoes`, {
       method: "POST",
@@ -956,7 +983,7 @@ export async function registrarDecisao(
     if (erro instanceof ErroBackend && erro.status === 404) {
       return { ok: false, status: 404, erro: LINHA_MUDOU };
     }
-    return traduzir(erro);
+    return justificativa ? traduzirDoGestor(erro, SO_O_GESTOR_JUSTIFICA) : traduzir(erro);
   }
 }
 

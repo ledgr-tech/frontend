@@ -7,6 +7,12 @@ import ConciliacaoPage from "./page";
 // hoisted porque a fábrica do vi.mock roda antes das declarações do módulo
 const rota = vi.hoisted(() => ({ id: "conc-1", busca: "" }));
 const navegar = vi.hoisted(() => ({ push: vi.fn() }));
+// justificar é do gestor (#168); o padrão é a conta que cadastrou a empresa
+const gestor = vi.hoisted(() => ({ valor: true }));
+vi.mock("../../conta", async (original) => ({
+  ...(await original<typeof import("../../conta")>()),
+  useEhGestor: () => gestor.valor,
+}));
 
 vi.mock("next/navigation", () => ({
   useParams: () => ({ id: rota.id }),
@@ -1283,6 +1289,25 @@ describe("ConciliacaoPage", () => {
         expect(janela).toHaveTextContent("Justificada por Você em");
         expect(janela).toHaveTextContent("Juros de dois dias de atraso, lançados como despesa financeira.");
         expect(within(janela).getByRole("button", { name: "Desfazer justificativa" })).toBeInTheDocument();
+      });
+
+      it("only the manager justifies: the others read why, and can still check the line", async () => {
+        gestor.valor = false;
+        try {
+          doBackend(comCampo);
+          const user = userEvent.setup();
+          render(<ConciliacaoPage />);
+
+          await user.click(await screen.findByRole("button", { name: "Tarifa TED" }));
+          const janela = screen.getByRole("dialog", { name: "Tarifa TED" });
+          expect(within(janela).queryByLabelText("Justificativa")).not.toBeInTheDocument();
+          expect(within(janela).queryByRole("button", { name: "Justificar" })).not.toBeInTheDocument();
+          expect(janela).toHaveTextContent("Só o gestor da conta justifica divergências.");
+          // conferir continua de todos: a coluna da caixa está na tabela
+          expect(document.querySelector("col.col-conferir")).not.toBeNull();
+        } finally {
+          gestor.valor = true;
+        }
       });
 
       it("does not justify with a blank text", async () => {
