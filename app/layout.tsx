@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import localFont from "next/font/local";
 import "./fonts/fontes.css";
 import "./globals.css";
@@ -116,7 +117,10 @@ export const metadata: Metadata = {
   twitter: { card: "summary_large_image" },
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  // o nonce da CSP desta requisição (proxy.ts): sem ele, a CSP aplicada barra o script do tema. Ler
+  // os cabeçalhos deixa toda página dinâmica, que é o preço do nonce (uma página estática não o teria)
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
   return (
     <html
       lang="pt-BR"
@@ -134,6 +138,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             encolheria. Só escreve o atributo quando há escolha salva — sem escolha,
             o CSS segue o prefers-color-scheme e o menu abre largo. */}
         <script
+          nonce={nonce}
           dangerouslySetInnerHTML={{
             __html: `try{var d=document.documentElement.dataset,t=localStorage.getItem("ledgr_tema");if(t)d.tema=t;var n=localStorage.getItem("ledgr_densidade");if(n)d.densidade=n;var m=localStorage.getItem("ledgr_menu");if(m)d.menu=m}catch(e){}`,
           }}
