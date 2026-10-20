@@ -92,7 +92,8 @@ describe("coluna Agora", () => {
       "beforeend",
       `<div class="tutorial-destaque"></div><svg class="tutorial-fio"></svg>
        <aside class="coluna-agora" id="com"><div class="card tutorial"></div></aside>
-       <aside class="coluna-agora" id="sem"></aside>`,
+       <aside class="coluna-agora" id="sem"></aside>
+       <aside class="coluna-agora" id="folha" data-painel="aberto"><button class="coluna-agora-fechar"></button><div class="card tutorial"></div></aside>`,
     );
     const z = (el: Element) => Number(getComputedStyle(el).zIndex);
     const veu = document.querySelector(".tutorial-destaque")!;
@@ -103,11 +104,16 @@ describe("coluna Agora", () => {
     expect(z(fio)).toBeLessThan(z(coluna));
     expect(getComputedStyle(coluna.querySelector(".tutorial")!).position).toBe("static");
     expect(getComputedStyle(document.getElementById("sem")!).zIndex).not.toBe("60");
+    // a folha das telas menores com o tutorial: também 60, e sem o X próprio (o do cartão a fecha)
+    const folha = document.getElementById("folha")!;
+    expect(z(folha)).toBe(60);
+    expect(getComputedStyle(folha.querySelector(".coluna-agora-fechar")!).display).toBe("none");
     estilo.remove();
     veu.remove();
     fio.remove();
     coluna.remove();
     document.getElementById("sem")!.remove();
+    folha.remove();
   });
 
   it("no servidor e na primeira renderização a coluna não vem escondida", () => {

@@ -72,17 +72,22 @@ function trazerParaAVista(alvo: HTMLElement, cartao: HTMLElement | null) {
   const topo = naJanela ? 0 : (document.querySelector(".app-topo")?.getBoundingClientRect().bottom ?? 0);
   const quem = cartao?.closest<HTMLElement>("[data-painel]") ?? cartao;
   const caixa = quem?.getBoundingClientRect();
-  // a folha sobe animada (translateY): o topo medido agora ainda está abaixo do final, a altura não muda
-  const embaixo =
+  // a folha sobe animada (translateY): o topo medido agora ainda está abaixo do final, que é a
+  // borda de baixo menos a altura (não animada); vale o mais alto dos dois
+  const topoDoCartao =
     !quem || !caixa || caixa.width <= window.innerWidth / 2 + 120
-      ? 0
+      ? window.innerHeight
       : quem.hasAttribute("data-painel")
-        ? quem.offsetHeight
-        : window.innerHeight - caixa.top;
-  alvo.style.scrollMarginTop = `${Math.max(0, topo) + 2 * FOLGA}px`;
-  alvo.style.scrollMarginBottom = `${Math.max(0, embaixo) + 2 * FOLGA}px`;
+        ? Math.min(caixa.top, window.innerHeight - quem.offsetHeight)
+        : caixa.top;
+  const margemTopo = Math.max(0, topo) + 2 * FOLGA;
+  const margemBaixo = Math.max(0, window.innerHeight - topoDoCartao) + 2 * FOLGA;
+  alvo.style.scrollMarginTop = `${margemTopo}px`;
+  alvo.style.scrollMarginBottom = `${margemBaixo}px`;
   const suave = !window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-  alvo.scrollIntoView?.({ block: "nearest", behavior: suave ? "smooth" : "auto" });
+  // mais alto que a parte livre: "nearest" alinharia a borda de baixo e cortaria o começo; mostra o topo
+  const cabe = alvo.getBoundingClientRect().height <= window.innerHeight - margemTopo - margemBaixo;
+  alvo.scrollIntoView?.({ block: cabe ? "nearest" : "start", behavior: suave ? "smooth" : "auto" });
 }
 
 /**

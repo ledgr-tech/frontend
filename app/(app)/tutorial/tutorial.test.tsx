@@ -87,9 +87,14 @@ describe("Tutorial", () => {
     const altura = vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockImplementation(function (this: HTMLElement) {
       return this.hasAttribute("data-painel") ? 300 : 0;
     });
+    const rolar = vi.fn();
+    Element.prototype.scrollIntoView = rolar;
     montar();
     await screen.findByRole("dialog", { name: "Separe o banco do sistema." });
     await waitFor(() => expect(screen.getByText("filtros").style.scrollMarginBottom).toBe("316px"));
+    // o alvo (altura 10) cabe acima da folha
+    expect(rolar).toHaveBeenCalledWith(expect.objectContaining({ block: "nearest" }));
+    delete (Element.prototype as { scrollIntoView?: unknown }).scrollIntoView;
     largura.mockRestore();
     altura.mockRestore();
   });
