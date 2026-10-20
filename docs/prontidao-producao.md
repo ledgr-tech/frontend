@@ -40,7 +40,7 @@ Ordem segura:
 | Login e atalho de demonstração | ✅ Senha conferida pelo backend (`POST /login`), sem conta nem senha no código. Atalho de demonstração desligado por padrão, com a conta só no ambiente do servidor. |
 | Upload | ✅ Limite de 4 MB no front e 4,5 MB nas Server Actions (teto da Vercel). ⚠️ No backend, o limite de 10 uploads/min é por IP, mas o IP visto é o do proxy do Railway (e, com a Vercel, o dos servidores dela): na prática é global para todos os usuários. |
 | Varredura automática no CI (CodeQL, Dependabot, audit) | ✅ `npm audit --omit=dev --audit-level=high` no CI e Dependabot semanal contra a `develop` (`.github/dependabot.yml`). ⚠️ CodeQL não; alertas e atualizações de segurança do Dependabot são configuração do repositório, ainda por ligar. |
-| Cabeçalhos de segurança (CSP, X-Frame-Options, etc.) | ✅ `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, HSTS e sem `X-Powered-By`. ⚠️ CSP só em `Report-Only`: aponta no console, não bloqueia. Impor pede tirar o script inline do tema (ou nonce) e decidir sobre o toolbar da Vercel nos previews. |
+| Cabeçalhos de segurança (CSP, X-Frame-Options, etc.) | ✅ `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, HSTS e sem `X-Powered-By`. ✅ CSP aplicada com nonce por página (`proxy.ts`, `lib/csp.ts`, #158); o toolbar da Vercel nos previews fica bloqueado. |
 | Limite de tentativas de login | ⚠️ No navegador (`lib/tentativas.ts`) e no backend (10 `/login` e 5 `/register` por minuto por IP). Mas quem chama o backend é o servidor da Vercel, então o limite do backend vale para todos os usuários juntos: 11 entradas no mesmo minuto, de pessoas diferentes, já recebem "acesso pausado". Em andamento: o front repassa o IP do navegador com um segredo compartilhado (`LEDGR_SEGREDO_PROXY`, issue #108, PR #109), e o backend passa a usá-lo (ledgr-tech/backend#101). Vale quando os dois estiverem publicados e a variável existir nos dois lados. |
 | Validação dos IDs nas Server Actions | ✅ Todo id que entra no caminho ou na query do backend é conferido como UUID antes (`situacaoDoExtrato`, `carregarConciliacao`, rota do CSV). Os que vão no corpo JSON o backend valida. |
 | Revisão de segurança do diff `develop` → `main` | ❌ Não foi feita. |
@@ -57,7 +57,8 @@ Ordem segura:
       ser revisado pelo jurídico (as páginas já existem, com texto provisório).
 - [x] **Front:** cabeçalhos de segurança no `next.config.ts`, validação de UUID nas
       Server Actions, `npm audit` e Dependabot no CI.
-- [ ] **Front, depois:** impor a CSP (hoje `Report-Only`) e ligar alertas e
+- [x] **Front:** CSP aplicada com nonce (#158).
+- [ ] **Front, depois:** ligar alertas e
       atualizações de segurança do Dependabot nas configurações do repositório.
 - [ ] **Revisão:** revisão de segurança do diff `develop` → `main`; depois, PR para a
       `main` com aprovação de alguém do time.
