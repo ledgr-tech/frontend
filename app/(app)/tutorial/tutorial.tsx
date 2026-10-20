@@ -224,7 +224,8 @@ export function Tutorial({
 
   useEffect(() => {
     if (aberto) cartao.current?.focus();
-  }, [aberto, indice]);
+    // o cartão pode trocar do canto para a coluna quando o encaixe chega: o foco segue o nó desenhado
+  }, [aberto, indice, encaixe]);
 
   if (!aberto) return null;
   const passo = passos[indice];

@@ -57,6 +57,7 @@ describe("Tutorial", () => {
     montar();
     await screen.findByRole("dialog");
     expect(document.documentElement.dataset.coluna).not.toBe("recolhida");
+    await waitFor(() => expect(screen.getByRole("dialog")).toHaveFocus());
     await user.click(screen.getByRole("button", { name: "Pular" }));
     expect(document.documentElement.dataset.coluna).toBe("recolhida");
     expect(gravar.mock.calls.filter(([chave]) => chave === "ledgr_coluna")).toEqual([]);
@@ -69,6 +70,7 @@ describe("Tutorial", () => {
     montar();
     const cartao = await screen.findByRole("dialog", { name: "Separe o banco do sistema." });
     expect(cartao.closest("aside")).toHaveAttribute("data-painel", "aberto");
+    await waitFor(() => expect(cartao).toHaveFocus());
     await user.click(screen.getByRole("button", { name: "Pular" }));
     expect(document.querySelector("aside[data-painel]")).toBeNull();
   });
