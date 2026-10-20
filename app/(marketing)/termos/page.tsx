@@ -38,19 +38,37 @@ export default function TermosPage() {
           Os dados continuam sendo da sua empresa. O Ledgr os usa só para prestar o serviço, como descreve
           a <Link href="/privacidade">Política de privacidade</Link>.
         </li>
+        <li>
+          Para prestar o serviço, a sua empresa autoriza o Ledgr a usar os fornecedores listados na
+          Política de privacidade, entre eles a OpenAI para as explicações por IA.
+        </li>
       </ul>
 
       <h2>Resultados e explicações</h2>
       <p>
         O Ledgr ajuda a encontrar as divergências, mas quem decide o que lançar é você ou o seu contador.
-        Confira antes de ajustar a contabilidade. As explicações geradas por IA são sugestões, podem errar
-        e vêm marcadas como “Gerada por IA”.
+        Confira antes de ajustar a contabilidade.
+      </p>
+      <p>
+        As explicações por IA são geradas pela OpenAI só quando você pede, a partir de dados reduzidos da
+        linha, como descreve a Política de privacidade. Elas são sugestões, podem errar, não são orientação
+        contábil nem fiscal e vêm marcadas como “Gerada por IA”. A IA não muda o status da linha nem
+        registra decisão.
+      </p>
+      <p>
+        O recurso tem um limite diário por empresa e pode ficar indisponível, por exemplo quando o provedor
+        não responde. Nesses casos aparece o texto padrão do Ledgr, e a conciliação continua funcionando
+        normalmente.
       </p>
 
       <h2>O que não é permitido</h2>
       <ul>
         <li>tentar acessar dados de outra empresa ou contornar o login;</li>
         <li>enviar arquivo que não seja extrato, ou que tenha código malicioso;</li>
+        <li>
+          tentar manipular as explicações por IA, por exemplo escrevendo instruções nas descrições dos
+          extratos;
+        </li>
         <li>sobrecarregar o serviço de propósito, ou automatizar acessos sem combinar com a gente.</li>
       </ul>
 

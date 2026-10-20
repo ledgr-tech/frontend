@@ -42,6 +42,8 @@ describe("ExplicacaoDaDivergencia", () => {
 
     expect(screen.getByRole("button", { name: "Explicar esta divergência" })).toBeInTheDocument();
     expect(explicarDivergencia).not.toHaveBeenCalled();
+    // o aviso de envio à OpenAI aparece antes do clique, não depois
+    expect(screen.getByText(/dados resumidos desta linha são enviados à OpenAI/)).toBeInTheDocument();
     // antes da explicação, o mascote investiga de lupa
     expect(document.querySelector("img")?.getAttribute("src")).toContain("mascote-lupa");
   });

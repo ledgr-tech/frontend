@@ -6,12 +6,13 @@ import type { ReactNode } from "react";
  * largura de leitura, a data da versão e o aviso de que ela é preliminar.
  *
  * ponytail: o texto das duas páginas descreve o que o código e as decisões
- * técnicas fazem hoje (ADR-002, arquivo bruto não é guardado; ADR-011, IA com
- * mascaramento) e a pesquisa de LGPD do time. Ainda não passou pelo jurídico:
- * quando a versão revisada chegar, saem o aviso de revisão e os `EmDefinicao`.
+ * técnicas fazem hoje (ADR-002, arquivo bruto não é guardado; IA com a descrição
+ * reduzida a termos bancários, backend #87) e a pesquisa de LGPD do time. Ainda
+ * não passou pelo jurídico: quando a versão revisada chegar, saem o aviso de
+ * revisão e os `EmDefinicao`.
  */
 
-export const VERSAO = "27 de setembro de 2026";
+export const VERSAO = "20 de outubro de 2026";
 
 export function DocumentoLegal({ titulo, children }: { titulo: string; children: ReactNode }) {
   return (
