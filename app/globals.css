@@ -4486,6 +4486,21 @@ html[data-tema="escuro"] .app-shell {
 .tutorial:focus {
   outline: none;
 }
+/* dentro da coluna Agora o cartão não flutua: ocupa a largura dela, maior para ler à vontade, e a
+   coluna sobe acima do véu (59) enquanto ele está aberto */
+.coluna-agora .tutorial {
+  position: static;
+  width: auto;
+}
+.coluna-agora:has(.tutorial) {
+  z-index: 60;
+}
+.coluna-agora .tutorial-titulo {
+  font-size: 24px;
+}
+.coluna-agora .tutorial-texto {
+  font-size: 16px;
+}
 .tutorial-topo {
   display: flex;
   align-items: center;

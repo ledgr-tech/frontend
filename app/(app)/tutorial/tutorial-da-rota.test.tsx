@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { ProvedorDaConta } from "../conta";
+import { ProvedorDaColuna } from "../coluna/coluna";
 import { TutorialDaRota } from "./tutorial-da-rota";
 
 let caminho = "/extratos";
@@ -20,7 +21,9 @@ describe("TutorialDaRota", () => {
         <div data-tutorial="filtros" />
         <div data-tutorial="arquivos" />
         <div data-tutorial="painel" />
-        <TutorialDaRota atraso={0} espera={0} />
+        <ProvedorDaColuna>
+          <TutorialDaRota atraso={0} espera={0} />
+        </ProvedorDaColuna>
       </ProvedorDaConta>,
     );
     expect(await screen.findByText("Extratos · 1 de 3")).toBeInTheDocument();
@@ -30,7 +33,9 @@ describe("TutorialDaRota", () => {
     caminho = "/assinatura";
     render(
       <ProvedorDaConta preferencias={null}>
-        <TutorialDaRota atraso={0} espera={0} />
+        <ProvedorDaColuna>
+          <TutorialDaRota atraso={0} espera={0} />
+        </ProvedorDaColuna>
       </ProvedorDaConta>,
     );
     await new Promise((r) => setTimeout(r, 20));

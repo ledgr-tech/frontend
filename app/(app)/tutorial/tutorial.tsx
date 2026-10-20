@@ -1,11 +1,14 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Image from "next/image";
 import { X } from "lucide-react";
 import { ABRIR_TUTORIAL } from "@/lib/eventos";
 import type { TelaDoTutorial } from "@/lib/preferencias";
 import { usePreferencias } from "../conta";
+import { useColuna } from "../coluna/coluna";
+import { temColuna } from "../coluna/estado";
 import { TUTORIAIS, type PassoDoTutorial } from "./roteiros";
 
 const ATIVO = "data-tutorial-ativo";
@@ -59,13 +62,14 @@ function furo(x: number, y: number, largura: number, altura: number): string {
 
 /**
  * Rola até o alvo ficar na parte livre da tela: abaixo da barra do topo, que gruda na rolagem, e
- * acima do cartão quando ele ocupa a largura toda (celular). Com "nearest", o que já está à vista
+ * acima do que cobre o rodapé quando ocupa a largura toda (celular): o cartão solto, ou o painel
+ * das telas menores que o carrega. Na coluna das telas largas nada cobre a tela. Com "nearest", o que já está à vista
  * não se mexe; o alvo mais alto que o espaço livre fica com o começo à vista.
  */
 function trazerParaAVista(alvo: HTMLElement, cartao: HTMLElement | null) {
   const naJanela = alvo.closest("dialog") !== null;
   const topo = naJanela ? 0 : (document.querySelector(".app-topo")?.getBoundingClientRect().bottom ?? 0);
-  const caixa = cartao?.getBoundingClientRect();
+  const caixa = (cartao?.closest<HTMLElement>("[data-painel]") ?? cartao)?.getBoundingClientRect();
   const embaixo = caixa && caixa.width > window.innerWidth / 2 + 120 ? window.innerHeight - caixa.top : 0;
   alvo.style.scrollMarginTop = `${Math.max(0, topo) + 2 * FOLGA}px`;
   alvo.style.scrollMarginBottom = `${Math.max(0, embaixo) + 2 * FOLGA}px`;
@@ -95,6 +99,10 @@ export function Tutorial({
   const [aberto, setAberto] = useState(false);
   const [indice, setIndice] = useState(0);
   const [naoMostrar, setNaoMostrar] = useState(false);
+  const { encaixeTutorial, mostrarParaTutorial } = useColuna();
+  // só as telas com coluna levam o cartão para lá; as outras (Configurações) o mantêm no canto
+  const encaixe = temColuna(tela) ? encaixeTutorial : null;
+  const desfazerColuna = useRef<(() => void) | null>(null);
   const cartao = useRef<HTMLDivElement>(null);
   const destaque = useRef<HTMLDivElement>(null);
   const focoAnterior = useRef<HTMLElement | null>(null);
@@ -104,6 +112,8 @@ export function Tutorial({
     focoAnterior.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     // numa tela vazia, só o "?" abre: aí vão todos os passos, sem destaque
     const naTela = todos.filter((passo) => alvoDe(passo));
+    desfazerColuna.current?.();
+    desfazerColuna.current = temColuna(tela) ? mostrarParaTutorial() : null;
     setPassos(naTela.length > 0 ? naTela : todos);
     setIndice(0);
     setNaoMostrar(false);
@@ -112,6 +122,8 @@ export function Tutorial({
 
   function fechar() {
     if (naoMostrar) dispensarTutorial(tela);
+    desfazerColuna.current?.();
+    desfazerColuna.current = null;
     setAberto(false);
     focoAnterior.current?.focus?.();
   }
@@ -142,6 +154,12 @@ export function Tutorial({
     // só quando as preferências chegam: dispensar no meio não reabre nada
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [carregado]);
+
+  // desmontar com o tutorial aberto devolve a coluna como estava
+  useEffect(() => {
+    const desfazer = desfazerColuna;
+    return () => desfazer.current?.();
+  }, []);
 
   // o "?" da barra do topo
   useEffect(() => {
@@ -212,52 +230,55 @@ export function Tutorial({
   const passo = passos[indice];
   const ultimo = indice === passos.length - 1;
 
+  const cartaoDoPasso = (
+    <div
+      ref={cartao}
+      role="dialog"
+      aria-labelledby={titulo}
+      tabIndex={-1}
+      className="card tutorial"
+      onKeyDown={(evento) => {
+        if (evento.key !== "Escape") return;
+        // dentro da janela de Configurações, o Esc fecha só o tutorial, não a janela
+        evento.preventDefault();
+        evento.stopPropagation();
+        fechar();
+      }}
+    >
+      <div className="tutorial-topo">
+        <Image src={mascote} alt="" width={52} height={52} className="tutorial-mascote" />
+        <span className="tutorial-contagem">{`${nome} · ${indice + 1} de ${passos.length}`}</span>
+        <button type="button" className="app-icone-botao" aria-label="Fechar o tutorial" onClick={fechar}>
+          <X size={16} />
+        </button>
+      </div>
+      <h2 id={titulo} className="tutorial-titulo">
+        {passo.titulo}
+      </h2>
+      <p className="tutorial-texto">{passo.texto}</p>
+      <label className="tutorial-caixa">
+        <input type="checkbox" checked={naoMostrar} onChange={(evento) => setNaoMostrar(evento.target.checked)} />
+        Não mostrar de novo
+      </label>
+      <div className="tutorial-acoes">
+        <span className="tutorial-pontos" aria-hidden="true">
+          {passos.map((item, i) => (
+            <span key={item.alvo} data-atual={i === indice || undefined} />
+          ))}
+        </span>
+        <button type="button" className="btn btn-ghost" onClick={fechar}>
+          Pular
+        </button>
+        <button type="button" className="btn btn-primary" onClick={() => (ultimo ? fechar() : setIndice(indice + 1))}>
+          {ultimo ? "Entendi" : "Próximo"}
+        </button>
+      </div>
+    </div>
+  );
   return (
     <>
       <div ref={destaque} className="tutorial-destaque" aria-hidden="true" hidden />
-      <div
-        ref={cartao}
-        role="dialog"
-        aria-labelledby={titulo}
-        tabIndex={-1}
-        className="card tutorial"
-        onKeyDown={(evento) => {
-          if (evento.key !== "Escape") return;
-          // dentro da janela de Configurações, o Esc fecha só o tutorial, não a janela
-          evento.preventDefault();
-          evento.stopPropagation();
-          fechar();
-        }}
-      >
-        <div className="tutorial-topo">
-          <Image src={mascote} alt="" width={52} height={52} className="tutorial-mascote" />
-          <span className="tutorial-contagem">{`${nome} · ${indice + 1} de ${passos.length}`}</span>
-          <button type="button" className="app-icone-botao" aria-label="Fechar o tutorial" onClick={fechar}>
-            <X size={16} />
-          </button>
-        </div>
-        <h2 id={titulo} className="tutorial-titulo">
-          {passo.titulo}
-        </h2>
-        <p className="tutorial-texto">{passo.texto}</p>
-        <label className="tutorial-caixa">
-          <input type="checkbox" checked={naoMostrar} onChange={(evento) => setNaoMostrar(evento.target.checked)} />
-          Não mostrar de novo
-        </label>
-        <div className="tutorial-acoes">
-          <span className="tutorial-pontos" aria-hidden="true">
-            {passos.map((item, i) => (
-              <span key={item.alvo} data-atual={i === indice || undefined} />
-            ))}
-          </span>
-          <button type="button" className="btn btn-ghost" onClick={fechar}>
-            Pular
-          </button>
-          <button type="button" className="btn btn-primary" onClick={() => (ultimo ? fechar() : setIndice(indice + 1))}>
-            {ultimo ? "Entendi" : "Próximo"}
-          </button>
-        </div>
-      </div>
+      {encaixe ? createPortal(cartaoDoPasso, encaixe) : cartaoDoPasso}
     </>
   );
 }

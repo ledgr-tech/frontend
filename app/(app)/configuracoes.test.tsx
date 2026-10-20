@@ -3,6 +3,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Configuracoes } from "./configuracoes";
 import { ProvedorDaConta } from "./conta";
+import { ProvedorDaColuna } from "./coluna/coluna";
 import type { RegrasDaEmpresa, Resultado } from "./conciliacoes/acoes";
 
 // a tolerância é do backend; aqui as actions devolvem o que ele responderia
@@ -37,7 +38,7 @@ vi.mock("./equipe/acoes", () => ({
   cancelarConvite: vi.fn(),
   removerPessoa: vi.fn(),
 }));
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }), usePathname: () => "/dashboard" }));
 
 const EMAIL = "financeiro@telhacerta.com.br";
 
@@ -53,7 +54,9 @@ function abrir(props: Partial<Parameters<typeof Configuracoes>[0]> = {}) {
   const onTema = vi.fn();
   render(
     <ProvedorDaConta preferencias={TUTORIAL_JA_VISTO}>
-      <Configuracoes aberta email={EMAIL} temSenha onFechar={onFechar} onSair={onSair} onTema={onTema} {...props} />
+      <ProvedorDaColuna>
+        <Configuracoes aberta email={EMAIL} temSenha onFechar={onFechar} onSair={onSair} onTema={onTema} {...props} />
+      </ProvedorDaColuna>
     </ProvedorDaConta>,
   );
   return { onFechar, onSair, onTema };

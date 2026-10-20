@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MenuLateral } from "./menu-lateral";
 import { ProvedorDaConta } from "./conta";
+import { ProvedorDaColuna } from "./coluna/coluna";
 import { abrirConfiguracoes } from "@/lib/eventos";
 
 const caminho = vi.fn();
@@ -35,7 +36,9 @@ const EMAIL = "financeiro@telhacerta.com.br";
 function montar(props: Partial<Parameters<typeof MenuLateral>[0]> = {}) {
   return render(
     <ProvedorDaConta preferencias={{ tutoriaisDispensados: ["configuracoes"], roteiroDispensado: false }}>
-      <MenuLateral email={EMAIL} empresa="Telha Certa Ltda" temSenha onSair={vi.fn()} {...props} />
+      <ProvedorDaColuna>
+        <MenuLateral email={EMAIL} empresa="Telha Certa Ltda" temSenha onSair={vi.fn()} {...props} />
+      </ProvedorDaColuna>
     </ProvedorDaConta>,
   );
 }
