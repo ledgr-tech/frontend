@@ -395,7 +395,31 @@ describe("listarExtratos", () => {
       competencia: "2026-10",
       enviadoEm: "2026-09-24T17:00:00Z",
       conciliado: false,
+      periodo: { inicio: "2026-10-01", fim: "2026-09-30" },
     });
+  });
+
+  it("resume a rodada de cada arquivo conciliado para o painel: o par, quanto bateu e o que diverge", async () => {
+    // a rodada e-2 (fixture): 50% de acerto, 1 sem correspondência, tolerância de 2 dias
+    backendComExtratos([
+      extrato(SISTEMA, { nome_arquivo: "erp-setembro.csv" }),
+      extrato(BANCO_RECENTE, { origem: "banco" }),
+      // conciliado, mas fora da página de /execucoes: sem resumo, em vez de um inventado
+      extrato(BANCO_ANTERIOR, { origem: "banco" }),
+      extrato(NAO_CONCILIADO, { conciliado: false, periodo_inicio: null, periodo_fim: null }),
+    ]);
+
+    const resultado = await listarExtratos();
+
+    if (!resultado.ok) throw new Error(resultado.erro);
+    const [sistema, banco, anterior, solto] = resultado.dados.arquivos;
+    const rodada = { acerto: 50, divergencias: 1, justificadas: 0, toleranciaDias: 2 };
+    expect(sistema.ultimaRodada).toEqual({ com: "e-2-banco.ofx", ...rodada });
+    expect(banco.ultimaRodada).toEqual({ com: "e-2-sistema.csv", ...rodada });
+    expect(anterior).not.toHaveProperty("ultimaRodada");
+    expect(solto).not.toHaveProperty("ultimaRodada");
+    expect(sistema.periodo).toEqual({ inicio: "2026-09-01", fim: "2026-09-30" });
+    expect(solto.periodo).toBeNull();
   });
 
   it("traz o saldo de cada arquivo quando o backend manda (#118), e nada sem os campos", async () => {
