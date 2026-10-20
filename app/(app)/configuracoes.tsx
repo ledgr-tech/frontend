@@ -247,8 +247,11 @@ function estadoDasRegras(resposta: Resultado<RegrasDaEmpresa>): EstadoDasRegras 
   return resposta.status === 404 || resposta.status === 405 ? { situacao: "sem-rota" } : { situacao: "falhou" };
 }
 
-const REGRAS_SALVAS =
-  "Regras salvas. Valem a partir da próxima conciliação; as que já rodaram continuam com as regras de quando rodaram.";
+/** A confirmação ao salvar repete o valor nos dois sentidos: "1 dia" sozinho soa como só para frente. */
+function toleranciaSalva(dias: number): string {
+  const regra = dias === 0 ? "só no mesmo dia" : `até ${dias} ${dias === 1 ? "dia" : "dias"} para mais ou para menos`;
+  return `Tolerância salva: ${regra}. Vale a partir da próxima conciliação; as que já rodaram continuam com a de quando rodaram.`;
+}
 
 /**
  * A tolerância de data, de 0 ao máximo que o backend diz, com − e +. Salvar é por botão, que só
@@ -310,10 +313,13 @@ function ToleranciaEditavel({
         >
           −
         </button>
+        <span className="cfg-numero-unidade" aria-hidden="true">
+          ±
+        </span>
         <input
           type="number"
           className="input cfg-numero-campo"
-          aria-label="Tolerância de data, em dias"
+          aria-label="Tolerância de data, em dias para mais ou para menos"
           min={0}
           max={maximo}
           step={1}
@@ -353,7 +359,7 @@ function ToleranciaEditavel({
       )}
       {salvas && (
         <p role="status" className="cfg-feito cfg-numero-aviso">
-          {REGRAS_SALVAS}
+          {toleranciaSalva(regras.toleranciaDias)}
         </p>
       )}
     </div>
@@ -362,7 +368,7 @@ function ToleranciaEditavel({
 
 /** A frase da linha da tolerância: o que ela faz, o limite e quem mudou por último. */
 function descricaoDaTolerancia(regras: RegrasDaEmpresa): string {
-  const base = `Até quantos dias de diferença dois lançamentos de mesmo valor ainda casam, de 0 a ${regras.toleranciaDiasMaximo} dias. Vale a partir da próxima conciliação.`;
+  const base = `Até quantos dias de diferença, para mais ou para menos, dois lançamentos de mesmo valor ainda casam, de 0 a ${regras.toleranciaDiasMaximo} dias. Vale a partir da próxima conciliação.`;
   return regras.atualizadoPor && regras.atualizadoEm
     ? `${base} Alterada por ${regras.atualizadoPor} em ${formatarDataHora(regras.atualizadoEm)}.`
     : base;
@@ -381,7 +387,7 @@ function tolerancia(dias: number | null | undefined): string {
   if (dias === undefined) return "Carregando…";
   if (dias === null) return "Sem conciliação ainda";
   if (dias === 0) return "Mesmo dia";
-  return `${dias} ${dias === 1 ? "dia" : "dias"}`;
+  return `± ${dias} ${dias === 1 ? "dia" : "dias"}`;
 }
 
 export function Configuracoes({
@@ -623,7 +629,7 @@ export function Configuracoes({
           : regras?.situacao === "falhou"
             ? {
                 titulo: "Tolerância de data",
-                descricao: "Até quantos dias de diferença dois lançamentos de mesmo valor ainda casam.",
+                descricao: "Até quantos dias de diferença, para mais ou para menos, dois lançamentos de mesmo valor ainda casam.",
                 controle: (
                   <div className="cfg-acao">
                     <span className="cfg-valor">Não foi possível carregar agora.</span>
@@ -636,7 +642,7 @@ export function Configuracoes({
             : {
                 titulo: "Tolerância de data",
                 descricao:
-                  "Quantos dias de diferença o motor aceita para casar dois lançamentos de mesmo valor. É a da última conciliação; ajustar por aqui chega quando o backend tiver a rota das configurações da empresa.",
+                  "Quantos dias de diferença, para mais ou para menos, o motor aceita para casar dois lançamentos de mesmo valor. É a da última conciliação; ajustar por aqui chega quando o backend tiver a rota das configurações da empresa.",
                 // carregando as regras, ou o backend sem a rota: a da última conciliação, para leitura
                 controle: (
                   <span className="cfg-valor">

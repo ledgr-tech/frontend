@@ -86,7 +86,7 @@ export const TUTORIAIS: Record<TelaDoTutorial, TutorialDaTela> = {
     nome: "Configurações",
     mascote: "/mascotes/mascote-apresenta.png",
     passos: [
-      { alvo: "tolerancia", titulo: "A sua regra da conciliação.", texto: "A tolerância diz quantos dias de diferença entre o banco e o sistema ainda contam como bateu. Vale a partir da próxima conciliação." },
+      { alvo: "tolerancia", titulo: "A sua regra da conciliação.", texto: "A tolerância diz quantos dias de diferença entre o banco e o sistema, para mais ou para menos, ainda contam como bateu. Vale a partir da próxima conciliação." },
       { alvo: "fonte-da-verdade", titulo: "O banco é a referência.", texto: "Toda divergência aparece como o sistema divergindo do banco. É no sistema que se corrige." },
     ],
   },

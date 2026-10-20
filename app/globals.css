@@ -3383,7 +3383,10 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
 }
 .cfg-numero-botao:hover:not(:disabled) { background: var(--tinta-hover); }
 .cfg-numero-botao:disabled { opacity: 0.4; cursor: default; }
-.cfg-numero-campo { width: 4.2em; text-align: center; font-variant-numeric: tabular-nums; }
+.cfg-numero-campo { width: 4.2em; text-align: center; font-variant-numeric: tabular-nums; appearance: textfield; -moz-appearance: textfield; }
+/* sem as setinhas do navegador: o − e o + ao lado já fazem esse papel */
+.cfg-numero-campo::-webkit-inner-spin-button,
+.cfg-numero-campo::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 .cfg-numero-unidade { font-size: 14px; }
 .cfg-numero-botoes { flex-basis: 100%; display: flex; justify-content: flex-end; gap: 8px; }
 .cfg-numero-aviso { flex-basis: 100%; margin: 0; max-width: 40ch; margin-left: auto; text-align: right; font-size: 13.5px; line-height: 1.5; }
