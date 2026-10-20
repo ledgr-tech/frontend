@@ -4779,126 +4779,89 @@ html[data-tema="escuro"] .app-shell {
   .roteiro-passo .btn { margin-left: 40px; }
 }
 
-/* ── Escolha do plano (primeiro uso, 15/10): teste de 14 dias ──────────────── */
+/* ── A escolha do plano (/plano, primeiro uso): a pergunta à esquerda, com o medidor que é a própria
+   régua de Preços da landing (100 · 200 · 350 · 5.000+), e o plano indicado à direita, numa folha com o
+   grão de papel. O título usa as duas vozes da landing (.titulo-misto), com o itálico carregado só
+   nesta página (fonteDestaque em plano/page.tsx) ── */
 .plano-tela {
-  width: 100%;
-  max-width: 1080px;
-  display: flex;
-  flex-direction: column;
-  gap: 22px;
+  --plano-apagado: color-mix(in srgb, var(--color-text) 58%, transparent);
+  --plano-suave: color-mix(in srgb, var(--color-text) 74%, transparent);
+  --plano-linha: color-mix(in srgb, var(--color-text) 15%, transparent);
+  width: 100%; max-width: 1080px;
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(28px, 5vw, 64px); align-items: center;
 }
-.plano-cabeca {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  max-width: 620px;
+.plano-rotulo { margin: 0; font-size: 12px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: var(--color-accent-700); }
+.plano-titulo { margin: 16px 0 0; font-size: clamp(34px, 4vw, 50px); text-wrap: balance; }
+/* a pergunta é longa e quebra: o trecho em itálico ganha altura de linha própria para não encavalar */
+.plano-titulo em { line-height: 1; }
+.plano-traco { width: 68px; height: 1px; margin: 12px 0 0; border: 0; background: var(--color-accent); transform-origin: left; }
+.plano-texto { margin: 18px 0 0; max-width: 52ch; font-size: 16px; line-height: 1.65; color: var(--plano-suave); }
+
+/* o medidor: o trilho é o traço da régua, o polegar é a marca dourada */
+.plano-medidor { margin-top: 34px; }
+.plano-valor { display: flex; align-items: baseline; gap: 10px; margin: 0 0 14px; cursor: pointer; }
+.plano-valor output { font-family: var(--font-display); font-size: clamp(52px, 6vw, 76px); font-weight: 500; line-height: 1; font-variant-numeric: lining-nums tabular-nums; color: var(--color-accent); }
+.plano-valor span { font-size: 15px; color: var(--plano-suave); }
+.plano-medidor input[type="range"] { -webkit-appearance: none; appearance: none; width: 100%; height: 28px; margin: 0; background: none; cursor: pointer; }
+.plano-medidor input[type="range"]::-webkit-slider-runnable-track { height: 2px; background: linear-gradient(90deg, var(--color-accent) var(--cheio, 33%), var(--plano-linha) var(--cheio, 33%)); }
+.plano-medidor input[type="range"]::-moz-range-track { height: 2px; background: var(--plano-linha); }
+.plano-medidor input[type="range"]::-moz-range-progress { height: 2px; background: var(--color-accent); }
+.plano-medidor input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 4px; height: 26px; margin-top: -12px; border-radius: 2px; background: var(--color-accent);
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--color-accent) 18%, transparent);
 }
-.plano-eyebrow {
-  font-size: 12px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--color-accent-700);
+.plano-medidor input[type="range"]::-moz-range-thumb { width: 4px; height: 26px; border: 0; border-radius: 2px; background: var(--color-accent); }
+.plano-medidor input[type="range"]:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 6px; border-radius: 4px; }
+.plano-marcas { position: relative; height: 34px; margin-top: 4px; }
+.plano-marcas span { position: absolute; left: var(--p); transform: translateX(-50%); padding-top: 12px; font-family: var(--font-mono); font-size: 12px; color: var(--plano-apagado); }
+.plano-marcas span::before { content: ""; position: absolute; top: 0; left: 50%; width: 1px; height: 8px; background: var(--plano-apagado); }
+
+/* o plano indicado: a folha clara com o grão de papel da marca, e o mascote apoiado na borda */
+.plano-resposta {
+  position: relative; padding: clamp(24px, 3vw, 34px);
+  border: 1px solid color-mix(in srgb, var(--color-accent) 45%, transparent); border-radius: 18px;
+  background-color: #fbfaf8;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .5 0 0 0 0 .4 0 0 0 0 .25 0 0 0 .14 -.04'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
 }
-.plano-titulo {
-  margin: 0;
-  font-size: clamp(28px, 3.4vw, 38px);
-  font-weight: 400;
-  line-height: 1.12;
-  letter-spacing: -0.016em;
+.plano-mascote { position: absolute; right: 18px; top: -62px; width: 104px; height: auto; }
+.plano-nome { margin: 10px 0 0; font-size: clamp(30px, 3.4vw, 40px); }
+.plano-nome em { color: var(--color-accent); }
+.plano-selo { display: inline-block; margin-top: 10px; }
+.plano-para { margin: 8px 0 0; font-size: 14.5px; color: var(--plano-suave); max-width: 40ch; }
+.plano-preco { margin: 20px 0 0; display: flex; align-items: baseline; gap: 6px; }
+.plano-preco span { font-family: var(--font-titulo); font-size: 32px; font-weight: 600; line-height: 1; font-variant-numeric: lining-nums tabular-nums; }
+.plano-preco small { font-size: 14px; color: var(--plano-apagado); }
+.plano-limite { margin: 6px 0 0; font-size: 13px; color: var(--plano-apagado); }
+.plano-itens { list-style: none; margin: 20px 0 0; padding: 16px 0 0; border-top: 1px solid var(--plano-linha); display: flex; flex-direction: column; gap: 8px; font-size: 14px; }
+.plano-itens li { display: grid; grid-template-columns: 16px minmax(0, 1fr); gap: 9px; }
+.plano-itens svg { margin-top: 3px; color: var(--color-ok-700); }
+/* o que ainda não existe fala baixo: um ponto e a palavra */
+.plano-itens li[data-depois] { color: var(--plano-apagado); }
+.plano-itens li[data-depois] svg { color: var(--color-accent); }
+.plano-em-breve { display: inline-flex; align-items: center; gap: 5px; margin-left: 6px; font-size: 12.5px; color: var(--color-accent-700); white-space: nowrap; }
+.plano-em-breve::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: var(--color-accent); }
+.plano-acao { width: 100%; margin-top: 24px; }
+.plano-erro { margin: 14px 0 0; font-size: 14px; color: var(--color-erro, var(--color-risco-700)); }
+.plano-outros { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 20px; font-size: 13.5px; color: var(--plano-apagado); }
+.plano-outros button {
+  border: 1px solid var(--plano-linha); border-radius: 999px; padding: 4px 12px; background: none;
+  font: 500 13px var(--font-body); color: var(--plano-suave); cursor: pointer; transition: background-color 0.15s ease-out;
 }
-.plano-texto {
-  margin: 0;
-  font-size: 15.5px;
-  line-height: 1.65;
-  color: color-mix(in srgb, var(--color-text) 72%, transparent);
+.plano-outros button:hover { background: color-mix(in srgb, var(--color-text) 6%, transparent); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .plano-pergunta { animation: plano-sobe 0.6s cubic-bezier(0.22, 1, 0.36, 1) both; }
+  .plano-traco { animation: plano-estica 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.25s both; }
+  .plano-resposta { animation: plano-sobe 0.6s cubic-bezier(0.22, 1, 0.36, 1) 0.12s both; }
+  /* a cada plano indicado, só o miolo do cartão entra de novo */
+  .plano-indicacao { animation: plano-sobe 0.4s cubic-bezier(0.22, 1, 0.36, 1); }
+  @keyframes plano-sobe { from { opacity: 0; transform: translateY(12px); } }
+  @keyframes plano-estica { from { transform: scaleX(0); } }
 }
-.plano-grade {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 18px;
-}
-.plano-cartao {
-  background: var(--color-bg);
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  padding: 24px;
-}
-.plano-cartao[data-destaque] {
-  border-color: var(--color-text);
-}
-.plano-cartao-topo {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-.plano-nome {
-  margin: 0;
-  font-family: var(--font-titulo);
-  font-size: 26px;
-  font-weight: 600;
-}
-.plano-para {
-  margin: 0;
-  min-height: 3.1em;
-  font-size: 14.5px;
-  line-height: 1.55;
-  color: var(--texto-apagado);
-}
-.plano-preco {
-  margin: 0;
-}
-.plano-preco span {
-  font-family: var(--font-titulo);
-  font-size: 34px;
-  font-variant-numeric: lining-nums tabular-nums;
-}
-.plano-preco small,
-.plano-limite {
-  font-size: 14px;
-  color: var(--texto-apagado);
-}
-.plano-limite {
-  margin: 0;
-  padding-bottom: 14px;
-  border-bottom: 1px solid var(--color-divider);
-}
-.plano-itens {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 9px;
-  font-size: 14.5px;
-}
-.plano-itens li {
-  display: flex;
-  gap: 9px;
-  align-items: flex-start;
-}
-.plano-itens svg {
-  color: var(--color-ok-700);
-  flex: none;
-  margin-top: 3px;
-}
-.plano-cartao .btn {
-  margin-top: auto;
-}
-.plano-erro {
-  margin: 0;
-  color: var(--color-erro);
-}
-.plano-volume {
-  margin: 0;
-  font-size: 14.5px;
-  color: var(--texto-apagado);
-}
+
 @media (max-width: 900px) {
-  .plano-grade {
-    grid-template-columns: 1fr;
-  }
+  .plano-tela { grid-template-columns: minmax(0, 1fr); }
+  .plano-resposta { margin-top: 56px; }
 }
 
 /* ── Teste acabado: planos no lugar da nova conciliação (primeiro uso, 15/10) ── */
