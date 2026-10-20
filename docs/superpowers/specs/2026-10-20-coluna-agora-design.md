@@ -9,7 +9,7 @@ A Central de ajuda (explicações melhores, páginas de todas as telas, seta nas
 ### A coluna
 
 - **Onde:** nas sete telas que já têm tutorial: Visão geral, Conciliações (`/dashboard`), Nova conciliação, Comparação, Extratos, Histórico e Fechamentos. Fica de fora da Divergência (já abre em painel), das Configurações (janela), da Assinatura, da Central de ajuda e do relatório do fechamento.
-- **Telas largas (≥ 1280px):** sempre aberta, 340px fixos à direita do conteúdo, que perde essa largura. Rola junto com a página. As colunas Progresso e Última atividade da fila de Conciliações ficam mais compactas para caber no notebook.
+- **Telas largas (≥ 1280px):** sempre aberta, 340px fixos à direita do conteúdo, que perde essa largura. O conteúdo da coluna fica grudado abaixo da barra do topo, com rolagem própria se passar da altura da tela, para o cartão do tutorial (e o começo do fio) nunca sair da vista. As colunas Progresso e Última atividade da fila de Conciliações ficam mais compactas para caber no notebook.
 - **Recolher:** um botão no topo da coluna deixa só uma faixa estreita com o ícone de reabrir. A escolha fica no navegador (`localStorage` + atributo no `<html>`, como o menu da esquerda recolhido: `data-coluna="recolhida"`), sem piscar na carga.
 - **Telas menores (< 1280px):** a coluna some. A barra do topo ganha o botão "Agora", ao lado de "Ajuda", com um ponto dourado quando o "Agora" tem algo pendente. Ele abre a mesma coluna como painel por cima: da direita no tablet, de baixo (folha) no celular. Não é modal; Esc e o X fecham.
 - **Conteúdo, de cima para baixo:**
