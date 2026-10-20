@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { contaDaSessao } from "../acoes";
 import { MolduraAuth } from "../_compartilhado/moldura-auth";
+import { fonteDestaque } from "../../(marketing)/fonte-destaque";
 import { EscolherPlano } from "./escolher-plano";
 
 /** A escolha do plano que começa o teste de 14 dias. Só para quem está logado e ainda não escolheu. */
@@ -15,7 +16,10 @@ export default async function PlanoPage() {
   }
   return (
     <MolduraAuth rotulo="Plano" larguraConteudo={1080}>
-      <EscolherPlano encerrado={assinatura?.situacao === "teste_encerrado"} />
+      {/* o itálico do título em duas vozes é da landing: carregado só aqui, como lá */}
+      <div className={fonteDestaque.variable} style={{ width: "100%", display: "flex", justifyContent: "center" }}>
+        <EscolherPlano encerrado={assinatura?.situacao === "teste_encerrado"} />
+      </div>
     </MolduraAuth>
   );
 }
