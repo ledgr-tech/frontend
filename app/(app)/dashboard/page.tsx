@@ -5,8 +5,9 @@ import { carregarConciliacoes } from "../conciliacoes/acoes";
 import { InkHover, Reveal } from "@/app/reveal";
 import { Cabecalho } from "../cabecalho";
 import { formatarInteiro } from "./resumo";
-import { pedemDecisao } from "./lista";
-import { ContinueDeOndeParou } from "./em-andamento";
+import { agruparPorMes, pedemDecisao } from "./lista";
+import { AgoraDeConciliacoes } from "./em-andamento";
+import { ColunaDaTela } from "../coluna/coluna";
 import { ListaDeTrabalho } from "./lista-de-trabalho";
 
 /**
@@ -33,6 +34,12 @@ export default async function DashboardPage() {
   const daContagem = contagem && conciliacoes.find((item) => item.extratoBancoId === contagem.extratoBancoId);
   const emAndamento = contagem && daContagem ? { conciliacao: daContagem, contagem } : null;
 
+  // mês pronto = o que a lista oferece a fechar: aberto e sem nada a decidir
+  const pronto = resposta.ok
+    ? agruparPorMes(conciliacoes, resposta.dados.fechamentos).find((mes) => mes.fechamento === null && mes.pedemDecisao === 0)
+    : undefined;
+  const prontoParaFechar = pronto ? { competencia: pronto.chave, titulo: pronto.titulo } : null;
+
   return (
     <div>
       {/* o menu chama esta tela de Conciliações: o título é o mesmo */}
@@ -52,11 +59,9 @@ export default async function DashboardPage() {
         <SemConciliacoes />
       ) : (
         <div className="conc-corpo">
-          {emAndamento && (
-            <Reveal>
-              <ContinueDeOndeParou conciliacao={emAndamento.conciliacao} contagem={emAndamento.contagem} />
-            </Reveal>
-          )}
+          <ColunaDaTela pendente={emAndamento !== null}>
+            <AgoraDeConciliacoes emAndamento={emAndamento} prontoParaFechar={prontoParaFechar} />
+          </ColunaDaTela>
           <Reveal delay={0.08}>
             <ListaDeTrabalho
               conciliacoes={conciliacoes}

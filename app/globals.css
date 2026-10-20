@@ -2341,6 +2341,9 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
 .conc-continuar-texto { font-size: 13.5px; color: var(--texto-apagado); font-variant-numeric: tabular-nums; }
 .conc-continuar .btn { flex: none; }
 .conc-historico { font-size: 13.5px; }
+/* na coluna, 340px: o botão desce para baixo do texto */
+.coluna-agora .conc-continuar { flex-wrap: wrap; }
+.coluna-agora .conc-continuar .btn { width: 100%; justify-content: center; }
 
 .conc-tabela { table-layout: fixed; }
 .conc-col-progresso { width: 16rem; }
@@ -3585,6 +3588,9 @@ html:has(.app-shell) { scrollbar-gutter: stable; }
   .coluna-botao-agora { display: none; }
   .app-corpo:has(> .coluna-agora) { display: grid; grid-template-columns: minmax(0, 1fr) 340px; align-items: start; }
   html[data-coluna="recolhida"] .app-corpo:has(> .coluna-agora) { grid-template-columns: minmax(0, 1fr) 48px; }
+  /* a fila perde 340px: Progresso e Última atividade ficam mais estreitas e o texto quebra embaixo */
+  .app-corpo:has(> .coluna-agora) .conc-col-progresso { width: 11rem; }
+  .app-corpo:has(> .coluna-agora) .conc-col-atividade { width: 8rem; }
   .coluna-agora {
     display: block; position: sticky; top: var(--app-topo-altura, 0px);
     max-height: calc(100dvh - var(--app-topo-altura, 0px)); overflow-y: auto;

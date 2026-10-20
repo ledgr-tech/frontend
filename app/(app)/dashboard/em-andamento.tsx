@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { caminhoDaConciliacao } from "@/lib/caminhos";
+import { caminhoDaConciliacao, caminhoDoFechamento } from "@/lib/caminhos";
 import type { ListaDeConciliacoes } from "../conciliacoes/acoes";
 import { tituloDaCompetencia } from "../fechamentos/fechamento";
 import { formatarInteiro } from "./resumo";
@@ -55,6 +55,33 @@ export function ContinueDeOndeParou({
       <Link href={caminhoDaConciliacao(extratoBancoId)} className="btn btn-primary">
         Continuar
       </Link>
+    </section>
+  );
+}
+
+/**
+ * O "Agora" de Conciliações, na coluna da direita: com pendência, o "Continue de onde parou"; sem ela,
+ * o mês pronto para fechar (o mesmo critério do link da lista) ou, não havendo, uma conciliação nova.
+ */
+export function AgoraDeConciliacoes({
+  emAndamento,
+  prontoParaFechar,
+}: {
+  emAndamento: { conciliacao: ConciliacaoNaLista; contagem: NonNullable<ListaDeConciliacoes["emAndamento"]> } | null;
+  prontoParaFechar: { competencia: string; titulo: string } | null;
+}) {
+  if (emAndamento) return <ContinueDeOndeParou conciliacao={emAndamento.conciliacao} contagem={emAndamento.contagem} />;
+  return (
+    <section className="conc-continuar" aria-label="Agora">
+      {prontoParaFechar ? (
+        <Link href={caminhoDoFechamento(prontoParaFechar.competencia)} className="btn btn-primary">
+          {`Fechamento de ${prontoParaFechar.titulo.split(" ")[0].toLowerCase()}`}
+        </Link>
+      ) : (
+        <Link href="/conciliacoes/nova" className="btn btn-primary">
+          Nova conciliação
+        </Link>
+      )}
     </section>
   );
 }

@@ -5,7 +5,19 @@ import type { Execucao } from "@/lib/adaptadores";
 import type { StatusLinha } from "@/lib/mock-data";
 import type { ListaDeConciliacoes, Resultado } from "../conciliacoes/acoes";
 import type { ConciliacaoNaLista } from "./lista";
+import { ProvedorDaColuna, ColunaAgora, useColuna } from "../coluna/coluna";
+import { caminhoDoFechamento } from "@/lib/caminhos";
 import DashboardPage from "./page";
+
+vi.mock("next/navigation", () => ({ usePathname: () => "/dashboard", redirect: (d: string) => redirectar(d) }));
+const redirectar = (d: string) => {
+  redirect(d);
+  throw new Error("NEXT_REDIRECT");
+};
+
+function Espia() {
+  return <span data-testid="pendente">{String(useColuna().pendente)}</span>;
+}
 
 // quem fala com o backend é a action; aqui ela só devolve o que ele responderia
 const carregarConciliacoes = vi.fn<() => Promise<Resultado<ListaDeConciliacoes>>>();
@@ -14,13 +26,6 @@ vi.mock("../conciliacoes/acoes", () => ({
 }));
 
 const redirect = vi.fn();
-vi.mock("next/navigation", () => ({
-  // o redirect do Next interrompe a renderização lançando; o mock imita isso
-  redirect: (destino: string) => {
-    redirect(destino);
-    throw new Error("NEXT_REDIRECT");
-  },
-}));
 
 function conciliacao(
   id: string,
@@ -83,7 +88,20 @@ function com(dados: Partial<ListaDeConciliacoes> = {}) {
 }
 
 async function renderizar() {
-  render(await DashboardPage());
+  window.matchMedia = ((q: string) => ({ matches: true, media: q, addEventListener() {}, removeEventListener() {} })) as never;
+  const pagina = await DashboardPage();
+  render(
+    <ProvedorDaColuna>
+      <ColunaAgora />
+      <Espia />
+      {pagina}
+    </ProvedorDaColuna>,
+  );
+}
+
+/** O "Agora" que a tela pôs na coluna. */
+function agora() {
+  return document.querySelector<HTMLElement>(".coluna-agora-corpo")!;
 }
 
 /** As linhas da lista, na ordem da tela. */
@@ -109,6 +127,8 @@ describe("DashboardPage", () => {
     await renderizar();
 
     const continuar = screen.getByRole("region", { name: "Continue de onde parou" });
+    expect(agora()).toContainElement(continuar);
+    expect(screen.getByTestId("pendente")).toHaveTextContent("true");
     expect(continuar).toHaveTextContent("Setembro de 2026");
     expect(continuar).toHaveTextContent("sicredi-set.ofx × erp-set.csv");
     expect(continuar).toHaveTextContent("9 linhas pedem decisão · 3 de 9 conferidas · rodada 2 de 2");
@@ -130,6 +150,25 @@ describe("DashboardPage", () => {
     com({ conciliacoes: [AGOSTO], emAndamento: null });
     await renderizar();
     expect(screen.queryByRole("region", { name: "Continue de onde parou" })).not.toBeInTheDocument();
+  });
+
+  it("says which month is ready to close when nothing is pending, linking where the list does", async () => {
+    com({ conciliacoes: [AGOSTO], emAndamento: null });
+    await renderizar();
+    expect(screen.getByTestId("pendente")).toHaveTextContent("false");
+    expect(within(agora()).getByRole("link", { name: "Fechamento de agosto" })).toHaveAttribute(
+      "href",
+      caminhoDoFechamento("2026-08"),
+    );
+  });
+
+  it("offers a new conciliação when nothing is pending and no month is ready", async () => {
+    com({ conciliacoes: [AGOSTO], emAndamento: null, fechamentos: [{
+      competencia: "2026-08", estado: "fechado", ressalva: null, fechadoPor: "M", fechadoEm: "2026-10-09T16:33:00Z", reabertoPor: null, reabertoEm: null,
+    }] });
+    await renderizar();
+    expect(within(agora()).getByRole("link", { name: "Nova conciliação" })).toHaveAttribute("href", "/conciliacoes/nova");
+    expect(within(agora()).queryByRole("link", { name: /Fechamento de/ })).not.toBeInTheDocument();
   });
 
   it("groups the rows by month, each row with one situation, its progress and its last activity", async () => {
