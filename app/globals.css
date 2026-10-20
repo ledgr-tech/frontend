@@ -4701,11 +4701,13 @@ html[data-tema="escuro"] .app-shell {
   transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), height 0.35s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* a imagem ampliada: o <dialog> se centraliza com margin auto, que o reset do Tailwind zera */
-.ajd-ampliada { margin: auto; max-width: min(1400px, 96vw); max-height: 94vh; padding: 0; overflow: hidden; border: 0; border-radius: 12px; background: var(--color-bg); }
+/* a imagem ampliada: o <dialog> se centraliza com margin auto, que o reset do Tailwind zera. O fundo
+   da janela é transparente e o Fechar fica acima da imagem, sobre o escurecido, sem cobrir nada dela */
+.ajd-ampliada { margin: auto; max-width: min(1400px, 96vw); max-height: 94vh; padding: 0; overflow: visible; border: 0; background: transparent; }
+.ajd-ampliada[open] { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
 .ajd-ampliada::backdrop { background: color-mix(in srgb, #000 60%, transparent); }
-.ajd-ampliada img { display: block; max-width: 100%; width: auto; height: auto; max-height: 90vh; }
-.ajd-ampliada .btn { position: absolute; top: 12px; right: 12px; background: var(--color-bg); }
+.ajd-ampliada img { display: block; max-width: 100%; width: auto; height: auto; max-height: calc(94vh - 50px); border-radius: 12px; background: var(--color-bg); box-shadow: var(--shadow-lg); }
+.ajd-ampliada .btn { flex: none; background: var(--color-bg); }
 
 @media (prefers-reduced-motion: no-preference) {
   /* a cada tela o artigo entra subindo de leve; o menu e "Nesta página" ficam parados */

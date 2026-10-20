@@ -261,6 +261,9 @@ function ImagemAmpliada({
         if (evento.target === evento.currentTarget) onFechar();
       }}
     >
+      <button type="button" className="btn btn-secondary" onClick={onFechar}>
+        Fechar
+      </button>
       <Image
         src={imagem.src}
         width={imagem.largura}
@@ -268,9 +271,6 @@ function ImagemAmpliada({
         alt={alt}
         sizes="96vw"
       />
-      <button type="button" className="btn btn-secondary" onClick={onFechar}>
-        Fechar
-      </button>
     </dialog>
   );
 }
