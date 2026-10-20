@@ -14,7 +14,7 @@ import {
   X,
   type LucideIcon,
 } from "lucide-react";
-import { trocarSenha, type ResultadoConta } from "../(auth)/acoes";
+import { desativarConta, trocarSenha, type ResultadoConta } from "../(auth)/acoes";
 import { MensagemErro } from "../(auth)/_compartilhado/mensagem-erro";
 import { SENHA_MINIMA } from "../(auth)/cadastro/passos";
 import {
@@ -535,13 +535,27 @@ export function Configuracoes({
           ),
         },
         {
-          titulo: "Excluir conta",
-          descricao:
-            "Apaga a sua conta e os dados da empresa no Ledgr: extratos, conciliações e histórico. Por enquanto, o pedido é feito por e-mail, a partir do e-mail da conta.",
-          // ponytail: o backend ainda não tem `DELETE /me` (backend #68). Quando tiver, volta o AcaoDaConta com
-          // `perigo` e `excluirConta` (pronta e testada em (auth)/acoes.ts), que pede a senha antes de apagar.
+          titulo: "Desativar conta",
+          descricao: administrador
+            ? "Tira o seu acesso ao Ledgr e libera o seu e-mail. Se há outras pessoas na equipe, remova-as antes: sem você, a empresa fica sem acesso."
+            : "Tira o seu acesso ao Ledgr e libera o seu e-mail. O que você conferiu e justificou continua no histórico da empresa, com o seu nome.",
           controle: (
-            <a href="mailto:ledgrtech@gmail.com?subject=Excluir%20conta" className="btn btn-secondary">
+            <AcaoDaConta
+              abrir="Desativar conta"
+              confirmar="Desativar minha conta"
+              perigo
+              aviso="Você sai na hora e não entra mais nesta conta. Os dados da empresa continuam guardados até a exclusão ser pedida."
+              campos={temSenha ? [SENHA_ATUAL] : []}
+              enviar={(valores) => desativarConta(temSenha ? valores.senha_atual : null)}
+            />
+          ),
+        },
+        {
+          titulo: "Excluir os dados da empresa",
+          descricao:
+            "Apaga os extratos, as conciliações e o histórico da empresa no Ledgr. É feito a pedido, por e-mail, a partir do e-mail da conta.",
+          controle: (
+            <a href="mailto:ledgrtech@gmail.com?subject=Excluir%20dados%20da%20empresa" className="btn btn-secondary">
               Pedir por e-mail
             </a>
           ),

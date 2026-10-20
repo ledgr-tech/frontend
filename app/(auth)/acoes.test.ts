@@ -10,7 +10,7 @@ import {
   entrarComGoogle,
   entrarNaDemonstracao,
   escolherPlano,
-  excluirConta,
+  desativarConta,
   pedirRecuperacaoSenha,
   consultarConvite,
   contaDaSessao,
@@ -562,29 +562,41 @@ describe("a conta de quem está logado", () => {
     expect(signIn).not.toHaveBeenCalled();
   });
 
-  it("diz que ainda não dá enquanto a rota não existe no backend", async () => {
-    respostaDoBackend(404, { detail: "Not Found" });
-
-    expect(await excluirConta("s3nha")).toEqual({
-      ok: false,
-      erro: "Ainda não disponível: o servidor do Ledgr ainda não tem esta função.",
-    });
-    expect(signOut).not.toHaveBeenCalled();
-  });
-
-  it("exclui com a senha atual e sai para o site", async () => {
+  it("desativa com a senha atual e sai para o site", async () => {
     respostaDoBackend(204);
 
-    await excluirConta("s3nha");
+    await desativarConta("s3nha");
 
     expect(chamada()).toMatchObject({ url: "http://localhost:8000/me", metodo: "DELETE", corpo: { senha_atual: "s3nha" } });
     expect(signOut).toHaveBeenCalledWith({ redirectTo: "/" });
   });
 
+  it("na conta só do Google, desativa sem mandar senha", async () => {
+    respostaDoBackend(204);
+
+    await desativarConta(null);
+
+    const [url, init] = fetch.mock.calls[0] as [string, RequestInit];
+    expect([url, init.method, init.body]).toEqual(["http://localhost:8000/me", "DELETE", undefined]);
+    expect(signOut).toHaveBeenCalledWith({ redirectTo: "/" });
+  });
+
+  it("mostra o que o backend pede: senha certa, login recente, ou a equipe removida antes", async () => {
+    for (const [status, texto] of [
+      [400, "Senha atual incorreta."],
+      [409, "Entre de novo com o Google para confirmar a desativação."],
+      [409, "Remova os outros usuários da empresa antes de desativar a sua conta."],
+    ] as const) {
+      respostaDoBackend(status, { detail: texto });
+      expect(await desativarConta(status === 400 ? "errada" : null)).toEqual({ ok: false, erro: texto });
+    }
+    expect(signOut).not.toHaveBeenCalled();
+  });
+
   it("recusa mexer na conta de demonstração sem nem chamar o backend", async () => {
     vi.stubEnv("LEDGR_CONTA_TESTE_EMAIL", " Ana@TelhaCerta.com.br ");
 
-    expect(await excluirConta("s3nha")).toEqual({
+    expect(await desativarConta("s3nha")).toEqual({
       ok: false,
       erro: "A conta de demonstração não pode ser alterada.",
     });
@@ -606,7 +618,7 @@ describe("a conta de quem está logado", () => {
   it("sem token válido, manda para o login sem chamar o backend", async () => {
     emailDaSessao.mockResolvedValue(null);
 
-    await expect(excluirConta("s3nha")).rejects.toThrow("NEXT_REDIRECT");
+    await expect(desativarConta("s3nha")).rejects.toThrow("NEXT_REDIRECT");
     expect(redirect).toHaveBeenCalledWith("/login");
     expect(fetch).not.toHaveBeenCalled();
   });
