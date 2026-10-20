@@ -76,6 +76,24 @@ describe("Tutorial", () => {
     expect(document.querySelector("aside[data-painel]")).toBeNull();
   });
 
+  it("na folha das telas menores, reserva embaixo a altura da folha, não o topo medido", async () => {
+    telas(false);
+    const largura = vi
+      .spyOn(Element.prototype, "getBoundingClientRect")
+      .mockImplementation(function (this: Element) {
+        const folha = this.hasAttribute("data-painel");
+        return { top: folha ? 900 : 0, left: 0, width: folha ? 1000 : 10, height: 10, right: 0, bottom: 0 } as DOMRect;
+      });
+    const altura = vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockImplementation(function (this: HTMLElement) {
+      return this.hasAttribute("data-painel") ? 300 : 0;
+    });
+    montar();
+    await screen.findByRole("dialog", { name: "Separe o banco do sistema." });
+    await waitFor(() => expect(screen.getByText("filtros").style.scrollMarginBottom).toBe("316px"));
+    largura.mockRestore();
+    altura.mockRestore();
+  });
+
   it("em Configurações, que não tem coluna, o cartão fica fora do aside", async () => {
     montar(<div data-tutorial="tolerancia">x</div>, undefined, "configuracoes");
     const cartao = await screen.findByRole("dialog");

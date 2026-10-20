@@ -1,3 +1,5 @@
+import { readFileSync } from "fs";
+import { resolve } from "path";
 import { useEffect } from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderToString } from "react-dom/server";
@@ -57,6 +59,55 @@ describe("coluna Agora", () => {
     expect(screen.getByRole("button", { name: "Recolher a coluna" })).toHaveAttribute("aria-expanded", "true");
     await user.click(screen.getByRole("button", { name: "Recolher a coluna" }));
     expect(screen.getByRole("button", { name: "Abrir a coluna" })).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("o botão de recolher é um botão de ícone com dica, como o do menu", async () => {
+    const user = userEvent.setup();
+    montar(<ColunaDaTela>x</ColunaDaTela>);
+    const botao = screen.getByRole("button", { name: "Recolher a coluna" });
+    expect(botao).toHaveClass("app-icone-botao", "app-dica");
+    expect(botao).toHaveAttribute("data-dica", "Recolher a coluna");
+    expect(botao).not.toHaveTextContent(/\S/);
+    expect(botao.querySelector("svg")).not.toBeNull();
+    await user.click(botao);
+    const aberto = screen.getByRole("button", { name: "Abrir a coluna" });
+    expect(aberto).toHaveAttribute("data-dica", "Abrir a coluna");
+    expect(aberto.querySelector("svg")).not.toBeNull();
+  });
+
+  it("o link da ajuda leva a seta, e o título é o da etiqueta do bloco", () => {
+    caminho = "/conciliacoes/b";
+    montar();
+    expect(screen.getByRole("link", { name: "Abrir na Central" }).querySelector("svg")).not.toBeNull();
+  });
+
+  // o jsdom não pinta, mas calcula o cascade: confere os valores de que o empilhamento depende
+  // (véu 58 < fio 59 < coluna 60; o cartão dentro da coluna é estático, o z-index dele não vale)
+  it("empilhamento do tutorial: véu < fio < coluna que leva o cartão", () => {
+    const css = readFileSync(resolve(__dirname, "../../globals.css"), "utf8");
+    const estilo = document.createElement("style");
+    estilo.textContent = css;
+    document.head.append(estilo);
+    document.body.insertAdjacentHTML(
+      "beforeend",
+      `<div class="tutorial-destaque"></div><svg class="tutorial-fio"></svg>
+       <aside class="coluna-agora" id="com"><div class="card tutorial"></div></aside>
+       <aside class="coluna-agora" id="sem"></aside>`,
+    );
+    const z = (el: Element) => Number(getComputedStyle(el).zIndex);
+    const veu = document.querySelector(".tutorial-destaque")!;
+    const fio = document.querySelector(".tutorial-fio")!;
+    const coluna = document.getElementById("com")!;
+    expect(getComputedStyle(veu).position).toBe("fixed");
+    expect(z(veu)).toBeLessThan(z(fio));
+    expect(z(fio)).toBeLessThan(z(coluna));
+    expect(getComputedStyle(coluna.querySelector(".tutorial")!).position).toBe("static");
+    expect(getComputedStyle(document.getElementById("sem")!).zIndex).not.toBe("60");
+    estilo.remove();
+    veu.remove();
+    fio.remove();
+    coluna.remove();
+    document.getElementById("sem")!.remove();
   });
 
   it("no servidor e na primeira renderização a coluna não vem escondida", () => {

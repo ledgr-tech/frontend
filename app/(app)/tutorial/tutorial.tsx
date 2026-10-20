@@ -70,8 +70,15 @@ function furo(x: number, y: number, largura: number, altura: number): string {
 function trazerParaAVista(alvo: HTMLElement, cartao: HTMLElement | null) {
   const naJanela = alvo.closest("dialog") !== null;
   const topo = naJanela ? 0 : (document.querySelector(".app-topo")?.getBoundingClientRect().bottom ?? 0);
-  const caixa = (cartao?.closest<HTMLElement>("[data-painel]") ?? cartao)?.getBoundingClientRect();
-  const embaixo = caixa && caixa.width > window.innerWidth / 2 + 120 ? window.innerHeight - caixa.top : 0;
+  const quem = cartao?.closest<HTMLElement>("[data-painel]") ?? cartao;
+  const caixa = quem?.getBoundingClientRect();
+  // a folha sobe animada (translateY): o topo medido agora ainda está abaixo do final, a altura não muda
+  const embaixo =
+    !quem || !caixa || caixa.width <= window.innerWidth / 2 + 120
+      ? 0
+      : quem.hasAttribute("data-painel")
+        ? quem.offsetHeight
+        : window.innerHeight - caixa.top;
   alvo.style.scrollMarginTop = `${Math.max(0, topo) + 2 * FOLGA}px`;
   alvo.style.scrollMarginBottom = `${Math.max(0, embaixo) + 2 * FOLGA}px`;
   const suave = !window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;

@@ -4,7 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { createPortal } from "react-dom";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { X } from "lucide-react";
+import { ArrowRight, PanelRightClose, PanelRightOpen, X } from "lucide-react";
 import { MOSTRAR_AJUDA_NA_COLUNA } from "@/lib/eventos";
 import { NotaDaAjuda, PassosDaAjuda } from "../ajuda/blocos";
 import { ajudaDaTela } from "../ajuda/paginas";
@@ -216,13 +216,20 @@ export function ColunaAgora() {
           <X size={18} aria-hidden />
         </button>
       ) : (
-        <button type="button" className="coluna-agora-alternar btn btn-ghost" aria-expanded={!recolhida} onClick={alternar}>
-          {recolhida ? "Abrir a coluna" : "Recolher a coluna"}
+        <button
+          type="button"
+          className="app-icone-botao app-dica coluna-agora-alternar"
+          aria-label={recolhida ? "Abrir a coluna" : "Recolher a coluna"}
+          data-dica={recolhida ? "Abrir a coluna" : "Recolher a coluna"}
+          aria-expanded={!recolhida}
+          onClick={alternar}
+        >
+          {recolhida ? <PanelRightOpen size={18} aria-hidden /> : <PanelRightClose size={18} aria-hidden />}
         </button>
       )}
       <div className="coluna-agora-corpo">
-        <div ref={refAgora} />
-        <div ref={refTutorial} />
+        <div ref={refAgora} className="coluna-agora-agora" />
+        <div ref={refTutorial} className="coluna-agora-tutorial" />
         <AjudaDaTela />
       </div>
     </aside>
@@ -265,6 +272,7 @@ function AjudaDaTela() {
       )}
       <Link href={pagina ? `/ajuda/${pagina.id}` : "/ajuda"} className="ajd-link">
         {pagina ? "Abrir na Central" : "Central de ajuda"}
+        <ArrowRight size={16} aria-hidden />
       </Link>
     </section>
   );

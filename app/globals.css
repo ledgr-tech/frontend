@@ -3560,6 +3560,22 @@ html:has(.app-shell) { scrollbar-gutter: stable; }
   padding: var(--space-4, 16px);
 }
 .coluna-agora-fechar { align-self: flex-end; flex: none; }
+/* o botão de recolher: ícone no canto de cima à direita, com a dica do menu da esquerda (que abre para
+   a direita; aqui abre para a esquerda, a coluna fica na borda da tela) */
+.coluna-agora-alternar { display: flex; margin: 0 0 var(--space-3, 12px) auto; }
+.coluna-agora-alternar::after { left: auto; right: calc(100% + 12px); }
+/* os blocos da coluna (Agora, cartão do tutorial, ajuda) com 24px entre si; os vazios não ocupam lugar */
+.coluna-agora-corpo { display: flex; flex-direction: column; gap: var(--space-6, 24px); flex: none; }
+.coluna-agora-corpo > :empty { display: none; }
+.coluna-agora-ajuda { display: flex; flex-direction: column; gap: 14px; padding-top: var(--space-6, 24px); border-top: 1px solid var(--color-divider); }
+.app-shell .coluna-agora-ajuda h2 {
+  margin: 0; font-family: var(--font-body); font-size: 12px; font-weight: 400; line-height: 1.4;
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--texto-apagado);
+}
+.coluna-agora-ajuda > .ajd-link { display: inline-flex; align-items: center; gap: 6px; width: fit-content; }
+/* com o tutorial aberto a coluna toda sobe acima do véu (para o cartão ficar nítido); o resto dela
+   recebe a mesma tinta do véu, para ficar apagado como o resto da página */
+.coluna-agora:has(.tutorial) :is(.coluna-agora-agora, .coluna-agora-ajuda) { filter: blur(3px) brightness(0.45); }
 @media (max-width: 899.98px) {
   .coluna-agora[data-painel="aberto"] {
     z-index: 55; top: auto; left: 0; right: 0; bottom: 0; width: 100%; max-height: 70dvh;
@@ -3575,6 +3591,8 @@ html:has(.app-shell) { scrollbar-gutter: stable; }
   border-left: 0; border-top: 1px solid var(--color-divider); border-radius: 22px 22px 0 0;
   padding-bottom: max(16px, env(safe-area-inset-bottom, 0px));
 }
+/* na folha, o cartão do tutorial vem primeiro: os outros blocos ficam para baixo, o cartão aparece inteiro */
+.coluna-agora[data-painel="aberto"]:has(.tutorial) .coluna-agora-tutorial { order: -1; }
 @media (prefers-reduced-motion: no-preference) {
   .coluna-agora[data-painel="aberto"] { animation: ajd-painel-entra 0.24s cubic-bezier(0.22, 1, 0.36, 1); }
 }
@@ -3597,9 +3615,10 @@ html:has(.app-shell) { scrollbar-gutter: stable; }
     max-height: calc(100dvh - var(--app-topo-altura, 0px)); overflow-y: auto;
     padding: var(--space-4, 16px) 16px var(--space-4, 16px) 0;
   }
-  html[data-coluna="recolhida"] .coluna-agora { padding: var(--space-4, 16px) 0; overflow: hidden; }
+  /* visível: a dica do botão sai para a esquerda, para fora dos 48px */
+  html[data-coluna="recolhida"] .coluna-agora { padding: var(--space-4, 16px) 0; overflow: visible; }
   html[data-coluna="recolhida"] .coluna-agora-corpo { display: none; }
-  html[data-coluna="recolhida"] .coluna-agora-alternar { writing-mode: vertical-rl; }
+  html[data-coluna="recolhida"] .coluna-agora-alternar { margin: 0 auto; }
 }
 /* Conciliações a 1280px com o menu (248px) e a coluna (340px) abertos: sobram 1280 - 248 - 15 (barra
    de rolagem) - 340 - 80 (recuos) = ~597px de tabela. Progresso 176 + Situação 144 + Última atividade
@@ -4489,8 +4508,9 @@ html[data-tema="escuro"] .app-shell {
 .tutorial:focus {
   outline: none;
 }
-/* dentro da coluna Agora o cartão não flutua: ocupa a largura dela, e a
-   coluna sobe acima do véu (59) enquanto ele está aberto */
+/* dentro da coluna Agora o cartão não flutua: ocupa a largura dela. A coluna (sticky, ou fixa como
+   folha) é um contexto de empilhamento próprio: o z-index do cartão não vale fora dela, então é a
+   coluna que sobe (60) acima do fio (59) e do véu (58) enquanto o tutorial está aberto */
 .coluna-agora .tutorial {
   position: static;
   width: auto;
@@ -4573,7 +4593,7 @@ html[data-tema="escuro"] .app-shell {
 .tutorial-destaque {
   position: fixed;
   inset: 0;
-  z-index: 59;
+  z-index: 58;
   pointer-events: none;
   background: rgb(12 11 10 / 0.55);
   backdrop-filter: blur(3px);
