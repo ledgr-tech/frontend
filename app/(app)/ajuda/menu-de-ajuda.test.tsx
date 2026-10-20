@@ -49,22 +49,6 @@ describe("MenuDeAjuda", () => {
     parar();
   });
 
-  it("numa tela sem página, fica com o tutorial e a Central, que abre no começo", async () => {
-    caminho = "/extratos";
-    const user = userEvent.setup();
-    render(<MenuDeAjuda />);
-    await user.click(screen.getByRole("button", { name: "Ajuda" }));
-    expect(
-      screen.queryByRole("button", { name: /Ajuda desta tela/ }),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: /Rever o tutorial/ }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("link", { name: /Central de ajuda/ }),
-    ).toHaveAttribute("href", "/ajuda");
-  });
-
   it("numa tela sem tutorial, só a Central", async () => {
     caminho = "/assinatura";
     const user = userEvent.setup();

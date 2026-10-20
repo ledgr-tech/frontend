@@ -7,12 +7,7 @@ import { usePathname } from "next/navigation";
 import { ArrowRight, X } from "lucide-react";
 import { ABRIR_AJUDA } from "@/lib/eventos";
 import { telaDoCaminho } from "../tutorial/roteiros";
-import {
-  NotaDaAjuda,
-  PassosDaAjuda,
-  SeDerErrado,
-  VideoDaAjuda,
-} from "./blocos";
+import { Texto } from "./blocos";
 import { ajudaDaTela, type PaginaDeAjuda } from "./paginas";
 
 /**
@@ -88,14 +83,25 @@ function PainelDeAjuda({ pagina }: { pagina: PaginaDeAjuda }) {
       <div className="ajd-painel-corpo">
         <div>
           <h2 className="tutorial-titulo" ref={titulo} tabIndex={-1}>
-            {pagina.chamada}
+            {pagina.titulo}
           </h2>
-          <p className="ajd-painel-texto">{pagina.curto}</p>
+          <p className="ajd-painel-texto">{pagina.serve}</p>
         </div>
-        <VideoDaAjuda pagina={pagina} />
-        <PassosDaAjuda pagina={pagina} />
-        <NotaDaAjuda pagina={pagina} />
-        <SeDerErrado pagina={pagina} onIr={() => setAberto(false)} />
+        <ol className="ajd-painel-funcoes">
+          {pagina.funcoes.map((funcao) => (
+            <li key={funcao.id}>
+              <Link
+                href={`/ajuda/${pagina.id}#${funcao.id}`}
+                onClick={() => setAberto(false)}
+              >
+                <strong>{funcao.titulo}</strong>
+                <span>
+                  <Texto>{funcao.faz}</Texto>
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ol>
       </div>
       <div className="ajd-painel-rodape">
         <Link

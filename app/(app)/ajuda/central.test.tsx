@@ -1,8 +1,11 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { CentralDeAjuda } from "./central";
-import { PAGINAS, ajudaDaTela, procurarAjuda } from "./paginas";
+import { PAGINAS, ajudaDaTela } from "./paginas";
+import { TELAS_DO_TUTORIAL } from "@/lib/preferencias";
 import PaginaDaAjuda from "./[pagina]/page";
 
 const notFound = vi.fn(() => {
@@ -14,85 +17,80 @@ vi.mock("next/navigation", () => ({
 }));
 
 describe("CentralDeAjuda", () => {
-  it("mostra a página escolhida: passos numerados na tela, perguntas e as vizinhas", () => {
-    render(<CentralDeAjuda id="nova-conciliacao" />);
+  it("mostra a tela: título, para que serve, cada funcionalidade com o como fazer", () => {
+    render(<CentralDeAjuda id="fechamentos" />);
     expect(
-      screen.getByRole("heading", { level: 1, name: "Central de ajuda" }),
+      screen.getByRole("heading", { level: 1, name: "Fechamentos" }),
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { level: 2, name: "Nova conciliação" }),
-    ).toBeInTheDocument();
-    expect(screen.getByText("Fluxo principal · 1 de 5")).toBeInTheDocument();
 
-    const indice = screen.getByRole("navigation", { name: "Páginas da ajuda" });
-    expect(
-      within(indice).getByRole("link", { name: "Nova conciliação" }),
-    ).toHaveAttribute("aria-current", "page");
+    const funcoes = screen
+      .getAllByRole("heading", { level: 2 })
+      .map((titulo) => titulo.textContent);
+    expect(funcoes).toEqual(
+      PAGINAS.find((p) => p.id === "fechamentos")!.funcoes.map((f) => f.titulo),
+    );
 
-    const passos = screen.getByRole("region", { name: "Passo a passo" });
-    expect(within(passos).getAllByRole("listitem")).toHaveLength(3);
-    // um número sobre a miniatura para cada passo
-    expect(passos.querySelectorAll(".ajd-marca")).toHaveLength(3);
-
-    expect(screen.getByText("Posso enviar PDF?")).toBeInTheDocument();
-    expect(
-      screen.queryByRole("link", { name: /Anterior/ }),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.getByRole("link", { name: /Próxima Apontar as colunas do CSV/ }),
-    ).toHaveAttribute("href", "/ajuda/apontar-colunas");
+    const fechar = screen.getByRole("region", { name: "Fechar o mês" });
+    expect(within(fechar).getByText("Como fazer")).toBeInTheDocument();
+    // o **negrito** vira <b>, o nome do botão como aparece na tela
+    expect(within(fechar).getByText("Fechar mesmo assim").tagName).toBe("B");
   });
 
-  it("passar o mouse num passo realça o número dele na tela", async () => {
-    const user = userEvent.setup();
+  it('"Nesta página" lista as funcionalidades com a âncora de cada uma', () => {
     render(<CentralDeAjuda id="comparacao" />);
-    const passos = screen.getByRole("region", { name: "Passo a passo" });
-    await user.hover(within(passos).getByText("Revise por categoria"));
-    expect(
-      passos.querySelector('.ajd-marca[data-realce="true"]'),
-    ).toHaveTextContent("2");
+    const indice = screen.getByRole("complementary", { name: "Nesta página" });
+    const links = within(indice).getAllByRole("link");
+    expect(links[0]).toHaveAttribute("href", "#resumo");
+    // uma seção por vez é a atual
+    expect(links.filter((link) => link.hasAttribute("aria-current"))).toHaveLength(1);
+    for (const link of links) {
+      expect(document.getElementById(link.getAttribute("href")!.slice(1))).not.toBeNull();
+    }
   });
 
-  it("procura sem acento e diz quando não acha", async () => {
-    const user = userEvent.setup();
-    render(<CentralDeAjuda id="nova-conciliacao" />);
-    const indice = screen.getByRole("navigation", { name: "Páginas da ajuda" });
+  it("anterior e próxima seguem a ordem das telas", () => {
+    const { rerender } = render(<CentralDeAjuda id={PAGINAS[0].id} />);
+    expect(screen.queryByRole("link", { name: /Anterior/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Próxima/ })).toHaveAttribute(
+      "href",
+      `/ajuda/${PAGINAS[1].id}`,
+    );
+    rerender(<CentralDeAjuda id={PAGINAS.at(-1)!.id} />);
+    expect(screen.getByRole("link", { name: /Anterior/ })).toHaveAttribute(
+      "href",
+      `/ajuda/${PAGINAS.at(-2)!.id}`,
+    );
+    expect(screen.queryByRole("link", { name: /Próxima/ })).not.toBeInTheDocument();
+  });
 
-    await user.type(
-      screen.getByRole("searchbox", { name: "Procurar na ajuda" }),
-      "tolerancia",
-    );
-    expect(
-      within(indice)
-        .getAllByRole("link")
-        .map((link) => link.textContent),
-    ).toEqual(expect.arrayContaining(["Tolerância de data"]));
-    expect(
-      within(indice).queryByRole("link", { name: "Apontar as colunas do CSV" }),
-    ).not.toBeInTheDocument();
-
-    await user.clear(
-      screen.getByRole("searchbox", { name: "Procurar na ajuda" }),
-    );
-    await user.type(
-      screen.getByRole("searchbox", { name: "Procurar na ajuda" }),
-      "boleto vencido",
-    );
-    expect(within(indice).getByRole("status")).toHaveTextContent(
-      "Nada encontrado",
+  it("a tela aberta fica marcada na lista das telas", () => {
+    render(<CentralDeAjuda id="extratos" />);
+    const telas = screen.getByRole("navigation", { name: "Telas do Ledgr" });
+    expect(within(telas).getAllByRole("link")).toHaveLength(PAGINAS.length);
+    expect(within(telas).getByRole("link", { name: "Extratos" })).toHaveAttribute(
+      "aria-current",
+      "page",
     );
   });
 
-  it("o cartão do assistente abre a conversa do menu lateral", async () => {
-    const ouvinte = vi.fn();
-    window.addEventListener("ledgr:abrir-assistente", ouvinte);
-    const user = userEvent.setup();
-    render(<CentralDeAjuda id="justificar" />);
-    await user.click(
-      screen.getByRole("button", { name: /Ficou alguma dúvida/ }),
+  it("sem vídeo, a capa diz que ele vem e lista os capítulos", () => {
+    render(<CentralDeAjuda id="historico" />);
+    expect(screen.getByText("Vídeo desta tela em breve")).toBeInTheDocument();
+    expect(document.querySelector("video")).toBeNull();
+    const capitulos = screen.getByRole("list", { name: "Capítulos do vídeo" });
+    expect(within(capitulos).getAllByRole("listitem")).toHaveLength(
+      PAGINAS.find((p) => p.id === "historico")!.funcoes.length,
     );
-    expect(ouvinte).toHaveBeenCalledTimes(1);
-    window.removeEventListener("ledgr:abrir-assistente", ouvinte);
+  });
+
+  it("clicar numa imagem a abre grande, e Fechar fecha", async () => {
+    const user = userEvent.setup();
+    render(<CentralDeAjuda id="extratos" />);
+    await user.click(screen.getByRole("button", { name: /Ampliar a imagem de O painel do arquivo/ }));
+    const janela = screen.getByRole("dialog", { hidden: true });
+    expect(janela).toHaveAttribute("aria-label", "O painel do arquivo");
+    await user.click(within(janela).getByRole("button", { name: "Fechar", hidden: true }));
+    expect(screen.queryByRole("dialog", { hidden: true })).not.toBeInTheDocument();
   });
 });
 
@@ -107,24 +105,28 @@ describe("a rota /ajuda/[pagina]", () => {
 });
 
 describe("o conteúdo da ajuda", () => {
-  it("cada página tem passos, e todo link aponta para uma página", () => {
+  it("ids únicos, e toda funcionalidade tem o que faz", () => {
     const ids = PAGINAS.map((pagina) => pagina.id);
     expect(new Set(ids).size).toBe(ids.length);
     for (const pagina of PAGINAS) {
-      expect(pagina.passos.length).toBeGreaterThan(0);
-      if (pagina.seDerErrado) expect(ids).toContain(pagina.seDerErrado.pagina);
+      expect(pagina.funcoes.length).toBeGreaterThan(0);
+      const funcoes = pagina.funcoes.map((f) => f.id);
+      expect(new Set(funcoes).size).toBe(funcoes.length);
+      for (const funcao of pagina.funcoes) expect(funcao.faz).not.toBe("");
     }
   });
 
-  it("liga as telas do app às páginas", () => {
-    expect(ajudaDaTela("nova-conciliacao")?.id).toBe("nova-conciliacao");
-    expect(ajudaDaTela("comparacao")?.id).toBe("comparacao");
-    expect(ajudaDaTela("divergencia")?.id).toBe("justificar");
-    expect(ajudaDaTela("extratos")).toBeUndefined();
-    expect(ajudaDaTela(null)).toBeUndefined();
+  it("toda imagem existe em public/", () => {
+    for (const pagina of PAGINAS) {
+      for (const imagem of [pagina.capa, ...pagina.funcoes.map((f) => f.imagem)]) {
+        if (imagem) expect(existsSync(join("public", imagem.src)), imagem.src).toBe(true);
+      }
+    }
   });
 
-  it("a busca vazia lista tudo", () => {
-    expect(procurarAjuda("  ")).toEqual(PAGINAS);
+  it("toda tela com tutorial tem a sua página", () => {
+    for (const tela of TELAS_DO_TUTORIAL) expect(ajudaDaTela(tela), tela).toBeDefined();
+    expect(ajudaDaTela("divergencia")?.id).toBe("detalhe-da-linha");
+    expect(ajudaDaTela(null)).toBeUndefined();
   });
 });
