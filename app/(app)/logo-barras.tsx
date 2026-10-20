@@ -1,15 +1,30 @@
+import Image from "next/image";
+
 /**
- * As três barras do logo, lisas, em SVG para o menu do app: pintam com
- * `currentColor` e seguem a cor do texto, no claro e no escuro. O logo de
- * adesivo (`/mascotes/logo-barras.png`, barras desenhadas num contorno branco
- * só) fica no site, nas telas de acesso e na imagem de compartilhamento.
+ * O logo do Ledgr: o adesivo das três barras pintadas, sempre a mesma imagem
+ * (`/mascotes/logo-barras.png`), no site, nas telas de acesso e no app. O
+ * contorno branco do adesivo é o que o deixa legível também no tema escuro.
+ * `sizes` diz a largura em que ele aparece, para o Next servir o tamanho certo.
  */
-export function LogoBarras({ className }: { className?: string }) {
+export function LogoBarras({
+  className,
+  sizes = "48px",
+  loading,
+}: {
+  className?: string;
+  sizes?: string;
+  loading?: "eager" | "lazy";
+}) {
   return (
-    <svg viewBox="0 0 1141 852" className={className} aria-hidden="true" focusable="false">
-      <rect x="11" y="0" width="650" height="202" rx="101" fill="currentColor" />
-      <rect x="22" y="330" width="1119" height="202" rx="101" fill="currentColor" />
-      <rect x="0" y="650" width="948" height="202" rx="101" fill="currentColor" />
-    </svg>
+    <Image
+      src="/mascotes/logo-barras.png"
+      alt=""
+      aria-hidden="true"
+      width={1237}
+      height={998}
+      sizes={sizes}
+      loading={loading}
+      className={className}
+    />
   );
 }

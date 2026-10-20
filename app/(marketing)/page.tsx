@@ -246,9 +246,9 @@ export default function LandingPage() {
 
       {/* hero */}
       <section style={{ position: "relative", overflow: "hidden" }}>
-        {/* SVG em linha, não <img>: a marca d'água quase invisível era a maior imagem do topo e
-            virava o LCP no celular, esperando o JavaScript para pintar */}
-        <LogoBarras className="hero-marca" />
+        {/* o logo de adesivo, como em todo lugar. É a maior imagem do topo e vira o LCP: eager, para
+            não esperar o lazy */}
+        <LogoBarras className="hero-marca" sizes="640px" loading="eager" />
         <div
           aria-hidden="true"
           style={{
