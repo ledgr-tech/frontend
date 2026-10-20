@@ -6,6 +6,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ArrowRight, X } from "lucide-react";
 import { ABRIR_AJUDA } from "@/lib/eventos";
+import { useTemColuna } from "../coluna/coluna";
 import { telaDoCaminho } from "../tutorial/roteiros";
 import {
   NotaDaAjuda,
@@ -16,13 +17,15 @@ import {
 import { ajudaDaTela, type PaginaDeAjuda } from "./paginas";
 
 /**
- * A ajuda da tela aberta (#171), num painel à direita que o "Ajuda desta tela" do menu abre. Não é
+ * A ajuda da tela aberta (#171), num painel à direita (só nas telas sem coluna Agora) que o "Ajuda desta tela" do menu abre. Não é
  * modal, como o assistente: dá para ler e mexer na tela ao mesmo tempo. A `key` da tela fecha o
  * painel ao trocar de tela, como o tutorial.
  */
 export function PainelDaRota() {
   const tela = telaDoCaminho(usePathname());
   const pagina = ajudaDaTela(tela);
+  // com a coluna, a ajuda da tela mora nela
+  if (useTemColuna()) return null;
   return pagina ? <PainelDeAjuda key={tela} pagina={pagina} /> : null;
 }
 

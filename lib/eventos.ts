@@ -7,9 +7,14 @@ export const ABRIR_TUTORIAL = "ledgr:abrir-tutorial";
 export const ABRIR_CONFIGURACOES = "ledgr:abrir-configuracoes";
 export const ABRIR_AJUDA = "ledgr:abrir-ajuda";
 export const ABRIR_ASSISTENTE = "ledgr:abrir-assistente";
+export const MOSTRAR_AJUDA_NA_COLUNA = "ledgr:mostrar-ajuda-na-coluna";
 
 export function abrirAjuda(): void {
   window.dispatchEvent(new CustomEvent(ABRIR_AJUDA));
+}
+
+export function mostrarAjudaNaColuna(): void {
+  window.dispatchEvent(new CustomEvent(MOSTRAR_AJUDA_NA_COLUNA));
 }
 
 export function abrirAssistente(): void {

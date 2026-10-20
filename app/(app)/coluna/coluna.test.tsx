@@ -2,6 +2,8 @@ import { useEffect } from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { mostrarAjudaNaColuna } from "@/lib/eventos";
+import { ajudaDaTela } from "../ajuda/paginas";
 import { ProvedorDaColuna, ColunaAgora, ColunaDaTela, BotaoAgora, useColuna } from "./coluna";
 
 let caminho = "/dashboard";
@@ -123,6 +125,51 @@ describe("coluna Agora", () => {
     expect(screen.getByTestId("painel")).toHaveTextContent("true");
     act(() => desfazer());
     expect(screen.getByTestId("painel")).toHaveTextContent("false");
+  });
+
+  describe("ajuda da tela", () => {
+    it("na comparação, mostra os passos e o link para a Central", () => {
+      caminho = "/conciliacoes/b";
+      montar();
+      const bloco = screen.getByRole("region", { name: "Ajuda desta tela" });
+      expect(bloco).toHaveAttribute("id", "coluna-ajuda");
+      const pagina = ajudaDaTela("comparacao")!;
+      expect(bloco).toHaveTextContent(pagina.passos[0].titulo);
+      expect(screen.getByRole("link", { name: "Abrir na Central" })).toHaveAttribute("href", "/ajuda/comparacao");
+    });
+
+    it("sem página (histórico), mostra só o link da Central de ajuda", () => {
+      caminho = "/historico";
+      montar();
+      const bloco = screen.getByRole("region", { name: "Ajuda desta tela" });
+      expect(bloco.querySelector("ol")).toBeNull();
+      expect(screen.getByRole("link", { name: "Central de ajuda" })).toHaveAttribute("href", "/ajuda");
+    });
+
+    it("o pedido do menu, com a coluna recolhida, abre sem gravar e foca o título", () => {
+      caminho = "/conciliacoes/b";
+      document.documentElement.dataset.coluna = "recolhida";
+      montar();
+      act(() => mostrarAjudaNaColuna());
+      expect(document.documentElement.dataset.coluna).toBe("aberta");
+      expect(window.localStorage.getItem("ledgr_coluna")).toBeNull();
+      expect(screen.getByRole("heading", { name: "Ajuda desta tela" })).toHaveFocus();
+    });
+
+    it("nas telas menores, o pedido abre o painel", () => {
+      caminho = "/conciliacoes/b";
+      telas(false);
+      render(
+        <ProvedorDaColuna>
+          <BotaoAgora />
+          <ColunaAgora />
+        </ProvedorDaColuna>,
+      );
+      act(() => mostrarAjudaNaColuna());
+      const painel = screen.getByRole("dialog", { name: "O que fazer agora" });
+      expect(painel).toHaveTextContent("Ajuda desta tela");
+      expect(screen.getByRole("heading", { name: "Ajuda desta tela" })).toHaveFocus();
+    });
   });
 
   describe("telas menores", () => {

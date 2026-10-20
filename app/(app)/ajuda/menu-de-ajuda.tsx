@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BookOpen, CircleHelp, LibraryBig, RotateCcw } from "lucide-react";
-import { abrirAjuda, abrirTutorial } from "@/lib/eventos";
+import { abrirAjuda, abrirTutorial, mostrarAjudaNaColuna } from "@/lib/eventos";
+import { useTemColuna } from "../coluna/coluna";
 import { telaDoCaminho } from "../tutorial/roteiros";
 import { ajudaDaTela } from "./paginas";
 
@@ -20,6 +21,7 @@ export function MenuDeAjuda() {
   const botao = useRef<HTMLButtonElement>(null);
   const tela = telaDoCaminho(usePathname());
   const pagina = ajudaDaTela(tela);
+  const comColuna = useTemColuna();
 
   useEffect(() => {
     if (!aberto) return;
@@ -61,11 +63,11 @@ export function MenuDeAjuda() {
 
       {aberto && (
         <div id="menu-de-ajuda" className="app-painel ajd-menu">
-          {pagina && (
+          {(pagina || comColuna) && (
             <button
               type="button"
               className="ajd-menu-item"
-              onClick={() => escolher(abrirAjuda)}
+              onClick={() => escolher(comColuna ? mostrarAjudaNaColuna : abrirAjuda)}
             >
               <BookOpen {...ICONE} />
               <span className="ajd-menu-titulo">Ajuda desta tela</span>

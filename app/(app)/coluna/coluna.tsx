@@ -3,7 +3,11 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { usePathname } from "next/navigation";
+import Link from "next/link";
 import { X } from "lucide-react";
+import { MOSTRAR_AJUDA_NA_COLUNA } from "@/lib/eventos";
+import { NotaDaAjuda, PassosDaAjuda } from "../ajuda/blocos";
+import { ajudaDaTela } from "../ajuda/paginas";
 import { telaDoCaminho } from "../tutorial/roteiros";
 import { colunaRecolhida, definirColuna, temColuna } from "./estado";
 
@@ -17,6 +21,8 @@ type Valor = {
   /** Abre a coluna para o tutorial e devolve o que desfaz só o que ele mudou. */
   mostrarParaTutorial(): () => void;
   pendente: boolean;
+  /** Conta os pedidos de "Ajuda desta tela"; o bloco da ajuda rola e foca a cada um. */
+  pedidosDeAjuda: number;
   // internos, usados por ColunaAgora e ColunaDaTela
   montadas: number;
   recolhida: boolean;
@@ -47,6 +53,7 @@ export function ProvedorDaColuna({ children }: { children: ReactNode }) {
   const [recolhida, setRecolhida] = useState(false);
   const [montadas, setMontadas] = useState(0);
   const [pendentes, setPendentes] = useState(0);
+  const [pedidosDeAjuda, setPedidos] = useState(0);
 
   useEffect(() => {
     // o atributo só existe no navegador: lido depois da hidratação para não divergir do HTML do servidor
@@ -85,6 +92,21 @@ export function ProvedorDaColuna({ children }: { children: ReactNode }) {
     return () => setPainel(null);
   }, [largas, painelAberto, caminho]);
 
+  // o menu Ajuda pede a ajuda da tela: abre a coluna (ou o painel) e o bloco rola e foca
+  useEffect(() => {
+    const mostrar = () => {
+      if (largas) {
+        if (colunaRecolhida()) {
+          definirColuna(false, { gravar: false });
+          setRecolhida(false);
+        }
+      } else abrirPainel();
+      setPedidos((n) => n + 1);
+    };
+    window.addEventListener(MOSTRAR_AJUDA_NA_COLUNA, mostrar);
+    return () => window.removeEventListener(MOSTRAR_AJUDA_NA_COLUNA, mostrar);
+  }, [largas, abrirPainel]);
+
   const registrar = useCallback((pendente: boolean) => {
     setMontadas((n) => n + 1);
     if (pendente) setPendentes((n) => n + 1);
@@ -97,15 +119,16 @@ export function ProvedorDaColuna({ children }: { children: ReactNode }) {
   const valor = useMemo<Valor>(
     () => ({
       encaixeAgora, encaixeTutorial, largas, painelAberto, abrirPainel, fecharPainel, mostrarParaTutorial,
-      pendente: pendentes > 0, montadas, recolhida, alternar, refAgora: setAgora, refTutorial: setTutorial, registrar,
+      pendente: pendentes > 0, pedidosDeAjuda, montadas, recolhida, alternar, refAgora: setAgora, refTutorial: setTutorial, registrar,
     }),
-    [encaixeAgora, encaixeTutorial, largas, painelAberto, abrirPainel, fecharPainel, mostrarParaTutorial, pendentes, montadas, recolhida, alternar, registrar],
+    [encaixeAgora, encaixeTutorial, largas, painelAberto, abrirPainel, fecharPainel, mostrarParaTutorial, pendentes, pedidosDeAjuda, montadas, recolhida, alternar, registrar],
   );
 
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;
 }
 
-function useTemColuna(): boolean {
+/** A tela aberta tem a coluna (na divergência, só com a Comparação montada embaixo). */
+export function useTemColuna(): boolean {
   const { montadas } = useColuna();
   const tela = telaDoCaminho(usePathname());
   return temColuna(tela) || (tela === "divergencia" && montadas > 0);
@@ -137,7 +160,8 @@ export function ColunaAgora() {
 
   useEffect(() => {
     if (!painel) return;
-    aside.current?.focus();
+    // o pedido de ajuda já pode ter focado o título (o efeito do filho roda antes)
+    if (!aside.current?.contains(document.activeElement)) aside.current?.focus();
     // dentro de uma janela <dialog>, o Esc é dela
     const tecla = (evento: KeyboardEvent) => {
       if (evento.key !== "Escape" || document.querySelector("dialog[open]")) return;
@@ -179,7 +203,7 @@ export function ColunaAgora() {
       <div className="coluna-agora-corpo">
         <div ref={refAgora} />
         <div ref={refTutorial} />
-        <div className="coluna-agora-ajuda" />
+        <AjudaDaTela />
       </div>
     </aside>
   );
@@ -190,4 +214,35 @@ export function ColunaDaTela({ children, pendente = false }: { children: ReactNo
   const { encaixeAgora, registrar } = useColuna();
   useEffect(() => registrar(pendente), [registrar, pendente]);
   return encaixeAgora ? createPortal(children, encaixeAgora) : null;
+}
+
+/** A ajuda da tela dentro da coluna; sem página, só o caminho para a Central. */
+function AjudaDaTela() {
+  const { pedidosDeAjuda } = useColuna();
+  const pagina = ajudaDaTela(telaDoCaminho(usePathname()));
+  const bloco = useRef<HTMLElement>(null);
+  const titulo = useRef<HTMLHeadingElement>(null);
+
+  useEffect(() => {
+    if (pedidosDeAjuda === 0) return;
+    bloco.current?.scrollIntoView?.({ block: "start" });
+    titulo.current?.focus();
+  }, [pedidosDeAjuda]);
+
+  return (
+    <section ref={bloco} id="coluna-ajuda" className="coluna-agora-ajuda" aria-labelledby="coluna-ajuda-titulo">
+      <h2 id="coluna-ajuda-titulo" ref={titulo} tabIndex={-1}>
+        Ajuda desta tela
+      </h2>
+      {pagina && (
+        <>
+          <PassosDaAjuda pagina={pagina} />
+          <NotaDaAjuda pagina={pagina} />
+        </>
+      )}
+      <Link href={pagina ? `/ajuda/${pagina.id}` : "/ajuda"} className="ajd-link">
+        {pagina ? "Abrir na Central" : "Central de ajuda"}
+      </Link>
+    </section>
+  );
 }

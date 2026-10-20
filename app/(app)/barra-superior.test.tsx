@@ -20,7 +20,7 @@ vi.mock("./conciliacoes/acoes", () => ({
 }));
 
 // o botão "Agora" precisa do provedor da coluna; o comportamento dele é testado em coluna/coluna.test.tsx
-vi.mock("./coluna/coluna", () => ({ BotaoAgora: () => <button type="button">Agora</button> }));
+vi.mock("./coluna/coluna", () => ({ BotaoAgora: () => <button type="button">Agora</button>, useTemColuna: () => false }));
 
 const EXECUCAO = { id: "e7", executadaEm: "2026-09-26T13:28:00Z" } as Execucao;
 
