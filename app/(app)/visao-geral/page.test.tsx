@@ -538,6 +538,30 @@ describe("VisaoGeralPage", () => {
       expect(screen.getByTestId("pendente")).toHaveTextContent("true");
     });
 
+    it("follows Já sei usar: the step goes away from the Agora and the dot goes off", async () => {
+      const user = userEvent.setup();
+      carregarRoteiro.mockResolvedValue(CONTA_NOVA);
+      com({ execucoes: [], total: 0, recente: null });
+      await renderizar();
+      expect(within(agora()).getByText("Definir a tolerância de dias")).toBeInTheDocument();
+      expect(screen.getByTestId("pendente")).toHaveTextContent("true");
+
+      await user.click(screen.getByRole("button", { name: "Já sei usar" }));
+      expect(within(agora()).queryByText("Definir a tolerância de dias")).not.toBeInTheDocument();
+      expect(within(agora()).getByText("Tudo em dia")).toBeInTheDocument();
+      expect(screen.getByTestId("pendente")).toHaveTextContent("false");
+    });
+
+    it("never shows the step to someone who already dismissed the roteiro", async () => {
+      window.localStorage.setItem("ledgr:preferencias", JSON.stringify({ tutoriaisDispensados: [], roteiroDispensado: true }));
+      carregarRoteiro.mockResolvedValue(CONTA_NOVA);
+      com({ execucoes: [], total: 0, recente: null });
+      await renderizar();
+
+      expect(within(agora()).queryByText("Definir a tolerância de dias")).not.toBeInTheDocument();
+      expect(screen.getByTestId("pendente")).toHaveTextContent("false");
+    });
+
     it("opens the settings from a step whose destination is Configurações", async () => {
       const user = userEvent.setup();
       carregarRoteiro.mockResolvedValue(CONTA_NOVA);

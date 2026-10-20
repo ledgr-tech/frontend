@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { ColunaDaTela } from "../coluna/coluna";
 import { TudoEmDia } from "../coluna/tudo-em-dia";
 import { usePreferencias } from "../conta";
 import { BotaoDoPasso } from "./roteiro-faixa";
@@ -17,25 +18,27 @@ export function AgoraDaVisaoGeral({
   proximo: PassoDoRoteiro | null;
   pendente: { mes: string; quantidade: number; href: string } | null;
 }) {
-  // "Já sei usar" some com a faixa, e com o passo dela aqui
-  const { roteiroDispensado } = usePreferencias();
-  if (proximo && !roteiroDispensado) {
-    return (
-      <div className="conc-continuar">
-        <span className="conc-continuar-titulo">{proximo.titulo}</span>
-        <span className="conc-continuar-texto">{proximo.texto}</span>
-        <BotaoDoPasso passo={proximo} />
-      </div>
-    );
-  }
-  if (pendente) {
-    return (
-      <div className="conc-continuar">
-        <Link href={pendente.href} className="btn btn-primary">
-          {`${pendente.quantidade} ${pendente.quantidade === 1 ? "pendência" : "pendências"} em ${pendente.mes}`}
-        </Link>
-      </div>
-    );
-  }
-  return <TudoEmDia />;
+  // a mesma condição da faixa: só mostra o passo depois de saber se foi dispensado
+  const { carregado, roteiroDispensado } = usePreferencias();
+  const passo = proximo && carregado && !roteiroDispensado ? proximo : null;
+  // o servidor não sabe do "Já sei usar": o ponto do botão "Agora" sai daqui
+  return (
+    <ColunaDaTela pendente={passo !== null || pendente !== null}>
+      {passo ? (
+        <div className="conc-continuar">
+          <span className="conc-continuar-titulo">{passo.titulo}</span>
+          <span className="conc-continuar-texto">{passo.texto}</span>
+          <BotaoDoPasso passo={passo} />
+        </div>
+      ) : proximo && !carregado ? null : pendente ? (
+        <div className="conc-continuar">
+          <Link href={pendente.href} className="btn btn-primary">
+            {`${pendente.quantidade} ${pendente.quantidade === 1 ? "pendência" : "pendências"} em ${pendente.mes}`}
+          </Link>
+        </div>
+      ) : (
+        <TudoEmDia />
+      )}
+    </ColunaDaTela>
+  );
 }
