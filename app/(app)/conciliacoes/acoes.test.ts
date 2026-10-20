@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi, afterEach } from "vitest";
+import { SO_O_GESTOR_FECHA, SO_O_GESTOR_JUSTIFICA } from "@/lib/gestor";
 import type { ExecucaoAPI, ItemConciliacaoAPI } from "@/lib/adaptadores";
 import { ErroBackend } from "@/lib/backend";
 import {
@@ -29,6 +30,18 @@ vi.mock("@/lib/backend", async (original) => ({
   ...(await original<typeof import("@/lib/backend")>()),
   chamarBackend: (...args: unknown[]) => chamarBackend(...args),
   emailDaSessao: async () => "ana@x.com",
+}));
+
+// quem é o gestor vem do GET /me, lido por contaDaSessao; os testes do #168 trocam o papel
+const conta = vi.hoisted(() => ({ administrador: true }));
+vi.mock("../../(auth)/acoes", () => ({
+  contaDaSessao: async () => ({
+    empresa: "",
+    temSenha: true,
+    administrador: conta.administrador,
+    preferencias: null,
+    assinatura: null,
+  }),
 }));
 
 const BANCO_RECENTE = "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20";
@@ -1501,5 +1514,45 @@ describe("carregarRoteiro", () => {
       return normal(caminho);
     });
     expect(await carregarRoteiro()).toBeNull();
+  });
+});
+
+describe("só o gestor justifica, fecha e reabre (#168)", () => {
+  beforeEach(() => {
+    chamarBackend.mockReset();
+    conta.administrador = false;
+  });
+  afterEach(() => {
+    conta.administrador = true;
+  });
+
+  it("quem não é o gestor não fecha nem reabre, e o backend nem é chamado", async () => {
+    expect(await fecharMes("2026-09", "Em análise.")).toEqual({ ok: false, status: 403, erro: SO_O_GESTOR_FECHA });
+    expect(await reabrirMes("2026-09")).toEqual({ ok: false, status: 403, erro: SO_O_GESTOR_FECHA });
+    expect(chamarBackend).not.toHaveBeenCalled();
+  });
+
+  it("quem não é o gestor não justifica nem desfaz, mas confere", async () => {
+    expect(await registrarDecisao(BANCO_RECENTE, "lb-1", "justificada", "Juros.")).toEqual({
+      ok: false,
+      status: 403,
+      erro: SO_O_GESTOR_JUSTIFICA,
+    });
+    expect(await registrarDecisao(BANCO_RECENTE, "lb-1", "justificativa_desfeita")).toMatchObject({ status: 403 });
+    expect(chamarBackend).not.toHaveBeenCalled();
+
+    chamarBackend.mockResolvedValue({ tipo: "conferida", autor: "Ana", em: "2026-10-20T10:00:00Z", texto: null });
+    expect(await registrarDecisao(BANCO_RECENTE, "lb-1", "conferida")).toMatchObject({ ok: true });
+  });
+
+  it("o 403 do backend chega com o texto da tela", async () => {
+    conta.administrador = true;
+    chamarBackend.mockRejectedValue(new ErroBackend(403, "Forbidden"));
+    expect(await fecharMes("2026-09")).toEqual({ ok: false, status: 403, erro: SO_O_GESTOR_FECHA });
+    expect(await registrarDecisao(BANCO_RECENTE, "lb-1", "justificada", "Juros.")).toEqual({
+      ok: false,
+      status: 403,
+      erro: SO_O_GESTOR_JUSTIFICA,
+    });
   });
 });

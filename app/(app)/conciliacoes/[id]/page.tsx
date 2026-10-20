@@ -42,6 +42,8 @@ import { MensagemErro } from "@/app/(auth)/_compartilhado/mensagem-erro";
 import { Cabecalho } from "../../cabecalho";
 import { FaixaDoSaldo } from "../../saldo";
 import { SeloIa } from "../../selo-ia";
+import { useEhGestor } from "../../conta";
+import { SO_O_GESTOR_JUSTIFICA } from "@/lib/gestor";
 
 /**
  * "Desde a rodada 1: 4 passaram a bater · 2 continuam divergindo · 1 nova divergência".
@@ -119,6 +121,8 @@ function CabecalhoOrdenavel({
 }
 
 export default function ConciliacaoPage() {
+  // conferir é de todos; justificar, só do gestor da conta (#168)
+  const gestor = useEhGestor();
   const params = useParams<{ id: string }>();
   const busca = useSearchParams();
   const sistema = busca.get("sistema") || undefined;
@@ -751,6 +755,7 @@ export default function ConciliacaoPage() {
             linha={linhaAberta}
             rodada={rodadaDasLinhas}
             podeDecidir={podeDecidir}
+            podeJustificar={podeDecidir && gestor}
             detalhe={caminhoDaConciliacao(conciliacao.id, conciliacao.extratoSistemaId, linhaAberta.id)}
             onJustificar={(texto) => gravarDecisao(linhaAberta, "justificada", texto)}
             onDesfazer={() => gravarDecisao(linhaAberta, "justificativa_desfeita")}
@@ -782,6 +787,7 @@ function EspiaDaLinha({
   linha,
   rodada,
   podeDecidir,
+  podeJustificar,
   detalhe,
   onJustificar,
   onDesfazer,
@@ -793,6 +799,8 @@ function EspiaDaLinha({
   rodada: number;
   /** Há onde gravar a decisão, e a rodada é a que vale. */
   podeDecidir: boolean;
+  /** Pode decidir e é o gestor da conta: só ele justifica e desfaz (#168). */
+  podeJustificar: boolean;
   detalhe: string;
   /** Devolvem o motivo de não ter gravado, ou null. */
   onJustificar: (texto: string) => Promise<string | null>;
@@ -918,7 +926,7 @@ function EspiaDaLinha({
           <div className="espia-decisao">
             <strong>{`Justificada por ${linha.decisao.autor} em ${formatarDataHora(linha.decisao.em)}`}</strong>
             {linha.decisao.texto && <p className="dialog-body">{linha.decisao.texto}</p>}
-            {podeDecidir && (
+            {podeJustificar && (
               <button
                 type="button"
                 className="btn btn-secondary"
@@ -932,7 +940,8 @@ function EspiaDaLinha({
             {erro && <MensagemErro id={idErro}>{erro}</MensagemErro>}
           </div>
         )}
-        {podeDecidir && (situacao === "a_conferir" || situacao === "conferida") && (
+        {podeDecidir && !podeJustificar && <p className="espia-aviso">{SO_O_GESTOR_JUSTIFICA}</p>}
+        {podeJustificar && (situacao === "a_conferir" || situacao === "conferida") && (
           <form className="espia-decisao" onSubmit={justificar} noValidate>
             <div className="field">
               <label htmlFor={idCampo}>Justificativa</label>

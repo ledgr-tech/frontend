@@ -22,6 +22,8 @@ type ValorDaConta = {
 };
 
 const Contexto = createContext<ValorDaConta | null>(null);
+/** Quem é o gestor da conta (o administrador, #168); fora do app, como a conta única antiga, sim. */
+const ContextoDoGestor = createContext(true);
 /** O plano e o teste de 14 dias; null sem a informação do backend (e fora do app). */
 const ContextoDaAssinatura = createContext<Assinatura | null>(null);
 
@@ -33,10 +35,13 @@ const ContextoDaAssinatura = createContext<Assinatura | null>(null);
 export function ProvedorDaConta({
   preferencias,
   assinatura = null,
+  administrador = true,
   children,
 }: {
   preferencias: Preferencias | null;
   assinatura?: Assinatura | null;
+  /** Do `GET /me`: só o gestor justifica e fecha o mês. */
+  administrador?: boolean;
   children: ReactNode;
 }) {
   const [atuais, setAtuais] = useState<Preferencias>(preferencias ?? PREFERENCIAS_VAZIAS);
@@ -69,7 +74,9 @@ export function ProvedorDaConta({
 
   return (
     <Contexto.Provider value={valor}>
-      <ContextoDaAssinatura.Provider value={assinatura}>{children}</ContextoDaAssinatura.Provider>
+      <ContextoDaAssinatura.Provider value={assinatura}>
+        <ContextoDoGestor.Provider value={administrador}>{children}</ContextoDoGestor.Provider>
+      </ContextoDaAssinatura.Provider>
     </Contexto.Provider>
   );
 }
@@ -82,4 +89,9 @@ export function usePreferencias(): ValorDaConta {
 
 export function useAssinatura(): Assinatura | null {
   return useContext(ContextoDaAssinatura);
+}
+
+/** Se quem está na tela é o gestor da conta, que justifica e fecha o mês (#168). */
+export function useEhGestor(): boolean {
+  return useContext(ContextoDoGestor);
 }
