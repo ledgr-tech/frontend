@@ -269,7 +269,7 @@ describe("segmentos", () => {
       divergencias: { tarifa_bancaria: 2, divergente_data: 3, sem_correspondencia: 1 },
     });
     expect(partes.map((parte) => [parte.rotulo, parte.quantidade])).toEqual([
-      ["Bate", 14],
+      ["Conciliado", 14],
       ["Data diverge, Falta", 4],
       ["Tarifa", 2],
     ]);

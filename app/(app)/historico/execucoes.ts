@@ -166,7 +166,7 @@ export type Segmento = { tom: Tom; quantidade: number; rotulo: string };
 // comparação (`rotuloCurto`), juntos por tom.
 const TONS: Tom[] = ["ok", "risco", "atencao", "neutro"];
 const ROTULO_DO_TOM: Record<Tom, string> = {
-  ok: "Bate",
+  ok: "Conciliado",
   risco: "Valor diverge, Duplicidade",
   atencao: "Data diverge, Falta",
   neutro: "Tarifa",

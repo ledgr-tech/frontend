@@ -98,8 +98,11 @@ describe("statusDaLinha", () => {
 
 describe("rotuloCurto", () => {
   it("dá a cada categoria um nome curto, que cabe entre as duas folhas da comparação", () => {
-    expect(rotuloCurto(linha("match_exato", 100, 100))).toBe("Bate");
-    expect(rotuloCurto(linha("match_tolerancia", 100, 100))).toBe("Bate na tolerância");
+    expect(rotuloCurto(linha("match_exato", 100, 100))).toBe("Conciliado");
+    expect(rotuloCurto(linha("match_tolerancia", 100, 100))).toBe("Conciliado");
+    expect(rotuloCurto({ ...linha("match_tolerancia", 100, 100), data: "04/09", dataSistema: "02/09" })).toBe("Conciliado ±2d");
+    // a virada do ano conta pelo caminho curto
+    expect(rotuloCurto({ ...linha("match_tolerancia", 100, 100), data: "02/01", dataSistema: "31/12" })).toBe("Conciliado ±2d");
     expect(rotuloCurto(linha("divergente_valor", 12640, 12604))).toBe("Valor diverge");
     expect(rotuloCurto(linha("divergente_data", 1320, 1320))).toBe("Data diverge");
     expect(rotuloCurto(linha("duplicado", 560, null))).toBe("Duplicidade");

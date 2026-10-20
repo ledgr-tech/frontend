@@ -331,13 +331,13 @@ describe("HistoricoPage", () => {
     expect(linha.querySelector(".hist-c-revisar")).toHaveTextContent("8 · 2 justificadas");
     const barra = linha.querySelector(".hist-resultado-barra")!;
     expect([...barra.children].map((parte) => parte.getAttribute("title"))).toEqual([
-      "Bate: 12",
+      "Conciliado: 12",
       "Valor diverge, Duplicidade: 6",
       "Data diverge, Falta: 4",
     ]);
     const legenda = screen.getByRole("list", { name: "Legenda das barras" });
     expect(within(legenda).getAllByRole("listitem").map((item) => item.textContent)).toEqual([
-      "Bate",
+      "Conciliado",
       "Valor diverge, Duplicidade",
       "Data diverge, Falta",
       "Tarifa",

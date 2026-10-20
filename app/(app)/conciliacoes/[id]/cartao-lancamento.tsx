@@ -148,6 +148,8 @@ export function CartaoLancamento({
   aberto,
   rodada = 1,
   linhas = [],
+  onMouseEnter,
+  onMouseLeave,
 }: {
   id: string;
   aberto: CartaoAberto;
@@ -155,6 +157,9 @@ export function CartaoLancamento({
   rodada?: number;
   /** Todas as linhas da conciliação: o lado que falta numa divergência está numa delas. */
   linhas?: LinhaComparacao[];
+  /** O ponteiro entrou no cartão ou saiu dele: dá para ir da linha até ele. */
+  onMouseEnter?: () => void;
+  onMouseLeave?: () => void;
 }) {
   const { linha, ancora } = aberto;
   const { banco, sistema } = ladosDaLinha(linha);
@@ -179,9 +184,11 @@ export function CartaoLancamento({
     <div
       id={id}
       role="tooltip"
-      className="cartao-lancamento cartao-no-eixo"
+      className="cartao-lancamento cartao-no-eixo cartao-alcancavel"
       data-lado={acima ? "acima" : "abaixo"}
       style={estilo}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
     >
       <ConteudoCartao
         // o status do motor não muda com a justificativa: ela vem junto, não no lugar dele

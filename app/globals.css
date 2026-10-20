@@ -2528,18 +2528,20 @@ html[data-tema="escuro"] .app-shell {
 /* o que bateu fica quieto, sem selo: só o que pede revisão ganha cor. Os 70% (e não o
    --texto-apagado) seguram 4,5:1 sobre a página e sobre a folha cinza do sistema. */
 .status-batido { font-size: 12.5px; color: color-mix(in srgb, var(--color-text) 70%, transparent); }
-/* o campo que diverge, dos dois lados, na cor do status: os valores ou as datas */
-.tabela-folhas tbody tr[data-tom="risco"] > td[data-diverge] { color: var(--color-risco-700); }
-.tabela-folhas tbody tr[data-tom="atencao"] > td[data-diverge] { color: var(--color-accent-700); }
-/* com o ponteiro (ou o foco) na linha, o campo que diverge acende de leve, como marca-texto.
+/* o campo errado, em vermelho em toda divergência (a data ou o valor): o olho acha de longe
+   tudo o que falta resolver, seja qual for o tom do selo */
+.tabela-folhas tbody tr > td[data-diverge] { color: var(--color-risco-700); }
+/* com fundo de marca-texto o tempo todo, mais forte com o ponteiro (ou o foco) na linha.
    A sombra estende o fundo sem mexer na largura do texto: a linha não muda de tamanho. */
 .marca-diverge {
   border-radius: 4px;
+  background: color-mix(in srgb, currentColor 9%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 9%, transparent);
   transition: background-color 0.16s ease, box-shadow 0.16s ease;
 }
 .tabela-folhas tbody tr:is(:hover, :focus-within) .marca-diverge {
-  background: color-mix(in srgb, currentColor 13%, transparent);
-  box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 13%, transparent);
+  background: color-mix(in srgb, currentColor 15%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 15%, transparent);
 }
 /* A rodada: o aviso de rodada passada ou o que mudou desde a anterior, e à direita a linha das
    rodadas (no celular, ela desce para baixo do texto). */
@@ -3987,6 +3989,13 @@ th:is([aria-sort="ascending"], [aria-sort="descending"]) .th-ordena-seta { opaci
 }
 .cartao-no-eixo[data-lado="acima"]::after { bottom: -7px; border-top: none; border-left: none; }
 .cartao-no-eixo[data-lado="abaixo"]::after { top: -7px; border-bottom: none; border-right: none; }
+/* No app dá para levar o ponteiro até o cartão, para ler com calma e selecionar o texto. A
+   ponte cobre o vão entre ele e a linha (o VAO de cartao-lancamento.tsx): atravessá-lo não
+   passa por outra linha, que trocaria o cartão. */
+.cartao-alcancavel { pointer-events: auto; }
+.cartao-alcancavel::before { content: ""; position: absolute; left: 0; right: 0; height: 12px; }
+.cartao-alcancavel[data-lado="acima"]::before { top: 100%; }
+.cartao-alcancavel[data-lado="abaixo"]::before { bottom: 100%; }
 @keyframes cartao-lancamento-surgir {
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: none; }
