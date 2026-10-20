@@ -146,8 +146,9 @@ export default function PrivacidadePage() {
         <li>a informação de com quem compartilhamos: os fornecedores listados acima.</li>
       </ul>
       <p>
-        Por enquanto, os pedidos são feitos por e-mail. A exclusão da conta pelas próprias configurações
-        ainda não está disponível. Nos extratos, em que a sua empresa é a controladora, o pedido de uma
+        Por enquanto, os pedidos são feitos por e-mail. Nas configurações, você desativa a sua conta: o
+        acesso acaba e o e-mail fica livre. A exclusão dos dados da empresa é feita a pedido, por e-mail.
+        Nos extratos, em que a sua empresa é a controladora, o pedido de uma
         pessoa citada numa descrição é atendido pela sua empresa, com a ajuda do Ledgr.
       </p>
       <EmDefinicao>o canal próprio de privacidade e a pessoa responsável por ele.</EmDefinicao>

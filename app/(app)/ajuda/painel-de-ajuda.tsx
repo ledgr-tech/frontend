@@ -7,13 +7,9 @@ import { usePathname } from "next/navigation";
 import { ArrowRight, X } from "lucide-react";
 import { ABRIR_AJUDA } from "@/lib/eventos";
 import { telaDoCaminho } from "../tutorial/roteiros";
-import {
-  NotaDaAjuda,
-  PassosDaAjuda,
-  SeDerErrado,
-  VideoDaAjuda,
-} from "./blocos";
-import { ajudaDaTela, type PaginaDeAjuda } from "./paginas";
+import { Texto } from "../../(ajuda)/ajuda/blocos";
+import { ajudaDaTela, type PaginaDeAjuda } from "../../(ajuda)/ajuda/paginas";
+import { lembrarDeOndeVeio } from "../../(ajuda)/ajuda/voltar";
 
 /**
  * A ajuda da tela aberta (#171), num painel à direita que o "Ajuda desta tela" do menu abre. Não é
@@ -55,6 +51,12 @@ function PainelDeAjuda({ pagina }: { pagina: PaginaDeAjuda }) {
     return () => window.removeEventListener("keydown", tecla);
   }, [aberto]);
 
+  // a Central abre em tela cheia; o "Voltar ao Ledgr" de lá traz de volta a esta tela
+  function irParaACentral() {
+    lembrarDeOndeVeio();
+    setAberto(false);
+  }
+
   function fechar() {
     setAberto(false);
     focarBotaoDeAjuda();
@@ -88,20 +90,31 @@ function PainelDeAjuda({ pagina }: { pagina: PaginaDeAjuda }) {
       <div className="ajd-painel-corpo">
         <div>
           <h2 className="tutorial-titulo" ref={titulo} tabIndex={-1}>
-            {pagina.chamada}
+            {pagina.titulo}
           </h2>
-          <p className="ajd-painel-texto">{pagina.curto}</p>
+          <p className="ajd-painel-texto">{pagina.serve}</p>
         </div>
-        <VideoDaAjuda pagina={pagina} />
-        <PassosDaAjuda pagina={pagina} />
-        <NotaDaAjuda pagina={pagina} />
-        <SeDerErrado pagina={pagina} onIr={() => setAberto(false)} />
+        <ol className="ajd-painel-funcoes">
+          {pagina.funcoes.map((funcao) => (
+            <li key={funcao.id}>
+              <Link
+                href={`/ajuda/${pagina.id}#${funcao.id}`}
+                onClick={irParaACentral}
+              >
+                <strong>{funcao.titulo}</strong>
+                <span>
+                  <Texto>{funcao.faz}</Texto>
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ol>
       </div>
       <div className="ajd-painel-rodape">
         <Link
           href={`/ajuda/${pagina.id}`}
           className="btn btn-primary"
-          onClick={() => setAberto(false)}
+          onClick={irParaACentral}
         >
           Abrir a página completa
           <ArrowRight size={16} aria-hidden />

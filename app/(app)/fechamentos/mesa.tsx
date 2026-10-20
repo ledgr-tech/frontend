@@ -14,6 +14,8 @@ import { FaixaFiltros } from "../faixa-filtros";
 import { Grupo, alternarNoConjunto } from "../grupo";
 import { fraseDoSaldoFinal } from "../saldo";
 import type { MesDeFechamento } from "./fechamento";
+import { useEhGestor } from "../conta";
+import { SO_O_GESTOR_FECHA } from "@/lib/gestor";
 
 /**
  * A mesa de fechamento: cada mês é uma folha, e o selecionado abre ao lado o
@@ -462,6 +464,9 @@ function AcoesDoFechamento({ mes, revisar }: { mes: MesDeFechamento; revisar: st
   const [pedeRessalva, setPedeRessalva] = useState(false);
   const [ressalva, setRessalva] = useState("");
   const mesSozinho = mes.nome.toLowerCase();
+  // fechar e reabrir são do gestor da conta (#168); os outros veem o caminho de revisar
+  const gestor = useEhGestor();
+  const avisoDoGestor = !gestor && <p className="vg-nota">{SO_O_GESTOR_FECHA}</p>;
 
   async function executar(acao: () => Promise<Resultado<unknown>>) {
     setEnviando(true);
@@ -495,9 +500,12 @@ function AcoesDoFechamento({ mes, revisar }: { mes: MesDeFechamento; revisar: st
         <Link href="/conciliacoes/nova" className="btn btn-primary">
           {`Começar ${mes.proximo}`}
         </Link>
-        <button type="button" className="btn btn-secondary" disabled={enviando} onClick={() => executar(() => reabrirMes(mes.chave))}>
-          {`Reabrir ${mesSozinho}`}
-        </button>
+        {gestor && (
+          <button type="button" className="btn btn-secondary" disabled={enviando} onClick={() => executar(() => reabrirMes(mes.chave))}>
+            {`Reabrir ${mesSozinho}`}
+          </button>
+        )}
+        {avisoDoGestor}
         {erro && (
           <p role="alert" className="selo selo-risco fech-erro">
             {erro}
@@ -510,21 +518,24 @@ function AcoesDoFechamento({ mes, revisar }: { mes: MesDeFechamento; revisar: st
   return (
     <div className="fech-acoes">
       {mes.pronto ? (
-        <button type="button" className="btn btn-primary" disabled={enviando} onClick={() => executar(() => fecharMes(mes.chave))}>
-          {`Fechar ${mesSozinho}`}
-        </button>
+        gestor && (
+          <button type="button" className="btn btn-primary" disabled={enviando} onClick={() => executar(() => fecharMes(mes.chave))}>
+            {`Fechar ${mesSozinho}`}
+          </button>
+        )
       ) : (
         <>
           <Link href={pendentes(mes) > 0 ? revisar : "/extratos"} className="btn btn-primary">
             {pendentes(mes) > 0 ? "Revisar pendências" : "Ver extratos"}
           </Link>
-          {!pedeRessalva && (
+          {gestor && !pedeRessalva && (
             <button type="button" className="btn btn-secondary" disabled={enviando} onClick={() => executar(() => fecharMes(mes.chave))}>
               Fechar mesmo assim
             </button>
           )}
         </>
       )}
+      {avisoDoGestor}
       {erro && (
         <p role="alert" className="selo selo-risco fech-erro">
           {erro}

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { Execucao, Fechamento } from "@/lib/adaptadores";
 import type { DadosDoFechamento, ParDoFechamento, Resultado } from "../conciliacoes/acoes";
@@ -27,6 +27,12 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), refresh }),
 }));
 const refresh = vi.fn();
+// fechar e reabrir são do gestor (#168); o padrão é a conta que cadastrou a empresa
+const gestor = vi.hoisted(() => ({ valor: true }));
+vi.mock("../conta", async (original) => ({
+  ...(await original<typeof import("../conta")>()),
+  useEhGestor: () => gestor.valor,
+}));
 
 /** Um fechamento como a action devolve. */
 function fechamento(competencia: string, parcial: Partial<Fechamento> = {}): Fechamento {
@@ -183,6 +189,27 @@ describe("FechamentosPage", () => {
       expect(within(fechado).getByRole("link", { name: "Começar setembro" })).toHaveAttribute("href", "/conciliacoes/nova");
       expect(within(fechado).getByRole("button", { name: "Reabrir agosto" })).toBeInTheDocument();
       expect(within(fechado).queryByRole("button", { name: "Fechar agosto" })).not.toBeInTheDocument();
+    });
+
+    it("only the manager closes and reopens: the others see who can, and keep the way to review", async () => {
+      gestor.valor = false;
+      try {
+        await renderizar(undefined, { mes: "2026-08" });
+        expect(within(painel()).queryByRole("button", { name: "Fechar agosto" })).not.toBeInTheDocument();
+        expect(within(painel()).getByText("Só o gestor da conta fecha e reabre o mês.")).toBeInTheDocument();
+
+        cleanup();
+        await renderizar();
+        expect(within(painel()).getByRole("link", { name: "Revisar pendências" })).toBeInTheDocument();
+        expect(within(painel()).queryByRole("button", { name: "Fechar mesmo assim" })).not.toBeInTheDocument();
+
+        cleanup();
+        await renderizar(undefined, { mes: "2026-08" }, [fechamento("2026-08")]);
+        expect(within(painel()).queryByRole("button", { name: "Reabrir agosto" })).not.toBeInTheDocument();
+        expect(within(painel()).getByRole("link", { name: "Começar setembro" })).toBeInTheDocument();
+      } finally {
+        gestor.valor = true;
+      }
     });
 
     it("reopens a closed month", async () => {

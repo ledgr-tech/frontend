@@ -21,13 +21,13 @@ describe("PainelDaRota", () => {
       name: "Ajuda: Nova conciliação",
     });
     expect(
-      screen.getByRole("heading", { name: "Encaixe os dois extratos." }),
+      screen.getByRole("heading", { name: "Nova conciliação" }),
     ).toHaveFocus();
-    expect(painel).toHaveTextContent("Envie o extrato do banco");
-    expect(painel).toHaveTextContent("fonte da verdade");
+    // cada funcionalidade da tela, com o link para a seção dela na Central
+    expect(painel).toHaveTextContent("Enviar os dois extratos");
     expect(
-      screen.getByRole("link", { name: "Como apontar as colunas" }),
-    ).toHaveAttribute("href", "/ajuda/apontar-colunas");
+      screen.getByRole("link", { name: /^Apontar as colunas do CSV/ }),
+    ).toHaveAttribute("href", "/ajuda/nova-conciliacao#apontar-colunas");
     expect(
       screen.getByRole("link", { name: /Abrir a página completa/ }),
     ).toHaveAttribute("href", "/ajuda/nova-conciliacao");
@@ -35,17 +35,17 @@ describe("PainelDaRota", () => {
     expect(painel.querySelector("video")).toBeNull();
   });
 
-  it("na linha da comparação, é a ajuda de justificar", () => {
+  it("na linha da comparação, é a ajuda do detalhe da linha", () => {
     caminho = "/conciliacoes/b/lc-1";
     render(<PainelDaRota />);
     act(() => abrirAjuda());
     expect(
-      screen.getByRole("dialog", { name: "Ajuda: Justificar uma divergência" }),
+      screen.getByRole("dialog", { name: "Ajuda: Detalhe da linha" }),
     ).toBeInTheDocument();
   });
 
   it("onde não há página, não abre nada", () => {
-    caminho = "/extratos";
+    caminho = "/assinatura";
     render(<PainelDaRota />);
     act(() => abrirAjuda());
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
