@@ -33,8 +33,8 @@ export default function PrivacidadePage() {
         <li>
           <strong>O que fica só no seu navegador:</strong> as preferências de tela (tema, densidade das
           tabelas, menu recolhido), a saudação do login e a contagem de tentativas de entrada. O cadastro
-          também pergunta o banco, a conta e o sistema de gestão; hoje essas respostas não são enviadas nem
-          guardadas.
+          também pergunta o sistema de gestão e o e-mail do responsável; hoje essas respostas não são
+          enviadas nem guardadas.
         </li>
       </ul>
 
