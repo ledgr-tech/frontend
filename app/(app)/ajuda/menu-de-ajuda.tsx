@@ -6,7 +6,8 @@ import { usePathname } from "next/navigation";
 import { BookOpen, CircleHelp, LibraryBig, RotateCcw } from "lucide-react";
 import { abrirAjuda, abrirTutorial } from "@/lib/eventos";
 import { telaDoCaminho } from "../tutorial/roteiros";
-import { ajudaDaTela } from "./paginas";
+import { ajudaDaTela } from "../../(ajuda)/ajuda/paginas";
+import { lembrarDeOndeVeio } from "../../(ajuda)/ajuda/voltar";
 
 const ICONE = { size: 18, "aria-hidden": true } as const;
 
@@ -90,7 +91,10 @@ export function MenuDeAjuda() {
           <Link
             href={pagina ? `/ajuda/${pagina.id}` : "/ajuda"}
             className="ajd-menu-item"
-            onClick={() => setAberto(false)}
+            onClick={() => {
+              lembrarDeOndeVeio();
+              setAberto(false);
+            }}
           >
             <LibraryBig {...ICONE} />
             <span className="ajd-menu-titulo">Central de ajuda</span>
