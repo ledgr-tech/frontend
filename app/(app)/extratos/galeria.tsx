@@ -9,6 +9,7 @@ import { ArrowRight } from "lucide-react";
 import { conciliar, type ArquivoExtrato, type ResumoDaRodada } from "../conciliacoes/acoes";
 import { formatarDataHora, formatarInteiro, formatarPercentual } from "../dashboard/resumo";
 import { tituloDaCompetencia } from "../fechamentos/fechamento";
+import { ColunaDaTela } from "../coluna/coluna";
 import { FaixaFiltros } from "../faixa-filtros";
 import { Grupo, alternarNoConjunto } from "../grupo";
 import { IconeOrigem } from "../icone-origem";
@@ -176,6 +177,7 @@ export function Galeria({ arquivos }: { arquivos: ArquivoExtrato[] }) {
   }
 
   const visiveis = arquivos.filter((arquivo) => passaNoFiltro(arquivo, filtro));
+  const comProblema = arquivos.filter(temProblema).length;
   // se o filtro esconder o selecionado, o painel passa ao primeiro visível
   const aberto = visiveis.find((arquivo) => arquivo.id === selecionado) ?? visiveis[0] ?? null;
 
@@ -248,7 +250,7 @@ export function Galeria({ arquivos }: { arquivos: ArquivoExtrato[] }) {
       {aberto === null ? (
         <p className="extratos-vazio">{FILTROS.find((item) => item.id === filtro)?.vazio}</p>
       ) : (
-        <div className="extratos-area">
+        <>
           {agrupamento === "nenhum" ? (
             grade(visiveis, aberto.id)
           ) : (
@@ -267,9 +269,18 @@ export function Galeria({ arquivos }: { arquivos: ArquivoExtrato[] }) {
               ))}
             </div>
           )}
-          <Painel key={aberto.id} arquivo={aberto} arquivos={arquivos} />
-        </div>
+        </>
       )}
+      <ColunaDaTela pendente={comProblema > 0}>
+        {comProblema > 0 && filtro !== "problema" && (
+          <button type="button" className="btn btn-ghost" onClick={() => setFiltro("problema")}>
+            {comProblema === 1
+              ? "Ver o arquivo com problema de leitura"
+              : `Ver os ${formatarInteiro(comProblema)} arquivos com problema de leitura`}
+          </button>
+        )}
+        {aberto && <Painel key={aberto.id} arquivo={aberto} arquivos={arquivos} />}
+      </ColunaDaTela>
     </div>
   );
 }

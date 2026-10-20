@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import type { ArquivoExtrato, ListaDeExtratos, Resultado } from "../conciliacoes/acoes";
+import { ProvedorDaColuna, ColunaAgora } from "../coluna/coluna";
 import ExtratosPage from "./page";
 
 // quem fala com o backend é a action; aqui ela só devolve o que ele responderia
@@ -17,6 +18,7 @@ vi.mock("next/navigation", () => ({
     throw new Error("NEXT_REDIRECT");
   },
   useRouter: () => ({ push: vi.fn() }),
+  usePathname: () => "/extratos",
 }));
 
 const ARQUIVOS: ArquivoExtrato[] = [
@@ -51,7 +53,18 @@ const ARQUIVOS: ArquivoExtrato[] = [
 ];
 
 async function renderizar() {
-  render(await ExtratosPage());
+  window.matchMedia = ((q: string) => ({ matches: true, media: q, addEventListener() {}, removeEventListener() {} })) as never;
+  render(
+    <ProvedorDaColuna>
+      <ColunaAgora />
+      {await ExtratosPage()}
+    </ProvedorDaColuna>,
+  );
+}
+
+/** O que a tela pôs na coluna. */
+function agora() {
+  return within(document.querySelector<HTMLElement>(".coluna-agora-corpo")!);
 }
 
 describe("ExtratosPage", () => {
@@ -100,9 +113,20 @@ describe("ExtratosPage", () => {
     expect(screen.queryByRole("group", { name: "Filtrar arquivos" })).not.toBeInTheDocument();
   });
 
+  it("sem arquivo, o Agora convida a enviar o primeiro extrato", async () => {
+    listarExtratos.mockResolvedValue({ ok: true, dados: { arquivos: [], total: 0 } });
+    await renderizar();
+    expect(agora().getByRole("link", { name: "Envie o primeiro extrato" })).toHaveAttribute(
+      "href",
+      "/conciliacoes/nova",
+    );
+  });
+
   it("asks for a reload when the backend fails", async () => {
     listarExtratos.mockResolvedValue({ ok: false, status: 0, erro: "Não foi possível falar com o servidor." });
     await renderizar();
+    expect(document.querySelector(".coluna-agora-corpo")).not.toHaveTextContent("Envie o primeiro extrato");
+    expect(document.querySelector(".coluna-agora-corpo > div")).toBeEmptyDOMElement();
     expect(screen.getByRole("alert")).toHaveTextContent(
       "Não foi possível carregar os extratos. Recarregue a página e tente de novo.",
     );

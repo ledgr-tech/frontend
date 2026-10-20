@@ -1,7 +1,9 @@
 import { beforeEach, describe, it, expect, vi } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import type { ReactElement } from "react";
+import { render as renderBase, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ArquivoExtrato } from "../conciliacoes/acoes";
+import { ProvedorDaColuna, ColunaAgora, useColuna } from "../coluna/coluna";
 import { Galeria } from "./galeria";
 
 // conciliar um arquivo já enviado chama a action; aqui ela só responde como o backend
@@ -10,7 +12,22 @@ vi.mock("../conciliacoes/acoes", () => ({
   conciliar: (banco: string, sistema: string) => conciliar(banco, sistema),
 }));
 const push = vi.fn();
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push }), usePathname: () => "/extratos" }));
+// a tela põe o painel na coluna da direita: o provedor e a coluna a recebem, como no layout
+vi.stubGlobal("matchMedia", (q: string) => ({ matches: true, media: q, addEventListener() {}, removeEventListener() {} }));
+function render(ui: ReactElement) {
+  return renderBase(
+    <ProvedorDaColuna>
+      <ColunaAgora />
+      <Espia />
+      {ui}
+    </ProvedorDaColuna>,
+  );
+}
+function Espia() {
+  return <span data-testid="pendente">{String(useColuna().pendente)}</span>;
+}
+
 
 function arquivo(parcial: Partial<ArquivoExtrato> & Pick<ArquivoExtrato, "id" | "nome">): ArquivoExtrato {
   return {
@@ -69,6 +86,11 @@ function cartao(nome: string) {
 
 function painel() {
   return within(screen.getByRole("region", { name: "Arquivo selecionado" }));
+}
+
+/** O que a tela pôs na coluna. */
+function agora() {
+  return within(document.querySelector<HTMLElement>(".coluna-agora-corpo")!);
 }
 
 describe("Galeria de extratos", () => {
@@ -181,6 +203,25 @@ describe("Galeria de extratos", () => {
       "href",
       "/conciliacoes/b-set?sistema=s-v1",
     );
+  });
+
+  it("põe o painel do arquivo na coluna Agora", () => {
+    render(<Galeria arquivos={ARQUIVOS} />);
+    expect(agora().getByRole("region", { name: "Arquivo selecionado" })).toBeInTheDocument();
+    expect(document.querySelector(".extratos-area")).not.toBeInTheDocument();
+  });
+
+  it("com arquivo de leitura com problema, a coluna acende e o atalho põe o filtro desses arquivos", async () => {
+    render(<Galeria arquivos={ARQUIVOS} />);
+    expect(screen.getByTestId("pendente")).toHaveTextContent("true");
+    await userEvent.click(agora().getByRole("button", { name: "Ver o arquivo com problema de leitura" }));
+    expect(screen.getByRole("button", { name: "Com problema (1)" })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("sem arquivo com problema, a coluna não acende nem oferece o atalho", () => {
+    render(<Galeria arquivos={ARQUIVOS.filter((item) => item.naoLidas === 0)} />);
+    expect(screen.getByTestId("pendente")).toHaveTextContent("false");
+    expect(agora().queryByRole("button", { name: /problema de leitura/ })).not.toBeInTheDocument();
   });
 
   it("opens the most recent file in the side panel", () => {
@@ -342,7 +383,7 @@ describe("Galeria de extratos", () => {
   });
 
   describe("grouping", () => {
-    const titulos = () => screen.queryAllByRole("heading", { level: 2 }).map((titulo) => titulo.textContent);
+    const titulos = () => screen.queryAllByRole("heading", { level: 2 }).filter((titulo) => !titulo.closest(".coluna-agora")).map((titulo) => titulo.textContent);
     const grupo = (nome: string) => within(screen.getByRole("region", { name: nome }));
 
     // a escolha fica no navegador entre as visitas; cada teste começa sem nenhuma

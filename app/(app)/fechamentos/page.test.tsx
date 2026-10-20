@@ -1,8 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import type { ReactElement } from "react";
+import { render as renderBase, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { Execucao, Fechamento } from "@/lib/adaptadores";
 import type { DadosDoFechamento, ParDoFechamento, Resultado } from "../conciliacoes/acoes";
+import { ProvedorDaColuna, ColunaAgora, useColuna } from "../coluna/coluna";
 import FechamentosPage from "./page";
 
 // quem fala com o backend é a action; aqui ela só devolve o que ele responderia
@@ -25,8 +27,24 @@ vi.mock("next/navigation", () => ({
   // o botão de exportar CSV do painel usa o router para mandar ao login; fechar e reabrir, para
   // ler a tela de novo
   useRouter: () => ({ push: vi.fn(), refresh }),
+  usePathname: () => "/fechamentos",
 }));
 const refresh = vi.fn();
+
+// a tela põe o painel na coluna da direita: o provedor e a coluna a recebem, como no layout
+vi.stubGlobal("matchMedia", (q: string) => ({ matches: true, media: q, addEventListener() {}, removeEventListener() {} }));
+function render(ui: ReactElement) {
+  return renderBase(
+    <ProvedorDaColuna>
+      <ColunaAgora />
+      <Espia />
+      {ui}
+    </ProvedorDaColuna>,
+  );
+}
+function Espia() {
+  return <span data-testid="pendente">{String(useColuna().pendente)}</span>;
+}
 
 /** Um fechamento como a action devolve. */
 function fechamento(competencia: string, parcial: Partial<Fechamento> = {}): Fechamento {
@@ -110,6 +128,26 @@ describe("FechamentosPage", () => {
     expect(setembro.compareDocumentPosition(agosto) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(setembro).toHaveAttribute("aria-pressed", "true");
     expect(within(painel()).getByRole("heading", { name: "Setembro de 2026" })).toBeInTheDocument();
+  });
+
+  it("põe o painel do mês na coluna Agora, e ela acende enquanto o mês tem pendência", async () => {
+    await renderizar();
+    const coluna = within(document.querySelector<HTMLElement>(".coluna-agora-corpo")!);
+    expect(coluna.getByRole("region", { name: "Mês selecionado" })).toBeInTheDocument();
+    expect(document.querySelector(".fech-area")).not.toBeInTheDocument();
+    expect(screen.getByTestId("pendente")).toHaveTextContent("true");
+  });
+
+  it("a coluna não acende quando o mês escolhido está pronto", async () => {
+    await renderizar(undefined, { mes: "2026-08" });
+    expect(screen.getByTestId("pendente")).toHaveTextContent("false");
+  });
+
+  it("com erro ao carregar, a coluna fica sem Agora", async () => {
+    carregarFechamentos.mockResolvedValue({ ok: false, status: 0, erro: "x" });
+    render(await FechamentosPage({ searchParams: Promise.resolve({}) }));
+    expect(screen.queryByRole("region", { name: "Mês selecionado" })).not.toBeInTheDocument();
+    expect(screen.getByTestId("pendente")).toHaveTextContent("false");
   });
 
   it("opens on the month named in the URL, where the line of rounds of a conciliação leads", async () => {
@@ -383,7 +421,7 @@ describe("FechamentosPage", () => {
     it("groups the months under a heading per year, the most recent year first", async () => {
       await renderizar(VARIOS_ANOS);
 
-      const anos = screen.getAllByRole("heading", { level: 2 }).map((titulo) => titulo.textContent);
+      const anos = screen.getAllByRole("heading", { level: 2 }).filter((titulo) => !titulo.closest(".coluna-agora")).map((titulo) => titulo.textContent);
       expect(anos).toEqual(["2026", "2025", "2024"]);
       expect(within(ano("2025")).getByText("3 competências · 1 com pendência")).toBeInTheDocument();
     });
@@ -449,7 +487,7 @@ describe("FechamentosPage", () => {
 
     it("keeps a single year without a year heading", async () => {
       await renderizar();
-      expect(screen.queryByRole("heading", { level: 2 })).not.toBeInTheDocument();
+      expect(screen.queryAllByRole("heading", { level: 2 }).filter((titulo) => !titulo.closest(".coluna-agora"))).toHaveLength(0);
     });
   });
 });

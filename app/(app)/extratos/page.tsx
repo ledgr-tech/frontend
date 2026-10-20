@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { listarExtratos } from "../conciliacoes/acoes";
 import { formatarInteiro } from "../dashboard/resumo";
 import { Reveal } from "@/app/reveal";
+import { ColunaDaTela } from "../coluna/coluna";
 import { Galeria } from "./galeria";
 import { Cabecalho } from "../cabecalho";
 
@@ -37,6 +38,12 @@ export default async function ExtratosPage() {
           {FALHA_AO_CARREGAR}
         </p>
       ) : resposta.dados.arquivos.length === 0 ? (
+        <>
+        <ColunaDaTela>
+          <Link href="/conciliacoes/nova" className="btn btn-primary">
+            Envie o primeiro extrato
+          </Link>
+        </ColunaDaTela>
         <div
           style={{
             padding: "76px 0",
@@ -56,6 +63,7 @@ export default async function ExtratosPage() {
             Fazer o primeiro upload
           </Link>
         </div>
+        </>
       ) : (
         <div style={{ padding: "28px 0 56px", display: "flex", flexDirection: "column", gap: 20 }}>
           <Reveal>

@@ -2900,9 +2900,6 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
 .extratos-agrupar-rotulo {
   font-size: 13px; color: color-mix(in srgb, var(--color-text) 62%, transparent);
 }
-.extratos-area {
-  display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 28px; align-items: start;
-}
 /* Lista agrupada (<Grupo>): os anos do fechamento, os meses ou anos dos extratos. Um bloco por
    grupo, com o título e o resumo sobre um filete; o título inteiro recolhe o bloco. */
 .grupos { min-width: 0; display: flex; flex-direction: column; gap: 30px; }
@@ -3001,14 +2998,8 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
   font-size: 13px; font-variant-numeric: tabular-nums;
   color: color-mix(in srgb, var(--color-text) 62%, transparent);
 }
-.extrato-painel {
-  position: sticky; display: flex; flex-direction: column; gap: 14px;
-  top: calc(var(--app-topo-altura, 0px) + var(--extratos-filtros-altura, 0px) + 6px);
-  /* mais alto que a janela, rola por dentro: preso, o pé dele ficaria fora de alcance */
-  max-height: calc(100vh - var(--app-topo-altura, 0px) - var(--extratos-filtros-altura, 0px) - 24px);
-  overflow-y: auto; overscroll-behavior: contain;
-  padding: 22px; border: 1px solid var(--color-divider); border-radius: var(--radius-md);
-}
+/* o painel mora na coluna Agora, que já rola e tem a sua moldura */
+.extrato-painel { display: flex; flex-direction: column; gap: 14px; }
 .extrato-painel-topo { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .extrato-painel-nome { margin: 0; font-size: 20px; font-weight: 600; overflow-wrap: anywhere; }
 .extrato-painel-topo .icone-origem {
@@ -3046,9 +3037,7 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
   color: color-mix(in srgb, var(--color-text) 62%, transparent);
 }
 @media (max-width: 1000px) {
-  .extratos-area { grid-template-columns: 1fr; }
   .extratos-filtros { position: static; }
-  .extrato-painel { position: static; max-height: none; overflow: visible; }
 }
 
 /* ── Shell do app: menu lateral + barra superior ─────────────────────────────
@@ -4212,14 +4201,8 @@ html[data-tema="escuro"] .app-shell {
   color: color-mix(in srgb, var(--color-text) 62%, transparent);
 }
 
-/* Os meses são a lista e o painel é o que se lê: o painel fica com dois terços da largura, em vez dos
-   320px do painel de extratos, e os passos correm em duas colunas. Com 320px o fechamento em aberto
-   descia uns 600px abaixo da tela, ao lado de uma grade quase vazia. Até 1000px o painel desce. */
-.fech-area { grid-template-columns: minmax(170px, 1fr) minmax(0, 2fr); }
+/* O painel do mês mora na coluna Agora (340px): os passos correm em uma coluna só. */
 .fech-painel { container-type: inline-size; }
-@media (max-width: 1000px) {
-  .fech-area { grid-template-columns: 1fr; }
-}
 
 .fech-progresso { display: flex; flex-direction: column; gap: 8px; }
 .fech-progresso .vg-nota { font-size: 13.5px; }

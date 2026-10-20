@@ -10,6 +10,7 @@ import type { Tom } from "@/lib/mock-data";
 import { fecharMes, reabrirMes, type Resultado } from "../conciliacoes/acoes";
 import { ExportarCsv } from "../conciliacoes/[id]/exportar-csv";
 import { formatarDataHora, formatarInteiro, formatarPercentual } from "../dashboard/resumo";
+import { ColunaDaTela } from "../coluna/coluna";
 import { FaixaFiltros } from "../faixa-filtros";
 import { Grupo, alternarNoConjunto } from "../grupo";
 import { fraseDoSaldoFinal } from "../saldo";
@@ -148,7 +149,7 @@ export function MesaDeFechamento({
       {aberto === null ? (
         <p className="extratos-vazio">{FILTROS.find((item) => item.id === filtro)?.vazio}</p>
       ) : (
-        <div className="extratos-area fech-area">
+        <>
           <div className="grupos" data-tutorial="meses">
             {anos.map(({ ano, meses: doAno }) => {
               const recolhivel = comTitulo && filtro === "todos" && ano !== anoCorrente;
@@ -220,8 +221,10 @@ export function MesaDeFechamento({
               );
             })}
           </div>
-          <Painel mes={aberto} podeFechar={podeFechar} />
-        </div>
+          <ColunaDaTela pendente={!estaFechado(aberto) && aberto.pendencias.length > 0}>
+            <Painel mes={aberto} podeFechar={podeFechar} />
+          </ColunaDaTela>
+        </>
       )}
     </div>
   );
