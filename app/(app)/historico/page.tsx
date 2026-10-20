@@ -4,7 +4,11 @@ import type { Execucao } from "@/lib/adaptadores";
 import { execucoesVigentes } from "@/lib/rodadas";
 import { listarExecucoes } from "../conciliacoes/acoes";
 import { formatarInteiro, formatarPercentual } from "../dashboard/resumo";
-import { conciliados as conciliadosDa } from "./execucoes";
+import { conciliados as conciliadosDa, paraRevisar, porConciliacao } from "./execucoes";
+import { tituloDaCompetencia } from "../fechamentos/fechamento";
+import { caminhoDaConciliacao } from "@/lib/caminhos";
+import { ColunaDaTela } from "../coluna/coluna";
+import { AgoraDoHistorico } from "./agora";
 import { Reveal } from "@/app/reveal";
 import { GraficoDeMatch } from "./grafico";
 import { ExportarHistorico, HistoricoPorConciliacao } from "./por-conciliacao";
@@ -32,8 +36,26 @@ export default async function HistoricoPage({ searchParams }: PageProps<"/histor
   const resposta = await listarExecucoes(pagina);
   if (!resposta.ok && resposta.status === 401) redirect("/login");
 
+  // a primeira conciliação (da mais recente) com linhas para revisar na rodada que vale
+  const primeira = resposta.ok
+    ? porConciliacao(resposta.dados.execucoes).find((item) => paraRevisar(item.principal.execucao) > 0)
+    : undefined;
+  const conciliacao = primeira
+    ? {
+        titulo: tituloDaCompetencia(primeira.competencia),
+        quantidade: paraRevisar(primeira.principal.execucao),
+        href: caminhoDaConciliacao(primeira.extratoBancoId),
+      }
+    : null;
+
   return (
     <div>
+      {/* com a carga falha não se sabe se há algo a revisar: "Tudo em dia" seria falso */}
+      {resposta.ok && (
+        <ColunaDaTela pendente={conciliacao !== null}>
+          <AgoraDoHistorico conciliacao={conciliacao} />
+        </ColunaDaTela>
+      )}
       <Cabecalho
         titulo="Histórico"
         contexto={[

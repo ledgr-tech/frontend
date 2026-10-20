@@ -79,26 +79,32 @@ export function RoteiroFaixa({
                 </span>
                 <span className="roteiro-passo-detalhe">{passo.texto}</span>
               </span>
-              {agora && passo.destino?.tipo === "configuracoes" && (
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  onClick={() => abrirConfiguracoes("conciliacao")}
-                >
-                  Definir agora
-                  <ArrowRight size={15} />
-                </button>
-              )}
-              {agora && passo.destino?.tipo === "link" && (
-                <Link href={passo.destino.href} className="btn btn-primary">
-                  Fazer agora
-                  <ArrowRight size={15} />
-                </Link>
-              )}
+              {agora && <BotaoDoPasso passo={passo} />}
             </li>
           );
         })}
       </ol>
     </section>
   );
+}
+
+/** O botão do destino de um passo: abre as Configurações ou leva à tela dele. */
+export function BotaoDoPasso({ passo }: { passo: PassoDoRoteiro }) {
+  if (passo.destino?.tipo === "configuracoes") {
+    return (
+      <button type="button" className="btn btn-primary" onClick={() => abrirConfiguracoes("conciliacao")}>
+        Definir agora
+        <ArrowRight size={15} />
+      </button>
+    );
+  }
+  if (passo.destino?.tipo === "link") {
+    return (
+      <Link href={passo.destino.href} className="btn btn-primary">
+        Fazer agora
+        <ArrowRight size={15} />
+      </Link>
+    );
+  }
+  return null;
 }

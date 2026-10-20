@@ -20,7 +20,9 @@ import { InkHover, Reveal } from "@/app/reveal";
 import { matchNaTela, porConciliacao } from "../historico/execucoes";
 import { GraficoDeMatch } from "../historico/grafico";
 import { IconeOrigem } from "../icone-origem";
-import { pendenciasDoMes } from "./pendencias";
+import { pendencias, pendenciasDoMes } from "./pendencias";
+import { AgoraDaVisaoGeral } from "./agora";
+import { ColunaDaTela } from "../coluna/coluna";
 import { Cabecalho } from "../cabecalho";
 
 /**
@@ -49,8 +51,26 @@ export default async function VisaoGeralPage() {
   // o roteiro de primeiros passos (spec 2026-10-15-primeiro-uso, parte 4): só no primeiro mês
   const roteiroAtivo = roteiro && roteiroVisivel(roteiro) ? roteiro : null;
 
+  // o "Agora": o próximo passo do roteiro, senão as pendências da conciliação mais recente
+  const proximo = roteiroAtivo ? (passosDoRoteiro(roteiroAtivo).find((passo) => !passo.feito) ?? null) : null;
+  const pendencia =
+    recente &&
+    (() => {
+      const quantidade = pendencias(recente.conciliacao).reduce((soma, grupo) => soma + grupo.quantidade, 0);
+      const { extratoBancoId, extratoSistemaId } = recente.execucao;
+      return quantidade > 0
+        ? { mes: recente.conciliacao.mes.toLowerCase(), quantidade, href: caminhoDaConciliacao(extratoBancoId, extratoSistemaId) }
+        : null;
+    })();
+
   return (
     <div>
+      {/* com a carga falha não se sabe se há algo pendente: "Tudo em dia" seria falso */}
+      {resposta.ok && (
+        <ColunaDaTela pendente={proximo !== null || pendencia !== null}>
+          <AgoraDaVisaoGeral proximo={proximo} pendente={pendencia} />
+        </ColunaDaTela>
+      )}
       <Cabecalho
         titulo="Visão geral"
         contexto={[recente && `competência ${recente.conciliacao.mes.toLowerCase()}`]}

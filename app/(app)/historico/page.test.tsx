@@ -3,7 +3,12 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { Execucao } from "@/lib/adaptadores";
 import type { ListaExecucoes, Resultado } from "../conciliacoes/acoes";
+import { ProvedorDaColuna, ColunaAgora, useColuna } from "../coluna/coluna";
 import HistoricoPage from "./page";
+
+function Espia() {
+  return <span data-testid="pendente">{String(useColuna().pendente)}</span>;
+}
 
 // quem fala com o backend é a action; aqui ela só devolve o que ele responderia
 const listarExecucoes = vi.fn<(pagina?: number) => Promise<Resultado<ListaExecucoes>>>();
@@ -13,6 +18,7 @@ vi.mock("../conciliacoes/acoes", () => ({
 
 const redirect = vi.fn();
 vi.mock("next/navigation", () => ({
+  usePathname: () => "/historico",
   // o redirect do Next interrompe a renderização lançando; o mock imita isso
   redirect: (destino: string) => {
     redirect(destino);
@@ -110,7 +116,20 @@ function props(pagina?: string) {
 }
 
 async function renderizar(pagina?: string) {
-  render(await HistoricoPage(props(pagina)));
+  window.matchMedia = ((q: string) => ({ matches: true, media: q, addEventListener() {}, removeEventListener() {} })) as never;
+  const pagina_ = await HistoricoPage(props(pagina));
+  render(
+    <ProvedorDaColuna>
+      <ColunaAgora />
+      <Espia />
+      {pagina_}
+    </ProvedorDaColuna>,
+  );
+}
+
+/** O "Agora" que a tela pôs na coluna. */
+function agora() {
+  return document.querySelector<HTMLElement>(".coluna-agora-corpo")!;
 }
 
 /** A linha de cada conciliação, na ordem da tela. */
@@ -450,5 +469,35 @@ describe("HistoricoPage", () => {
     listarExecucoes.mockResolvedValue({ ok: false, status: 401, erro: "Sua sessão expirou." });
     await expect(HistoricoPage(props())).rejects.toThrow("NEXT_REDIRECT");
     expect(redirect).toHaveBeenCalledWith("/login");
+  });
+
+  describe("Agora", () => {
+    it("points to the first conciliação with lines to review, linking to its comparison", async () => {
+      com([execucao({ id: "limpa", extratoBancoId: "L" }), ...RODADAS]);
+      await renderizar();
+
+      expect(within(agora()).getByRole("link", { name: "10 pendências em Setembro de 2026" })).toHaveAttribute(
+        "href",
+        "/conciliacoes/B",
+      );
+      expect(screen.getByTestId("pendente")).toHaveTextContent("true");
+    });
+
+    it("says Tudo em dia when nothing is left to review", async () => {
+      com([execucao({ id: "limpa", extratoBancoId: "L" })]);
+      await renderizar();
+
+      expect(within(agora()).getByText("Tudo em dia")).toBeInTheDocument();
+      expect(screen.getByTestId("pendente")).toHaveTextContent("false");
+    });
+
+    it("puts nothing in the Agora when the load fails, since Tudo em dia would be false", async () => {
+      listarExecucoes.mockResolvedValue({ ok: false, status: 0, erro: "x" });
+      await renderizar();
+
+      expect(within(agora()).queryByText("Tudo em dia")).not.toBeInTheDocument();
+      expect(within(agora()).queryByRole("link", { name: /pendências em/ })).not.toBeInTheDocument();
+      expect(screen.getByTestId("pendente")).toHaveTextContent("false");
+    });
   });
 });

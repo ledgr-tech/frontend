@@ -1,11 +1,23 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import type { Execucao } from "@/lib/adaptadores";
 import type { LinhaComparacao, StatusLinha } from "@/lib/mock-data";
 import type { Resultado, VisaoGeral } from "../conciliacoes/acoes";
 import VisaoGeralPage from "./page";
 import { ProvedorDaConta } from "../conta";
+import { ProvedorDaColuna, ColunaAgora, useColuna } from "../coluna/coluna";
 import type { DadosDoRoteiro } from "./roteiro";
+
+const abrirConfiguracoes = vi.fn();
+vi.mock("@/lib/eventos", async (importar) => ({
+  ...(await importar<typeof import("@/lib/eventos")>()),
+  abrirConfiguracoes: (secao: string) => abrirConfiguracoes(secao),
+}));
+
+function Espia() {
+  return <span data-testid="pendente">{String(useColuna().pendente)}</span>;
+}
 
 // quem fala com o backend é a action; aqui ela só devolve o que ele responderia
 const carregarVisaoGeral = vi.fn<() => Promise<Resultado<VisaoGeral>>>();
@@ -27,6 +39,7 @@ const CONTA_NOVA: DadosDoRoteiro = {
 
 const redirect = vi.fn();
 vi.mock("next/navigation", () => ({
+  usePathname: () => "/visao-geral",
   // o redirect do Next interrompe a renderização lançando; o mock imita isso
   redirect: (destino: string) => {
     redirect(destino);
@@ -123,7 +136,22 @@ function com(visao: Partial<VisaoGeral> = {}) {
 }
 
 async function renderizar() {
-  render(<ProvedorDaConta preferencias={null}>{await VisaoGeralPage()}</ProvedorDaConta>);
+  window.matchMedia = ((q: string) => ({ matches: true, media: q, addEventListener() {}, removeEventListener() {} })) as never;
+  const pagina = await VisaoGeralPage();
+  render(
+    <ProvedorDaConta preferencias={null}>
+      <ProvedorDaColuna>
+        <ColunaAgora />
+        <Espia />
+        {pagina}
+      </ProvedorDaColuna>
+    </ProvedorDaConta>,
+  );
+}
+
+/** O "Agora" que a tela pôs na coluna. */
+function agora() {
+  return document.querySelector<HTMLElement>(".coluna-agora-corpo")!;
 }
 
 describe("VisaoGeralPage", () => {
@@ -134,6 +162,7 @@ describe("VisaoGeralPage", () => {
     carregarRoteiro.mockResolvedValue(null);
     carregarVisaoGeral.mockReset();
     redirect.mockClear();
+    abrirConfiguracoes.mockClear();
   });
 
   it("names the screen, the empresa and the competência", async () => {
@@ -487,5 +516,65 @@ describe("VisaoGeralPage", () => {
     carregarVisaoGeral.mockResolvedValue({ ok: false, status: 401, erro: "Sua sessão expirou." });
     await expect(VisaoGeralPage()).rejects.toThrow("NEXT_REDIRECT");
     expect(redirect).toHaveBeenCalledWith("/login");
+  });
+
+  describe("Agora", () => {
+    const SEM_PENDENCIA = {
+      id: "banco-e7",
+      extratoSistemaId: "sistema-e7",
+      mes: "Setembro/2026",
+      status: "em_andamento" as const,
+      linhas: [linha("l1", "match_exato", 100, 100)],
+    };
+
+    it("points to the first undone step of the roteiro, with the button for its destination", async () => {
+      carregarRoteiro.mockResolvedValue({ ...CONTA_NOVA, toleranciaRevisada: true });
+      com({ execucoes: [], total: 0, recente: null });
+      await renderizar();
+
+      expect(within(agora()).getByText("Enviar o extrato do banco")).toBeInTheDocument();
+      expect(within(agora()).queryByText("Definir a tolerância de dias")).not.toBeInTheDocument();
+      expect(within(agora()).getByRole("link", { name: /Fazer agora/ })).toHaveAttribute("href", "/conciliacoes/nova");
+      expect(screen.getByTestId("pendente")).toHaveTextContent("true");
+    });
+
+    it("opens the settings from a step whose destination is Configurações", async () => {
+      const user = userEvent.setup();
+      carregarRoteiro.mockResolvedValue(CONTA_NOVA);
+      com({ execucoes: [], total: 0, recente: null });
+      await renderizar();
+
+      await user.click(within(agora()).getByRole("button", { name: /Definir agora/ }));
+      expect(abrirConfiguracoes).toHaveBeenCalledWith("conciliacao");
+    });
+
+    it("counts the pending items of the latest conciliação and links to its comparison", async () => {
+      com();
+      await renderizar();
+
+      expect(within(agora()).getByRole("link", { name: "3 pendências em setembro/2026" })).toHaveAttribute(
+        "href",
+        "/conciliacoes/banco-e7?sistema=sistema-e7",
+      );
+      expect(screen.getByTestId("pendente")).toHaveTextContent("true");
+    });
+
+    it("says Tudo em dia with neither a roteiro step nor pending items", async () => {
+      com({ recente: { execucao: RECENTE, conciliacao: SEM_PENDENCIA } });
+      await renderizar();
+
+      expect(within(agora()).getByText("Tudo em dia")).toBeInTheDocument();
+      expect(screen.getByTestId("pendente")).toHaveTextContent("false");
+    });
+
+    it("puts nothing in the Agora when the load fails, since Tudo em dia would be false", async () => {
+      carregarVisaoGeral.mockResolvedValue({ ok: false, status: 0, erro: "x" });
+      await renderizar();
+
+      expect(within(agora()).queryByText("Tudo em dia")).not.toBeInTheDocument();
+      expect(within(agora()).queryByText("Tudo em dia")).not.toBeInTheDocument();
+      expect(within(agora()).queryByRole("link", { name: /pendências em/ })).not.toBeInTheDocument();
+      expect(screen.getByTestId("pendente")).toHaveTextContent("false");
+    });
   });
 });
