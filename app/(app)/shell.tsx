@@ -9,6 +9,7 @@ import { EmpresaDaSessao } from "./cabecalho";
 import { TRACO_ICONE } from "./traco-icone";
 import { ProvedorDaConta } from "./conta";
 import { TutorialDaRota } from "./tutorial/tutorial-da-rota";
+import { ProvedorDaColuna, ColunaAgora } from "./coluna/coluna";
 import { PainelDaRota } from "./ajuda/painel-de-ajuda";
 import type { Preferencias } from "@/lib/preferencias";
 import type { Assinatura } from "@/lib/assinatura";
@@ -37,6 +38,7 @@ export function Shell({
     <EmpresaDaSessao value={empresa}>
       <ProvedorDaConta preferencias={preferencias} assinatura={assinatura}>
         <LucideProvider strokeWidth={TRACO_ICONE}>
+          <ProvedorDaColuna>
           <div className="app-shell">
             <MenuLateral
               email={email}
@@ -47,11 +49,15 @@ export function Shell({
             />
             <main className="app-principal">
               <BarraSuperior />
-              <div className="app-conteudo">{children}</div>
+              <div className="app-corpo">
+                <div className="app-conteudo">{children}</div>
+                <ColunaAgora />
+              </div>
               <TutorialDaRota />
               <PainelDaRota />
             </main>
           </div>
+          </ProvedorDaColuna>
         </LucideProvider>
       </ProvedorDaConta>
     </EmpresaDaSessao>

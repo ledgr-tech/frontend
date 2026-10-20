@@ -3552,6 +3552,22 @@ html:has(.app-shell) { scrollbar-gutter: stable; }
 }
 .app-conteudo { padding: 0 var(--recuo-lateral); }
 
+/* Coluna Agora: à direita do conteúdo a partir de 1280px; abaixo disso fica escondida
+   e o painel das telas menores (Task 2) cuida do mesmo conteúdo. */
+.coluna-agora { display: none; }
+@media (min-width: 1280px) {
+  .app-corpo:has(> .coluna-agora) { display: grid; grid-template-columns: minmax(0, 1fr) 340px; align-items: start; }
+  html[data-coluna="recolhida"] .app-corpo:has(> .coluna-agora) { grid-template-columns: minmax(0, 1fr) 48px; }
+  .coluna-agora {
+    display: block; position: sticky; top: var(--app-topo-altura, 0px);
+    max-height: calc(100dvh - var(--app-topo-altura, 0px)); overflow-y: auto;
+    padding: var(--space-4, 16px) 16px var(--space-4, 16px) 0;
+  }
+  html[data-coluna="recolhida"] .coluna-agora { padding: var(--space-4, 16px) 0; overflow: hidden; }
+  html[data-coluna="recolhida"] .coluna-agora-corpo { display: none; }
+  html[data-coluna="recolhida"] .coluna-agora-alternar { writing-mode: vertical-rl; }
+}
+
 .app-busca-envelope { position: relative; flex: 1 1 320px; min-width: 0; }
 .app-busca {
   display: flex; align-items: center; gap: 10px;

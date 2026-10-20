@@ -140,7 +140,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         <script
           nonce={nonce}
           dangerouslySetInnerHTML={{
-            __html: `try{var d=document.documentElement.dataset,t=localStorage.getItem("ledgr_tema");if(t)d.tema=t;var n=localStorage.getItem("ledgr_densidade");if(n)d.densidade=n;var m=localStorage.getItem("ledgr_menu");if(m)d.menu=m}catch(e){}`,
+            __html: `try{var d=document.documentElement.dataset,t=localStorage.getItem("ledgr_tema");if(t)d.tema=t;var n=localStorage.getItem("ledgr_densidade");if(n)d.densidade=n;var m=localStorage.getItem("ledgr_menu");if(m)d.menu=m;var c=localStorage.getItem("ledgr_coluna");if(c)d.coluna=c}catch(e){}`,
           }}
         />
       </head>
