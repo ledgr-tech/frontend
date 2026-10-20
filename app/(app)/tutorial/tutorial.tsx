@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
 import { X } from "lucide-react";
@@ -9,6 +9,7 @@ import type { TelaDoTutorial } from "@/lib/preferencias";
 import { usePreferencias } from "../conta";
 import { useColuna } from "../coluna/coluna";
 import { temColuna } from "../coluna/estado";
+import { FioDoTutorial } from "./fio-do-tutorial";
 import { TUTORIAIS, type PassoDoTutorial } from "./roteiros";
 
 const ATIVO = "data-tutorial-ativo";
@@ -99,11 +100,18 @@ export function Tutorial({
   const [aberto, setAberto] = useState(false);
   const [indice, setIndice] = useState(0);
   const [naoMostrar, setNaoMostrar] = useState(false);
-  const { encaixeTutorial, mostrarParaTutorial } = useColuna();
+  const { encaixeTutorial, mostrarParaTutorial, largas } = useColuna();
   // só as telas com coluna levam o cartão para lá; as outras (Configurações) o mantêm no canto
   const encaixe = temColuna(tela) ? encaixeTutorial : null;
   const desfazerColuna = useRef<(() => void) | null>(null);
-  const cartao = useRef<HTMLDivElement>(null);
+  const cartao = useRef<HTMLDivElement | null>(null);
+  // o cartão e o alvo também em estado, para o fio saber quando trocam
+  const [cartaoNo, setCartaoNo] = useState<HTMLElement | null>(null);
+  const [alvoNo, setAlvoNo] = useState<HTMLElement | null>(null);
+  const guardarCartao = useCallback((no: HTMLDivElement | null) => {
+    cartao.current = no;
+    setCartaoNo(no);
+  }, []);
   const destaque = useRef<HTMLDivElement>(null);
   const focoAnterior = useRef<HTMLElement | null>(null);
   const titulo = useId();
@@ -207,6 +215,7 @@ export function Tutorial({
         return;
       }
       alvo.setAttribute(ATIVO, "");
+      setAlvoNo(alvo);
       trazerParaAVista(alvo, cartao.current);
       seguir();
     };
@@ -215,6 +224,7 @@ export function Tutorial({
       clearTimeout(timer);
       cancelAnimationFrame(quadro);
       if (veu) veu.hidden = true;
+      setAlvoNo(null);
       if (!alvo) return;
       alvo.removeAttribute(ATIVO);
       alvo.style.scrollMarginTop = "";
@@ -233,7 +243,7 @@ export function Tutorial({
 
   const cartaoDoPasso = (
     <div
-      ref={cartao}
+      ref={guardarCartao}
       role="dialog"
       aria-labelledby={titulo}
       tabIndex={-1}
@@ -279,6 +289,7 @@ export function Tutorial({
   return (
     <>
       <div ref={destaque} className="tutorial-destaque" aria-hidden="true" hidden />
+      <FioDoTutorial key={indice} cartao={cartaoNo} alvo={alvoNo} largas={largas} />
       {encaixe ? createPortal(cartaoDoPasso, encaixe) : cartaoDoPasso}
     </>
   );

@@ -4575,6 +4575,34 @@ html[data-tema="escuro"] .app-shell {
   background: rgb(12 11 10 / 0.55);
   backdrop-filter: blur(3px);
 }
+/* o fio em onda do cartão até o alvo: acima do véu, abaixo do cartão (como .rodadas-fio, desenhado em 0,45s) */
+.tutorial-fio {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 59;
+  pointer-events: none;
+}
+.tutorial-fio path {
+  stroke: var(--color-accent);
+  stroke-width: 1.2;
+  fill: none;
+  stroke-linecap: round;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .tutorial-fio path {
+    stroke-dasharray: 1;
+    animation: tutorial-fio-desenha 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .tutorial-fio .tutorial-fio-ponta {
+    animation-delay: 0.3s;
+  }
+  @keyframes tutorial-fio-desenha {
+    from { stroke-dashoffset: 1; }
+    to { stroke-dashoffset: 0; }
+  }
+}
 @media (prefers-reduced-motion: no-preference) {
   .tutorial {
     animation: tutorial-entra 0.22s ease-out;

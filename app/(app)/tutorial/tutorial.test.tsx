@@ -1,10 +1,11 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Tutorial } from "./tutorial";
 import { ProvedorDaConta } from "../conta";
 import { ProvedorDaColuna, ColunaAgora } from "../coluna/coluna";
 import { abrirTutorial } from "@/lib/eventos";
+import { caminhoDoFio } from "./fio";
 
 vi.mock("next/navigation", () => ({ usePathname: () => "/extratos" }));
 vi.mock("../../(auth)/acoes", () => ({ salvarPreferencias: vi.fn(async () => true) }));
@@ -220,5 +221,71 @@ describe("Tutorial", () => {
     await waitFor(() => expect(screen.getByText("filtros")).toHaveAttribute("data-tutorial-ativo"));
     unmount();
     expect(document.querySelector("[data-tutorial-ativo]")).toBeNull();
+  });
+  describe("o fio em onda", () => {
+    const caixa = (left: number, top: number, width: number, height: number) =>
+      ({ left, top, width, height, right: left + width, bottom: top + height }) as DOMRect;
+    afterEach(() => document.querySelectorAll("body > div:has([data-tutorial])").forEach((tela) => tela.remove()));
+    const fio = () => document.querySelector(".tutorial-fio");
+    const d = () => document.querySelector(".tutorial-fio path")?.getAttribute("d");
+
+    function alvos() {
+      const tela = document.createElement("div");
+      const filtros = document.createElement("div");
+      filtros.setAttribute("data-tutorial", "filtros");
+      filtros.getBoundingClientRect = () => caixa(40, 100, 300, 50);
+      const arquivos = document.createElement("div");
+      arquivos.setAttribute("data-tutorial", "arquivos");
+      arquivos.getBoundingClientRect = () => caixa(40, 300, 200, 80);
+      tela.append(filtros, arquivos);
+      document.body.append(tela);
+      return { tela, filtros };
+    }
+
+    it("liga o meio da borda esquerda do cartão ao alvo, muda de passo e some ao fechar", async () => {
+      const user = userEvent.setup();
+      const { tela } = alvos();
+      montar(<span />);
+      const cartao = await screen.findByRole("dialog");
+      cartao.getBoundingClientRect = () => caixa(900, 100, 340, 400);
+      // filtros: borda direita 340 + 8 de folga, meio da altura 125
+      await waitFor(() => expect(d()).toBe(caminhoDoFio({ x: 900, y: 300 }, { x: 348, y: 125 })));
+      expect(fio()).toHaveAttribute("aria-hidden", "true");
+      await user.click(screen.getByRole("button", { name: "Próximo" }));
+      // arquivos: borda direita 240 + 8, meio da altura 340
+      await waitFor(() => expect(d()).toBe(caminhoDoFio({ x: 900, y: 300 }, { x: 248, y: 340 })));
+      await user.click(screen.getByRole("button", { name: "Pular" }));
+      expect(fio()).toBeNull();
+      tela.remove();
+    });
+
+    it("nas telas menores, sai do meio da borda de cima do painel", async () => {
+      telas(false);
+      const { tela } = alvos();
+      montar(<span />);
+      const cartao = await screen.findByRole("dialog", { name: "Separe o banco do sistema." });
+      cartao.closest(".coluna-agora")!.getBoundingClientRect = () => caixa(0, 500, 400, 300);
+      await waitFor(() => expect(d()).toBe(caminhoDoFio({ x: 200, y: 500 }, { x: 190, y: 150 })));
+      tela.remove();
+    });
+
+    it("se o alvo some no meio do passo, o fio some sem erro", async () => {
+      const { tela, filtros } = alvos();
+      montar(<span />);
+      const cartao = await screen.findByRole("dialog");
+      cartao.getBoundingClientRect = () => caixa(900, 100, 340, 400);
+      await waitFor(() => expect(d()).toBeTruthy());
+      filtros.getBoundingClientRect = () => caixa(0, 0, 0, 0);
+      await waitFor(() => expect(document.querySelector(".tutorial-fio path")).toBeNull());
+      tela.remove();
+    });
+
+    it("sem alvo na tela, não desenha nenhum traço", async () => {
+      montar(<span />);
+      act(() => abrirTutorial());
+      await screen.findByRole("dialog", { name: "Separe o banco do sistema." });
+      await esperar();
+      expect(document.querySelector(".tutorial-fio path")).toBeNull();
+    });
   });
 });
