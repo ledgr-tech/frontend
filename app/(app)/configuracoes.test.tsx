@@ -24,8 +24,10 @@ const REGRAS: RegrasDaEmpresa = {
 
 // a troca de senha é do backend; aqui a action devolve o que ele responderia
 const trocarSenha = vi.fn();
+const desativarConta = vi.fn();
 vi.mock("../(auth)/acoes", () => ({
   trocarSenha: (...args: unknown[]) => trocarSenha(...args),
+  desativarConta: (...args: unknown[]) => desativarConta(...args),
   salvarPreferencias: async () => true,
 }));
 
@@ -303,7 +305,7 @@ describe("Configuracoes", () => {
     expect(screen.queryByRole("button", { name: "Trocar senha" })).not.toBeInTheDocument();
   });
 
-  // o backend ainda não tem POST /me/email nem DELETE /me: um formulário que pede a senha
+  // o backend ainda não tem POST /me/email: um formulário que pede a senha
   // para depois dizer "ainda não disponível" faz a pessoa trabalhar à toa
   it("shows the account email without a change form, and says how to change it for now", async () => {
     const user = userEvent.setup();
@@ -316,16 +318,50 @@ describe("Configuracoes", () => {
     expect(screen.queryByRole("button", { name: "Trocar e-mail" })).not.toBeInTheDocument();
   });
 
-  it("sends the account deletion to support by e-mail, as the privacy policy says", async () => {
+  it("deactivates the account with the current password, and shows what the backend refuses", async () => {
+    desativarConta.mockReset();
+    desativarConta.mockResolvedValueOnce({
+      ok: false,
+      erro: "Remova os outros usuários da empresa antes de desativar a sua conta.",
+    });
     const user = userEvent.setup();
     abrir();
     await user.click(secao("Conta"));
 
-    expect(screen.queryByRole("button", { name: "Excluir conta" })).not.toBeInTheDocument();
-    const linha = linhaDe("Excluir conta");
+    expect(within(linhaDe("Desativar conta")).getByText(/remova-as antes/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Desativar conta" }));
+    const formulario = screen.getByRole("form", { name: "Desativar conta" });
+    expect(formulario).toHaveTextContent("Os dados da empresa continuam guardados até a exclusão ser pedida.");
+    await user.type(within(formulario).getByLabelText("Senha atual"), "s3nha");
+    await user.click(within(formulario).getByRole("button", { name: "Desativar minha conta" }));
+
+    expect(desativarConta).toHaveBeenCalledWith("s3nha");
+    expect(formulario).toHaveTextContent("Remova os outros usuários da empresa antes de desativar a sua conta.");
+  });
+
+  it("a Google-only account deactivates without a password field", async () => {
+    desativarConta.mockReset();
+    desativarConta.mockResolvedValue({ ok: true });
+    const user = userEvent.setup();
+    abrir({ temSenha: false });
+    await user.click(secao("Conta"));
+
+    await user.click(screen.getByRole("button", { name: "Desativar conta" }));
+    const formulario = screen.getByRole("form", { name: "Desativar conta" });
+    expect(within(formulario).queryByLabelText("Senha atual")).not.toBeInTheDocument();
+    await user.click(within(formulario).getByRole("button", { name: "Desativar minha conta" }));
+    expect(desativarConta).toHaveBeenCalledWith(null);
+  });
+
+  it("sends deleting the company's data to support by e-mail, as the privacy policy says", async () => {
+    const user = userEvent.setup();
+    abrir();
+    await user.click(secao("Conta"));
+
+    const linha = linhaDe("Excluir os dados da empresa");
     expect(within(linha).getByRole("link", { name: "Pedir por e-mail" })).toHaveAttribute(
       "href",
-      "mailto:ledgrtech@gmail.com?subject=Excluir%20conta",
+      "mailto:ledgrtech@gmail.com?subject=Excluir%20dados%20da%20empresa",
     );
     expect(within(linha).getByText(/a partir do e-mail da conta/)).toBeInTheDocument();
   });

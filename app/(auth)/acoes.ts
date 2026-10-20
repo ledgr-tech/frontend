@@ -621,10 +621,17 @@ export async function trocarEmail(emailNovo: string, senhaAtual: string): Promis
   return { ok: true };
 }
 
-/** Pede a senha também: com um token roubado, sem ela, dava para apagar a empresa. */
-export async function excluirConta(senhaAtual: string): Promise<ResultadoConta> {
+/**
+ * Desativa a conta de quem está logado (`DELETE /me`, backend #68): tira o acesso, libera o e-mail
+ * e encerra as sessões. Os dados da empresa ficam; a exclusão deles é a pedido, por e-mail. Pede a
+ * senha: com um token roubado, sem ela, dava para tirar a pessoa da conta. A conta só do Google não
+ * tem senha (null): o backend confere o login recente e, se for antigo, responde 409 com o texto
+ * que pede para entrar de novo pelo Google. O administrador com outras pessoas na equipe também
+ * recebe 409, pedindo para removê-las antes.
+ */
+export async function desativarConta(senhaAtual: string | null): Promise<ResultadoConta> {
   const conta = await naConta(() =>
-    chamarBackend("/me", { method: "DELETE", corpo: { senha_atual: senhaAtual } }),
+    chamarBackend("/me", { method: "DELETE", ...(senhaAtual === null ? {} : { corpo: { senha_atual: senhaAtual } }) }),
   );
   if (!conta.ok) return conta;
   await signOut({ redirectTo: "/" });
