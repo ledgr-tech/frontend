@@ -133,9 +133,9 @@ export function TabelaFolhas({
           const aberta = comCartao?.aberta === b.desc;
           const abrir = () => comCartao?.abrir(b.desc);
           const fechar = () => comCartao?.fechar(b.desc);
-          // a divergência pinta o campo em questão dos dois lados, numa marca que acende com o
-          // ponteiro na linha, como no app
-          const diverge = (campo: "valor" | "data") => (b.status === `divergente_${campo}` ? "true" : undefined);
+          // o campo errado em vermelho, como no app: a data na "Data diverge", o valor no resto
+          const campoErrado = revisar ? (b.status === "divergente_data" ? "data" : "valor") : null;
+          const diverge = (campo: "valor" | "data") => (campoErrado === campo ? "true" : undefined);
           const marcar = (campo: "valor" | "data", texto: string) =>
             diverge(campo) ? <span className="marca-diverge">{texto}</span> : texto;
 

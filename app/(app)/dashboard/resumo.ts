@@ -7,12 +7,12 @@ import type { Conciliacao, LinhaComparacao, StatusLinha, Tom } from "@/lib/mock-
 //
 // O nome curto é o que cabe no eixo entre as duas folhas da comparação; o inteiro
 // segue nos cartões de categoria, no cartão do hover e para o leitor de tela.
-// "Bate" é o do design (o `curto` da prévia em Ledgr.dc.html).
+// "Conciliado" (era o "Bate" do design): a palavra de quem concilia.
 const STATUS: Record<StatusLinha, { rotulo: string; curto: string; tom: Tom }> = {
-  match_exato: { rotulo: "Match exato", curto: "Bate", tom: "ok" },
+  match_exato: { rotulo: "Match exato", curto: "Conciliado", tom: "ok" },
   // casou dentro da tolerância de dias da empresa (ADR-008): resolvido, com a
   // ressalva no próprio rótulo em vez de num tom mais fraco
-  match_tolerancia: { rotulo: "Match por tolerância de data", curto: "Bate na tolerância", tom: "ok" },
+  match_tolerancia: { rotulo: "Match por tolerância de data", curto: "Conciliado", tom: "ok" },
   // achou lançamento do outro lado na mesma data e o valor não bate: dinheiro
   divergente_valor: { rotulo: "Valor diverge na mesma data", curto: "Valor diverge", tom: "risco" },
   // achou o mesmo valor em outra data: está tudo lá, no dia errado
@@ -47,7 +47,20 @@ export function seloDoStatus(status: StatusLinha): { rotulo: string; tom: Tom } 
 }
 
 /** O mínimo para dizer o lado que falta: serve à linha do app e à da demonstração da landing. */
-type ComLado = { status: StatusLinha; valorBanco: number | string | null };
+type ComLado = { status: StatusLinha; valorBanco: number | string | null; data?: string; dataSistema?: string };
+
+/** Dias entre duas datas "dd/mm", pelo caminho mais curto (31/12 e 02/01 dão 2); null sem as duas. */
+function diasEntre(a?: string, b?: string): number | null {
+  const dia = (texto?: string) => {
+    const [d, m] = (texto ?? "").split("/").map(Number);
+    return d && m ? Date.UTC(2000, m - 1, d) / 86_400_000 : null;
+  };
+  const x = dia(a);
+  const y = dia(b);
+  if (x === null || y === null) return null;
+  const distancia = Math.abs(x - y);
+  return Math.min(distancia, 366 - distancia);
+}
 
 /** O backend tem um status só para a linha sem par; quem diz algo útil é o lado que falta. */
 function ladoQueFalta(linha: ComLado): "banco" | "sistema" {
@@ -63,7 +76,10 @@ export function statusDaLinha(linha: LinhaComparacao): { rotulo: string; tom: To
 /** O status em poucas palavras ("Valor diverge", "Falta no banco"), para o eixo da comparação. */
 export function rotuloCurto(linha: ComLado): string {
   const { curto } = STATUS[linha.status];
-  return linha.status === "sem_correspondencia" ? `${curto} no ${ladoQueFalta(linha)}` : curto;
+  if (linha.status === "sem_correspondencia") return `${curto} no ${ladoQueFalta(linha)}`;
+  // na tolerância, os dias de diferença no lugar do "na tolerância", que não cabia no eixo
+  const dias = linha.status === "match_tolerancia" ? diasEntre(linha.data, linha.dataSistema) : null;
+  return dias ? `${curto} ±${dias}d` : curto;
 }
 
 /** O extrato do banco é a fonte da verdade; sem ele, cai para o valor do sistema. */

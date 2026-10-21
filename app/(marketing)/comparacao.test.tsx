@@ -63,7 +63,7 @@ describe("ExtratoComparacao", () => {
 
     it("leaves a matched line quiet, without a seal, as the app does", () => {
       render(<ExtratoComparacao banco={[BATIDA]} sistema={[BATIDA]} />);
-      expect(screen.getByText("Bate")).toHaveClass("status-batido");
+      expect(screen.getByText("Conciliado")).toHaveClass("status-batido");
       expect(screen.getByText("Match exato")).toHaveClass("sr-only");
     });
 

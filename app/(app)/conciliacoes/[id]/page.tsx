@@ -71,6 +71,8 @@ function textoDoVazio(filtro: Filtro, justificadas: number): string {
 
 /** Quantas linhas por página. 4.218 lançamentos não cabem numa tela. */
 const POR_PAGINA = 25;
+/** Do ponteiro sair da linha ao cartão fechar: o tempo de atravessar o vão até ele. */
+const ESPERA_PARA_FECHAR_MS = 150;
 
 /** Toque não tem hover: lá o toque na descrição já abre o diálogo da linha. */
 function temHover(): boolean {
@@ -146,6 +148,8 @@ export default function ConciliacaoPage() {
   const [erroDecisao, setErroDecisao] = useState<string | null>(null);
   // as linhas com uma decisão a caminho: o segundo clique não manda o contrário por cima
   const gravando = useRef(new Set<string>());
+  // sair da linha só fecha o cartão depois de um instante: dá tempo de o ponteiro chegar nele
+  const fechandoCartao = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -548,24 +552,33 @@ export default function ConciliacaoPage() {
                   const { banco, sistema } = ladosDaLinha(linha);
                   // o cartão só nas linhas que pedem revisão, como na landing: nas batidas seria ruído
                   const comCartao = !estaResolvida(linha.status);
-                  // a divergência pinta o campo em questão dos dois lados, como um diff
-                  // destaca o trecho que mudou: os valores, ou as datas
-                  const diverge = (campo: "valor" | "data") =>
-                    linha.status === `divergente_${campo}` ? "true" : undefined;
-                  // e o texto dele vai numa marca, que acende de leve com o ponteiro na linha
+                  // o campo errado fica vermelho, para o olho achar de longe tudo o que falta
+                  // resolver: a data na "Data diverge", o valor no resto (o valor que diverge, o
+                  // que falta do outro lado, a duplicidade, a tarifa). A justificada e a conferida
+                  // já têm alguém cuidando delas e ficam sem.
+                  const campoErrado =
+                    situacao === "a_conferir" ? (linha.status === "divergente_data" ? "data" : "valor") : null;
+                  const diverge = (campo: "valor" | "data") => (campoErrado === campo ? "true" : undefined);
+                  // e o texto dele vai numa marca, com fundo, que acende mais com o ponteiro na linha
                   const marcar = (campo: "valor" | "data", texto: string) =>
                     diverge(campo) ? <span className="marca-diverge">{texto}</span> : texto;
                   // a descrição fica numa linha só (globals.css); o texto inteiro vem na dica do
                   // navegador, menos onde o cartão abre, que já traz as duas inteiras
                   const dica = (descricao: string) => (comCartao ? undefined : descricao);
                   // o cartão sai do selo do status, centrado nele: é o veredito que ele explica
-                  const abrirCartao = (tr: Element) =>
+                  const abrirCartao = (tr: Element) => {
+                    clearTimeout(fechandoCartao.current);
                     setCartao({
                       linha,
                       ancora: (tr.querySelector(".celula-status .selo") ?? tr.querySelector(".celula-status") ?? tr).getBoundingClientRect(),
                     });
+                  };
                   const fecharCartao = () =>
                     setCartao((atual) => (atual?.linha.id === linha.id ? null : atual));
+                  const fecharCartaoDepois = () => {
+                    clearTimeout(fechandoCartao.current);
+                    fechandoCartao.current = setTimeout(fecharCartao, ESPERA_PARA_FECHAR_MS);
+                  };
                   // botão de verdade: a linha inteira com onClick não era alcançável por
                   // teclado. Fica na descrição do banco; sem lançamento no banco, na do sistema.
                   const abrir = (descricao: string) => (
@@ -594,7 +607,7 @@ export default function ConciliacaoPage() {
                       onMouseEnter={
                         comCartao ? (evento) => temHover() && abrirCartao(evento.currentTarget) : undefined
                       }
-                      onMouseLeave={comCartao ? fecharCartao : undefined}
+                      onMouseLeave={comCartao ? fecharCartaoDepois : undefined}
                       // atalho para o detalhe inteiro; o círculo de conferir e a descrição (que abre o
                       // espia, e trata o segundo clique lá) ficam com os cliques deles
                       onDoubleClick={(evento) => {
@@ -701,7 +714,17 @@ export default function ConciliacaoPage() {
             </table>
           </div>
 
-          {cartao && <CartaoLancamento id={idCartao} aberto={cartao} rodada={rodadaDasLinhas} linhas={conciliacao.linhas} />}
+          {cartao && (
+            <CartaoLancamento
+              id={idCartao}
+              aberto={cartao}
+              rodada={rodadaDasLinhas}
+              linhas={conciliacao.linhas}
+              // o ponteiro chegou ao cartão: fica aberto para ler e selecionar o texto, e fecha ao sair dele
+              onMouseEnter={() => clearTimeout(fechandoCartao.current)}
+              onMouseLeave={() => setCartao(null)}
+            />
+          )}
 
           {ordenadas.length === 0 && (
             <p className="tabela-vazia">{textoDoVazio(filtro, justificadas.length)}</p>

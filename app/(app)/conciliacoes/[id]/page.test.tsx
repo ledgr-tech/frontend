@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { Conciliacao, Decisao } from "@/lib/mock-data";
 import ConciliacaoPage from "./page";
@@ -246,7 +246,7 @@ describe("ConciliacaoPage", () => {
 
     // o que bateu fica quieto: o nome sem selo, para o olho ir direto ao que pede revisão
     const batida = screen.getByRole("button", { name: "Pagamento batido" }).closest("tr")!;
-    expect(within(batida).getByText("Bate")).not.toHaveClass("selo");
+    expect(within(batida).getByText("Conciliado")).not.toHaveClass("selo");
   });
 
   it("marks the field that diverges: the values when the value differs, the dates when the date does", async () => {
@@ -282,6 +282,47 @@ describe("ConciliacaoPage", () => {
     // o texto do campo vai numa marca, que acende de leve quando o ponteiro está na linha
     expect(within(valor).getByText(/12\.640,00/)).toHaveClass("marca-diverge");
     expect(within(data).getByText("20/09")).toHaveClass("marca-diverge");
+  });
+
+  it("marks the value on the side that has it in every other divergence, and nothing once justified", async () => {
+    buscarConciliacao.mockReturnValue({
+      ...conciliacaoMista,
+      linhas: [
+        { ...conciliacaoMista.linhas[1], decisao: decisao("justificada") },
+        {
+          id: "lc-3",
+          descricao: "PIX sem par",
+          data: "08/09",
+          valorBanco: 4180,
+          valorSistema: null,
+          status: "sem_correspondencia",
+          explicacao: null,
+          historico: [],
+        },
+        {
+          id: "lc-4",
+          descricao: "Tarifa TED",
+          data: "06/09",
+          valorBanco: -12.5,
+          valorSistema: null,
+          status: "tarifa_bancaria",
+          explicacao: null,
+          historico: [],
+        },
+      ],
+    });
+    render(<ConciliacaoPage />);
+
+    const diverge = (linha: HTMLElement) =>
+      within(linha).getAllByRole("cell").map((celula) => celula.hasAttribute("data-diverge"));
+    // data, descrição, valor | status | o lado do sistema numa célula só | conferida
+    const falta = (await screen.findByRole("button", { name: "PIX sem par" })).closest("tr")!;
+    expect(diverge(falta)).toEqual([false, false, true, false, false, false]);
+    expect(within(falta).getByText(/4\.180,00/)).toHaveClass("marca-diverge");
+    const tarifa = screen.getByRole("button", { name: "Tarifa TED" }).closest("tr")!;
+    expect(diverge(tarifa)).toEqual([false, false, true, false, false, false]);
+    const justificada = screen.getByRole("button", { name: "Boleto Aço Norte Bobinas" }).closest("tr")!;
+    expect(diverge(justificada).some(Boolean)).toBe(false);
   });
 
   it("gives the full description on hover where the table cuts it to one line, unless the card already does", async () => {
@@ -376,6 +417,23 @@ describe("ConciliacaoPage", () => {
       );
 
       await user.unhover(linha);
+      await waitFor(() => expect(screen.queryByRole("tooltip")).not.toBeInTheDocument());
+    });
+
+    it("stays open while the pointer travels from the line to the card, and closes when it leaves the card", async () => {
+      buscarConciliacao.mockReturnValue(conciliacaoMista);
+      render(<ConciliacaoPage />);
+
+      const linha = (await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" })).closest("tr")!;
+      fireEvent.mouseEnter(linha);
+      const cartao = screen.getByRole("tooltip");
+      fireEvent.mouseLeave(linha);
+      fireEvent.mouseEnter(cartao);
+      // bem mais que o tempo de atravessar o vão: com o ponteiro nele, o cartão não fecha
+      await act(() => new Promise((pronto) => setTimeout(pronto, 300)));
+      expect(screen.getByRole("tooltip")).toBeInTheDocument();
+
+      fireEvent.mouseLeave(cartao);
       expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
     });
 
