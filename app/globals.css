@@ -4854,6 +4854,10 @@ html[data-tema="escuro"] .app-shell {
 .plano-marcas span::before { content: ""; position: absolute; top: 0; left: 50%; width: 1px; height: 8px; background: var(--plano-apagado); }
 
 /* o plano indicado: a folha clara com o grão de papel da marca, e o mascote apoiado na borda */
+/* a caixa que desliza de altura (escolher-plano.tsx); a folga dos lados deixa o anel de foco do
+   botão aparecer, e o flow-root não deixa a margem do título escapar da altura medida */
+.plano-corpo { overflow: hidden; margin: 0 -6px; padding: 0 6px 6px; }
+.plano-indicacao { display: flow-root; }
 .plano-resposta {
   position: relative; padding: clamp(24px, 3vw, 34px);
   border: 1px solid color-mix(in srgb, var(--color-accent) 45%, transparent); border-radius: 18px;
@@ -4890,9 +4894,17 @@ html[data-tema="escuro"] .app-shell {
   .plano-pergunta { animation: plano-sobe 0.6s cubic-bezier(0.22, 1, 0.36, 1) both; }
   .plano-traco { animation: plano-estica 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.25s both; }
   .plano-resposta { animation: plano-sobe 0.6s cubic-bezier(0.22, 1, 0.36, 1) 0.12s both; }
-  /* a cada plano indicado, só o miolo do cartão entra de novo */
-  .plano-indicacao { animation: plano-sobe 0.4s cubic-bezier(0.22, 1, 0.36, 1); }
+  /* a cada plano indicado, o cartão desliza até a nova altura e o miolo entra de novo, os itens em
+     cascata (as mesmas medidas da régua da landing) */
+  .plano-corpo { transition: height 0.45s cubic-bezier(0.22, 1, 0.36, 1); }
+  .plano-indicacao { animation: plano-troca 0.5s cubic-bezier(0.22, 1, 0.36, 1); }
+  .plano-itens li { animation: plano-troca 0.5s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
+  .plano-itens li:nth-child(2) { animation-delay: 60ms; }
+  .plano-itens li:nth-child(3) { animation-delay: 120ms; }
+  .plano-itens li:nth-child(4) { animation-delay: 180ms; }
+  .plano-itens li:nth-child(5) { animation-delay: 240ms; }
   @keyframes plano-sobe { from { opacity: 0; transform: translateY(12px); } }
+  @keyframes plano-troca { from { opacity: 0; transform: translateY(14px); filter: blur(3px); } }
   @keyframes plano-estica { from { transform: scaleX(0); } }
 }
 

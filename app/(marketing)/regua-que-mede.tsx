@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useId, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
+import { useId, useState, type CSSProperties } from "react";
 import Link from "next/link";
 import { Check } from "lucide-react";
 import { NumeroAnimado } from "@/app/(app)/numero-animado";
+import { formatarVolume, teclarNoMedidor, useAlturaQueDesliza } from "@/app/medidor-suave";
 import { planosDoTeste } from "@/lib/assinatura";
 import {
   CONTATO,
@@ -35,14 +36,6 @@ export function ReguaQueMede() {
   const acesa = marcaDoPlano(indicado);
   const { caixa, conteudo } = useAlturaQueDesliza(indicado);
 
-  // o medidor desliza entre os passos; pelo teclado, as setas vão de um passo ao seguinte
-  function teclar(evento: KeyboardEvent<HTMLInputElement>) {
-    const sobe = evento.key === "ArrowRight" || evento.key === "ArrowUp";
-    if (!sobe && evento.key !== "ArrowLeft" && evento.key !== "ArrowDown") return;
-    evento.preventDefault();
-    setPasso((p) => Math.max(0, Math.min(ULTIMO_PASSO, sobe ? Math.floor(p) + 1 : Math.ceil(p) - 1)));
-  }
-
   return (
     <div className="regua-mede">
       <div className="regua-mede-pergunta">
@@ -58,7 +51,7 @@ export function ReguaQueMede() {
             <NumeroAnimado
               valor={lancamentos}
               duracao={350}
-              formatar={(v) => Math.round(v).toLocaleString("pt-BR") + (passo === ULTIMO_PASSO ? "+" : "")}
+              formatar={formatarVolume(passo)}
             />
           </output>
           <span>lançamentos</span>
@@ -74,7 +67,7 @@ export function ReguaQueMede() {
           aria-valuetext={`${lancamentos.toLocaleString("pt-BR")}${passo === ULTIMO_PASSO ? " ou mais" : ""} lançamentos por mês`}
           style={{ "--cheio": `${(passo / ULTIMO_PASSO) * 100}%` } as CSSProperties}
           onChange={(evento) => setPasso(Number(evento.target.value))}
-          onKeyDown={teclar}
+          onKeyDown={teclarNoMedidor(setPasso)}
         />
         <div className="regua-mede-marcas" aria-hidden="true">
           {MARCAS.map(([marca, rotulo]) => (
@@ -140,22 +133,3 @@ export function ReguaQueMede() {
   );
 }
 
-/**
- * A folha muda de altura quando o plano muda (o Volume não tem preço, cada plano tem seus itens):
- * a caixa acompanha a altura do conteúdo com uma transição, em vez de pular.
- */
-function useAlturaQueDesliza(plano: string) {
-  const caixa = useRef<HTMLDivElement>(null);
-  const conteudo = useRef<HTMLDivElement>(null);
-  // a key troca o conteúdo a cada plano, então o efeito volta a observar o nó novo
-  useEffect(() => {
-    const no = conteudo.current;
-    if (!no || typeof ResizeObserver === "undefined") return;
-    const observador = new ResizeObserver(() => {
-      if (caixa.current) caixa.current.style.height = `${no.offsetHeight}px`;
-    });
-    observador.observe(no);
-    return () => observador.disconnect();
-  }, [plano]);
-  return { caixa, conteudo };
-}

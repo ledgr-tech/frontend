@@ -4,18 +4,19 @@ import { useEffect, useId, useState, type CSSProperties } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Check } from "lucide-react";
+import { NumeroAnimado } from "@/app/(app)/numero-animado";
+import { formatarVolume, teclarNoMedidor, useAlturaQueDesliza } from "@/app/medidor-suave";
 import { planosDoTeste, type PlanoId } from "@/lib/assinatura";
 import {
   CONTATO,
   DETALHES,
   MARCAS,
-  PASSOS,
   PASSO_INICIAL,
   ULTIMO_PASSO,
   passoDoPlano,
   planoDoVolume,
   planoLembrado,
-  rotuloDoVolume,
+  volumeDoPasso,
   type Indicado,
 } from "@/lib/medidor-de-planos";
 import { escolherPlano } from "../acoes";
@@ -44,11 +45,12 @@ export function EscolherPlano({ encerrado = false }: { encerrado?: boolean }) {
     if (lembrado) setPasso(passoDoPlano(lembrado));
   }, []);
 
-  const lancamentos = PASSOS[passo];
+  const lancamentos = volumeDoPasso(passo);
   const planos = planosDoTeste();
   const indicado = planoDoVolume(lancamentos);
   const plano = planos.find((p) => p.id === indicado) ?? null;
   const detalhes = DETALHES[indicado];
+  const { caixa, conteudo } = useAlturaQueDesliza(indicado);
 
   async function escolher(escolhido: PlanoId) {
     setErro(null);
@@ -88,7 +90,9 @@ export function EscolherPlano({ encerrado = false }: { encerrado?: boolean }) {
 
         <div className="plano-medidor">
           <label htmlFor={idMedidor} className="plano-valor">
-            <output htmlFor={idMedidor}>{rotuloDoVolume(passo)}</output>
+            <output htmlFor={idMedidor}>
+              <NumeroAnimado valor={lancamentos} duracao={350} formatar={formatarVolume(passo)} />
+            </output>
             <span>lançamentos por mês</span>
           </label>
           <input
@@ -96,11 +100,12 @@ export function EscolherPlano({ encerrado = false }: { encerrado?: boolean }) {
             type="range"
             min={0}
             max={ULTIMO_PASSO}
-            step={1}
+            step={0.01}
             value={passo}
             aria-valuetext={`${lancamentos.toLocaleString("pt-BR")}${passo === ULTIMO_PASSO ? " ou mais" : ""} lançamentos por mês`}
             style={{ "--cheio": `${(passo / ULTIMO_PASSO) * 100}%` } as CSSProperties}
             onChange={(evento) => setPasso(Number(evento.target.value))}
+            onKeyDown={teclarNoMedidor(setPasso)}
           />
           <div className="plano-marcas" aria-hidden="true">
             {MARCAS.map(([marca, rotulo]) => (
@@ -116,59 +121,61 @@ export function EscolherPlano({ encerrado = false }: { encerrado?: boolean }) {
         <Image src="/mascotes/mascote-joinha.png" alt="" width={1073} height={1173} sizes="104px" className="plano-mascote" priority />
         <p className="eyebrow plano-rotulo">{plano ? "O plano para o seu volume" : "Mais de 350 por mês"}</p>
         {/* a key reinicia a entrada a cada plano indicado; o resto do cartão fica parado */}
-        <div key={indicado} className="plano-indicacao">
-          <h2 id="plano-indicado" className="titulo-misto plano-nome">
+        <div ref={caixa} className="plano-corpo">
+          <div ref={conteudo} key={indicado} className="plano-indicacao">
+            <h2 id="plano-indicado" className="titulo-misto plano-nome">
+              {plano ? (
+                <>
+                  O seu plano é o <em>{plano.nome}.</em>
+                </>
+              ) : (
+                <>
+                  Vamos combinar <em>juntos.</em>
+                </>
+              )}
+            </h2>
+            {detalhes.tag && <span className="selo plano-selo">{detalhes.tag}</span>}
+            <p className="plano-para">{detalhes.para}</p>
             {plano ? (
               <>
-                O seu plano é o <em>{plano.nome}.</em>
+                <p className="plano-preco">
+                  <span>{plano.preco}</span> <small>/mês</small>
+                </p>
+                <p className="plano-limite">{plano.limite}</p>
+                <ul className="plano-itens">
+                  {detalhes.itens.map(([item, emBreve]) => (
+                    <li key={item} data-depois={emBreve ? "" : undefined}>
+                      <Check size={15} aria-hidden="true" />
+                      <span>
+                        {item}
+                        {emBreve && <span className="plano-em-breve">em breve</span>}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+                {encerrado ? (
+                  // a cobrança chega com o gateway, depois de 02/11: até lá, assinar é falar com a equipe, e
+                  // a rota de escolher o plano (que começa o teste) não é chamada de novo
+                  <a className="btn btn-primary plano-acao" href={`mailto:${CONTATO}?subject=${encodeURIComponent(`Assinar o ${plano.nome}`)}`}>
+                    {`Assinar o ${plano.nome}`}
+                  </a>
+                ) : (
+                  <button
+                    type="button"
+                    className="btn btn-primary plano-acao"
+                    disabled={escolhendo !== null}
+                    onClick={() => void escolher(plano.id)}
+                  >
+                    {escolhendo === plano.id ? "Um momento…" : `Começar com o ${plano.nome}`}
+                  </button>
+                )}
               </>
             ) : (
-              <>
-                Vamos combinar <em>juntos.</em>
-              </>
+              <a className="btn btn-primary plano-acao" href={`mailto:${CONTATO}?subject=${encodeURIComponent("Plano Volume")}`}>
+                Fale com a gente
+              </a>
             )}
-          </h2>
-          {detalhes.tag && <span className="selo plano-selo">{detalhes.tag}</span>}
-          <p className="plano-para">{detalhes.para}</p>
-          {plano ? (
-            <>
-              <p className="plano-preco">
-                <span>{plano.preco}</span> <small>/mês</small>
-              </p>
-              <p className="plano-limite">{plano.limite}</p>
-              <ul className="plano-itens">
-                {detalhes.itens.map(([item, emBreve]) => (
-                  <li key={item} data-depois={emBreve ? "" : undefined}>
-                    <Check size={15} aria-hidden="true" />
-                    <span>
-                      {item}
-                      {emBreve && <span className="plano-em-breve">em breve</span>}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-              {encerrado ? (
-                // a cobrança chega com o gateway, depois de 02/11: até lá, assinar é falar com a equipe, e
-                // a rota de escolher o plano (que começa o teste) não é chamada de novo
-                <a className="btn btn-primary plano-acao" href={`mailto:${CONTATO}?subject=${encodeURIComponent(`Assinar o ${plano.nome}`)}`}>
-                  {`Assinar o ${plano.nome}`}
-                </a>
-              ) : (
-                <button
-                  type="button"
-                  className="btn btn-primary plano-acao"
-                  disabled={escolhendo !== null}
-                  onClick={() => void escolher(plano.id)}
-                >
-                  {escolhendo === plano.id ? "Um momento…" : `Começar com o ${plano.nome}`}
-                </button>
-              )}
-            </>
-          ) : (
-            <a className="btn btn-primary plano-acao" href={`mailto:${CONTATO}?subject=${encodeURIComponent("Plano Volume")}`}>
-              Fale com a gente
-            </a>
-          )}
+          </div>
         </div>
         {erro && (
           <p role="alert" className="plano-erro">
