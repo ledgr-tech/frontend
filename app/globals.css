@@ -3256,24 +3256,27 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
 .app-conta-seta { flex: none; color: color-mix(in srgb, var(--color-text) 55%, transparent); }
 /* O seletor de empresa (#169): abaixo do logo, só com mais de uma empresa na conta. O nome e a seta usam
    .app-rotulo, então somem com o menu recolhido, como os textos dos itens, e ficam as iniciais. */
-.seletor-empresa { position: relative; flex: none; margin: 0 0 10px; }
+.seletor-empresa { position: relative; flex: none; }
 .seletor-empresa-botao {
   width: 100%; display: flex; align-items: center; gap: 10px; cursor: pointer;
-  padding: 6px; text-align: left; font-family: var(--font-body);
-  border-radius: var(--radius-md); border: 1px solid var(--color-divider);
+  padding: 5px 6px; text-align: left; font-family: var(--font-body);
+  border-radius: var(--radius-md); border: 1px solid transparent;
   background: transparent; color: var(--color-text);
 }
-.seletor-empresa-botao:hover, .seletor-empresa-botao[aria-expanded="true"] { background: var(--tinta-hover); }
+.seletor-empresa-botao:hover { background: var(--tinta-hover); }
+.seletor-empresa-botao[aria-expanded="true"] { background: var(--tinta-ativa); }
+.seletor-empresa-botao:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
 .seletor-empresa-iniciais {
   flex: none; width: 32px; height: 32px; border-radius: var(--radius-md);
   display: flex; align-items: center; justify-content: center;
-  background: color-mix(in srgb, var(--color-accent) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-accent) 45%, transparent);
+  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
   font-family: var(--font-heading); font-size: 13px; font-weight: 600;
 }
 .seletor-empresa-texto { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
 .seletor-empresa-nome, .seletor-empresa-cnpj { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.seletor-empresa-nome { font-family: var(--font-heading); font-size: 14px; font-weight: 600; line-height: 1.15; }
-.seletor-empresa-cnpj { font-size: 11.5px; color: color-mix(in srgb, var(--color-text) 62%, transparent); }
+.seletor-empresa-nome { font-family: var(--font-heading); font-size: 15px; font-weight: 600; line-height: 1.15; }
+.seletor-empresa-cnpj { font-size: 12px; color: color-mix(in srgb, var(--color-text) 62%, transparent); }
 .seletor-empresa-seta { flex: none; color: color-mix(in srgb, var(--color-text) 55%, transparent); }
 .app-painel.seletor-empresa-painel {
   top: calc(100% + 6px); left: 0; right: 0; min-width: 240px; max-height: 60vh;
