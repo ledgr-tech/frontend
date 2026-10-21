@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { Papel } from "@/lib/papel";
 import { EmpresaDaSessao } from "../cabecalho";
 import { useLinhasDaEquipe } from "./secao-equipe";
 
@@ -19,13 +20,14 @@ vi.mock("./acoes", () => ({
 const push = vi.fn();
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
 
-const ADMIN = { id: "u1", nome: "Ana", email: "ana@x.com", administrador: true };
-const BIA = { id: "u2", nome: "Bia", email: "bia@x.com", administrador: false };
-const CONVITE = { id: "c1", email: "caio@x.com", enviadoEm: "16/10/2026", valeAte: "23/10/2026" };
+const ADMIN = { id: "u1", nome: "Ana", email: "ana@x.com", papel: "admin" };
+const BIA = { id: "u2", nome: "Bia", email: "bia@x.com", papel: "analista" };
+const GESTOR = { id: "u3", nome: "Gil", email: "gil@x.com", papel: "gestor" };
+const CONVITE = { id: "c1", email: "caio@x.com", papel: "analista", enviadoEm: "16/10/2026", valeAte: "23/10/2026" };
 
 /** As linhas do hook como a janela de Configurações as mostra: título, descrição e controle. */
-function Linhas({ administrador, email }: { administrador: boolean; email: string }) {
-  const linhas = useLinhasDaEquipe({ aberta: true, administrador, email });
+function Linhas({ papel, email }: { papel: Papel; email: string }) {
+  const linhas = useLinhasDaEquipe({ aberta: true, papel, email });
   return (
     <ul>
       {linhas.map((linha) => (
@@ -39,10 +41,10 @@ function Linhas({ administrador, email }: { administrador: boolean; email: strin
   );
 }
 
-function montar(administrador = true, email = ADMIN.email) {
+function montar(papel: Papel = "admin", email = ADMIN.email) {
   render(
     <EmpresaDaSessao value="Padaria Ltda">
-      <Linhas administrador={administrador} email={email} />
+      <Linhas papel={papel} email={email} />
     </EmpresaDaSessao>,
   );
 }
@@ -63,32 +65,69 @@ describe("useLinhasDaEquipe", () => {
     expect(await screen.findByText("Quem tem acesso à Padaria Ltda. Cada pessoa entra com o próprio e-mail.")).toBeInTheDocument();
   });
 
-  it("o administrador vê convidar, pendentes, cancelar e remover", async () => {
+  it("o admin vê convidar, pendentes, cancelar e remover", async () => {
     montar();
 
     expect(await screen.findByText("Bia")).toBeInTheDocument();
-    expect(carregarEquipe).toHaveBeenCalledWith(true);
+    expect(carregarEquipe).toHaveBeenCalledWith("admin");
     // só um Remover: o da Bia; a própria linha e a do administrador não têm
     expect(screen.getAllByRole("button", { name: "Remover" })).toHaveLength(1);
     expect(within(linhaDe("Bia")).getByRole("button", { name: "Remover" })).toBeInTheDocument();
     expect(within(linhaDe("Ana")).getByText("você")).toBeInTheDocument();
     expect(within(linhaDe("Ana")).getByText("Administrador")).toBeInTheDocument();
+    expect(within(linhaDe("Bia")).getByText("Analista")).toBeInTheDocument();
     expect(screen.getByLabelText("E-mail da pessoa")).toBeInTheDocument();
     expect(screen.getByText("Convites pendentes")).toBeInTheDocument();
-    expect(screen.getByText("Enviado em 16/10/2026 · vale até 23/10/2026")).toBeInTheDocument();
+    expect(screen.getByText("Analista · Enviado em 16/10/2026 · vale até 23/10/2026")).toBeInTheDocument();
     expect(within(linhaDe("caio@x.com")).getByRole("button", { name: "Cancelar" })).toBeInTheDocument();
   });
 
-  it("quem não é administrador vê só a lista e a frase", async () => {
+  it("o analista vê só a lista e a frase", async () => {
     carregarEquipe.mockResolvedValue({ ok: true, dados: { pessoas: [ADMIN, BIA], convites: null } });
-    montar(false, BIA.email);
+    montar("analista", BIA.email);
 
     expect(await screen.findByText("Ana")).toBeInTheDocument();
-    expect(carregarEquipe).toHaveBeenCalledWith(false);
+    expect(carregarEquipe).toHaveBeenCalledWith("analista");
     expect(screen.queryByRole("button", { name: "Remover" })).not.toBeInTheDocument();
     expect(screen.queryByLabelText("E-mail da pessoa")).not.toBeInTheDocument();
-    expect(screen.getByText("Só o administrador convida e remove pessoas.")).toBeInTheDocument();
+    expect(
+      screen.getByText("Só o administrador e o gestor convidam pessoas; só o administrador remove."),
+    ).toBeInTheDocument();
     expect(within(linhaDe("Bia")).getByText("você")).toBeInTheDocument();
+  });
+
+  it("o gestor convida e cancela convite, mas não remove ninguém", async () => {
+    carregarEquipe.mockResolvedValue({ ok: true, dados: { pessoas: [ADMIN, GESTOR, BIA], convites: [CONVITE] } });
+    montar("gestor", GESTOR.email);
+
+    expect(await screen.findByText("Bia")).toBeInTheDocument();
+    expect(carregarEquipe).toHaveBeenCalledWith("gestor");
+    expect(screen.queryByRole("button", { name: "Remover" })).not.toBeInTheDocument();
+    expect(within(linhaDe("Gil")).getByText("Gestor")).toBeInTheDocument();
+    expect(within(linhaDe("caio@x.com")).getByRole("button", { name: "Cancelar" })).toBeInTheDocument();
+    // o gestor só convida analista: a lista de papéis tem uma opção e fica travada
+    const papel = screen.getByLabelText("Papel");
+    expect(papel).toBeDisabled();
+    expect(papel).toHaveValue("analista");
+  });
+
+  it("o admin escolhe entre gestor e analista ao convidar, e o convite sai com o papel", async () => {
+    const user = userEvent.setup();
+    convidar.mockResolvedValue({
+      ok: true,
+      dados: { id: "c3", email: "eva@x.com", papel: "analista", enviadoEm: "16/10/2026", valeAte: "23/10/2026" },
+    });
+    montar();
+
+    const papel = await screen.findByLabelText("Papel");
+    expect(within(papel).getAllByRole("option").map((opcao) => opcao.textContent)).toEqual(["Gestor", "Analista"]);
+    expect(papel).toHaveValue("gestor");
+    await user.selectOptions(papel, "analista");
+    await user.type(screen.getByLabelText("E-mail da pessoa"), "eva@x.com");
+    await user.click(screen.getByRole("button", { name: "Enviar convite" }));
+
+    expect(convidar).toHaveBeenCalledWith("eva@x.com", "analista");
+    expect(await screen.findByText("eva@x.com", { selector: ".titulo" })).toBeInTheDocument();
   });
 
   it("confirma a remoção na própria linha e tira a pessoa da lista", async () => {
@@ -146,7 +185,7 @@ describe("useLinhasDaEquipe", () => {
     const user = userEvent.setup();
     convidar.mockResolvedValue({
       ok: true,
-      dados: { id: "c2", email: "dani@x.com", enviadoEm: "16/10/2026", valeAte: "23/10/2026" },
+      dados: { id: "c2", email: "dani@x.com", papel: "gestor", enviadoEm: "16/10/2026", valeAte: "23/10/2026" },
     });
     montar();
 

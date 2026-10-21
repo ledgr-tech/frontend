@@ -462,7 +462,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
           "Clique em **Fechar o mês**.",
           "Se houver pendências, clique em **Fechar mesmo assim**, leia o aviso e escreva a ressalva.",
         ],
-        nota: "Mês fechado trava a comparação: ninguém confere, justifica ou concilia de novo até reabrir.",
+        nota: "Só o administrador e o gestor fecham e reabrem o mês. Mês fechado trava a comparação: ninguém confere, justifica ou concilia de novo até reabrir.",
       },
       {
         id: "reabrir",
@@ -594,12 +594,13 @@ export const PAGINAS: PaginaDeAjuda[] = [
       {
         id: "equipe",
         titulo: "Equipe",
-        faz: "As pessoas com acesso à empresa. Quem cadastrou a empresa é o administrador: convida, cancela convites e remove pessoas.",
+        faz: "As pessoas com acesso à empresa e o papel de cada uma: **Administrador**, **Gestor** ou **Analista**. O administrador e o gestor convidam e cancelam convites; só o administrador remove pessoas.",
         passos: [
           "Abra **Equipe**.",
-          "Clique em **Convidar pessoa** e digite o e-mail. A pessoa recebe um link para criar o acesso.",
-          "Para tirar alguém, clique em **Remover**. O acesso é cortado na hora.",
+          "Clique em **Convidar pessoa**, digite o e-mail e escolha o papel. O administrador convida gestor ou analista; o gestor convida só analista. A pessoa recebe um link para criar o acesso.",
+          "Para tirar alguém, clique em **Remover** (só o administrador vê o botão). O acesso é cortado na hora.",
         ],
+        nota: "O analista concilia e justifica, mas não fecha o mês nem convida ninguém.",
         imagem: {
           src: "/ajuda/configuracoes--equipe.webp",
           largura: 960,

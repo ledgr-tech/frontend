@@ -3,6 +3,7 @@
 import { useCallback, useContext, useEffect, useId, useState, type FormEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import type { Convite } from "@/lib/adaptadores";
+import { papeisQueConvida, podeConvidar, ROTULO_DO_PAPEL, type Papel } from "@/lib/papel";
 import { MensagemErro } from "../../(auth)/_compartilhado/mensagem-erro";
 import { EMAIL_VALIDO, MENSAGEM_EMAIL_INCOMPLETO } from "../../(auth)/_compartilhado/validacao";
 import { EmpresaDaSessao } from "../cabecalho";
@@ -12,9 +13,9 @@ import { cancelarConvite, carregarEquipe, convidar, removerPessoa, type Equipe }
 /**
  * A seção Equipe das Configurações (spec 2026-10-16-equipe-e-convites). Devolve
  * linhas no mesmo formato das outras seções, para a janela desenhar e a busca
- * achar. Um papel só: o administrador convida, cancela convite e remove; os
- * outros veem a lista. O backend garante cada regra; aqui só some o que ele
- * recusaria.
+ * achar. Três papéis (#133): o admin convida gestor ou analista, o gestor convida só
+ * analista, os dois cancelam convite; remover pessoas é do admin; o analista vê a
+ * lista. O backend garante cada regra; aqui só some o que ele recusaria.
  */
 
 export type LinhaDaEquipe = { chave?: string; titulo: string; descricao?: string; controle?: ReactNode };
@@ -23,11 +24,12 @@ type Estado = Equipe | "carregando" | "sem-rota" | "falhou";
 
 export function useLinhasDaEquipe({
   aberta,
-  administrador,
+  papel,
   email,
 }: {
   aberta: boolean;
-  administrador: boolean;
+  /** O papel de quem está logado: define o que a seção mostra e oferece. */
+  papel: Papel;
   /** O e-mail da sessão, para marcar a própria linha. */
   email: string;
 }): LinhaDaEquipe[] {
@@ -42,7 +44,7 @@ export function useLinhasDaEquipe({
   const erroId = useId();
 
   const carregar = useCallback(() => {
-    carregarEquipe(administrador).then(
+    carregarEquipe(papel).then(
       (resposta) => {
         if (resposta.ok) setEstado(resposta.dados);
         else if (resposta.status === 401) router.push("/login");
@@ -50,7 +52,7 @@ export function useLinhasDaEquipe({
       },
       () => setEstado("falhou"),
     );
-  }, [administrador, router]);
+  }, [papel, router]);
 
   useEffect(() => {
     if (!aberta || estado !== undefined) return;
@@ -104,10 +106,10 @@ export function useLinhasDaEquipe({
 
   const pessoas: LinhaDaEquipe[] = estado.pessoas.map((pessoa) => {
     const eu = pessoa.email.toLowerCase() === email.toLowerCase();
-    const removivel = administrador && !eu && !pessoa.administrador;
+    const removivel = papel === "admin" && !eu && pessoa.papel !== "admin";
     const marcas = (
       <>
-        {pessoa.administrador && <span className="tag">Administrador</span>}
+        <span className="tag">{ROTULO_DO_PAPEL[pessoa.papel]}</span>
         {eu && <span className="tag tag-outline">você</span>}
       </>
     );
@@ -174,8 +176,12 @@ export function useLinhasDaEquipe({
     };
   });
 
-  if (!administrador) {
-    return [abertura, ...pessoas, { titulo: "Convidar pessoa", descricao: "Só o administrador convida e remove pessoas." }];
+  if (!podeConvidar(papel)) {
+    return [
+      abertura,
+      ...pessoas,
+      { titulo: "Convidar pessoa", descricao: "Só o administrador e o gestor convidam pessoas; só o administrador remove." },
+    ];
   }
 
   const convites = estado.convites ?? [];
@@ -184,6 +190,7 @@ export function useLinhasDaEquipe({
     descricao: "O convite chega por e-mail, com um link que vale por 7 dias.",
     controle: (
       <ConvidarPessoa
+        papeis={papeisQueConvida(papel)}
         aoConvidar={(convite) =>
           setEstado((atual) =>
             typeof atual === "object"
@@ -201,7 +208,7 @@ export function useLinhasDaEquipe({
         ...convites.map((convite) => ({
           chave: `convite-${convite.id}`,
           titulo: convite.email,
-          descricao: `Enviado em ${convite.enviadoEm} · vale até ${convite.valeAte}`,
+          descricao: `${convite.papel ? `${ROTULO_DO_PAPEL[convite.papel]} · ` : ""}Enviado em ${convite.enviadoEm} · vale até ${convite.valeAte}`,
           controle: (
             <button
               type="button"
@@ -224,18 +231,23 @@ export function useLinhasDaEquipe({
   return [abertura, ...pessoas, convidarLinha, ...pendentes];
 }
 
-/** O e-mail de quem convidar e o retorno do backend, na própria linha. */
+/** O e-mail de quem convidar, o papel que terá e o retorno do backend, na própria linha. */
 function ConvidarPessoa({
+  papeis,
   aoConvidar,
   aoSairDaSessao,
 }: {
+  /** Os papéis que quem convida pode dar; o primeiro é o sugerido. */
+  papeis: Papel[];
   aoConvidar: (convite: Convite) => void;
   aoSairDaSessao: () => void;
 }) {
   const [email, setEmail] = useState("");
+  const [papelEscolhido, setPapelEscolhido] = useState<Papel>(papeis[0]);
   const [enviando, setEnviando] = useState(false);
   const [retorno, setRetorno] = useState<{ ok: boolean; texto: string } | null>(null);
   const campoId = useId();
+  const papelId = useId();
   const retornoId = useId();
 
   async function enviar(evento: FormEvent) {
@@ -247,7 +259,7 @@ function ConvidarPessoa({
     }
     setEnviando(true);
     setRetorno(null);
-    const resposta = await convidar(email).catch(
+    const resposta = await convidar(email, papelEscolhido).catch(
       (): Resultado<Convite> => ({ ok: false, status: 0, erro: "Não foi possível falar com o servidor." }),
     );
     setEnviando(false);
@@ -277,6 +289,22 @@ function ConvidarPessoa({
           aria-describedby={retorno ? retornoId : undefined}
           onChange={(evento) => setEmail(evento.target.value)}
         />
+      </div>
+      <div className="field">
+        <label htmlFor={papelId}>Papel</label>
+        <select
+          id={papelId}
+          className="input"
+          value={papelEscolhido}
+          disabled={papeis.length === 1}
+          onChange={(evento) => setPapelEscolhido(evento.target.value as Papel)}
+        >
+          {papeis.map((papel) => (
+            <option key={papel} value={papel}>
+              {ROTULO_DO_PAPEL[papel]}
+            </option>
+          ))}
+        </select>
       </div>
       {retorno &&
         (retorno.ok ? (

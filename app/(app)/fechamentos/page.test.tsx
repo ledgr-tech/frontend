@@ -27,11 +27,11 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), refresh }),
 }));
 const refresh = vi.fn();
-// fechar e reabrir são do gestor (#168); o padrão é a conta que cadastrou a empresa
+// fechar e reabrir são do admin e do gestor (#168); o padrão é o admin
 const gestor = vi.hoisted(() => ({ valor: true }));
 vi.mock("../conta", async (original) => ({
   ...(await original<typeof import("../conta")>()),
-  useEhGestor: () => gestor.valor,
+  usePodeFechar: () => gestor.valor,
 }));
 
 /** Um fechamento como a action devolve. */
@@ -196,7 +196,7 @@ describe("FechamentosPage", () => {
       try {
         await renderizar(undefined, { mes: "2026-08" });
         expect(within(painel()).queryByRole("button", { name: "Fechar agosto" })).not.toBeInTheDocument();
-        expect(within(painel()).getByText("Só o gestor da conta fecha e reabre o mês.")).toBeInTheDocument();
+        expect(within(painel()).getByText("Só o admin ou o gestor da conta fecham e reabrem o mês.")).toBeInTheDocument();
 
         cleanup();
         await renderizar();

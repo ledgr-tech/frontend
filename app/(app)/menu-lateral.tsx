@@ -34,6 +34,7 @@ import { LogoBarras } from "./logo-barras";
 import { alternarMenu, menuRecolhido } from "./menu";
 import { aplicarTema, temaAtual, type Tema } from "./tema";
 import { ABRIR_ASSISTENTE, ABRIR_CONFIGURACOES } from "@/lib/eventos";
+import type { Papel } from "@/lib/papel";
 
 type ItemMenu = {
   nome: string;
@@ -105,7 +106,7 @@ export function MenuLateral({
   email,
   empresa,
   temSenha,
-  administrador = true,
+  papel = "admin",
   onSair,
 }: {
   email: string;
@@ -113,7 +114,7 @@ export function MenuLateral({
   empresa: string;
   /** Falso na conta que só entra pelo Google: as configurações não oferecem trocar a senha. */
   temSenha: boolean;
-  administrador?: boolean;
+  papel?: Papel;
   onSair: () => void;
 }) {
   const caminho = usePathname();
@@ -471,7 +472,7 @@ export function MenuLateral({
         }}
         email={email}
         temSenha={temSenha}
-        administrador={administrador}
+        papel={papel}
         onSair={onSair}
         onTema={setTema}
       />

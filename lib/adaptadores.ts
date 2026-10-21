@@ -1,4 +1,5 @@
 import { caminhoDaConciliacao } from "./caminhos";
+import { ehPapel, lerPapel, type Papel } from "./papel";
 import { rodadasDoBanco } from "./rodadas";
 import type {
   CampoLancamento,
@@ -559,20 +560,26 @@ export function formatarDia(iso: string): string {
   return DIA_EM_BRASILIA.format(new Date(iso));
 }
 
-/** Uma pessoa da empresa (`GET /empresa/usuarios`, backend #69). */
-export type PessoaAPI = { id: string; nome: string; email: string; administrador: boolean; criado_em: string };
-export type Pessoa = { id: string; nome: string; email: string; administrador: boolean };
+/** Uma pessoa da empresa (`GET /empresa/usuarios`, backend #69; o `papel` veio com o #133). */
+export type PessoaAPI = { id: string; nome: string; email: string; papel?: string; administrador?: boolean; criado_em: string };
+export type Pessoa = { id: string; nome: string; email: string; papel: Papel };
 
 export function adaptarPessoa(api: PessoaAPI): Pessoa {
-  return { id: api.id, nome: api.nome, email: api.email, administrador: api.administrador };
+  return { id: api.id, nome: api.nome, email: api.email, papel: lerPapel(api) };
 }
 
-/** Um convite pendente (`GET`/`POST /empresa/convites`). */
-export type ConviteAPI = { id: string; email: string; criado_em: string; expira_em: string };
-export type Convite = { id: string; email: string; enviadoEm: string; valeAte: string };
+/** Um convite pendente (`GET`/`POST /empresa/convites`); o `papel` é o dado no convite (#133), ausente antes dele. */
+export type ConviteAPI = { id: string; email: string; papel?: string; criado_em: string; expira_em: string };
+export type Convite = { id: string; email: string; papel: Papel | null; enviadoEm: string; valeAte: string };
 
 export function adaptarConvite(api: ConviteAPI): Convite {
-  return { id: api.id, email: api.email, enviadoEm: formatarDia(api.criado_em), valeAte: formatarDia(api.expira_em) };
+  return {
+    id: api.id,
+    email: api.email,
+    papel: ehPapel(api.papel) ? api.papel : null,
+    enviadoEm: formatarDia(api.criado_em),
+    valeAte: formatarDia(api.expira_em),
+  };
 }
 
 /** O que a página do convite mostra antes de pedir qualquer coisa (`POST /convites/consultar`). */

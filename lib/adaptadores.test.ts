@@ -499,15 +499,27 @@ describe("equipe e convites", () => {
   it("adapta convite e consulta com as datas formatadas", () => {
     expect(
       adaptarConvite({ id: "c1", email: "ana@x.com", criado_em: "2026-10-16T12:00:00Z", expira_em: "2026-10-23T12:00:00Z" }),
-    ).toEqual({ id: "c1", email: "ana@x.com", enviadoEm: "16/10/2026", valeAte: "23/10/2026" });
+    ).toEqual({ id: "c1", email: "ana@x.com", papel: null, enviadoEm: "16/10/2026", valeAte: "23/10/2026" });
     expect(
       adaptarConsultaConvite({ email: "ana@x.com", razao_social: "Padaria Ltda", expira_em: "2026-10-23T12:00:00Z" }),
     ).toEqual({ email: "ana@x.com", razaoSocial: "Padaria Ltda", valeAte: "23/10/2026" });
   });
 
-  it("adapta a pessoa sem o criado_em", () => {
+  it("adapta o convite com o papel dado, e ignora um papel que não conhece", () => {
+    const base = { id: "c1", email: "ana@x.com", criado_em: "2026-10-16T12:00:00Z", expira_em: "2026-10-23T12:00:00Z" };
+    expect(adaptarConvite({ ...base, papel: "gestor" }).papel).toBe("gestor");
+    expect(adaptarConvite({ ...base, papel: "dono" }).papel).toBeNull();
+  });
+
+  it("adapta a pessoa sem o criado_em, com o papel do backend", () => {
     expect(
-      adaptarPessoa({ id: "u1", nome: "Ana", email: "ana@x.com", administrador: true, criado_em: "2026-10-01T00:00:00Z" }),
-    ).toEqual({ id: "u1", nome: "Ana", email: "ana@x.com", administrador: true });
+      adaptarPessoa({ id: "u1", nome: "Ana", email: "ana@x.com", papel: "gestor", criado_em: "2026-10-01T00:00:00Z" }),
+    ).toEqual({ id: "u1", nome: "Ana", email: "ana@x.com", papel: "gestor" });
+  });
+
+  it("sem papel, a pessoa do backend anterior ao #133 vira admin ou analista pelo administrador", () => {
+    const base = { id: "u1", nome: "Ana", email: "ana@x.com", criado_em: "2026-10-01T00:00:00Z" };
+    expect(adaptarPessoa({ ...base, administrador: true }).papel).toBe("admin");
+    expect(adaptarPessoa({ ...base, administrador: false }).papel).toBe("analista");
   });
 });

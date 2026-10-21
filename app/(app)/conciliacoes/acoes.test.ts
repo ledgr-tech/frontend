@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi, afterEach } from "vitest";
-import { SO_O_GESTOR_FECHA, SO_O_GESTOR_JUSTIFICA } from "@/lib/gestor";
+import { SO_O_GESTOR_FECHA } from "@/lib/gestor";
+import type { Papel } from "@/lib/papel";
 import type { ExecucaoAPI, ItemConciliacaoAPI } from "@/lib/adaptadores";
 import { ErroBackend } from "@/lib/backend";
 import {
@@ -32,13 +33,13 @@ vi.mock("@/lib/backend", async (original) => ({
   emailDaSessao: async () => "ana@x.com",
 }));
 
-// quem é o gestor vem do GET /me, lido por contaDaSessao; os testes do #168 trocam o papel
-const conta = vi.hoisted(() => ({ administrador: true }));
+// o papel vem do GET /me, lido por contaDaSessao; os testes do #168 e do #133 trocam o papel
+const conta = vi.hoisted(() => ({ papel: "admin" as Papel }));
 vi.mock("../../(auth)/acoes", () => ({
   contaDaSessao: async () => ({
     empresa: "",
     temSenha: true,
-    administrador: conta.administrador,
+    papel: conta.papel,
     preferencias: null,
     assinatura: null,
   }),
@@ -1517,42 +1518,43 @@ describe("carregarRoteiro", () => {
   });
 });
 
-describe("só o gestor justifica, fecha e reabre (#168)", () => {
+describe("fechar e reabrir o mês são do admin e do gestor; todos justificam (#168, #133)", () => {
   beforeEach(() => {
     chamarBackend.mockReset();
-    conta.administrador = false;
+    conta.papel = "analista";
   });
   afterEach(() => {
-    conta.administrador = true;
+    conta.papel = "admin";
   });
 
-  it("quem não é o gestor não fecha nem reabre, e o backend nem é chamado", async () => {
+  it("o analista não fecha nem reabre, e o backend nem é chamado", async () => {
     expect(await fecharMes("2026-09", "Em análise.")).toEqual({ ok: false, status: 403, erro: SO_O_GESTOR_FECHA });
     expect(await reabrirMes("2026-09")).toEqual({ ok: false, status: 403, erro: SO_O_GESTOR_FECHA });
     expect(chamarBackend).not.toHaveBeenCalled();
   });
 
-  it("quem não é o gestor não justifica nem desfaz, mas confere", async () => {
-    expect(await registrarDecisao(BANCO_RECENTE, "lb-1", "justificada", "Juros.")).toEqual({
-      ok: false,
-      status: 403,
-      erro: SO_O_GESTOR_JUSTIFICA,
-    });
-    expect(await registrarDecisao(BANCO_RECENTE, "lb-1", "justificativa_desfeita")).toMatchObject({ status: 403 });
-    expect(chamarBackend).not.toHaveBeenCalled();
+  it("o gestor fecha e reabre o mês", async () => {
+    conta.papel = "gestor";
+    chamarBackend.mockRejectedValue(new ErroBackend(409, "Conflict"));
 
-    chamarBackend.mockResolvedValue({ tipo: "conferida", autor: "Ana", em: "2026-10-20T10:00:00Z", texto: null });
-    expect(await registrarDecisao(BANCO_RECENTE, "lb-1", "conferida")).toMatchObject({ ok: true });
+    // chegou ao backend: a recusa é dele, e não do front
+    expect(await fecharMes("2026-09")).toMatchObject({ ok: false, status: 409 });
+    expect(await reabrirMes("2026-09")).toMatchObject({ ok: false, status: 409 });
+    expect(chamarBackend).toHaveBeenCalledTimes(2);
   });
 
-  it("o 403 do backend chega com o texto da tela", async () => {
-    conta.administrador = true;
+  it("o analista confere, justifica e desfaz a justificativa", async () => {
+    chamarBackend.mockResolvedValue({ tipo: "justificada", autor: "Bia", em: "2026-10-20T10:00:00Z", texto: "Juros." });
+
+    expect(await registrarDecisao(BANCO_RECENTE, "lb-1", "justificada", "Juros.")).toMatchObject({ ok: true });
+    expect(await registrarDecisao(BANCO_RECENTE, "lb-1", "justificativa_desfeita")).toMatchObject({ ok: true });
+    expect(await registrarDecisao(BANCO_RECENTE, "lb-1", "conferida")).toMatchObject({ ok: true });
+    expect(chamarBackend).toHaveBeenCalledTimes(3);
+  });
+
+  it("o 403 do backend ao fechar chega com o texto da tela", async () => {
+    conta.papel = "admin";
     chamarBackend.mockRejectedValue(new ErroBackend(403, "Forbidden"));
     expect(await fecharMes("2026-09")).toEqual({ ok: false, status: 403, erro: SO_O_GESTOR_FECHA });
-    expect(await registrarDecisao(BANCO_RECENTE, "lb-1", "justificada", "Juros.")).toEqual({
-      ok: false,
-      status: 403,
-      erro: SO_O_GESTOR_JUSTIFICA,
-    });
   });
 });
