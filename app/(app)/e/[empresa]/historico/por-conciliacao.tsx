@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useState } from "react";
-import Link from "next/link";
+import Link from "@/lib/link-do-app";
 import { ChevronRight } from "lucide-react";
 import type { Execucao } from "@/lib/adaptadores";
 import { caminhoDaConciliacao } from "@/lib/caminhos";

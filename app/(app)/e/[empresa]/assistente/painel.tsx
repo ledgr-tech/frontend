@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import Link from "@/lib/link-do-app";
+import { useRoteador } from "@/lib/roteador";
 import { carregarVisaoGeral } from "../conciliacoes/acoes";
 import { Conversa, TopoDoLedgr } from "./conversa";
 import { montarContexto, type Contexto } from "./respostas";
@@ -20,7 +20,7 @@ type Estado =
  * última conciliação) cada vez que abre.
  */
 export function PainelAssistente({ id, onFechar }: { id: string; onFechar: () => void }) {
-  const router = useRouter();
+  const router = useRoteador();
   const [estado, setEstado] = useState<Estado>({ situacao: "carregando" });
 
   useEffect(() => {

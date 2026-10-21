@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useContext, useEffect, useId, useState, type FormEvent, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
+import { useRoteador } from "@/lib/roteador";
 import type { Convite } from "@/lib/adaptadores";
 import { papeisQueConvida, podeConvidar, ROTULO_DO_PAPEL, type Papel } from "@/lib/papel";
 import { MensagemErro } from "../../../../(auth)/_compartilhado/mensagem-erro";
@@ -33,7 +33,7 @@ export function useLinhasDaEquipe({
   /** O e-mail da sessão, para marcar a própria linha. */
   email: string;
 }): LinhaDaEquipe[] {
-  const router = useRouter();
+  const router = useRoteador();
   const empresa = useContext(EmpresaDaSessao);
   // undefined até a janela abrir pela primeira vez, como as regras da conciliação
   const [estado, setEstado] = useState<Estado | undefined>(undefined);

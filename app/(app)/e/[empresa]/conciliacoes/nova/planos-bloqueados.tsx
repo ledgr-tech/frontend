@@ -1,5 +1,5 @@
 import Image from "next/image";
-import Link from "next/link";
+import Link from "@/lib/link-do-app";
 import { planosDoTeste } from "@/lib/assinatura";
 
 /** No lugar do envio, quando o teste acabou (pelo /me ou pelo 402 do backend). O resto do app segue aberto. */

@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
+import { redirecionarNoApp } from "@/lib/rotas-servidor";
 import { auth } from "@/auth";
 import { ProvedorDaEmpresa } from "@/lib/empresa-ativa";
 import { ehUuid } from "@/lib/rotas";
@@ -27,7 +28,7 @@ export default async function AppLayout({
   params: Promise<{ empresa: string }>;
 }) {
   const sessao = await auth();
-  if (!sessao?.user?.email) redirect("/login");
+  if (!sessao?.user?.email) return redirecionarNoApp("/login");
 
   const { empresa } = await params;
   if (!ehUuid(empresa)) notFound();
@@ -35,7 +36,7 @@ export default async function AppLayout({
   const conta = await contaDaSessao();
   if (conta.empresas.length > 0 && !conta.empresas.some((candidata) => candidata.id === empresa)) notFound();
   // sem plano, escolhe antes de entrar (spec 2026-10-15-primeiro-uso); sem a informação, segue
-  if (conta.assinatura?.situacao === "sem_plano") redirect("/plano");
+  if (conta.assinatura?.situacao === "sem_plano") return redirecionarNoApp("/plano");
 
   const ativa = conta.empresas.find((candidata) => candidata.id === empresa) ?? {
     id: empresa,

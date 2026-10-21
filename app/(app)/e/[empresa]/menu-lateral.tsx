@@ -9,8 +9,9 @@ import {
   type PointerEvent as EventoPonteiro,
 } from "react";
 import Image from "next/image";
-import Link from "next/link";
+import Link from "@/lib/link-do-app";
 import { usePathname } from "next/navigation";
+import { caminhoSemEmpresa } from "@/lib/rotas";
 import {
   ArrowLeftRight,
   CalendarCheck,
@@ -117,7 +118,8 @@ export function MenuLateral({
   papel?: Papel;
   onSair: () => void;
 }) {
-  const caminho = usePathname();
+  // o item ativo se acha pelo caminho da tela, sem o /e/<empresa>
+  const caminho = caminhoSemEmpresa(usePathname());
   // null enquanto não sabemos: o tema só é legível no cliente, e chutar "claro"
   // faria o ícone trocar sozinho depois da hidratação
   const [tema, setTema] = useState<Tema | null>(null);

@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useId, useRef, useState, type CSSProperties, type FormEvent } from "react";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
+import { useRoteador } from "@/lib/roteador";
 import Image from "next/image";
-import Link from "next/link";
+import Link from "@/lib/link-do-app";
 import { ehDivergencia } from "@/lib/adaptadores";
 import { caminhoDaConciliacao } from "@/lib/caminhos";
 import {
@@ -127,7 +128,7 @@ export default function ConciliacaoPage() {
   const params = useParams<{ id: string }>();
   const busca = useSearchParams();
   const sistema = busca.get("sistema") || undefined;
-  const router = useRouter();
+  const router = useRoteador();
   const { estado, substituir, recarregar } = useConciliacao(params.id, sistema);
   // a janela da linha guarda a chave, não a linha: depois de justificar, ela mostra a linha como voltou
   const [chaveAberta, setChaveAberta] = useState<string | null>(null);

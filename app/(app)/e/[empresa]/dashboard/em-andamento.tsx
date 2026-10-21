@@ -1,5 +1,5 @@
 import Image from "next/image";
-import Link from "next/link";
+import Link from "@/lib/link-do-app";
 import { caminhoDaConciliacao } from "@/lib/caminhos";
 import type { ListaDeConciliacoes } from "../conciliacoes/acoes";
 import { tituloDaCompetencia } from "../fechamentos/fechamento";

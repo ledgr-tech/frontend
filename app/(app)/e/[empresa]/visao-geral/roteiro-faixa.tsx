@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link from "@/lib/link-do-app";
 import type { ReactNode } from "react";
 import { ArrowRight, Check } from "lucide-react";
 import { abrirConfiguracoes } from "@/lib/eventos";

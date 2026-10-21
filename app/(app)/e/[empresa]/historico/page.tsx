@@ -1,5 +1,5 @@
-import Link from "next/link";
-import { redirect } from "next/navigation";
+import Link from "@/lib/link-do-app";
+import { redirecionarNoApp } from "@/lib/rotas-servidor";
 import type { Execucao } from "@/lib/adaptadores";
 import { execucoesVigentes } from "@/lib/rodadas";
 import { listarExecucoes } from "../conciliacoes/acoes";
@@ -30,7 +30,7 @@ function lerPagina(valor: string | string[] | undefined): number {
 export default async function HistoricoPage({ searchParams }: PageProps<"/e/[empresa]/historico">) {
   const pagina = lerPagina((await searchParams).pagina);
   const resposta = await listarExecucoes(pagina);
-  if (!resposta.ok && resposta.status === 401) redirect("/login");
+  if (!resposta.ok && resposta.status === 401) await redirecionarNoApp("/login");
 
   return (
     <div>

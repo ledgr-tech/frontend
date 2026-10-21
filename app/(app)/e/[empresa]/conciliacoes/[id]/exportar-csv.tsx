@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRoteador } from "@/lib/roteador";
 import type { Divergencia } from "@/lib/adaptadores";
 import { caminhoDoCsv } from "@/lib/caminhos";
 
@@ -61,7 +61,7 @@ export function ExportarCsv({
   filtrada: boolean;
   status?: Divergencia;
 }) {
-  const router = useRouter();
+  const router = useRoteador();
   const [exportando, setExportando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 

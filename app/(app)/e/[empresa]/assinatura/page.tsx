@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link from "@/lib/link-do-app";
 import { Reveal } from "@/app/reveal";
 import { PLANOS } from "@/lib/planos";
 import { CancelarAssinatura } from "./cancelar-assinatura";

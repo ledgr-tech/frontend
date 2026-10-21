@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import Link from "@/lib/link-do-app";
+import { useRoteador } from "@/lib/roteador";
 import { caminhoDaConciliacao } from "@/lib/caminhos";
 import type { Tom } from "@/lib/mock-data";
 import { ArrowRight } from "lucide-react";
@@ -156,7 +156,7 @@ function Folha({ arquivo }: { arquivo: ArquivoExtrato }) {
 }
 
 export function Galeria({ arquivos }: { arquivos: ArquivoExtrato[] }) {
-  const router = useRouter();
+  const router = useRoteador();
   const [filtro, setFiltro] = useState<Filtro>("todos");
   const [selecionado, setSelecionado] = useState<string | null>(arquivos[0]?.id ?? null);
   // por mês de saída (com dezenas de arquivos, a grade solta virava uma parede de folhas), até ler a
@@ -431,7 +431,7 @@ function lido(arquivo: ArquivoExtrato): boolean {
  * (`POST /conciliacoes` com os dois ids), o do mesmo mês primeiro, sem enviar nada de novo.
  */
 function ConciliarArquivo({ arquivo, arquivos }: { arquivo: ArquivoExtrato; arquivos: ArquivoExtrato[] }) {
-  const router = useRouter();
+  const router = useRoteador();
   const outroLado = arquivo.origem === "banco" ? "sistema" : "banco";
   // do mesmo mês primeiro; no resto, a ordem de chegada (o enviado por último antes)
   const opcoes = arquivos

@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import Link from "next/link";
+import Link from "@/lib/link-do-app";
 import { Flag } from "lucide-react";
 import { caminhoDaConciliacao, caminhoDoFechamento } from "@/lib/caminhos";
 import { formatarDataHora, formatarInteiro } from "../../dashboard/resumo";

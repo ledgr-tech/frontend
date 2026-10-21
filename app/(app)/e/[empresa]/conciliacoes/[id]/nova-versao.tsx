@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
+import Link from "@/lib/link-do-app";
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRoteador } from "@/lib/roteador";
 import { conciliar, type Falha } from "../acoes";
 import {
   aguardarProcessamento,
@@ -31,7 +31,7 @@ export function NovaVersao({
   /** A rodada nova existe: a tela recarrega nela. */
   onConcluida: () => void;
 }) {
-  const router = useRouter();
+  const router = useRoteador();
   const [aberta, setAberta] = useState(false);
   const [arquivo, setArquivo] = useState<File | null>(null);
   const [etapa, setEtapa] = useState<Etapa>("ocioso");

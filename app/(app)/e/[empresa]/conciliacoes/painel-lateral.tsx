@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
+import { useRoteador } from "@/lib/roteador";
 
 /**
  * O painel à direita, sobre a tela de onde ele abriu (revisão de estilo de 15/10): a pessoa nunca
@@ -10,7 +10,7 @@ import { useRouter } from "next/navigation";
  * navegador também fecha. O fundo escurece pouco, para a comparação continuar legível atrás.
  */
 export function PainelLateral({ rotulo, children }: { rotulo: string; children: ReactNode }) {
-  const router = useRouter();
+  const router = useRoteador();
   const painel = useRef<HTMLElement>(null);
 
   useEffect(() => {

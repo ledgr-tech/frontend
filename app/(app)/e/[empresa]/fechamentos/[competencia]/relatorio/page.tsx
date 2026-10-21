@@ -1,5 +1,6 @@
-import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
+import Link from "@/lib/link-do-app";
+import { notFound } from "next/navigation";
+import { redirecionarNoApp } from "@/lib/rotas-servidor";
 import { ArrowLeft } from "lucide-react";
 import { caminhoDoFechamento } from "@/lib/caminhos";
 import { formatarMoeda } from "@/lib/mock-data";
@@ -21,7 +22,7 @@ export default async function RelatorioPage({ params, searchParams }: PageProps<
   const { competencia } = await params;
   const { imprimir } = await searchParams;
   const resposta = await carregarRelatorioDoFechamento(competencia);
-  if (!resposta.ok && resposta.status === 401) redirect("/login");
+  if (!resposta.ok && resposta.status === 401) await redirecionarNoApp("/login");
   if (!resposta.ok && resposta.status === 404) notFound();
 
   const voltar = caminhoDoFechamento(competencia);

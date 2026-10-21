@@ -2,8 +2,8 @@
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import Image from "next/image";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import Link from "@/lib/link-do-app";
+import { useRoteador } from "@/lib/roteador";
 import { Sparkles, X } from "lucide-react";
 import { explicarDivergencia } from "../conciliacoes/acoes";
 import { formatarMoedaCurta } from "../dashboard/resumo";
@@ -63,7 +63,7 @@ export function TopoDoLedgr({ status, onFechar }: { status?: string; onFechar: (
 }
 
 export function Conversa({ contexto, onFechar }: { contexto: Contexto; onFechar: () => void }) {
-  const router = useRouter();
+  const router = useRoteador();
   const [mensagens, setMensagens] = useState<Mensagem[]>([{ id: 0, de: "ledgr", texto: saudacao(contexto) }]);
   const [texto, setTexto] = useState("");
   const [lendo, setLendo] = useState(false);

@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import Link from "@/lib/link-do-app";
+import { useRoteador } from "@/lib/roteador";
 import { caminhoDaConciliacao } from "@/lib/caminhos";
 import { MenuDeAjuda } from "./ajuda/menu-de-ajuda";
 import { diasRestantes, fraseCurtaDoTeste, fraseDoTeste } from "@/lib/assinatura";
@@ -43,7 +43,7 @@ export function BarraSuperior() {
   const tecla = useTeclaDeAtalho();
   // qual resultado a seta está apontando; -1 = nenhum
   const [ativo, setAtivo] = useState(-1);
-  const router = useRouter();
+  const router = useRoteador();
   const buscaRef = useRef<HTMLInputElement>(null);
   const caixaBusca = useRef<HTMLDivElement>(null);
   const caixaAvisos = useRef<HTMLDivElement>(null);

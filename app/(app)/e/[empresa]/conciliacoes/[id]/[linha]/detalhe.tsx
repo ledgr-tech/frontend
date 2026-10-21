@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
+import { useRoteador } from "@/lib/roteador";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import Image from "next/image";
-import Link from "next/link";
+import Link from "@/lib/link-do-app";
 import { caminhoDaConciliacao } from "@/lib/caminhos";
 import {
   aceitarValorDoBanco,
@@ -426,7 +427,7 @@ function NavegacaoDoPainel({
   proxima: string | null;
   paginaInteira: string;
 }) {
-  const router = useRouter();
+  const router = useRoteador();
   return (
     <div className="painel-nav">
       {anterior ? (

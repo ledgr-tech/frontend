@@ -2,8 +2,8 @@
 
 import { useState, type ReactNode } from "react";
 import Image from "next/image";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import Link from "@/lib/link-do-app";
+import { useRoteador } from "@/lib/roteador";
 import { Circle, CircleCheck, FileDown } from "lucide-react";
 import { caminhoDaConciliacao } from "@/lib/caminhos";
 import type { Tom } from "@/lib/mock-data";
@@ -413,14 +413,15 @@ function Painel({ mes, podeFechar }: { mes: MesDeFechamento; podeFechar: boolean
               {fechado ? "Resumo do mês, divergências e como cada uma foi resolvida." : "Disponível depois de fechar o mês."}
             </span>
             {fechado ? (
-              <a
+              <Link
                 href={`/fechamentos/${mes.chave}/relatorio?imprimir=1`}
                 target="_blank"
                 rel="noopener"
+                prefetch={false}
                 className="btn btn-secondary"
               >
                 Baixar PDF
-              </a>
+              </Link>
             ) : (
               <button type="button" className="btn btn-secondary" disabled>
                 Baixar PDF
@@ -470,7 +471,7 @@ function Painel({ mes, podeFechar }: { mes: MesDeFechamento; podeFechar: boolean
  * admin e o gestor veem o botão; para rejeitar, ou aprovar uma a uma, o caminho é a conciliação.
  */
 function AprovarPendentes({ mes }: { mes: MesDeFechamento }) {
-  const router = useRouter();
+  const router = useRoteador();
   const podeAprovar = usePodeFechar();
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -518,7 +519,7 @@ function AprovarPendentes({ mes }: { mes: MesDeFechamento }) {
  * pode ser reaberto. Depois de cada um, a tela é lida de novo.
  */
 function AcoesDoFechamento({ mes, revisar }: { mes: MesDeFechamento; revisar: string }) {
-  const router = useRouter();
+  const router = useRoteador();
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   // o backend recusou por pendência (409): a ressalva é o que falta para fechar

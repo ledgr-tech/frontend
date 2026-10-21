@@ -1,5 +1,5 @@
-import Link from "next/link";
-import { redirect } from "next/navigation";
+import Link from "@/lib/link-do-app";
+import { redirecionarNoApp } from "@/lib/rotas-servidor";
 import { listarExtratos } from "../conciliacoes/acoes";
 import { formatarInteiro } from "../dashboard/resumo";
 import { Reveal } from "@/app/reveal";
@@ -20,7 +20,7 @@ const cinza = (opacidade: number) =>
 
 export default async function ExtratosPage() {
   const resposta = await listarExtratos();
-  if (!resposta.ok && resposta.status === 401) redirect("/login");
+  if (!resposta.ok && resposta.status === 401) await redirecionarNoApp("/login");
 
   return (
     <div>

@@ -1,6 +1,6 @@
 import Image from "next/image";
-import Link from "next/link";
-import { redirect } from "next/navigation";
+import Link from "@/lib/link-do-app";
+import { redirecionarNoApp } from "@/lib/rotas-servidor";
 import { carregarConciliacoes } from "../conciliacoes/acoes";
 import { InkHover, Reveal } from "@/app/reveal";
 import { Cabecalho } from "../cabecalho";
@@ -24,7 +24,7 @@ function plural(quantidade: number, singular: string, plural: string): string {
 
 export default async function DashboardPage() {
   const resposta = await carregarConciliacoes();
-  if (!resposta.ok && resposta.status === 401) redirect("/login");
+  if (!resposta.ok && resposta.status === 401) await redirecionarNoApp("/login");
 
   const conciliacoes = resposta.ok ? resposta.dados.conciliacoes : [];
   const pendentes = conciliacoes.filter((conciliacao) => pedemDecisao(conciliacao) > 0).length;

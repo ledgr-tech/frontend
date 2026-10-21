@@ -1,6 +1,6 @@
 import Image from "next/image";
-import Link from "next/link";
-import { redirect } from "next/navigation";
+import Link from "@/lib/link-do-app";
+import { redirecionarNoApp } from "@/lib/rotas-servidor";
 import { carregarFechamentos } from "../conciliacoes/acoes";
 import { formatarInteiro } from "../dashboard/resumo";
 import { agruparPorMes } from "./fechamento";
@@ -31,7 +31,7 @@ export default async function FechamentosPage({
   searchParams: Promise<{ [chave: string]: string | string[] | undefined }>;
 }) {
   const resposta = await carregarFechamentos();
-  if (!resposta.ok && resposta.status === 401) redirect("/login");
+  if (!resposta.ok && resposta.status === 401) await redirecionarNoApp("/login");
 
   const meses = resposta.ok ? agruparPorMes(resposta.dados.pares, resposta.dados.fechamentos ?? []) : [];
   // ?mes=AAAA-MM: a linha das rodadas de uma conciliação chega aqui no mês dela

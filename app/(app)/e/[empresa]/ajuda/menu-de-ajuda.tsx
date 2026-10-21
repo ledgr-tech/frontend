@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
+import Link from "@/lib/link-do-app";
 import { usePathname } from "next/navigation";
+import { caminhoSemEmpresa } from "@/lib/rotas";
 import { BookOpen, CircleHelp, LibraryBig, RotateCcw } from "lucide-react";
 import { abrirAjuda, abrirTutorial } from "@/lib/eventos";
 import { telaDoCaminho } from "../tutorial/roteiros";
@@ -19,7 +20,7 @@ export function MenuDeAjuda() {
   const [aberto, setAberto] = useState(false);
   const caixa = useRef<HTMLDivElement>(null);
   const botao = useRef<HTMLButtonElement>(null);
-  const tela = telaDoCaminho(usePathname());
+  const tela = telaDoCaminho(caminhoSemEmpresa(usePathname()));
   const pagina = ajudaDaTela(tela);
 
   useEffect(() => {

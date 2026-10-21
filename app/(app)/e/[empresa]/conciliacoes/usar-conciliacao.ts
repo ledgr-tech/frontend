@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRoteador } from "@/lib/roteador";
 import { pareceUuid, type Fechamento } from "@/lib/adaptadores";
 import { buscarConciliacao, type Conciliacao } from "@/lib/mock-data";
 import type { Mudancas } from "@/lib/rodadas";
@@ -58,7 +58,7 @@ export function useConciliacao(
   /** Carrega de novo: depois de uma rodada nova, a URL pode não ter mudado. */
   recarregar: () => void;
 } {
-  const router = useRouter();
+  const router = useRoteador();
   const [estado, setEstado] = useState<EstadoConciliacao>({ situacao: "carregando" });
   const [vez, setVez] = useState(0);
 

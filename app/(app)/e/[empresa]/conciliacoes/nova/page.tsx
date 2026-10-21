@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type CSSProperties, type DragEvent } from "react";
-import { useRouter } from "next/navigation";
+import { useRoteador } from "@/lib/roteador";
 import { ArrowRight, Check, FileUp, Link2, Scale, ShieldCheck } from "lucide-react";
 import { caminhoDaConciliacao } from "@/lib/caminhos";
 import { conciliar, type Falha } from "../acoes";
@@ -24,7 +24,7 @@ import { Reveal } from "@/app/reveal";
 import { Cabecalho } from "../../cabecalho";
 
 export default function NovaConciliacaoPage() {
-  const router = useRouter();
+  const router = useRoteador();
   const [arquivoBanco, setArquivoBanco] = useState<File | null>(null);
   const [arquivoSistema, setArquivoSistema] = useState<File | null>(null);
   const [etapa, setEtapa] = useState<Etapa>("ocioso");

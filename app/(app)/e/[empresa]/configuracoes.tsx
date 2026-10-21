@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from "react";
-import Link from "next/link";
+import Link from "@/lib/link-do-app";
 import {
   ArrowLeftRight,
   Info,

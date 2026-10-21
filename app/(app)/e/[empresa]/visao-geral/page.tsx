@@ -1,6 +1,6 @@
 import Image from "next/image";
-import Link from "next/link";
-import { redirect } from "next/navigation";
+import Link from "@/lib/link-do-app";
+import { redirecionarNoApp } from "@/lib/rotas-servidor";
 import { ArrowLeftRight, ArrowRight, CalendarCheck, Files, History, type LucideIcon } from "lucide-react";
 import { extratosDasExecucoes, type Execucao } from "@/lib/adaptadores";
 import { caminhoDaConciliacao } from "@/lib/caminhos";
@@ -43,7 +43,7 @@ function plural(quantidade: number, singular: string, plural: string): string {
 
 export default async function VisaoGeralPage() {
   const [resposta, roteiro] = await Promise.all([carregarVisaoGeral(), carregarRoteiro()]);
-  if (!resposta.ok && resposta.status === 401) redirect("/login");
+  if (!resposta.ok && resposta.status === 401) await redirecionarNoApp("/login");
 
   const recente = resposta.ok ? resposta.dados.recente : null;
   // o roteiro de primeiros passos (spec 2026-10-15-primeiro-uso, parte 4): só no primeiro mês

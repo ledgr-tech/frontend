@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import Link from "@/lib/link-do-app";
+import { useRoteador } from "@/lib/roteador";
 import { InkHover } from "@/app/reveal";
 import { SeloIa } from "../../../selo-ia";
 import { explicarDivergencia, type Explicacao, type Indisponibilidade } from "../../acoes";
@@ -41,7 +41,7 @@ export function ExplicacaoDaDivergencia({
   /** A conciliação desta linha, para quando a linha deixou de existir. */
   voltarPara: string;
 }) {
-  const router = useRouter();
+  const router = useRoteador();
   const [estado, setEstado] = useState<Estado>({ etapa: "ocioso" });
 
   async function explicar() {

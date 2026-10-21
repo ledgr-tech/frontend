@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
+import Link from "@/lib/link-do-app";
 import { ChevronRight } from "lucide-react";
 import type { Fechamento } from "@/lib/adaptadores";
 import { caminhoDaConciliacao, caminhoDoFechamento } from "@/lib/caminhos";

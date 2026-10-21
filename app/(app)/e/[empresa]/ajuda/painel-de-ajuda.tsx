@@ -2,8 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import Link from "next/link";
+import Link from "@/lib/link-do-app";
 import { usePathname } from "next/navigation";
+import { caminhoSemEmpresa } from "@/lib/rotas";
 import { ArrowRight, X } from "lucide-react";
 import { ABRIR_AJUDA } from "@/lib/eventos";
 import { telaDoCaminho } from "../tutorial/roteiros";
@@ -17,7 +18,7 @@ import { lembrarDeOndeVeio } from "../../../../(ajuda)/ajuda/voltar";
  * painel ao trocar de tela, como o tutorial.
  */
 export function PainelDaRota() {
-  const tela = telaDoCaminho(usePathname());
+  const tela = telaDoCaminho(caminhoSemEmpresa(usePathname()));
   const pagina = ajudaDaTela(tela);
   return pagina ? <PainelDeAjuda key={tela} pagina={pagina} /> : null;
 }
