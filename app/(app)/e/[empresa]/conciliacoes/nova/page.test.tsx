@@ -7,6 +7,7 @@ import userEvent from "@testing-library/user-event";
 import NovaConciliacaoPage from "./page";
 import { lerBytes } from "./ler-arquivo";
 import { ProvedorDaConta } from "../../conta";
+import { ProvedorDaEmpresa } from "@/lib/empresa-ativa";
 import type { Assinatura } from "@/lib/assinatura";
 
 const push = vi.fn();
@@ -573,5 +574,38 @@ describe("NovaConciliacaoPage", () => {
     await enviarOsDois();
     expect(await screen.findByRole("heading", { name: "Seu teste de 14 dias acabou." })).toBeInTheDocument();
     expect(screen.getByText("O teste acabou. Escolha um plano para conciliar.")).toBeInTheDocument();
+  });
+});
+
+describe("a empresa para a qual se concilia (#169)", () => {
+  const A = { id: "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20", razaoSocial: "Padaria Ltda", cnpj: "11222333000181" };
+  const B = { id: "9b8a7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d", razaoSocial: "Mercado Ltda", cnpj: "11444777000161" };
+
+  function montarComEmpresas(empresas: (typeof A)[], ativa = empresas[0]) {
+    return render(
+      <ProvedorDaConta preferencias={{ tutoriaisDispensados: [], roteiroDispensado: false }}>
+        <ProvedorDaEmpresa ativa={ativa} empresas={empresas}>
+          <NovaConciliacaoPage />
+        </ProvedorDaEmpresa>
+      </ProvedorDaConta>,
+    );
+  }
+
+  it("com mais de uma empresa, diz em destaque para qual delas o envio vai", () => {
+    montarComEmpresas([A, B], B);
+
+    expect(screen.getByText(/Conciliando para/)).toHaveTextContent("Conciliando para Mercado Ltda");
+  });
+
+  it("com uma empresa só, não diz nada", () => {
+    montarComEmpresas([A]);
+
+    expect(screen.queryByText(/Conciliando para/)).not.toBeInTheDocument();
+  });
+
+  it("fora de um provedor de empresa (os testes antigos), não diz nada", () => {
+    render(<NovaConciliacaoPage />);
+
+    expect(screen.queryByText(/Conciliando para/)).not.toBeInTheDocument();
   });
 });

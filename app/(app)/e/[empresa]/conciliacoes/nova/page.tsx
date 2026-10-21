@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type CSSProperties, type DragEvent } from "react";
 import { useRoteador } from "@/lib/roteador";
+import { useEmpresaAtiva, useEmpresasDaConta } from "@/lib/empresa-ativa";
 import { ArrowRight, Check, FileUp, Link2, Scale, ShieldCheck } from "lucide-react";
 import { caminhoDaConciliacao } from "@/lib/caminhos";
 import { conciliar, type Falha } from "../acoes";
@@ -30,6 +31,8 @@ export default function NovaConciliacaoPage() {
   const [etapa, setEtapa] = useState<Etapa>("ocioso");
   const [erro, setErro] = useState<string | null>(null);
   const assinatura = useAssinatura();
+  const empresaAtiva = useEmpresaAtiva();
+  const empresas = useEmpresasDaConta();
   // o backend recusou a conciliação pelo plano (402): o texto dele vai no lugar do envio
   const [recusa, setRecusa] = useState<string | null>(null);
   const [avisos, setAvisos] = useState<string[]>([]);
@@ -237,6 +240,12 @@ export default function NovaConciliacaoPage() {
         }
       />
       <div className="nova-corpo">
+        {/* num escritório com várias empresas, quem concilia confere para qual está enviando */}
+        {empresas.length > 1 && empresaAtiva && (
+          <p className="nova-empresa">
+            Conciliando para <strong>{empresaAtiva.razaoSocial}</strong>
+          </p>
+        )}
         {/* em cima dos cartões, perto do botão que a pessoa acabou de clicar */}
         {erro && (
           <p role="alert" className="selo selo-risco nova-erro">
