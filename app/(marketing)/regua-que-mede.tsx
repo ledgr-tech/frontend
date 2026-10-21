@@ -3,7 +3,7 @@
 import { useId, useState, type CSSProperties } from "react";
 import Link from "next/link";
 import { Check } from "lucide-react";
-import { NumeroAnimado } from "@/app/(app)/numero-animado";
+import { NumeroAnimado } from "@/app/(app)/e/[empresa]/numero-animado";
 import { formatarVolume, teclarNoMedidor, useAlturaQueDesliza } from "@/app/medidor-suave";
 import { planosDoTeste } from "@/lib/assinatura";
 import {

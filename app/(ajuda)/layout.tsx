@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { LucideProvider } from "lucide-react";
 import { auth } from "@/auth";
 import { MotionRoot } from "../reveal";
-import { TRACO_ICONE } from "../(app)/traco-icone";
+import { TRACO_ICONE } from "../(app)/e/[empresa]/traco-icone";
 import { BarraDaAjuda } from "./barra-da-ajuda";
 
 /**

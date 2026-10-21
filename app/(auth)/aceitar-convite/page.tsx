@@ -8,7 +8,7 @@ export const metadata: Metadata = { title: "Aceitar convite · Ledgr" };
 
 /**
  * A página do link do convite (backend #69). Pública, como todo o grupo
- * `(auth)`: quem barra quem não entrou é o `(app)/layout.tsx`. Daqui sai o que
+ * `(auth)`: quem barra quem não entrou é o `(app)/e/[empresa]/layout.tsx`. Daqui sai o que
  * o servidor sabe e o navegador não: se já há uma sessão aberta e, na volta do
  * Google com recusa (`?google=`), o convite guardado no cookie httpOnly.
  */

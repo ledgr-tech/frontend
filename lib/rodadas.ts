@@ -1,4 +1,4 @@
-import { estaResolvida } from "@/app/(app)/dashboard/resumo";
+import { estaResolvida } from "@/app/(app)/e/[empresa]/dashboard/resumo";
 import type { Execucao } from "./adaptadores";
 import type { LinhaComparacao } from "./mock-data";
 

@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 /**
  * A tela do mascote para quando a tela pedida não pode aparecer: o 404
  * (`app/not-found.tsx`) e o erro inesperado (`app/error.tsx` e
- * `app/(app)/error.tsx`). Mesmo desenho das telas vazias do app (`.vg-inicio`).
+ * `app/(app)/e/[empresa]/error.tsx`). Mesmo desenho das telas vazias do app (`.vg-inicio`).
  *
  * Sem "use client" de propósito: o 404 é Server Component e as páginas de erro
  * são Client Components, e as duas usam esta.
