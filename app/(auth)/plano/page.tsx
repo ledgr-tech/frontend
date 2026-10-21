@@ -1,9 +1,12 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { contaDaSessao } from "../acoes";
 import { MolduraAuth } from "../_compartilhado/moldura-auth";
 import { fonteDestaque } from "../../(marketing)/fonte-destaque";
 import { EscolherPlano } from "./escolher-plano";
+
+export const metadata: Metadata = { title: "Escolha o plano · Ledgr" };
 
 /** A escolha do plano que começa o teste de 14 dias. Só para quem está logado e ainda não escolheu. */
 export default async function PlanoPage() {

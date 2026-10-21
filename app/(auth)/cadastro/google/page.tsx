@@ -1,7 +1,10 @@
+import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { COOKIE_CADASTRO_GOOGLE, identidadeDoIdToken } from "@/lib/google";
 import { FormularioCadastro } from "../formulario";
+
+export const metadata: Metadata = { title: "Criar conta · Ledgr" };
 
 /**
  * O fim do cadastro de quem voltou do Google sem conta no Ledgr (backend #73):

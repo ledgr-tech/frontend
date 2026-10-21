@@ -2,7 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { DocumentoLegal, EmDefinicao } from "../documento-legal";
 
-export const metadata: Metadata = { title: "Política de privacidade · Ledgr" };
+export const metadata: Metadata = {
+  title: "Política de privacidade · Ledgr",
+  description: "Como o Ledgr trata os dados dos extratos que você envia e os da sua conta.",
+};
 
 export default function PrivacidadePage() {
   return (

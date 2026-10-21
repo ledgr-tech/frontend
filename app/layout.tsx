@@ -105,7 +105,7 @@ const DESCRICAO =
 // A imagem da prévia é `app/opengraph-image.tsx`. O endereço absoluto dela o Next
 // monta sozinho na Vercel (domínio de produção ou da prévia), sem metadataBase.
 export const metadata: Metadata = {
-  title: "Ledgr",
+  title: "Ledgr · Conciliação bancária",
   description: DESCRICAO,
   openGraph: {
     title: "Ledgr · Pare de conciliar extrato à mão.",

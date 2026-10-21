@@ -10,10 +10,12 @@ export function LogoBarras({
   className,
   sizes = "48px",
   loading,
+  fetchPriority,
 }: {
   className?: string;
   sizes?: string;
   loading?: "eager" | "lazy";
+  fetchPriority?: "high";
 }) {
   return (
     <Image
@@ -24,6 +26,7 @@ export function LogoBarras({
       height={998}
       sizes={sizes}
       loading={loading}
+      fetchPriority={fetchPriority}
       className={className}
     />
   );
