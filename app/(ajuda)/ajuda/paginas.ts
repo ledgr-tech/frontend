@@ -215,6 +215,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
       largura: 1360,
       altura: 850,
     },
+    video: "/ajuda/nova-conciliacao.webm",
     funcoes: [
       {
         id: "enviar",
