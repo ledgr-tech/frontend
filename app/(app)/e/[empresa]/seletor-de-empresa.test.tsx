@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ProvedorDaEmpresa, type EmpresaDaConta } from "@/lib/empresa-ativa";
 import { SeletorDeEmpresa } from "./seletor-de-empresa";
@@ -146,5 +146,33 @@ describe("SeletorDeEmpresa", () => {
     await user.type(busca, "nenhuma");
     expect(screen.queryAllByRole("option")).toHaveLength(0);
     expect(screen.getByText("Nenhuma empresa encontrada.")).toBeInTheDocument();
+  });
+
+  it("o botão aponta para a lista (aria-controls) e o foco que sai do seletor a fecha", async () => {
+    const user = userEvent.setup();
+    render(
+      <>
+        <ProvedorDaEmpresa ativa={A} empresas={[A, B]}>
+          <SeletorDeEmpresa />
+        </ProvedorDaEmpresa>
+        <button type="button">Fora</button>
+      </>,
+    );
+    const botao = screen.getByRole("button", { name: /Padaria Ltda/ });
+    await user.click(botao);
+    expect(botao).toHaveAttribute("aria-controls", screen.getByRole("listbox").id);
+    act(() => screen.getByRole("button", { name: "Fora" }).focus());
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+  });
+
+  it("Home e End vão à primeira e à última opção", async () => {
+    const user = userEvent.setup();
+    montar([A, B, { ...B, id: "11111111-1111-4111-8111-111111111111", razaoSocial: "Zeta Ltda" }]);
+    await user.click(screen.getByRole("button", { name: /Padaria Ltda/ }));
+    const opcoes = screen.getAllByRole("option");
+    await user.keyboard("{End}");
+    expect(opcoes[opcoes.length - 1]).toHaveFocus();
+    await user.keyboard("{Home}");
+    expect(opcoes[0]).toHaveFocus();
   });
 });

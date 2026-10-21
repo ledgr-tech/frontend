@@ -7,6 +7,8 @@ import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import Image from "next/image";
 import Link from "@/lib/link-do-app";
 import { caminhoDaConciliacao } from "@/lib/caminhos";
+import { useEmpresaAtiva } from "@/lib/empresa-ativa";
+import { comEmpresa } from "@/lib/rotas";
 import {
   aceitarValorDoBanco,
   formatarMoeda,
@@ -428,6 +430,7 @@ function NavegacaoDoPainel({
   paginaInteira: string;
 }) {
   const router = useRoteador();
+  const empresa = useEmpresaAtiva();
   return (
     <div className="painel-nav">
       {anterior ? (
@@ -448,7 +451,7 @@ function NavegacaoDoPainel({
           <ChevronRight size={18} aria-hidden="true" />
         </button>
       )}
-      <a href={paginaInteira} className="btn btn-ghost">
+      <a href={comEmpresa(empresa?.id ?? "", paginaInteira)} className="btn btn-ghost">
         Abrir em página inteira
       </a>
       <button type="button" className="btn btn-ghost painel-nav-icone" aria-label="Fechar" onClick={() => router.back()}>

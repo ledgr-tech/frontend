@@ -665,7 +665,7 @@ describe("contaDaSessao", () => {
   it("sem resposta, esconde a empresa em vez de inventar um nome e deixa a troca de senha à mostra", async () => {
     fetch.mockResolvedValue(Response.json({ detail: "Not Found" }, { status: 404 }));
 
-    expect(await contaDaSessao()).toEqual({ empresa: "", temSenha: true, papel: "admin", empresas: [], preferencias: null, assinatura: null });
+    expect(await contaDaSessao()).toEqual({ empresa: "", temSenha: true, papel: "admin", empresas: [], preferencias: null, assinatura: null, indisponivel: true });
   });
 
   it("lê as empresas da conta do /me, na ordem em que o backend manda (#133)", async () => {

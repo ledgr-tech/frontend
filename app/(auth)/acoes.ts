@@ -482,6 +482,8 @@ export type ContaDaSessao = {
   preferencias: Preferencias | null;
   /** O plano e o teste de 14 dias; null quando o `GET /me` ainda não manda `situacao`: nada bloqueia. */
   assinatura: Assinatura | null;
+  /** Só quando o `GET /me` falhou: `empresas` vazia então não quer dizer "backend anterior", e ninguém deve adivinhar a empresa. */
+  indisponivel?: true;
 };
 
 type PreferenciasAPI = { tutoriais_dispensados?: unknown; roteiro_dispensado?: unknown };
@@ -540,7 +542,7 @@ export async function contaDaSessao(): Promise<ContaDaSessao> {
       assinatura: adaptarAssinatura(eu),
     };
   } catch {
-    return { empresa: "", temSenha: true, papel: "admin", empresas: [], preferencias: null, assinatura: null };
+    return { empresa: "", temSenha: true, papel: "admin", empresas: [], preferencias: null, assinatura: null, indisponivel: true };
   }
 }
 

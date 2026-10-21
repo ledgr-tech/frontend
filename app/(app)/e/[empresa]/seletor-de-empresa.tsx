@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { usePathname } from "next/navigation";
 import { ChevronsUpDown } from "lucide-react";
 import { useEmpresaAtiva, useEmpresasDaConta, type EmpresaDaConta } from "@/lib/empresa-ativa";
@@ -47,6 +47,7 @@ export function SeletorDeEmpresa() {
   const caminho = usePathname();
   const [aberto, setAberto] = useState(false);
   const [busca, setBusca] = useState("");
+  const idDaLista = useId();
   const caixa = useRef<HTMLDivElement>(null);
   const botao = useRef<HTMLButtonElement>(null);
   const campoBusca = useRef<HTMLInputElement>(null);
@@ -91,17 +92,34 @@ export function SeletorDeEmpresa() {
       fechar(true);
       return;
     }
-    if (evento.key !== "ArrowDown" && evento.key !== "ArrowUp") return;
+    if (evento.key !== "ArrowDown" && evento.key !== "ArrowUp" && evento.key !== "Home" && evento.key !== "End") return;
+    // Home e End no campo de busca editam o texto; só nas opções andam pela lista
+    if ((evento.key === "Home" || evento.key === "End") && evento.target === campoBusca.current) return;
     const opcoes = [...(lista.current?.querySelectorAll<HTMLElement>('[role="option"]') ?? [])];
     if (opcoes.length === 0) return;
     evento.preventDefault();
     const indice = opcoes.indexOf(document.activeElement as HTMLElement);
-    const proximo = evento.key === "ArrowDown" ? Math.min(indice + 1, opcoes.length - 1) : Math.max(indice - 1, 0);
+    const proximo =
+      evento.key === "Home"
+        ? 0
+        : evento.key === "End"
+          ? opcoes.length - 1
+          : evento.key === "ArrowDown"
+            ? Math.min(indice + 1, opcoes.length - 1)
+            : Math.max(indice - 1, 0);
     opcoes[proximo].focus();
   }
 
   return (
-    <div className="seletor-empresa" ref={caixa} onKeyDown={aoTeclar}>
+    <div
+      className="seletor-empresa"
+      ref={caixa}
+      onKeyDown={aoTeclar}
+      // o foco que sai do seletor (Tab) fecha a lista; clicar numa opção não conta, o foco segue dentro
+      onBlur={(evento) => {
+        if (aberto && !caixa.current?.contains(evento.relatedTarget as Node | null)) fechar(false);
+      }}
+    >
       <button
         ref={botao}
         type="button"
@@ -109,6 +127,7 @@ export function SeletorDeEmpresa() {
         data-dica={ativa.razaoSocial}
         aria-haspopup="listbox"
         aria-expanded={aberto}
+        aria-controls={aberto ? idDaLista : undefined}
         onClick={() => (aberto ? fechar(false) : setAberto(true))}
       >
         <span className="seletor-empresa-iniciais" aria-hidden="true">
@@ -134,7 +153,7 @@ export function SeletorDeEmpresa() {
               onChange={(evento) => setBusca(evento.target.value)}
             />
           )}
-          <ul ref={lista} role="listbox" aria-label="Empresas" className="seletor-empresa-lista">
+          <ul id={idDaLista} ref={lista} role="listbox" aria-label="Empresas" className="seletor-empresa-lista">
             {visiveis.map((empresa) => (
               <li key={empresa.id} role="presentation">
                 <button

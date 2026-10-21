@@ -26,6 +26,8 @@ export default async function UrlSemEmpresa({
   if (!sessao?.user?.email) redirect("/login");
 
   const conta = await contaDaSessao();
+  // sem a lista por falha do /me (não por backend antigo), a empresa da sessão pode não ser a da pessoa: a tela de erro deixa tentar de novo
+  if (conta.indisponivel) throw new Error("Conta indisponível: tente de novo.");
   const recente = (await cookies()).get(COOKIE_DA_EMPRESA_RECENTE)?.value;
   const daSessao = ehUuid(sessao.user.empresaId ?? "") ? sessao.user.empresaId : null;
   const empresa = escolherEmpresa(conta.empresas, recente) ?? daSessao;

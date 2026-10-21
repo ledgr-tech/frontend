@@ -91,6 +91,12 @@ describe("URL sem empresa", () => {
     expect(redirect).toHaveBeenCalledWith(`/e/${A}/visao-geral`);
   });
 
+  it("com o GET /me fora do ar, não adivinha a empresa pela sessão: falha para a tela de erro tentar de novo", async () => {
+    contaDaSessao.mockResolvedValue({ empresas: [], indisponivel: true });
+    await expect(abrir("visao-geral")).rejects.toThrow("Conta indisponível");
+    expect(redirect).not.toHaveBeenCalled();
+  });
+
   it("sem lista e sem uma empresa de sessão que seja UUID, é 404", async () => {
     contaDaSessao.mockResolvedValue({ empresas: [] });
     auth.mockResolvedValue({ user: { email: "ana@x.com", empresaId: "lixo" } });

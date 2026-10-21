@@ -27,6 +27,9 @@ const ANCORA_CRUA = new RegExp(String.raw`<a\b[^>]*\bhref=\{?\s*${ASPA}/${SECAO}
 const ABRE_CRU = new RegExp(String.raw`window\.open\(\s*${ASPA}/${SECAO}\b`);
 const LOCATION_CRU = new RegExp(String.raw`location\.(?:href\s*=|assign\()\s*${ASPA}/${SECAO}\b`);
 
+// <a href={x}> com expressão que não passa por comEmpresa: o endereço de uma tela da empresa sairia sem o prefixo
+const ANCORA_DINAMICA = /<a\b[^>]*\bhref=\{\s*(?!comEmpresa\()/;
+
 const REGRAS: { nome: string; acha: (fonte: string) => boolean }[] = [
   { nome: 'importa Link de "next/link" (use @/lib/link-do-app)', acha: (f) => /from\s*["']next\/link["']/.test(f) },
   {
@@ -37,6 +40,7 @@ const REGRAS: { nome: string; acha: (fonte: string) => boolean }[] = [
       ),
   },
   { nome: "tem <a href> para uma tela da empresa (use o LinkDoApp)", acha: (f) => ANCORA_CRUA.test(f) },
+  { nome: "tem <a href={...}> que não passa por comEmpresa(empresa.id, ...)", acha: (f) => ANCORA_DINAMICA.test(f) },
   {
     nome: "abre uma tela da empresa por window.open ou location com endereço cru",
     acha: (f) => ABRE_CRU.test(f) || LOCATION_CRU.test(f),
@@ -67,7 +71,11 @@ describe("as telas da empresa navegam pelos auxiliares da empresa ativa", () => 
     expect(REGRAS[2].acha('<a href="/fechamentos/x/relatorio" target="_blank">')).toBe(true);
     expect(REGRAS[2].acha("<a\n  href={`/extratos/${id}`}>")).toBe(true);
     expect(REGRAS[2].acha('<a href="https://exemplo.com">')).toBe(false);
-    expect(REGRAS[3].acha('window.open("/historico")')).toBe(true);
-    expect(REGRAS[3].acha("location.href = `/regras`")).toBe(true);
+    expect(REGRAS[3].acha("<a href={paginaInteira} className=\"btn\">")).toBe(true);
+    expect(REGRAS[3].acha("<a\n  href={ paginaInteira }>")).toBe(true);
+    expect(REGRAS[3].acha("<a href={comEmpresa(id, p)}>")).toBe(false);
+    expect(REGRAS[3].acha('<a href="mailto:x@y.com">')).toBe(false);
+    expect(REGRAS[4].acha('window.open("/historico")')).toBe(true);
+    expect(REGRAS[4].acha("location.href = `/regras`")).toBe(true);
   });
 });
