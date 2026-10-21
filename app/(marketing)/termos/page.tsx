@@ -2,7 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { DocumentoLegal, EmDefinicao } from "../documento-legal";
 
-export const metadata: Metadata = { title: "Termos de uso · Ledgr" };
+export const metadata: Metadata = {
+  title: "Termos de uso · Ledgr",
+  description: "As regras de uso do Ledgr, que concilia o extrato do banco com o do sistema de gestão da sua empresa.",
+};
 
 export default function TermosPage() {
   return (

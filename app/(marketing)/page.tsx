@@ -246,9 +246,9 @@ export default function LandingPage() {
 
       {/* hero */}
       <section style={{ position: "relative", overflow: "hidden" }}>
-        {/* o logo de adesivo, como em todo lugar. É a maior imagem do topo e vira o LCP: eager, para
-            não esperar o lazy */}
-        <LogoBarras className="hero-marca" sizes="640px" loading="eager" />
+        {/* o logo de adesivo, como em todo lugar. É a maior imagem do topo e vira o LCP: eager e com
+            prioridade alta, para baixar antes do resto; no celular ele tem 380px (globals.css) */}
+        <LogoBarras className="hero-marca" sizes="(max-width: 760px) 380px, 640px" loading="eager" fetchPriority="high" />
         <div
           aria-hidden="true"
           style={{
