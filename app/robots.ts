@@ -10,6 +10,7 @@ const FORA_DA_BUSCA = [
   "/conciliacoes",
   "/configuracoes",
   "/dashboard",
+  "/e/",
   "/extratos",
   "/fechamentos",
   "/historico",
