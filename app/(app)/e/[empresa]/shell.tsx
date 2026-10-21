@@ -17,6 +17,7 @@ import type { Papel } from "@/lib/papel";
 export function Shell({
   email,
   empresa,
+  nomeDaConta,
   temSenha,
   papel,
   preferencias,
@@ -24,7 +25,10 @@ export function Shell({
   children,
 }: {
   email: string;
+  /** A razão social da empresa ativa: é a que as telas mostram no cabeçalho. */
   empresa: string;
+  /** O nome da conta (o escritório), no cartão do usuário; sem ele, o da empresa, como antes. */
+  nomeDaConta?: string;
   temSenha: boolean;
   /** O papel de quem está logado, do `GET /me`; vai até a seção Equipe das Configurações. */
   papel: Papel;
@@ -41,7 +45,7 @@ export function Shell({
           <div className="app-shell">
             <MenuLateral
               email={email}
-              empresa={empresa}
+              empresa={nomeDaConta ?? empresa}
               temSenha={temSenha}
               papel={papel}
               onSair={() => void sair()}

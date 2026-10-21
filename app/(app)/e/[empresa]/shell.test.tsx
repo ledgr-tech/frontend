@@ -89,4 +89,28 @@ describe("Shell", () => {
     expect(icones.length).toBeGreaterThan(5);
     for (const icone of icones) expect(icone).toHaveAttribute("stroke-width", "1.75");
   });
+
+  it("o cabeçalho mostra a empresa ativa e o cartão do usuário, o nome da conta", async () => {
+    render(
+      <Shell email={EMAIL} empresa="Mercado Ltda" nomeDaConta="Escritório Contábil Ltda" temSenha papel="admin" preferencias={null}>
+        <Cabecalho titulo="Extratos" contexto={[]} />
+      </Shell>,
+    );
+
+    const menu = await screen.findByRole("navigation", { name: "Seções do app" });
+    expect(screen.getAllByText("Mercado Ltda").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Escritório Contábil Ltda").length).toBeGreaterThan(0);
+    // o nome da empresa ativa não está no cartão do usuário, que fica fora do <nav>
+    expect(menu).not.toHaveTextContent("Mercado Ltda");
+  });
+
+  it("sem nomeDaConta, o cartão do usuário usa o nome da empresa, como antes", async () => {
+    render(
+      <Shell email={EMAIL} empresa="Telha Certa Ltda" temSenha papel="admin" preferencias={null}>
+        conteúdo
+      </Shell>,
+    );
+
+    expect((await screen.findAllByText("Telha Certa Ltda")).length).toBeGreaterThan(0);
+  });
 });

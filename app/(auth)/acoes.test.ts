@@ -650,7 +650,7 @@ describe("contaDaSessao", () => {
   it("lê a razão social de GET /me, e que a conta tem senha para trocar", async () => {
     fetch.mockResolvedValue(Response.json(EU));
 
-    expect(await contaDaSessao()).toEqual({ empresa: "Telha Certa Ltda", temSenha: true, papel: "admin", preferencias: null, assinatura: null });
+    expect(await contaDaSessao()).toEqual({ empresa: "Telha Certa Ltda", temSenha: true, papel: "admin", empresas: [], preferencias: null, assinatura: null });
     expect(fetch).toHaveBeenCalledTimes(1);
     expect(fetch.mock.calls[0][0]).toBe("http://localhost:8000/me");
   });
@@ -659,13 +659,38 @@ describe("contaDaSessao", () => {
     // para ela, POST /me/senha responde 409
     fetch.mockResolvedValue(Response.json({ ...EU, metodos_login: ["google"] }));
 
-    expect(await contaDaSessao()).toEqual({ empresa: "Telha Certa Ltda", temSenha: false, papel: "admin", preferencias: null, assinatura: null });
+    expect(await contaDaSessao()).toEqual({ empresa: "Telha Certa Ltda", temSenha: false, papel: "admin", empresas: [], preferencias: null, assinatura: null });
   });
 
   it("sem resposta, esconde a empresa em vez de inventar um nome e deixa a troca de senha à mostra", async () => {
     fetch.mockResolvedValue(Response.json({ detail: "Not Found" }, { status: 404 }));
 
-    expect(await contaDaSessao()).toEqual({ empresa: "", temSenha: true, papel: "admin", preferencias: null, assinatura: null });
+    expect(await contaDaSessao()).toEqual({ empresa: "", temSenha: true, papel: "admin", empresas: [], preferencias: null, assinatura: null });
+  });
+
+  it("lê as empresas da conta do /me, na ordem em que o backend manda (#133)", async () => {
+    fetch.mockResolvedValue(
+      Response.json({
+        ...EU,
+        empresas: [
+          { id: "e1", razao_social: " Padaria Ltda ", cnpj: "11222333000181" },
+          { id: "e2", razao_social: "Mercado Ltda", cnpj: "11444777000161" },
+        ],
+      }),
+    );
+
+    expect((await contaDaSessao()).empresas).toEqual([
+      { id: "e1", razaoSocial: "Padaria Ltda", cnpj: "11222333000181" },
+      { id: "e2", razaoSocial: "Mercado Ltda", cnpj: "11444777000161" },
+    ]);
+  });
+
+  it("sem empresas no /me (backend anterior ao #133), a lista é vazia; e ignora o item que não tem id", async () => {
+    fetch.mockResolvedValue(Response.json(EU));
+    expect((await contaDaSessao()).empresas).toEqual([]);
+
+    fetch.mockResolvedValue(Response.json({ ...EU, empresas: [{ razao_social: "Sem id" }, { id: "e1", razao_social: "Ok", cnpj: "1" }] }));
+    expect((await contaDaSessao()).empresas).toEqual([{ id: "e1", razaoSocial: "Ok", cnpj: "1" }]);
   });
 
   it("lê o papel da pessoa, que o backend manda em papel (#133)", async () => {
