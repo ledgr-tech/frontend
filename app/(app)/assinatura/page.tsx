@@ -1,51 +1,65 @@
+"use client";
+
+import Link from "next/link";
 import { Reveal } from "@/app/reveal";
 import { PLANOS } from "@/lib/planos";
 import { CancelarAssinatura } from "./cancelar-assinatura";
 import { ASSINATURA, FATURAS, NUMEROS } from "./dados";
 import { Cabecalho } from "../cabecalho";
+import { useAssinatura } from "../conta";
 
 /**
  * A assinatura da empresa: o plano, os planos da landing e as faturas. Tudo
  * mock (ver `dados.ts`), e nada aqui finge que mudou: toda ação que mexeria na
  * cobrança aparece desligada e aponta para o aviso que diz por quê. Com o dado
- * fixo e sem backend, a tela sai pronta do servidor e dispensa esqueleto.
+ * fixo e sem backend, a tela dispensa esqueleto. Quem ainda não assinou (o `GET /me`
+ * diz `sem_plano`, `teste` ou `teste_encerrado`) vê só os planos; sem a informação do
+ * backend, a tela de demonstração segue inteira.
  */
 
 const AVISO_ID = "assinatura-aviso";
 
 export default function AssinaturaPage() {
   const { plano, renovaEm, faixa } = ASSINATURA;
+  const assinatura = useAssinatura();
+  const assinou = !assinatura || assinatura.situacao === "ativo";
 
   return (
     <div>
       <Cabecalho
         titulo="Assinatura"
-        contexto={[`plano ${plano.nome}`, `renova em ${renovaEm}`]}
+        contexto={assinou ? [`plano ${plano.nome}`, `renova em ${renovaEm}`] : undefined}
         acoes={
-          <>
-            <button type="button" className="btn btn-secondary" disabled aria-describedby={AVISO_ID}>
-              Trocar forma de pagamento
-            </button>
-            <CancelarAssinatura fimDoPeriodo={renovaEm} />
-          </>
+          assinou ? (
+            <>
+              <button type="button" className="btn btn-secondary" disabled aria-describedby={AVISO_ID}>
+                Trocar forma de pagamento
+              </button>
+              <CancelarAssinatura fimDoPeriodo={renovaEm} />
+            </>
+          ) : undefined
         }
       />
 
       <div className="ass-corpo">
-        <p id={AVISO_ID} role="note" className="aviso-demonstracao">
-          <strong>A cobrança ainda não está no ar.</strong> Plano e faturas desta tela são de
-          demonstração, e nada é alterado por aqui.
-        </p>
+        {assinou && (
+          <p id={AVISO_ID} role="note" className="aviso-demonstracao">
+            <strong>A cobrança ainda não está no ar.</strong> Plano e faturas desta tela são de
+            demonstração, e nada é alterado por aqui.
+          </p>
+        )}
 
-        <Reveal className="grade-colunas dash-resumo">
-          {NUMEROS.map((numero) => (
-            <div key={numero.rotulo}>
-              <span className="dash-rotulo">{numero.rotulo}</span>
-              <span className="dash-valor">{numero.valor}</span>
-              <span className="dash-nota">{numero.nota}</span>
-            </div>
-          ))}
-        </Reveal>
+        {assinou && (
+          <Reveal className="grade-colunas dash-resumo">
+            {NUMEROS.map((numero) => (
+              <div key={numero.rotulo}>
+                <span className="dash-rotulo">{numero.rotulo}</span>
+                <span className="dash-valor">{numero.valor}</span>
+                <span className="dash-nota">{numero.nota}</span>
+              </div>
+            ))}
+          </Reveal>
+        )}
 
         <Reveal delay={0.08}>
           <section className="ass-planos-caixa">
@@ -54,7 +68,7 @@ export default function AssinaturaPage() {
             </h3>
             <ul className="ass-planos" aria-labelledby="assinatura-planos">
               {PLANOS.map((opcao) => {
-                const atual = opcao.nome === plano.nome;
+                const atual = assinou && opcao.nome === plano.nome;
                 return (
                   <li key={opcao.nome} className="ass-plano" data-atual={atual ? "true" : undefined}>
                     <div className="ass-plano-topo">
@@ -69,14 +83,20 @@ export default function AssinaturaPage() {
                     <p className="ass-plano-texto">{opcao.limite}</p>
                     {atual && <p className="ass-plano-texto">{faixa}</p>}
                     {/* o plano atual não é ação, é estado; os outros seriam troca de plano */}
-                    <button
-                      type="button"
-                      className="btn btn-secondary"
-                      disabled
-                      aria-describedby={atual ? undefined : AVISO_ID}
-                    >
-                      {atual ? "Plano atual" : `Mudar para ${opcao.nome}`}
-                    </button>
+                    {assinou ? (
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        disabled
+                        aria-describedby={atual ? undefined : AVISO_ID}
+                      >
+                        {atual ? "Plano atual" : `Mudar para ${opcao.nome}`}
+                      </button>
+                    ) : (
+                      <Link href="/plano" className="btn btn-secondary">
+                        {opcao.contato ? "Fale com a gente" : `Assinar o ${opcao.nome}`}
+                      </Link>
+                    )}
                   </li>
                 );
               })}
@@ -84,6 +104,7 @@ export default function AssinaturaPage() {
           </section>
         </Reveal>
 
+        {assinou && (
         <Reveal delay={0.16}>
           <section className="ass-faturas">
             <h3 className="ass-titulo">Faturas</h3>
@@ -132,6 +153,7 @@ export default function AssinaturaPage() {
             </div>
           </section>
         </Reveal>
+        )}
       </div>
     </div>
   );

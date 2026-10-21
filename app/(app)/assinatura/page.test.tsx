@@ -2,6 +2,8 @@ import { describe, it, expect } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { PLANOS } from "@/lib/planos";
+import type { Assinatura } from "@/lib/assinatura";
+import { ProvedorDaConta } from "../conta";
 import AssinaturaPage from "./page";
 
 const AVISO =
@@ -180,5 +182,41 @@ describe("AssinaturaPage", () => {
 
     await user.click(screen.getByTestId("assinatura-fundo"));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  describe("by the account's situation", () => {
+    function comConta(assinatura: Assinatura) {
+      return render(
+        <ProvedorDaConta preferencias={null} assinatura={assinatura}>
+          <AssinaturaPage />
+        </ProvedorDaConta>,
+      );
+    }
+
+    it.each(["sem_plano", "teste", "teste_encerrado"] as const)(
+      "shows only the plans, with a way to subscribe, while the account is %s",
+      (situacao) => {
+        comConta({ situacao, plano: null, testeTerminaEm: null });
+
+        const planos = within(screen.getByRole("list", { name: "Planos" })).getAllByRole("listitem");
+        expect(planos).toHaveLength(PLANOS.length);
+        expect(screen.getByRole("link", { name: "Assinar o Essencial" })).toHaveAttribute("href", "/plano");
+        expect(screen.getByRole("link", { name: "Fale com a gente" })).toHaveAttribute("href", "/plano");
+
+        expect(screen.queryByText("Atual")).not.toBeInTheDocument();
+        expect(screen.queryByText("Plano atual", { selector: ".dash-rotulo" })).not.toBeInTheDocument();
+        expect(screen.queryByRole("table")).not.toBeInTheDocument();
+        expect(screen.queryByRole("heading", { name: "Faturas" })).not.toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: "Cancelar assinatura" })).not.toBeInTheDocument();
+        expect(screen.queryByRole("note")).not.toBeInTheDocument();
+      },
+    );
+
+    it("keeps the plan, the usage and the invoices once the account is active", () => {
+      comConta({ situacao: "ativo", plano: "padrao", testeTerminaEm: null });
+      expect(screen.getByText("Plano atual", { selector: ".dash-rotulo" })).toBeInTheDocument();
+      expect(screen.getByRole("table")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Cancelar assinatura" })).toBeInTheDocument();
+    });
   });
 });
