@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
+import { Analytics } from "@vercel/analytics/next";
 import localFont from "next/font/local";
 import "./fonts/fontes.css";
 import "./globals.css";
@@ -144,7 +145,12 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           }}
         />
       </head>
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        {children}
+        {/* as visitas, pelo Web Analytics da Vercel: sem cookie, então sem aviso de cookies (LGPD). O
+            script vem do próprio domínio (/_vercel/insights), e a CSP já o aceita pelo strict-dynamic */}
+        <Analytics />
+      </body>
     </html>
   );
 }
