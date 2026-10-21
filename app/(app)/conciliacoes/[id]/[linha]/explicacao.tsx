@@ -126,7 +126,8 @@ export function ExplicacaoDaDivergencia({
             </div>
             {/* o aviso fica no momento em que o dado sai, não só na Política */}
             <p className="explicacao-aviso">
-              Ao pedir, dados resumidos desta linha são enviados à OpenAI.{" "}
+              Ao conciliar, o Ledgr já explica as divergências; ao pedir aqui, dados resumidos desta linha
+              são enviados à OpenAI.{" "}
               <Link href="/privacidade">Saiba mais</Link>
             </p>
           </>

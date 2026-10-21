@@ -673,7 +673,7 @@ export function Configuracoes({
         {
           titulo: "Explicações por IA",
           descricao:
-            "Rodam só quando você pede, na tela da linha, e têm limite diário. A IA explica; quem decide é você.",
+            "São geradas ao conciliar, para cada divergência, e têm limite diário. A IA explica; quem decide é você.",
         },
       ],
     },
