@@ -1694,7 +1694,7 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
    no hover. Na faixa escura: traço e marcas em neutro, a marca do plano indicado em dourado */
 .regua-mede { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr); gap: clamp(24px, 4vw, 52px); align-items: center; }
 .regua-mede .preco-regua-topo { margin-bottom: 0; }
-.regua-mede-titulo { margin: 16px 0 0; font-size: clamp(24px, 2.6vw, 32px); color: var(--ledgr-tinta); }
+.regua-mede-titulo { margin: 18px 0 0; font-size: clamp(32px, 3.8vw, 48px); line-height: 1.1; color: var(--ledgr-tinta); }
 .regua-mede-titulo em { line-height: 1; color: var(--color-accent-300); }
 .regua-mede-valor { display: flex; align-items: baseline; gap: 10px; margin: 26px 0 12px; cursor: pointer; }
 .regua-mede-valor output { font-size: clamp(60px, 7vw, 92px); line-height: 1; color: var(--color-accent); }
@@ -1720,6 +1720,10 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
 .regua-mede-marcas span[data-acesa] { color: var(--color-accent-300); }
 .regua-mede-marcas span::before { content: ""; position: absolute; top: 0; left: 50%; width: 1px; height: 9px; background: currentColor; }
 
+/* a caixa que desliza de altura; a folga dos lados deixa o anel de foco do botão aparecer */
+.regua-mede-corpo { overflow: hidden; margin: 0 -6px; padding: 0 6px 6px; }
+/* flow-root: a margem do título não escapa do miolo, e a altura medida é a altura inteira */
+.regua-mede-indicacao { display: flow-root; }
 .regua-mede-folha {
   position: relative; padding: clamp(22px, 2.6vw, 30px); border-radius: 16px; color: #201f1d;
   background-color: #fdfcfa;
@@ -1744,9 +1748,15 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
 .regua-mede-acao:hover { background: color-mix(in srgb, var(--color-accent) 12%, transparent); }
 .regua-mede-rodape { margin: 10px 0 0; text-align: center; font-size: 12.5px; color: color-mix(in srgb, #201f1d 58%, transparent); }
 @media (prefers-reduced-motion: no-preference) {
-  /* a cada plano indicado, só o miolo da folha entra de novo */
-  .regua-mede-indicacao { animation: regua-mede-entra 0.4s cubic-bezier(0.22, 1, 0.36, 1); }
-  @keyframes regua-mede-entra { from { opacity: 0; transform: translateY(10px); } }
+  /* a cada plano indicado, a folha desliza até a nova altura e o miolo entra de novo, os itens em cascata */
+  .regua-mede-corpo { transition: height 0.45s cubic-bezier(0.22, 1, 0.36, 1); }
+  .regua-mede-indicacao { animation: regua-mede-entra 0.5s cubic-bezier(0.22, 1, 0.36, 1); }
+  .regua-mede-itens li { animation: regua-mede-entra 0.5s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
+  .regua-mede-itens li:nth-child(2) { animation-delay: 60ms; }
+  .regua-mede-itens li:nth-child(3) { animation-delay: 120ms; }
+  .regua-mede-itens li:nth-child(4) { animation-delay: 180ms; }
+  .regua-mede-itens li:nth-child(5) { animation-delay: 240ms; }
+  @keyframes regua-mede-entra { from { opacity: 0; transform: translateY(14px); filter: blur(3px); } }
 }
 @media (max-width: 900px) {
   .regua-mede { grid-template-columns: minmax(0, 1fr); }

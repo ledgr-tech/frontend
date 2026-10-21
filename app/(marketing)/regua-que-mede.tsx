@@ -1,20 +1,20 @@
 "use client";
 
-import { useId, useState, type CSSProperties } from "react";
+import { useEffect, useId, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
 import Link from "next/link";
 import { Check } from "lucide-react";
+import { NumeroAnimado } from "@/app/(app)/numero-animado";
 import { planosDoTeste } from "@/lib/assinatura";
 import {
   CONTATO,
   DETALHES,
   MARCAS,
-  PASSOS,
   PASSO_INICIAL,
   ULTIMO_PASSO,
   lembrarPlano,
   marcaDoPlano,
   planoDoVolume,
-  rotuloDoVolume,
+  volumeDoPasso,
 } from "@/lib/medidor-de-planos";
 
 /**
@@ -28,11 +28,20 @@ import {
 export function ReguaQueMede() {
   const idMedidor = useId();
   const [passo, setPasso] = useState(PASSO_INICIAL);
-  const lancamentos = PASSOS[passo];
+  const lancamentos = volumeDoPasso(passo);
   const indicado = planoDoVolume(lancamentos);
   const plano = planosDoTeste().find((p) => p.id === indicado) ?? null;
   const detalhes = DETALHES[indicado];
   const acesa = marcaDoPlano(indicado);
+  const { caixa, conteudo } = useAlturaQueDesliza(indicado);
+
+  // o medidor desliza entre os passos; pelo teclado, as setas vão de um passo ao seguinte
+  function teclar(evento: KeyboardEvent<HTMLInputElement>) {
+    const sobe = evento.key === "ArrowRight" || evento.key === "ArrowUp";
+    if (!sobe && evento.key !== "ArrowLeft" && evento.key !== "ArrowDown") return;
+    evento.preventDefault();
+    setPasso((p) => Math.max(0, Math.min(ULTIMO_PASSO, sobe ? Math.floor(p) + 1 : Math.ceil(p) - 1)));
+  }
 
   return (
     <div className="regua-mede">
@@ -46,7 +55,11 @@ export function ReguaQueMede() {
         </p>
         <label htmlFor={idMedidor} className="regua-mede-valor">
           <output htmlFor={idMedidor} className="numero-destaque">
-            {rotuloDoVolume(passo)}
+            <NumeroAnimado
+              valor={lancamentos}
+              duracao={350}
+              formatar={(v) => Math.round(v).toLocaleString("pt-BR") + (passo === ULTIMO_PASSO ? "+" : "")}
+            />
           </output>
           <span>lançamentos</span>
         </label>
@@ -56,11 +69,12 @@ export function ReguaQueMede() {
           className="regua-mede-controle"
           min={0}
           max={ULTIMO_PASSO}
-          step={1}
+          step={0.01}
           value={passo}
           aria-valuetext={`${lancamentos.toLocaleString("pt-BR")}${passo === ULTIMO_PASSO ? " ou mais" : ""} lançamentos por mês`}
           style={{ "--cheio": `${(passo / ULTIMO_PASSO) * 100}%` } as CSSProperties}
           onChange={(evento) => setPasso(Number(evento.target.value))}
+          onKeyDown={teclar}
         />
         <div className="regua-mede-marcas" aria-hidden="true">
           {MARCAS.map(([marca, rotulo]) => (
@@ -79,47 +93,69 @@ export function ReguaQueMede() {
       {/* a folha: o plano para o volume escolhido */}
       <section className="regua-mede-folha" aria-live="polite" aria-labelledby="regua-mede-plano">
         <p className="regua-mede-rotulo">{plano ? "O plano para o seu volume" : "Mais de 350 por mês"}</p>
-        <div key={indicado} className="regua-mede-indicacao">
-          <h3 id="regua-mede-plano" className="titulo-misto regua-mede-nome">
-            {plano ? (
-              <>
-                O seu plano é o <em>{plano.nome}.</em>
-              </>
-            ) : (
-              <>
-                Vamos combinar <em>juntos.</em>
-              </>
+        <div ref={caixa} className="regua-mede-corpo">
+          <div ref={conteudo} key={indicado} className="regua-mede-indicacao">
+            <h3 id="regua-mede-plano" className="titulo-misto regua-mede-nome">
+              {plano ? (
+                <>
+                  O seu plano é o <em>{plano.nome}.</em>
+                </>
+              ) : (
+                <>
+                  Vamos combinar <em>juntos.</em>
+                </>
+              )}
+            </h3>
+            <p className="regua-mede-para">{detalhes.para}</p>
+            {plano && (
+              <p className="regua-mede-preco">
+                <span>{plano.preco}</span> <small>/mês</small>
+              </p>
             )}
-          </h3>
-          <p className="regua-mede-para">{detalhes.para}</p>
-          {plano && (
-            <p className="regua-mede-preco">
-              <span>{plano.preco}</span> <small>/mês</small>
-            </p>
-          )}
-          <ul className="regua-mede-itens">
-            {detalhes.itens.map(([item, emBreve]) => (
-              <li key={item} data-depois={emBreve ? "" : undefined}>
-                <Check size={15} aria-hidden="true" />
-                <span>
-                  {item}
-                  {emBreve && <span className="regua-mede-em-breve">em breve</span>}
-                </span>
-              </li>
-            ))}
-          </ul>
-          {plano ? (
-            <Link href="/cadastro" className="btn regua-mede-acao" onClick={() => lembrarPlano(plano.id)}>
-              {`Começar com o ${plano.nome}`}
-            </Link>
-          ) : (
-            <a className="btn regua-mede-acao" href={`mailto:${CONTATO}?subject=${encodeURIComponent("Plano Volume")}`}>
-              Fale com a gente
-            </a>
-          )}
-          <p className="regua-mede-rodape">{plano ? "14 dias grátis, sem cartão" : CONTATO}</p>
+            <ul className="regua-mede-itens">
+              {detalhes.itens.map(([item, emBreve]) => (
+                <li key={item} data-depois={emBreve ? "" : undefined}>
+                  <Check size={15} aria-hidden="true" />
+                  <span>
+                    {item}
+                    {emBreve && <span className="regua-mede-em-breve">em breve</span>}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            {plano ? (
+              <Link href="/cadastro" className="btn regua-mede-acao" onClick={() => lembrarPlano(plano.id)}>
+                {`Começar com o ${plano.nome}`}
+              </Link>
+            ) : (
+              <a className="btn regua-mede-acao" href={`mailto:${CONTATO}?subject=${encodeURIComponent("Plano Volume")}`}>
+                Fale com a gente
+              </a>
+            )}
+            <p className="regua-mede-rodape">{plano ? "14 dias grátis, sem cartão" : CONTATO}</p>
+          </div>
         </div>
       </section>
     </div>
   );
+}
+
+/**
+ * A folha muda de altura quando o plano muda (o Volume não tem preço, cada plano tem seus itens):
+ * a caixa acompanha a altura do conteúdo com uma transição, em vez de pular.
+ */
+function useAlturaQueDesliza(plano: string) {
+  const caixa = useRef<HTMLDivElement>(null);
+  const conteudo = useRef<HTMLDivElement>(null);
+  // a key troca o conteúdo a cada plano, então o efeito volta a observar o nó novo
+  useEffect(() => {
+    const no = conteudo.current;
+    if (!no || typeof ResizeObserver === "undefined") return;
+    const observador = new ResizeObserver(() => {
+      if (caixa.current) caixa.current.style.height = `${no.offsetHeight}px`;
+    });
+    observador.observe(no);
+    return () => observador.disconnect();
+  }, [plano]);
+  return { caixa, conteudo };
 }

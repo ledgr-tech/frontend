@@ -45,8 +45,15 @@ export function marcaDoPlano(plano: Indicado): number {
   return plano === "volume" ? PASSOS.indexOf(5000) : passoDoPlano(plano);
 }
 
+/** O volume num ponto qualquer do medidor (que desliza entre os passos), arredondado de 10 em 10. */
+export function volumeDoPasso(passo: number): number {
+  const i = Math.min(Math.floor(passo), ULTIMO_PASSO - 1);
+  const volume = PASSOS[i] + (PASSOS[i + 1] - PASSOS[i]) * (passo - i);
+  return Math.round(volume / 10) * 10;
+}
+
 export function rotuloDoVolume(passo: number): string {
-  return PASSOS[passo].toLocaleString("pt-BR") + (passo === ULTIMO_PASSO ? "+" : "");
+  return volumeDoPasso(passo).toLocaleString("pt-BR") + (passo === ULTIMO_PASSO ? "+" : "");
 }
 
 /** O que cada plano é e inclui. A IA fica no plano mais caro (mentoria de 19/10, #172). */
