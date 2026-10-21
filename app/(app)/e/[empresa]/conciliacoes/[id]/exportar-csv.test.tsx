@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { ProvedorDaEmpresa } from "@/lib/empresa-ativa";
 import { ExportarCsv, nomeDoArquivo } from "./exportar-csv";
 
 const push = vi.fn();
@@ -182,5 +183,20 @@ describe("ExportarCsv", () => {
 
     await waitFor(() => expect(cliques).toHaveLength(1));
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("dentro de uma empresa, pede o CSV dela (#169)", async () => {
+    const EMPRESA = { id: "9b8a7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d", razaoSocial: "Mercado Ltda", cnpj: "11444777000161" };
+    fetch.mockResolvedValue(new Response(CSV, { headers: { "Content-Type": "text/csv; charset=utf-8" } }));
+    const user = userEvent.setup();
+    render(
+      <ProvedorDaEmpresa ativa={EMPRESA} empresas={[EMPRESA]}>
+        <ExportarCsv extratoBancoId={BANCO} extratoSistemaId={SISTEMA} mes="Setembro/2026" filtrada={false} />
+      </ProvedorDaEmpresa>,
+    );
+
+    await user.click(screen.getByRole("button", { name: /Exportar CSV/ }));
+
+    expect(fetch).toHaveBeenCalledWith(`/api/conciliacoes/${BANCO}/exportar?sistema=${SISTEMA}&empresa=${EMPRESA.id}`);
   });
 });

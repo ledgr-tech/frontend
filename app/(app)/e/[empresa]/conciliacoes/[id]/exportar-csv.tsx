@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRoteador } from "@/lib/roteador";
+import { useEmpresaAtiva } from "@/lib/empresa-ativa";
 import type { Divergencia } from "@/lib/adaptadores";
 import { caminhoDoCsv } from "@/lib/caminhos";
 
@@ -62,6 +63,8 @@ export function ExportarCsv({
   status?: Divergencia;
 }) {
   const router = useRoteador();
+  // a rota do CSV fica fora do proxy: a empresa da aba vai na query
+  const empresa = useEmpresaAtiva();
   const [exportando, setExportando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
@@ -69,7 +72,7 @@ export function ExportarCsv({
     setExportando(true);
     setErro(null);
     try {
-      const resposta = await fetch(caminhoDoCsv(extratoBancoId, extratoSistemaId, status));
+      const resposta = await fetch(caminhoDoCsv(extratoBancoId, extratoSistemaId, status, empresa?.id));
       if (resposta.status === 401) {
         router.push("/login");
         return;

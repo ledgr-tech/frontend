@@ -1,4 +1,5 @@
 import { ehDivergencia, pareceUuid } from "@/lib/adaptadores";
+import { ehUuid } from "@/lib/rotas";
 import { baixarDoBackend, ErroBackend } from "@/lib/backend";
 
 /**
@@ -32,6 +33,10 @@ export async function GET(
   const busca = new URL(request.url).searchParams;
   const sistema = busca.get("sistema") || undefined;
   const status = busca.get("status") || undefined;
+  // a empresa ativa: esta rota fica fora do proxy, que é quem a leva da URL da página ao pedido, então
+  // ela vem na query; só um UUID segue (vai ao backend como cabeçalho, nunca no caminho)
+  const empresa = busca.get("empresa") || undefined;
+  if (empresa !== undefined && !ehUuid(empresa)) return erro(404, "Empresa não encontrada.");
   // tudo vem da URL: nada entra no caminho do backend sem conferir
   if (!pareceUuid(id) || (sistema !== undefined && !pareceUuid(sistema))) {
     return erro(404, "Conciliação não encontrada.");
@@ -45,7 +50,7 @@ export async function GET(
     if (sistema) filtros.set("extrato_sistema_id", sistema);
     if (status) filtros.set("status", status);
     const query = filtros.toString();
-    const arquivo = await baixarDoBackend(`/conciliacoes/${id}/exportar${query ? `?${query}` : ""}`);
+    const arquivo = await baixarDoBackend(`/conciliacoes/${id}/exportar${query ? `?${query}` : ""}`, { empresa });
 
     return new Response(arquivo.body, {
       status: 200,
