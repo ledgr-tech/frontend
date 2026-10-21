@@ -33,7 +33,14 @@ export type EventoHistorico = {
  * e desfazer cada um. O registro não apaga: desfazer é um evento novo
  * (spec 2026-10-02-conciliacao-em-rodadas).
  */
-export type TipoEvento = "conferida" | "conferencia_desfeita" | "justificada" | "justificativa_desfeita";
+export type TipoEvento =
+  | "conferida"
+  | "conferencia_desfeita"
+  | "justificada"
+  | "justificativa_desfeita"
+  // a aprovação das justificativas (backend #132): o admin e o gestor aprovam ou rejeitam
+  | "justificativa_aprovada"
+  | "justificativa_rejeitada";
 
 /** A decisão em vigor numa linha. O status do motor não muda por ela. */
 export type Decisao = {
@@ -45,6 +52,15 @@ export type Decisao = {
   em: string;
   /** Em que rodada foi tomada: uma conferência de rodada passada perde o valor. */
   rodada: number;
+  /**
+   * Só na justificada (backend #132): `pendente` espera o admin ou o gestor e segura o fechamento do mês;
+   * `aprovada` vale. Sem o campo (backend anterior, ou a aprovação desligada) a justificada vale como aprovada.
+   * A rejeitada não é estado: a linha volta a divergente, sem decisão, e a rejeição fica nos eventos.
+   */
+  situacao?: "pendente" | "aprovada";
+  /** Quem aprovou e quando (ISO 8601); só na aprovada. */
+  aprovadaPor?: string;
+  aprovadaEm?: string;
 };
 
 export type EventoDecisao = {
@@ -131,6 +147,8 @@ export type Conciliacao = {
   rodada?: number;
   /** O saldo do extrato do banco (backend #118); ausente quando o backend não manda. */
   saldo?: SaldoDoExtrato | null;
+  /** Justificativas esperando aprovação (backend #132); ausente no mock e antes dele. */
+  aguardandoAprovacao?: number;
 };
 
 // O sufixo é versão de formato, não enfeite: os status das linhas mudaram para

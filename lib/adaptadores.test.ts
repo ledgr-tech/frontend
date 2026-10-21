@@ -7,6 +7,7 @@ import {
   adaptarConciliacao,
   adaptarExecucao,
   adaptarLinha,
+  adaptarResumoDoFechamento,
   adaptarSaldo,
   extratosDasExecucoes,
   pareceUuid,
@@ -175,6 +176,25 @@ describe("adaptarLinha", () => {
     expect(adaptarLinha(item({ decisao: null })).decisao).toBeNull();
   });
 
+  it("lê a justificativa que espera aprovação, e a aprovada com quem aprovou (campos em snake_case)", () => {
+    const base = { tipo: "justificada" as const, texto: "Juros.", autor: "Bia", em: "2026-10-20T10:00:00Z", rodada: 1 };
+    const pendente = adaptarLinha(item({ status: "divergente_valor", decisao: { ...base, situacao: "pendente" } }));
+    expect(pendente.decisao).toEqual({ ...base, situacao: "pendente" });
+
+    const aprovada = adaptarLinha(
+      item({
+        status: "divergente_valor",
+        decisao: { ...base, situacao: "aprovada", aprovada_por: "Gil", aprovada_em: "2026-10-21T09:00:00Z" },
+      }),
+    );
+    expect(aprovada.decisao).toEqual({
+      ...base,
+      situacao: "aprovada",
+      aprovadaPor: "Gil",
+      aprovadaEm: "2026-10-21T09:00:00Z",
+    });
+  });
+
   it("sem o campo, a linha não tem decisão (undefined, não null)", () => {
     const linha = adaptarLinha(item());
     expect(linha.decisao).toBeUndefined();
@@ -241,6 +261,20 @@ describe("adaptarConciliacao", () => {
     offset: 0,
     itens: [item(), item({ id: "c2", status: "tarifa_bancaria", lancamento_sistema: null })],
   };
+
+  it("conta as justificativas que aguardam aprovação: a contagem do backend, ou as linhas se ele não manda", () => {
+    const pendente = (id: string) =>
+      item({
+        id,
+        status: "divergente_valor",
+        decisao: { tipo: "justificada", texto: "Juros.", autor: "Bia", em: "2026-10-20T10:00:00Z", rodada: 1, situacao: "pendente" },
+      });
+    const itens = [item(), pendente("p1"), pendente("p2")];
+    expect(adaptarConciliacao({ ...lista, itens }).aguardandoAprovacao).toBe(2);
+    // a conciliação inteira pode ter mais que as linhas carregadas: o número do backend manda
+    expect(adaptarConciliacao({ ...lista, itens, aguardando_aprovacao: 5 }).aguardandoAprovacao).toBe(5);
+    expect(adaptarConciliacao(lista).aguardandoAprovacao).toBe(0);
+  });
 
   it("mantém o id do extrato do banco como id da conciliação", () => {
     expect(adaptarConciliacao(lista).id).toBe("e-banco");
@@ -370,6 +404,7 @@ describe("adaptarExecucao", () => {
       atual: true,
       // o backend que ainda não guarda decisões não manda a contagem: nenhuma justificada
       justificadas: 0,
+      aguardandoAprovacao: 0,
       periodoInicio: "2026-09-01",
     });
   });
@@ -379,6 +414,15 @@ describe("adaptarExecucao", () => {
     const semPeriodo = execucao();
     delete semPeriodo.periodo_inicio;
     expect(adaptarExecucao(semPeriodo).periodoInicio).toBeNull();
+  });
+
+  it("lê quantas justificativas aguardam aprovação", () => {
+    const comPendentes = execucao();
+    comPendentes.contagens = { ...comPendentes.contagens, justificadas: 3, aguardando_aprovacao: 2 };
+    const adaptada = adaptarExecucao(comPendentes);
+    // as justificadas passam a contar só as aprovadas; as pendentes vêm à parte
+    expect(adaptada.justificadas).toBe(3);
+    expect(adaptada.aguardandoAprovacao).toBe(2);
   });
 
   it("lê quantas divergências estão justificadas", () => {
@@ -487,6 +531,22 @@ describe("extratosDasExecucoes", () => {
 
   it("não tem arquivo nenhum sem execução", () => {
     expect(extratosDasExecucoes([])).toEqual([]);
+  });
+});
+
+describe("adaptarResumoDoFechamento", () => {
+  const resumo = {
+    pares: [],
+    contagens: { total: 10, match_exato: 8, match_tolerancia: 0, duplicado: 0, sem_correspondencia: 2, tarifa_bancaria: 0, divergente_valor: 0, divergente_data: 0 },
+    justificadas: 1,
+    pendentes: 1,
+    linhas_nao_lidas: 0,
+    valor_em_aberto: "100.00",
+  };
+
+  it("lê as justificativas que aguardavam aprovação, e 0 no resumo gravado antes do #132", () => {
+    expect(adaptarResumoDoFechamento({ ...resumo, aguardando_aprovacao: 3 }).aguardandoAprovacao).toBe(3);
+    expect(adaptarResumoDoFechamento(resumo).aguardandoAprovacao).toBe(0);
   });
 });
 

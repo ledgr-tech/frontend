@@ -65,7 +65,8 @@ export function filtrarLinhas(linhas: LinhaComparacao[], filtro: Filtro, rodada 
   if (filtro === "todos") return linhas;
   return linhas.filter((linha) => {
     const situacao = situacaoDaLinha(linha, rodada);
-    if (filtro === "revisao") return situacao === "a_conferir" || situacao === "conferida";
+    // a que espera aprovação continua em revisão: o mês não fecha com ela
+    if (filtro === "revisao") return situacao === "a_conferir" || situacao === "conferida" || situacao === "aguardando";
     if (filtro === "justificadas") return situacao === "justificada";
     // a justificada continua na categoria do motor, mas sai dela aqui: tem o filtro dela
     return linha.status === filtro && situacao !== "justificada";

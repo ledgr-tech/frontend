@@ -3,13 +3,16 @@ import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { Execucao, Fechamento } from "@/lib/adaptadores";
 import type { DadosDoFechamento, ParDoFechamento, Resultado } from "../conciliacoes/acoes";
+import { SO_O_GESTOR_APROVA } from "@/lib/gestor";
 import FechamentosPage from "./page";
 
 // quem fala com o backend é a action; aqui ela só devolve o que ele responderia
 const carregarFechamentos = vi.fn<() => Promise<Resultado<DadosDoFechamento>>>();
 const fecharMes = vi.fn<(competencia: string, ressalva?: string) => Promise<Resultado<Fechamento>>>();
 const reabrirMes = vi.fn<(competencia: string) => Promise<Resultado<Fechamento>>>();
+const aprovarPendentes = vi.fn<(competencia: string) => Promise<Resultado<{ processadas: number; ignoradas: number }>>>();
 vi.mock("../conciliacoes/acoes", () => ({
+  aprovarPendentes: (competencia: string) => aprovarPendentes(competencia),
   carregarFechamentos: () => carregarFechamentos(),
   fecharMes: (competencia: string, ressalva?: string) => fecharMes(competencia, ressalva),
   reabrirMes: (competencia: string) => reabrirMes(competencia),
@@ -315,6 +318,74 @@ describe("FechamentosPage", () => {
       expect(within(passos).getByText(/Divergências decididas/)).toHaveTextContent("(pendente)");
       expect(within(passos).getByText("1 divergência justificada")).toBeInTheDocument();
       expect(within(aberto).getByRole("link", { name: "Revisar pendências" })).toBeInTheDocument();
+    });
+  });
+
+  describe("justificativas aguardando aprovação (backend #132)", () => {
+    // 2 divergências, as duas justificadas, mas esperando o admin ou o gestor aprovar
+    const AGUARDANDO = () =>
+      par("set", { acerto: 98.6, divergencias: { divergente_valor: 2 }, justificadas: 0, aguardandoAprovacao: 2 });
+
+    it("diz no selo do mês e num passo próprio que só falta aprovar, e o mês não está pronto", async () => {
+      await renderizar([AGUARDANDO()]);
+
+      expect(screen.getByRole("button", { name: /Setembro de 2026/ })).toHaveTextContent("Aguardando aprovação");
+      const passos = within(painel()).getByRole("list", { name: "Para fechar o mês" });
+      expect(within(passos).getByText("2 justificativas aguardando aprovação")).toBeInTheDocument();
+      expect(within(painel()).getByText("Fechamento · em aberto")).toBeInTheDocument();
+    });
+
+    it("o admin e o gestor aprovam as do mês de uma vez, e a tela é lida de novo", async () => {
+      aprovarPendentes.mockResolvedValue({ ok: true, dados: { processadas: 2, ignoradas: 0 } });
+      const user = userEvent.setup();
+      await renderizar([AGUARDANDO()]);
+
+      await user.click(within(painel()).getByRole("button", { name: "Aprovar as 2 justificativas" }));
+
+      expect(aprovarPendentes).toHaveBeenCalledWith("2026-09");
+      expect(refresh).toHaveBeenCalled();
+    });
+
+    it("com uma só, o botão fala no singular", async () => {
+      await renderizar([par("set", { divergencias: { divergente_valor: 1 }, aguardandoAprovacao: 1 })]);
+
+      expect(within(painel()).getByRole("button", { name: "Aprovar a justificativa" })).toBeInTheDocument();
+    });
+
+    it("mostra o motivo de a aprovação não ter gravado", async () => {
+      aprovarPendentes.mockResolvedValue({ ok: false, status: 409, erro: "O mês 2026-09 está fechado." });
+      const user = userEvent.setup();
+      await renderizar([AGUARDANDO()]);
+
+      await user.click(within(painel()).getByRole("button", { name: "Aprovar as 2 justificativas" }));
+
+      expect(await within(painel()).findByRole("alert")).toHaveTextContent("O mês 2026-09 está fechado.");
+      expect(refresh).not.toHaveBeenCalled();
+    });
+
+    it("a ressalva não libera o mês: sem Fechar mesmo assim enquanto houver justificativa esperando", async () => {
+      await renderizar([AGUARDANDO()]);
+
+      expect(within(painel()).queryByRole("button", { name: "Fechar mesmo assim" })).not.toBeInTheDocument();
+      expect(within(painel()).getByRole("link", { name: "Revisar pendências" })).toBeInTheDocument();
+    });
+
+    it("o analista vê quem pode aprovar, sem o botão", async () => {
+      gestor.valor = false;
+      try {
+        await renderizar([AGUARDANDO()]);
+
+        expect(within(painel()).queryByRole("button", { name: /Aprovar/ })).not.toBeInTheDocument();
+        expect(within(painel()).getAllByText(SO_O_GESTOR_APROVA).length).toBeGreaterThan(0);
+      } finally {
+        gestor.valor = true;
+      }
+    });
+
+    it("sem nada aguardando, o passo nem aparece", async () => {
+      await renderizar([par("set", { acerto: 98.6, divergencias: { divergente_valor: 2 }, justificadas: 2 })]);
+
+      expect(within(painel()).queryByText(/aguardando aprovação/)).not.toBeInTheDocument();
     });
   });
 

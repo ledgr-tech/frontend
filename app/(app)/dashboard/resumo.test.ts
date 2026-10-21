@@ -9,6 +9,7 @@ import {
   formatarDataHora,
   formatarDiaMes,
   periodoDasLinhas,
+  pedeDecisao,
 } from "./resumo";
 
 function linha(
@@ -208,5 +209,24 @@ describe("periodoDasLinhas", () => {
   it("não inventa período sem data", () => {
     expect(periodoDasLinhas([comData(undefined)])).toBeNull();
     expect(periodoDasLinhas([])).toBeNull();
+  });
+});
+
+describe("pedeDecisao e a aprovação das justificativas (backend #132)", () => {
+  const divergente = linha("divergente_valor", -100, -90);
+  const justificada = { tipo: "justificada" as const, texto: "Juros.", autor: "Bia", em: "2026-10-20T10:00:00Z", rodada: 1 };
+
+  it("o que bateu não pede decisão, e a divergência sem decisão pede", () => {
+    expect(pedeDecisao(linha("match_exato", 100, 100))).toBe(false);
+    expect(pedeDecisao(divergente)).toBe(true);
+  });
+
+  it("a justificada aprovada, ou de um backend sem aprovação, já foi decidida", () => {
+    expect(pedeDecisao({ ...divergente, decisao: justificada })).toBe(false);
+    expect(pedeDecisao({ ...divergente, decisao: { ...justificada, situacao: "aprovada" } })).toBe(false);
+  });
+
+  it("a justificada que espera aprovação ainda segura o mês", () => {
+    expect(pedeDecisao({ ...divergente, decisao: { ...justificada, situacao: "pendente" } })).toBe(true);
   });
 });

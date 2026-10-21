@@ -7,6 +7,12 @@ import ConciliacaoPage from "./page";
 // hoisted porque a fábrica do vi.mock roda antes das declarações do módulo
 const rota = vi.hoisted(() => ({ id: "conc-1", busca: "" }));
 const navegar = vi.hoisted(() => ({ push: vi.fn() }));
+// aprovar e rejeitar justificativas é do admin e do gestor (backend #132); o padrão é quem pode
+const podeFechar = vi.hoisted(() => ({ valor: true }));
+vi.mock("../../conta", async (original) => ({
+  ...(await original<typeof import("../../conta")>()),
+  usePodeFechar: () => podeFechar.valor,
+}));
 vi.mock("next/navigation", () => ({
   useParams: () => ({ id: rota.id }),
   useSearchParams: () => new URLSearchParams(rota.busca),
@@ -1311,6 +1317,118 @@ describe("ConciliacaoPage", () => {
       ).toHaveClass("sr-only");
       const status = caixa.closest("tr")!.querySelector(".celula-status") as HTMLElement;
       expect(within(status).queryByText(/continua divergindo/)).not.toBeInTheDocument();
+    });
+
+    describe("approving justifications (backend #132)", () => {
+      const pendente: Decisao = { ...decisao("justificada"), situacao: "pendente" };
+      const aprovada: Decisao = {
+        ...decisao("justificada"),
+        situacao: "aprovada",
+        aprovadaPor: "Gil Gestor",
+        aprovadaEm: "2026-10-21T09:00:00Z",
+      };
+      const comPendente: Conciliacao = {
+        ...comCampo,
+        linhas: comCampo.linhas.map((linha) => (linha.id === "lc-2" ? { ...linha, decisao: pendente } : linha)),
+      };
+
+      afterEach(() => {
+        podeFechar.valor = true;
+      });
+
+      it("a justificada que espera aprovação continua em revisão, com o rótulo Aguardando", async () => {
+        doBackend(comPendente);
+        render(<ConciliacaoPage />);
+
+        const linha = (await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" })).closest("tr")!;
+        const status = within(linha).getAllByRole("cell")[3];
+        expect(within(status).getByText("Aguardando")).toHaveClass("selo-atencao");
+        expect(within(status).getByText("Valor diverge na mesma data · justificada, aguardando aprovação")).toHaveClass("sr-only");
+        // fica em revisão e fora das justificadas: o mês não fecha com ela
+        expect(screen.getByRole("button", { name: "Só revisão (3)" })).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Justificadas (0)" })).toBeInTheDocument();
+        expect(screen.getByText(/0 de 3 conferidas · 1 aguardando aprovação/)).toBeInTheDocument();
+      });
+
+      it("o admin e o gestor aprovam na janela, e a linha passa a Justificada com quem aprovou", async () => {
+        doBackend(comPendente);
+        registrarDecisao.mockResolvedValue({ ok: true, dados: aprovada });
+        const user = userEvent.setup();
+        render(<ConciliacaoPage />);
+
+        await user.click(await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" }));
+        const janela = screen.getByRole("dialog", { name: "Boleto Aço Norte Bobinas" });
+        expect(janela).toHaveTextContent("aguardando aprovação");
+        expect(within(janela).queryByLabelText("Justificativa")).not.toBeInTheDocument();
+        await user.click(within(janela).getByRole("button", { name: "Aprovar" }));
+
+        expect(registrarDecisao).toHaveBeenCalledWith(BANCO, "b:lc-2", "justificativa_aprovada", undefined);
+        expect(janela).toHaveTextContent("Aprovada por Gil Gestor em");
+        expect(within(janela).queryByRole("button", { name: "Aprovar" })).not.toBeInTheDocument();
+        const linha = screen.getByRole("button", { name: "Boleto Aço Norte Bobinas" }).closest("tr")!;
+        expect(within(linha).getAllByRole("cell")[3]).toHaveTextContent("Justificada");
+        expect(screen.getByRole("button", { name: "Justificadas (1)" })).toBeInTheDocument();
+      });
+
+      it("rejeita com o motivo, e a linha volta a divergente, pronta para justificar de novo", async () => {
+        doBackend(comPendente);
+        registrarDecisao.mockResolvedValue({ ok: true, dados: null });
+        const user = userEvent.setup();
+        render(<ConciliacaoPage />);
+
+        await user.click(await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" }));
+        const janela = screen.getByRole("dialog", { name: "Boleto Aço Norte Bobinas" });
+        await user.click(within(janela).getByRole("button", { name: "Rejeitar" }));
+        await user.type(within(janela).getByLabelText("Motivo da rejeição (opcional)"), "Falta o comprovante.");
+        await user.click(within(janela).getByRole("button", { name: "Rejeitar justificativa" }));
+
+        expect(registrarDecisao).toHaveBeenCalledWith(BANCO, "b:lc-2", "justificativa_rejeitada", "Falta o comprovante.");
+        expect(within(janela).getByLabelText("Justificativa")).toBeInTheDocument();
+        const linha = screen.getByRole("button", { name: "Boleto Aço Norte Bobinas" }).closest("tr")!;
+        expect(within(linha).getAllByRole("cell")[3]).not.toHaveTextContent(/Aguardando|Justificada/);
+      });
+
+      it("rejeitar sem motivo vai sem texto", async () => {
+        doBackend(comPendente);
+        registrarDecisao.mockResolvedValue({ ok: true, dados: null });
+        const user = userEvent.setup();
+        render(<ConciliacaoPage />);
+
+        await user.click(await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" }));
+        const janela = screen.getByRole("dialog", { name: "Boleto Aço Norte Bobinas" });
+        await user.click(within(janela).getByRole("button", { name: "Rejeitar" }));
+        await user.click(within(janela).getByRole("button", { name: "Rejeitar justificativa" }));
+
+        expect(registrarDecisao).toHaveBeenCalledWith(BANCO, "b:lc-2", "justificativa_rejeitada", undefined);
+      });
+
+      it("mostra o motivo de a aprovação não ter gravado, e a janela segue como estava", async () => {
+        doBackend(comPendente);
+        registrarDecisao.mockResolvedValue({ ok: false, status: 403, erro: "Só o admin ou o gestor da conta aprovam ou rejeitam justificativas." });
+        const user = userEvent.setup();
+        render(<ConciliacaoPage />);
+
+        await user.click(await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" }));
+        const janela = screen.getByRole("dialog", { name: "Boleto Aço Norte Bobinas" });
+        await user.click(within(janela).getByRole("button", { name: "Aprovar" }));
+
+        expect(await within(janela).findByRole("alert")).toHaveTextContent("Só o admin ou o gestor da conta aprovam");
+        expect(within(janela).getByRole("button", { name: "Aprovar" })).toBeInTheDocument();
+      });
+
+      it("o analista vê que aguarda aprovação, sem aprovar nem rejeitar, e ainda pode desfazer", async () => {
+        podeFechar.valor = false;
+        doBackend(comPendente);
+        const user = userEvent.setup();
+        render(<ConciliacaoPage />);
+
+        await user.click(await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" }));
+        const janela = screen.getByRole("dialog", { name: "Boleto Aço Norte Bobinas" });
+        expect(janela).toHaveTextContent("Aguarda a aprovação do admin ou do gestor da conta.");
+        expect(within(janela).queryByRole("button", { name: "Aprovar" })).not.toBeInTheDocument();
+        expect(within(janela).queryByRole("button", { name: "Rejeitar" })).not.toBeInTheDocument();
+        expect(within(janela).getByRole("button", { name: "Desfazer justificativa" })).toBeInTheDocument();
+      });
     });
 
     describe("justifying in the line's window", () => {

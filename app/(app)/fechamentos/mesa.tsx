@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { Circle, CircleCheck, FileDown } from "lucide-react";
 import { caminhoDaConciliacao } from "@/lib/caminhos";
 import type { Tom } from "@/lib/mock-data";
-import { fecharMes, reabrirMes, type Resultado } from "../conciliacoes/acoes";
+import { aprovarPendentes, fecharMes, reabrirMes, type Resultado } from "../conciliacoes/acoes";
 import { ExportarCsv } from "../conciliacoes/[id]/exportar-csv";
 import { formatarDataHora, formatarInteiro, formatarPercentual } from "../dashboard/resumo";
 import { FaixaFiltros } from "../faixa-filtros";
@@ -15,7 +15,7 @@ import { Grupo, alternarNoConjunto } from "../grupo";
 import { fraseDoSaldoFinal } from "../saldo";
 import type { MesDeFechamento } from "./fechamento";
 import { usePodeFechar } from "../conta";
-import { SO_O_GESTOR_FECHA } from "@/lib/gestor";
+import { SO_O_GESTOR_APROVA, SO_O_GESTOR_FECHA } from "@/lib/gestor";
 
 /**
  * A mesa de fechamento: cada mês é uma folha, e o selecionado abre ao lado o
@@ -68,6 +68,10 @@ function seloDoMes(mes: MesDeFechamento): { rotulo: string; tom: Tom } {
     return mes.fechamento?.ressalva ? { rotulo: "Fechado com ressalva", tom: "atencao" } : { rotulo: "Fechado", tom: "ok" };
   }
   if (mes.pronto) return { rotulo: "Pronto para fechar", tom: "ok" };
+  // só falta aprovar o que já foi justificado: não é decisão de quem concilia, é do admin e do gestor
+  if (mes.aguardandoAprovacao > 0 && pendentes(mes) === mes.aguardandoAprovacao) {
+    return { rotulo: "Aguardando aprovação", tom: "atencao" };
+  }
   // sem divergência por decidir, o que segura o mês são as linhas que o parser não leu
   if (pendentes(mes) === 0) return { rotulo: "Linhas não lidas", tom: "atencao" };
   return {
@@ -364,6 +368,17 @@ function Painel({ mes, podeFechar }: { mes: MesDeFechamento; podeFechar: boolean
           )}
         </Passo>
 
+        {/* justificadas que esperam aprovação (backend #132): seguram o mês, e a ressalva não as libera */}
+        {mes.aguardandoAprovacao > 0 && (
+          <Passo
+            feito={false}
+            titulo={plural(mes.aguardandoAprovacao, "justificativa aguardando aprovação", "justificativas aguardando aprovação")}
+          >
+            <span className="fech-passo-texto">O mês só fecha depois que o admin ou o gestor aprovar ou rejeitar cada uma.</span>
+            <AprovarPendentes mes={mes} />
+          </Passo>
+        )}
+
         {/* as justificadas, à parte: decididas, mas não batidas (spec 2026-10-02-conciliacao-em-rodadas) */}
         {mes.justificadas > 0 && (
           <Passo feito titulo={plural(mes.justificadas, "divergência justificada", "divergências justificadas")}>
@@ -451,6 +466,52 @@ function Painel({ mes, podeFechar }: { mes: MesDeFechamento; podeFechar: boolean
 }
 
 /**
+ * Aprova de uma vez as justificativas que esperam aprovação no mês (`POST /justificativas/lote`). Só o
+ * admin e o gestor veem o botão; para rejeitar, ou aprovar uma a uma, o caminho é a conciliação.
+ */
+function AprovarPendentes({ mes }: { mes: MesDeFechamento }) {
+  const router = useRouter();
+  const podeAprovar = usePodeFechar();
+  const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+  if (!podeAprovar) return <span className="vg-nota">{SO_O_GESTOR_APROVA}</span>;
+
+  async function aprovar() {
+    setEnviando(true);
+    setErro(null);
+    let resposta: Resultado<unknown>;
+    try {
+      resposta = await aprovarPendentes(mes.chave);
+    } catch {
+      // a Server Action lançou (rede caída, deploy novo no meio) em vez de devolver um Resultado
+      resposta = { ok: false, status: 0, erro: "Não foi possível falar com o servidor." };
+    }
+    setEnviando(false);
+    if (resposta.ok) {
+      router.refresh();
+      return;
+    }
+    if (resposta.status === 401) router.push("/login");
+    setErro(resposta.erro);
+  }
+
+  return (
+    <>
+      <div className="fech-acoes">
+        <button type="button" className="btn btn-secondary" disabled={enviando} aria-busy={enviando || undefined} onClick={aprovar}>
+          {mes.aguardandoAprovacao === 1 ? "Aprovar a justificativa" : `Aprovar as ${formatarInteiro(mes.aguardandoAprovacao)} justificativas`}
+        </button>
+      </div>
+      {erro && (
+        <p role="alert" className="selo selo-risco fech-erro">
+          {erro}
+        </p>
+      )}
+    </>
+  );
+}
+
+/**
  * Fechar e reabrir o mês (backend #86). Pronto, o botão principal fecha; com pendência, o
  * principal continua sendo revisar, e "Fechar mesmo assim" pergunta ao backend o que falta: o 409
  * vem com o texto, e a tela pede a ressalva para fechar com ela. Fechado, o mês leva ao próximo e
@@ -528,7 +589,8 @@ function AcoesDoFechamento({ mes, revisar }: { mes: MesDeFechamento; revisar: st
           <Link href={pendentes(mes) > 0 ? revisar : "/extratos"} className="btn btn-primary">
             {pendentes(mes) > 0 ? "Revisar pendências" : "Ver extratos"}
           </Link>
-          {gestor && !pedeRessalva && (
+          {/* com justificativa esperando aprovação, a ressalva não libera o mês: o backend recusa (409) */}
+          {gestor && !pedeRessalva && mes.aguardandoAprovacao === 0 && (
             <button type="button" className="btn btn-secondary" disabled={enviando} onClick={() => executar(() => fecharMes(mes.chave))}>
               Fechar mesmo assim
             </button>

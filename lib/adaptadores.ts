@@ -1,5 +1,6 @@
 import { caminhoDaConciliacao } from "./caminhos";
 import { ehPapel, lerPapel, type Papel } from "./papel";
+import { aguardaAprovacao } from "./aprovacao";
 import { rodadasDoBanco } from "./rodadas";
 import type {
   CampoLancamento,
@@ -52,9 +53,24 @@ export type ItemConciliacaoAPI = {
    * ponytail: decisões por linha, propostas ao backend na spec 2026-10-02 (mesmos
    * nomes de lá). A chave ausente quer dizer que o backend ainda não as guarda.
    */
-  decisao?: Decisao | null;
+  decisao?: DecisaoAPI | null;
   eventos?: EventoDecisao[];
 };
+
+/**
+ * A decisão como o backend manda: igual a `Decisao`, menos os dois campos da aprovação (backend #132),
+ * que vêm em snake_case. `situacao` é `pendente` ou `aprovada`; a rejeitada não existe aqui.
+ */
+export type DecisaoAPI = Omit<Decisao, "aprovadaPor" | "aprovadaEm"> & { aprovada_por?: string | null; aprovada_em?: string | null };
+
+export function adaptarDecisao(api: DecisaoAPI): Decisao {
+  const { aprovada_por, aprovada_em, ...decisao } = api;
+  return {
+    ...decisao,
+    ...(aprovada_por ? { aprovadaPor: aprovada_por } : {}),
+    ...(aprovada_em ? { aprovadaEm: aprovada_em } : {}),
+  };
+}
 
 /**
  * O saldo do extrato (backend #118), em `GET /extratos`, `GET /extratos/{id}` e na raiz de
@@ -92,6 +108,8 @@ export function adaptarSaldo(api: CamposDeSaldoAPI): SaldoDoExtrato | null | und
 
 export type ListaConciliacaoAPI = CamposDeSaldoAPI & {
   extrato_id: string;
+  /** Justificativas esperando aprovação nesta conciliação (backend #132); ausente antes dele. */
+  aguardando_aprovacao?: number;
   total: number;
   limit: number;
   offset: number;
@@ -187,7 +205,7 @@ export function adaptarLinha(item: ItemConciliacaoAPI): LinhaComparacao {
     // só com `true` a tela marca como gerada por IA, como no POST /explicacoes
     explicacaoPorIa: doBackend !== null && item.gerada_por_ia === true,
     // só com a chave no item: sem ela, o backend não guarda decisões e a tela não oferece
-    ...("decisao" in item ? { decisao: item.decisao ?? null } : {}),
+    ...("decisao" in item ? { decisao: item.decisao ? adaptarDecisao(item.decisao) : null } : {}),
     ...(item.eventos ? { eventos: item.eventos } : {}),
     // O backend não guarda linha do tempo por lançamento; o histórico do detalhe
     // fica vazio até existir (nada de inventar evento que ninguém registrou).
@@ -229,6 +247,8 @@ export function adaptarConciliacao(
     status: "em_andamento",
     linhas,
     ...(saldo !== undefined && { saldo }),
+    // a contagem do backend vale mais que as linhas da tela: ela conta a conciliação inteira
+    aguardandoAprovacao: lista.aguardando_aprovacao ?? linhas.filter((linha) => aguardaAprovacao(linha.decisao)).length,
   };
 }
 
@@ -277,6 +297,8 @@ export type ExecucaoAPI = {
      * Proposta ao backend: ausente enquanto ele não guarda decisões.
      */
     justificadas?: number;
+    /** Justificativas esperando aprovação (backend #132); `justificadas` passa a contar só as aprovadas. */
+    aguardando_aprovacao?: number;
   };
   /** Decimal (0 a 100, duas casas) — o Pydantic manda como string. Null sem lançamentos. */
   percentual_acerto: string | number | null;
@@ -316,6 +338,8 @@ export type Execucao = {
   atual: boolean;
   /** Das divergências, quantas estão justificadas: liberam o fechamento sem contar como batidas. */
   justificadas: number;
+  /** Justificativas esperando o admin ou o gestor aprovar; seguram o fechamento do mês. Ausente = 0. */
+  aguardandoAprovacao?: number;
   /**
    * A primeira data do extrato do banco (AAAA-MM-DD), a mesma em todas as rodadas dele: o mês
    * dela é o mês da conciliação, no fechamento do backend e em todas as telas. Null sem período.
@@ -362,6 +386,7 @@ export function adaptarExecucao(item: ExecucaoAPI): Execucao {
     toleranciaDias: item.tolerancia_dias,
     atual: item.atual,
     justificadas: item.contagens.justificadas ?? 0,
+    aguardandoAprovacao: item.contagens.aguardando_aprovacao ?? 0,
     periodoInicio: item.periodo_inicio ?? null,
   };
 }
@@ -381,6 +406,8 @@ export type ResumoFechamentoAPI = {
   }[];
   contagens: Record<StatusLinha | "total", number>;
   justificadas: number;
+  /** Ausente no resumo gravado antes do backend #132. */
+  aguardando_aprovacao?: number;
   pendentes: number;
   linhas_nao_lidas: number;
   valor_em_aberto: string;
@@ -396,6 +423,8 @@ export type ResumoDoFechamento = {
   }[];
   contagens: Record<StatusLinha | "total", number>;
   justificadas: number;
+  /** Ausente = 0. */
+  aguardandoAprovacao?: number;
   pendentes: number;
   linhasNaoLidas: number;
   /** Em reais. */
@@ -414,6 +443,7 @@ export function adaptarResumoDoFechamento(resumo: ResumoFechamentoAPI): ResumoDo
     })),
     contagens: resumo.contagens,
     justificadas: resumo.justificadas,
+    aguardandoAprovacao: resumo.aguardando_aprovacao ?? 0,
     pendentes: resumo.pendentes,
     linhasNaoLidas: resumo.linhas_nao_lidas,
     valorEmAberto: Number.isFinite(valor) ? valor : 0,

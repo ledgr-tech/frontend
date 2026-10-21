@@ -1,20 +1,29 @@
 import type { Conciliacao, EventoDecisao, EventoHistorico, LinhaComparacao, TipoEvento } from "@/lib/mock-data";
+import { aguardaAprovacao } from "@/lib/aprovacao";
 import { estaResolvida, formatarDataHora } from "../../dashboard/resumo";
 
 /**
  * Onde cada linha está, do ponto de vista de quem concilia (spec
  * 2026-10-02-conciliacao-em-rodadas, decisão 3): o que o motor casou bate; o que
- * diverge está a conferir, conferido nesta rodada ou justificado.
+ * diverge está a conferir, conferido nesta rodada ou justificado. A justificada que espera o admin ou
+ * o gestor aprovar (backend #132) é "aguardando": ainda segura o fechamento do mês.
  */
-export type Situacao = "bate" | "a_conferir" | "conferida" | "justificada";
+export type Situacao = "bate" | "a_conferir" | "conferida" | "aguardando" | "justificada";
 
 export function situacaoDaLinha(linha: LinhaComparacao, rodada: number): Situacao {
   if (estaResolvida(linha.status)) return "bate";
+  if (aguardaAprovacao(linha.decisao)) return "aguardando";
   if (linha.decisao?.tipo === "justificada") return "justificada";
   // a conferência é a promessa de corrigir no sistema: se a rodada nova não resolveu,
   // a linha volta a chamar atenção
   if (linha.decisao?.tipo === "conferida" && linha.decisao.rodada === rodada) return "conferida";
   return "a_conferir";
+}
+
+/** "Valor diverge · justificada": o status do motor não muda com a decisão, ela vem junto, não no lugar dele. */
+export function rotuloComDecisao(rotulo: string, situacao: Situacao): string {
+  if (situacao === "justificada") return `${rotulo} · justificada`;
+  return situacao === "aguardando" ? `${rotulo} · aguardando aprovação` : rotulo;
 }
 
 /** Conferida numa rodada anterior, e a versão nova do sistema não resolveu. */
@@ -35,12 +44,15 @@ const ACAO: Record<TipoEvento, string> = {
   conferencia_desfeita: "Conferência desfeita",
   justificada: "Justificada",
   justificativa_desfeita: "Justificativa desfeita",
+  justificativa_aprovada: "Justificativa aprovada",
+  justificativa_rejeitada: "Justificativa rejeitada",
 };
 
 /** "Justificada por Eduardo (rodada 2): juros de atraso." A rodada só aparece a partir da segunda. */
 function textoDoEvento({ tipo, autor, texto, rodada }: EventoDecisao): string {
   const quem = `${ACAO[tipo]} por ${autor}${rodada > 1 ? ` (rodada ${rodada})` : ""}`;
-  return tipo === "justificada" && texto ? `${quem}: ${texto}` : quem;
+  // o texto da justificada é o motivo; o da rejeitada é o motivo de ter rejeitado
+  return (tipo === "justificada" || tipo === "justificativa_rejeitada") && texto ? `${quem}: ${texto}` : quem;
 }
 
 function doLedgr(evento: EventoDecisao): EventoHistorico {

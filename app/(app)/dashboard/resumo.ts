@@ -1,3 +1,4 @@
+import { estaJustificada } from "@/lib/aprovacao";
 import type { Conciliacao, LinhaComparacao, StatusLinha, Tom } from "@/lib/mock-data";
 
 // Rótulos e tons das 7 categorias que o motor do backend produz
@@ -34,10 +35,11 @@ export function estaResolvida(status: StatusLinha): boolean {
 /**
  * Diverge e ninguém justificou: é o que ainda segura o fechamento. A justificada não
  * bateu, mas já tem o motivo no registro (spec 2026-10-02-conciliacao-em-rodadas); a
- * conferida continua aqui, porque conferir é a promessa de corrigir no sistema.
+ * conferida continua aqui, porque conferir é a promessa de corrigir no sistema, e a
+ * justificada que espera aprovação também, porque o mês não fecha com ela.
  */
 export function pedeDecisao(linha: LinhaComparacao): boolean {
-  return !estaResolvida(linha.status) && linha.decisao?.tipo !== "justificada";
+  return !estaResolvida(linha.status) && !estaJustificada(linha.decisao);
 }
 
 /** Rótulo e tom de um código do motor, sem a linha (as contagens de `/execucoes`). */
