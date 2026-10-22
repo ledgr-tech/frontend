@@ -39,13 +39,7 @@ vi.mock("./equipe/acoes", () => ({
   cancelarConvite: vi.fn(),
   removerPessoa: vi.fn(),
 }));
-// as empresas clientes são do backend (#133); aqui a ação devolve a conta com duas
-const carregarEmpresas = vi.fn();
-vi.mock("./empresas/acoes", () => ({
-  carregarEmpresas: (...args: unknown[]) => carregarEmpresas(...args),
-  cadastrarEmpresa: vi.fn(),
-}));
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }), usePathname: () => "/e/x/fechamentos" }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
 const EMAIL = "financeiro@telhacerta.com.br";
 
@@ -87,13 +81,6 @@ describe("Configuracoes", () => {
     carregarEquipe.mockReset().mockResolvedValue({
       ok: true,
       dados: { pessoas: [{ id: "u1", nome: "Ana", email: EMAIL, papel: "admin" }], convites: [] },
-    });
-    carregarEmpresas.mockReset().mockResolvedValue({
-      ok: true,
-      dados: [
-        { id: "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20", razaoSocial: "Padaria Ltda", cnpj: "11222333000181", cnpjVerificado: true, criadaEm: "2026-10-08T17:59:02Z" },
-        { id: "9b8a7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d", razaoSocial: "Mercado Ltda", cnpj: "11444777000161", cnpjVerificado: false, criadaEm: "2026-10-21T19:48:16Z" },
-      ],
     });
     window.localStorage.clear();
     delete document.documentElement.dataset.tema;
@@ -402,31 +389,12 @@ describe("Configuracoes", () => {
     expect(screen.getByText("Nada encontrado para “xyz”.")).toBeInTheDocument();
   });
 
-  it("lists Empresas and Equipe between Conta and Aparência", () => {
+  it("lists Equipe between Conta and Aparência", () => {
     abrir();
     const nomes = within(screen.getByRole("navigation", { name: "Configurações" }))
       .getAllByRole("button")
       .map((botao) => botao.textContent);
-    expect(nomes.slice(0, 4)).toEqual(["Conta", "Empresas", "Equipe", "Aparência"]);
-  });
-
-  it("opens on the Empresas section when asked, with the companies of the account", async () => {
-    abrir({ secao: "empresas" });
-
-    expect(await screen.findByRole("heading", { name: "Empresas" })).toBeInTheDocument();
-    expect(await screen.findByText("Mercado Ltda")).toBeInTheDocument();
-    expect(screen.getByText("Padaria Ltda")).toBeInTheDocument();
-  });
-
-  it("finds a company when searching, and opening another company closes the window", async () => {
-    const user = userEvent.setup();
-    const { onFechar } = abrir();
-
-    await user.type(screen.getByRole("searchbox", { name: "Procurar nas configurações" }), "mercado");
-    expect(await screen.findByRole("heading", { name: "Empresas" })).toBeInTheDocument();
-    await user.click(await screen.findByRole("button", { name: "Abrir Mercado Ltda" }));
-
-    expect(onFechar).toHaveBeenCalled();
+    expect(nomes.slice(0, 3)).toEqual(["Conta", "Equipe", "Aparência"]);
   });
 
   it("finds the invite line when searching, and an analyst cannot invite", async () => {
