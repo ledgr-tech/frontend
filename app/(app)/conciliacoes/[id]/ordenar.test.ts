@@ -116,3 +116,18 @@ describe("filtrarLinhas", () => {
     });
   });
 });
+
+describe("filtrarLinhas com justificativas aguardando aprovação (backend #132)", () => {
+  const justificada = { tipo: "justificada" as const, texto: "Juros.", autor: "Bia", em: "2026-10-20T10:00:00Z", rodada: 1 };
+  const comDecisao = (id: string, situacao?: "pendente" | "aprovada"): LinhaComparacao => ({
+    ...linha(id, "04/09", "Aço Norte", 100, 90, "divergente_valor"),
+    decisao: { ...justificada, ...(situacao ? { situacao } : {}) },
+  });
+  const linhas = [comDecisao("espera", "pendente"), comDecisao("aprovada", "aprovada"), comDecisao("antiga")];
+
+  it("a que espera aprovação fica em revisão e na categoria; só as aprovadas são justificadas", () => {
+    expect(filtrarLinhas(linhas, "revisao").map((l) => l.id)).toEqual(["espera"]);
+    expect(filtrarLinhas(linhas, "justificadas").map((l) => l.id)).toEqual(["aprovada", "antiga"]);
+    expect(filtrarLinhas(linhas, "divergente_valor").map((l) => l.id)).toEqual(["espera"]);
+  });
+});

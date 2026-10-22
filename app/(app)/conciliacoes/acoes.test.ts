@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it, vi, afterEach } from "vitest";
-import { SO_O_GESTOR_FECHA } from "@/lib/gestor";
+import { SO_O_GESTOR_APROVA, SO_O_GESTOR_FECHA } from "@/lib/gestor";
 import type { Papel } from "@/lib/papel";
 import type { ExecucaoAPI, ItemConciliacaoAPI } from "@/lib/adaptadores";
 import { ErroBackend } from "@/lib/backend";
 import {
+  aprovarPendentes,
   carregarConciliacao,
   carregarConciliacaoEmRodadas,
   carregarFechamentos,
@@ -1556,5 +1557,103 @@ describe("fechar e reabrir o mês são do admin e do gestor; todos justificam (#
     conta.papel = "admin";
     chamarBackend.mockRejectedValue(new ErroBackend(403, "Forbidden"));
     expect(await fecharMes("2026-09")).toEqual({ ok: false, status: 403, erro: SO_O_GESTOR_FECHA });
+  });
+});
+
+describe("aprovar e rejeitar justificativas (backend #132)", () => {
+  beforeEach(() => {
+    chamarBackend.mockReset();
+    conta.papel = "gestor";
+  });
+  afterEach(() => {
+    conta.papel = "admin";
+  });
+
+  it("aprova uma justificativa e devolve a decisão com quem aprovou", async () => {
+    chamarBackend.mockResolvedValue({
+      tipo: "justificada",
+      texto: "Juros.",
+      autor: "Bia",
+      em: "2026-10-20T10:00:00Z",
+      rodada: 1,
+      situacao: "aprovada",
+      aprovada_por: "Gil",
+      aprovada_em: "2026-10-21T09:00:00Z",
+    });
+
+    expect(await registrarDecisao(BANCO_RECENTE, "lb-1", "justificativa_aprovada")).toEqual({
+      ok: true,
+      dados: {
+        tipo: "justificada",
+        texto: "Juros.",
+        autor: "Bia",
+        em: "2026-10-20T10:00:00Z",
+        rodada: 1,
+        situacao: "aprovada",
+        aprovadaPor: "Gil",
+        aprovadaEm: "2026-10-21T09:00:00Z",
+      },
+    });
+    expect(chamarBackend).toHaveBeenCalledWith(`/conciliacoes/${BANCO_RECENTE}/decisoes`, {
+      method: "POST",
+      corpo: { chave: "lb-1", tipo: "justificativa_aprovada", texto: undefined },
+    });
+  });
+
+  it("rejeitar manda o motivo e devolve null: a linha volta a divergente", async () => {
+    chamarBackend.mockResolvedValue(null);
+
+    expect(await registrarDecisao(BANCO_RECENTE, "lb-1", "justificativa_rejeitada", "Falta o comprovante.")).toEqual({
+      ok: true,
+      dados: null,
+    });
+    expect(chamarBackend).toHaveBeenCalledWith(`/conciliacoes/${BANCO_RECENTE}/decisoes`, {
+      method: "POST",
+      corpo: { chave: "lb-1", tipo: "justificativa_rejeitada", texto: "Falta o comprovante." },
+    });
+  });
+
+  it("o analista não aprova nem rejeita, e o backend nem é chamado", async () => {
+    conta.papel = "analista";
+
+    expect(await registrarDecisao(BANCO_RECENTE, "lb-1", "justificativa_aprovada")).toEqual({
+      ok: false,
+      status: 403,
+      erro: SO_O_GESTOR_APROVA,
+    });
+    expect(await registrarDecisao(BANCO_RECENTE, "lb-1", "justificativa_rejeitada")).toMatchObject({ status: 403 });
+    expect(await aprovarPendentes("2026-09")).toEqual({ ok: false, status: 403, erro: SO_O_GESTOR_APROVA });
+    expect(chamarBackend).not.toHaveBeenCalled();
+  });
+
+  it("o 403 do backend ao aprovar chega com o texto da tela", async () => {
+    chamarBackend.mockRejectedValue(new ErroBackend(403, "Forbidden"));
+
+    expect(await registrarDecisao(BANCO_RECENTE, "lb-1", "justificativa_aprovada")).toEqual({
+      ok: false,
+      status: 403,
+      erro: SO_O_GESTOR_APROVA,
+    });
+  });
+
+  it("aprovar as pendentes do mês manda a competência ao lote e devolve as contagens", async () => {
+    chamarBackend.mockResolvedValue({ processadas: 3, ignoradas: 1 });
+
+    expect(await aprovarPendentes("2026-09")).toEqual({ ok: true, dados: { processadas: 3, ignoradas: 1 } });
+    expect(chamarBackend).toHaveBeenCalledWith("/justificativas/lote", {
+      method: "POST",
+      corpo: { acao: "aprovar", competencia: "2026-09" },
+    });
+  });
+
+  it("não manda ao backend uma competência fora do formato AAAA-MM", async () => {
+    expect(await aprovarPendentes("../fechamentos")).toMatchObject({ ok: false, status: 422 });
+    expect(chamarBackend).not.toHaveBeenCalled();
+  });
+
+  it("mês fechado (409) chega com o texto do backend", async () => {
+    chamarBackend.mockRejectedValue(new ErroBackend(409, "O mês 2026-09 está fechado."));
+
+    expect(await aprovarPendentes("2026-09")).toMatchObject({ ok: false, status: 409, erro: "O mês 2026-09 está fechado." });
   });
 });

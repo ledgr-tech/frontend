@@ -18,7 +18,8 @@ import { NumeroAnimado } from "../../../numero-animado";
 import { FALHA_AO_CARREGAR, useConciliacao } from "../../usar-conciliacao";
 import { IconeOrigem, type Origem } from "../../../icone-origem";
 import { ExplicacaoDaDivergencia } from "./explicacao";
-import { historicoDaLinha } from "../situacao";
+import { historicoDaLinha, rotuloComDecisao, situacaoDaLinha } from "../situacao";
+import { aguardaAprovacao, estaJustificada } from "@/lib/aprovacao";
 import { parDoOutroLado } from "../par";
 import { Cabecalho } from "../../../cabecalho";
 import { InkHover, Reveal } from "@/app/reveal";
@@ -156,7 +157,9 @@ export function DetalheDivergencia({ painel = false }: { painel?: boolean }) {
   const status = statusDaLinha(linha);
   // as que ainda pedem decisão: a justificada já foi decidida e sai da conta, como no eixo da comparação
   const emAberto = conciliacao.linhas.filter(pedeDecisao);
-  const justificada = linha.decisao?.tipo === "justificada";
+  const justificada = estaJustificada(linha.decisao);
+  // a que espera o admin ou o gestor aprovar (backend #132) ainda segura o fechamento do mês
+  const aguardando = aguardaAprovacao(linha.decisao);
   const posicao = emAberto.findIndex((item) => item.id === linha.id);
   // no painel, anda entre as que pedem decisão; de uma linha fora delas, a próxima é a primeira
   const anterior = posicao > 0 ? emAberto[posicao - 1] : null;
@@ -190,7 +193,7 @@ export function DetalheDivergencia({ painel = false }: { painel?: boolean }) {
         titulo={linha.descricao}
         sobretitulo={
           <>
-            {justificada ? `${status.rotulo} · justificada` : status.rotulo}
+            {rotuloComDecisao(status.rotulo, situacaoDaLinha(linha, conciliacao.rodada ?? 1))}
             {posicao === -1
               ? null
               : ` · item ${String(posicao + 1).padStart(2, "0")} de ${emAberto.length}`}
@@ -249,8 +252,24 @@ export function DetalheDivergencia({ painel = false }: { painel?: boolean }) {
           </div>
           <CartaoExtrato
             titulo="Extrato do sistema"
-            marca={estaResolvida(linha.status) ? "Conciliado" : justificada ? "Justificada" : "Precisa de ajuste"}
-            marcaClasse={estaResolvida(linha.status) ? "selo selo-ok" : justificada ? "selo" : "selo selo-risco"}
+            marca={
+              estaResolvida(linha.status)
+                ? "Conciliado"
+                : justificada
+                  ? "Justificada"
+                  : aguardando
+                    ? "Aguardando aprovação"
+                    : "Precisa de ajuste"
+            }
+            marcaClasse={
+              estaResolvida(linha.status)
+                ? "selo selo-ok"
+                : justificada
+                  ? "selo"
+                  : aguardando
+                    ? "selo selo-atencao"
+                    : "selo selo-risco"
+            }
             valor={valorSistema}
             campos={linha.camposSistema}
             origem="sistema"

@@ -111,6 +111,22 @@ describe("agruparPorMes", () => {
     expect(comLinhaNaoLida.naoLidas).toEqual([{ nome: "erp-x.csv", linhas: 2 }]);
   });
 
+  it("soma as justificativas que aguardam aprovação, e o mês não fica pronto com elas (backend #132)", () => {
+    const [mes] = agruparPorMes([
+      par("a", { divergencias: { divergente_valor: 3 }, justificadas: 1, aguardandoAprovacao: 2 }),
+      par("b", { divergencias: { sem_correspondencia: 1 }, justificadas: 0, aguardandoAprovacao: 1 }),
+      par("c", {}),
+    ]);
+
+    expect(mes.aguardandoAprovacao).toBe(3);
+    expect(mes.justificadas).toBe(1);
+    expect(mes.pronto).toBe(false);
+  });
+
+  it("sem a contagem (backend anterior ao #132), nada aguarda aprovação", () => {
+    expect(agruparPorMes([par("a")])[0].aguardandoAprovacao).toBe(0);
+  });
+
   it("fica pronto com as divergências todas justificadas, somadas entre os pares do mês", () => {
     const justificado = agruparPorMes([
       par("itau", { divergencias: { divergente_valor: 2 }, justificadas: 2 }),

@@ -36,8 +36,13 @@ export type MesDeFechamento = {
   lancamentos: number;
   conciliados: number;
   divergentes: number;
-  /** Das divergências, as justificadas: decididas, mas não batidas. */
+  /** Das divergências, as justificadas e aprovadas: decididas, mas não batidas. */
   justificadas: number;
+  /**
+   * As justificadas que esperam o admin ou o gestor aprovar (backend #132). Estão entre as divergências,
+   * fora das `justificadas`, e o mês não fecha com elas: nem a ressalva as libera.
+   */
+  aguardandoAprovacao: number;
   /** As divergências do mês por categoria do motor, da mais grave para a mais leve. */
   pendencias: Pendencia[];
   naoLidas: { nome: string; linhas: number }[];
@@ -105,6 +110,7 @@ function montarMes(chave: string, pares: ParDoFechamento[]): Omit<MesDeFechament
   const divergentes = pendencias.reduce((soma, pendencia) => soma + pendencia.quantidade, 0);
   // a contagem do backend não diz a categoria da justificada: ela desconta do total, não de cada uma
   const justificadas = pares.reduce((soma, par) => soma + par.execucao.justificadas, 0);
+  const aguardandoAprovacao = pares.reduce((soma, par) => soma + (par.execucao.aguardandoAprovacao ?? 0), 0);
   const naoLidas = pares.flatMap((par) => par.naoLidas);
 
   return {
@@ -118,6 +124,7 @@ function montarMes(chave: string, pares: ParDoFechamento[]): Omit<MesDeFechament
     conciliados: lancamentos - divergentes,
     divergentes,
     justificadas,
+    aguardandoAprovacao,
     pendencias,
     naoLidas,
     pronto: divergentes - justificadas === 0 && naoLidas.length === 0,

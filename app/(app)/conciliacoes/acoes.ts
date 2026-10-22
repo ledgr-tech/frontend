@@ -2,6 +2,7 @@
 
 import {
   adaptarConciliacao,
+  adaptarDecisao,
   adaptarExecucao,
   adaptarFechamento,
   adaptarResumoDoFechamento,
@@ -10,6 +11,7 @@ import {
   pareceUuid,
   type ArquivoConciliado,
   type CamposDeSaldoAPI,
+  type DecisaoAPI,
   type SaldoDoExtrato,
   type Execucao,
   type Fechamento,
@@ -33,7 +35,7 @@ import { competencia } from "../fechamentos/fechamento";
 import type { ConciliacaoDoPar } from "../fechamentos/relatorio";
 import type { DadosDoRoteiro } from "../visao-geral/roteiro";
 import { contaDaSessao } from "../../(auth)/acoes";
-import { SO_O_GESTOR_FECHA } from "@/lib/gestor";
+import { SO_O_GESTOR_APROVA, SO_O_GESTOR_FECHA } from "@/lib/gestor";
 import { podeFecharMes } from "@/lib/papel";
 
 /**
@@ -954,11 +956,14 @@ export async function explicarDivergencia(conciliacaoId: string): Promise<Result
   }
 }
 
+/** Aprovar e rejeitar uma justificativa (backend #132): do admin e do gestor, como fechar o mês. */
+const TIPOS_DA_APROVACAO: readonly TipoEvento[] = ["justificativa_aprovada", "justificativa_rejeitada"];
+
 /**
- * Conferir, justificar ou desfazer numa linha (spec 2026-10-02-conciliacao-em-rodadas).
- * A rota é a proposta ao backend; a tela só chega aqui quando os itens trazem o
- * campo `decisao`, sinal de que ela existe. Devolve a decisão em vigor, ou null
- * depois de desfazer.
+ * Conferir, justificar ou desfazer numa linha (spec 2026-10-02-conciliacao-em-rodadas), e aprovar ou
+ * rejeitar uma justificativa (`texto` é o motivo da rejeição, opcional). A rota é a proposta ao
+ * backend; a tela só chega aqui quando os itens trazem o campo `decisao`, sinal de que ela existe.
+ * Devolve a decisão em vigor, ou null depois de desfazer ou rejeitar: a linha volta a divergente.
  */
 export async function registrarDecisao(
   extratoBancoId: string,
@@ -967,20 +972,44 @@ export async function registrarDecisao(
   texto?: string,
 ): Promise<Resultado<Decisao | null>> {
   if (!pareceUuid(extratoBancoId)) return { ok: false, status: 404, erro: "Conciliação não encontrada." };
-  // conferir e justificar são de todos os papéis (decisão de 21/10); a aprovação da justificativa é
-  // do admin e do gestor e entra com o backend #132
+  // conferir e justificar são de todos os papéis (decisão de 21/10); aprovar e rejeitar, do admin e do gestor
+  const aprovacao = TIPOS_DA_APROVACAO.includes(tipo);
+  if (aprovacao) {
+    const recusa = await recusaSeNaoPodeFechar(SO_O_GESTOR_APROVA);
+    if (recusa) return recusa;
+  }
   try {
-    const decisao = await chamarBackend<Decisao | null>(`/conciliacoes/${extratoBancoId}/decisoes`, {
+    const decisao = await chamarBackend<DecisaoAPI | null>(`/conciliacoes/${extratoBancoId}/decisoes`, {
       method: "POST",
       corpo: { chave, tipo, texto },
     });
-    return { ok: true, dados: decisao ?? null };
+    return { ok: true, dados: decisao ? adaptarDecisao(decisao) : null };
   } catch (erro) {
     // a chave some quando outra rodada entra no meio: a linha da tela não existe mais
     if (erro instanceof ErroBackend && erro.status === 404) {
       return { ok: false, status: 404, erro: LINHA_MUDOU };
     }
-    return traduzir(erro);
+    return aprovacao ? traduzirDoFechamento(erro, SO_O_GESTOR_APROVA) : traduzir(erro);
+  }
+}
+
+/**
+ * Aprova de uma vez as justificativas que esperam aprovação num mês (`POST /justificativas/lote`,
+ * backend #132): é o que a mesa de fechamento faz antes de fechar. Devolve quantas foram aprovadas e
+ * quantas o backend ignorou por já não estarem pendentes.
+ */
+export async function aprovarPendentes(competenciaDoMes: string): Promise<Resultado<{ processadas: number; ignoradas: number }>> {
+  if (!COMPETENCIA.test(competenciaDoMes)) return COMPETENCIA_INVALIDA;
+  const recusa = await recusaSeNaoPodeFechar(SO_O_GESTOR_APROVA);
+  if (recusa) return recusa;
+  try {
+    const resposta = await chamarBackend<{ processadas: number; ignoradas: number }>("/justificativas/lote", {
+      method: "POST",
+      corpo: { acao: "aprovar", competencia: competenciaDoMes },
+    });
+    return { ok: true, dados: { processadas: resposta.processadas, ignoradas: resposta.ignoradas } };
+  } catch (erro) {
+    return traduzirDoFechamento(erro, SO_O_GESTOR_APROVA);
   }
 }
 

@@ -5,7 +5,7 @@ import { parDoOutroLado } from "./par";
 import { formatarMoeda, type LinhaComparacao } from "@/lib/mock-data";
 import { formatarDataHora, statusDaLinha } from "../../dashboard/resumo";
 import { SeloIa } from "../../selo-ia";
-import { continuaDivergindo, situacaoDaLinha } from "./situacao";
+import { continuaDivergindo, rotuloComDecisao, situacaoDaLinha } from "./situacao";
 
 export type Lado = { data: string; descricao: string } | null;
 
@@ -50,8 +50,11 @@ type NotaDoCartao = { titulo: string; texto: string | null };
 function notaDaLinha(linha: LinhaComparacao, rodada: number): NotaDoCartao | null {
   const decisao = linha.decisao;
   if (!decisao) return null;
-  if (situacaoDaLinha(linha, rodada) === "justificada") {
-    return { titulo: `Justificada por ${decisao.autor} em ${formatarDataHora(decisao.em)}`, texto: decisao.texto };
+  const situacao = situacaoDaLinha(linha, rodada);
+  if (situacao === "justificada" || situacao === "aguardando") {
+    const quando = `Justificada por ${decisao.autor} em ${formatarDataHora(decisao.em)}`;
+    // a que espera aprovação ainda segura o fechamento do mês (backend #132)
+    return { titulo: situacao === "aguardando" ? `${quando} · aguardando aprovação` : quando, texto: decisao.texto };
   }
   if (continuaDivergindo(linha, rodada)) {
     return {
@@ -192,7 +195,7 @@ export function CartaoLancamento({
     >
       <ConteudoCartao
         // o status do motor não muda com a justificativa: ela vem junto, não no lugar dele
-        rotulo={situacaoDaLinha(linha, rodada) === "justificada" ? `${rotulo} · justificada` : rotulo}
+        rotulo={rotuloComDecisao(rotulo, situacaoDaLinha(linha, rodada))}
         nota={notaDaLinha(linha, rodada)}
         titulo={linha.descricao}
         banco={par?.lado === "banco" ? `${par.data} · ${formatarMoeda(par.valor)}` : valorDoLado(banco, linha.valorBanco)}

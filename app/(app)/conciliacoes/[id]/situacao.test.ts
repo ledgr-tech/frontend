@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { Conciliacao, Decisao, EventoDecisao, LinhaComparacao, TipoEvento } from "@/lib/mock-data";
-import { continuaDivergindo, decisoesLigadas, historicoDaLinha, situacaoDaLinha } from "./situacao";
+import { continuaDivergindo, decisoesLigadas, historicoDaLinha, rotuloComDecisao, situacaoDaLinha } from "./situacao";
 
 const DIVERGENTE: LinhaComparacao = {
   id: "lc-1",
@@ -49,10 +49,27 @@ describe("situacaoDaLinha", () => {
     expect(continuaDivergindo(linha, 2)).toBe(true);
   });
 
+  it("justificada que espera aprovação está aguardando, e a aprovada, justificada", () => {
+    const pendente = { ...DIVERGENTE, decisao: { ...decisao("justificada", 1), situacao: "pendente" as const } };
+    expect(situacaoDaLinha(pendente, 1)).toBe("aguardando");
+    // continua aguardando nas rodadas seguintes: o mês não fecha com ela
+    expect(situacaoDaLinha(pendente, 2)).toBe("aguardando");
+    const aprovada = { ...DIVERGENTE, decisao: { ...decisao("justificada", 1), situacao: "aprovada" as const } };
+    expect(situacaoDaLinha(aprovada, 1)).toBe("justificada");
+  });
+
   it("justificada continua justificada nas rodadas seguintes", () => {
     const linha = { ...DIVERGENTE, decisao: decisao("justificada", 1) };
     expect(situacaoDaLinha(linha, 2)).toBe("justificada");
     expect(continuaDivergindo(linha, 2)).toBe(false);
+  });
+});
+
+describe("rotuloComDecisao", () => {
+  it("o status do motor segue, e a decisão vem junto", () => {
+    expect(rotuloComDecisao("Valor diverge", "a_conferir")).toBe("Valor diverge");
+    expect(rotuloComDecisao("Valor diverge", "justificada")).toBe("Valor diverge · justificada");
+    expect(rotuloComDecisao("Valor diverge", "aguardando")).toBe("Valor diverge · aguardando aprovação");
   });
 });
 
@@ -81,6 +98,26 @@ describe("historicoDaLinha", () => {
 
   const DO_EXTRATO = { quando: "04/09/2026", evento: "Boleto liquidado em R$ 12.640,00", origem: "Banco" as const };
   const BASE: LinhaComparacao = { ...DIVERGENTE, historico: [DO_EXTRATO] };
+
+  it("conta a aprovação e a rejeição da justificativa, com o motivo de quem rejeitou", () => {
+    const linha: LinhaComparacao = {
+      ...BASE,
+      decisao: null,
+      eventos: [
+        evento("justificada", 1, "2026-09-25T13:00:00Z", "Juros de dois dias de atraso."),
+        evento("justificativa_rejeitada", 1, "2026-09-25T14:00:00Z", "Falta o comprovante."),
+        evento("justificada", 1, "2026-09-25T15:00:00Z", "Juros, com comprovante."),
+        evento("justificativa_aprovada", 1, "2026-09-25T16:00:00Z"),
+      ],
+    };
+    expect(historicoDaLinha(linha, 1).map((e) => e.evento)).toEqual([
+      "Boleto liquidado em R$ 12.640,00",
+      "Justificada por Eduardo: Juros de dois dias de atraso.",
+      "Justificativa rejeitada por Eduardo: Falta o comprovante.",
+      "Justificada por Eduardo: Juros, com comprovante.",
+      "Justificativa aprovada por Eduardo",
+    ]);
+  });
 
   it("põe as decisões depois do que veio dos extratos, na ordem em que foram feitas", () => {
     const linha: LinhaComparacao = {

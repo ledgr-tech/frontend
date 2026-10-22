@@ -42,6 +42,7 @@ import { MensagemErro } from "@/app/(auth)/_compartilhado/mensagem-erro";
 import { Cabecalho } from "../../cabecalho";
 import { FaixaDoSaldo } from "../../saldo";
 import { SeloIa } from "../../selo-ia";
+import { usePodeFechar } from "../../conta";
 
 /**
  * "Desde a rodada 1: 4 passaram a bater · 2 continuam divergindo · 1 nova divergência".
@@ -121,6 +122,8 @@ function CabecalhoOrdenavel({
 }
 
 export default function ConciliacaoPage() {
+  // aprovar ou rejeitar a justificativa é do admin e do gestor, como fechar o mês (backend #132)
+  const podeAprovar = usePodeFechar();
   const params = useParams<{ id: string }>();
   const busca = useSearchParams();
   const sistema = busca.get("sistema") || undefined;
@@ -215,6 +218,8 @@ export default function ConciliacaoPage() {
   const emRevisao = filtrarLinhas(conciliacao.linhas, "revisao", rodadaDasLinhas);
   const justificadas = filtrarLinhas(conciliacao.linhas, "justificadas", rodadaDasLinhas);
   const conferidas = emRevisao.filter((linha) => situacaoDaLinha(linha, rodadaDasLinhas) === "conferida").length;
+  // justificadas que esperam aprovação: continuam em revisão, porque o mês não fecha com elas
+  const aguardando = emRevisao.filter((linha) => situacaoDaLinha(linha, rodadaDasLinhas) === "aguardando").length;
   const larguraValor = larguraDoValor(conciliacao.linhas);
   const categoria = ehDivergencia(filtro) ? filtro : null;
   const ordenadas = ordenarLinhas(filtrarLinhas(conciliacao.linhas, filtro, rodadaDasLinhas), ordem);
@@ -426,6 +431,7 @@ export default function ConciliacaoPage() {
             {ligadas && emRevisao.length > 0 && (
               <span className="tabela-progresso">
                 {`${formatarInteiro(conferidas)} de ${formatarInteiro(emRevisao.length)} ${emRevisao.length === 1 ? "conferida" : "conferidas"}`}
+                {aguardando > 0 && ` · ${formatarInteiro(aguardando)} aguardando aprovação`}
               </span>
             )}
           </div>
@@ -544,7 +550,8 @@ export default function ConciliacaoPage() {
                   const status = statusDaLinha(linha);
                   const situacao = situacaoDaLinha(linha, rodadaDasLinhas);
                   // conferida ou justificada, a linha sai da cor da categoria: alguém já cuidou dela
-                  const tom = situacao === "conferida" || situacao === "justificada" ? "neutro" : status.tom;
+                  const tom =
+                    situacao === "aguardando" ? "atencao" : situacao === "conferida" || situacao === "justificada" ? "neutro" : status.tom;
                   const { banco, sistema } = ladosDaLinha(linha);
                   // o cartão só nas linhas que pedem revisão, como na landing: nas batidas seria ruído
                   const comCartao = !estaResolvida(linha.status);
@@ -652,10 +659,14 @@ export default function ConciliacaoPage() {
                           bateu vai sem selo: só o que pede revisão ganha cor, e o olho vai direto nele */}
                       <td role="cell" data-rotulo="Status" className="celula-status">
                         <span className={comCartao ? `selo selo-${tom}` : "status-batido"} aria-hidden="true">
-                          {situacao === "justificada" ? "Justificada" : rotuloCurto(linha)}
+                          {situacao === "justificada" ? "Justificada" : situacao === "aguardando" ? "Aguardando" : rotuloCurto(linha)}
                         </span>
                         <span className="sr-only">
-                          {situacao === "justificada" ? `${status.rotulo} · justificada` : status.rotulo}
+                          {situacao === "justificada"
+                            ? `${status.rotulo} · justificada`
+                            : situacao === "aguardando"
+                              ? `${status.rotulo} · justificada, aguardando aprovação`
+                              : status.rotulo}
                         </span>
                       </td>
                       {sistema ? (
@@ -774,9 +785,12 @@ export default function ConciliacaoPage() {
             linha={linhaAberta}
             rodada={rodadaDasLinhas}
             podeDecidir={podeDecidir}
+            podeAprovar={podeAprovar}
             detalhe={caminhoDaConciliacao(conciliacao.id, conciliacao.extratoSistemaId, linhaAberta.id)}
             onJustificar={(texto) => gravarDecisao(linhaAberta, "justificada", texto)}
             onDesfazer={() => gravarDecisao(linhaAberta, "justificativa_desfeita")}
+            onAprovar={() => gravarDecisao(linhaAberta, "justificativa_aprovada")}
+            onRejeitar={(motivo) => gravarDecisao(linhaAberta, "justificativa_rejeitada", motivo || undefined)}
             onFechar={() => setChaveAberta(null)}
             onAbrirDetalhe={() => {
               setChaveAberta(null);
@@ -805,9 +819,12 @@ function EspiaDaLinha({
   linha,
   rodada,
   podeDecidir,
+  podeAprovar,
   detalhe,
   onJustificar,
   onDesfazer,
+  onAprovar,
+  onRejeitar,
   onFechar,
   onAbrirDetalhe,
 }: {
@@ -816,10 +833,15 @@ function EspiaDaLinha({
   rodada: number;
   /** Há onde gravar a decisão, e a rodada é a que vale: qualquer papel confere, justifica e desfaz. */
   podeDecidir: boolean;
+  /** Aprovar e rejeitar a justificativa: só o admin e o gestor. */
+  podeAprovar: boolean;
   detalhe: string;
   /** Devolvem o motivo de não ter gravado, ou null. */
   onJustificar: (texto: string) => Promise<string | null>;
   onDesfazer: () => Promise<string | null>;
+  onAprovar: () => Promise<string | null>;
+  /** O motivo é opcional: vazio vai sem texto. */
+  onRejeitar: (motivo: string) => Promise<string | null>;
   onFechar: () => void;
   /** O duplo clique na descrição: o primeiro clique abriu esta janela, o segundo cai nela. */
   onAbrirDetalhe: () => void;
@@ -837,6 +859,9 @@ function EspiaDaLinha({
   const situacao = situacaoDaLinha(linha, rodada);
   const [texto, setTexto] = useState("");
   const [emBranco, setEmBranco] = useState(false);
+  const [rejeitando, setRejeitando] = useState(false);
+  const [motivoDaRejeicao, setMotivoDaRejeicao] = useState("");
+  const idMotivo = useId();
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const mensagem = emBranco ? "Escreva o motivo da justificativa." : erro;
@@ -936,10 +961,82 @@ function EspiaDaLinha({
             <p className="dialog-body">{linha.explicacao}</p>
           </div>
         )}
+        {/* a justificativa que espera aprovação (backend #132): o admin e o gestor aprovam ou rejeitam;
+            o analista vê que aguarda, e quem pode decidir ainda pode desfazer */}
+        {situacao === "aguardando" && linha.decisao && (
+          <div className="espia-decisao">
+            <strong>{`Justificada por ${linha.decisao.autor} em ${formatarDataHora(linha.decisao.em)} · aguardando aprovação`}</strong>
+            {linha.decisao.texto && <p className="dialog-body">{linha.decisao.texto}</p>}
+            {podeDecidir && podeAprovar && !rejeitando && (
+              <div className="cfg-form-botoes">
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  disabled={enviando}
+                  aria-busy={enviando || undefined}
+                  onClick={() => enviar(onAprovar)}
+                >
+                  Aprovar
+                </button>
+                <button type="button" className="btn btn-secondary" disabled={enviando} onClick={() => setRejeitando(true)}>
+                  Rejeitar
+                </button>
+              </div>
+            )}
+            {podeDecidir && podeAprovar && rejeitando && (
+              <form
+                className="espia-decisao"
+                noValidate
+                onSubmit={(evento) => {
+                  evento.preventDefault();
+                  if (!enviando) void enviar(() => onRejeitar(motivoDaRejeicao.trim()));
+                }}
+              >
+                <div className="field">
+                  <label htmlFor={idMotivo}>Motivo da rejeição (opcional)</label>
+                  <textarea
+                    id={idMotivo}
+                    className="input"
+                    rows={2}
+                    value={motivoDaRejeicao}
+                    disabled={enviando}
+                    onChange={(evento) => setMotivoDaRejeicao(evento.target.value)}
+                  />
+                </div>
+                <div className="cfg-form-botoes">
+                  <button type="submit" className="btn btn-secondary" disabled={enviando} aria-busy={enviando || undefined}>
+                    Rejeitar justificativa
+                  </button>
+                  <button type="button" className="btn btn-secondary" disabled={enviando} onClick={() => setRejeitando(false)}>
+                    Voltar
+                  </button>
+                </div>
+              </form>
+            )}
+            {!podeAprovar && <p className="espia-aviso">Aguarda a aprovação do admin ou do gestor da conta.</p>}
+            {podeDecidir && !rejeitando && (
+              <button
+                type="button"
+                className="btn btn-secondary"
+                disabled={enviando}
+                aria-busy={enviando || undefined}
+                onClick={() => enviar(onDesfazer)}
+              >
+                Desfazer justificativa
+              </button>
+            )}
+            {erro && <MensagemErro id={idErro}>{erro}</MensagemErro>}
+          </div>
+        )}
         {/* a justificativa feita se lê em qualquer rodada; desfazer, só na que vale */}
         {situacao === "justificada" && linha.decisao && (
           <div className="espia-decisao">
             <strong>{`Justificada por ${linha.decisao.autor} em ${formatarDataHora(linha.decisao.em)}`}</strong>
+            {linha.decisao.aprovadaPor && (
+              <p className="espia-aviso">
+                {`Aprovada por ${linha.decisao.aprovadaPor}${linha.decisao.aprovadaEm ? ` em ${formatarDataHora(linha.decisao.aprovadaEm)}` : ""}`}
+              </p>
+            )}
             {linha.decisao.texto && <p className="dialog-body">{linha.decisao.texto}</p>}
             {podeDecidir && (
               <button
