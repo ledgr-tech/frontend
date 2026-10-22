@@ -212,3 +212,72 @@
 - [ ] **Step 2: Suite completa.** `npm run test && npm run lint && npm run build` — Expected: tudo verde; conferir a tabela de rotas do build.
 - [ ] **Step 3: Verificação real** contra o backend local (`develop` do backend, #143), com o front em `next dev` apontando para ele: (a) a seção lista as duas empresas da conta de teste, a ativa marcada; (b) cadastrar um CNPJ novo válido abre a empresa nova e ela aparece no seletor; (c) repetir o mesmo CNPJ dá o 409 sob o campo; (d) CNPJ inválido mostra o erro do `validarCnpj`; (e) reiniciar o backend com `LIMITE_EMPRESAS_PADRAO` igual ao número de empresas: o botão fica desligado, a frase do limite aparece e um cadastro forçado de outra aba devolve o 402 com a mensagem; (f) o analista (convidado de teste) vê a lista sem o formulário; (g) "Gerenciar empresas" no seletor abre a seção; (h) claro, escuro e menu recolhido sem quebra de layout. Guardar capturas para você.
 - [ ] **Step 4: Commit** `docs: empresas clientes no CLAUDE.md (#169)` e anotar na descrição do PR o que a verificação real cobriu e o que não cobriu.
+
+
+---
+
+## Revisão de 22/10: Empresas vira tela do menu lateral
+
+Spec: seção "Revisão de 22/10". As Tasks 1, 2, 3 e 7 ficam como estão. As Tasks 4, 5, 6, 8 e 9 foram executadas para a seção das Configurações e são **substituídas** pelas Tasks 11 a 15 abaixo (a lógica do hook e do formulário é aproveitada). A revisão final se refaz sobre a branch toda.
+
+### Task 11: A rota, o item de menu e o carregamento no servidor
+
+**Files:**
+- Modify: `lib/rotas.ts` (`SECOES`), `lib/rotas.test.ts`, `app/(app)/e/[empresa]/menu-lateral.tsx` e `menu-lateral.test.tsx`
+- Create: `app/(app)/e/[empresa]/empresas/page.tsx`, `loading.tsx`, `page.test.tsx`; um `painel-de-empresas.tsx` mínimo (só a tabela; a Task 12 completa)
+
+**Interfaces:**
+- Consumes: `carregarEmpresas` (Task 3), `Cabecalho`, `redirecionarNoApp`.
+- Produces: rota `/e/[empresa]/empresas`; `SECOES` inclui `"empresas"`; `PainelDeEmpresas({ empresas: EmpresaCliente[] })` (client).
+
+- [ ] **Step 1: Write the failing tests:** `rotas.test.ts`: `comEmpresa(id, "/empresas")` prefixa, `caminhoSemEmpresa("/e/<id>/empresas")` é `/empresas`, `destinoDaUrlAntiga("empresas", undefined, {}, id)` é `/e/<id>/empresas`. `menu-lateral.test.tsx`: existe o link "Empresas" com `href` `/e/<empresa>/empresas`, entre "Histórico" e "Assinatura", e fica marcado `aria-current` em `/empresas`. `page.test.tsx` (mockando `./acoes`): lista as empresas em tabela, com título "Empresas" e contexto "2 empresas" (singular com 1); 401 chama `redirecionarNoApp("/login")`; 404 mostra "As empresas ainda não estão disponíveis."; outra falha mostra a mensagem de falha com `role="alert"`.
+- [ ] **Step 2: Run** `npx vitest run lib/rotas.test.ts "app/(app)/e/[empresa]/menu-lateral.test.tsx" "app/(app)/e/[empresa]/empresas/page.test.tsx"` — Expected: FAIL.
+- [ ] **Step 3: Implement** `SECOES += "empresas"` (ordem alfabética), `ITENS` com `{ nome: "Empresas", icone: Building2, href: "/empresas" }` antes de Assinatura, `page.tsx` async no padrão de `extratos/page.tsx`, `loading.tsx` com `EsqueletoTela`.
+- [ ] **Step 4: Run** os mesmos testes mais `lib/rotas.guarda.test.ts` — Expected: PASS.
+- [ ] **Step 5: Commit** `feat(empresas): a tela Empresas no menu lateral (#169)`.
+
+### Task 12: O painel: tabela, faixa do plano e cadastro
+
+**Files:**
+- Modify: `app/(app)/e/[empresa]/empresas/painel-de-empresas.tsx`, `page.tsx`, `app/globals.css`
+- Test: `app/(app)/e/[empresa]/empresas/painel-de-empresas.test.tsx` (os testes de `secao-empresas.test.tsx`, migrados e adaptados)
+
+**Interfaces:**
+- Consumes: `useLimites`, `situacaoDoLimite`, `textoDoLimite` (Tasks 1 e 2); `cadastrarEmpresa` (Task 3); `useEmpresaAtiva`; `usePapel` (`../conta`); `gravarEmpresaRecente`; `comEmpresa`; `useRoteador`.
+- Produces: `PainelDeEmpresas({ empresas })` completo; a página passa o botão "Adicionar empresa" no `acoes` do `Cabecalho` por um componente cliente que controla o painel do formulário.
+
+- [ ] **Step 1: Write the failing tests** (mesmo esqueleto do teste antigo; `ProvedorDaEmpresa` e `ProvedorDaConta` em volta): a tabela mostra razão social, CNPJ formatado, "Ativa" só na da aba, "CNPJ verificado" só na verificada e a data de cadastro em pt-BR; **Abrir** só nas outras, grava `ledgr-empresa-recente=<id>` e faz `push("/e/<id>/visao-geral")`; a faixa do plano diz "2 de 3 empresas" com "Falta 1 empresa para o limite do plano.", só a contagem sem máximo, nada sem `limites`, e no limite traz "Ver planos" (`href` `/e/<ativa>/assinatura`); o analista não vê o botão e vê "Só o admin e o gestor cadastram empresas."; admin e gestor veem "Adicionar empresa" (`aria-expanded="false"`), que abre o formulário e passa a `true`; no limite o botão fica desligado. O formulário: todos os casos de cadastro do teste antigo (máscara, CNPJ inválido, razão social vazia, sucesso abre a Visão geral da empresa nova com cookie, **duplo submit chama a ação uma vez**, 409 e 422 sob o CNPJ, 402 com "Ver planos" e `refresh()`, 429, 403 com `refresh()`, 401 vai ao login, limite não envia).
+- [ ] **Step 2: Run** `npx vitest run "app/(app)/e/[empresa]/empresas/painel-de-empresas.test.tsx"` — Expected: FAIL.
+- [ ] **Step 3: Implement** o painel com `.table` e as classes `.empresas-*` novas (faixa do plano, painel do formulário), `CadastrarEmpresa` trazido do hook antigo (sem `aoAbrir`; 403 e 402 chamam `router.refresh()`).
+- [ ] **Step 4: Run** o mesmo teste, `lib/rotas.guarda.test.ts` e `npx eslint "app/(app)/e/[empresa]/empresas"` — Expected: PASS.
+- [ ] **Step 5: Commit** `feat(empresas): tabela, faixa do plano e cadastro na tela Empresas (#169)`.
+
+### Task 13: Tirar a seção das Configurações e ajustar o seletor
+
+**Files:**
+- Modify: `app/(app)/e/[empresa]/configuracoes.tsx` e `configuracoes.test.tsx` (voltam ao que eram), `seletor-de-empresa.tsx`, `seletor-de-empresa.test.tsx`
+- Delete: `app/(app)/e/[empresa]/empresas/secao-empresas.tsx`, `secao-empresas.test.tsx`
+
+- [ ] **Step 1: Write the failing tests:** `configuracoes.test.tsx` volta à ordem `["Conta", "Equipe", "Aparência"]` e perde os testes da seção Empresas e o mock de `./empresas/acoes`; `seletor-de-empresa.test.tsx`: "Gerenciar empresas" é um **link** para `/e/<ativa>/empresas`, fora do listbox, e ao clicar a lista fecha; Escape e as setas como antes.
+- [ ] **Step 2: Run** os dois testes — Expected: FAIL (a janela ainda tem a seção; o seletor ainda usa o evento).
+- [ ] **Step 3: Implement:** tirar `useLinhasDasEmpresas`, a seção e o ícone `Building2` de `configuracoes.tsx`; no seletor trocar o `button` por `LinkDoApp href="/empresas"` com `onClick` que fecha a lista; apagar os dois arquivos da seção.
+- [ ] **Step 4: Run** a suíte dos arquivos tocados e `lib/rotas.guarda.test.ts` — Expected: PASS.
+- [ ] **Step 5: Commit** `refactor(empresas): sai das Configurações; o seletor leva à tela (#169)`.
+
+### Task 14: Central de ajuda e CLAUDE.md
+
+**Files:**
+- Modify: `app/(ajuda)/ajuda/paginas.ts` (tira a função `empresas` e os textos que citam a seção; ganha a página `empresas`), `app/(ajuda)/ajuda/central.test.tsx`, `CLAUDE.md`
+- Create: `public/ajuda/empresas.webp` (captura da tela com a conta de teste, 1360×850)
+
+- [ ] **Step 1: Write the failing test** em `central.test.tsx`: existe a página `empresas`, entre `historico` e `assinatura` (ordem do menu), com `onde` "Menu lateral › Empresas", capa existente em `public/`, funções `lista`, `abrir`, `cadastrar` e `limite` com `faz`, e o passo do cadastro cita **Adicionar empresa** e **Cadastrar empresa**; a página das Configurações não tem mais a função `empresas`, e o `abrir` dela volta a listar "Conta, Equipe, Aparência".
+- [ ] **Step 2: Run** `npx vitest run "app/(ajuda)"` — Expected: FAIL.
+- [ ] **Step 3: Implement** os textos (português, `**negrito**` nos botões) e gerar a capa com Playwright e `sharp` a partir da tela real; reescrever no `CLAUDE.md` o bullet das empresas (tela, não seção) e a menção do seletor.
+- [ ] **Step 4: Run** `npx vitest run "app/(ajuda)"` — Expected: PASS.
+- [ ] **Step 5: Commit** `docs(ajuda): página Empresas na Central e CLAUDE.md (#169)`.
+
+### Task 15: Verificação real e revisão final
+
+- [ ] **Step 1:** `npm run test && npm run lint && npm run build` — Expected: verdes; a tabela de rotas do build lista `/e/[empresa]/empresas`.
+- [ ] **Step 2: Verificação real** contra o backend local (limites de 3 empresas e 1 pessoa): o item "Empresas" no menu abre a tela; a tabela, "Ativa", "Abrir" (vai à Visão geral da outra), a faixa "2 de 3", cadastrar abre a Visão geral da empresa nova, no limite o botão fica desligado e aparece "Ver planos", aba com contador velho recebe 409 e 402, "Gerenciar empresas" do seletor leva à tela, Configurações sem a seção; claro, escuro e menu recolhido por captura.
+- [ ] **Step 3: Revisão final** da branch inteira por revisor independente, com o Review Focus acima; um passe de correções com teste.

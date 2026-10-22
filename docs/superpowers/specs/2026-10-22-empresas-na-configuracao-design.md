@@ -77,3 +77,16 @@ Botão "Adicionar empresa" abre o formulário em linha (padrão `cfg-form` do co
 - **Contador defasado:** `limites` vem do `/me`, lido por carregamento do layout; depois de cadastrar, a navegação à empresa nova já relê. Se o 402 vier com o contador velho, relê-se o `/me`.
 - **Limite de 20 por hora** na conta: o aviso de 429 é o único tratamento; não há contador no front.
 - **Sem rota** (backend sem o #143): a seção mostra "ainda não disponível" e some o botão; o resto do app segue como hoje.
+
+
+## Revisão de 22/10 (depois da implementação inicial): Empresas é uma tela do menu lateral
+
+**Decisão do Eduardo:** Empresas não fica dentro das Configurações; vira uma **tela própria no menu lateral**, como Extratos ou Assinatura. Isto substitui "Onde", "Lista", "Cadastro" e "Arquitetura" acima nos pontos em que diferem; o resto (contrato do backend, erros, limites, regras de papel) continua valendo.
+
+- **Rota e menu:** `/e/<empresa>/empresas`, com o item "Empresas" (ícone `Building2`) no menu lateral, entre Histórico e Assinatura (itens da conta juntos). `empresas` entra em `SECOES` (`lib/rotas.ts`), para o prefixo da empresa, o redirect das URLs antigas e o guarda de rotas a reconhecerem.
+- **A tela** (padrão de Extratos: Server Component que carrega no servidor, `Cabecalho`, `loading.tsx`): título "Empresas" e contexto "N empresas"; faixa do plano ("2 de 3 empresas do plano", a frase de limite e "Ver planos" no limite); tabela das empresas (razão social com "Ativa", CNPJ formatado com "verificado", data de cadastro, e **Abrir**); botão "Adicionar empresa" no cabeçalho (admin e gestor; desligado no limite) que abre um painel com o formulário acima da tabela. O analista só vê a lista, com a frase "Só o admin e o gestor cadastram empresas.".
+- **Abrir** leva à **Visão geral** da outra empresa (não à mesma tela: daqui não há tela com a qual manter a correspondência), gravando a empresa recente. Cadastrar com sucesso abre a Visão geral da empresa nova, como antes.
+- **Seletor:** o item do fim da lista passa a ser um link para `/empresas` ("Gerenciar empresas"), não mais o evento da janela de Configurações.
+- **Configurações:** volta a ter as seções de antes; a seção Empresas e o texto dela na Central saem.
+- **Ajuda:** a Central ganha a página "Empresas" (com capa, uma captura da tela) na ordem do menu; sem tutorial do mascote por ora (a Assinatura também não tem).
+- **Mantido da implementação inicial:** regras dos limites (`lib/limites.ts`), `limites` do `/me` até `useLimites()`, ações `carregarEmpresas`/`cadastrarEmpresa`, aviso de pessoas na Equipe.
