@@ -11,6 +11,7 @@ import {
   type TelaDoTutorial,
 } from "@/lib/preferencias";
 import type { Assinatura } from "@/lib/assinatura";
+import { podeFecharMes, type Papel } from "@/lib/papel";
 
 type ValorDaConta = {
   /** Falso até ler o navegador: antes disso, ninguém abre tutorial nem roteiro. */
@@ -22,8 +23,8 @@ type ValorDaConta = {
 };
 
 const Contexto = createContext<ValorDaConta | null>(null);
-/** Quem é o gestor da conta (o administrador, #168); fora do app, como a conta única antiga, sim. */
-const ContextoDoGestor = createContext(true);
+/** O papel de quem está na tela (#133); fora do app, como a conta única antiga, admin. */
+const ContextoDoPapel = createContext<Papel>("admin");
 /** O plano e o teste de 14 dias; null sem a informação do backend (e fora do app). */
 const ContextoDaAssinatura = createContext<Assinatura | null>(null);
 
@@ -35,13 +36,13 @@ const ContextoDaAssinatura = createContext<Assinatura | null>(null);
 export function ProvedorDaConta({
   preferencias,
   assinatura = null,
-  administrador = true,
+  papel = "admin",
   children,
 }: {
   preferencias: Preferencias | null;
   assinatura?: Assinatura | null;
-  /** Do `GET /me`: só o gestor justifica e fecha o mês. */
-  administrador?: boolean;
+  /** Do `GET /me`: só o admin e o gestor fecham o mês. */
+  papel?: Papel;
   children: ReactNode;
 }) {
   const [atuais, setAtuais] = useState<Preferencias>(preferencias ?? PREFERENCIAS_VAZIAS);
@@ -75,7 +76,7 @@ export function ProvedorDaConta({
   return (
     <Contexto.Provider value={valor}>
       <ContextoDaAssinatura.Provider value={assinatura}>
-        <ContextoDoGestor.Provider value={administrador}>{children}</ContextoDoGestor.Provider>
+        <ContextoDoPapel.Provider value={papel}>{children}</ContextoDoPapel.Provider>
       </ContextoDaAssinatura.Provider>
     </Contexto.Provider>
   );
@@ -91,7 +92,11 @@ export function useAssinatura(): Assinatura | null {
   return useContext(ContextoDaAssinatura);
 }
 
-/** Se quem está na tela é o gestor da conta, que justifica e fecha o mês (#168). */
-export function useEhGestor(): boolean {
-  return useContext(ContextoDoGestor);
+export function usePapel(): Papel {
+  return useContext(ContextoDoPapel);
+}
+
+/** Se quem está na tela fecha e reabre o mês: o admin e o gestor (#168). */
+export function usePodeFechar(): boolean {
+  return podeFecharMes(useContext(ContextoDoPapel));
 }

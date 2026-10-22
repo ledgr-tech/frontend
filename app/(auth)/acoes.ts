@@ -8,6 +8,7 @@ import { ErroBackend, chamarBackend, emailDaSessao } from "@/lib/backend";
 import { RECUSA_DEMONSTRACAO, demoAberta, ehContaDeDemonstracao } from "@/lib/demo";
 import { COOKIE_CADASTRO_GOOGLE, COOKIE_CONVITE_GOOGLE, VALIDADE_ID_TOKEN_SEGUNDOS } from "@/lib/google";
 import { MuitasEntradas, type UsuarioAPI } from "@/lib/login";
+import { lerPapel, type Papel } from "@/lib/papel";
 import { ehTela, type Preferencias } from "@/lib/preferencias";
 import { adaptarAssinatura, type Assinatura, type PlanoId } from "@/lib/assinatura";
 import { adaptarConsultaConvite, type ConsultaConvite, type ConsultaConviteAPI } from "@/lib/adaptadores";
@@ -469,8 +470,8 @@ export type ContaDaSessao = {
   empresa: string;
   /** Falso na conta que só entra pelo Google: para ela, `POST /me/senha` responde 409. */
   temSenha: boolean;
-  /** Quem cadastrou a empresa: convida e remove pessoas (backend #69). Verdadeiro sem o campo, como na conta única. */
-  administrador: boolean;
+  /** admin, gestor ou analista (backend #133). Sem `papel`, lê o `administrador` antigo; sem nenhum, admin, como na conta única. */
+  papel: Papel;
   /** O que a pessoa dispensou no primeiro uso; null quando o `GET /me` ainda não manda o campo. */
   preferencias: Preferencias | null;
   /** O plano e o teste de 14 dias; null quando o `GET /me` ainda não manda `situacao`: nada bloqueia. */
@@ -487,7 +488,7 @@ function adaptarPreferencias(bruto: PreferenciasAPI | null | undefined): Prefere
 
 /**
  * A conta logada, de `GET /me` (backend #81), que o `/login` não cobre: ele devolve só
- * o usuário. Um papel só, o `administrador` (backend #69). Limite de 60 chamadas por
+ * o usuário. O papel vem em `papel` (backend #133); o `administrador` é obsoleto. Limite de 60 chamadas por
  * minuto por usuário, por isso só o layout chama.
  *
  * Se a rota falhar, a empresa fica vazia e as telas a escondem, melhor que mostrar o
@@ -499,6 +500,7 @@ export async function contaDaSessao(): Promise<ContaDaSessao> {
       UsuarioAPI & {
         razao_social: string;
         metodos_login: string[];
+        papel?: unknown;
         administrador?: boolean;
         preferencias?: PreferenciasAPI;
         situacao?: unknown;
@@ -509,12 +511,12 @@ export async function contaDaSessao(): Promise<ContaDaSessao> {
     return {
       empresa: eu.razao_social?.trim() ?? "",
       temSenha: eu.metodos_login?.includes("senha") ?? true,
-      administrador: eu.administrador !== false,
+      papel: lerPapel(eu),
       preferencias: adaptarPreferencias(eu.preferencias),
       assinatura: adaptarAssinatura(eu),
     };
   } catch {
-    return { empresa: "", temSenha: true, administrador: true, preferencias: null, assinatura: null };
+    return { empresa: "", temSenha: true, papel: "admin", preferencias: null, assinatura: null };
   }
 }
 

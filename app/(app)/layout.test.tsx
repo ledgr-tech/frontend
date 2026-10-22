@@ -59,17 +59,17 @@ describe("AppLayout", () => {
     expect(elemento.props.preferencias).toBeNull();
   });
 
-  it("entrega ao shell se a pessoa é a administradora", async () => {
+  it("entrega ao shell o papel da pessoa", async () => {
     auth.mockResolvedValue({ user: { email: "financeiro@telhacerta.com.br" } });
     contaDaSessao.mockResolvedValue({
       empresa: "Telha Certa Ltda",
       temSenha: true,
-      administrador: false,
+      papel: "gestor",
       preferencias: null,
       assinatura: null,
     });
     const elemento = await AppLayout({ children: "conteúdo" });
-    expect(elemento.props.administrador).toBe(false);
+    expect(elemento.props.papel).toBe("gestor");
   });
 
   it("conta sem plano vai escolher o plano antes", async () => {

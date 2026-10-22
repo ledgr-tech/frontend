@@ -29,6 +29,7 @@ import { aplicarDensidade, densidadeAtual, type Densidade } from "./densidade";
 import { alternarMenu, menuRecolhido } from "./menu";
 import { aplicarTema, escolhaDeTema, seguirSistema, temaDoSistema, type EscolhaDeTema, type Tema } from "./tema";
 import { useTeclaDeAtalho } from "@/lib/plataforma";
+import type { Papel } from "@/lib/papel";
 import { Tutorial } from "./tutorial/tutorial";
 import { useLinhasDaEquipe } from "./equipe/secao-equipe";
 
@@ -396,7 +397,7 @@ export function Configuracoes({
   onFechar,
   email,
   temSenha,
-  administrador = true,
+  papel = "admin",
   onSair,
   onTema,
 }: {
@@ -407,8 +408,8 @@ export function Configuracoes({
   email: string;
   /** Falso na conta que só entra pelo Google (`metodos_login` do `GET /me`): não há senha para trocar. */
   temSenha: boolean;
-  /** Quem cadastrou a empresa: só ele convida e remove pessoas na seção Equipe. */
-  administrador?: boolean;
+  /** O papel de quem está logado: o admin e o gestor convidam, só o admin remove pessoas na seção Equipe. */
+  papel?: Papel;
   onSair: () => void;
   /** Avisa o menu lateral, que mostra o botão de tema com o ícone do tema atual. */
   onTema: (tema: Tema) => void;
@@ -423,7 +424,7 @@ export function Configuracoes({
   // undefined até a janela abrir pela primeira vez (e de novo no "Tentar de novo")
   const [regras, setRegras] = useState<EstadoDasRegras | undefined>(undefined);
   const ctrl = useTeclaDeAtalho();
-  const linhasDaEquipe = useLinhasDaEquipe({ aberta, administrador, email });
+  const linhasDaEquipe = useLinhasDaEquipe({ aberta, papel, email });
 
   useEffect(() => {
     const elemento = dialogo.current;
@@ -536,7 +537,7 @@ export function Configuracoes({
         },
         {
           titulo: "Desativar conta",
-          descricao: administrador
+          descricao: papel === "admin"
             ? "Tira o seu acesso ao Ledgr e libera o seu e-mail. Se há outras pessoas na equipe, remova-as antes: sem você, a empresa fica sem acesso."
             : "Tira o seu acesso ao Ledgr e libera o seu e-mail. O que você conferiu e justificou continua no histórico da empresa, com o seu nome.",
           controle: (

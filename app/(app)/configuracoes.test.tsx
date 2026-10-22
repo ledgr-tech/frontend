@@ -80,7 +80,7 @@ describe("Configuracoes", () => {
     salvarToleranciaDias.mockReset();
     carregarEquipe.mockReset().mockResolvedValue({
       ok: true,
-      dados: { pessoas: [{ id: "u1", nome: "Ana", email: EMAIL, administrador: true }], convites: [] },
+      dados: { pessoas: [{ id: "u1", nome: "Ana", email: EMAIL, papel: "admin" }], convites: [] },
     });
     window.localStorage.clear();
     delete document.documentElement.dataset.tema;
@@ -397,15 +397,17 @@ describe("Configuracoes", () => {
     expect(nomes.slice(0, 3)).toEqual(["Conta", "Equipe", "Aparência"]);
   });
 
-  it("finds the invite line when searching, and only the administrator can invite", async () => {
+  it("finds the invite line when searching, and an analyst cannot invite", async () => {
     const user = userEvent.setup();
-    abrir({ administrador: false });
+    abrir({ papel: "analista" });
 
     await user.type(screen.getByRole("searchbox", { name: "Procurar nas configurações" }), "convid");
     expect(await screen.findByRole("heading", { name: "Equipe" })).toBeInTheDocument();
     expect(screen.getByText("Convidar pessoa")).toBeInTheDocument();
-    expect(screen.getByText("Só o administrador convida e remove pessoas.")).toBeInTheDocument();
-    expect(carregarEquipe).toHaveBeenCalledWith(false);
+    expect(
+      screen.getByText("Só o administrador e o gestor convidam pessoas; só o administrador remove."),
+    ).toBeInTheDocument();
+    expect(carregarEquipe).toHaveBeenCalledWith("analista");
   });
 
   it("closes from the close button", async () => {

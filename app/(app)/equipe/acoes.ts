@@ -11,16 +11,16 @@ import {
 } from "@/lib/adaptadores";
 import { ErroBackend, chamarBackend, emailDaSessao } from "@/lib/backend";
 import { RECUSA_DEMONSTRACAO, ehContaDeDemonstracao } from "@/lib/demo";
+import { ehPapel, podeConvidar, type Papel } from "@/lib/papel";
 import type { Falha, Resultado } from "../conciliacoes/acoes";
 
 /**
- * A equipe da empresa (backend #69, ADR-015): um papel só, o administrador, que
- * é quem cadastrou a empresa. Ele convida, cancela convite e remove pessoas;
- * todo mundo vê a lista. O backend garante cada regra (403, 409); a tela só
- * esconde o que seria recusado.
+ * A equipe da empresa (backend #69, ADR-015; papéis no #133): o admin convida gestor ou analista,
+ * o gestor convida só analista, e os dois cancelam convite; remover pessoas é do admin. Todo mundo
+ * vê a lista. O backend garante cada regra (403, 409); a tela só esconde o que seria recusado.
  */
 
-/** `convites` é null para quem não é administrador: a rota responderia 403. */
+/** `convites` é null para quem não convida (o analista): a rota responderia 403. */
 export type Equipe = { pessoas: Pessoa[]; convites: Convite[] | null };
 
 const SESSAO_EXPIRADA = "Sua sessão expirou. Entre de novo para continuar.";
@@ -38,7 +38,7 @@ function traduzir(erro: unknown, aoConvidar = false): Falha {
   }
   const { status } = erro;
   if (status === 401) return { ok: false, status, erro: SESSAO_EXPIRADA };
-  if (status === 403) return { ok: false, status, erro: "Só o administrador pode fazer isso." };
+  if (status === 403) return { ok: false, status, erro: "Seu papel na conta não permite fazer isso." };
   if (aoConvidar && status === 409) return { ok: false, status, erro: "Este e-mail já tem conta no Ledgr." };
   if (aoConvidar && status === 429) return { ok: false, status, erro: limiteDeConvites(erro.segundosParaTentar) };
   if (aoConvidar && status === 503) {
@@ -52,11 +52,21 @@ async function recusaNaDemonstracao(): Promise<Falha | null> {
   return ehContaDeDemonstracao(await emailDaSessao()) ? { ok: false, status: 403, erro: RECUSA_DEMONSTRACAO } : null;
 }
 
-export async function carregarEquipe(administrador: boolean): Promise<Resultado<Equipe>> {
+/** Os convites pendentes; um 403 (o backend não deixa este papel ver a lista) não derruba a equipe. */
+async function carregarConvites(): Promise<{ itens: ConviteAPI[] } | null> {
+  try {
+    return await chamarBackend<{ itens: ConviteAPI[] }>("/empresa/convites");
+  } catch (erro) {
+    if (erro instanceof ErroBackend && erro.status === 403) return null;
+    throw erro;
+  }
+}
+
+export async function carregarEquipe(papel: Papel): Promise<Resultado<Equipe>> {
   try {
     const [pessoas, convites] = await Promise.all([
       chamarBackend<{ itens: PessoaAPI[] }>("/empresa/usuarios"),
-      administrador ? chamarBackend<{ itens: ConviteAPI[] }>("/empresa/convites") : null,
+      podeConvidar(papel) ? carregarConvites() : null,
     ]);
     return {
       ok: true,
@@ -70,14 +80,20 @@ export async function carregarEquipe(administrador: boolean): Promise<Resultado<
   }
 }
 
-/** O e-mail vai aparado; o backend normaliza o resto (maiúsculas) e cancela um convite pendente para o mesmo e-mail. */
-export async function convidar(email: string): Promise<Resultado<Convite>> {
+/**
+ * O e-mail vai aparado; o backend normaliza o resto (maiúsculas) e cancela um convite pendente para o
+ * mesmo e-mail. O papel é o que a pessoa terá ao aceitar (#133): o admin convida gestor ou analista, o
+ * gestor só analista, e o backend recusa o resto com 403.
+ */
+export async function convidar(email: string, papel: Papel): Promise<Resultado<Convite>> {
+  // Server Action é endpoint público: ao backend só vai um papel que existe
+  if (!ehPapel(papel)) return { ok: false, status: 422, erro: "Escolha o papel da pessoa." };
   const recusa = await recusaNaDemonstracao();
   if (recusa) return recusa;
   try {
     const convite = await chamarBackend<ConviteAPI>("/empresa/convites", {
       method: "POST",
-      corpo: { email: email.trim() },
+      corpo: { email: email.trim(), papel },
     });
     return { ok: true, dados: adaptarConvite(convite) };
   } catch (erro) {

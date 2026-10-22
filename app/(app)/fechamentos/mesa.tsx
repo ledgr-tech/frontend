@@ -14,7 +14,7 @@ import { FaixaFiltros } from "../faixa-filtros";
 import { Grupo, alternarNoConjunto } from "../grupo";
 import { fraseDoSaldoFinal } from "../saldo";
 import type { MesDeFechamento } from "./fechamento";
-import { useEhGestor } from "../conta";
+import { usePodeFechar } from "../conta";
 import { SO_O_GESTOR_FECHA } from "@/lib/gestor";
 
 /**
@@ -464,8 +464,8 @@ function AcoesDoFechamento({ mes, revisar }: { mes: MesDeFechamento; revisar: st
   const [pedeRessalva, setPedeRessalva] = useState(false);
   const [ressalva, setRessalva] = useState("");
   const mesSozinho = mes.nome.toLowerCase();
-  // fechar e reabrir são do gestor da conta (#168); os outros veem o caminho de revisar
-  const gestor = useEhGestor();
+  // fechar e reabrir são do admin e do gestor (#168, #133); o analista vê o caminho de revisar
+  const gestor = usePodeFechar();
   const avisoDoGestor = !gestor && <p className="vg-nota">{SO_O_GESTOR_FECHA}</p>;
 
   async function executar(acao: () => Promise<Resultado<unknown>>) {

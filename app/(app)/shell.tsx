@@ -12,12 +12,13 @@ import { TutorialDaRota } from "./tutorial/tutorial-da-rota";
 import { PainelDaRota } from "./ajuda/painel-de-ajuda";
 import type { Preferencias } from "@/lib/preferencias";
 import type { Assinatura } from "@/lib/assinatura";
+import type { Papel } from "@/lib/papel";
 
 export function Shell({
   email,
   empresa,
   temSenha,
-  administrador,
+  papel,
   preferencias,
   assinatura = null,
   children,
@@ -25,8 +26,8 @@ export function Shell({
   email: string;
   empresa: string;
   temSenha: boolean;
-  /** Quem cadastrou a empresa; vai até a seção Equipe das Configurações. */
-  administrador: boolean;
+  /** O papel de quem está logado, do `GET /me`; vai até a seção Equipe das Configurações. */
+  papel: Papel;
   /** O que a pessoa dispensou no primeiro uso, do `GET /me`; null quando ele não manda. */
   preferencias: Preferencias | null;
   /** O plano e o teste de 14 dias, do `GET /me`; null quando ele não manda. */
@@ -35,14 +36,14 @@ export function Shell({
 }) {
   return (
     <EmpresaDaSessao value={empresa}>
-      <ProvedorDaConta preferencias={preferencias} assinatura={assinatura} administrador={administrador}>
+      <ProvedorDaConta preferencias={preferencias} assinatura={assinatura} papel={papel}>
         <LucideProvider strokeWidth={TRACO_ICONE}>
           <div className="app-shell">
             <MenuLateral
               email={email}
               empresa={empresa}
               temSenha={temSenha}
-              administrador={administrador}
+              papel={papel}
               onSair={() => void sair()}
             />
             <main className="app-principal">
