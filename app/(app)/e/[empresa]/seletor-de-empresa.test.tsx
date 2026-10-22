@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ProvedorDaEmpresa, type EmpresaDaConta } from "@/lib/empresa-ativa";
+import { ABRIR_CONFIGURACOES } from "@/lib/eventos";
 import { SeletorDeEmpresa } from "./seletor-de-empresa";
 
 const caminho = vi.hoisted(() => ({ atual: "/e/x/fechamentos" }));
@@ -174,5 +175,46 @@ describe("SeletorDeEmpresa", () => {
     expect(opcoes[opcoes.length - 1]).toHaveFocus();
     await user.keyboard("{Home}");
     expect(opcoes[0]).toHaveFocus();
+  });
+});
+
+describe("Gerenciar empresas", () => {
+  it("fica no fim da lista, fora do listbox: não é uma opção de empresa", async () => {
+    const user = userEvent.setup();
+    montar();
+    await user.click(screen.getByRole("button", { name: /Padaria Ltda/ }));
+
+    const gerenciar = screen.getByRole("button", { name: "Gerenciar empresas" });
+    expect(screen.getAllByRole("option")).toHaveLength(2);
+    expect(screen.getByRole("listbox")).not.toContainElement(gerenciar);
+  });
+
+  it("fecha a lista e pede à janela de Configurações a seção Empresas", async () => {
+    const user = userEvent.setup();
+    const aoPedir = vi.fn();
+    window.addEventListener(ABRIR_CONFIGURACOES, aoPedir);
+    montar();
+    await user.click(screen.getByRole("button", { name: /Padaria Ltda/ }));
+
+    await user.click(screen.getByRole("button", { name: "Gerenciar empresas" }));
+
+    window.removeEventListener(ABRIR_CONFIGURACOES, aoPedir);
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    expect(aoPedir).toHaveBeenCalledTimes(1);
+    expect((aoPedir.mock.calls[0][0] as CustomEvent).detail).toEqual({ secao: "empresas" });
+  });
+
+  it("Escape ainda fecha e devolve o foco ao botão; as setas andam só pelas empresas", async () => {
+    const user = userEvent.setup();
+    montar();
+    const botao = screen.getByRole("button", { name: /Padaria Ltda/ });
+    await user.click(botao);
+
+    await user.keyboard("{ArrowDown}{ArrowDown}{ArrowDown}");
+    expect(screen.getByRole("option", { name: /Mercado Ltda/ })).toHaveFocus();
+
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    expect(botao).toHaveFocus();
   });
 });

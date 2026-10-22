@@ -3291,6 +3291,14 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
 }
 .seletor-empresa-opcao:hover, .seletor-empresa-opcao:focus-visible { background: var(--tinta-hover); }
 .seletor-empresa-opcao[aria-selected="true"] { box-shadow: inset 3px 0 0 var(--color-accent); }
+.seletor-empresa-gerenciar {
+  width: 100%; display: flex; align-items: center; gap: 8px; cursor: pointer; text-align: left;
+  padding: 9px 14px; border: 0; border-top: 1px solid var(--color-divider);
+  background: transparent; color: color-mix(in srgb, var(--color-text) 72%, transparent);
+  font-family: var(--font-body); font-size: 13px;
+}
+.seletor-empresa-gerenciar:hover { background: var(--tinta-hover); color: var(--color-text); }
+.seletor-empresa-gerenciar:focus-visible { outline: 2px solid var(--color-accent); outline-offset: -2px; }
 .seletor-empresa-vazio { margin: 0; padding: 10px 14px; font-size: 13px; color: color-mix(in srgb, var(--color-text) 62%, transparent); }
 /* abre para cima: o botao fica no pe da tela */
 .app-painel.app-conta-painel {
