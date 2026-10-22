@@ -15,7 +15,7 @@ const SEGREDO = "segredo-de-teste-compartilhado-com-o-backend";
 const CLAIMS = {
   usuarioId: "9f4b1a2c-3d5e-4f60-8a71-2b3c4d5e6f70",
   email: "financeiro@telhacerta.com.br",
-  empresaId: "1a2b3c4d-5e6f-4071-8293-a4b5c6d7e8f9",
+  contaId: "1a2b3c4d-5e6f-4071-8293-a4b5c6d7e8f9",
 };
 
 describe("token do backend", () => {
@@ -44,14 +44,23 @@ describe("token do backend", () => {
     expect(decodeProtectedHeader(token).alg).toBe("HS256");
   });
 
-  it("leva os claims do contrato, com empresa_id em snake_case", async () => {
+  it("leva os claims do contrato, com conta_id em snake_case", async () => {
     const payload = decodeJwt(await assinarToken(CLAIMS));
     // é o único claim que o backend lê para resolver o tenant — sem ele, 401
-    expect(payload.empresa_id).toBe(CLAIMS.empresaId);
+    expect(payload.conta_id).toBe(CLAIMS.contaId);
     expect(payload.sub).toBe(CLAIMS.usuarioId);
     expect(payload.email).toBe(CLAIMS.email);
     expect(payload.iat).toBeTypeOf("number");
     expect(payload.exp).toBeTypeOf("number");
+  });
+
+  it("ainda lê o empresa_id legado como id da conta, para sessões emitidas antes da troca", async () => {
+    const token = await new SignJWT({ empresa_id: CLAIMS.contaId })
+      .setProtectedHeader({ alg: "HS256" })
+      .setSubject(CLAIMS.usuarioId)
+      .setExpirationTime("1h")
+      .sign(new TextEncoder().encode(SEGREDO));
+    expect((await lerToken(token))?.contaId).toBe(CLAIMS.contaId);
   });
 
   it("vale 7 dias, e não os 30 que o NextAuth usaria por padrão", async () => {
@@ -102,7 +111,7 @@ describe("token do backend", () => {
   });
 
   it("recusa token vencido em vez de estourar", async () => {
-    const vencido = await new SignJWT({ empresa_id: CLAIMS.empresaId })
+    const vencido = await new SignJWT({ conta_id: CLAIMS.contaId })
       .setProtectedHeader({ alg: "HS256" })
       .setSubject(CLAIMS.usuarioId)
       .setExpirationTime("-1s")
@@ -114,7 +123,7 @@ describe("token do backend", () => {
     ["sem sub", (jwt: SignJWT) => jwt.setExpirationTime("1h")],
     ["sem exp", (jwt: SignJWT) => jwt.setSubject(CLAIMS.usuarioId)],
   ])("recusa token %s, que o backend também recusaria", async (_, montar) => {
-    const token = await montar(new SignJWT({ empresa_id: CLAIMS.empresaId }).setProtectedHeader({ alg: "HS256" })).sign(
+    const token = await montar(new SignJWT({ conta_id: CLAIMS.contaId }).setProtectedHeader({ alg: "HS256" })).sign(
       new TextEncoder().encode(SEGREDO),
     );
     expect(await lerToken(token)).toBeNull();

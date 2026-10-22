@@ -231,7 +231,7 @@ describe("emailDaSessao", () => {
   });
 
   it("lê o e-mail do mesmo cookie que vai no Bearer, com a assinatura conferida", async () => {
-    cookie.valor = await assinarToken({ usuarioId: "u", email: "ana@telhacerta.com.br", empresaId: "e" });
+    cookie.valor = await assinarToken({ usuarioId: "u", email: "ana@telhacerta.com.br", contaId: "e" });
 
     expect(await emailDaSessao()).toBe("ana@telhacerta.com.br");
   });

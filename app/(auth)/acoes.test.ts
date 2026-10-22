@@ -73,7 +73,7 @@ beforeEach(() => {
   signOut.mockReset();
   redirect.mockReset();
   auth.mockReset();
-  auth.mockResolvedValue({ user: { email: "ana@telhacerta.com.br", empresaId: "e" } });
+  auth.mockResolvedValue({ user: { email: "ana@telhacerta.com.br", contaId: "e" } });
   cookiesGravados.mockReset();
   cookiesApagados.mockReset();
   cookiesExistentes.clear();
@@ -606,7 +606,7 @@ describe("a conta de quem está logado", () => {
   it("reconhece a demonstração pelo token que vai ao backend, mesmo com o auth() vendo outra conta", async () => {
     // com dois cookies de sessão no navegador, o auth() e o Bearer podiam ler contas diferentes
     vi.stubEnv("LEDGR_CONTA_TESTE_EMAIL", "ana@telhacerta.com.br");
-    auth.mockResolvedValue({ user: { email: "outra@empresa.com.br", empresaId: "e2" } });
+    auth.mockResolvedValue({ user: { email: "outra@empresa.com.br", contaId: "e2" } });
 
     expect(await trocarSenha("s3nha", "s3nha-nova")).toEqual({
       ok: false,
