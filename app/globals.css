@@ -3346,7 +3346,7 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
 .equipe-papel { border: 1px solid var(--color-divider); border-radius: 999px; padding: 4px 12px; font-size: 13px; font-weight: 500; }
 .equipe-confirma { flex: 1 1 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; font-size: 14px; }
 .equipe-confirma > span { flex: 1 1 260px; }
-.equipe-rotulo { margin: 26px 0 0; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; font-weight: 500; color: color-mix(in srgb, var(--color-text) 62%, transparent); }
+.equipe-rotulo { margin: 26px 0 0; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 500; color: color-mix(in srgb, var(--color-text) 62%, transparent); }
 .equipe-pendente { margin-top: 10px; padding: 12px 14px; border: 1px dashed var(--color-divider); border-radius: var(--radius-md); }
 .equipe-pendente .equipe-avatar { border-style: dashed; }
 .equipe-convite {
