@@ -11,6 +11,7 @@ import type { Resultado } from "../conciliacoes/acoes";
 import { useEmail, useLimites, usePapel } from "../conta";
 import { cancelarConvite, carregarEquipe, convidar, removerPessoa, type Equipe } from "../equipe/acoes";
 import { FaixaDoPlano } from "./faixa-do-plano";
+import { ModalDaTela } from "./modal-da-tela";
 
 /**
  * A aba Equipe da tela Empresas (spec 2026-10-22-empresas-na-configuracao, revisão de 23/10; as regras de
@@ -161,15 +162,17 @@ export function PainelDaEquipe({
       )}
 
       {gerencia && conviteAberto && (
-        <ConvidarPessoa
-          papeis={papeisQueConvida(papel)}
-          aoConvidar={(convite) => {
-            aplicar((atual) => ({ ...atual, convites: [convite, ...(atual.convites ?? []).filter((c) => c.id !== convite.id)] }));
-            router.refresh();
-          }}
-          aoFechar={aoFecharConvite}
-          aoSairDaSessao={() => router.push("/login")}
-        />
+        <ModalDaTela titulo="Convidar pessoa" aoFechar={aoFecharConvite}>
+          <ConvidarPessoa
+            papeis={papeisQueConvida(papel)}
+            aoConvidar={(convite) => {
+              aplicar((atual) => ({ ...atual, convites: [convite, ...(atual.convites ?? []).filter((c) => c.id !== convite.id)] }));
+              router.refresh();
+            }}
+            aoFechar={aoFecharConvite}
+            aoSairDaSessao={() => router.push("/login")}
+          />
+        </ModalDaTela>
       )}
 
       {erroDeAcao && <MensagemErro id={erroId}>{erroDeAcao}</MensagemErro>}
@@ -280,7 +283,7 @@ export function PainelDaEquipe({
   );
 }
 
-/** O e-mail de quem convidar, o papel que terá (cada um explicado) e o retorno do backend, no painel. */
+/** O e-mail de quem convidar, o papel que terá (cada um explicado) e o retorno do backend, na janela do convite. */
 function ConvidarPessoa({
   papeis,
   aoConvidar,
@@ -329,7 +332,6 @@ function ConvidarPessoa({
 
   return (
     <form className="equipe-convite" onSubmit={enviar} noValidate aria-label="Convidar pessoa">
-      <h3>Convidar pessoa</h3>
       <div className="field">
         <label htmlFor={campoId}>E-mail da pessoa</label>
         <input

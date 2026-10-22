@@ -158,6 +158,21 @@ describe("guia de estilo nas telas do app", () => {
     expect(soltas).toEqual([]);
   });
 
+  it("as janelas modais da tela Empresas entram com uma animação suave (e o fundo desfocado), só para quem não pediu menos movimento", () => {
+    const css = postcss.parse(readFileSync(join(RAIZ, "app", "globals.css"), "utf8"));
+    const animadas: Record<string, string> = {};
+    css.walkAtRules("media", (media) => {
+      if (!media.params.includes("prefers-reduced-motion: no-preference")) return;
+      media.walkRules((r) => {
+        r.walkDecls("animation", (d) => {
+          animadas[r.selector] = d.value;
+        });
+      });
+    });
+    expect(animadas[".modal-suave[open]"]).toMatch(/modal-suave-entra/);
+    expect(animadas[".modal-suave[open]::backdrop"]).toMatch(/modal-suave-fundo/);
+  });
+
   it("ícone não escolhe o próprio traço: o do guia (1,75) vem do TRACO_ICONE", () => {
     expect(tracosSoltos).toEqual([]);
   });

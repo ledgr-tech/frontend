@@ -14,12 +14,13 @@ import { Cabecalho } from "../cabecalho";
 import { useLimites, usePapel } from "../conta";
 import { formatarDataHora } from "../dashboard/resumo";
 import { CadastrarEmpresa } from "./cadastrar-empresa";
+import { ModalDaTela } from "./modal-da-tela";
 import { FaixaDoPlano } from "./faixa-do-plano";
 import { PainelDaEquipe, useEquipe } from "./painel-da-equipe";
 
 /**
  * A tela Empresas (spec 2026-10-22-empresas-na-configuracao, revisão de 23/10): duas abas, Empresas e
- * Equipe. Em cada uma, a faixa do plano, a lista e o botão do cabeçalho que abre o formulário (cadastrar
+ * Equipe. Em cada uma, a faixa do plano, a lista e o botão do cabeçalho que abre uma janela modal (cadastrar
  * empresa, convidar pessoa). Todo mundo vê as duas listas; admin e gestor cadastram e convidam (o
  * backend responde 403 ao analista, então os botões nem aparecem). A equipe carrega junto com a tela,
  * para o número da aba e a troca serem imediatos; a aba escolhida vai em `?aba=equipe`.
@@ -86,10 +87,9 @@ export function PainelDeEmpresas({ empresas }: { empresas: EmpresaCliente[] }) {
         <button
           type="button"
           className="btn btn-primary"
-          aria-expanded={cadastroAberto}
-          aria-controls={cadastroAberto ? `${base}-cadastro` : undefined}
+          aria-haspopup="dialog"
           disabled={noLimite}
-          onClick={() => setCadastroAberto((atual) => !atual)}
+          onClick={() => setCadastroAberto(true)}
         >
           Adicionar empresa
         </button>
@@ -98,8 +98,8 @@ export function PainelDeEmpresas({ empresas }: { empresas: EmpresaCliente[] }) {
       <button
         type="button"
         className="btn btn-primary"
-        aria-expanded={conviteAberto}
-        onClick={() => setConviteAberto((atual) => !atual)}
+        aria-haspopup="dialog"
+        onClick={() => setConviteAberto(true)}
       >
         Convidar pessoa
       </button>
@@ -152,10 +152,10 @@ export function PainelDeEmpresas({ empresas }: { empresas: EmpresaCliente[] }) {
 
           {/* sem `!noLimite`: o 402 de uma aba com contador velho relê a página e leva a conta ao limite; o formulário aberto fica, com a mensagem e o foco, e só o envio se desliga */}
           {cadastroAberto && gerencia && (
-            <section id={`${base}-cadastro`} className="empresas-cadastro">
-              <p className="empresas-cadastro-texto">Cadastre uma empresa cliente pelo CNPJ. Ela entra na conta e você passa a trabalhar nela.</p>
-              <CadastrarEmpresa noLimite={noLimite} aoCadastrar={() => setCadastroAberto(false)} />
-            </section>
+            <ModalDaTela titulo="Adicionar empresa" aoFechar={() => setCadastroAberto(false)}>
+              <p className="dialog-body">Cadastre uma empresa cliente pelo CNPJ. Ela entra na conta e você passa a trabalhar nela.</p>
+              <CadastrarEmpresa noLimite={noLimite} aoCadastrar={() => setCadastroAberto(false)} aoFechar={() => setCadastroAberto(false)} />
+            </ModalDaTela>
           )}
 
           <div className="empresas-tabela">

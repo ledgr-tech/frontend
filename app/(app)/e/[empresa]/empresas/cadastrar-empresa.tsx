@@ -12,12 +12,12 @@ import type { Resultado } from "../conciliacoes/acoes";
 import { cadastrarEmpresa } from "./acoes";
 
 /**
- * CNPJ e razão social, e o retorno do backend, no painel da tela Empresas. Cadastrou, abre a empresa nova
+ * CNPJ e razão social, e o retorno do backend, na janela de cadastro da tela Empresas. Cadastrou, abre a empresa nova
  * (quem cadastra um cliente quase sempre vai subir o extrato dele em seguida). No limite do plano o
  * botão da tela fica desligado; o 402 do backend, quando o contador da tela está velho, mostra a
  * mensagem dele e relê a página.
  */
-export function CadastrarEmpresa({ noLimite, aoCadastrar }: { noLimite: boolean; aoCadastrar: () => void }) {
+export function CadastrarEmpresa({ noLimite, aoCadastrar, aoFechar }: { noLimite: boolean; aoCadastrar: () => void; aoFechar: () => void }) {
   const router = useRoteador();
   const [cnpj, setCnpj] = useState("");
   const [razaoSocial, setRazaoSocial] = useState("");
@@ -105,6 +105,9 @@ export function CadastrarEmpresa({ noLimite, aoCadastrar }: { noLimite: boolean;
       <div className="empresas-form-botoes">
         <button type="submit" className="btn btn-primary" disabled={enviando || noLimite}>
           {enviando ? "Cadastrando…" : "Cadastrar empresa"}
+        </button>
+        <button type="button" className="btn btn-secondary" onClick={aoFechar}>
+          Cancelar
         </button>
         {aviso?.planos && (
           <LinkDoApp href="/assinatura" className="btn btn-secondary">

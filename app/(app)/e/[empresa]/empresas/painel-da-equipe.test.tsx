@@ -122,6 +122,17 @@ describe("a equipe", () => {
     expect(await screen.findByText("eva@x.com", { selector: ".equipe-nome" })).toBeInTheDocument();
   });
 
+  it("o convite abre numa janela modal que se fecha por Fechar, Esc e clique no fundo", async () => {
+    const user = userEvent.setup();
+    montar();
+    await screen.findByText("Bia", { selector: ".equipe-nome" });
+
+    const janela = screen.getByRole("dialog", { name: "Convidar pessoa" });
+    expect(within(janela).getByLabelText("E-mail da pessoa")).toBeInTheDocument();
+    await user.click(within(janela).getByRole("button", { name: "Fechar" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
   it("o painel do convite só aparece quando a tela o abre", async () => {
     montar("admin", ADMIN.email, null, false);
 

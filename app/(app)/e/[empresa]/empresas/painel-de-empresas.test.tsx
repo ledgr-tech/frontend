@@ -137,13 +137,12 @@ describe("quem cadastra", () => {
     montar({ papel });
 
     const botao = screen.getByRole("button", { name: "Adicionar empresa" });
-    expect(botao).toHaveAttribute("aria-expanded", "false");
-    expect(screen.queryByRole("form", { name: "Adicionar empresa" })).not.toBeInTheDocument();
+    expect(botao).toHaveAttribute("aria-haspopup", "dialog");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 
     await user.click(botao);
 
-    expect(botao).toHaveAttribute("aria-expanded", "true");
-    expect(screen.getByRole("form", { name: "Adicionar empresa" })).toBeInTheDocument();
+    expect(within(screen.getByRole("dialog", { name: "Adicionar empresa" })).getByRole("form", { name: "Adicionar empresa" })).toBeInTheDocument();
   });
 
   it.each([
@@ -347,17 +346,17 @@ describe("as abas Empresas e Equipe", () => {
     await screen.findByRole("tab", { name: "Equipe 3" });
 
     await user.click(screen.getByRole("button", { name: "Adicionar empresa" }));
-    expect(screen.getByRole("form", { name: "Adicionar empresa" })).toBeInTheDocument();
+    const cadastro = screen.getByRole("dialog", { name: "Adicionar empresa" });
+    await user.click(within(cadastro).getByRole("button", { name: "Cancelar" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("tab", { name: /^Equipe/ }));
     const convidar = screen.getByRole("button", { name: "Convidar pessoa" });
-    expect(convidar).toHaveAttribute("aria-expanded", "false");
-    expect(screen.queryByRole("form", { name: "Adicionar empresa" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("form", { name: "Convidar pessoa" })).not.toBeInTheDocument();
+    expect(convidar).toHaveAttribute("aria-haspopup", "dialog");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 
     await user.click(convidar);
-    expect(convidar).toHaveAttribute("aria-expanded", "true");
-    expect(screen.getByRole("form", { name: "Convidar pessoa" })).toBeInTheDocument();
+    expect(within(screen.getByRole("dialog", { name: "Convidar pessoa" })).getByRole("form", { name: "Convidar pessoa" })).toBeInTheDocument();
   });
 
   it("as setas andam entre as abas, que se selecionam ao receber o foco", async () => {
@@ -419,5 +418,69 @@ describe("os painéis das abas", () => {
     await user.click(screen.getByRole("tab", { name: /^Equipe/ }));
 
     expect(screen.getByLabelText("E-mail da pessoa")).toHaveValue("dani@x.com");
+  });
+});
+
+describe("os modais de cadastrar e de convidar", () => {
+  it("Adicionar empresa abre uma janela modal no meio da tela, com o texto e o formulário", async () => {
+    const user = userEvent.setup();
+    montar();
+    await user.click(screen.getByRole("button", { name: "Adicionar empresa" }));
+
+    const janela = screen.getByRole("dialog", { name: "Adicionar empresa" });
+    expect(janela).toHaveClass("espia", "modal-suave");
+    expect(within(janela).getByText("Cadastre uma empresa cliente pelo CNPJ. Ela entra na conta e você passa a trabalhar nela.")).toBeInTheDocument();
+    expect(within(janela).getByLabelText("CNPJ")).toBeInTheDocument();
+  });
+
+  it("a janela de cadastro fecha com Esc, com Cancelar e com um clique no fundo, mas não com um clique dentro", async () => {
+    const user = userEvent.setup();
+    montar();
+    const abrirJanela = () => user.click(screen.getByRole("button", { name: "Adicionar empresa" }));
+
+    await abrirJanela();
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    await abrirJanela();
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Cancelar" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    await abrirJanela();
+    await user.click(screen.getByLabelText("Razão social"));
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    await user.click(screen.getByRole("dialog"));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("cadastrar com sucesso fecha a janela", async () => {
+    cadastrarEmpresa.mockResolvedValue({ ok: true, dados: NOVA });
+    const { user } = await formulario();
+
+    await preencher(user);
+    await user.click(screen.getByRole("button", { name: "Cadastrar empresa" }));
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  });
+
+  it("Convidar pessoa abre a janela do convite; Fechar, Esc e o clique no fundo a fecham; enviar não a fecha", async () => {
+    const user = userEvent.setup();
+    montar({ aba: "equipe" });
+    await screen.findByRole("list", { name: "Pessoas com acesso" });
+    const abrirJanela = () => user.click(screen.getByRole("button", { name: "Convidar pessoa" }));
+
+    await abrirJanela();
+    const janela = screen.getByRole("dialog", { name: "Convidar pessoa" });
+    expect(janela).toHaveClass("espia", "modal-suave");
+    await user.click(within(janela).getByRole("button", { name: "Fechar" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    await abrirJanela();
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    await abrirJanela();
+    await user.click(screen.getByRole("dialog"));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 });
