@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } fr
 import Link from "@/lib/link-do-app";
 import {
   ArrowLeftRight,
+  Building2,
   Info,
   Keyboard,
   Palette,
@@ -31,6 +32,7 @@ import { aplicarTema, escolhaDeTema, seguirSistema, temaDoSistema, type EscolhaD
 import { useTeclaDeAtalho } from "@/lib/plataforma";
 import type { Papel } from "@/lib/papel";
 import { Tutorial } from "./tutorial/tutorial";
+import { useLinhasDasEmpresas } from "./empresas/secao-empresas";
 import { useLinhasDaEquipe } from "./equipe/secao-equipe";
 
 /**
@@ -425,6 +427,8 @@ export function Configuracoes({
   const [regras, setRegras] = useState<EstadoDasRegras | undefined>(undefined);
   const ctrl = useTeclaDeAtalho();
   const linhasDaEquipe = useLinhasDaEquipe({ aberta, papel, email });
+  // abrir outra empresa leva a outra tela: a janela, que é por cima da tela atual, se fecha antes
+  const linhasDasEmpresas = useLinhasDasEmpresas({ aberta, papel, aoAbrir: onFechar });
 
   useEffect(() => {
     const elemento = dialogo.current;
@@ -562,6 +566,13 @@ export function Configuracoes({
           ),
         },
       ],
+    },
+    {
+      id: "empresas",
+      nome: "Empresas",
+      icone: Building2,
+      grupo: "Configurações",
+      linhas: linhasDasEmpresas,
     },
     {
       id: "equipe",
