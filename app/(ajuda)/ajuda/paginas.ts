@@ -540,11 +540,64 @@ export const PAGINAS: PaginaDeAjuda[] = [
     ],
   },
   {
+    id: "empresas",
+    titulo: "Empresas",
+    onde: "Menu lateral › Empresas",
+    serve: "As empresas clientes da sua conta, o quanto do plano elas usam e o cadastro de novas.",
+    capa: {
+      src: "/ajuda/empresas.webp",
+      largura: 1360,
+      altura: 850,
+    },
+    funcoes: [
+      {
+        id: "lista",
+        titulo: "A lista das empresas",
+        faz: "Todas as empresas da conta, com o CNPJ, a data do cadastro e a marca **Ativa** na que você está usando. Todas as pessoas da conta veem todas elas.",
+        passos: [
+          "Abra **Empresas** no menu lateral.",
+          "Procure a empresa na tabela. A marca **CNPJ verificado** aparece quando o CNPJ foi conferido na Receita.",
+        ],
+      },
+      {
+        id: "abrir",
+        titulo: "Trocar de empresa",
+        faz: "Cada empresa tem os próprios extratos, conciliações e fechamentos. Daqui, ou pelo seletor no alto do menu lateral, você muda de empresa.",
+        passos: [
+          "Clique em **Abrir** na linha da empresa.",
+          "Você vai para a Visão geral dela. Outra aba do navegador continua na empresa em que estava.",
+        ],
+        nota: "Pelo seletor do menu lateral, a troca leva você à mesma tela na outra empresa.",
+      },
+      {
+        id: "cadastrar",
+        titulo: "Cadastrar uma empresa",
+        faz: "O administrador e o gestor cadastram empresas pelo CNPJ. O analista vê a lista, mas não cadastra.",
+        passos: [
+          "Clique em **Adicionar empresa**.",
+          "Digite o CNPJ e a razão social.",
+          "Clique em **Cadastrar empresa**. A empresa nova abre na Visão geral.",
+        ],
+        nota: "Se o CNPJ já está na conta, o Ledgr avisa. Com a consulta à Receita ligada, ele também recusa CNPJ que não existe ou não está ativo.",
+      },
+      {
+        id: "limite",
+        titulo: "O limite do plano",
+        faz: "Cada plano tem um número máximo de empresas, e a faixa no alto da tela mostra quanto a conta já usa.",
+        passos: [
+          "Veja a faixa, por exemplo **3 de 5 empresas**. Perto do limite, a tela avisa.",
+          "No limite, o botão **Adicionar empresa** fica desligado.",
+          "Para ter mais empresas, troque de plano em **Assinatura**.",
+        ],
+      },
+    ],
+  },
+  {
     id: "configuracoes",
     titulo: "Configurações",
     onde: "Menu da conta › Configurações, ou Ctrl e vírgula",
     serve:
-      "A sua conta, as empresas clientes, a equipe, a aparência do app e a regra da conciliação.",
+      "A sua conta, a equipe, a aparência do app e a regra da conciliação.",
     capa: {
       src: "/ajuda/configuracoes.webp",
       largura: 1360,
@@ -554,7 +607,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
       {
         id: "abrir",
         titulo: "Abrir e procurar",
-        faz: "As configurações abrem numa janela por cima da tela em que você está, com as seções à esquerda: Conta, Empresas, Equipe, Aparência, Conciliação, Atalhos de teclado, Privacidade e Sobre.",
+        faz: "As configurações abrem numa janela por cima da tela em que você está, com as seções à esquerda: Conta, Equipe, Aparência, Conciliação, Atalhos de teclado, Privacidade e Sobre.",
         passos: [
           "Clique no seu nome no menu lateral e em **Configurações**, ou aperte **Ctrl** e **,**.",
           "Escolha a seção, ou digite em **Procurar** o que quer mudar, por exemplo “senha”.",
@@ -590,17 +643,6 @@ export const PAGINAS: PaginaDeAjuda[] = [
           largura: 960,
           altura: 640,
         },
-      },
-      {
-        id: "empresas",
-        titulo: "Empresas",
-        faz: "As empresas clientes da conta. Todas as pessoas da conta veem todas elas; o administrador e o gestor cadastram novas pelo CNPJ.",
-        passos: [
-          "Abra **Empresas**. A que você está usando aparece com a marca **Ativa**.",
-          "Para trabalhar em outra, clique em **Abrir** na linha dela. Você vai para a mesma tela, só que na outra empresa.",
-          "Para cadastrar uma empresa, preencha o CNPJ e a razão social em **Adicionar empresa** e clique em **Cadastrar empresa**. Ela abre na Visão geral.",
-        ],
-        nota: "Cada plano tem um número máximo de empresas. Perto do limite do plano a tela avisa, e no limite o cadastro fica desligado até você trocar de plano em Assinatura.",
       },
       {
         id: "equipe",

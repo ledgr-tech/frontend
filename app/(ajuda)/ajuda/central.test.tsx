@@ -116,21 +116,26 @@ describe("o conteúdo da ajuda", () => {
     }
   });
 
-  it("Configurações explica as empresas clientes, logo antes da Equipe e sem imagem ainda", () => {
-    const funcoes = PAGINAS.find((pagina) => pagina.id === "configuracoes")!.funcoes;
-    const ids = funcoes.map((funcao) => funcao.id);
-    expect(ids.indexOf("empresas")).toBeGreaterThan(-1);
-    expect(ids.indexOf("empresas")).toBe(ids.indexOf("equipe") - 1);
+  it("a Central tem a página Empresas logo depois do Histórico, e as Configurações não falam mais de empresas", () => {
+    const ids = PAGINAS.map((pagina) => pagina.id);
+    expect(ids.indexOf("empresas")).toBe(ids.indexOf("historico") + 1);
+    expect(ids.indexOf("configuracoes")).toBe(ids.indexOf("empresas") + 1);
 
-    const empresas = funcoes[ids.indexOf("empresas")];
-    const passos = empresas.passos?.join(" ") ?? "";
-    for (const botao of ["**Empresas**", "**Adicionar empresa**", "**Cadastrar empresa**", "**Abrir**"]) {
-      expect(passos, botao).toContain(botao);
+    const empresas = PAGINAS.find((pagina) => pagina.id === "empresas")!;
+    expect(empresas.titulo).toBe("Empresas");
+    expect(empresas.onde).toBe("Menu lateral › Empresas");
+    expect(existsSync(join("public", empresas.capa.src)), empresas.capa.src).toBe(true);
+    expect(empresas.funcoes.map((funcao) => funcao.id)).toEqual(["lista", "abrir", "cadastrar", "limite"]);
+    const cadastrar = empresas.funcoes.find((funcao) => funcao.id === "cadastrar")!;
+    for (const botao of ["**Adicionar empresa**", "**Cadastrar empresa**"]) {
+      expect(cadastrar.passos?.join(" "), botao).toContain(botao);
     }
-    expect(empresas.nota).toMatch(/limite do plano/);
-    expect(empresas.imagem).toBeUndefined();
-    // a frase de abertura das configurações lista a seção nova
-    expect(funcoes.find((funcao) => funcao.id === "abrir")!.faz).toContain("Conta, Empresas, Equipe");
+    expect(empresas.funcoes.find((funcao) => funcao.id === "limite")!.passos?.join(" ")).toContain("**Assinatura**");
+
+    const configuracoes = PAGINAS.find((pagina) => pagina.id === "configuracoes")!;
+    expect(configuracoes.funcoes.some((funcao) => funcao.id === "empresas")).toBe(false);
+    expect(configuracoes.funcoes.find((funcao) => funcao.id === "abrir")!.faz).toContain("Conta, Equipe, Aparência");
+    expect(configuracoes.serve).not.toMatch(/empresas/);
   });
 
   it("toda imagem existe em public/", () => {
