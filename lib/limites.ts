@@ -47,9 +47,10 @@ export function textoDoLimite(tipo: "empresas" | "usuarios", limite: Limite): st
     return faltam === 1 ? `Falta 1 ${um} para o limite do plano.` : `Faltam ${faltam} ${varias} para o limite do plano.`;
   }
   if (situacao === "no-limite") {
+    const nome = maximo === 1 ? um : varias;
     return tipo === "empresas"
-      ? `O plano chegou ao limite de ${maximo} ${varias}. Para adicionar outra, troque de plano em Assinatura.`
-      : `O plano chegou ao limite de ${maximo} ${varias}, contando os convites pendentes. Para convidar mais, troque de plano em Assinatura.`;
+      ? `O plano chegou ao limite de ${maximo} ${nome}. Para adicionar outra, troque de plano em Assinatura.`
+      : `O plano chegou ao limite de ${maximo} ${nome}, contando os convites pendentes. Para convidar mais, troque de plano em Assinatura.`;
   }
   if (situacao === "acima") {
     return tipo === "empresas"

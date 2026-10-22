@@ -58,6 +58,15 @@ describe("textoDoLimite", () => {
     );
   });
 
+  it("com máximo de 1, o limite fala no singular", () => {
+    expect(textoDoLimite("empresas", { usadas: 1, maximo: 1 })).toBe(
+      "O plano chegou ao limite de 1 empresa. Para adicionar outra, troque de plano em Assinatura.",
+    );
+    expect(textoDoLimite("usuarios", { usadas: 1, maximo: 1 })).toBe(
+      "O plano chegou ao limite de 1 pessoa, contando os convites pendentes. Para convidar mais, troque de plano em Assinatura.",
+    );
+  });
+
   it("usuários: perto, no limite e acima", () => {
     expect(textoDoLimite("usuarios", { usadas: 2, maximo: 3 })).toBe("Falta 1 pessoa para o limite do plano.");
     expect(textoDoLimite("usuarios", { usadas: 3, maximo: 3 })).toBe(
