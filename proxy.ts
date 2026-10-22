@@ -1,9 +1,14 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { novoNonce, politicaDeConteudo } from "@/lib/csp";
+import { empresaDoCaminho } from "@/lib/rotas";
 
 /**
  * A CSP de cada página, com um nonce novo (lib/csp.ts). A política vai no pedido, para o Next ler o
  * nonce ao renderizar, e na resposta, para o navegador aplicar; o `x-nonce` é para o layout.
+ *
+ * Também leva ao pedido a empresa ativa (#169): o UUID de `/e/<uuid>/...` vira `x-ledgr-empresa`, que o
+ * `chamarBackend` manda ao backend. O cabeçalho que vier de fora é **sempre** apagado antes: ele só existe
+ * se nasceu aqui, de um UUID válido no caminho.
  */
 export function proxy(request: NextRequest) {
   const nonce = novoNonce();
@@ -11,6 +16,9 @@ export function proxy(request: NextRequest) {
 
   const cabecalhos = new Headers(request.headers);
   cabecalhos.set("x-nonce", nonce);
+  cabecalhos.delete("x-ledgr-empresa");
+  const empresa = empresaDoCaminho(request.nextUrl.pathname);
+  if (empresa) cabecalhos.set("x-ledgr-empresa", empresa);
   cabecalhos.set("Content-Security-Policy", politica);
 
   const resposta = NextResponse.next({ request: { headers: cabecalhos } });

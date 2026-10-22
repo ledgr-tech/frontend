@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import { LogoBarras } from "../(app)/logo-barras";
+import { LogoBarras } from "../(app)/e/[empresa]/logo-barras";
 import { paraOndeVoltar } from "./ajuda/voltar";
 
 /** A barra da Central de ajuda: a marca e a única saída, de volta ao Ledgr. */

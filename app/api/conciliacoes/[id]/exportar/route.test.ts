@@ -7,7 +7,7 @@ import { GET } from "./route";
 const baixarDoBackend = vi.fn();
 vi.mock("@/lib/backend", async (original) => ({
   ...(await original<typeof import("@/lib/backend")>()),
-  baixarDoBackend: (caminho: string) => baixarDoBackend(caminho),
+  baixarDoBackend: (caminho: string, opcoes?: { empresa?: string }) => baixarDoBackend(caminho, opcoes),
 }));
 
 const BANCO = "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20";
@@ -41,6 +41,7 @@ describe("GET /api/conciliacoes/[id]/exportar", () => {
 
     expect(baixarDoBackend).toHaveBeenCalledWith(
       `/conciliacoes/${BANCO}/exportar?extrato_sistema_id=${SISTEMA}`,
+      {},
     );
     expect(resposta.status).toBe(200);
     // o BOM na frente continua lá: sem ele o Excel quebra "Descrição" e "Pão"
@@ -76,7 +77,7 @@ describe("GET /api/conciliacoes/[id]/exportar", () => {
 
     const resposta = await pedir(BANCO);
 
-    expect(baixarDoBackend).toHaveBeenCalledWith(`/conciliacoes/${BANCO}/exportar`);
+    expect(baixarDoBackend).toHaveBeenCalledWith(`/conciliacoes/${BANCO}/exportar`, {});
     // o arquivo é da empresa: nada de cache no caminho, mesmo se o backend esquecer
     expect(resposta.headers.get("Cache-Control")).toBe("private, no-store");
     expect(resposta.headers.get("Content-Disposition")).toBe('attachment; filename="conciliacao-3f1c0d5e.csv"');
@@ -100,6 +101,7 @@ describe("GET /api/conciliacoes/[id]/exportar", () => {
 
     expect(baixarDoBackend).toHaveBeenCalledWith(
       `/conciliacoes/${BANCO}/exportar?extrato_sistema_id=${SISTEMA}&status=divergente_valor`,
+      {},
     );
   });
 
@@ -110,6 +112,30 @@ describe("GET /api/conciliacoes/[id]/exportar", () => {
 
       expect(resposta.status).toBe(400);
       expect(await resposta.json()).toEqual({ erro: "Essa categoria de divergência não existe." });
+      expect(baixarDoBackend).not.toHaveBeenCalled();
+    },
+  );
+
+  it("a empresa ativa vem na query e vai ao backend: a rota fica fora do proxy, que é quem a daria (#169)", async () => {
+    const EMPRESA = "9b8a7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d";
+    baixarDoBackend.mockResolvedValue(new Response(CSV, { headers: { "Content-Type": "text/csv" } }));
+
+    const resposta = await pedir(BANCO, `?sistema=${SISTEMA}&empresa=${EMPRESA}`);
+
+    expect(resposta.status).toBe(200);
+    // a empresa não entra no caminho do backend: ela vai como cabeçalho, pela opção da chamada
+    expect(baixarDoBackend).toHaveBeenCalledWith(`/conciliacoes/${BANCO}/exportar?extrato_sistema_id=${SISTEMA}`, {
+      empresa: EMPRESA,
+    });
+  });
+
+  it.each(["lixo", "../outra", "9b8a7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d/x", "9b8a7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d%0d%0aX-Teste:1"])(
+    "recusa a empresa %s, que não é UUID, sem chamar o backend",
+    async (empresa) => {
+      const resposta = await pedir(BANCO, `?sistema=${SISTEMA}&empresa=${empresa}`);
+
+      expect(resposta.status).toBe(404);
+      expect(await resposta.json()).toEqual({ erro: "Empresa não encontrada." });
       expect(baixarDoBackend).not.toHaveBeenCalled();
     },
   );

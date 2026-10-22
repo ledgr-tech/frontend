@@ -16,7 +16,7 @@ describe("robots.txt e sitemap", () => {
   it("na produção, libera o site, tira as telas com login e aponta o sitemap do domínio", async () => {
     const { robots, sitemap } = await robotsCom({ VERCEL_ENV: "production", VERCEL_PROJECT_PRODUCTION_URL: "ledgrfinance.com.br" });
     expect(robots.rules).toMatchObject({ allow: "/" });
-    expect((robots.rules as { disallow: string[] }).disallow).toEqual(expect.arrayContaining(["/visao-geral", "/ajuda", "/api/"]));
+    expect((robots.rules as { disallow: string[] }).disallow).toEqual(expect.arrayContaining(["/visao-geral", "/ajuda", "/api/", "/e/"]));
     expect(robots.sitemap).toBe("https://ledgrfinance.com.br/sitemap.xml");
     expect(sitemap.map((p) => p.url)).toEqual([
       "https://ledgrfinance.com.br",

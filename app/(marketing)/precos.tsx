@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
-import { estaResolvida, seloDoStatus } from "@/app/(app)/dashboard/resumo";
-import { IconeOrigem } from "@/app/(app)/icone-origem";
-import { SeloIa } from "@/app/(app)/selo-ia";
+import { estaResolvida, seloDoStatus } from "@/app/(app)/e/[empresa]/dashboard/resumo";
+import { IconeOrigem } from "@/app/(app)/e/[empresa]/icone-origem";
+import { SeloIa } from "@/app/(app)/e/[empresa]/selo-ia";
 import { Reveal } from "@/app/reveal";
 import { QUANTAS_CATEGORIAS } from "./categorias";
 import type { LinhaExtrato } from "./comparacao";

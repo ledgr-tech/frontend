@@ -13,9 +13,9 @@ import {
   Plus,
   type LucideIcon,
 } from "lucide-react";
-import { Cabecalho, EmpresaDaSessao } from "@/app/(app)/cabecalho";
-import { Relatorio } from "@/app/(app)/conciliacoes/[id]/relatorio";
-import { LogoBarras } from "@/app/(app)/logo-barras";
+import { Cabecalho, EmpresaDaSessao } from "@/app/(app)/e/[empresa]/cabecalho";
+import { Relatorio } from "@/app/(app)/e/[empresa]/conciliacoes/[id]/relatorio";
+import { LogoBarras } from "@/app/(app)/e/[empresa]/logo-barras";
 import type { Divergencia } from "@/lib/adaptadores";
 import type { LinhaComparacao } from "@/lib/mock-data";
 import type { LinhaExtrato } from "./comparacao";
@@ -40,7 +40,7 @@ import { TabelaFolhas } from "./tabela-folhas";
 const LARGURA = 1280;
 const EMPRESA = "Sua empresa";
 
-// ponytail: cópia dos nomes e ícones do menu (ITENS em app/(app)/menu-lateral.tsx).
+// ponytail: cópia dos nomes e ícones do menu (ITENS em app/(app)/e/[empresa]/menu-lateral.tsx).
 // Se o menu do app mudar, esta lista muda junto.
 const MENU: [string, LucideIcon][] = [
   ["Visão geral", House],

@@ -8,6 +8,7 @@ import { ErroBackend, chamarBackend, emailDaSessao } from "@/lib/backend";
 import { RECUSA_DEMONSTRACAO, demoAberta, ehContaDeDemonstracao } from "@/lib/demo";
 import { COOKIE_CADASTRO_GOOGLE, COOKIE_CONVITE_GOOGLE, VALIDADE_ID_TOKEN_SEGUNDOS } from "@/lib/google";
 import { MuitasEntradas, type UsuarioAPI } from "@/lib/login";
+import type { EmpresaDaConta } from "@/lib/empresa-ativa";
 import { lerPapel, type Papel } from "@/lib/papel";
 import { ehTela, type Preferencias } from "@/lib/preferencias";
 import { adaptarAssinatura, type Assinatura, type PlanoId } from "@/lib/assinatura";
@@ -470,12 +471,19 @@ export type ContaDaSessao = {
   empresa: string;
   /** Falso na conta que só entra pelo Google: para ela, `POST /me/senha` responde 409. */
   temSenha: boolean;
+  /**
+   * As empresas da conta, para o seletor e para conferir a empresa da URL (backend #133), na ordem do
+   * backend (razão social). Vazia quando o `GET /me` não manda o campo (backend anterior) ou falhou.
+   */
+  empresas: EmpresaDaConta[];
   /** admin, gestor ou analista (backend #133). Sem `papel`, lê o `administrador` antigo; sem nenhum, admin, como na conta única. */
   papel: Papel;
   /** O que a pessoa dispensou no primeiro uso; null quando o `GET /me` ainda não manda o campo. */
   preferencias: Preferencias | null;
   /** O plano e o teste de 14 dias; null quando o `GET /me` ainda não manda `situacao`: nada bloqueia. */
   assinatura: Assinatura | null;
+  /** Só quando o `GET /me` falhou: `empresas` vazia então não quer dizer "backend anterior", e ninguém deve adivinhar a empresa. */
+  indisponivel?: true;
 };
 
 type PreferenciasAPI = { tutoriais_dispensados?: unknown; roteiro_dispensado?: unknown };
@@ -484,6 +492,22 @@ function adaptarPreferencias(bruto: PreferenciasAPI | null | undefined): Prefere
   if (!bruto || typeof bruto !== "object") return null;
   const telas = Array.isArray(bruto.tutoriais_dispensados) ? bruto.tutoriais_dispensados.filter(ehTela) : [];
   return { tutoriaisDispensados: telas, roteiroDispensado: bruto.roteiro_dispensado === true };
+}
+
+/** As empresas do `GET /me`; o item sem `id` de texto não serve para a URL e é ignorado. */
+function adaptarEmpresas(bruto: { id?: unknown; razao_social?: unknown; cnpj?: unknown }[] | undefined): EmpresaDaConta[] {
+  if (!Array.isArray(bruto)) return [];
+  return bruto.flatMap((empresa) =>
+    typeof empresa?.id === "string" && empresa.id
+      ? [
+          {
+            id: empresa.id,
+            razaoSocial: typeof empresa.razao_social === "string" ? empresa.razao_social.trim() : "",
+            cnpj: typeof empresa.cnpj === "string" ? empresa.cnpj : "",
+          },
+        ]
+      : [],
+  );
 }
 
 /**
@@ -501,6 +525,7 @@ export async function contaDaSessao(): Promise<ContaDaSessao> {
         razao_social: string;
         metodos_login: string[];
         papel?: unknown;
+        empresas?: { id?: unknown; razao_social?: unknown; cnpj?: unknown }[];
         administrador?: boolean;
         preferencias?: PreferenciasAPI;
         situacao?: unknown;
@@ -512,11 +537,12 @@ export async function contaDaSessao(): Promise<ContaDaSessao> {
       empresa: eu.razao_social?.trim() ?? "",
       temSenha: eu.metodos_login?.includes("senha") ?? true,
       papel: lerPapel(eu),
+      empresas: adaptarEmpresas(eu.empresas),
       preferencias: adaptarPreferencias(eu.preferencias),
       assinatura: adaptarAssinatura(eu),
     };
   } catch {
-    return { empresa: "", temSenha: true, papel: "admin", preferencias: null, assinatura: null };
+    return { empresa: "", temSenha: true, papel: "admin", empresas: [], preferencias: null, assinatura: null, indisponivel: true };
   }
 }
 

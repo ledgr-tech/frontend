@@ -1,4 +1,4 @@
-import { seloDoStatus } from "@/app/(app)/dashboard/resumo";
+import { seloDoStatus } from "@/app/(app)/e/[empresa]/dashboard/resumo";
 import { DIVERGENCIAS } from "@/lib/adaptadores";
 
 // As categorias de divergência do motor, na ordem e com os nomes do relatório

@@ -1,4 +1,4 @@
-import { IconeOrigem } from "@/app/(app)/icone-origem";
+import { IconeOrigem } from "@/app/(app)/e/[empresa]/icone-origem";
 import type { LinhaExtrato } from "./comparacao";
 
 /**
