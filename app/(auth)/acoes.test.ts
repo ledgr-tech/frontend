@@ -12,6 +12,7 @@ import {
   escolherPlano,
   desativarConta,
   pedirRecuperacaoSenha,
+  confirmarEmail,
   consultarConvite,
   contaDaSessao,
   conviteDoCookie,
@@ -489,8 +490,8 @@ describe("verificarCadastro", () => {
 });
 
 describe("a conta de quem está logado", () => {
-  function respostaDoBackend(status: number, corpo?: object) {
-    fetch.mockResolvedValue(corpo ? Response.json(corpo, { status }) : new Response(null, { status }));
+  function respostaDoBackend(status: number, corpo?: object, headers: Record<string, string> = {}) {
+    fetch.mockResolvedValue(corpo ? Response.json(corpo, { status, headers }) : new Response(null, { status }));
   }
 
   /** O que foi para o backend: rota, método, corpo e se levou o Bearer da sessão. */
@@ -527,17 +528,28 @@ describe("a conta de quem está logado", () => {
     expect(cookiesGravados).toHaveBeenCalledWith("authjs.session-token", "jwt-da-sessao", expect.any(Object));
   });
 
-  it("troca o e-mail já normalizado e entra com o novo", async () => {
-    respostaDoBackend(204);
+  it("pede a troca de e-mail já normalizado e não mexe na sessão: o e-mail só muda pelo link (#149)", async () => {
+    respostaDoBackend(202, { email_novo: "ana@nova.com.br", expira_em: "2026-10-22T18:30:00Z" });
 
-    expect(await trocarEmail("  Ana@Nova.com.BR ", "s3nha")).toEqual({ ok: true });
-
-    expect(chamada().corpo).toEqual({ email_novo: "ana@nova.com.br", senha_atual: "s3nha" });
-    expect(signIn).toHaveBeenCalledWith("credentials", {
-      email: "ana@nova.com.br",
-      senha: "s3nha",
-      redirect: false,
+    expect(await trocarEmail("  Ana@Nova.com.BR ", "s3nha")).toEqual({
+      ok: true,
+      emailNovo: "ana@nova.com.br",
+      expiraEm: "2026-10-22T18:30:00Z",
     });
+
+    expect(chamada()).toMatchObject({ url: "http://localhost:8000/me/email", metodo: "POST" });
+    expect(chamada().corpo).toEqual({ email_novo: "ana@nova.com.br", senha_atual: "s3nha" });
+    expect(signIn).not.toHaveBeenCalled();
+    expect(signOut).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [422, { detail: "O e-mail novo é igual ao atual." }, {}, "O e-mail novo é igual ao atual."],
+    [503, { detail: "E-mail indisponível." }, {}, "O envio de e-mails está fora do ar agora. Tente de novo mais tarde."],
+    [429, { detail: "..." }, { "Retry-After": "1500" }, "Muitas tentativas. Tente de novo em 25 minutos."],
+  ])("na troca de e-mail, traduz o %i", async (status, corpo, cabecalhos, mensagem) => {
+    respostaDoBackend(status, corpo, cabecalhos);
+    expect(await trocarEmail("ana@nova.com.br", "s3nha")).toEqual({ ok: false, erro: mensagem });
   });
 
   it("se a sessão não volta depois da troca, sai e manda ao login", async () => {
@@ -852,6 +864,37 @@ describe("redefinirSenha", () => {
     fetch.mockRejectedValue(new TypeError("fetch failed"));
 
     expect(await redefinirSenha("token", "s3nha-nova")).toEqual({ ok: false, erro: "falha" });
+  });
+});
+
+describe("confirmarEmail", () => {
+  function respostaDoBackend(status: number, corpo: object) {
+    fetch.mockResolvedValue(Response.json(corpo, { status }));
+  }
+
+  it("confirma pelo token do link sem Bearer e encerra a sessão deste navegador", async () => {
+    respostaDoBackend(200, { email: "ana@nova.com.br" });
+
+    expect(await confirmarEmail("token-do-link")).toEqual({ ok: true, email: "ana@nova.com.br" });
+
+    const [url, init] = fetch.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe("http://localhost:8000/me/email/confirmar");
+    expect(new Headers(init.headers).has("Authorization")).toBe(false);
+    expect(JSON.parse(String(init.body))).toEqual({ token: "token-do-link" });
+    // o backend já derrubou as sessões da conta: o cookie daqui não vale mais
+    expect(signOut).toHaveBeenCalledWith({ redirect: false });
+  });
+
+  it.each([
+    [400, { detail: "Link inválido ou expirado." }, "link_invalido"],
+    [409, { detail: "E-mail já cadastrado." }, "email_em_uso"],
+    [429, { error: "Rate limit exceeded" }, "muitas_tentativas"],
+    [500, { detail: "erro" }, "falha"],
+  ])("traduz o %i sem mexer na sessão", async (status, corpo, erro) => {
+    respostaDoBackend(status, corpo);
+
+    expect(await confirmarEmail("token")).toEqual({ ok: false, erro });
+    expect(signOut).not.toHaveBeenCalled();
   });
 });
 

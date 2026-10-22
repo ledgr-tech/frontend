@@ -24,9 +24,11 @@ const REGRAS: RegrasDaEmpresa = {
 
 // a troca de senha é do backend; aqui a action devolve o que ele responderia
 const trocarSenha = vi.fn();
+const trocarEmail = vi.fn();
 const desativarConta = vi.fn();
 vi.mock("../../../(auth)/acoes", () => ({
   trocarSenha: (...args: unknown[]) => trocarSenha(...args),
+  trocarEmail: (...args: unknown[]) => trocarEmail(...args),
   desativarConta: (...args: unknown[]) => desativarConta(...args),
   salvarPreferencias: async () => true,
 }));
@@ -293,16 +295,47 @@ describe("Configuracoes", () => {
     expect(screen.queryByRole("button", { name: "Trocar senha" })).not.toBeInTheDocument();
   });
 
-  // o backend ainda não tem POST /me/email: um formulário que pede a senha
-  // para depois dizer "ainda não disponível" faz a pessoa trabalhar à toa
-  it("shows the account email without a change form, and says how to change it for now", async () => {
+  it("asks for the e-mail change and says where the confirmation link went", async () => {
+    trocarEmail.mockReset().mockResolvedValue({ ok: true, emailNovo: "ana@nova.com.br", expiraEm: "" });
     const user = userEvent.setup();
     abrir();
     await user.click(secao("Conta"));
 
     const linha = linhaDe("E-mail");
     expect(within(linha).getByText(EMAIL)).toBeInTheDocument();
-    expect(within(linha).getByText(/Para trocar, por enquanto, escreva para ledgrtech@gmail\.com\./)).toBeInTheDocument();
+    await user.click(within(linha).getByRole("button", { name: "Trocar e-mail" }));
+    const formulario = screen.getByRole("form", { name: "Trocar e-mail" });
+    await user.type(within(formulario).getByLabelText("E-mail novo"), "ana@nova.com.br");
+    await user.type(within(formulario).getByLabelText("Senha atual"), "s3nha");
+    await user.click(within(formulario).getByRole("button", { name: "Enviar link" }));
+
+    expect(trocarEmail).toHaveBeenCalledWith("ana@nova.com.br", "s3nha");
+    expect(await within(linha).findByRole("status")).toHaveTextContent(
+      "Enviamos um link para ana@nova.com.br. Abra-o em até 60 minutos para confirmar a troca.",
+    );
+  });
+
+  it("shows what the backend refuses when asking for the e-mail change", async () => {
+    trocarEmail.mockReset().mockResolvedValue({ ok: false, erro: "E-mail já cadastrado." });
+    const user = userEvent.setup();
+    abrir();
+    await user.click(secao("Conta"));
+    await user.click(screen.getByRole("button", { name: "Trocar e-mail" }));
+    const formulario = screen.getByRole("form", { name: "Trocar e-mail" });
+    await user.type(within(formulario).getByLabelText("E-mail novo"), "outra@telhacerta.com.br");
+    await user.type(within(formulario).getByLabelText("Senha atual"), "s3nha");
+    await user.click(within(formulario).getByRole("button", { name: "Enviar link" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("E-mail já cadastrado.");
+  });
+
+  // o backend recusa sempre a troca na conta só do Google (409): nem oferece
+  it("does not offer the e-mail change on an account that signs in only with Google", async () => {
+    const user = userEvent.setup();
+    abrir({ temSenha: false });
+    await user.click(secao("Conta"));
+
+    expect(within(linhaDe("E-mail")).getByText(/o e-mail é o da conta Google/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Trocar e-mail" })).not.toBeInTheDocument();
   });
 

@@ -593,7 +593,15 @@ function mensagemDaConta(erro: unknown): string {
   if (erro.status === 422 && erro.campos.includes("senha_nova")) {
     return "A senha nova precisa ter de 8 a 72 caracteres.";
   }
-  if (erro.status === 429) return "Muitas tentativas. Espere um minuto e tente de novo.";
+  // "O e-mail novo é igual ao atual." (#149): um 422 com texto, não a lista do FastAPI
+  if (erro.status === 422 && erro.campos.length === 0 && erro.detalhe) return erro.detalhe;
+  if (erro.status === 429) {
+    // a troca de e-mail aceita 3 pedidos por hora: o Retry-After pode passar de um minuto
+    const minutos = Math.ceil((erro.segundosParaTentar ?? 0) / 60);
+    if (minutos > 1) return `Muitas tentativas. Tente de novo em ${minutos} minutos.`;
+    return "Muitas tentativas. Espere um minuto e tente de novo.";
+  }
+  if (erro.status === 503) return "O envio de e-mails está fora do ar agora. Tente de novo mais tarde.";
   return FALHA_CONTA;
 }
 
@@ -641,17 +649,52 @@ export async function trocarSenha(senhaAtual: string, senhaNova: string): Promis
   return { ok: true };
 }
 
-export async function trocarEmail(emailNovo: string, senhaAtual: string): Promise<ResultadoConta> {
+export type ResultadoTrocaEmail = { ok: true; emailNovo: string; expiraEm: string } | { ok: false; erro: string };
+
+/**
+ * Pede a troca do e-mail (`POST /me/email`, backend #149): o 202 só manda um link ao e-mail novo, e
+ * o da conta continua o mesmo até ele ser aberto em `/confirmar-email`. Por isso a sessão fica como
+ * está; ela cai quando a troca for confirmada.
+ */
+export async function trocarEmail(emailNovo: string, senhaAtual: string): Promise<ResultadoTrocaEmail> {
   const email = emailNovo.trim().toLowerCase();
-  const conta = await naConta(() =>
-    chamarBackend("/me/email", {
+  let pedido: { email_novo?: string; expira_em?: string } | undefined;
+  const conta = await naConta(async () => {
+    pedido = await chamarBackend<{ email_novo: string; expira_em: string }>("/me/email", {
       method: "POST",
       corpo: { email_novo: email, senha_atual: senhaAtual },
-    }),
-  );
+    });
+  });
   if (!conta.ok) return conta;
-  await refazerSessao(email, senhaAtual);
-  return { ok: true };
+  return { ok: true, emailNovo: pedido?.email_novo ?? email, expiraEm: pedido?.expira_em ?? "" };
+}
+
+export type ResultadoConfirmacaoEmail =
+  | { ok: true; email: string }
+  | { ok: false; erro: "link_invalido" | "email_em_uso" | "muitas_tentativas" | "falha" };
+
+/**
+ * Confirma a troca de e-mail pelo link (`POST /me/email/confirmar`, backend #149), sem login. O
+ * backend encerra todas as sessões da conta no sucesso; a deste navegador sai junto, para o login
+ * seguinte não esbarrar num token que já não vale. O 409 (e-mail tomado nesse meio-tempo) gasta o link.
+ */
+export async function confirmarEmail(token: string): Promise<ResultadoConfirmacaoEmail> {
+  let email: string;
+  try {
+    ({ email } = await chamarBackend<{ email: string }>("/me/email/confirmar", {
+      method: "POST",
+      corpo: { token },
+      publica: true,
+    }));
+  } catch (erro) {
+    if (!(erro instanceof ErroBackend)) return { ok: false, erro: "falha" };
+    if (erro.status === 400 || erro.status === 422) return { ok: false, erro: "link_invalido" };
+    if (erro.status === 409) return { ok: false, erro: "email_em_uso" };
+    if (erro.status === 429) return { ok: false, erro: "muitas_tentativas" };
+    return { ok: false, erro: "falha" };
+  }
+  await signOut({ redirect: false });
+  return { ok: true, email };
 }
 
 /**

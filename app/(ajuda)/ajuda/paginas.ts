@@ -637,9 +637,9 @@ export const PAGINAS: PaginaDeAjuda[] = [
         faz: "O e-mail da conta e a senha.",
         passos: [
           "Para trocar a senha, clique em **Trocar senha**.",
-          "Para trocar o e-mail, clique em **Pedir por e-mail** e fale com o suporte.",
+          "Para trocar o e-mail, clique em **Trocar e-mail**, digite o e-mail novo e a senha atual e clique em **Enviar link**. Abra o link que chega no e-mail novo em até 60 minutos e clique em **Confirmar**.",
         ],
-        nota: "Quem entra só com o Google não tem senha no Ledgr, então não vê Trocar senha.",
+        nota: "A troca só vale depois do link: até lá, você entra com o e-mail de antes. Quem entra só com o Google não tem senha no Ledgr, então não vê Trocar senha nem Trocar e-mail.",
         imagem: {
           src: "/ajuda/configuracoes--conta.webp",
           largura: 960,

@@ -13,7 +13,7 @@ import {
   X,
   type LucideIcon,
 } from "lucide-react";
-import { desativarConta, trocarSenha, type ResultadoConta } from "../../../(auth)/acoes";
+import { desativarConta, trocarEmail, trocarSenha, type ResultadoConta } from "../../../(auth)/acoes";
 import { MensagemErro } from "../../../(auth)/_compartilhado/mensagem-erro";
 import { SENHA_MINIMA } from "../../../(auth)/cadastro/passos";
 import {
@@ -121,7 +121,8 @@ function AcaoDaConta({
   /** A confirmação que fica na linha depois de salvar. */
   feito?: string;
   validar?: (valores: Record<string, string>) => string | null;
-  enviar: (valores: Record<string, string>) => Promise<ResultadoConta>;
+  /** `feito` na resposta troca a confirmação fixa (o e-mail para onde o link foi). */
+  enviar: (valores: Record<string, string>) => Promise<ResultadoConta | { ok: true; feito: string }>;
   /** O que fica ao lado do botão enquanto o formulário está fechado (o e-mail atual). */
   children?: ReactNode;
 }) {
@@ -129,7 +130,7 @@ function AcaoDaConta({
   const [valores, setValores] = useState<Record<string, string>>({});
   const [erro, setErro] = useState("");
   const [enviando, setEnviando] = useState(false);
-  const [salvo, setSalvo] = useState(false);
+  const [salvo, setSalvo] = useState<string | null>(null);
   const botaoAbrir = useRef<HTMLButtonElement>(null);
   const erroId = useId();
   const classeBotao = perigo ? "btn btn-perigo" : "btn btn-secondary";
@@ -162,16 +163,16 @@ function AcaoDaConta({
       setErro(resultado.erro);
       return;
     }
-    setSalvo(true);
+    setSalvo(("feito" in resultado && resultado.feito) || feito || null);
     fechar();
   }
 
   if (!aberto) {
     return (
       <div className="cfg-acao">
-        {salvo && feito ? (
+        {salvo ? (
           <span className="cfg-feito" role="status">
-            {feito}
+            {salvo}
           </span>
         ) : (
           children
@@ -181,7 +182,7 @@ function AcaoDaConta({
           type="button"
           className={classeBotao}
           onClick={() => {
-            setSalvo(false);
+            setSalvo(null);
             setAberto(true);
           }}
         >
@@ -223,6 +224,15 @@ function AcaoDaConta({
       </div>
     </form>
   );
+}
+
+/** A confirmação do pedido de troca, com a hora local em que o link deixa de valer. */
+function linkEnviado(emailNovo: string, expiraEm: string): string {
+  const fim = new Date(expiraEm);
+  const prazo = Number.isNaN(fim.getTime())
+    ? "em até 60 minutos"
+    : `até ${fim.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`;
+  return `Enviamos um link para ${emailNovo}. Abra-o ${prazo} para confirmar a troca.`;
 }
 
 function validarSenhaNova(valores: Record<string, string>): string | null {
@@ -486,10 +496,28 @@ export function Configuracoes({
       linhas: [
         {
           titulo: "E-mail",
-          descricao: "É com ele que você entra no Ledgr. Para trocar, por enquanto, escreva para ledgrtech@gmail.com.",
-          // ponytail: o backend ainda não tem `POST /me/email` (backend #66). Quando tiver, o controle volta a
-          // ser um AcaoDaConta com `trocarEmail`, que já está pronta e testada em (auth)/acoes.ts.
-          controle: <span className="cfg-valor">{email}</span>,
+          descricao: temSenha
+            ? "É com ele que você entra no Ledgr. Para trocar, enviamos um link ao e-mail novo, e a troca vale quando ele for aberto."
+            : "Sua conta entra pelo Google, então o e-mail é o da conta Google.",
+          // a conta só do Google não troca: o backend responde 409 sempre (#149)
+          controle: temSenha ? (
+            <AcaoDaConta
+              abrir="Trocar e-mail"
+              confirmar="Enviar link"
+              campos={[
+                { id: "email_novo", rotulo: "E-mail novo", tipo: "email", autoComplete: "email" },
+                SENHA_ATUAL,
+              ]}
+              enviar={async (valores) => {
+                const resultado = await trocarEmail(valores.email_novo, valores.senha_atual);
+                return resultado.ok ? { ok: true, feito: linkEnviado(resultado.emailNovo, resultado.expiraEm) } : resultado;
+              }}
+            >
+              <span className="cfg-valor">{email}</span>
+            </AcaoDaConta>
+          ) : (
+            <span className="cfg-valor">{email}</span>
+          ),
         },
         ...(temSenha
           ? [
