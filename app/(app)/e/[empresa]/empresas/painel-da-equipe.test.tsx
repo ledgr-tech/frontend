@@ -483,9 +483,9 @@ describe("o menu de papel", () => {
     expect(refresh).not.toHaveBeenCalled();
   });
 
-  it.each([403, 404])("o %s relê a equipe, porque a pessoa ou o papel mudaram por fora", async (status) => {
+  it("o 403 relê a equipe e o papel de quem está logado (router.refresh), para os controles sumirem", async () => {
     const user = userEvent.setup();
-    trocarPapel.mockResolvedValue({ ok: false, status, erro: "Essa pessoa não está mais na conta." });
+    trocarPapel.mockResolvedValue({ ok: false, status: 403, erro: "Seu papel na conta não permite fazer isso." });
     montar("admin", ADMIN.email, null, false);
     await screen.findByText("Bia", { selector: ".equipe-nome" });
 
@@ -493,6 +493,24 @@ describe("o menu de papel", () => {
     await user.click(screen.getByRole("menuitemradio", { name: /^Gestor/ }));
 
     await waitFor(() => expect(carregarEquipe).toHaveBeenCalledTimes(2));
+    expect(refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it("o 404 relê a equipe e a mensagem continua visível no topo, mesmo sem a linha da pessoa", async () => {
+    const user = userEvent.setup();
+    trocarPapel.mockResolvedValue({ ok: false, status: 404, erro: "Essa pessoa não está mais na conta." });
+    carregarEquipe
+      .mockResolvedValueOnce({ ok: true, dados: { pessoas: [ADMIN, BIA], convites: [CONVITE] } })
+      .mockResolvedValueOnce({ ok: true, dados: { pessoas: [ADMIN], convites: [CONVITE] } });
+    montar("admin", ADMIN.email, null, false);
+    await screen.findByText("Bia", { selector: ".equipe-nome" });
+
+    await user.click(botaoDe("Bia")!);
+    await user.click(screen.getByRole("menuitemradio", { name: /^Gestor/ }));
+
+    await waitFor(() => expect(carregarEquipe).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(screen.queryByText("Bia", { selector: ".equipe-nome" })).not.toBeInTheDocument());
+    expect(screen.getByText("Essa pessoa não está mais na conta.")).toBeInTheDocument();
   });
 
   it("sessão vencida leva ao login, sem erro preso na linha", async () => {

@@ -121,7 +121,10 @@ export function PainelDaEquipe({
       return;
     }
     setErroDeAcao(resposta.erro);
-    if (resposta.status === 403) recarregar();
+    if (resposta.status === 403) {
+      recarregar();
+      router.refresh();
+    }
   }
 
   /** Escolher outro papel troca na hora; o mesmo papel só fecha o menu. O erro fica na linha da pessoa. */
@@ -143,9 +146,15 @@ export function PainelDaEquipe({
       router.push("/login");
       return;
     }
+    // a pessoa saiu da conta ou o papel de quem decide mudou por fora: a equipe e o papel se relêem,
+    // e o aviso sobe ao topo porque a linha da pessoa pode deixar de existir
+    if (resposta.status === 403 || resposta.status === 404) {
+      setErroDeAcao(resposta.erro);
+      recarregar();
+      if (resposta.status === 403) router.refresh();
+      return;
+    }
     setErroDaPessoa({ id: pessoa.id, texto: resposta.erro });
-    // a pessoa saiu da conta ou o papel de quem decide mudou por fora: a equipe se relê
-    if (resposta.status === 403 || resposta.status === 404) recarregar();
   }
 
   if (typeof estado !== "object") {
@@ -218,6 +227,7 @@ export function PainelDaEquipe({
               setParaTransferir(null);
               setErroDeAcao(texto);
               recarregar();
+              router.refresh();
             }}
             aoSairDaSessao={() => router.push("/login")}
           />
