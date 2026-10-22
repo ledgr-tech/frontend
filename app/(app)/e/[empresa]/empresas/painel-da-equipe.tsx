@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useId, useState, type FormEvent } from "react";
-import type { Convite } from "@/lib/adaptadores";
+import type { Convite, Pessoa } from "@/lib/adaptadores";
 import { situacaoDoLimite, textoDoLimite } from "@/lib/limites";
 import { papeisQueConvida, podeConvidar, ROTULO_DO_PAPEL, type Papel } from "@/lib/papel";
 import { useRoteador } from "@/lib/roteador";
@@ -9,9 +9,11 @@ import { MensagemErro } from "../../../../(auth)/_compartilhado/mensagem-erro";
 import { EMAIL_VALIDO, MENSAGEM_EMAIL_INCOMPLETO } from "../../../../(auth)/_compartilhado/validacao";
 import type { Resultado } from "../conciliacoes/acoes";
 import { useEmail, useLimites, usePapel } from "../conta";
-import { cancelarConvite, carregarEquipe, convidar, removerPessoa, type Equipe } from "../equipe/acoes";
+import { cancelarConvite, carregarEquipe, convidar, removerPessoa, trocarPapel, type Equipe } from "../equipe/acoes";
 import { FaixaDoPlano } from "./faixa-do-plano";
+import { DESCRICAO_DO_PAPEL, MenuDePapel } from "./menu-de-papel";
 import { ModalDaTela } from "./modal-da-tela";
+import { TransferirAdmin } from "./transferir-admin";
 
 /**
  * A aba Equipe da tela Empresas (spec 2026-10-22-empresas-na-configuracao, revisão de 23/10; as regras de
@@ -58,11 +60,6 @@ export function useEquipe(): {
   };
 }
 
-const DESCRICAO_DO_PAPEL: Partial<Record<Papel, string>> = {
-  gestor: "Cadastra empresas, convida analistas, fecha o mês e aprova justificativas.",
-  analista: "Concilia e justifica divergências. Não fecha o mês nem convida.",
-};
-
 function iniciais(nome: string): string {
   return nome
     .split(/\s+/)
@@ -95,6 +92,12 @@ export function PainelDaEquipe({
   const [emCurso, setEmCurso] = useState<string | null>(null);
   const [confirmando, setConfirmando] = useState<string | null>(null);
   const [erroDeAcao, setErroDeAcao] = useState("");
+  // o menu de papel aberto (um por vez) e o erro da troca de papel, que fica na linha da pessoa
+  const [menuAberto, setMenuAberto] = useState<string | null>(null);
+  const [erroDaPessoa, setErroDaPessoa] = useState<{ id: string; texto: string } | null>(null);
+  // a pessoa que vai receber a administração (a janela de confirmação) e o aviso de que ela já a tem
+  const [paraTransferir, setParaTransferir] = useState<{ id: string; nome: string } | null>(null);
+  const [avisoDaTransferencia, setAvisoDaTransferencia] = useState("");
   const erroId = useId();
 
   /** O que toda ação faz com a resposta: 401 vai ao login, 403 avisa e relê a equipe. */
@@ -118,7 +121,40 @@ export function PainelDaEquipe({
       return;
     }
     setErroDeAcao(resposta.erro);
-    if (resposta.status === 403) recarregar();
+    if (resposta.status === 403) {
+      recarregar();
+      router.refresh();
+    }
+  }
+
+  /** Escolher outro papel troca na hora; o mesmo papel só fecha o menu. O erro fica na linha da pessoa. */
+  async function mudarPapel(pessoa: { id: string; papel: Papel }, novo: "gestor" | "analista") {
+    setMenuAberto(null);
+    if (novo === pessoa.papel || emCurso) return;
+    setEmCurso(pessoa.id);
+    setErroDaPessoa(null);
+    const resposta = await trocarPapel(pessoa.id, novo).catch(
+      (): Resultado<Pessoa> => ({ ok: false, status: 0, erro: "Não foi possível falar com o servidor." }),
+    );
+    setEmCurso(null);
+    if (resposta.ok) {
+      aplicar((equipe) => ({ ...equipe, pessoas: equipe.pessoas.map((p) => (p.id === pessoa.id ? resposta.dados : p)) }));
+      router.refresh();
+      return;
+    }
+    if (resposta.status === 401) {
+      router.push("/login");
+      return;
+    }
+    // a pessoa saiu da conta ou o papel de quem decide mudou por fora: a equipe e o papel se relêem,
+    // e o aviso sobe ao topo porque a linha da pessoa pode deixar de existir
+    if (resposta.status === 403 || resposta.status === 404) {
+      setErroDeAcao(resposta.erro);
+      recarregar();
+      if (resposta.status === 403) router.refresh();
+      return;
+    }
+    setErroDaPessoa({ id: pessoa.id, texto: resposta.erro });
   }
 
   if (typeof estado !== "object") {
@@ -175,12 +211,43 @@ export function PainelDaEquipe({
         </ModalDaTela>
       )}
 
+      {paraTransferir && (
+        <ModalDaTela titulo="Transferir administração" aoFechar={() => setParaTransferir(null)}>
+          <TransferirAdmin
+            pessoa={paraTransferir}
+            aoConcluir={(pessoas) => {
+              aplicar((equipe) => ({ ...equipe, pessoas }));
+              setAvisoDaTransferencia(`${paraTransferir.nome} agora é o administrador da conta. Você é Gestor.`);
+              setParaTransferir(null);
+              // o papel de quem transferiu vem do /me: relendo a página, os controles de administrador somem
+              router.refresh();
+            }}
+            aoFechar={() => setParaTransferir(null)}
+            aoRecusar={(texto) => {
+              setParaTransferir(null);
+              setErroDeAcao(texto);
+              recarregar();
+              router.refresh();
+            }}
+            aoSairDaSessao={() => router.push("/login")}
+          />
+        </ModalDaTela>
+      )}
+
+      {avisoDaTransferencia && (
+        <p className="equipe-feito" role="status">
+          {avisoDaTransferencia}
+        </p>
+      )}
+
       {erroDeAcao && <MensagemErro id={erroId}>{erroDeAcao}</MensagemErro>}
 
       <ul className="equipe-lista" aria-label="Pessoas com acesso">
         {estado.pessoas.map((pessoa) => {
           const eu = pessoa.email.toLowerCase() === email.toLowerCase();
           const removivel = papel === "admin" && !eu && pessoa.papel !== "admin";
+          // só o admin mexe no papel dos outros (o dele só muda pela transferência)
+          const gerenciavel = removivel;
           return (
             <li key={pessoa.id} className="equipe-linha">
               <span className="equipe-avatar" aria-hidden="true">
@@ -218,7 +285,25 @@ export function PainelDaEquipe({
                 </span>
               ) : (
                 <span className="equipe-acoes">
-                  <span className="equipe-papel">{ROTULO_DO_PAPEL[pessoa.papel]}</span>
+                  {gerenciavel ? (
+                    <MenuDePapel
+                      nome={pessoa.nome}
+                      papel={pessoa.papel}
+                      aberto={menuAberto === pessoa.id}
+                      aoAlternar={(abrir) => setMenuAberto(abrir ? pessoa.id : null)}
+                      salvando={emCurso === pessoa.id}
+                      desabilitado={emCurso !== null}
+                      aoEscolher={(novo) => void mudarPapel(pessoa, novo)}
+                      aoTransferir={() => {
+                        setMenuAberto(null);
+                        setErroDeAcao("");
+                        setAvisoDaTransferencia("");
+                        setParaTransferir({ id: pessoa.id, nome: pessoa.nome });
+                      }}
+                    />
+                  ) : (
+                    <span className="equipe-papel">{ROTULO_DO_PAPEL[pessoa.papel]}</span>
+                  )}
                   {removivel && (
                     <button
                       type="button"
@@ -234,6 +319,7 @@ export function PainelDaEquipe({
                   )}
                 </span>
               )}
+              {erroDaPessoa?.id === pessoa.id && <MensagemErro id={`${erroId}-${pessoa.id}`}>{erroDaPessoa.texto}</MensagemErro>}
             </li>
           );
         })}

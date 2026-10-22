@@ -31,19 +31,32 @@ function limiteDeConvites(segundos: number | undefined): string {
   return `Limite de convites por hora atingido. Tente de novo em ${minutos} ${minutos === 1 ? "minuto" : "minutos"}.`;
 }
 
-/** Os textos que o backend não dá prontos; o resto vai com o `detail` dele, que já explica bem. */
-function traduzir(erro: unknown, aoConvidar = false): Falha {
+function limiteDeTentativas(segundos: number | undefined): string {
+  if (!segundos) return "Muitas tentativas. Tente de novo mais tarde.";
+  const minutos = Math.ceil(segundos / 60);
+  return `Muitas tentativas. Tente de novo em ${minutos} ${minutos === 1 ? "minuto" : "minutos"}.`;
+}
+
+/**
+ * Os textos que o backend não dá prontos; o resto vai com o `detail` dele, que já explica bem.
+ * `contexto`: "convite" tem os textos do convite; "papel" (trocar o papel e transferir a administração)
+ * tem o 404 de quem já saiu da conta e o limite de tentativas da transferência.
+ */
+function traduzir(erro: unknown, contexto: "geral" | "convite" | "papel" = "geral"): Falha {
   if (!(erro instanceof ErroBackend)) {
     return { ok: false, status: 0, erro: "Não foi possível falar com o servidor." };
   }
   const { status } = erro;
   if (status === 401) return { ok: false, status, erro: SESSAO_EXPIRADA };
   if (status === 403) return { ok: false, status, erro: "Seu papel na conta não permite fazer isso." };
+  const aoConvidar = contexto === "convite";
   if (aoConvidar && status === 409) return { ok: false, status, erro: "Este e-mail já tem conta no Ledgr." };
   if (aoConvidar && status === 429) return { ok: false, status, erro: limiteDeConvites(erro.segundosParaTentar) };
   if (aoConvidar && status === 503) {
     return { ok: false, status, erro: "O envio de convites está indisponível no momento." };
   }
+  if (contexto === "papel" && status === 404) return { ok: false, status, erro: "Essa pessoa não está mais na conta." };
+  if (contexto === "papel" && status === 429) return { ok: false, status, erro: limiteDeTentativas(erro.segundosParaTentar) };
   return { ok: false, status, erro: erro.detalhe };
 }
 
@@ -97,7 +110,7 @@ export async function convidar(email: string, papel: Papel): Promise<Resultado<C
     });
     return { ok: true, dados: adaptarConvite(convite) };
   } catch (erro) {
-    return traduzir(erro, true);
+    return traduzir(erro, "convite");
   }
 }
 
@@ -124,5 +137,46 @@ export async function removerPessoa(id: string): Promise<Resultado<null>> {
     return { ok: true, dados: null };
   } catch (erro) {
     return traduzir(erro);
+  }
+}
+
+/**
+ * Muda o papel de uma pessoa entre gestor e analista (`PATCH /empresa/usuarios/{id}`, backend #133): só o
+ * admin; o admin só muda de papel pela transferência (409). O mesmo papel de novo é 200 sem mudar nada.
+ * Server Action é endpoint público: ao backend só vai um UUID e um papel que ele aceita (nunca "admin").
+ */
+export async function trocarPapel(id: string, papel: Papel): Promise<Resultado<Pessoa>> {
+  if (!pareceUuid(id)) return { ok: false, status: 404, erro: "Pessoa não encontrada." };
+  if (papel !== "gestor" && papel !== "analista") return { ok: false, status: 422, erro: "Escolha o papel da pessoa." };
+  const recusa = await recusaNaDemonstracao();
+  if (recusa) return recusa;
+  try {
+    const pessoa = await chamarBackend<PessoaAPI>(`/empresa/usuarios/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      corpo: { papel },
+    });
+    return { ok: true, dados: adaptarPessoa(pessoa) };
+  } catch (erro) {
+    return traduzir(erro, "papel");
+  }
+}
+
+/**
+ * Passa a administração para outra pessoa (`POST /empresa/admin/transferencia`): o admin vira gestor e o
+ * destino vira admin, sem encerrar sessão. Confirma como a desativação da conta: a senha atual (400 se
+ * errada) ou, na conta só do Google (`senhaAtual` null), o login recente (409). Devolve a lista nova.
+ */
+export async function transferirAdmin(usuarioId: string, senhaAtual: string | null): Promise<Resultado<Pessoa[]>> {
+  if (!pareceUuid(usuarioId)) return { ok: false, status: 404, erro: "Pessoa não encontrada." };
+  const recusa = await recusaNaDemonstracao();
+  if (recusa) return recusa;
+  try {
+    const { itens } = await chamarBackend<{ itens: PessoaAPI[] }>("/empresa/admin/transferencia", {
+      method: "POST",
+      corpo: senhaAtual === null ? { usuario_id: usuarioId } : { usuario_id: usuarioId, senha_atual: senhaAtual },
+    });
+    return { ok: true, dados: itens.map(adaptarPessoa) };
+  } catch (erro) {
+    return traduzir(erro, "papel");
   }
 }
