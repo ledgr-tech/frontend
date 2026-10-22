@@ -3293,12 +3293,20 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
 .seletor-empresa-opcao[aria-selected="true"] { box-shadow: inset 3px 0 0 var(--color-accent); }
 /* A tela Empresas (#169): a faixa do plano, o painel do cadastro e a tabela */
 .empresas-nota { margin: 16px 0 0; font-size: 14px; color: color-mix(in srgb, var(--color-text) 70%, transparent); }
-.empresas-plano {
-  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin: 20px 0 0;
-  padding: 14px 16px; border: 1px solid var(--color-divider); border-radius: var(--radius-md);
-  font-size: 14px; color: color-mix(in srgb, var(--color-text) 78%, transparent);
+.empresas-abas { display: flex; gap: 4px; margin: 16px 0 0; border-bottom: 1px solid var(--color-divider); overflow-x: auto; }
+.empresas-aba {
+  position: relative; border: 0; background: transparent; padding: 10px 14px; cursor: pointer;
+  font-family: var(--font-body); font-size: 14px; font-weight: 500; white-space: nowrap;
+  color: color-mix(in srgb, var(--color-text) 62%, transparent);
 }
-.empresas-plano strong { font-family: var(--font-heading); font-size: 16px; font-weight: 600; color: var(--color-text); }
+.empresas-aba:hover { color: var(--color-text); }
+.empresas-aba[aria-selected="true"] { color: var(--color-text); font-weight: 600; }
+.empresas-aba[aria-selected="true"]::after {
+  content: ""; position: absolute; left: 10px; right: 10px; bottom: -1px; height: 2px;
+  border-radius: 2px; background: var(--color-accent);
+}
+.empresas-aba:focus-visible { outline: 2px solid var(--color-accent); outline-offset: -2px; border-radius: 8px; }
+.empresas-aba em { font-style: normal; margin-left: 4px; padding: 0 7px; border-radius: 999px; font-size: 12px; background: var(--tinta-ativa); }
 .empresas-cadastro {
   margin: 20px 0 0; padding: 20px; border: 1px solid var(--color-divider);
   border-radius: var(--radius-md); background: var(--color-surface);

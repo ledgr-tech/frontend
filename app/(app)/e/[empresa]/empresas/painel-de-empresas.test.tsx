@@ -12,6 +12,22 @@ import { PainelDeEmpresas } from "./painel-de-empresas";
 const cadastrarEmpresa = vi.fn();
 vi.mock("./acoes", () => ({ cadastrarEmpresa: (...args: unknown[]) => cadastrarEmpresa(...args) }));
 vi.mock("../../../../(auth)/acoes", () => ({ salvarPreferencias: async () => true }));
+// a equipe carrega junto com a tela; aqui o backend responde com três pessoas e um convite
+const carregarEquipe = vi.fn();
+vi.mock("../equipe/acoes", () => ({
+  carregarEquipe: (...args: unknown[]) => carregarEquipe(...args),
+  convidar: vi.fn(),
+  cancelarConvite: vi.fn(),
+  removerPessoa: vi.fn(),
+}));
+const EQUIPE = {
+  pessoas: [
+    { id: "u1", nome: "Ana", email: "ana@x.com", papel: "admin" },
+    { id: "u2", nome: "Bia", email: "bia@x.com", papel: "analista" },
+    { id: "u3", nome: "Gil", email: "gil@x.com", papel: "gestor" },
+  ],
+  convites: [{ id: "c1", email: "caio@x.com", papel: "analista", enviadoEm: "16/10/2026", valeAte: "23/10/2026" }],
+};
 
 const router = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn(), back: vi.fn(), prefetch: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => router, usePathname: () => "/e/x/empresas" }));
@@ -20,11 +36,11 @@ const A: EmpresaCliente = { id: "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20", razaoSoc
 const B: EmpresaCliente = { id: "9b8a7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d", razaoSocial: "Mercado Ltda", cnpj: "11444777000161", cnpjVerificado: false, criadaEm: "2026-10-21T19:48:16Z" };
 const NOVA: EmpresaCliente = { id: "c0ffee00-0000-4000-8000-000000000001", razaoSocial: "Cliente Dois Ltda", cnpj: "11444777000161", cnpjVerificado: false, criadaEm: "2026-10-22T10:00:00Z" };
 
-function montar({ papel = "admin", limites = null }: { papel?: Papel; limites?: LimitesDaConta | null } = {}) {
+function montar({ papel = "admin", limites = null, abaInicial }: { papel?: Papel; limites?: LimitesDaConta | null; abaInicial?: "empresas" | "equipe" } = {}) {
   render(
     <ProvedorDaEmpresa ativa={{ id: A.id, razaoSocial: A.razaoSocial, cnpj: A.cnpj }} empresas={[A, B]}>
       <ProvedorDaConta preferencias={null} limites={limites} papel={papel}>
-        <PainelDeEmpresas empresas={[A, B]} />
+        <PainelDeEmpresas empresas={[A, B]} abaInicial={abaInicial} />
       </ProvedorDaConta>
     </ProvedorDaEmpresa>,
   );
@@ -34,6 +50,8 @@ const linhaDe = (nome: RegExp) => screen.getByRole("row", { name: nome });
 
 beforeEach(() => {
   vi.clearAllMocks();
+  window.history.replaceState(null, "", "/e/x/empresas");
+  carregarEquipe.mockResolvedValue({ ok: true, dados: EQUIPE });
 });
 
 afterEach(() => {
@@ -277,5 +295,96 @@ describe("o cadastro de empresa", () => {
 
     expect(screen.queryByRole("form", { name: "Adicionar empresa" })).not.toBeInTheDocument();
     expect(cadastrarEmpresa).not.toHaveBeenCalled();
+  });
+});
+
+describe("as abas Empresas e Equipe", () => {
+  it("abre em Empresas, com o número de empresas e, depois de carregar, o de pessoas na aba Equipe", async () => {
+    montar();
+
+    const empresas = screen.getByRole("tab", { name: /^Empresas/ });
+    expect(empresas).toHaveAttribute("aria-selected", "true");
+    expect(empresas).toHaveTextContent("2");
+    expect(await screen.findByRole("tab", { name: "Equipe 3" })).toHaveAttribute("aria-selected", "false");
+    expect(screen.getByRole("table")).toBeInTheDocument();
+    expect(screen.queryByRole("list", { name: "Pessoas com acesso" })).not.toBeInTheDocument();
+  });
+
+  it("abaInicial abre direto na Equipe, com o botão do cabeçalho de convidar", async () => {
+    montar({ abaInicial: "equipe" });
+
+    expect(await screen.findByRole("list", { name: "Pessoas com acesso" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /^Equipe/ })).toHaveAttribute("aria-selected", "true");
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Convidar pessoa" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Adicionar empresa" })).not.toBeInTheDocument();
+  });
+
+  it("trocar de aba não recarrega a tela e grava ?aba=equipe na URL; voltar a Empresas tira o parâmetro", async () => {
+    const user = userEvent.setup();
+    montar();
+    await screen.findByRole("tab", { name: "Equipe 3" });
+
+    await user.click(screen.getByRole("tab", { name: /^Equipe/ }));
+    expect(await screen.findByRole("list", { name: "Pessoas com acesso" })).toBeInTheDocument();
+    expect(window.location.search).toBe("?aba=equipe");
+    expect(carregarEquipe).toHaveBeenCalledTimes(1);
+
+    await user.click(screen.getByRole("tab", { name: /^Empresas/ }));
+    expect(screen.getByRole("table")).toBeInTheDocument();
+    expect(window.location.search).toBe("");
+  });
+
+  it("cada aba tem o seu botão e o seu formulário aberto", async () => {
+    const user = userEvent.setup();
+    montar();
+    await screen.findByRole("tab", { name: "Equipe 3" });
+
+    await user.click(screen.getByRole("button", { name: "Adicionar empresa" }));
+    expect(screen.getByRole("form", { name: "Adicionar empresa" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("tab", { name: /^Equipe/ }));
+    const convidar = screen.getByRole("button", { name: "Convidar pessoa" });
+    expect(convidar).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("form", { name: "Adicionar empresa" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("form", { name: "Convidar pessoa" })).not.toBeInTheDocument();
+
+    await user.click(convidar);
+    expect(convidar).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("form", { name: "Convidar pessoa" })).toBeInTheDocument();
+  });
+
+  it("as setas andam entre as abas, que se selecionam ao receber o foco", async () => {
+    const user = userEvent.setup();
+    montar();
+    await screen.findByRole("tab", { name: "Equipe 3" });
+
+    screen.getByRole("tab", { name: /^Empresas/ }).focus();
+    await user.keyboard("{ArrowRight}");
+
+    expect(screen.getByRole("tab", { name: /^Equipe/ })).toHaveFocus();
+    expect(screen.getByRole("tab", { name: /^Equipe/ })).toHaveAttribute("aria-selected", "true");
+    await user.keyboard("{ArrowLeft}");
+    expect(screen.getByRole("tab", { name: /^Empresas/ })).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("o analista também vê a aba Equipe, mas sem o botão de convidar", async () => {
+    montar({ papel: "analista", abaInicial: "equipe" });
+
+    expect(await screen.findByRole("list", { name: "Pessoas com acesso" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Convidar pessoa" })).not.toBeInTheDocument();
+  });
+
+  it("a faixa do plano das empresas tem a barra de uso quando há máximo, e não tem sem máximo", () => {
+    const { unmount } = render(<span />);
+    unmount();
+    montar({ limites: { empresas: { usadas: 2, maximo: 3 }, usuarios: null } });
+    expect(document.querySelector(".faixa-plano-barra")).not.toBeNull();
+  });
+
+  it("sem máximo, a faixa não tem barra", () => {
+    montar({ limites: { empresas: { usadas: 2, maximo: null }, usuarios: null } });
+    expect(document.querySelector(".faixa-plano")).not.toBeNull();
+    expect(document.querySelector(".faixa-plano-barra")).toBeNull();
   });
 });
