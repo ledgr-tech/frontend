@@ -89,6 +89,24 @@ describe("AppLayout", () => {
     expect(shell(elemento).papel).toBe("gestor");
   });
 
+  it("entrega ao shell os limites do plano, null quando o /me não manda", async () => {
+    auth.mockResolvedValue({ user: { email: "financeiro@telhacerta.com.br" } });
+    const limites = { empresas: { usadas: 2, maximo: 3 }, usuarios: null };
+    contaDaSessao.mockResolvedValue({
+      empresa: "Telha Certa Ltda",
+      temSenha: true,
+      papel: "admin",
+      empresas: [],
+      preferencias: null,
+      assinatura: null,
+      limites,
+    });
+    expect(shell(await AppLayout({ children: "conteúdo", params })).limites).toEqual(limites);
+
+    contaDaSessao.mockResolvedValue({ empresa: "", temSenha: true, empresas: [], preferencias: null, assinatura: null, limites: null });
+    expect(shell(await AppLayout({ children: "conteúdo", params })).limites).toBeNull();
+  });
+
   it("conta sem plano vai escolher o plano antes", async () => {
     auth.mockResolvedValue({ user: { email: "financeiro@telhacerta.com.br" } });
     contaDaSessao.mockResolvedValue({

@@ -53,6 +53,7 @@ export default async function AppLayout({
         papel={conta.papel}
         preferencias={conta.preferencias}
         assinatura={conta.assinatura}
+        limites={conta.limites}
       >
         {children}
       </Shell>

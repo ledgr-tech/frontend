@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { act, render, screen, waitFor } from "@testing-library/react";
-import { ProvedorDaConta, usePreferencias } from "./conta";
+import { ProvedorDaConta, useLimites, usePreferencias } from "./conta";
 
 const salvarPreferencias = vi.fn<(p: unknown) => Promise<boolean>>(async () => true);
 vi.mock("../../../(auth)/acoes", () => ({ salvarPreferencias: (p: unknown) => salvarPreferencias(p) }));
@@ -17,6 +17,32 @@ function Sonda() {
     </div>
   );
 }
+
+function SondaDosLimites() {
+  const limites = useLimites();
+  return <span>{limites ? `empresas ${limites.empresas?.usadas}/${limites.empresas?.maximo}` : "sem limites"}</span>;
+}
+
+describe("limites do plano", () => {
+  it("o provedor os entrega, e sem eles (ou fora do provedor) é null", () => {
+    const { unmount } = render(
+      <ProvedorDaConta preferencias={null} limites={{ empresas: { usadas: 2, maximo: 3 }, usuarios: null }}>
+        <SondaDosLimites />
+      </ProvedorDaConta>,
+    );
+    expect(screen.getByText("empresas 2/3")).toBeInTheDocument();
+    unmount();
+
+    render(
+      <ProvedorDaConta preferencias={null}>
+        <SondaDosLimites />
+      </ProvedorDaConta>,
+    );
+    expect(screen.getByText("sem limites")).toBeInTheDocument();
+    render(<SondaDosLimites />);
+    expect(screen.getAllByText("sem limites")).toHaveLength(2);
+  });
+});
 
 describe("ProvedorDaConta", () => {
   beforeEach(() => {

@@ -650,22 +650,33 @@ describe("contaDaSessao", () => {
   it("lê a razão social de GET /me, e que a conta tem senha para trocar", async () => {
     fetch.mockResolvedValue(Response.json(EU));
 
-    expect(await contaDaSessao()).toEqual({ empresa: "Telha Certa Ltda", temSenha: true, papel: "admin", empresas: [], preferencias: null, assinatura: null });
+    expect(await contaDaSessao()).toEqual({ empresa: "Telha Certa Ltda", temSenha: true, papel: "admin", empresas: [], preferencias: null, assinatura: null, limites: null });
     expect(fetch).toHaveBeenCalledTimes(1);
     expect(fetch.mock.calls[0][0]).toBe("http://localhost:8000/me");
+  });
+
+  it("lê os limites do plano (backend #133); sem o campo, limites é null", async () => {
+    fetch.mockResolvedValue(
+      Response.json({ ...EU, limites: { empresas: { usadas: 2, maximo: 3 }, usuarios: { usados: 1, maximo: null } } }),
+    );
+
+    expect((await contaDaSessao()).limites).toEqual({ empresas: { usadas: 2, maximo: 3 }, usuarios: { usadas: 1, maximo: null } });
+
+    fetch.mockResolvedValue(Response.json(EU));
+    expect((await contaDaSessao()).limites).toBeNull();
   });
 
   it("conta que só entra pelo Google não tem senha para trocar", async () => {
     // para ela, POST /me/senha responde 409
     fetch.mockResolvedValue(Response.json({ ...EU, metodos_login: ["google"] }));
 
-    expect(await contaDaSessao()).toEqual({ empresa: "Telha Certa Ltda", temSenha: false, papel: "admin", empresas: [], preferencias: null, assinatura: null });
+    expect(await contaDaSessao()).toEqual({ empresa: "Telha Certa Ltda", temSenha: false, papel: "admin", empresas: [], preferencias: null, assinatura: null, limites: null });
   });
 
   it("sem resposta, esconde a empresa em vez de inventar um nome e deixa a troca de senha à mostra", async () => {
     fetch.mockResolvedValue(Response.json({ detail: "Not Found" }, { status: 404 }));
 
-    expect(await contaDaSessao()).toEqual({ empresa: "", temSenha: true, papel: "admin", empresas: [], preferencias: null, assinatura: null, indisponivel: true });
+    expect(await contaDaSessao()).toEqual({ empresa: "", temSenha: true, papel: "admin", empresas: [], preferencias: null, assinatura: null, limites: null, indisponivel: true });
   });
 
   it("lê as empresas da conta do /me, na ordem em que o backend manda (#133)", async () => {
