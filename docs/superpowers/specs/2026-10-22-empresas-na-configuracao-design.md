@@ -90,3 +90,15 @@ Botão "Adicionar empresa" abre o formulário em linha (padrão `cfg-form` do co
 - **Configurações:** volta a ter as seções de antes; a seção Empresas e o texto dela na Central saem.
 - **Ajuda:** a Central ganha a página "Empresas" (com capa, uma captura da tela) na ordem do menu; sem tutorial do mascote por ora (a Assinatura também não tem).
 - **Mantido da implementação inicial:** regras dos limites (`lib/limites.ts`), `limites` do `/me` até `useLimites()`, ações `carregarEmpresas`/`cadastrarEmpresa`, aviso de pessoas na Equipe.
+
+
+## Revisão de 23/10: a Equipe vira a segunda aba da tela Empresas (opção A)
+
+**Decisão do Eduardo, depois de ver três opções em artefato:** a gestão da equipe sai das Configurações e entra na tela Empresas, como a aba **Equipe** ao lado de **Empresas** (opção A, "abas"). Substitui, para a Equipe, o que a spec de equipe e convites (`2026-10-16-equipe-e-convites-design.md`) dizia sobre ficar em Configurações; as regras de papel e convite não mudam.
+
+- **Abas:** `Empresas N` e `Equipe M` sob o cabeçalho. A aba escolhida vai em `?aba=equipe` (sem o parâmetro, Empresas); trocar de aba não recarrega a tela. A equipe é carregada junto com a tela, para o número da aba e a troca serem imediatos.
+- **Cabeçalho:** o botão de ação segue a aba: "Adicionar empresa" em Empresas, "Convidar pessoa" em Equipe. A linha de contexto continua "N empresas".
+- **Faixa do plano com barra de uso** nas duas abas ("4 de 6 empresas", "3 de 5 pessoas"): a barra só existe quando há máximo; o texto de aviso é o de `textoDoLimite`.
+- **Equipe:** cada pessoa com avatar de iniciais, nome, e-mail, "você" e o papel como etiqueta (a troca de papel é a parte C do #169, fora desta entrega); "Remover" só para o administrador, com a confirmação na própria linha, como era. Convites pendentes em linhas tracejadas, com o papel, a validade e "Cancelar". O convite é um painel com o e-mail e **cartões de papel** que explicam cada um (o gestor só vê o Analista); o aviso de limite de pessoas continua só avisando, sem desligar o convite.
+- **Analista:** vê a lista e a frase "Só o administrador e o gestor convidam pessoas; só o administrador remove."
+- **Configurações:** perdem a seção Equipe; o texto de "Desativar conta" aponta para Empresas › Equipe. A Central de ajuda move a função Equipe para a página Empresas.

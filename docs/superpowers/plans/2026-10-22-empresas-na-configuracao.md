@@ -281,3 +281,58 @@ Spec: seção "Revisão de 22/10". As Tasks 1, 2, 3 e 7 ficam como estão. As Ta
 - [ ] **Step 1:** `npm run test && npm run lint && npm run build` — Expected: verdes; a tabela de rotas do build lista `/e/[empresa]/empresas`.
 - [ ] **Step 2: Verificação real** contra o backend local (limites de 3 empresas e 1 pessoa): o item "Empresas" no menu abre a tela; a tabela, "Ativa", "Abrir" (vai à Visão geral da outra), a faixa "2 de 3", cadastrar abre a Visão geral da empresa nova, no limite o botão fica desligado e aparece "Ver planos", aba com contador velho recebe 409 e 402, "Gerenciar empresas" do seletor leva à tela, Configurações sem a seção; claro, escuro e menu recolhido por captura.
 - [ ] **Step 3: Revisão final** da branch inteira por revisor independente, com o Review Focus acima; um passe de correções com teste.
+
+
+---
+
+## Revisão de 23/10: a Equipe vira aba da tela Empresas
+
+Spec: seção "Revisão de 23/10". As Tasks 16 a 20 abaixo vêm depois da 15; o código da seção Equipe das Configurações (`equipe/secao-equipe.tsx`) é aproveitado e depois apagado.
+
+### Task 16: A equipe como componente da tela
+
+**Files:** Create `app/(app)/e/[empresa]/empresas/painel-da-equipe.tsx` e `painel-da-equipe.test.tsx`. Modify `equipe/acoes.ts` só se necessário.
+
+**Interfaces:** Consumes `carregarEquipe`, `convidar`, `cancelarConvite`, `removerPessoa` (`../equipe/acoes`), `useLimites`, `textoDoLimite`, `usePapel`, `papeisQueConvida`, `podeConvidar`, `ROTULO_DO_PAPEL`. Produces `useEquipe(papel): { estado, recarregar, aplicar }` (carrega ao montar) e `PainelDaEquipe({ estado, recarregar, aplicar, conviteAberto, aoFecharConvite })`.
+
+- [ ] **Step 1: testes que falham** (portados de `secao-equipe.test.tsx`, adaptados): carregando; 404 "ainda não disponível" sem controles; falha com "Tentar de novo"; admin vê pessoas, "você", pendentes, Cancelar e Remover; gestor convida e cancela mas não remove; analista só vê a lista e a frase; o convite com cartões de papel (o admin escolhe Gestor ou Analista, o gestor só vê Analista) sai com o papel; e-mail incompleto não chama a ação; convidar põe o convite no topo dos pendentes; erro do convite mantém o e-mail; remoção com confirmação na linha e desistência; trava dos botões em curso; 401 vai ao login; 403 recarrega; o aviso de limite de pessoas (perto, no limite sem desligar o convite, nada com folga/sem campo, nada para o analista; 402 do backend aparece).
+- [ ] **Step 2:** `npx vitest run "app/(app)/e/[empresa]/empresas/painel-da-equipe.test.tsx"` — Expected: FAIL.
+- [ ] **Step 3: implementar** o painel e `useEquipe`, com o estilo do artefato (avatar, etiqueta de papel, linha tracejada do pendente, cartões de papel, faixa com barra) e classes `.equipe-*` em `app/globals.css`.
+- [ ] **Step 4:** mesmo teste + `lib/rotas.guarda.test.ts` + eslint — Expected: PASS.
+- [ ] **Step 5: commit** `feat(equipe): a equipe como componente da tela Empresas (#169)`.
+
+### Task 17: As abas na tela
+
+**Files:** Modify `empresas/painel-de-empresas.tsx`, `empresas/page.tsx`, `empresas/painel-de-empresas.test.tsx`, `empresas/page.test.tsx`, `app/globals.css`.
+
+- [ ] **Step 1: testes que falham:** duas abas "Empresas 4" e "Equipe 3" (`role="tab"`, `aria-selected`), Empresas é a padrão; `abaInicial="equipe"` abre na Equipe; clicar troca sem recarregar e grava `?aba=equipe` (e tira o parâmetro de volta em Empresas); o botão do cabeçalho muda ("Adicionar empresa"/"Convidar pessoa") e o formulário aberto de uma aba não aparece na outra; a faixa do plano tem a barra quando há máximo e não tem sem máximo; a página lê `searchParams.aba` e passa `abaInicial`.
+- [ ] **Step 2:** rodar os dois testes — Expected: FAIL.
+- [ ] **Step 3: implementar** as abas (teclado: setas entre abas, `aria-controls`), a barra de uso e o `abaInicial`.
+- [ ] **Step 4:** testes da pasta `empresas` + guarda + eslint — Expected: PASS.
+- [ ] **Step 5: commit** `feat(empresas): abas Empresas e Equipe na tela (#169)`.
+
+### Task 18: Tirar a Equipe das Configurações
+
+**Files:** Modify `configuracoes.tsx` e `configuracoes.test.tsx`, `shell.tsx` (comentário). Delete `equipe/secao-equipe.tsx` e `secao-equipe.test.tsx`.
+
+- [ ] **Step 1: testes que falham:** a janela volta a listar `["Conta", "Aparência", "Conciliação", ...]` (sem Equipe); o texto de "Desativar conta" do admin cita "Empresas › Equipe"; os testes da busca por "convid" saem.
+- [ ] **Step 2:** rodar `configuracoes.test.tsx` — Expected: FAIL.
+- [ ] **Step 3: implementar:** tirar o hook, a seção e as props que só serviam à Equipe; apagar os dois arquivos.
+- [ ] **Step 4:** testes de `configuracoes`, `menu-lateral`, `shell` + guarda + eslint — Expected: PASS.
+- [ ] **Step 5: commit** `refactor(equipe): sai das Configurações (#169)`.
+
+### Task 19: Ajuda e documentação
+
+**Files:** Modify `app/(ajuda)/ajuda/paginas.ts` e `central.test.tsx`, `CLAUDE.md`; recapturar `public/ajuda/empresas.webp` mostrando as abas.
+
+- [ ] **Step 1: teste que falha:** a página `empresas` ganha a função `equipe` (convidar, papéis, cancelar, remover); a página `configuracoes` perde a função `equipe` e o texto "Conta, Equipe, Aparência" vira "Conta, Aparência, ..."; `serve` das Configurações sem "a equipe".
+- [ ] **Step 2:** `npx vitest run "app/(ajuda)"` — Expected: FAIL.
+- [ ] **Step 3: implementar** os textos e atualizar o `CLAUDE.md` (bullet das empresas e o de equipe e convites: a seção agora é a aba Equipe da tela Empresas).
+- [ ] **Step 4:** `npx vitest run "app/(ajuda)"` — Expected: PASS.
+- [ ] **Step 5: commit** `docs(ajuda): a Equipe na página Empresas e CLAUDE.md (#169)`.
+
+### Task 20: Verificação real, revisão final e PR
+
+- [ ] **Step 1:** `npm run test && npm run lint && npm run build` — Expected: verdes.
+- [ ] **Step 2: verificação real** contra o backend local: as abas, o número da Equipe, `?aba=equipe` ao abrir direto, convidar com os cartões de papel (o backend local tem o e-mail desligado e responde 503: a mensagem aparece), cancelar, remover com confirmação, limite de pessoas, Configurações sem Equipe, claro, escuro e celular por captura.
+- [ ] **Step 3:** revisão final da branch por revisor independente, um passe de correções com teste, push no PR #204.
