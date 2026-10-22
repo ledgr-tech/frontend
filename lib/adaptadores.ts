@@ -598,6 +598,20 @@ export function adaptarPessoa(api: PessoaAPI): Pessoa {
   return { id: api.id, nome: api.nome, email: api.email, papel: lerPapel(api) };
 }
 
+/** Uma empresa cliente da conta (`GET`/`POST /empresas`, backend #133); `cnpj_verificado_em` é a data da consulta à Receita, nula sem ela. */
+export type EmpresaClienteAPI = { id: string; razao_social: string; cnpj: string; cnpj_verificado_em: string | null; criado_em: string };
+export type EmpresaCliente = { id: string; razaoSocial: string; cnpj: string; cnpjVerificado: boolean; criadaEm: string };
+
+export function adaptarEmpresaCliente(api: EmpresaClienteAPI): EmpresaCliente {
+  return {
+    id: api.id,
+    razaoSocial: api.razao_social.trim(),
+    cnpj: api.cnpj,
+    cnpjVerificado: Boolean(api.cnpj_verificado_em),
+    criadaEm: api.criado_em,
+  };
+}
+
 /** Um convite pendente (`GET`/`POST /empresa/convites`); o `papel` é o dado no convite (#133), ausente antes dele. */
 export type ConviteAPI = { id: string; email: string; papel?: string; criado_em: string; expira_em: string };
 export type Convite = { id: string; email: string; papel: Papel | null; enviadoEm: string; valeAte: string };
