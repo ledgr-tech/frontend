@@ -31,14 +31,6 @@ vi.mock("../../../(auth)/acoes", () => ({
   salvarPreferencias: async () => true,
 }));
 
-// a equipe é do backend (#69); aqui a ação devolve a empresa com uma pessoa só
-const carregarEquipe = vi.fn();
-vi.mock("./equipe/acoes", () => ({
-  carregarEquipe: (...args: unknown[]) => carregarEquipe(...args),
-  convidar: vi.fn(),
-  cancelarConvite: vi.fn(),
-  removerPessoa: vi.fn(),
-}));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
 const EMAIL = "financeiro@telhacerta.com.br";
@@ -78,10 +70,6 @@ describe("Configuracoes", () => {
     toleranciaDaUltimaConciliacao.mockResolvedValue(2);
     carregarRegras.mockReset().mockResolvedValue({ ok: true, dados: REGRAS });
     salvarToleranciaDias.mockReset();
-    carregarEquipe.mockReset().mockResolvedValue({
-      ok: true,
-      dados: { pessoas: [{ id: "u1", nome: "Ana", email: EMAIL, papel: "admin" }], convites: [] },
-    });
     window.localStorage.clear();
     delete document.documentElement.dataset.tema;
     delete document.documentElement.dataset.densidade;
@@ -389,25 +377,29 @@ describe("Configuracoes", () => {
     expect(screen.getByText("Nada encontrado para “xyz”.")).toBeInTheDocument();
   });
 
-  it("lists Equipe between Conta and Aparência", () => {
+  it("lists Conta, Aparência and the rest: the team moved to the Empresas screen", () => {
     abrir();
     const nomes = within(screen.getByRole("navigation", { name: "Configurações" }))
       .getAllByRole("button")
       .map((botao) => botao.textContent);
-    expect(nomes.slice(0, 3)).toEqual(["Conta", "Equipe", "Aparência"]);
+    expect(nomes.slice(0, 2)).toEqual(["Conta", "Aparência"]);
+    expect(nomes).not.toContain("Equipe");
   });
 
-  it("finds the invite line when searching, and an analyst cannot invite", async () => {
+  it("does not find the invite line any more when searching", async () => {
     const user = userEvent.setup();
     abrir({ papel: "analista" });
 
     await user.type(screen.getByRole("searchbox", { name: "Procurar nas configurações" }), "convid");
-    expect(await screen.findByRole("heading", { name: "Equipe" })).toBeInTheDocument();
-    expect(screen.getByText("Convidar pessoa")).toBeInTheDocument();
-    expect(
-      screen.getByText("Só o administrador e o gestor convidam pessoas; só o administrador remove."),
-    ).toBeInTheDocument();
-    expect(carregarEquipe).toHaveBeenCalledWith("analista");
+    expect(screen.queryByText("Convidar pessoa")).not.toBeInTheDocument();
+  });
+
+  it("tells the admin where to remove the other people before deactivating the account", async () => {
+    const user = userEvent.setup();
+    abrir({ papel: "admin" });
+
+    await user.click(secao("Conta"));
+    expect(screen.getByText(/remova-as antes em Empresas › Equipe/)).toBeInTheDocument();
   });
 
   it("closes from the close button", async () => {

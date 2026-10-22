@@ -10,7 +10,6 @@ import {
   Search,
   ShieldCheck,
   UserRound,
-  Users,
   X,
   type LucideIcon,
 } from "lucide-react";
@@ -31,7 +30,6 @@ import { aplicarTema, escolhaDeTema, seguirSistema, temaDoSistema, type EscolhaD
 import { useTeclaDeAtalho } from "@/lib/plataforma";
 import type { Papel } from "@/lib/papel";
 import { Tutorial } from "./tutorial/tutorial";
-import { useLinhasDaEquipe } from "./equipe/secao-equipe";
 
 /**
  * As configurações, numa janela no meio da tela (como a do Claude): seções à
@@ -44,7 +42,7 @@ import { useLinhasDaEquipe } from "./equipe/secao-equipe";
  * `PUT /empresa/configuracoes` (backend #85); sem a rota, fica para leitura.
  */
 
-/** `chave` quando o título pode se repetir (duas pessoas com o mesmo nome na Equipe). */
+/** `chave` quando o título pode se repetir (duas linhas com o mesmo título). */
 type Linha = { chave?: string; titulo: string; descricao?: string; controle?: ReactNode };
 
 type Secao = {
@@ -408,7 +406,7 @@ export function Configuracoes({
   email: string;
   /** Falso na conta que só entra pelo Google (`metodos_login` do `GET /me`): não há senha para trocar. */
   temSenha: boolean;
-  /** O papel de quem está logado: o admin e o gestor convidam, só o admin remove pessoas na seção Equipe. */
+  /** O papel de quem está logado: decide o texto de "Desativar conta". */
   papel?: Papel;
   onSair: () => void;
   /** Avisa o menu lateral, que mostra o botão de tema com o ícone do tema atual. */
@@ -424,7 +422,6 @@ export function Configuracoes({
   // undefined até a janela abrir pela primeira vez (e de novo no "Tentar de novo")
   const [regras, setRegras] = useState<EstadoDasRegras | undefined>(undefined);
   const ctrl = useTeclaDeAtalho();
-  const linhasDaEquipe = useLinhasDaEquipe({ aberta, papel, email });
 
   useEffect(() => {
     const elemento = dialogo.current;
@@ -538,7 +535,7 @@ export function Configuracoes({
         {
           titulo: "Desativar conta",
           descricao: papel === "admin"
-            ? "Tira o seu acesso ao Ledgr e libera o seu e-mail. Se há outras pessoas na equipe, remova-as antes: sem você, a empresa fica sem acesso."
+            ? "Tira o seu acesso ao Ledgr e libera o seu e-mail. Se há outras pessoas na equipe, remova-as antes em Empresas › Equipe: sem você, a empresa fica sem acesso."
             : "Tira o seu acesso ao Ledgr e libera o seu e-mail. O que você conferiu e justificou continua no histórico da empresa, com o seu nome.",
           controle: (
             <AcaoDaConta
@@ -562,13 +559,6 @@ export function Configuracoes({
           ),
         },
       ],
-    },
-    {
-      id: "equipe",
-      nome: "Equipe",
-      icone: Users,
-      grupo: "Configurações",
-      linhas: linhasDaEquipe,
     },
     {
       id: "aparencia",

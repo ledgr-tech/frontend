@@ -32,7 +32,7 @@ export function Shell({
   /** O nome da conta (o escritório), no cartão do usuário; sem ele, o da empresa, como antes. */
   nomeDaConta?: string;
   temSenha: boolean;
-  /** O papel de quem está logado, do `GET /me`; vai até a seção Equipe das Configurações. */
+  /** O papel de quem está logado, do `GET /me`; decide o que a tela Empresas e as Configurações oferecem. */
   papel: Papel;
   /** O que a pessoa dispensou no primeiro uso, do `GET /me`; null quando ele não manda. */
   preferencias: Preferencias | null;
