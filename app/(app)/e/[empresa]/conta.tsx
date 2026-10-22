@@ -32,6 +32,8 @@ const ContextoDaAssinatura = createContext<Assinatura | null>(null);
 const ContextoDosLimites = createContext<LimitesDaConta | null>(null);
 /** O e-mail de quem está logado (a sessão), para marcar a própria linha na Equipe; vazio fora do app. */
 const ContextoDoEmail = createContext("");
+/** Se a conta tem senha (`metodos_login` do `GET /me`): a transferência da administração a pede, como a desativação. */
+const ContextoDaSenha = createContext(true);
 
 /**
  * As preferências do primeiro uso (spec 2026-10-15-primeiro-uso): as da conta, do `GET /me`,
@@ -44,6 +46,7 @@ export function ProvedorDaConta({
   limites = null,
   papel = "admin",
   email = "",
+  temSenha = true,
   children,
 }: {
   preferencias: Preferencias | null;
@@ -52,6 +55,8 @@ export function ProvedorDaConta({
   limites?: LimitesDaConta | null;
   /** O e-mail da sessão. */
   email?: string;
+  /** Falso na conta que só entra pelo Google. */
+  temSenha?: boolean;
   /** Do `GET /me`: só o admin e o gestor fecham o mês. */
   papel?: Papel;
   children: ReactNode;
@@ -89,7 +94,9 @@ export function ProvedorDaConta({
       <ContextoDaAssinatura.Provider value={assinatura}>
         <ContextoDosLimites.Provider value={limites}>
           <ContextoDoPapel.Provider value={papel}>
-            <ContextoDoEmail.Provider value={email}>{children}</ContextoDoEmail.Provider>
+            <ContextoDoEmail.Provider value={email}>
+              <ContextoDaSenha.Provider value={temSenha}>{children}</ContextoDaSenha.Provider>
+            </ContextoDoEmail.Provider>
           </ContextoDoPapel.Provider>
         </ContextoDosLimites.Provider>
       </ContextoDaAssinatura.Provider>
@@ -105,6 +112,10 @@ export function usePreferencias(): ValorDaConta {
 
 export function useAssinatura(): Assinatura | null {
   return useContext(ContextoDaAssinatura);
+}
+
+export function useTemSenha(): boolean {
+  return useContext(ContextoDaSenha);
 }
 
 export function useEmail(): string {

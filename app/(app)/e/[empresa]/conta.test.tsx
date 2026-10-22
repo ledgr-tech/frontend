@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { act, render, screen, waitFor } from "@testing-library/react";
-import { ProvedorDaConta, useEmail, useLimites, usePreferencias } from "./conta";
+import { ProvedorDaConta, useEmail, useLimites, usePreferencias, useTemSenha } from "./conta";
 
 const salvarPreferencias = vi.fn<(p: unknown) => Promise<boolean>>(async () => true);
 vi.mock("../../../(auth)/acoes", () => ({ salvarPreferencias: (p: unknown) => salvarPreferencias(p) }));
@@ -22,6 +22,29 @@ function SondaDosLimites() {
   const limites = useLimites();
   return <span>{limites ? `empresas ${limites.empresas?.usadas}/${limites.empresas?.maximo}` : "sem limites"}</span>;
 }
+
+describe("a conta tem senha?", () => {
+  it("o provedor entrega o temSenha; sem ele, e fora do provedor, é verdadeiro (a conta única antiga tinha senha)", () => {
+    function Sonda() {
+      return <span>{useTemSenha() ? "com senha" : "só Google"}</span>;
+    }
+    const { unmount } = render(
+      <ProvedorDaConta preferencias={null} temSenha={false}>
+        <Sonda />
+      </ProvedorDaConta>,
+    );
+    expect(screen.getByText("só Google")).toBeInTheDocument();
+    unmount();
+    render(
+      <ProvedorDaConta preferencias={null}>
+        <Sonda />
+      </ProvedorDaConta>,
+    );
+    expect(screen.getByText("com senha")).toBeInTheDocument();
+    render(<Sonda />);
+    expect(screen.getAllByText("com senha")).toHaveLength(2);
+  });
+});
 
 describe("o e-mail de quem está logado", () => {
   it("o provedor o entrega; sem ele, e fora do provedor, é vazio", () => {
