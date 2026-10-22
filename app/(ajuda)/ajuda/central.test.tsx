@@ -116,6 +116,23 @@ describe("o conteúdo da ajuda", () => {
     }
   });
 
+  it("Configurações explica as empresas clientes, logo antes da Equipe e sem imagem ainda", () => {
+    const funcoes = PAGINAS.find((pagina) => pagina.id === "configuracoes")!.funcoes;
+    const ids = funcoes.map((funcao) => funcao.id);
+    expect(ids.indexOf("empresas")).toBeGreaterThan(-1);
+    expect(ids.indexOf("empresas")).toBe(ids.indexOf("equipe") - 1);
+
+    const empresas = funcoes[ids.indexOf("empresas")];
+    const passos = empresas.passos?.join(" ") ?? "";
+    for (const botao of ["**Empresas**", "**Adicionar empresa**", "**Cadastrar empresa**", "**Abrir**"]) {
+      expect(passos, botao).toContain(botao);
+    }
+    expect(empresas.nota).toMatch(/limite do plano/);
+    expect(empresas.imagem).toBeUndefined();
+    // a frase de abertura das configurações lista a seção nova
+    expect(funcoes.find((funcao) => funcao.id === "abrir")!.faz).toContain("Conta, Empresas, Equipe");
+  });
+
   it("toda imagem existe em public/", () => {
     for (const pagina of PAGINAS) {
       for (const imagem of [pagina.capa, ...pagina.funcoes.map((f) => f.imagem)]) {

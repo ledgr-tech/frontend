@@ -544,7 +544,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
     titulo: "Configurações",
     onde: "Menu da conta › Configurações, ou Ctrl e vírgula",
     serve:
-      "A sua conta, a equipe, a aparência do app e a regra da conciliação.",
+      "A sua conta, as empresas clientes, a equipe, a aparência do app e a regra da conciliação.",
     capa: {
       src: "/ajuda/configuracoes.webp",
       largura: 1360,
@@ -554,7 +554,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
       {
         id: "abrir",
         titulo: "Abrir e procurar",
-        faz: "As configurações abrem numa janela por cima da tela em que você está, com as seções à esquerda: Conta, Equipe, Aparência, Conciliação, Atalhos de teclado, Privacidade e Sobre.",
+        faz: "As configurações abrem numa janela por cima da tela em que você está, com as seções à esquerda: Conta, Empresas, Equipe, Aparência, Conciliação, Atalhos de teclado, Privacidade e Sobre.",
         passos: [
           "Clique no seu nome no menu lateral e em **Configurações**, ou aperte **Ctrl** e **,**.",
           "Escolha a seção, ou digite em **Procurar** o que quer mudar, por exemplo “senha”.",
@@ -590,6 +590,17 @@ export const PAGINAS: PaginaDeAjuda[] = [
           largura: 960,
           altura: 640,
         },
+      },
+      {
+        id: "empresas",
+        titulo: "Empresas",
+        faz: "As empresas clientes da conta. Todas as pessoas da conta veem todas elas; o administrador e o gestor cadastram novas pelo CNPJ.",
+        passos: [
+          "Abra **Empresas**. A que você está usando aparece com a marca **Ativa**.",
+          "Para trabalhar em outra, clique em **Abrir** na linha dela. Você vai para a mesma tela, só que na outra empresa.",
+          "Para cadastrar uma empresa, preencha o CNPJ e a razão social em **Adicionar empresa** e clique em **Cadastrar empresa**. Ela abre na Visão geral.",
+        ],
+        nota: "Cada plano tem um número máximo de empresas. Perto do limite do plano a tela avisa, e no limite o cadastro fica desligado até você trocar de plano em Assinatura.",
       },
       {
         id: "equipe",
