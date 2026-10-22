@@ -3291,6 +3291,27 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
 }
 .seletor-empresa-opcao:hover, .seletor-empresa-opcao:focus-visible { background: var(--tinta-hover); }
 .seletor-empresa-opcao[aria-selected="true"] { box-shadow: inset 3px 0 0 var(--color-accent); }
+/* A tela Empresas (#169): a faixa do plano, o painel do cadastro e a tabela */
+.empresas-nota { margin: 16px 0 0; font-size: 14px; color: color-mix(in srgb, var(--color-text) 70%, transparent); }
+.empresas-plano {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin: 20px 0 0;
+  padding: 14px 16px; border: 1px solid var(--color-divider); border-radius: var(--radius-md);
+  font-size: 14px; color: color-mix(in srgb, var(--color-text) 78%, transparent);
+}
+.empresas-plano strong { font-family: var(--font-heading); font-size: 16px; font-weight: 600; color: var(--color-text); }
+.empresas-cadastro {
+  margin: 20px 0 0; padding: 20px; border: 1px solid var(--color-divider);
+  border-radius: var(--radius-md); background: var(--color-surface);
+}
+.empresas-cadastro-texto { margin: 0 0 16px; font-size: 14px; color: color-mix(in srgb, var(--color-text) 70%, transparent); }
+.empresas-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 16px; max-width: 760px; align-items: start; }
+.empresas-form > .campo-erro, .empresas-form-botoes { grid-column: 1 / -1; }
+.empresas-form-botoes { display: flex; flex-wrap: wrap; gap: 8px; }
+.empresas-tabela { margin: 24px 0 0; overflow-x: auto; }
+.empresas-celula { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.empresas-nome { font-family: var(--font-heading); font-weight: 600; }
+.empresas-acao { text-align: right; white-space: nowrap; }
+@media (max-width: 720px) { .empresas-form { grid-template-columns: 1fr; } }
 .seletor-empresa-gerenciar {
   width: 100%; display: flex; align-items: center; gap: 8px; cursor: pointer; text-align: left;
   padding: 9px 14px; border: 0; border-top: 1px solid var(--color-divider);

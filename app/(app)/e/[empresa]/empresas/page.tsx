@@ -15,19 +15,15 @@ const SEM_A_ROTA = "As empresas ainda não estão disponíveis.";
 export default async function EmpresasPage() {
   const resposta = await carregarEmpresas();
   if (!resposta.ok && resposta.status === 401) await redirecionarNoApp("/login");
-  const total = resposta.ok ? resposta.dados.length : 0;
+  // o painel leva o próprio cabeçalho: o botão de adicionar abre o formulário que ele mostra
+  if (resposta.ok) return <PainelDeEmpresas empresas={resposta.dados} />;
 
   return (
     <div>
-      <Cabecalho titulo="Empresas" contexto={[resposta.ok && `${total} ${total === 1 ? "empresa" : "empresas"}`]} />
-
-      {resposta.ok ? (
-        <PainelDeEmpresas empresas={resposta.dados} />
-      ) : (
-        <p role={resposta.status === 404 ? undefined : "alert"} style={{ padding: "48px 0" }}>
-          {resposta.status === 404 ? SEM_A_ROTA : FALHA_AO_CARREGAR}
-        </p>
-      )}
+      <Cabecalho titulo="Empresas" />
+      <p role={resposta.status === 404 ? undefined : "alert"} style={{ padding: "48px 0" }}>
+        {resposta.status === 404 ? SEM_A_ROTA : FALHA_AO_CARREGAR}
+      </p>
     </div>
   );
 }
