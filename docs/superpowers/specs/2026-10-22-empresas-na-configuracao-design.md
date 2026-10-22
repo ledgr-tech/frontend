@@ -102,3 +102,9 @@ Botão "Adicionar empresa" abre o formulário em linha (padrão `cfg-form` do co
 - **Equipe:** cada pessoa com avatar de iniciais, nome, e-mail, "você" e o papel como etiqueta (a troca de papel é a parte C do #169, fora desta entrega); "Remover" só para o administrador, com a confirmação na própria linha, como era. Convites pendentes em linhas tracejadas, com o papel, a validade e "Cancelar". O convite é um painel com o e-mail e **cartões de papel** que explicam cada um (o gestor só vê o Analista); o aviso de limite de pessoas continua só avisando, sem desligar o convite.
 - **Analista:** vê a lista e a frase "Só o administrador e o gestor convidam pessoas; só o administrador remove."
 - **Configurações:** perdem a seção Equipe; o texto de "Desativar conta" aponta para Empresas › Equipe. A Central de ajuda move a função Equipe para a página Empresas.
+
+### Ajustes de 23/10 (depois de ver a tela rodando)
+
+- **Cadastrar empresa e Convidar pessoa abrem numa janela modal** no meio da tela, com o fundo desfocado e a entrada suave, como a janela da comparação, em vez de um painel acima da lista. Fecha com Esc, Cancelar/Fechar ou um clique no fundo; o foco já entra no primeiro campo.
+- **A aba vem da URL do navegador** (lida no cliente), para o botão voltar não mostrar uma aba e a URL outra; os dois painéis ficam no DOM, o inativo escondido.
+- A faixa de plano se atualiza depois de convidar, cancelar ou remover; "1 pessoa" no singular; as faixas de rolagem lateral das abas e da tabela não geram barra de rolagem vertical (o sublinhado da aba ativa fazia aparecer um mini-controle ▲▼ no Windows).
