@@ -46,7 +46,7 @@ beforeEach(() => {
   redirect.mockReset();
   notFound.mockReset();
   cookie.valor = undefined;
-  auth.mockResolvedValue({ user: { email: "ana@x.com", empresaId: A } });
+  auth.mockResolvedValue({ user: { email: "ana@x.com", contaId: A } });
   contaDaSessao.mockResolvedValue({ empresas: EMPRESAS });
 });
 
@@ -99,7 +99,7 @@ describe("URL sem empresa", () => {
 
   it("sem lista e sem uma empresa de sessão que seja UUID, é 404", async () => {
     contaDaSessao.mockResolvedValue({ empresas: [] });
-    auth.mockResolvedValue({ user: { email: "ana@x.com", empresaId: "lixo" } });
+    auth.mockResolvedValue({ user: { email: "ana@x.com", contaId: "lixo" } });
     await expect(abrir("visao-geral")).rejects.toThrow("NEXT_NOT_FOUND");
     expect(redirect).not.toHaveBeenCalled();
   });

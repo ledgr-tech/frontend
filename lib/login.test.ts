@@ -34,11 +34,11 @@ describe("autorizar", () => {
     vi.unstubAllGlobals();
   });
 
-  it("pergunta ao backend, sem Bearer, e devolve o usuário com o empresa_id dele", async () => {
+  it("pergunta ao backend, sem Bearer, e devolve o usuário com o conta_id dele", async () => {
     fetch.mockResolvedValue(
       Response.json({
         id: "7a2b9c4d-1e3f-4a5b-8c6d-9e0f1a2b3c4d",
-        empresa_id: "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20",
+        conta_id: "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20",
         nome: "Ana Souza",
         email: "ana@telhacerta.com.br",
       }),
@@ -48,7 +48,7 @@ describe("autorizar", () => {
       id: "7a2b9c4d-1e3f-4a5b-8c6d-9e0f1a2b3c4d",
       email: "ana@telhacerta.com.br",
       name: "Ana Souza",
-      empresaId: "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20",
+      contaId: "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20",
     });
     const [url, init] = fetch.mock.calls[0] as [string, RequestInit];
     expect(url).toBe("http://localhost:8000/login");
@@ -61,7 +61,7 @@ describe("autorizar", () => {
     fetch.mockResolvedValue(
       Response.json({
         id: "7a2b9c4d-1e3f-4a5b-8c6d-9e0f1a2b3c4d",
-        empresa_id: "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20",
+        conta_id: "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20",
         nome: "Ana Souza",
         email: "ana@telhacerta.com.br",
         auth_time: 1791374400,
@@ -75,7 +75,7 @@ describe("autorizar", () => {
     fetch.mockResolvedValue(
       Response.json({
         id: "7a2b9c4d-1e3f-4a5b-8c6d-9e0f1a2b3c4d",
-        empresa_id: "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20",
+        conta_id: "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20",
         nome: "Ana Souza",
         email: "ana@telhacerta.com.br",
       }),
@@ -112,7 +112,7 @@ describe("autorizar", () => {
 describe("login pelo Google (backend #73)", () => {
   const USUARIO = {
     id: "7a2b9c4d-1e3f-4a5b-8c6d-9e0f1a2b3c4d",
-    empresa_id: "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20",
+    conta_id: "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20",
     nome: "Ana Souza",
     email: "ana@gmail.com",
     auth_time: 1791374400,
@@ -134,7 +134,7 @@ describe("login pelo Google (backend #73)", () => {
     fetch.mockResolvedValue(Response.json(corpo, { status }));
   }
 
-  it("manda o id_token ao /login/google, sem Bearer, e usa o id e o empresa_id do backend", async () => {
+  it("manda o id_token ao /login/google, sem Bearer, e usa o id e o conta_id do backend", async () => {
     respostaDoBackend(200, USUARIO);
 
     expect(await entrarNoBackendComGoogle("id-token-do-google")).toEqual({
@@ -143,7 +143,7 @@ describe("login pelo Google (backend #73)", () => {
         id: USUARIO.id,
         email: "ana@gmail.com",
         name: "Ana Souza",
-        empresaId: USUARIO.empresa_id,
+        contaId: USUARIO.conta_id,
         authTime: 1791374400,
       },
     });
@@ -172,17 +172,17 @@ describe("login pelo Google (backend #73)", () => {
 
   it("na volta do Google com conta, troca o perfil do Google pelo usuário do backend", async () => {
     respostaDoBackend(200, USUARIO);
-    const usuario = { id: "sub-do-google", email: "ana@gmail.com", name: "Ana", empresaId: "" };
+    const usuario = { id: "sub-do-google", email: "ana@gmail.com", name: "Ana", contaId: "" };
 
     expect(await aoVoltarDoGoogle(usuario, "t")).toBe(true);
     // o sub do Google nunca vira o id da sessão
-    expect(usuario).toMatchObject({ id: USUARIO.id, empresaId: USUARIO.empresa_id, authTime: 1791374400 });
+    expect(usuario).toMatchObject({ id: USUARIO.id, contaId: USUARIO.conta_id, authTime: 1791374400 });
   });
 
   it("sem conta, guarda o id_token num cookie httpOnly de 1 hora e leva ao cadastro", async () => {
     respostaDoBackend(404, { detail: "Não há conta no Ledgr para esta conta Google." });
 
-    expect(await aoVoltarDoGoogle({ empresaId: "" }, "id-token-do-google")).toBe("/cadastro/google");
+    expect(await aoVoltarDoGoogle({ contaId: "" }, "id-token-do-google")).toBe("/cadastro/google");
     expect(cookiesGravados).toHaveBeenCalledWith(
       "ledgr-cadastro-google",
       "id-token-do-google",
@@ -192,9 +192,9 @@ describe("login pelo Google (backend #73)", () => {
 
   it("volta ao login com o motivo nas outras recusas, ou sem id_token", async () => {
     respostaDoBackend(409, { detail: "Já existe uma conta com este e-mail. Entre com e-mail e senha." });
-    expect(await aoVoltarDoGoogle({ empresaId: "" }, "t")).toBe("/login?google=email_com_senha");
+    expect(await aoVoltarDoGoogle({ contaId: "" }, "t")).toBe("/login?google=email_com_senha");
 
-    expect(await aoVoltarDoGoogle({ empresaId: "" }, undefined)).toBe("/login?google=falha");
+    expect(await aoVoltarDoGoogle({ contaId: "" }, undefined)).toBe("/login?google=falha");
     expect(cookiesGravados).not.toHaveBeenCalled();
   });
 
@@ -202,7 +202,7 @@ describe("login pelo Google (backend #73)", () => {
     cookiesExistentes.set("ledgr-cadastro-google", "id-token-do-google");
     respostaDoBackend(200, USUARIO);
 
-    expect(await autorizarDepoisDoCadastroGoogle()).toMatchObject({ id: USUARIO.id, empresaId: USUARIO.empresa_id });
+    expect(await autorizarDepoisDoCadastroGoogle()).toMatchObject({ id: USUARIO.id, contaId: USUARIO.conta_id });
     expect(JSON.parse(String((fetch.mock.calls[0] as [string, RequestInit])[1].body))).toEqual({
       id_token: "id-token-do-google",
     });
@@ -223,7 +223,7 @@ describe("login pelo Google (backend #73)", () => {
 describe("aceite do convite pelo Google (backend #69/#73)", () => {
   const USUARIO = {
     id: "7a2b9c4d-1e3f-4a5b-8c6d-9e0f1a2b3c4d",
-    empresa_id: "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20",
+    conta_id: "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20",
     nome: "Ana Souza",
     email: "ana@gmail.com",
     auth_time: 1791374400,
@@ -248,7 +248,7 @@ describe("aceite do convite pelo Google (backend #69/#73)", () => {
   it("com o cookie do convite, aceita o convite em vez de entrar, e apaga o cookie", async () => {
     cookiesExistentes.set("ledgr-convite-google", "tok");
     respostaDoBackend(201, USUARIO);
-    const usuario = { id: "sub-do-google", email: "ana@gmail.com", name: "Ana", empresaId: "" };
+    const usuario = { id: "sub-do-google", email: "ana@gmail.com", name: "Ana", contaId: "" };
 
     expect(await aoVoltarDoGoogle(usuario, "id-tok")).toBe(true);
 
@@ -258,7 +258,7 @@ describe("aceite do convite pelo Google (backend #69/#73)", () => {
     expect(new Headers(init.headers).has("Authorization")).toBe(false);
     expect(fetch).toHaveBeenCalledTimes(1);
     expect(cookiesApagados).toHaveBeenCalledWith("ledgr-convite-google");
-    expect(usuario).toMatchObject({ id: USUARIO.id, empresaId: USUARIO.empresa_id, authTime: 1791374400 });
+    expect(usuario).toMatchObject({ id: USUARIO.id, contaId: USUARIO.conta_id, authTime: 1791374400 });
   });
 
   it.each([
@@ -271,7 +271,7 @@ describe("aceite do convite pelo Google (backend #69/#73)", () => {
     cookiesExistentes.set("ledgr-convite-google", "tok");
     respostaDoBackend(status, { detail });
 
-    expect(await aoVoltarDoGoogle({ empresaId: "" }, "id-tok")).toBe(destino);
+    expect(await aoVoltarDoGoogle({ contaId: "" }, "id-tok")).toBe(destino);
     if (apagaCookie) expect(cookiesApagados).toHaveBeenCalledWith("ledgr-convite-google");
     else expect(cookiesApagados).not.toHaveBeenCalled();
   });
@@ -279,14 +279,14 @@ describe("aceite do convite pelo Google (backend #69/#73)", () => {
   it("com o cookie do convite e sem id_token, volta ao convite com falha", async () => {
     cookiesExistentes.set("ledgr-convite-google", "tok");
 
-    expect(await aoVoltarDoGoogle({ empresaId: "" }, undefined)).toBe("/aceitar-convite?google=falha");
+    expect(await aoVoltarDoGoogle({ contaId: "" }, undefined)).toBe("/aceitar-convite?google=falha");
     expect(fetch).not.toHaveBeenCalled();
   });
 
   it("sem o cookie do convite, segue o login pelo Google de hoje", async () => {
     respostaDoBackend(200, USUARIO);
 
-    expect(await aoVoltarDoGoogle({ empresaId: "" }, "id-tok")).toBe(true);
+    expect(await aoVoltarDoGoogle({ contaId: "" }, "id-tok")).toBe(true);
     expect(fetch.mock.calls[0][0]).toBe("http://localhost:8000/login/google");
   });
 
