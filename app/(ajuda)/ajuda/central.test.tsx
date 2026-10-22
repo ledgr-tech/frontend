@@ -138,6 +138,13 @@ describe("o conteúdo da ajuda", () => {
     for (const botao of ["**Equipe**", "**Convidar pessoa**", "**Remover**"]) {
       expect(passosDaEquipe, botao).toContain(botao);
     }
+    // o papel editável e a transferência da administração (parte C do #169)
+    expect(passosDaEquipe).toContain("**Gestor**");
+    expect(passosDaEquipe).toContain("**Analista**");
+    expect(passosDaEquipe).toContain("**Tornar administrador**");
+    expect(passosDaEquipe).toMatch(/senha atual/);
+    expect(passosDaEquipe).toMatch(/você vira \*\*Gestor\*\*/);
+    expect(equipe.nota).toMatch(/Só o administrador troca papéis e passa a administração/);
     expect(equipe.imagem?.src).toBe("/ajuda/empresas--equipe.webp");
 
     const configuracoes = PAGINAS.find((pagina) => pagina.id === "configuracoes")!;
