@@ -125,17 +125,27 @@ describe("o conteúdo da ajuda", () => {
     expect(empresas.titulo).toBe("Empresas");
     expect(empresas.onde).toBe("Menu lateral › Empresas");
     expect(existsSync(join("public", empresas.capa.src)), empresas.capa.src).toBe(true);
-    expect(empresas.funcoes.map((funcao) => funcao.id)).toEqual(["lista", "abrir", "cadastrar", "limite"]);
+    expect(empresas.funcoes.map((funcao) => funcao.id)).toEqual(["lista", "abrir", "cadastrar", "limite", "equipe"]);
     const cadastrar = empresas.funcoes.find((funcao) => funcao.id === "cadastrar")!;
     for (const botao of ["**Adicionar empresa**", "**Cadastrar empresa**"]) {
       expect(cadastrar.passos?.join(" "), botao).toContain(botao);
     }
     expect(empresas.funcoes.find((funcao) => funcao.id === "limite")!.passos?.join(" ")).toContain("**Assinatura**");
 
+    // a equipe mudou das Configurações para a aba Equipe desta página
+    const equipe = empresas.funcoes.find((funcao) => funcao.id === "equipe")!;
+    const passosDaEquipe = equipe.passos?.join(" ") ?? "";
+    for (const botao of ["**Equipe**", "**Convidar pessoa**", "**Remover**"]) {
+      expect(passosDaEquipe, botao).toContain(botao);
+    }
+    expect(equipe.imagem?.src).toBe("/ajuda/empresas--equipe.webp");
+
     const configuracoes = PAGINAS.find((pagina) => pagina.id === "configuracoes")!;
-    expect(configuracoes.funcoes.some((funcao) => funcao.id === "empresas")).toBe(false);
-    expect(configuracoes.funcoes.find((funcao) => funcao.id === "abrir")!.faz).toContain("Conta, Equipe, Aparência");
-    expect(configuracoes.serve).not.toMatch(/empresas/);
+    expect(configuracoes.funcoes.some((funcao) => funcao.id === "empresas" || funcao.id === "equipe")).toBe(false);
+    expect(configuracoes.funcoes.find((funcao) => funcao.id === "abrir")!.faz).toContain("Conta, Aparência");
+    expect(configuracoes.funcoes.find((funcao) => funcao.id === "abrir")!.faz).not.toContain("Equipe");
+    expect(configuracoes.serve).not.toMatch(/empresas|equipe/);
+    expect(existsSync(join("public", "ajuda", "configuracoes--equipe.webp"))).toBe(false);
   });
 
   it("toda imagem existe em public/", () => {

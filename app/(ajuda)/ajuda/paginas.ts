@@ -590,6 +590,22 @@ export const PAGINAS: PaginaDeAjuda[] = [
           "Para ter mais empresas, troque de plano em **Assinatura**.",
         ],
       },
+      {
+        id: "equipe",
+        titulo: "A equipe",
+        faz: "As pessoas com acesso à conta e o papel de cada uma: **Administrador**, **Gestor** ou **Analista**. O administrador e o gestor convidam e cancelam convites; só o administrador remove pessoas.",
+        passos: [
+          "Abra **Empresas** no menu lateral e clique na aba **Equipe**.",
+          "Clique em **Convidar pessoa**, digite o e-mail e escolha o papel: cada cartão diz o que a pessoa poderá fazer. O administrador convida gestor ou analista; o gestor convida só analista. A pessoa recebe um link para criar o acesso.",
+          "Para tirar alguém, clique em **Remover** na linha dela (só o administrador vê o botão) e confirme. O acesso é cortado na hora.",
+        ],
+        nota: "O analista vê a lista, concilia e justifica, mas não fecha o mês nem convida ninguém. Os convites pendentes contam no limite de pessoas do plano.",
+        imagem: {
+          src: "/ajuda/empresas--equipe.webp",
+          largura: 1360,
+          altura: 850,
+        },
+      },
     ],
   },
   {
@@ -597,7 +613,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
     titulo: "Configurações",
     onde: "Menu da conta › Configurações, ou Ctrl e vírgula",
     serve:
-      "A sua conta, a equipe, a aparência do app e a regra da conciliação.",
+      "A sua conta, a aparência do app e a regra da conciliação.",
     capa: {
       src: "/ajuda/configuracoes.webp",
       largura: 1360,
@@ -607,7 +623,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
       {
         id: "abrir",
         titulo: "Abrir e procurar",
-        faz: "As configurações abrem numa janela por cima da tela em que você está, com as seções à esquerda: Conta, Equipe, Aparência, Conciliação, Atalhos de teclado, Privacidade e Sobre.",
+        faz: "As configurações abrem numa janela por cima da tela em que você está, com as seções à esquerda: Conta, Aparência, Conciliação, Atalhos de teclado, Privacidade e Sobre.",
         passos: [
           "Clique no seu nome no menu lateral e em **Configurações**, ou aperte **Ctrl** e **,**.",
           "Escolha a seção, ou digite em **Procurar** o que quer mudar, por exemplo “senha”.",
@@ -640,22 +656,6 @@ export const PAGINAS: PaginaDeAjuda[] = [
         nota: "Vale a partir da próxima conciliação. Com 0, só casam lançamentos do mesmo dia.",
         imagem: {
           src: "/ajuda/configuracoes--tolerancia.webp",
-          largura: 960,
-          altura: 640,
-        },
-      },
-      {
-        id: "equipe",
-        titulo: "Equipe",
-        faz: "As pessoas com acesso à empresa e o papel de cada uma: **Administrador**, **Gestor** ou **Analista**. O administrador e o gestor convidam e cancelam convites; só o administrador remove pessoas.",
-        passos: [
-          "Abra **Equipe**.",
-          "Clique em **Convidar pessoa**, digite o e-mail e escolha o papel. O administrador convida gestor ou analista; o gestor convida só analista. A pessoa recebe um link para criar o acesso.",
-          "Para tirar alguém, clique em **Remover** (só o administrador vê o botão). O acesso é cortado na hora.",
-        ],
-        nota: "O analista concilia e justifica, mas não fecha o mês nem convida ninguém.",
-        imagem: {
-          src: "/ajuda/configuracoes--equipe.webp",
           largura: 960,
           altura: 640,
         },
