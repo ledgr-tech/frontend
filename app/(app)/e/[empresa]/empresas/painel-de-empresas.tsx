@@ -36,7 +36,8 @@ export function PainelDeEmpresas({ empresas }: { empresas: EmpresaCliente[] }) {
   const podeCadastrar = papel !== "analista";
   const limite = limites?.empresas ?? null;
   const situacao = limite ? situacaoDoLimite(limite) : null;
-  const noLimite = situacao === "no-limite";
+  // acima do limite (um downgrade) também não dá para adicionar, como a frase da faixa diz
+  const noLimite = situacao === "no-limite" || situacao === "acima";
   const aviso = limite ? textoDoLimite("empresas", limite) : null;
 
   function abrir(empresa: EmpresaCliente) {
@@ -80,7 +81,8 @@ export function PainelDeEmpresas({ empresas }: { empresas: EmpresaCliente[] }) {
         </div>
       )}
 
-      {aberto && podeCadastrar && !noLimite && (
+      {/* sem `!noLimite`: o 402 de uma aba com contador velho relê a página e leva a conta ao limite; o formulário aberto fica, com a mensagem e o foco, e só o envio se desliga */}
+      {aberto && podeCadastrar && (
         <section id={painelId} className="empresas-cadastro">
           <p className="empresas-cadastro-texto">Cadastre uma empresa cliente pelo CNPJ. Ela entra na conta e você passa a trabalhar nela.</p>
           <CadastrarEmpresa noLimite={noLimite} aoCadastrar={() => setAberto(false)} />

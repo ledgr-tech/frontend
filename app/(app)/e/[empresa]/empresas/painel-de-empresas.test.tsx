@@ -122,8 +122,11 @@ describe("quem cadastra", () => {
     expect(screen.getByRole("form", { name: "Adicionar empresa" })).toBeInTheDocument();
   });
 
-  it("no limite o botão do cabeçalho fica desligado", () => {
-    montar({ limites: { empresas: { usadas: 3, maximo: 3 }, usuarios: null } });
+  it.each([
+    ["no limite", 3, 3],
+    ["acima do limite (um downgrade de plano)", 4, 3],
+  ])("%s o botão do cabeçalho fica desligado", (_, usadas, maximo) => {
+    montar({ limites: { empresas: { usadas, maximo }, usuarios: null } });
 
     expect(screen.getByRole("button", { name: "Adicionar empresa" })).toBeDisabled();
   });
@@ -215,6 +218,31 @@ describe("o cadastro de empresa", () => {
     await screen.findByText("O plano permite até 3 empresas.");
     expect(within(form).getByRole("link", { name: "Ver planos" })).toHaveAttribute("href", `/e/${A.id}/assinatura`);
     expect(router.refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it("o 402 continua na tela quando o refresh leva a conta ao limite: o formulário não some com a mensagem e o foco", async () => {
+    cadastrarEmpresa.mockResolvedValue({ ok: false, status: 402, erro: "O plano permite até 3 empresas." });
+    const user = userEvent.setup();
+    const arvore = (limites: LimitesDaConta) => (
+      <ProvedorDaEmpresa ativa={{ id: A.id, razaoSocial: A.razaoSocial, cnpj: A.cnpj }} empresas={[A, B]}>
+        <ProvedorDaConta preferencias={null} limites={limites} papel="admin">
+          <PainelDeEmpresas empresas={[A, B]} />
+        </ProvedorDaConta>
+      </ProvedorDaEmpresa>
+    );
+    const { rerender } = render(arvore({ empresas: { usadas: 2, maximo: 3 }, usuarios: null }));
+    await user.click(screen.getByRole("button", { name: "Adicionar empresa" }));
+    await preencher(user);
+    await user.click(screen.getByRole("button", { name: "Cadastrar empresa" }));
+    await screen.findByText("O plano permite até 3 empresas.");
+
+    // o router.refresh() relê o /me e a página volta com o contador no limite
+    rerender(arvore({ empresas: { usadas: 3, maximo: 3 }, usuarios: null }));
+
+    const form = screen.getByRole("form", { name: "Adicionar empresa" });
+    expect(within(form).getByText("O plano permite até 3 empresas.")).toBeInTheDocument();
+    expect(within(form).getByRole("link", { name: "Ver planos" })).toBeInTheDocument();
+    expect(within(form).getByRole("button", { name: "Cadastrar empresa" })).toBeDisabled();
   });
 
   it("o 429 mostra o aviso; o 403 mostra o aviso e relê a página", async () => {
