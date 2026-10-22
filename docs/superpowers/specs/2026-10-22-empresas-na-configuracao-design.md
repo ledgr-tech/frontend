@@ -73,7 +73,7 @@ Botão "Adicionar empresa" abre o formulário em linha (padrão `cfg-form` do co
 
 ## Riscos e pontos a confirmar na implementação
 
-- **CNPJ alfanumérico:** o backend aceita; conferir se `validarCnpj`/`formatarCnpj` do cadastro também. Se não, o front deixa a decisão ao backend (só exige tamanho) em vez de recusar CNPJ válido.
+- **CNPJ alfanumérico:** resolvido: `validarCnpj` e `formatarCnpj` do cadastro já aceitam letras (mesmo cálculo do backend), então o formulário os reusa sem mudança.
 - **Contador defasado:** `limites` vem do `/me`, lido por carregamento do layout; depois de cadastrar, a navegação à empresa nova já relê. Se o 402 vier com o contador velho, relê-se o `/me`.
 - **Limite de 20 por hora** na conta: o aviso de 429 é o único tratamento; não há contador no front.
 - **Sem rota** (backend sem o #143): a seção mostra "ainda não disponível" e some o botão; o resto do app segue como hoje.
