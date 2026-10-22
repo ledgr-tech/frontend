@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import { useState } from "react";
 import userEvent from "@testing-library/user-event";
 import type { Papel } from "@/lib/papel";
@@ -40,9 +40,9 @@ function Equipe({ aberto = true }: { aberto?: boolean }) {
   return <PainelDaEquipe {...equipe} conviteAberto={conviteAberto} aoFecharConvite={() => setConviteAberto(false)} />;
 }
 
-function montar(papel: Papel = "admin", email = ADMIN.email, limites: LimitesDaConta | null = null, aberto = true) {
+function montar(papel: Papel = "admin", email = ADMIN.email, limites: LimitesDaConta | null = null, aberto = true, temSenha = true) {
   render(
-    <ProvedorDaConta preferencias={null} limites={limites} papel={papel} email={email}>
+    <ProvedorDaConta preferencias={null} limites={limites} papel={papel} email={email} temSenha={temSenha}>
       <Equipe aberto={aberto} />
     </ProvedorDaConta>,
   );
@@ -549,5 +549,156 @@ describe("o menu de papel", () => {
 
     expect(screen.getAllByRole("menu")).toHaveLength(1);
     expect(screen.getByRole("menu", { name: "Papel de Gil" })).toBeInTheDocument();
+  });
+});
+
+describe("a transferência da administração", () => {
+  const PESSOAS_DEPOIS = [
+    { ...ADMIN, papel: "gestor" },
+    { ...BIA, papel: "admin" },
+  ];
+
+  /** Abre a janela pelo menu de papel da Bia. */
+  async function abrirJanela(temSenha = true) {
+    const user = userEvent.setup();
+    montar("admin", ADMIN.email, null, false, temSenha);
+    await screen.findByText("Bia", { selector: ".equipe-nome" });
+    await user.click(within(linhaDe("Bia")).getByRole("button", { name: /^Papel de Bia/ }));
+    await user.click(screen.getByRole("menuitem", { name: /^Tornar administrador/ }));
+    return { user, janela: screen.getByRole("dialog", { name: "Transferir administração" }) };
+  }
+
+  it("abre uma janela modal que avisa o que muda, e o menu fecha", async () => {
+    const { janela } = await abrirJanela();
+
+    expect(janela).toHaveClass("espia", "modal-suave");
+    expect(
+      within(janela).getByText("Bia passa a ser o administrador da conta e você passa a ser Gestor. Só o novo administrador pode desfazer isso."),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+  });
+
+  it("na conta com senha, a senha é obrigatória e vai ao backend", async () => {
+    transferirAdmin.mockResolvedValue({ ok: true, dados: PESSOAS_DEPOIS });
+    const { user, janela } = await abrirJanela();
+
+    await user.click(within(janela).getByRole("button", { name: "Transferir administração" }));
+    expect(within(janela).getByText("Digite a sua senha atual.")).toBeInTheDocument();
+    expect(transferirAdmin).not.toHaveBeenCalled();
+
+    await user.type(within(janela).getByLabelText("Senha atual"), "segredo");
+    await user.click(within(janela).getByRole("button", { name: "Transferir administração" }));
+
+    expect(transferirAdmin).toHaveBeenCalledWith("u2", "segredo");
+  });
+
+  it("na conta só do Google não há campo de senha e a ação recebe null", async () => {
+    transferirAdmin.mockResolvedValue({ ok: true, dados: PESSOAS_DEPOIS });
+    const { user, janela } = await abrirJanela(false);
+
+    expect(within(janela).queryByLabelText("Senha atual")).not.toBeInTheDocument();
+    await user.click(within(janela).getByRole("button", { name: "Transferir administração" }));
+
+    expect(transferirAdmin).toHaveBeenCalledWith("u2", null);
+  });
+
+  it("a senha errada (400) aparece sob o campo e a janela continua aberta", async () => {
+    transferirAdmin.mockResolvedValue({ ok: false, status: 400, erro: "Senha atual incorreta." });
+    const { user, janela } = await abrirJanela();
+
+    await user.type(within(janela).getByLabelText("Senha atual"), "errada");
+    await user.click(within(janela).getByRole("button", { name: "Transferir administração" }));
+
+    const mensagem = await within(janela).findByText("Senha atual incorreta.");
+    expect(within(janela).getByLabelText("Senha atual")).toHaveAttribute("aria-describedby", mensagem.closest("[role=alert]")!.id);
+    expect(screen.getByRole("dialog", { name: "Transferir administração" })).toBeInTheDocument();
+  });
+
+  it.each([
+    [409, "Entre de novo com o Google para confirmar."],
+    [409, "O papel de admin já foi transferido."],
+    [429, "Muitas tentativas. Tente de novo em 1 minuto."],
+    [0, "Não foi possível falar com o servidor."],
+  ])("o erro %s (%s) aparece na janela, que continua aberta", async (status, erro) => {
+    transferirAdmin.mockResolvedValue({ ok: false, status, erro });
+    const { user, janela } = await abrirJanela(false);
+
+    await user.click(within(janela).getByRole("button", { name: "Transferir administração" }));
+
+    expect(await within(janela).findByRole("alert")).toHaveTextContent(erro);
+  });
+
+  it("dois envios no mesmo instante chamam a ação uma vez só; o botão diz Transferindo… e fica desligado", async () => {
+    let concluir: (resposta: unknown) => void = () => {};
+    transferirAdmin.mockReturnValue(new Promise((resolve) => (concluir = resolve)));
+    const { user, janela } = await abrirJanela();
+    await user.type(within(janela).getByLabelText("Senha atual"), "segredo");
+    const form = within(janela).getByRole("form", { name: "Transferir administração" }) as HTMLFormElement;
+
+    act(() => {
+      form.requestSubmit();
+      form.requestSubmit();
+    });
+
+    expect(transferirAdmin).toHaveBeenCalledTimes(1);
+    expect(within(janela).getByRole("button", { name: "Transferindo…" })).toBeDisabled();
+    await act(async () => concluir({ ok: true, dados: PESSOAS_DEPOIS }));
+  });
+
+  it("concluir fecha a janela, troca a lista, relê a página e avisa quem é o administrador agora", async () => {
+    transferirAdmin.mockResolvedValue({ ok: true, dados: PESSOAS_DEPOIS });
+    const { user, janela } = await abrirJanela();
+
+    await user.type(within(janela).getByLabelText("Senha atual"), "segredo");
+    await user.click(within(janela).getByRole("button", { name: "Transferir administração" }));
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(await screen.findByRole("status")).toHaveTextContent("Bia agora é o administrador da conta. Você é Gestor.");
+    expect(within(linhaDe("Bia")).getByText("Administrador")).toBeInTheDocument();
+    expect(within(linhaDe("Ana")).getByText("Gestor")).toBeInTheDocument();
+    expect(refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it("Esc, Cancelar e um clique no fundo fecham a janela sem chamar a ação", async () => {
+    const { user } = await abrirJanela();
+    const abrirDeNovo = async () => {
+      await user.click(within(linhaDe("Bia")).getByRole("button", { name: /^Papel de Bia/ }));
+      await user.click(screen.getByRole("menuitem", { name: /^Tornar administrador/ }));
+    };
+
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    await abrirDeNovo();
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Cancelar" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    await abrirDeNovo();
+    await user.click(screen.getByRole("dialog"));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(transferirAdmin).not.toHaveBeenCalled();
+  });
+
+  it("sessão vencida leva ao login", async () => {
+    transferirAdmin.mockResolvedValue({ ok: false, status: 401, erro: "Sua sessão expirou. Entre de novo para continuar." });
+    const { user, janela } = await abrirJanela(false);
+
+    await user.click(within(janela).getByRole("button", { name: "Transferir administração" }));
+
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/login"));
+  });
+
+  it.each([
+    [403, "Seu papel na conta não permite fazer isso."],
+    [404, "Essa pessoa não está mais na conta."],
+  ])("o %s fecha a janela, mostra o erro na aba e relê a equipe", async (status, erro) => {
+    transferirAdmin.mockResolvedValue({ ok: false, status, erro });
+    const { user, janela } = await abrirJanela(false);
+
+    await user.click(within(janela).getByRole("button", { name: "Transferir administração" }));
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(screen.getByRole("alert")).toHaveTextContent(erro);
+    await waitFor(() => expect(carregarEquipe).toHaveBeenCalledTimes(2));
   });
 });

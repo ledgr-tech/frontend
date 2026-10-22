@@ -13,6 +13,7 @@ import { cancelarConvite, carregarEquipe, convidar, removerPessoa, trocarPapel, 
 import { FaixaDoPlano } from "./faixa-do-plano";
 import { DESCRICAO_DO_PAPEL, MenuDePapel } from "./menu-de-papel";
 import { ModalDaTela } from "./modal-da-tela";
+import { TransferirAdmin } from "./transferir-admin";
 
 /**
  * A aba Equipe da tela Empresas (spec 2026-10-22-empresas-na-configuracao, revisão de 23/10; as regras de
@@ -94,6 +95,9 @@ export function PainelDaEquipe({
   // o menu de papel aberto (um por vez) e o erro da troca de papel, que fica na linha da pessoa
   const [menuAberto, setMenuAberto] = useState<string | null>(null);
   const [erroDaPessoa, setErroDaPessoa] = useState<{ id: string; texto: string } | null>(null);
+  // a pessoa que vai receber a administração (a janela de confirmação) e o aviso de que ela já a tem
+  const [paraTransferir, setParaTransferir] = useState<{ id: string; nome: string } | null>(null);
+  const [avisoDaTransferencia, setAvisoDaTransferencia] = useState("");
   const erroId = useId();
 
   /** O que toda ação faz com a resposta: 401 vai ao login, 403 avisa e relê a equipe. */
@@ -198,6 +202,34 @@ export function PainelDaEquipe({
         </ModalDaTela>
       )}
 
+      {paraTransferir && (
+        <ModalDaTela titulo="Transferir administração" aoFechar={() => setParaTransferir(null)}>
+          <TransferirAdmin
+            pessoa={paraTransferir}
+            aoConcluir={(pessoas) => {
+              aplicar((equipe) => ({ ...equipe, pessoas }));
+              setAvisoDaTransferencia(`${paraTransferir.nome} agora é o administrador da conta. Você é Gestor.`);
+              setParaTransferir(null);
+              // o papel de quem transferiu vem do /me: relendo a página, os controles de administrador somem
+              router.refresh();
+            }}
+            aoFechar={() => setParaTransferir(null)}
+            aoRecusar={(texto) => {
+              setParaTransferir(null);
+              setErroDeAcao(texto);
+              recarregar();
+            }}
+            aoSairDaSessao={() => router.push("/login")}
+          />
+        </ModalDaTela>
+      )}
+
+      {avisoDaTransferencia && (
+        <p className="equipe-feito" role="status">
+          {avisoDaTransferencia}
+        </p>
+      )}
+
       {erroDeAcao && <MensagemErro id={erroId}>{erroDeAcao}</MensagemErro>}
 
       <ul className="equipe-lista" aria-label="Pessoas com acesso">
@@ -252,7 +284,12 @@ export function PainelDaEquipe({
                       salvando={emCurso === pessoa.id}
                       desabilitado={emCurso !== null}
                       aoEscolher={(novo) => void mudarPapel(pessoa, novo)}
-                      aoTransferir={() => setMenuAberto(null)}
+                      aoTransferir={() => {
+                        setMenuAberto(null);
+                        setErroDeAcao("");
+                        setAvisoDaTransferencia("");
+                        setParaTransferir({ id: pessoa.id, nome: pessoa.nome });
+                      }}
                     />
                   ) : (
                     <span className="equipe-papel">{ROTULO_DO_PAPEL[pessoa.papel]}</span>
