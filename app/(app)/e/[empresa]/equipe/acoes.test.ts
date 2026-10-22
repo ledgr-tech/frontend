@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ConviteAPI, PessoaAPI } from "@/lib/adaptadores";
 import { ErroBackend } from "@/lib/backend";
-import { cancelarConvite, carregarEquipe, convidar, removerPessoa } from "./acoes";
+import { cancelarConvite, carregarEquipe, convidar, removerPessoa, transferirAdmin, trocarPapel } from "./acoes";
 
 // a rede é a fronteira; ErroBackend e a tradução dos erros rodam de verdade
 const chamarBackend = vi.fn();
@@ -167,5 +167,95 @@ describe("cancelarConvite e removerPessoa", () => {
       status: 409,
       erro: "O administrador da empresa não pode ser removido.",
     });
+  });
+});
+
+const BIA_API: PessoaAPI = { id: PESSOA, nome: "Bia", email: "bia@x.com", papel: "gestor", administrador: false, criado_em: "2026-10-02T00:00:00Z" };
+const ANA_API: PessoaAPI = { id: "u1", nome: "Ana", email: "ana@x.com", papel: "gestor", administrador: false, criado_em: "2026-10-01T00:00:00Z" };
+
+describe("trocarPapel", () => {
+  it("manda o PATCH com o papel e devolve a pessoa adaptada", async () => {
+    chamarBackend.mockResolvedValue(BIA_API);
+
+    const resposta = await trocarPapel(PESSOA, "gestor");
+
+    expect(chamarBackend).toHaveBeenCalledWith(`/empresa/usuarios/${PESSOA}`, { method: "PATCH", corpo: { papel: "gestor" } });
+    expect(resposta).toEqual({ ok: true, dados: { id: PESSOA, nome: "Bia", email: "bia@x.com", papel: "gestor" } });
+  });
+
+  it("recusa antes do backend o que o backend recusaria: papel admin ou inventado, e id que não é UUID", async () => {
+    expect(await trocarPapel(PESSOA, "admin")).toEqual({ ok: false, status: 422, erro: "Escolha o papel da pessoa." });
+    expect(await trocarPapel(PESSOA, "chefe" as never)).toMatchObject({ ok: false, status: 422 });
+    expect(await trocarPapel("../x", "gestor")).toEqual({ ok: false, status: 404, erro: "Pessoa não encontrada." });
+    expect(chamarBackend).not.toHaveBeenCalled();
+  });
+
+  it("na conta de demonstração recusa sem chamar o backend", async () => {
+    vi.stubEnv("LEDGR_CONTA_TESTE_EMAIL", " Ana@X.com ");
+
+    expect(await trocarPapel(PESSOA, "analista")).toEqual({ ok: false, status: 403, erro: "A conta de demonstração não pode ser alterada." });
+    expect(chamarBackend).not.toHaveBeenCalled();
+  });
+});
+
+describe("transferirAdmin", () => {
+  it("manda o POST com a senha e devolve a lista nova", async () => {
+    chamarBackend.mockResolvedValue({ itens: [BIA_API, ANA_API] });
+
+    const resposta = await transferirAdmin(PESSOA, "segredo");
+
+    expect(chamarBackend).toHaveBeenCalledWith("/empresa/admin/transferencia", {
+      method: "POST",
+      corpo: { usuario_id: PESSOA, senha_atual: "segredo" },
+    });
+    expect(resposta).toEqual({
+      ok: true,
+      dados: [
+        { id: PESSOA, nome: "Bia", email: "bia@x.com", papel: "gestor" },
+        { id: "u1", nome: "Ana", email: "ana@x.com", papel: "gestor" },
+      ],
+    });
+  });
+
+  it("na conta só do Google (senha null) manda só o usuário", async () => {
+    chamarBackend.mockResolvedValue({ itens: [] });
+
+    await transferirAdmin(PESSOA, null);
+
+    expect(chamarBackend).toHaveBeenCalledWith("/empresa/admin/transferencia", { method: "POST", corpo: { usuario_id: PESSOA } });
+  });
+
+  it("id que não é UUID e a conta de demonstração são recusados antes do backend", async () => {
+    expect(await transferirAdmin("../x", "segredo")).toEqual({ ok: false, status: 404, erro: "Pessoa não encontrada." });
+    vi.stubEnv("LEDGR_CONTA_TESTE_EMAIL", " Ana@X.com ");
+    expect(await transferirAdmin(PESSOA, "segredo")).toMatchObject({ ok: false, status: 403 });
+    expect(chamarBackend).not.toHaveBeenCalled();
+  });
+});
+
+describe.each([
+  ["trocarPapel", () => trocarPapel(PESSOA, "analista")],
+  ["transferirAdmin", () => transferirAdmin(PESSOA, "segredo")],
+])("os erros do backend em %s", (_, acao) => {
+  it.each([
+    [new ErroBackend(400, "Senha atual incorreta."), 400, "Senha atual incorreta."],
+    [new ErroBackend(403, "Só o admin."), 403, "Seu papel na conta não permite fazer isso."],
+    [new ErroBackend(404, "Usuário não encontrado."), 404, "Essa pessoa não está mais na conta."],
+    [new ErroBackend(409, "O admin só muda de papel pela transferência."), 409, "O admin só muda de papel pela transferência."],
+    [new ErroBackend(409, "Entre de novo com o Google para confirmar."), 409, "Entre de novo com o Google para confirmar."],
+    [new ErroBackend(429, "Limite", [], {}, 180), 429, "Muitas tentativas. Tente de novo em 3 minutos."],
+    [new ErroBackend(429, "Limite", [], {}, 60), 429, "Muitas tentativas. Tente de novo em 1 minuto."],
+    [new ErroBackend(429, "Limite"), 429, "Muitas tentativas. Tente de novo mais tarde."],
+    [new ErroBackend(401, "x"), 401, "Sua sessão expirou. Entre de novo para continuar."],
+  ])("traduz o erro (%#)", async (erro, status, texto) => {
+    chamarBackend.mockRejectedValue(erro);
+
+    expect(await acao()).toEqual({ ok: false, status, erro: texto });
+  });
+
+  it("rede fora do ar vira status 0", async () => {
+    chamarBackend.mockRejectedValue(new TypeError("fetch failed"));
+
+    expect(await acao()).toEqual({ ok: false, status: 0, erro: "Não foi possível falar com o servidor." });
   });
 });
