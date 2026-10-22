@@ -176,3 +176,40 @@ describe("SeletorDeEmpresa", () => {
     expect(opcoes[0]).toHaveFocus();
   });
 });
+
+describe("Gerenciar empresas", () => {
+  it("é um link para a tela Empresas, no fim da lista e fora do listbox: não é uma opção de empresa", async () => {
+    const user = userEvent.setup();
+    montar();
+    await user.click(screen.getByRole("button", { name: /Padaria Ltda/ }));
+
+    const gerenciar = screen.getByRole("link", { name: "Gerenciar empresas" });
+    expect(gerenciar).toHaveAttribute("href", `/e/${A.id}/empresas`);
+    expect(screen.getAllByRole("option")).toHaveLength(2);
+    expect(screen.getByRole("listbox")).not.toContainElement(gerenciar);
+  });
+
+  it("ao clicar, a lista fecha", async () => {
+    const user = userEvent.setup();
+    montar();
+    await user.click(screen.getByRole("button", { name: /Padaria Ltda/ }));
+
+    await user.click(screen.getByRole("link", { name: "Gerenciar empresas" }));
+
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+  });
+
+  it("Escape ainda fecha e devolve o foco ao botão; as setas andam só pelas empresas", async () => {
+    const user = userEvent.setup();
+    montar();
+    const botao = screen.getByRole("button", { name: /Padaria Ltda/ });
+    await user.click(botao);
+
+    await user.keyboard("{ArrowDown}{ArrowDown}{ArrowDown}");
+    expect(screen.getByRole("option", { name: /Mercado Ltda/ })).toHaveFocus();
+
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    expect(botao).toHaveFocus();
+  });
+});

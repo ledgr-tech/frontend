@@ -2,7 +2,8 @@
 
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { usePathname } from "next/navigation";
-import { ChevronsUpDown } from "lucide-react";
+import { Building2, ChevronsUpDown } from "lucide-react";
+import LinkDoApp from "@/lib/link-do-app";
 import { useEmpresaAtiva, useEmpresasDaConta, type EmpresaDaConta } from "@/lib/empresa-ativa";
 import { gravarEmpresaRecente } from "@/lib/empresa-recente";
 import { useRoteador } from "@/lib/roteador";
@@ -170,6 +171,11 @@ export function SeletorDeEmpresa() {
             ))}
           </ul>
           {visiveis.length === 0 && <p className="seletor-empresa-vazio">Nenhuma empresa encontrada.</p>}
+          {/* fora do listbox: não é uma empresa; as setas andam só pelas opções, e este se alcança com Tab */}
+          <LinkDoApp href="/empresas" className="seletor-empresa-gerenciar" onClick={() => fechar(false)}>
+            <Building2 size={16} aria-hidden="true" />
+            Gerenciar empresas
+          </LinkDoApp>
         </div>
       )}
     </div>

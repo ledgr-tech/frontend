@@ -148,6 +148,31 @@ describe("guia de estilo nas telas do app", () => {
     expect([...foraDaRegua, ...inline]).toEqual([]);
   });
 
+  it("as faixas de rolagem lateral da tela Empresas não geram barra de rolagem vertical: overflow-y definido junto de overflow-x", () => {
+    // sem isso o overflow-y vira auto, e 1px que sobre (o sublinhado da aba ativa) faz o Windows desenhar
+    // um mini-controle de rolagem com setas ao lado das abas
+    const soltas = regrasDoApp
+      .filter((r) => /\.(empresas|equipe|faixa-plano)-/.test(r.seletor))
+      .filter((r) => r.decl["overflow-x"] === "auto" && !r.decl["overflow-y"] && !r.decl["overflow"])
+      .map((r) => `${r.onde} ${r.seletor}`);
+    expect(soltas).toEqual([]);
+  });
+
+  it("as janelas modais da tela Empresas entram com uma animação suave (e o fundo desfocado), só para quem não pediu menos movimento", () => {
+    const css = postcss.parse(readFileSync(join(RAIZ, "app", "globals.css"), "utf8"));
+    const animadas: Record<string, string> = {};
+    css.walkAtRules("media", (media) => {
+      if (!media.params.includes("prefers-reduced-motion: no-preference")) return;
+      media.walkRules((r) => {
+        r.walkDecls("animation", (d) => {
+          animadas[r.selector] = d.value;
+        });
+      });
+    });
+    expect(animadas[".modal-suave[open]"]).toMatch(/modal-suave-entra/);
+    expect(animadas[".modal-suave[open]::backdrop"]).toMatch(/modal-suave-fundo/);
+  });
+
   it("ícone não escolhe o próprio traço: o do guia (1,75) vem do TRACO_ICONE", () => {
     expect(tracosSoltos).toEqual([]);
   });

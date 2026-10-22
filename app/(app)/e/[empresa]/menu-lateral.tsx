@@ -14,6 +14,7 @@ import { usePathname } from "next/navigation";
 import { caminhoSemEmpresa } from "@/lib/rotas";
 import {
   ArrowLeftRight,
+  Building2,
   CalendarCheck,
   ChevronsUpDown,
   CreditCard,
@@ -54,6 +55,7 @@ const ITENS: ItemMenu[] = [
   { nome: "Conciliações", icone: ArrowLeftRight, href: "/dashboard", tambem: ["/conciliacoes"] },
   { nome: "Fechamentos", icone: CalendarCheck, href: "/fechamentos" },
   { nome: "Histórico", icone: History, href: "/historico" },
+  { nome: "Empresas", icone: Building2, href: "/empresas" },
   { nome: "Assinatura", icone: CreditCard, href: "/assinatura" },
 ];
 

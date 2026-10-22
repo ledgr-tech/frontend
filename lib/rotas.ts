@@ -10,6 +10,7 @@ export const SECOES: readonly string[] = [
   "assinatura",
   "conciliacoes",
   "dashboard",
+  "empresas",
   "extratos",
   "fechamentos",
   "historico",

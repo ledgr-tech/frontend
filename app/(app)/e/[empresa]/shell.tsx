@@ -12,6 +12,7 @@ import { TutorialDaRota } from "./tutorial/tutorial-da-rota";
 import { PainelDaRota } from "./ajuda/painel-de-ajuda";
 import type { Preferencias } from "@/lib/preferencias";
 import type { Assinatura } from "@/lib/assinatura";
+import type { LimitesDaConta } from "@/lib/limites";
 import type { Papel } from "@/lib/papel";
 
 export function Shell({
@@ -22,6 +23,7 @@ export function Shell({
   papel,
   preferencias,
   assinatura = null,
+  limites = null,
   children,
 }: {
   email: string;
@@ -30,17 +32,19 @@ export function Shell({
   /** O nome da conta (o escritório), no cartão do usuário; sem ele, o da empresa, como antes. */
   nomeDaConta?: string;
   temSenha: boolean;
-  /** O papel de quem está logado, do `GET /me`; vai até a seção Equipe das Configurações. */
+  /** O papel de quem está logado, do `GET /me`; decide o que a tela Empresas e as Configurações oferecem. */
   papel: Papel;
   /** O que a pessoa dispensou no primeiro uso, do `GET /me`; null quando ele não manda. */
   preferencias: Preferencias | null;
   /** O plano e o teste de 14 dias, do `GET /me`; null quando ele não manda. */
   assinatura?: Assinatura | null;
+  /** Os limites do plano, do `GET /me`; null quando ele não manda. */
+  limites?: LimitesDaConta | null;
   children: ReactNode;
 }) {
   return (
     <EmpresaDaSessao value={empresa}>
-      <ProvedorDaConta preferencias={preferencias} assinatura={assinatura} papel={papel}>
+      <ProvedorDaConta preferencias={preferencias} assinatura={assinatura} limites={limites} papel={papel} email={email}>
         <LucideProvider strokeWidth={TRACO_ICONE}>
           <div className="app-shell">
             <MenuLateral

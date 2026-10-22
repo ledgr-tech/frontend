@@ -12,6 +12,7 @@ import type { EmpresaDaConta } from "@/lib/empresa-ativa";
 import { lerPapel, type Papel } from "@/lib/papel";
 import { ehTela, type Preferencias } from "@/lib/preferencias";
 import { adaptarAssinatura, type Assinatura, type PlanoId } from "@/lib/assinatura";
+import { adaptarLimites, type LimitesDaConta } from "@/lib/limites";
 import { adaptarConsultaConvite, type ConsultaConvite, type ConsultaConviteAPI } from "@/lib/adaptadores";
 
 /**
@@ -482,6 +483,8 @@ export type ContaDaSessao = {
   preferencias: Preferencias | null;
   /** O plano e o teste de 14 dias; null quando o `GET /me` ainda não manda `situacao`: nada bloqueia. */
   assinatura: Assinatura | null;
+  /** Quanto do plano a conta já usa (empresas e pessoas); null quando o `GET /me` ainda não manda `limites`: nada é mostrado. */
+  limites: LimitesDaConta | null;
   /** Só quando o `GET /me` falhou: `empresas` vazia então não quer dizer "backend anterior", e ninguém deve adivinhar a empresa. */
   indisponivel?: true;
 };
@@ -531,6 +534,7 @@ export async function contaDaSessao(): Promise<ContaDaSessao> {
         situacao?: unknown;
         plano?: unknown;
         teste_termina_em?: unknown;
+        limites?: unknown;
       }
     >("/me");
     return {
@@ -540,9 +544,10 @@ export async function contaDaSessao(): Promise<ContaDaSessao> {
       empresas: adaptarEmpresas(eu.empresas),
       preferencias: adaptarPreferencias(eu.preferencias),
       assinatura: adaptarAssinatura(eu),
+      limites: adaptarLimites(eu.limites),
     };
   } catch {
-    return { empresa: "", temSenha: true, papel: "admin", empresas: [], preferencias: null, assinatura: null, indisponivel: true };
+    return { empresa: "", temSenha: true, papel: "admin", empresas: [], preferencias: null, assinatura: null, limites: null, indisponivel: true };
   }
 }
 

@@ -19,7 +19,7 @@ const B = "9b8a7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d";
 describe("constantes", () => {
   it("as seções são as telas da empresa, e o cookie tem o nome combinado", () => {
     expect([...SECOES].sort()).toEqual(
-      ["assinatura", "conciliacoes", "dashboard", "extratos", "fechamentos", "historico", "regras", "visao-geral"].sort(),
+      ["assinatura", "conciliacoes", "dashboard", "empresas", "extratos", "fechamentos", "historico", "regras", "visao-geral"].sort(),
     );
     expect(COOKIE_DA_EMPRESA_RECENTE).toBe("ledgr-empresa-recente");
   });
@@ -137,6 +137,14 @@ describe("escolherEmpresa", () => {
     expect(escolherEmpresa(lista, "lixo")).toBe(A);
     expect(escolherEmpresa(lista, undefined)).toBe(A);
     expect(escolherEmpresa([], B)).toBeNull();
+  });
+});
+
+describe("a tela Empresas é uma tela da empresa", () => {
+  it("leva o prefixo da empresa, que se tira de volta, e a URL antiga redireciona", () => {
+    expect(comEmpresa(A, "/empresas")).toBe(`/e/${A}/empresas`);
+    expect(caminhoSemEmpresa(`/e/${A}/empresas`)).toBe("/empresas");
+    expect(destinoDaUrlAntiga("empresas", undefined, {}, A)).toBe(`/e/${A}/empresas`);
   });
 });
 

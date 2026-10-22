@@ -3291,6 +3291,86 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
 }
 .seletor-empresa-opcao:hover, .seletor-empresa-opcao:focus-visible { background: var(--tinta-hover); }
 .seletor-empresa-opcao[aria-selected="true"] { box-shadow: inset 3px 0 0 var(--color-accent); }
+/* A tela Empresas (#169): a faixa do plano, o painel do cadastro e a tabela */
+.empresas-nota { margin: 16px 0 0; font-size: 14px; color: color-mix(in srgb, var(--color-text) 70%, transparent); }
+.empresas-abas { display: flex; gap: 4px; margin: 16px 0 0; border-bottom: 1px solid var(--color-divider); overflow-x: auto; overflow-y: hidden; }
+.empresas-aba {
+  position: relative; border: 0; background: transparent; padding: 10px 14px; cursor: pointer;
+  font-family: var(--font-body); font-size: 14px; font-weight: 500; white-space: nowrap;
+  color: color-mix(in srgb, var(--color-text) 62%, transparent);
+}
+.empresas-aba:hover { color: var(--color-text); }
+.empresas-aba[aria-selected="true"] { color: var(--color-text); font-weight: 600; }
+.empresas-aba[aria-selected="true"]::after {
+  content: ""; position: absolute; left: 10px; right: 10px; bottom: 0; height: 2px;
+  border-radius: 2px; background: var(--color-accent);
+}
+.empresas-aba:focus-visible { outline: 2px solid var(--color-accent); outline-offset: -2px; border-radius: 8px; }
+.empresas-aba em { font-style: normal; margin-left: 4px; padding: 0 7px; border-radius: 999px; font-size: 12px; background: var(--tinta-ativa); }
+.empresas-form { display: flex; flex-direction: column; gap: 12px; }
+.empresas-form-botoes { display: flex; flex-wrap: wrap; gap: 8px; }
+.empresas-tabela { margin: 24px 0 0; overflow-x: auto; overflow-y: hidden; }
+.empresas-celula { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.empresas-nome { font-family: var(--font-heading); font-weight: 600; }
+.empresas-acao { text-align: right; white-space: nowrap; }
+/* A faixa do plano e a aba Equipe da tela Empresas (#169, opção A) */
+.faixa-plano {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin: 20px 0 0;
+  padding: 12px 16px; border: 1px solid var(--color-divider); border-radius: var(--radius-md);
+  font-size: 14px; color: color-mix(in srgb, var(--color-text) 70%, transparent);
+}
+.faixa-plano strong { font-family: var(--font-titulo); font-size: 17px; font-weight: 600; color: var(--color-text); }
+.faixa-plano-barra { flex: 0 0 120px; height: 6px; border-radius: 3px; background: var(--tinta-ativa); overflow: hidden; }
+.faixa-plano-barra i { display: block; height: 100%; background: var(--color-accent); border-radius: 3px; }
+.faixa-plano-barra[data-no-limite="true"] i { background: var(--color-risco); }
+.equipe-estado { margin: 24px 0 0; }
+.equipe-falha { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.equipe-lista { list-style: none; margin: 18px 0 0; padding: 0; }
+.equipe-linha { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 12px 0; border-bottom: 1px solid var(--color-divider); }
+.equipe-lista:last-child .equipe-linha:last-child { border-bottom: 0; }
+.equipe-avatar {
+  flex: none; width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--color-divider);
+  display: grid; place-items: center; font-family: var(--font-titulo); font-weight: 600;
+}
+.equipe-quem { flex: 1 1 200px; min-width: 0; display: flex; flex-direction: column; }
+.equipe-nome { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; font-weight: 600; overflow-wrap: anywhere; }
+.equipe-quem > span { font-size: 13px; color: color-mix(in srgb, var(--color-text) 62%, transparent); overflow-wrap: anywhere; }
+.equipe-acoes { display: flex; align-items: center; gap: 10px; }
+.equipe-papel { border: 1px solid var(--color-divider); border-radius: 999px; padding: 4px 12px; font-size: 13px; font-weight: 500; }
+.equipe-confirma { flex: 1 1 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; font-size: 14px; }
+.equipe-confirma > span { flex: 1 1 260px; }
+.equipe-rotulo { margin: 26px 0 0; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 500; color: color-mix(in srgb, var(--color-text) 62%, transparent); }
+.equipe-pendente { margin-top: 10px; padding: 12px 14px; border: 1px dashed var(--color-divider); border-radius: var(--radius-md); }
+.equipe-pendente .equipe-avatar { border-style: dashed; }
+.equipe-convite .field { margin-bottom: 14px; }
+.equipe-papeis { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin-bottom: 14px; }
+.equipe-papel-opcao {
+  text-align: left; display: flex; flex-direction: column; gap: 2px; padding: 11px 13px;
+  border: 1px solid var(--color-divider); border-radius: 14px; background: transparent; color: var(--color-text);
+  font-family: var(--font-body); font-size: 14px; cursor: pointer;
+}
+.equipe-papel-opcao > span { font-size: 13px; color: color-mix(in srgb, var(--color-text) 62%, transparent); }
+.equipe-papel-opcao[aria-pressed="true"] { border-color: var(--color-accent); background: color-mix(in srgb, var(--color-accent) 14%, transparent); }
+.equipe-papel-opcao:disabled { cursor: default; }
+.equipe-convite-botoes { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.equipe-nota, .equipe-feito { font-size: 13px; color: color-mix(in srgb, var(--color-text) 62%, transparent); }
+.equipe-feito { margin: 0 0 14px; font-size: 14px; color: var(--color-ok); }
+/* a janela modal da tela Empresas (cadastrar, convidar): entra devagar, com o fundo desfocado de todo <dialog>;
+   para quem pediu menos movimento, aparece de uma vez */
+@media (prefers-reduced-motion: no-preference) {
+  .modal-suave[open] { animation: modal-suave-entra 0.24s cubic-bezier(0.22, 0.8, 0.3, 1); }
+  .modal-suave[open]::backdrop { animation: modal-suave-fundo 0.24s ease-out; }
+  @keyframes modal-suave-entra { from { opacity: 0; transform: translateY(12px) scale(0.97); } }
+  @keyframes modal-suave-fundo { from { opacity: 0; } }
+}
+.seletor-empresa-gerenciar {
+  width: 100%; display: flex; align-items: center; gap: 8px; cursor: pointer; text-align: left;
+  padding: 9px 14px; border: 0; border-top: 1px solid var(--color-divider);
+  background: transparent; color: color-mix(in srgb, var(--color-text) 72%, transparent);
+  font-family: var(--font-body); font-size: 13px; text-decoration: none;
+}
+.seletor-empresa-gerenciar:hover { background: var(--tinta-hover); color: var(--color-text); }
+.seletor-empresa-gerenciar:focus-visible { outline: 2px solid var(--color-accent); outline-offset: -2px; }
 .seletor-empresa-vazio { margin: 0; padding: 10px 14px; font-size: 13px; color: color-mix(in srgb, var(--color-text) 62%, transparent); }
 /* abre para cima: o botao fica no pe da tela */
 .app-painel.app-conta-painel {

@@ -53,7 +53,7 @@ describe("MenuLateral", () => {
     montar();
 
     const nav = screen.getByRole("navigation", { name: "Seções do app" });
-    expect(nav.textContent).toBe("Visão geralExtratosConciliaçõesFechamentosHistóricoAssinatura");
+    expect(nav.textContent).toBe("Visão geralExtratosConciliaçõesFechamentosHistóricoEmpresasAssinatura");
   });
 
   it("links every destination, with none left for later", () => {
@@ -64,12 +64,14 @@ describe("MenuLateral", () => {
     expect(screen.getByRole("link", { name: "Histórico" })).toHaveAttribute("href", "/historico");
     expect(screen.getByRole("link", { name: "Extratos" })).toHaveAttribute("href", "/extratos");
     expect(screen.getByRole("link", { name: "Fechamentos" })).toHaveAttribute("href", "/fechamentos");
+    expect(screen.getByRole("link", { name: "Empresas" })).toHaveAttribute("href", "/empresas");
     expect(screen.getByRole("link", { name: "Assinatura" })).toHaveAttribute("href", "/assinatura");
     expect(screen.getByRole("navigation", { name: "Seções do app" })).not.toHaveTextContent("em breve");
   });
 
   it.each([
     ["Fechamentos", "/fechamentos"],
+    ["Empresas", "/empresas"],
     ["Assinatura", "/assinatura"],
   ])("marks %s as current on its own route", (nome, rota) => {
     caminho.mockReturnValue(rota);
