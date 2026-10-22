@@ -597,9 +597,11 @@ export const PAGINAS: PaginaDeAjuda[] = [
         passos: [
           "Abra **Empresas** no menu lateral e clique na aba **Equipe**.",
           "Clique em **Convidar pessoa**, digite o e-mail e escolha o papel: cada cartão diz o que a pessoa poderá fazer. O administrador convida gestor ou analista; o gestor convida só analista. A pessoa recebe um link para criar o acesso.",
-          "Para tirar alguém, clique em **Remover** na linha dela (só o administrador vê o botão) e confirme. O acesso é cortado na hora.",
+          "Para mudar o papel de alguém, clique no papel dela na lista e escolha **Gestor** ou **Analista**. A troca vale na hora.",
+          "Para passar a administração, abra o mesmo menu e escolha **Tornar administrador**, digite a sua senha atual e confirme. A outra pessoa vira administradora e você vira **Gestor**.",
+          "Para tirar alguém, clique em **Remover** na linha dela e confirme. O acesso é cortado na hora.",
         ],
-        nota: "O analista vê a lista, concilia e justifica, mas não fecha o mês nem convida ninguém. Os convites pendentes contam no limite de pessoas do plano.",
+        nota: "Só o administrador troca papéis e passa a administração, e remove pessoas. Quem acabou de receber a administração vê os controles na hora. O analista vê a lista, concilia e justifica, mas não fecha o mês nem convida ninguém. Os convites pendentes contam no limite de pessoas do plano.",
         imagem: {
           src: "/ajuda/empresas--equipe.webp",
           largura: 1360,

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import { useState } from "react";
 import userEvent from "@testing-library/user-event";
 import type { Papel } from "@/lib/papel";
@@ -12,7 +12,11 @@ const carregarEquipe = vi.fn();
 const convidar = vi.fn();
 const cancelarConvite = vi.fn();
 const removerPessoa = vi.fn();
+const trocarPapel = vi.fn();
+const transferirAdmin = vi.fn();
 vi.mock("../equipe/acoes", () => ({
+  trocarPapel: (...args: unknown[]) => trocarPapel(...args),
+  transferirAdmin: (...args: unknown[]) => transferirAdmin(...args),
   carregarEquipe: (...args: unknown[]) => carregarEquipe(...args),
   convidar: (...args: unknown[]) => convidar(...args),
   cancelarConvite: (...args: unknown[]) => cancelarConvite(...args),
@@ -36,9 +40,9 @@ function Equipe({ aberto = true }: { aberto?: boolean }) {
   return <PainelDaEquipe {...equipe} conviteAberto={conviteAberto} aoFecharConvite={() => setConviteAberto(false)} />;
 }
 
-function montar(papel: Papel = "admin", email = ADMIN.email, limites: LimitesDaConta | null = null, aberto = true) {
+function montar(papel: Papel = "admin", email = ADMIN.email, limites: LimitesDaConta | null = null, aberto = true, temSenha = true) {
   render(
-    <ProvedorDaConta preferencias={null} limites={limites} papel={papel} email={email}>
+    <ProvedorDaConta preferencias={null} limites={limites} papel={papel} email={email} temSenha={temSenha}>
       <Equipe aberto={aberto} />
     </ProvedorDaConta>,
   );
@@ -379,5 +383,340 @@ describe("a faixa do plano para pessoas", () => {
     await user.click(screen.getByRole("button", { name: "Enviar convite" }));
 
     expect(await screen.findByText("O plano permite até 3 pessoas.")).toBeInTheDocument();
+  });
+});
+
+describe("o menu de papel", () => {
+  const botaoDe = (nome: string) => within(linhaDe(nome)).queryByRole("button", { name: new RegExp(`^Papel de ${nome}`) });
+  const COM_GIL = { ok: true, dados: { pessoas: [ADMIN, GESTOR, BIA], convites: [] } };
+
+  beforeEach(() => {
+    carregarEquipe.mockResolvedValue(COM_GIL);
+  });
+
+  it("o admin tem o menu na linha da Bia e do Gil, e não na própria nem na de outro admin", async () => {
+    carregarEquipe.mockResolvedValue({ ok: true, dados: { pessoas: [ADMIN, GESTOR, BIA, { id: "u4", nome: "Duda", email: "duda@x.com", papel: "admin" }], convites: [] } });
+    montar("admin", ADMIN.email, null, false);
+    await screen.findByText("Bia", { selector: ".equipe-nome" });
+
+    expect(botaoDe("Bia")).toBeInTheDocument();
+    expect(botaoDe("Gil")).toBeInTheDocument();
+    expect(botaoDe("Ana")).not.toBeInTheDocument();
+    expect(botaoDe("Duda")).not.toBeInTheDocument();
+    expect(within(linhaDe("Ana")).getByText("Administrador")).toBeInTheDocument();
+  });
+
+  it.each<[Papel, string]>([
+    ["gestor", GESTOR.email],
+    ["analista", BIA.email],
+  ])("o %s só vê a etiqueta do papel, sem menu", async (papel, email) => {
+    montar(papel, email, null, false);
+    await screen.findByText("Bia", { selector: ".equipe-nome" });
+
+    expect(screen.queryByRole("button", { name: /^Papel de/ })).not.toBeInTheDocument();
+    expect(within(linhaDe("Bia")).getByText("Analista")).toBeInTheDocument();
+  });
+
+  it("o menu abre com Gestor e Analista explicados, o atual marcado, e Tornar administrador depois de um filete", async () => {
+    const user = userEvent.setup();
+    montar("admin", ADMIN.email, null, false);
+    await screen.findByText("Bia", { selector: ".equipe-nome" });
+
+    await user.click(botaoDe("Bia")!);
+
+    const menu = screen.getByRole("menu", { name: "Papel de Bia" });
+    const gestor = within(menu).getByRole("menuitemradio", { name: /^Gestor/ });
+    const analista = within(menu).getByRole("menuitemradio", { name: /^Analista/ });
+    expect(gestor).toHaveTextContent("Cadastra empresas, convida analistas, fecha o mês e aprova justificativas.");
+    expect(analista).toHaveTextContent("Concilia e justifica divergências. Não fecha o mês nem convida.");
+    expect(analista).toHaveAttribute("aria-checked", "true");
+    expect(gestor).toHaveAttribute("aria-checked", "false");
+    expect(within(menu).getByRole("separator")).toBeInTheDocument();
+    expect(within(menu).getByRole("menuitem", { name: /^Tornar administrador/ })).toBeInTheDocument();
+    expect(botaoDe("Bia")).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("escolher o papel que a pessoa já tem fecha o menu e não chama o backend", async () => {
+    const user = userEvent.setup();
+    montar("admin", ADMIN.email, null, false);
+    await screen.findByText("Bia", { selector: ".equipe-nome" });
+
+    await user.click(botaoDe("Bia")!);
+    await user.click(screen.getByRole("menuitemradio", { name: /^Analista/ }));
+
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    expect(trocarPapel).not.toHaveBeenCalled();
+  });
+
+  it("escolher outro papel chama a ação, mostra Salvando… na linha, troca a etiqueta e relê a página", async () => {
+    const user = userEvent.setup();
+    let concluir: (resposta: unknown) => void = () => {};
+    trocarPapel.mockReturnValue(new Promise((resolve) => (concluir = resolve)));
+    montar("admin", ADMIN.email, null, false);
+    await screen.findByText("Bia", { selector: ".equipe-nome" });
+
+    await user.click(botaoDe("Bia")!);
+    await user.click(screen.getByRole("menuitemradio", { name: /^Gestor/ }));
+
+    expect(trocarPapel).toHaveBeenCalledWith("u2", "gestor");
+    expect(within(linhaDe("Bia")).getByText("Salvando…")).toBeInTheDocument();
+    expect(botaoDe("Bia")).toBeDisabled();
+
+    await waitFor(async () => {
+      concluir({ ok: true, dados: { ...BIA, papel: "gestor" } });
+    });
+    await waitFor(() => expect(within(linhaDe("Bia")).getByText("Gestor")).toBeInTheDocument());
+    expect(refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it("o erro do backend aparece na linha e o papel não muda", async () => {
+    const user = userEvent.setup();
+    trocarPapel.mockResolvedValue({ ok: false, status: 409, erro: "O admin só muda de papel pela transferência." });
+    montar("admin", ADMIN.email, null, false);
+    await screen.findByText("Bia", { selector: ".equipe-nome" });
+
+    await user.click(botaoDe("Bia")!);
+    await user.click(screen.getByRole("menuitemradio", { name: /^Gestor/ }));
+
+    expect(await within(linhaDe("Bia")).findByRole("alert")).toHaveTextContent("O admin só muda de papel pela transferência.");
+    expect(within(linhaDe("Bia")).getByText("Analista")).toBeInTheDocument();
+    expect(refresh).not.toHaveBeenCalled();
+  });
+
+  it("o 403 relê a equipe e o papel de quem está logado (router.refresh), para os controles sumirem", async () => {
+    const user = userEvent.setup();
+    trocarPapel.mockResolvedValue({ ok: false, status: 403, erro: "Seu papel na conta não permite fazer isso." });
+    montar("admin", ADMIN.email, null, false);
+    await screen.findByText("Bia", { selector: ".equipe-nome" });
+
+    await user.click(botaoDe("Bia")!);
+    await user.click(screen.getByRole("menuitemradio", { name: /^Gestor/ }));
+
+    await waitFor(() => expect(carregarEquipe).toHaveBeenCalledTimes(2));
+    expect(refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it("o 404 relê a equipe e a mensagem continua visível no topo, mesmo sem a linha da pessoa", async () => {
+    const user = userEvent.setup();
+    trocarPapel.mockResolvedValue({ ok: false, status: 404, erro: "Essa pessoa não está mais na conta." });
+    carregarEquipe
+      .mockResolvedValueOnce({ ok: true, dados: { pessoas: [ADMIN, BIA], convites: [CONVITE] } })
+      .mockResolvedValueOnce({ ok: true, dados: { pessoas: [ADMIN], convites: [CONVITE] } });
+    montar("admin", ADMIN.email, null, false);
+    await screen.findByText("Bia", { selector: ".equipe-nome" });
+
+    await user.click(botaoDe("Bia")!);
+    await user.click(screen.getByRole("menuitemradio", { name: /^Gestor/ }));
+
+    await waitFor(() => expect(carregarEquipe).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(screen.queryByText("Bia", { selector: ".equipe-nome" })).not.toBeInTheDocument());
+    expect(screen.getByText("Essa pessoa não está mais na conta.")).toBeInTheDocument();
+  });
+
+  it("sessão vencida leva ao login, sem erro preso na linha", async () => {
+    const user = userEvent.setup();
+    trocarPapel.mockResolvedValue({ ok: false, status: 401, erro: "Sua sessão expirou. Entre de novo para continuar." });
+    montar("admin", ADMIN.email, null, false);
+    await screen.findByText("Bia", { selector: ".equipe-nome" });
+
+    await user.click(botaoDe("Bia")!);
+    await user.click(screen.getByRole("menuitemradio", { name: /^Gestor/ }));
+
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/login"));
+    expect(within(linhaDe("Bia")).queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("Esc e um clique fora fecham o menu; Esc devolve o foco ao botão", async () => {
+    const user = userEvent.setup();
+    montar("admin", ADMIN.email, null, false);
+    await screen.findByText("Bia", { selector: ".equipe-nome" });
+
+    await user.click(botaoDe("Bia")!);
+    expect(screen.getByRole("menu")).toBeInTheDocument();
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    expect(botaoDe("Bia")).toHaveFocus();
+
+    await user.click(botaoDe("Bia")!);
+    await user.click(document.body);
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+  });
+
+  it("o foco entra no papel atual e as setas andam pelos itens", async () => {
+    const user = userEvent.setup();
+    montar("admin", ADMIN.email, null, false);
+    await screen.findByText("Bia", { selector: ".equipe-nome" });
+
+    await user.click(botaoDe("Bia")!);
+    expect(screen.getByRole("menuitemradio", { name: /^Analista/ })).toHaveFocus();
+    await user.keyboard("{ArrowDown}");
+    expect(screen.getByRole("menuitem", { name: /^Tornar administrador/ })).toHaveFocus();
+    await user.keyboard("{ArrowDown}");
+    expect(screen.getByRole("menuitemradio", { name: /^Gestor/ })).toHaveFocus();
+    await user.keyboard("{ArrowUp}");
+    expect(screen.getByRole("menuitem", { name: /^Tornar administrador/ })).toHaveFocus();
+  });
+
+  it("só um menu fica aberto por vez", async () => {
+    const user = userEvent.setup();
+    montar("admin", ADMIN.email, null, false);
+    await screen.findByText("Bia", { selector: ".equipe-nome" });
+
+    await user.click(botaoDe("Bia")!);
+    await user.click(botaoDe("Gil")!);
+
+    expect(screen.getAllByRole("menu")).toHaveLength(1);
+    expect(screen.getByRole("menu", { name: "Papel de Gil" })).toBeInTheDocument();
+  });
+});
+
+describe("a transferência da administração", () => {
+  const PESSOAS_DEPOIS = [
+    { ...ADMIN, papel: "gestor" },
+    { ...BIA, papel: "admin" },
+  ];
+
+  /** Abre a janela pelo menu de papel da Bia. */
+  async function abrirJanela(temSenha = true) {
+    const user = userEvent.setup();
+    montar("admin", ADMIN.email, null, false, temSenha);
+    await screen.findByText("Bia", { selector: ".equipe-nome" });
+    await user.click(within(linhaDe("Bia")).getByRole("button", { name: /^Papel de Bia/ }));
+    await user.click(screen.getByRole("menuitem", { name: /^Tornar administrador/ }));
+    return { user, janela: screen.getByRole("dialog", { name: "Transferir administração" }) };
+  }
+
+  it("abre uma janela modal que avisa o que muda, e o menu fecha", async () => {
+    const { janela } = await abrirJanela();
+
+    expect(janela).toHaveClass("espia", "modal-suave");
+    expect(
+      within(janela).getByText("Bia passa a ser o administrador da conta e você passa a ser Gestor. Só o novo administrador pode desfazer isso."),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+  });
+
+  it("na conta com senha, a senha é obrigatória e vai ao backend", async () => {
+    transferirAdmin.mockResolvedValue({ ok: true, dados: PESSOAS_DEPOIS });
+    const { user, janela } = await abrirJanela();
+
+    await user.click(within(janela).getByRole("button", { name: "Transferir administração" }));
+    expect(within(janela).getByText("Digite a sua senha atual.")).toBeInTheDocument();
+    expect(transferirAdmin).not.toHaveBeenCalled();
+
+    await user.type(within(janela).getByLabelText("Senha atual"), "segredo");
+    await user.click(within(janela).getByRole("button", { name: "Transferir administração" }));
+
+    expect(transferirAdmin).toHaveBeenCalledWith("u2", "segredo");
+  });
+
+  it("na conta só do Google não há campo de senha e a ação recebe null", async () => {
+    transferirAdmin.mockResolvedValue({ ok: true, dados: PESSOAS_DEPOIS });
+    const { user, janela } = await abrirJanela(false);
+
+    expect(within(janela).queryByLabelText("Senha atual")).not.toBeInTheDocument();
+    await user.click(within(janela).getByRole("button", { name: "Transferir administração" }));
+
+    expect(transferirAdmin).toHaveBeenCalledWith("u2", null);
+  });
+
+  it("a senha errada (400) aparece sob o campo e a janela continua aberta", async () => {
+    transferirAdmin.mockResolvedValue({ ok: false, status: 400, erro: "Senha atual incorreta." });
+    const { user, janela } = await abrirJanela();
+
+    await user.type(within(janela).getByLabelText("Senha atual"), "errada");
+    await user.click(within(janela).getByRole("button", { name: "Transferir administração" }));
+
+    const mensagem = await within(janela).findByText("Senha atual incorreta.");
+    expect(within(janela).getByLabelText("Senha atual")).toHaveAttribute("aria-describedby", mensagem.closest("[role=alert]")!.id);
+    expect(screen.getByRole("dialog", { name: "Transferir administração" })).toBeInTheDocument();
+  });
+
+  it.each([
+    [409, "Entre de novo com o Google para confirmar."],
+    [409, "O papel de admin já foi transferido."],
+    [429, "Muitas tentativas. Tente de novo em 1 minuto."],
+    [0, "Não foi possível falar com o servidor."],
+  ])("o erro %s (%s) aparece na janela, que continua aberta", async (status, erro) => {
+    transferirAdmin.mockResolvedValue({ ok: false, status, erro });
+    const { user, janela } = await abrirJanela(false);
+
+    await user.click(within(janela).getByRole("button", { name: "Transferir administração" }));
+
+    expect(await within(janela).findByRole("alert")).toHaveTextContent(erro);
+  });
+
+  it("dois envios no mesmo instante chamam a ação uma vez só; o botão diz Transferindo… e fica desligado", async () => {
+    let concluir: (resposta: unknown) => void = () => {};
+    transferirAdmin.mockReturnValue(new Promise((resolve) => (concluir = resolve)));
+    const { user, janela } = await abrirJanela();
+    await user.type(within(janela).getByLabelText("Senha atual"), "segredo");
+    const form = within(janela).getByRole("form", { name: "Transferir administração" }) as HTMLFormElement;
+
+    act(() => {
+      form.requestSubmit();
+      form.requestSubmit();
+    });
+
+    expect(transferirAdmin).toHaveBeenCalledTimes(1);
+    expect(within(janela).getByRole("button", { name: "Transferindo…" })).toBeDisabled();
+    await act(async () => concluir({ ok: true, dados: PESSOAS_DEPOIS }));
+  });
+
+  it("concluir fecha a janela, troca a lista, relê a página e avisa quem é o administrador agora", async () => {
+    transferirAdmin.mockResolvedValue({ ok: true, dados: PESSOAS_DEPOIS });
+    const { user, janela } = await abrirJanela();
+
+    await user.type(within(janela).getByLabelText("Senha atual"), "segredo");
+    await user.click(within(janela).getByRole("button", { name: "Transferir administração" }));
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(await screen.findByRole("status")).toHaveTextContent("Bia agora é o administrador da conta. Você é Gestor.");
+    expect(within(linhaDe("Bia")).getByText("Administrador")).toBeInTheDocument();
+    expect(within(linhaDe("Ana")).getByText("Gestor")).toBeInTheDocument();
+    expect(refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it("Esc, Cancelar e um clique no fundo fecham a janela sem chamar a ação", async () => {
+    const { user } = await abrirJanela();
+    const abrirDeNovo = async () => {
+      await user.click(within(linhaDe("Bia")).getByRole("button", { name: /^Papel de Bia/ }));
+      await user.click(screen.getByRole("menuitem", { name: /^Tornar administrador/ }));
+    };
+
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    await abrirDeNovo();
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Cancelar" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    await abrirDeNovo();
+    await user.click(screen.getByRole("dialog"));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(transferirAdmin).not.toHaveBeenCalled();
+  });
+
+  it("sessão vencida leva ao login", async () => {
+    transferirAdmin.mockResolvedValue({ ok: false, status: 401, erro: "Sua sessão expirou. Entre de novo para continuar." });
+    const { user, janela } = await abrirJanela(false);
+
+    await user.click(within(janela).getByRole("button", { name: "Transferir administração" }));
+
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/login"));
+  });
+
+  it.each([
+    [403, "Seu papel na conta não permite fazer isso."],
+    [404, "Essa pessoa não está mais na conta."],
+  ])("o %s fecha a janela, mostra o erro na aba e relê a equipe", async (status, erro) => {
+    transferirAdmin.mockResolvedValue({ ok: false, status, erro });
+    const { user, janela } = await abrirJanela(false);
+
+    await user.click(within(janela).getByRole("button", { name: "Transferir administração" }));
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(screen.getByRole("alert")).toHaveTextContent(erro);
+    await waitFor(() => expect(carregarEquipe).toHaveBeenCalledTimes(2));
   });
 });
