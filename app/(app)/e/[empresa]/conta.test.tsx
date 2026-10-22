@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { act, render, screen, waitFor } from "@testing-library/react";
-import { ProvedorDaConta, useLimites, usePreferencias } from "./conta";
+import { ProvedorDaConta, useEmail, useLimites, usePreferencias } from "./conta";
 
 const salvarPreferencias = vi.fn<(p: unknown) => Promise<boolean>>(async () => true);
 vi.mock("../../../(auth)/acoes", () => ({ salvarPreferencias: (p: unknown) => salvarPreferencias(p) }));
@@ -22,6 +22,23 @@ function SondaDosLimites() {
   const limites = useLimites();
   return <span>{limites ? `empresas ${limites.empresas?.usadas}/${limites.empresas?.maximo}` : "sem limites"}</span>;
 }
+
+describe("o e-mail de quem está logado", () => {
+  it("o provedor o entrega; sem ele, e fora do provedor, é vazio", () => {
+    function Sonda() {
+      return <span>{`[${useEmail()}]`}</span>;
+    }
+    const { unmount } = render(
+      <ProvedorDaConta preferencias={null} email="ana@x.com">
+        <Sonda />
+      </ProvedorDaConta>,
+    );
+    expect(screen.getByText("[ana@x.com]")).toBeInTheDocument();
+    unmount();
+    render(<Sonda />);
+    expect(screen.getByText("[]")).toBeInTheDocument();
+  });
+});
 
 describe("limites do plano", () => {
   it("o provedor os entrega, e sem eles (ou fora do provedor) é null", () => {

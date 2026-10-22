@@ -30,6 +30,8 @@ const ContextoDoPapel = createContext<Papel>("admin");
 const ContextoDaAssinatura = createContext<Assinatura | null>(null);
 /** Quanto do plano a conta usa; null sem a informação do backend (e fora do app): nenhum aviso. */
 const ContextoDosLimites = createContext<LimitesDaConta | null>(null);
+/** O e-mail de quem está logado (a sessão), para marcar a própria linha na Equipe; vazio fora do app. */
+const ContextoDoEmail = createContext("");
 
 /**
  * As preferências do primeiro uso (spec 2026-10-15-primeiro-uso): as da conta, do `GET /me`,
@@ -41,12 +43,15 @@ export function ProvedorDaConta({
   assinatura = null,
   limites = null,
   papel = "admin",
+  email = "",
   children,
 }: {
   preferencias: Preferencias | null;
   assinatura?: Assinatura | null;
   /** Do `GET /me`: os limites do plano para os avisos de empresas e pessoas. */
   limites?: LimitesDaConta | null;
+  /** O e-mail da sessão. */
+  email?: string;
   /** Do `GET /me`: só o admin e o gestor fecham o mês. */
   papel?: Papel;
   children: ReactNode;
@@ -83,7 +88,9 @@ export function ProvedorDaConta({
     <Contexto.Provider value={valor}>
       <ContextoDaAssinatura.Provider value={assinatura}>
         <ContextoDosLimites.Provider value={limites}>
-          <ContextoDoPapel.Provider value={papel}>{children}</ContextoDoPapel.Provider>
+          <ContextoDoPapel.Provider value={papel}>
+            <ContextoDoEmail.Provider value={email}>{children}</ContextoDoEmail.Provider>
+          </ContextoDoPapel.Provider>
         </ContextoDosLimites.Provider>
       </ContextoDaAssinatura.Provider>
     </Contexto.Provider>
@@ -98,6 +105,10 @@ export function usePreferencias(): ValorDaConta {
 
 export function useAssinatura(): Assinatura | null {
   return useContext(ContextoDaAssinatura);
+}
+
+export function useEmail(): string {
+  return useContext(ContextoDoEmail);
 }
 
 export function useLimites(): LimitesDaConta | null {

@@ -44,7 +44,7 @@ export function Shell({
 }) {
   return (
     <EmpresaDaSessao value={empresa}>
-      <ProvedorDaConta preferencias={preferencias} assinatura={assinatura} limites={limites} papel={papel}>
+      <ProvedorDaConta preferencias={preferencias} assinatura={assinatura} limites={limites} papel={papel} email={email}>
         <LucideProvider strokeWidth={TRACO_ICONE}>
           <div className="app-shell">
             <MenuLateral
