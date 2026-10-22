@@ -168,6 +168,7 @@ export async function trocarPapel(id: string, papel: Papel): Promise<Resultado<P
  */
 export async function transferirAdmin(usuarioId: string, senhaAtual: string | null): Promise<Resultado<Pessoa[]>> {
   if (!pareceUuid(usuarioId)) return { ok: false, status: 404, erro: "Pessoa não encontrada." };
+  if (senhaAtual !== null && typeof senhaAtual !== "string") return { ok: false, status: 400, erro: "Digite a sua senha atual." };
   const recusa = await recusaNaDemonstracao();
   if (recusa) return recusa;
   try {
