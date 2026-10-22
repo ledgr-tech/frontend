@@ -3,10 +3,12 @@
 import { useCallback, useContext, useEffect, useId, useState, type FormEvent, type ReactNode } from "react";
 import { useRoteador } from "@/lib/roteador";
 import type { Convite } from "@/lib/adaptadores";
+import { textoDoLimite } from "@/lib/limites";
 import { papeisQueConvida, podeConvidar, ROTULO_DO_PAPEL, type Papel } from "@/lib/papel";
 import { MensagemErro } from "../../../../(auth)/_compartilhado/mensagem-erro";
 import { EMAIL_VALIDO, MENSAGEM_EMAIL_INCOMPLETO } from "../../../../(auth)/_compartilhado/validacao";
 import { EmpresaDaSessao } from "../cabecalho";
+import { useLimites } from "../conta";
 import type { Resultado } from "../conciliacoes/acoes";
 import { cancelarConvite, carregarEquipe, convidar, removerPessoa, type Equipe } from "./acoes";
 
@@ -42,6 +44,7 @@ export function useLinhasDaEquipe({
   const [confirmando, setConfirmando] = useState<string | null>(null);
   const [erroDeAcao, setErroDeAcao] = useState("");
   const erroId = useId();
+  const limites = useLimites();
 
   const carregar = useCallback(() => {
     carregarEquipe(papel).then(
@@ -185,6 +188,10 @@ export function useLinhasDaEquipe({
   }
 
   const convites = estado.convites ?? [];
+  // só o aviso: o botão não se desliga no limite, porque reenviar o convite para o mesmo e-mail não ocupa outra
+  // vaga no backend e a tela não tem como prever o 402; quando ele vem, a mensagem dele aparece no formulário
+  const avisoDoLimite = limites?.usuarios ? textoDoLimite("usuarios", limites.usuarios) : null;
+  const planoLinha: LinhaDaEquipe[] = avisoDoLimite ? [{ titulo: "Plano", descricao: avisoDoLimite }] : [];
   const convidarLinha: LinhaDaEquipe = {
     titulo: "Convidar pessoa",
     descricao: "O convite chega por e-mail, com um link que vale por 7 dias.",
@@ -228,7 +235,7 @@ export function useLinhasDaEquipe({
         })),
       ]
     : [];
-  return [abertura, ...pessoas, convidarLinha, ...pendentes];
+  return [abertura, ...pessoas, ...planoLinha, convidarLinha, ...pendentes];
 }
 
 /** O e-mail de quem convidar, o papel que terá e o retorno do backend, na própria linha. */

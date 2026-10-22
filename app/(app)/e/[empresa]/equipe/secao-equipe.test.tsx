@@ -2,7 +2,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { Papel } from "@/lib/papel";
+import type { LimitesDaConta } from "@/lib/limites";
 import { EmpresaDaSessao } from "../cabecalho";
+import { ProvedorDaConta } from "../conta";
 import { useLinhasDaEquipe } from "./secao-equipe";
 
 // as ações são a fronteira com o backend; aqui devolvem o que ele responderia
@@ -16,6 +18,8 @@ vi.mock("./acoes", () => ({
   cancelarConvite: (...args: unknown[]) => cancelarConvite(...args),
   removerPessoa: (...args: unknown[]) => removerPessoa(...args),
 }));
+
+vi.mock("../../../../(auth)/acoes", () => ({ salvarPreferencias: async () => true }));
 
 const push = vi.fn();
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
@@ -41,10 +45,12 @@ function Linhas({ papel, email }: { papel: Papel; email: string }) {
   );
 }
 
-function montar(papel: Papel = "admin", email = ADMIN.email) {
+function montar(papel: Papel = "admin", email = ADMIN.email, limites: LimitesDaConta | null = null) {
   render(
     <EmpresaDaSessao value="Padaria Ltda">
-      <Linhas papel={papel} email={email} />
+      <ProvedorDaConta preferencias={null} limites={limites} papel={papel}>
+        <Linhas papel={papel} email={email} />
+      </ProvedorDaConta>
     </EmpresaDaSessao>,
   );
 }
@@ -282,5 +288,54 @@ describe("useLinhasDaEquipe", () => {
 
     await waitFor(() => expect(push).toHaveBeenCalledWith("/login"));
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+});
+
+describe("o limite de pessoas do plano", () => {
+  const COM = (usadas: number, maximo: number | null): LimitesDaConta => ({ empresas: null, usuarios: { usadas, maximo } });
+
+  it("perto do limite, avisa acima do convite", async () => {
+    montar("admin", ADMIN.email, COM(2, 3));
+
+    await screen.findByText("Bia", { selector: ".titulo" });
+    const titulos = screen.getAllByText(/./, { selector: ".titulo" }).map((no) => no.textContent);
+    expect(within(linhaDe("Plano")).getByText("Falta 1 pessoa para o limite do plano.")).toBeInTheDocument();
+    expect(titulos.indexOf("Plano")).toBe(titulos.indexOf("Convidar pessoa") - 1);
+  });
+
+  it("no limite, avisa e deixa o convite ligado: reenviar para o mesmo e-mail não ocupa outra vaga", async () => {
+    montar("admin", ADMIN.email, COM(3, 3));
+
+    await screen.findByText("Bia", { selector: ".titulo" });
+    expect(within(linhaDe("Plano")).getByText(/chegou ao limite de 3 pessoas/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Enviar convite" })).toBeEnabled();
+  });
+
+  it("com folga, sem limite ou sem o campo do /me, não há linha do plano", async () => {
+    for (const limites of [COM(1, 3), COM(5, null), null]) {
+      montar("admin", ADMIN.email, limites);
+      await screen.findByText("Bia", { selector: ".titulo" });
+      expect(screen.queryByText("Plano", { selector: ".titulo" })).not.toBeInTheDocument();
+      document.body.innerHTML = "";
+    }
+  });
+
+  it("quem só vê a lista (o analista) não recebe o aviso de convite", async () => {
+    montar("analista", BIA.email, COM(3, 3));
+
+    await screen.findByText("Bia", { selector: ".titulo" });
+    expect(screen.queryByText("Plano", { selector: ".titulo" })).not.toBeInTheDocument();
+  });
+
+  it("o 402 do backend ao convidar mostra o texto dele", async () => {
+    const user = userEvent.setup();
+    convidar.mockResolvedValue({ ok: false, status: 402, erro: "O plano permite até 3 pessoas." });
+    montar("admin", ADMIN.email, COM(1, 3));
+
+    await screen.findByText("Bia", { selector: ".titulo" });
+    await user.type(screen.getByLabelText("E-mail da pessoa"), "novo@x.com");
+    await user.click(screen.getByRole("button", { name: "Enviar convite" }));
+
+    expect(await screen.findByText("O plano permite até 3 pessoas.")).toBeInTheDocument();
   });
 });
