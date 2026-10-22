@@ -26,15 +26,17 @@ vi.mock("@/lib/rotas-servidor", () => ({
     throw new Error("NEXT_REDIRECT");
   },
 }));
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }), usePathname: () => "/e/x/empresas" }));
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
+  usePathname: () => "/e/x/empresas",
+  useSearchParams: () => new URLSearchParams(window.location.search),
+}));
 
 const A: EmpresaCliente = { id: "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20", razaoSocial: "Padaria Ltda", cnpj: "11222333000181", cnpjVerificado: true, criadaEm: "2026-10-08T17:59:02Z" };
 const B: EmpresaCliente = { id: "9b8a7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d", razaoSocial: "Mercado Ltda", cnpj: "11444777000161", cnpjVerificado: false, criadaEm: "2026-10-21T19:48:16Z" };
 
-const SEM_BUSCA = { searchParams: Promise.resolve({}) };
-
-async function abrir(busca: { aba?: string } = {}) {
-  render(await EmpresasPage({ searchParams: Promise.resolve(busca) }));
+async function abrir() {
+  render(await EmpresasPage());
 }
 
 beforeEach(() => {
@@ -61,20 +63,10 @@ describe("a tela Empresas", () => {
     expect(screen.getByText("1 empresa")).toBeInTheDocument();
   });
 
-  it("?aba=equipe abre na Equipe; sem o parâmetro, ou com outro valor, abre em Empresas", async () => {
-    await abrir({ aba: "equipe" });
-    expect(screen.getByRole("tab", { name: /^Equipe/ })).toHaveAttribute("aria-selected", "true");
-  });
-
-  it("um valor de aba desconhecido cai em Empresas", async () => {
-    await abrir({ aba: "qualquer-coisa" });
-    expect(screen.getByRole("tab", { name: /^Empresas/ })).toHaveAttribute("aria-selected", "true");
-  });
-
   it("sessão vencida leva ao login", async () => {
     carregarEmpresas.mockResolvedValue({ ok: false, status: 401, erro: "x" });
 
-    await expect(EmpresasPage(SEM_BUSCA)).rejects.toThrow("NEXT_REDIRECT");
+    await expect(EmpresasPage()).rejects.toThrow("NEXT_REDIRECT");
     expect(redirecionar).toHaveBeenCalledWith("/login");
   });
 

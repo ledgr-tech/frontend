@@ -21,7 +21,8 @@ vi.mock("../equipe/acoes", () => ({
 vi.mock("../../../../(auth)/acoes", () => ({ salvarPreferencias: async () => true }));
 
 const push = vi.fn();
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push, refresh: vi.fn() }), usePathname: () => "/e/x/empresas" }));
+const refresh = vi.fn();
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push, refresh }), usePathname: () => "/e/x/empresas" }));
 
 const ADMIN = { id: "u1", nome: "Ana", email: "ana@x.com", papel: "admin" };
 const BIA = { id: "u2", nome: "Bia", email: "bia@x.com", papel: "analista" };
@@ -302,6 +303,39 @@ describe("a faixa do plano para pessoas", () => {
     expect(screen.getByText(/chegou ao limite de 3 pessoas/)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Ver planos" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Enviar convite" })).toBeEnabled();
+  });
+
+  it("sem máximo e com uma pessoa só, a contagem fala no singular", async () => {
+    montar("admin", ADMIN.email, COM(1, null));
+
+    await screen.findByText("Bia", { selector: ".equipe-nome" });
+    expect(screen.getByText("1 pessoa")).toBeInTheDocument();
+  });
+
+  it("convidar, cancelar e remover relêem a página, para a faixa e a barra não ficarem velhas; o erro não", async () => {
+    const user = userEvent.setup();
+    convidar.mockResolvedValueOnce({ ok: true, dados: { id: "c9", email: "eva@x.com", papel: "analista", enviadoEm: "16/10/2026", valeAte: "23/10/2026" } });
+    cancelarConvite.mockResolvedValueOnce({ ok: true, dados: null });
+    removerPessoa.mockResolvedValueOnce({ ok: true, dados: null });
+    montar("admin", ADMIN.email, COM(3, 5));
+    await screen.findByText("Bia", { selector: ".equipe-nome" });
+
+    await user.type(screen.getByLabelText("E-mail da pessoa"), "eva@x.com");
+    await user.click(screen.getByRole("button", { name: "Enviar convite" }));
+    await waitFor(() => expect(refresh).toHaveBeenCalledTimes(1));
+
+    await user.click(within(linhaDe("caio@x.com")).getByRole("button", { name: "Cancelar" }));
+    await waitFor(() => expect(refresh).toHaveBeenCalledTimes(2));
+
+    await user.click(within(linhaDe("Bia")).getByRole("button", { name: "Remover" }));
+    await user.click(within(linhaDe("Bia")).getByRole("button", { name: "Remover" }));
+    await waitFor(() => expect(refresh).toHaveBeenCalledTimes(3));
+
+    convidar.mockResolvedValueOnce({ ok: false, status: 409, erro: "Este e-mail já tem conta no Ledgr." });
+    await user.type(screen.getByLabelText("E-mail da pessoa"), "ana@x.com");
+    await user.click(screen.getByRole("button", { name: "Enviar convite" }));
+    await screen.findByRole("alert");
+    expect(refresh).toHaveBeenCalledTimes(3);
   });
 
   it("sem máximo mostra só a contagem, sem barra; sem o campo do /me, não há faixa", async () => {

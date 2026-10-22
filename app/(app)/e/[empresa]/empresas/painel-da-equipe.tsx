@@ -108,6 +108,8 @@ export function PainelDaEquipe({
     setConfirmando(null);
     if (resposta.ok) {
       aplicar(depois);
+      // os limites vêm do /me, lido uma vez por carregamento: a faixa e a barra se atualizam relendo a página
+      router.refresh();
       return;
     }
     if (resposta.status === 401) {
@@ -146,7 +148,11 @@ export function PainelDaEquipe({
     <div>
       {gerencia && limite && (
         <FaixaDoPlano
-          contagem={limite.maximo === null ? `${limite.usadas} pessoas` : `${limite.usadas} de ${limite.maximo} pessoas`}
+          contagem={
+            limite.maximo === null
+              ? `${limite.usadas} ${limite.usadas === 1 ? "pessoa" : "pessoas"}`
+              : `${limite.usadas} de ${limite.maximo} pessoas`
+          }
           usadas={limite.usadas}
           maximo={limite.maximo}
           aviso={textoDoLimite("usuarios", limite) ?? (limite.maximo === null ? null : "Os convites pendentes contam.")}
@@ -157,9 +163,10 @@ export function PainelDaEquipe({
       {gerencia && conviteAberto && (
         <ConvidarPessoa
           papeis={papeisQueConvida(papel)}
-          aoConvidar={(convite) =>
-            aplicar((atual) => ({ ...atual, convites: [convite, ...(atual.convites ?? []).filter((c) => c.id !== convite.id)] }))
-          }
+          aoConvidar={(convite) => {
+            aplicar((atual) => ({ ...atual, convites: [convite, ...(atual.convites ?? []).filter((c) => c.id !== convite.id)] }));
+            router.refresh();
+          }}
           aoFechar={aoFecharConvite}
           aoSairDaSessao={() => router.push("/login")}
         />

@@ -1,5 +1,6 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import { useId, useRef, useState, type KeyboardEvent } from "react";
 import type { EmpresaCliente } from "@/lib/adaptadores";
 import { useEmpresaAtiva } from "@/lib/empresa-ativa";
@@ -32,13 +33,16 @@ function contagem(usadas: number, maximo: number | null): string {
   return maximo === null ? `${usadas} ${empresas}` : `${usadas} de ${maximo} ${empresas}`;
 }
 
-export function PainelDeEmpresas({ empresas, abaInicial = "empresas" }: { empresas: EmpresaCliente[]; abaInicial?: AbaDaTela }) {
+export function PainelDeEmpresas({ empresas }: { empresas: EmpresaCliente[] }) {
   const router = useRoteador();
   const ativa = useEmpresaAtiva();
   const papel = usePapel();
   const limites = useLimites();
   const equipe = useEquipe();
-  const [aba, setAba] = useState<AbaDaTela>(abaInicial);
+  // a aba nasce da URL do navegador, não da página renderizada no servidor: trocar de aba só troca a URL
+  // (`replaceState`), e o voltar do navegador devolve a tela do cache com a URL de agora
+  const busca = useSearchParams();
+  const [aba, setAba] = useState<AbaDaTela>(busca.get("aba") === "equipe" ? "equipe" : "empresas");
   const [cadastroAberto, setCadastroAberto] = useState(false);
   const [conviteAberto, setConviteAberto] = useState(false);
   const base = useId();
@@ -132,8 +136,8 @@ export function PainelDeEmpresas({ empresas, abaInicial = "empresas" }: { empres
         ))}
       </div>
 
-      {aba === "empresas" ? (
-        <div role="tabpanel" id={idPainel("empresas")} aria-labelledby={idAba("empresas")}>
+      {/* os dois painéis ficam no DOM (o aria-controls das abas aponta para um painel que existe) e o da aba inativa fica escondido: o que foi digitado numa aba sobrevive à troca */}
+      <div role="tabpanel" id={idPainel("empresas")} aria-labelledby={idAba("empresas")} hidden={aba !== "empresas"}>
           {!gerencia && <p className="empresas-nota">Só o admin e o gestor cadastram empresas.</p>}
 
           {limite && (
@@ -196,8 +200,7 @@ export function PainelDeEmpresas({ empresas, abaInicial = "empresas" }: { empres
             </table>
           </div>
         </div>
-      ) : (
-        <div role="tabpanel" id={idPainel("equipe")} aria-labelledby={idAba("equipe")}>
+      <div role="tabpanel" id={idPainel("equipe")} aria-labelledby={idAba("equipe")} hidden={aba !== "equipe"}>
           <PainelDaEquipe
             estado={equipe.estado}
             recarregar={equipe.recarregar}
@@ -206,7 +209,6 @@ export function PainelDeEmpresas({ empresas, abaInicial = "empresas" }: { empres
             aoFecharConvite={() => setConviteAberto(false)}
           />
         </div>
-      )}
     </div>
   );
 }

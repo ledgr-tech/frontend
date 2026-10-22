@@ -30,17 +30,23 @@ const EQUIPE = {
 };
 
 const router = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn(), back: vi.fn(), prefetch: vi.fn() }));
-vi.mock("next/navigation", () => ({ useRouter: () => router, usePathname: () => "/e/x/empresas" }));
+vi.mock("next/navigation", () => ({
+  useRouter: () => router,
+  usePathname: () => "/e/x/empresas",
+  useSearchParams: () => new URLSearchParams(window.location.search),
+}));
 
 const A: EmpresaCliente = { id: "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20", razaoSocial: "Padaria Ltda", cnpj: "11222333000181", cnpjVerificado: true, criadaEm: "2026-10-08T17:59:02Z" };
 const B: EmpresaCliente = { id: "9b8a7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d", razaoSocial: "Mercado Ltda", cnpj: "11444777000161", cnpjVerificado: false, criadaEm: "2026-10-21T19:48:16Z" };
 const NOVA: EmpresaCliente = { id: "c0ffee00-0000-4000-8000-000000000001", razaoSocial: "Cliente Dois Ltda", cnpj: "11444777000161", cnpjVerificado: false, criadaEm: "2026-10-22T10:00:00Z" };
 
-function montar({ papel = "admin", limites = null, abaInicial }: { papel?: Papel; limites?: LimitesDaConta | null; abaInicial?: "empresas" | "equipe" } = {}) {
+// a aba escolhida vem da URL (`?aba=equipe`): é o que o voltar do navegador devolve depois de uma troca
+function montar({ papel = "admin", limites = null, aba }: { papel?: Papel; limites?: LimitesDaConta | null; aba?: "equipe" } = {}) {
+  if (aba) window.history.replaceState(null, "", "/e/x/empresas?aba=equipe");
   render(
     <ProvedorDaEmpresa ativa={{ id: A.id, razaoSocial: A.razaoSocial, cnpj: A.cnpj }} empresas={[A, B]}>
       <ProvedorDaConta preferencias={null} limites={limites} papel={papel}>
-        <PainelDeEmpresas empresas={[A, B]} abaInicial={abaInicial} />
+        <PainelDeEmpresas empresas={[A, B]} />
       </ProvedorDaConta>
     </ProvedorDaEmpresa>,
   );
@@ -310,8 +316,8 @@ describe("as abas Empresas e Equipe", () => {
     expect(screen.queryByRole("list", { name: "Pessoas com acesso" })).not.toBeInTheDocument();
   });
 
-  it("abaInicial abre direto na Equipe, com o botão do cabeçalho de convidar", async () => {
-    montar({ abaInicial: "equipe" });
+  it("a aba da URL abre direto na Equipe, com o botão do cabeçalho de convidar", async () => {
+    montar({ aba: "equipe" });
 
     expect(await screen.findByRole("list", { name: "Pessoas com acesso" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: /^Equipe/ })).toHaveAttribute("aria-selected", "true");
@@ -369,7 +375,7 @@ describe("as abas Empresas e Equipe", () => {
   });
 
   it("o analista também vê a aba Equipe, mas sem o botão de convidar", async () => {
-    montar({ papel: "analista", abaInicial: "equipe" });
+    montar({ papel: "analista", aba: "equipe" });
 
     expect(await screen.findByRole("list", { name: "Pessoas com acesso" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Convidar pessoa" })).not.toBeInTheDocument();
@@ -386,5 +392,32 @@ describe("as abas Empresas e Equipe", () => {
     montar({ limites: { empresas: { usadas: 2, maximo: null }, usuarios: null } });
     expect(document.querySelector(".faixa-plano")).not.toBeNull();
     expect(document.querySelector(".faixa-plano-barra")).toBeNull();
+  });
+});
+
+describe("os painéis das abas", () => {
+  it("cada aba aponta para um painel que existe no DOM; o da aba inativa fica escondido", async () => {
+    montar();
+    await screen.findByRole("tab", { name: "Equipe 3" });
+
+    for (const aba of screen.getAllByRole("tab")) {
+      const painel = document.getElementById(aba.getAttribute("aria-controls")!);
+      expect(painel, aba.textContent ?? "").not.toBeNull();
+      expect(painel!.hidden).toBe(aba.getAttribute("aria-selected") !== "true");
+    }
+  });
+
+  it("o que foi digitado numa aba sobrevive à troca de aba", async () => {
+    const user = userEvent.setup();
+    montar();
+    await screen.findByRole("tab", { name: "Equipe 3" });
+
+    await user.click(screen.getByRole("tab", { name: /^Equipe/ }));
+    await user.click(screen.getByRole("button", { name: "Convidar pessoa" }));
+    await user.type(screen.getByLabelText("E-mail da pessoa"), "dani@x.com");
+    await user.click(screen.getByRole("tab", { name: /^Empresas/ }));
+    await user.click(screen.getByRole("tab", { name: /^Equipe/ }));
+
+    expect(screen.getByLabelText("E-mail da pessoa")).toHaveValue("dani@x.com");
   });
 });
