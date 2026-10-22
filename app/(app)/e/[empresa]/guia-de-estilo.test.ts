@@ -171,6 +171,8 @@ describe("guia de estilo nas telas do app", () => {
     });
     expect(animadas[".modal-suave[open]"]).toMatch(/modal-suave-entra/);
     expect(animadas[".modal-suave[open]::backdrop"]).toMatch(/modal-suave-fundo/);
+    // o menu de papel da Equipe também
+    expect(animadas[".equipe-menu"]).toMatch(/equipe-menu-entra/);
   });
 
   it("ícone não escolhe o próprio traço: o do guia (1,75) vem do TRACO_ICONE", () => {
