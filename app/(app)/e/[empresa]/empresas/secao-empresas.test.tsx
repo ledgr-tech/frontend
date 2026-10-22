@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ProvedorDaEmpresa } from "@/lib/empresa-ativa";
 import type { EmpresaCliente } from "@/lib/adaptadores";
@@ -171,10 +171,146 @@ describe("quem cadastra", () => {
     expect(within(adicionar).queryByRole("button")).not.toBeInTheDocument();
   });
 
-  it.each<Papel>(["admin", "gestor"])("%s vê o botão de adicionar", async (papel) => {
+  it.each<Papel>(["admin", "gestor"])("%s vê o formulário de cadastro", async (papel) => {
     montar({ papel });
 
     await screen.findByText("Mercado Ltda", { selector: ".titulo" });
-    expect(within(linhaDe("Adicionar empresa")).getByRole("button", { name: "Adicionar empresa" })).toBeInTheDocument();
+    expect(within(linhaDe("Adicionar empresa")).getByRole("button", { name: "Cadastrar empresa" })).toBeInTheDocument();
+  });
+});
+
+const NOVA: EmpresaCliente = { id: "c0ffee00-0000-4000-8000-000000000001", razaoSocial: "Cliente Dois Ltda", cnpj: "11444777000161", cnpjVerificado: false, criadaEm: "2026-10-22T10:00:00Z" };
+
+/** O formulário de cadastro, já com a lista carregada. */
+async function formulario(opcoes: Parameters<typeof montar>[0] = {}) {
+  const resultado = montar(opcoes);
+  await screen.findByText("Mercado Ltda", { selector: ".titulo" });
+  return { ...resultado, form: screen.getByRole("form", { name: "Adicionar empresa" }) as HTMLFormElement };
+}
+
+async function preencher(user: ReturnType<typeof userEvent.setup>, cnpj = "11444777000161", razao = "Cliente Dois Ltda") {
+  await user.type(screen.getByLabelText("CNPJ"), cnpj);
+  await user.type(screen.getByLabelText("Razão social"), razao);
+}
+
+describe("o cadastro de empresa", () => {
+  it("o campo CNPJ aplica a máscara ao digitar", async () => {
+    const user = userEvent.setup();
+    await formulario();
+
+    await user.type(screen.getByLabelText("CNPJ"), "11444777000161");
+
+    expect(screen.getByLabelText("CNPJ")).toHaveValue("11.444.777/0001-61");
+  });
+
+  it("CNPJ inválido e razão social vazia são recusados na tela, sem chamar a ação", async () => {
+    const user = userEvent.setup();
+    await formulario();
+
+    await user.type(screen.getByLabelText("CNPJ"), "11444777000162");
+    await user.click(screen.getByRole("button", { name: "Cadastrar empresa" }));
+    expect(screen.getByText("Os dígitos do CNPJ não conferem. Confira o número.")).toBeInTheDocument();
+    expect(screen.getByText("Informe a razão social.")).toBeInTheDocument();
+    expect(cadastrarEmpresa).not.toHaveBeenCalled();
+  });
+
+  it("cadastra, fecha a janela, lembra a empresa nova e abre a Visão geral dela", async () => {
+    const user = userEvent.setup();
+    cadastrarEmpresa.mockResolvedValue({ ok: true, dados: NOVA });
+    const { aoAbrir } = await formulario();
+
+    await preencher(user);
+    await user.click(screen.getByRole("button", { name: "Cadastrar empresa" }));
+
+    await waitFor(() => expect(router.push).toHaveBeenCalledWith(`/e/${NOVA.id}/visao-geral`));
+    expect(cadastrarEmpresa).toHaveBeenCalledWith("11.444.777/0001-61", "Cliente Dois Ltda");
+    expect(aoAbrir).toHaveBeenCalledTimes(1);
+    expect(document.cookie).toContain(`ledgr-empresa-recente=${NOVA.id}`);
+    expect(screen.getByLabelText("CNPJ")).toHaveValue("");
+    expect(screen.getByLabelText("Razão social")).toHaveValue("");
+  });
+
+  it("dois envios no mesmo instante chamam a ação uma vez só; o botão diz Cadastrando… e fica desligado", async () => {
+    const user = userEvent.setup();
+    let concluir: (resposta: unknown) => void = () => {};
+    cadastrarEmpresa.mockReturnValue(new Promise((resolve) => (concluir = resolve)));
+    const { form } = await formulario();
+    await preencher(user);
+
+    act(() => {
+      form.requestSubmit();
+      form.requestSubmit();
+    });
+
+    expect(cadastrarEmpresa).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("button", { name: "Cadastrando…" })).toBeDisabled();
+    await act(async () => concluir({ ok: true, dados: NOVA }));
+  });
+
+  it.each([
+    [409, "Esta empresa já está cadastrada na conta."],
+    [422, "CNPJ não encontrado na Receita."],
+  ])("o %s aparece sob o campo CNPJ", async (status, erro) => {
+    const user = userEvent.setup();
+    cadastrarEmpresa.mockResolvedValue({ ok: false, status, erro });
+    await formulario();
+
+    await preencher(user);
+    await user.click(screen.getByRole("button", { name: "Cadastrar empresa" }));
+
+    const mensagem = await screen.findByText(erro);
+    expect(screen.getByLabelText("CNPJ")).toHaveAttribute("aria-describedby", mensagem.closest("[role=alert]")!.id);
+    expect(router.push).not.toHaveBeenCalled();
+  });
+
+  it("o 402 mostra a mensagem do backend com o link para os planos e relê o /me", async () => {
+    const user = userEvent.setup();
+    cadastrarEmpresa.mockResolvedValue({ ok: false, status: 402, erro: "O plano permite até 3 empresas." });
+    await formulario();
+
+    await preencher(user);
+    await user.click(screen.getByRole("button", { name: "Cadastrar empresa" }));
+
+    const aviso = await screen.findByText("O plano permite até 3 empresas.");
+    expect(within(aviso.closest("form")!).getByRole("link", { name: "Ver planos" })).toHaveAttribute("href", `/e/${A.id}/assinatura`);
+    expect(router.refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it("o 429 mostra o aviso; o 403 mostra o aviso e recarrega a lista", async () => {
+    const user = userEvent.setup();
+    cadastrarEmpresa.mockResolvedValueOnce({ ok: false, status: 429, erro: "Muitos cadastros seguidos. Tente de novo em 3 minutos." });
+    await formulario();
+    await preencher(user);
+    await user.click(screen.getByRole("button", { name: "Cadastrar empresa" }));
+    await screen.findByText("Muitos cadastros seguidos. Tente de novo em 3 minutos.");
+    expect(carregarEmpresas).toHaveBeenCalledTimes(1);
+
+    cadastrarEmpresa.mockResolvedValueOnce({ ok: false, status: 403, erro: "Seu papel na conta não permite fazer isso." });
+    await user.click(screen.getByRole("button", { name: "Cadastrar empresa" }));
+    await screen.findByText("Seu papel na conta não permite fazer isso.");
+    await waitFor(() => expect(carregarEmpresas).toHaveBeenCalledTimes(2));
+  });
+
+  it("sessão vencida leva ao login", async () => {
+    const user = userEvent.setup();
+    cadastrarEmpresa.mockResolvedValue({ ok: false, status: 401, erro: "x" });
+    await formulario();
+
+    await preencher(user);
+    await user.click(screen.getByRole("button", { name: "Cadastrar empresa" }));
+
+    await waitFor(() => expect(router.push).toHaveBeenCalledWith("/login"));
+  });
+
+  it("no limite o botão fica desligado e o formulário não envia", async () => {
+    const user = userEvent.setup();
+    const { form } = await formulario({ limites: { empresas: { usadas: 3, maximo: 3 }, usuarios: null } });
+
+    expect(screen.getByRole("button", { name: "Cadastrar empresa" })).toBeDisabled();
+    expect(screen.getAllByText(/chegou ao limite de 3 empresas/).length).toBeGreaterThan(0);
+
+    await preencher(user);
+    act(() => form.requestSubmit());
+    expect(cadastrarEmpresa).not.toHaveBeenCalled();
   });
 });
