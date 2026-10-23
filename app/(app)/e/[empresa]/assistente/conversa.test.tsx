@@ -189,13 +189,34 @@ describe("Conversa", () => {
 
       await user.type(screen.getByLabelText("Sua pergunta"), "como convido alguém da equipe?{Enter}");
 
-      expect(perguntarAoAssistente).toHaveBeenCalledWith("como convido alguém da equipe?", "fechamentos", [
-        { papel: "assistente", texto: expect.stringContaining("Setembro está 70,0% conciliado") },
-      ]);
+      // a saudação traz os números do mês: não vai ao provedor
+      expect(perguntarAoAssistente).toHaveBeenCalledWith("como convido alguém da equipe?", "fechamentos", []);
       const resposta = await within(conversa()).findByText(/Na aba Equipe, clique em Convidar pessoa/);
       const bolha = resposta.closest(".asst-bolha")!;
       expect(bolha).toHaveTextContent("Gerada por IA");
       expect(within(bolha as HTMLElement).getByRole("link", { name: "Convidar alguém" })).toHaveAttribute("href", "/ajuda/empresas#convidar");
+    });
+
+    it("o histórico leva só a conversa com a Central, nunca os números do mês nem as explicações", async () => {
+      perguntarAoAssistente.mockResolvedValue(RESPOSTA);
+      explicarDivergencia.mockResolvedValue({
+        ok: true,
+        dados: { texto: "Juros de atraso.", geradaPorIa: true, indisponibilidade: null },
+      });
+      const user = userEvent.setup();
+      render(<Conversa contexto={CONTEXTO} onFechar={vi.fn()} />);
+
+      await user.click(screen.getByRole("button", { name: "Resumo de setembro" }));
+      await user.click(screen.getByRole("button", { name: "Explique a maior divergência" }));
+      await within(conversa()).findByText(/Juros de atraso/);
+      await user.type(screen.getByLabelText("Sua pergunta"), "como convido alguém?{Enter}");
+      await within(conversa()).findByText(/Na aba Equipe/);
+      await user.type(screen.getByLabelText("Sua pergunta"), "e depois?{Enter}");
+
+      expect(perguntarAoAssistente).toHaveBeenLastCalledWith("e depois?", "fechamentos", [
+        { papel: "usuario", texto: "como convido alguém?" },
+        { papel: "assistente", texto: RESPOSTA.dados.resposta },
+      ]);
     });
 
     it("o que o roteiro do mês responde não vai ao backend", async () => {

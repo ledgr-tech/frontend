@@ -1,6 +1,7 @@
 "use server";
 
-import { ErroBackend, chamarBackend } from "@/lib/backend";
+import { ErroBackend, chamarBackend, emailDaSessao } from "@/lib/backend";
+import { ehContaDeDemonstracao } from "@/lib/demo";
 import type { Falha, Resultado } from "../conciliacoes/acoes";
 
 /**
@@ -44,6 +45,11 @@ export async function perguntarAoAssistente(
   const limpa = typeof pergunta === "string" ? pergunta.trim() : "";
   if (!limpa || limpa.length > TAMANHO_MAXIMO_PERGUNTA) {
     return { ok: false, status: 422, erro: `A pergunta pode ter até ${TAMANHO_MAXIMO_PERGUNTA} caracteres.` };
+  }
+  // a demonstração é de qualquer visitante: cada pergunta dela gastaria o limite diário global do
+  // backend, que é o dos clientes também. Lá, a conversa fica com o roteiro do mês e a Central
+  if (ehContaDeDemonstracao(await emailDaSessao())) {
+    return { ok: false, status: 503, erro: "O assistente está indisponível no momento." };
   }
   const turnos = (Array.isArray(historico) ? historico : [])
     .filter(

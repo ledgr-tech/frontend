@@ -1,16 +1,23 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ErroBackend } from "@/lib/backend";
 import { perguntarAoAssistente } from "./acoes";
 
 // a rede é a fronteira; ErroBackend e a tradução dos erros rodam de verdade
 const chamarBackend = vi.fn();
+const emailDaSessao = vi.fn();
 vi.mock("@/lib/backend", async (original) => ({
   ...(await original<typeof import("@/lib/backend")>()),
   chamarBackend: (...args: unknown[]) => chamarBackend(...args),
+  emailDaSessao: () => emailDaSessao(),
 }));
 
 beforeEach(() => {
   chamarBackend.mockReset();
+  emailDaSessao.mockResolvedValue("ana@x.com");
+});
+
+afterEach(() => {
+  vi.unstubAllEnvs();
 });
 
 describe("perguntarAoAssistente", () => {
@@ -78,6 +85,13 @@ describe("perguntarAoAssistente", () => {
     chamarBackend.mockResolvedValueOnce({ resposta: "ok", respondida: true, links: [] });
     await perguntarAoAssistente("pergunta", "../me", []);
     expect(chamarBackend.mock.calls[0][1].corpo).not.toHaveProperty("tela");
+  });
+
+  it("a conta de demonstração não gasta o limite do backend: responde indisponível sem chamar", async () => {
+    vi.stubEnv("LEDGR_CONTA_TESTE_EMAIL", "ana@x.com");
+
+    expect(await perguntarAoAssistente("Como fecho o mês?", null, [])).toMatchObject({ ok: false, status: 503 });
+    expect(chamarBackend).not.toHaveBeenCalled();
   });
 
   it("o limite (429) chega com o texto do backend; desligado (503) ou sem a rota (404), indisponível", async () => {

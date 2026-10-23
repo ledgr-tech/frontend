@@ -33,6 +33,11 @@ type Mensagem = {
   links?: LinkDaMensagem[];
   /** Só o texto que veio do modelo leva o selo de IA. */
   ia?: boolean;
+  /**
+   * Da conversa com o assistente da Central: só estas vão no histórico. As do roteiro do mês têm valores
+   * e as explicações têm descrição de lançamento, que não podem ir ao provedor de IA.
+   */
+  daCentral?: boolean;
 };
 
 /** O que o painel tem quando não há conciliação para olhar: só as dúvidas de uso. */
@@ -155,6 +160,7 @@ export function Conversa({
   async function perguntarACentral(pergunta: string, anteriores: Mensagem[]) {
     setLendo("central");
     const historico: TurnoDaConversa[] = anteriores
+      .filter((mensagem) => mensagem.daCentral)
       .slice(-MAXIMO_TURNOS)
       .map((mensagem) => ({ papel: mensagem.de === "voce" ? "usuario" : "assistente", texto: mensagem.texto }));
     try {
@@ -167,6 +173,7 @@ export function Conversa({
           de: "ledgr",
           texto: dados.resposta,
           ia: true,
+          daCentral: true,
           links: dados.respondida && links.length > 0 ? links : [...links, CENTRAL],
         });
         return;
@@ -197,9 +204,9 @@ export function Conversa({
     const limpa = pergunta.trim();
     if (!limpa || lendo) return;
     const anteriores = mensagens;
-    acrescentar({ de: "voce", texto: limpa });
-    setTexto("");
     const resposta = contexto ? responder(limpa, contexto) : null;
+    acrescentar({ de: "voce", texto: limpa, daCentral: resposta === null });
+    setTexto("");
     if (resposta?.explicar) {
       void explicar();
       return;
