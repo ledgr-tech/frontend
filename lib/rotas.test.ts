@@ -9,6 +9,7 @@ import {
   ehDaEmpresa,
   ehUuid,
   empresaDoCaminho,
+  enderecoExterno,
   escolherEmpresa,
   secaoDoCaminho,
 } from "./rotas";
@@ -170,5 +171,14 @@ describe("destinoDaUrlAntiga", () => {
     expect(destinoDaUrlAntiga("login", undefined, {}, A)).toBeNull();
     expect(destinoDaUrlAntiga("e", [A], {}, A)).toBeNull();
     expect(destinoDaUrlAntiga("", undefined, {}, A)).toBeNull();
+  });
+});
+
+describe("enderecoExterno", () => {
+  it("passa endereço absoluto http(s) e troca o resto por #", () => {
+    expect(enderecoExterno("https://api.ledgr.com.br/llms.txt")).toBe("https://api.ledgr.com.br/llms.txt");
+    expect(enderecoExterno("http://localhost:8000/v1/openapi.json")).toBe("http://localhost:8000/v1/openapi.json");
+    expect(enderecoExterno("/fechamentos")).toBe("#");
+    expect(enderecoExterno("javascript:alert(1)")).toBe("#");
   });
 });
