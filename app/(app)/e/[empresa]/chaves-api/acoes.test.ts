@@ -145,6 +145,14 @@ describe("quem não pode", () => {
     expect(chamarBackend).not.toHaveBeenCalled();
   });
 
+  it("a conta de demonstração lê a lista, mesmo sem poder criar nem revogar", async () => {
+    vi.stubEnv("LEDGR_CONTA_TESTE_EMAIL", "ana@x.com");
+    chamarBackend.mockResolvedValueOnce({ itens: [] });
+
+    expect(await carregarChavesApi()).toMatchObject({ ok: true });
+    expect(await revogarChaveApi(CHAVE)).toMatchObject({ ok: false, status: 403 });
+  });
+
   it("o 403 do backend chega com o texto da tela", async () => {
     chamarBackend.mockRejectedValueOnce(new ErroBackend(403, "Forbidden"));
 

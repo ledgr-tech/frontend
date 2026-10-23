@@ -100,16 +100,21 @@ export function PainelDeChavesApi() {
 }
 
 function TokenNovo({ nome, token, onFechar }: { nome: string; token: string; onFechar: () => void }) {
-  const [copiado, setCopiado] = useState(false);
+  const [copiado, setCopiado] = useState<"sim" | "manual" | null>(null);
+  const valor = useRef<HTMLElement>(null);
   const idAviso = useId();
 
   async function copiar() {
     try {
       await navigator.clipboard.writeText(token);
-      setCopiado(true);
+      setCopiado("sim");
     } catch {
-      // sem permissão de área de transferência: o texto fica selecionável na caixa
-      setCopiado(false);
+      // sem permissão de área de transferência: o token fica selecionado para o Ctrl+C
+      const selecao = window.getSelection();
+      if (valor.current && selecao) {
+        selecao.selectAllChildren(valor.current);
+        setCopiado("manual");
+      }
     }
   }
 
@@ -120,10 +125,13 @@ function TokenNovo({ nome, token, onFechar }: { nome: string; token: string; onF
         Copie agora e guarde num lugar seguro: o Ledgr não mostra esta chave de novo. Quem tiver a chave lê os dados
         que ela alcança.
       </p>
-      <code className="api-token-valor">{token}</code>
+      <code ref={valor} className="api-token-valor">
+        {token}
+      </code>
+      {copiado === "manual" && <p className="cfg-linha-descricao">O navegador não deixou copiar: a chave está selecionada, use Ctrl+C.</p>}
       <div className="cfg-form-botoes">
         <button type="button" className="btn btn-primary" onClick={copiar}>
-          {copiado ? "Copiada" : "Copiar chave"}
+          {copiado === "sim" ? "Copiada" : "Copiar chave"}
         </button>
         <button type="button" className="btn btn-secondary" onClick={onFechar}>
           Já guardei

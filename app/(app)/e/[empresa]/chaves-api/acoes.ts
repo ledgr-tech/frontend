@@ -69,17 +69,20 @@ function traduzir(erro: unknown): Falha {
   return { ok: false, status, erro: erro.detalhe };
 }
 
-/** O analista nem chega ao backend (que responderia 403); a demonstração não cria acesso a dado nenhum. */
-async function recusa(): Promise<Falha | null> {
+/**
+ * O analista nem chega ao backend (que responderia 403). A demonstração lê a lista, mas não cria nem
+ * revoga: uma chave dela daria acesso de fora a uma conta que qualquer visitante usa.
+ */
+async function recusa(altera: boolean): Promise<Falha | null> {
   const { papel } = await contaDaSessao();
   if (!podeFecharMes(papel)) return { ok: false, status: 403, erro: SO_ADMIN_OU_GESTOR };
-  if (ehContaDeDemonstracao(await emailDaSessao())) return { ok: false, status: 403, erro: RECUSA_DEMONSTRACAO };
+  if (altera && ehContaDeDemonstracao(await emailDaSessao())) return { ok: false, status: 403, erro: RECUSA_DEMONSTRACAO };
   return null;
 }
 
 /** Ativas e revogadas, das mais novas para as mais antigas. Um 404 é um backend antes do #135. */
 export async function carregarChavesApi(): Promise<Resultado<ChavesDaApi>> {
-  const recusada = await recusa();
+  const recusada = await recusa(false);
   if (recusada) return recusada;
   try {
     const lista = await chamarBackend<{ itens: ChaveApiAPI[] }>("/chaves-api");
@@ -101,7 +104,7 @@ export async function criarChaveApi(
     return { ok: false, status: 422, erro: "O nome da chave precisa ter de 1 a 60 caracteres." };
   }
   if (empresaId !== null && !pareceUuid(empresaId)) return { ok: false, status: 404, erro: "Empresa não encontrada." };
-  const recusada = await recusa();
+  const recusada = await recusa(true);
   if (recusada) return recusada;
   try {
     const criada = await chamarBackend<ChaveApiAPI & { chave: string }>("/chaves-api", {
@@ -117,7 +120,7 @@ export async function criarChaveApi(
 /** Revoga na hora: a próxima chamada com ela já recebe 401. Revogar de novo não muda nada (204). */
 export async function revogarChaveApi(id: string): Promise<Resultado<null>> {
   if (!pareceUuid(id)) return { ok: false, status: 404, erro: "Chave não encontrada." };
-  const recusada = await recusa();
+  const recusada = await recusa(true);
   if (recusada) return recusada;
   try {
     await chamarBackend<null>(`/chaves-api/${id}`, { method: "DELETE" });

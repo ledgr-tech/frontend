@@ -80,6 +80,24 @@ describe("PainelDeChavesApi", () => {
     expect(screen.queryByText("ledgr_novo-token")).not.toBeInTheDocument();
   });
 
+  it("sem permissão de copiar, deixa a chave selecionada e diz para usar Ctrl+C", async () => {
+    criarChaveApi.mockResolvedValue({ ok: true, dados: { chave, token: "ledgr_t" } });
+    const user = userEvent.setup();
+    abrir();
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText: () => Promise.reject(new Error("negado")) },
+    });
+
+    await user.click(await screen.findByRole("button", { name: "Criar chave" }));
+    await user.type(screen.getByLabelText("Nome"), "Planilha");
+    await user.click(screen.getByRole("button", { name: "Criar chave" }));
+    await user.click(screen.getByRole("button", { name: "Copiar chave" }));
+
+    expect(await screen.findByText(/use Ctrl\+C/)).toBeInTheDocument();
+    expect(window.getSelection()?.toString()).toBe("ledgr_t");
+  });
+
   it("todas as empresas da conta vai sem empresa", async () => {
     criarChaveApi.mockResolvedValue({ ok: true, dados: { chave: { ...chave, empresa: null }, token: "ledgr_t" } });
     const user = userEvent.setup();
