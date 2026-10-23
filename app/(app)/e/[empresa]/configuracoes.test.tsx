@@ -24,9 +24,11 @@ const REGRAS: RegrasDaEmpresa = {
 
 // a troca de senha é do backend; aqui a action devolve o que ele responderia
 const trocarSenha = vi.fn();
+const trocarEmail = vi.fn();
 const desativarConta = vi.fn();
 vi.mock("../../../(auth)/acoes", () => ({
   trocarSenha: (...args: unknown[]) => trocarSenha(...args),
+  trocarEmail: (...args: unknown[]) => trocarEmail(...args),
   desativarConta: (...args: unknown[]) => desativarConta(...args),
   salvarPreferencias: async () => true,
 }));
@@ -67,6 +69,7 @@ describe("Configuracoes", () => {
   beforeEach(() => {
     toleranciaDaUltimaConciliacao.mockReset();
     trocarSenha.mockReset().mockResolvedValue({ ok: true });
+    trocarEmail.mockReset().mockResolvedValue({ ok: true });
     toleranciaDaUltimaConciliacao.mockResolvedValue(2);
     carregarRegras.mockReset().mockResolvedValue({ ok: true, dados: REGRAS });
     salvarToleranciaDias.mockReset();
@@ -293,16 +296,35 @@ describe("Configuracoes", () => {
     expect(screen.queryByRole("button", { name: "Trocar senha" })).not.toBeInTheDocument();
   });
 
-  // o backend ainda não tem POST /me/email: um formulário que pede a senha
-  // para depois dizer "ainda não disponível" faz a pessoa trabalhar à toa
-  it("shows the account email without a change form, and says how to change it for now", async () => {
+  it("asks to change the email with the password, and says the link went to the new one", async () => {
+    trocarEmail.mockResolvedValueOnce({ ok: false, erro: "E-mail já cadastrado." });
     const user = userEvent.setup();
     abrir();
     await user.click(secao("Conta"));
+    await user.click(screen.getByRole("button", { name: "Trocar e-mail" }));
 
-    const linha = linhaDe("E-mail");
-    expect(within(linha).getByText(EMAIL)).toBeInTheDocument();
-    expect(within(linha).getByText(/Para trocar, por enquanto, escreva para ledgrtech@gmail\.com\./)).toBeInTheDocument();
+    const formulario = screen.getByRole("form", { name: "Trocar e-mail" });
+    await user.type(within(formulario).getByLabelText("E-mail novo"), "ana@nova");
+    await user.type(within(formulario).getByLabelText("Senha atual"), "s3nha");
+    await user.click(within(formulario).getByRole("button", { name: "Enviar link" }));
+    expect(screen.getByRole("alert")).toHaveTextContent("Confira o e-mail: parece incompleto.");
+    expect(trocarEmail).not.toHaveBeenCalled();
+
+    await user.type(within(formulario).getByLabelText("E-mail novo"), ".com.br");
+    await user.click(within(formulario).getByRole("button", { name: "Enviar link" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("E-mail já cadastrado.");
+
+    await user.click(within(formulario).getByRole("button", { name: "Enviar link" }));
+    expect(trocarEmail).toHaveBeenLastCalledWith("ana@nova.com.br", "s3nha");
+    expect(await screen.findByRole("status")).toHaveTextContent("Link enviado ao e-mail novo. Abra para confirmar.");
+  });
+
+  it("has no email change on an account that signs in only with Google", async () => {
+    const user = userEvent.setup();
+    abrir({ temSenha: false });
+    await user.click(secao("Conta"));
+
+    expect(within(linhaDe("E-mail")).getByText(/conta Google/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Trocar e-mail" })).not.toBeInTheDocument();
   });
 
