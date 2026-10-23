@@ -10,6 +10,7 @@ import { COOKIE_CADASTRO_GOOGLE, COOKIE_CONVITE_GOOGLE, VALIDADE_ID_TOKEN_SEGUND
 import { MuitasEntradas, type UsuarioAPI } from "@/lib/login";
 import type { EmpresaDaConta } from "@/lib/empresa-ativa";
 import { lerPapel, type Papel } from "@/lib/papel";
+import { destinoDepoisDoLogin } from "@/lib/rotas";
 import { ehTela, type Preferencias } from "@/lib/preferencias";
 import { adaptarAssinatura, type Assinatura, type PlanoId } from "@/lib/assinatura";
 import { adaptarLimites, type LimitesDaConta } from "@/lib/limites";
@@ -91,11 +92,12 @@ export async function entrarNaDemonstracao(manterSessao: boolean): Promise<boole
  * redirect, que a Server Action entrega ao navegador; só volta daqui quando o
  * provider não existe neste servidor.
  */
-export async function entrarComGoogle(): Promise<false> {
+export async function entrarComGoogle(voltar?: string | null): Promise<false> {
   if (!process.env.AUTH_GOOGLE_ID) return false;
   // um aceite de convite pelo Google que ficou pela metade não pode virar este login
   (await cookies()).delete(COOKIE_CONVITE_GOOGLE);
-  await signIn("google", { redirectTo: "/visao-geral" });
+  // o destino vem do navegador: só o consentimento de um pedido de conexão, refeito do id, ou a Visão geral
+  await signIn("google", { redirectTo: destinoDepoisDoLogin(voltar) });
   return false;
 }
 

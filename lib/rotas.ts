@@ -129,3 +129,24 @@ export function destinoDaUrlAntiga(
 export function enderecoExterno(url: string): string {
   return /^https?:\/\//i.test(url) ? url : "#";
 }
+
+/** O pedido de conexão do OAuth (backend #136): o id que o backend põe no endereço, `token_urlsafe`. */
+const PEDIDO_DE_CONEXAO = /^[A-Za-z0-9_-]{1,256}$/;
+
+export function ehPedidoDeConexao(pedido: unknown): pedido is string {
+  return typeof pedido === "string" && PEDIDO_DE_CONEXAO.test(pedido);
+}
+
+/** A tela de consentimento de um pedido de conexão com o ChatGPT ou o Claude (front #195). */
+export function caminhoDoConsentimento(pedido: string): string {
+  return `/autorizar-conexao?pedido=${pedido}`;
+}
+
+/**
+ * Para onde o login leva: a Visão geral, ou de volta ao consentimento que mandou entrar. Só esse destino
+ * é aceito, montado de novo a partir do id: o `voltar` vem da URL e não pode levar a outro site.
+ */
+export function destinoDepoisDoLogin(voltar: string | null | undefined): string {
+  const pedido = typeof voltar === "string" ? voltar.match(/^\/autorizar-conexao\?pedido=([^&#]+)$/)?.[1] : undefined;
+  return pedido && ehPedidoDeConexao(pedido) ? caminhoDoConsentimento(pedido) : "/visao-geral";
+}

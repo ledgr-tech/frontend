@@ -321,6 +321,15 @@ describe("entrarComGoogle", () => {
     expect(signIn).toHaveBeenCalledWith("google", { redirectTo: "/visao-geral" });
   });
 
+  it("volta ao consentimento de um pedido de conexão, e um destino de fora vira a visão geral", async () => {
+    vi.stubEnv("AUTH_GOOGLE_ID", "client-id");
+    await entrarComGoogle("/autorizar-conexao?pedido=Ab_12");
+    expect(signIn).toHaveBeenLastCalledWith("google", { redirectTo: "/autorizar-conexao?pedido=Ab_12" });
+
+    await entrarComGoogle("https://outro.site");
+    expect(signIn).toHaveBeenLastCalledWith("google", { redirectTo: "/visao-geral" });
+  });
+
   it("não chama o NextAuth quando o servidor não tem o provider", async () => {
     vi.stubEnv("AUTH_GOOGLE_ID", "");
     expect(await entrarComGoogle()).toBe(false);
