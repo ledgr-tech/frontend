@@ -556,7 +556,7 @@ export function Configuracoes({
         {
           titulo: "Desativar conta",
           descricao: papel === "admin"
-            ? "Tira o seu acesso ao Ledgr e libera o seu e-mail. Se há outras pessoas na equipe, remova-as antes em Empresas › Equipe: sem você, a empresa fica sem acesso."
+            ? "Tira o seu acesso ao Ledgr e libera o seu e-mail. Se há outras pessoas na equipe, passe antes a administração para uma delas em Empresas › Equipe (Tornar administrador)."
             : "Tira o seu acesso ao Ledgr e libera o seu e-mail. O que você conferiu e justificou continua no histórico da empresa, com o seu nome.",
           controle: (
             <AcaoDaConta

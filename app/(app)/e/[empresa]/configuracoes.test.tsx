@@ -332,13 +332,13 @@ describe("Configuracoes", () => {
     desativarConta.mockReset();
     desativarConta.mockResolvedValueOnce({
       ok: false,
-      erro: "Remova os outros usuários da empresa antes de desativar a sua conta.",
+      erro: "Transfira o papel de admin antes de desativar a sua conta.",
     });
     const user = userEvent.setup();
     abrir();
     await user.click(secao("Conta"));
 
-    expect(within(linhaDe("Desativar conta")).getByText(/remova-as antes/)).toBeInTheDocument();
+    expect(within(linhaDe("Desativar conta")).getByText(/passe antes a administração/)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Desativar conta" }));
     const formulario = screen.getByRole("form", { name: "Desativar conta" });
     expect(formulario).toHaveTextContent("Os dados da empresa continuam guardados até a exclusão ser pedida.");
@@ -346,7 +346,7 @@ describe("Configuracoes", () => {
     await user.click(within(formulario).getByRole("button", { name: "Desativar minha conta" }));
 
     expect(desativarConta).toHaveBeenCalledWith("s3nha");
-    expect(formulario).toHaveTextContent("Remova os outros usuários da empresa antes de desativar a sua conta.");
+    expect(formulario).toHaveTextContent("Transfira o papel de admin antes de desativar a sua conta.");
   });
 
   it("a Google-only account deactivates without a password field", async () => {
@@ -416,12 +416,12 @@ describe("Configuracoes", () => {
     expect(screen.queryByText("Convidar pessoa")).not.toBeInTheDocument();
   });
 
-  it("tells the admin where to remove the other people before deactivating the account", async () => {
+  it("tells the admin to hand over the administration before deactivating the account", async () => {
     const user = userEvent.setup();
     abrir({ papel: "admin" });
 
     await user.click(secao("Conta"));
-    expect(screen.getByText(/remova-as antes em Empresas › Equipe/)).toBeInTheDocument();
+    expect(screen.getByText(/passe antes a administração para uma delas em Empresas › Equipe/)).toBeInTheDocument();
   });
 
   it("closes from the close button", async () => {

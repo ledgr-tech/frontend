@@ -693,7 +693,7 @@ export async function confirmarEmail(token: string): Promise<ResultadoConfirmaca
  * senha: com um token roubado, sem ela, dava para tirar a pessoa da conta. A conta só do Google não
  * tem senha (null): o backend confere o login recente e, se for antigo, responde 409 com o texto
  * que pede para entrar de novo pelo Google. O administrador com outras pessoas na equipe também
- * recebe 409, pedindo para removê-las antes.
+ * recebe 409, pedindo para transferir antes o papel de admin (backend #143).
  */
 export async function desativarConta(senhaAtual: string | null): Promise<ResultadoConta> {
   const conta = await naConta(() =>

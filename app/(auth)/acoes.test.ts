@@ -607,11 +607,11 @@ describe("a conta de quem está logado", () => {
     expect(signOut).toHaveBeenCalledWith({ redirectTo: "/" });
   });
 
-  it("mostra o que o backend pede: senha certa, login recente, ou a equipe removida antes", async () => {
+  it("mostra o que o backend pede: senha certa, login recente, ou a administração transferida antes", async () => {
     for (const [status, texto] of [
       [400, "Senha atual incorreta."],
       [409, "Entre de novo com o Google para confirmar a desativação."],
-      [409, "Remova os outros usuários da empresa antes de desativar a sua conta."],
+      [409, "Transfira o papel de admin antes de desativar a sua conta."],
     ] as const) {
       respostaDoBackend(status, { detail: texto });
       expect(await desativarConta(status === 400 ? "errada" : null)).toEqual({ ok: false, erro: texto });
