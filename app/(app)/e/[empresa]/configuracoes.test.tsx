@@ -32,6 +32,8 @@ vi.mock("../../../(auth)/acoes", () => ({
 }));
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
+// o painel das chaves tem teste próprio (chaves-api/painel.test.tsx); aqui só importa onde ele aparece
+vi.mock("./chaves-api/painel", () => ({ PainelDeChavesApi: () => <p>painel das chaves</p> }));
 
 const EMAIL = "financeiro@telhacerta.com.br";
 
@@ -408,5 +410,20 @@ describe("Configuracoes", () => {
 
     await user.click(screen.getByRole("button", { name: "Fechar configurações" }));
     expect(onFechar).toHaveBeenCalled();
+  });
+
+  it.each(["admin", "gestor"] as const)("o %s vê a seção API, com as chaves", async (papel) => {
+    const user = userEvent.setup();
+    abrir({ papel });
+
+    await user.click(secao("API"));
+    expect(screen.getByRole("heading", { name: "API" })).toBeInTheDocument();
+    expect(screen.getByText("painel das chaves")).toBeInTheDocument();
+  });
+
+  it("o analista não vê a seção API", () => {
+    abrir({ papel: "analista" });
+
+    expect(screen.queryByRole("button", { name: "API" })).not.toBeInTheDocument();
   });
 });
