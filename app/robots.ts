@@ -19,6 +19,7 @@ const FORA_DA_BUSCA = [
   "/visao-geral",
   "/aceitar-convite",
   "/redefinir-senha",
+  "/confirmar-email",
   "/cadastro/google",
 ];
 

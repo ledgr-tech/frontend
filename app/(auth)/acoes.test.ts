@@ -20,6 +20,7 @@ import {
   sairParaAceitarConvite,
   salvarPreferencias,
   trocarEmail,
+  confirmarEmail,
   trocarSenha,
   verificarCadastro,
 } from "./acoes";
@@ -527,16 +528,41 @@ describe("a conta de quem está logado", () => {
     expect(cookiesGravados).toHaveBeenCalledWith("authjs.session-token", "jwt-da-sessao", expect.any(Object));
   });
 
-  it("troca o e-mail já normalizado e entra com o novo", async () => {
-    respostaDoBackend(204);
+  it("pede a troca do e-mail já normalizado e mantém a sessão: só muda quando o link for aberto", async () => {
+    respostaDoBackend(202, { email_novo: "ana@nova.com.br", expira_em: "2026-10-22T20:00:00Z" });
 
     expect(await trocarEmail("  Ana@Nova.com.BR ", "s3nha")).toEqual({ ok: true });
 
-    expect(chamada().corpo).toEqual({ email_novo: "ana@nova.com.br", senha_atual: "s3nha" });
-    expect(signIn).toHaveBeenCalledWith("credentials", {
-      email: "ana@nova.com.br",
-      senha: "s3nha",
-      redirect: false,
+    expect(chamada()).toMatchObject({
+      url: "http://localhost:8000/me/email",
+      metodo: "POST",
+      corpo: { email_novo: "ana@nova.com.br", senha_atual: "s3nha" },
+    });
+    expect(signIn).not.toHaveBeenCalled();
+    expect(signOut).not.toHaveBeenCalled();
+  });
+
+  it("mostra o texto do backend para e-mail igual, limite por hora e e-mail desligado", async () => {
+    respostaDoBackend(422, { detail: "O e-mail novo é igual ao atual." });
+    expect(await trocarEmail("ana@telhacerta.com.br", "s3nha")).toEqual({
+      ok: false,
+      erro: "O e-mail novo é igual ao atual.",
+    });
+
+    const porHora = "Você já pediu a troca de e-mail várias vezes na última hora. Tente mais tarde.";
+    fetch.mockResolvedValue(Response.json({ detail: porHora }, { status: 429, headers: { "Retry-After": "1800" } }));
+    expect(await trocarEmail("ana@nova.com.br", "s3nha")).toEqual({ ok: false, erro: porHora });
+
+    respostaDoBackend(429, { detail: "Rate limit exceeded" });
+    expect(await trocarEmail("ana@nova.com.br", "s3nha")).toEqual({
+      ok: false,
+      erro: "Muitas tentativas. Espere um minuto e tente de novo.",
+    });
+
+    respostaDoBackend(503, { detail: "Troca de e-mail indisponível no momento." });
+    expect(await trocarEmail("ana@nova.com.br", "s3nha")).toEqual({
+      ok: false,
+      erro: "Indisponível no momento. Tente de novo mais tarde.",
     });
   });
 
@@ -581,11 +607,11 @@ describe("a conta de quem está logado", () => {
     expect(signOut).toHaveBeenCalledWith({ redirectTo: "/" });
   });
 
-  it("mostra o que o backend pede: senha certa, login recente, ou a equipe removida antes", async () => {
+  it("mostra o que o backend pede: senha certa, login recente, ou a administração transferida antes", async () => {
     for (const [status, texto] of [
       [400, "Senha atual incorreta."],
       [409, "Entre de novo com o Google para confirmar a desativação."],
-      [409, "Remova os outros usuários da empresa antes de desativar a sua conta."],
+      [409, "Transfira o papel de admin antes de desativar a sua conta."],
     ] as const) {
       respostaDoBackend(status, { detail: texto });
       expect(await desativarConta(status === 400 ? "errada" : null)).toEqual({ ok: false, erro: texto });
@@ -852,6 +878,37 @@ describe("redefinirSenha", () => {
     fetch.mockRejectedValue(new TypeError("fetch failed"));
 
     expect(await redefinirSenha("token", "s3nha-nova")).toEqual({ ok: false, erro: "falha" });
+  });
+});
+
+describe("confirmarEmail", () => {
+  function respostaDoBackend(status: number, corpo: object) {
+    fetch.mockResolvedValue(Response.json(corpo, { status }));
+  }
+
+  it("manda o token do link sem Bearer e devolve o e-mail novo", async () => {
+    respostaDoBackend(200, { email: "ana@nova.com.br" });
+
+    expect(await confirmarEmail("token-do-link")).toEqual({ ok: true, email: "ana@nova.com.br" });
+
+    const [url, init] = fetch.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe("http://localhost:8000/me/email/confirmar");
+    expect(new Headers(init.headers).has("Authorization")).toBe(false);
+    expect(JSON.parse(String(init.body))).toEqual({ token: "token-do-link" });
+  });
+
+  it("separa link inválido, e-mail tomado, limite e falha", async () => {
+    respostaDoBackend(400, { detail: "Link inválido ou expirado." });
+    expect(await confirmarEmail("velho")).toEqual({ ok: false, erro: "link_invalido" });
+
+    respostaDoBackend(409, { detail: "E-mail já cadastrado." });
+    expect(await confirmarEmail("token")).toEqual({ ok: false, erro: "email_em_uso" });
+
+    respostaDoBackend(429, { error: "Rate limit exceeded" });
+    expect(await confirmarEmail("token")).toEqual({ ok: false, erro: "muitas_tentativas" });
+
+    fetch.mockRejectedValue(new TypeError("fetch failed"));
+    expect(await confirmarEmail("token")).toEqual({ ok: false, erro: "falha" });
   });
 });
 
