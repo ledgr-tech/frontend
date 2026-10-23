@@ -34,6 +34,14 @@ vi.mock("../../../(auth)/acoes", () => ({
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 // o painel das chaves tem teste próprio (chaves-api/painel.test.tsx); aqui só importa onde ele aparece
 vi.mock("./chaves-api/painel", () => ({ PainelDeChavesApi: () => <p>painel das chaves</p> }));
+// a seção Conexões só aparece quando o backend devolve a lista; o padrão é a conexão desligada (404)
+const carregarConexoesMcp = vi.fn();
+vi.mock("./conexoes-mcp/acoes", () => ({ carregarConexoesMcp: () => carregarConexoesMcp() }));
+vi.mock("./conexoes-mcp/painel", () => ({ PainelDeConexoes: () => <p>painel das conexões</p> }));
+beforeEach(() => {
+  carregarConexoesMcp.mockReset();
+  carregarConexoesMcp.mockResolvedValue({ ok: false, status: 404, erro: "Not Found" });
+});
 
 const EMAIL = "financeiro@telhacerta.com.br";
 
@@ -425,5 +433,28 @@ describe("Configuracoes", () => {
     abrir({ papel: "analista" });
 
     expect(screen.queryByRole("button", { name: "API" })).not.toBeInTheDocument();
+  });
+
+  it("com a conexão ligada no backend, o admin e o gestor veem a seção Conexões", async () => {
+    carregarConexoesMcp.mockResolvedValue({ ok: true, dados: { itens: [], endereco: "https://api.ledgr.test/mcp" } });
+    const user = userEvent.setup();
+    abrir({ papel: "gestor" });
+
+    await user.click(await screen.findByRole("button", { name: "Conexões" }));
+    expect(screen.getByText("painel das conexões")).toBeInTheDocument();
+  });
+
+  it("com a conexão desligada (404), não há seção Conexões", async () => {
+    abrir({ papel: "admin" });
+
+    await waitFor(() => expect(carregarConexoesMcp).toHaveBeenCalled());
+    expect(screen.queryByRole("button", { name: "Conexões" })).not.toBeInTheDocument();
+  });
+
+  it("o analista não pergunta pelas conexões", () => {
+    abrir({ papel: "analista" });
+
+    expect(carregarConexoesMcp).not.toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: "Conexões" })).not.toBeInTheDocument();
   });
 });

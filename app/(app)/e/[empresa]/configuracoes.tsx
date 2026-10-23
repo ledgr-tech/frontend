@@ -7,6 +7,7 @@ import {
   Info,
   KeyRound,
   Keyboard,
+  PlugZap,
   Palette,
   Search,
   ShieldCheck,
@@ -31,6 +32,8 @@ import { aplicarTema, escolhaDeTema, seguirSistema, temaDoSistema, type EscolhaD
 import { useTeclaDeAtalho } from "@/lib/plataforma";
 import { podeFecharMes, type Papel } from "@/lib/papel";
 import { PainelDeChavesApi } from "./chaves-api/painel";
+import { carregarConexoesMcp, type ConexaoMcp } from "./conexoes-mcp/acoes";
+import { PainelDeConexoes } from "./conexoes-mcp/painel";
 import { Tutorial } from "./tutorial/tutorial";
 
 /**
@@ -425,6 +428,11 @@ export function Configuracoes({
   const [toleranciaDias, setToleranciaDias] = useState<number | null | undefined>(undefined);
   // undefined até a janela abrir pela primeira vez (e de novo no "Tentar de novo")
   const [regras, setRegras] = useState<EstadoDasRegras | undefined>(undefined);
+  // as conexões com o ChatGPT e o Claude (#195): null enquanto não se sabe, ou quando o backend está com a
+  // conexão desligada (404) ou falhou; só com a lista na mão a seção aparece
+  const [conexoes, setConexoes] = useState<{ itens: ConexaoMcp[]; endereco: string | null } | null>(null);
+  const [conexoesLidas, setConexoesLidas] = useState(false);
+  const gerencia = podeFecharMes(papel);
   const ctrl = useTeclaDeAtalho();
 
   useEffect(() => {
@@ -455,6 +463,16 @@ export function Configuracoes({
       () => setRegras({ situacao: "falhou" }),
     );
   }, [aberta, regras]);
+
+  useEffect(() => {
+    if (!aberta || !gerencia || conexoesLidas) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setConexoesLidas(true);
+    carregarConexoesMcp().then(
+      (resposta) => setConexoes(resposta.ok ? resposta.dados : null),
+      () => setConexoes(null),
+    );
+  }, [aberta, gerencia, conexoesLidas]);
 
   // sem a rota das configurações, a tolerância que se mostra é a da última conciliação
   useEffect(() => {
@@ -673,7 +691,7 @@ export function Configuracoes({
       ],
     },
     // as chaves da API pública (#194) são do admin e do gestor: o analista nem vê a seção
-    ...(podeFecharMes(papel)
+    ...(gerencia
       ? [
           {
             id: "api",
@@ -688,6 +706,24 @@ export function Configuracoes({
               },
             ],
             conteudo: <PainelDeChavesApi />,
+          },
+        ]
+      : []),
+    ...(gerencia && conexoes
+      ? [
+          {
+            id: "conexoes",
+            nome: "Conexões",
+            icone: PlugZap,
+            grupo: "Configurações" as const,
+            linhas: [
+              {
+                titulo: "ChatGPT e Claude",
+                descricao:
+                  "Para perguntar ao seu assistente de IA sobre as conciliações de uma empresa. Cada conexão é autorizada pelo admin ou pelo gestor, lê uma empresa só e não muda nada no Ledgr.",
+              },
+            ],
+            conteudo: <PainelDeConexoes itens={conexoes.itens} endereco={conexoes.endereco} />,
           },
         ]
       : []),
