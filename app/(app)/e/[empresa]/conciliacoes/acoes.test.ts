@@ -5,6 +5,8 @@ import type { ExecucaoAPI, ItemConciliacaoAPI } from "@/lib/adaptadores";
 import { ErroBackend } from "@/lib/backend";
 import {
   aprovarPendentes,
+  decidirLinhas,
+  rejeitarPendentes,
   carregarConciliacao,
   carregarConciliacaoEmRodadas,
   carregarFechamentos,
@@ -1655,5 +1657,61 @@ describe("aprovar e rejeitar justificativas (backend #132)", () => {
     chamarBackend.mockRejectedValue(new ErroBackend(409, "O mês 2026-09 está fechado."));
 
     expect(await aprovarPendentes("2026-09")).toMatchObject({ ok: false, status: 409, erro: "O mês 2026-09 está fechado." });
+  });
+
+  it("rejeitar as pendentes do mês manda o motivo aparado; sem motivo, nenhum", async () => {
+    chamarBackend.mockResolvedValue({ processadas: 2, ignoradas: 0 });
+
+    expect(await rejeitarPendentes("2026-09", "  Falta o comprovante.  ")).toEqual({ ok: true, dados: { processadas: 2, ignoradas: 0 } });
+    expect(chamarBackend).toHaveBeenLastCalledWith("/justificativas/lote", {
+      method: "POST",
+      corpo: { acao: "rejeitar", competencia: "2026-09", motivo: "Falta o comprovante." },
+    });
+
+    await rejeitarPendentes("2026-09", "   ");
+    expect(chamarBackend).toHaveBeenLastCalledWith("/justificativas/lote", {
+      method: "POST",
+      corpo: { acao: "rejeitar", competencia: "2026-09", motivo: undefined },
+    });
+  });
+
+  it("decidir as linhas marcadas manda os itens do extrato do banco", async () => {
+    chamarBackend.mockResolvedValue({ processadas: 1, ignoradas: 1 });
+
+    expect(await decidirLinhas(BANCO_RECENTE, ["lb-1", "lb-2"], "aprovar")).toEqual({ ok: true, dados: { processadas: 1, ignoradas: 1 } });
+    expect(chamarBackend).toHaveBeenLastCalledWith("/justificativas/lote", {
+      method: "POST",
+      corpo: {
+        acao: "aprovar",
+        motivo: undefined,
+        itens: [
+          { extrato_banco_id: BANCO_RECENTE, chave: "lb-1" },
+          { extrato_banco_id: BANCO_RECENTE, chave: "lb-2" },
+        ],
+      },
+    });
+
+    await decidirLinhas(BANCO_RECENTE, ["lb-1"], "rejeitar", "Valor errado.");
+    expect(chamarBackend).toHaveBeenLastCalledWith("/justificativas/lote", {
+      method: "POST",
+      corpo: { acao: "rejeitar", motivo: "Valor errado.", itens: [{ extrato_banco_id: BANCO_RECENTE, chave: "lb-1" }] },
+    });
+  });
+
+  it("não manda ao backend lote vazio, grande demais, de id inválido, de ação desconhecida ou motivo longo", async () => {
+    expect(await decidirLinhas(BANCO_RECENTE, [], "aprovar")).toMatchObject({ status: 422 });
+    expect(await decidirLinhas(BANCO_RECENTE, Array.from({ length: 501 }, (_, i) => `c${i}`), "aprovar")).toMatchObject({ status: 422 });
+    expect(await decidirLinhas("../fechamentos", ["lb-1"], "aprovar")).toMatchObject({ status: 404 });
+    expect(await decidirLinhas(BANCO_RECENTE, ["lb-1"], "apagar" as "aprovar")).toMatchObject({ status: 422 });
+    expect(await rejeitarPendentes("2026-09", "x".repeat(1001))).toMatchObject({ status: 422 });
+    expect(chamarBackend).not.toHaveBeenCalled();
+  });
+
+  it("o analista não decide em lote, e o backend nem é chamado", async () => {
+    conta.papel = "analista";
+
+    expect(await rejeitarPendentes("2026-09")).toEqual({ ok: false, status: 403, erro: SO_O_GESTOR_APROVA });
+    expect(await decidirLinhas(BANCO_RECENTE, ["lb-1"], "aprovar")).toEqual({ ok: false, status: 403, erro: SO_O_GESTOR_APROVA });
+    expect(chamarBackend).not.toHaveBeenCalled();
   });
 });
