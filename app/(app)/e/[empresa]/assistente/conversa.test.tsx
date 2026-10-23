@@ -11,8 +11,15 @@ vi.mock("../conciliacoes/acoes", () => ({
   explicarDivergencia: (id: string) => explicarDivergencia(id),
 }));
 
+// o que o roteiro do mês não responde vai ao assistente da Central (backend #137)
+const perguntarAoAssistente = vi.fn();
+vi.mock("./acoes", () => ({
+  perguntarAoAssistente: (...args: unknown[]) => perguntarAoAssistente(...args),
+}));
+
 const push = vi.fn();
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
+const caminho = vi.hoisted(() => ({ atual: "/e/3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20/fechamentos" }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push }), usePathname: () => caminho.atual }));
 
 const CONTEXTO: Contexto = {
   mes: "setembro",
@@ -44,6 +51,7 @@ function conversa() {
 describe("Conversa", () => {
   beforeEach(() => {
     explicarDivergencia.mockReset();
+    perguntarAoAssistente.mockReset();
     push.mockReset();
   });
 
@@ -162,5 +170,101 @@ describe("Conversa", () => {
 
     await within(conversa()).findByText(/<img src=x onerror=alert\(1\)>/);
     expect(conversa().querySelector("img[src='x']")).toBeNull();
+  });
+
+  describe("perguntas de uso, ao assistente da Central (#172)", () => {
+    const RESPOSTA = {
+      ok: true,
+      dados: {
+        resposta: "1. Abra Empresas.\n2. Na aba Equipe, clique em Convidar pessoa.",
+        respondida: true,
+        links: [{ titulo: "Convidar alguém", caminho: "/ajuda/empresas#convidar" }],
+      },
+    };
+
+    it("manda a pergunta que o roteiro não responde, com a tela aberta e as mensagens de antes", async () => {
+      perguntarAoAssistente.mockResolvedValue(RESPOSTA);
+      const user = userEvent.setup();
+      render(<Conversa contexto={CONTEXTO} onFechar={vi.fn()} />);
+
+      await user.type(screen.getByLabelText("Sua pergunta"), "como convido alguém da equipe?{Enter}");
+
+      expect(perguntarAoAssistente).toHaveBeenCalledWith("como convido alguém da equipe?", "fechamentos", [
+        { papel: "assistente", texto: expect.stringContaining("Setembro está 70,0% conciliado") },
+      ]);
+      const resposta = await within(conversa()).findByText(/Na aba Equipe, clique em Convidar pessoa/);
+      const bolha = resposta.closest(".asst-bolha")!;
+      expect(bolha).toHaveTextContent("Gerada por IA");
+      expect(within(bolha as HTMLElement).getByRole("link", { name: "Convidar alguém" })).toHaveAttribute("href", "/ajuda/empresas#convidar");
+    });
+
+    it("o que o roteiro do mês responde não vai ao backend", async () => {
+      const user = userEvent.setup();
+      render(<Conversa contexto={CONTEXTO} onFechar={vi.fn()} />);
+
+      await user.click(screen.getByRole("button", { name: "Resumo de setembro" }));
+
+      expect(perguntarAoAssistente).not.toHaveBeenCalled();
+    });
+
+    it("sem resposta na Central, oferece a Central inteira", async () => {
+      perguntarAoAssistente.mockResolvedValue({
+        ok: true,
+        dados: { resposta: "Não encontrei isso na Central de ajuda.", respondida: false, links: [] },
+      });
+      const user = userEvent.setup();
+      render(<Conversa contexto={CONTEXTO} onFechar={vi.fn()} />);
+
+      await user.type(screen.getByLabelText("Sua pergunta"), "como faço um bolo?{Enter}");
+
+      expect(await within(conversa()).findByRole("link", { name: "Abrir a Central de ajuda" })).toHaveAttribute("href", "/ajuda");
+    });
+
+    it("com o assistente fora do ar (503), diz o que o roteiro sabe e aponta a Central", async () => {
+      perguntarAoAssistente.mockResolvedValue({ ok: false, status: 503, erro: "O assistente está indisponível no momento." });
+      const user = userEvent.setup();
+      render(<Conversa contexto={CONTEXTO} onFechar={vi.fn()} />);
+
+      await user.type(screen.getByLabelText("Sua pergunta"), "como convido alguém?{Enter}");
+
+      expect(await within(conversa()).findByText(/^Por enquanto eu respondo sobre setembro/)).toBeInTheDocument();
+      expect(within(conversa()).getByRole("link", { name: "Abrir a Central de ajuda" })).toBeInTheDocument();
+    });
+
+    it("no limite do dia (429), mostra o texto do backend", async () => {
+      perguntarAoAssistente.mockResolvedValue({
+        ok: false,
+        status: 429,
+        erro: "Você chegou ao limite de perguntas de hoje. Tente amanhã ou consulte a Central de ajuda.",
+      });
+      const user = userEvent.setup();
+      render(<Conversa contexto={CONTEXTO} onFechar={vi.fn()} />);
+
+      await user.type(screen.getByLabelText("Sua pergunta"), "como convido alguém?{Enter}");
+
+      expect(await within(conversa()).findByText(/limite de perguntas de hoje/)).toBeInTheDocument();
+    });
+
+    it("sem conciliação, toda pergunta vai à Central, e as sugestões são de uso", async () => {
+      perguntarAoAssistente.mockResolvedValue(RESPOSTA);
+      const user = userEvent.setup();
+      render(<Conversa contexto={null} onFechar={vi.fn()} />);
+
+      expect(conversa()).toHaveTextContent("Ainda não há conciliação para eu olhar");
+      expect(screen.getByRole("heading", { level: 6 })).toHaveTextContent(/^Assistente$/);
+      await user.click(screen.getByRole("button", { name: "Como fecho o mês?" }));
+
+      expect(perguntarAoAssistente).toHaveBeenCalledWith("Como fecho o mês?", "fechamentos", expect.any(Array));
+    });
+
+    it("sessão vencida vai ao login", async () => {
+      perguntarAoAssistente.mockResolvedValue({ ok: false, status: 401, erro: "Sua sessão expirou." });
+      const user = userEvent.setup();
+      render(<Conversa contexto={null} onFechar={vi.fn()} />);
+
+      await user.click(screen.getByRole("button", { name: "Como fecho o mês?" }));
+
+      await vi.waitFor(() => expect(push).toHaveBeenCalledWith("/login"));
+    });
   });
 });

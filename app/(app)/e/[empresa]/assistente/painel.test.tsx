@@ -14,7 +14,8 @@ vi.mock("../conciliacoes/acoes", () => ({
 // o mesmo objeto a cada render, como o roteador do Next: o painel lê de novo se ele mudar
 const push = vi.fn();
 const roteador = { push };
-vi.mock("next/navigation", () => ({ useRouter: () => roteador }));
+vi.mock("next/navigation", () => ({ useRouter: () => roteador, usePathname: () => "/e/emp/visao-geral" }));
+vi.mock("./acoes", () => ({ perguntarAoAssistente: vi.fn() }));
 
 const EXECUCAO = { id: "e1", executadaEm: "2026-09-24T17:02:11Z" } as Execucao;
 
@@ -69,30 +70,28 @@ describe("PainelAssistente", () => {
     expect(carregarVisaoGeral).toHaveBeenCalledOnce();
   });
 
-  it("has nothing to talk about before the first conciliation", async () => {
+  it("before the first conciliation, talks about using the Ledgr and points to a new conciliation", async () => {
     carregarVisaoGeral.mockResolvedValue({
       ok: true,
       dados: { execucoes: [], total: 0, recente: null, arquivosComLinhasNaoLidas: [] },
     });
-    const onFechar = vi.fn();
-    const user = userEvent.setup();
-    abrir(onFechar);
+    abrir();
 
-    const nova = await screen.findByRole("link", { name: "Nova conciliação" });
-    expect(nova).toHaveAttribute("href", "/conciliacoes/nova");
-    // quem vai para a nova conciliação não precisa do painel por cima dela
-    nova.addEventListener("click", (evento) => evento.preventDefault()); // o jsdom não navega
-    await user.click(nova);
-    expect(onFechar).toHaveBeenCalled();
+    const conversa = await screen.findByRole("log", { name: "Conversa com o Ledgr" });
+    expect(conversa).toHaveTextContent("Ainda não há conciliação para eu olhar, mas posso explicar como usar o Ledgr");
+    expect(screen.getByRole("link", { name: "Nova conciliação" })).toHaveAttribute("href", "/conciliacoes/nova");
+    expect(screen.getByRole("button", { name: "Como fecho o mês?" })).toBeInTheDocument();
   });
 
   it.each([
     ["the backend fails", () => carregarVisaoGeral.mockResolvedValue({ ok: false, status: 0, erro: "x" })],
     ["the call throws", () => carregarVisaoGeral.mockRejectedValue(new Error("Failed to fetch"))],
-  ])("says so when %s", async (_, preparar) => {
+  ])("still answers how to use the Ledgr when %s", async (_, preparar) => {
     preparar();
     abrir();
-    expect(await screen.findByRole("alert")).toHaveTextContent("Não foi possível abrir o assistente agora.");
+    expect(await screen.findByRole("log", { name: "Conversa com o Ledgr" })).toHaveTextContent(
+      "Não consegui ler a última conciliação agora",
+    );
   });
 
   it("sends an expired session to the login", async () => {
