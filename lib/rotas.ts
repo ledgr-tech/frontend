@@ -121,3 +121,11 @@ export function destinoDaUrlAntiga(
   const query = parametros.toString();
   return `/e/${empresa}/${[secao, ...segmentos].join("/")}${query ? `?${query}` : ""}`;
 }
+
+/**
+ * Marca um link para fora do Ledgr (a documentação da API pública): só passa endereço absoluto http(s), e o
+ * que não for vira "#". A guarda das rotas aceita `href={enderecoExterno(...)}` porque ele nunca é uma tela.
+ */
+export function enderecoExterno(url: string): string {
+  return /^https?:\/\//i.test(url) ? url : "#";
+}

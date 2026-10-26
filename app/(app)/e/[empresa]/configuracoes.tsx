@@ -5,6 +5,7 @@ import Link from "@/lib/link-do-app";
 import {
   ArrowLeftRight,
   Info,
+  KeyRound,
   Keyboard,
   Palette,
   Search,
@@ -28,7 +29,8 @@ import { aplicarDensidade, densidadeAtual, type Densidade } from "./densidade";
 import { alternarMenu, menuRecolhido } from "./menu";
 import { aplicarTema, escolhaDeTema, seguirSistema, temaDoSistema, type EscolhaDeTema, type Tema } from "./tema";
 import { useTeclaDeAtalho } from "@/lib/plataforma";
-import type { Papel } from "@/lib/papel";
+import { podeFecharMes, type Papel } from "@/lib/papel";
+import { PainelDeChavesApi } from "./chaves-api/painel";
 import { Tutorial } from "./tutorial/tutorial";
 
 /**
@@ -51,6 +53,8 @@ type Secao = {
   icone: LucideIcon;
   grupo: "Configurações" | "Ledgr";
   linhas: Linha[];
+  /** O que não cabe em linhas de título e controle (a lista de chaves da API), embaixo delas. */
+  conteudo?: ReactNode;
 };
 
 const NOTA_TEMA: Record<EscolhaDeTema, string> = {
@@ -668,6 +672,25 @@ export function Configuracoes({
         },
       ],
     },
+    // as chaves da API pública (#194) são do admin e do gestor: o analista nem vê a seção
+    ...(podeFecharMes(papel)
+      ? [
+          {
+            id: "api",
+            nome: "API",
+            icone: KeyRound,
+            grupo: "Configurações" as const,
+            linhas: [
+              {
+                titulo: "Chaves da API",
+                descricao:
+                  "Para outro sistema ler as conciliações, as divergências e os fechamentos, sem descrição de lançamento nem justificativas. Só leitura; cada chave vale para uma empresa ou para todas.",
+              },
+            ],
+            conteudo: <PainelDeChavesApi />,
+          },
+        ]
+      : []),
     {
       id: "atalhos",
       nome: "Atalhos de teclado",
@@ -801,6 +824,7 @@ export function Configuracoes({
                   {secao.nome}
                 </h2>
                 <Linhas linhas={secao.linhas} />
+                {secao.conteudo}
                 {/* dentro da janela, para ficar na camada de cima com ela; só com ela aberta, ou o "?"
                     da barra do topo abriria este também, escondido na janela fechada */}
                 {aberta && secao.id === "conciliacao" && <Tutorial tela="configuracoes" />}

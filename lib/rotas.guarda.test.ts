@@ -28,7 +28,7 @@ const ABRE_CRU = new RegExp(String.raw`window\.open\(\s*${ASPA}/${SECAO}\b`);
 const LOCATION_CRU = new RegExp(String.raw`location\.(?:href\s*=|assign\()\s*${ASPA}/${SECAO}\b`);
 
 // <a href={x}> com expressão que não passa por comEmpresa: o endereço de uma tela da empresa sairia sem o prefixo
-const ANCORA_DINAMICA = /<a\b[^>]*\bhref=\{\s*(?!comEmpresa\()/;
+const ANCORA_DINAMICA = /<a\b[^>]*\bhref=\{\s*(?!comEmpresa\(|enderecoExterno\()/;
 
 const REGRAS: { nome: string; acha: (fonte: string) => boolean }[] = [
   { nome: 'importa Link de "next/link" (use @/lib/link-do-app)', acha: (f) => /from\s*["']next\/link["']/.test(f) },
@@ -74,6 +74,7 @@ describe("as telas da empresa navegam pelos auxiliares da empresa ativa", () => 
     expect(REGRAS[3].acha("<a href={paginaInteira} className=\"btn\">")).toBe(true);
     expect(REGRAS[3].acha("<a\n  href={ paginaInteira }>")).toBe(true);
     expect(REGRAS[3].acha("<a href={comEmpresa(id, p)}>")).toBe(false);
+    expect(REGRAS[3].acha("<a href={enderecoExterno(`${api}/llms.txt`)}>")).toBe(false);
     expect(REGRAS[3].acha('<a href="mailto:x@y.com">')).toBe(false);
     expect(REGRAS[4].acha('window.open("/historico")')).toBe(true);
     expect(REGRAS[4].acha("location.href = `/regras`")).toBe(true);

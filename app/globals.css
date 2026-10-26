@@ -3596,6 +3596,26 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
 .cfg-form { display: flex; flex-direction: column; gap: 12px; max-width: 380px; }
 .cfg-form-aviso { margin: 0; font-size: 13.5px; line-height: 1.55; color: var(--color-erro); }
 .cfg-form-botoes { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+/* Configurações › API (#194): o endereço, o token recém-criado e a lista de chaves */
+.api-chaves { display: flex; flex-direction: column; gap: 16px; padding-top: 4px; }
+.api-chaves code { font-family: var(--font-mono); font-size: 12.5px; }
+.api-endereco { margin: 0; font-size: 13.5px; line-height: 1.6; overflow-wrap: anywhere; }
+.api-token {
+  display: flex; flex-direction: column; gap: 8px; padding: 14px 16px;
+  border: 1px solid var(--color-accent); border-radius: var(--radius-md); background: var(--color-surface);
+}
+.api-token-valor {
+  display: block; padding: 8px 10px; border-radius: var(--radius-sm); background: var(--color-bg);
+  border: 1px solid var(--color-divider); user-select: all; overflow-wrap: anywhere;
+}
+.api-lista { list-style: none; margin: 0; padding: 0; }
+.api-chave {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 24px;
+  padding: 14px 0; border-top: 1px solid var(--color-divider);
+}
+.api-chave-texto { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1 1 18rem; }
+.api-chave-texto .cfg-linha-titulo { display: inline-flex; align-items: center; gap: 8px; }
+.api-chave .tag { border: 1px solid var(--color-divider); }
 /* a tolerância de data: − campo + numa peça só, e as mensagens embaixo, alinhadas ao controle */
 .cfg-numero { display: inline-flex; align-items: center; gap: 6px; }
 .cfg-numero-botao {
