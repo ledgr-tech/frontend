@@ -3343,9 +3343,9 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
   display: inline-flex; align-items: center; gap: 6px; background: transparent; color: var(--color-text);
   font-family: var(--font-body); cursor: pointer;
 }
-.equipe-papel-botao:hover:not(:disabled) { background: var(--tinta-hover); }
+.equipe-papel-botao:hover:not([aria-disabled="true"]) { background: var(--tinta-hover); }
 .equipe-papel-botao[aria-expanded="true"] { background: var(--tinta-ativa); }
-.equipe-papel-botao:disabled { cursor: default; opacity: 0.7; }
+.equipe-papel-botao[aria-disabled="true"] { cursor: default; opacity: 0.7; }
 .equipe-papel-botao:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
 .equipe-menu {
   position: absolute; z-index: 30; top: calc(100% + 6px); right: 0; width: 300px; padding: 6px;
@@ -3474,7 +3474,8 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
   margin: 0; max-width: 85%; padding: 9px 12px;
   border-radius: var(--radius-md); font-size: 13.5px; line-height: 1.55; overflow-wrap: anywhere;
 }
-.asst-bolha p { margin: 0; }
+/* o passo a passo do assistente da Central vem em linhas (1., 2., …): a quebra de linha fica */
+.asst-bolha p { margin: 0; white-space: pre-line; }
 .asst-bolha-ledgr {
   display: flex; flex-direction: column; gap: 8px;
   border: 1px solid var(--color-divider); border-top-left-radius: 4px;
@@ -4464,6 +4465,16 @@ html[data-tema="escuro"] .app-shell {
 .fech-acoes { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .fech-erro { flex-basis: 100%; margin: 0; }
 .fech-ressalva-form { flex-basis: 100%; display: flex; flex-direction: column; gap: 8px; max-width: 520px; }
+/* aprovar ou rejeitar várias de uma vez (#208): o motivo da rejeição, e a faixa das marcadas na comparação */
+.lote-rejeicao { flex-basis: 100%; display: flex; flex-direction: column; gap: 8px; max-width: 520px; }
+.lote-rejeicao textarea { resize: vertical; }
+.lote-rejeicao .vg-nota { margin: 0; }
+.lote-faixa {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px;
+  padding: 10px 14px; border: 1px solid var(--color-divider); border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+.lote-marca { width: 18px; height: 18px; margin: 0; accent-color: var(--color-accent); cursor: pointer; vertical-align: middle; }
 .fech-campo { display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
 .fech-campo textarea { resize: vertical; min-height: 72px; }
 .fech-encerrado { display: flex; flex-direction: column; gap: 8px; }

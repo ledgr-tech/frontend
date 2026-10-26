@@ -44,6 +44,8 @@ import { Cabecalho } from "../../cabecalho";
 import { FaixaDoSaldo } from "../../saldo";
 import { SeloIa } from "../../selo-ia";
 import { usePodeFechar } from "../../conta";
+import { decidirLinhas } from "../acoes";
+import { DecisaoEmLote } from "../decisao-em-lote";
 
 /**
  * "Desde a rodada 1: 4 passaram a bater · 2 continuam divergindo · 1 nova divergência".
@@ -64,6 +66,7 @@ function textoDasMudancas(anterior: number, { passaramABater, continuamDivergind
 function textoDoVazio(filtro: Filtro, justificadas: number): string {
   if (ehDivergencia(filtro)) return `Nenhuma linha em “${seloDoStatus(filtro).rotulo}” nesta conciliação.`;
   if (filtro === "justificadas") return "Nenhuma linha justificada nesta conciliação.";
+  if (filtro === "aguardando") return "Nenhuma justificativa aguardando aprovação nesta conciliação.";
   // nem tudo bateu: o que sobrou foi justificado
   if (justificadas > 0) return "Nada em revisão nesta competência: o que não bateu está justificado.";
   return "Nada em revisão nesta competência: todos os lançamentos bateram.";
@@ -148,6 +151,8 @@ export default function ConciliacaoPage() {
   const [erroDecisao, setErroDecisao] = useState<string | null>(null);
   // as linhas com uma decisão a caminho: o segundo clique não manda o contrário por cima
   const gravando = useRef(new Set<string>());
+  // as linhas marcadas para aprovar ou rejeitar de uma vez, no filtro "Aguardando aprovação" (#208)
+  const [marcadas, setMarcadas] = useState<ReadonlySet<string>>(() => new Set());
   // sair da linha só fecha o cartão depois de um instante: dá tempo de o ponteiro chegar nele
   const fechandoCartao = useRef<ReturnType<typeof setTimeout>>(undefined);
 
@@ -238,6 +243,7 @@ export default function ConciliacaoPage() {
   function escolherFiltro(proximo: Filtro) {
     setFiltro(proximo);
     setPagina(0);
+    setMarcadas(new Set());
     // replaceState, não navegação: o Next sincroniza o useSearchParams sem remontar
     // a página nem buscar as linhas de novo, e o histórico não ganha um passo por clique
     const url = new URLSearchParams(window.location.search);
@@ -257,6 +263,34 @@ export default function ConciliacaoPage() {
   // decidir só onde há onde gravar, só na rodada que vale (a passada é para ler) e só com o mês
   // aberto: no fechado, o backend recusa (409) até reabrir
   const podeDecidir = ligadas && (!rodada || rodada.numero === rodada.total) && !fechamento;
+  // marcar várias para decidir de uma vez: só quem aprova, só com o backend (o lote não tem mock) e só
+  // no filtro delas, onde a última coluna fica livre da conferência
+  const marcando = podeDecidir && podeAprovar && real && filtro === "aguardando";
+  // marcada que saiu do filtro (decidida na janela da linha) não conta mais
+  const chavesMarcadas = marcando ? ordenadas.map(chaveDaLinha).filter((chave) => marcadas.has(chave)) : [];
+  const todasMarcadas = ordenadas.length > 0 && chavesMarcadas.length === ordenadas.length;
+
+  function alternarMarca(chave: string) {
+    setMarcadas((atual) => {
+      const proximas = new Set(atual);
+      if (!proximas.delete(chave)) proximas.add(chave);
+      return proximas;
+    });
+  }
+
+  /** O lote das marcadas; deu certo, a tela é lida de novo com as decisões que ficaram. */
+  async function decidirMarcadas(acao: "aprovar" | "rejeitar", motivo?: string): Promise<string | null> {
+    const resposta = await decidirLinhas(conciliacao.id, chavesMarcadas, acao, motivo);
+    if (resposta.ok) {
+      setMarcadas(new Set());
+      recarregar();
+      return null;
+    }
+    if (resposta.status === 401) router.push("/login");
+    if (resposta.status === 409) recarregar();
+    return resposta.erro;
+  }
+
   const linhaAberta = chaveAberta === null ? null : (conciliacao.linhas.find((linha) => chaveDaLinha(linha) === chaveAberta) ?? null);
 
   /** Troca uma linha na conciliação que estiver na tela quando a resposta chegar. */
@@ -427,6 +461,17 @@ export default function ConciliacaoPage() {
                   Justificadas ({justificadas.length})
                 </button>
               )}
+              {/* as que esperam o admin ou o gestor, juntas: é aqui que se marcam para decidir de uma vez */}
+              {ligadas && (aguardando > 0 || filtro === "aguardando") && (
+                <button
+                  type="button"
+                  className="pill"
+                  aria-pressed={filtro === "aguardando"}
+                  onClick={() => escolherFiltro("aguardando")}
+                >
+                  Aguardando aprovação ({aguardando})
+                </button>
+              )}
             </div>
             {/* sem nada a conferir, "0 de 0 conferidas" não diria nada */}
             {ligadas && emRevisao.length > 0 && (
@@ -457,6 +502,19 @@ export default function ConciliacaoPage() {
             </div>
           )}
         </Reveal>
+
+        {marcando && ordenadas.length > 0 && (
+          <div className="lote-faixa" role="region" aria-label="Decidir as marcadas">
+            <span className="tabela-progresso">
+              {chavesMarcadas.length === 0
+                ? "Marque as justificativas para aprovar ou rejeitar de uma vez."
+                : `${formatarInteiro(chavesMarcadas.length)} de ${formatarInteiro(ordenadas.length)} ${ordenadas.length === 1 ? "marcada" : "marcadas"}`}
+            </span>
+            {chavesMarcadas.length > 0 && (
+              <DecisaoEmLote quantidade={chavesMarcadas.length} objeto={{ um: "marcada", varios: "marcadas" }} onDecidir={decidirMarcadas} />
+            )}
+          </div>
+        )}
 
         {erroDecisao && (
           <p role="alert" className="selo selo-risco decisao-erro">
@@ -539,11 +597,23 @@ export default function ConciliacaoPage() {
                     Sistema
                   </CabecalhoOrdenavel>
                   {/* a conferência no fim da linha, com nome: depois de ler o par, "já conferi" */}
-                  {podeDecidir && (
-                    <th className="th-conferir" data-tutorial="conferida" title="Marque as divergências que você já olhou. As que bateram não precisam.">
-                      Conferida
-                    </th>
-                  )}
+                  {podeDecidir &&
+                    (marcando ? (
+                      <th className="th-conferir">
+                        <input
+                          type="checkbox"
+                          className="lote-marca"
+                          aria-label="Marcar todas as justificativas aguardando aprovação"
+                          checked={todasMarcadas}
+                          disabled={ordenadas.length === 0}
+                          onChange={() => setMarcadas(todasMarcadas ? new Set() : new Set(ordenadas.map(chaveDaLinha)))}
+                        />
+                      </th>
+                    ) : (
+                      <th className="th-conferir" data-tutorial="conferida" title="Marque as divergências que você já olhou. As que bateram não precisam.">
+                        Conferida
+                      </th>
+                    ))}
                 </tr>
               </thead>
               <tbody role="rowgroup">
@@ -704,8 +774,17 @@ export default function ConciliacaoPage() {
                         </td>
                       )}
                       {podeDecidir && (
-                        <td role="cell" data-rotulo="Conferida" className="celula-conferir">
-                          {(situacao === "a_conferir" || situacao === "conferida") && (
+                        <td role="cell" data-rotulo={marcando ? "Marcar" : "Conferida"} className="celula-conferir">
+                          {marcando && situacao === "aguardando" && (
+                            <input
+                              type="checkbox"
+                              className="lote-marca"
+                              aria-label={`Marcar ${linha.descricao}`}
+                              checked={marcadas.has(chaveDaLinha(linha))}
+                              onChange={() => alternarMarca(chaveDaLinha(linha))}
+                            />
+                          )}
+                          {!marcando && (situacao === "a_conferir" || situacao === "conferida") && (
                             <CirculoDeConferir
                               linha={linha}
                               conferida={situacao === "conferida"}
