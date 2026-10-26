@@ -460,7 +460,8 @@ describe("o menu de papel", () => {
 
     expect(trocarPapel).toHaveBeenCalledWith("u2", "gestor");
     expect(within(linhaDe("Bia")).getByText("Salvando…")).toBeInTheDocument();
-    expect(botaoDe("Bia")).toBeDisabled();
+    expect(botaoDe("Bia")).toHaveAttribute("aria-disabled", "true");
+    expect(botaoDe("Bia")).toHaveFocus();
 
     await waitFor(async () => {
       concluir({ ok: true, dados: { ...BIA, papel: "gestor" } });
@@ -557,6 +558,45 @@ describe("o menu de papel", () => {
     expect(screen.getByRole("menuitem", { name: /^Tornar administrador/ })).toHaveFocus();
   });
 
+  it("Tab fecha o menu e Home/End vão ao primeiro e ao último item", async () => {
+    const user = userEvent.setup();
+    montar("admin", ADMIN.email, null, false);
+    await screen.findByText("Bia", { selector: ".equipe-nome" });
+
+    await user.click(botaoDe("Bia")!);
+    await user.keyboard("{End}");
+    expect(screen.getByRole("menuitem", { name: /^Tornar administrador/ })).toHaveFocus();
+    await user.keyboard("{Home}");
+    expect(screen.getByRole("menuitemradio", { name: /^Gestor/ })).toHaveFocus();
+    await user.keyboard("{Tab}");
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+  });
+
+  it("escolher um papel devolve o foco ao botão, que não se desliga de verdade enquanto salva", async () => {
+    const user = userEvent.setup();
+    trocarPapel.mockReturnValue(new Promise(() => {}));
+    montar("admin", ADMIN.email, null, false);
+    await screen.findByText("Bia", { selector: ".equipe-nome" });
+
+    await user.click(botaoDe("Bia")!);
+    await user.click(screen.getByRole("menuitemradio", { name: /^Gestor/ }));
+
+    expect(botaoDe("Bia")).toHaveFocus();
+    expect(botaoDe("Bia")).not.toBeDisabled();
+  });
+
+  it("Tornar administrador… devolve o foco ao botão, para onde a janela volta ao fechar", async () => {
+    const user = userEvent.setup();
+    montar("admin", ADMIN.email, null, false);
+    await screen.findByText("Bia", { selector: ".equipe-nome" });
+
+    await user.click(botaoDe("Bia")!);
+    const foco = vi.spyOn(botaoDe("Bia")!, "focus");
+    await user.click(screen.getByRole("menuitem", { name: /^Tornar administrador/ }));
+
+    expect(foco).toHaveBeenCalled();
+  });
+
   it("só um menu fica aberto por vez", async () => {
     const user = userEvent.setup();
     montar("admin", ADMIN.email, null, false);
@@ -644,6 +684,16 @@ describe("a transferência da administração", () => {
     await user.click(within(janela).getByRole("button", { name: "Transferir administração" }));
 
     expect(await within(janela).findByRole("alert")).toHaveTextContent(erro);
+  });
+
+  it("um 409 também relê o papel de quem transfere (router.refresh), com a mensagem na janela", async () => {
+    transferirAdmin.mockResolvedValue({ ok: false, status: 409, erro: "O papel de admin já foi transferido." });
+    const { user, janela } = await abrirJanela(false);
+
+    await user.click(within(janela).getByRole("button", { name: "Transferir administração" }));
+
+    expect(await within(janela).findByRole("alert")).toHaveTextContent("O papel de admin já foi transferido.");
+    expect(refresh).toHaveBeenCalledTimes(1);
   });
 
   it("dois envios no mesmo instante chamam a ação uma vez só; o botão diz Transferindo… e fica desligado", async () => {

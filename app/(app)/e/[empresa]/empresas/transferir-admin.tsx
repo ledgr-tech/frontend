@@ -19,6 +19,7 @@ export function TransferirAdmin({
   aoFechar,
   aoRecusar,
   aoSairDaSessao,
+  aoDivergir,
 }: {
   pessoa: Pick<Pessoa, "id" | "nome">;
   /** A lista nova da conta, com os papéis já trocados. */
@@ -27,6 +28,8 @@ export function TransferirAdmin({
   /** 403 ou 404: o papel ou a pessoa mudaram por fora; quem chama fecha a janela, mostra o erro e relê a equipe. */
   aoRecusar: (erro: string) => void;
   aoSairDaSessao: () => void;
+  /** 409: a administração pode já ter mudado de mãos; quem chama relê o papel (a janela fica com a mensagem). */
+  aoDivergir: () => void;
 }) {
   const temSenha = useTemSenha();
   const [senha, setSenha] = useState("");
@@ -61,7 +64,10 @@ export function TransferirAdmin({
     if (resposta.status === 401) aoSairDaSessao();
     else if (resposta.status === 403 || resposta.status === 404) aoRecusar(resposta.erro);
     else if (resposta.status === 400) setErroDaSenha(resposta.erro);
-    else setErro(resposta.erro);
+    else {
+      setErro(resposta.erro);
+      if (resposta.status === 409) aoDivergir();
+    }
   }
 
   return (
