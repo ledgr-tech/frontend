@@ -20,6 +20,7 @@ const FORA_DA_BUSCA = [
   "/aceitar-convite",
   "/redefinir-senha",
   "/cadastro/google",
+  "/autorizar-conexao",
 ];
 
 export default function robots(): MetadataRoute.Robots {
