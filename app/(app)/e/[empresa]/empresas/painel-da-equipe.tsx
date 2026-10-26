@@ -230,6 +230,7 @@ export function PainelDaEquipe({
               router.refresh();
             }}
             aoSairDaSessao={() => router.push("/login")}
+            aoDivergir={() => router.refresh()}
           />
         </ModalDaTela>
       )}

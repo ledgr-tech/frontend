@@ -197,7 +197,7 @@ describe("MenuLateral", () => {
     const painel = screen.getByRole("dialog", { name: "Fale com o Ledgr" });
     expect(cartao).toHaveAttribute("aria-expanded", "true");
     expect(cartao).toHaveAttribute("aria-controls", painel.id);
-    expect(await within(painel).findByText(/Ainda não há sobre o que conversar/)).toBeInTheDocument();
+    expect(await within(painel).findByText(/Ainda não há conciliação para eu olhar/)).toBeInTheDocument();
 
     // fechar devolve o foco ao cartão, e o cartão abre e fecha o mesmo painel
     await user.click(within(painel).getByRole("button", { name: "Fechar conversa" }));
