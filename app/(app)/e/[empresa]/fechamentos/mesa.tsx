@@ -7,7 +7,8 @@ import { useRoteador } from "@/lib/roteador";
 import { Circle, CircleCheck, FileDown } from "lucide-react";
 import { caminhoDaConciliacao } from "@/lib/caminhos";
 import type { Tom } from "@/lib/mock-data";
-import { aprovarPendentes, fecharMes, reabrirMes, type Resultado } from "../conciliacoes/acoes";
+import { aprovarPendentes, fecharMes, reabrirMes, rejeitarPendentes, type Resultado } from "../conciliacoes/acoes";
+import { DecisaoEmLote } from "../conciliacoes/decisao-em-lote";
 import { ExportarCsv } from "../conciliacoes/[id]/exportar-csv";
 import { formatarDataHora, formatarInteiro, formatarPercentual } from "../dashboard/resumo";
 import { FaixaFiltros } from "../faixa-filtros";
@@ -467,49 +468,25 @@ function Painel({ mes, podeFechar }: { mes: MesDeFechamento; podeFechar: boolean
 }
 
 /**
- * Aprova de uma vez as justificativas que esperam aprovação no mês (`POST /justificativas/lote`). Só o
- * admin e o gestor veem o botão; para rejeitar, ou aprovar uma a uma, o caminho é a conciliação.
+ * Aprova ou rejeita de uma vez as justificativas que esperam aprovação no mês (`POST /justificativas/lote`).
+ * Só o admin e o gestor veem os botões; para decidir uma a uma, o caminho é a conciliação.
  */
 function AprovarPendentes({ mes }: { mes: MesDeFechamento }) {
   const router = useRoteador();
   const podeAprovar = usePodeFechar();
-  const [enviando, setEnviando] = useState(false);
-  const [erro, setErro] = useState<string | null>(null);
   if (!podeAprovar) return <span className="vg-nota">{SO_O_GESTOR_APROVA}</span>;
 
-  async function aprovar() {
-    setEnviando(true);
-    setErro(null);
-    let resposta: Resultado<unknown>;
-    try {
-      resposta = await aprovarPendentes(mes.chave);
-    } catch {
-      // a Server Action lançou (rede caída, deploy novo no meio) em vez de devolver um Resultado
-      resposta = { ok: false, status: 0, erro: "Não foi possível falar com o servidor." };
-    }
-    setEnviando(false);
+  async function decidir(acao: "aprovar" | "rejeitar", motivo?: string): Promise<string | null> {
+    const resposta = acao === "aprovar" ? await aprovarPendentes(mes.chave) : await rejeitarPendentes(mes.chave, motivo);
     if (resposta.ok) {
       router.refresh();
-      return;
+      return null;
     }
     if (resposta.status === 401) router.push("/login");
-    setErro(resposta.erro);
+    return resposta.erro;
   }
 
-  return (
-    <>
-      <div className="fech-acoes">
-        <button type="button" className="btn btn-secondary" disabled={enviando} aria-busy={enviando || undefined} onClick={aprovar}>
-          {mes.aguardandoAprovacao === 1 ? "Aprovar a justificativa" : `Aprovar as ${formatarInteiro(mes.aguardandoAprovacao)} justificativas`}
-        </button>
-      </div>
-      {erro && (
-        <p role="alert" className="selo selo-risco fech-erro">
-          {erro}
-        </p>
-      )}
-    </>
-  );
+  return <DecisaoEmLote quantidade={mes.aguardandoAprovacao} objeto={{ um: "justificativa", varios: "justificativas" }} onDecidir={decidir} />;
 }
 
 /**

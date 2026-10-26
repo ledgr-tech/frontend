@@ -998,15 +998,69 @@ export async function registrarDecisao(
  * backend #132): é o que a mesa de fechamento faz antes de fechar. Devolve quantas foram aprovadas e
  * quantas o backend ignorou por já não estarem pendentes.
  */
-export async function aprovarPendentes(competenciaDoMes: string): Promise<Resultado<{ processadas: number; ignoradas: number }>> {
+export async function aprovarPendentes(competenciaDoMes: string): Promise<Resultado<DecididasEmLote>> {
   if (!COMPETENCIA.test(competenciaDoMes)) return COMPETENCIA_INVALIDA;
+  return decidirEmLote({ acao: "aprovar", competencia: competenciaDoMes });
+}
+
+/** Rejeita de uma vez as justificativas que esperam aprovação num mês; o motivo é opcional, como na linha. */
+export async function rejeitarPendentes(competenciaDoMes: string, motivo?: string): Promise<Resultado<DecididasEmLote>> {
+  if (!COMPETENCIA.test(competenciaDoMes)) return COMPETENCIA_INVALIDA;
+  const texto = lerMotivo(motivo);
+  if (texto === false) return MOTIVO_INVALIDO;
+  return decidirEmLote({ acao: "rejeitar", competencia: competenciaDoMes, motivo: texto });
+}
+
+/**
+ * Aprova ou rejeita as linhas marcadas na comparação (`itens` do lote). As que já não esperam
+ * aprovação o backend ignora e conta em `ignoradas`, sem erro.
+ */
+export async function decidirLinhas(
+  extratoBancoId: string,
+  chaves: string[],
+  acao: "aprovar" | "rejeitar",
+  motivo?: string,
+): Promise<Resultado<DecididasEmLote>> {
+  if (!pareceUuid(extratoBancoId)) return { ok: false, status: 404, erro: "Conciliação não encontrada." };
+  // Server Action é endpoint público: o mesmo formato que o backend aceita, até 500 itens
+  const chavesValidas =
+    Array.isArray(chaves) &&
+    chaves.length >= 1 &&
+    chaves.length <= MAXIMO_ITENS_DO_LOTE &&
+    chaves.every((chave) => typeof chave === "string" && chave.length >= 1 && chave.length <= 64);
+  if (!chavesValidas) return { ok: false, status: 422, erro: "Marque de 1 a 500 linhas." };
+  if (acao !== "aprovar" && acao !== "rejeitar") return { ok: false, status: 422, erro: "Ação inválida." };
+  const texto = acao === "rejeitar" ? lerMotivo(motivo) : undefined;
+  if (texto === false) return MOTIVO_INVALIDO;
+  return decidirEmLote({
+    acao,
+    motivo: texto,
+    itens: chaves.map((chave) => ({ extrato_banco_id: extratoBancoId, chave })),
+  });
+}
+
+type DecididasEmLote = { processadas: number; ignoradas: number };
+
+const MAXIMO_ITENS_DO_LOTE = 500;
+/** O tamanho máximo da justificativa no backend, que vale também para o motivo da rejeição. */
+const TAMANHO_MAXIMO_DO_MOTIVO = 1000;
+const MOTIVO_INVALIDO: Falha = { ok: false, status: 422, erro: "O motivo pode ter até 1.000 caracteres." };
+
+/** O motivo aparado, undefined quando vazio, ou false quando não é texto ou passa do tamanho. */
+function lerMotivo(motivo: unknown): string | undefined | false {
+  if (motivo === undefined || motivo === null) return undefined;
+  if (typeof motivo !== "string") return false;
+  const texto = motivo.trim();
+  if (texto.length > TAMANHO_MAXIMO_DO_MOTIVO) return false;
+  return texto || undefined;
+}
+
+/** `POST /justificativas/lote` (backend #132): do admin e do gestor, pela empresa ativa. */
+async function decidirEmLote(corpo: Record<string, unknown>): Promise<Resultado<DecididasEmLote>> {
   const recusa = await recusaSeNaoPodeFechar(SO_O_GESTOR_APROVA);
   if (recusa) return recusa;
   try {
-    const resposta = await chamarBackend<{ processadas: number; ignoradas: number }>("/justificativas/lote", {
-      method: "POST",
-      corpo: { acao: "aprovar", competencia: competenciaDoMes },
-    });
+    const resposta = await chamarBackend<DecididasEmLote>("/justificativas/lote", { method: "POST", corpo });
     return { ok: true, dados: { processadas: resposta.processadas, ignoradas: resposta.ignoradas } };
   } catch (erro) {
     return traduzirDoFechamento(erro, SO_O_GESTOR_APROVA);
