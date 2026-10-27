@@ -6,12 +6,11 @@ import { InkHover, Reveal } from "@/app/reveal";
 import { Cabecalho } from "../cabecalho";
 import { formatarInteiro } from "./resumo";
 import { pedemDecisao } from "./lista";
-import { ContinueDeOndeParou } from "./em-andamento";
 import { ListaDeTrabalho } from "./lista-de-trabalho";
 
 /**
  * Conciliações como lista de trabalho: cada extrato do banco uma vez, na rodada que vale, agrupada
- * pelo mês, com o que ainda falta decidir, e no topo a faixa para continuar de onde parou. O resumo do mês fica na visão geral,
+ * pelo mês como folhas, com o que ainda falta decidir e a prévia da escolhida ao lado. O resumo do mês fica na visão geral,
  * o trabalho linha a linha na comparação e o que já aconteceu no histórico.
  */
 
@@ -28,10 +27,8 @@ export default async function DashboardPage() {
 
   const conciliacoes = resposta.ok ? resposta.dados.conciliacoes : [];
   const pendentes = conciliacoes.filter((conciliacao) => pedemDecisao(conciliacao) > 0).length;
-  // a faixa "Continue de onde parou" só existe quando alguma conciliação ainda pede decisão
-  const contagem = resposta.ok ? resposta.dados.emAndamento : null;
-  const daContagem = contagem && conciliacoes.find((item) => item.extratoBancoId === contagem.extratoBancoId);
-  const emAndamento = contagem && daContagem ? { conciliacao: daContagem, contagem } : null;
+  // a primeira da fila que pede decisão: abre escolhida na prévia, com as conferidas que só ela traz
+  const emAndamento = resposta.ok ? resposta.dados.emAndamento : null;
 
   return (
     <div>
@@ -52,16 +49,12 @@ export default async function DashboardPage() {
         <SemConciliacoes />
       ) : (
         <div className="conc-corpo">
-          {emAndamento && (
-            <Reveal>
-              <ContinueDeOndeParou conciliacao={emAndamento.conciliacao} contagem={emAndamento.contagem} />
-            </Reveal>
-          )}
-          <Reveal delay={0.08}>
+          <Reveal>
             <ListaDeTrabalho
               conciliacoes={conciliacoes}
               fechamentos={resposta.dados.fechamentos}
               parcial={resposta.dados.parcial}
+              emAndamento={emAndamento}
             />
           </Reveal>
         </div>
