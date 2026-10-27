@@ -468,6 +468,9 @@ p.eyebrow {
 /* ao lado do botão, no topo: o que falta, ou a etapa do envio */
 .nova-recado { font-size: 14px; color: color-mix(in srgb, var(--color-text) 66%, transparent); }
 .nova-erro { margin: 24px 0 0; }
+/* num escritório com várias empresas: para qual delas o envio vai (#169) */
+.nova-empresa { margin: 24px 0 0; font-size: 14px; color: color-mix(in srgb, var(--color-text) 70%, transparent); }
+.nova-empresa strong { color: var(--color-text); font-family: var(--font-heading); font-weight: 600; }
 .nova-avisos { margin: 16px 0 0; padding-left: 18px; font-size: 14px; }
 
 /* estreito, um cartão embaixo do outro, com o elo entre os dois, de pé */
@@ -3251,6 +3254,153 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
   font-size: 12px; color: color-mix(in srgb, var(--color-text) 62%, transparent);
 }
 .app-conta-seta { flex: none; color: color-mix(in srgb, var(--color-text) 55%, transparent); }
+/* O seletor de empresa (#169): abaixo do logo, só com mais de uma empresa na conta. O nome e a seta usam
+   .app-rotulo, então somem com o menu recolhido, como os textos dos itens, e ficam as iniciais. */
+.seletor-empresa { position: relative; flex: none; }
+.seletor-empresa-botao {
+  width: 100%; display: flex; align-items: center; gap: 10px; cursor: pointer;
+  padding: 5px 6px; text-align: left; font-family: var(--font-body);
+  border-radius: var(--radius-md); border: 1px solid transparent;
+  background: transparent; color: var(--color-text);
+}
+.seletor-empresa-botao:hover { background: var(--tinta-hover); }
+.seletor-empresa-botao[aria-expanded="true"] { background: var(--tinta-ativa); }
+.seletor-empresa-botao:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+.seletor-empresa-iniciais {
+  flex: none; width: 32px; height: 32px; border-radius: var(--radius-md);
+  display: flex; align-items: center; justify-content: center;
+  border: 1px solid color-mix(in srgb, var(--color-accent) 45%, transparent);
+  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+  font-family: var(--font-heading); font-size: 13px; font-weight: 600;
+}
+.seletor-empresa-texto { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.seletor-empresa-nome, .seletor-empresa-cnpj { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.seletor-empresa-nome { font-family: var(--font-heading); font-size: 15px; font-weight: 600; line-height: 1.15; }
+.seletor-empresa-cnpj { font-size: 12px; color: color-mix(in srgb, var(--color-text) 62%, transparent); }
+.seletor-empresa-seta { flex: none; color: color-mix(in srgb, var(--color-text) 55%, transparent); }
+.app-painel.seletor-empresa-painel {
+  top: calc(100% + 6px); left: 0; right: 0; min-width: 240px; max-height: 60vh;
+  display: flex; flex-direction: column;
+}
+.seletor-empresa-busca { margin: 8px 8px 4px; width: calc(100% - 16px); }
+.seletor-empresa-lista { list-style: none; margin: 0; padding: 4px; overflow-y: auto; }
+.seletor-empresa-opcao {
+  width: 100%; display: flex; flex-direction: column; gap: 1px; text-align: left; cursor: pointer;
+  padding: 8px 10px; border: 0; border-radius: var(--radius-md);
+  background: transparent; color: var(--color-text); font-family: var(--font-body);
+}
+.seletor-empresa-opcao:hover, .seletor-empresa-opcao:focus-visible { background: var(--tinta-hover); }
+.seletor-empresa-opcao[aria-selected="true"] { box-shadow: inset 3px 0 0 var(--color-accent); }
+/* A tela Empresas (#169): a faixa do plano, o painel do cadastro e a tabela */
+.empresas-nota { margin: 16px 0 0; font-size: 14px; color: color-mix(in srgb, var(--color-text) 70%, transparent); }
+.empresas-abas { display: flex; gap: 4px; margin: 16px 0 0; border-bottom: 1px solid var(--color-divider); overflow-x: auto; overflow-y: hidden; }
+.empresas-aba {
+  position: relative; border: 0; background: transparent; padding: 10px 14px; cursor: pointer;
+  font-family: var(--font-body); font-size: 14px; font-weight: 500; white-space: nowrap;
+  color: color-mix(in srgb, var(--color-text) 62%, transparent);
+}
+.empresas-aba:hover { color: var(--color-text); }
+.empresas-aba[aria-selected="true"] { color: var(--color-text); font-weight: 600; }
+.empresas-aba[aria-selected="true"]::after {
+  content: ""; position: absolute; left: 10px; right: 10px; bottom: 0; height: 2px;
+  border-radius: 2px; background: var(--color-accent);
+}
+.empresas-aba:focus-visible { outline: 2px solid var(--color-accent); outline-offset: -2px; border-radius: 8px; }
+.empresas-aba em { font-style: normal; margin-left: 4px; padding: 0 7px; border-radius: 999px; font-size: 12px; background: var(--tinta-ativa); }
+.empresas-form { display: flex; flex-direction: column; gap: 12px; }
+.empresas-form-botoes { display: flex; flex-wrap: wrap; gap: 8px; }
+.empresas-tabela { margin: 24px 0 0; overflow-x: auto; overflow-y: hidden; }
+.empresas-celula { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.empresas-nome { font-family: var(--font-heading); font-weight: 600; }
+.empresas-acao { text-align: right; white-space: nowrap; }
+/* A faixa do plano e a aba Equipe da tela Empresas (#169, opção A) */
+.faixa-plano {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin: 20px 0 0;
+  padding: 12px 16px; border: 1px solid var(--color-divider); border-radius: var(--radius-md);
+  font-size: 14px; color: color-mix(in srgb, var(--color-text) 70%, transparent);
+}
+.faixa-plano strong { font-family: var(--font-titulo); font-size: 17px; font-weight: 600; color: var(--color-text); }
+.faixa-plano-barra { flex: 0 0 120px; height: 6px; border-radius: 3px; background: var(--tinta-ativa); overflow: hidden; }
+.faixa-plano-barra i { display: block; height: 100%; background: var(--color-accent); border-radius: 3px; }
+.faixa-plano-barra[data-no-limite="true"] i { background: var(--color-risco); }
+.equipe-estado { margin: 24px 0 0; }
+.equipe-falha { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.equipe-lista { list-style: none; margin: 18px 0 0; padding: 0; }
+.equipe-linha { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 12px 0; border-bottom: 1px solid var(--color-divider); }
+.equipe-lista:last-child .equipe-linha:last-child { border-bottom: 0; }
+.equipe-avatar {
+  flex: none; width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--color-divider);
+  display: grid; place-items: center; font-family: var(--font-titulo); font-weight: 600;
+}
+.equipe-quem { flex: 1 1 200px; min-width: 0; display: flex; flex-direction: column; }
+.equipe-nome { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; font-weight: 600; overflow-wrap: anywhere; }
+.equipe-quem > span { font-size: 13px; color: color-mix(in srgb, var(--color-text) 62%, transparent); overflow-wrap: anywhere; }
+.equipe-acoes { display: flex; align-items: center; gap: 10px; }
+.equipe-papel { border: 1px solid var(--color-divider); border-radius: 999px; padding: 4px 12px; font-size: 13px; font-weight: 500; }
+.equipe-linha > .campo-erro { flex: 1 1 100%; margin: 0; }
+.equipe-papel-envelope { position: relative; display: inline-flex; }
+.equipe-papel-botao {
+  display: inline-flex; align-items: center; gap: 6px; background: transparent; color: var(--color-text);
+  font-family: var(--font-body); cursor: pointer;
+}
+.equipe-papel-botao:hover:not([aria-disabled="true"]) { background: var(--tinta-hover); }
+.equipe-papel-botao[aria-expanded="true"] { background: var(--tinta-ativa); }
+.equipe-papel-botao[aria-disabled="true"] { cursor: default; opacity: 0.7; }
+.equipe-papel-botao:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+.equipe-menu {
+  position: absolute; z-index: 30; top: calc(100% + 6px); right: 0; width: 300px; padding: 6px;
+  border: 1px solid var(--color-divider); border-radius: var(--radius-md); background: var(--color-bg);
+  box-shadow: var(--shadow-md);
+}
+.equipe-menu-item {
+  display: flex; flex-direction: column; gap: 1px; width: 100%; text-align: left; cursor: pointer;
+  padding: 9px 12px; border: 0; border-radius: 12px; background: transparent; color: var(--color-text);
+  font-family: var(--font-body); font-size: 14px;
+}
+.equipe-menu-item > span { font-size: 12px; color: color-mix(in srgb, var(--color-text) 62%, transparent); }
+.equipe-menu-item:hover, .equipe-menu-item:focus-visible { background: var(--tinta-hover); outline: none; }
+.equipe-menu-item[aria-checked="true"] > b::after { content: " · atual"; font-weight: 400; color: color-mix(in srgb, var(--color-text) 62%, transparent); }
+.equipe-menu-filete { margin: 6px 4px; border: 0; border-top: 1px solid var(--color-divider); }
+@media (prefers-reduced-motion: no-preference) {
+  .equipe-menu { animation: equipe-menu-entra 0.16s ease-out; }
+  @keyframes equipe-menu-entra { from { opacity: 0; transform: translateY(-4px); } }
+}
+@media (max-width: 520px) { .equipe-menu { width: min(300px, calc(100vw - 48px)); } }
+.equipe-confirma { flex: 1 1 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; font-size: 14px; }
+.equipe-confirma > span { flex: 1 1 260px; }
+.equipe-rotulo { margin: 26px 0 0; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 500; color: color-mix(in srgb, var(--color-text) 62%, transparent); }
+.equipe-pendente { margin-top: 10px; padding: 12px 14px; border: 1px dashed var(--color-divider); border-radius: var(--radius-md); }
+.equipe-pendente .equipe-avatar { border-style: dashed; }
+.equipe-convite .field { margin-bottom: 14px; }
+.equipe-papeis { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin-bottom: 14px; }
+.equipe-papel-opcao {
+  text-align: left; display: flex; flex-direction: column; gap: 2px; padding: 11px 13px;
+  border: 1px solid var(--color-divider); border-radius: 14px; background: transparent; color: var(--color-text);
+  font-family: var(--font-body); font-size: 14px; cursor: pointer;
+}
+.equipe-papel-opcao > span { font-size: 13px; color: color-mix(in srgb, var(--color-text) 62%, transparent); }
+.equipe-papel-opcao[aria-pressed="true"] { border-color: var(--color-accent); background: color-mix(in srgb, var(--color-accent) 14%, transparent); }
+.equipe-papel-opcao:disabled { cursor: default; }
+.equipe-convite-botoes { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.equipe-nota, .equipe-feito { font-size: 13px; color: color-mix(in srgb, var(--color-text) 62%, transparent); }
+.equipe-feito { margin: 0 0 14px; font-size: 14px; color: var(--color-ok); }
+/* a janela modal da tela Empresas (cadastrar, convidar): entra devagar, com o fundo desfocado de todo <dialog>;
+   para quem pediu menos movimento, aparece de uma vez */
+@media (prefers-reduced-motion: no-preference) {
+  .modal-suave[open] { animation: modal-suave-entra 0.24s cubic-bezier(0.22, 0.8, 0.3, 1); }
+  .modal-suave[open]::backdrop { animation: modal-suave-fundo 0.24s ease-out; }
+  @keyframes modal-suave-entra { from { opacity: 0; transform: translateY(12px) scale(0.97); } }
+  @keyframes modal-suave-fundo { from { opacity: 0; } }
+}
+.seletor-empresa-gerenciar {
+  width: 100%; display: flex; align-items: center; gap: 8px; cursor: pointer; text-align: left;
+  padding: 9px 14px; border: 0; border-top: 1px solid var(--color-divider);
+  background: transparent; color: color-mix(in srgb, var(--color-text) 72%, transparent);
+  font-family: var(--font-body); font-size: 13px; text-decoration: none;
+}
+.seletor-empresa-gerenciar:hover { background: var(--tinta-hover); color: var(--color-text); }
+.seletor-empresa-gerenciar:focus-visible { outline: 2px solid var(--color-accent); outline-offset: -2px; }
+.seletor-empresa-vazio { margin: 0; padding: 10px 14px; font-size: 13px; color: color-mix(in srgb, var(--color-text) 62%, transparent); }
 /* abre para cima: o botao fica no pe da tela */
 .app-painel.app-conta-painel {
   top: auto; bottom: calc(100% + 8px); left: 0; right: 0; min-width: 230px;
@@ -3324,7 +3474,8 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
   margin: 0; max-width: 85%; padding: 9px 12px;
   border-radius: var(--radius-md); font-size: 13.5px; line-height: 1.55; overflow-wrap: anywhere;
 }
-.asst-bolha p { margin: 0; }
+/* o passo a passo do assistente da Central vem em linhas (1., 2., …): a quebra de linha fica */
+.asst-bolha p { margin: 0; white-space: pre-line; }
 .asst-bolha-ledgr {
   display: flex; flex-direction: column; gap: 8px;
   border: 1px solid var(--color-divider); border-top-left-radius: 4px;
@@ -3445,6 +3596,45 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
 .cfg-form { display: flex; flex-direction: column; gap: 12px; max-width: 380px; }
 .cfg-form-aviso { margin: 0; font-size: 13.5px; line-height: 1.55; color: var(--color-erro); }
 .cfg-form-botoes { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+/* o consentimento da conexão do ChatGPT e do Claude (#195): quem pede, o que lê, de qual empresa */
+.consent { display: flex; flex-direction: column; gap: 14px; text-align: left; }
+.consent h1, .consent p { margin: 0; }
+.consent-host { font-family: var(--font-mono); font-size: 14px; font-weight: 600; color: var(--color-text); }
+.consent-alerta {
+  padding: 10px 14px; border-radius: var(--radius-md); font-size: 14px; line-height: 1.55;
+  border: 1px solid color-mix(in srgb, var(--color-erro) 45%, transparent);
+  background: color-mix(in srgb, var(--color-erro) 7%, transparent);
+}
+.consent-bloco {
+  display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 12px 14px;
+  border: 1px solid var(--color-divider); border-radius: var(--radius-md); font-size: 14px; line-height: 1.55;
+}
+.consent-rotulo { padding: 0; font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: color-mix(in srgb, var(--color-text) 66%, transparent); }
+.consent-empresa { display: flex; align-items: flex-start; gap: 10px; padding: 6px 0; cursor: pointer; }
+.consent-empresa input { margin-top: 4px; accent-color: var(--color-accent); }
+.consent-cnpj { display: block; font-size: 12.5px; font-variant-numeric: tabular-nums; color: color-mix(in srgb, var(--color-text) 66%, transparent); }
+.consent-nota { font-size: 13px; line-height: 1.55; color: color-mix(in srgb, var(--color-text) 66%, transparent); }
+.consent-botoes { display: flex; flex-wrap: wrap; gap: 10px; }
+/* Configurações › API (#194): o endereço, o token recém-criado e a lista de chaves */
+.api-chaves { display: flex; flex-direction: column; gap: 16px; padding-top: 4px; }
+.api-chaves code { font-family: var(--font-mono); font-size: 12.5px; }
+.api-endereco { margin: 0; font-size: 13.5px; line-height: 1.6; overflow-wrap: anywhere; }
+.api-token {
+  display: flex; flex-direction: column; gap: 8px; padding: 14px 16px;
+  border: 1px solid var(--color-accent); border-radius: var(--radius-md); background: var(--color-surface);
+}
+.api-token-valor {
+  display: block; padding: 8px 10px; border-radius: var(--radius-sm); background: var(--color-bg);
+  border: 1px solid var(--color-divider); user-select: all; overflow-wrap: anywhere;
+}
+.api-lista { list-style: none; margin: 0; padding: 0; }
+.api-chave {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 24px;
+  padding: 14px 0; border-top: 1px solid var(--color-divider);
+}
+.api-chave-texto { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1 1 18rem; }
+.api-chave-texto .cfg-linha-titulo { display: inline-flex; align-items: center; gap: 8px; }
+.api-chave .tag { border: 1px solid var(--color-divider); }
 /* a tolerância de data: − campo + numa peça só, e as mensagens embaixo, alinhadas ao controle */
 .cfg-numero { display: inline-flex; align-items: center; gap: 6px; }
 .cfg-numero-botao {
@@ -3542,6 +3732,10 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
   html[data-menu="recolhido"] .app-aside-rodape > .app-icone-botao { margin-left: 5px; }
   html[data-menu="recolhido"] .app-conta-envelope { flex: none; width: 100%; }
   html[data-menu="recolhido"] .app-conta { height: 42px; padding: 0 5px; }
+  html[data-menu="recolhido"] .seletor-empresa-botao { padding: 5px; }
+  html[data-menu="recolhido"] .app-aside:not([data-espiar]) .app-painel.seletor-empresa-painel {
+    top: 0; left: calc(100% + 12px); right: auto; width: 260px;
+  }
 
   /* Os textos. Recolhido, saem da tela mas não do leitor de tela: o link continua "Extratos".
      Aberto por cima, entram depois que o menu já abriu boa parte; fechando, somem antes de ele
@@ -4290,6 +4484,16 @@ html[data-tema="escuro"] .app-shell {
 .fech-acoes { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .fech-erro { flex-basis: 100%; margin: 0; }
 .fech-ressalva-form { flex-basis: 100%; display: flex; flex-direction: column; gap: 8px; max-width: 520px; }
+/* aprovar ou rejeitar várias de uma vez (#208): o motivo da rejeição, e a faixa das marcadas na comparação */
+.lote-rejeicao { flex-basis: 100%; display: flex; flex-direction: column; gap: 8px; max-width: 520px; }
+.lote-rejeicao textarea { resize: vertical; }
+.lote-rejeicao .vg-nota { margin: 0; }
+.lote-faixa {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px;
+  padding: 10px 14px; border: 1px solid var(--color-divider); border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+.lote-marca { width: 18px; height: 18px; margin: 0; accent-color: var(--color-accent); cursor: pointer; vertical-align: middle; }
 .fech-campo { display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
 .fech-campo textarea { resize: vertical; min-height: 72px; }
 .fech-encerrado { display: flex; flex-direction: column; gap: 8px; }

@@ -215,6 +215,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
       largura: 1360,
       altura: 850,
     },
+    video: "/ajuda/nova-conciliacao.webm",
     funcoes: [
       {
         id: "enviar",
@@ -462,7 +463,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
           "Clique em **Fechar o mês**.",
           "Se houver pendências, clique em **Fechar mesmo assim**, leia o aviso e escreva a ressalva.",
         ],
-        nota: "Mês fechado trava a comparação: ninguém confere, justifica ou concilia de novo até reabrir.",
+        nota: "Só o administrador e o gestor fecham e reabrem o mês. Mês fechado trava a comparação: ninguém confere, justifica ou concilia de novo até reabrir.",
       },
       {
         id: "reabrir",
@@ -540,11 +541,82 @@ export const PAGINAS: PaginaDeAjuda[] = [
     ],
   },
   {
+    id: "empresas",
+    titulo: "Empresas",
+    onde: "Menu lateral › Empresas",
+    serve: "As empresas clientes da sua conta, o quanto do plano elas usam e o cadastro de novas.",
+    capa: {
+      src: "/ajuda/empresas.webp",
+      largura: 1360,
+      altura: 850,
+    },
+    funcoes: [
+      {
+        id: "lista",
+        titulo: "A lista das empresas",
+        faz: "Todas as empresas da conta, com o CNPJ, a data do cadastro e a marca **Ativa** na que você está usando. Todas as pessoas da conta veem todas elas.",
+        passos: [
+          "Abra **Empresas** no menu lateral.",
+          "Procure a empresa na tabela. A marca **CNPJ verificado** aparece quando o CNPJ foi conferido na Receita.",
+        ],
+      },
+      {
+        id: "abrir",
+        titulo: "Trocar de empresa",
+        faz: "Cada empresa tem os próprios extratos, conciliações e fechamentos. Daqui, ou pelo seletor no alto do menu lateral, você muda de empresa.",
+        passos: [
+          "Clique em **Abrir** na linha da empresa.",
+          "Você vai para a Visão geral dela. Outra aba do navegador continua na empresa em que estava.",
+        ],
+        nota: "Pelo seletor do menu lateral, a troca leva você à mesma tela na outra empresa.",
+      },
+      {
+        id: "cadastrar",
+        titulo: "Cadastrar uma empresa",
+        faz: "O administrador e o gestor cadastram empresas pelo CNPJ. O analista vê a lista, mas não cadastra.",
+        passos: [
+          "Clique em **Adicionar empresa**.",
+          "Digite o CNPJ e a razão social.",
+          "Clique em **Cadastrar empresa**. A empresa nova abre na Visão geral.",
+        ],
+        nota: "Se o CNPJ já está na conta, o Ledgr avisa. Com a consulta à Receita ligada, ele também recusa CNPJ que não existe ou não está ativo.",
+      },
+      {
+        id: "limite",
+        titulo: "O limite do plano",
+        faz: "Cada plano tem um número máximo de empresas, e a faixa no alto da tela mostra quanto a conta já usa.",
+        passos: [
+          "Veja a faixa, por exemplo **3 de 5 empresas**. Perto do limite, a tela avisa.",
+          "No limite, o botão **Adicionar empresa** fica desligado.",
+          "Para ter mais empresas, troque de plano em **Assinatura**.",
+        ],
+      },
+      {
+        id: "equipe",
+        titulo: "A equipe",
+        faz: "As pessoas com acesso à conta e o papel de cada uma: **Administrador**, **Gestor** ou **Analista**. O administrador e o gestor convidam e cancelam convites; só o administrador remove pessoas.",
+        passos: [
+          "Abra **Empresas** no menu lateral e clique na aba **Equipe**.",
+          "Clique em **Convidar pessoa**, digite o e-mail e escolha o papel: cada cartão diz o que a pessoa poderá fazer. O administrador convida gestor ou analista; o gestor convida só analista. A pessoa recebe um link para criar o acesso.",
+          "Para mudar o papel de alguém, clique no papel dela na lista e escolha **Gestor** ou **Analista**. A troca vale na hora.",
+          "Para passar a administração, abra o mesmo menu e escolha **Tornar administrador**, digite a sua senha atual e confirme. A outra pessoa vira administradora e você vira **Gestor**.",
+          "Para tirar alguém, clique em **Remover** na linha dela e confirme. O acesso é cortado na hora.",
+        ],
+        nota: "Só o administrador troca papéis e passa a administração, e remove pessoas. Quem acabou de receber a administração vê os controles na hora. O analista vê a lista, concilia e justifica, mas não fecha o mês nem convida ninguém. Os convites pendentes contam no limite de pessoas do plano.",
+        imagem: {
+          src: "/ajuda/empresas--equipe.webp",
+          largura: 1360,
+          altura: 850,
+        },
+      },
+    ],
+  },
+  {
     id: "configuracoes",
     titulo: "Configurações",
     onde: "Menu da conta › Configurações, ou Ctrl e vírgula",
     serve:
-      "A sua conta, a equipe, a aparência do app e a regra da conciliação.",
+      "A sua conta, a aparência do app e a regra da conciliação.",
     capa: {
       src: "/ajuda/configuracoes.webp",
       largura: 1360,
@@ -554,7 +626,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
       {
         id: "abrir",
         titulo: "Abrir e procurar",
-        faz: "As configurações abrem numa janela por cima da tela em que você está, com as seções à esquerda: Conta, Equipe, Aparência, Conciliação, Atalhos de teclado, Privacidade e Sobre.",
+        faz: "As configurações abrem numa janela por cima da tela em que você está, com as seções à esquerda: Conta, Aparência, Conciliação, API (para o admin e o gestor), Atalhos de teclado, Privacidade e Sobre.",
         passos: [
           "Clique no seu nome no menu lateral e em **Configurações**, ou aperte **Ctrl** e **,**.",
           "Escolha a seção, ou digite em **Procurar** o que quer mudar, por exemplo “senha”.",
@@ -566,9 +638,10 @@ export const PAGINAS: PaginaDeAjuda[] = [
         faz: "O e-mail da conta e a senha.",
         passos: [
           "Para trocar a senha, clique em **Trocar senha**.",
-          "Para trocar o e-mail, clique em **Pedir por e-mail** e fale com o suporte.",
+          "Para trocar o e-mail, clique em **Trocar e-mail**, digite o novo e a sua senha e clique em **Enviar link**.",
+          "Abra o link que chega no e-mail novo e clique em **Confirmar e-mail novo**. Ele vale por 60 minutos.",
         ],
-        nota: "Quem entra só com o Google não tem senha no Ledgr, então não vê Trocar senha.",
+        nota: "O e-mail só muda quando você confirma pelo link; depois, as sessões abertas são encerradas e você entra com o e-mail novo. Quem entra só com o Google não tem senha no Ledgr, então não vê Trocar senha nem Trocar e-mail: o e-mail é o da conta Google.",
         imagem: {
           src: "/ajuda/configuracoes--conta.webp",
           largura: 960,
@@ -592,19 +665,16 @@ export const PAGINAS: PaginaDeAjuda[] = [
         },
       },
       {
-        id: "equipe",
-        titulo: "Equipe",
-        faz: "As pessoas com acesso à empresa. Quem cadastrou a empresa é o administrador: convida, cancela convites e remove pessoas.",
+        id: "api",
+        titulo: "Chaves da API",
+        faz: "Uma chave deixa outro sistema, como uma planilha, o Power BI ou o sistema do escritório, ler as conciliações, as divergências e os fechamentos pela API do Ledgr. Só leitura, e sem a descrição dos lançamentos nem as justificativas. Só o admin e o gestor veem esta seção.",
         passos: [
-          "Abra **Equipe**.",
-          "Clique em **Convidar pessoa** e digite o e-mail. A pessoa recebe um link para criar o acesso.",
-          "Para tirar alguém, clique em **Remover**. O acesso é cortado na hora.",
+          "Abra **API** e clique em **Criar chave**.",
+          "Dê um nome que diga quem vai usar a chave e escolha a empresa que ela lê, ou **Todas as empresas da conta**.",
+          "Clique em **Criar chave**, depois em **Copiar chave**, e guarde a chave no sistema que vai usá-la.",
+          "Para cortar o acesso, clique em **Revogar** na chave e confirme.",
         ],
-        imagem: {
-          src: "/ajuda/configuracoes--equipe.webp",
-          largura: 960,
-          altura: 640,
-        },
+        nota: "A chave aparece uma vez só. Se perder, revogue e crie outra. A conta tem no máximo 10 chaves ativas, e os links de documentação (OpenAPI e llms.txt) ficam no alto da seção.",
       },
       {
         id: "aparencia",

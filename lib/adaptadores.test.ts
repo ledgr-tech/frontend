@@ -7,6 +7,7 @@ import {
   adaptarConciliacao,
   adaptarExecucao,
   adaptarLinha,
+  adaptarResumoDoFechamento,
   adaptarSaldo,
   extratosDasExecucoes,
   pareceUuid,
@@ -175,6 +176,25 @@ describe("adaptarLinha", () => {
     expect(adaptarLinha(item({ decisao: null })).decisao).toBeNull();
   });
 
+  it("lê a justificativa que espera aprovação, e a aprovada com quem aprovou (campos em snake_case)", () => {
+    const base = { tipo: "justificada" as const, texto: "Juros.", autor: "Bia", em: "2026-10-20T10:00:00Z", rodada: 1 };
+    const pendente = adaptarLinha(item({ status: "divergente_valor", decisao: { ...base, situacao: "pendente" } }));
+    expect(pendente.decisao).toEqual({ ...base, situacao: "pendente" });
+
+    const aprovada = adaptarLinha(
+      item({
+        status: "divergente_valor",
+        decisao: { ...base, situacao: "aprovada", aprovada_por: "Gil", aprovada_em: "2026-10-21T09:00:00Z" },
+      }),
+    );
+    expect(aprovada.decisao).toEqual({
+      ...base,
+      situacao: "aprovada",
+      aprovadaPor: "Gil",
+      aprovadaEm: "2026-10-21T09:00:00Z",
+    });
+  });
+
   it("sem o campo, a linha não tem decisão (undefined, não null)", () => {
     const linha = adaptarLinha(item());
     expect(linha.decisao).toBeUndefined();
@@ -241,6 +261,20 @@ describe("adaptarConciliacao", () => {
     offset: 0,
     itens: [item(), item({ id: "c2", status: "tarifa_bancaria", lancamento_sistema: null })],
   };
+
+  it("conta as justificativas que aguardam aprovação: a contagem do backend, ou as linhas se ele não manda", () => {
+    const pendente = (id: string) =>
+      item({
+        id,
+        status: "divergente_valor",
+        decisao: { tipo: "justificada", texto: "Juros.", autor: "Bia", em: "2026-10-20T10:00:00Z", rodada: 1, situacao: "pendente" },
+      });
+    const itens = [item(), pendente("p1"), pendente("p2")];
+    expect(adaptarConciliacao({ ...lista, itens }).aguardandoAprovacao).toBe(2);
+    // a conciliação inteira pode ter mais que as linhas carregadas: o número do backend manda
+    expect(adaptarConciliacao({ ...lista, itens, aguardando_aprovacao: 5 }).aguardandoAprovacao).toBe(5);
+    expect(adaptarConciliacao(lista).aguardandoAprovacao).toBe(0);
+  });
 
   it("mantém o id do extrato do banco como id da conciliação", () => {
     expect(adaptarConciliacao(lista).id).toBe("e-banco");
@@ -370,6 +404,7 @@ describe("adaptarExecucao", () => {
       atual: true,
       // o backend que ainda não guarda decisões não manda a contagem: nenhuma justificada
       justificadas: 0,
+      aguardandoAprovacao: 0,
       periodoInicio: "2026-09-01",
     });
   });
@@ -379,6 +414,15 @@ describe("adaptarExecucao", () => {
     const semPeriodo = execucao();
     delete semPeriodo.periodo_inicio;
     expect(adaptarExecucao(semPeriodo).periodoInicio).toBeNull();
+  });
+
+  it("lê quantas justificativas aguardam aprovação", () => {
+    const comPendentes = execucao();
+    comPendentes.contagens = { ...comPendentes.contagens, justificadas: 3, aguardando_aprovacao: 2 };
+    const adaptada = adaptarExecucao(comPendentes);
+    // as justificadas passam a contar só as aprovadas; as pendentes vêm à parte
+    expect(adaptada.justificadas).toBe(3);
+    expect(adaptada.aguardandoAprovacao).toBe(2);
   });
 
   it("lê quantas divergências estão justificadas", () => {
@@ -490,6 +534,22 @@ describe("extratosDasExecucoes", () => {
   });
 });
 
+describe("adaptarResumoDoFechamento", () => {
+  const resumo = {
+    pares: [],
+    contagens: { total: 10, match_exato: 8, match_tolerancia: 0, duplicado: 0, sem_correspondencia: 2, tarifa_bancaria: 0, divergente_valor: 0, divergente_data: 0 },
+    justificadas: 1,
+    pendentes: 1,
+    linhas_nao_lidas: 0,
+    valor_em_aberto: "100.00",
+  };
+
+  it("lê as justificativas que aguardavam aprovação, e 0 no resumo gravado antes do #132", () => {
+    expect(adaptarResumoDoFechamento({ ...resumo, aguardando_aprovacao: 3 }).aguardandoAprovacao).toBe(3);
+    expect(adaptarResumoDoFechamento(resumo).aguardandoAprovacao).toBe(0);
+  });
+});
+
 describe("equipe e convites", () => {
   it("formata o dia em dd/mm/aaaa no fuso de Brasília", () => {
     expect(formatarDia("2026-10-23T02:30:00Z")).toBe("22/10/2026"); // 23h30 em Brasília
@@ -499,15 +559,27 @@ describe("equipe e convites", () => {
   it("adapta convite e consulta com as datas formatadas", () => {
     expect(
       adaptarConvite({ id: "c1", email: "ana@x.com", criado_em: "2026-10-16T12:00:00Z", expira_em: "2026-10-23T12:00:00Z" }),
-    ).toEqual({ id: "c1", email: "ana@x.com", enviadoEm: "16/10/2026", valeAte: "23/10/2026" });
+    ).toEqual({ id: "c1", email: "ana@x.com", papel: null, enviadoEm: "16/10/2026", valeAte: "23/10/2026" });
     expect(
       adaptarConsultaConvite({ email: "ana@x.com", razao_social: "Padaria Ltda", expira_em: "2026-10-23T12:00:00Z" }),
     ).toEqual({ email: "ana@x.com", razaoSocial: "Padaria Ltda", valeAte: "23/10/2026" });
   });
 
-  it("adapta a pessoa sem o criado_em", () => {
+  it("adapta o convite com o papel dado, e ignora um papel que não conhece", () => {
+    const base = { id: "c1", email: "ana@x.com", criado_em: "2026-10-16T12:00:00Z", expira_em: "2026-10-23T12:00:00Z" };
+    expect(adaptarConvite({ ...base, papel: "gestor" }).papel).toBe("gestor");
+    expect(adaptarConvite({ ...base, papel: "dono" }).papel).toBeNull();
+  });
+
+  it("adapta a pessoa sem o criado_em, com o papel do backend", () => {
     expect(
-      adaptarPessoa({ id: "u1", nome: "Ana", email: "ana@x.com", administrador: true, criado_em: "2026-10-01T00:00:00Z" }),
-    ).toEqual({ id: "u1", nome: "Ana", email: "ana@x.com", administrador: true });
+      adaptarPessoa({ id: "u1", nome: "Ana", email: "ana@x.com", papel: "gestor", criado_em: "2026-10-01T00:00:00Z" }),
+    ).toEqual({ id: "u1", nome: "Ana", email: "ana@x.com", papel: "gestor" });
+  });
+
+  it("sem papel, a pessoa do backend anterior ao #133 vira admin ou analista pelo administrador", () => {
+    const base = { id: "u1", nome: "Ana", email: "ana@x.com", criado_em: "2026-10-01T00:00:00Z" };
+    expect(adaptarPessoa({ ...base, administrador: true }).papel).toBe("admin");
+    expect(adaptarPessoa({ ...base, administrador: false }).papel).toBe("analista");
   });
 });

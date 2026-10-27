@@ -401,6 +401,28 @@ describe("LoginPage", () => {
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
+  it("volta ao consentimento do pedido de conexão que mandou entrar (#195), e só a ele", async () => {
+    window.history.replaceState(null, "", "/login?voltar=%2Fautorizar-conexao%3Fpedido%3DAb_12");
+    try {
+      render(<LoginPage />);
+      await preencherEEntrar("financeiro@telhacerta.com.br", "ledgr2026");
+      await waitFor(() => expect(push).toHaveBeenCalledWith("/autorizar-conexao?pedido=Ab_12"));
+    } finally {
+      window.history.replaceState(null, "", "/");
+    }
+  });
+
+  it("um voltar para fora do site leva à visão geral", async () => {
+    window.history.replaceState(null, "", "/login?voltar=https%3A%2F%2Foutro.site");
+    try {
+      render(<LoginPage />);
+      await preencherEEntrar("financeiro@telhacerta.com.br", "ledgr2026");
+      await waitFor(() => expect(push).toHaveBeenCalledWith("/visao-geral"));
+    } finally {
+      window.history.replaceState(null, "", "/");
+    }
+  });
+
   it("forgets earlier wrong passwords after signing in", async () => {
     for (let tentativa = 1; tentativa < LIMITE_TENTATIVAS; tentativa++) registrarSenhaErrada();
     render(<LoginPage />);

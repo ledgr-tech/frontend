@@ -10,6 +10,7 @@ const FORA_DA_BUSCA = [
   "/conciliacoes",
   "/configuracoes",
   "/dashboard",
+  "/e/",
   "/extratos",
   "/fechamentos",
   "/historico",
@@ -18,7 +19,9 @@ const FORA_DA_BUSCA = [
   "/visao-geral",
   "/aceitar-convite",
   "/redefinir-senha",
+  "/confirmar-email",
   "/cadastro/google",
+  "/autorizar-conexao",
 ];
 
 export default function robots(): MetadataRoute.Robots {

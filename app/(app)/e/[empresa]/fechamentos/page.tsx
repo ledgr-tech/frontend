@@ -1,0 +1,93 @@
+import Image from "next/image";
+import Link from "@/lib/link-do-app";
+import { redirecionarNoApp } from "@/lib/rotas-servidor";
+import { carregarFechamentos } from "../conciliacoes/acoes";
+import { formatarInteiro } from "../dashboard/resumo";
+import { agruparPorMes } from "./fechamento";
+import { InkHover, Reveal } from "@/app/reveal";
+import { MesaDeFechamento } from "./mesa";
+import { Cabecalho } from "../cabecalho";
+
+/**
+ * Os fechamentos, mês a mês: cada competência com o que ainda segura o
+ * fechamento (divergência sem decisão, linha que o parser não leu), o caminho
+ * até lá e o fechamento em si (`/fechamentos`, backend #86): fechar, com
+ * ressalva quando falta algo, e reabrir. Um mês é todos os pares de extratos
+ * conciliados dele.
+ *
+ * Do FECHAMENTO do design (Ledgr.dc.html) ficam o "Começar outubro", a
+ * comemoração do mês pronto e o "encerrado em". O parágrafo das decisões e os
+ * marcos seguem fora. Do "Entregar o fechamento", o relatório para o contador:
+ * o PDF do mês fechado (`[competencia]/relatorio`, #117) e o CSV de cada
+ * conciliação; a planilha de ajustes e o envio por e-mail, não.
+ */
+
+const FALHA_AO_CARREGAR =
+  "Não foi possível carregar os fechamentos. Recarregue a página e tente de novo.";
+
+export default async function FechamentosPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [chave: string]: string | string[] | undefined }>;
+}) {
+  const resposta = await carregarFechamentos();
+  if (!resposta.ok && resposta.status === 401) await redirecionarNoApp("/login");
+
+  const meses = resposta.ok ? agruparPorMes(resposta.dados.pares, resposta.dados.fechamentos ?? []) : [];
+  // ?mes=AAAA-MM: a linha das rodadas de uma conciliação chega aqui no mês dela
+  const { mes } = await searchParams;
+
+  return (
+    <div>
+      <Cabecalho
+        titulo="Fechamentos"
+        contexto={[
+          meses.length > 0 &&
+            `${formatarInteiro(meses.length)} ${meses.length === 1 ? "competência" : "competências"}`,
+        ]}
+      />
+
+      {!resposta.ok ? (
+        <p role="alert" style={{ padding: "48px 0" }}>
+          {FALHA_AO_CARREGAR}
+        </p>
+      ) : meses.length === 0 ? (
+        <SemConciliacao />
+      ) : (
+        <Reveal style={{ padding: "28px 0 56px" }}>
+          <MesaDeFechamento
+            meses={meses}
+            inicial={typeof mes === "string" ? mes : undefined}
+            // sem a lista de fechamentos não dá para saber o que já está fechado: a mesa só mostra
+            podeFechar={resposta.dados.fechamentos !== null}
+          />
+        </Reveal>
+      )}
+    </div>
+  );
+}
+
+function SemConciliacao() {
+  return (
+    <div className="vg-inicio">
+      <InkHover style={{ flex: "none" }}>
+        <Image
+          src="/mascotes/mascote-explicando.png"
+          alt="Mascote Ledgr apontando para você"
+          width={1000}
+          height={1000}
+          sizes="200px"
+          style={{ width: 200, height: "auto", display: "block" }}
+        />
+      </InkHover>
+      <h2 style={{ margin: 0, fontSize: 32, fontWeight: 400 }}>Nenhum mês para fechar ainda.</h2>
+      <p className="vg-inicio-texto">
+        Suba o extrato do banco e o extrato do sistema de gestão. A primeira conciliação fica
+        pronta em poucos minutos.
+      </p>
+      <Link href="/conciliacoes/nova" className="btn btn-primary">
+        Nova conciliação
+      </Link>
+    </div>
+  );
+}

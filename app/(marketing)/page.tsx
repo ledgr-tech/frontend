@@ -3,7 +3,7 @@ import Link from "next/link";
 
 import { DIVERGENCIAS } from "@/lib/adaptadores";
 import { depoimentosDaLanding } from "@/lib/depoimentos";
-import { LogoBarras } from "@/app/(app)/logo-barras";
+import { LogoBarras } from "@/app/(app)/e/[empresa]/logo-barras";
 import { CabecalhoSite } from "./cabecalho-site";
 import { CATEGORIAS, QUANTAS_CATEGORIAS } from "./categorias";
 import { ExtratoComparacao, type LinhaExtrato } from "./comparacao";

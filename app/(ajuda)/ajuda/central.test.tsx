@@ -116,6 +116,45 @@ describe("o conteúdo da ajuda", () => {
     }
   });
 
+  it("a Central tem a página Empresas logo depois do Histórico, e as Configurações não falam mais de empresas", () => {
+    const ids = PAGINAS.map((pagina) => pagina.id);
+    expect(ids.indexOf("empresas")).toBe(ids.indexOf("historico") + 1);
+    expect(ids.indexOf("configuracoes")).toBe(ids.indexOf("empresas") + 1);
+
+    const empresas = PAGINAS.find((pagina) => pagina.id === "empresas")!;
+    expect(empresas.titulo).toBe("Empresas");
+    expect(empresas.onde).toBe("Menu lateral › Empresas");
+    expect(existsSync(join("public", empresas.capa.src)), empresas.capa.src).toBe(true);
+    expect(empresas.funcoes.map((funcao) => funcao.id)).toEqual(["lista", "abrir", "cadastrar", "limite", "equipe"]);
+    const cadastrar = empresas.funcoes.find((funcao) => funcao.id === "cadastrar")!;
+    for (const botao of ["**Adicionar empresa**", "**Cadastrar empresa**"]) {
+      expect(cadastrar.passos?.join(" "), botao).toContain(botao);
+    }
+    expect(empresas.funcoes.find((funcao) => funcao.id === "limite")!.passos?.join(" ")).toContain("**Assinatura**");
+
+    // a equipe mudou das Configurações para a aba Equipe desta página
+    const equipe = empresas.funcoes.find((funcao) => funcao.id === "equipe")!;
+    const passosDaEquipe = equipe.passos?.join(" ") ?? "";
+    for (const botao of ["**Equipe**", "**Convidar pessoa**", "**Remover**"]) {
+      expect(passosDaEquipe, botao).toContain(botao);
+    }
+    // o papel editável e a transferência da administração (parte C do #169)
+    expect(passosDaEquipe).toContain("**Gestor**");
+    expect(passosDaEquipe).toContain("**Analista**");
+    expect(passosDaEquipe).toContain("**Tornar administrador**");
+    expect(passosDaEquipe).toMatch(/senha atual/);
+    expect(passosDaEquipe).toMatch(/você vira \*\*Gestor\*\*/);
+    expect(equipe.nota).toMatch(/Só o administrador troca papéis e passa a administração/);
+    expect(equipe.imagem?.src).toBe("/ajuda/empresas--equipe.webp");
+
+    const configuracoes = PAGINAS.find((pagina) => pagina.id === "configuracoes")!;
+    expect(configuracoes.funcoes.some((funcao) => funcao.id === "empresas" || funcao.id === "equipe")).toBe(false);
+    expect(configuracoes.funcoes.find((funcao) => funcao.id === "abrir")!.faz).toContain("Conta, Aparência");
+    expect(configuracoes.funcoes.find((funcao) => funcao.id === "abrir")!.faz).not.toContain("Equipe");
+    expect(configuracoes.serve).not.toMatch(/empresas|equipe/);
+    expect(existsSync(join("public", "ajuda", "configuracoes--equipe.webp"))).toBe(false);
+  });
+
   it("toda imagem existe em public/", () => {
     for (const pagina of PAGINAS) {
       for (const imagem of [pagina.capa, ...pagina.funcoes.map((f) => f.imagem)]) {

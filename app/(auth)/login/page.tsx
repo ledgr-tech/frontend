@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { demoAberta } from "@/lib/demo";
+import { destinoDepoisDoLogin } from "@/lib/rotas";
 import { MENSAGEM_GOOGLE, ehErroGoogle, googleLigado } from "@/lib/google";
 import { estaBloqueado, limparTentativas, registrarSenhaErrada } from "@/lib/tentativas";
 import {
@@ -250,12 +251,21 @@ export default function LoginPage() {
       }
       if (resultado.ok) {
         limparTentativas();
-        router.push("/visao-geral");
+        router.push(destino());
         return;
       }
       const pausou = resultado.erro === "credenciais_invalidas" && registrarSenhaErrada();
       falhar(pausou ? "muitas_tentativas" : resultado.erro);
     }, ATRASO_ENTRADA_MS);
+  }
+
+  // quem chegou por um pedido de conexão (front #195) volta a ele depois de entrar
+  function voltar(): string | null {
+    return new URLSearchParams(window.location.search).get("voltar");
+  }
+
+  function destino(): string {
+    return destinoDepoisDoLogin(voltar());
   }
 
   function falhar(erro: ErroEntrada) {
@@ -272,7 +282,7 @@ export default function LoginPage() {
     setErroGoogle(undefined);
     setEntrando(true);
     if (googleLigado()) {
-      irAoGoogle()
+      irAoGoogle(voltar())
         .then(() => {
           setEntrando(false);
           setErroGoogle(MENSAGEM_GOOGLE.indisponivel);
@@ -286,7 +296,7 @@ export default function LoginPage() {
     timer.current = setTimeout(async () => {
       const entrou = await entrarNaDemonstracao(manterSessao).catch(() => false);
       if (entrou) {
-        router.push("/visao-geral");
+        router.push(destino());
         return;
       }
       falhar("falha_sessao");

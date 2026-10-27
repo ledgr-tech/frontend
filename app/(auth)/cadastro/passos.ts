@@ -44,7 +44,7 @@ export type PassoCadastro = {
 
 // CNPJ alfanumérico (Receita Federal, a partir de julho/2026): as 12 primeiras posições aceitam letras
 // e números; os 2 dígitos verificadores continuam numéricos. Os CNPJs só com números seguem valendo.
-function caracteresCnpj(valor: string): string {
+export function caracteresCnpj(valor: string): string {
   const limpo = valor.toUpperCase().replace(/[^A-Z0-9]/g, "");
   return limpo.slice(0, 12) + limpo.slice(12).replace(/\D/g, "").slice(0, 2);
 }

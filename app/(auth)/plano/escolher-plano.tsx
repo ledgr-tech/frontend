@@ -4,7 +4,7 @@ import { useEffect, useId, useState, type CSSProperties } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Check } from "lucide-react";
-import { NumeroAnimado } from "@/app/(app)/numero-animado";
+import { NumeroAnimado } from "@/app/(app)/e/[empresa]/numero-animado";
 import { formatarVolume, teclarNoMedidor, useAlturaQueDesliza } from "@/app/medidor-suave";
 import { planosDoTeste, type PlanoId } from "@/lib/assinatura";
 import {

@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { seloDoStatus } from "@/app/(app)/dashboard/resumo";
+import { seloDoStatus } from "@/app/(app)/e/[empresa]/dashboard/resumo";
 import { ExtratoComparacao, type LinhaExtrato } from "./comparacao";
 
 const LINHA: LinhaExtrato = {

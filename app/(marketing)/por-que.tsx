@@ -1,4 +1,4 @@
-import { LogoBarras } from "@/app/(app)/logo-barras";
+import { LogoBarras } from "@/app/(app)/e/[empresa]/logo-barras";
 import { Reveal } from "../reveal";
 
 // "Por que o Ledgr": as duas saídas que a empresa tem hoje e o Ledgr, cada uma respondendo às
