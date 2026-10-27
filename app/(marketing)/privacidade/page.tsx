@@ -62,9 +62,9 @@ export default function PrivacidadePage() {
 
       <h2>Explicações por IA</h2>
       <p>
-        Na tela de uma divergência, você pode pedir uma explicação gerada por IA. Ela só é gerada quando
-        você clica em “Explicar esta divergência”; sem esse pedido, nada é enviado à IA. O provedor é a
-        OpenAI, com quem o Ledgr tem um acordo de tratamento de dados assinado. Pelo acordo, a OpenAI só
+        Cada divergência vem com uma explicação gerada por IA. Ela é gerada quando a conciliação roda, sem
+        que você precise pedir; se alguma ainda não estiver pronta, você pode pedi-la na tela da linha em
+        “Explicar esta divergência”. Linhas conciliadas não são enviadas à IA. O provedor é a OpenAI, com quem o Ledgr tem um acordo de tratamento de dados assinado. Pelo acordo, a OpenAI só
         pode usar esses dados para prestar o serviço ao Ledgr.
       </p>
       <ul>

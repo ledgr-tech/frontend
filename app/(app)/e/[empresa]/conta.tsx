@@ -34,6 +34,8 @@ const ContextoDosLimites = createContext<LimitesDaConta | null>(null);
 const ContextoDoEmail = createContext("");
 /** Se a conta tem senha (`metodos_login` do `GET /me`): a transferência da administração a pede, como a desativação. */
 const ContextoDaSenha = createContext(true);
+/** Se a conta guarda o original de cada extrato (backend #139, plano avançado): o painel de Extratos avisa quando um não foi guardado. */
+const ContextoDoOriginal = createContext(false);
 
 /**
  * As preferências do primeiro uso (spec 2026-10-15-primeiro-uso): as da conta, do `GET /me`,
@@ -47,6 +49,7 @@ export function ProvedorDaConta({
   papel = "admin",
   email = "",
   temSenha = true,
+  guardaArquivoOriginal = false,
   children,
 }: {
   preferencias: Preferencias | null;
@@ -59,6 +62,8 @@ export function ProvedorDaConta({
   temSenha?: boolean;
   /** Do `GET /me`: só o admin e o gestor fecham o mês. */
   papel?: Papel;
+  /** Do `GET /me`: a conta guarda o original de cada extrato. */
+  guardaArquivoOriginal?: boolean;
   children: ReactNode;
 }) {
   const [atuais, setAtuais] = useState<Preferencias>(preferencias ?? PREFERENCIAS_VAZIAS);
@@ -95,7 +100,9 @@ export function ProvedorDaConta({
         <ContextoDosLimites.Provider value={limites}>
           <ContextoDoPapel.Provider value={papel}>
             <ContextoDoEmail.Provider value={email}>
-              <ContextoDaSenha.Provider value={temSenha}>{children}</ContextoDaSenha.Provider>
+              <ContextoDaSenha.Provider value={temSenha}>
+                <ContextoDoOriginal.Provider value={guardaArquivoOriginal}>{children}</ContextoDoOriginal.Provider>
+              </ContextoDaSenha.Provider>
             </ContextoDoEmail.Provider>
           </ContextoDoPapel.Provider>
         </ContextoDosLimites.Provider>
@@ -116,6 +123,10 @@ export function useAssinatura(): Assinatura | null {
 
 export function useTemSenha(): boolean {
   return useContext(ContextoDaSenha);
+}
+
+export function useGuardaArquivoOriginal(): boolean {
+  return useContext(ContextoDoOriginal);
 }
 
 export function useEmail(): string {

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ErroBackend } from "@/lib/backend";
-import { cadastrarEmpresa, carregarEmpresas } from "./acoes";
+import { cadastrarEmpresa, carregarEmpresas, marcarFavorita } from "./acoes";
 
 // a rede é a fronteira; ErroBackend e a tradução dos erros rodam de verdade
 const chamarBackend = vi.fn();
@@ -39,11 +39,40 @@ describe("carregarEmpresas", () => {
 
     const resposta = await carregarEmpresas();
 
-    expect(chamarBackend).toHaveBeenCalledWith("/empresas");
+    // sem `total` é o backend anterior ao #157: uma chamada só, com tudo
+    expect(chamarBackend).toHaveBeenCalledTimes(1);
+    expect(chamarBackend).toHaveBeenCalledWith("/empresas?limit=100&offset=0");
     expect(resposta).toEqual({
       ok: true,
       dados: [empresa, { ...empresa, id: "e6b87048-0f9e-4ee1-839d-2390220cdfb4", cnpjVerificado: true }],
     });
+  });
+
+  it("com o backend #157, junta as páginas até o total e lê a favorita e a situação", async () => {
+    const pagina = (n: number, desde: number) =>
+      Array.from({ length: n }, (_, i) => ({ ...empresaApi, id: `id-${desde + i}`, favorita: desde + i === 0, status: "fechado" }));
+    chamarBackend
+      .mockResolvedValueOnce({ total: 150, limit: 100, offset: 0, itens: pagina(100, 0) })
+      .mockResolvedValueOnce({ total: 150, limit: 100, offset: 100, itens: pagina(50, 100) });
+
+    const resposta = await carregarEmpresas();
+
+    expect(chamarBackend.mock.calls.map(([caminho]) => caminho)).toEqual(["/empresas?limit=100&offset=0", "/empresas?limit=100&offset=100"]);
+    if (!resposta.ok) throw new Error("devia carregar");
+    expect(resposta.dados).toHaveLength(150);
+    expect(resposta.dados[0]).toMatchObject({ favorita: true, situacao: "fechado" });
+    expect(resposta.dados[1]).toMatchObject({ favorita: false, situacao: "fechado" });
+  });
+
+  it("para numa página vazia mesmo que o total diga mais (uma empresa removida no meio)", async () => {
+    chamarBackend
+      .mockResolvedValueOnce({ total: 101, itens: Array.from({ length: 100 }, (_, i) => ({ ...empresaApi, id: `id-${i}` })) })
+      .mockResolvedValueOnce({ total: 100, itens: [] });
+
+    const resposta = await carregarEmpresas();
+
+    expect(chamarBackend).toHaveBeenCalledTimes(2);
+    expect(resposta.ok && resposta.dados).toHaveLength(100);
   });
 
   it("a rota ausente (backend anterior ao #143) chega como 404, para a tela dizer que ainda não existe", async () => {
@@ -129,5 +158,31 @@ describe("cadastrarEmpresa", () => {
       status: 0,
       erro: "Não foi possível falar com o servidor.",
     });
+  });
+});
+
+describe("marcarFavorita", () => {
+  it("favorita com PUT e tira com DELETE", async () => {
+    chamarBackend.mockResolvedValue(undefined);
+
+    expect(await marcarFavorita(empresaApi.id, true)).toEqual({ ok: true, dados: null });
+    expect(await marcarFavorita(empresaApi.id, false)).toEqual({ ok: true, dados: null });
+
+    expect(chamarBackend).toHaveBeenNthCalledWith(1, `/empresas/${empresaApi.id}/favorita`, { method: "PUT" });
+    expect(chamarBackend).toHaveBeenNthCalledWith(2, `/empresas/${empresaApi.id}/favorita`, { method: "DELETE" });
+  });
+
+  it("o 404 (empresa de outra conta) chega com o texto do backend", async () => {
+    chamarBackend.mockRejectedValue(new ErroBackend(404, "Empresa não encontrada."));
+
+    expect(await marcarFavorita(empresaApi.id, true)).toEqual({ ok: false, status: 404, erro: "Empresa não encontrada." });
+  });
+
+  it("recusa a conta de demonstração sem chamar o backend", async () => {
+    vi.stubEnv("LEDGR_CONTA_TESTE_EMAIL", "demo@ledgr.com.br");
+    emailDaSessao.mockResolvedValue("demo@ledgr.com.br");
+
+    expect(await marcarFavorita(empresaApi.id, true)).toMatchObject({ ok: false, status: 403 });
+    expect(chamarBackend).not.toHaveBeenCalled();
   });
 });

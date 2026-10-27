@@ -7,6 +7,15 @@ import { CancelarAssinatura } from "./cancelar-assinatura";
 import { ASSINATURA, FATURAS, NUMEROS } from "./dados";
 import { Cabecalho } from "../cabecalho";
 import { useAssinatura } from "../conta";
+import { diasRestantes, fraseDoTeste, type Assinatura } from "@/lib/assinatura";
+
+/** A situação de quem ainda não assinou, no contexto do cabeçalho, como as outras telas dizem o seu. */
+function situacaoNoCabecalho(assinatura: Assinatura): string {
+  if (assinatura.situacao === "teste" && assinatura.testeTerminaEm) {
+    return fraseDoTeste(diasRestantes(assinatura.testeTerminaEm, new Date())).toLowerCase();
+  }
+  return assinatura.situacao === "teste_encerrado" ? "teste grátis encerrado" : "sem plano";
+}
 
 /**
  * A assinatura da empresa: o plano, os planos da landing e as faturas. Tudo
@@ -28,7 +37,8 @@ export default function AssinaturaPage() {
     <div>
       <Cabecalho
         titulo="Assinatura"
-        contexto={assinou ? [`plano ${plano.nome}`, `renova em ${renovaEm}`] : undefined}
+        // sem contexto o cabeçalho também perdia a empresa, que toda tela mostra
+        contexto={assinou || !assinatura ? [`plano ${plano.nome}`, `renova em ${renovaEm}`] : [situacaoNoCabecalho(assinatura)]}
         acoes={
           assinou ? (
             <>

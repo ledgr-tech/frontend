@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "@/lib/link-do-app";
 import { useRoteador } from "@/lib/roteador";
 import { caminhoDaConciliacao } from "@/lib/caminhos";
+import { SeletorDeEmpresa } from "./seletor-de-empresa";
 import { MenuDeAjuda } from "./ajuda/menu-de-ajuda";
 import { diasRestantes, fraseCurtaDoTeste, fraseDoTeste } from "@/lib/assinatura";
 import { useAssinatura } from "./conta";
@@ -213,6 +214,9 @@ export function BarraSuperior() {
       )}
 
       <MenuDeAjuda />
+
+      {/* a empresa da aba, ao lado de Avisos (#223): na barra lateral o nome cortava */}
+      <SeletorDeEmpresa />
 
       <div style={{ position: "relative", flex: "none" }} ref={caixaAvisos}>
         <button

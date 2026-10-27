@@ -27,9 +27,9 @@ export const TUTORIAIS: Record<TelaDoTutorial, TutorialDaTela> = {
     nome: "Conciliações",
     mascote: "/mascotes/mascote-caminhando.png",
     passos: [
-      { alvo: "continuar", titulo: "Continue de onde parou.", texto: "A conciliação que ainda pede decisão fica aqui em cima, com um botão que volta direto para ela." },
       { alvo: "filtros", titulo: "Filtre a fila.", texto: "Veja só o que pede decisão, o que já está sem pendência ou os meses fechados." },
-      { alvo: "lista", titulo: "Sua fila de conciliações.", texto: "Cada linha é um extrato do banco, com a rodada que vale. Clique na linha para abrir a comparação." },
+      { alvo: "lista", titulo: "Sua fila de conciliações.", texto: "Cada par de folhas é um extrato do banco com o do sistema, na rodada que vale, agrupado pelo mês. Um clique mostra o resumo ao lado; dois abrem a comparação." },
+      { alvo: "previa", titulo: "A conciliação escolhida.", texto: "A primeira que ainda pede decisão já vem aberta aqui: quanto bate, o que falta, a rodada e o mês. Clique em Abrir a comparação para continuar de onde parou." },
     ],
   },
   "nova-conciliacao": {
@@ -44,6 +44,7 @@ export const TUTORIAIS: Record<TelaDoTutorial, TutorialDaTela> = {
     nome: "Comparação",
     mascote: "/mascotes/mascote-lupa.png",
     passos: [
+      { alvo: "rodadas", titulo: "As rodadas até o fechamento.", texto: "Cada número é um extrato do sistema conciliado com este do banco; o escuro é o que está na tela. Clique num para abrir aquela rodada. A bandeira leva ao fechamento e diz quanto falta." },
       { alvo: "resumo", titulo: "O resumo antes da lista.", texto: "Cada categoria diz quantos lançamentos caíram nela e quanto valem. Clique numa para ver só essas linhas." },
       { alvo: "filtros", titulo: "Escolha o que ver.", texto: "Os filtros mostram tudo, só o que pede decisão ou só o que já bateu." },
       { alvo: "conferida", titulo: "Marque o que você já olhou.", texto: "A coluna Conferida é sua: marque as divergências que já conferiu. As que bateram não precisam." },

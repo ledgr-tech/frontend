@@ -82,8 +82,30 @@ describe("LandingPage", () => {
       ["Sem trocar de sistema, e sem voltar para o manual.", ["e sem voltar para o manual."]],
       ["O extrato do banco é sempre a fonte da verdade.", ["a fonte da verdade."]],
       ["Perguntas que sempre aparecem", ["sempre aparecem"]],
+      ["Para quem fecha o mês, sozinho ou com equipe.", ["sozinho ou com equipe."]],
       ["Preço fechado, por volume.", ["por volume."]],
     ]);
+  });
+
+  it("says who the Ledgr is for, right before the price and its call to action (#233)", () => {
+    const { container } = render(<LandingPage />);
+    const secao = container.querySelector("#para-quem")!;
+    // do menor ao maior, cada um numa folha com o seu mascote
+    expect([...secao.querySelectorAll("h3")].map((titulo) => titulo.textContent)).toEqual([
+      "Usuário único",
+      "Consultor contábil",
+      "Empresa",
+      "Escritório contábil",
+    ]);
+    expect([...secao.querySelectorAll(".para-quem-mascote")].map((img) => img.getAttribute("src"))).toEqual([
+      expect.stringContaining("mascote-laptop"),
+      expect.stringContaining("mascote-maleta"),
+      expect.stringContaining("mascote-caminhando"),
+      expect.stringContaining("mascote-arquivo"),
+    ]);
+    // a pergunta fica junto dos perfis, não na abertura
+    expect(within(secao as HTMLElement).getByText("Qual desses é você?")).not.toHaveClass("para-quem-frase");
+    expect(secao.nextElementSibling).toHaveAttribute("id", "preco");
   });
 
   it("loads the display italic only on the landing, under the variable its titles use", () => {

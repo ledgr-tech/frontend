@@ -156,24 +156,13 @@ export const PAGINAS: PaginaDeAjuda[] = [
     titulo: "Conciliações",
     onde: "Menu lateral › Conciliações",
     serve:
-      "A sua fila de trabalho: uma linha por extrato do banco, com as conciliações abertas primeiro.",
+      "A sua fila de trabalho: um par de folhas por extrato do banco, agrupado pelo mês, com as conciliações abertas primeiro e o resumo da escolhida ao lado.",
     capa: {
       src: "/ajuda/conciliacoes.webp",
       largura: 1360,
       altura: 850,
     },
     funcoes: [
-      {
-        id: "continuar",
-        titulo: "Continue de onde parou",
-        faz: "A conciliação que ainda pede decisão fica em destaque no topo, com um botão que volta direto para ela.",
-        passos: ["Clique em **Continuar** para voltar à comparação."],
-        imagem: {
-          src: "/ajuda/conciliacoes--continuar.webp",
-          largura: 1000,
-          altura: 118,
-        },
-      },
       {
         id: "filtros",
         titulo: "Filtrar a fila",
@@ -191,16 +180,23 @@ export const PAGINAS: PaginaDeAjuda[] = [
       {
         id: "fila",
         titulo: "A fila",
-        faz: "Cada linha é um extrato do banco com a rodada que vale: o último extrato do sistema conciliado com ele.",
+        faz: "Cada par de folhas é um extrato do banco com a rodada que vale: o último extrato do sistema conciliado com ele. A barra mostra o que bateu e o que diverge, e o selo diz quantas linhas ainda pedem decisão.",
         passos: [
-          "Clique na linha para abrir a comparação.",
+          "Clique numa folha para ver o resumo dela ao lado.",
+          "Clique duas vezes para abrir direto a comparação.",
           "Para começar outra, use **Nova conciliação** no menu lateral.",
         ],
-        imagem: {
-          src: "/ajuda/conciliacoes--fila.webp",
-          largura: 1000,
-          altura: 145,
-        },
+      },
+      {
+        id: "previa",
+        titulo: "O resumo da escolhida",
+        faz: "Ao lado das folhas, o resumo da conciliação escolhida: quantos lançamentos batem, a barra com a legenda, a situação, as conferidas, a rodada e o mês. A primeira que ainda pede decisão já vem escolhida, para você continuar de onde parou.",
+        passos: [
+          "Clique em **Abrir a comparação** para decidir as linhas.",
+          "Corrigiu o sistema de gestão? Clique em **Enviar nova versão do extrato do sistema** para conciliar de novo com o mesmo extrato do banco.",
+          "O link do mês leva ao fechamento dele.",
+        ],
+        nota: "Com o mês fechado, a nova versão não aparece: reabra o mês em **Fechamentos** para conciliar de novo.",
       },
     ],
   },
@@ -389,12 +385,13 @@ export const PAGINAS: PaginaDeAjuda[] = [
       {
         id: "motivo",
         titulo: "O provável motivo",
-        faz: "Quando você pede, o Ledgr lê os dois lados da linha e explica, em linguagem simples, por que ela não casou.",
+        faz: "Quando a conciliação roda, o Ledgr lê os dois lados de cada divergência e explica, em linguagem simples, por que a linha não casou.",
         passos: [
-          "Clique em **Explicar esta divergência**.",
-          "Leia a explicação e confira no seu sistema de gestão antes de decidir.",
+          "Abra a linha e leia a explicação, marcada como “Gerada por IA”.",
+          "Se a explicação ainda não estiver pronta, clique em **Explicar esta divergência**.",
+          "Confira no seu sistema de gestão antes de decidir.",
         ],
-        nota: "Ao pedir, dados resumidos desta linha são enviados à OpenAI. A IA explica; quem decide é você.",
+        nota: "Dados resumidos de cada divergência são enviados à OpenAI ao conciliar; linhas conciliadas não são. A IA explica; quem decide é você.",
         imagem: {
           src: "/ajuda/detalhe-da-linha--motivo.webp",
           largura: 543,
@@ -562,12 +559,12 @@ export const PAGINAS: PaginaDeAjuda[] = [
       {
         id: "abrir",
         titulo: "Trocar de empresa",
-        faz: "Cada empresa tem os próprios extratos, conciliações e fechamentos. Daqui, ou pelo seletor no alto do menu lateral, você muda de empresa.",
+        faz: "Cada empresa tem os próprios extratos, conciliações e fechamentos. Daqui, ou pelo botão com o nome da empresa no alto da tela, ao lado de **Avisos**, você muda de empresa.",
         passos: [
           "Clique em **Abrir** na linha da empresa.",
           "Você vai para a Visão geral dela. Outra aba do navegador continua na empresa em que estava.",
         ],
-        nota: "Pelo seletor do menu lateral, a troca leva você à mesma tela na outra empresa.",
+        nota: "Pelo botão do alto da tela, a troca leva você à mesma tela na outra empresa. A janela dele busca por razão social ou CNPJ e mostra 20 empresas por página.",
       },
       {
         id: "cadastrar",
@@ -719,6 +716,16 @@ export const PAGINAS: PaginaDeAjuda[] = [
           "Para trocar de plano, clique em **Mudar para** no plano que quer.",
         ],
         nota: "A cobrança ainda não está no ar. Planos e faturas desta tela são de demonstração, e nada é alterado por aqui.",
+      },
+      {
+        id: "cancelar",
+        titulo: "Cancelar a assinatura",
+        faz: "Ao cancelar, você continua com acesso a tudo até o fim do período já pago. Depois disso, o histórico continua disponível para consulta, mas nenhum extrato novo pode ser conciliado.",
+        passos: [
+          "Clique em **Cancelar assinatura**, no topo da tela.",
+          "Leia até quando o acesso continua e confirme, ou clique em **Manter assinatura**.",
+        ],
+        nota: "A cobrança ainda não está no ar: nada é cancelado por aqui.",
       },
     ],
   },

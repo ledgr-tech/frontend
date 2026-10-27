@@ -24,6 +24,7 @@ export function Shell({
   preferencias,
   assinatura = null,
   limites = null,
+  guardaArquivoOriginal = false,
   children,
 }: {
   email: string;
@@ -40,11 +41,21 @@ export function Shell({
   assinatura?: Assinatura | null;
   /** Os limites do plano, do `GET /me`; null quando ele não manda. */
   limites?: LimitesDaConta | null;
+  /** Se a conta guarda o original de cada extrato, do `GET /me` (backend #139). */
+  guardaArquivoOriginal?: boolean;
   children: ReactNode;
 }) {
   return (
     <EmpresaDaSessao value={empresa}>
-      <ProvedorDaConta preferencias={preferencias} assinatura={assinatura} limites={limites} papel={papel} email={email} temSenha={temSenha}>
+      <ProvedorDaConta
+        preferencias={preferencias}
+        assinatura={assinatura}
+        limites={limites}
+        papel={papel}
+        email={email}
+        temSenha={temSenha}
+        guardaArquivoOriginal={guardaArquivoOriginal}
+      >
         <LucideProvider strokeWidth={TRACO_ICONE}>
           <div className="app-shell">
             <MenuLateral

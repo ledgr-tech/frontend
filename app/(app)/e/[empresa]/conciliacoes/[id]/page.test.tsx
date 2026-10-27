@@ -886,6 +886,23 @@ describe("ConciliacaoPage", () => {
     expect(screen.getByText(/todos os lançamentos bateram/)).toBeInTheDocument();
   });
 
+  it("ends the comparison with the bank's final balance, whatever the filter shows (#239)", async () => {
+    buscarConciliacao.mockReturnValue({
+      ...conciliacaoMista,
+      linhas: conciliacaoMista.linhas.filter((linha) => linha.status === "match_exato"),
+      saldo: { inicial: 100, final: 7467.15, data: "2026-10-01" },
+    });
+    const user = userEvent.setup();
+    render(<ConciliacaoPage />);
+
+    const fim = (await screen.findByText(/^Saldo final em/)).closest("p")!;
+    // o Intl separa o "R$" do número com um espaço que não quebra
+    expect(fim.textContent?.replace(/ /g, " ")).toBe("Saldo final em 01/10/2026: R$ 7.467,15");
+    // um filtro sem nenhuma linha não tira o saldo: ele é do extrato, não das linhas à vista
+    await user.click(screen.getByRole("button", { name: "Só revisão (0)" }));
+    expect(screen.getByText(/^Saldo final em/)).toBeInTheDocument();
+  });
+
   describe("the report grouped by category", () => {
     it("counts the five categories, with the money each leaves open", async () => {
       buscarConciliacao.mockReturnValue(conciliacaoMista);

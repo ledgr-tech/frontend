@@ -316,10 +316,10 @@ function Painel({ mes, podeFechar }: { mes: MesDeFechamento; podeFechar: boolean
         </p>
       )}
 
-      <div className="fech-progresso">
-        <span className="vg-nota">
-          {`${formatarInteiro(mes.conciliados)} de ${plural(mes.lancamentos, "lançamento conciliado", "lançamentos conciliados")}`}
-        </span>
+      <div className="fech-progresso extrato-resultado">
+        <p className="extrato-resultado-numero">
+          {formatarPercentual(taxa(mes))} <span>conciliado</span>
+        </p>
         <div
           className="vg-progresso"
           role="progressbar"
@@ -331,6 +331,9 @@ function Painel({ mes, podeFechar }: { mes: MesDeFechamento; podeFechar: boolean
         >
           <span className="vg-progresso-feito" style={{ width: `${taxa(mes)}%` }} />
         </div>
+        <span className="vg-nota">
+          {`${formatarInteiro(mes.conciliados)} de ${plural(mes.lancamentos, "lançamento conciliado", "lançamentos conciliados")}`}
+        </span>
       </div>
 
       <ol className="fech-passos" aria-label="Para fechar o mês">

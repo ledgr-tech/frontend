@@ -1,13 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "@/lib/link-do-app";
-import { ChevronRight } from "lucide-react";
+import { useRoteador } from "@/lib/roteador";
 import type { Fechamento } from "@/lib/adaptadores";
 import { caminhoDaConciliacao, caminhoDoFechamento } from "@/lib/caminhos";
+import type { ListaDeConciliacoes } from "../conciliacoes/acoes";
+import { NovaVersao } from "../conciliacoes/[id]/nova-versao";
+import { tituloDaCompetencia } from "../fechamentos/fechamento";
 import { FaixaFiltros } from "../faixa-filtros";
 import { IconeOrigem } from "../icone-origem";
-import { conciliados } from "../historico/execucoes";
+import { conciliados, segmentos } from "../historico/execucoes";
 import { BarraDoResultado } from "../historico/por-conciliacao";
 import { formatarDataHora, formatarInteiro } from "./resumo";
 import {
@@ -21,10 +24,12 @@ import {
 } from "./lista";
 
 /**
- * A lista de trabalho agrupada por mês (revisão de estilo de 15/10): os meses abertos primeiro e,
- * em cada linha, uma situação só ("9 pedem decisão", "Sem pendência", "Mês fechado"), o progresso e
- * a última atividade. A linha inteira abre a conciliação. Fica no cliente só pelo filtro; as
- * conciliações chegam prontas da página, que roda no servidor.
+ * A lista de trabalho como folhas (revisão de 27/10, ideia 13 do artefato da tela): cada conciliação
+ * é o par de folhas do banco e do sistema, agrupadas pelo mês, e ao lado a prévia da escolhida, com o
+ * que bate, a barra com a legenda, a situação, a rodada, o mês e as ações. A primeira da fila já abre
+ * escolhida, então a prévia faz o papel do antigo "Continue de onde parou". Um clique escolhe; dois
+ * abrem a comparação. Fica no cliente pelo filtro e pela escolha; as conciliações chegam prontas da
+ * página, que roda no servidor.
  */
 
 const FILTROS: { id: FiltroDaLista; rotulo: string; vazio: string }[] = [
@@ -34,27 +39,30 @@ const FILTROS: { id: FiltroDaLista; rotulo: string; vazio: string }[] = [
   { id: "todas", rotulo: "Todas", vazio: "Nenhuma conciliação." },
 ];
 
+// abaixo disso a prévia sobe para antes das folhas (o mesmo corte do .conc-mesa em globals.css)
+const PREVIA_AO_LADO = "(min-width: 1100px)";
+
+type Contagem = NonNullable<ListaDeConciliacoes["emAndamento"]>;
+
 function plural(quantidade: number, singular: string, varios: string): string {
   return `${formatarInteiro(quantidade)} ${quantidade === 1 ? singular : varios}`;
 }
 
-/** Um rótulo que só aparece na tela estreita, onde a tabela vira um bloco por linha. */
-function RotuloMovel({ children }: { children: string }) {
-  return (
-    <span className="hist-rotulo-movel" aria-hidden="true">
-      {children}
-    </span>
-  );
+function textoDaRodada({ rodada, rodadas }: ConciliacaoNaLista): string {
+  return rodadas > 1 ? `Rodada ${rodada} de ${rodadas}` : `Rodada ${rodada}`;
 }
 
 export function ListaDeTrabalho({
   conciliacoes,
   fechamentos,
   parcial,
+  emAndamento,
 }: {
   conciliacoes: ConciliacaoNaLista[];
   fechamentos: Fechamento[] | null;
   parcial: boolean;
+  /** A primeira da fila que pede decisão, com as conferidas (que só ela traz). */
+  emAndamento: Contagem | null;
 }) {
   const meses = agruparPorMes(conciliacoes, fechamentos);
   const contar = (filtro: FiltroDaLista) =>
@@ -64,9 +72,20 @@ export function ListaDeTrabalho({
     );
   // abre no que pede trabalho; sem nada pendente, em todas
   const [filtro, setFiltro] = useState<FiltroDaLista>(() => (contar("pendentes") > 0 ? "pendentes" : "todas"));
+  const [escolhida, setEscolhida] = useState<string | null>(emAndamento?.extratoBancoId ?? null);
+  const previa = useRef<HTMLElement>(null);
   const visiveis = meses
     .map((mes) => ({ mes, linhas: mes.conciliacoes.filter((item) => passaNoFiltro(item, mes.fechamento !== null, filtro)) }))
     .filter(({ linhas }) => linhas.length > 0);
+  // a escolhida que o filtro escondeu dá lugar à primeira à vista
+  const emVista = visiveis.flatMap(({ mes, linhas }) => linhas.map((conciliacao) => ({ conciliacao, mes })));
+  const atual = emVista.find((item) => item.conciliacao.extratoBancoId === escolhida) ?? emVista[0] ?? null;
+
+  function escolher(id: string) {
+    setEscolhida(id);
+    // com a prévia acima das folhas, escolher sem ver o que mudou não diria nada
+    if (!window.matchMedia?.(PREVIA_AO_LADO).matches) previa.current?.scrollIntoView?.({ block: "start" });
+  }
 
   return (
     <div className="extratos-corpo">
@@ -90,37 +109,36 @@ export function ListaDeTrabalho({
         </Link>
       </FaixaFiltros>
 
-      {visiveis.length === 0 ? (
+      {!atual ? (
         <p className="extratos-vazio">{FILTROS.find((item) => item.id === filtro)?.vazio}</p>
       ) : (
-        <table className="table conc-tabela" data-tutorial="lista">
-          <colgroup>
-            <col />
-            <col className="conc-col-progresso" />
-            <col className="conc-col-situacao" />
-            <col className="conc-col-atividade" />
-            <col className="conc-col-abrir" />
-          </colgroup>
-          <thead>
-            <tr>
-              <th scope="col">Conciliação</th>
-              <th scope="col">Progresso</th>
-              <th scope="col">Situação</th>
-              <th scope="col">Última atividade</th>
-              <th scope="col">
-                <span className="sr-only">Abrir</span>
-              </th>
-            </tr>
-          </thead>
-          {visiveis.map(({ mes, linhas }) => (
-            <tbody key={mes.chave}>
-              <CabecalhoDoMes mes={mes} />
-              {linhas.map((conciliacao) => (
-                <Linha key={conciliacao.extratoBancoId} conciliacao={conciliacao} mesFechado={mes.fechamento !== null} />
-              ))}
-            </tbody>
-          ))}
-        </table>
+        <div className="conc-mesa">
+          <div className="conc-meses" data-tutorial="lista">
+            {visiveis.map(({ mes, linhas }) => (
+              <section key={mes.chave} aria-labelledby={`conc-mes-${mes.chave}`}>
+                <CabecalhoDoMes mes={mes} />
+                <ul className="conc-folhas">
+                  {linhas.map((conciliacao) => (
+                    <li key={conciliacao.extratoBancoId}>
+                      <Folha
+                        conciliacao={conciliacao}
+                        mesFechado={mes.fechamento !== null}
+                        escolhida={conciliacao.extratoBancoId === atual.conciliacao.extratoBancoId}
+                        onEscolher={() => escolher(conciliacao.extratoBancoId)}
+                      />
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ))}
+          </div>
+          <Previa
+            ref={previa}
+            conciliacao={atual.conciliacao}
+            mes={atual.mes}
+            conferidas={emAndamento?.extratoBancoId === atual.conciliacao.extratoBancoId ? emAndamento.conferidas : null}
+          />
+        </div>
       )}
       {parcial && (
         <p className="vg-nota">
@@ -143,69 +161,178 @@ function CabecalhoDoMes({ mes }: { mes: MesNaLista }) {
       ]
         .filter(Boolean)
         .join(" · ");
-  const nomeDoMes = mes.titulo.split(" ")[0].toLowerCase();
   return (
-    <tr className="conc-mes">
-      <th scope="rowgroup" colSpan={5}>
-        <span className="conc-mes-conteudo">
-          <span className="conc-mes-titulo">{mes.titulo}</span>
-          <span className="conc-mes-meta">{meta}</span>
-          <Link href={caminhoDoFechamento(mes.chave)} className="conc-mes-link">
-            {fechamento ? "Ver o fechamento" : `Fechamento de ${nomeDoMes}`}
-          </Link>
-        </span>
-      </th>
-    </tr>
+    <div className="conc-mes">
+      <h2 id={`conc-mes-${mes.chave}`} className="conc-mes-titulo">
+        {mes.titulo}
+      </h2>
+      <span className="conc-mes-meta">{meta}</span>
+    </div>
   );
 }
 
-function Linha({ conciliacao, mesFechado }: { conciliacao: ConciliacaoNaLista; mesFechado: boolean }) {
-  const { extratoBancoId, arquivoBanco, arquivoSistema, rodada, rodadas, execucao } = conciliacao;
-  const pendentes = pedemDecisao(conciliacao);
-  const selo = mesFechado ? { rotulo: "Mês fechado", tom: "neutro" } : seloDaConciliacao(conciliacao);
-  // pelo endereço só do banco, que abre a rodada que vale
-  const caminho = caminhoDaConciliacao(extratoBancoId);
-  const progresso = [
-    `${formatarInteiro(conciliados(execucao))} de ${formatarInteiro(execucao.lancamentos)} batem`,
-    execucao.justificadas > 0 && plural(execucao.justificadas, "justificada", "justificadas"),
-  ]
-    .filter(Boolean)
-    .join(" · ");
+function seloDaFolha(conciliacao: ConciliacaoNaLista, mesFechado: boolean) {
+  return mesFechado ? { rotulo: "Mês fechado", tom: "neutro" } : seloDaConciliacao(conciliacao);
+}
+
+function Selo({ selo }: { selo: { rotulo: string; tom: string } }) {
+  return <span className={selo.tom === "neutro" ? "selo" : `selo selo-${selo.tom}`}>{selo.rotulo}</span>;
+}
+
+/** O par de folhas de uma conciliação: a do banco por cima, a do sistema atrás, como na comparação. */
+function Folha({
+  conciliacao,
+  mesFechado,
+  escolhida,
+  onEscolher,
+}: {
+  conciliacao: ConciliacaoNaLista;
+  mesFechado: boolean;
+  escolhida: boolean;
+  onEscolher: () => void;
+}) {
+  const router = useRoteador();
+  const { extratoBancoId, arquivoBanco, arquivoSistema, execucao } = conciliacao;
   return (
-    <tr className="conc-linha" data-pendente={(!mesFechado && pendentes > 0) || undefined}>
-      <td className="conc-c-conciliacao">
-        {/* o link cobre a linha inteira (::after), e o leitor de tela lê só o nome */}
-        <Link href={caminho} className="conc-abrir">
+    <button
+      type="button"
+      className="conc-folha"
+      aria-pressed={escolhida}
+      onClick={onEscolher}
+      // atalho para a comparação, como o duplo clique na linha dela; o clique simples só escolhe
+      onDoubleClick={() => router.push(caminhoDaConciliacao(extratoBancoId))}
+    >
+      <span className="conc-folha-par" aria-hidden="true">
+        <span className="conc-folha-banco">
           <span className="hist-arquivo">
             <IconeOrigem origem="banco" tamanho={14} />
             <span className="hist-arquivo-nome">{arquivoBanco}</span>
           </span>
-        </Link>
+          <span className="conc-folha-linhas">
+            <i />
+            <i />
+            <i />
+          </span>
+        </span>
+        <span className="conc-folha-sistema">
+          <span className="hist-arquivo hist-arquivo-sistema">
+            <IconeOrigem origem="sistema" tamanho={13} />
+            <span className="hist-arquivo-nome">{arquivoSistema}</span>
+          </span>
+        </span>
+      </span>
+      <span className="sr-only">{`${arquivoBanco} × ${arquivoSistema}`}</span>
+      <span className="conc-progresso">
+        {execucao.lancamentos > 0 && <BarraDoResultado execucao={execucao} />}
+        <span className="conc-folha-pe">
+          <span>{`${formatarInteiro(conciliados(execucao))} de ${formatarInteiro(execucao.lancamentos)} batem`}</span>
+          <Selo selo={seloDaFolha(conciliacao, mesFechado)} />
+        </span>
+      </span>
+      <span className="conc-folha-pe">
+        <span>{formatarDataHora(execucao.executadaEm)}</span>
+        <span>{textoDaRodada(conciliacao)}</span>
+      </span>
+    </button>
+  );
+}
+
+/** A conciliação escolhida, ao lado das folhas: o número do que bate, a barra explicada e o caminho. */
+function Previa({
+  ref,
+  conciliacao,
+  mes,
+  conferidas,
+}: {
+  ref: React.Ref<HTMLElement>;
+  conciliacao: ConciliacaoNaLista;
+  mes: MesNaLista;
+  /** Só a primeira da fila traz as conferidas; das outras, a linha não aparece. */
+  conferidas: number | null;
+}) {
+  const router = useRoteador();
+  const { extratoBancoId, arquivoBanco, arquivoSistema, execucao, competencia } = conciliacao;
+  const { fechamento } = mes;
+  const pendentes = pedemDecisao(conciliacao);
+  const nomeDoMes = mes.titulo.split(" ")[0].toLowerCase();
+  const titulo = fechamento
+    ? "Mês fechado"
+    : pendentes > 0
+      ? `${plural(pendentes, "linha pede", "linhas pedem")} decisão`
+      : "Sem pendência";
+  return (
+    <aside ref={ref} className="conc-previa" aria-label="Conciliação escolhida" aria-live="polite" data-tutorial="previa">
+      <span className="rotulo">{tituloDaCompetencia(competencia)}</span>
+      <h2 className="conc-previa-titulo">{titulo}</h2>
+      <div className="conc-previa-arquivos">
+        <span className="hist-arquivo">
+          <IconeOrigem origem="banco" tamanho={14} />
+          <span className="hist-arquivo-nome">{arquivoBanco}</span>
+        </span>
         <span className="hist-arquivo hist-arquivo-sistema">
           <IconeOrigem origem="sistema" tamanho={13} />
           <span className="hist-arquivo-nome">{`× ${arquivoSistema}`}</span>
         </span>
-      </td>
-      <td className="conc-c-progresso">
-        <RotuloMovel>Progresso</RotuloMovel>
-        <span className="conc-progresso">
-          {execucao.lancamentos > 0 && <BarraDoResultado execucao={execucao} />}
-          <span className="conc-progresso-texto">{progresso}</span>
-        </span>
-      </td>
-      <td className="conc-c-situacao">
-        <span className={selo.tom === "neutro" ? "selo" : `selo selo-${selo.tom}`}>{selo.rotulo}</span>
-      </td>
-      <td className="conc-c-atividade">
-        <RotuloMovel>Última atividade</RotuloMovel>
-        <span className="conc-atividade">
-          <span>{formatarDataHora(execucao.executadaEm)}</span>
-          <span className="conc-atividade-rodada">{rodadas > 1 ? `Rodada ${rodada} de ${rodadas}` : `Rodada ${rodada}`}</span>
-        </span>
-      </td>
-      <td className="conc-c-abrir" aria-hidden="true">
-        <ChevronRight size={16} />
-      </td>
-    </tr>
+      </div>
+      <div className="extrato-resultado">
+        <p className="conc-previa-numero">
+          <strong>{formatarInteiro(conciliados(execucao))}</strong>
+          {`de ${plural(execucao.lancamentos, "lançamento bate", "lançamentos batem")}`}
+        </p>
+        {execucao.lancamentos > 0 && (
+          <>
+            <BarraDoResultado execucao={execucao} />
+            <ul className="conc-previa-legenda" aria-label="O que a barra mostra">
+              {segmentos(execucao).map((parte) => (
+                <li key={parte.tom}>
+                  <span className="hist-legenda-cor" data-tom={parte.tom} aria-hidden="true" />
+                  {`${formatarInteiro(parte.quantidade)} · ${parte.rotulo}`}
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+      </div>
+      <dl className="conc-previa-dados">
+        <dt>Situação</dt>
+        <dd>
+          <Selo selo={seloDaFolha(conciliacao, fechamento !== null)} />
+        </dd>
+        {execucao.justificadas > 0 && (
+          <>
+            <dt>Justificadas</dt>
+            <dd>{formatarInteiro(execucao.justificadas)}</dd>
+          </>
+        )}
+        {conferidas !== null && !fechamento && (
+          <>
+            <dt>Conferidas</dt>
+            <dd>{`${formatarInteiro(conferidas)} de ${formatarInteiro(pendentes)}`}</dd>
+          </>
+        )}
+        <dt>Rodada</dt>
+        <dd>{`${textoDaRodada(conciliacao)} · ${formatarDataHora(execucao.executadaEm)}`}</dd>
+        <dt>Mês</dt>
+        <dd>
+          {fechamento ? `Fechado em ${formatarDataHora(fechamento.fechadoEm).slice(0, 10)} por ${fechamento.fechadoPor} · ` : "Aberto · "}
+          <Link href={caminhoDoFechamento(mes.chave)} className="conc-mes-link">
+            {fechamento ? "Ver o fechamento" : `Fechamento de ${nomeDoMes}`}
+          </Link>
+        </dd>
+      </dl>
+      <div className="conc-previa-acoes">
+        {/* pelo endereço só do banco, que abre a rodada que vale */}
+        <Link href={caminhoDaConciliacao(extratoBancoId)} className="btn btn-primary">
+          Abrir a comparação
+        </Link>
+        {/* como na comparação: com o mês fechado, nada se concilia de novo */}
+        {!fechamento && (
+          <NovaVersao
+            extratoBancoId={extratoBancoId}
+            onConcluida={() => router.push(caminhoDaConciliacao(extratoBancoId))}
+          />
+        )}
+      </div>
+    </aside>
   );
 }

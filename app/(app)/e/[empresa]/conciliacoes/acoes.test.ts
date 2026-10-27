@@ -412,8 +412,16 @@ describe("listarExtratos", () => {
       competencia: "2026-10",
       enviadoEm: "2026-09-24T17:00:00Z",
       conciliado: false,
+      arquivoOriginal: false,
       periodo: { inicio: "2026-10-01", fim: "2026-09-30" },
     });
+  });
+
+  it("diz quando o original do extrato está guardado (backend #139)", async () => {
+    backendComExtratos([extrato(NAO_CONCILIADO, { conciliado: false, arquivo_original: true })]);
+    const resultado = await listarExtratos();
+    if (!resultado.ok) throw new Error(resultado.erro);
+    expect(resultado.dados.arquivos[0].arquivoOriginal).toBe(true);
   });
 
   it("resume a rodada de cada arquivo conciliado para o painel: o par, quanto bateu e o que diverge", async () => {

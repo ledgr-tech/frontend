@@ -54,3 +54,8 @@ export function caminhoDoCsv(extratoBancoId: string, extratoSistemaId?: string, 
   const query = busca.toString();
   return `/api/conciliacoes/${encodeURIComponent(extratoBancoId)}/exportar${query ? `?${query}` : ""}`;
 }
+
+/** O arquivo original de um extrato (backend #139), pela rota do servidor; a empresa ativa vai na query, como no CSV. */
+export function caminhoDoOriginal(extratoId: string, empresa?: string): string {
+  return `/api/extratos/${encodeURIComponent(extratoId)}/arquivo-original${empresa ? `?empresa=${empresa}` : ""}`;
+}

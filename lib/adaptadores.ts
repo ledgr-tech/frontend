@@ -510,6 +510,8 @@ export type ItemExtratoAPI = CamposDeSaldoAPI & {
   enviado_em: string;
   /** Já entrou em alguma conciliação, como extrato do banco ou do sistema. */
   conciliado: boolean;
+  /** O original está guardado e pode ser baixado (backend #139, plano avançado); false com a flag desligada. */
+  arquivo_original?: boolean;
 };
 
 export type ListaExtratosAPI = {
@@ -599,8 +601,29 @@ export function adaptarPessoa(api: PessoaAPI): Pessoa {
 }
 
 /** Uma empresa cliente da conta (`GET`/`POST /empresas`, backend #133); `cnpj_verificado_em` é a data da consulta à Receita, nula sem ela. */
-export type EmpresaClienteAPI = { id: string; razao_social: string; cnpj: string; cnpj_verificado_em: string | null; criado_em: string };
-export type EmpresaCliente = { id: string; razaoSocial: string; cnpj: string; cnpjVerificado: boolean; criadaEm: string };
+/** A situação do mês mais recente da empresa (backend #157): fechado, em aberto ou nunca conciliou. */
+export type SituacaoDaEmpresa = "em_aberto" | "fechado" | "sem_conciliacao";
+const SITUACOES_DA_EMPRESA: readonly string[] = ["em_aberto", "fechado", "sem_conciliacao"];
+
+export type EmpresaClienteAPI = {
+  id: string;
+  razao_social: string;
+  cnpj: string;
+  cnpj_verificado_em: string | null;
+  criado_em: string;
+  favorita?: boolean;
+  status?: string;
+};
+/** `favorita` e `situacao` só existem com o backend #157; antes dele, a lista não os traz. */
+export type EmpresaCliente = {
+  id: string;
+  razaoSocial: string;
+  cnpj: string;
+  cnpjVerificado: boolean;
+  criadaEm: string;
+  favorita?: boolean;
+  situacao?: SituacaoDaEmpresa;
+};
 
 export function adaptarEmpresaCliente(api: EmpresaClienteAPI): EmpresaCliente {
   return {
@@ -609,6 +632,8 @@ export function adaptarEmpresaCliente(api: EmpresaClienteAPI): EmpresaCliente {
     cnpj: api.cnpj,
     cnpjVerificado: Boolean(api.cnpj_verificado_em),
     criadaEm: api.criado_em,
+    ...(typeof api.favorita === "boolean" && { favorita: api.favorita }),
+    ...(api.status !== undefined && SITUACOES_DA_EMPRESA.includes(api.status) && { situacao: api.status as SituacaoDaEmpresa }),
   };
 }
 
