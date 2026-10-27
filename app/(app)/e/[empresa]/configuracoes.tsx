@@ -5,7 +5,9 @@ import Link from "@/lib/link-do-app";
 import {
   ArrowLeftRight,
   Info,
+  KeyRound,
   Keyboard,
+  PlugZap,
   Palette,
   Search,
   ShieldCheck,
@@ -13,8 +15,9 @@ import {
   X,
   type LucideIcon,
 } from "lucide-react";
-import { desativarConta, trocarSenha, type ResultadoConta } from "../../../(auth)/acoes";
+import { desativarConta, trocarEmail, trocarSenha, type ResultadoConta } from "../../../(auth)/acoes";
 import { MensagemErro } from "../../../(auth)/_compartilhado/mensagem-erro";
+import { EMAIL_VALIDO, MENSAGEM_EMAIL_INCOMPLETO } from "../../../(auth)/_compartilhado/validacao";
 import { SENHA_MINIMA } from "../../../(auth)/cadastro/passos";
 import {
   carregarRegras,
@@ -28,7 +31,10 @@ import { aplicarDensidade, densidadeAtual, type Densidade } from "./densidade";
 import { alternarMenu, menuRecolhido } from "./menu";
 import { aplicarTema, escolhaDeTema, seguirSistema, temaDoSistema, type EscolhaDeTema, type Tema } from "./tema";
 import { useTeclaDeAtalho } from "@/lib/plataforma";
-import type { Papel } from "@/lib/papel";
+import { podeFecharMes, type Papel } from "@/lib/papel";
+import { PainelDeChavesApi } from "./chaves-api/painel";
+import { carregarConexoesMcp, type ConexaoMcp } from "./conexoes-mcp/acoes";
+import { PainelDeConexoes } from "./conexoes-mcp/painel";
 import { Tutorial } from "./tutorial/tutorial";
 
 /**
@@ -51,6 +57,8 @@ type Secao = {
   icone: LucideIcon;
   grupo: "Configurações" | "Ledgr";
   linhas: Linha[];
+  /** O que não cabe em linhas de título e controle (a lista de chaves da API), embaixo delas. */
+  conteudo?: ReactNode;
 };
 
 const NOTA_TEMA: Record<EscolhaDeTema, string> = {
@@ -421,6 +429,11 @@ export function Configuracoes({
   const [toleranciaDias, setToleranciaDias] = useState<number | null | undefined>(undefined);
   // undefined até a janela abrir pela primeira vez (e de novo no "Tentar de novo")
   const [regras, setRegras] = useState<EstadoDasRegras | undefined>(undefined);
+  // as conexões com o ChatGPT e o Claude (#195): null enquanto não se sabe, ou quando o backend está com a
+  // conexão desligada (404) ou falhou; só com a lista na mão a seção aparece
+  const [conexoes, setConexoes] = useState<{ itens: ConexaoMcp[]; endereco: string | null } | null>(null);
+  const [conexoesLidas, setConexoesLidas] = useState(false);
+  const gerencia = podeFecharMes(papel);
   const ctrl = useTeclaDeAtalho();
 
   useEffect(() => {
@@ -451,6 +464,16 @@ export function Configuracoes({
       () => setRegras({ situacao: "falhou" }),
     );
   }, [aberta, regras]);
+
+  useEffect(() => {
+    if (!aberta || !gerencia || conexoesLidas) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setConexoesLidas(true);
+    carregarConexoesMcp().then(
+      (resposta) => setConexoes(resposta.ok ? resposta.dados : null),
+      () => setConexoes(null),
+    );
+  }, [aberta, gerencia, conexoesLidas]);
 
   // sem a rota das configurações, a tolerância que se mostra é a da última conciliação
   useEffect(() => {
@@ -484,13 +507,33 @@ export function Configuracoes({
       icone: UserRound,
       grupo: "Configurações",
       linhas: [
-        {
-          titulo: "E-mail",
-          descricao: "É com ele que você entra no Ledgr. Para trocar, por enquanto, escreva para ledgrtech@gmail.com.",
-          // ponytail: o backend ainda não tem `POST /me/email` (backend #66). Quando tiver, o controle volta a
-          // ser um AcaoDaConta com `trocarEmail`, que já está pronta e testada em (auth)/acoes.ts.
-          controle: <span className="cfg-valor">{email}</span>,
-        },
+        temSenha
+          ? {
+              titulo: "E-mail",
+              descricao:
+                "É com ele que você entra no Ledgr. Ao trocar, mandamos um link para o e-mail novo, e a troca só vale quando você abrir esse link.",
+              controle: (
+                <AcaoDaConta
+                  abrir="Trocar e-mail"
+                  confirmar="Enviar link"
+                  feito="Link enviado ao e-mail novo. Abra para confirmar."
+                  campos={[
+                    { id: "email_novo", rotulo: "E-mail novo", tipo: "email", autoComplete: "email" },
+                    SENHA_ATUAL,
+                  ]}
+                  validar={(valores) => (EMAIL_VALIDO.test(valores.email_novo.trim()) ? null : MENSAGEM_EMAIL_INCOMPLETO)}
+                  enviar={(valores) => trocarEmail(valores.email_novo, valores.senha_atual)}
+                >
+                  <span className="cfg-valor">{email}</span>
+                </AcaoDaConta>
+              ),
+            }
+          : {
+              // o backend recusa a troca na conta só do Google (#149): o e-mail é o da conta Google
+              titulo: "E-mail",
+              descricao: "É o da sua conta Google, com a qual você entra no Ledgr.",
+              controle: <span className="cfg-valor">{email}</span>,
+            },
         ...(temSenha
           ? [
               {
@@ -535,7 +578,7 @@ export function Configuracoes({
         {
           titulo: "Desativar conta",
           descricao: papel === "admin"
-            ? "Tira o seu acesso ao Ledgr e libera o seu e-mail. Se há outras pessoas na equipe, remova-as antes em Empresas › Equipe: sem você, a empresa fica sem acesso."
+            ? "Tira o seu acesso ao Ledgr e libera o seu e-mail. Se há outras pessoas na equipe, passe antes a administração para uma delas em Empresas › Equipe (Tornar administrador)."
             : "Tira o seu acesso ao Ledgr e libera o seu e-mail. O que você conferiu e justificou continua no histórico da empresa, com o seu nome.",
           controle: (
             <AcaoDaConta
@@ -668,6 +711,43 @@ export function Configuracoes({
         },
       ],
     },
+    // as chaves da API pública (#194) são do admin e do gestor: o analista nem vê a seção
+    ...(gerencia
+      ? [
+          {
+            id: "api",
+            nome: "API",
+            icone: KeyRound,
+            grupo: "Configurações" as const,
+            linhas: [
+              {
+                titulo: "Chaves da API",
+                descricao:
+                  "Para outro sistema ler as conciliações, as divergências e os fechamentos, sem descrição de lançamento nem justificativas. Só leitura; cada chave vale para uma empresa ou para todas.",
+              },
+            ],
+            conteudo: <PainelDeChavesApi />,
+          },
+        ]
+      : []),
+    ...(gerencia && conexoes
+      ? [
+          {
+            id: "conexoes",
+            nome: "Conexões",
+            icone: PlugZap,
+            grupo: "Configurações" as const,
+            linhas: [
+              {
+                titulo: "ChatGPT e Claude",
+                descricao:
+                  "Para perguntar ao seu assistente de IA sobre as conciliações de uma empresa. Cada conexão é autorizada pelo admin ou pelo gestor, lê uma empresa só e não muda nada no Ledgr.",
+              },
+            ],
+            conteudo: <PainelDeConexoes itens={conexoes.itens} endereco={conexoes.endereco} />,
+          },
+        ]
+      : []),
     {
       id: "atalhos",
       nome: "Atalhos de teclado",
@@ -801,6 +881,7 @@ export function Configuracoes({
                   {secao.nome}
                 </h2>
                 <Linhas linhas={secao.linhas} />
+                {secao.conteudo}
                 {/* dentro da janela, para ficar na camada de cima com ela; só com ela aberta, ou o "?"
                     da barra do topo abriria este também, escondido na janela fechada */}
                 {aberta && secao.id === "conciliacao" && <Tutorial tela="configuracoes" />}

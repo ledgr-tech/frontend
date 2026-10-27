@@ -152,7 +152,7 @@ export function Vitrine({
               <span className="app-assistente-texto">
                 <span className="app-assistente-chamada">Assistente</span>
                 <span className="app-assistente-titulo">Fale com o Ledgr</span>
-                <span className="app-assistente-detalhe">Pergunte sobre o mês</span>
+                <span className="app-assistente-detalhe">O mês e como usar o app</span>
               </span>
             </div>
             <div className="vitrine-conta">

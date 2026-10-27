@@ -233,6 +233,13 @@ describe("transferirAdmin", () => {
   });
 });
 
+describe("transferirAdmin: o que chega da Server Action", () => {
+  it("uma senha que não é texto nem null é recusada antes do backend", async () => {
+    expect(await transferirAdmin(PESSOA, 123 as unknown as string)).toEqual({ ok: false, status: 400, erro: "Digite a sua senha atual." });
+    expect(chamarBackend).not.toHaveBeenCalled();
+  });
+});
+
 describe.each([
   ["trocarPapel", () => trocarPapel(PESSOA, "analista")],
   ["transferirAdmin", () => transferirAdmin(PESSOA, "segredo")],

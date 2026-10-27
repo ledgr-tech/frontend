@@ -10,6 +10,7 @@ import { COOKIE_CADASTRO_GOOGLE, COOKIE_CONVITE_GOOGLE, VALIDADE_ID_TOKEN_SEGUND
 import { MuitasEntradas, type UsuarioAPI } from "@/lib/login";
 import type { EmpresaDaConta } from "@/lib/empresa-ativa";
 import { lerPapel, type Papel } from "@/lib/papel";
+import { destinoDepoisDoLogin } from "@/lib/rotas";
 import { ehTela, type Preferencias } from "@/lib/preferencias";
 import { adaptarAssinatura, type Assinatura, type PlanoId } from "@/lib/assinatura";
 import { adaptarLimites, type LimitesDaConta } from "@/lib/limites";
@@ -91,11 +92,12 @@ export async function entrarNaDemonstracao(manterSessao: boolean): Promise<boole
  * redirect, que a Server Action entrega ao navegador; só volta daqui quando o
  * provider não existe neste servidor.
  */
-export async function entrarComGoogle(): Promise<false> {
+export async function entrarComGoogle(voltar?: string | null): Promise<false> {
   if (!process.env.AUTH_GOOGLE_ID) return false;
   // um aceite de convite pelo Google que ficou pela metade não pode virar este login
   (await cookies()).delete(COOKIE_CONVITE_GOOGLE);
-  await signIn("google", { redirectTo: "/visao-geral" });
+  // o destino vem do navegador: só o consentimento de um pedido de conexão, refeito do id, ou a Visão geral
+  await signIn("google", { redirectTo: destinoDepoisDoLogin(voltar) });
   return false;
 }
 
@@ -593,7 +595,12 @@ function mensagemDaConta(erro: unknown): string {
   if (erro.status === 422 && erro.campos.includes("senha_nova")) {
     return "A senha nova precisa ter de 8 a 72 caracteres.";
   }
+  // sem campo é a regra da rota, com texto para a tela ("O e-mail novo é igual ao atual.", #149)
+  if (erro.status === 422 && erro.campos.length === 0 && erro.detalhe) return erro.detalhe;
+  // o limite por hora da troca de e-mail (#149) explica o próprio prazo; o por minuto é o genérico
+  if (erro.status === 429 && (erro.segundosParaTentar ?? 0) > 60) return erro.detalhe;
   if (erro.status === 429) return "Muitas tentativas. Espere um minuto e tente de novo.";
+  if (erro.status === 503) return "Indisponível no momento. Tente de novo mais tarde.";
   return FALHA_CONTA;
 }
 
@@ -641,17 +648,45 @@ export async function trocarSenha(senhaAtual: string, senhaNova: string): Promis
   return { ok: true };
 }
 
+/**
+ * Pede a troca do e-mail (`POST /me/email`, backend #149). O backend responde 202 e manda um link
+ * ao e-mail novo; o da conta só muda quando a pessoa abre o link (`/confirmar-email`), então a
+ * sessão de agora continua como está.
+ */
 export async function trocarEmail(emailNovo: string, senhaAtual: string): Promise<ResultadoConta> {
-  const email = emailNovo.trim().toLowerCase();
   const conta = await naConta(() =>
     chamarBackend("/me/email", {
       method: "POST",
-      corpo: { email_novo: email, senha_atual: senhaAtual },
+      corpo: { email_novo: emailNovo.trim().toLowerCase(), senha_atual: senhaAtual },
     }),
   );
-  if (!conta.ok) return conta;
-  await refazerSessao(email, senhaAtual);
-  return { ok: true };
+  return conta.ok ? { ok: true } : conta;
+}
+
+export type ResultadoConfirmacaoEmail =
+  | { ok: true; email: string }
+  | { ok: false; erro: "link_invalido" | "email_em_uso" | "muitas_tentativas" | "falha" };
+
+/**
+ * O link do e-mail novo (`POST /me/email/confirmar`, backend #149), sem sessão: pode abrir noutro
+ * navegador. Na confirmação o backend encerra todas as sessões da pessoa; a que estiver neste
+ * navegador recebe 401 na próxima chamada e vai ao login, como qualquer sessão vencida.
+ */
+export async function confirmarEmail(token: string): Promise<ResultadoConfirmacaoEmail> {
+  try {
+    const { email } = await chamarBackend<{ email: string }>("/me/email/confirmar", {
+      method: "POST",
+      corpo: { token },
+      publica: true,
+    });
+    return { ok: true, email };
+  } catch (erro) {
+    if (!(erro instanceof ErroBackend)) return { ok: false, erro: "falha" };
+    if (erro.status === 400 || erro.status === 422) return { ok: false, erro: "link_invalido" };
+    if (erro.status === 409) return { ok: false, erro: "email_em_uso" };
+    if (erro.status === 429) return { ok: false, erro: "muitas_tentativas" };
+    return { ok: false, erro: "falha" };
+  }
 }
 
 /**
@@ -660,7 +695,7 @@ export async function trocarEmail(emailNovo: string, senhaAtual: string): Promis
  * senha: com um token roubado, sem ela, dava para tirar a pessoa da conta. A conta só do Google não
  * tem senha (null): o backend confere o login recente e, se for antigo, responde 409 com o texto
  * que pede para entrar de novo pelo Google. O administrador com outras pessoas na equipe também
- * recebe 409, pedindo para removê-las antes.
+ * recebe 409, pedindo para transferir antes o papel de admin (backend #143).
  */
 export async function desativarConta(senhaAtual: string | null): Promise<ResultadoConta> {
   const conta = await naConta(() =>

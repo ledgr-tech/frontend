@@ -3343,9 +3343,9 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
   display: inline-flex; align-items: center; gap: 6px; background: transparent; color: var(--color-text);
   font-family: var(--font-body); cursor: pointer;
 }
-.equipe-papel-botao:hover:not(:disabled) { background: var(--tinta-hover); }
+.equipe-papel-botao:hover:not([aria-disabled="true"]) { background: var(--tinta-hover); }
 .equipe-papel-botao[aria-expanded="true"] { background: var(--tinta-ativa); }
-.equipe-papel-botao:disabled { cursor: default; opacity: 0.7; }
+.equipe-papel-botao[aria-disabled="true"] { cursor: default; opacity: 0.7; }
 .equipe-papel-botao:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
 .equipe-menu {
   position: absolute; z-index: 30; top: calc(100% + 6px); right: 0; width: 300px; padding: 6px;
@@ -3474,7 +3474,8 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
   margin: 0; max-width: 85%; padding: 9px 12px;
   border-radius: var(--radius-md); font-size: 13.5px; line-height: 1.55; overflow-wrap: anywhere;
 }
-.asst-bolha p { margin: 0; }
+/* o passo a passo do assistente da Central vem em linhas (1., 2., …): a quebra de linha fica */
+.asst-bolha p { margin: 0; white-space: pre-line; }
 .asst-bolha-ledgr {
   display: flex; flex-direction: column; gap: 8px;
   border: 1px solid var(--color-divider); border-top-left-radius: 4px;
@@ -3595,6 +3596,45 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
 .cfg-form { display: flex; flex-direction: column; gap: 12px; max-width: 380px; }
 .cfg-form-aviso { margin: 0; font-size: 13.5px; line-height: 1.55; color: var(--color-erro); }
 .cfg-form-botoes { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+/* o consentimento da conexão do ChatGPT e do Claude (#195): quem pede, o que lê, de qual empresa */
+.consent { display: flex; flex-direction: column; gap: 14px; text-align: left; }
+.consent h1, .consent p { margin: 0; }
+.consent-host { font-family: var(--font-mono); font-size: 14px; font-weight: 600; color: var(--color-text); }
+.consent-alerta {
+  padding: 10px 14px; border-radius: var(--radius-md); font-size: 14px; line-height: 1.55;
+  border: 1px solid color-mix(in srgb, var(--color-erro) 45%, transparent);
+  background: color-mix(in srgb, var(--color-erro) 7%, transparent);
+}
+.consent-bloco {
+  display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 12px 14px;
+  border: 1px solid var(--color-divider); border-radius: var(--radius-md); font-size: 14px; line-height: 1.55;
+}
+.consent-rotulo { padding: 0; font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: color-mix(in srgb, var(--color-text) 66%, transparent); }
+.consent-empresa { display: flex; align-items: flex-start; gap: 10px; padding: 6px 0; cursor: pointer; }
+.consent-empresa input { margin-top: 4px; accent-color: var(--color-accent); }
+.consent-cnpj { display: block; font-size: 12.5px; font-variant-numeric: tabular-nums; color: color-mix(in srgb, var(--color-text) 66%, transparent); }
+.consent-nota { font-size: 13px; line-height: 1.55; color: color-mix(in srgb, var(--color-text) 66%, transparent); }
+.consent-botoes { display: flex; flex-wrap: wrap; gap: 10px; }
+/* Configurações › API (#194): o endereço, o token recém-criado e a lista de chaves */
+.api-chaves { display: flex; flex-direction: column; gap: 16px; padding-top: 4px; }
+.api-chaves code { font-family: var(--font-mono); font-size: 12.5px; }
+.api-endereco { margin: 0; font-size: 13.5px; line-height: 1.6; overflow-wrap: anywhere; }
+.api-token {
+  display: flex; flex-direction: column; gap: 8px; padding: 14px 16px;
+  border: 1px solid var(--color-accent); border-radius: var(--radius-md); background: var(--color-surface);
+}
+.api-token-valor {
+  display: block; padding: 8px 10px; border-radius: var(--radius-sm); background: var(--color-bg);
+  border: 1px solid var(--color-divider); user-select: all; overflow-wrap: anywhere;
+}
+.api-lista { list-style: none; margin: 0; padding: 0; }
+.api-chave {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 24px;
+  padding: 14px 0; border-top: 1px solid var(--color-divider);
+}
+.api-chave-texto { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1 1 18rem; }
+.api-chave-texto .cfg-linha-titulo { display: inline-flex; align-items: center; gap: 8px; }
+.api-chave .tag { border: 1px solid var(--color-divider); }
 /* a tolerância de data: − campo + numa peça só, e as mensagens embaixo, alinhadas ao controle */
 .cfg-numero { display: inline-flex; align-items: center; gap: 6px; }
 .cfg-numero-botao {
@@ -4444,6 +4484,16 @@ html[data-tema="escuro"] .app-shell {
 .fech-acoes { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .fech-erro { flex-basis: 100%; margin: 0; }
 .fech-ressalva-form { flex-basis: 100%; display: flex; flex-direction: column; gap: 8px; max-width: 520px; }
+/* aprovar ou rejeitar várias de uma vez (#208): o motivo da rejeição, e a faixa das marcadas na comparação */
+.lote-rejeicao { flex-basis: 100%; display: flex; flex-direction: column; gap: 8px; max-width: 520px; }
+.lote-rejeicao textarea { resize: vertical; }
+.lote-rejeicao .vg-nota { margin: 0; }
+.lote-faixa {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px;
+  padding: 10px 14px; border: 1px solid var(--color-divider); border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+.lote-marca { width: 18px; height: 18px; margin: 0; accent-color: var(--color-accent); cursor: pointer; vertical-align: middle; }
 .fech-campo { display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
 .fech-campo textarea { resize: vertical; min-height: 72px; }
 .fech-encerrado { display: flex; flex-direction: column; gap: 8px; }

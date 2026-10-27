@@ -6,9 +6,11 @@ import {
   comEmpresa,
   destinoDaTroca,
   destinoDaUrlAntiga,
+  destinoDepoisDoLogin,
   ehDaEmpresa,
   ehUuid,
   empresaDoCaminho,
+  enderecoExterno,
   escolherEmpresa,
   secaoDoCaminho,
 } from "./rotas";
@@ -170,5 +172,34 @@ describe("destinoDaUrlAntiga", () => {
     expect(destinoDaUrlAntiga("login", undefined, {}, A)).toBeNull();
     expect(destinoDaUrlAntiga("e", [A], {}, A)).toBeNull();
     expect(destinoDaUrlAntiga("", undefined, {}, A)).toBeNull();
+  });
+});
+
+describe("enderecoExterno", () => {
+  it("passa endereço absoluto http(s) e troca o resto por #", () => {
+    expect(enderecoExterno("https://api.ledgr.com.br/llms.txt")).toBe("https://api.ledgr.com.br/llms.txt");
+    expect(enderecoExterno("http://localhost:8000/v1/openapi.json")).toBe("http://localhost:8000/v1/openapi.json");
+    expect(enderecoExterno("/fechamentos")).toBe("#");
+    expect(enderecoExterno("javascript:alert(1)")).toBe("#");
+  });
+});
+
+describe("destinoDepoisDoLogin", () => {
+  it("volta ao consentimento de um pedido de conexão", () => {
+    expect(destinoDepoisDoLogin("/autorizar-conexao?pedido=Ab_12-cd")).toBe("/autorizar-conexao?pedido=Ab_12-cd");
+  });
+
+  it.each([
+    [null],
+    [undefined],
+    [""],
+    ["/visao-geral"],
+    ["https://outro.site/autorizar-conexao?pedido=x"],
+    ["//outro.site/autorizar-conexao?pedido=x"],
+    ["/autorizar-conexao?pedido=x&depois=https://outro.site"],
+    ["/autorizar-conexao?pedido=%2F%2Foutro"],
+    ["/autorizar-conexao?pedido="],
+  ])("qualquer outro destino (%s) vai à Visão geral", (voltar) => {
+    expect(destinoDepoisDoLogin(voltar)).toBe("/visao-geral");
   });
 });

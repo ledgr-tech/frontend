@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "@/lib/link-do-app";
 import { useRoteador } from "@/lib/roteador";
 import { carregarVisaoGeral } from "../conciliacoes/acoes";
 import { Conversa, TopoDoLedgr } from "./conversa";
@@ -17,7 +16,8 @@ type Estado =
  * "Fale com o Ledgr" como no design: um painel que abre ao lado do cartão do
  * menu, não uma tela. Vive no menu, que é do layout, então continua aberto
  * quando um link da conversa leva a outra tela. Lê o mesmo que a visão geral (a
- * última conciliação) cada vez que abre.
+ * última conciliação) cada vez que abre; sem ela, a conversa fica só com as dúvidas
+ * de uso, que vão ao assistente da Central (#172).
  */
 export function PainelAssistente({ id, onFechar }: { id: string; onFechar: () => void }) {
   const router = useRoteador();
@@ -55,29 +55,19 @@ export function PainelAssistente({ id, onFechar }: { id: string; onFechar: () =>
       aria-label="Fale com o Ledgr"
       onKeyDown={(evento) => evento.key === "Escape" && onFechar()}
     >
-      {estado.situacao === "pronto" ? (
-        <Conversa contexto={estado.contexto} onFechar={onFechar} />
-      ) : (
+      {estado.situacao === "carregando" ? (
         <>
-          <TopoDoLedgr status={estado.situacao === "carregando" ? "abrindo…" : undefined} onFechar={onFechar} />
+          <TopoDoLedgr status="abrindo…" onFechar={onFechar} />
           <div className="asst-painel-corpo">
-            {estado.situacao === "carregando" && <p aria-busy="true">Lendo a última conciliação…</p>}
-            {estado.situacao === "falhou" && (
-              <p role="alert">Não foi possível abrir o assistente agora. Feche e tente de novo em instantes.</p>
-            )}
-            {estado.situacao === "vazio" && (
-              <>
-                <p>
-                  Ainda não há sobre o que conversar. O Ledgr responde sobre a conciliação mais recente: suba o
-                  extrato do banco e o do sistema de gestão para começar.
-                </p>
-                <Link href="/conciliacoes/nova" className="btn btn-primary" onClick={onFechar}>
-                  Nova conciliação
-                </Link>
-              </>
-            )}
+            <p aria-busy="true">Lendo a última conciliação…</p>
           </div>
         </>
+      ) : (
+        <Conversa
+          contexto={estado.situacao === "pronto" ? estado.contexto : null}
+          semDados={estado.situacao === "falhou" ? "falhou" : "vazio"}
+          onFechar={onFechar}
+        />
       )}
     </section>
   );

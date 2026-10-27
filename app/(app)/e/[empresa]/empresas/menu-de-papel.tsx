@@ -63,10 +63,17 @@ export function MenuDePapel({
       botao.current?.focus();
       return;
     }
-    if (evento.key !== "ArrowDown" && evento.key !== "ArrowUp") return;
+    // o foco segue o caminho natural da página: o menu só se fecha
+    if (evento.key === "Tab") {
+      aoAlternar(false);
+      return;
+    }
+    if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(evento.key)) return;
     const itens = [...(envelope.current?.querySelectorAll<HTMLElement>('[role^="menuitem"]') ?? [])];
     if (itens.length === 0) return;
     evento.preventDefault();
+    if (evento.key === "Home") return itens[0].focus();
+    if (evento.key === "End") return itens[itens.length - 1].focus();
     const atual = itens.indexOf(document.activeElement as HTMLElement);
     const passo = evento.key === "ArrowDown" ? 1 : -1;
     itens[(atual + passo + itens.length) % itens.length].focus();
@@ -82,8 +89,9 @@ export function MenuDePapel({
         aria-haspopup="menu"
         aria-expanded={aberto}
         aria-controls={aberto ? menuId : undefined}
-        disabled={desabilitado || salvando}
-        onClick={() => aoAlternar(!aberto)}
+        // aria-disabled e não disabled: um botão desligado perde o foco, e o menu acaba de devolvê-lo aqui
+        aria-disabled={desabilitado || salvando}
+        onClick={() => !(desabilitado || salvando) && aoAlternar(!aberto)}
       >
         {salvando ? "Salvando…" : ROTULO_DO_PAPEL[papel]}
         {!salvando && <ChevronDown size={14} aria-hidden="true" />}
@@ -97,14 +105,21 @@ export function MenuDePapel({
               role="menuitemradio"
               aria-checked={papel === opcao}
               className="equipe-menu-item"
-              onClick={() => aoEscolher(opcao)}
+              onClick={() => {
+                botao.current?.focus();
+                aoEscolher(opcao);
+              }}
             >
               <b>{ROTULO_DO_PAPEL[opcao]}</b>
               <span>{DESCRICAO_DO_PAPEL[opcao]}</span>
             </button>
           ))}
           <hr className="equipe-menu-filete" />
-          <button type="button" role="menuitem" className="equipe-menu-item" onClick={aoTransferir}>
+          <button type="button" role="menuitem" className="equipe-menu-item" onClick={() => {
+              botao.current?.focus();
+              aoTransferir();
+            }}
+          >
             <b>Tornar administrador…</b>
             <span>Passa a administração da conta para {nome}. Você vira Gestor.</span>
           </button>
