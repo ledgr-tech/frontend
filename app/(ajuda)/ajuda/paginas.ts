@@ -156,24 +156,13 @@ export const PAGINAS: PaginaDeAjuda[] = [
     titulo: "Conciliações",
     onde: "Menu lateral › Conciliações",
     serve:
-      "A sua fila de trabalho: uma linha por extrato do banco, com as conciliações abertas primeiro.",
+      "A sua fila de trabalho: um par de folhas por extrato do banco, agrupado pelo mês, com as conciliações abertas primeiro e o resumo da escolhida ao lado.",
     capa: {
       src: "/ajuda/conciliacoes.webp",
       largura: 1360,
       altura: 850,
     },
     funcoes: [
-      {
-        id: "continuar",
-        titulo: "Continue de onde parou",
-        faz: "A conciliação que ainda pede decisão fica em destaque no topo, com um botão que volta direto para ela.",
-        passos: ["Clique em **Continuar** para voltar à comparação."],
-        imagem: {
-          src: "/ajuda/conciliacoes--continuar.webp",
-          largura: 1000,
-          altura: 118,
-        },
-      },
       {
         id: "filtros",
         titulo: "Filtrar a fila",
@@ -191,16 +180,23 @@ export const PAGINAS: PaginaDeAjuda[] = [
       {
         id: "fila",
         titulo: "A fila",
-        faz: "Cada linha é um extrato do banco com a rodada que vale: o último extrato do sistema conciliado com ele.",
+        faz: "Cada par de folhas é um extrato do banco com a rodada que vale: o último extrato do sistema conciliado com ele. A barra mostra o que bateu e o que diverge, e o selo diz quantas linhas ainda pedem decisão.",
         passos: [
-          "Clique na linha para abrir a comparação.",
+          "Clique numa folha para ver o resumo dela ao lado.",
+          "Clique duas vezes para abrir direto a comparação.",
           "Para começar outra, use **Nova conciliação** no menu lateral.",
         ],
-        imagem: {
-          src: "/ajuda/conciliacoes--fila.webp",
-          largura: 1000,
-          altura: 145,
-        },
+      },
+      {
+        id: "previa",
+        titulo: "O resumo da escolhida",
+        faz: "Ao lado das folhas, o resumo da conciliação escolhida: quantos lançamentos batem, a barra com a legenda, a situação, as conferidas, a rodada e o mês. A primeira que ainda pede decisão já vem escolhida, para você continuar de onde parou.",
+        passos: [
+          "Clique em **Abrir a comparação** para decidir as linhas.",
+          "Corrigiu o sistema de gestão? Clique em **Enviar nova versão do extrato do sistema** para conciliar de novo com o mesmo extrato do banco.",
+          "O link do mês leva ao fechamento dele.",
+        ],
+        nota: "Com o mês fechado, a nova versão não aparece: reabra o mês em **Fechamentos** para conciliar de novo.",
       },
     ],
   },

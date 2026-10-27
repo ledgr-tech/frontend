@@ -2382,78 +2382,87 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
   .hist-execucao-nome { padding-left: 0; }
 }
 
-/* ── Conciliações: a lista de trabalho (revisão de estilo de 15/10) ─────────────
-   No topo, uma faixa de uma linha para continuar de onde parou (o cartão grande repetia a primeira
-   linha). Embaixo, a lista agrupada pelo mês do extrato, os abertos primeiro; em cada linha uma
-   situação só, o progresso e a última atividade, e a linha inteira abre a conciliação. */
+/* ── Conciliações: a lista de trabalho (revisões de estilo de 15/10 e 27/10) ───────
+   A lista agrupada pelo mês do extrato, os abertos primeiro, como folhas, com a prévia da escolhida
+   ao lado. O "Continue de onde parou" saiu: a primeira da fila já abre escolhida na prévia. */
 .conc-corpo { padding: 30px 0 64px; display: flex; flex-direction: column; gap: 28px; }
-.conc-continuar {
-  display: flex; align-items: center; gap: 18px; padding: 14px 18px;
-  border: 1px solid var(--color-divider); border-radius: var(--radius-md); background: var(--folha-banco);
-}
-.conc-continuar-mascote { width: 48px; height: auto; flex: none; }
-.conc-continuar-corpo { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0; }
-.conc-continuar-titulo { font-size: 15.5px; font-weight: 600; overflow-wrap: anywhere; }
-.conc-continuar-arquivos { font-weight: 400; color: var(--texto-apagado); }
-.conc-continuar-texto { font-size: 13.5px; color: var(--texto-apagado); font-variant-numeric: tabular-nums; }
-.conc-continuar .btn { flex: none; }
 .conc-historico { font-size: 13.5px; }
 
-.conc-tabela { table-layout: fixed; }
-.conc-col-progresso { width: 16rem; }
-.conc-col-situacao { width: 10.5rem; }
-.conc-col-atividade { width: 10rem; }
-.conc-col-abrir { width: 2.5rem; }
-.conc-tabela td { vertical-align: middle; }
-/* o cabeçalho do mês: título na Newsreader, o estado ao lado e o fechamento à direita */
-.conc-mes th {
-  padding: 26px 8px 10px; text-transform: none; letter-spacing: 0; font-weight: 400;
-  color: var(--color-text); border-bottom: 1px solid var(--color-divider);
+/* A lista como folhas (revisão de 27/10): à esquerda os meses, cada conciliação o par de folhas do
+   banco e do sistema, como na comparação; à direita a prévia da escolhida, parada abaixo do filtro.
+   Abaixo de 1100px a prévia sobe para antes das folhas (PREVIA_AO_LADO em lista-de-trabalho.tsx). */
+.conc-mesa { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; align-items: start; }
+/* estreita, a prévia vem antes das folhas: a primeira da fila fica onde ficava o "Continue de onde parou" */
+@media (max-width: 1099px) { .conc-previa { order: -1; } }
+@media (min-width: 1100px) {
+  .conc-mesa { grid-template-columns: minmax(0, 7fr) minmax(320px, 5fr); }
+  .conc-previa { position: sticky; top: calc(var(--app-topo-altura, 0px) + var(--extratos-filtros-altura, 58px) + 12px); }
 }
-.conc-tabela tbody:first-of-type .conc-mes th { padding-top: 14px; }
-.conc-mes-conteudo { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
-.conc-mes-titulo { font-family: var(--font-titulo); font-size: 22px; }
+.conc-meses { display: flex; flex-direction: column; gap: 26px; min-width: 0; }
+/* o cabeçalho do mês: título na Newsreader e o estado ao lado */
+.conc-mes { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; padding-bottom: 10px; border-bottom: 1px solid var(--color-divider); }
+.conc-mes-titulo { margin: 0; font-family: var(--font-titulo); font-size: 22px; font-weight: 400; }
 .conc-mes-meta { flex: 1; font-size: 13px; color: var(--texto-apagado); }
 .conc-mes-link {
   font-size: 13.5px; font-weight: 500; color: var(--color-text); text-decoration: none;
   border-bottom: 1px solid var(--color-divider);
 }
 .conc-mes-link:hover { border-bottom-color: var(--color-text); }
-/* a linha inteira é o link da conciliação: o ::after do nome cobre a linha */
-.conc-linha { position: relative; }
-.conc-linha:hover { background: var(--tinta-hover); }
-.conc-abrir { color: inherit; text-decoration: none; font-weight: 500; }
-.conc-abrir::after { content: ""; position: absolute; inset: 0; }
-.conc-abrir:focus-visible { outline: none; }
-.conc-linha:has(.conc-abrir:focus-visible) { outline: 2px solid var(--color-accent); outline-offset: -2px; }
-.conc-c-conciliacao { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.conc-folhas { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; margin: 16px 0 0; padding: 0; list-style: none; }
+.conc-folhas > li { display: flex; }
+/* o cartão inteiro é o botão que escolhe; a escolhida fica em tinta neutra, como a seleção do app */
+.conc-folha {
+  display: flex; flex-direction: column; gap: 12px; width: 100%; padding: 14px 14px 12px; cursor: pointer;
+  border: 1px solid var(--color-divider); border-radius: var(--radius-md); background: transparent;
+  font: inherit; color: inherit; text-align: left;
+  transition: box-shadow 0.2s ease-out, transform 0.2s cubic-bezier(0.22, 1, 0.36, 1), background-color 0.15s ease-out;
+}
+.conc-folha:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+.conc-folha[aria-pressed="true"] {
+  background: var(--tinta-ativa); border-color: color-mix(in srgb, var(--color-text) 40%, transparent);
+  box-shadow: none; transform: none;
+}
+/* as duas folhas: a do banco por cima, a do sistema atrás e mais baixa, com o nome no pé */
+.conc-folha-par { position: relative; display: block; height: 104px; }
+.conc-folha-banco, .conc-folha-sistema {
+  position: absolute; display: block; padding: 10px 12px; min-width: 0;
+  border: 1px solid var(--color-divider); border-radius: 10px; box-shadow: var(--shadow-sm);
+}
+.conc-folha-banco { inset: 0 28px 30px 0; z-index: 1; background: var(--folha-banco); font-size: 12.5px; font-weight: 500; }
+.conc-folha-sistema { inset: 38px 0 0 28px; display: flex; align-items: flex-end; padding-bottom: 8px; background: var(--folha-sistema); }
+.conc-folha-linhas { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.conc-folha-linhas i { display: block; height: 1px; background: var(--color-divider); }
+.conc-folha-linhas i:nth-child(2) { width: 82%; }
+.conc-folha-linhas i:nth-child(3) { width: 64%; }
+.conc-folha-pe {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 8px;
+  font-size: 12.5px; color: var(--texto-apagado); font-variant-numeric: tabular-nums;
+}
 .conc-progresso { display: flex; flex-direction: column; gap: 6px; }
 .conc-progresso .hist-resultado-barra { flex: none; width: 100%; }
-.conc-progresso-texto, .conc-atividade { font-size: 12.5px; color: var(--texto-apagado); font-variant-numeric: tabular-nums; }
-.conc-atividade { display: flex; flex-direction: column; gap: 2px; font-size: 13px; color: var(--color-text); }
-.conc-atividade-rodada { color: var(--texto-apagado); }
-.conc-c-abrir { text-align: right; color: var(--texto-apagado); }
-
-@media (max-width: 680px) {
-  /* um bloco por conciliação: o nome e a situação em cima, o progresso e a atividade embaixo */
-  .conc-continuar { flex-wrap: wrap; }
-  .conc-tabela thead {
-    position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap;
-  }
-  .conc-tabela, .conc-tabela tbody { display: block; }
-  .conc-tabela tr.conc-linha {
-    display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 14px; align-items: center;
-    padding: 12px 0; border-bottom: 1px solid var(--color-divider);
-  }
-  .conc-tabela tr.conc-mes { display: block; }
-  .conc-tabela :is(td, th) { display: block; padding: 0; border: 0; }
-  .conc-mes th { padding: 22px 0 8px; border-bottom: 1px solid var(--color-divider); }
-  .conc-c-conciliacao { grid-column: 1; grid-row: 1; }
-  .conc-c-situacao { grid-column: 2; grid-row: 1; text-align: right; }
-  .conc-c-progresso { grid-column: 1 / -1; grid-row: 2; }
-  .conc-c-atividade { grid-column: 1 / -1; grid-row: 3; }
-  .conc-c-abrir { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .conc-folha, .conc-folha:hover { transition: none; transform: none; }
 }
+/* a prévia da escolhida: uma folha de papel, com o que bate em número grande */
+.conc-previa {
+  display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 20px 22px 22px; font-size: 14px;
+  border: 1px solid var(--color-divider); border-radius: var(--radius-md); background: var(--folha-banco); box-shadow: var(--shadow-sm);
+}
+.conc-previa-titulo { margin: 6px 0 4px; font-size: 24px; }
+.conc-previa > .hist-arquivo:not(.hist-arquivo-sistema) { font-weight: 500; }
+.conc-previa-numero { display: flex; align-items: baseline; gap: 8px; margin: 16px 0 8px; color: var(--texto-apagado); }
+.conc-previa-numero strong {
+  font-family: var(--font-titulo); font-size: 40px; font-weight: 500; line-height: 1; color: var(--color-text);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+.conc-previa .hist-resultado-barra { flex: none; width: 100%; height: 8px; }
+.conc-previa-legenda { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 10px 0 0; padding: 0; list-style: none; font-size: 12.5px; color: var(--texto-apagado); }
+.conc-previa-legenda li { display: inline-flex; align-items: center; gap: 6px; }
+.conc-previa-dados { display: grid; grid-template-columns: auto minmax(0, 1fr); margin: 16px 0 0; border-top: 1px solid var(--color-divider); }
+.conc-previa-dados dt, .conc-previa-dados dd { margin: 0; padding: 9px 0; border-bottom: 1px solid var(--color-divider); font-size: 13.5px; }
+.conc-previa-dados dt { padding-right: 22px; color: var(--texto-apagado); }
+.conc-previa-dados dd { font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.conc-previa-acoes { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
 
 /* ── Tipografia do app ─────────────────────────────────────────────────────────
    Títulos em Newsreader e o resto em Inter, como a Apple junta a New York à SF.

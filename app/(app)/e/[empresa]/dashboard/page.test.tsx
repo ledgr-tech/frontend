@@ -14,7 +14,9 @@ vi.mock("../conciliacoes/acoes", () => ({
 }));
 
 const redirect = vi.fn();
+const push = vi.fn();
 vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push, replace: vi.fn(), prefetch: vi.fn(), refresh: vi.fn(), back: vi.fn() }),
   // o redirect do Next interrompe a renderização lançando; o mock imita isso
   redirect: (destino: string) => {
     redirect(destino);
@@ -86,15 +88,21 @@ async function renderizar() {
   render(await DashboardPage());
 }
 
-/** As linhas da lista, na ordem da tela. */
-function linhas() {
-  return [...document.querySelectorAll<HTMLElement>("tr.conc-linha")];
+/** As folhas da lista, na ordem da tela. */
+function folhas() {
+  return [...document.querySelectorAll<HTMLElement>("button.conc-folha")];
+}
+
+/** A prévia da conciliação escolhida, ao lado das folhas. */
+function previa() {
+  return screen.getByRole("complementary", { name: "Conciliação escolhida" });
 }
 
 describe("DashboardPage", () => {
   beforeEach(() => {
     carregarConciliacoes.mockReset();
     redirect.mockClear();
+    push.mockClear();
   });
 
   it("is titled like the menu, and counts the conciliações and what still asks for a decision", async () => {
@@ -104,65 +112,92 @@ describe("DashboardPage", () => {
     expect(screen.getByText("2 conciliações · 1 pede decisão")).toBeInTheDocument();
   });
 
-  it("offers to continue where it stopped in one line, instead of repeating the first row in a big card", async () => {
+  it("opens the first in the queue in the preview, in place of the old continue strip", async () => {
     com();
     await renderizar();
 
-    const continuar = screen.getByRole("region", { name: "Continue de onde parou" });
-    expect(continuar).toHaveTextContent("Setembro de 2026");
-    expect(continuar).toHaveTextContent("sicredi-set.ofx × erp-set.csv");
-    expect(continuar).toHaveTextContent("9 linhas pedem decisão · 3 de 9 conferidas · rodada 2 de 2");
-    expect(continuar.querySelector("img")?.getAttribute("src")).toContain("mascote-caminhando");
+    expect(screen.queryByRole("region", { name: "Continue de onde parou" })).not.toBeInTheDocument();
+    const lado = previa();
+    expect(lado).toHaveTextContent("Setembro de 2026");
+    expect(within(lado).getByRole("heading", { level: 2, name: "9 linhas pedem decisão" })).toBeInTheDocument();
+    expect(lado).toHaveTextContent("sicredi-set.ofx");
+    expect(lado).toHaveTextContent("× erp-set.csv");
+    expect(lado.querySelector(".conc-previa-numero")).toHaveTextContent("12de 22 lançamentos batem");
+    // a legenda explica a barra com os mesmos tons do Histórico
+    expect(within(lado).getByRole("list", { name: "O que a barra mostra" })).toHaveTextContent(
+      "12 · Conciliado6 · Valor diverge, Duplicidade4 · Data diverge, Falta",
+    );
+    expect(within(lado).getByText("9 pedem decisão")).toHaveClass("selo", "selo-risco");
+    // as conferidas só a primeira da fila traz
+    expect(lado).toHaveTextContent("Conferidas3 de 9");
+    expect(lado).toHaveTextContent("Justificadas1");
+    expect(lado).toHaveTextContent("Rodada 2 de 2 · 24/09/2026");
+    expect(within(lado).getByRole("link", { name: "Fechamento de setembro" })).toHaveAttribute("href", "/fechamentos?mes=2026-09");
     // pelo endereço só do banco, que abre a rodada que vale
-    expect(within(continuar).getByRole("link", { name: "Continuar" })).toHaveAttribute("href", "/conciliacoes/set");
+    expect(within(lado).getByRole("link", { name: "Abrir a comparação" })).toHaveAttribute("href", "/conciliacoes/set");
+    expect(within(lado).getByRole("button", { name: "Enviar nova versão do extrato do sistema" })).toBeInTheDocument();
   });
 
-  it("leaves the checks out of the line when the backend does not keep them", async () => {
+  it("leaves the checks out of the preview when the backend does not keep them", async () => {
     com({ emAndamento: { extratoBancoId: "set", batem: 12, pedemDecisao: 9, justificadas: 1, conferidas: null } });
     await renderizar();
-    expect(screen.getByRole("region", { name: "Continue de onde parou" })).toHaveTextContent(
-      "9 linhas pedem decisão · rodada 2 de 2",
-    );
-    expect(screen.queryByText(/conferidas/)).not.toBeInTheDocument();
+    expect(previa()).not.toHaveTextContent("Conferidas");
   });
 
-  it("has nothing to continue when nothing asks for a decision", async () => {
-    com({ conciliacoes: [AGOSTO], emAndamento: null });
-    await renderizar();
-    expect(screen.queryByRole("region", { name: "Continue de onde parou" })).not.toBeInTheDocument();
-  });
-
-  it("groups the rows by month, each row with one situation, its progress and its last activity", async () => {
+  it("groups the sheets by month, each with its progress, one situation and its round", async () => {
     const user = userEvent.setup();
     com();
     await renderizar();
 
     // abre no que pede trabalho
     expect(screen.getByRole("button", { name: "Pedem decisão (1)" })).toHaveAttribute("aria-pressed", "true");
-    expect(linhas()).toHaveLength(1);
-    const [setembro] = linhas();
-    expect(within(setembro).getByRole("link", { name: /sicredi-set\.ofx/ })).toHaveAttribute("href", "/conciliacoes/set");
-    expect(setembro).toHaveTextContent("× erp-set.csv");
-    // 12 de 22: o que bateu, e a justificada à parte; sem a taxa repetida em número
-    expect(setembro.querySelector(".conc-c-progresso")).toHaveTextContent("12 de 22 batem · 1 justificada");
+    expect(folhas()).toHaveLength(1);
+    const [setembro] = folhas();
+    expect(setembro).toHaveAccessibleName(expect.stringContaining("sicredi-set.ofx × erp-set.csv"));
+    expect(setembro).toHaveAttribute("aria-pressed", "true");
+    expect(setembro).toHaveTextContent("12 de 22 batem");
     expect(within(setembro).getByText("9 pedem decisão")).toHaveClass("selo", "selo-risco");
-    expect(setembro.querySelector(".conc-c-atividade")).toHaveTextContent("Rodada 2 de 2");
+    expect(setembro).toHaveTextContent("Rodada 2 de 2");
 
     await user.click(screen.getByRole("button", { name: "Todas (2)" }));
-    const grupos = screen.getAllByRole("rowgroup").filter((grupo) => grupo.tagName === "TBODY");
-    expect(grupos.map((grupo) => within(grupo).getByRole("rowheader").textContent)).toEqual([
-      expect.stringContaining("Setembro de 2026"),
-      expect.stringContaining("Agosto de 2026"),
-    ]);
-    expect(within(grupos[0]).getByRole("rowheader")).toHaveTextContent("Aberto · 1 conciliação · 9 linhas pedem decisão");
-    expect(within(grupos[0]).getByRole("link", { name: "Fechamento de setembro" })).toHaveAttribute(
-      "href",
-      "/fechamentos?mes=2026-09",
-    );
-    expect(within(linhas()[1]).getByText("Sem pendência")).toHaveClass("selo", "selo-ok");
+    const meses = screen.getAllByRole("heading", { level: 2 }).filter((titulo) => titulo.classList.contains("conc-mes-titulo"));
+    expect(meses.map((titulo) => titulo.textContent)).toEqual(["Setembro de 2026", "Agosto de 2026"]);
+    expect(meses[0].parentElement).toHaveTextContent("Aberto · 1 conciliação · 9 linhas pedem decisão");
+    expect(within(folhas()[1]).getByText("Sem pendência")).toHaveClass("selo", "selo-ok");
   });
 
-  it("puts a closed month after the open ones, says who closed it, and its rows as month closed", async () => {
+  it("swaps the preview when another sheet is chosen, and opens the comparison on a double click", async () => {
+    const user = userEvent.setup();
+    com();
+    await renderizar();
+    await user.click(screen.getByRole("button", { name: "Todas (2)" }));
+
+    const agosto = folhas()[1];
+    await user.click(agosto);
+    expect(agosto).toHaveAttribute("aria-pressed", "true");
+    expect(folhas()[0]).toHaveAttribute("aria-pressed", "false");
+    const lado = previa();
+    expect(lado).toHaveTextContent("Agosto de 2026");
+    expect(within(lado).getByRole("heading", { level: 2, name: "Sem pendência" })).toBeInTheDocument();
+    // as conferidas são da primeira da fila, não desta
+    expect(lado).not.toHaveTextContent("Conferidas");
+    expect(within(lado).getByRole("link", { name: "Abrir a comparação" })).toHaveAttribute("href", "/conciliacoes/ago");
+
+    await user.dblClick(agosto);
+    expect(push).toHaveBeenCalledWith("/conciliacoes/ago");
+  });
+
+  it("falls back to the first sheet in view when the filter hides the chosen one", async () => {
+    const user = userEvent.setup();
+    com();
+    await renderizar();
+    await user.click(screen.getByRole("button", { name: "Sem pendência (1)" }));
+    expect(folhas()).toHaveLength(1);
+    expect(folhas()[0]).toHaveAttribute("aria-pressed", "true");
+    expect(previa()).toHaveTextContent("Agosto de 2026");
+  });
+
+  it("puts a closed month after the open ones, says who closed it, and offers no new round in it", async () => {
     const user = userEvent.setup();
     com({
       fechamentos: [
@@ -180,18 +215,23 @@ describe("DashboardPage", () => {
     await renderizar();
 
     await user.click(screen.getByRole("button", { name: "Mês fechado (1)" }));
-    const [agosto] = linhas();
+    const [agosto] = folhas();
     expect(within(agosto).getByText("Mês fechado")).toHaveClass("selo");
-    const grupo = agosto.closest("tbody")!;
-    expect(within(grupo).getByRole("rowheader")).toHaveTextContent("Fechado em 09/10/2026 por Maria Financeiro");
-    expect(within(grupo).getByRole("link", { name: "Ver o fechamento" })).toHaveAttribute("href", "/fechamentos?mes=2026-08");
+    expect(screen.getByRole("heading", { level: 2, name: "Agosto de 2026" }).parentElement).toHaveTextContent(
+      "Fechado em 09/10/2026 por Maria Financeiro",
+    );
+    const lado = previa();
+    expect(within(lado).getByRole("heading", { level: 2, name: "Mês fechado" })).toBeInTheDocument();
+    expect(within(lado).getByRole("link", { name: "Ver o fechamento" })).toHaveAttribute("href", "/fechamentos?mes=2026-08");
+    expect(within(lado).queryByRole("button", { name: /nova versão/ })).not.toBeInTheDocument();
   });
 
   it("opens on all of them when nothing is pending", async () => {
     com({ conciliacoes: [AGOSTO], emAndamento: null });
     await renderizar();
     expect(screen.getByRole("button", { name: "Todas (1)" })).toHaveAttribute("aria-pressed", "true");
-    expect(linhas()).toHaveLength(1);
+    expect(folhas()).toHaveLength(1);
+    expect(previa()).toHaveTextContent("Agosto de 2026");
   });
 
   it("points to the history for the earlier rounds and everything older", async () => {
