@@ -44,6 +44,7 @@ export const TUTORIAIS: Record<TelaDoTutorial, TutorialDaTela> = {
     nome: "Comparação",
     mascote: "/mascotes/mascote-lupa.png",
     passos: [
+      { alvo: "rodadas", titulo: "As rodadas até o fechamento.", texto: "Cada número é um extrato do sistema conciliado com este do banco; o escuro é o que está na tela. Clique num para abrir aquela rodada. A bandeira leva ao fechamento e diz quanto falta." },
       { alvo: "resumo", titulo: "O resumo antes da lista.", texto: "Cada categoria diz quantos lançamentos caíram nela e quanto valem. Clique numa para ver só essas linhas." },
       { alvo: "filtros", titulo: "Escolha o que ver.", texto: "Os filtros mostram tudo, só o que pede decisão ou só o que já bateu." },
       { alvo: "conferida", titulo: "Marque o que você já olhou.", texto: "A coluna Conferida é sua: marque as divergências que já conferiu. As que bateram não precisam." },

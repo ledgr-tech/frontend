@@ -385,12 +385,13 @@ export const PAGINAS: PaginaDeAjuda[] = [
       {
         id: "motivo",
         titulo: "O provável motivo",
-        faz: "Quando você pede, o Ledgr lê os dois lados da linha e explica, em linguagem simples, por que ela não casou.",
+        faz: "Quando a conciliação roda, o Ledgr lê os dois lados de cada divergência e explica, em linguagem simples, por que a linha não casou.",
         passos: [
-          "Clique em **Explicar esta divergência**.",
-          "Leia a explicação e confira no seu sistema de gestão antes de decidir.",
+          "Abra a linha e leia a explicação, marcada como “Gerada por IA”.",
+          "Se a explicação ainda não estiver pronta, clique em **Explicar esta divergência**.",
+          "Confira no seu sistema de gestão antes de decidir.",
         ],
-        nota: "Ao pedir, dados resumidos desta linha são enviados à OpenAI. A IA explica; quem decide é você.",
+        nota: "Dados resumidos de cada divergência são enviados à OpenAI ao conciliar; linhas conciliadas não são. A IA explica; quem decide é você.",
         imagem: {
           src: "/ajuda/detalhe-da-linha--motivo.webp",
           largura: 543,
@@ -558,12 +559,12 @@ export const PAGINAS: PaginaDeAjuda[] = [
       {
         id: "abrir",
         titulo: "Trocar de empresa",
-        faz: "Cada empresa tem os próprios extratos, conciliações e fechamentos. Daqui, ou pelo seletor no alto do menu lateral, você muda de empresa.",
+        faz: "Cada empresa tem os próprios extratos, conciliações e fechamentos. Daqui, ou pelo botão com o nome da empresa no alto da tela, ao lado de **Avisos**, você muda de empresa.",
         passos: [
           "Clique em **Abrir** na linha da empresa.",
           "Você vai para a Visão geral dela. Outra aba do navegador continua na empresa em que estava.",
         ],
-        nota: "Pelo seletor do menu lateral, a troca leva você à mesma tela na outra empresa.",
+        nota: "Pelo botão do alto da tela, a troca leva você à mesma tela na outra empresa. A janela dele busca por razão social ou CNPJ e mostra 20 empresas por página.",
       },
       {
         id: "cadastrar",
@@ -715,6 +716,16 @@ export const PAGINAS: PaginaDeAjuda[] = [
           "Para trocar de plano, clique em **Mudar para** no plano que quer.",
         ],
         nota: "A cobrança ainda não está no ar. Planos e faturas desta tela são de demonstração, e nada é alterado por aqui.",
+      },
+      {
+        id: "cancelar",
+        titulo: "Cancelar a assinatura",
+        faz: "Ao cancelar, você continua com acesso a tudo até o fim do período já pago. Depois disso, o histórico continua disponível para consulta, mas nenhum extrato novo pode ser conciliado.",
+        passos: [
+          "Clique em **Cancelar assinatura**, no topo da tela.",
+          "Leia até quando o acesso continua e confirme, ou clique em **Manter assinatura**.",
+        ],
+        nota: "A cobrança ainda não está no ar: nada é cancelado por aqui.",
       },
     ],
   },

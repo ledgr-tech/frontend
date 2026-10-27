@@ -3,7 +3,6 @@ import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MenuLateral } from "./menu-lateral";
 import { ProvedorDaConta } from "./conta";
-import { ProvedorDaEmpresa } from "@/lib/empresa-ativa";
 import { abrirConfiguracoes } from "@/lib/eventos";
 
 const caminho = vi.fn();
@@ -444,42 +443,4 @@ describe("MenuLateral recolhido, com o mouse em cima", () => {
     expect(menu()).not.toHaveAttribute("data-espiar");
   });
 
-  describe("o seletor de empresa (#169)", () => {
-    const A = { id: "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20", razaoSocial: "Padaria Ltda", cnpj: "11222333000181" };
-    const B = { id: "9b8a7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d", razaoSocial: "Mercado Ltda", cnpj: "11444777000161" };
-
-    function montarComEmpresas(empresas: (typeof A)[]) {
-      return render(
-        <ProvedorDaConta preferencias={{ tutoriaisDispensados: ["configuracoes"], roteiroDispensado: false }}>
-          <ProvedorDaEmpresa ativa={empresas[0]} empresas={empresas}>
-            <MenuLateral email={EMAIL} empresa="Escritório Contábil Ltda" temSenha onSair={vi.fn()} />
-          </ProvedorDaEmpresa>
-        </ProvedorDaConta>,
-      );
-    }
-
-    it("com mais de uma empresa, aparece abaixo do logo e antes de Nova conciliação", () => {
-      montarComEmpresas([A, B]);
-
-      const seletor = screen.getByRole("button", { name: /Padaria Ltda/ });
-      const nova = screen.getByRole("link", { name: "Nova conciliação" });
-      // vem antes do botão de nova conciliação, na ordem do documento
-      expect(seletor.compareDocumentPosition(nova) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-      // o cartão do usuário embaixo fica com o nome da conta, não com o da empresa
-      expect(screen.getAllByText("Escritório Contábil Ltda").length).toBeGreaterThan(0);
-    });
-
-    it("com uma empresa só, não aparece", () => {
-      montarComEmpresas([A]);
-
-      expect(screen.queryByRole("button", { name: /Padaria Ltda/ })).not.toBeInTheDocument();
-    });
-
-    it("os itens do menu levam à empresa ativa", () => {
-      montarComEmpresas([A, B]);
-
-      expect(screen.getByRole("link", { name: "Fechamentos" })).toHaveAttribute("href", `/e/${A.id}/fechamentos`);
-      expect(screen.getByRole("link", { name: "Nova conciliação" })).toHaveAttribute("href", `/e/${A.id}/conciliacoes/nova`);
-    });
-  });
 });
