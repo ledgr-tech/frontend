@@ -107,20 +107,29 @@ describe("AssinaturaPage", () => {
     expect(recibo).toHaveAccessibleDescription(AVISO);
   });
 
-  it("opens the cancel confirmation with focus on keeping the subscription", async () => {
+  it("opens the cancel confirmation in the app's modal, with focus on keeping the subscription", async () => {
     const user = userEvent.setup();
     render(<AssinaturaPage />);
 
     await user.click(screen.getByRole("button", { name: "Cancelar assinatura" }));
 
+    // a mesma janela das outras telas: o <dialog> nativo, não uma caixa montada à mão
     const dialogo = screen.getByRole("dialog", { name: "Cancelar a assinatura desta empresa?" });
-    expect(dialogo).toHaveAttribute("aria-modal", "true");
+    expect(dialogo.tagName).toBe("DIALOG");
+    expect(within(dialogo).getByRole("button", { name: "Manter assinatura" })).toHaveFocus();
+  });
+
+  it("says the access goes on until the end of the paid period (#232)", async () => {
+    const user = userEvent.setup();
+    render(<AssinaturaPage />);
+
+    await user.click(screen.getByRole("button", { name: "Cancelar assinatura" }));
+
     expect(
-      within(dialogo).getByText(
-        "O histórico de setembro continua acessível por doze meses, mas nenhum extrato novo poderá ser conciliado a partir de 12 de outubro.",
+      within(screen.getByRole("dialog")).getByText(
+        "Você continua com acesso a tudo até 12 de outubro, o fim do período já pago. Depois disso, o histórico continua disponível para consulta, mas nenhum extrato novo poderá ser conciliado.",
       ),
     ).toBeInTheDocument();
-    expect(within(dialogo).getByRole("button", { name: "Manter assinatura" })).toHaveFocus();
   });
 
   it("never confirms the cancellation, and says why next to the button", async () => {
@@ -133,7 +142,6 @@ describe("AssinaturaPage", () => {
     const confirmar = within(dialogo).getByRole("button", { name: "Cancelar mesmo assim" });
     expect(confirmar).toBeDisabled();
     expect(confirmar).toHaveAccessibleDescription("A cobrança ainda não está no ar: nada é cancelado por aqui.");
-    expect(within(dialogo).getByText("A cobrança ainda não está no ar: nada é cancelado por aqui.")).toBeInTheDocument();
   });
 
   it("closes on Escape and hands focus back to the button that opened it", async () => {
@@ -159,28 +167,16 @@ describe("AssinaturaPage", () => {
     expect(screen.getByRole("button", { name: "Cancelar assinatura" })).toHaveFocus();
   });
 
-  it("keeps Tab inside the dialog while it is open", async () => {
+  it("closes when the backdrop is clicked, but not when the box inside is", async () => {
     const user = userEvent.setup();
     render(<AssinaturaPage />);
 
     await user.click(screen.getByRole("button", { name: "Cancelar assinatura" }));
-    const manter = screen.getByRole("button", { name: "Manter assinatura" });
-
-    await user.tab();
-    expect(manter).toHaveFocus();
-    await user.tab({ shift: true });
-    expect(manter).toHaveFocus();
-  });
-
-  it("closes when the backdrop is clicked, but not when the dialog itself is", async () => {
-    const user = userEvent.setup();
-    render(<AssinaturaPage />);
-
-    await user.click(screen.getByRole("button", { name: "Cancelar assinatura" }));
-    await user.click(screen.getByRole("dialog"));
+    await user.click(screen.getByText(/fim do período já pago/));
     expect(screen.getByRole("dialog")).toBeInTheDocument();
 
-    await user.click(screen.getByTestId("assinatura-fundo"));
+    // o fundo escurecido é o próprio <dialog>
+    await user.click(screen.getByRole("dialog"));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
@@ -211,6 +207,16 @@ describe("AssinaturaPage", () => {
         expect(screen.queryByRole("note")).not.toBeInTheDocument();
       },
     );
+
+    it("keeps the company in the header, with the trial days or the situation instead of the plan", () => {
+      const daqui10 = new Date(Date.now() + 10 * 86_400_000 + 12 * 3_600_000).toISOString().slice(0, 10);
+      const { unmount } = comConta({ situacao: "teste", plano: null, testeTerminaEm: daqui10 });
+      expect(screen.getByText(/^teste grátis · faltam \d+ dias$/)).toBeInTheDocument();
+      unmount();
+
+      comConta({ situacao: "teste_encerrado", plano: null, testeTerminaEm: null });
+      expect(screen.getByText("teste grátis encerrado")).toBeInTheDocument();
+    });
 
     it("keeps the plan, the usage and the invoices once the account is active", () => {
       comConta({ situacao: "ativo", plano: "padrao", testeTerminaEm: null });

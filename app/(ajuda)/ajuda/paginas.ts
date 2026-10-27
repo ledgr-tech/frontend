@@ -721,6 +721,16 @@ export const PAGINAS: PaginaDeAjuda[] = [
         ],
         nota: "A cobrança ainda não está no ar. Planos e faturas desta tela são de demonstração, e nada é alterado por aqui.",
       },
+      {
+        id: "cancelar",
+        titulo: "Cancelar a assinatura",
+        faz: "Ao cancelar, você continua com acesso a tudo até o fim do período já pago. Depois disso, o histórico continua disponível para consulta, mas nenhum extrato novo pode ser conciliado.",
+        passos: [
+          "Clique em **Cancelar assinatura**, no topo da tela.",
+          "Leia até quando o acesso continua e confirme, ou clique em **Manter assinatura**.",
+        ],
+        nota: "A cobrança ainda não está no ar: nada é cancelado por aqui.",
+      },
     ],
   },
 ];
