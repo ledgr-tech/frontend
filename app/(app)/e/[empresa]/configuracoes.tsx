@@ -15,8 +15,9 @@ import {
   X,
   type LucideIcon,
 } from "lucide-react";
-import { desativarConta, trocarSenha, type ResultadoConta } from "../../../(auth)/acoes";
+import { desativarConta, trocarEmail, trocarSenha, type ResultadoConta } from "../../../(auth)/acoes";
 import { MensagemErro } from "../../../(auth)/_compartilhado/mensagem-erro";
+import { EMAIL_VALIDO, MENSAGEM_EMAIL_INCOMPLETO } from "../../../(auth)/_compartilhado/validacao";
 import { SENHA_MINIMA } from "../../../(auth)/cadastro/passos";
 import {
   carregarRegras,
@@ -506,13 +507,33 @@ export function Configuracoes({
       icone: UserRound,
       grupo: "Configurações",
       linhas: [
-        {
-          titulo: "E-mail",
-          descricao: "É com ele que você entra no Ledgr. Para trocar, por enquanto, escreva para ledgrtech@gmail.com.",
-          // ponytail: o backend ainda não tem `POST /me/email` (backend #66). Quando tiver, o controle volta a
-          // ser um AcaoDaConta com `trocarEmail`, que já está pronta e testada em (auth)/acoes.ts.
-          controle: <span className="cfg-valor">{email}</span>,
-        },
+        temSenha
+          ? {
+              titulo: "E-mail",
+              descricao:
+                "É com ele que você entra no Ledgr. Ao trocar, mandamos um link para o e-mail novo, e a troca só vale quando você abrir esse link.",
+              controle: (
+                <AcaoDaConta
+                  abrir="Trocar e-mail"
+                  confirmar="Enviar link"
+                  feito="Link enviado ao e-mail novo. Abra para confirmar."
+                  campos={[
+                    { id: "email_novo", rotulo: "E-mail novo", tipo: "email", autoComplete: "email" },
+                    SENHA_ATUAL,
+                  ]}
+                  validar={(valores) => (EMAIL_VALIDO.test(valores.email_novo.trim()) ? null : MENSAGEM_EMAIL_INCOMPLETO)}
+                  enviar={(valores) => trocarEmail(valores.email_novo, valores.senha_atual)}
+                >
+                  <span className="cfg-valor">{email}</span>
+                </AcaoDaConta>
+              ),
+            }
+          : {
+              // o backend recusa a troca na conta só do Google (#149): o e-mail é o da conta Google
+              titulo: "E-mail",
+              descricao: "É o da sua conta Google, com a qual você entra no Ledgr.",
+              controle: <span className="cfg-valor">{email}</span>,
+            },
         ...(temSenha
           ? [
               {
@@ -557,7 +578,7 @@ export function Configuracoes({
         {
           titulo: "Desativar conta",
           descricao: papel === "admin"
-            ? "Tira o seu acesso ao Ledgr e libera o seu e-mail. Se há outras pessoas na equipe, remova-as antes em Empresas › Equipe: sem você, a empresa fica sem acesso."
+            ? "Tira o seu acesso ao Ledgr e libera o seu e-mail. Se há outras pessoas na equipe, passe antes a administração para uma delas em Empresas › Equipe (Tornar administrador)."
             : "Tira o seu acesso ao Ledgr e libera o seu e-mail. O que você conferiu e justificou continua no histórico da empresa, com o seu nome.",
           controle: (
             <AcaoDaConta
