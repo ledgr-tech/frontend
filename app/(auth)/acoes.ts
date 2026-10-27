@@ -487,6 +487,8 @@ export type ContaDaSessao = {
   assinatura: Assinatura | null;
   /** Quanto do plano a conta já usa (empresas e pessoas); null quando o `GET /me` ainda não manda `limites`: nada é mostrado. */
   limites: LimitesDaConta | null;
+  /** A conta guarda o original de cada extrato (backend #139, plano avançado); false com a flag desligada ou sem o campo. */
+  guardaArquivoOriginal?: boolean;
   /** Só quando o `GET /me` falhou: `empresas` vazia então não quer dizer "backend anterior", e ninguém deve adivinhar a empresa. */
   indisponivel?: true;
 };
@@ -537,6 +539,7 @@ export async function contaDaSessao(): Promise<ContaDaSessao> {
         plano?: unknown;
         teste_termina_em?: unknown;
         limites?: unknown;
+        guarda_arquivo_original?: unknown;
       }
     >("/me");
     return {
@@ -547,6 +550,7 @@ export async function contaDaSessao(): Promise<ContaDaSessao> {
       preferencias: adaptarPreferencias(eu.preferencias),
       assinatura: adaptarAssinatura(eu),
       limites: adaptarLimites(eu.limites),
+      guardaArquivoOriginal: eu.guarda_arquivo_original === true,
     };
   } catch {
     return { empresa: "", temSenha: true, papel: "admin", empresas: [], preferencias: null, assinatura: null, limites: null, indisponivel: true };

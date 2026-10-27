@@ -3,6 +3,8 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ArquivoExtrato } from "../conciliacoes/acoes";
 import { Galeria } from "./galeria";
+import { ProvedorDaConta } from "../conta";
+import type { Papel } from "@/lib/papel";
 
 // conciliar um arquivo já enviado chama a action; aqui ela só responde como o backend
 const conciliar = vi.fn();
@@ -481,6 +483,56 @@ describe("Galeria de extratos", () => {
     it("has nothing to offer on a file already conciliated", () => {
       render(<Galeria arquivos={ARQUIVOS} />);
       expect(painel().queryByRole("button", { name: "Conciliar" })).not.toBeInTheDocument();
+    });
+  });
+
+  describe("o arquivo original (#174, backend #139)", () => {
+    const fetchOriginal = vi.fn();
+    beforeEach(() => {
+      fetchOriginal.mockReset();
+      vi.stubGlobal("fetch", fetchOriginal);
+      URL.createObjectURL = vi.fn(() => "blob:original");
+      URL.revokeObjectURL = vi.fn();
+    });
+
+    function comConta(arquivos: ArquivoExtrato[], { papel = "admin", guarda = true }: { papel?: Papel; guarda?: boolean } = {}) {
+      return render(
+        <ProvedorDaConta preferencias={null} papel={papel} guardaArquivoOriginal={guarda}>
+          <Galeria arquivos={arquivos} />
+        </ProvedorDaConta>,
+      );
+    }
+
+    it("com a flag desligada (os dois campos false), não mostra nada", () => {
+      comConta([arquivo({ id: "b-set", nome: "sicredi-setembro.ofx", arquivoOriginal: false })], { guarda: false });
+      expect(painel().queryByText("Arquivo original")).not.toBeInTheDocument();
+      expect(painel().queryByRole("button", { name: "Baixar original" })).not.toBeInTheDocument();
+    });
+
+    it("avisa quando a conta guarda o original e este envio não ficou guardado", () => {
+      comConta([arquivo({ id: "b-set", nome: "sicredi-setembro.ofx", arquivoOriginal: false })]);
+      expect(painel().getByText("Não guardado neste envio")).toBeInTheDocument();
+      expect(painel().queryByRole("button", { name: "Baixar original" })).not.toBeInTheDocument();
+    });
+
+    it("o analista vê que está guardado, mas não baixa", () => {
+      comConta([arquivo({ id: "b-set", nome: "sicredi-setembro.ofx", arquivoOriginal: true })], { papel: "analista" });
+      expect(painel().getByText("Guardado")).toBeInTheDocument();
+      expect(painel().queryByRole("button", { name: "Baixar original" })).not.toBeInTheDocument();
+    });
+
+    it("o gestor baixa com o nome do envio, e o erro do servidor aparece no painel", async () => {
+      const user = userEvent.setup();
+      comConta([arquivo({ id: "b-set", nome: "sicredi-setembro.ofx", arquivoOriginal: true })], { papel: "gestor" });
+
+      fetchOriginal.mockResolvedValueOnce(new Response(new Blob(["OFX"])));
+      await user.click(painel().getByRole("button", { name: "Baixar original" }));
+      expect(fetchOriginal).toHaveBeenCalledWith("/api/extratos/b-set/arquivo-original");
+      expect(URL.createObjectURL).toHaveBeenCalled();
+
+      fetchOriginal.mockResolvedValueOnce(Response.json({ erro: "Muitos downloads seguidos." }, { status: 429 }));
+      await user.click(painel().getByRole("button", { name: "Baixar original" }));
+      expect(await painel().findByRole("alert")).toHaveTextContent("Muitos downloads seguidos.");
     });
   });
 });
