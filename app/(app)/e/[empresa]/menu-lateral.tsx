@@ -33,7 +33,6 @@ import {
 import { PainelAssistente } from "./assistente/painel";
 import { Configuracoes } from "./configuracoes";
 import { LogoBarras } from "./logo-barras";
-import { SeletorDeEmpresa } from "./seletor-de-empresa";
 import { alternarMenu, menuRecolhido } from "./menu";
 import { aplicarTema, temaAtual, type Tema } from "./tema";
 import { ABRIR_ASSISTENTE, ABRIR_CONFIGURACOES } from "@/lib/eventos";
@@ -340,8 +339,6 @@ export function MenuLateral({
           <PanelLeftOpen {...ICONE} className="app-menu-abrir-icone" />
         </button>
       </div>
-
-      <SeletorDeEmpresa />
 
       <Link
         href="/conciliacoes/nova"

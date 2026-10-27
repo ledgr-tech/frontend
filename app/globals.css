@@ -3254,43 +3254,42 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
   font-size: 12px; color: color-mix(in srgb, var(--color-text) 62%, transparent);
 }
 .app-conta-seta { flex: none; color: color-mix(in srgb, var(--color-text) 55%, transparent); }
-/* O seletor de empresa (#169): abaixo do logo, só com mais de uma empresa na conta. O nome e a seta usam
-   .app-rotulo, então somem com o menu recolhido, como os textos dos itens, e ficam as iniciais. */
-.seletor-empresa { position: relative; flex: none; }
-.seletor-empresa-botao {
-  width: 100%; display: flex; align-items: center; gap: 10px; cursor: pointer;
-  padding: 5px 6px; text-align: left; font-family: var(--font-body);
-  border-radius: var(--radius-md); border: 1px solid transparent;
-  background: transparent; color: var(--color-text);
+/* O seletor de empresa no topo (#223): o nome da empresa da aba ao lado de Avisos, cortado com
+   reticências, e a janela com a tabela das empresas da conta. */
+.seletor-topo-botao {
+  flex: 0 1 auto; min-width: 0; max-width: 260px; display: flex; align-items: center; gap: 8px; cursor: pointer;
+  padding: 7px 13px; border: 1px solid var(--color-divider); border-radius: var(--radius-md);
+  background: transparent; color: var(--color-text); font-family: var(--font-body); font-size: 15px;
 }
-.seletor-empresa-botao:hover { background: var(--tinta-hover); }
-.seletor-empresa-botao[aria-expanded="true"] { background: var(--tinta-ativa); }
-.seletor-empresa-botao:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
-.seletor-empresa-iniciais {
-  flex: none; width: 32px; height: 32px; border-radius: var(--radius-md);
-  display: flex; align-items: center; justify-content: center;
-  border: 1px solid color-mix(in srgb, var(--color-accent) 45%, transparent);
-  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
-  font-family: var(--font-heading); font-size: 13px; font-weight: 600;
+.seletor-topo-botao:hover, .seletor-topo-botao[aria-expanded="true"] { background: var(--tinta-hover); }
+.seletor-topo-botao:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+.seletor-topo-icone, .seletor-topo-seta { flex: none; color: color-mix(in srgb, var(--color-text) 60%, transparent); }
+.seletor-topo-nome { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.seletor-janela { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+/* a tabela pede mais que os 560px das outras janelas */
+.espia:has(.seletor-janela) { width: min(720px, calc(100vw - 32px)); }
+.seletor-janela-tabela th, .seletor-janela-tabela td { white-space: nowrap; }
+.seletor-janela-tabela tr[aria-current] td { background: var(--tinta-ativa); }
+.seletor-janela-escolher {
+  padding: 0; border: 0; background: transparent; cursor: pointer; text-align: left;
+  font: inherit; font-weight: 600; color: var(--color-text);
 }
-.seletor-empresa-texto { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
-.seletor-empresa-nome, .seletor-empresa-cnpj { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.seletor-empresa-nome { font-family: var(--font-heading); font-size: 15px; font-weight: 600; line-height: 1.15; }
-.seletor-empresa-cnpj { font-size: 12px; color: color-mix(in srgb, var(--color-text) 62%, transparent); }
-.seletor-empresa-seta { flex: none; color: color-mix(in srgb, var(--color-text) 55%, transparent); }
-.app-painel.seletor-empresa-painel {
-  top: calc(100% + 6px); left: 0; right: 0; min-width: 240px; max-height: 60vh;
-  display: flex; flex-direction: column;
+.seletor-janela-escolher:hover { text-decoration: underline; text-underline-offset: 3px; }
+.seletor-janela-cnpj { font-variant-numeric: tabular-nums; color: color-mix(in srgb, var(--color-text) 70%, transparent); }
+.seletor-janela-vazio { margin: 0; font-size: 14px; color: color-mix(in srgb, var(--color-text) 62%, transparent); }
+.seletor-janela-rodape { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+.seletor-janela-paginas { display: flex; align-items: center; gap: 8px; }
+.seletor-janela-cnpj-celular { display: none; }
+@media (max-width: 600px) {
+  .seletor-topo-botao { max-width: 150px; }
+  .seletor-janela-tabela td:first-child { white-space: normal; }
+  .seletor-janela-cnpj-celular {
+    display: block; margin-top: 2px; font-size: 13px; font-variant-numeric: tabular-nums;
+    color: color-mix(in srgb, var(--color-text) 66%, transparent);
+  }
+  /* uma coluna só; a linha aberta segue marcada pelo fundo e pelo aria-current */
+  .seletor-janela-tabela :is(th, td):not(:first-child) { display: none; }
 }
-.seletor-empresa-busca { margin: 8px 8px 4px; width: calc(100% - 16px); }
-.seletor-empresa-lista { list-style: none; margin: 0; padding: 4px; overflow-y: auto; }
-.seletor-empresa-opcao {
-  width: 100%; display: flex; flex-direction: column; gap: 1px; text-align: left; cursor: pointer;
-  padding: 8px 10px; border: 0; border-radius: var(--radius-md);
-  background: transparent; color: var(--color-text); font-family: var(--font-body);
-}
-.seletor-empresa-opcao:hover, .seletor-empresa-opcao:focus-visible { background: var(--tinta-hover); }
-.seletor-empresa-opcao[aria-selected="true"] { box-shadow: inset 3px 0 0 var(--color-accent); }
 /* A tela Empresas (#169): a faixa do plano, o painel do cadastro e a tabela */
 .empresas-nota { margin: 16px 0 0; font-size: 14px; color: color-mix(in srgb, var(--color-text) 70%, transparent); }
 .empresas-abas { display: flex; gap: 4px; margin: 16px 0 0; border-bottom: 1px solid var(--color-divider); overflow-x: auto; overflow-y: hidden; }
@@ -3392,15 +3391,6 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
   @keyframes modal-suave-entra { from { opacity: 0; transform: translateY(12px) scale(0.97); } }
   @keyframes modal-suave-fundo { from { opacity: 0; } }
 }
-.seletor-empresa-gerenciar {
-  width: 100%; display: flex; align-items: center; gap: 8px; cursor: pointer; text-align: left;
-  padding: 9px 14px; border: 0; border-top: 1px solid var(--color-divider);
-  background: transparent; color: color-mix(in srgb, var(--color-text) 72%, transparent);
-  font-family: var(--font-body); font-size: 13px; text-decoration: none;
-}
-.seletor-empresa-gerenciar:hover { background: var(--tinta-hover); color: var(--color-text); }
-.seletor-empresa-gerenciar:focus-visible { outline: 2px solid var(--color-accent); outline-offset: -2px; }
-.seletor-empresa-vazio { margin: 0; padding: 10px 14px; font-size: 13px; color: color-mix(in srgb, var(--color-text) 62%, transparent); }
 /* abre para cima: o botao fica no pe da tela */
 .app-painel.app-conta-painel {
   top: auto; bottom: calc(100% + 8px); left: 0; right: 0; min-width: 230px;
@@ -3732,10 +3722,6 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
   html[data-menu="recolhido"] .app-aside-rodape > .app-icone-botao { margin-left: 5px; }
   html[data-menu="recolhido"] .app-conta-envelope { flex: none; width: 100%; }
   html[data-menu="recolhido"] .app-conta { height: 42px; padding: 0 5px; }
-  html[data-menu="recolhido"] .seletor-empresa-botao { padding: 5px; }
-  html[data-menu="recolhido"] .app-aside:not([data-espiar]) .app-painel.seletor-empresa-painel {
-    top: 0; left: calc(100% + 12px); right: auto; width: 260px;
-  }
 
   /* Os textos. Recolhido, saem da tela mas não do leitor de tela: o link continua "Extratos".
      Aberto por cima, entram depois que o menu já abriu boa parte; fechando, somem antes de ele

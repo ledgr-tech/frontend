@@ -562,12 +562,12 @@ export const PAGINAS: PaginaDeAjuda[] = [
       {
         id: "abrir",
         titulo: "Trocar de empresa",
-        faz: "Cada empresa tem os próprios extratos, conciliações e fechamentos. Daqui, ou pelo seletor no alto do menu lateral, você muda de empresa.",
+        faz: "Cada empresa tem os próprios extratos, conciliações e fechamentos. Daqui, ou pelo botão com o nome da empresa no alto da tela, ao lado de **Avisos**, você muda de empresa.",
         passos: [
           "Clique em **Abrir** na linha da empresa.",
           "Você vai para a Visão geral dela. Outra aba do navegador continua na empresa em que estava.",
         ],
-        nota: "Pelo seletor do menu lateral, a troca leva você à mesma tela na outra empresa.",
+        nota: "Pelo botão do alto da tela, a troca leva você à mesma tela na outra empresa. A janela dele busca por razão social ou CNPJ e mostra 20 empresas por página.",
       },
       {
         id: "cadastrar",
