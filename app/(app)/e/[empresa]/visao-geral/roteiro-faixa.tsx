@@ -75,7 +75,7 @@ export function RoteiroFaixa({
               <span className="roteiro-texto">
                 <span className="roteiro-passo-titulo">
                   {passo.titulo}
-                  {passo.feito && <span className="sr-only"> (feito)</span>}
+                  {passo.feito && <>{" "}<span className="sr-only">(feito)</span></>}
                 </span>
                 <span className="roteiro-passo-detalhe">{passo.texto}</span>
               </span>

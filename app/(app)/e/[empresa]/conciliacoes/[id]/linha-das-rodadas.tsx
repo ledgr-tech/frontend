@@ -83,7 +83,7 @@ export function LinhaDasRodadas({
               <span className="sr-only">Fechamento</span>
             ) : (
               <>
-                <span className="sr-only">Fechamento: </span>
+                <span className="sr-only">Fechamento:</span>{" "}
                 {pendentes === 0
                   ? "pronto para fechar"
                   : `${pendentes === 1 ? "falta" : "faltam"} ${formatarInteiro(pendentes)}`}

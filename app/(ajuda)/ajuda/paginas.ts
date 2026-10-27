@@ -625,7 +625,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
       {
         id: "abrir",
         titulo: "Abrir e procurar",
-        faz: "As configurações abrem numa janela por cima da tela em que você está, com as seções à esquerda: Conta, Aparência, Conciliação, Atalhos de teclado, Privacidade e Sobre.",
+        faz: "As configurações abrem numa janela por cima da tela em que você está, com as seções à esquerda: Conta, Aparência, Conciliação, API (para o admin e o gestor), Atalhos de teclado, Privacidade e Sobre.",
         passos: [
           "Clique no seu nome no menu lateral e em **Configurações**, ou aperte **Ctrl** e **,**.",
           "Escolha a seção, ou digite em **Procurar** o que quer mudar, por exemplo “senha”.",
@@ -637,9 +637,10 @@ export const PAGINAS: PaginaDeAjuda[] = [
         faz: "O e-mail da conta e a senha.",
         passos: [
           "Para trocar a senha, clique em **Trocar senha**.",
-          "Para trocar o e-mail, clique em **Pedir por e-mail** e fale com o suporte.",
+          "Para trocar o e-mail, clique em **Trocar e-mail**, digite o novo e a sua senha e clique em **Enviar link**.",
+          "Abra o link que chega no e-mail novo e clique em **Confirmar e-mail novo**. Ele vale por 60 minutos.",
         ],
-        nota: "Quem entra só com o Google não tem senha no Ledgr, então não vê Trocar senha.",
+        nota: "O e-mail só muda quando você confirma pelo link; depois, as sessões abertas são encerradas e você entra com o e-mail novo. Quem entra só com o Google não tem senha no Ledgr, então não vê Trocar senha nem Trocar e-mail: o e-mail é o da conta Google.",
         imagem: {
           src: "/ajuda/configuracoes--conta.webp",
           largura: 960,
@@ -661,6 +662,18 @@ export const PAGINAS: PaginaDeAjuda[] = [
           largura: 960,
           altura: 640,
         },
+      },
+      {
+        id: "api",
+        titulo: "Chaves da API",
+        faz: "Uma chave deixa outro sistema, como uma planilha, o Power BI ou o sistema do escritório, ler as conciliações, as divergências e os fechamentos pela API do Ledgr. Só leitura, e sem a descrição dos lançamentos nem as justificativas. Só o admin e o gestor veem esta seção.",
+        passos: [
+          "Abra **API** e clique em **Criar chave**.",
+          "Dê um nome que diga quem vai usar a chave e escolha a empresa que ela lê, ou **Todas as empresas da conta**.",
+          "Clique em **Criar chave**, depois em **Copiar chave**, e guarde a chave no sistema que vai usá-la.",
+          "Para cortar o acesso, clique em **Revogar** na chave e confirme.",
+        ],
+        nota: "A chave aparece uma vez só. Se perder, revogue e crie outra. A conta tem no máximo 10 chaves ativas, e os links de documentação (OpenAPI e llms.txt) ficam no alto da seção.",
       },
       {
         id: "aparencia",

@@ -59,7 +59,7 @@ export function ordenarLinhas(
  * Todas; só as que pedem revisão (o "só revisão" do design), que é o que ainda
  * impede o fechamento; as justificadas; ou uma categoria do relatório.
  */
-export type Filtro = "todos" | "revisao" | "justificadas" | Divergencia;
+export type Filtro = "todos" | "revisao" | "justificadas" | "aguardando" | Divergencia;
 
 export function filtrarLinhas(linhas: LinhaComparacao[], filtro: Filtro, rodada = 1): LinhaComparacao[] {
   if (filtro === "todos") return linhas;
@@ -68,6 +68,7 @@ export function filtrarLinhas(linhas: LinhaComparacao[], filtro: Filtro, rodada 
     // a que espera aprovação continua em revisão: o mês não fecha com ela
     if (filtro === "revisao") return situacao === "a_conferir" || situacao === "conferida" || situacao === "aguardando";
     if (filtro === "justificadas") return situacao === "justificada";
+    if (filtro === "aguardando") return situacao === "aguardando";
     // a justificada continua na categoria do motor, mas sai dela aqui: tem o filtro dela
     return linha.status === filtro && situacao !== "justificada";
   });

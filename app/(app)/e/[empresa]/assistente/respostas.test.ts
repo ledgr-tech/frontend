@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Execucao } from "@/lib/adaptadores";
 import type { LinhaComparacao, StatusLinha } from "@/lib/mock-data";
 import type { VisaoGeral } from "../conciliacoes/acoes";
-import { montarContexto, responder, saudacao, sugestoes, type Contexto } from "./respostas";
+import { foraDoRoteiro, montarContexto, responder, saudacao, sugestoes, type Contexto } from "./respostas";
 
 function linha(id: string, status: StatusLinha, valorBanco: number | null, valorSistema: number | null): LinhaComparacao {
   return {
@@ -43,7 +43,7 @@ const LINHAS = [
 
 /** O Intl separa "R$" do valor com espaço não separável. */
 function texto(pergunta: string, ctx: Contexto): string {
-  return responder(pergunta, ctx).texto.replaceAll("\u00a0", " ");
+  return responder(pergunta, ctx)!.texto.replaceAll("\u00a0", " ");
 }
 
 function contexto(linhas = LINHAS, naoLidas: VisaoGeral["arquivosComLinhasNaoLidas"] = []): Contexto {
@@ -101,7 +101,7 @@ describe("saudacao e sugestoes", () => {
 
 describe("responder", () => {
   it("resume o mês com os números reais", () => {
-    const resposta = responder("Resumo de setembro", contexto());
+    const resposta = responder("Resumo de setembro", contexto())!;
     expect(texto("Resumo de setembro", contexto())).toBe(
       "Setembro: 6 lançamentos. 3 casaram sozinhos (50,0%). Ficaram R$ 4.261 em aberto, em 3 linhas.",
     );
@@ -122,7 +122,7 @@ describe("responder", () => {
   });
 
   it("diz o que falta para fechar, começando pelo que mais pesa", () => {
-    const resposta = responder("o que falta pra fechar", contexto());
+    const resposta = responder("o que falta pra fechar", contexto())!;
     expect(texto("o que falta pra fechar", contexto())).toBe(
       "Faltam 3 decisões suas. Comece por “Sem correspondência no sistema”: 1 linha, R$ 4.180 dos R$ 4.261 em aberto.",
     );
@@ -134,12 +134,12 @@ describe("responder", () => {
   });
 
   it("lembra das linhas não lidas, que ficam fora da conta", () => {
-    const resposta = responder("falta algo?", contexto(LINHAS, [{ nome: "erp.csv", linhas: 2 }]));
+    const resposta = responder("falta algo?", contexto(LINHAS, [{ nome: "erp.csv", linhas: 2 }]))!;
     expect(resposta.texto).toContain("Atenção: 2 linhas de erp.csv não foram lidas e ficaram fora da conta.");
   });
 
   it("diz que o mês está pronto quando nada pede decisão", () => {
-    const resposta = responder("O que falta para fechar?", contexto([linha("l1", "match_exato", 100, 100)]));
+    const resposta = responder("O que falta para fechar?", contexto([linha("l1", "match_exato", 100, 100)]))!;
     expect(resposta).toEqual({
       texto: "Nada: setembro está pronto para fechar.",
       link: { href: "/fechamentos", rotulo: "Ir aos fechamentos" },
@@ -154,16 +154,16 @@ describe("responder", () => {
     const ctx = contexto([linha("l1", "match_exato", 100, 100), justificada]);
 
     expect(saudacao(ctx)).toBe("Setembro está 50,0% conciliado. Nada sobrou para revisar.");
-    expect(responder("O que falta para fechar?", ctx).texto).toBe("Nada: setembro está pronto para fechar.");
+    expect(responder("O que falta para fechar?", ctx)!.texto).toBe("Nada: setembro está pronto para fechar.");
     // e não há o que explicar: a justificada já tem o porquê
-    expect(responder("Explique a maior divergência", ctx).texto).toBe(
+    expect(responder("Explique a maior divergência", ctx)!.texto).toBe(
       "Nenhuma divergência em aberto em setembro: não há o que explicar.",
     );
   });
 
   it("fala das tarifas e das duplicidades, ou diz que não há", () => {
     expect(texto("e as tarifas?", contexto())).toMatch(/^1 tarifa bancária em setembro, somando R\$ 45\./);
-    expect(responder("tem duplicidade?", contexto()).texto).toBe("Nenhuma possível duplicidade em setembro.");
+    expect(responder("tem duplicidade?", contexto())!.texto).toBe("Nenhuma possível duplicidade em setembro.");
   });
 
   it("entende a pergunta sem acento", () => {
@@ -172,12 +172,18 @@ describe("responder", () => {
 
   it("pede a explicação à IA só quando há divergência para explicar", () => {
     expect(responder("Explique a maior divergência", contexto())).toEqual({ texto: "", explicar: true });
-    expect(responder("explica", contexto([linha("l1", "match_exato", 100, 100)])).texto).toBe(
+    expect(responder("explica", contexto([linha("l1", "match_exato", 100, 100)]))!.texto).toBe(
       "Nenhuma divergência em aberto em setembro: não há o que explicar.",
     );
   });
 
-  it("diz o que sabe responder quando não entende, em vez de inventar", () => {
-    expect(responder("qual a previsão do tempo?", contexto()).texto).toMatch(/^Por enquanto eu respondo sobre setembro/);
+  it("o que não é do roteiro fica para o assistente da Central (null), em vez de inventar", () => {
+    expect(responder("como convido alguém da equipe?", contexto())).toBeNull();
+    // "previsão" não é pergunta sobre revisão
+    expect(responder("qual a previsão do tempo?", contexto())).toBeNull();
+  });
+
+  it("fora do ar o assistente, diz o que o roteiro sabe e aponta a Central", () => {
+    expect(foraDoRoteiro(contexto())).toMatch(/^Por enquanto eu respondo sobre setembro.*Central de ajuda\.$/);
   });
 });

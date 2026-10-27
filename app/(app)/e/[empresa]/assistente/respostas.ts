@@ -18,8 +18,8 @@ import { pendencias, type Pendencia } from "../visao-geral/pendencias";
  * única resposta que não sai daqui é a explicação de uma divergência, que vai à
  * IA do backend (`POST /explicacoes`) e só roda quando a pessoa pede.
  *
- * ponytail: sem backend de conversa, as perguntas que ele entende são as do
- * roteiro. Quando houver um endpoint de chat, `responder` vira a chamada a ele.
+ * O que o roteiro não reconhece (`responder` devolve null) vai ao assistente da
+ * Central de ajuda (backend #137), que responde sobre o uso do Ledgr.
  */
 
 export type Contexto = {
@@ -123,7 +123,8 @@ export function sugestoes(contexto: Contexto): string[] {
   ].filter((item): item is string => item !== null);
 }
 
-export function responder(pergunta: string, contexto: Contexto): Resposta {
+/** A resposta do roteiro sobre o mês, ou null quando a pergunta não é dele (vai ao assistente da Central). */
+export function responder(pergunta: string, contexto: Contexto): Resposta | null {
   const texto = normalizar(pergunta);
   const { Mes, mes } = contexto;
 
@@ -195,7 +196,10 @@ export function responder(pergunta: string, contexto: Contexto): Resposta {
     };
   }
 
-  return {
-    texto: `Por enquanto eu respondo sobre ${mes}: o resumo, o que sobrou, o que falta para fechar, tarifas e duplicidades. Para entender uma linha, peça para eu explicar a maior divergência.`,
-  };
+  return null;
+}
+
+/** Quando o assistente da Central está fora do ar: o que o roteiro sabe responder. */
+export function foraDoRoteiro(contexto: Contexto): string {
+  return `Por enquanto eu respondo sobre ${contexto.mes}: o resumo, o que sobrou, o que falta para fechar, tarifas e duplicidades. Para entender uma linha, peça para eu explicar a maior divergência. Para o passo a passo de cada tela, veja a Central de ajuda.`;
 }
