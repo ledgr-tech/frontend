@@ -2415,12 +2415,12 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
   display: flex; flex-direction: column; gap: 12px; width: 100%; padding: 14px 14px 12px; cursor: pointer;
   border: 1px solid var(--color-divider); border-radius: var(--radius-md); background: transparent;
   font: inherit; color: inherit; text-align: left;
-  transition: box-shadow 0.2s ease-out, transform 0.2s cubic-bezier(0.22, 1, 0.36, 1), background-color 0.15s ease-out;
+  transition: box-shadow 180ms ease, border-color 180ms ease;
 }
-.conc-folha:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+/* hover e seleção como nas folhas de Extratos e Fechamentos: só o contorno, nunca o fundo */
+.conc-folha:hover { border-color: color-mix(in srgb, var(--color-text) 40%, transparent); }
 .conc-folha[aria-pressed="true"] {
-  background: var(--tinta-ativa); border-color: color-mix(in srgb, var(--color-text) 40%, transparent);
-  box-shadow: none; transform: none;
+  border-color: var(--color-text); box-shadow: 0 0 0 1px var(--color-text), var(--shadow-md);
 }
 /* as duas folhas: a do banco por cima, a do sistema atrás e mais baixa, com o nome no pé */
 .conc-folha-par { position: relative; display: block; height: 104px; }
@@ -2441,28 +2441,31 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
 .conc-progresso { display: flex; flex-direction: column; gap: 6px; }
 .conc-progresso .hist-resultado-barra { flex: none; width: 100%; }
 @media (prefers-reduced-motion: reduce) {
-  .conc-folha, .conc-folha:hover { transition: none; transform: none; }
+  .conc-folha { transition: none; }
 }
-/* a prévia da escolhida: uma folha de papel, com o que bate em número grande */
+/* a prévia da escolhida: o mesmo painel de Extratos e Fechamentos (transparente, com borda); o que bate
+   fica na caixa de resultado, com o número grande */
 .conc-previa {
-  display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 20px 22px 22px; font-size: 14px;
-  border: 1px solid var(--color-divider); border-radius: var(--radius-md); background: var(--folha-banco); box-shadow: var(--shadow-sm);
+  display: flex; flex-direction: column; gap: 14px; min-width: 0; padding: 22px; font-size: 14px;
+  border: 1px solid var(--color-divider); border-radius: var(--radius-md);
 }
-.conc-previa-titulo { margin: 6px 0 4px; font-size: 24px; }
-.conc-previa > .hist-arquivo:not(.hist-arquivo-sistema) { font-weight: 500; }
-.conc-previa-numero { display: flex; align-items: baseline; gap: 8px; margin: 16px 0 8px; color: var(--texto-apagado); }
+.conc-previa-titulo { margin: 0; font-size: 24px; }
+.conc-previa-arquivos > .hist-arquivo:not(.hist-arquivo-sistema) { font-weight: 500; }
+.conc-previa-arquivos { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.conc-previa-numero { display: flex; align-items: baseline; gap: 8px; margin: 0; color: var(--texto-apagado); }
 .conc-previa-numero strong {
   font-family: var(--font-titulo); font-size: 40px; font-weight: 500; line-height: 1; color: var(--color-text);
   font-variant-numeric: lining-nums tabular-nums;
 }
 .conc-previa .hist-resultado-barra { flex: none; width: 100%; height: 8px; }
-.conc-previa-legenda { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 10px 0 0; padding: 0; list-style: none; font-size: 12.5px; color: var(--texto-apagado); }
+.conc-previa-legenda { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 0; padding: 0; list-style: none; font-size: 12.5px; color: var(--texto-apagado); }
 .conc-previa-legenda li { display: inline-flex; align-items: center; gap: 6px; }
-.conc-previa-dados { display: grid; grid-template-columns: auto minmax(0, 1fr); margin: 16px 0 0; border-top: 1px solid var(--color-divider); }
+.conc-previa-dados { display: grid; grid-template-columns: auto minmax(0, 1fr); margin: 0; border-top: 1px solid var(--color-divider); }
 .conc-previa-dados dt, .conc-previa-dados dd { margin: 0; padding: 9px 0; border-bottom: 1px solid var(--color-divider); font-size: 13.5px; }
 .conc-previa-dados dt { padding-right: 22px; color: var(--texto-apagado); }
 .conc-previa-dados dd { font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
-.conc-previa-acoes { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+.conc-previa-acoes { display: flex; flex-wrap: wrap; gap: 8px; padding-top: 4px; }
+.conc-previa-acoes > * { flex: 1 1 auto; justify-content: center; }
 
 /* ── Tipografia do app ─────────────────────────────────────────────────────────
    Títulos em Newsreader e o resto em Inter, como a Apple junta a New York à SF.
@@ -3048,15 +3051,12 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
 .extrato-folha {
   position: relative; display: flex; flex-direction: column; gap: 10px;
   width: 100%; aspect-ratio: 3 / 4; padding: 14px 13px 12px; overflow: hidden;
-  /* neutral-100 e não surface: aqui o surface é mais escuro que a página, e a
-     folha precisa parecer papel por cima dela, nos dois temas */
-  border-radius: var(--radius-sm); background: var(--color-neutral-100);
+  /* o papel das folhas do app, o mesmo em Extratos, Fechamentos e na comparação: o surface é mais
+     escuro que a página, e a folha precisa parecer papel por cima dela, nos dois temas */
+  border-radius: var(--radius-sm); background: var(--folha-banco);
   border: 1px solid var(--color-divider); box-shadow: var(--shadow-sm);
   transition: box-shadow 180ms ease, border-color 180ms ease;
 }
-/* no mesmo papel das folhas da comparação: banco quente, sistema frio */
-.extrato-folha[data-origem="banco"] { background: var(--folha-banco); }
-.extrato-folha[data-origem="sistema"] { background: var(--folha-sistema); }
 /* hover e seleção na cor da situação do arquivo, a mesma do selo embaixo dele */
 .extrato-cartao { --tom-cartao: var(--color-text); }
 .extrato-cartao[data-tom="ok"] { --tom-cartao: var(--color-ok); }
@@ -3111,7 +3111,7 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
   padding: 22px; border: 1px solid var(--color-divider); border-radius: var(--radius-md);
 }
 .extrato-painel-topo { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
-.extrato-painel-nome { margin: 0; font-size: 20px; font-weight: 600; overflow-wrap: anywhere; }
+.extrato-painel-nome { margin: 0; font-family: var(--font-titulo); font-size: 24px; font-weight: 500; overflow-wrap: anywhere; }
 .extrato-painel-topo .icone-origem {
   flex: none; margin-top: 3px; color: color-mix(in srgb, var(--color-text) 58%, transparent);
 }
@@ -4445,7 +4445,6 @@ html[data-tema="escuro"] .app-shell {
   margin-top: auto; font-family: var(--font-titulo); font-size: 30px; line-height: 1;
   font-variant-numeric: lining-nums tabular-nums;
 }
-.mes-folha[data-pronto] .mes-folha-taxa { color: var(--color-ok-700); }
 .mes-folha-rotulo {
   margin-bottom: 8px; font-size: 12px;
   color: color-mix(in srgb, var(--color-text) 62%, transparent);
@@ -4460,7 +4459,7 @@ html[data-tema="escuro"] .app-shell {
   .fech-area { grid-template-columns: 1fr; }
 }
 
-.fech-progresso { display: flex; flex-direction: column; gap: 8px; }
+/* o resultado do mês na mesma caixa do resultado de um arquivo (.extrato-resultado), com a barra de baixo */
 .fech-progresso .vg-nota { font-size: 13.5px; }
 
 .fech-passos {

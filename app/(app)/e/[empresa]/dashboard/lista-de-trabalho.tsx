@@ -264,31 +264,35 @@ function Previa({
     <aside ref={ref} className="conc-previa" aria-label="Conciliação escolhida" aria-live="polite" data-tutorial="previa">
       <span className="rotulo">{tituloDaCompetencia(competencia)}</span>
       <h2 className="conc-previa-titulo">{titulo}</h2>
-      <span className="hist-arquivo">
-        <IconeOrigem origem="banco" tamanho={14} />
-        <span className="hist-arquivo-nome">{arquivoBanco}</span>
-      </span>
-      <span className="hist-arquivo hist-arquivo-sistema">
-        <IconeOrigem origem="sistema" tamanho={13} />
-        <span className="hist-arquivo-nome">{`× ${arquivoSistema}`}</span>
-      </span>
-      <p className="conc-previa-numero">
-        <strong>{formatarInteiro(conciliados(execucao))}</strong>
-        {`de ${plural(execucao.lancamentos, "lançamento bate", "lançamentos batem")}`}
-      </p>
-      {execucao.lancamentos > 0 && (
-        <>
-          <BarraDoResultado execucao={execucao} />
-          <ul className="conc-previa-legenda" aria-label="O que a barra mostra">
-            {segmentos(execucao).map((parte) => (
-              <li key={parte.tom}>
-                <span className="hist-legenda-cor" data-tom={parte.tom} aria-hidden="true" />
-                {`${formatarInteiro(parte.quantidade)} · ${parte.rotulo}`}
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
+      <div className="conc-previa-arquivos">
+        <span className="hist-arquivo">
+          <IconeOrigem origem="banco" tamanho={14} />
+          <span className="hist-arquivo-nome">{arquivoBanco}</span>
+        </span>
+        <span className="hist-arquivo hist-arquivo-sistema">
+          <IconeOrigem origem="sistema" tamanho={13} />
+          <span className="hist-arquivo-nome">{`× ${arquivoSistema}`}</span>
+        </span>
+      </div>
+      <div className="extrato-resultado">
+        <p className="conc-previa-numero">
+          <strong>{formatarInteiro(conciliados(execucao))}</strong>
+          {`de ${plural(execucao.lancamentos, "lançamento bate", "lançamentos batem")}`}
+        </p>
+        {execucao.lancamentos > 0 && (
+          <>
+            <BarraDoResultado execucao={execucao} />
+            <ul className="conc-previa-legenda" aria-label="O que a barra mostra">
+              {segmentos(execucao).map((parte) => (
+                <li key={parte.tom}>
+                  <span className="hist-legenda-cor" data-tom={parte.tom} aria-hidden="true" />
+                  {`${formatarInteiro(parte.quantidade)} · ${parte.rotulo}`}
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+      </div>
       <dl className="conc-previa-dados">
         <dt>Situação</dt>
         <dd>
