@@ -42,10 +42,38 @@ async function recusaNaDemonstracao(): Promise<Falha | null> {
   return ehContaDeDemonstracao(await emailDaSessao()) ? { ok: false, status: 403, erro: RECUSA_DEMONSTRACAO } : null;
 }
 
+/** O maior `limit` que o `GET /empresas` aceita (backend #157). */
+const POR_PAGINA = 100;
+
+/**
+ * Todas as empresas da conta, favoritas da pessoa primeiro (backend #157). A rota devolve páginas; uma conta
+ * tem poucas empresas (o plano limita), então junta todas aqui e as telas buscam, ordenam e paginam no cliente.
+ * Sem `total` na resposta é o backend anterior ao #157, que manda todas de uma vez e ignora os parâmetros.
+ */
 export async function carregarEmpresas(): Promise<Resultado<EmpresaCliente[]>> {
   try {
-    const { itens } = await chamarBackend<{ itens: EmpresaClienteAPI[] }>("/empresas");
+    const itens: EmpresaClienteAPI[] = [];
+    for (;;) {
+      const pagina = await chamarBackend<{ itens: EmpresaClienteAPI[]; total?: number }>(
+        `/empresas?limit=${POR_PAGINA}&offset=${itens.length}`,
+      );
+      itens.push(...pagina.itens);
+      if (pagina.total === undefined || pagina.itens.length === 0 || itens.length >= pagina.total) break;
+    }
     return { ok: true, dados: itens.map(adaptarEmpresaCliente) };
+  } catch (erro) {
+    return traduzir(erro);
+  }
+}
+
+/** Favoritar ou não uma empresa (`PUT`/`DELETE /empresas/{id}/favorita`, 204, qualquer papel; backend #157). */
+export async function marcarFavorita(empresaId: string, favorita: boolean): Promise<Resultado<null>> {
+  // a conta de demonstração é uma só para todos os visitantes: um mudaria as favoritas do outro
+  const recusa = await recusaNaDemonstracao();
+  if (recusa) return recusa;
+  try {
+    await chamarBackend(`/empresas/${encodeURIComponent(empresaId)}/favorita`, { method: favorita ? "PUT" : "DELETE" });
+    return { ok: true, dados: null };
   } catch (erro) {
     return traduzir(erro);
   }
