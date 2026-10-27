@@ -401,7 +401,7 @@ function AtividadeRecente({ execucoes, total }: { execucoes: Execucao[]; total: 
                 <td className="dash-valor-celula">{matchNaTela(execucao)}</td>
                 <td style={{ textAlign: "right" }}>
                   <Link href={caminhoDaConciliacao(extratoBancoId)} className="btn btn-secondary" style={{ whiteSpace: "nowrap" }}>
-                    Ver<span className="sr-only"> {arquivoBanco}</span>
+                    Ver{" "}<span className="sr-only">{arquivoBanco}</span>
                   </Link>
                 </td>
               </tr>
