@@ -222,6 +222,8 @@ export function BarraSuperior() {
           onClick={() => setAvisosAbertos((aberto) => !aberto)}
         >
           <span style={{ fontSize: 15 }}>Avisos</span>
+          {/* o espaço separa "Avisos" da conta no nome que o leitor de tela lê */}
+          {" "}
           {/* a conta só depois da leitura: um zero antes dela seria chute */}
           {visao && (
             <span className={naoLidos > 0 ? "app-avisos-conta app-avisos-conta-ativa" : "app-avisos-conta"}>

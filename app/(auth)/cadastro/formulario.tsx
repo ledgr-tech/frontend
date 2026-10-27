@@ -387,7 +387,7 @@ export function FormularioCadastro({ google }: PropsCadastro) {
                       {senhaAtendida ? <path d="M3.5 8.4l2.9 2.9 6.1-6.6" /> : <circle cx="8" cy="8" r="5.4" />}
                     </svg>
                     Pelo menos {SENHA_MINIMA} caracteres
-                    {senhaAtendida && <span className="sr-only"> (atendido)</span>}
+                    {senhaAtendida && <>{" "}<span className="sr-only">(atendido)</span></>}
                   </p>
                 )}
                 {comSugestao && (
