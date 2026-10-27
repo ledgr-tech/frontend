@@ -5264,25 +5264,66 @@ html[data-tema="escuro"] .app-shell {
   }
 }
 
-/* Para quem é (para-quem.tsx, #233): quatro cartões de traço fino, como os de Preços, com o perfil,
-   quem ele é e o que o Ledgr faz por ele. Quatro numa linha na tela larga, dois e depois um. */
-.para-quem-abertura { display: flex; flex-direction: column; gap: 12px; margin-bottom: 42px; }
+/* Para quem é (para-quem.tsx, #233; desenho de 27/10): o título e uma frase; a pergunta "Qual desses
+   é você?" desce para junto dos perfis, onde a pessoa escolhe. Cada perfil é uma folha de papel sempre
+   aberta, com o mascote em pé na borda de cima. Quatro numa linha na tela larga, dois e depois um. */
+.para-quem-abertura { display: flex; flex-direction: column; gap: 16px; max-width: 760px; }
+.para-quem-abertura .titulo-misto { max-width: 24ch; }
+.para-quem-frase {
+  margin: 0; max-width: 52ch; font-size: 17px; line-height: 1.6; text-wrap: balance;
+  color: color-mix(in srgb, var(--color-text) 72%, transparent);
+}
+.para-quem-pergunta {
+  display: flex; align-items: center; gap: 16px; margin: clamp(36px, 5vw, 52px) 0 24px;
+  font-family: var(--font-destaque-family), var(--font-display), serif; font-style: italic; font-weight: 500;
+  font-size: clamp(22px, 2vw, 27px); line-height: 1.2;
+}
+.para-quem-pergunta::after { content: ""; flex: 1; height: 1px; background: var(--color-divider); }
 .para-quem-grade {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); gap: 20px;
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: clamp(16px, 2vw, 24px);
   margin: 0; padding: 0; list-style: none;
 }
-.para-quem-grade > li { display: flex; }
-.para-quem-cartao {
-  display: flex; flex-direction: column; gap: 10px; width: 100%; padding: 26px 24px 28px;
-  border: 1px solid var(--color-divider); border-top: 2px solid var(--color-accent); border-radius: var(--radius-md);
+.para-quem-grade > li { display: flex; min-width: 0; }
+.para-quem-perfil { display: flex; flex-direction: column; align-items: center; width: 100%; }
+/* a altura fixa alinha os nomes das quatro folhas; as poses têm larguras diferentes */
+.para-quem-mascote {
+  position: relative; z-index: 1; height: 132px; width: auto; max-width: 80%; margin-bottom: -26px;
+  object-fit: contain; object-position: center bottom; transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
 }
-.para-quem-nome { margin: 0; font-family: var(--font-heading); font-size: 20px; font-weight: 600; }
-.para-quem-quem { margin: 0; font-size: 15px; line-height: 1.6; color: color-mix(in srgb, var(--color-text) 72%, transparent); }
+.para-quem-perfil:hover .para-quem-mascote { transform: translateY(-6px) rotate(-2deg); }
+.para-quem-folha {
+  flex: 1; width: 100%; padding: 40px 22px 24px; border: 1px solid var(--color-divider);
+  border-radius: var(--radius-md); background: #fdfcfa; box-shadow: var(--shadow-md);
+}
+.para-quem-nome {
+  margin: 0; text-align: center; font-family: var(--font-destaque-family), var(--font-display), serif;
+  font-style: italic; font-weight: 500; font-size: 28px; line-height: 1.1;
+}
+.para-quem-medida {
+  margin: 6px 0 0; text-align: center; font-family: var(--font-mono); font-size: 11.5px; font-weight: 500;
+  line-height: 1.4; letter-spacing: 0.1em; text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-text) 58%, transparent);
+}
+.para-quem-quem {
+  margin: 16px 0 0; padding-top: 14px; border-top: 1px solid var(--color-divider);
+  font-size: 16.5px; font-weight: 600; line-height: 1.45;
+}
 .para-quem-pontos {
-  display: flex; flex-direction: column; gap: 8px; margin: 8px 0 0; padding: 14px 0 0;
-  border-top: 1px solid var(--color-divider); list-style: none; font-size: 14.5px; line-height: 1.55;
+  display: flex; flex-direction: column; gap: 9px; margin: 12px 0 0; padding: 0;
+  list-style: none; font-size: 15px; line-height: 1.6;
 }
 .para-quem-pontos li { position: relative; padding-left: 18px; }
 .para-quem-pontos li::before {
-  content: ""; position: absolute; left: 0; top: 0.62em; width: 8px; height: 1.5px; background: var(--color-accent);
+  content: ""; position: absolute; left: 0; top: 0.72em; width: 8px; height: 1px;
+  background: color-mix(in srgb, var(--color-text) 58%, transparent);
+}
+@media (max-width: 999px) {
+  .para-quem-grade { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 36px; }
+}
+@media (max-width: 560px) {
+  .para-quem-grade { grid-template-columns: minmax(0, 1fr); }
+  .para-quem-mascote { height: 118px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .para-quem-mascote { transition: none; }
 }

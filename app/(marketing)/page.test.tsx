@@ -90,12 +90,21 @@ describe("LandingPage", () => {
   it("says who the Ledgr is for, right before the price and its call to action (#233)", () => {
     const { container } = render(<LandingPage />);
     const secao = container.querySelector("#para-quem")!;
+    // do menor ao maior, cada um numa folha com o seu mascote
     expect([...secao.querySelectorAll("h3")].map((titulo) => titulo.textContent)).toEqual([
-      "Escritório contábil",
-      "Empresa",
       "Usuário único",
       "Consultor contábil",
+      "Empresa",
+      "Escritório contábil",
     ]);
+    expect([...secao.querySelectorAll(".para-quem-mascote")].map((img) => img.getAttribute("src"))).toEqual([
+      expect.stringContaining("mascote-laptop"),
+      expect.stringContaining("mascote-maleta"),
+      expect.stringContaining("mascote-caminhando"),
+      expect.stringContaining("mascote-arquivo"),
+    ]);
+    // a pergunta fica junto dos perfis, não na abertura
+    expect(within(secao as HTMLElement).getByText("Qual desses é você?")).not.toHaveClass("para-quem-frase");
     expect(secao.nextElementSibling).toHaveAttribute("id", "preco");
   });
 
