@@ -389,12 +389,13 @@ export const PAGINAS: PaginaDeAjuda[] = [
       {
         id: "motivo",
         titulo: "O provável motivo",
-        faz: "Quando você pede, o Ledgr lê os dois lados da linha e explica, em linguagem simples, por que ela não casou.",
+        faz: "Quando a conciliação roda, o Ledgr lê os dois lados de cada divergência e explica, em linguagem simples, por que a linha não casou.",
         passos: [
-          "Clique em **Explicar esta divergência**.",
-          "Leia a explicação e confira no seu sistema de gestão antes de decidir.",
+          "Abra a linha e leia a explicação, marcada como “Gerada por IA”.",
+          "Se a explicação ainda não estiver pronta, clique em **Explicar esta divergência**.",
+          "Confira no seu sistema de gestão antes de decidir.",
         ],
-        nota: "Ao pedir, dados resumidos desta linha são enviados à OpenAI. A IA explica; quem decide é você.",
+        nota: "Dados resumidos de cada divergência são enviados à OpenAI ao conciliar; linhas conciliadas não são. A IA explica; quem decide é você.",
         imagem: {
           src: "/ajuda/detalhe-da-linha--motivo.webp",
           largura: 543,
