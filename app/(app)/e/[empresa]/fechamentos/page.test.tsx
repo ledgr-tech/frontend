@@ -11,8 +11,10 @@ const carregarFechamentos = vi.fn<() => Promise<Resultado<DadosDoFechamento>>>()
 const fecharMes = vi.fn<(competencia: string, ressalva?: string) => Promise<Resultado<Fechamento>>>();
 const reabrirMes = vi.fn<(competencia: string) => Promise<Resultado<Fechamento>>>();
 const aprovarPendentes = vi.fn<(competencia: string) => Promise<Resultado<{ processadas: number; ignoradas: number }>>>();
+const rejeitarPendentes = vi.fn<(competencia: string, motivo?: string) => Promise<Resultado<{ processadas: number; ignoradas: number }>>>();
 vi.mock("../conciliacoes/acoes", () => ({
   aprovarPendentes: (competencia: string) => aprovarPendentes(competencia),
+  rejeitarPendentes: (competencia: string, motivo?: string) => rejeitarPendentes(competencia, motivo),
   carregarFechamentos: () => carregarFechamentos(),
   fecharMes: (competencia: string, ressalva?: string) => fecharMes(competencia, ressalva),
   reabrirMes: (competencia: string) => reabrirMes(competencia),
@@ -106,6 +108,8 @@ describe("FechamentosPage", () => {
     redirect.mockReset();
     fecharMes.mockReset();
     reabrirMes.mockReset();
+    aprovarPendentes.mockReset();
+    rejeitarPendentes.mockReset();
     refresh.mockReset();
   });
 
@@ -344,6 +348,35 @@ describe("FechamentosPage", () => {
 
       expect(aprovarPendentes).toHaveBeenCalledWith("2026-09");
       expect(refresh).toHaveBeenCalled();
+    });
+
+    it("rejeita as do mês de uma vez com o motivo, e a tela é lida de novo", async () => {
+      rejeitarPendentes.mockResolvedValue({ ok: true, dados: { processadas: 2, ignoradas: 0 } });
+      const user = userEvent.setup();
+      await renderizar([AGUARDANDO()]);
+
+      await user.click(within(painel()).getByRole("button", { name: "Rejeitar…" }));
+      await user.type(within(painel()).getByLabelText("Motivo da rejeição (opcional)"), "  Faltam os comprovantes. ");
+      await user.click(within(painel()).getByRole("button", { name: "Rejeitar as 2 justificativas" }));
+
+      expect(rejeitarPendentes).toHaveBeenCalledWith("2026-09", "Faltam os comprovantes.");
+      expect(aprovarPendentes).not.toHaveBeenCalled();
+      expect(refresh).toHaveBeenCalled();
+    });
+
+    it("rejeitar sem motivo manda nenhum, e Voltar desiste sem chamar o backend", async () => {
+      rejeitarPendentes.mockResolvedValue({ ok: true, dados: { processadas: 2, ignoradas: 0 } });
+      const user = userEvent.setup();
+      await renderizar([AGUARDANDO()]);
+
+      await user.click(within(painel()).getByRole("button", { name: "Rejeitar…" }));
+      await user.click(within(painel()).getByRole("button", { name: "Voltar" }));
+      expect(within(painel()).getByRole("button", { name: "Aprovar as 2 justificativas" })).toBeInTheDocument();
+      expect(rejeitarPendentes).not.toHaveBeenCalled();
+
+      await user.click(within(painel()).getByRole("button", { name: "Rejeitar…" }));
+      await user.click(within(painel()).getByRole("button", { name: "Rejeitar as 2 justificativas" }));
+      expect(rejeitarPendentes).toHaveBeenCalledWith("2026-09", undefined);
     });
 
     it("com uma só, o botão fala no singular", async () => {

@@ -302,7 +302,7 @@ function LinhasDaConciliacao({
         <td className="hist-c-acao">
           {/* pelo endereço só do banco, que abre a rodada mais recente, como o "ver a mais recente" */}
           <Link href={caminhoDaConciliacao(conciliacao.extratoBancoId)} className="btn btn-secondary hist-ver">
-            Ver<span className="sr-only"> {arquivoBanco}</span>
+            Ver{" "}<span className="sr-only">{arquivoBanco}</span>
           </Link>
         </td>
       </tr>

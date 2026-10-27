@@ -24,14 +24,26 @@ const REGRAS: RegrasDaEmpresa = {
 
 // a troca de senha é do backend; aqui a action devolve o que ele responderia
 const trocarSenha = vi.fn();
+const trocarEmail = vi.fn();
 const desativarConta = vi.fn();
 vi.mock("../../../(auth)/acoes", () => ({
   trocarSenha: (...args: unknown[]) => trocarSenha(...args),
+  trocarEmail: (...args: unknown[]) => trocarEmail(...args),
   desativarConta: (...args: unknown[]) => desativarConta(...args),
   salvarPreferencias: async () => true,
 }));
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
+// o painel das chaves tem teste próprio (chaves-api/painel.test.tsx); aqui só importa onde ele aparece
+vi.mock("./chaves-api/painel", () => ({ PainelDeChavesApi: () => <p>painel das chaves</p> }));
+// a seção Conexões só aparece quando o backend devolve a lista; o padrão é a conexão desligada (404)
+const carregarConexoesMcp = vi.fn();
+vi.mock("./conexoes-mcp/acoes", () => ({ carregarConexoesMcp: () => carregarConexoesMcp() }));
+vi.mock("./conexoes-mcp/painel", () => ({ PainelDeConexoes: () => <p>painel das conexões</p> }));
+beforeEach(() => {
+  carregarConexoesMcp.mockReset();
+  carregarConexoesMcp.mockResolvedValue({ ok: false, status: 404, erro: "Not Found" });
+});
 
 const EMAIL = "financeiro@telhacerta.com.br";
 
@@ -67,6 +79,7 @@ describe("Configuracoes", () => {
   beforeEach(() => {
     toleranciaDaUltimaConciliacao.mockReset();
     trocarSenha.mockReset().mockResolvedValue({ ok: true });
+    trocarEmail.mockReset().mockResolvedValue({ ok: true });
     toleranciaDaUltimaConciliacao.mockResolvedValue(2);
     carregarRegras.mockReset().mockResolvedValue({ ok: true, dados: REGRAS });
     salvarToleranciaDias.mockReset();
@@ -293,16 +306,35 @@ describe("Configuracoes", () => {
     expect(screen.queryByRole("button", { name: "Trocar senha" })).not.toBeInTheDocument();
   });
 
-  // o backend ainda não tem POST /me/email: um formulário que pede a senha
-  // para depois dizer "ainda não disponível" faz a pessoa trabalhar à toa
-  it("shows the account email without a change form, and says how to change it for now", async () => {
+  it("asks to change the email with the password, and says the link went to the new one", async () => {
+    trocarEmail.mockResolvedValueOnce({ ok: false, erro: "E-mail já cadastrado." });
     const user = userEvent.setup();
     abrir();
     await user.click(secao("Conta"));
+    await user.click(screen.getByRole("button", { name: "Trocar e-mail" }));
 
-    const linha = linhaDe("E-mail");
-    expect(within(linha).getByText(EMAIL)).toBeInTheDocument();
-    expect(within(linha).getByText(/Para trocar, por enquanto, escreva para ledgrtech@gmail\.com\./)).toBeInTheDocument();
+    const formulario = screen.getByRole("form", { name: "Trocar e-mail" });
+    await user.type(within(formulario).getByLabelText("E-mail novo"), "ana@nova");
+    await user.type(within(formulario).getByLabelText("Senha atual"), "s3nha");
+    await user.click(within(formulario).getByRole("button", { name: "Enviar link" }));
+    expect(screen.getByRole("alert")).toHaveTextContent("Confira o e-mail: parece incompleto.");
+    expect(trocarEmail).not.toHaveBeenCalled();
+
+    await user.type(within(formulario).getByLabelText("E-mail novo"), ".com.br");
+    await user.click(within(formulario).getByRole("button", { name: "Enviar link" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("E-mail já cadastrado.");
+
+    await user.click(within(formulario).getByRole("button", { name: "Enviar link" }));
+    expect(trocarEmail).toHaveBeenLastCalledWith("ana@nova.com.br", "s3nha");
+    expect(await screen.findByRole("status")).toHaveTextContent("Link enviado ao e-mail novo. Abra para confirmar.");
+  });
+
+  it("has no email change on an account that signs in only with Google", async () => {
+    const user = userEvent.setup();
+    abrir({ temSenha: false });
+    await user.click(secao("Conta"));
+
+    expect(within(linhaDe("E-mail")).getByText(/conta Google/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Trocar e-mail" })).not.toBeInTheDocument();
   });
 
@@ -310,13 +342,13 @@ describe("Configuracoes", () => {
     desativarConta.mockReset();
     desativarConta.mockResolvedValueOnce({
       ok: false,
-      erro: "Remova os outros usuários da empresa antes de desativar a sua conta.",
+      erro: "Transfira o papel de admin antes de desativar a sua conta.",
     });
     const user = userEvent.setup();
     abrir();
     await user.click(secao("Conta"));
 
-    expect(within(linhaDe("Desativar conta")).getByText(/remova-as antes/)).toBeInTheDocument();
+    expect(within(linhaDe("Desativar conta")).getByText(/passe antes a administração/)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Desativar conta" }));
     const formulario = screen.getByRole("form", { name: "Desativar conta" });
     expect(formulario).toHaveTextContent("Os dados da empresa continuam guardados até a exclusão ser pedida.");
@@ -324,7 +356,7 @@ describe("Configuracoes", () => {
     await user.click(within(formulario).getByRole("button", { name: "Desativar minha conta" }));
 
     expect(desativarConta).toHaveBeenCalledWith("s3nha");
-    expect(formulario).toHaveTextContent("Remova os outros usuários da empresa antes de desativar a sua conta.");
+    expect(formulario).toHaveTextContent("Transfira o papel de admin antes de desativar a sua conta.");
   });
 
   it("a Google-only account deactivates without a password field", async () => {
@@ -394,12 +426,12 @@ describe("Configuracoes", () => {
     expect(screen.queryByText("Convidar pessoa")).not.toBeInTheDocument();
   });
 
-  it("tells the admin where to remove the other people before deactivating the account", async () => {
+  it("tells the admin to hand over the administration before deactivating the account", async () => {
     const user = userEvent.setup();
     abrir({ papel: "admin" });
 
     await user.click(secao("Conta"));
-    expect(screen.getByText(/remova-as antes em Empresas › Equipe/)).toBeInTheDocument();
+    expect(screen.getByText(/passe antes a administração para uma delas em Empresas › Equipe/)).toBeInTheDocument();
   });
 
   it("closes from the close button", async () => {
@@ -408,5 +440,43 @@ describe("Configuracoes", () => {
 
     await user.click(screen.getByRole("button", { name: "Fechar configurações" }));
     expect(onFechar).toHaveBeenCalled();
+  });
+
+  it.each(["admin", "gestor"] as const)("o %s vê a seção API, com as chaves", async (papel) => {
+    const user = userEvent.setup();
+    abrir({ papel });
+
+    await user.click(secao("API"));
+    expect(screen.getByRole("heading", { name: "API" })).toBeInTheDocument();
+    expect(screen.getByText("painel das chaves")).toBeInTheDocument();
+  });
+
+  it("o analista não vê a seção API", () => {
+    abrir({ papel: "analista" });
+
+    expect(screen.queryByRole("button", { name: "API" })).not.toBeInTheDocument();
+  });
+
+  it("com a conexão ligada no backend, o admin e o gestor veem a seção Conexões", async () => {
+    carregarConexoesMcp.mockResolvedValue({ ok: true, dados: { itens: [], endereco: "https://api.ledgr.test/mcp" } });
+    const user = userEvent.setup();
+    abrir({ papel: "gestor" });
+
+    await user.click(await screen.findByRole("button", { name: "Conexões" }));
+    expect(screen.getByText("painel das conexões")).toBeInTheDocument();
+  });
+
+  it("com a conexão desligada (404), não há seção Conexões", async () => {
+    abrir({ papel: "admin" });
+
+    await waitFor(() => expect(carregarConexoesMcp).toHaveBeenCalled());
+    expect(screen.queryByRole("button", { name: "Conexões" })).not.toBeInTheDocument();
+  });
+
+  it("o analista não pergunta pelas conexões", () => {
+    abrir({ papel: "analista" });
+
+    expect(carregarConexoesMcp).not.toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: "Conexões" })).not.toBeInTheDocument();
   });
 });
