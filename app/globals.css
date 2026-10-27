@@ -5254,3 +5254,26 @@ html[data-tema="escuro"] .app-shell {
     display: inline;
   }
 }
+
+/* Para quem é (para-quem.tsx, #233): quatro cartões de traço fino, como os de Preços, com o perfil,
+   quem ele é e o que o Ledgr faz por ele. Quatro numa linha na tela larga, dois e depois um. */
+.para-quem-abertura { display: flex; flex-direction: column; gap: 12px; margin-bottom: 42px; }
+.para-quem-grade {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); gap: 20px;
+  margin: 0; padding: 0; list-style: none;
+}
+.para-quem-grade > li { display: flex; }
+.para-quem-cartao {
+  display: flex; flex-direction: column; gap: 10px; width: 100%; padding: 26px 24px 28px;
+  border: 1px solid var(--color-divider); border-top: 2px solid var(--color-accent); border-radius: var(--radius-md);
+}
+.para-quem-nome { margin: 0; font-family: var(--font-heading); font-size: 20px; font-weight: 600; }
+.para-quem-quem { margin: 0; font-size: 15px; line-height: 1.6; color: color-mix(in srgb, var(--color-text) 72%, transparent); }
+.para-quem-pontos {
+  display: flex; flex-direction: column; gap: 8px; margin: 8px 0 0; padding: 14px 0 0;
+  border-top: 1px solid var(--color-divider); list-style: none; font-size: 14.5px; line-height: 1.55;
+}
+.para-quem-pontos li { position: relative; padding-left: 18px; }
+.para-quem-pontos li::before {
+  content: ""; position: absolute; left: 0; top: 0.62em; width: 8px; height: 1.5px; background: var(--color-accent);
+}
