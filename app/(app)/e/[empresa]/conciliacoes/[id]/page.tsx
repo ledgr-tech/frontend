@@ -41,7 +41,7 @@ import { larguraDoValor } from "./largura";
 import { Reveal } from "@/app/reveal";
 import { MensagemErro } from "@/app/(auth)/_compartilhado/mensagem-erro";
 import { Cabecalho } from "../../cabecalho";
-import { FaixaDoSaldo } from "../../saldo";
+import { FaixaDoSaldo, SaldoNoFim } from "../../saldo";
 import { SeloIa } from "../../selo-ia";
 import { usePodeFechar } from "../../conta";
 import { decidirLinhas } from "../acoes";
@@ -852,6 +852,8 @@ export default function ConciliacaoPage() {
               </div>
             </div>
           )}
+          {/* como no extrato do banco: o saldo inicial em cima, o final no fim */}
+          <SaldoNoFim saldo={conciliacao.saldo} />
         </Reveal>
 
         {/* Fechar o mês grava no mock. Com dado do backend não há endpoint que
