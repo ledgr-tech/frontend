@@ -574,6 +574,8 @@ export type ArquivoExtrato = Partial<Pick<ArquivoConciliado, "conciliadoEm" | "r
   periodo?: { inicio: string; fim: string } | null;
   /** A rodada em que o arquivo conta hoje, para o painel: só quando ela está em `/execucoes`. */
   ultimaRodada?: ResumoDaRodada;
+  /** O original guardado no plano avançado (backend #139), que o admin e o gestor baixam. */
+  arquivoOriginal?: boolean;
 };
 
 /** O que a rodada de um arquivo deu, das contagens de `/execucoes`, sem abrir a conciliação. */
@@ -675,6 +677,7 @@ export async function listarExtratos(): Promise<Resultado<ListaDeExtratos>> {
           competencia: (inicioDaConciliacao.get(item.extrato_id) ?? item.periodo_inicio)?.slice(0, 7) ?? null,
           enviadoEm: item.enviado_em,
           conciliado: item.conciliado,
+          arquivoOriginal: item.arquivo_original === true,
         };
       }),
     },

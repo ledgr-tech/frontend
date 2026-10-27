@@ -3,7 +3,10 @@
 import { useEffect, useState } from "react";
 import Link from "@/lib/link-do-app";
 import { useRoteador } from "@/lib/roteador";
-import { caminhoDaConciliacao } from "@/lib/caminhos";
+import { useEmpresaAtiva } from "@/lib/empresa-ativa";
+import { caminhoDaConciliacao, caminhoDoOriginal } from "@/lib/caminhos";
+import { useGuardaArquivoOriginal, usePodeFechar } from "../conta";
+import { salvar } from "../conciliacoes/[id]/exportar-csv";
 import type { Tom } from "@/lib/mock-data";
 import { ArrowRight } from "lucide-react";
 import { conciliar, type ArquivoExtrato, type ResumoDaRodada } from "../conciliacoes/acoes";
@@ -277,6 +280,9 @@ export function Galeria({ arquivos }: { arquivos: ArquivoExtrato[] }) {
 function Painel({ arquivo, arquivos }: { arquivo: ArquivoExtrato; arquivos: ArquivoExtrato[] }) {
   const selo = situacao(arquivo);
   const { naoLidas } = arquivo;
+  const guardaOriginal = useGuardaArquivoOriginal();
+  // o mesmo papel que fecha o mês; o backend responde 403 ao analista de qualquer jeito
+  const podeBaixar = usePodeFechar();
   return (
     <section className="extrato-painel" aria-label="Arquivo selecionado" data-tutorial="painel">
       <h6 style={{ margin: 0 }}>Arquivo · {selo.rotulo.toLowerCase()}</h6>
@@ -350,7 +356,16 @@ function Painel({ arquivo, arquivos }: { arquivo: ArquivoExtrato; arquivos: Arqu
             <dd>{`${arquivo.rodada.numero} de ${arquivo.rodada.total}`}</dd>
           </div>
         )}
+        {/* com a flag do backend desligada os dois vêm false e a linha some (#174) */}
+        {(arquivo.arquivoOriginal || guardaOriginal) && (
+          <div>
+            <dt>Arquivo original</dt>
+            <dd>{arquivo.arquivoOriginal ? "Guardado" : "Não guardado neste envio"}</dd>
+          </div>
+        )}
       </dl>
+
+      {arquivo.arquivoOriginal && podeBaixar && <BaixarOriginal arquivo={arquivo} />}
 
       {naoLidas > 0 && (
         <div className="extrato-nao-lidas">
@@ -383,6 +398,51 @@ function Painel({ arquivo, arquivos }: { arquivo: ArquivoExtrato; arquivos: Arqu
         </div>
       )}
     </section>
+  );
+}
+
+const FALHA_DO_ORIGINAL = "Não foi possível baixar o arquivo original agora. Tente de novo em instantes.";
+
+/** "Baixar original": busca com fetch, como o CSV, para o erro aparecer no painel e o nome ser o do envio. */
+function BaixarOriginal({ arquivo }: { arquivo: ArquivoExtrato }) {
+  const router = useRoteador();
+  const empresa = useEmpresaAtiva();
+  const [baixando, setBaixando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+
+  async function baixar() {
+    setBaixando(true);
+    setErro(null);
+    try {
+      const resposta = await fetch(caminhoDoOriginal(arquivo.id, empresa?.id));
+      if (resposta.status === 401) {
+        router.push("/login");
+        return;
+      }
+      if (!resposta.ok) {
+        const corpo: { erro?: unknown } | null = await resposta.json().catch(() => null);
+        setErro(typeof corpo?.erro === "string" ? corpo.erro : FALHA_DO_ORIGINAL);
+        return;
+      }
+      salvar(await resposta.blob(), arquivo.nome);
+    } catch {
+      setErro(FALHA_DO_ORIGINAL);
+    } finally {
+      setBaixando(false);
+    }
+  }
+
+  return (
+    <div className="exportar-csv">
+      <button type="button" className="btn btn-secondary" onClick={() => void baixar()} disabled={baixando} aria-busy={baixando}>
+        {baixando ? "Baixando…" : "Baixar original"}
+      </button>
+      {erro && (
+        <p role="alert" className="exportar-csv-erro">
+          {erro}
+        </p>
+      )}
+    </div>
   );
 }
 

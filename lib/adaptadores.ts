@@ -510,6 +510,8 @@ export type ItemExtratoAPI = CamposDeSaldoAPI & {
   enviado_em: string;
   /** Já entrou em alguma conciliação, como extrato do banco ou do sistema. */
   conciliado: boolean;
+  /** O original está guardado e pode ser baixado (backend #139, plano avançado); false com a flag desligada. */
+  arquivo_original?: boolean;
 };
 
 export type ListaExtratosAPI = {

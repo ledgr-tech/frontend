@@ -54,6 +54,7 @@ export default async function AppLayout({
         preferencias={conta.preferencias}
         assinatura={conta.assinatura}
         limites={conta.limites}
+        guardaArquivoOriginal={conta.guardaArquivoOriginal}
       >
         {children}
       </Shell>
