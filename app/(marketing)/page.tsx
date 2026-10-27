@@ -14,6 +14,7 @@ import { InkHover, MotionRoot, Reveal } from "../reveal";
 import { fonteDestaque } from "./fonte-destaque";
 import { PorDentro } from "./por-dentro";
 import { PorQueOLedgr } from "./por-que";
+import { ParaQuem } from "./para-quem";
 import { Precos, type ResumoDoMes } from "./precos";
 import { RedesSociais } from "./redes-sociais";
 
@@ -674,12 +675,20 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* para quem é (#233): os perfis que o Ledgr atende, logo antes do preço e do "Começar agora".
+          Papel, entre a superfície das perguntas e a faixa escura do preço */}
+      <section id="para-quem" className="onda onda-superficie" style={{ background: "var(--color-bg)" }}>
+        <div style={{ maxWidth: 1600, margin: "0 auto", padding: "clamp(64px, 9vw, 96px) clamp(20px, 4.2vw, 56px)" }}>
+          <ParaQuem />
+        </div>
+      </section>
+
       {/* preço: o que vem em todo plano, numa trilha vertical como a de "Por dentro", até a régua dos
           planos, e o convite embaixo. overflow: clip, e não hidden: hidden faria da seção o contêiner
           de rolagem do título parado (sticky), e ele deixaria de grudar */}
       <section
         id="preco"
-        className="onda onda-superficie grao"
+        className="onda onda-papel grao"
         style={{ position: "relative", overflow: "clip", backgroundColor: "var(--faixa-escura)" }}
       >
         {/* marca d'água atrás dos botões, saindo pela borda de baixo: no meio da seção ela ficaria

@@ -82,8 +82,21 @@ describe("LandingPage", () => {
       ["Sem trocar de sistema, e sem voltar para o manual.", ["e sem voltar para o manual."]],
       ["O extrato do banco é sempre a fonte da verdade.", ["a fonte da verdade."]],
       ["Perguntas que sempre aparecem", ["sempre aparecem"]],
+      ["Para quem fecha o mês, sozinho ou com equipe.", ["sozinho ou com equipe."]],
       ["Preço fechado, por volume.", ["por volume."]],
     ]);
+  });
+
+  it("says who the Ledgr is for, right before the price and its call to action (#233)", () => {
+    const { container } = render(<LandingPage />);
+    const secao = container.querySelector("#para-quem")!;
+    expect([...secao.querySelectorAll("h3")].map((titulo) => titulo.textContent)).toEqual([
+      "Escritório contábil",
+      "Empresa",
+      "Usuário único",
+      "Consultor contábil",
+    ]);
+    expect(secao.nextElementSibling).toHaveAttribute("id", "preco");
   });
 
   it("loads the display italic only on the landing, under the variable its titles use", () => {
