@@ -2603,11 +2603,40 @@ html[data-tema="escuro"] .app-shell {
 /* A rodada: o aviso de rodada passada ou o que mudou desde a anterior, e à direita a linha das
    rodadas (no celular, ela desce para baixo do texto). */
 .rodada-faixa {
-  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 24px;
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 32px;
   margin: 0; padding: 8px 12px; border-radius: var(--radius-sm);
   background: var(--tinta-ativa); font-size: 13.5px; font-variant-numeric: tabular-nums;
 }
 .rodada-faixa p { margin: 0; }
+/* com mais de uma rodada, a trilha abre a faixa e ganha peso (#228): é o caminho até o fechamento */
+.rodada-faixa:has(.rodada-faixa-trilha) {
+  padding: 14px 18px; border: 1px solid var(--color-divider); border-radius: var(--radius-md);
+}
+.rodada-faixa:has(.rodada-faixa-trilha) > p { color: var(--texto-apagado); }
+.rodada-faixa-trilha { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; min-width: 0; }
+/* com muitas rodadas ou no celular, a trilha desce de linha em vez de vazar a faixa */
+.rodada-faixa .rodadas-linha ol { flex-wrap: wrap; row-gap: 8px; }
+.rodada-faixa-rotulo {
+  font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-text) 62%, transparent);
+}
+.rodada-faixa .rodadas-quadrado { width: 30px; height: 30px; border-radius: 6px; font-size: 13.5px; }
+.rodada-faixa .rodadas-fio { flex: 0 1 48px; min-width: 24px; margin: 0 6px; }
+.rodada-faixa .rodadas-chegada {
+  padding: 5px 12px; border: 1px solid var(--color-divider); border-radius: 999px; background: var(--color-bg);
+}
+.rodada-faixa .rodadas-chegada[data-pronto] {
+  border-color: color-mix(in srgb, var(--color-accent) 45%, transparent);
+  background: color-mix(in srgb, var(--color-accent) 10%, var(--color-bg));
+}
+
+/* A comparação (#228): a tela mais usada respira mais. As faixas do topo ficam juntas; o resumo e a
+   tabela abrem blocos com mais distância; nas telas largas, um recuo a mais dos lados. */
+.comparacao-corpo { display: flex; flex-direction: column; gap: 16px; padding: 32px 0 88px; }
+.comparacao-corpo > .comparacao-bloco { margin-top: 24px; }
+@media (min-width: 1280px) {
+  .comparacao-tela { padding-inline: 16px; }
+}
 
 /* O saldo do extrato do banco (#118), no mesmo fundo da faixa da rodada: três pares rótulo e valor
    numa linha, que quebram no celular */
