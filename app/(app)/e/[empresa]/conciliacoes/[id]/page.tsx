@@ -346,7 +346,7 @@ export default function ConciliacaoPage() {
   }
 
   return (
-    <div>
+    <div className="comparacao-tela">
       <Cabecalho
         titulo="Comparação direta"
         contexto={[
@@ -374,7 +374,8 @@ export default function ConciliacaoPage() {
           )
         }
       />
-      <div style={{ padding: "24px 0 72px", display: "flex", flexDirection: "column", gap: 22 }}>
+      {/* os avisos e as faixas do topo ficam juntos; o resumo e a tabela abrem blocos com mais ar (#228) */}
+      <div className="comparacao-corpo">
         {/* A tela ordena e filtra a lista inteira no cliente, então só faz sentido
             com a lista inteira em mãos. Se o teto de páginas cortou, dizer isso é
             melhor do que deixar alguém ordenar por valor sobre meia conciliação. */}
@@ -394,7 +395,23 @@ export default function ConciliacaoPage() {
         {/* a faixa da rodada: o aviso da rodada passada (só para ler, leva à que vale) ou o que
             mudou desde a anterior, e à direita a linha das rodadas, que chega ao fechamento */}
         {rodada && (rodada.numero < rodada.total || mudancas || rodadas.length > 1) && (
-          <div className="rodada-faixa">
+          <div className="rodada-faixa" data-tutorial={rodadas.length > 1 ? "rodadas" : undefined}>
+            {rodadas.length > 1 && (
+              <div className="rodada-faixa-trilha">
+                <span className="rodada-faixa-rotulo" aria-hidden="true">
+                  Rodadas
+                </span>
+                <LinhaDasRodadas
+                  extratoBancoId={conciliacao.id}
+                  rodadas={rodadas}
+                  aberta={rodada.numero}
+                  // o mês do fechamento como Fechamentos o calcula: o do período do extrato do banco
+                  mes={competencia(rodada.periodoInicio, rodada.executadaEm)}
+                  // o que falta é o da rodada que vale; numa passada, a conta não diria nada
+                  pendentes={rodada.numero === rodada.total ? emRevisao.length : null}
+                />
+              </div>
+            )}
             {rodada.numero < rodada.total ? (
               <p role="status">
                 {`Rodada ${rodada.numero} de ${rodada.total} · `}
@@ -403,17 +420,6 @@ export default function ConciliacaoPage() {
             ) : (
               mudancas && <p>{textoDasMudancas(rodada.numero - 1, mudancas)}</p>
             )}
-            {rodadas.length > 1 && (
-              <LinhaDasRodadas
-                extratoBancoId={conciliacao.id}
-                rodadas={rodadas}
-                aberta={rodada.numero}
-                // o mês do fechamento como Fechamentos o calcula: o do período do extrato do banco
-                mes={competencia(rodada.periodoInicio, rodada.executadaEm)}
-                // o que falta é o da rodada que vale; numa passada, a conta não diria nada
-                pendentes={rodada.numero === rodada.total ? emRevisao.length : null}
-              />
-            )}
           </div>
         )}
         {/* o saldo do extrato do banco (#118), o primeiro número que o contador procura: o mesmo em
@@ -421,7 +427,7 @@ export default function ConciliacaoPage() {
         <FaixaDoSaldo saldo={conciliacao.saldo} />
         {/* desligar uma categoria volta ao "Só revisão": as cinco são o que ele junta.
             As justificadas saem das categorias e são contadas à parte. */}
-        <Reveal>
+        <Reveal className="comparacao-bloco">
           <Relatorio
             linhas={emRevisao}
             justificadas={justificadas.length}
@@ -431,7 +437,7 @@ export default function ConciliacaoPage() {
         </Reveal>
 
         {/* uma faixa só de controles, colada na tabela: o filtro à esquerda, a densidade à direita */}
-        <Reveal delay={0.08} className="tabela-ferramentas">
+        <Reveal delay={0.08} className="tabela-ferramentas comparacao-bloco">
           <div className="tabela-filtros" data-tutorial="filtros">
             <div className="pills segmentado" role="group" aria-label="Filtrar lançamentos">
               <button
