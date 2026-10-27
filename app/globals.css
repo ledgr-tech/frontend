@@ -3325,6 +3325,14 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
 .seletor-janela-rodape { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
 .seletor-janela-paginas { display: flex; align-items: center; gap: 8px; }
 .seletor-janela-cnpj-celular { display: none; }
+.seletor-janela-situacao { display: inline-flex; align-items: center; gap: 8px; }
+.seletor-janela-tabela .seletor-janela-favorita { width: 1%; text-align: right; }
+.seletor-janela-estrela {
+  display: inline-grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 0; border-radius: var(--radius-sm);
+  background: transparent; cursor: pointer; color: color-mix(in srgb, var(--color-text) 45%, transparent);
+}
+.seletor-janela-estrela:hover { color: var(--color-text); background: color-mix(in srgb, var(--color-text) 6%, transparent); }
+.seletor-janela-estrela[aria-pressed="true"] { color: var(--color-text); }
 @media (max-width: 600px) {
   .seletor-topo-botao { max-width: 150px; }
   .seletor-janela-tabela td:first-child { white-space: normal; }
@@ -3333,7 +3341,7 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
     color: color-mix(in srgb, var(--color-text) 66%, transparent);
   }
   /* uma coluna só; a linha aberta segue marcada pelo fundo e pelo aria-current */
-  .seletor-janela-tabela :is(th, td):not(:first-child) { display: none; }
+  .seletor-janela-tabela :is(th, td):not(:first-child, .seletor-janela-favorita) { display: none; }
 }
 /* A tela Empresas (#169): a faixa do plano, o painel do cadastro e a tabela */
 .empresas-nota { margin: 16px 0 0; font-size: 14px; color: color-mix(in srgb, var(--color-text) 70%, transparent); }

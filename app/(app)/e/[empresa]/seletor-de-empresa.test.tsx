@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ProvedorDaEmpresa, type EmpresaDaConta } from "@/lib/empresa-ativa";
 import { SeletorDeEmpresa } from "./seletor-de-empresa";
@@ -10,6 +10,10 @@ vi.mock("next/navigation", () => ({
   usePathname: () => caminho.atual,
   useRouter: () => roteador,
 }));
+
+// a rede é a fronteira: por padrão o `GET /empresas` falha e a janela fica com as empresas do `GET /me`
+const acoes = vi.hoisted(() => ({ carregarEmpresas: vi.fn(), marcarFavorita: vi.fn() }));
+vi.mock("./empresas/acoes", () => acoes);
 
 const A: EmpresaDaConta = { id: "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20", razaoSocial: "Padaria Ltda", cnpj: "11222333000181" };
 const B: EmpresaDaConta = { id: "9b8a7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d", razaoSocial: "Mercado Ltda", cnpj: "11444777000161" };
@@ -44,6 +48,7 @@ function nomesNaTabela() {
 beforeEach(() => {
   caminho.atual = `/e/${A.id}/fechamentos`;
   vi.clearAllMocks();
+  acoes.carregarEmpresas.mockResolvedValue({ ok: false, status: 404, erro: "Not Found" });
 });
 
 afterEach(() => {
@@ -160,5 +165,59 @@ describe("SeletorDeEmpresa (no topo, #223)", () => {
     expect(gerenciar).toHaveAttribute("href", `/e/${A.id}/empresas`);
     await user.click(gerenciar);
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  describe("com o GET /empresas do backend #157", () => {
+    const carregadas = (favoritaB: boolean) => [
+      { ...A, cnpjVerificado: false, criadaEm: "2026-10-21T00:00:00Z", favorita: false, situacao: "em_aberto" },
+      { ...B, cnpjVerificado: false, criadaEm: "2026-10-21T00:00:00Z", favorita: favoritaB, situacao: "fechado" },
+    ];
+
+    it("põe as favoritas primeiro, mesmo invertendo a ordem, e mostra a situação do mês", async () => {
+      acoes.carregarEmpresas.mockResolvedValue({ ok: true, dados: carregadas(true) });
+      const user = userEvent.setup();
+      montar([A, B]);
+      await user.click(screen.getByRole("button", { name: /Padaria Ltda/ }));
+      await waitFor(() => expect(janela().getByRole("button", { name: "Favorita: Mercado Ltda" })).toHaveAttribute("aria-pressed", "true"));
+      expect(nomesNaTabela()).toEqual(["Mercado Ltda", "Padaria Ltda"]);
+      expect(janela().getByText("Mês fechado")).toBeInTheDocument();
+      expect(janela().getByText("Mês em aberto")).toBeInTheDocument();
+      await user.click(within(janela().getByRole("columnheader", { name: /Empresa/ })).getByRole("button"));
+      // decrescente: Padaria viria antes, mas a favorita fica no topo
+      expect(nomesNaTabela()).toEqual(["Mercado Ltda", "Padaria Ltda"]);
+    });
+
+    it("a estrela favorita na hora, sobe a empresa e grava no backend", async () => {
+      acoes.carregarEmpresas.mockResolvedValue({ ok: true, dados: carregadas(false) });
+      acoes.marcarFavorita.mockResolvedValue({ ok: true, dados: null });
+      const user = userEvent.setup();
+      montar([A, B]);
+      await user.click(screen.getByRole("button", { name: /Padaria Ltda/ }));
+      const estrela = await janela().findByRole("button", { name: "Favorita: Padaria Ltda" });
+      expect(estrela).toHaveAttribute("aria-pressed", "false");
+      await user.click(estrela);
+      expect(acoes.marcarFavorita).toHaveBeenCalledWith(A.id, true);
+      expect(janela().getByRole("button", { name: "Favorita: Padaria Ltda" })).toHaveAttribute("aria-pressed", "true");
+      expect(nomesNaTabela()).toEqual(["Padaria Ltda", "Mercado Ltda"]);
+    });
+
+    it("se o backend recusa, a estrela volta e a janela diz por quê", async () => {
+      acoes.carregarEmpresas.mockResolvedValue({ ok: true, dados: carregadas(false) });
+      acoes.marcarFavorita.mockResolvedValue({ ok: false, status: 404, erro: "Empresa não encontrada." });
+      const user = userEvent.setup();
+      montar([A, B]);
+      await user.click(screen.getByRole("button", { name: /Padaria Ltda/ }));
+      await user.click(await janela().findByRole("button", { name: "Favorita: Mercado Ltda" }));
+      expect(await janela().findByRole("alert")).toHaveTextContent("Empresa não encontrada.");
+      expect(janela().getByRole("button", { name: "Favorita: Mercado Ltda" })).toHaveAttribute("aria-pressed", "false");
+    });
+
+    it("sem o backend #157 não há estrela", async () => {
+      const user = userEvent.setup();
+      montar([A, B]);
+      await user.click(screen.getByRole("button", { name: /Padaria Ltda/ }));
+      await waitFor(() => expect(acoes.carregarEmpresas).toHaveBeenCalled());
+      expect(janela().queryByRole("button", { name: /^Favorita/ })).not.toBeInTheDocument();
+    });
   });
 });
