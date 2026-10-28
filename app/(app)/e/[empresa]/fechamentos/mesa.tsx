@@ -11,6 +11,7 @@ import { aprovarPendentes, fecharMes, reabrirMes, rejeitarPendentes, type Result
 import { DecisaoEmLote } from "../conciliacoes/decisao-em-lote";
 import { ExportarCsv } from "../conciliacoes/[id]/exportar-csv";
 import { formatarDataHora, formatarInteiro, formatarPercentual } from "../dashboard/resumo";
+import { LinkPublico } from "./link-publico";
 import { FaixaFiltros } from "../faixa-filtros";
 import { Grupo, alternarNoConjunto } from "../grupo";
 import { fraseDoSaldoFinal } from "../saldo";
@@ -432,6 +433,7 @@ function Painel({ mes, podeFechar }: { mes: MesDeFechamento; podeFechar: boolean
               </button>
             )}
           </div>
+          {fechado && podeFechar && <LinkPublico competencia={mes.chave} />}
           {conciliadas.map((par) => (
             <div key={par.execucao.id} className="fech-relatorio">
               {conciliadas.length > 1 && <span className="fech-passo-texto">{par.execucao.arquivoBanco}</span>}
