@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi, afterEach } from "vitest";
-import { SO_O_GESTOR_APROVA, SO_O_GESTOR_FECHA } from "@/lib/gestor";
+import { SO_O_GESTOR_APROVA, SO_O_GESTOR_FECHA, SO_QUEM_APROVOU } from "@/lib/gestor";
 import type { Papel } from "@/lib/papel";
 import type { ExecucaoAPI, ItemConciliacaoAPI } from "@/lib/adaptadores";
 import { ErroBackend } from "@/lib/backend";
@@ -1634,6 +1634,37 @@ describe("aprovar e rejeitar justificativas (backend #132)", () => {
     expect(await registrarDecisao(BANCO_RECENTE, "lb-1", "justificativa_rejeitada")).toMatchObject({ status: 403 });
     expect(await aprovarPendentes("2026-09")).toEqual({ ok: false, status: 403, erro: SO_O_GESTOR_APROVA });
     expect(chamarBackend).not.toHaveBeenCalled();
+  });
+
+  it("desfazer a aprovação vai sem texto e devolve a justificativa de novo aguardando (backend #164)", async () => {
+    chamarBackend.mockResolvedValue({ tipo: "justificada", texto: "Juros.", autor: "Bia", em: "2026-10-20T10:00:00Z", rodada: 1, situacao: "pendente" });
+
+    expect(await registrarDecisao(BANCO_RECENTE, "lb-1", "aprovacao_desfeita")).toMatchObject({
+      ok: true,
+      dados: { situacao: "pendente" },
+    });
+    expect(chamarBackend).toHaveBeenCalledWith(`/conciliacoes/${BANCO_RECENTE}/decisoes`, {
+      method: "POST",
+      corpo: { chave: "lb-1", tipo: "aprovacao_desfeita", texto: undefined },
+    });
+  });
+
+  it("desfazer a aprovação: o analista para antes do backend, e o 403 de quem não aprovou tem o texto dele", async () => {
+    conta.papel = "analista";
+    expect(await registrarDecisao(BANCO_RECENTE, "lb-1", "aprovacao_desfeita")).toEqual({
+      ok: false,
+      status: 403,
+      erro: SO_O_GESTOR_APROVA,
+    });
+    expect(chamarBackend).not.toHaveBeenCalled();
+
+    conta.papel = "gestor";
+    chamarBackend.mockRejectedValue(new ErroBackend(403, "Só quem aprovou pode desfazer a aprovação."));
+    expect(await registrarDecisao(BANCO_RECENTE, "lb-1", "aprovacao_desfeita")).toEqual({
+      ok: false,
+      status: 403,
+      erro: SO_QUEM_APROVOU,
+    });
   });
 
   it("o 403 do backend ao aprovar chega com o texto da tela", async () => {

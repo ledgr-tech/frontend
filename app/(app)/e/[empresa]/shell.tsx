@@ -17,6 +17,7 @@ import type { Papel } from "@/lib/papel";
 
 export function Shell({
   email,
+  nome = "",
   empresa,
   nomeDaConta,
   temSenha,
@@ -28,6 +29,8 @@ export function Shell({
   children,
 }: {
   email: string;
+  /** O nome de quem está logado, do `GET /me`: diz quem aprovou uma justificativa (backend #164). */
+  nome?: string;
   /** A razão social da empresa ativa: é a que as telas mostram no cabeçalho. */
   empresa: string;
   /** O nome da conta (o escritório), no cartão do usuário; sem ele, o da empresa, como antes. */
@@ -53,6 +56,7 @@ export function Shell({
         limites={limites}
         papel={papel}
         email={email}
+        nome={nome}
         temSenha={temSenha}
         guardaArquivoOriginal={guardaArquivoOriginal}
       >

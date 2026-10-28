@@ -46,6 +46,7 @@ const ACAO: Record<TipoEvento, string> = {
   justificativa_desfeita: "Justificativa desfeita",
   justificativa_aprovada: "Justificativa aprovada",
   justificativa_rejeitada: "Justificativa rejeitada",
+  aprovacao_desfeita: "Aprovação desfeita",
 };
 
 /** "Justificada por Eduardo (rodada 2): juros de atraso." A rodada só aparece a partir da segunda. */
