@@ -32,6 +32,8 @@ const eslintConfig = defineConfig([
     "v2- informações simples/**",
     // Isolated worktrees for in-progress feature branches.
     ".worktrees/**",
+    // Worktrees que o Claude Code cria por sessão.
+    ".claude/worktrees/**",
   ]),
 ]);
 
