@@ -14,7 +14,8 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   const sessao = await auth();
   if (!sessao?.user?.email) redirect("/login");
   return (
-    <div className="app-shell">
+    // o .app-shell é a grade do menu + conteúdo; aqui só interessam os tokens dele, sem a coluna do menu
+    <div className="app-shell" style={{ display: "block" }}>
       <main style={{ maxWidth: 1080, margin: "0 auto", padding: "32px 16px" }}>{children}</main>
     </div>
   );
