@@ -3,6 +3,7 @@
 import { pareceUuid } from "@/lib/adaptadores";
 import { ErroBackend, chamarBackend } from "@/lib/backend";
 import type { Falha, Resultado } from "../../(app)/e/[empresa]/conciliacoes/acoes";
+import { POR_PAGINA, SITUACOES } from "./situacao";
 
 /**
  * O painel interno do Ledgr (backend #156/PR #176, front #222, parte 1): quem opera o produto vê as contas
@@ -11,15 +12,6 @@ import type { Falha, Resultado } from "../../(app)/e/[empresa]/conciliacoes/acoe
  * responde 404 como se `/admin` não existisse. As rotas ignoram a empresa ativa. Cupom, pagamentos e
  * vencimentos são a parte 2 (#236).
  */
-
-export const SITUACOES = ["sem_plano", "teste", "teste_encerrado", "ativo", "inativa"] as const;
-export const ROTULO_DA_SITUACAO: Record<string, string> = {
-  sem_plano: "Sem plano",
-  teste: "Em teste",
-  teste_encerrado: "Teste encerrado",
-  ativo: "Ativa",
-  inativa: "Inativa",
-};
 
 export type ContaDoPainel = {
   id: string;
@@ -36,6 +28,8 @@ export type ContaDoPainel = {
 export type ListaDeContas = { total: number; limit: number; offset: number; itens: ContaDoPainel[] };
 
 export type DetalheDaConta = ContaDoPainel & {
+  /** Ligado ou desligado pelo último evento de piloto; null quando nenhum aparece nos eventos recentes. */
+  piloto: boolean | null;
   admin: { nome: string; email: string } | null;
   inativacao: { em: string; motivo: string } | null;
   ultimoLoginEm: string | null;
@@ -82,8 +76,6 @@ type DetalheAPI = ContaAPI & {
   eventos: DetalheDaConta["eventos"];
 };
 
-export const POR_PAGINA = 20;
-
 function conta(c: ContaAPI): ContaDoPainel {
   return {
     id: c.id,
@@ -98,9 +90,16 @@ function conta(c: ContaAPI): ContaDoPainel {
   };
 }
 
+/** A resposta do backend não traz o estado do piloto: vem do evento mais recente (eles chegam do mais novo ao mais antigo). */
+function pilotoDosEventos(eventos: { tipo: string }[]): boolean | null {
+  const ultimo = eventos.find((e) => e.tipo === "piloto_ligado" || e.tipo === "piloto_desligado");
+  return ultimo ? ultimo.tipo === "piloto_ligado" : null;
+}
+
 function detalhe(d: DetalheAPI): DetalheDaConta {
   return {
     ...conta(d),
+    piloto: pilotoDosEventos(d.eventos),
     admin: d.admin,
     inativacao: d.inativacao,
     ultimoLoginEm: d.ultimo_login_em,
