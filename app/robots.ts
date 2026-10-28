@@ -18,11 +18,11 @@ const FORA_DA_BUSCA = [
   "/regras",
   "/visao-geral",
   "/aceitar-convite",
-  "/admin",
   "/redefinir-senha",
   "/confirmar-email",
   "/cadastro/google",
   "/autorizar-conexao",
+  "/admin",
 ];
 
 export default function robots(): MetadataRoute.Robots {
