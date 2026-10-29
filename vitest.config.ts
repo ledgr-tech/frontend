@@ -11,7 +11,7 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     setupFiles: ["./tests/setup.ts"],
-    exclude: ["**/node_modules/**", "**/.worktrees/**"],
+    exclude: ["**/node_modules/**", "**/.worktrees/**", "**/.claude/worktrees/**"],
     // o next-auth importa "next/server" sem extensão, o que o Node puro não resolve;
     // passando pelo Vite, resolve (é só para os testes que importam o CredentialsSignin)
     server: { deps: { inline: ["next-auth"] } },
