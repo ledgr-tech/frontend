@@ -366,6 +366,11 @@ export default function ConciliacaoPage() {
           (!rodada || rodada.numero === rodada.total) && (
             <NovaVersao
               extratoBancoId={conciliacao.id}
+              rodadaAtual={
+                rodada
+                  ? { numero: rodada.numero, total: rodada.total, arquivo: rodada.arquivoSistema, em: rodada.executadaEm }
+                  : undefined
+              }
               onConcluida={() => {
                 // a URL só do banco abre a rodada mais recente; se ela já era essa, recarrega
                 router.replace(caminhoDaConciliacao(conciliacao.id));
