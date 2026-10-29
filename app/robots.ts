@@ -18,6 +18,7 @@ const FORA_DA_BUSCA = [
   "/regras",
   "/visao-geral",
   "/aceitar-convite",
+  "/relatorio",
   "/redefinir-senha",
   "/confirmar-email",
   "/cadastro/google",
