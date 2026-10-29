@@ -47,6 +47,7 @@ export default async function AppLayout({
     <ProvedorDaEmpresa ativa={ativa} empresas={conta.empresas.length > 0 ? conta.empresas : [ativa]}>
       <Shell
         email={sessao.user.email}
+        nome={conta.nome}
         empresa={ativa.razaoSocial}
         nomeDaConta={conta.empresa}
         temSenha={conta.temSenha}

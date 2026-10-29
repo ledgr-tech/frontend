@@ -472,6 +472,8 @@ export async function sair(): Promise<void> {
 export type ContaDaSessao = {
   /** A razão social, para o cabeçalho e o menu. Vazia quando o backend não respondeu. */
   empresa: string;
+  /** O nome de quem está logado; vazio quando o backend não respondeu. */
+  nome?: string;
   /** Falso na conta que só entra pelo Google: para ela, `POST /me/senha` responde 409. */
   temSenha: boolean;
   /**
@@ -544,6 +546,7 @@ export async function contaDaSessao(): Promise<ContaDaSessao> {
     >("/me");
     return {
       empresa: eu.razao_social?.trim() ?? "",
+      nome: eu.nome?.trim() ?? "",
       temSenha: eu.metodos_login?.includes("senha") ?? true,
       papel: lerPapel(eu),
       empresas: adaptarEmpresas(eu.empresas),

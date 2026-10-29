@@ -35,7 +35,7 @@ import { competencia } from "../fechamentos/fechamento";
 import type { ConciliacaoDoPar } from "../fechamentos/relatorio";
 import type { DadosDoRoteiro } from "../visao-geral/roteiro";
 import { contaDaSessao } from "../../../../(auth)/acoes";
-import { SO_O_GESTOR_APROVA, SO_O_GESTOR_FECHA } from "@/lib/gestor";
+import { SO_O_GESTOR_APROVA, SO_O_GESTOR_FECHA, SO_QUEM_APROVOU } from "@/lib/gestor";
 import { podeFecharMes } from "@/lib/papel";
 
 /**
@@ -959,12 +959,15 @@ export async function explicarDivergencia(conciliacaoId: string): Promise<Result
   }
 }
 
-/** Aprovar e rejeitar uma justificativa (backend #132): do admin e do gestor, como fechar o mês. */
-const TIPOS_DA_APROVACAO: readonly TipoEvento[] = ["justificativa_aprovada", "justificativa_rejeitada"];
+/**
+ * Aprovar e rejeitar uma justificativa (backend #132), e desfazer a aprovação (#164): do admin e do
+ * gestor, como fechar o mês.
+ */
+const TIPOS_DA_APROVACAO: readonly TipoEvento[] = ["justificativa_aprovada", "justificativa_rejeitada", "aprovacao_desfeita"];
 
 /**
- * Conferir, justificar ou desfazer numa linha (spec 2026-10-02-conciliacao-em-rodadas), e aprovar ou
- * rejeitar uma justificativa (`texto` é o motivo da rejeição, opcional). A rota é a proposta ao
+ * Conferir, justificar ou desfazer numa linha (spec 2026-10-02-conciliacao-em-rodadas), e aprovar,
+ * rejeitar ou desfazer a aprovação de uma justificativa (`texto` é o motivo da rejeição, opcional). A rota é a proposta ao
  * backend; a tela só chega aqui quando os itens trazem o campo `decisao`, sinal de que ela existe.
  * Devolve a decisão em vigor, ou null depois de desfazer ou rejeitar: a linha volta a divergente.
  */
@@ -992,6 +995,8 @@ export async function registrarDecisao(
     if (erro instanceof ErroBackend && erro.status === 404) {
       return { ok: false, status: 404, erro: LINHA_MUDOU };
     }
+    // o analista já parou acima: o 403 de desfazer a aprovação é o de quem não aprovou
+    if (tipo === "aprovacao_desfeita") return traduzirDoFechamento(erro, SO_QUEM_APROVOU);
     return aprovacao ? traduzirDoFechamento(erro, SO_O_GESTOR_APROVA) : traduzir(erro);
   }
 }

@@ -43,7 +43,8 @@ import { MensagemErro } from "@/app/(auth)/_compartilhado/mensagem-erro";
 import { Cabecalho } from "../../cabecalho";
 import { FaixaDoSaldo, SaldoNoFim } from "../../saldo";
 import { SeloIa } from "../../selo-ia";
-import { usePodeFechar } from "../../conta";
+import { useNome, usePodeFechar } from "../../conta";
+import { aprovadaDepois, podeDesfazerAprovacao } from "@/lib/aprovacao";
 import { decidirLinhas } from "../acoes";
 import { DecisaoEmLote } from "../decisao-em-lote";
 
@@ -879,6 +880,7 @@ export default function ConciliacaoPage() {
             onDesfazer={() => gravarDecisao(linhaAberta, "justificativa_desfeita")}
             onAprovar={() => gravarDecisao(linhaAberta, "justificativa_aprovada")}
             onRejeitar={(motivo) => gravarDecisao(linhaAberta, "justificativa_rejeitada", motivo || undefined)}
+            onDesfazerAprovacao={() => gravarDecisao(linhaAberta, "aprovacao_desfeita")}
             onFechar={() => setChaveAberta(null)}
             onAbrirDetalhe={() => {
               setChaveAberta(null);
@@ -913,6 +915,7 @@ function EspiaDaLinha({
   onDesfazer,
   onAprovar,
   onRejeitar,
+  onDesfazerAprovacao,
   onFechar,
   onAbrirDetalhe,
 }: {
@@ -930,6 +933,8 @@ function EspiaDaLinha({
   onAprovar: () => Promise<string | null>;
   /** O motivo é opcional: vazio vai sem texto. */
   onRejeitar: (motivo: string) => Promise<string | null>;
+  /** Volta a justificativa aprovada para aguardando; só quem aprovou (backend #164). */
+  onDesfazerAprovacao: () => Promise<string | null>;
   onFechar: () => void;
   /** O duplo clique na descrição: o primeiro clique abriu esta janela, o segundo cai nela. */
   onAbrirDetalhe: () => void;
@@ -950,6 +955,11 @@ function EspiaDaLinha({
   const [rejeitando, setRejeitando] = useState(false);
   const [motivoDaRejeicao, setMotivoDaRejeicao] = useState("");
   const idMotivo = useId();
+  const [desfazendoAprovacao, setDesfazendoAprovacao] = useState(false);
+  // aprovada por alguém, não a que nasce aprovada com a aprovação desligada: só sai pelo desfazer da aprovação
+  const aprovada = aprovadaDepois(linha.decisao);
+  const nome = useNome();
+  const souQuemAprovou = podeAprovar && podeDesfazerAprovacao(linha.decisao, nome);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const mensagem = emBranco ? "Escreva o motivo da justificativa." : erro;
@@ -1126,7 +1136,7 @@ function EspiaDaLinha({
               </p>
             )}
             {linha.decisao.texto && <p className="dialog-body">{linha.decisao.texto}</p>}
-            {podeDecidir && (
+            {podeDecidir && !aprovada && (
               <button
                 type="button"
                 className="btn btn-secondary"
@@ -1136,6 +1146,36 @@ function EspiaDaLinha({
               >
                 Desfazer justificativa
               </button>
+            )}
+            {/* a aprovada não se retira nem se refaz (o backend responde 409): antes, quem aprovou desfaz a aprovação */}
+            {podeDecidir && aprovada && souQuemAprovou && !desfazendoAprovacao && (
+              <button type="button" className="btn btn-secondary" disabled={enviando} onClick={() => setDesfazendoAprovacao(true)}>
+                Desfazer aprovação…
+              </button>
+            )}
+            {podeDecidir && aprovada && souQuemAprovou && desfazendoAprovacao && (
+              <div className="espia-decisao" role="group" aria-label="Desfazer a aprovação">
+                <p className="espia-aviso">
+                  A justificativa volta a aguardar aprovação, e o mês só fecha depois que ela for aprovada de novo.
+                </p>
+                <div className="cfg-form-botoes">
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    disabled={enviando}
+                    aria-busy={enviando || undefined}
+                    onClick={() => void enviar(onDesfazerAprovacao)}
+                  >
+                    Desfazer aprovação
+                  </button>
+                  <button type="button" className="btn btn-secondary" disabled={enviando} onClick={() => setDesfazendoAprovacao(false)}>
+                    Voltar
+                  </button>
+                </div>
+              </div>
+            )}
+            {podeDecidir && aprovada && !souQuemAprovou && (
+              <p className="espia-aviso">{`Para alterar ou retirar, ${linha.decisao.aprovadaPor} precisa desfazer a aprovação.`}</p>
             )}
             {erro && <MensagemErro id={idErro}>{erro}</MensagemErro>}
           </div>

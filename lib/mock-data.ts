@@ -40,7 +40,9 @@ export type TipoEvento =
   | "justificativa_desfeita"
   // a aprovação das justificativas (backend #132): o admin e o gestor aprovam ou rejeitam
   | "justificativa_aprovada"
-  | "justificativa_rejeitada";
+  | "justificativa_rejeitada"
+  // só quem aprovou devolve a aprovada para aguardando (backend #164)
+  | "aprovacao_desfeita";
 
 /** A decisão em vigor numa linha. O status do motor não muda por ela. */
 export type Decisao = {

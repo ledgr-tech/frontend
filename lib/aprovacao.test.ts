@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { aguardaAprovacao, estaJustificada } from "./aprovacao";
+import { aguardaAprovacao, aprovadaDepois, estaJustificada, podeDesfazerAprovacao } from "./aprovacao";
 import type { Decisao } from "./mock-data";
 
 const JUSTIFICADA: Decisao = { tipo: "justificada", texto: "Juros.", autor: "Bia", em: "2026-10-20T10:00:00Z", rodada: 1 };
@@ -28,5 +28,41 @@ describe("aguardaAprovacao e estaJustificada", () => {
     expect(aguardaAprovacao(conferida)).toBe(false);
     expect(estaJustificada(null)).toBe(false);
     expect(aguardaAprovacao(undefined)).toBe(false);
+  });
+});
+
+describe("aprovadaDepois e podeDesfazerAprovacao (backend #164)", () => {
+  const aprovadaPorGil: Decisao = {
+    ...JUSTIFICADA,
+    situacao: "aprovada",
+    aprovadaPor: "Gil Gestor",
+    aprovadaEm: "2026-10-21T09:00:00Z",
+  };
+
+  it("só quem aprovou desfaz, pelo nome de quem está logado", () => {
+    expect(aprovadaDepois(aprovadaPorGil)).toBe(true);
+    expect(podeDesfazerAprovacao(aprovadaPorGil, "Gil Gestor")).toBe(true);
+    expect(podeDesfazerAprovacao(aprovadaPorGil, " Gil Gestor ")).toBe(true);
+    expect(podeDesfazerAprovacao(aprovadaPorGil, "Bia")).toBe(false);
+    // sem o nome (o GET /me falhou), ninguém vê o botão
+    expect(podeDesfazerAprovacao(aprovadaPorGil, "")).toBe(false);
+  });
+
+  it("a que nasce aprovada com a aprovação desligada não conta: mesmo autor, um microssegundo depois", () => {
+    const nascidaAprovada: Decisao = {
+      ...JUSTIFICADA,
+      situacao: "aprovada",
+      aprovadaPor: "Bia",
+      aprovadaEm: "2026-10-20T10:00:00.000001Z",
+    };
+    expect(aprovadaDepois(nascidaAprovada)).toBe(false);
+    expect(podeDesfazerAprovacao(nascidaAprovada, "Bia")).toBe(false);
+  });
+
+  it("a pendente, a sem quem aprovou e a conferida não têm aprovação a desfazer", () => {
+    expect(podeDesfazerAprovacao({ ...aprovadaPorGil, situacao: "pendente" }, "Gil Gestor")).toBe(false);
+    expect(aprovadaDepois(JUSTIFICADA)).toBe(false);
+    expect(aprovadaDepois({ ...aprovadaPorGil, tipo: "conferida", texto: null })).toBe(false);
+    expect(aprovadaDepois(null)).toBe(false);
   });
 });

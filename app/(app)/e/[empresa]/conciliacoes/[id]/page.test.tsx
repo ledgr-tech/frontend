@@ -9,9 +9,12 @@ const rota = vi.hoisted(() => ({ id: "conc-1", busca: "" }));
 const navegar = vi.hoisted(() => ({ push: vi.fn() }));
 // aprovar e rejeitar justificativas é do admin e do gestor (backend #132); o padrão é quem pode
 const podeFechar = vi.hoisted(() => ({ valor: true }));
+// o nome de quem está logado: só quem aprovou desfaz a aprovação (backend #164)
+const nomeLogado = vi.hoisted(() => ({ valor: "" }));
 vi.mock("../../conta", async (original) => ({
   ...(await original<typeof import("../../conta")>()),
   usePodeFechar: () => podeFechar.valor,
+  useNome: () => nomeLogado.valor,
 }));
 vi.mock("next/navigation", () => ({
   useParams: () => ({ id: rota.id }),
@@ -1353,6 +1356,85 @@ describe("ConciliacaoPage", () => {
 
       afterEach(() => {
         podeFechar.valor = true;
+        nomeLogado.valor = "";
+      });
+
+      describe("undoing an approval (#227)", () => {
+        const comAprovada: Conciliacao = {
+          ...comCampo,
+          linhas: comCampo.linhas.map((linha) => (linha.id === "lc-2" ? { ...linha, decisao: aprovada } : linha)),
+        };
+
+        it("quem aprovou desfaz, depois de confirmar, e a justificativa volta a aguardar aprovação", async () => {
+          nomeLogado.valor = "Gil Gestor";
+          doBackend(comAprovada);
+          registrarDecisao.mockResolvedValue({ ok: true, dados: pendente });
+          const user = userEvent.setup();
+          render(<ConciliacaoPage />);
+
+          await user.click(await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" }));
+          const janela = screen.getByRole("dialog", { name: "Boleto Aço Norte Bobinas" });
+          // a aprovada não se retira: o backend responderia 409
+          expect(within(janela).queryByRole("button", { name: "Desfazer justificativa" })).not.toBeInTheDocument();
+          await user.click(within(janela).getByRole("button", { name: "Desfazer aprovação…" }));
+          expect(registrarDecisao).not.toHaveBeenCalled();
+          expect(janela).toHaveTextContent("A justificativa volta a aguardar aprovação");
+          await user.click(within(janela).getByRole("button", { name: "Desfazer aprovação" }));
+
+          expect(registrarDecisao).toHaveBeenCalledWith(BANCO, "b:lc-2", "aprovacao_desfeita", undefined);
+          expect(janela).toHaveTextContent("aguardando aprovação");
+          expect(within(janela).getByRole("button", { name: "Aprovar" })).toBeInTheDocument();
+          expect(screen.getByRole("button", { name: "Justificadas (0)" })).toBeInTheDocument();
+        });
+
+        it("Voltar desiste sem gravar", async () => {
+          nomeLogado.valor = "Gil Gestor";
+          doBackend(comAprovada);
+          const user = userEvent.setup();
+          render(<ConciliacaoPage />);
+
+          await user.click(await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" }));
+          const janela = screen.getByRole("dialog", { name: "Boleto Aço Norte Bobinas" });
+          await user.click(within(janela).getByRole("button", { name: "Desfazer aprovação…" }));
+          await user.click(within(janela).getByRole("button", { name: "Voltar" }));
+
+          expect(registrarDecisao).not.toHaveBeenCalled();
+          expect(within(janela).getByRole("button", { name: "Desfazer aprovação…" })).toBeInTheDocument();
+        });
+
+        it("outro admin ou gestor não vê o botão, e a janela diz quem pode desfazer", async () => {
+          nomeLogado.valor = "Ana Admin";
+          doBackend(comAprovada);
+          const user = userEvent.setup();
+          render(<ConciliacaoPage />);
+
+          await user.click(await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" }));
+          const janela = screen.getByRole("dialog", { name: "Boleto Aço Norte Bobinas" });
+          expect(within(janela).queryByRole("button", { name: /Desfazer/ })).not.toBeInTheDocument();
+          expect(janela).toHaveTextContent("Para alterar ou retirar, Gil Gestor precisa desfazer a aprovação.");
+        });
+
+        it("com a aprovação desligada a justificativa nasce aprovada por quem justificou, e segue com Desfazer justificativa", async () => {
+          nomeLogado.valor = "Eduardo Sichelero";
+          const nascidaAprovada: Decisao = {
+            ...decisao("justificada"),
+            situacao: "aprovada",
+            aprovadaPor: "Eduardo Sichelero",
+            aprovadaEm: "2026-09-30T13:12:00.000001Z",
+          };
+          doBackend({
+            ...comCampo,
+            linhas: comCampo.linhas.map((linha) => (linha.id === "lc-2" ? { ...linha, decisao: nascidaAprovada } : linha)),
+          });
+          const user = userEvent.setup();
+          render(<ConciliacaoPage />);
+
+          await user.click(await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" }));
+          const janela = screen.getByRole("dialog", { name: "Boleto Aço Norte Bobinas" });
+          expect(within(janela).getByRole("button", { name: "Desfazer justificativa" })).toBeInTheDocument();
+          expect(within(janela).queryByRole("button", { name: /Desfazer aprovação/ })).not.toBeInTheDocument();
+          expect(janela).not.toHaveTextContent("precisa desfazer a aprovação");
+        });
       });
 
       it("a justificada que espera aprovação continua em revisão, com o rótulo Aguardando", async () => {

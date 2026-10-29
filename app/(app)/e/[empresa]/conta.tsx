@@ -32,6 +32,8 @@ const ContextoDaAssinatura = createContext<Assinatura | null>(null);
 const ContextoDosLimites = createContext<LimitesDaConta | null>(null);
 /** O e-mail de quem está logado (a sessão), para marcar a própria linha na Equipe; vazio fora do app. */
 const ContextoDoEmail = createContext("");
+/** O nome de quem está logado, do `GET /me`: só quem aprovou desfaz a aprovação (backend #164); vazio fora do app. */
+const ContextoDoNome = createContext("");
 /** Se a conta tem senha (`metodos_login` do `GET /me`): a transferência da administração a pede, como a desativação. */
 const ContextoDaSenha = createContext(true);
 /** Se a conta guarda o original de cada extrato (backend #139, plano avançado): o painel de Extratos avisa quando um não foi guardado. */
@@ -48,6 +50,7 @@ export function ProvedorDaConta({
   limites = null,
   papel = "admin",
   email = "",
+  nome = "",
   temSenha = true,
   guardaArquivoOriginal = false,
   children,
@@ -58,6 +61,8 @@ export function ProvedorDaConta({
   limites?: LimitesDaConta | null;
   /** O e-mail da sessão. */
   email?: string;
+  /** O nome de quem está logado, do `GET /me`. */
+  nome?: string;
   /** Falso na conta que só entra pelo Google. */
   temSenha?: boolean;
   /** Do `GET /me`: só o admin e o gestor fecham o mês. */
@@ -100,9 +105,11 @@ export function ProvedorDaConta({
         <ContextoDosLimites.Provider value={limites}>
           <ContextoDoPapel.Provider value={papel}>
             <ContextoDoEmail.Provider value={email}>
-              <ContextoDaSenha.Provider value={temSenha}>
-                <ContextoDoOriginal.Provider value={guardaArquivoOriginal}>{children}</ContextoDoOriginal.Provider>
-              </ContextoDaSenha.Provider>
+              <ContextoDoNome.Provider value={nome}>
+                <ContextoDaSenha.Provider value={temSenha}>
+                  <ContextoDoOriginal.Provider value={guardaArquivoOriginal}>{children}</ContextoDoOriginal.Provider>
+                </ContextoDaSenha.Provider>
+              </ContextoDoNome.Provider>
             </ContextoDoEmail.Provider>
           </ContextoDoPapel.Provider>
         </ContextoDosLimites.Provider>
@@ -131,6 +138,10 @@ export function useGuardaArquivoOriginal(): boolean {
 
 export function useEmail(): string {
   return useContext(ContextoDoEmail);
+}
+
+export function useNome(): string {
+  return useContext(ContextoDoNome);
 }
 
 export function useLimites(): LimitesDaConta | null {
