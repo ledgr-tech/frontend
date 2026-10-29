@@ -603,6 +603,13 @@ describe("a empresa para a qual se concilia (#169)", () => {
     expect(screen.queryByText(/Conciliando para/)).not.toBeInTheDocument();
   });
 
+  it("Importar via IA vai pela página inteira à importação da empresa ativa (#260)", () => {
+    montarComEmpresas([A, B], B);
+
+    // um <a> comum, com o prefixo da empresa: a navegação do cliente cairia no painel do detalhe da linha
+    expect(screen.getByRole("link", { name: "Importar via IA" })).toHaveAttribute("href", `/e/${B.id}/conciliacoes/nova/ia`);
+  });
+
   it("fora de um provedor de empresa (os testes antigos), não diz nada", () => {
     render(<NovaConciliacaoPage />);
 
