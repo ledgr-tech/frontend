@@ -72,7 +72,8 @@ export const TUTORIAIS: Record<TelaDoTutorial, TutorialDaTela> = {
     mascote: "/mascotes/mascote-sentado.png",
     passos: [
       { alvo: "grafico", titulo: "Como os meses andaram.", texto: "O gráfico mostra quanto bateu em cada mês." },
-      { alvo: "lista", titulo: "Tudo o que foi conciliado.", texto: "Cada conciliação com as rodadas que ela teve. Clique para abrir a comparação daquela rodada." },
+      { alvo: "lista", titulo: "Tudo o que foi conciliado.", texto: "Cada conciliação é um par de folhas, agrupadas pelo mês do extrato. Clique numa para ver os detalhes ao lado; dois cliques abrem a comparação." },
+      { alvo: "previa", titulo: "As rodadas de cada conciliação.", texto: "Ao lado, o que bateu na rodada que vale e cada execução que ela teve, com as anteriores e as refeitas." },
     ],
   },
   fechamentos: {

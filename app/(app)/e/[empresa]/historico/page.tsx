@@ -3,8 +3,7 @@ import { redirecionarNoApp } from "@/lib/rotas-servidor";
 import type { Execucao } from "@/lib/adaptadores";
 import { execucoesVigentes } from "@/lib/rodadas";
 import { listarExecucoes } from "../conciliacoes/acoes";
-import { formatarInteiro, formatarPercentual } from "../dashboard/resumo";
-import { conciliados as conciliadosDa } from "./execucoes";
+import { formatarInteiro } from "../dashboard/resumo";
 import { Reveal } from "@/app/reveal";
 import { GraficoDeMatch } from "./grafico";
 import { ExportarHistorico, HistoricoPorConciliacao } from "./por-conciliacao";
@@ -20,6 +19,12 @@ import { Cabecalho } from "../cabecalho";
 
 const FALHA_AO_CARREGAR =
   "Não foi possível carregar o histórico. Recarregue a página e tente de novo.";
+
+/** "3 conciliações nesta página", ou nada sem execução. */
+function conciliacoesDaPagina(execucoes: Execucao[]): string | null {
+  const quantas = new Set(execucoes.map((execucao) => execucao.extratoBancoId)).size;
+  return quantas === 0 ? null : `${formatarInteiro(quantas)} ${quantas === 1 ? "conciliação" : "conciliações"} nesta página`;
+}
 
 /** "?pagina=2" → 2; qualquer outra coisa → a primeira. */
 function lerPagina(valor: string | string[] | undefined): number {
@@ -39,6 +44,8 @@ export default async function HistoricoPage({ searchParams }: PageProps<"/e/[emp
         contexto={[
           resposta.ok &&
             `${formatarInteiro(resposta.dados.total)} ${resposta.dados.total === 1 ? "execução" : "execuções"}`,
+          // as conciliações desta página: o backend conta execuções, não extratos do banco
+          resposta.ok && conciliacoesDaPagina(resposta.dados.execucoes),
         ]}
         acoes={
           resposta.ok &&
@@ -90,40 +97,6 @@ function SemExecucoes({ pagina }: { pagina: number }) {
   );
 }
 
-/**
- * Só a rodada que vale de cada conciliação, como Fechamentos e a visão geral contam: a
- * refeita e a rodada anterior foram substituídas e não somam de novo.
- */
-function Resumo({ vigentes, parcial }: { vigentes: Execucao[]; parcial: boolean }) {
-  const lancamentos = vigentes.reduce((soma, execucao) => soma + execucao.lancamentos, 0);
-  const conciliados = vigentes.reduce((soma, execucao) => soma + conciliadosDa(execucao), 0);
-
-  return (
-    <div>
-      <dl className="grade-colunas dash-resumo hist-resumo">
-        <div>
-          <dt className="dash-rotulo">Conciliações</dt>
-          <dd className="dash-valor">{formatarInteiro(vigentes.length)}</dd>
-        </div>
-        <div>
-          <dt className="dash-rotulo">Lançamentos processados</dt>
-          <dd className="dash-valor">{formatarInteiro(lancamentos)}</dd>
-        </div>
-        <div>
-          <dt className="dash-rotulo">Casaram sozinhos</dt>
-          <dd className="dash-valor">
-            {formatarInteiro(conciliados)}
-            {lancamentos > 0 && (
-              <span className="hist-resumo-taxa">{formatarPercentual((conciliados / lancamentos) * 100)}</span>
-            )}
-          </dd>
-        </div>
-      </dl>
-      {parcial && <p className="vg-nota hist-resumo-nota">Somando as execuções desta página.</p>}
-    </div>
-  );
-}
-
 function Historico({
   execucoes,
   total,
@@ -143,14 +116,10 @@ function Historico({
   return (
     <div className="hist-corpo">
       <Reveal>
-        <Resumo vigentes={vigentes} parcial={temAnterior || temProxima} />
-      </Reveal>
-
-      <Reveal delay={0.08}>
         <GraficoDeMatch execucoes={vigentes} />
       </Reveal>
 
-      <Reveal delay={0.16}>
+      <Reveal delay={0.08}>
         <HistoricoPorConciliacao execucoes={execucoes} />
 
         {(temAnterior || temProxima) && (
