@@ -23,6 +23,7 @@ const FORA_DA_BUSCA = [
   "/confirmar-email",
   "/cadastro/google",
   "/autorizar-conexao",
+  "/admin",
 ];
 
 export default function robots(): MetadataRoute.Robots {
