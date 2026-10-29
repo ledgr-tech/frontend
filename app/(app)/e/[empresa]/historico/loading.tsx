@@ -1,23 +1,21 @@
 import { Barra, EsqueletoTela } from "../esqueleto";
 
 // O histórico espera o backend no servidor; enquanto isso, a navegação já troca
-// de tela e mostra a forma do que vai chegar: o resumo, o gráfico e os cartões
-// da linha do tempo.
+// de tela e mostra a forma do que vai chegar: o gráfico, o filtro, as folhas do mês
+// e a prévia ao lado, como em Conciliações.
 export default function CarregandoHistorico() {
   return (
     <EsqueletoTela>
-      <div className="grade-colunas dash-resumo esq-resumo">
-        {[0, 1, 2].map((i) => (
-          <div key={i}>
-            <Barra largura={140} altura={11} />
-            <Barra largura={96} altura={34} />
-          </div>
-        ))}
-      </div>
       <Barra largura="100%" altura={176} style={{ borderRadius: "var(--radius-md)" }} />
-      {[0, 1, 2].map((i) => (
-        <Barra key={i} largura="100%" altura={130} style={{ borderRadius: "var(--radius-md)" }} />
-      ))}
+      <Barra largura={420} altura={36} />
+      <div className="conc-mesa">
+        <div className="conc-folhas">
+          {Array.from({ length: 4 }, (_, i) => (
+            <Barra key={i} largura="100%" altura={196} style={{ borderRadius: "var(--radius-md)" }} />
+          ))}
+        </div>
+        <Barra largura="100%" altura={420} style={{ borderRadius: "var(--radius-md)" }} />
+      </div>
     </EsqueletoTela>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useCallback, useEffect, useId, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from "react";
 import type { Convite, Pessoa } from "@/lib/adaptadores";
 import { situacaoDoLimite, textoDoLimite } from "@/lib/limites";
 import { papeisQueConvida, podeConvidar, ROTULO_DO_PAPEL, type Papel } from "@/lib/papel";
@@ -22,6 +22,9 @@ import { TransferirAdmin } from "./transferir-admin";
  * analista, os dois cancelam convite; remover pessoas é do admin; o analista vê a lista. O backend
  * garante cada regra; aqui só some o que ele recusaria. A troca de papel é a parte C do #169.
  */
+
+// abaixo disso o painel sobe para antes da lista (o mesmo corte do .conc-mesa em globals.css)
+const PAINEL_AO_LADO = "(min-width: 1100px)";
 
 export type EstadoDaEquipe = Equipe | "carregando" | "sem-rota" | "falhou";
 
@@ -99,6 +102,9 @@ export function PainelDaEquipe({
   // a pessoa que vai receber a administração (a janela de confirmação) e o aviso de que ela já a tem
   const [paraTransferir, setParaTransferir] = useState<{ id: string; nome: string } | null>(null);
   const [avisoDaTransferencia, setAvisoDaTransferencia] = useState("");
+  // a pessoa ou o convite escolhido na lista, que o painel ao lado mostra
+  const [escolhida, setEscolhida] = useState<string | null>(null);
+  const painel = useRef<HTMLElement>(null);
   const erroId = useId();
 
   /** O que toda ação faz com a resposta: 401 vai ao login, 403 avisa e relê a equipe. */
@@ -181,23 +187,23 @@ export function PainelDaEquipe({
   const limite = limites?.usuarios ?? null;
   const situacao = limite ? situacaoDoLimite(limite) : null;
   const convites = estado.convites ?? [];
+  const visiveis = gerencia ? convites : [];
+  // a escolhida que saiu da lista (removida, convite cancelado) dá lugar à primeira pessoa
+  const atual =
+    estado.pessoas.find((pessoa) => pessoa.id === escolhida) ?? visiveis.find((convite) => convite.id === escolhida) ?? estado.pessoas[0] ?? null;
+
+  function escolher(id: string) {
+    if (id !== escolhida) {
+      setConfirmando(null);
+      setMenuAberto(null);
+    }
+    setEscolhida(id);
+    // com o painel acima da lista, escolher sem ver o que mudou não diria nada
+    if (!window.matchMedia?.(PAINEL_AO_LADO).matches) painel.current?.scrollIntoView?.({ block: "start" });
+  }
 
   return (
     <div>
-      {gerencia && limite && (
-        <FaixaDoPlano
-          contagem={
-            limite.maximo === null
-              ? `${limite.usadas} ${limite.usadas === 1 ? "pessoa" : "pessoas"}`
-              : `${limite.usadas} de ${limite.maximo} pessoas`
-          }
-          usadas={limite.usadas}
-          maximo={limite.maximo}
-          aviso={textoDoLimite("usuarios", limite) ?? (limite.maximo === null ? null : "Os convites pendentes contam.")}
-          verPlanos={situacao === "no-limite" || situacao === "acima"}
-        />
-      )}
-
       {gerencia && conviteAberto && (
         <ModalDaTela titulo="Convidar pessoa" aoFechar={aoFecharConvite}>
           <ConvidarPessoa
@@ -220,7 +226,6 @@ export function PainelDaEquipe({
               aplicar((equipe) => ({ ...equipe, pessoas }));
               setAvisoDaTransferencia(`${paraTransferir.nome} agora é o administrador da conta. Você é Gestor.`);
               setParaTransferir(null);
-              // o papel de quem transferiu vem do /me: relendo a página, os controles de administrador somem
               router.refresh();
             }}
             aoFechar={() => setParaTransferir(null)}
@@ -244,130 +249,289 @@ export function PainelDaEquipe({
 
       {erroDeAcao && <MensagemErro id={erroId}>{erroDeAcao}</MensagemErro>}
 
-      <ul className="equipe-lista" aria-label="Pessoas com acesso">
-        {estado.pessoas.map((pessoa) => {
-          const eu = pessoa.email.toLowerCase() === email.toLowerCase();
-          const removivel = papel === "admin" && !eu && pessoa.papel !== "admin";
-          // só o admin mexe no papel dos outros (o dele só muda pela transferência)
-          const gerenciavel = removivel;
-          return (
-            <li key={pessoa.id} className="equipe-linha">
-              <span className="equipe-avatar" aria-hidden="true">
-                {iniciais(pessoa.nome)}
-              </span>
-              <span className="equipe-quem">
-                <b className="equipe-nome">
-                  {pessoa.nome}
-                  {eu && <span className="tag tag-outline">você</span>}
-                </b>
-                <span>{pessoa.email}</span>
-              </span>
-              {removivel && confirmando === pessoa.id ? (
-                <span className="equipe-confirma">
-                  <span>
-                    {pessoa.nome} perde o acesso na hora. As decisões que registrou continuam no histórico com o nome da pessoa.
-                  </span>
-                  <button
-                    type="button"
-                    className="btn btn-perigo"
-                    disabled={emCurso === pessoa.id}
-                    onClick={() =>
-                      void agir(
-                        pessoa.id,
-                        () => removerPessoa(pessoa.id),
-                        (equipe) => ({ ...equipe, pessoas: equipe.pessoas.filter((p) => p.id !== pessoa.id) }),
-                      )
-                    }
-                  >
-                    Remover
-                  </button>
-                  <button type="button" className="btn btn-secondary" disabled={emCurso === pessoa.id} onClick={() => setConfirmando(null)}>
-                    Cancelar
-                  </button>
-                </span>
-              ) : (
-                <span className="equipe-acoes">
-                  {gerenciavel ? (
-                    <MenuDePapel
-                      nome={pessoa.nome}
-                      papel={pessoa.papel}
-                      aberto={menuAberto === pessoa.id}
-                      aoAlternar={(abrir) => setMenuAberto(abrir ? pessoa.id : null)}
-                      salvando={emCurso === pessoa.id}
-                      desabilitado={emCurso !== null}
-                      aoEscolher={(novo) => void mudarPapel(pessoa, novo)}
-                      aoTransferir={() => {
-                        setMenuAberto(null);
-                        setErroDeAcao("");
-                        setAvisoDaTransferencia("");
-                        setParaTransferir({ id: pessoa.id, nome: pessoa.nome });
-                      }}
-                    />
-                  ) : (
-                    <span className="equipe-papel">{ROTULO_DO_PAPEL[pessoa.papel]}</span>
-                  )}
-                  {removivel && (
-                    <button
-                      type="button"
-                      className="btn btn-secondary"
-                      disabled={emCurso !== null}
-                      onClick={() => {
-                        setErroDeAcao("");
-                        setConfirmando(pessoa.id);
-                      }}
-                    >
-                      Remover
-                    </button>
-                  )}
-                </span>
-              )}
-              {erroDaPessoa?.id === pessoa.id && <MensagemErro id={`${erroId}-${pessoa.id}`}>{erroDaPessoa.texto}</MensagemErro>}
-            </li>
-          );
-        })}
-      </ul>
+      <div className="conc-mesa">
+        <div className="empresas-lista" data-tutorial="equipe">
+          <section aria-labelledby={`${erroId}-pessoas`}>
+            <div className="conc-mes">
+              <h2 id={`${erroId}-pessoas`} className="conc-mes-titulo">
+                Com acesso
+              </h2>
+              <span className="conc-mes-meta">{`${estado.pessoas.length} ${estado.pessoas.length === 1 ? "pessoa" : "pessoas"}`}</span>
+            </div>
+            <div className="empresas-tabela">
+              <table className="table tabela-escolha" aria-label="Pessoas com acesso">
+                <thead>
+                  <tr>
+                    <th scope="col">Pessoa</th>
+                    <th scope="col">Papel</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {estado.pessoas.map((pessoa) => {
+                    const eu = pessoa.email.toLowerCase() === email.toLowerCase();
+                    return (
+                      <tr key={pessoa.id} aria-selected={pessoa.id === atual?.id} onClick={() => escolher(pessoa.id)}>
+                        <td>
+                          <span className="equipe-quem-linha">
+                            <span className="equipe-avatar" aria-hidden="true">
+                              {iniciais(pessoa.nome)}
+                            </span>
+                            <span className="equipe-quem">
+                              <span className="equipe-nome-linha">
+                                <button
+                                  type="button"
+                                  className="tabela-escolha-botao equipe-nome"
+                                  aria-pressed={pessoa.id === atual?.id}
+                                  onClick={(evento) => {
+                                    evento.stopPropagation();
+                                    escolher(pessoa.id);
+                                  }}
+                                >
+                                  {pessoa.nome}
+                                </button>
+                                {eu && <span className="tag tag-outline">você</span>}
+                              </span>
+                              <span>{pessoa.email}</span>
+                            </span>
+                          </span>
+                        </td>
+                        <td>
+                          {emCurso === pessoa.id ? "Salvando…" : ROTULO_DO_PAPEL[pessoa.papel]}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </section>
 
-      {!gerencia && (
-        <p className="empresas-nota">Só o administrador e o gestor convidam pessoas; só o administrador remove.</p>
-      )}
+          {visiveis.length > 0 && (
+            <section aria-labelledby={`${erroId}-convites`}>
+              <div className="conc-mes">
+                <h2 id={`${erroId}-convites`} className="conc-mes-titulo">
+                  Convites pendentes
+                </h2>
+                <span className="conc-mes-meta">{`${visiveis.length} ${visiveis.length === 1 ? "convite" : "convites"}`}</span>
+              </div>
+              <div className="empresas-tabela">
+                <table className="table tabela-escolha" aria-label="Convites pendentes">
+                  <thead>
+                    <tr>
+                      <th scope="col">Convite</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {visiveis.map((convite) => (
+                      <tr key={convite.id} className="equipe-pendente" aria-selected={convite.id === atual?.id} onClick={() => escolher(convite.id)}>
+                        <td>
+                          <span className="equipe-quem-linha">
+                            <span className="equipe-avatar" aria-hidden="true">
+                              @
+                            </span>
+                            <span className="equipe-quem">
+                              <span className="equipe-nome-linha">
+                                <button
+                                  type="button"
+                                  className="tabela-escolha-botao equipe-nome"
+                                  aria-pressed={convite.id === atual?.id}
+                                  onClick={(evento) => {
+                                    evento.stopPropagation();
+                                    escolher(convite.id);
+                                  }}
+                                >
+                                  {convite.email}
+                                </button>
+                              </span>
+                              <span>{`${convite.papel ? `${ROTULO_DO_PAPEL[convite.papel]} · ` : ""}Enviado em ${convite.enviadoEm} · vale até ${convite.valeAte}`}</span>
+                            </span>
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          )}
 
-      {gerencia && convites.length > 0 && (
-        <>
-          <p className="equipe-rotulo">Convites pendentes</p>
-          <ul className="equipe-lista" aria-label="Convites pendentes">
-            {convites.map((convite) => (
-              <li key={convite.id} className="equipe-linha equipe-pendente">
-                <span className="equipe-avatar" aria-hidden="true">
-                  @
-                </span>
-                <span className="equipe-quem">
-                  <b className="equipe-nome">{convite.email}</b>
-                  <span>
-                    {convite.papel ? `${ROTULO_DO_PAPEL[convite.papel]} · ` : ""}Enviado em {convite.enviadoEm} · vale até {convite.valeAte}
-                  </span>
-                </span>
-                <span className="equipe-acoes">
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    disabled={emCurso !== null}
-                    onClick={() =>
-                      void agir(
-                        convite.id,
-                        () => cancelarConvite(convite.id),
-                        (equipe) => ({ ...equipe, convites: (equipe.convites ?? []).filter((c) => c.id !== convite.id) }),
-                      )
-                    }
-                  >
-                    Cancelar
-                  </button>
-                </span>
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
+          {!gerencia && (
+            <p className="empresas-nota">Só o administrador e o gestor convidam pessoas; só o administrador remove.</p>
+          )}
+
+          {gerencia && limite && (
+            <FaixaDoPlano
+              contagem={
+                limite.maximo === null
+                  ? `${limite.usadas} ${limite.usadas === 1 ? "pessoa" : "pessoas"}`
+                  : `${limite.usadas} de ${limite.maximo} pessoas`
+              }
+              usadas={limite.usadas}
+              maximo={limite.maximo}
+              aviso={textoDoLimite("usuarios", limite) ?? (limite.maximo === null ? null : "Os convites pendentes contam.")}
+              verPlanos={situacao === "no-limite" || situacao === "acima"}
+            />
+          )}
+        </div>
+
+        {atual && "nome" in atual ? (
+          <PainelDaPessoa
+            ref={painel}
+            pessoa={atual}
+            eu={atual.email.toLowerCase() === email.toLowerCase()}
+            papelDeQuemVe={papel}
+            emCurso={emCurso}
+            confirmando={confirmando === atual.id}
+            menuAberto={menuAberto === atual.id}
+            erro={erroDaPessoa?.id === atual.id ? erroDaPessoa.texto : null}
+            erroId={`${erroId}-${atual.id}`}
+            aoAlternarMenu={(abrir) => setMenuAberto(abrir ? atual.id : null)}
+            aoEscolherPapel={(novo) => void mudarPapel(atual, novo)}
+            aoTransferir={() => {
+              setMenuAberto(null);
+              setErroDeAcao("");
+              setAvisoDaTransferencia("");
+              setParaTransferir({ id: atual.id, nome: atual.nome });
+            }}
+            aoPedirRemocao={() => {
+              setErroDeAcao("");
+              setConfirmando(atual.id);
+            }}
+            aoDesistir={() => setConfirmando(null)}
+            aoRemover={() =>
+              void agir(
+                atual.id,
+                () => removerPessoa(atual.id),
+                (equipe) => ({ ...equipe, pessoas: equipe.pessoas.filter((p) => p.id !== atual.id) }),
+              )
+            }
+          />
+        ) : atual ? (
+          <aside ref={painel} className="conc-previa" aria-label="Convite escolhido" aria-live="polite">
+            <span className="rotulo">Convite pendente</span>
+            <h2 className="conc-previa-titulo">{atual.email}</h2>
+            {atual.papel && DESCRICAO_DO_PAPEL[atual.papel] && (
+              <div className="extrato-resultado">
+                <p className="equipe-papel-texto">
+                  <b>{`${ROTULO_DO_PAPEL[atual.papel]}.`}</b> {DESCRICAO_DO_PAPEL[atual.papel]}
+                </p>
+              </div>
+            )}
+            <dl className="conc-previa-dados">
+              <dt>Enviado em</dt>
+              <dd>{atual.enviadoEm}</dd>
+              <dt>Vale até</dt>
+              <dd>{atual.valeAte}</dd>
+            </dl>
+            <div className="conc-previa-acoes">
+              <button
+                type="button"
+                className="btn btn-secondary"
+                disabled={emCurso !== null}
+                onClick={() =>
+                  void agir(
+                    atual.id,
+                    () => cancelarConvite(atual.id),
+                    (equipe) => ({ ...equipe, convites: (equipe.convites ?? []).filter((c) => c.id !== atual.id) }),
+                  )
+                }
+              >
+                Cancelar convite
+              </button>
+            </div>
+          </aside>
+        ) : null}
+      </div>
     </div>
+  );
+}
+
+/** A pessoa escolhida, ao lado da lista: o papel explicado e o que o admin pode fazer com ela. */
+function PainelDaPessoa({
+  ref,
+  pessoa,
+  eu,
+  papelDeQuemVe,
+  emCurso,
+  confirmando,
+  menuAberto,
+  erro,
+  erroId,
+  aoAlternarMenu,
+  aoEscolherPapel,
+  aoTransferir,
+  aoPedirRemocao,
+  aoDesistir,
+  aoRemover,
+}: {
+  ref: React.Ref<HTMLElement>;
+  pessoa: Pessoa;
+  eu: boolean;
+  papelDeQuemVe: Papel;
+  emCurso: string | null;
+  confirmando: boolean;
+  menuAberto: boolean;
+  erro: string | null;
+  erroId: string;
+  aoAlternarMenu: (abrir: boolean) => void;
+  aoEscolherPapel: (novo: "gestor" | "analista") => void;
+  aoTransferir: () => void;
+  aoPedirRemocao: () => void;
+  aoDesistir: () => void;
+  aoRemover: () => void;
+}) {
+  // só o admin troca papel e remove, e nunca a si mesmo nem outro admin
+  const gerenciavel = papelDeQuemVe === "admin" && !eu && pessoa.papel !== "admin";
+  const descricao = DESCRICAO_DO_PAPEL[pessoa.papel];
+  return (
+    <aside ref={ref} className="conc-previa" aria-label="Pessoa escolhida" aria-live="polite" data-tutorial="pessoa">
+      <span className="rotulo">{ROTULO_DO_PAPEL[pessoa.papel]}</span>
+      <h2 className="conc-previa-titulo equipe-previa-titulo">
+        {pessoa.nome}
+        {eu && <span className="tag tag-outline">você</span>}
+      </h2>
+      {descricao && (
+        <div className="extrato-resultado">
+          <p className="equipe-papel-texto">{descricao}</p>
+        </div>
+      )}
+      <dl className="conc-previa-dados">
+        <dt>E-mail</dt>
+        <dd>{pessoa.email}</dd>
+      </dl>
+      {gerenciavel && confirmando ? (
+        <div className="equipe-confirma">
+          <span>
+            {pessoa.nome} perde o acesso na hora. As decisões que registrou continuam no histórico com o nome da pessoa.
+          </span>
+          <button type="button" className="btn btn-perigo" disabled={emCurso === pessoa.id} onClick={aoRemover}>
+            Remover
+          </button>
+          <button type="button" className="btn btn-secondary" disabled={emCurso === pessoa.id} onClick={aoDesistir}>
+            Cancelar
+          </button>
+        </div>
+      ) : (
+        gerenciavel && (
+          <div className="conc-previa-acoes equipe-previa-acoes">
+            <MenuDePapel
+              nome={pessoa.nome}
+              papel={pessoa.papel}
+              aberto={menuAberto}
+              aoAlternar={aoAlternarMenu}
+              salvando={emCurso === pessoa.id}
+              desabilitado={emCurso !== null}
+              aoEscolher={aoEscolherPapel}
+              aoTransferir={aoTransferir}
+            />
+            <button type="button" className="btn btn-secondary" disabled={emCurso !== null} onClick={aoPedirRemocao}>
+              Remover
+            </button>
+          </div>
+        )
+      )}
+      {erro && <MensagemErro id={erroId}>{erro}</MensagemErro>}
+    </aside>
   );
 }
 

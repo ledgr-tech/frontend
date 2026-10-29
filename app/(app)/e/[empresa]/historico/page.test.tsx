@@ -13,6 +13,7 @@ vi.mock("../conciliacoes/acoes", () => ({
 
 const redirect = vi.fn();
 vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), prefetch: vi.fn(), refresh: vi.fn(), back: vi.fn() }),
   // o redirect do Next interrompe a renderização lançando; o mock imita isso
   redirect: (destino: string) => {
     redirect(destino);
@@ -113,14 +114,19 @@ async function renderizar(pagina?: string) {
   render(await HistoricoPage(props(pagina)));
 }
 
-/** A linha de cada conciliação, na ordem da tela. */
+/** A folha de cada conciliação, na ordem da tela. */
 function conciliacoes() {
-  return [...document.querySelectorAll<HTMLElement>("tr.hist-conciliacao")];
+  return [...document.querySelectorAll<HTMLElement>("button.conc-folha")];
 }
 
-/** As execuções abertas debaixo das conciliações. */
-function execucoesAbertas() {
-  return [...document.querySelectorAll<HTMLElement>("tr.hist-execucao")].filter((linha) => !linha.hidden);
+/** A prévia da conciliação escolhida, ao lado das folhas. */
+function previa() {
+  return screen.getByRole("complementary", { name: "Conciliação escolhida" });
+}
+
+/** O título de cada mês, na ordem da tela. */
+function titulosDosMeses() {
+  return [...document.querySelectorAll(".conc-mes-titulo")].map((titulo) => titulo.textContent);
 }
 
 describe("HistoricoPage", () => {
@@ -212,7 +218,7 @@ describe("HistoricoPage", () => {
     ]);
   });
 
-  it("lists one row per conciliation, with the numbers of the round that counts", async () => {
+  it("shows one sheet per conciliation, with the numbers of the round that counts", async () => {
     com(RODADAS);
     await renderizar();
 
@@ -221,18 +227,55 @@ describe("HistoricoPage", () => {
     expect(setembro).toHaveTextContent("sicredi-setembro.ofx");
     expect(setembro).toHaveTextContent("erp-setembro-v2.csv");
     expect(setembro).toHaveTextContent("Rodada 2 de 2");
-    expect(setembro.querySelector(".hist-c-lancamentos")).toHaveTextContent("22");
     // 12 de 22 pelas contagens, como o gráfico e a lista de Conciliações
-    expect(setembro.querySelector(".hist-c-match")).toHaveTextContent("54,5%");
-    expect(setembro.querySelector(".hist-c-quando")).toHaveTextContent("24/09 14:02");
-    // pelo endereço só do banco, que abre a rodada mais recente
-    expect(within(setembro).getByRole("link", { name: "Ver sicredi-setembro.ofx" })).toHaveAttribute(
-      "href",
-      "/conciliacoes/B",
-    );
+    expect(setembro).toHaveTextContent("54,5% bateu");
+    expect(setembro.querySelector("time")).toHaveTextContent("24/09 14:02");
     expect(agosto).toHaveTextContent("Rodada 1 de 1");
-    // a nota do "Ver atual" era das execuções soltas: aqui a refeita não abre nada
-    expect(screen.queryByText(/Só o resultado mais recente fica guardado/)).not.toBeInTheDocument();
+  });
+
+  it("opens the newest conciliation in the panel, with the way to its comparison", async () => {
+    com(RODADAS);
+    await renderizar();
+
+    const [setembro] = conciliacoes();
+    expect(setembro).toHaveAttribute("aria-pressed", "true");
+    const painel = previa();
+    expect(within(painel).getByRole("heading", { level: 2 })).toHaveTextContent("Rodada 2 de 2");
+    expect(painel).toHaveTextContent("12de 22 lançamentos batem");
+    // pelo endereço só do banco, que abre a rodada mais recente
+    expect(within(painel).getByRole("link", { name: "Abrir a comparação" })).toHaveAttribute("href", "/conciliacoes/B");
+  });
+
+  it("lists every execution of the chosen conciliation in the panel", async () => {
+    com(RODADAS);
+    await renderizar();
+
+    const lista = within(previa()).getByRole("list", { name: "Execuções de sicredi-setembro.ofx" });
+    const [vale, refeita, anterior] = within(lista).getAllByRole("listitem");
+    expect(vale).toHaveTextContent("Rodada 2 · erp-setembro-v2.csv");
+    expect(within(vale).getByText("Vale")).toBeInTheDocument();
+    expect(refeita).toHaveTextContent("41,7%");
+    expect(within(refeita).getByText("Substituída")).toBeInTheDocument();
+    // o backend só guarda o resultado mais novo do par: não há o que abrir da refeita
+    expect(within(refeita).queryByRole("link")).toBeNull();
+    expect(anterior).toHaveTextContent("Rodada 1 · erp-setembro.csv");
+    expect(within(anterior).getByText("Anterior")).toBeInTheDocument();
+    expect(within(anterior).getByRole("link", { name: "Ver a rodada 1" })).toHaveAttribute(
+      "href",
+      "/conciliacoes/B?sistema=S1",
+    );
+  });
+
+  it("chooses another conciliation with a click, and has no execution list for a single one", async () => {
+    const user = userEvent.setup();
+    com(RODADAS);
+    await renderizar();
+
+    const [, agosto] = conciliacoes();
+    await user.click(agosto);
+    expect(agosto).toHaveAttribute("aria-pressed", "true");
+    expect(within(previa()).getByRole("heading", { level: 2 })).toHaveTextContent("Rodada 1 de 1");
+    expect(within(previa()).queryByRole("list", { name: /Execuções de/ })).not.toBeInTheDocument();
   });
 
   it("groups each conciliation by the month of its extrato, like Fechamentos", async () => {
@@ -247,11 +290,10 @@ describe("HistoricoPage", () => {
     );
     await renderizar();
 
-    const meses = screen.getAllByRole("heading", { level: 3 });
-    expect(meses.map((mes) => mes.textContent)).toEqual(["Outubro de 20261 conciliação", "Setembro de 20261 conciliação"]);
+    expect(titulosDosMeses()).toEqual(["Outubro de 2026", "Setembro de 2026"]);
     // quando rodou continua sendo quando rodou
-    const setembro = conciliacoes().find((linha) => linha.textContent?.includes("sicredi-s1.ofx"))!;
-    expect(setembro.querySelector(".hist-c-quando")).toHaveTextContent("02/10 17:20");
+    const setembro = conciliacoes().find((folha) => folha.textContent?.includes("sicredi-s1.ofx"))!;
+    expect(setembro.querySelector("time")).toHaveTextContent("02/10 17:20");
   });
 
   it("writes the year of the run when it is not the year of the extrato", async () => {
@@ -266,54 +308,16 @@ describe("HistoricoPage", () => {
     );
     await renderizar();
 
-    const linha = (id: string) => conciliacoes().find((item) => item.textContent?.includes(`sicredi-${id}.ofx`))!;
-    expect(linha("d1").querySelector(".hist-c-quando")).toHaveTextContent("05/01/2026 10:00");
-    expect(linha("j1").querySelector(".hist-c-quando")).toHaveTextContent("04/01 10:00");
+    const folha = (id: string) => conciliacoes().find((item) => item.textContent?.includes(`sicredi-${id}.ofx`))!;
+    expect(folha("d1").querySelector("time")).toHaveTextContent("05/01/2026 10:00");
+    expect(folha("j1").querySelector("time")).toHaveTextContent("04/01 10:00");
   });
 
   it("falls back to the month the round that counts ran, when the extrato's month is unknown", async () => {
     com([...RODADAS, execucao({ id: "j1", executadaEm: "2026-08-05T13:00:00Z" })]);
     await renderizar();
-    const meses = screen.getAllByRole("heading", { level: 3 });
-    expect(meses.map((mes) => mes.textContent)).toEqual([
-      "Setembro de 20262 conciliações",
-      "Agosto de 20261 conciliação",
-    ]);
-  });
-
-  it("opens the rounds and the redone executions under the conciliation", async () => {
-    const user = userEvent.setup();
-    com(RODADAS);
-    await renderizar();
-    expect(execucoesAbertas()).toHaveLength(0);
-
-    const abrir = screen.getByRole("button", { name: "Execuções de sicredi-setembro.ofx" });
-    expect(abrir).toHaveAttribute("aria-expanded", "false");
-    await user.click(abrir);
-    expect(abrir).toHaveAttribute("aria-expanded", "true");
-
-    const [vale, refeita, anterior] = execucoesAbertas();
-    expect(vale).toHaveTextContent("Rodada 2 · erp-setembro-v2.csv");
-    expect(within(vale).getByText("Vale")).toBeInTheDocument();
-    expect(refeita).toHaveTextContent("41,7%");
-    expect(within(refeita).getByText("Substituída")).toBeInTheDocument();
-    // o backend só guarda o resultado mais novo do par: não há o que abrir da refeita
-    expect(within(refeita).queryByRole("link")).toBeNull();
-    expect(anterior).toHaveTextContent("Rodada 1 · erp-setembro.csv");
-    expect(within(anterior).getByText("Anterior")).toBeInTheDocument();
-    expect(within(anterior).getByRole("link", { name: "Ver a rodada 1" })).toHaveAttribute(
-      "href",
-      "/conciliacoes/B?sistema=S1",
-    );
-
-    await user.click(abrir);
-    expect(execucoesAbertas()).toHaveLength(0);
-  });
-
-  it("has nothing to open in a conciliation with a single execution", async () => {
-    com(RODADAS);
-    await renderizar();
-    expect(screen.queryByRole("button", { name: "Execuções de sicredi-agosto.ofx" })).not.toBeInTheDocument();
+    expect(titulosDosMeses()).toEqual(["Setembro de 2026", "Agosto de 2026"]);
+    expect(screen.getByText("2 conciliações · 1 com pendência")).toBeInTheDocument();
   });
 
   it("counts what asks for review without the justified lines, and names the bar like the comparison", async () => {
@@ -327,9 +331,10 @@ describe("HistoricoPage", () => {
     ]);
     await renderizar();
 
-    const [linha] = conciliacoes();
-    expect(linha.querySelector(".hist-c-revisar")).toHaveTextContent("8 · 2 justificadas");
-    const barra = linha.querySelector(".hist-resultado-barra")!;
+    const [folha] = conciliacoes();
+    expect(within(folha).getByText("8 para revisar")).toBeInTheDocument();
+    expect(within(previa()).getByText("Para revisar").nextSibling).toHaveTextContent("8 linhas · 2 justificadas");
+    const barra = folha.querySelector(".hist-resultado-barra")!;
     expect([...barra.children].map((parte) => parte.getAttribute("title"))).toEqual([
       "Conciliado: 12",
       "Valor diverge, Duplicidade: 6",
@@ -360,41 +365,19 @@ describe("HistoricoPage", () => {
     expect(conciliacoes()).toHaveLength(2);
   });
 
-  it("groups by year, with the past years closed", async () => {
-    const user = userEvent.setup();
-    com([
-      execucao({ id: "e2", executadaEm: "2026-02-10T12:00:00Z" }),
-      execucao({ id: "e1", executadaEm: "2025-11-10T12:00:00Z", lancamentos: 10, divergencias: { duplicado: 1 } }),
-    ]);
-    await renderizar();
-
-    expect(screen.getByRole("button", { name: "2026" })).toHaveAttribute("aria-expanded", "true");
-    const passado = screen.getByRole("button", { name: "2025" });
-    expect(passado).toHaveAttribute("aria-expanded", "false");
-    expect(screen.getByText("1 conciliação · 1 com pendência")).toBeInTheDocument();
-    const antiga = conciliacoes().find((linha) => linha.textContent?.includes("sicredi-e1.ofx"))!;
-    expect(antiga.closest("[hidden]")).not.toBeNull();
-
-    await user.click(passado);
-    expect(antiga.closest("[hidden]")).toBeNull();
-  });
-
-  it("sums up only the round that counts of each conciliation", async () => {
+  it("counts the executions and the conciliations of the page in the header, without the old totals", async () => {
     com(RODADAS);
     await renderizar();
-    const resumo = document.querySelector(".hist-resumo") as HTMLElement;
-    expect(within(resumo).getByText("Conciliações").nextSibling).toHaveTextContent("2");
-    // b3 (22) + a1 (3.980): a rodada 1 e a refeita não somam de novo
-    expect(within(resumo).getByText("Lançamentos processados").nextSibling).toHaveTextContent("4.002");
+    expect(screen.getByText("4 execuções · 2 conciliações nesta página")).toBeInTheDocument();
+    expect(screen.queryByText("Lançamentos processados")).not.toBeInTheDocument();
   });
 
   it("leaves the match out for an execution without lançamentos", async () => {
     com([execucao({ id: "e1", acerto: null, lancamentos: 0 })]);
     await renderizar();
-    const [linha] = conciliacoes();
-    expect(linha.querySelector(".hist-c-lancamentos")).toHaveTextContent("0");
-    expect(linha.querySelector(".hist-c-match")).toHaveTextContent("—");
-    expect(linha.querySelector(".hist-resultado-barra")).toBeNull();
+    const [folha] = conciliacoes();
+    expect(folha).toHaveTextContent("— bateu");
+    expect(folha.querySelector(".hist-resultado-barra")).toBeNull();
   });
 
   it("does not show the savings block, which has no data behind it", async () => {
@@ -411,7 +394,6 @@ describe("HistoricoPage", () => {
     expect(screen.getByText("51–53 de 120")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Mais recentes" })).toHaveAttribute("href", "/historico");
     expect(screen.getByRole("link", { name: "Mais antigas" })).toHaveAttribute("href", "/historico?pagina=2");
-    expect(screen.getByText("Somando as execuções desta página.")).toBeInTheDocument();
   });
 
   it("starts from the first page when the page in the URL makes no sense", async () => {

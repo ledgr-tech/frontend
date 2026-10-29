@@ -2236,20 +2236,7 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
   color: color-mix(in srgb, var(--color-text) 78%, transparent);
 }
 
-/* o resumo é uma <dl>: sem as margens padrão de dl e dd */
-.hist-resumo { margin: 0; }
-/* o número do .dash-valor não quebra; a taxa ao lado dele desce para baixo quando a coluna
-   estreita (768–1024px), em vez de passar da borda do conteúdo */
-.hist-resumo dd {
-  margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 10px; row-gap: 6px;
-}
-.hist-resumo-taxa {
-  font-family: var(--font-body); font-size: 15px;
-  font-variant-numeric: tabular-nums; color: var(--color-ok-700);
-}
-
-/* conciliação a conciliação: uma tabela por ano, um bloco de linhas por mês, uma linha por
-   extrato do banco com a rodada que vale, e as outras execuções dele abertas embaixo */
+/* a legenda das barras (Histórico, Conciliações) e as cores de cada tom */
 .hist-legenda {
   list-style: none; margin: 0; padding: 0;
   display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12.5px;
@@ -2264,51 +2251,7 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
   background: color-mix(in srgb, var(--color-text) 32%, transparent);
 }
 
-.hist-tabela { table-layout: fixed; }
-:is(.hist-num, .hist-taxa, .hist-c-quando) { font-variant-numeric: tabular-nums; }
-.hist-col-rodadas { width: 7.5rem; }
-.hist-col-lancamentos { width: 7.5rem; }
-.hist-col-match { width: 20%; }
-.hist-col-revisar { width: 10rem; }
-.hist-col-quando { width: 7rem; }
-.hist-col-acao { width: 4.75rem; }
-.hist-tabela td { vertical-align: middle; }
-/* o cabeçalho gruda logo abaixo da faixa dos filtros, que gruda sob a barra do topo: numa lista
-   longa, a coluna continua dizendo o que é. O filete vira sombra, que o sticky não perde. */
-.hist-tabela thead th {
-  position: sticky; z-index: 5; top: calc(var(--app-topo-altura, 0px) + var(--extratos-filtros-altura, 58px));
-  background: var(--color-bg); border-bottom: 0; box-shadow: inset 0 -1px 0 var(--color-divider);
-}
-@media (max-width: 1000px) {
-  /* aqui a faixa dos filtros não gruda */
-  .hist-tabela thead th { top: var(--app-topo-altura, 0px); }
-}
-.hist-tabela .hist-num { text-align: right; }
-.hist-tabela .hist-mes-linha th {
-  padding: 22px var(--space-2) 8px; font-size: inherit; letter-spacing: normal; text-transform: none;
-  color: var(--color-text);
-}
-.hist-tabela tbody tr.hist-mes-linha:hover { background: transparent; }
-.hist-mes-titulo {
-  margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px;
-  font-size: 20px; font-weight: 600;
-}
-.hist-mes-conta {
-  font-family: var(--font-body); font-size: 13px; font-weight: 400;
-  color: color-mix(in srgb, var(--color-text) 58%, transparent);
-}
-
-.hist-conciliacao-nome { display: flex; align-items: center; gap: 6px; min-width: 0; }
-.hist-abrir {
-  flex: none; display: inline-grid; place-items: center; width: 24px; height: 24px; padding: 0;
-  border: 0; border-radius: var(--radius-sm); background: transparent; cursor: pointer;
-  color: color-mix(in srgb, var(--color-text) 60%, transparent);
-}
-.hist-abrir:hover { background: var(--tinta-hover); color: var(--color-text); }
-.hist-abrir svg { transition: transform 180ms cubic-bezier(0.23, 1, 0.32, 1); }
-.hist-abrir[aria-expanded="true"] svg { transform: rotate(90deg); }
-.hist-abrir-vazio { flex: none; width: 24px; }
-.hist-arquivos { display: flex; flex-direction: column; min-width: 0; }
+.hist-taxa { font-variant-numeric: tabular-nums; }
 .hist-arquivo { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .hist-arquivo .icone-origem { flex: none; }
 .hist-arquivo-nome { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -2322,64 +2265,34 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
 }
 .hist-rodadas .rodadas-fio { flex: none; width: 12px; min-width: 0; margin: 0 2px; animation: none; }
 
-.hist-resultado { display: flex; align-items: center; gap: 10px; }
 .hist-resultado-barra { flex: 1; display: flex; gap: 2px; height: 6px; border-radius: 999px; overflow: hidden; }
 .hist-resultado-barra > span { min-width: 3px; }
-.hist-taxa { flex: none; min-width: 3.6em; margin-left: auto; text-align: right; }
-/* o que ainda pede revisão pesa; o zero some */
-.hist-conciliacao[data-pendente] .hist-c-revisar { font-weight: 600; }
-.hist-conciliacao:not([data-pendente]) .hist-c-revisar { color: color-mix(in srgb, var(--color-text) 55%, transparent); }
-.hist-justificadas { font-weight: 400; color: color-mix(in srgb, var(--color-text) 62%, transparent); }
-.hist-c-quando { white-space: nowrap; color: color-mix(in srgb, var(--color-text) 70%, transparent); }
-.hist-c-acao { text-align: right; }
-.hist-ver { padding: 3px 10px; font-size: 13px; }
-
-/* as outras execuções, debaixo da conciliação: menores, recuadas sob o nome, em traço */
-.hist-execucao td {
-  font-size: 13px; border-bottom-style: dashed;
-  color: color-mix(in srgb, var(--color-text) 72%, transparent);
-}
-.hist-execucao-nome { display: block; padding-left: 30px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* refeita depois com os mesmos arquivos: está no histórico, mas não vale mais */
 .hist-selo-substituida { border-style: dashed; }
-.hist-rotulo-movel { display: none; }
 
-.hist-resumo-nota { margin: 10px 0 0; }
+/* na prévia do Histórico, cada execução da conciliação escolhida: a que vale, as anteriores e as
+   refeitas, em filete como os dados acima delas */
+.hist-previa-rodadas { display: flex; flex-direction: column; gap: 6px; }
+.hist-previa-rodadas-titulo {
+  margin: 0; font-family: var(--font-body); font-size: 12px; font-weight: 600; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--texto-apagado);
+}
+.hist-previa-execucoes { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--color-divider); }
+.hist-previa-execucao {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 2px 12px;
+  padding: 9px 0; border-bottom: 1px solid var(--color-divider); font-size: 13.5px;
+}
+.hist-previa-execucao-nome { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hist-previa-execucao-numeros { font-size: 12.5px; color: var(--texto-apagado); font-variant-numeric: tabular-nums; }
+.hist-previa-execucao-ver { justify-self: end; padding: 2px 8px; font-size: 13px; }
+.hist-previa-execucao[data-situacao="substituida"] { color: color-mix(in srgb, var(--color-text) 72%, transparent); }
+
 .paginacao-botoes { display: flex; align-items: center; gap: 8px; }
 
 @media (max-width: 680px) {
   .hist-nota { text-align: left; }
   .grafico-fio-valor { font-size: 11.5px; }
   .hist-economia-texto { text-align: left; }
-
-  /* a tabela vira um bloco por linha: o nome e o Ver em cima; as rodadas e a barra; e os números
-     com rótulo. A coluna das rodadas cresce com os quadrados, sem invadir a vizinha. */
-  .hist-tabela thead {
-    position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap;
-  }
-  .hist-tabela, .hist-tabela tbody { display: block; }
-  .hist-tabela tr {
-    display: grid; grid-template-columns: auto repeat(2, minmax(0, 1fr)) auto; gap: 8px 16px; align-items: end;
-    padding: 10px 0; border-bottom: 1px solid var(--color-divider);
-  }
-  .hist-tabela tr[hidden] { display: none; }
-  .hist-tabela :is(td, th) { display: block; padding: 0; border: 0; }
-  .hist-tabela .hist-num { text-align: left; }
-  .hist-tabela .hist-mes-linha { padding: 20px 0 6px; }
-  .hist-tabela .hist-mes-linha th { grid-column: 1 / -1; padding: 0; }
-  .hist-c-conciliacao { grid-column: 1 / 4; grid-row: 1; min-width: 0; }
-  .hist-c-acao { grid-column: 4; grid-row: 1; align-self: center; }
-  .hist-c-rodadas { grid-column: 1; grid-row: 2; }
-  .hist-c-match { grid-column: 2 / -1; grid-row: 2; }
-  .hist-tabela .hist-c-match { padding-bottom: 4px; }
-  .hist-c-lancamentos { grid-column: 1; grid-row: 3; }
-  .hist-c-revisar { grid-column: 2; grid-row: 3; }
-  .hist-c-quando { grid-column: 3 / -1; grid-row: 3; text-align: right; }
-  .hist-rotulo-movel {
-    display: block; font-size: 11.5px; font-weight: 400;
-    color: color-mix(in srgb, var(--color-text) 58%, transparent);
-  }
-  .hist-execucao-nome { padding-left: 0; }
 }
 
 /* ── Conciliações: a lista de trabalho (revisões de estilo de 15/10 e 27/10) ───────
@@ -3410,26 +3323,40 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
 }
 /* A tela Empresas (#169): a faixa do plano, o painel do cadastro e a tabela */
 .empresas-nota { margin: 16px 0 0; font-size: 14px; color: color-mix(in srgb, var(--color-text) 70%, transparent); }
-.empresas-abas { display: flex; gap: 4px; margin: 16px 0 0; border-bottom: 1px solid var(--color-divider); overflow-x: auto; overflow-y: hidden; }
-.empresas-aba {
-  position: relative; border: 0; background: transparent; padding: 10px 14px; cursor: pointer;
-  font-family: var(--font-body); font-size: 14px; font-weight: 500; white-space: nowrap;
-  color: color-mix(in srgb, var(--color-text) 62%, transparent);
-}
-.empresas-aba:hover { color: var(--color-text); }
-.empresas-aba[aria-selected="true"] { color: var(--color-text); font-weight: 600; }
-.empresas-aba[aria-selected="true"]::after {
-  content: ""; position: absolute; left: 10px; right: 10px; bottom: 0; height: 2px;
-  border-radius: 2px; background: var(--color-accent);
-}
-.empresas-aba:focus-visible { outline: 2px solid var(--color-accent); outline-offset: -2px; border-radius: 8px; }
-.empresas-aba em { font-style: normal; margin-left: 4px; padding: 0 7px; border-radius: 999px; font-size: 12px; background: var(--tinta-ativa); }
 .empresas-form { display: flex; flex-direction: column; gap: 12px; }
 .empresas-form-botoes { display: flex; flex-wrap: wrap; gap: 8px; }
 .empresas-tabela { margin: 24px 0 0; overflow-x: auto; overflow-y: hidden; }
 .empresas-celula { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
 .empresas-nome { font-family: var(--font-heading); font-weight: 600; }
-.empresas-acao { text-align: right; white-space: nowrap; }
+/* a tela Empresas no padrão das outras (29/10): a faixa com Empresas/Equipe, os filtros e a busca; a
+   lista escolhe uma linha e o painel ao lado mostra a escolhida, como as folhas de Conciliações */
+.empresas-corpo { margin-top: 20px; }
+.empresas-filtros { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.empresas-busca { width: min(280px, 100%); min-height: 34px; }
+.empresas-lista { display: flex; flex-direction: column; gap: 26px; min-width: 0; }
+.empresas-lista .empresas-tabela { margin: 0; }
+.empresas-lista .conc-mes + .empresas-tabela { margin-top: 6px; }
+.empresas-col-estrela { width: 44px; }
+.empresas-cnpj { font-variant-numeric: tabular-nums; color: var(--texto-apagado); white-space: nowrap; }
+.empresas-estrela {
+  display: inline-grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: var(--radius-sm);
+  background: transparent; color: color-mix(in srgb, var(--color-text) 35%, transparent); cursor: pointer;
+}
+.empresas-estrela:hover { background: var(--tinta-hover); color: var(--color-text); }
+.empresas-estrela[aria-pressed="true"] { color: var(--color-accent); }
+.empresas-estrela[aria-pressed="true"] svg { fill: currentColor; }
+/* a tabela em que um clique escolhe a linha: a escolhida fica na tinta neutra com o filete à esquerda */
+.tabela-escolha tbody tr { cursor: pointer; }
+.tabela-escolha tbody tr:hover { background: var(--tinta-hover); }
+.tabela-escolha tbody tr[aria-selected="true"] { background: var(--tinta-ativa); box-shadow: inset 2px 0 0 var(--color-text); }
+.tabela-escolha td { vertical-align: middle; }
+.tabela-escolha-botao { padding: 0; border: 0; background: none; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.tabela-escolha-botao:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; border-radius: 4px; }
+.equipe-quem-linha { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.equipe-papel-texto { margin: 0; font-size: 13.5px; line-height: 1.55; color: color-mix(in srgb, var(--color-text) 75%, transparent); }
+.equipe-previa-titulo { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
+.equipe-previa-acoes { align-items: center; }
+.equipe-previa-acoes > * { flex: 0 1 auto; }
 /* A faixa do plano e a aba Equipe da tela Empresas (#169, opção A) */
 .faixa-plano {
   display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin: 20px 0 0;
@@ -3442,19 +3369,15 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
 .faixa-plano-barra[data-no-limite="true"] i { background: var(--color-risco); }
 .equipe-estado { margin: 24px 0 0; }
 .equipe-falha { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
-.equipe-lista { list-style: none; margin: 18px 0 0; padding: 0; }
-.equipe-linha { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 12px 0; border-bottom: 1px solid var(--color-divider); }
-.equipe-lista:last-child .equipe-linha:last-child { border-bottom: 0; }
 .equipe-avatar {
   flex: none; width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--color-divider);
   display: grid; place-items: center; font-family: var(--font-titulo); font-weight: 600;
 }
 .equipe-quem { flex: 1 1 200px; min-width: 0; display: flex; flex-direction: column; }
-.equipe-nome { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; font-weight: 600; overflow-wrap: anywhere; }
+.equipe-nome-linha { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.equipe-nome { font-weight: 600; overflow-wrap: anywhere; }
 .equipe-quem > span { font-size: 13px; color: color-mix(in srgb, var(--color-text) 62%, transparent); overflow-wrap: anywhere; }
-.equipe-acoes { display: flex; align-items: center; gap: 10px; }
 .equipe-papel { border: 1px solid var(--color-divider); border-radius: 999px; padding: 4px 12px; font-size: 13px; font-weight: 500; }
-.equipe-linha > .campo-erro { flex: 1 1 100%; margin: 0; }
 .equipe-papel-envelope { position: relative; display: inline-flex; }
 .equipe-papel-botao {
   display: inline-flex; align-items: center; gap: 6px; background: transparent; color: var(--color-text);
@@ -3485,8 +3408,6 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
 @media (max-width: 520px) { .equipe-menu { width: min(300px, calc(100vw - 48px)); } }
 .equipe-confirma { flex: 1 1 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; font-size: 14px; }
 .equipe-confirma > span { flex: 1 1 260px; }
-.equipe-rotulo { margin: 26px 0 0; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 500; color: color-mix(in srgb, var(--color-text) 62%, transparent); }
-.equipe-pendente { margin-top: 10px; padding: 12px 14px; border: 1px dashed var(--color-divider); border-radius: var(--radius-md); }
 .equipe-pendente .equipe-avatar { border-style: dashed; }
 .equipe-convite .field { margin-bottom: 14px; }
 .equipe-papeis { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin-bottom: 14px; }

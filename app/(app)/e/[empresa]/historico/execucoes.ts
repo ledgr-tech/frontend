@@ -145,20 +145,6 @@ export function porMes(conciliacoes: ConciliacaoNoHistorico[]): MesDoHistorico[]
     .map(([chave, doMes]) => ({ chave, titulo: mesPorExtenso(`${chave}-01`).replace("/", " de "), conciliacoes: doMes }));
 }
 
-export type AnoDoHistorico = { ano: string; meses: MesDoHistorico[] };
-
-/** Os meses já vêm do mais recente para o mais antigo: cada troca de ano abre um grupo. */
-export function porAno(meses: MesDoHistorico[]): AnoDoHistorico[] {
-  const anos: AnoDoHistorico[] = [];
-  for (const mes of meses) {
-    const ano = mes.chave.slice(0, 4);
-    const ultimo = anos.at(-1);
-    if (ultimo?.ano === ano) ultimo.meses.push(mes);
-    else anos.push({ ano, meses: [mes] });
-  }
-  return anos;
-}
-
 export type Segmento = { tom: Tom; quantidade: number; rotulo: string };
 
 // a ordem da barra é a régua das cores: o que casou, o que custa dinheiro, o que

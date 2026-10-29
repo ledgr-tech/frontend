@@ -4,7 +4,6 @@ import {
   alturasNoGrafico,
   matchNaTela,
   paraRevisar,
-  porAno,
   porConciliacao,
   porMes,
   rotulosDaSerie,
@@ -219,7 +218,7 @@ describe("taxaDeMatch", () => {
   });
 });
 
-describe("porMes e porAno", () => {
+describe("porMes", () => {
   it("agrupa pelo mês em que o extrato do banco começa, como Fechamentos, e ordena os meses por ele", () => {
     const meses = porMes(
       porConciliacao([
@@ -239,7 +238,7 @@ describe("porMes e porAno", () => {
     ]);
   });
 
-  it("sem o período do extrato do banco, cai no mês em que a que vale rodou, no fuso de Brasília; e os meses vão por ano", () => {
+  it("sem o período do extrato do banco, cai no mês em que a que vale rodou, no fuso de Brasília", () => {
     const meses = porMes(
       porConciliacao([
         // 01/01 às 02h em UTC ainda é 31/12 em Brasília
@@ -249,14 +248,10 @@ describe("porMes e porAno", () => {
         doPar("e1", "B1", "S1", "2024-12-01T12:00:00Z"),
       ]),
     );
-    expect(
-      porAno(meses).map(({ ano, meses: doAno }) => [
-        ano,
-        doAno.map((mes) => [mes.titulo, mes.conciliacoes.map((item) => item.principal.execucao.id)]),
-      ]),
-    ).toEqual([
-      ["2025", [["Dezembro de 2025", ["e4", "e3"]], ["Novembro de 2025", ["e2"]]]],
-      ["2024", [["Dezembro de 2024", ["e1"]]]],
+    expect(meses.map((mes) => [mes.titulo, mes.conciliacoes.map((item) => item.principal.execucao.id)])).toEqual([
+      ["Dezembro de 2025", ["e4", "e3"]],
+      ["Novembro de 2025", ["e2"]],
+      ["Dezembro de 2024", ["e1"]],
     ]);
   });
 });

@@ -46,10 +46,4 @@ describe("layout responsivo", () => {
     expect(valor["white-space"]).toBe("nowrap");
     expect(valor["font-size"]).toMatch(/cqi/);
   });
-
-  // a 768–1024px o "99,2%" de "Casaram sozinhos" passava da borda do conteúdo: o número do
-  // resumo não quebra, então a taxa precisa poder descer para a linha de baixo
-  it("a taxa do resumo do histórico desce de linha quando não cabe ao lado do número", () => {
-    expect(declaracoes(".hist-resumo dd")).toMatchObject({ display: "flex", "flex-wrap": "wrap" });
-  });
 });
