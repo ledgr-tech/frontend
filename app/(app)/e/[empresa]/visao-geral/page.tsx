@@ -26,6 +26,7 @@ import type { SaldoDoExtrato } from "@/lib/adaptadores";
 import { carregarConexoesMcp, type ConexaoMcp } from "../conexoes-mcp/acoes";
 import { SEM_SALDO, data } from "../saldo";
 import { CartaoDeConexao } from "./cartao-de-conexao";
+import { MaoApontando } from "./mao-apontando";
 
 /**
  * A home do app: onde o mês está, os atalhos para as outras telas (cada um com o
@@ -382,10 +383,10 @@ function PedeAtencao({
       {grupos.length === 0 && arquivos.length === 0 ? (
         <div className="vg-tudo-certo">
           <Image
-            src="/mascotes/mascote-joinha.png"
+            src="/mascotes/mao-joinha.webp"
             alt=""
-            width={1073}
-            height={1173}
+            width={1254}
+            height={1254}
             sizes="72px"
             style={{ width: 72, height: "auto", flex: "none" }}
           />
@@ -545,9 +546,12 @@ function PrimeirosPassos() {
           </li>
         ))}
       </ol>
-      <Link href="/conciliacoes/nova" className="btn btn-primary" style={{ fontSize: 15, padding: "12px 22px" }}>
-        Fazer o primeiro upload
-      </Link>
+      <div className="vg-inicio-acao">
+        <MaoApontando className="vg-inicio-mao" />
+        <Link href="/conciliacoes/nova" className="btn btn-primary" style={{ fontSize: 15, padding: "12px 22px" }}>
+          Fazer o primeiro upload
+        </Link>
+      </div>
     </div>
   );
 }

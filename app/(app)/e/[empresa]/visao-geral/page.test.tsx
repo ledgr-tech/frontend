@@ -408,7 +408,7 @@ describe("VisaoGeralPage", () => {
     expect(screen.getByText("Nenhum valor em aberto")).toBeInTheDocument();
     // tudo certo é um joinha; a festa fica para os momentos grandes
     const imagens = [...document.querySelectorAll("img")].map((img) => img.getAttribute("src")).join(" ");
-    expect(imagens).toContain("mascote-joinha");
+    expect(imagens).toContain("mao-joinha");
     expect(imagens).not.toContain("mascote-comemorando");
   });
 

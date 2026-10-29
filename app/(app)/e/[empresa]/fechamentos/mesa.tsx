@@ -287,10 +287,10 @@ function Painel({ mes, podeFechar }: { mes: MesDeFechamento; podeFechar: boolean
         {/* fechado, o mês tem cadeado; pronto para fechar, um joinha */}
         {resolvido(mes) && (
           <Image
-            src={fechado ? "/mascotes/mascote-cadeado.png" : "/mascotes/mascote-joinha.png"}
+            src={fechado ? "/mascotes/mascote-cadeado.png" : "/mascotes/mao-joinha.webp"}
             alt=""
-            width={fechado ? 1033 : 1073}
-            height={fechado ? 1130 : 1173}
+            width={fechado ? 1033 : 1254}
+            height={fechado ? 1130 : 1254}
             sizes="56px"
             style={{ width: 56, height: "auto", flex: "none" }}
           />
