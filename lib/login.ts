@@ -7,7 +7,7 @@ import { COOKIE_CADASTRO_GOOGLE, COOKIE_CONVITE_GOOGLE, type ErroConviteGoogle, 
 /**
  * A conferência da senha, que é do backend (`POST /login`, issue #57 dele).
  * Ele devolve só quem é o usuário, sem token: quem emite o JWT continua sendo o
- * NextAuth (ADR-003), com o `empresa_id` que vem daqui.
+ * NextAuth (ADR-003), com o `conta_id` que vem daqui (`empresa_id`, obsoleto, só se o backend ainda não mandar o novo).
  *
  * Separado do `auth.ts` pelo mesmo motivo do `lib/token.ts`: é a parte que
  * precisa de teste, e o `auth.ts` não se importa sem subir o NextAuth inteiro.
@@ -17,15 +17,15 @@ import { COOKIE_CADASTRO_GOOGLE, COOKIE_CONVITE_GOOGLE, type ErroConviteGoogle, 
  * O corpo que `POST /login` e `POST /register` devolvem. `auth_time` só vem do
  * `/login`, e só do backend com a revogação de sessão (#75).
  */
-export type UsuarioAPI = { id: string; empresa_id: string; nome: string; email: string; auth_time?: number };
+export type UsuarioAPI = { id: string; conta_id?: string; empresa_id?: string; nome: string; email: string; auth_time?: number };
 
-/** O usuário do NextAuth a partir da resposta do backend: o `id` e o `empresa_id` são sempre os dele. */
+/** O usuário do NextAuth a partir da resposta do backend: o `id` e a conta são sempre os dele. */
 function usuarioDaSessao(usuario: UsuarioAPI): User {
   return {
     id: usuario.id,
     email: usuario.email,
     name: usuario.nome,
-    empresaId: usuario.empresa_id,
+    contaId: usuario.conta_id ?? usuario.empresa_id ?? "",
     ...(Number.isInteger(usuario.auth_time) && { authTime: usuario.auth_time }),
   };
 }

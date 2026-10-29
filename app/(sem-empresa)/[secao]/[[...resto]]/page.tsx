@@ -29,7 +29,7 @@ export default async function UrlSemEmpresa({
   // sem a lista por falha do /me (não por backend antigo), a empresa da sessão pode não ser a da pessoa: a tela de erro deixa tentar de novo
   if (conta.indisponivel) throw new Error("Conta indisponível: tente de novo.");
   const recente = (await cookies()).get(COOKIE_DA_EMPRESA_RECENTE)?.value;
-  const daSessao = ehUuid(sessao.user.empresaId ?? "") ? sessao.user.empresaId : null;
+  const daSessao = ehUuid(sessao.user.contaId ?? "") ? sessao.user.contaId : null;
   const empresa = escolherEmpresa(conta.empresas, recente) ?? daSessao;
   if (!empresa) notFound();
 

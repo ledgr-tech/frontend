@@ -65,7 +65,12 @@ empresa que sumiu é ignorado: vale a primeira da lista. Caminho que não é de 
 **Empresa inválida.** O layout de `e/[empresa]` confere o UUID contra `me.empresas`; se não for da conta, 404 com um
 link para a empresa padrão. O 404 "Empresa não encontrada." do backend cai no mesmo tratamento.
 
-**Fora do escopo.** O claim `conta_id` no token: o backend aceita o `empresa_id` legado como id da conta, sem pressa.
+**Fora do escopo (ainda).** O claim `conta_id` no token. O backend já o aceita (#148, PR #142 da #133, hoje só na
+`develop` dele): aceita `conta_id` e o `empresa_id` legado; um token com os dois e valores diferentes dá 401; o teste de
+contrato usa o vetor v3 (`02-decisoes/anexos/05-contrato-jwt-vetor.json`: `sub`, `conta_id`, `email`, `iat`, `exp`,
+`auth_time`, HS256) e mantém um caso com a v2. O front só pode **emitir** `conta_id` em produção depois que o #142 chegar
+na `main` do backend; contra a `develop` já dá para trocar e testar. O `administrador` do `/me` sai quando o front avisar
+que já está com `conta_id` e `papel` em produção.
 
 ## Links, rotas e o seletor
 

@@ -3,11 +3,11 @@ import { SignJWT, jwtVerify } from "jose";
 /**
  * O contrato do JWT com o backend, num lugar só.
  *
- * Fechado em `02-decisoes/05-contrato-jwt-empresa-id`: HS256, assinado com
- * `NEXTAUTH_SECRET`, claims `sub` / `empresa_id` / `email` / `iat` / `exp` e,
+ * Fechado em `02-decisoes/05-contrato-jwt-empresa-id, versão 3 (ADR-019)`: HS256, assinado com
+ * `NEXTAUTH_SECRET`, claims `sub` / `conta_id` / `email` / `iat` / `exp` e,
  * desde a revogação de sessão (backend #75, ADR-016), `auth_time`. O backend
  * (`app/core/auth.py`) decodifica com PyJWT, exige `exp` e `auth_time` e resolve
- * o tenant pelo `empresa_id` — token sem esses claims é 401.
+ * a conta pelo `conta_id` (aceita o `empresa_id` legado, igual; os dois com valores diferentes é 401) — token sem esses claims é 401.
  *
  * Isto existe separado do `auth.ts` porque é a parte que precisa de teste: se
  * um claim sair errado, nada no app funciona e o sintoma é um 401 sem pista.
@@ -21,7 +21,7 @@ export const ALGORITMO = "HS256";
 export type ClaimsSessao = {
   usuarioId: string;
   email: string;
-  empresaId: string;
+  contaId: string;
   /**
    * O momento do login, em segundos desde a época, no relógio do backend: vem
    * da resposta do `POST /login` e nunca do `Date.now()` daqui (com dois
@@ -44,7 +44,7 @@ function segredo(): Uint8Array {
 
 export async function assinarToken(claims: ClaimsSessao): Promise<string> {
   return new SignJWT({
-    empresa_id: claims.empresaId,
+    conta_id: claims.contaId,
     email: claims.email,
     ...(claims.authTime !== undefined && { auth_time: claims.authTime }),
   })
@@ -68,7 +68,7 @@ export async function lerToken(token: string): Promise<ClaimsSessao | null> {
     return {
       usuarioId: String(payload.sub ?? ""),
       email: typeof payload.email === "string" ? payload.email : "",
-      empresaId: String(payload.empresa_id ?? ""),
+      contaId: String(payload.conta_id ?? payload.empresa_id ?? ""),
       ...(Number.isInteger(payload.auth_time) && { authTime: payload.auth_time as number }),
     };
   } catch {
