@@ -41,9 +41,29 @@ describe("PainelDeConexoes", () => {
     expect(await screen.findByText("Revogada")).toBeInTheDocument();
   });
 
-  it("sem conexões, diz que não há", () => {
+  it("sem conexões, diz que não há e aponta os passos", () => {
     render(<PainelDeConexoes itens={[]} endereco={null} />);
 
-    expect(screen.getByText("Nenhuma conexão ainda.")).toBeInTheDocument();
+    expect(screen.getByText("Nenhuma conexão ainda. Siga os passos acima e ela aparece aqui.")).toBeInTheDocument();
+  });
+
+  it("ensina a conectar, um assistente de cada vez, com o endereço para copiar", async () => {
+    const user = userEvent.setup();
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+    render(<PainelDeConexoes itens={[]} endereco="https://api.ledgr.test/mcp" />);
+
+    // o que ele lê e o que nunca vê vêm antes dos passos
+    expect(screen.getByRole("heading", { name: "Como funciona" })).toBeInTheDocument();
+    expect(screen.getByText(/Nunca vê a descrição dos lançamentos/)).toBeInTheDocument();
+
+    expect(screen.getByRole("list", { name: "Passos no ChatGPT" })).toHaveTextContent("Modo desenvolvedor");
+    await user.click(screen.getByRole("button", { name: "Claude" }));
+    expect(screen.getByRole("button", { name: "Claude" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("list", { name: "Passos no Claude" })).toHaveTextContent("Adicionar conector personalizado");
+
+    await user.click(screen.getByRole("button", { name: "Copiar" }));
+    expect(writeText).toHaveBeenCalledWith("https://api.ledgr.test/mcp");
+    expect(screen.getByRole("button", { name: "Copiado" })).toBeInTheDocument();
   });
 });
