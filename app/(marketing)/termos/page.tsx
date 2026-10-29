@@ -2,7 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { DocumentoLegal, EmDefinicao } from "../documento-legal";
 
-export const metadata: Metadata = { title: "Termos de uso · Ledgr" };
+export const metadata: Metadata = {
+  title: "Termos de uso · Ledgr",
+  description: "As regras de uso do Ledgr, que concilia o extrato do banco com o do sistema de gestão da sua empresa.",
+};
 
 export default function TermosPage() {
   return (
@@ -50,8 +53,8 @@ export default function TermosPage() {
         Confira antes de ajustar a contabilidade.
       </p>
       <p>
-        As explicações por IA são geradas pela OpenAI só quando você pede, a partir de dados reduzidos da
-        linha, como descreve a Política de privacidade. Elas são sugestões, podem errar, não são orientação
+        As explicações por IA são geradas pela OpenAI quando a conciliação roda, para cada divergência, a
+        partir de dados reduzidos da linha, como descreve a Política de privacidade. Elas são sugestões, podem errar, não são orientação
         contábil nem fiscal e vêm marcadas como “Gerada por IA”. A IA não muda o status da linha nem
         registra decisão.
       </p>

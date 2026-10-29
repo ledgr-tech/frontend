@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
+import { Analytics } from "@vercel/analytics/next";
 import localFont from "next/font/local";
 import "./fonts/fontes.css";
 import "./globals.css";
@@ -105,7 +106,7 @@ const DESCRICAO =
 // A imagem da prévia é `app/opengraph-image.tsx`. O endereço absoluto dela o Next
 // monta sozinho na Vercel (domínio de produção ou da prévia), sem metadataBase.
 export const metadata: Metadata = {
-  title: "Ledgr",
+  title: "Ledgr · Conciliação bancária",
   description: DESCRICAO,
   openGraph: {
     title: "Ledgr · Pare de conciliar extrato à mão.",
@@ -144,7 +145,12 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           }}
         />
       </head>
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        {children}
+        {/* as visitas, pelo Web Analytics da Vercel: sem cookie, então sem aviso de cookies (LGPD). O
+            script vem do próprio domínio (/_vercel/insights), e a CSP já o aceita pelo strict-dynamic */}
+        <Analytics />
+      </body>
     </html>
   );
 }

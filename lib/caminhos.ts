@@ -42,11 +42,20 @@ export function caminhoDaCategoria(
  * O CSV da conciliação, pela rota do servidor que chama o backend com o token
  * (`app/api/conciliacoes/[id]/exportar`). O par e a categoria escolhida no
  * relatório vão juntos, para o arquivo ter as mesmas linhas que a tela.
+ *
+ * A rota fica em `/api`, fora do proxy que leva a empresa da URL ao pedido, então a empresa ativa
+ * (UUID) vai na query: a rota a confere e a manda ao backend (spec 2026-10-21-empresa-ativa-na-url).
  */
-export function caminhoDoCsv(extratoBancoId: string, extratoSistemaId?: string, status?: string): string {
+export function caminhoDoCsv(extratoBancoId: string, extratoSistemaId?: string, status?: string, empresa?: string): string {
   const busca = new URLSearchParams();
   if (extratoSistemaId) busca.set("sistema", extratoSistemaId);
   if (status) busca.set("status", status);
+  if (empresa) busca.set("empresa", empresa);
   const query = busca.toString();
   return `/api/conciliacoes/${encodeURIComponent(extratoBancoId)}/exportar${query ? `?${query}` : ""}`;
+}
+
+/** O arquivo original de um extrato (backend #139), pela rota do servidor; a empresa ativa vai na query, como no CSV. */
+export function caminhoDoOriginal(extratoId: string, empresa?: string): string {
+  return `/api/extratos/${encodeURIComponent(extratoId)}/arquivo-original${empresa ? `?empresa=${empresa}` : ""}`;
 }

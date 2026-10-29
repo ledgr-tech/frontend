@@ -8,8 +8,12 @@ import { ErroBackend, chamarBackend, emailDaSessao } from "@/lib/backend";
 import { RECUSA_DEMONSTRACAO, demoAberta, ehContaDeDemonstracao } from "@/lib/demo";
 import { COOKIE_CADASTRO_GOOGLE, COOKIE_CONVITE_GOOGLE, VALIDADE_ID_TOKEN_SEGUNDOS } from "@/lib/google";
 import { MuitasEntradas, type UsuarioAPI } from "@/lib/login";
+import type { EmpresaDaConta } from "@/lib/empresa-ativa";
+import { lerPapel, type Papel } from "@/lib/papel";
+import { destinoDepoisDoLogin } from "@/lib/rotas";
 import { ehTela, type Preferencias } from "@/lib/preferencias";
 import { adaptarAssinatura, type Assinatura, type PlanoId } from "@/lib/assinatura";
+import { adaptarLimites, type LimitesDaConta } from "@/lib/limites";
 import { adaptarConsultaConvite, type ConsultaConvite, type ConsultaConviteAPI } from "@/lib/adaptadores";
 
 /**
@@ -88,11 +92,12 @@ export async function entrarNaDemonstracao(manterSessao: boolean): Promise<boole
  * redirect, que a Server Action entrega ao navegador; só volta daqui quando o
  * provider não existe neste servidor.
  */
-export async function entrarComGoogle(): Promise<false> {
+export async function entrarComGoogle(voltar?: string | null): Promise<false> {
   if (!process.env.AUTH_GOOGLE_ID) return false;
   // um aceite de convite pelo Google que ficou pela metade não pode virar este login
   (await cookies()).delete(COOKIE_CONVITE_GOOGLE);
-  await signIn("google", { redirectTo: "/visao-geral" });
+  // o destino vem do navegador: só o consentimento de um pedido de conexão, refeito do id, ou a Visão geral
+  await signIn("google", { redirectTo: destinoDepoisDoLogin(voltar) });
   return false;
 }
 
@@ -467,14 +472,27 @@ export async function sair(): Promise<void> {
 export type ContaDaSessao = {
   /** A razão social, para o cabeçalho e o menu. Vazia quando o backend não respondeu. */
   empresa: string;
+  /** O nome de quem está logado; vazio quando o backend não respondeu. */
+  nome?: string;
   /** Falso na conta que só entra pelo Google: para ela, `POST /me/senha` responde 409. */
   temSenha: boolean;
-  /** Quem cadastrou a empresa: convida e remove pessoas (backend #69). Verdadeiro sem o campo, como na conta única. */
-  administrador: boolean;
+  /**
+   * As empresas da conta, para o seletor e para conferir a empresa da URL (backend #133), na ordem do
+   * backend (razão social). Vazia quando o `GET /me` não manda o campo (backend anterior) ou falhou.
+   */
+  empresas: EmpresaDaConta[];
+  /** admin, gestor ou analista (backend #133). Sem `papel`, lê o `administrador` antigo; sem nenhum, admin, como na conta única. */
+  papel: Papel;
   /** O que a pessoa dispensou no primeiro uso; null quando o `GET /me` ainda não manda o campo. */
   preferencias: Preferencias | null;
   /** O plano e o teste de 14 dias; null quando o `GET /me` ainda não manda `situacao`: nada bloqueia. */
   assinatura: Assinatura | null;
+  /** Quanto do plano a conta já usa (empresas e pessoas); null quando o `GET /me` ainda não manda `limites`: nada é mostrado. */
+  limites: LimitesDaConta | null;
+  /** A conta guarda o original de cada extrato (backend #139, plano avançado); false com a flag desligada ou sem o campo. */
+  guardaArquivoOriginal?: boolean;
+  /** Só quando o `GET /me` falhou: `empresas` vazia então não quer dizer "backend anterior", e ninguém deve adivinhar a empresa. */
+  indisponivel?: true;
 };
 
 type PreferenciasAPI = { tutoriais_dispensados?: unknown; roteiro_dispensado?: unknown };
@@ -485,9 +503,25 @@ function adaptarPreferencias(bruto: PreferenciasAPI | null | undefined): Prefere
   return { tutoriaisDispensados: telas, roteiroDispensado: bruto.roteiro_dispensado === true };
 }
 
+/** As empresas do `GET /me`; o item sem `id` de texto não serve para a URL e é ignorado. */
+function adaptarEmpresas(bruto: { id?: unknown; razao_social?: unknown; cnpj?: unknown }[] | undefined): EmpresaDaConta[] {
+  if (!Array.isArray(bruto)) return [];
+  return bruto.flatMap((empresa) =>
+    typeof empresa?.id === "string" && empresa.id
+      ? [
+          {
+            id: empresa.id,
+            razaoSocial: typeof empresa.razao_social === "string" ? empresa.razao_social.trim() : "",
+            cnpj: typeof empresa.cnpj === "string" ? empresa.cnpj : "",
+          },
+        ]
+      : [],
+  );
+}
+
 /**
  * A conta logada, de `GET /me` (backend #81), que o `/login` não cobre: ele devolve só
- * o usuário. Um papel só, o `administrador` (backend #69). Limite de 60 chamadas por
+ * o usuário. O papel vem em `papel` (backend #133); o `administrador` é obsoleto. Limite de 60 chamadas por
  * minuto por usuário, por isso só o layout chama.
  *
  * Se a rota falhar, a empresa fica vazia e as telas a escondem, melhor que mostrar o
@@ -499,22 +533,30 @@ export async function contaDaSessao(): Promise<ContaDaSessao> {
       UsuarioAPI & {
         razao_social: string;
         metodos_login: string[];
+        papel?: unknown;
+        empresas?: { id?: unknown; razao_social?: unknown; cnpj?: unknown }[];
         administrador?: boolean;
         preferencias?: PreferenciasAPI;
         situacao?: unknown;
         plano?: unknown;
         teste_termina_em?: unknown;
+        limites?: unknown;
+        guarda_arquivo_original?: unknown;
       }
     >("/me");
     return {
       empresa: eu.razao_social?.trim() ?? "",
+      nome: eu.nome?.trim() ?? "",
       temSenha: eu.metodos_login?.includes("senha") ?? true,
-      administrador: eu.administrador !== false,
+      papel: lerPapel(eu),
+      empresas: adaptarEmpresas(eu.empresas),
       preferencias: adaptarPreferencias(eu.preferencias),
       assinatura: adaptarAssinatura(eu),
+      limites: adaptarLimites(eu.limites),
+      guardaArquivoOriginal: eu.guarda_arquivo_original === true,
     };
   } catch {
-    return { empresa: "", temSenha: true, administrador: true, preferencias: null, assinatura: null };
+    return { empresa: "", temSenha: true, papel: "admin", empresas: [], preferencias: null, assinatura: null, limites: null, indisponivel: true };
   }
 }
 
@@ -560,7 +602,12 @@ function mensagemDaConta(erro: unknown): string {
   if (erro.status === 422 && erro.campos.includes("senha_nova")) {
     return "A senha nova precisa ter de 8 a 72 caracteres.";
   }
+  // sem campo é a regra da rota, com texto para a tela ("O e-mail novo é igual ao atual.", #149)
+  if (erro.status === 422 && erro.campos.length === 0 && erro.detalhe) return erro.detalhe;
+  // o limite por hora da troca de e-mail (#149) explica o próprio prazo; o por minuto é o genérico
+  if (erro.status === 429 && (erro.segundosParaTentar ?? 0) > 60) return erro.detalhe;
   if (erro.status === 429) return "Muitas tentativas. Espere um minuto e tente de novo.";
+  if (erro.status === 503) return "Indisponível no momento. Tente de novo mais tarde.";
   return FALHA_CONTA;
 }
 
@@ -608,23 +655,58 @@ export async function trocarSenha(senhaAtual: string, senhaNova: string): Promis
   return { ok: true };
 }
 
+/**
+ * Pede a troca do e-mail (`POST /me/email`, backend #149). O backend responde 202 e manda um link
+ * ao e-mail novo; o da conta só muda quando a pessoa abre o link (`/confirmar-email`), então a
+ * sessão de agora continua como está.
+ */
 export async function trocarEmail(emailNovo: string, senhaAtual: string): Promise<ResultadoConta> {
-  const email = emailNovo.trim().toLowerCase();
   const conta = await naConta(() =>
     chamarBackend("/me/email", {
       method: "POST",
-      corpo: { email_novo: email, senha_atual: senhaAtual },
+      corpo: { email_novo: emailNovo.trim().toLowerCase(), senha_atual: senhaAtual },
     }),
   );
-  if (!conta.ok) return conta;
-  await refazerSessao(email, senhaAtual);
-  return { ok: true };
+  return conta.ok ? { ok: true } : conta;
 }
 
-/** Pede a senha também: com um token roubado, sem ela, dava para apagar a empresa. */
-export async function excluirConta(senhaAtual: string): Promise<ResultadoConta> {
+export type ResultadoConfirmacaoEmail =
+  | { ok: true; email: string }
+  | { ok: false; erro: "link_invalido" | "email_em_uso" | "muitas_tentativas" | "falha" };
+
+/**
+ * O link do e-mail novo (`POST /me/email/confirmar`, backend #149), sem sessão: pode abrir noutro
+ * navegador. Na confirmação o backend encerra todas as sessões da pessoa; a que estiver neste
+ * navegador recebe 401 na próxima chamada e vai ao login, como qualquer sessão vencida.
+ */
+export async function confirmarEmail(token: string): Promise<ResultadoConfirmacaoEmail> {
+  try {
+    const { email } = await chamarBackend<{ email: string }>("/me/email/confirmar", {
+      method: "POST",
+      corpo: { token },
+      publica: true,
+    });
+    return { ok: true, email };
+  } catch (erro) {
+    if (!(erro instanceof ErroBackend)) return { ok: false, erro: "falha" };
+    if (erro.status === 400 || erro.status === 422) return { ok: false, erro: "link_invalido" };
+    if (erro.status === 409) return { ok: false, erro: "email_em_uso" };
+    if (erro.status === 429) return { ok: false, erro: "muitas_tentativas" };
+    return { ok: false, erro: "falha" };
+  }
+}
+
+/**
+ * Desativa a conta de quem está logado (`DELETE /me`, backend #68): tira o acesso, libera o e-mail
+ * e encerra as sessões. Os dados da empresa ficam; a exclusão deles é a pedido, por e-mail. Pede a
+ * senha: com um token roubado, sem ela, dava para tirar a pessoa da conta. A conta só do Google não
+ * tem senha (null): o backend confere o login recente e, se for antigo, responde 409 com o texto
+ * que pede para entrar de novo pelo Google. O administrador com outras pessoas na equipe também
+ * recebe 409, pedindo para transferir antes o papel de admin (backend #143).
+ */
+export async function desativarConta(senhaAtual: string | null): Promise<ResultadoConta> {
   const conta = await naConta(() =>
-    chamarBackend("/me", { method: "DELETE", corpo: { senha_atual: senhaAtual } }),
+    chamarBackend("/me", { method: "DELETE", ...(senhaAtual === null ? {} : { corpo: { senha_atual: senhaAtual } }) }),
   );
   if (!conta.ok) return conta;
   await signOut({ redirectTo: "/" });

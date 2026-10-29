@@ -2,7 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { DocumentoLegal, EmDefinicao } from "../documento-legal";
 
-export const metadata: Metadata = { title: "Política de privacidade · Ledgr" };
+export const metadata: Metadata = {
+  title: "Política de privacidade · Ledgr",
+  description: "Como o Ledgr trata os dados dos extratos que você envia e os da sua conta.",
+};
 
 export default function PrivacidadePage() {
   return (
@@ -59,9 +62,9 @@ export default function PrivacidadePage() {
 
       <h2>Explicações por IA</h2>
       <p>
-        Na tela de uma divergência, você pode pedir uma explicação gerada por IA. Ela só é gerada quando
-        você clica em “Explicar esta divergência”; sem esse pedido, nada é enviado à IA. O provedor é a
-        OpenAI, com quem o Ledgr tem um acordo de tratamento de dados assinado. Pelo acordo, a OpenAI só
+        Cada divergência vem com uma explicação gerada por IA. Ela é gerada quando a conciliação roda, sem
+        que você precise pedir; se alguma ainda não estiver pronta, você pode pedi-la na tela da linha em
+        “Explicar esta divergência”. Linhas conciliadas não são enviadas à IA. O provedor é a OpenAI, com quem o Ledgr tem um acordo de tratamento de dados assinado. Pelo acordo, a OpenAI só
         pode usar esses dados para prestar o serviço ao Ledgr.
       </p>
       <ul>
@@ -146,8 +149,9 @@ export default function PrivacidadePage() {
         <li>a informação de com quem compartilhamos: os fornecedores listados acima.</li>
       </ul>
       <p>
-        Por enquanto, os pedidos são feitos por e-mail. A exclusão da conta pelas próprias configurações
-        ainda não está disponível. Nos extratos, em que a sua empresa é a controladora, o pedido de uma
+        Por enquanto, os pedidos são feitos por e-mail. Nas configurações, você desativa a sua conta: o
+        acesso acaba e o e-mail fica livre. A exclusão dos dados da empresa é feita a pedido, por e-mail.
+        Nos extratos, em que a sua empresa é a controladora, o pedido de uma
         pessoa citada numa descrição é atendido pela sua empresa, com a ajuda do Ledgr.
       </p>
       <EmDefinicao>o canal próprio de privacidade e a pessoa responsável por ele.</EmDefinicao>

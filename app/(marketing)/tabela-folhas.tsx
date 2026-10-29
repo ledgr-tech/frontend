@@ -1,6 +1,6 @@
-import { ConteudoCartao } from "@/app/(app)/conciliacoes/[id]/cartao-lancamento";
-import { estaResolvida, rotuloCurto, seloDoStatus } from "@/app/(app)/dashboard/resumo";
-import { IconeOrigem } from "@/app/(app)/icone-origem";
+import { ConteudoCartao } from "@/app/(app)/e/[empresa]/conciliacoes/[id]/cartao-lancamento";
+import { estaResolvida, rotuloCurto, seloDoStatus } from "@/app/(app)/e/[empresa]/dashboard/resumo";
+import { IconeOrigem } from "@/app/(app)/e/[empresa]/icone-origem";
 import type { LinhaExtrato } from "./comparacao";
 
 /** A interação da demonstração de "O problema"; sem ela, a tabela é só desenho. */
@@ -49,7 +49,7 @@ function Coluna({
  * demonstração de "O problema", que abre o cartão do hover como o app, e a tela do app na janela de
  * "Por dentro", parada, com uma linha acesa e o cartão dela aberto. As duas mostram a mesma tabela.
  *
- * As classes e os campos são os do app (app/(app)/conciliacoes/[id]/page.tsx), inclusive os
+ * As classes e os campos são os do app (app/(app)/e/[empresa]/conciliacoes/[id]/page.tsx), inclusive os
  * `role` e o `data-rotulo` que viram cartão no celular: o status no eixo entre as duas folhas, em
  * nome curto, o que bateu sem selo, e o campo que diverge marcado dos dois lados. O par é casado
  * pela descrição, e a data de cada lado vem do extrato dele.
@@ -133,9 +133,9 @@ export function TabelaFolhas({
           const aberta = comCartao?.aberta === b.desc;
           const abrir = () => comCartao?.abrir(b.desc);
           const fechar = () => comCartao?.fechar(b.desc);
-          // a divergência pinta o campo em questão dos dois lados, numa marca que acende com o
-          // ponteiro na linha, como no app
-          const diverge = (campo: "valor" | "data") => (b.status === `divergente_${campo}` ? "true" : undefined);
+          // o campo errado em vermelho, como no app: a data na "Data diverge", o valor no resto
+          const campoErrado = revisar ? (b.status === "divergente_data" ? "data" : "valor") : null;
+          const diverge = (campo: "valor" | "data") => (campoErrado === campo ? "true" : undefined);
           const marcar = (campo: "valor" | "data", texto: string) =>
             diverge(campo) ? <span className="marca-diverge">{texto}</span> : texto;
 

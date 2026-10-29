@@ -231,7 +231,7 @@ describe("emailDaSessao", () => {
   });
 
   it("lê o e-mail do mesmo cookie que vai no Bearer, com a assinatura conferida", async () => {
-    cookie.valor = await assinarToken({ usuarioId: "u", email: "ana@telhacerta.com.br", empresaId: "e" });
+    cookie.valor = await assinarToken({ usuarioId: "u", email: "ana@telhacerta.com.br", contaId: "e" });
 
     expect(await emailDaSessao()).toBe("ana@telhacerta.com.br");
   });
@@ -246,5 +246,67 @@ describe("emailDaSessao", () => {
     cookie.valor = undefined;
 
     expect(await emailDaSessao()).toBeNull();
+  });
+});
+
+describe("a empresa ativa nas chamadas ao backend (#169)", () => {
+  const A = "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20";
+  const B = "9b8a7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d";
+
+  beforeEach(() => {
+    cookie.valor = "jwt-de-teste";
+    requisicao.cabecalhos = {};
+    fetch.mockReset();
+    fetch.mockImplementation(async () => Response.json({}));
+    vi.stubGlobal("fetch", fetch);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function enviado(): Headers {
+    return new Headers((fetch.mock.calls[0] as [string, RequestInit])[1].headers);
+  }
+
+  it("manda X-Ledgr-Empresa com a empresa que o proxy deixou no pedido", async () => {
+    requisicao.cabecalhos = { "x-ledgr-empresa": A };
+    await chamarBackend("/extratos");
+    expect(enviado().get("X-Ledgr-Empresa")).toBe(A);
+  });
+
+  it("sem empresa no pedido, não manda o cabeçalho", async () => {
+    await chamarBackend("/extratos");
+    expect(enviado().has("X-Ledgr-Empresa")).toBe(false);
+  });
+
+  it("fora de uma requisição, segue sem o cabeçalho", async () => {
+    requisicao.cabecalhos = null;
+    await chamarBackend("/extratos");
+    expect(enviado().has("X-Ledgr-Empresa")).toBe(false);
+  });
+
+  it("a empresa passada à chamada vence a do pedido (o CSV, que não passa pelo proxy)", async () => {
+    requisicao.cabecalhos = { "x-ledgr-empresa": A };
+    await chamarBackend("/extratos", { empresa: B });
+    expect(enviado().get("X-Ledgr-Empresa")).toBe(B);
+    fetch.mockClear();
+    await baixarDoBackend("/conciliacoes/x/exportar", { empresa: B });
+    expect(enviado().get("X-Ledgr-Empresa")).toBe(B);
+  });
+
+  it("um valor que não é UUID, no pedido ou na chamada, não vai ao backend", async () => {
+    requisicao.cabecalhos = { "x-ledgr-empresa": "lixo" };
+    await chamarBackend("/extratos", { empresa: "../outra" });
+    expect(enviado().has("X-Ledgr-Empresa")).toBe(false);
+    fetch.mockClear();
+    await chamarBackend("/extratos");
+    expect(enviado().has("X-Ledgr-Empresa")).toBe(false);
+  });
+
+  it("a chamada pública (login, cadastro) nunca leva a empresa", async () => {
+    requisicao.cabecalhos = { "x-ledgr-empresa": A };
+    await chamarBackend("/login", { method: "POST", corpo: {}, publica: true });
+    expect(enviado().has("X-Ledgr-Empresa")).toBe(false);
   });
 });

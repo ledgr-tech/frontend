@@ -1,19 +1,18 @@
 import type { ReactNode } from "react";
-import { estaResolvida, seloDoStatus } from "@/app/(app)/dashboard/resumo";
-import { IconeOrigem } from "@/app/(app)/icone-origem";
-import { SeloIa } from "@/app/(app)/selo-ia";
+import { estaResolvida, seloDoStatus } from "@/app/(app)/e/[empresa]/dashboard/resumo";
+import { IconeOrigem } from "@/app/(app)/e/[empresa]/icone-origem";
+import { SeloIa } from "@/app/(app)/e/[empresa]/selo-ia";
 import { Reveal } from "@/app/reveal";
-import { PLANOS } from "@/lib/planos";
 import { QUANTAS_CATEGORIAS } from "./categorias";
 import type { LinhaExtrato } from "./comparacao";
 import { DicaDoMouse } from "./dica-do-mouse";
 import { FioDaTrilha } from "./fio-da-trilha";
+import { ReguaQueMede } from "./regua-que-mede";
 
 /**
  * Preços: o que vem em todo plano, em quatro cards numa trilha vertical como a de "Por dentro" (o
  * fio em onda desce conforme a página rola, e cada card entra quando a ponta do fio chega nele). A
- * trilha termina na régua dos planos, pelo volume do mês. Sem preço: a cobrança ainda não está
- * definida (o preço segue em lib/planos.ts, para a Assinatura do app).
+ * trilha termina nos planos: a escolha guiada pelo volume do mês, com o preço mensal de cada um.
  *
  * O card é o da referência do Mailchimp no nosso estilo: em repouso, escuro na faixa e com o fim da
  * lista de benefícios apagando; no hover, ou no foco do teclado, ele vira folha de papel, como as
@@ -213,33 +212,11 @@ function CartaoBeneficio({ beneficio, children }: { beneficio: Beneficio; childr
   );
 }
 
-/** Onde o fio termina: os planos pelo volume do mês, lado a lado (de pé no celular). */
+/** Onde o fio termina: os planos, como a escolha guiada do /plano (regua-que-mede.tsx). */
 function ReguaDePlanos() {
   return (
     <Reveal viewport={NA_PONTA_DO_FIO} className="preco-regua">
-      <div className="preco-regua-topo">
-        <p id="preco-regua-titulo" className="preco-rotulo">
-          Os planos
-        </p>
-        <span className="preco-regua-nota">pelo volume de lançamentos do mês</span>
-      </div>
-      <ol className="preco-regua-planos" aria-labelledby="preco-regua-titulo">
-        {PLANOS.map((plano, i) => (
-          <li
-            key={plano.nome}
-            className="preco-regua-plano"
-            data-destaque={plano.destaque || undefined}
-            data-contato={plano.contato || undefined}
-          >
-            {/* o traço da régua já está lá; os planos entram nele da esquerda para a direita */}
-            <Reveal viewport={NA_PONTA_DO_FIO} delay={0.08 + i * 0.07}>
-              <span className="numero-destaque preco-regua-num">{plano.volume}</span>
-              <span className="preco-regua-nome">{plano.nome}</span>
-              <span className="preco-regua-limite">{plano.limite}</span>
-            </Reveal>
-          </li>
-        ))}
-      </ol>
+      <ReguaQueMede />
     </Reveal>
   );
 }

@@ -3,7 +3,7 @@ import Link from "next/link";
 
 import { DIVERGENCIAS } from "@/lib/adaptadores";
 import { depoimentosDaLanding } from "@/lib/depoimentos";
-import { LogoBarras } from "@/app/(app)/logo-barras";
+import { LogoBarras } from "@/app/(app)/e/[empresa]/logo-barras";
 import { CabecalhoSite } from "./cabecalho-site";
 import { CATEGORIAS, QUANTAS_CATEGORIAS } from "./categorias";
 import { ExtratoComparacao, type LinhaExtrato } from "./comparacao";
@@ -14,6 +14,7 @@ import { InkHover, MotionRoot, Reveal } from "../reveal";
 import { fonteDestaque } from "./fonte-destaque";
 import { PorDentro } from "./por-dentro";
 import { PorQueOLedgr } from "./por-que";
+import { ParaQuem } from "./para-quem";
 import { Precos, type ResumoDoMes } from "./precos";
 import { RedesSociais } from "./redes-sociais";
 
@@ -246,9 +247,9 @@ export default function LandingPage() {
 
       {/* hero */}
       <section style={{ position: "relative", overflow: "hidden" }}>
-        {/* SVG em linha, não <img>: a marca d'água quase invisível era a maior imagem do topo e
-            virava o LCP no celular, esperando o JavaScript para pintar */}
-        <LogoBarras className="hero-marca" />
+        {/* o logo de adesivo, como em todo lugar. É a maior imagem do topo e vira o LCP: eager e com
+            prioridade alta, para baixar antes do resto; no celular ele tem 380px (globals.css) */}
+        <LogoBarras className="hero-marca" sizes="(max-width: 760px) 380px, 640px" loading="eager" fetchPriority="high" />
         <div
           aria-hidden="true"
           style={{
@@ -674,12 +675,20 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* para quem é (#233): os perfis que o Ledgr atende, logo antes do preço e do "Começar agora".
+          Papel, entre a superfície das perguntas e a faixa escura do preço */}
+      <section id="para-quem" className="onda onda-superficie" style={{ background: "var(--color-bg)" }}>
+        <div style={{ maxWidth: 1600, margin: "0 auto", padding: "clamp(64px, 9vw, 96px) clamp(20px, 4.2vw, 56px)" }}>
+          <ParaQuem />
+        </div>
+      </section>
+
       {/* preço: o que vem em todo plano, numa trilha vertical como a de "Por dentro", até a régua dos
           planos, e o convite embaixo. overflow: clip, e não hidden: hidden faria da seção o contêiner
           de rolagem do título parado (sticky), e ele deixaria de grudar */}
       <section
         id="preco"
-        className="onda onda-superficie grao"
+        className="onda onda-papel grao"
         style={{ position: "relative", overflow: "clip", backgroundColor: "var(--faixa-escura)" }}
       >
         {/* marca d'água atrás dos botões, saindo pela borda de baixo: no meio da seção ela ficaria

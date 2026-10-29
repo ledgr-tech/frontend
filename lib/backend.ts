@@ -1,4 +1,6 @@
 import { cookies, headers } from "next/headers";
+import { ehUuid } from "./rotas";
+import { empresaDaRequisicao } from "./rotas-servidor";
 import { lerToken } from "./token";
 
 /**
@@ -36,6 +38,8 @@ export class ErroBackend extends Error {
     readonly mensagens: Record<string, string> = {},
     /** O `Retry-After` de um 429, em segundos, quando o backend manda (o limite de convites por hora). */
     readonly segundosParaTentar?: number,
+    /** A lista `erros` de um 422 que traz `detail` em texto (a importação via IA, backend #172): um item por campo errado. */
+    readonly erros: { caminho: string; lancamento: number | null; mensagem: string }[] = [],
   ) {
     super(detalhe);
     this.name = "ErroBackend";
@@ -102,7 +106,12 @@ async function erroDaResposta(resposta: Response): Promise<ErroBackend> {
     // FastAPI manda `{detail: "..."}`; num 422 de validação, `detail` é uma
     // lista de objetos, que não serve pra mostrar na tela — dela sai só quais
     // campos do corpo falharam (`loc: ["body", "<campo>"]`).
-    if (typeof corpo?.detail === "string") return new ErroBackend(resposta.status, corpo.detail, [], {}, segundos);
+    if (typeof corpo?.detail === "string") {
+      const erros = Array.isArray(corpo.erros)
+        ? corpo.erros.filter((e: { mensagem?: unknown }) => typeof e?.mensagem === "string")
+        : [];
+      return new ErroBackend(resposta.status, corpo.detail, [], {}, segundos, erros);
+    }
     if (Array.isArray(corpo?.detail)) {
       const itens: { loc: unknown[]; msg?: unknown }[] = corpo.detail.filter(
         (item: { loc?: unknown[] }) => item?.loc?.[0] === "body",
@@ -127,16 +136,24 @@ type Opcoes = RequestInit & {
    * recuperação de senha (`/senha/*`), de quem não consegue entrar.
    */
   publica?: boolean;
+  /**
+   * A empresa ativa (UUID) desta chamada, que vence a do pedido. Quem não passa pelo proxy (o CSV, uma Route
+   * Handler em `/api`) a informa aqui; as demais a recebem do `x-ledgr-empresa` que o proxy deixou no pedido.
+   */
+  empresa?: string;
 };
 
 /** A requisição com o Bearer da sessão; erro do backend vira `ErroBackend`. */
 async function requisitar(caminho: string, init: Opcoes = {}): Promise<Response> {
-  const { corpo, publica, ...resto } = init;
+  const { corpo, publica, empresa, ...resto } = init;
   const cabecalhos = new Headers(resto.headers);
   if (!publica) {
     const token = await tokenDaSessao();
     if (!token) throw new ErroBackend(401, "Sessão expirada.");
     cabecalhos.set("Authorization", `Bearer ${token}`);
+    // a empresa da aba, conferida no backend a cada chamada (ADR-019); as rotas da conta a ignoram
+    const ativa = empresa ?? (await empresaDaRequisicao());
+    if (ativa && ehUuid(ativa)) cabecalhos.set("X-Ledgr-Empresa", ativa);
   } else {
     // as rotas logadas limitam pelo token; o IP só importa onde ainda não há sessão
     await ipDoNavegador(cabecalhos);
@@ -174,6 +191,6 @@ export async function chamarBackend<T>(caminho: string, init: Opcoes = {}): Prom
  * repassar os bytes. Ler como texto descartaria o BOM do UTF-8, e sem ele o
  * Excel abre os acentos quebrados.
  */
-export async function baixarDoBackend(caminho: string): Promise<Response> {
-  return requisitar(caminho);
+export async function baixarDoBackend(caminho: string, opcoes: { empresa?: string } = {}): Promise<Response> {
+  return requisitar(caminho, opcoes);
 }

@@ -38,6 +38,21 @@ describe("caminhoDaCategoria", () => {
   });
 });
 
+describe("caminhoDoCsv e a empresa ativa (#169)", () => {
+  const EMPRESA = "9b8a7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d";
+
+  it("leva a empresa na query, depois do par e da categoria", () => {
+    expect(caminhoDoCsv(BANCO, SISTEMA, "duplicado", EMPRESA)).toBe(
+      `/api/conciliacoes/${BANCO}/exportar?sistema=${SISTEMA}&status=duplicado&empresa=${EMPRESA}`,
+    );
+    expect(caminhoDoCsv(BANCO, undefined, undefined, EMPRESA)).toBe(`/api/conciliacoes/${BANCO}/exportar?empresa=${EMPRESA}`);
+  });
+
+  it("sem empresa, fica como era", () => {
+    expect(caminhoDoCsv(BANCO, SISTEMA)).toBe(`/api/conciliacoes/${BANCO}/exportar?sistema=${SISTEMA}`);
+  });
+});
+
 describe("caminhoDoCsv", () => {
   it("pede o CSV do mesmo par que a tela mostra", () => {
     expect(caminhoDoCsv(BANCO, SISTEMA)).toBe(`/api/conciliacoes/${BANCO}/exportar?sistema=${SISTEMA}`);

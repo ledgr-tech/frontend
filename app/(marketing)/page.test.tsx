@@ -50,10 +50,11 @@ describe("LandingPage", () => {
 
   it("uses one label for every link into the signup", () => {
     const { container } = render(<LandingPage />);
-    const rotulos = [...container.querySelectorAll('a[href="/cadastro"]')].map((link) => link.textContent);
-    // cabeçalho, hero e preço
+    // cabeçalho, hero e preço; a régua de Preços nomeia o plano que leva ao cadastro, de propósito
+    const rotulos = [...container.querySelectorAll('a[href="/cadastro"]:not(.regua-mede-acao)')].map((link) => link.textContent);
     expect(rotulos).toHaveLength(3);
     expect(new Set(rotulos)).toEqual(new Set(["Começar agora"]));
+    expect(container.querySelector(".regua-mede-acao")).toHaveTextContent(/^Começar com o /);
   });
 
   it("labels only the four chapters above the section titles", () => {
@@ -81,8 +82,30 @@ describe("LandingPage", () => {
       ["Sem trocar de sistema, e sem voltar para o manual.", ["e sem voltar para o manual."]],
       ["O extrato do banco é sempre a fonte da verdade.", ["a fonte da verdade."]],
       ["Perguntas que sempre aparecem", ["sempre aparecem"]],
+      ["Para quem fecha o mês, sozinho ou com equipe.", ["sozinho ou com equipe."]],
       ["Preço fechado, por volume.", ["por volume."]],
     ]);
+  });
+
+  it("says who the Ledgr is for, right before the price and its call to action (#233)", () => {
+    const { container } = render(<LandingPage />);
+    const secao = container.querySelector("#para-quem")!;
+    // do menor ao maior, cada um numa folha com o seu mascote
+    expect([...secao.querySelectorAll("h3")].map((titulo) => titulo.textContent)).toEqual([
+      "Usuário único",
+      "Consultor contábil",
+      "Empresa",
+      "Escritório contábil",
+    ]);
+    expect([...secao.querySelectorAll(".para-quem-mascote")].map((img) => img.getAttribute("src"))).toEqual([
+      expect.stringContaining("mascote-laptop"),
+      expect.stringContaining("mascote-maleta"),
+      expect.stringContaining("mascote-caminhando"),
+      expect.stringContaining("mascote-arquivo"),
+    ]);
+    // a pergunta fica junto dos perfis, não na abertura
+    expect(within(secao as HTMLElement).getByText("Qual desses é você?")).not.toHaveClass("para-quem-frase");
+    expect(secao.nextElementSibling).toHaveAttribute("id", "preco");
   });
 
   it("loads the display italic only on the landing, under the variable its titles use", () => {
@@ -105,8 +128,8 @@ describe("LandingPage", () => {
       ...[...container.querySelectorAll(".numeros-grade > *")].map((item) => item.firstElementChild!),
       // o relatório do último card de Preços, com o agosto da demonstração
       ...screen.getAllByText("96,3%"),
-      // e o volume de cada plano na régua de Preços
-      ...container.querySelectorAll(".preco-regua-num"),
+      // e, na régua de Preços, o volume do medidor e as quatro marcas
+      ...container.querySelectorAll(".regua-mede-valor output, .regua-mede-marcas span"),
     ];
     expect(numeros).toHaveLength(3 + 1 + 5);
     for (const numero of numeros) expect(numero).toHaveClass("numero-destaque");
@@ -432,11 +455,12 @@ describe("LandingPage", () => {
     expect(screen.getByText("Receba as divergências")).toBeInTheDocument();
   });
 
-  it("shows no plan prices while billing is not defined", () => {
+  it("shows only the monthly price of the plan the guided ruler points to", () => {
     render(<LandingPage />);
     const preco = document.getElementById("preco")!;
-    // as demonstrações dos cards mostram valores de lançamento; preço de plano, nenhum
-    for (const plano of PLANOS) expect(preco.textContent).not.toContain(plano.preco);
+    // começa no Padrão; os outros preços só aparecem quando o medidor chega neles
+    expect(preco.textContent).toContain("R$ 79,90");
+    for (const plano of PLANOS.filter((p) => p.nome !== "Padrão")) expect(preco.textContent).not.toContain(plano.preco);
   });
 
   it("shows what comes in every plan as a trail of cards, with the page's own August in the demos", () => {
@@ -451,7 +475,7 @@ describe("LandingPage", () => {
     // a #1082 de "O problema" e o agosto da demonstração
     expect(preco.getByText(/^O banco descontou R\$ 36,00 de juros por atraso no boleto/)).toBeInTheDocument();
     expect(preco.getByText("157 de 4.218 para revisar")).toBeInTheDocument();
-    expect(preco.getByRole("list", { name: "Os planos" })).toBeInTheDocument();
+    expect(preco.getByText("Os planos")).toBeInTheDocument();
   });
 
   describe("Por que o Ledgr", () => {
@@ -592,14 +616,10 @@ describe("LandingPage", () => {
     expect(screen.getByText(/a cobrança ainda não está no ar/)).toBeInTheDocument();
   });
 
-  it("lists all five plans by name and volume, covering the volume shown in the hero demo", () => {
+  it("marks the plans by volume on the ruler, and keeps the section's own start button", () => {
     render(<LandingPage />);
     const preco = within(document.getElementById("preco")!);
-    for (const plano of ["Essencial", "Padrão", "Avançado", "Escala", "Volume"]) {
-      expect(preco.getByText(plano)).toBeInTheDocument();
-    }
-    expect(preco.getByText("até 5.000 lançamentos por mês")).toBeInTheDocument();
-    expect(preco.getByText("acima de 5.000, para indústria e multi-banco")).toBeInTheDocument();
+    for (const marca of ["100", "200", "350", "5.000+"]) expect(preco.getByText(marca)).toBeInTheDocument();
     expect(within(document.getElementById("preco")!).getByRole("link", { name: "Começar agora" })).toHaveAttribute(
       "href",
       "/cadastro",

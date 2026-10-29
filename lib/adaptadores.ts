@@ -1,4 +1,6 @@
 import { caminhoDaConciliacao } from "./caminhos";
+import { ehPapel, lerPapel, type Papel } from "./papel";
+import { aguardaAprovacao } from "./aprovacao";
 import { rodadasDoBanco } from "./rodadas";
 import type {
   CampoLancamento,
@@ -51,9 +53,24 @@ export type ItemConciliacaoAPI = {
    * ponytail: decisões por linha, propostas ao backend na spec 2026-10-02 (mesmos
    * nomes de lá). A chave ausente quer dizer que o backend ainda não as guarda.
    */
-  decisao?: Decisao | null;
+  decisao?: DecisaoAPI | null;
   eventos?: EventoDecisao[];
 };
+
+/**
+ * A decisão como o backend manda: igual a `Decisao`, menos os dois campos da aprovação (backend #132),
+ * que vêm em snake_case. `situacao` é `pendente` ou `aprovada`; a rejeitada não existe aqui.
+ */
+export type DecisaoAPI = Omit<Decisao, "aprovadaPor" | "aprovadaEm"> & { aprovada_por?: string | null; aprovada_em?: string | null };
+
+export function adaptarDecisao(api: DecisaoAPI): Decisao {
+  const { aprovada_por, aprovada_em, ...decisao } = api;
+  return {
+    ...decisao,
+    ...(aprovada_por ? { aprovadaPor: aprovada_por } : {}),
+    ...(aprovada_em ? { aprovadaEm: aprovada_em } : {}),
+  };
+}
 
 /**
  * O saldo do extrato (backend #118), em `GET /extratos`, `GET /extratos/{id}` e na raiz de
@@ -91,6 +108,8 @@ export function adaptarSaldo(api: CamposDeSaldoAPI): SaldoDoExtrato | null | und
 
 export type ListaConciliacaoAPI = CamposDeSaldoAPI & {
   extrato_id: string;
+  /** Justificativas esperando aprovação nesta conciliação (backend #132); ausente antes dele. */
+  aguardando_aprovacao?: number;
   total: number;
   limit: number;
   offset: number;
@@ -186,7 +205,7 @@ export function adaptarLinha(item: ItemConciliacaoAPI): LinhaComparacao {
     // só com `true` a tela marca como gerada por IA, como no POST /explicacoes
     explicacaoPorIa: doBackend !== null && item.gerada_por_ia === true,
     // só com a chave no item: sem ela, o backend não guarda decisões e a tela não oferece
-    ...("decisao" in item ? { decisao: item.decisao ?? null } : {}),
+    ...("decisao" in item ? { decisao: item.decisao ? adaptarDecisao(item.decisao) : null } : {}),
     ...(item.eventos ? { eventos: item.eventos } : {}),
     // O backend não guarda linha do tempo por lançamento; o histórico do detalhe
     // fica vazio até existir (nada de inventar evento que ninguém registrou).
@@ -228,6 +247,8 @@ export function adaptarConciliacao(
     status: "em_andamento",
     linhas,
     ...(saldo !== undefined && { saldo }),
+    // a contagem do backend vale mais que as linhas da tela: ela conta a conciliação inteira
+    aguardandoAprovacao: lista.aguardando_aprovacao ?? linhas.filter((linha) => aguardaAprovacao(linha.decisao)).length,
   };
 }
 
@@ -276,6 +297,8 @@ export type ExecucaoAPI = {
      * Proposta ao backend: ausente enquanto ele não guarda decisões.
      */
     justificadas?: number;
+    /** Justificativas esperando aprovação (backend #132); `justificadas` passa a contar só as aprovadas. */
+    aguardando_aprovacao?: number;
   };
   /** Decimal (0 a 100, duas casas) — o Pydantic manda como string. Null sem lançamentos. */
   percentual_acerto: string | number | null;
@@ -315,6 +338,8 @@ export type Execucao = {
   atual: boolean;
   /** Das divergências, quantas estão justificadas: liberam o fechamento sem contar como batidas. */
   justificadas: number;
+  /** Justificativas esperando o admin ou o gestor aprovar; seguram o fechamento do mês. Ausente = 0. */
+  aguardandoAprovacao?: number;
   /**
    * A primeira data do extrato do banco (AAAA-MM-DD), a mesma em todas as rodadas dele: o mês
    * dela é o mês da conciliação, no fechamento do backend e em todas as telas. Null sem período.
@@ -361,6 +386,7 @@ export function adaptarExecucao(item: ExecucaoAPI): Execucao {
     toleranciaDias: item.tolerancia_dias,
     atual: item.atual,
     justificadas: item.contagens.justificadas ?? 0,
+    aguardandoAprovacao: item.contagens.aguardando_aprovacao ?? 0,
     periodoInicio: item.periodo_inicio ?? null,
   };
 }
@@ -380,6 +406,8 @@ export type ResumoFechamentoAPI = {
   }[];
   contagens: Record<StatusLinha | "total", number>;
   justificadas: number;
+  /** Ausente no resumo gravado antes do backend #132. */
+  aguardando_aprovacao?: number;
   pendentes: number;
   linhas_nao_lidas: number;
   valor_em_aberto: string;
@@ -395,6 +423,8 @@ export type ResumoDoFechamento = {
   }[];
   contagens: Record<StatusLinha | "total", number>;
   justificadas: number;
+  /** Ausente = 0. */
+  aguardandoAprovacao?: number;
   pendentes: number;
   linhasNaoLidas: number;
   /** Em reais. */
@@ -413,6 +443,7 @@ export function adaptarResumoDoFechamento(resumo: ResumoFechamentoAPI): ResumoDo
     })),
     contagens: resumo.contagens,
     justificadas: resumo.justificadas,
+    aguardandoAprovacao: resumo.aguardando_aprovacao ?? 0,
     pendentes: resumo.pendentes,
     linhasNaoLidas: resumo.linhas_nao_lidas,
     valorEmAberto: Number.isFinite(valor) ? valor : 0,
@@ -479,6 +510,8 @@ export type ItemExtratoAPI = CamposDeSaldoAPI & {
   enviado_em: string;
   /** Já entrou em alguma conciliação, como extrato do banco ou do sistema. */
   conciliado: boolean;
+  /** O original está guardado e pode ser baixado (backend #139, plano avançado); false com a flag desligada. */
+  arquivo_original?: boolean;
 };
 
 export type ListaExtratosAPI = {
@@ -559,20 +592,63 @@ export function formatarDia(iso: string): string {
   return DIA_EM_BRASILIA.format(new Date(iso));
 }
 
-/** Uma pessoa da empresa (`GET /empresa/usuarios`, backend #69). */
-export type PessoaAPI = { id: string; nome: string; email: string; administrador: boolean; criado_em: string };
-export type Pessoa = { id: string; nome: string; email: string; administrador: boolean };
+/** Uma pessoa da empresa (`GET /empresa/usuarios`, backend #69; o `papel` veio com o #133). */
+export type PessoaAPI = { id: string; nome: string; email: string; papel?: string; administrador?: boolean; criado_em: string };
+export type Pessoa = { id: string; nome: string; email: string; papel: Papel };
 
 export function adaptarPessoa(api: PessoaAPI): Pessoa {
-  return { id: api.id, nome: api.nome, email: api.email, administrador: api.administrador };
+  return { id: api.id, nome: api.nome, email: api.email, papel: lerPapel(api) };
 }
 
-/** Um convite pendente (`GET`/`POST /empresa/convites`). */
-export type ConviteAPI = { id: string; email: string; criado_em: string; expira_em: string };
-export type Convite = { id: string; email: string; enviadoEm: string; valeAte: string };
+/** Uma empresa cliente da conta (`GET`/`POST /empresas`, backend #133); `cnpj_verificado_em` é a data da consulta à Receita, nula sem ela. */
+/** A situação do mês mais recente da empresa (backend #157): fechado, em aberto ou nunca conciliou. */
+export type SituacaoDaEmpresa = "em_aberto" | "fechado" | "sem_conciliacao";
+const SITUACOES_DA_EMPRESA: readonly string[] = ["em_aberto", "fechado", "sem_conciliacao"];
+
+export type EmpresaClienteAPI = {
+  id: string;
+  razao_social: string;
+  cnpj: string;
+  cnpj_verificado_em: string | null;
+  criado_em: string;
+  favorita?: boolean;
+  status?: string;
+};
+/** `favorita` e `situacao` só existem com o backend #157; antes dele, a lista não os traz. */
+export type EmpresaCliente = {
+  id: string;
+  razaoSocial: string;
+  cnpj: string;
+  cnpjVerificado: boolean;
+  criadaEm: string;
+  favorita?: boolean;
+  situacao?: SituacaoDaEmpresa;
+};
+
+export function adaptarEmpresaCliente(api: EmpresaClienteAPI): EmpresaCliente {
+  return {
+    id: api.id,
+    razaoSocial: api.razao_social.trim(),
+    cnpj: api.cnpj,
+    cnpjVerificado: Boolean(api.cnpj_verificado_em),
+    criadaEm: api.criado_em,
+    ...(typeof api.favorita === "boolean" && { favorita: api.favorita }),
+    ...(api.status !== undefined && SITUACOES_DA_EMPRESA.includes(api.status) && { situacao: api.status as SituacaoDaEmpresa }),
+  };
+}
+
+/** Um convite pendente (`GET`/`POST /empresa/convites`); o `papel` é o dado no convite (#133), ausente antes dele. */
+export type ConviteAPI = { id: string; email: string; papel?: string; criado_em: string; expira_em: string };
+export type Convite = { id: string; email: string; papel: Papel | null; enviadoEm: string; valeAte: string };
 
 export function adaptarConvite(api: ConviteAPI): Convite {
-  return { id: api.id, email: api.email, enviadoEm: formatarDia(api.criado_em), valeAte: formatarDia(api.expira_em) };
+  return {
+    id: api.id,
+    email: api.email,
+    papel: ehPapel(api.papel) ? api.papel : null,
+    enviadoEm: formatarDia(api.criado_em),
+    valeAte: formatarDia(api.expira_em),
+  };
 }
 
 /** O que a página do convite mostra antes de pedir qualquer coisa (`POST /convites/consultar`). */

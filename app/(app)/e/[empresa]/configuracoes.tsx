@@ -1,0 +1,925 @@
+"use client";
+
+import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from "react";
+import Link from "@/lib/link-do-app";
+import {
+  ArrowLeftRight,
+  Info,
+  KeyRound,
+  Keyboard,
+  PlugZap,
+  Palette,
+  Search,
+  ShieldCheck,
+  UserRound,
+  X,
+  type LucideIcon,
+} from "lucide-react";
+import { desativarConta, trocarEmail, trocarSenha, type ResultadoConta } from "../../../(auth)/acoes";
+import { MensagemErro } from "../../../(auth)/_compartilhado/mensagem-erro";
+import { EMAIL_VALIDO, MENSAGEM_EMAIL_INCOMPLETO } from "../../../(auth)/_compartilhado/validacao";
+import { SENHA_MINIMA } from "../../../(auth)/cadastro/passos";
+import {
+  carregarRegras,
+  salvarToleranciaDias,
+  toleranciaDaUltimaConciliacao,
+  type RegrasDaEmpresa,
+  type Resultado,
+} from "./conciliacoes/acoes";
+import { formatarDataHora } from "./dashboard/resumo";
+import { aplicarDensidade, densidadeAtual, type Densidade } from "./densidade";
+import { alternarMenu, menuRecolhido } from "./menu";
+import { aplicarTema, escolhaDeTema, seguirSistema, temaDoSistema, type EscolhaDeTema, type Tema } from "./tema";
+import { useTeclaDeAtalho } from "@/lib/plataforma";
+import { podeFecharMes, type Papel } from "@/lib/papel";
+import { PainelDeChavesApi } from "./chaves-api/painel";
+import { carregarConexoesMcp, type ConexaoMcp } from "./conexoes-mcp/acoes";
+import { PainelDeConexoes } from "./conexoes-mcp/painel";
+import { Tutorial } from "./tutorial/tutorial";
+
+/**
+ * As configurações, numa janela no meio da tela (como a do Claude): seções à
+ * esquerda, com busca, e o conteúdo à direita. `<dialog>` nativo com
+ * `showModal()`, que já prende o foco, fecha no Esc e devolve o foco ao sair.
+ *
+ * Só entra o que funciona de verdade: o que é preferência deste navegador (tema,
+ * densidade, menu) muda na hora; o que é do backend aparece como ele está, e só
+ * ganha controle quando ele guarda: a tolerância de data é ajustada pela
+ * `PUT /empresa/configuracoes` (backend #85); sem a rota, fica para leitura.
+ */
+
+/** `chave` quando o título pode se repetir (duas linhas com o mesmo título). */
+type Linha = { chave?: string; titulo: string; descricao?: string; controle?: ReactNode };
+
+type Secao = {
+  id: string;
+  nome: string;
+  icone: LucideIcon;
+  grupo: "Configurações" | "Ledgr";
+  linhas: Linha[];
+  /** O que não cabe em linhas de título e controle (a lista de chaves da API), embaixo delas. */
+  conteudo?: ReactNode;
+};
+
+const NOTA_TEMA: Record<EscolhaDeTema, string> = {
+  claro: "Modo claro, como no papel.",
+  escuro: "Modo escuro em todas as telas. Poupa a vista nos fechamentos de fim de noite.",
+  sistema: "Segue o tema do seu computador, e troca junto com ele.",
+};
+
+function Segmentado<T extends string>({
+  rotulo,
+  opcoes,
+  valor,
+  onEscolher,
+}: {
+  rotulo: string;
+  opcoes: { id: T; rotulo: string }[];
+  valor: T;
+  onEscolher: (valor: T) => void;
+}) {
+  return (
+    <div className="pills segmentado" role="group" aria-label={rotulo}>
+      {opcoes.map((opcao) => (
+        <button
+          key={opcao.id}
+          type="button"
+          className="pill"
+          aria-pressed={valor === opcao.id}
+          onClick={() => onEscolher(opcao.id)}
+        >
+          {opcao.rotulo}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+type CampoDaConta = { id: string; rotulo: string; tipo: "email" | "password"; autoComplete: string };
+
+const SENHA_ATUAL: CampoDaConta = {
+  id: "senha_atual",
+  rotulo: "Senha atual",
+  tipo: "password",
+  autoComplete: "current-password",
+};
+
+/**
+ * Trocar e-mail, trocar senha, excluir a conta: um botão que abre o formulário
+ * na própria linha, embaixo do texto. Tudo pede a senha atual, e o erro que
+ * aparece é o do servidor (senha errada, e-mail já usado, rota que ainda não
+ * existe) — nada finge que salvou.
+ */
+function AcaoDaConta({
+  abrir,
+  confirmar,
+  campos,
+  aviso,
+  perigo = false,
+  feito,
+  validar,
+  enviar,
+  children,
+}: {
+  abrir: string;
+  confirmar: string;
+  campos: CampoDaConta[];
+  aviso?: string;
+  perigo?: boolean;
+  /** A confirmação que fica na linha depois de salvar. */
+  feito?: string;
+  validar?: (valores: Record<string, string>) => string | null;
+  enviar: (valores: Record<string, string>) => Promise<ResultadoConta>;
+  /** O que fica ao lado do botão enquanto o formulário está fechado (o e-mail atual). */
+  children?: ReactNode;
+}) {
+  const [aberto, setAberto] = useState(false);
+  const [valores, setValores] = useState<Record<string, string>>({});
+  const [erro, setErro] = useState("");
+  const [enviando, setEnviando] = useState(false);
+  const [salvo, setSalvo] = useState(false);
+  const botaoAbrir = useRef<HTMLButtonElement>(null);
+  const erroId = useId();
+  const classeBotao = perigo ? "btn btn-perigo" : "btn btn-secondary";
+
+  function fechar() {
+    setAberto(false);
+    setValores({});
+    setErro("");
+    // o botão volta no lugar do formulário: o foco vai para ele, não para o <body>
+    requestAnimationFrame(() => botaoAbrir.current?.focus());
+  }
+
+  async function enviarFormulario(evento: FormEvent) {
+    evento.preventDefault();
+    const problema = campos.some((campo) => !valores[campo.id]?.trim())
+      ? "Preencha todos os campos."
+      : (validar?.(valores) ?? null);
+    if (problema) {
+      setErro(problema);
+      return;
+    }
+    setEnviando(true);
+    setErro("");
+    const resultado = await enviar(valores).catch(
+      // a action nem chegou ao servidor (rede caiu, deploy novo no meio)
+      (): ResultadoConta => ({ ok: false, erro: "Não foi possível salvar agora. Tente de novo em instantes." }),
+    );
+    setEnviando(false);
+    if (!resultado.ok) {
+      setErro(resultado.erro);
+      return;
+    }
+    setSalvo(true);
+    fechar();
+  }
+
+  if (!aberto) {
+    return (
+      <div className="cfg-acao">
+        {salvo && feito ? (
+          <span className="cfg-feito" role="status">
+            {feito}
+          </span>
+        ) : (
+          children
+        )}
+        <button
+          ref={botaoAbrir}
+          type="button"
+          className={classeBotao}
+          onClick={() => {
+            setSalvo(false);
+            setAberto(true);
+          }}
+        >
+          {abrir}
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <form className="cfg-form" onSubmit={enviarFormulario} noValidate aria-label={abrir}>
+      {aviso && <p className="cfg-form-aviso">{aviso}</p>}
+      {campos.map((campo, indice) => (
+        <div key={campo.id} className="field">
+          <label htmlFor={`cfg-${campo.id}`}>{campo.rotulo}</label>
+          <input
+            id={`cfg-${campo.id}`}
+            className="input"
+            type={campo.tipo}
+            autoComplete={campo.autoComplete}
+            // abriu porque a pessoa pediu: o foco vai para onde ela vai digitar
+            autoFocus={indice === 0}
+            // o erro é do formulário (senha errada, rota que não existe), não de um campo: sem borda vermelha
+            aria-describedby={erro ? erroId : undefined}
+            disabled={enviando}
+            value={valores[campo.id] ?? ""}
+            onChange={(evento) => setValores((atuais) => ({ ...atuais, [campo.id]: evento.target.value }))}
+          />
+        </div>
+      ))}
+      {erro && <MensagemErro id={erroId}>{erro}</MensagemErro>}
+      <div className="cfg-form-botoes">
+        <button type="submit" className={perigo ? "btn btn-perigo" : "btn btn-primary"} disabled={enviando}>
+          {enviando ? "Salvando…" : confirmar}
+        </button>
+        <button type="button" className="btn btn-secondary" onClick={fechar} disabled={enviando}>
+          Cancelar
+        </button>
+      </div>
+    </form>
+  );
+}
+
+function validarSenhaNova(valores: Record<string, string>): string | null {
+  const nova = valores.senha_nova;
+  if (nova.length < SENHA_MINIMA) return `A senha nova precisa ter pelo menos ${SENHA_MINIMA} caracteres.`;
+  // o bcrypt do backend corta em 72 bytes; acento conta 2
+  if (new TextEncoder().encode(nova).length > 72) return "Senha longa demais. Use no máximo 72 caracteres.";
+  if (nova !== valores.senha_confirmacao) return "A confirmação não bate com a senha nova.";
+  return null;
+}
+
+/** As regras da empresa na janela: lidas na primeira vez que ela abre. */
+type EstadoDasRegras =
+  | { situacao: "prontas"; regras: RegrasDaEmpresa }
+  /** O backend sem `GET /empresa/configuracoes`: a tolerância da última conciliação, para leitura. */
+  | { situacao: "sem-rota" }
+  | { situacao: "falhou" };
+
+function estadoDasRegras(resposta: Resultado<RegrasDaEmpresa>): EstadoDasRegras {
+  if (resposta.ok) return { situacao: "prontas", regras: resposta.dados };
+  return resposta.status === 404 || resposta.status === 405 ? { situacao: "sem-rota" } : { situacao: "falhou" };
+}
+
+/** A confirmação ao salvar repete o valor nos dois sentidos: "1 dia" sozinho soa como só para frente. */
+function toleranciaSalva(dias: number): string {
+  const regra = dias === 0 ? "só no mesmo dia" : `até ${dias} ${dias === 1 ? "dia" : "dias"} para mais ou para menos`;
+  return `Tolerância salva: ${regra}. Vale a partir da próxima conciliação; as que já rodaram continuam com a de quando rodaram.`;
+}
+
+/**
+ * A tolerância de data, de 0 ao máximo que o backend diz, com − e +. Salvar é por botão, que só
+ * aparece com alguma mudança; "Descartar" volta ao valor salvo.
+ */
+function ToleranciaEditavel({
+  regras,
+  onSalvas,
+}: {
+  regras: RegrasDaEmpresa;
+  onSalvas: (regras: RegrasDaEmpresa) => void;
+}) {
+  const [texto, setTexto] = useState(String(regras.toleranciaDias));
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+  const [salvas, setSalvas] = useState(false);
+  const maximo = regras.toleranciaDiasMaximo;
+  const dias = texto.trim() === "" ? Number.NaN : Number(texto);
+  const valido = Number.isInteger(dias) && dias >= 0 && dias <= maximo;
+  const mudou = texto !== String(regras.toleranciaDias);
+  const limite = `Escolha de 0 a ${maximo} dias.`;
+
+  function mudar(proximo: string) {
+    setTexto(proximo);
+    setErro(null);
+    setSalvas(false);
+  }
+
+  async function salvar() {
+    setSalvando(true);
+    setErro(null);
+    let resposta: Resultado<RegrasDaEmpresa>;
+    try {
+      resposta = await salvarToleranciaDias(dias);
+    } catch {
+      // a Server Action lançou (rede caída, deploy novo no meio) em vez de devolver um Resultado
+      resposta = { ok: false, status: 0, erro: "Não foi possível falar com o servidor." };
+    }
+    setSalvando(false);
+    if (resposta.ok) {
+      onSalvas(resposta.dados);
+      setTexto(String(resposta.dados.toleranciaDias));
+      setSalvas(true);
+      return;
+    }
+    // o 422 é o valor fora do limite do backend: diz o limite, não "confira os campos"
+    setErro(resposta.status === 422 ? limite : resposta.erro);
+  }
+
+  return (
+    <div className="cfg-acao">
+      <div className="cfg-numero">
+        <button
+          type="button"
+          className="cfg-numero-botao"
+          aria-label="Um dia a menos"
+          disabled={salvando || !valido || dias <= 0}
+          onClick={() => mudar(String(dias - 1))}
+        >
+          −
+        </button>
+        <span className="cfg-numero-unidade" aria-hidden="true">
+          ±
+        </span>
+        <input
+          type="number"
+          className="input cfg-numero-campo"
+          aria-label="Tolerância de data, em dias para mais ou para menos"
+          min={0}
+          max={maximo}
+          step={1}
+          inputMode="numeric"
+          value={texto}
+          disabled={salvando}
+          onChange={(evento) => mudar(evento.target.value)}
+        />
+        <span className="cfg-numero-unidade">{dias === 1 ? "dia" : "dias"}</span>
+        <button
+          type="button"
+          className="cfg-numero-botao"
+          aria-label="Um dia a mais"
+          disabled={salvando || !valido || dias >= maximo}
+          onClick={() => mudar(String(dias + 1))}
+        >
+          +
+        </button>
+      </div>
+      {/* numa linha embaixo: ao lado, eles empurrariam o − e o + para a esquerda no primeiro clique,
+          e o segundo cairia fora do botão */}
+      {mudou && (
+        <div className="cfg-numero-botoes">
+          <button type="button" className="btn btn-primary" disabled={salvando || !valido} onClick={() => void salvar()}>
+            Salvar
+          </button>
+          <button type="button" className="btn btn-ghost" disabled={salvando} onClick={() => mudar(String(regras.toleranciaDias))}>
+            Descartar
+          </button>
+        </div>
+      )}
+      {!valido && texto.trim() !== "" && <p className="cfg-numero-aviso">{limite}</p>}
+      {erro && (
+        <p role="alert" className="cfg-numero-aviso">
+          {erro}
+        </p>
+      )}
+      {salvas && (
+        <p role="status" className="cfg-feito cfg-numero-aviso">
+          {toleranciaSalva(regras.toleranciaDias)}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/** A frase da linha da tolerância: o que ela faz, o limite e quem mudou por último. */
+function descricaoDaTolerancia(regras: RegrasDaEmpresa): string {
+  const base = `Até quantos dias de diferença, para mais ou para menos, dois lançamentos de mesmo valor ainda casam, de 0 a ${regras.toleranciaDiasMaximo} dias. Vale a partir da próxima conciliação.`;
+  return regras.atualizadoPor && regras.atualizadoEm
+    ? `${base} Alterada por ${regras.atualizadoPor} em ${formatarDataHora(regras.atualizadoEm)}.`
+    : base;
+}
+
+function Tecla({ children }: { children: ReactNode }) {
+  return <kbd className="cfg-tecla">{children}</kbd>;
+}
+
+/** Sem acento e em minúsculas: "configuracao" acha "Configuração". */
+function normalizar(texto: string): string {
+  return texto.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+}
+
+function tolerancia(dias: number | null | undefined): string {
+  if (dias === undefined) return "Carregando…";
+  if (dias === null) return "Sem conciliação ainda";
+  if (dias === 0) return "Mesmo dia";
+  return `± ${dias} ${dias === 1 ? "dia" : "dias"}`;
+}
+
+export function Configuracoes({
+  aberta,
+  secao: secaoPedida,
+  onFechar,
+  email,
+  temSenha,
+  papel = "admin",
+  onSair,
+  onTema,
+}: {
+  aberta: boolean;
+  /** A seção para abrir, quando quem abre pede uma (o roteiro da Visão geral pede "conciliacao"). */
+  secao?: string;
+  onFechar: () => void;
+  email: string;
+  /** Falso na conta que só entra pelo Google (`metodos_login` do `GET /me`): não há senha para trocar. */
+  temSenha: boolean;
+  /** O papel de quem está logado: decide o texto de "Desativar conta". */
+  papel?: Papel;
+  onSair: () => void;
+  /** Avisa o menu lateral, que mostra o botão de tema com o ícone do tema atual. */
+  onTema: (tema: Tema) => void;
+}) {
+  const dialogo = useRef<HTMLDialogElement>(null);
+  const [secaoId, setSecaoId] = useState("aparencia");
+  const [busca, setBusca] = useState("");
+  const [tema, setTema] = useState<EscolhaDeTema>("sistema");
+  const [densidade, setDensidade] = useState<Densidade>("compacta");
+  const [recolhido, setRecolhido] = useState(false);
+  const [toleranciaDias, setToleranciaDias] = useState<number | null | undefined>(undefined);
+  // undefined até a janela abrir pela primeira vez (e de novo no "Tentar de novo")
+  const [regras, setRegras] = useState<EstadoDasRegras | undefined>(undefined);
+  // as conexões com o ChatGPT e o Claude (#195): null enquanto não se sabe, ou quando o backend está com a
+  // conexão desligada (404) ou falhou; só com a lista na mão a seção aparece
+  const [conexoes, setConexoes] = useState<{ itens: ConexaoMcp[]; endereco: string | null } | null>(null);
+  const [conexoesLidas, setConexoesLidas] = useState(false);
+  const gerencia = podeFecharMes(papel);
+  const ctrl = useTeclaDeAtalho();
+
+  useEffect(() => {
+    const elemento = dialogo.current;
+    if (!elemento) return;
+    if (aberta && !elemento.open) {
+      // as preferências podem ter mudado por fora (o botão de tema, o Ctrl+B)
+      setTema(escolhaDeTema());
+      setDensidade(densidadeAtual());
+      setRecolhido(menuRecolhido());
+      // a seção pedida vale no momento em que a janela abre; depois a pessoa navega à vontade
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (secaoPedida) setSecaoId(secaoPedida);
+      if (typeof elemento.showModal === "function") elemento.showModal();
+      else elemento.setAttribute("open", "");
+    }
+    if (!aberta && elemento.open) {
+      if (typeof elemento.close === "function") elemento.close();
+      else elemento.removeAttribute("open");
+    }
+  }, [aberta, secaoPedida]);
+
+  // as regras são do backend: busca na primeira vez que a janela abre
+  useEffect(() => {
+    if (!aberta || regras !== undefined) return;
+    carregarRegras().then(
+      (resposta) => setRegras(estadoDasRegras(resposta)),
+      () => setRegras({ situacao: "falhou" }),
+    );
+  }, [aberta, regras]);
+
+  useEffect(() => {
+    if (!aberta || !gerencia || conexoesLidas) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setConexoesLidas(true);
+    carregarConexoesMcp().then(
+      (resposta) => setConexoes(resposta.ok ? resposta.dados : null),
+      () => setConexoes(null),
+    );
+  }, [aberta, gerencia, conexoesLidas]);
+
+  // sem a rota das configurações, a tolerância que se mostra é a da última conciliação
+  useEffect(() => {
+    if (regras?.situacao !== "sem-rota" || toleranciaDias !== undefined) return;
+    toleranciaDaUltimaConciliacao()
+      .then(setToleranciaDias)
+      .catch(() => setToleranciaDias(null));
+  }, [regras, toleranciaDias]);
+
+  function escolherTema(escolha: EscolhaDeTema) {
+    if (escolha === "sistema") seguirSistema();
+    else aplicarTema(escolha);
+    setTema(escolha);
+    onTema(escolha === "sistema" ? temaDoSistema() : escolha);
+  }
+
+  function escolherDensidade(proxima: Densidade) {
+    aplicarDensidade(proxima);
+    setDensidade(proxima);
+  }
+
+  function escolherMenu(quer: boolean) {
+    if (menuRecolhido() !== quer) alternarMenu();
+    setRecolhido(quer);
+  }
+
+  const secoes: Secao[] = [
+    {
+      id: "conta",
+      nome: "Conta",
+      icone: UserRound,
+      grupo: "Configurações",
+      linhas: [
+        temSenha
+          ? {
+              titulo: "E-mail",
+              descricao:
+                "É com ele que você entra no Ledgr. Ao trocar, mandamos um link para o e-mail novo, e a troca só vale quando você abrir esse link.",
+              controle: (
+                <AcaoDaConta
+                  abrir="Trocar e-mail"
+                  confirmar="Enviar link"
+                  feito="Link enviado ao e-mail novo. Abra para confirmar."
+                  campos={[
+                    { id: "email_novo", rotulo: "E-mail novo", tipo: "email", autoComplete: "email" },
+                    SENHA_ATUAL,
+                  ]}
+                  validar={(valores) => (EMAIL_VALIDO.test(valores.email_novo.trim()) ? null : MENSAGEM_EMAIL_INCOMPLETO)}
+                  enviar={(valores) => trocarEmail(valores.email_novo, valores.senha_atual)}
+                >
+                  <span className="cfg-valor">{email}</span>
+                </AcaoDaConta>
+              ),
+            }
+          : {
+              // o backend recusa a troca na conta só do Google (#149): o e-mail é o da conta Google
+              titulo: "E-mail",
+              descricao: "É o da sua conta Google, com a qual você entra no Ledgr.",
+              controle: <span className="cfg-valor">{email}</span>,
+            },
+        ...(temSenha
+          ? [
+              {
+                titulo: "Senha",
+                descricao: "Troque quando quiser, e na hora se desconfiar que mais alguém sabe.",
+                controle: (
+                  <AcaoDaConta
+                    abrir="Trocar senha"
+                    confirmar="Trocar senha"
+                    feito="Senha trocada."
+                    campos={[
+                      SENHA_ATUAL,
+                      { id: "senha_nova", rotulo: "Senha nova", tipo: "password", autoComplete: "new-password" },
+                      {
+                        id: "senha_confirmacao",
+                        rotulo: "Repita a senha nova",
+                        tipo: "password",
+                        autoComplete: "new-password",
+                      },
+                    ]}
+                    validar={validarSenhaNova}
+                    enviar={(valores) => trocarSenha(valores.senha_atual, valores.senha_nova)}
+                  />
+                ),
+              },
+            ]
+          : []),
+        {
+          titulo: "Sessão",
+          descricao:
+            "Vale por 7 dias. Com “Manter sessão ativa” desmarcado no login, termina quando o navegador fecha.",
+        },
+        {
+          titulo: "Sair desta conta",
+          descricao: "Encerra a sessão neste navegador.",
+          controle: (
+            <button type="button" className="btn btn-secondary" onClick={onSair}>
+              Sair
+            </button>
+          ),
+        },
+        {
+          titulo: "Desativar conta",
+          descricao: papel === "admin"
+            ? "Tira o seu acesso ao Ledgr e libera o seu e-mail. Se há outras pessoas na equipe, passe antes a administração para uma delas em Empresas › Equipe (Tornar administrador)."
+            : "Tira o seu acesso ao Ledgr e libera o seu e-mail. O que você conferiu e justificou continua no histórico da empresa, com o seu nome.",
+          controle: (
+            <AcaoDaConta
+              abrir="Desativar conta"
+              confirmar="Desativar minha conta"
+              perigo
+              aviso="Você sai na hora e não entra mais nesta conta. Os dados da empresa continuam guardados até a exclusão ser pedida."
+              campos={temSenha ? [SENHA_ATUAL] : []}
+              enviar={(valores) => desativarConta(temSenha ? valores.senha_atual : null)}
+            />
+          ),
+        },
+        {
+          titulo: "Excluir os dados da empresa",
+          descricao:
+            "Apaga os extratos, as conciliações e o histórico da empresa no Ledgr. É feito a pedido, por e-mail, a partir do e-mail da conta.",
+          controle: (
+            <a href="mailto:ledgrtech@gmail.com?subject=Excluir%20dados%20da%20empresa" className="btn btn-secondary">
+              Pedir por e-mail
+            </a>
+          ),
+        },
+      ],
+    },
+    {
+      id: "aparencia",
+      nome: "Aparência",
+      icone: Palette,
+      grupo: "Configurações",
+      linhas: [
+        {
+          titulo: "Tema",
+          descricao: NOTA_TEMA[tema],
+          controle: (
+            <Segmentado
+              rotulo="Tema"
+              valor={tema}
+              onEscolher={escolherTema}
+              opcoes={[
+                { id: "claro", rotulo: "Claro" },
+                { id: "escuro", rotulo: "Escuro" },
+                { id: "sistema", rotulo: "Sistema" },
+              ]}
+            />
+          ),
+        },
+        {
+          titulo: "Densidade das tabelas",
+          descricao: "Compacta deixa as linhas mais baixas, para ver mais lançamentos de uma vez.",
+          controle: (
+            <Segmentado
+              rotulo="Densidade das tabelas"
+              valor={densidade}
+              onEscolher={escolherDensidade}
+              opcoes={[
+                { id: "padrao", rotulo: "Padrão" },
+                { id: "compacta", rotulo: "Compacta" },
+              ]}
+            />
+          ),
+        },
+        {
+          titulo: "Menu lateral",
+          descricao: `Recolhido, o menu mostra só os ícones. Atalho: ${ctrl}+B.`,
+          controle: (
+            <Segmentado
+              rotulo="Menu lateral"
+              valor={recolhido ? "recolhido" : "aberto"}
+              onEscolher={(valor) => escolherMenu(valor === "recolhido")}
+              opcoes={[
+                { id: "aberto", rotulo: "Aberto" },
+                { id: "recolhido", rotulo: "Recolhido" },
+              ]}
+            />
+          ),
+        },
+      ],
+    },
+    {
+      id: "conciliacao",
+      nome: "Conciliação",
+      icone: ArrowLeftRight,
+      grupo: "Configurações",
+      linhas: [
+        regras?.situacao === "prontas"
+          ? {
+              titulo: "Tolerância de data",
+              descricao: descricaoDaTolerancia(regras.regras),
+              controle: (
+                <ToleranciaEditavel
+                  regras={regras.regras}
+                  onSalvas={(salvas) => setRegras({ situacao: "prontas", regras: salvas })}
+                />
+              ),
+            }
+          : regras?.situacao === "falhou"
+            ? {
+                titulo: "Tolerância de data",
+                descricao: "Até quantos dias de diferença, para mais ou para menos, dois lançamentos de mesmo valor ainda casam.",
+                controle: (
+                  <div className="cfg-acao">
+                    <span className="cfg-valor">Não foi possível carregar agora.</span>
+                    <button type="button" className="btn btn-secondary" onClick={() => setRegras(undefined)}>
+                      Tentar de novo
+                    </button>
+                  </div>
+                ),
+              }
+            : {
+                titulo: "Tolerância de data",
+                descricao:
+                  "Quantos dias de diferença, para mais ou para menos, o motor aceita para casar dois lançamentos de mesmo valor. É a da última conciliação; ajustar por aqui chega quando o backend tiver a rota das configurações da empresa.",
+                // carregando as regras, ou o backend sem a rota: a da última conciliação, para leitura
+                controle: (
+                  <span className="cfg-valor">
+                    {regras === undefined ? "Carregando…" : tolerancia(toleranciaDias)}
+                  </span>
+                ),
+              },
+        {
+          titulo: "Fonte da verdade",
+          descricao:
+            "O extrato do banco é sempre a fonte da verdade. Toda divergência aparece como “o sistema diverge do banco”.",
+          controle: <span className="cfg-valor">Extrato do banco</span>,
+        },
+        {
+          titulo: "Explicações por IA",
+          descricao:
+            "São geradas ao conciliar, para cada divergência, e têm limite diário. A IA explica; quem decide é você.",
+        },
+      ],
+    },
+    // as chaves da API pública (#194) são do admin e do gestor: o analista nem vê a seção
+    ...(gerencia
+      ? [
+          {
+            id: "api",
+            nome: "API",
+            icone: KeyRound,
+            grupo: "Configurações" as const,
+            linhas: [
+              {
+                titulo: "Chaves da API",
+                descricao:
+                  "Para outro sistema ler as conciliações, as divergências e os fechamentos, sem descrição de lançamento nem justificativas. Só leitura; cada chave vale para uma empresa ou para todas.",
+              },
+            ],
+            conteudo: <PainelDeChavesApi />,
+          },
+        ]
+      : []),
+    ...(gerencia && conexoes
+      ? [
+          {
+            id: "conexoes",
+            nome: "Conexões",
+            icone: PlugZap,
+            grupo: "Configurações" as const,
+            linhas: [
+              {
+                titulo: "ChatGPT e Claude",
+                descricao:
+                  "Para perguntar ao seu assistente de IA sobre as conciliações de uma empresa. Cada conexão é autorizada pelo admin ou pelo gestor, lê uma empresa só e não muda nada no Ledgr.",
+              },
+            ],
+            conteudo: <PainelDeConexoes itens={conexoes.itens} endereco={conexoes.endereco} />,
+          },
+        ]
+      : []),
+    {
+      id: "atalhos",
+      nome: "Atalhos de teclado",
+      icone: Keyboard,
+      grupo: "Configurações",
+      linhas: [
+        { titulo: "Buscar valor, fornecedor ou data", controle: <span className="cfg-teclas"><Tecla>{ctrl}</Tecla><Tecla>K</Tecla></span> },
+        { titulo: "Recolher ou abrir o menu", controle: <span className="cfg-teclas"><Tecla>{ctrl}</Tecla><Tecla>B</Tecla></span> },
+        { titulo: "Abrir as configurações", controle: <span className="cfg-teclas"><Tecla>{ctrl}</Tecla><Tecla>,</Tecla></span> },
+        { titulo: "Fechar janelas e menus", controle: <span className="cfg-teclas"><Tecla>Esc</Tecla></span> },
+      ],
+    },
+    {
+      id: "privacidade",
+      nome: "Privacidade",
+      icone: ShieldCheck,
+      grupo: "Ledgr",
+      linhas: [
+        {
+          titulo: "Sessão protegida",
+          descricao:
+            "O acesso fica num cookie que a página não consegue ler, e o navegador nunca fala direto com o servidor do Ledgr: quem fala é o servidor do app.",
+        },
+        {
+          titulo: "Explicações por IA",
+          descricao:
+            "Com a IA ligada, a descrição dos lançamentos divergentes vai ao provedor de IA com e-mail, CNPJ, CPF, telefone e números longos mascarados.",
+        },
+      ],
+    },
+    {
+      id: "sobre",
+      nome: "Sobre",
+      icone: Info,
+      grupo: "Ledgr",
+      linhas: [
+        { titulo: "Ledgr", descricao: "Conciliação do extrato do banco com o do sistema de gestão." },
+        {
+          titulo: "Site",
+          controle: (
+            <Link href="/" className="btn btn-secondary" onClick={onFechar}>
+              Ver o site
+            </Link>
+          ),
+        },
+        {
+          titulo: "Contato",
+          controle: (
+            <a href="mailto:ledgrtech@gmail.com" className="cfg-link">
+              ledgrtech@gmail.com
+            </a>
+          ),
+        },
+      ],
+    },
+  ];
+
+  const termo = normalizar(busca.trim());
+  const achados = termo
+    ? secoes
+        .map((secao) => ({
+          ...secao,
+          linhas: secao.linhas.filter((linha) =>
+            normalizar(`${secao.nome} ${linha.titulo} ${linha.descricao ?? ""}`).includes(termo),
+          ),
+        }))
+        .filter((secao) => secao.linhas.length > 0)
+    : null;
+  const secao = secoes.find((item) => item.id === secaoId) ?? secoes[0];
+
+  return (
+    <dialog
+      ref={dialogo}
+      className="cfg"
+      aria-label="Configurações"
+      onClose={onFechar}
+      // o clique no fundo escuro cai no próprio <dialog>; dentro da janela, cai num filho
+      onClick={(evento) => evento.target === evento.currentTarget && onFechar()}
+    >
+      {/* fechada, a janela não tem conteúdo: nada dela fica no caminho do leitor de tela */}
+      {aberta && (
+        <div className="cfg-janela">
+          <aside className="cfg-lado">
+            <label className="cfg-busca">
+              <Search size={16} aria-hidden="true" />
+              <input
+                type="search"
+                placeholder="Procurar"
+                aria-label="Procurar nas configurações"
+                value={busca}
+                onChange={(evento) => setBusca(evento.target.value)}
+              />
+            </label>
+            {(["Configurações", "Ledgr"] as const).map((grupo) => (
+              <div key={grupo} className="cfg-grupo">
+                <p className="cfg-grupo-nome">{grupo}</p>
+                <nav aria-label={grupo}>
+                  {secoes
+                    .filter((item) => item.grupo === grupo)
+                    .map((item) => {
+                      const Icone = item.icone;
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          className="cfg-item"
+                          aria-current={!achados && item.id === secao.id ? "page" : undefined}
+                          onClick={() => {
+                            setSecaoId(item.id);
+                            setBusca("");
+                          }}
+                        >
+                          <Icone size={17} aria-hidden="true" />
+                          {item.nome}
+                        </button>
+                      );
+                    })}
+                </nav>
+              </div>
+            ))}
+          </aside>
+
+          <div className="cfg-conteudo">
+            <button type="button" className="cfg-fechar" aria-label="Fechar configurações" onClick={onFechar}>
+              <X size={18} aria-hidden="true" />
+            </button>
+
+            {achados === null ? (
+              <section aria-labelledby="cfg-secao">
+                <h2 id="cfg-secao" className="cfg-titulo">
+                  {secao.nome}
+                </h2>
+                <Linhas linhas={secao.linhas} />
+                {secao.conteudo}
+                {/* dentro da janela, para ficar na camada de cima com ela; só com ela aberta, ou o "?"
+                    da barra do topo abriria este também, escondido na janela fechada */}
+                {aberta && secao.id === "conciliacao" && <Tutorial tela="configuracoes" />}
+              </section>
+            ) : achados.length === 0 ? (
+              <p className="cfg-vazio">{`Nada encontrado para “${busca.trim()}”.`}</p>
+            ) : (
+              achados.map((item) => (
+                <section key={item.id} aria-labelledby={`cfg-achado-${item.id}`} className="cfg-achado">
+                  <h2 id={`cfg-achado-${item.id}`} className="cfg-titulo">
+                    {item.nome}
+                  </h2>
+                  <Linhas linhas={item.linhas} />
+                </section>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </dialog>
+  );
+}
+
+/** As linhas que o tutorial do mascote destaca nas Configurações (tutorial/roteiros.ts). */
+const ALVO_DA_LINHA: Record<string, string> = { "Tolerância de data": "tolerancia", "Fonte da verdade": "fonte-da-verdade" };
+
+function Linhas({ linhas }: { linhas: Linha[] }) {
+  return (
+    <ul className="cfg-linhas">
+      {linhas.map((linha) => (
+        <li key={linha.chave ?? linha.titulo} className="cfg-linha" data-tutorial={ALVO_DA_LINHA[linha.titulo]}>
+          <div className="cfg-linha-texto">
+            <span className="cfg-linha-titulo">{linha.titulo}</span>
+            {linha.descricao && <span className="cfg-linha-descricao">{linha.descricao}</span>}
+          </div>
+          {linha.controle && <div className="cfg-linha-controle">{linha.controle}</div>}
+        </li>
+      ))}
+    </ul>
+  );
+}
