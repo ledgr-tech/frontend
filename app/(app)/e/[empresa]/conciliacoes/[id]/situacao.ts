@@ -39,18 +39,21 @@ export function decisoesLigadas(conciliacao: Conciliacao, real: boolean): boolea
   return !real || conciliacao.linhas.some((linha) => linha.decisao !== undefined);
 }
 
-const ACAO: Record<TipoEvento, string> = {
+const ACAO: Record<TipoEvento | "aprovacao_desfeita", string> = {
   conferida: "Conferida",
   conferencia_desfeita: "Conferência desfeita",
   justificada: "Justificada",
   justificativa_desfeita: "Justificativa desfeita",
   justificativa_aprovada: "Justificativa aprovada",
   justificativa_rejeitada: "Justificativa rejeitada",
+  aprovacao_desfeita: "Aprovação desfeita",
 };
 
 /** "Justificada por Eduardo (rodada 2): juros de atraso." A rodada só aparece a partir da segunda. */
 function textoDoEvento({ tipo, autor, texto, rodada }: EventoDecisao): string {
-  const quem = `${ACAO[tipo]} por ${autor}${rodada > 1 ? ` (rodada ${rodada})` : ""}`;
+  // um tipo que o backend passou a mandar antes da tela conhecê-lo não pode virar "undefined"
+  const acao = ACAO[tipo as keyof typeof ACAO] ?? "Decisão registrada";
+  const quem = `${acao} por ${autor}${rodada > 1 ? ` (rodada ${rodada})` : ""}`;
   // o texto da justificada é o motivo; o da rejeitada é o motivo de ter rejeitado
   return (tipo === "justificada" || tipo === "justificativa_rejeitada") && texto ? `${quem}: ${texto}` : quem;
 }
