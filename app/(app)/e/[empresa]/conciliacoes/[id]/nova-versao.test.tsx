@@ -67,6 +67,39 @@ describe("NovaVersao", () => {
     expect(conciliar).toHaveBeenCalledWith(BANCO, "extrato-novo");
   });
 
+  it("shows which round it replaces and which one the chosen file opens", async () => {
+    const user = userEvent.setup();
+    render(
+      <NovaVersao
+        extratoBancoId={BANCO}
+        rodadaAtual={{ numero: 2, total: 2, arquivo: "erp-setembro-v2.csv", em: "2026-10-21T14:51:00Z" }}
+        onConcluida={onConcluida}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "Enviar nova versão do extrato do sistema" }));
+
+    expect(screen.getByText("Rodada 2 · agora")).toBeInTheDocument();
+    expect(screen.getByText("erp-setembro-v2.csv")).toBeInTheDocument();
+    expect(screen.getByText("Rodada 3 · nova")).toBeInTheDocument();
+    expect(screen.getByText("Solte aqui o CSV corrigido")).toBeInTheDocument();
+    // sem arquivo, o enviar não tem o que mandar
+    expect(screen.getByRole("button", { name: "Enviar e conciliar" })).toBeDisabled();
+
+    await user.upload(screen.getByLabelText("Extrato do sistema de gestão"), csv());
+    // o arquivo escolhido aparece na rodada nova e a área passa a oferecer a troca
+    expect(screen.getAllByText(/erp-setembro-v3\.csv/).length).toBeGreaterThan(0);
+    expect(screen.getByText("1 KB · pronto para enviar")).toBeInTheDocument();
+    expect(screen.getByText("Trocar o arquivo")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Enviar e conciliar" })).toBeEnabled();
+  });
+
+  it("without the round (the mock), leaves the before-and-after out", async () => {
+    const user = userEvent.setup();
+    render(<NovaVersao extratoBancoId={BANCO} onConcluida={onConcluida} />);
+    await user.click(screen.getByRole("button", { name: "Enviar nova versão do extrato do sistema" }));
+    expect(screen.queryByText(/· agora$/)).not.toBeInTheDocument();
+  });
+
   it("accepts only CSV, because the backend does not read the ERP's PDF yet", async () => {
     const user = userEvent.setup();
     render(<NovaVersao extratoBancoId={BANCO} onConcluida={onConcluida} />);
