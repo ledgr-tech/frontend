@@ -193,7 +193,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
         faz: "Ao lado das folhas, o resumo da conciliação escolhida: quantos lançamentos batem, a barra com a legenda, a situação, as conferidas, a rodada e o mês. A primeira que ainda pede decisão já vem escolhida, para você continuar de onde parou.",
         passos: [
           "Clique em **Abrir a comparação** para decidir as linhas.",
-          "Corrigiu o sistema de gestão? Clique em **Enviar nova versão do extrato do sistema** para conciliar de novo com o mesmo extrato do banco.",
+          "Corrigiu o sistema de gestão? Clique em **Enviar nova versão** para conciliar de novo com o mesmo extrato do banco.",
           "O link do mês leva ao fechamento dele.",
         ],
         nota: "Com o mês fechado, a nova versão não aparece: reabra o mês em **Fechamentos** para conciliar de novo.",
@@ -331,7 +331,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
         faz: "Cada extrato do sistema conciliado com o mesmo extrato do banco vira uma rodada. A linha das rodadas mostra qual vale.",
         passos: [
           "Corrija o que divergiu no sistema de gestão e exporte um CSV novo.",
-          "Clique em **Enviar nova versão do extrato do sistema**.",
+          "Clique em **Enviar nova versão**, no topo da comparação.",
           "A comparação abre na rodada nova.",
         ],
         imagem: {

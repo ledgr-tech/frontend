@@ -142,15 +142,16 @@ describe("VisaoGeralPage", () => {
     redirect.mockClear();
   });
 
-  it("highlights the ChatGPT connection with the connector address when none is active", async () => {
+  it("highlights the ChatGPT and Claude connection, pointing to the guide, when none is active", async () => {
     com();
     carregarConexoesMcp.mockResolvedValue({ ok: true, dados: { itens: [], endereco: "https://api.ledgr.test/mcp" } });
     await renderizar();
 
-    const bloco = screen.getByRole("region", { name: "Seu mês, respondido no ChatGPT." });
-    expect(bloco).toHaveTextContent("https://api.ledgr.test/mcp");
+    const bloco = screen.getByRole("region", { name: "Pergunte sobre o mês no ChatGPT ou no Claude." });
+    expect(within(bloco).getByRole("button", { name: "Ver como conectar" })).toBeInTheDocument();
     expect(within(bloco).getByRole("button", { name: "Copiar endereço do conector" })).toBeInTheDocument();
-    expect(within(bloco).getByRole("button", { name: "Ver conexões" })).toBeInTheDocument();
+    // o endereço cru fica no guia, não no cartão
+    expect(bloco).not.toHaveTextContent("https://api.ledgr.test/mcp");
   });
 
   it("says which assistants are connected and when they last asked, ignoring revoked ones", async () => {

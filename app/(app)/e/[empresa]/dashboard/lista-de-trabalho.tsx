@@ -331,6 +331,12 @@ function Previa({
         {!fechamento && (
           <NovaVersao
             extratoBancoId={extratoBancoId}
+            rodadaAtual={{
+              numero: conciliacao.rodada,
+              total: conciliacao.rodadas,
+              arquivo: arquivoSistema,
+              em: execucao.executadaEm,
+            }}
             onConcluida={() => router.push(caminhoDaConciliacao(extratoBancoId))}
           />
         )}

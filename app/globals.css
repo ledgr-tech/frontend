@@ -2633,8 +2633,54 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
   .rodadas-fio { animation: none; }
 }
 
-/* a janela da nova versão do extrato do sistema */
-.nova-versao-campo { display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
+/* o botão que abre a nova versão (versão 6 do canvas de 29/10): o primário da casa, com fundo dourado
+   bem claro e contorno mais firme, porque reenviar o sistema corrigido é o que fecha a conciliação */
+.nova-versao-botao {
+  display: inline-flex; align-items: center; gap: 9px;
+  border-width: 1.5px; border-radius: 999px; font-weight: 600;
+  background: color-mix(in srgb, var(--color-accent) 10%, transparent);
+}
+.nova-versao-botao:hover { background: color-mix(in srgb, var(--color-accent) 18%, transparent); }
+
+/* a janela da nova versão do extrato do sistema (a "janela de envio" do canvas de 29/10): de qual rodada para
+   qual, a área de soltar o CSV e o enviar em dourado cheio */
+.nova-versao-rodadas {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 10px; align-items: stretch;
+}
+.nova-versao-seta { align-self: center; color: var(--texto-apagado); }
+.nova-versao-rodada {
+  display: flex; flex-direction: column; gap: 3px; min-width: 0; padding: 12px 14px;
+  border: 1px solid var(--color-divider); border-radius: var(--radius-md);
+}
+.nova-versao-rodada[data-nova] {
+  border-color: color-mix(in srgb, var(--color-accent) 55%, transparent);
+  background: color-mix(in srgb, var(--color-accent) 8%, transparent);
+}
+.nova-versao-rodada-rotulo {
+  font-size: 12px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--texto-apagado);
+}
+.nova-versao-rodada[data-nova] .nova-versao-rodada-rotulo { color: var(--color-accent-700); }
+.nova-versao-rodada-arquivo { font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
+.nova-versao-rodada-detalhe { font-size: 13px; color: var(--texto-apagado); font-variant-numeric: tabular-nums; }
+.nova-versao-soltar {
+  display: flex; align-items: center; gap: 14px; padding: 16px 18px; cursor: pointer;
+  border: 2px dashed color-mix(in srgb, var(--color-accent) 55%, transparent); border-radius: var(--radius-md);
+  transition: background-color 150ms ease, border-color 150ms ease;
+}
+.nova-versao-soltar:hover, .nova-versao-soltar[data-arrastando] {
+  border-color: var(--color-accent); background: color-mix(in srgb, var(--color-accent) 6%, transparent);
+}
+/* o campo de arquivo fica escondido dentro da área: o foco do teclado aparece nela */
+.nova-versao-soltar:has(input:focus-visible) { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+.nova-versao-soltar-icone { flex: none; color: var(--color-accent-700); }
+.nova-versao-soltar-texto { display: flex; flex-direction: column; gap: 2px; min-width: 0; font-size: 15px; }
+.nova-versao-soltar-texto > span { font-size: 13px; color: var(--texto-apagado); overflow-wrap: anywhere; }
+.nova-versao-enviar:not(:disabled) { background: var(--color-accent); border-color: var(--color-accent); color: #201f1d; font-weight: 600; }
+.nova-versao-enviar:not(:disabled):hover { background: color-mix(in srgb, var(--color-accent) 88%, #201f1d); }
+@media (max-width: 520px) {
+  .nova-versao-rodadas { grid-template-columns: minmax(0, 1fr); }
+  .nova-versao-seta { transform: rotate(90deg); justify-self: center; }
+}
 .nova-versao-erro, .decisao-erro { white-space: normal; border-radius: var(--radius-sm); }
 /* a decisão que não gravou, acima da tabela, do tamanho do texto */
 .decisao-erro { align-self: flex-start; }
@@ -2756,13 +2802,10 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
   font-size: 12px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase;
   color: var(--color-accent);
 }
-.vg-conexao-titulo { margin: 0; font-size: 28px; font-weight: 500; line-height: 1.15; color: inherit; text-wrap: balance; }
-.vg-conexao-texto { margin: 0; font-size: 14.5px; line-height: 1.55; color: color-mix(in srgb, var(--color-bg) 82%, transparent); }
-.vg-conexao-acoes { margin-top: auto; padding-top: 8px; display: flex; flex-direction: column; gap: 10px; position: relative; z-index: 1; }
-.vg-conexao-endereco {
-  font-family: var(--font-mono); font-size: 12.5px; overflow-wrap: anywhere;
-  color: color-mix(in srgb, var(--color-bg) 78%, transparent);
-}
+.vg-conexao-titulo { margin: 0; font-size: 26px; font-weight: 500; line-height: 1.2; color: inherit; text-wrap: balance; }
+/* quase o branco do título: o texto miúdo e apagado sobre a tinta não se lia */
+.vg-conexao-texto { margin: 0; font-size: 15px; line-height: 1.6; color: color-mix(in srgb, var(--color-bg) 92%, transparent); text-wrap: pretty; }
+.vg-conexao-acoes { margin-top: auto; padding-top: 12px; display: flex; flex-direction: column; gap: 10px; position: relative; z-index: 1; }
 .vg-conexao-botao {
   display: inline-flex; justify-content: center; padding: 11px 18px; border-radius: 999px; cursor: pointer;
   border: 1px solid var(--color-accent); background: var(--color-accent); color: var(--color-text);
@@ -2770,10 +2813,10 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
 }
 .vg-conexao-botao-contorno { background: transparent; color: var(--color-accent); }
 .vg-conexao-botao:focus-visible { outline: 2px solid var(--color-bg); outline-offset: 2px; }
-/* o livro ligando o ChatGPT e o Claude, atrás do texto: apagado para não brigar com os botões */
+/* o livro ligando o ChatGPT e o Claude: no pé do cartão, longe do texto, e quase transparente */
 .vg-conexao-mascote {
-  position: absolute; left: 50%; top: 50%; width: 96%; height: auto;
-  transform: translate(-50%, -50%); opacity: 0.14; pointer-events: none;
+  position: absolute; left: 50%; bottom: 18px; width: 92%; height: auto;
+  transform: translateX(-50%); opacity: 0.07; pointer-events: none;
 }
 .vg-conexao > :not(.vg-conexao-mascote) { position: relative; z-index: 1; }
 
@@ -3663,6 +3706,27 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
   border: 1px solid var(--color-divider); user-select: all; overflow-wrap: anywhere;
 }
 .api-lista { list-style: none; margin: 0; padding: 0; }
+/* Configurações › Conexões: o guia em três partes (como funciona, como conectar, suas conexões) */
+.conexao-guia { gap: 24px; }
+.conexao-parte { display: flex; flex-direction: column; gap: 12px; }
+.conexao-parte + .conexao-parte { padding-top: 22px; border-top: 1px solid var(--color-divider); }
+.conexao-parte-titulo { margin: 0; font-size: 16px; font-weight: 600; }
+.conexao-texto { margin: 0; font-size: 14.5px; line-height: 1.65; text-wrap: pretty; }
+.conexao-texto-fraco { font-size: 13.5px; color: var(--texto-apagado); }
+.conexao-exemplos {
+  margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px;
+  font-size: 14.5px; font-style: italic;
+}
+.conexao-exemplos li { padding: 8px 12px; border-radius: var(--radius-md); background: color-mix(in srgb, var(--color-text) 5%, transparent); }
+.conexao-endereco {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--color-accent) 55%, transparent); border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-accent) 7%, transparent);
+}
+.conexao-endereco-rotulo { width: 100%; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--texto-apagado); }
+.conexao-endereco code { flex: 1; min-width: 0; overflow-wrap: anywhere; font-size: 13.5px; }
+.conexao-passos { margin: 0; padding-left: 22px; list-style: decimal; display: flex; flex-direction: column; gap: 10px; font-size: 14.5px; line-height: 1.6; }
+.conexao-passos li::marker { font-weight: 600; color: var(--color-accent-700); }
 .api-chave {
   display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 24px;
   padding: 14px 0; border-top: 1px solid var(--color-divider);
