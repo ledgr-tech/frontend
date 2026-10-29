@@ -167,7 +167,7 @@ describe("FechamentosPage", () => {
     expect(within(pronto).getByText("Nenhuma divergência pede decisão.")).toBeInTheDocument();
     expect(within(pronto).getByRole("button", { name: "Fechar agosto" })).toBeInTheDocument();
     // pronto para fechar é um joinha; o cadeado fica para depois de fechado
-    expect(pronto.querySelector("img")?.getAttribute("src")).toContain("mascote-joinha");
+    expect(pronto.querySelector("img")?.getAttribute("src")).toContain("mao-joinha");
     // o próximo mês começa depois de fechar este
     expect(within(pronto).queryByRole("link", { name: /Começar/ })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Agosto de 2026/ })).toHaveTextContent("Pronto para fechar");

@@ -5,7 +5,7 @@ import { ArrowLeftRight, ArrowRight, CalendarCheck, Files, History, type LucideI
 import { extratosDasExecucoes, type Execucao } from "@/lib/adaptadores";
 import { caminhoDaConciliacao } from "@/lib/caminhos";
 import { execucoesVigentes } from "@/lib/rodadas";
-import { type Conciliacao } from "@/lib/mock-data";
+import { formatarMoeda, type Conciliacao } from "@/lib/mock-data";
 import { carregarRoteiro, carregarVisaoGeral, type VisaoGeral } from "../conciliacoes/acoes";
 import { passosDoRoteiro, roteiroVisivel } from "./roteiro";
 import { RoteiroFaixa } from "./roteiro-faixa";
@@ -22,13 +22,18 @@ import { GraficoDeMatch } from "../historico/grafico";
 import { IconeOrigem } from "../icone-origem";
 import { pendenciasDoMes } from "./pendencias";
 import { Cabecalho } from "../cabecalho";
+import type { SaldoDoExtrato } from "@/lib/adaptadores";
+import { carregarConexoesMcp, type ConexaoMcp } from "../conexoes-mcp/acoes";
+import { SEM_SALDO, data } from "../saldo";
+import { CartaoDeConexao } from "./cartao-de-conexao";
+import { MaoApontando } from "./mao-apontando";
 
 /**
  * A home do app: onde o mês está, os atalhos para as outras telas (cada um com o
  * estado dela), o que pede decisão, para onde a taxa de match vai e o que
- * aconteceu por último. Não existe no design — é composta com as peças que as
- * outras telas já têm, e só com dado real: sem execução, vira o guia dos
- * primeiros passos.
+ * aconteceu por último, em blocos (modelo D do canvas de 29/10). É composta com
+ * as peças que as outras telas já têm, e só com dado real: um bloco sem dado não
+ * aparece, e sem execução a tela vira o guia dos primeiros passos.
  */
 
 const FALHA_AO_CARREGAR =
@@ -42,7 +47,12 @@ function plural(quantidade: number, singular: string, plural: string): string {
 }
 
 export default async function VisaoGeralPage() {
-  const [resposta, roteiro] = await Promise.all([carregarVisaoGeral(), carregarRoteiro()]);
+  const [resposta, roteiro, conexoes] = await Promise.all([
+    carregarVisaoGeral(),
+    carregarRoteiro(),
+    // 403 para o analista e 404 com a conexão desligada no backend: em ambos, sem o bloco
+    carregarConexoesMcp(),
+  ]);
   if (!resposta.ok && resposta.status === 401) await redirecionarNoApp("/login");
 
   const recente = resposta.ok ? resposta.dados.recente : null;
@@ -68,7 +78,12 @@ export default async function VisaoGeralPage() {
       ) : recente === null ? (
         !roteiroAtivo && <PrimeirosPassos />
       ) : (
-        <Conteudo visao={resposta.dados} execucao={recente.execucao} conciliacao={recente.conciliacao} />
+        <Conteudo
+          visao={resposta.dados}
+          execucao={recente.execucao}
+          conciliacao={recente.conciliacao}
+          conexoes={conexoes.ok ? conexoes.dados : null}
+        />
       )}
     </div>
   );
@@ -78,22 +93,49 @@ function Conteudo({
   visao,
   execucao,
   conciliacao,
+  conexoes,
 }: {
   visao: VisaoGeral;
   execucao: Execucao;
   conciliacao: Conciliacao;
+  /** Null esconde o bloco: analista, ou a conexão desligada no backend. */
+  conexoes: { itens: ConexaoMcp[]; endereco: string | null } | null;
 }) {
   // o mês em foco inteiro; sem ele (alguma conciliação não carregou), só a mais recente
   const doMes = visao.mes?.conciliacoes ?? [conciliacao];
   const resumo = resumir(doMes);
+  const aguardando = doMes.reduce((soma, item) => soma + (item.aguardandoAprovacao ?? 0), 0);
+
+  const menores = [
+    // undefined é o backend sem saldo (antes da #118): a tela não fala de saldo
+    conciliacao.saldo !== undefined && (
+      <BlocoDoSaldo key="saldo" saldo={conciliacao.saldo} arquivo={execucao.arquivoBanco} />
+    ),
+    aguardando > 0 && <BlocoDeAprovacao key="aprovacao" quantidade={aguardando} />,
+  ].filter(Boolean);
+  // a coluna ao lado do mês é a conexão; sem ela, os dois blocos menores sobem para lá (um só
+  // deixaria a coluna quase vazia, então fica na fileira de baixo)
+  const sobem = !conexoes && menores.length === 2;
+  const lado = conexoes ? <CartaoDeConexao itens={conexoes.itens} endereco={conexoes.endereco} /> : sobem ? menores : null;
+  const temLado = lado !== null;
 
   return (
     <div className="vg-corpo">
-      <Reveal>
-        <EstadoDoMes execucao={execucao} resumo={resumo} />
+      <Reveal className={temLado ? "vg-blocos-topo" : undefined}>
+        <EstadoDoMes execucao={execucao} resumo={resumo} mes={conciliacao.mes} />
+        {temLado && <div className="vg-blocos-lado">{lado}</div>}
       </Reveal>
 
-      <Reveal delay={0.08}>
+      <Reveal delay={0.08} className="vg-blocos-meio">
+        {!sobem && menores}
+        <PedeAtencao conciliacoes={doMes} arquivos={visao.arquivosComLinhasNaoLidas} />
+      </Reveal>
+
+      <Reveal delay={0.16} className="vg-blocos-par">
+        <section className="vg-bloco vg-tendencia" aria-label="Tendência da taxa de match">
+          {/* só a rodada que vale: a refeita e a anterior pareceriam uma queda que não houve */}
+          <GraficoDeMatch execucoes={execucoesVigentes(visao.execucoes)} />
+        </section>
         <Atalhos
           visao={visao}
           execucao={execucao}
@@ -101,14 +143,6 @@ function Conteudo({
           divergentes={resumo.divergentes}
           mesFechado={visao.mes?.fechado ?? false}
         />
-      </Reveal>
-
-      <Reveal delay={0.16} className="vg-grade">
-        <PedeAtencao conciliacoes={doMes} arquivos={visao.arquivosComLinhasNaoLidas} />
-        <section className="vg-tendencia" aria-label="Tendência da taxa de match">
-          {/* só a rodada que vale: a refeita e a anterior pareceriam uma queda que não houve */}
-          <GraficoDeMatch execucoes={execucoesVigentes(visao.execucoes)} />
-        </section>
       </Reveal>
 
       <Reveal delay={0.24}>
@@ -121,13 +155,32 @@ function Conteudo({
 function EstadoDoMes({
   execucao,
   resumo,
+  mes,
 }: {
   execucao: Execucao;
   resumo: ReturnType<typeof resumir>;
+  mes: string;
 }) {
   return (
-    <section className="vg-estado" aria-labelledby="vg-estado-titulo" data-tutorial="estado-do-mes">
-      <div className="vg-estado-topo">
+    <section className="vg-bloco vg-estado" aria-labelledby="vg-estado-titulo" data-tutorial="estado-do-mes">
+      <div
+        className="vg-anel"
+        role="progressbar"
+        aria-label="Lançamentos conciliados"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={Math.round(resumo.taxaMatch)}
+        aria-valuetext={`${formatarPercentual(resumo.taxaMatch)} conciliado`}
+        style={{ "--feito": `${resumo.taxaMatch}%` } as React.CSSProperties}
+      >
+        <span className="vg-anel-centro" aria-hidden="true">
+          {/* para baixo: 99,6% não vira "100%" com lançamento em aberto */}
+          <span className="vg-anel-numero">{`${Math.floor(resumo.taxaMatch)}%`}</span>
+          conciliado
+        </span>
+      </div>
+      <div className="vg-estado-corpo">
+        <span className="vg-bloco-rotulo">{mes.replace("/", " de ")}</span>
         <h2 id="vg-estado-titulo" className="vg-estado-titulo">
           {`${formatarInteiro(resumo.batidos)} de ${plural(resumo.processados, "lançamento conciliado", "lançamentos conciliados")}`}
         </h2>
@@ -138,19 +191,6 @@ function EstadoDoMes({
             Nenhum valor em aberto
           </span>
         )}
-      </div>
-      <div
-        className="vg-progresso"
-        role="progressbar"
-        aria-label="Lançamentos conciliados"
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-valuenow={Math.round(resumo.taxaMatch)}
-        aria-valuetext={`${formatarPercentual(resumo.taxaMatch)} conciliado`}
-      >
-        <span className="vg-progresso-feito" style={{ width: `${resumo.taxaMatch}%` }} />
-      </div>
-      <div className="vg-estado-rodape">
         <span className="vg-nota">
           {`Última conciliação em ${formatarDataHora(execucao.executadaEm)} · ${execucao.arquivoBanco} × ${execucao.arquivoSistema}`}
         </span>
@@ -162,6 +202,42 @@ function EstadoDoMes({
         </Link>
       </div>
     </section>
+  );
+}
+
+function BlocoDoSaldo({ saldo, arquivo }: { saldo: SaldoDoExtrato | null; arquivo: string }) {
+  return (
+    <section className="vg-bloco" aria-labelledby="vg-saldo-titulo">
+      <h2 id="vg-saldo-titulo" className="vg-bloco-rotulo">
+        Saldo do banco
+      </h2>
+      {saldo === null ? (
+        <p className="vg-nota" style={{ margin: 0 }}>
+          {SEM_SALDO}
+        </p>
+      ) : (
+        <>
+          <span className="vg-bloco-numero">{formatarMoeda(saldo.final)}</span>
+          {/* o do extrato mais recente: com duas contas no mês, cada uma tem o seu */}
+          <span className="vg-nota">{`Em ${data(saldo.data)} · ${arquivo}`}</span>
+        </>
+      )}
+    </section>
+  );
+}
+
+/** Só chega alguma com `APROVACAO_JUSTIFICATIVAS_HABILITADA` ligado no backend; aprovar fica em Fechamentos. */
+function BlocoDeAprovacao({ quantidade }: { quantidade: number }) {
+  return (
+    <Link href="/fechamentos" className="vg-bloco vg-bloco-link">
+      <span className="vg-bloco-rotulo">Aguardam aprovação</span>
+      <span className="vg-bloco-numero" data-tom="atencao">
+        {formatarInteiro(quantidade)}
+      </span>
+      <span className="vg-nota">
+        {`${plural(quantidade, "justificativa", "justificativas")} · Aprovar em Fechamentos`}
+      </span>
+    </Link>
   );
 }
 
@@ -192,8 +268,8 @@ function Atalhos({
   const pronto = divergentes === 0 && naoLidas === 0;
 
   return (
-    <nav aria-labelledby="vg-atalhos-titulo" data-tutorial="atalhos">
-      <h2 id="vg-atalhos-titulo" className="vg-secao-titulo">
+    <nav className="vg-bloco" aria-labelledby="vg-atalhos-titulo" data-tutorial="atalhos">
+      <h2 id="vg-atalhos-titulo" className="vg-bloco-rotulo">
         Atalhos
       </h2>
       <ul className="vg-atalhos">
@@ -300,17 +376,17 @@ function PedeAtencao({
   const grupos = pendenciasDoMes(conciliacoes);
 
   return (
-    <section className="vg-atencao">
-      <h2 id="vg-atencao-titulo" className="vg-secao-titulo">
+    <section className="vg-bloco vg-atencao">
+      <h2 id="vg-atencao-titulo" className="vg-bloco-rotulo">
         Pede sua atenção
       </h2>
       {grupos.length === 0 && arquivos.length === 0 ? (
         <div className="vg-tudo-certo">
           <Image
-            src="/mascotes/mascote-joinha.png"
+            src="/mascotes/mao-joinha.webp"
             alt=""
-            width={1073}
-            height={1173}
+            width={1254}
+            height={1254}
             sizes="72px"
             style={{ width: 72, height: "auto", flex: "none" }}
           />
@@ -365,9 +441,9 @@ function AtividadeRecente({ execucoes, total }: { execucoes: Execucao[]; total: 
   const recentes = conciliacoes.slice(0, NA_ATIVIDADE);
 
   return (
-    <section>
+    <section className="vg-bloco">
       <div className="vg-secao-topo">
-        <h2 id="vg-atividade-titulo" className="vg-secao-titulo">
+        <h2 id="vg-atividade-titulo" className="vg-bloco-rotulo">
           Atividade recente
         </h2>
         <Link href="/historico" className="btn btn-secondary" style={{ fontSize: 13.5 }}>
@@ -470,9 +546,12 @@ function PrimeirosPassos() {
           </li>
         ))}
       </ol>
-      <Link href="/conciliacoes/nova" className="btn btn-primary" style={{ fontSize: 15, padding: "12px 22px" }}>
-        Fazer o primeiro upload
-      </Link>
+      <div className="vg-inicio-acao">
+        <MaoApontando className="vg-inicio-mao" />
+        <Link href="/conciliacoes/nova" className="btn btn-primary" style={{ fontSize: 15, padding: "12px 22px" }}>
+          Fazer o primeiro upload
+        </Link>
+      </div>
     </div>
   );
 }
