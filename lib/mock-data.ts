@@ -48,7 +48,8 @@ export type Decisao = {
 };
 
 export type EventoDecisao = {
-  tipo: TipoEvento;
+  /** Um `TipoEvento` ou um tipo que só o backend registra (aprovação, backend #132), ou um que a tela ainda não conhece. */
+  tipo: string;
   texto: string | null;
   autor: string;
   em: string;
