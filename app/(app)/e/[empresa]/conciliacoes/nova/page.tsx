@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type CSSProperties, type DragEvent } from 
 import { useRoteador } from "@/lib/roteador";
 import { useEmpresaAtiva, useEmpresasDaConta } from "@/lib/empresa-ativa";
 import { ArrowRight, Check, FileUp, Link2, Scale, ShieldCheck } from "lucide-react";
+import Link from "@/lib/link-do-app";
 import { caminhoDaConciliacao } from "@/lib/caminhos";
 import { conciliar, type Falha } from "../acoes";
 import {
@@ -299,6 +300,9 @@ export default function NovaConciliacaoPage() {
                 onRecusado={setErro}
               />
             </div>
+            <p className="nova-ia">
+              Só tem o PDF do relatório? <Link href="/conciliacoes/nova/ia">Importar via IA</Link>
+            </p>
           </Reveal>
         )}
 
