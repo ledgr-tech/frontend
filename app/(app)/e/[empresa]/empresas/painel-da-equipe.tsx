@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useCallback, useEffect, useId, useState, type FormEvent } from "react";
 import type { Convite, Pessoa } from "@/lib/adaptadores";
 import { situacaoDoLimite, textoDoLimite } from "@/lib/limites";
@@ -448,8 +449,9 @@ function ConvidarPessoa({
       </div>
       {retorno &&
         (retorno.ok ? (
-          <p id={retornoId} className="equipe-feito" role="status">
-            {retorno.texto}
+          <p id={retornoId} className="equipe-feito" role="status" style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <Image src="/mascotes/mascote-envelope.png" alt="" width={555} height={720} sizes="44px" style={{ width: 44, height: "auto", flex: "none" }} />
+            <span>{retorno.texto}</span>
           </p>
         ) : (
           <MensagemErro id={retornoId}>{retorno.texto}</MensagemErro>

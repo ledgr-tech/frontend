@@ -100,7 +100,7 @@ describe("LandingPage", () => {
     expect([...secao.querySelectorAll(".para-quem-mascote")].map((img) => img.getAttribute("src"))).toEqual([
       expect.stringContaining("mascote-laptop"),
       expect.stringContaining("mascote-maleta"),
-      expect.stringContaining("mascote-caminhando"),
+      expect.stringContaining("mascote-loja"),
       expect.stringContaining("mascote-arquivo"),
     ]);
     // a pergunta fica junto dos perfis, não na abertura
