@@ -64,7 +64,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
       {
         id: "estado-do-mes",
         titulo: "O mês em um número",
-        faz: "Quantos lançamentos do mês aberto já foram conciliados e quanto ainda está em aberto.",
+        faz: "Quantos lançamentos do mês aberto já foram conciliados, num anel, e quanto ainda está em aberto. Ao lado, o saldo final do extrato do banco mais recente, quando o arquivo traz.",
         passos: [
           "Leia o cartão do mês no topo.",
           "Se houver pendências, clique em **Revisar** para ir direto a elas.",

@@ -1733,7 +1733,7 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .5 0 0 0 0 .4 0 0 0 0 .25 0 0 0 .14 -.04'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
   box-shadow: 0 24px 60px -30px #000;
 }
-.regua-mede-rotulo { margin: 0; font-family: var(--font-mono); font-size: 12px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: var(--color-accent-700); }
+.regua-mede-rotulo { margin: 0; font-family: var(--font-mono); font-size: 12px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-accent-700); }
 .regua-mede-nome { margin: 10px 0 0; font-size: clamp(28px, 3vw, 36px); color: #201f1d; }
 .regua-mede-nome em { line-height: 1; color: var(--color-accent-600); }
 .regua-mede-para { margin: 8px 0 0; font-size: 14px; color: color-mix(in srgb, #201f1d 62%, transparent); }
@@ -2481,6 +2481,8 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
 }
 /* título de passo tem 18px: fica na Inter, como o resto do texto corrido */
 .app-shell .vg-passo-titulo { font-family: var(--font-heading); }
+/* o rótulo de cada bloco da Visão geral é h2 para leitor de tela, mas se lê como rótulo pequeno */
+.app-shell .vg-bloco-rotulo { font-family: var(--font-body); }
 :is(.app-shell, .vitrine-app, .demonstracao-folhas) h6 { color: var(--texto-apagado); }
 /* Rótulo pequeno em caixa alta: o "lançamentos processados" em cima do número, o "atual" do plano,
    o "assistente" do menu. Uma régua só, com o espaçamento do h6 do guia (+0,08em); o h6, em 14px, é
@@ -2776,22 +2778,86 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
   color: color-mix(in srgb, var(--color-text) 55%, transparent);
 }
 .vg-corpo {
-  padding: 32px 0 64px;
-  display: flex; flex-direction: column; gap: 40px;
+  padding: 28px 0 64px;
+  display: flex; flex-direction: column; gap: 16px;
 }
 .vg-nota {
   font-size: 14px; line-height: 1.6; overflow-wrap: anywhere;
   color: color-mix(in srgb, var(--color-text) 62%, transparent);
 }
 
-.vg-estado {
-  display: flex; flex-direction: column; gap: 14px;
-  padding-bottom: 32px; border-bottom: 1px solid var(--color-divider);
+/* os blocos (modelo D): o mes com o anel e, ao lado, a conexao ou os blocos menores; depois o que
+   pede atencao, a tendencia com os atalhos e a atividade. Um bloco sem dado some e o vizinho ocupa */
+.vg-bloco {
+  display: flex; flex-direction: column; gap: 10px; min-width: 0;
+  padding: 24px; border: 1px solid var(--color-divider); border-radius: 22px;
+  background: var(--color-bg); color: var(--color-text); text-decoration: none;
 }
-.vg-estado-topo {
-  display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between;
-  gap: 8px 24px;
+.vg-bloco-link { transition: border-color 0.15s ease, background 0.15s ease; }
+.vg-bloco-link:hover { background: var(--tinta-hover); border-color: color-mix(in srgb, var(--color-text) 26%, transparent); }
+.vg-bloco-link:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+.vg-bloco-rotulo {
+  margin: 0; font-family: var(--font-body); font-size: 12px; font-weight: 500;
+  letter-spacing: 0.08em; text-transform: uppercase; line-height: 1.4;
+  color: color-mix(in srgb, var(--color-text) 62%, transparent);
 }
+.vg-bloco-numero {
+  font-family: var(--font-titulo); font-size: 36px; line-height: 1.05;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+.vg-bloco-numero[data-tom="atencao"] { color: var(--color-accent-700); }
+.vg-blocos-topo { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 16px; }
+.vg-blocos-lado { display: flex; flex-direction: column; gap: 16px; }
+.vg-blocos-lado > .vg-bloco { flex: 1; }
+.vg-blocos-meio {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; align-items: stretch;
+}
+.vg-blocos-par { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: stretch; }
+
+.vg-estado { flex-direction: row; align-items: center; gap: 40px; padding: 36px 40px; }
+.vg-estado-corpo { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; min-width: 0; }
+/* o anel: o conciliado em verde, o resto em cinza; o numero vai para baixo, nunca arredonda para 100% */
+.vg-anel {
+  flex: none; width: 200px; aspect-ratio: 1; border-radius: 50%; display: grid; place-items: center;
+  background: conic-gradient(var(--color-ok) 0 var(--feito), color-mix(in srgb, var(--color-text) 10%, transparent) var(--feito) 100%);
+}
+.vg-anel-centro {
+  width: 80%; aspect-ratio: 1; border-radius: 50%; background: var(--color-bg);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  font-size: 13px; color: color-mix(in srgb, var(--color-text) 62%, transparent);
+}
+.vg-anel-numero { font-family: var(--font-titulo); font-size: 44px; line-height: 1; color: var(--color-text); }
+
+/* a conexao com o ChatGPT e o Claude: o bloco em tinta, o unico escuro da tela (inverte no tema escuro) */
+.vg-conexao {
+  position: relative; overflow: hidden;
+  background: var(--color-text); border-color: var(--color-text); color: var(--color-bg);
+}
+.vg-conexao-rotulo {
+  font-size: 12px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--color-accent);
+}
+.vg-conexao-titulo { margin: 0; font-size: 28px; font-weight: 500; line-height: 1.15; color: inherit; text-wrap: balance; }
+.vg-conexao-texto { margin: 0; font-size: 14.5px; line-height: 1.55; color: color-mix(in srgb, var(--color-bg) 82%, transparent); }
+.vg-conexao-acoes { margin-top: auto; padding-top: 8px; display: flex; flex-direction: column; gap: 10px; position: relative; z-index: 1; }
+.vg-conexao-endereco {
+  font-family: var(--font-mono); font-size: 12.5px; overflow-wrap: anywhere;
+  color: color-mix(in srgb, var(--color-bg) 78%, transparent);
+}
+.vg-conexao-botao {
+  display: inline-flex; justify-content: center; padding: 11px 18px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--color-accent); background: var(--color-accent); color: var(--color-text);
+  font: 600 15px/1.2 var(--font-heading);
+}
+.vg-conexao-botao-contorno { background: transparent; color: var(--color-accent); }
+.vg-conexao-botao:focus-visible { outline: 2px solid var(--color-bg); outline-offset: 2px; }
+/* o livro ligando o ChatGPT e o Claude, atrás do texto: apagado para não brigar com os botões */
+.vg-conexao-mascote {
+  position: absolute; left: 50%; top: 50%; width: 96%; height: auto;
+  transform: translate(-50%, -50%); opacity: 0.14; pointer-events: none;
+}
+.vg-conexao > :not(.vg-conexao-mascote) { position: relative; z-index: 1; }
+
 .vg-estado-titulo {
   margin: 0; font-size: 34px; font-weight: 400;
   line-height: 1.1; font-variant-numeric: tabular-nums; text-wrap: balance;
@@ -2808,10 +2874,6 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
 }
 .vg-progresso-feito {
   display: block; height: 100%; border-radius: inherit; background: var(--color-ok);
-}
-.vg-estado-rodape {
-  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
-  gap: 10px 20px;
 }
 
 /* o que pede atencao a esquerda, a tendencia a direita; empilha abaixo de 1100px */
@@ -2934,10 +2996,13 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
 }
 
 @media (max-width: 1100px) {
-  .vg-grade { grid-template-columns: minmax(0, 1fr); }
+  .vg-grade, .vg-blocos-topo, .vg-blocos-par { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 640px) {
   .vg-estado-titulo { font-size: 28px; }
+  .vg-estado { flex-direction: column; align-items: flex-start; gap: 24px; padding: 24px; }
+  .vg-anel { width: 160px; }
+  .vg-anel-numero { font-size: 36px; }
   /* a linha inteira ja e o link; no celular o "Revisar" so aperta o texto */
   .vg-item-acao { display: none; }
 }
@@ -5095,7 +5160,7 @@ html[data-tema="escuro"] .app-shell {
   width: 100%; max-width: 1080px;
   display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(28px, 5vw, 64px); align-items: center;
 }
-.plano-rotulo { margin: 0; font-size: 12px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: var(--color-accent-700); }
+.plano-rotulo { margin: 0; font-size: 12px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-accent-700); }
 .plano-titulo { margin: 16px 0 0; font-size: clamp(34px, 4vw, 50px); text-wrap: balance; }
 /* a pergunta é longa e quebra: o trecho em itálico ganha altura de linha própria para não encavalar */
 .plano-titulo em { line-height: 1; }
