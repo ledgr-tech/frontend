@@ -15,6 +15,7 @@ import { FaixaDoPlano } from "./faixa-do-plano";
 import { DESCRICAO_DO_PAPEL, MenuDePapel } from "./menu-de-papel";
 import { ModalDaTela } from "./modal-da-tela";
 import { TransferirAdmin } from "./transferir-admin";
+import { useTrocaSuave } from "@/lib/troca-suave";
 
 /**
  * A aba Equipe da tela Empresas (spec 2026-10-22-empresas-na-configuracao, revisão de 23/10; as regras de
@@ -105,6 +106,8 @@ export function PainelDaEquipe({
   // a pessoa ou o convite escolhido na lista, que o painel ao lado mostra
   const [escolhida, setEscolhida] = useState<string | null>(null);
   const painel = useRef<HTMLElement>(null);
+  // antes do retorno de "carregando": o hook não pode depender de a equipe já ter chegado
+  useTrocaSuave(painel, escolhida);
   const erroId = useId();
 
   /** O que toda ação faz com a resposta: 401 vai ao login, 403 avisa e relê a equipe. */

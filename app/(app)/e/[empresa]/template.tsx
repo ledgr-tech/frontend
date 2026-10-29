@@ -7,7 +7,7 @@ import { TransicaoDeTela } from "../../../transicao-de-tela";
 export default function Template({ children }: { children: ReactNode }) {
   return (
     <TransicaoDeTela>
-      <MotionRoot>{children}</MotionRoot>
+      <MotionRoot revelar={false}>{children}</MotionRoot>
     </TransicaoDeTela>
   );
 }

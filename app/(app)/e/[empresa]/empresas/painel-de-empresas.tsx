@@ -21,6 +21,7 @@ import { CadastrarEmpresa } from "./cadastrar-empresa";
 import { ModalDaTela } from "./modal-da-tela";
 import { FaixaDoPlano } from "./faixa-do-plano";
 import { PainelDaEquipe, useEquipe } from "./painel-da-equipe";
+import { useTrocaSuave } from "@/lib/troca-suave";
 
 /**
  * A tela Empresas no padrão das outras (revisão de 29/10, versão A do artefato "Histórico e Empresas no
@@ -97,6 +98,7 @@ export function PainelDeEmpresas({ empresas: daPagina }: { empresas: EmpresaClie
   );
   // a escolhida que o filtro ou a busca escondeu dá lugar à primeira à vista
   const atual = visiveis.find((empresa) => empresa.id === escolhida) ?? visiveis[0] ?? null;
+  useTrocaSuave(previa, atual?.id);
 
   function trocarDeAba(nova: AbaDaTela) {
     setAba(nova);
