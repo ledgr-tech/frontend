@@ -1,6 +1,9 @@
 @import "tailwindcss";
 
 :root {
+  /* a curva de saída da casa: começa rápido e assenta devagar. Toda entrada e saída de interface usa ela
+     (revisão de animações de 29/10); em JS, CURVA_DE_SAIDA em lib/troca-suave.ts */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --color-bg: #f3f2f2;
   --color-surface: #eae9e9;
   --color-text: #201f1d;
@@ -185,7 +188,7 @@ p.eyebrow {
 .faq-item { interpolate-size: allow-keywords; }
 .faq-item::details-content {
   block-size: 0; overflow: hidden;
-  transition: block-size 220ms cubic-bezier(0.23, 1, 0.32, 1), content-visibility 220ms allow-discrete;
+  transition: block-size 220ms var(--ease-out), content-visibility 220ms allow-discrete;
 }
 .faq-item[open]::details-content { block-size: auto; }
 .faq-answer { margin: 0 0 22px; max-width: 62ch; font-size: 15px; line-height: 1.72; }
@@ -199,7 +202,7 @@ p.eyebrow {
   padding: var(--space-2) calc(var(--space-3) * 1.2);
   border-radius: var(--radius-md);
   transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease,
-    transform 160ms cubic-bezier(0.23, 1, 0.32, 1);
+    transform 160ms var(--ease-out);
 }
 /* o aperto responde ao clique na hora, antes de a página reagir */
 .btn:active:not(:disabled) { transform: scale(0.97); }
@@ -247,7 +250,7 @@ p.eyebrow {
   font-size: 16px; line-height: 1.25; pointer-events: none;
   color: color-mix(in srgb, var(--color-text) 66%, transparent);
   transform: translateY(-50%); transform-origin: left center;
-  transition: top 0.18s cubic-bezier(0.22, 1, 0.36, 1), transform 0.18s cubic-bezier(0.22, 1, 0.36, 1), color 0.18s ease;
+  transition: top 0.18s var(--ease-out), transform 0.18s var(--ease-out), color 0.18s ease;
 }
 .login-senha-campo .campo-flutuante-rotulo { max-width: calc(100% - 72px); }
 .campo-flutuante .input::placeholder { color: transparent; transition: color 0.18s ease; }
@@ -299,7 +302,7 @@ p.eyebrow {
 .nova-tela {
   container: nova / inline-size;
   --nova-tom: color-mix(in srgb, var(--color-accent) 12%, var(--color-bg));
-  --nova-curva: cubic-bezier(0.22, 1, 0.36, 1);
+  --nova-curva: var(--ease-out);
 }
 .nova-corpo { padding: 8px 0 64px; }
 .nova-encaixe {
@@ -518,7 +521,7 @@ p.eyebrow {
   content: ""; position: absolute; inset: -1px;
   border: 1px solid var(--color-accent);
   border-radius: inherit;
-  animation: hover-hint-anel 2.4s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+  animation: hover-hint-anel 2.4s var(--ease-out) infinite;
   pointer-events: none;
 }
 @keyframes hover-hint-anel {
@@ -642,7 +645,7 @@ dialog::backdrop {
 .olho-mascote .olho-aberto,
 .olho-mascote .olho-fechado {
   transform-box: fill-box; transform-origin: 50% 50%;
-  transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.18s ease;
+  transition: transform 0.22s var(--ease-out), opacity 0.18s ease;
 }
 .olho-mascote .olho-fechado { opacity: 0; transform: translateY(-1.5px) scaleY(0.6); }
 .olho-mascote[data-estado="fechado"] .olho-aberto { opacity: 0; transform: scaleY(0.1); }
@@ -660,7 +663,7 @@ dialog::backdrop {
 .olho-mascote {
   overflow: visible;
   transform-origin: 50% 55%;
-  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), filter 0.3s ease;
+  transition: transform 0.3s var(--ease-out), filter 0.3s ease;
 }
 .olho-mascote .olho-impacto { opacity: 0; transform-box: fill-box; transform-origin: 50% 50%; }
 .login-senha-campo:focus-within .olho-mascote {
@@ -731,12 +734,12 @@ dialog::backdrop {
   pointer-events: none;
   /* pouco mais largo que a coluna (340px): mantém o respiro até o formulário e não cruza a linha da direita */
   width: clamp(240px, 44vh, 380px);
-  animation: cadastro-mascote-entrar 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+  animation: cadastro-mascote-entrar 0.6s var(--ease-out);
 }
 .cadastro-mascote { display: block; width: 100%; height: auto; opacity: 0.06; }
 .cadastro-dica {
   max-width: 34ch; padding-top: 16px; border-top: 1px solid var(--color-divider);
-  animation: cadastro-dica-entrar 0.5s 0.08s both cubic-bezier(0.22, 1, 0.36, 1);
+  animation: cadastro-dica-entrar 0.5s 0.08s both var(--ease-out);
 }
 @keyframes cadastro-mascote-entrar {
   from { opacity: 0; transform: translateY(16px) scale(0.96); }
@@ -806,20 +809,22 @@ dialog::backdrop {
   .cadastro-criando-barra span { width: 100%; opacity: 0.5; animation: none; }
 }
 
-/* transição entre telas (ViewTransition do React, disparada pelas navegações do Next):
-   a tela que sai some rápido e a nova sobe com fade, na mesma curva das animações da landing */
+/* transição entre telas (ViewTransition do React, disparada pelas navegações do Next): a tela que sai
+   some em 120ms e a nova já começa a subir junto, em 200ms. Antes eram 160ms de saída acelerando, 120ms de
+   espera e 320ms de entrada com desfoque: com os blocos em cascata por cima, o conteúdo levava quase um
+   segundo para assentar numa tela que se troca o dia inteiro (revisão de 29/10) */
 ::view-transition-old(.tela) {
-  animation: 160ms ease-in both tela-sumir;
+  animation: 120ms var(--ease-out) both tela-sumir;
 }
 ::view-transition-new(.tela) {
-  animation: 320ms cubic-bezier(0.22, 1, 0.36, 1) 120ms both tela-surgir;
+  animation: 200ms var(--ease-out) both tela-surgir;
 }
 @keyframes tela-sumir {
-  to { opacity: 0; filter: blur(2px); }
+  to { opacity: 0; }
 }
 @keyframes tela-surgir {
-  from { opacity: 0; transform: translateY(12px); filter: blur(2px); }
-  to { opacity: 1; transform: none; filter: blur(0); }
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
 }
 /* As telas que trocam são desenhadas numa camada acima da página, onde o z-index não vale. Sem
    nome próprio, o menu (com o painel do assistente, que mora nele) e a barra do topo iam no retrato
@@ -874,7 +879,7 @@ html[data-trocando-tema]::view-transition-new(*) {
   background-repeat: no-repeat;
   background-position: 0 100%, 0 100%;
   background-size: 0% 1px, 100% 1px;
-  transition: background-size 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: background-size 0.5s var(--ease-out);
 }
 .link-animado:hover,
 .link-animado:focus-visible { background-size: 100% 1px, 100% 1px; }
@@ -894,7 +899,7 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
 .login-google { position: relative; overflow: hidden; width: 100%; min-height: 44px; padding: 0; }
 .login-google-simbolo {
   position: absolute; inset: 0; display: grid; place-items: center;
-  transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: transform 0.45s var(--ease-out);
 }
 .login-google-simbolo svg { width: 22px; height: 22px; }
 /* "G" sempre com as cores do Google, parado e no hover */
@@ -909,7 +914,7 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
   position: absolute; top: 0; bottom: 0; left: -10px; width: calc(50% + 10px);
   display: flex;
   transform: translateX(-110%);
-  transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: transform 0.45s var(--ease-out);
 }
 .login-google-faixa {
   flex: 1 1 0;
@@ -967,7 +972,7 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
   display: flex; align-items: flex-start; gap: 6px;
   margin: 6px 0 0 4px;
   font-size: 13.5px; line-height: 1.4; color: var(--color-erro);
-  animation: campo-erro-surgir 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+  animation: campo-erro-surgir 0.22s var(--ease-out);
 }
 .campo-erro svg {
   flex: none; width: 15px; height: 15px; margin-top: 1.5px;
@@ -1046,7 +1051,7 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
   background: var(--color-bg);
   border-bottom: 1px solid var(--color-divider);
   box-shadow: var(--shadow-md);
-  animation: site-menu-abrir 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+  animation: site-menu-abrir 0.28s var(--ease-out);
 }
 .site-menu ul { list-style: none; margin: 0; padding: 0; }
 .site-menu li + li { border-top: 1px solid var(--color-divider); }
@@ -1070,7 +1075,7 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
 .site-menu-barras { display: block; width: 30px; height: auto; overflow: visible; }
 .site-menu-barras rect {
   transform-box: fill-box; transform-origin: center;
-  transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.2s ease;
+  transition: transform 0.32s var(--ease-out), opacity 0.2s ease;
 }
 /* scaleY afina as barras cruzadas: com a espessura do logo o X ficava pesado */
 .site-menu-botao[aria-expanded="true"] .barra-1 { transform: translate(359px, 539px) rotate(45deg) scale(1.2, 0.62); }
@@ -1327,7 +1332,7 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
   display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%;
   border: 1px solid var(--color-divider);
   color: color-mix(in srgb, var(--color-text) 68%, transparent);
-  transition: color 160ms ease, border-color 160ms ease, background-color 160ms ease, transform 160ms cubic-bezier(0.23, 1, 0.32, 1);
+  transition: color 160ms ease, border-color 160ms ease, background-color 160ms ease, transform 160ms var(--ease-out);
 }
 .rodape-rede:hover, .rodape-rede:focus-visible {
   color: var(--color-accent-700); border-color: var(--color-accent);
@@ -1564,8 +1569,8 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
   position: relative; display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px;
   padding: 26px 22px 24px; border: 1px solid var(--color-accent-800); border-radius: var(--radius-md);
   background-color: transparent; color: var(--ledgr-tinta);
-  transition: background-color 0.45s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.45s cubic-bezier(0.22, 1, 0.36, 1),
-    color 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: background-color 0.45s var(--ease-out), border-color 0.45s var(--ease-out),
+    color 0.45s var(--ease-out);
 }
 @container preco-trilha (min-width: 800px) {
   .beneficio { grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 32px; padding: 34px 32px 32px; }
@@ -1578,26 +1583,26 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
 }
 .beneficio-filete {
   display: block; width: 56px; height: 1px; margin: 18px 0; background: var(--color-accent);
-  transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: width 0.6s var(--ease-out);
 }
 .beneficio-desc {
   margin: 0 0 18px; font-size: 15.5px; line-height: 1.65; color: var(--color-neutral-400);
-  transition: color 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: color 0.45s var(--ease-out);
 }
 .beneficio-lista {
   list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px;
   mask-image: linear-gradient(to bottom, #000 var(--apagar), transparent calc(var(--apagar) + 50%));
-  transition: --apagar 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: --apagar 0.6s var(--ease-out);
 }
 .beneficio-lista li {
   position: relative; padding-left: 30px; font-size: 15px; line-height: 1.5; color: var(--color-neutral-300);
-  transition: color 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: color 0.45s var(--ease-out);
 }
 /* o check em traço: um círculo e o visto, desenhados pela máscara na cor do texto do card */
 .beneficio-lista li::before {
   content: ""; position: absolute; left: 0; top: 0.08em; width: 20px; height: 20px; background: var(--color-neutral-500);
   mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9.25'/%3E%3Cpath d='m8.3 12.4 2.5 2.5 4.9-5.3'/%3E%3C/svg%3E") center / contain no-repeat;
-  transition: background-color 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: background-color 0.45s var(--ease-out);
 }
 /* a demonstração: um pedaço do produto sobre um painel; no card aberto o painel vira a folha do
    sistema (cinza quente) e o pedaço chega mais perto */
@@ -1605,8 +1610,8 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
   align-self: start; display: grid; grid-template-columns: minmax(0, 1fr); justify-items: center; align-items: center;
   min-width: 0; padding: 28px; overflow: hidden; border-radius: 12px;
   background: color-mix(in srgb, #fff 5%, transparent); border: 1px solid color-mix(in srgb, #fff 7%, transparent);
-  transition: background-color 0.45s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.45s cubic-bezier(0.22, 1, 0.36, 1),
-    padding 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: background-color 0.45s var(--ease-out), border-color 0.45s var(--ease-out),
+    padding 0.55s var(--ease-out);
 }
 .beneficio:is(:hover, :focus-within) { --apagar: 100%; background-color: var(--color-bg); border-color: var(--color-accent); color: var(--color-text); }
 .beneficio:is(:hover, :focus-within) .beneficio-filete { width: 112px; }
@@ -1626,7 +1631,7 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
   background: var(--folha-banco); color: var(--color-text); font-size: 13px; line-height: 1.5;
   box-shadow: 0 10px 28px color-mix(in srgb, #000 30%, transparent);
   transform-origin: 50% 55%;
-  transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: transform 0.6s var(--ease-out), box-shadow 0.6s var(--ease-out);
 }
 .amostra .selo { max-width: 100%; overflow: hidden; text-overflow: ellipsis; padding: 1px 8px; font-size: 11px; }
 .amostra-topo { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 4px 8px; margin-bottom: 8px; }
@@ -1656,7 +1661,7 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
 .amostra-folha {
   position: absolute; width: 74%; padding: 14px 14px 16px; border: 1px solid var(--color-divider); border-radius: 12px;
   color: var(--color-text); box-shadow: 0 10px 26px color-mix(in srgb, #000 26%, transparent);
-  transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: transform 0.6s var(--ease-out);
 }
 .amostra-folha-banco { top: 0; left: 0; z-index: 1; background: var(--folha-banco); }
 .amostra-folha-sistema { right: 0; bottom: 0; background: var(--folha-sistema); }
@@ -1752,9 +1757,9 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
 .regua-mede-rodape { margin: 10px 0 0; text-align: center; font-size: 12.5px; color: color-mix(in srgb, #201f1d 58%, transparent); }
 @media (prefers-reduced-motion: no-preference) {
   /* a cada plano indicado, a folha desliza até a nova altura e o miolo entra de novo, os itens em cascata */
-  .regua-mede-corpo { transition: height 0.45s cubic-bezier(0.22, 1, 0.36, 1); }
-  .regua-mede-indicacao { animation: regua-mede-entra 0.5s cubic-bezier(0.22, 1, 0.36, 1); }
-  .regua-mede-itens li { animation: regua-mede-entra 0.5s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
+  .regua-mede-corpo { transition: height 0.45s var(--ease-out); }
+  .regua-mede-indicacao { animation: regua-mede-entra 0.5s var(--ease-out); }
+  .regua-mede-itens li { animation: regua-mede-entra 0.5s var(--ease-out) backwards; }
   .regua-mede-itens li:nth-child(2) { animation-delay: 60ms; }
   .regua-mede-itens li:nth-child(3) { animation-delay: 120ms; }
   .regua-mede-itens li:nth-child(4) { animation-delay: 180ms; }
@@ -1822,7 +1827,7 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
   position: relative; display: flex; flex-direction: column; margin: 0;
   padding: clamp(30px, 3vw, 42px) clamp(26px, 2.8vw, 40px) clamp(26px, 2.6vw, 34px);
   border: 1px solid var(--color-accent-800); border-radius: var(--radius-md);
-  transition: border-color 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: border-color 0.45s var(--ease-out);
 }
 .depoimento:hover { border-color: var(--color-accent); }
 /* as aspas grandes da Cormorant, quase apagadas: o mesmo papel do ícone de aspas do Floria, mas no
@@ -1831,7 +1836,7 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
 .depoimento-aspas {
   position: absolute; top: 4px; right: 24px; font-family: var(--font-display); font-size: 136px; line-height: 1;
   color: var(--color-accent); opacity: 0.16; pointer-events: none; user-select: none;
-  transition: opacity 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: opacity 0.45s var(--ease-out);
 }
 .depoimento:hover .depoimento-aspas { opacity: 0.3; }
 .depoimento-nota { position: relative; display: flex; gap: 4px; margin-bottom: 22px; }
@@ -2106,7 +2111,7 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
   width: min(560px, 100vw); overflow-y: auto; overscroll-behavior: contain;
   padding: 0 24px; background: var(--color-bg);
   border-left: 1px solid var(--color-divider); box-shadow: var(--shadow-lg);
-  animation: painel-entrar 0.24s cubic-bezier(0.23, 1, 0.32, 1);
+  animation: painel-entrar 0.24s var(--ease-out);
 }
 .painel-lateral:focus { outline: none; }
 @keyframes painel-entrar { from { transform: translateX(24px); opacity: 0; } }
@@ -2191,7 +2196,8 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
 }
 .grafico-fio-linha {
   position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible;
-  animation: rodadas-fio-desenha 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+  /* 0,45s (era 0,9s): o gráfico está na Visão geral e no Histórico, e o desenho se repete a cada visita */
+  animation: rodadas-fio-desenha 0.45s var(--ease-out) both;
 }
 .grafico-fio-linha polyline {
   fill: none; stroke: var(--fio-cor); stroke-width: 1.6; stroke-linejoin: round; stroke-linecap: round;
@@ -2200,7 +2206,7 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
 /* o ponto é a quina do <li>, sem tamanho: o círculo e o número se penduram nele */
 .grafico-fio-ponto {
   position: absolute; width: 0; height: 0;
-  animation: grafico-fio-ponto 0.25s ease-out both; animation-delay: var(--atraso, 0s);
+  animation: grafico-fio-ponto 0.2s var(--ease-out) both; animation-delay: var(--atraso, 0s);
 }
 .grafico-fio-ponto::before {
   content: ""; position: absolute; left: -4.5px; top: -4.5px; width: 9px; height: 9px;
@@ -2489,7 +2495,7 @@ html[data-tema="escuro"] .app-shell {
   width: 20px; height: 20px; padding: 0; border-radius: 50%;
   border: 1.5px solid color-mix(in srgb, var(--color-text) 45%, transparent);
   background: transparent; color: var(--color-bg); cursor: pointer;
-  transition: border-color 150ms ease, background-color 150ms ease, transform 160ms cubic-bezier(0.23, 1, 0.32, 1);
+  transition: border-color 150ms ease, background-color 150ms ease, transform 160ms var(--ease-out);
 }
 .conferir-circulo::after { content: ""; position: absolute; inset: -5px; border-radius: 50%; }
 .conferir-circulo:active { transform: scale(0.92); }
@@ -2602,7 +2608,7 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
   flex: 0 1 34px; min-width: 12px; height: 8px; margin: 0 4px;
   background: var(--color-accent);
   mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='17' height='8'%3E%3Cpath d='M0 4Q4.25 1 8.5 4T17 4' fill='none' stroke='%23000' stroke-width='1.2'/%3E%3C/svg%3E") 0 50% / 17px 8px repeat-x;
-  animation: rodadas-fio-desenha 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: rodadas-fio-desenha 0.45s var(--ease-out) both;
   animation-delay: calc(var(--ordem, 0) * 0.14s);
 }
 /* o que falta até o fechamento: o mesmo fio, tracejado e mais claro, até tudo bater ou estar justificado */
@@ -3045,7 +3051,7 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
 .grupo-botao:focus-visible { outline-offset: 4px; border-radius: var(--radius-sm); }
 .grupo-seta {
   flex: none; color: color-mix(in srgb, var(--color-text) 55%, transparent);
-  transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1);
+  transition: transform 160ms var(--ease-out);
 }
 .grupo-botao[aria-expanded="false"] .grupo-seta { transform: rotate(-90deg); }
 .grupo-botao:hover .grupo-seta { color: var(--color-text); }
@@ -3468,7 +3474,7 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
 /* a janela modal da tela Empresas (cadastrar, convidar): entra devagar, com o fundo desfocado de todo <dialog>;
    para quem pediu menos movimento, aparece de uma vez */
 @media (prefers-reduced-motion: no-preference) {
-  .modal-suave[open] { animation: modal-suave-entra 0.24s cubic-bezier(0.22, 0.8, 0.3, 1); }
+  .modal-suave[open] { animation: modal-suave-entra 0.24s var(--ease-out); }
   .modal-suave[open]::backdrop { animation: modal-suave-fundo 0.24s ease-out; }
   @keyframes modal-suave-entra { from { opacity: 0; transform: translateY(12px) scale(0.97); } }
   @keyframes modal-suave-fundo { from { opacity: 0; } }
@@ -3505,7 +3511,7 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
   display: flex; flex-direction: column; overflow: hidden;
   border: 1px solid var(--color-divider); border-radius: var(--radius-md);
   background: var(--color-surface); box-shadow: var(--shadow-lg);
-  animation: cartao-lancamento-surgir 0.18s cubic-bezier(0.22, 1, 0.36, 1);
+  animation: cartao-lancamento-surgir 0.18s var(--ease-out);
 }
 .asst-topo {
   flex: none; display: flex; align-items: center; gap: 11px;
@@ -3602,7 +3608,7 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
   background: var(--color-bg); color: var(--color-text); box-shadow: var(--shadow-lg);
   overflow: hidden;
 }
-.cfg[open] { animation: cfg-surgir 0.18s cubic-bezier(0.22, 1, 0.36, 1); }
+.cfg[open] { animation: cfg-surgir 0.18s var(--ease-out); }
 @keyframes cfg-surgir { from { opacity: 0; transform: translateY(8px) scale(0.99); } to { opacity: 1; transform: none; } }
 
 .cfg-janela { display: grid; grid-template-columns: 240px minmax(0, 1fr); height: 100%; }
@@ -3918,6 +3924,16 @@ html:has(.app-shell) { scrollbar-gutter: stable; }
   border: 1px solid var(--color-divider); border-radius: var(--radius-md);
   background: var(--color-bg); box-shadow: var(--shadow-lg); overflow: hidden;
 }
+/* Avisos, Ajuda e a conta abrem saindo do botão que os chamou, em 150ms; a busca não: os achados mudam a
+   cada tecla, e ali qualquer animação atrasa a leitura. Para quem pediu menos movimento, só o fade */
+.app-avisos-painel, .ajd-menu, .app-conta-painel { animation: app-painel-abrir 150ms var(--ease-out); }
+.app-avisos-painel, .ajd-menu { transform-origin: top right; }
+.app-conta-painel { transform-origin: bottom left; }
+@keyframes app-painel-abrir { from { opacity: 0; transform: scale(0.97); } }
+@keyframes app-painel-abrir-fade { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .app-avisos-painel, .ajd-menu, .app-conta-painel { animation-name: app-painel-abrir-fade; }
+}
 .app-busca-painel { left: 0; right: 0; max-height: 60vh; overflow-y: auto; }
 .app-busca-achado {
   display: flex; flex-direction: column; gap: 3px;
@@ -4108,7 +4124,7 @@ html:not([data-densidade="padrao"]) .app-shell .selo { padding-block: 1px; }
     overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0;
   }
   .app-conta-seta { display: none; }
-  .app-painel.app-conta-painel { top: calc(100% + 8px); bottom: auto; left: auto; right: 0; }
+  .app-painel.app-conta-painel { top: calc(100% + 8px); bottom: auto; left: auto; right: 0; transform-origin: top right; }
   /* no toque a dica ficaria presa na tela depois do clique */
   .app-dica::after { display: none; }
 }
@@ -4228,6 +4244,8 @@ html:not([data-densidade="padrao"]) .app-shell .selo { padding-block: 1px; }
   cursor: pointer; font-family: var(--font-body); font-size: 13.5px;
   padding: 6px 13px; border-radius: 999px;
   border: 1px solid var(--color-divider); background: transparent; color: var(--color-text);
+  /* a opção escolhida acende em vez de pular: só cor e sombra, que não mexem no lugar de nada */
+  transition: background-color 150ms ease, box-shadow 150ms ease, border-color 150ms ease;
 }
 .pill:hover { background: var(--tinta-hover); }
 .pill[aria-pressed="true"] {
@@ -4280,7 +4298,7 @@ th:is([aria-sort="ascending"], [aria-sort="descending"]) .th-ordena-seta { opaci
   border: 1px solid var(--color-divider); border-radius: var(--radius-md);
   background: var(--color-surface); box-shadow: var(--shadow-lg);
   pointer-events: none;
-  animation: cartao-lancamento-surgir 0.16s cubic-bezier(0.22, 1, 0.36, 1);
+  animation: cartao-lancamento-surgir 0.16s var(--ease-out);
 }
 /* rótulo de cartão flutuante: o quarto uso do dourado, como o do assistente */
 .cartao-lancamento h6 { margin: 0 0 8px; font-size: 12px; color: var(--color-accent-700); }
@@ -4932,7 +4950,7 @@ html[data-tema="escuro"] .app-shell {
   border-top: 1px solid var(--color-divider);
 }
 @media (prefers-reduced-motion: no-preference) {
-  .ajd-painel { animation: ajd-painel-entra 0.24s cubic-bezier(0.22, 1, 0.36, 1); }
+  .ajd-painel { animation: ajd-painel-entra 0.24s var(--ease-out); }
   @keyframes ajd-painel-entra { from { transform: translateX(24px); opacity: 0; } }
 }
 
@@ -4999,7 +5017,7 @@ html[data-tema="escuro"] .app-shell {
   position: absolute; z-index: 1; left: 50%; top: 50%; translate: -50% -50%; display: flex; align-items: center; gap: 10px;
   padding: 10px 18px 10px 12px; border-radius: 999px; border: 1px solid var(--color-divider); background: var(--color-bg);
   font-size: 14px; font-weight: 600; color: var(--color-text); box-shadow: var(--shadow-md);
-  transition: scale 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: scale 0.25s var(--ease-out);
 }
 .ajd-video-capa:hover .ajd-video-selo { scale: 1.04; }
 .ajd-video-selo i {
@@ -5018,7 +5036,7 @@ html[data-tema="escuro"] .app-shell {
 .ajd-figura {
   display: block; max-width: 100%; margin-top: 18px; padding: 0; overflow: hidden; cursor: zoom-in;
   border: 1px solid var(--color-divider); border-radius: 12px; background: var(--color-surface);
-  transition: translate 0.25s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.25s ease-out;
+  transition: translate 0.25s var(--ease-out), box-shadow 0.25s ease-out;
 }
 .ajd-figura:hover { translate: 0 -2px; box-shadow: var(--shadow-md); }
 .ajd-figura img { display: block; width: 100%; height: auto; }
@@ -5053,7 +5071,7 @@ html[data-tema="escuro"] .app-shell {
 /* o traço dourado da seção atual desliza de um título ao outro (o JS só dá a posição) */
 .ajd-indice-marca {
   position: absolute; top: 0; left: 0; width: 2px; height: 0; margin-left: -0.5px; border-radius: 2px; background: var(--color-accent);
-  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), height 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: transform 0.35s var(--ease-out), height 0.35s var(--ease-out);
 }
 
 /* a imagem ampliada: o <dialog> se centraliza com margin auto, que o reset do Tailwind zera. O fundo
@@ -5066,9 +5084,9 @@ html[data-tema="escuro"] .app-shell {
 
 @media (prefers-reduced-motion: no-preference) {
   /* a cada tela o artigo entra subindo de leve; o menu e "Nesta página" ficam parados */
-  .ajd-artigo { animation: ajd-artigo-entra 0.45s cubic-bezier(0.22, 1, 0.36, 1); }
+  .ajd-artigo { animation: ajd-artigo-entra 0.2s var(--ease-out); }
   @keyframes ajd-artigo-entra { from { opacity: 0; transform: translateY(10px); } }
-  .ajd-ampliada[open] { animation: ajd-ampliada-entra 0.28s cubic-bezier(0.22, 1, 0.36, 1); }
+  .ajd-ampliada[open] { animation: ajd-ampliada-entra 0.28s var(--ease-out); }
   .ajd-ampliada[open]::backdrop { animation: ajd-fundo-entra 0.28s ease-out; }
   @keyframes ajd-ampliada-entra { from { opacity: 0; transform: scale(0.96); } }
   @keyframes ajd-fundo-entra { from { opacity: 0; } }
@@ -5219,14 +5237,14 @@ html[data-tema="escuro"] .app-shell {
 .plano-outros button:hover { background: color-mix(in srgb, var(--color-text) 6%, transparent); }
 
 @media (prefers-reduced-motion: no-preference) {
-  .plano-pergunta { animation: plano-sobe 0.6s cubic-bezier(0.22, 1, 0.36, 1) both; }
-  .plano-traco { animation: plano-estica 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.25s both; }
-  .plano-resposta { animation: plano-sobe 0.6s cubic-bezier(0.22, 1, 0.36, 1) 0.12s both; }
+  .plano-pergunta { animation: plano-sobe 0.6s var(--ease-out) both; }
+  .plano-traco { animation: plano-estica 0.7s var(--ease-out) 0.25s both; }
+  .plano-resposta { animation: plano-sobe 0.6s var(--ease-out) 0.12s both; }
   /* a cada plano indicado, o cartão desliza até a nova altura e o miolo entra de novo, os itens em
      cascata (as mesmas medidas da régua da landing) */
-  .plano-corpo { transition: height 0.45s cubic-bezier(0.22, 1, 0.36, 1); }
-  .plano-indicacao { animation: plano-troca 0.5s cubic-bezier(0.22, 1, 0.36, 1); }
-  .plano-itens li { animation: plano-troca 0.5s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
+  .plano-corpo { transition: height 0.45s var(--ease-out); }
+  .plano-indicacao { animation: plano-troca 0.5s var(--ease-out); }
+  .plano-itens li { animation: plano-troca 0.5s var(--ease-out) backwards; }
   .plano-itens li:nth-child(2) { animation-delay: 60ms; }
   .plano-itens li:nth-child(3) { animation-delay: 120ms; }
   .plano-itens li:nth-child(4) { animation-delay: 180ms; }
@@ -5348,7 +5366,7 @@ html[data-tema="escuro"] .app-shell {
 /* a altura fixa alinha os nomes das quatro folhas; as poses têm larguras diferentes */
 .para-quem-mascote {
   position: relative; z-index: 1; height: 132px; width: auto; max-width: 80%; margin-bottom: -26px;
-  object-fit: contain; object-position: center bottom; transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  object-fit: contain; object-position: center bottom; transition: transform 0.35s var(--ease-out);
 }
 .para-quem-perfil:hover .para-quem-mascote { transform: translateY(-6px) rotate(-2deg); }
 .para-quem-folha {

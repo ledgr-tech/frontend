@@ -152,7 +152,7 @@ export function NovaVersao({
       {aberta && (
         <dialog
           ref={dialogo}
-          className="espia nova-versao"
+          className="espia nova-versao modal-suave"
           aria-labelledby="nova-versao-titulo"
           onKeyDown={(evento) => {
             if (evento.key !== "Escape") return;

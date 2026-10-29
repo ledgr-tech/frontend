@@ -1,23 +1,30 @@
 "use client";
 
 import { LazyMotion, MotionConfig, domAnimation, m, useMotionValue, useTransform } from "motion/react";
-import { useRef, useState } from "react";
+import { createContext, useContext, useRef, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
+
+// dentro do app a troca de tela já anima a chegada; os blocos entrando em cascata por cima dela faziam o
+// conteúdo levar quase um segundo para assentar (revisão de animações de 29/10)
+const RevelarContexto = createContext(true);
 
 // ponytail: domAnimation (animação + gestos, ~15kb) em vez de domMax.
 // Trocar só se a landing precisar de drag ou layout animation.
-export function MotionRoot({ children }: { children: ReactNode }) {
+/** `revelar={false}` desliga a entrada dos `Reveal` de dentro: os blocos já chegam no lugar. */
+export function MotionRoot({ children, revelar = true }: { children: ReactNode; revelar?: boolean }) {
   return (
-    <LazyMotion features={domAnimation} strict>
-      <MotionConfig reducedMotion="user">
-        {/* sem JS o initial={{opacity:0}} do SSR deixaria a página em branco, e o fio das trilhas
-            de "Por dentro" e de Preços ficaria recortado */}
-        <noscript>
-          <style>{`[data-reveal]{opacity:1!important;transform:none!important}.por-dentro-fio,.preco-fio{clip-path:none!important}`}</style>
-        </noscript>
-        {children}
-      </MotionConfig>
-    </LazyMotion>
+    <RevelarContexto.Provider value={revelar}>
+      <LazyMotion features={domAnimation} strict>
+        <MotionConfig reducedMotion="user">
+          {/* sem JS o initial={{opacity:0}} do SSR deixaria a página em branco, e o fio das trilhas
+              de "Por dentro" e de Preços ficaria recortado */}
+          <noscript>
+            <style>{`[data-reveal]{opacity:1!important;transform:none!important}.por-dentro-fio,.preco-fio{clip-path:none!important}`}</style>
+          </noscript>
+          {children}
+        </MotionConfig>
+      </LazyMotion>
+    </RevelarContexto.Provider>
   );
 }
 
@@ -49,14 +56,23 @@ export function Reveal({
   /** O `data-tutorial` do bloco, para o tutorial do mascote destacar. */
   tutorial?: string;
 }) {
+  const revelar = useContext(RevelarContexto);
+  if (!revelar) {
+    return (
+      <div data-tutorial={tutorial} className={className} style={style}>
+        {children}
+      </div>
+    );
+  }
   return (
     <m.div
       data-reveal
       data-tutorial={tutorial}
       className={className}
       style={style}
-      initial={{ opacity: 0, y: 16 }}
-      whileInView={{ opacity: 1, y: 0 }}
+      // o transform inteiro, e não o atalho `y`: assim o navegador anima na GPU, sem disputar o processador
+      initial={{ opacity: 0, transform: "translateY(16px)" }}
+      whileInView={{ opacity: 1, transform: "translateY(0px)" }}
       viewport={{ once: true, amount: 0, margin: "0px 0px -60px 0px", ...viewport }}
       transition={{ duration: 0.55, delay, ease: [0.22, 1, 0.36, 1] }}
     >

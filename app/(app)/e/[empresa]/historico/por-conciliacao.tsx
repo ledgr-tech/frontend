@@ -9,6 +9,7 @@ import { salvar } from "../conciliacoes/[id]/exportar-csv";
 import { formatarDataHora, formatarInteiro } from "../dashboard/resumo";
 import { FaixaFiltros } from "../faixa-filtros";
 import { IconeOrigem } from "../icone-origem";
+import { useTrocaSuave } from "@/lib/troca-suave";
 import {
   LEGENDA_DOS_TONS,
   conciliados,
@@ -90,6 +91,7 @@ export function HistoricoPorConciliacao({ execucoes }: { execucoes: Execucao[] }
   // a escolhida que o filtro escondeu dá lugar à primeira à vista
   const emVista = meses.flatMap((mes) => mes.conciliacoes.map((conciliacao) => ({ conciliacao, mes })));
   const atual = emVista.find((item) => item.conciliacao.extratoBancoId === escolhida) ?? emVista[0] ?? null;
+  useTrocaSuave(previa, atual?.conciliacao.extratoBancoId);
 
   function escolher(id: string) {
     setEscolhida(id);

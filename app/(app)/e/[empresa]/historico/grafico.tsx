@@ -69,8 +69,8 @@ export function GraficoDeMatch({
                     {
                       left: `${xDe(indice)}%`,
                       bottom: `${alturas[indice] * 100}%`,
-                      // o ponto aparece quando o fio chega nele
-                      "--atraso": `${((xDe(indice) / 100) * 0.9).toFixed(2)}s`,
+                      // o ponto aparece quando o fio chega nele (o fio leva 0,45s: ver .grafico-fio-linha)
+                      "--atraso": `${((xDe(indice) / 100) * 0.45).toFixed(2)}s`,
                     } as CSSProperties
                   }
                 >
