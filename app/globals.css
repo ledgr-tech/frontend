@@ -3258,26 +3258,40 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
 }
 /* A tela Empresas (#169): a faixa do plano, o painel do cadastro e a tabela */
 .empresas-nota { margin: 16px 0 0; font-size: 14px; color: color-mix(in srgb, var(--color-text) 70%, transparent); }
-.empresas-abas { display: flex; gap: 4px; margin: 16px 0 0; border-bottom: 1px solid var(--color-divider); overflow-x: auto; overflow-y: hidden; }
-.empresas-aba {
-  position: relative; border: 0; background: transparent; padding: 10px 14px; cursor: pointer;
-  font-family: var(--font-body); font-size: 14px; font-weight: 500; white-space: nowrap;
-  color: color-mix(in srgb, var(--color-text) 62%, transparent);
-}
-.empresas-aba:hover { color: var(--color-text); }
-.empresas-aba[aria-selected="true"] { color: var(--color-text); font-weight: 600; }
-.empresas-aba[aria-selected="true"]::after {
-  content: ""; position: absolute; left: 10px; right: 10px; bottom: 0; height: 2px;
-  border-radius: 2px; background: var(--color-accent);
-}
-.empresas-aba:focus-visible { outline: 2px solid var(--color-accent); outline-offset: -2px; border-radius: 8px; }
-.empresas-aba em { font-style: normal; margin-left: 4px; padding: 0 7px; border-radius: 999px; font-size: 12px; background: var(--tinta-ativa); }
 .empresas-form { display: flex; flex-direction: column; gap: 12px; }
 .empresas-form-botoes { display: flex; flex-wrap: wrap; gap: 8px; }
 .empresas-tabela { margin: 24px 0 0; overflow-x: auto; overflow-y: hidden; }
 .empresas-celula { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
 .empresas-nome { font-family: var(--font-heading); font-weight: 600; }
-.empresas-acao { text-align: right; white-space: nowrap; }
+/* a tela Empresas no padrão das outras (29/10): a faixa com Empresas/Equipe, os filtros e a busca; a
+   lista escolhe uma linha e o painel ao lado mostra a escolhida, como as folhas de Conciliações */
+.empresas-corpo { margin-top: 20px; }
+.empresas-filtros { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.empresas-busca { width: min(280px, 100%); min-height: 34px; }
+.empresas-lista { display: flex; flex-direction: column; gap: 26px; min-width: 0; }
+.empresas-lista .empresas-tabela { margin: 0; }
+.empresas-lista .conc-mes + .empresas-tabela { margin-top: 6px; }
+.empresas-col-estrela { width: 44px; }
+.empresas-cnpj { font-variant-numeric: tabular-nums; color: var(--texto-apagado); white-space: nowrap; }
+.empresas-estrela {
+  display: inline-grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: var(--radius-sm);
+  background: transparent; color: color-mix(in srgb, var(--color-text) 35%, transparent); cursor: pointer;
+}
+.empresas-estrela:hover { background: var(--tinta-hover); color: var(--color-text); }
+.empresas-estrela[aria-pressed="true"] { color: var(--color-accent); }
+.empresas-estrela[aria-pressed="true"] svg { fill: currentColor; }
+/* a tabela em que um clique escolhe a linha: a escolhida fica na tinta neutra com o filete à esquerda */
+.tabela-escolha tbody tr { cursor: pointer; }
+.tabela-escolha tbody tr:hover { background: var(--tinta-hover); }
+.tabela-escolha tbody tr[aria-selected="true"] { background: var(--tinta-ativa); box-shadow: inset 2px 0 0 var(--color-text); }
+.tabela-escolha td { vertical-align: middle; }
+.tabela-escolha-botao { padding: 0; border: 0; background: none; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.tabela-escolha-botao:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; border-radius: 4px; }
+.equipe-quem-linha { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.equipe-papel-texto { margin: 0; font-size: 13.5px; line-height: 1.55; color: color-mix(in srgb, var(--color-text) 75%, transparent); }
+.equipe-previa-titulo { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
+.equipe-previa-acoes { align-items: center; }
+.equipe-previa-acoes > * { flex: 0 1 auto; }
 /* A faixa do plano e a aba Equipe da tela Empresas (#169, opção A) */
 .faixa-plano {
   display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin: 20px 0 0;
@@ -3290,19 +3304,15 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
 .faixa-plano-barra[data-no-limite="true"] i { background: var(--color-risco); }
 .equipe-estado { margin: 24px 0 0; }
 .equipe-falha { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
-.equipe-lista { list-style: none; margin: 18px 0 0; padding: 0; }
-.equipe-linha { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 12px 0; border-bottom: 1px solid var(--color-divider); }
-.equipe-lista:last-child .equipe-linha:last-child { border-bottom: 0; }
 .equipe-avatar {
   flex: none; width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--color-divider);
   display: grid; place-items: center; font-family: var(--font-titulo); font-weight: 600;
 }
 .equipe-quem { flex: 1 1 200px; min-width: 0; display: flex; flex-direction: column; }
-.equipe-nome { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; font-weight: 600; overflow-wrap: anywhere; }
+.equipe-nome-linha { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.equipe-nome { font-weight: 600; overflow-wrap: anywhere; }
 .equipe-quem > span { font-size: 13px; color: color-mix(in srgb, var(--color-text) 62%, transparent); overflow-wrap: anywhere; }
-.equipe-acoes { display: flex; align-items: center; gap: 10px; }
 .equipe-papel { border: 1px solid var(--color-divider); border-radius: 999px; padding: 4px 12px; font-size: 13px; font-weight: 500; }
-.equipe-linha > .campo-erro { flex: 1 1 100%; margin: 0; }
 .equipe-papel-envelope { position: relative; display: inline-flex; }
 .equipe-papel-botao {
   display: inline-flex; align-items: center; gap: 6px; background: transparent; color: var(--color-text);
@@ -3333,8 +3343,6 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
 @media (max-width: 520px) { .equipe-menu { width: min(300px, calc(100vw - 48px)); } }
 .equipe-confirma { flex: 1 1 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; font-size: 14px; }
 .equipe-confirma > span { flex: 1 1 260px; }
-.equipe-rotulo { margin: 26px 0 0; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 500; color: color-mix(in srgb, var(--color-text) 62%, transparent); }
-.equipe-pendente { margin-top: 10px; padding: 12px 14px; border: 1px dashed var(--color-divider); border-radius: var(--radius-md); }
 .equipe-pendente .equipe-avatar { border-style: dashed; }
 .equipe-convite .field { margin-bottom: 14px; }
 .equipe-papeis { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin-bottom: 14px; }

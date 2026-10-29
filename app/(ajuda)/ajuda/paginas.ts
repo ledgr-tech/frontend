@@ -550,10 +550,12 @@ export const PAGINAS: PaginaDeAjuda[] = [
       {
         id: "lista",
         titulo: "A lista das empresas",
-        faz: "Todas as empresas da conta, com o CNPJ, a data do cadastro e a marca **Ativa** na que você está usando. Todas as pessoas da conta veem todas elas.",
+        faz: "Todas as empresas da conta, com o CNPJ, a situação do mês e a marca **Ativa** na que você está usando. As favoritas vêm primeiro. Todas as pessoas da conta veem todas elas.",
         passos: [
           "Abra **Empresas** no menu lateral.",
-          "Procure a empresa na tabela. A marca **CNPJ verificado** aparece quando o CNPJ foi conferido na Receita.",
+          "Procure a empresa pela busca, pela razão social ou pelo CNPJ, ou filtre pela situação do mês.",
+          "Clique numa empresa para ver ao lado o CNPJ, se ele foi verificado na Receita e quando ela foi cadastrada.",
+          "Clique na estrela para marcar a empresa como favorita: ela passa a vir primeiro aqui e na janela de trocar de empresa.",
         ],
       },
       {
@@ -561,7 +563,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
         titulo: "Trocar de empresa",
         faz: "Cada empresa tem os próprios extratos, conciliações e fechamentos. Daqui, ou pelo botão com o nome da empresa no alto da tela, ao lado de **Avisos**, você muda de empresa.",
         passos: [
-          "Clique em **Abrir** na linha da empresa.",
+          "Clique na empresa e depois em **Abrir esta empresa**, ou dê dois cliques na linha dela.",
           "Você vai para a Visão geral dela. Outra aba do navegador continua na empresa em que estava.",
         ],
         nota: "Pelo botão do alto da tela, a troca leva você à mesma tela na outra empresa. A janela dele busca por razão social ou CNPJ e mostra 20 empresas por página.",
@@ -580,7 +582,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
       {
         id: "limite",
         titulo: "O limite do plano",
-        faz: "Cada plano tem um número máximo de empresas, e a faixa no alto da tela mostra quanto a conta já usa.",
+        faz: "Cada plano tem um número máximo de empresas, e a faixa embaixo da lista mostra quanto a conta já usa.",
         passos: [
           "Veja a faixa, por exemplo **3 de 5 empresas**. Perto do limite, a tela avisa.",
           "No limite, o botão **Adicionar empresa** fica desligado.",
@@ -592,11 +594,13 @@ export const PAGINAS: PaginaDeAjuda[] = [
         titulo: "A equipe",
         faz: "As pessoas com acesso à conta e o papel de cada uma: **Administrador**, **Gestor** ou **Analista**. O administrador e o gestor convidam e cancelam convites; só o administrador remove pessoas.",
         passos: [
-          "Abra **Empresas** no menu lateral e clique na aba **Equipe**.",
+          "Abra **Empresas** no menu lateral e clique em **Equipe**, ao lado de **Empresas**, no alto da lista.",
           "Clique em **Convidar pessoa**, digite o e-mail e escolha o papel: cada cartão diz o que a pessoa poderá fazer. O administrador convida gestor ou analista; o gestor convida só analista. A pessoa recebe um link para criar o acesso.",
-          "Para mudar o papel de alguém, clique no papel dela na lista e escolha **Gestor** ou **Analista**. A troca vale na hora.",
+          "Clique numa pessoa para ver ao lado o papel dela, explicado, e o que dá para fazer.",
+          "Para mudar o papel, clique no botão do papel, no painel, e escolha **Gestor** ou **Analista**. A troca vale na hora.",
           "Para passar a administração, abra o mesmo menu e escolha **Tornar administrador**, digite a sua senha atual e confirme. A outra pessoa vira administradora e você vira **Gestor**.",
-          "Para tirar alguém, clique em **Remover** na linha dela e confirme. O acesso é cortado na hora.",
+          "Para tirar alguém, clique em **Remover** no painel e confirme. O acesso é cortado na hora.",
+          "Para desistir de um convite, clique nele em **Convites pendentes** e depois em **Cancelar convite**.",
         ],
         nota: "Só o administrador troca papéis e passa a administração, e remove pessoas. Quem acabou de receber a administração vê os controles na hora. O analista vê a lista, concilia e justifica, mas não fecha o mês nem convida ninguém. Os convites pendentes contam no limite de pessoas do plano.",
         imagem: {
