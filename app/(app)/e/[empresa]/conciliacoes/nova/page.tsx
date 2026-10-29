@@ -4,8 +4,8 @@ import { useEffect, useRef, useState, type CSSProperties, type DragEvent } from 
 import { useRoteador } from "@/lib/roteador";
 import { useEmpresaAtiva, useEmpresasDaConta } from "@/lib/empresa-ativa";
 import { ArrowRight, Check, FileUp, Link2, Scale, ShieldCheck } from "lucide-react";
-import Link from "@/lib/link-do-app";
 import { caminhoDaConciliacao } from "@/lib/caminhos";
+import { comEmpresa } from "@/lib/rotas";
 import { conciliar, type Falha } from "../acoes";
 import {
   aguardarProcessamento,
@@ -301,7 +301,11 @@ export default function NovaConciliacaoPage() {
               />
             </div>
             <p className="nova-ia">
-              Só tem o PDF do relatório? <Link href="/conciliacoes/nova/ia">Importar via IA</Link>
+              Só tem o PDF do relatório?{" "}
+              {/* página inteira de propósito: na navegação do cliente, o painel do detalhe da linha
+                  (conciliacoes/[id]/@painel/(.)[linha]) intercepta /conciliacoes/nova/ia como a linha "ia"
+                  da conciliação "nova" (#260). shortcut: sai quando a importação deixar /conciliacoes/ */}
+              <a href={comEmpresa(empresaAtiva?.id ?? "", "/conciliacoes/nova/ia")}>Importar via IA</a>
             </p>
           </Reveal>
         )}
