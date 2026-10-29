@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from "react";
@@ -207,6 +208,16 @@ export function AceitarConvite({ conectadoComo, google }: { conectadoComo: strin
   return (
     <MolduraAuth rotulo="Convite">
       <form className="login-form" onSubmit={enviar} noValidate style={{ width: "100%", maxWidth: 424 }}>
+        {/* quem aceita um convite entra numa equipe: a dupla de mascotes recebe */}
+        <Image
+          src="/mascotes/mascote-dupla.png"
+          alt=""
+          width={979}
+          height={720}
+          sizes="128px"
+          priority
+          style={{ width: 128, height: "auto", display: "block", marginBottom: "clamp(10px, 2vh, 18px)" }}
+        />
         <h1 style={estiloTitulo}>Entrar na {convite?.razaoSocial}</h1>
         <p style={{ ...estiloTexto, marginBottom: 4 }}>
           <strong>{convite?.email}</strong>
