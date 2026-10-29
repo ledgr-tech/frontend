@@ -38,23 +38,22 @@ export function CartaoDeConexao({ itens, endereco }: { itens: ConexaoMcp[]; ende
       {ativas.length === 0 ? (
         <>
           <h2 id="vg-conexao-titulo" className="vg-conexao-titulo">
-            Seu mês, respondido no ChatGPT.
+            Pergunte sobre o mês no ChatGPT ou no Claude.
           </h2>
           <p className="vg-conexao-texto">
-            Pergunte em português, com os números do Ledgr. A conexão só lê: nunca altera nada.
+            Conecte uma vez e pergunte em português, como “Como está outubro?”. A conexão só lê os números: nunca
+            altera nada.
           </p>
+          {/* o passo a passo mora em Configurações › Conexões; aqui, o caminho até ele e o atalho de quem já sabe */}
           <div className="vg-conexao-acoes">
-            {endereco && (
-              <>
-                <code className="vg-conexao-endereco">{endereco}</code>
-                <button type="button" className="vg-conexao-botao" onClick={copiar}>
-                  {copiado ? "Endereço copiado" : "Copiar endereço do conector"}
-                </button>
-              </>
-            )}
-            <button type="button" className="vg-conexao-botao vg-conexao-botao-contorno" onClick={() => abrirConfiguracoes("conexoes")}>
-              Ver conexões
+            <button type="button" className="vg-conexao-botao" onClick={() => abrirConfiguracoes("conexoes")}>
+              Ver como conectar
             </button>
+            {endereco && (
+              <button type="button" className="vg-conexao-botao vg-conexao-botao-contorno" onClick={copiar}>
+                {copiado ? "Endereço copiado" : "Copiar endereço do conector"}
+              </button>
+            )}
           </div>
         </>
       ) : (
