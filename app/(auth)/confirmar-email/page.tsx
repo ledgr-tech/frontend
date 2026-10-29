@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { confirmarEmail, type ResultadoConfirmacaoEmail } from "../acoes";
@@ -43,6 +44,19 @@ const estiloTexto: CSSProperties = {
 };
 
 const estiloBotao: CSSProperties = { fontSize: 15.5, padding: "clamp(10px, 1.6vh, 13px) 22px" };
+
+// a página toda é sobre o e-mail que chegou: o mascote do envelope abre cada estado
+const mascote = (
+  <Image
+    src="/mascotes/mascote-envelope.png"
+    alt=""
+    width={555}
+    height={720}
+    sizes="88px"
+    priority
+    style={{ width: 88, height: "auto", display: "block", marginBottom: "clamp(10px, 2vh, 18px)" }}
+  />
+);
 
 export default function ConfirmarEmailPage() {
   const [etapa, setEtapa] = useState<Etapa>("lendo");
@@ -111,6 +125,7 @@ export default function ConfirmarEmailPage() {
     return (
       <MolduraAuth rotulo="Novo e-mail">
         <div style={{ width: "100%", maxWidth: 424 }}>
+          {mascote}
           <h1 style={estiloTitulo}>{aviso.titulo}</h1>
           <p style={estiloTexto}>{aviso.texto}</p>
           <Link href="/login" className="btn btn-primary btn-block" style={estiloBotao}>
@@ -125,6 +140,7 @@ export default function ConfirmarEmailPage() {
   return (
     <MolduraAuth rotulo="Novo e-mail">
       <div style={{ width: "100%", maxWidth: 424 }}>
+        {mascote}
         <h1 style={estiloTitulo}>Confirme o seu e-mail novo.</h1>
         <p style={estiloTexto}>
           Depois de confirmar, você passa a entrar no Ledgr com este e-mail, e as sessões abertas são encerradas.

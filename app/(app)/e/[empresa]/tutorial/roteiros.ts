@@ -60,7 +60,7 @@ export const TUTORIAIS: Record<TelaDoTutorial, TutorialDaTela> = {
   },
   extratos: {
     nome: "Extratos",
-    mascote: "/mascotes/mascote-explicando.png",
+    mascote: "/mascotes/mascote-arquivo.png",
     passos: [
       { alvo: "filtros", titulo: "Separe o banco do sistema.", texto: "Os filtros mostram só os arquivos do banco, só os do sistema ou os que tiveram problema na leitura." },
       { alvo: "arquivos", titulo: "Todos os arquivos que você enviou.", texto: "Agrupados pelo mês do extrato. Clique num arquivo para ver os detalhes ao lado." },
@@ -86,7 +86,7 @@ export const TUTORIAIS: Record<TelaDoTutorial, TutorialDaTela> = {
   },
   configuracoes: {
     nome: "Configurações",
-    mascote: "/mascotes/mascote-apresenta.png",
+    mascote: "/mascotes/mascote-laptop.png",
     passos: [
       { alvo: "tolerancia", titulo: "A sua regra da conciliação.", texto: "A tolerância diz quantos dias de diferença entre o banco e o sistema, para mais ou para menos, ainda contam como bateu. Vale a partir da próxima conciliação." },
       { alvo: "fonte-da-verdade", titulo: "O banco é a referência.", texto: "Toda divergência aparece como o sistema divergindo do banco. É no sistema que se corrige." },
