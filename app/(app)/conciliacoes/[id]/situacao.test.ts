@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import type { Conciliacao, Decisao, EventoDecisao, LinhaComparacao, TipoEvento } from "@/lib/mock-data";
+import type { Conciliacao, Decisao, EventoDecisao, LinhaComparacao } from "@/lib/mock-data";
 import { continuaDivergindo, decisoesLigadas, historicoDaLinha, situacaoDaLinha } from "./situacao";
 
 const DIVERGENTE: LinhaComparacao = {
@@ -75,7 +75,7 @@ describe("decisoesLigadas", () => {
 });
 
 describe("historicoDaLinha", () => {
-  function evento(tipo: TipoEvento, rodada: number, em: string, texto: string | null = null): EventoDecisao {
+  function evento(tipo: string, rodada: number, em: string, texto: string | null = null): EventoDecisao {
     return { tipo, texto, autor: "Eduardo", em, rodada };
   }
 
@@ -100,6 +100,26 @@ describe("historicoDaLinha", () => {
       { quando: "24/09/2026 15:41", evento: "Conferência desfeita por Eduardo", origem: "Ledgr" },
       { quando: "25/09/2026 10:00", evento: "Justificada por Eduardo: Juros de dois dias de atraso.", origem: "Ledgr" },
       { quando: "25/09/2026 10:05", evento: "Justificativa desfeita por Eduardo", origem: "Ledgr" },
+    ]);
+  });
+
+  it("lê os eventos da aprovação e nunca escreve undefined num tipo desconhecido", () => {
+    const linha: LinhaComparacao = {
+      ...BASE,
+      decisao: null,
+      eventos: [
+        { ...evento("justificativa_aprovada", 1, "2026-09-25T13:00:00Z"), autor: "Ledgr (atualização de 21/10)" },
+        evento("aprovacao_desfeita", 1, "2026-09-25T13:01:00Z"),
+        evento("justificativa_rejeitada", 1, "2026-09-25T13:02:00Z", "Falta o comprovante."),
+        evento("tipo_que_ainda_nao_existe", 1, "2026-09-25T13:03:00Z"),
+      ],
+    };
+
+    expect(historicoDaLinha(linha, 1).slice(1).map((item) => item.evento)).toEqual([
+      "Justificativa aprovada por Ledgr (atualização de 21/10)",
+      "Aprovação desfeita por Eduardo",
+      "Justificativa rejeitada por Eduardo: Falta o comprovante.",
+      "Decisão registrada por Eduardo",
     ]);
   });
 
