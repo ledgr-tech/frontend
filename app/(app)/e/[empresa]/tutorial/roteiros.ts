@@ -36,7 +36,7 @@ export const TUTORIAIS: Record<TelaDoTutorial, TutorialDaTela> = {
     nome: "Nova conciliação",
     mascote: "/mascotes/mascote-joinha.png",
     passos: [
-      { alvo: "encaixe", titulo: "Encaixe os dois extratos.", texto: "O do banco vai à esquerda e o do sistema de gestão à direita, do mesmo período." },
+      { alvo: "encaixe", titulo: "Encaixe os dois extratos.", texto: "Solte o do banco na folha da frente e o do sistema de gestão na de trás, do mesmo período." },
       { alvo: "conciliar", titulo: "Concilie.", texto: "Com os dois arquivos, o botão libera. A comparação abre sozinha quando terminar." },
     ],
   },

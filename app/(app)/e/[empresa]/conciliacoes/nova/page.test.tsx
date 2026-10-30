@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import postcss, { type AtRule } from "postcss";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import NovaConciliacaoPage from "./page";
 import { lerBytes } from "./ler-arquivo";
@@ -18,10 +18,12 @@ vi.mock("next/navigation", () => ({
 const enviarExtrato = vi.fn();
 const situacaoDoExtrato = vi.fn();
 const conciliar = vi.fn();
+const carregarRegras = vi.fn();
 vi.mock("../acoes", () => ({
   enviarExtrato: (dados: FormData) => enviarExtrato(dados),
   situacaoDoExtrato: (id: string) => situacaoDoExtrato(id),
   conciliar: (banco: string, sistema: string) => conciliar(banco, sistema),
+  carregarRegras: () => carregarRegras(),
 }));
 
 vi.mock("../../../../../(auth)/acoes", () => ({ salvarPreferencias: async () => true }));
@@ -83,6 +85,11 @@ describe("NovaConciliacaoPage", () => {
     enviarExtrato.mockReset();
     situacaoDoExtrato.mockReset();
     conciliar.mockReset();
+    carregarRegras.mockReset();
+    carregarRegras.mockResolvedValue({
+      ok: true,
+      dados: { toleranciaDias: 2, toleranciaDiasMaximo: 7, atualizadoPor: null, atualizadoEm: null },
+    });
 
     enviarExtrato
       .mockResolvedValueOnce({ ok: true, dados: { extratoId: "extrato-banco" } })
@@ -114,10 +121,10 @@ describe("NovaConciliacaoPage", () => {
     expect(regra.textContent).not.toContain("—");
   });
 
-  it("explica o ciclo em três passos antes do envio", () => {
+  it("explica o ciclo em três passos no painel, antes do envio", () => {
     render(<NovaConciliacaoPage />);
-    // um título de seção de verdade, não o rótulo pequeno em caixa alta
-    const como = screen.getByRole("heading", { level: 2, name: "Como funciona" }).closest("section") as HTMLElement;
+    const painel = screen.getByRole("complementary", { name: "Antes de conciliar" });
+    const como = within(painel).getByRole("region", { name: "Como funciona" });
 
     const passos = within(within(como).getByRole("list")).getAllByRole("listitem");
     expect(passos.map((passo) => passo.querySelector("strong")?.textContent)).toEqual([
@@ -127,23 +134,57 @@ describe("NovaConciliacaoPage", () => {
     ]);
   });
 
-  it("diz que o Ledgr não altera nada, só confere", () => {
+  it("diz no painel que o Ledgr não altera nada, só confere", () => {
     render(<NovaConciliacaoPage />);
+    const painel = screen.getByRole("complementary", { name: "Antes de conciliar" });
 
-    const garantia = screen.getByText(
-      "O Ledgr não altera nada no seu banco nem no seu sistema: ele só lê os extratos e confere.",
-    );
-    // é a frase que mais tranquiliza: vai na faixa em destaque, não junto das notas discretas
-    expect(garantia.closest(".nova-nota")).toHaveClass("nova-nota-destaque");
+    expect(
+      within(painel).getByText("O Ledgr não altera nada no seu banco nem no seu sistema: ele só lê os extratos e confere."),
+    ).toBeInTheDocument();
   });
 
-  it("põe o botão de conciliar no topo, à direita do título, como o de enviar nova versão", () => {
+  it("põe o Conciliar no painel ao lado das folhas, com o motivo de estar desligado embaixo", () => {
+    render(<NovaConciliacaoPage />);
+    const painel = screen.getByRole("complementary", { name: "Antes de conciliar" });
+
+    expect(within(painel).getByRole("button", { name: "Conciliar extratos" })).toBeInTheDocument();
+    expect(within(painel).getByText("Envie os dois extratos para conciliar.")).toBeInTheDocument();
+  });
+
+  it("diz no título do painel quantos extratos faltam", async () => {
+    const user = userEvent.setup();
+    render(<NovaConciliacaoPage />);
+    const painel = screen.getByRole("complementary", { name: "Antes de conciliar" });
+    const titulo = () => within(painel).getByRole("heading", { level: 2 });
+
+    expect(titulo()).toHaveTextContent("Envie os dois extratos");
+    expect(within(painel).getByText("0 de 2")).toBeInTheDocument();
+
+    await user.upload(screen.getByLabelText("Extrato do sistema de gestão"), arquivo("sistema.csv"));
+    expect(titulo()).toHaveTextContent("Falta um extrato");
+    expect(within(painel).getByText("Sistema de gestão: enviado")).toBeInTheDocument();
+    expect(within(painel).getByText("Banco: falta")).toBeInTheDocument();
+
+    await user.upload(screen.getByLabelText("Extrato do banco"), arquivo("banco.ofx"));
+    expect(titulo()).toHaveTextContent("Pronta para conciliar");
+    expect(within(painel).getByText("2 de 2")).toBeInTheDocument();
+  });
+
+  it("mostra a tolerância que esta conciliação vai usar, com o atalho para mudar", async () => {
     render(<NovaConciliacaoPage />);
 
-    const acoes = screen.getByRole("button", { name: "Conciliar extratos" }).closest(".tela-acoes") as HTMLElement;
-    expect(acoes).not.toBeNull();
-    // o motivo de estar desligado sobe junto com ele
-    expect(within(acoes).getByText("Envie os dois extratos para conciliar.")).toBeInTheDocument();
+    expect(await screen.findByText(/^2 dias/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Mudar" })).toBeInTheDocument();
+  });
+
+  it("sem resposta da configuração, a linha da tolerância não aparece", async () => {
+    carregarRegras.mockResolvedValue({ ok: false, status: 404, erro: "Não encontrado." });
+    render(<NovaConciliacaoPage />);
+
+    await waitFor(() => expect(carregarRegras).toHaveBeenCalled());
+    expect(screen.queryByText("Tolerância de data")).not.toBeInTheDocument();
+    // o resto do painel continua: o mês e a rodada não dependem dela
+    expect(screen.getByText("Lido das datas do extrato do banco")).toBeInTheDocument();
   });
 
   it("deixa o botão desligado até os dois arquivos estarem escolhidos", async () => {
@@ -338,21 +379,25 @@ describe("NovaConciliacaoPage", () => {
     });
   });
 
-  describe("o encaixe dos dois extratos", () => {
-    const encaixe = () => document.querySelector(".nova-encaixe");
+  describe("as folhas dos dois extratos", () => {
+    const encaixe = () => document.querySelector(".nova-folhas");
+    const folha = (nome: string) => screen.getByLabelText(nome).closest("label") as HTMLElement;
 
-    it("acende o lado de cada extrato quando ele entra, em qualquer ordem", async () => {
+    it("acende a folha de cada extrato quando ele entra, em qualquer ordem", async () => {
       const user = userEvent.setup();
       render(<NovaConciliacaoPage />);
-      expect(encaixe()).toHaveAttribute("data-banco", "vazio");
-      expect(encaixe()).toHaveAttribute("data-sistema", "vazio");
+      expect(folha("Extrato do banco")).not.toHaveAttribute("data-pronto");
+      expect(folha("Extrato do sistema de gestão")).not.toHaveAttribute("data-pronto");
 
       await user.upload(screen.getByLabelText("Extrato do sistema de gestão"), arquivo("sistema.csv"));
-      expect(encaixe()).toHaveAttribute("data-sistema", "pronto");
-      expect(encaixe()).toHaveAttribute("data-banco", "vazio");
+      expect(folha("Extrato do sistema de gestão")).toHaveAttribute("data-pronto");
+      expect(folha("Extrato do banco")).not.toHaveAttribute("data-pronto");
+      // o elo só acende com as duas
+      expect(encaixe()).not.toHaveAttribute("data-ligado");
 
       await user.upload(screen.getByLabelText("Extrato do banco"), arquivo("banco.ofx"));
-      expect(encaixe()).toHaveAttribute("data-banco", "pronto");
+      expect(folha("Extrato do banco")).toHaveAttribute("data-pronto");
+      expect(encaixe()).toHaveAttribute("data-ligado");
     });
 
     it("diz qual extrato falta enquanto só o do banco entrou", async () => {
@@ -375,7 +420,7 @@ describe("NovaConciliacaoPage", () => {
       );
     });
 
-    it("mostra no cartão o arquivo escolhido, com o tamanho e a opção de trocar", async () => {
+    it("mostra na folha o arquivo escolhido, com o tamanho e a opção de trocar", async () => {
       const user = userEvent.setup();
       render(<NovaConciliacaoPage />);
       await user.upload(screen.getByLabelText("Extrato do banco"), arquivo("banco.ofx", 2048));
@@ -384,18 +429,18 @@ describe("NovaConciliacaoPage", () => {
       expect(within(banco).getByText("banco.ofx")).toBeInTheDocument();
       expect(within(banco).getByText("2 KB")).toBeInTheDocument();
       expect(within(banco).getByText("Trocar arquivo")).toBeInTheDocument();
-      // o outro cartão continua pedindo o arquivo
+      // a outra folha continua pedindo o arquivo
       const sistema = screen.getByLabelText("Extrato do sistema de gestão").closest("label") as HTMLElement;
       expect(within(sistema).queryByText("Trocar arquivo")).not.toBeInTheDocument();
     });
 
-    it("aceita o extrato solto em cima do cartão", () => {
+    it("aceita o extrato solto em cima da folha", () => {
       render(<NovaConciliacaoPage />);
       const banco = screen.getByLabelText("Extrato do banco").closest("label") as HTMLElement;
 
       fireEvent.drop(banco, { dataTransfer: { files: [arquivo("banco.ofx")] } });
 
-      expect(encaixe()).toHaveAttribute("data-banco", "pronto");
+      expect(banco).toHaveAttribute("data-pronto");
       expect(within(banco).getByText("banco.ofx")).toBeInTheDocument();
     });
 
@@ -408,39 +453,40 @@ describe("NovaConciliacaoPage", () => {
 
       const alerta = screen.getByRole("alert");
       expect(alerta).toHaveTextContent("O extrato do sistema de gestão precisa ser um arquivo CSV.");
-      expect(encaixe()).toHaveAttribute("data-sistema", "vazio");
-      // com o botão no topo, o erro fica em cima dos cartões, à vista de quem acabou de clicar
+      expect(sistema).not.toHaveAttribute("data-pronto");
+      // o erro fica em cima das folhas, à vista de quem acabou de soltar
       expect(alerta.compareDocumentPosition(encaixe() as Element) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
 
-    it("troca os cartões pelo casamento das linhas enquanto concilia, com a etapa em curso", async () => {
+    it("troca as folhas pelo palco enquanto concilia, com a etapa em curso", async () => {
       // a comparação nunca responde: a tela fica parada na última etapa
       conciliar.mockReturnValue(new Promise(() => {}));
 
       await enviarOsDois();
 
       expect(await screen.findByText("Etapa 4 de 4")).toBeInTheDocument();
-      const casamento = document.querySelector(".nova-casamento") as HTMLElement;
-      expect(within(casamento).getByText("banco.ofx")).toBeInTheDocument();
-      expect(within(casamento).getByText("sistema.csv")).toBeInTheDocument();
+      const palco = document.querySelector(".nova-palco") as HTMLElement;
+      expect(within(palco).getByText("banco.ofx")).toBeInTheDocument();
+      expect(within(palco).getByText("sistema.csv")).toBeInTheDocument();
+      expect(within(palco).getByText("Comparando banco e sistema…")).toBeInTheDocument();
       expect(screen.queryByLabelText("Extrato do banco")).not.toBeInTheDocument();
     });
 
-    it("volta aos cartões cheios num erro, com os dois arquivos mantidos", async () => {
+    it("volta às folhas cheias num erro, com os dois arquivos mantidos", async () => {
       enviarExtrato.mockReset();
       enviarExtrato.mockResolvedValue({ ok: false, status: 429, erro: "Muitos envios seguidos." });
 
       await enviarOsDois();
 
       await screen.findByRole("alert");
-      expect(document.querySelector(".nova-casamento")).not.toBeInTheDocument();
-      expect(encaixe()).toHaveAttribute("data-banco", "pronto");
-      expect(encaixe()).toHaveAttribute("data-sistema", "pronto");
+      expect(document.querySelector(".nova-palco")).not.toBeInTheDocument();
+      expect(folha("Extrato do banco")).toHaveAttribute("data-pronto");
+      expect(folha("Extrato do sistema de gestão")).toHaveAttribute("data-pronto");
     });
   });
 
   // o jsdom não pinta nem mede: estas regras do globals.css seguram o que só o navegador mostra
-  describe("o estilo do encaixe", () => {
+  describe("o estilo das folhas", () => {
     const css = postcss.parse(readFileSync(join(process.cwd(), "app", "globals.css"), "utf8"));
 
     /** As declarações do seletor exato dentro da at-rule com estes parâmetros. */
@@ -457,10 +503,38 @@ describe("NovaConciliacaoPage", () => {
       return decl;
     }
 
-    it("com movimento reduzido, o cartão enche na hora e as linhas não se mexem", () => {
+    it("com movimento reduzido, as folhas não deslizam e as linhas do palco não se mexem", () => {
       const reduzido = "(prefers-reduced-motion: reduce)";
-      expect(dentroDe("media", reduzido, ".cartao-arquivo::before")).toMatchObject({ transition: "none" });
-      expect(dentroDe("media", reduzido, ".nova-par > *")).toMatchObject({ animation: "none" });
+      expect(dentroDe("media", reduzido, ".nova-folha")).toMatchObject({ transition: "none" });
+      for (const seletor of [".nova-palco-folha", ".nova-palco-linha", ".nova-palco-barra", ".nova-palco-marca"]) {
+        expect(dentroDe("media", reduzido, seletor)).toMatchObject({ animation: "none" });
+      }
+    });
+
+    // as entradas de dentro da tela (o ✓ que pula, o elo que pulsa, as folhas que voltam depois de um
+    // erro) também param, com o mesmo seletor da regra que anima, para não perder na especificidade
+    it("com movimento reduzido, os estados da tela trocam sem animar", () => {
+      const reduzido = "(prefers-reduced-motion: reduce)";
+      for (const seletor of [
+        ".nova-folha[data-pronto] .nova-folha-icone svg",
+        ".nova-folhas[data-ligado] .nova-elo-no",
+        ".nova-volta",
+        ".ia-erros",
+      ]) {
+        expect(dentroDe("media", reduzido, seletor)).toMatchObject({ animation: "none" });
+      }
+    });
+
+    it("volta às folhas com fade depois de um envio que falhou", async () => {
+      enviarExtrato.mockReset();
+      enviarExtrato.mockResolvedValue({ ok: false, status: 429, erro: "Muitos envios seguidos." });
+      render(<NovaConciliacaoPage />);
+      expect(document.querySelector(".nova-volta")).toBeNull();
+      cleanup();
+
+      await enviarOsDois();
+      await screen.findByRole("alert");
+      expect(document.querySelector(".nova-volta")).not.toBeNull();
     });
 
     /** As declarações do seletor exato fora de qualquer at-rule. */
@@ -485,15 +559,11 @@ describe("NovaConciliacaoPage", () => {
       });
     });
 
-    it("põe a garantia de que nada é alterado numa faixa dourada", () => {
-      expect(solto(".nova-nota-destaque")["background"]).toContain("var(--color-accent)");
-    });
-
-    // estreito, um cartão embaixo do outro, com o elo entre os dois, de pé
-    it("empilha os cartões quando não cabem lado a lado", () => {
+    // estreito, as folhas quase inteiras, uma descendo menos sob a outra, e o elo no canto que sobra
+    it("encolhe a sobreposição das folhas quando a coluna é estreita", () => {
       const estreito = "nova (max-width: 559px)";
-      expect(dentroDe("container", estreito, ".nova-encaixe")).toMatchObject({ "grid-template-columns": "minmax(0, 1fr)" });
-      expect(dentroDe("container", estreito, ".nova-elo")).toMatchObject({ "flex-direction": "column" });
+      expect(dentroDe("container", estreito, ".nova-folha-banco")).toMatchObject({ inset: "0 28px 190px 0" });
+      expect(dentroDe("container", estreito, ".nova-folha-sistema")).toMatchObject({ inset: "170px 0 0 28px" });
     });
   });
 
