@@ -6,6 +6,7 @@ import type { Resultado, VisaoGeral } from "../conciliacoes/acoes";
 import VisaoGeralPage from "./page";
 import { ProvedorDaConta } from "../conta";
 import type { DadosDoRoteiro } from "./roteiro";
+import type { ConexaoMcp } from "../conexoes-mcp/acoes";
 
 // quem fala com o backend é a action; aqui ela só devolve o que ele responderia
 const carregarVisaoGeral = vi.fn<() => Promise<Resultado<VisaoGeral>>>();
@@ -15,6 +16,9 @@ vi.mock("../conciliacoes/acoes", () => ({
   carregarRoteiro: () => carregarRoteiro(),
 }));
 vi.mock("../../../../(auth)/acoes", () => ({ salvarPreferencias: async () => true }));
+// sem a conexão por padrão (o 404 da produção, com `MCP_HABILITADO` desligado)
+const carregarConexoesMcp = vi.fn<() => Promise<Resultado<{ itens: ConexaoMcp[]; endereco: string | null }>>>();
+vi.mock("../conexoes-mcp/acoes", () => ({ carregarConexoesMcp: () => carregarConexoesMcp() }));
 
 const CONTA_NOVA: DadosDoRoteiro = {
   toleranciaRevisada: false,
@@ -133,7 +137,95 @@ describe("VisaoGeralPage", () => {
     carregarRoteiro.mockReset();
     carregarRoteiro.mockResolvedValue(null);
     carregarVisaoGeral.mockReset();
+    carregarConexoesMcp.mockReset();
+    carregarConexoesMcp.mockResolvedValue({ ok: false, status: 404, erro: "Not Found" });
     redirect.mockClear();
+  });
+
+  it("highlights the ChatGPT and Claude connection, pointing to the guide, when none is active", async () => {
+    com();
+    carregarConexoesMcp.mockResolvedValue({ ok: true, dados: { itens: [], endereco: "https://api.ledgr.test/mcp" } });
+    await renderizar();
+
+    const bloco = screen.getByRole("region", { name: "Pergunte sobre o mês no ChatGPT ou no Claude." });
+    expect(within(bloco).getByRole("button", { name: "Ver como conectar" })).toBeInTheDocument();
+    expect(within(bloco).getByRole("button", { name: "Copiar endereço do conector" })).toBeInTheDocument();
+    // o endereço cru fica no guia, não no cartão
+    expect(bloco).not.toHaveTextContent("https://api.ledgr.test/mcp");
+  });
+
+  it("says which assistants are connected and when they last asked, ignoring revoked ones", async () => {
+    com();
+    const conexao = (cliente: string, ultimoUsoEm: string | null, revogadaEm: string | null = null): ConexaoMcp => ({
+      id: cliente,
+      cliente,
+      empresa: { id: "e", razaoSocial: "Empresa" },
+      criadaPor: null,
+      criadoEm: "2026-10-01T12:00:00Z",
+      ultimoUsoEm,
+      revogadaEm,
+    });
+    carregarConexoesMcp.mockResolvedValue({
+      ok: true,
+      dados: {
+        itens: [
+          conexao("ChatGPT", "2026-10-28T19:12:00Z"),
+          conexao("Claude", null),
+          conexao("Outro", "2026-10-29T10:00:00Z", "2026-10-29T11:00:00Z"),
+        ],
+        endereco: null,
+      },
+    });
+    await renderizar();
+
+    const bloco = screen.getByRole("region", { name: "Conectado ao ChatGPT e Claude." });
+    expect(bloco).toHaveTextContent("Última consulta em 28/10/2026 16:12.");
+  });
+
+  it("shows no connection block to whoever cannot see the connections", async () => {
+    com();
+    carregarConexoesMcp.mockResolvedValue({ ok: false, status: 403, erro: "Só o admin ou o gestor" });
+    await renderizar();
+    expect(screen.queryByText("Conexões")).not.toBeInTheDocument();
+  });
+
+  it("shows the bank balance and the justifications waiting for approval, when the backend sends them", async () => {
+    const conciliacao = {
+      id: "banco-e7",
+      extratoSistemaId: "sistema-e7",
+      mes: "Setembro/2026",
+      status: "em_andamento" as const,
+      linhas: LINHAS,
+      saldo: { inicial: 1000, final: 284310.55, data: "2026-09-28" },
+      aguardandoAprovacao: 5,
+    };
+    com({ recente: { execucao: RECENTE, conciliacao } });
+    await renderizar();
+
+    const saldo = screen.getByRole("region", { name: "Saldo do banco" });
+    expect(saldo).toHaveTextContent("R$ 284.310,55");
+    expect(saldo).toHaveTextContent("Em 28/09/2026 · sicredi-e7.ofx");
+    const aprovacao = screen.getByRole("link", { name: /Aguardam aprovação/ });
+    expect(aprovacao).toHaveAttribute("href", "/fechamentos");
+    expect(aprovacao).toHaveTextContent("5 justificativas");
+  });
+
+  it("says the file has no balance instead of showing zero, and hides both blocks without the fields", async () => {
+    com({
+      recente: {
+        execucao: RECENTE,
+        conciliacao: { id: "banco-e7", mes: "Setembro/2026", status: "em_andamento", linhas: LINHAS, saldo: null },
+      },
+    });
+    await renderizar();
+    expect(screen.getByRole("region", { name: "Saldo do banco" })).toHaveTextContent("Saldo não informado no arquivo");
+    expect(screen.queryByText("Aguardam aprovação")).not.toBeInTheDocument();
+
+    document.body.innerHTML = "";
+    carregarVisaoGeral.mockReset();
+    com();
+    await renderizar();
+    expect(screen.queryByText("Saldo do banco")).not.toBeInTheDocument();
   });
 
   it("names the screen, the empresa and the competência", async () => {
@@ -317,7 +409,7 @@ describe("VisaoGeralPage", () => {
     expect(screen.getByText("Nenhum valor em aberto")).toBeInTheDocument();
     // tudo certo é um joinha; a festa fica para os momentos grandes
     const imagens = [...document.querySelectorAll("img")].map((img) => img.getAttribute("src")).join(" ");
-    expect(imagens).toContain("mascote-joinha");
+    expect(imagens).toContain("mao-joinha");
     expect(imagens).not.toContain("mascote-comemorando");
   });
 

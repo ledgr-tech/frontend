@@ -6,6 +6,7 @@ import { ArrowRight, Check } from "lucide-react";
 import { abrirConfiguracoes } from "@/lib/eventos";
 import { useAssinatura, usePreferencias } from "../conta";
 import type { PassoDoRoteiro } from "./roteiro";
+import { MaoApontando } from "./mao-apontando";
 
 /** A faixa de primeiros passos no topo da Visão geral, até a pessoa terminar ou dispensar. */
 export function RoteiroFaixa({
@@ -79,6 +80,7 @@ export function RoteiroFaixa({
                 </span>
                 <span className="roteiro-passo-detalhe">{passo.texto}</span>
               </span>
+              {agora && passo.destino && <MaoApontando className="roteiro-mao" />}
               {agora && passo.destino?.tipo === "configuracoes" && (
                 <button
                   type="button"

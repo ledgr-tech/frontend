@@ -10,7 +10,11 @@ import { PainelDeEmpresas } from "./painel-de-empresas";
 
 // a ação é a fronteira com o backend; aqui devolve o que ele responderia
 const cadastrarEmpresa = vi.fn();
-vi.mock("./acoes", () => ({ cadastrarEmpresa: (...args: unknown[]) => cadastrarEmpresa(...args) }));
+const marcarFavorita = vi.fn();
+vi.mock("./acoes", () => ({
+  cadastrarEmpresa: (...args: unknown[]) => cadastrarEmpresa(...args),
+  marcarFavorita: (...args: unknown[]) => marcarFavorita(...args),
+}));
 vi.mock("../../../../(auth)/acoes", () => ({ salvarPreferencias: async () => true }));
 // a equipe carrega junto com a tela; aqui o backend responde com três pessoas e um convite
 const carregarEquipe = vi.fn();
@@ -41,12 +45,17 @@ const B: EmpresaCliente = { id: "9b8a7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d", razaoSoc
 const NOVA: EmpresaCliente = { id: "c0ffee00-0000-4000-8000-000000000001", razaoSocial: "Cliente Dois Ltda", cnpj: "11444777000161", cnpjVerificado: false, criadaEm: "2026-10-22T10:00:00Z" };
 
 // a aba escolhida vem da URL (`?aba=equipe`): é o que o voltar do navegador devolve depois de uma troca
-function montar({ papel = "admin", limites = null, aba }: { papel?: Papel; limites?: LimitesDaConta | null; aba?: "equipe" } = {}) {
+function montar({
+  papel = "admin",
+  limites = null,
+  aba,
+  empresas = [A, B],
+}: { papel?: Papel; limites?: LimitesDaConta | null; aba?: "equipe"; empresas?: EmpresaCliente[] } = {}) {
   if (aba) window.history.replaceState(null, "", "/e/x/empresas?aba=equipe");
   render(
     <ProvedorDaEmpresa ativa={{ id: A.id, razaoSocial: A.razaoSocial, cnpj: A.cnpj }} empresas={[A, B]}>
       <ProvedorDaConta preferencias={null} limites={limites} papel={papel}>
-        <PainelDeEmpresas empresas={[A, B]} />
+        <PainelDeEmpresas empresas={empresas} />
       </ProvedorDaConta>
     </ProvedorDaEmpresa>,
   );
@@ -64,8 +73,10 @@ afterEach(() => {
   document.cookie = "ledgr-empresa-recente=; Path=/; Max-Age=0";
 });
 
-describe("a tabela das empresas", () => {
-  it("mostra razão social, CNPJ formatado, Ativa, CNPJ verificado e a data de cadastro", () => {
+describe("a lista das empresas e o painel", () => {
+  const painel = () => screen.getByRole("complementary", { name: "Empresa escolhida" });
+
+  it("lista razão social, CNPJ formatado e Ativa, em ordem alfabética, com a primeira já no painel", () => {
     montar();
 
     expect(screen.getByRole("heading", { level: 1, name: "Empresas" })).toBeInTheDocument();
@@ -73,24 +84,126 @@ describe("a tabela das empresas", () => {
     const padaria = linhaDe(/Padaria Ltda/);
     expect(within(padaria).getByText("11.222.333/0001-81")).toBeInTheDocument();
     expect(within(padaria).getByText("Ativa")).toBeInTheDocument();
-    expect(within(padaria).getByText("CNPJ verificado")).toBeInTheDocument();
-    expect(within(padaria).getByText("08/10/2026")).toBeInTheDocument();
+    expect(within(linhaDe(/Mercado Ltda/)).queryByText("Ativa")).not.toBeInTheDocument();
 
-    const mercado = linhaDe(/Mercado Ltda/);
-    expect(within(mercado).queryByText("Ativa")).not.toBeInTheDocument();
-    expect(within(mercado).queryByText("CNPJ verificado")).not.toBeInTheDocument();
-    expect(within(mercado).getByText("21/10/2026")).toBeInTheDocument();
+    // Mercado vem antes de Padaria e abre escolhida
+    expect(linhaDe(/Mercado Ltda/)).toHaveAttribute("aria-selected", "true");
+    expect(within(painel()).getByRole("heading", { level: 2, name: "Mercado Ltda" })).toBeInTheDocument();
+    expect(within(painel()).getByText("Ainda não verificado")).toBeInTheDocument();
+    expect(within(painel()).getByText("21/10/2026")).toBeInTheDocument();
   });
 
-  it("Abrir só aparece nas outras empresas e leva à Visão geral delas, lembrando a escolha", async () => {
+  it("escolher outra linha mostra os dados dela no painel", async () => {
     const user = userEvent.setup();
     montar();
 
-    expect(within(linhaDe(/Padaria Ltda/)).queryByRole("button", { name: /Abrir/ })).not.toBeInTheDocument();
-    await user.click(within(linhaDe(/Mercado Ltda/)).getByRole("button", { name: "Abrir Mercado Ltda" }));
+    await user.click(screen.getByRole("button", { name: "Padaria Ltda" }));
+    expect(linhaDe(/Padaria Ltda/)).toHaveAttribute("aria-selected", "true");
+    expect(within(painel()).getByText("Empresa cliente · aberta agora")).toBeInTheDocument();
+    expect(within(painel()).getByText("CNPJ verificado")).toBeInTheDocument();
+    expect(within(painel()).getByText("08/10/2026")).toBeInTheDocument();
+  });
 
+  it("Abrir esta empresa leva à Visão geral dela, lembrando a escolha; a ativa vai à própria Visão geral", async () => {
+    const user = userEvent.setup();
+    montar();
+
+    await user.click(within(painel()).getByRole("button", { name: "Abrir esta empresa" }));
     expect(document.cookie).toContain(`ledgr-empresa-recente=${B.id}`);
     expect(router.push).toHaveBeenCalledWith(`/e/${B.id}/visao-geral`);
+
+    await user.click(screen.getByRole("button", { name: "Padaria Ltda" }));
+    expect(within(painel()).queryByRole("button", { name: "Abrir esta empresa" })).not.toBeInTheDocument();
+    await user.click(within(painel()).getByRole("button", { name: "Ir para a Visão geral" }));
+    expect(router.push).toHaveBeenLastCalledWith(`/e/${A.id}/visao-geral`);
+  });
+
+  it("dois cliques numa linha abrem a empresa", async () => {
+    const user = userEvent.setup();
+    montar();
+
+    await user.dblClick(linhaDe(/Mercado Ltda/));
+    expect(router.push).toHaveBeenCalledWith(`/e/${B.id}/visao-geral`);
+  });
+
+  it("a busca acha pelo nome ou pelo CNPJ, com ou sem a máscara", async () => {
+    const user = userEvent.setup();
+    montar();
+    const busca = screen.getByRole("searchbox", { name: "Buscar por razão social ou CNPJ" });
+
+    await user.type(busca, "padaria");
+    expect(screen.queryByRole("row", { name: /Mercado Ltda/ })).not.toBeInTheDocument();
+    expect(within(painel()).getByRole("heading", { level: 2, name: "Padaria Ltda" })).toBeInTheDocument();
+
+    await user.clear(busca);
+    await user.type(busca, "11.444");
+    expect(screen.queryByRole("row", { name: /Padaria Ltda/ })).not.toBeInTheDocument();
+
+    await user.clear(busca);
+    await user.type(busca, "zzz");
+    expect(screen.getByText("Nenhuma empresa com esse filtro ou essa busca.")).toBeInTheDocument();
+  });
+
+  it("sem a situação e a favorita do backend #157, não há filtro, estrela nem coluna Mês", () => {
+    montar();
+    expect(screen.queryByRole("group", { name: "Filtrar pela situação do mês" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /favorita/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: "Mês" })).not.toBeInTheDocument();
+  });
+});
+
+describe("a situação do mês e as favoritas", () => {
+  const COM_157 = [
+    { ...A, favorita: false, situacao: "fechado" as const },
+    { ...B, favorita: true, situacao: "em_aberto" as const },
+    { ...NOVA, favorita: false, situacao: "sem_conciliacao" as const },
+  ];
+  const painel = () => screen.getByRole("complementary", { name: "Empresa escolhida" });
+
+  it("mostra a situação em cada linha e as favoritas primeiro", () => {
+    montar({ empresas: COM_157 });
+
+    const linhas = screen.getAllByRole("row").slice(1);
+    expect(linhas.map((linha) => linha.textContent)).toEqual([
+      expect.stringContaining("Mercado Ltda"),
+      expect.stringContaining("Cliente Dois Ltda"),
+      expect.stringContaining("Padaria Ltda"),
+    ]);
+    expect(within(linhaDe(/Mercado Ltda/)).getByText("Mês em aberto")).toBeInTheDocument();
+    expect(within(linhaDe(/Padaria Ltda/)).getByText("Mês fechado")).toBeInTheDocument();
+  });
+
+  it("o filtro pela situação do mês deixa só as daquela situação", async () => {
+    const user = userEvent.setup();
+    montar({ empresas: COM_157 });
+
+    await user.click(screen.getByRole("button", { name: "Mês fechado (1)" }));
+    expect(screen.getAllByRole("row")).toHaveLength(2);
+    expect(within(painel()).getByRole("heading", { level: 2, name: "Padaria Ltda" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Todas (3)" }));
+    expect(screen.getAllByRole("row")).toHaveLength(4);
+  });
+
+  it("a estrela muda na hora e chama o backend", async () => {
+    const user = userEvent.setup();
+    marcarFavorita.mockResolvedValue({ ok: true, dados: null });
+    montar({ empresas: COM_157 });
+
+    await user.click(screen.getByRole("button", { name: "Marcar Padaria Ltda como favorita" }));
+    expect(marcarFavorita).toHaveBeenCalledWith(A.id, true);
+    expect(screen.getByRole("button", { name: "Tirar Padaria Ltda das favoritas" })).toHaveAttribute("aria-pressed", "true");
+    // a estrela não escolhe a linha por baixo dela
+    expect(within(painel()).getByRole("heading", { level: 2, name: "Mercado Ltda" })).toBeInTheDocument();
+  });
+
+  it("uma recusa do backend desfaz a estrela e mostra o motivo", async () => {
+    const user = userEvent.setup();
+    marcarFavorita.mockResolvedValue({ ok: false, status: 403, erro: "A conta de demonstração não muda as favoritas." });
+    montar({ empresas: COM_157 });
+
+    await user.click(within(painel()).getByRole("button", { name: "Tirar das favoritas" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("A conta de demonstração não muda as favoritas.");
+    expect(within(painel()).getByRole("button", { name: "Tirar das favoritas" })).toHaveAttribute("aria-pressed", "true");
   });
 });
 
@@ -303,54 +416,55 @@ describe("o cadastro de empresa", () => {
   });
 });
 
-describe("as abas Empresas e Equipe", () => {
-  it("abre em Empresas, com o número de empresas e, depois de carregar, o de pessoas na aba Equipe", async () => {
+describe("Empresas e Equipe na faixa dos filtros", () => {
+  const pilula = (nome: RegExp) => screen.getByRole("button", { name: nome });
+
+  it("abre em Empresas, com o número de empresas e, depois de carregar, o de pessoas na pílula Equipe", async () => {
     montar();
 
-    const empresas = screen.getByRole("tab", { name: /^Empresas/ });
-    expect(empresas).toHaveAttribute("aria-selected", "true");
-    expect(empresas).toHaveTextContent("2");
-    expect(await screen.findByRole("tab", { name: "Equipe 3" })).toHaveAttribute("aria-selected", "false");
-    expect(screen.getByRole("table")).toBeInTheDocument();
-    expect(screen.queryByRole("list", { name: "Pessoas com acesso" })).not.toBeInTheDocument();
+    const empresas = pilula(/^Empresas \(2\)/);
+    expect(empresas).toHaveAttribute("aria-pressed", "true");
+    expect(await screen.findByRole("button", { name: "Equipe (3)" })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("columnheader", { name: "CNPJ" })).toBeInTheDocument();
+    expect(screen.queryByRole("table", { name: "Pessoas com acesso" })).not.toBeInTheDocument();
   });
 
-  it("a aba da URL abre direto na Equipe, com o botão do cabeçalho de convidar", async () => {
+  it("a URL abre direto na Equipe, com o botão do cabeçalho de convidar", async () => {
     montar({ aba: "equipe" });
 
-    expect(await screen.findByRole("list", { name: "Pessoas com acesso" })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: /^Equipe/ })).toHaveAttribute("aria-selected", "true");
-    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+    expect(await screen.findByRole("table", { name: "Pessoas com acesso" })).toBeInTheDocument();
+    expect(pilula(/^Equipe/)).toHaveAttribute("aria-pressed", "true");
+    expect(screen.queryByRole("columnheader", { name: "CNPJ" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Convidar pessoa" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Adicionar empresa" })).not.toBeInTheDocument();
   });
 
-  it("trocar de aba não recarrega a tela e grava ?aba=equipe na URL; voltar a Empresas tira o parâmetro", async () => {
+  it("trocar não recarrega a tela e grava ?aba=equipe na URL; voltar a Empresas tira o parâmetro", async () => {
     const user = userEvent.setup();
     montar();
-    await screen.findByRole("tab", { name: "Equipe 3" });
+    await screen.findByRole("button", { name: "Equipe (3)" });
 
-    await user.click(screen.getByRole("tab", { name: /^Equipe/ }));
-    expect(await screen.findByRole("list", { name: "Pessoas com acesso" })).toBeInTheDocument();
+    await user.click(pilula(/^Equipe/));
+    expect(await screen.findByRole("table", { name: "Pessoas com acesso" })).toBeInTheDocument();
     expect(window.location.search).toBe("?aba=equipe");
     expect(carregarEquipe).toHaveBeenCalledTimes(1);
 
-    await user.click(screen.getByRole("tab", { name: /^Empresas/ }));
-    expect(screen.getByRole("table")).toBeInTheDocument();
+    await user.click(pilula(/^Empresas/));
+    expect(screen.getByRole("columnheader", { name: "CNPJ" })).toBeInTheDocument();
     expect(window.location.search).toBe("");
   });
 
-  it("cada aba tem o seu botão e o seu formulário aberto", async () => {
+  it("cada visão tem o seu botão e o seu formulário aberto", async () => {
     const user = userEvent.setup();
     montar();
-    await screen.findByRole("tab", { name: "Equipe 3" });
+    await screen.findByRole("button", { name: "Equipe (3)" });
 
     await user.click(screen.getByRole("button", { name: "Adicionar empresa" }));
     const cadastro = screen.getByRole("dialog", { name: "Adicionar empresa" });
     await user.click(within(cadastro).getByRole("button", { name: "Cancelar" }));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("tab", { name: /^Equipe/ }));
+    await user.click(pilula(/^Equipe/));
     const convidar = screen.getByRole("button", { name: "Convidar pessoa" });
     expect(convidar).toHaveAttribute("aria-haspopup", "dialog");
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
@@ -359,30 +473,24 @@ describe("as abas Empresas e Equipe", () => {
     expect(within(screen.getByRole("dialog", { name: "Convidar pessoa" })).getByRole("form", { name: "Convidar pessoa" })).toBeInTheDocument();
   });
 
-  it("as setas andam entre as abas, que se selecionam ao receber o foco", async () => {
+  it("a busca e o filtro só aparecem em Empresas", async () => {
     const user = userEvent.setup();
     montar();
-    await screen.findByRole("tab", { name: "Equipe 3" });
+    await screen.findByRole("button", { name: "Equipe (3)" });
 
-    screen.getByRole("tab", { name: /^Empresas/ }).focus();
-    await user.keyboard("{ArrowRight}");
-
-    expect(screen.getByRole("tab", { name: /^Equipe/ })).toHaveFocus();
-    expect(screen.getByRole("tab", { name: /^Equipe/ })).toHaveAttribute("aria-selected", "true");
-    await user.keyboard("{ArrowLeft}");
-    expect(screen.getByRole("tab", { name: /^Empresas/ })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("searchbox")).toBeInTheDocument();
+    await user.click(pilula(/^Equipe/));
+    expect(screen.queryByRole("searchbox")).not.toBeInTheDocument();
   });
 
-  it("o analista também vê a aba Equipe, mas sem o botão de convidar", async () => {
+  it("o analista também vê a Equipe, mas sem o botão de convidar", async () => {
     montar({ papel: "analista", aba: "equipe" });
 
-    expect(await screen.findByRole("list", { name: "Pessoas com acesso" })).toBeInTheDocument();
+    expect(await screen.findByRole("table", { name: "Pessoas com acesso" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Convidar pessoa" })).not.toBeInTheDocument();
   });
 
-  it("a faixa do plano das empresas tem a barra de uso quando há máximo, e não tem sem máximo", () => {
-    const { unmount } = render(<span />);
-    unmount();
+  it("a faixa do plano das empresas tem a barra de uso quando há máximo", () => {
     montar({ limites: { empresas: { usadas: 2, maximo: 3 }, usuarios: null } });
     expect(document.querySelector(".faixa-plano-barra")).not.toBeNull();
   });
@@ -392,30 +500,17 @@ describe("as abas Empresas e Equipe", () => {
     expect(document.querySelector(".faixa-plano")).not.toBeNull();
     expect(document.querySelector(".faixa-plano-barra")).toBeNull();
   });
-});
 
-describe("os painéis das abas", () => {
-  it("cada aba aponta para um painel que existe no DOM; o da aba inativa fica escondido", async () => {
-    montar();
-    await screen.findByRole("tab", { name: "Equipe 3" });
-
-    for (const aba of screen.getAllByRole("tab")) {
-      const painel = document.getElementById(aba.getAttribute("aria-controls")!);
-      expect(painel, aba.textContent ?? "").not.toBeNull();
-      expect(painel!.hidden).toBe(aba.getAttribute("aria-selected") !== "true");
-    }
-  });
-
-  it("o que foi digitado numa aba sobrevive à troca de aba", async () => {
+  it("o que foi digitado numa visão sobrevive à troca", async () => {
     const user = userEvent.setup();
     montar();
-    await screen.findByRole("tab", { name: "Equipe 3" });
+    await screen.findByRole("button", { name: "Equipe (3)" });
 
-    await user.click(screen.getByRole("tab", { name: /^Equipe/ }));
+    await user.click(pilula(/^Equipe/));
     await user.click(screen.getByRole("button", { name: "Convidar pessoa" }));
     await user.type(screen.getByLabelText("E-mail da pessoa"), "dani@x.com");
-    await user.click(screen.getByRole("tab", { name: /^Empresas/ }));
-    await user.click(screen.getByRole("tab", { name: /^Equipe/ }));
+    await user.click(pilula(/^Empresas/));
+    await user.click(pilula(/^Equipe/));
 
     expect(screen.getByLabelText("E-mail da pessoa")).toHaveValue("dani@x.com");
   });
@@ -466,7 +561,7 @@ describe("os modais de cadastrar e de convidar", () => {
   it("Convidar pessoa abre a janela do convite; Fechar, Esc e o clique no fundo a fecham; enviar não a fecha", async () => {
     const user = userEvent.setup();
     montar({ aba: "equipe" });
-    await screen.findByRole("list", { name: "Pessoas com acesso" });
+    await screen.findByRole("table", { name: "Pessoas com acesso" });
     const abrirJanela = () => user.click(screen.getByRole("button", { name: "Convidar pessoa" }));
 
     await abrirJanela();

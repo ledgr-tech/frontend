@@ -18,7 +18,7 @@ export default async function AjudaLayout({ children }: { children: ReactNode })
     <LucideProvider strokeWidth={TRACO_ICONE}>
       <div className="app-shell ajd-sistema">
         <BarraDaAjuda />
-        <MotionRoot>
+        <MotionRoot revelar={false}>
           <main>{children}</main>
         </MotionRoot>
       </div>

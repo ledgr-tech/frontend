@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { useState } from "react";
 import userEvent from "@testing-library/user-event";
 import type { Papel } from "@/lib/papel";
@@ -48,9 +48,15 @@ function montar(papel: Papel = "admin", email = ADMIN.email, limites: LimitesDaC
   );
 }
 
-/** A linha inteira de uma pessoa ou de um convite, pelo nome ou e-mail. */
+/** A linha de uma pessoa ou de um convite na tabela, pelo nome ou e-mail. */
 function linhaDe(nome: string) {
-  return screen.getByText(nome, { selector: ".equipe-nome" }).closest("li")!;
+  return screen.getByText(nome, { selector: ".equipe-nome" }).closest("tr")!;
+}
+
+/** Escolhe a pessoa ou o convite na lista e devolve o painel ao lado, onde ficam as ações. */
+function painelDe(nome: string) {
+  fireEvent.click(screen.getByText(nome, { selector: ".equipe-nome" }));
+  return screen.getByRole("complementary", { name: /escolhid/ });
 }
 
 beforeEach(() => {
@@ -70,15 +76,16 @@ describe("a equipe", () => {
 
     expect(await screen.findByText("Bia", { selector: ".equipe-nome" })).toBeInTheDocument();
     expect(carregarEquipe).toHaveBeenCalledWith("admin");
-    // só um Remover: o da Bia; a própria linha e a do administrador não têm
-    expect(screen.getAllByRole("button", { name: "Remover" })).toHaveLength(1);
-    expect(within(linhaDe("Ana")).getByText("você")).toBeInTheDocument();
-    expect(within(linhaDe("Ana")).getByText("Administrador")).toBeInTheDocument();
+    // a própria pessoa e o administrador não têm Remover; a Bia tem
+    expect(within(painelDe("Ana")).queryByRole("button", { name: "Remover" })).not.toBeInTheDocument();
+    expect(within(painelDe("Bia")).getByRole("button", { name: "Remover" })).toBeInTheDocument();
+    expect(within(painelDe("Ana")).getByText("você")).toBeInTheDocument();
+    expect(within(painelDe("Ana")).getByText("Administrador")).toBeInTheDocument();
     expect(within(linhaDe("Bia")).getByText("Analista")).toBeInTheDocument();
     expect(screen.getByLabelText("E-mail da pessoa")).toBeInTheDocument();
     expect(screen.getByText("Convites pendentes")).toBeInTheDocument();
     expect(screen.getByText("Analista · Enviado em 16/10/2026 · vale até 23/10/2026")).toBeInTheDocument();
-    expect(within(linhaDe("caio@x.com")).getByRole("button", { name: "Cancelar" })).toBeInTheDocument();
+    expect(within(painelDe("caio@x.com")).getByRole("button", { name: "Cancelar convite" })).toBeInTheDocument();
   });
 
   it("o analista vê só a lista e a frase", async () => {
@@ -90,7 +97,7 @@ describe("a equipe", () => {
     expect(screen.queryByRole("button", { name: "Remover" })).not.toBeInTheDocument();
     expect(screen.queryByLabelText("E-mail da pessoa")).not.toBeInTheDocument();
     expect(screen.getByText("Só o administrador e o gestor convidam pessoas; só o administrador remove.")).toBeInTheDocument();
-    expect(within(linhaDe("Bia")).getByText("você")).toBeInTheDocument();
+    expect(within(painelDe("Bia")).getByText("você")).toBeInTheDocument();
   });
 
   it("o gestor convida e cancela convite, mas não remove ninguém, e só oferece o papel de analista", async () => {
@@ -100,8 +107,8 @@ describe("a equipe", () => {
     expect(await screen.findByText("Bia", { selector: ".equipe-nome" })).toBeInTheDocument();
     expect(carregarEquipe).toHaveBeenCalledWith("gestor");
     expect(screen.queryByRole("button", { name: "Remover" })).not.toBeInTheDocument();
-    expect(within(linhaDe("Gil")).getByText("Gestor")).toBeInTheDocument();
-    expect(within(linhaDe("caio@x.com")).getByRole("button", { name: "Cancelar" })).toBeInTheDocument();
+    expect(within(painelDe("Gil")).getByText("Gestor")).toBeInTheDocument();
+    expect(within(painelDe("caio@x.com")).getByRole("button", { name: "Cancelar convite" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^Gestor/ })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^Analista/ })).toBeDisabled();
   });
@@ -144,14 +151,14 @@ describe("a equipe", () => {
     expect(screen.queryByLabelText("E-mail da pessoa")).not.toBeInTheDocument();
   });
 
-  it("confirma a remoção na própria linha e tira a pessoa da lista", async () => {
+  it("confirma a remoção no painel e tira a pessoa da lista", async () => {
     const user = userEvent.setup();
     removerPessoa.mockResolvedValue({ ok: true, dados: null });
     montar();
 
     await screen.findByText("Bia", { selector: ".equipe-nome" });
-    await user.click(within(linhaDe("Bia")).getByRole("button", { name: "Remover" }));
-    const linha = linhaDe("Bia");
+    await user.click(within(painelDe("Bia")).getByRole("button", { name: "Remover" }));
+    const linha = screen.getByRole("complementary", { name: "Pessoa escolhida" });
     expect(
       within(linha).getByText("Bia perde o acesso na hora. As decisões que registrou continuam no histórico com o nome da pessoa."),
     ).toBeInTheDocument();
@@ -167,10 +174,10 @@ describe("a equipe", () => {
     montar();
 
     await screen.findByText("Bia", { selector: ".equipe-nome" });
-    await user.click(within(linhaDe("Bia")).getByRole("button", { name: "Remover" }));
-    await user.click(within(linhaDe("Bia")).getByRole("button", { name: "Cancelar" }));
+    await user.click(within(painelDe("Bia")).getByRole("button", { name: "Remover" }));
+    await user.click(within(painelDe("Bia")).getByRole("button", { name: "Cancelar" }));
 
-    expect(within(linhaDe("Bia")).getByRole("button", { name: "Remover" })).toBeInTheDocument();
+    expect(within(painelDe("Bia")).getByRole("button", { name: "Remover" })).toBeInTheDocument();
     expect(removerPessoa).not.toHaveBeenCalled();
   });
 
@@ -181,8 +188,8 @@ describe("a equipe", () => {
     montar();
 
     await screen.findByText("Bia", { selector: ".equipe-nome" });
-    await user.click(within(linhaDe("Bia")).getByRole("button", { name: "Remover" }));
-    const confirmar = within(linhaDe("Bia")).getByRole("button", { name: "Remover" });
+    await user.click(within(painelDe("Bia")).getByRole("button", { name: "Remover" }));
+    const confirmar = within(painelDe("Bia")).getByRole("button", { name: "Remover" });
     await user.click(confirmar);
     await user.click(confirmar);
     expect(removerPessoa).toHaveBeenCalledTimes(1);
@@ -239,7 +246,7 @@ describe("a equipe", () => {
     montar();
 
     await screen.findByText("caio@x.com", { selector: ".equipe-nome" });
-    await user.click(within(linhaDe("caio@x.com")).getByRole("button", { name: "Cancelar" }));
+    await user.click(within(painelDe("caio@x.com")).getByRole("button", { name: "Cancelar convite" }));
 
     await waitFor(() => expect(screen.queryByText("caio@x.com", { selector: ".equipe-nome" })).not.toBeInTheDocument());
     expect(cancelarConvite).toHaveBeenCalledWith("c1");
@@ -272,7 +279,7 @@ describe("a equipe", () => {
     montar();
 
     await screen.findByText("caio@x.com", { selector: ".equipe-nome" });
-    await user.click(within(linhaDe("caio@x.com")).getByRole("button", { name: "Cancelar" }));
+    await user.click(within(painelDe("caio@x.com")).getByRole("button", { name: "Cancelar convite" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Só o administrador pode fazer isso.");
     await waitFor(() => expect(carregarEquipe).toHaveBeenCalledTimes(2));
@@ -284,8 +291,8 @@ describe("a equipe", () => {
     montar();
 
     await screen.findByText("Bia", { selector: ".equipe-nome" });
-    await user.click(within(linhaDe("Bia")).getByRole("button", { name: "Remover" }));
-    await user.click(within(linhaDe("Bia")).getByRole("button", { name: "Remover" }));
+    await user.click(within(painelDe("Bia")).getByRole("button", { name: "Remover" }));
+    await user.click(within(painelDe("Bia")).getByRole("button", { name: "Remover" }));
 
     await waitFor(() => expect(push).toHaveBeenCalledWith("/login"));
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
@@ -339,11 +346,11 @@ describe("a faixa do plano para pessoas", () => {
     await user.click(screen.getByRole("button", { name: "Enviar convite" }));
     await waitFor(() => expect(refresh).toHaveBeenCalledTimes(1));
 
-    await user.click(within(linhaDe("caio@x.com")).getByRole("button", { name: "Cancelar" }));
+    await user.click(within(painelDe("caio@x.com")).getByRole("button", { name: "Cancelar convite" }));
     await waitFor(() => expect(refresh).toHaveBeenCalledTimes(2));
 
-    await user.click(within(linhaDe("Bia")).getByRole("button", { name: "Remover" }));
-    await user.click(within(linhaDe("Bia")).getByRole("button", { name: "Remover" }));
+    await user.click(within(painelDe("Bia")).getByRole("button", { name: "Remover" }));
+    await user.click(within(painelDe("Bia")).getByRole("button", { name: "Remover" }));
     await waitFor(() => expect(refresh).toHaveBeenCalledTimes(3));
 
     convidar.mockResolvedValueOnce({ ok: false, status: 409, erro: "Este e-mail já tem conta no Ledgr." });
@@ -387,7 +394,7 @@ describe("a faixa do plano para pessoas", () => {
 });
 
 describe("o menu de papel", () => {
-  const botaoDe = (nome: string) => within(linhaDe(nome)).queryByRole("button", { name: new RegExp(`^Papel de ${nome}`) });
+  const botaoDe = (nome: string) => within(painelDe(nome)).queryByRole("button", { name: new RegExp(`^Papel de ${nome}`) });
   const COM_GIL = { ok: true, dados: { pessoas: [ADMIN, GESTOR, BIA], convites: [] } };
 
   beforeEach(() => {
@@ -403,7 +410,7 @@ describe("o menu de papel", () => {
     expect(botaoDe("Gil")).toBeInTheDocument();
     expect(botaoDe("Ana")).not.toBeInTheDocument();
     expect(botaoDe("Duda")).not.toBeInTheDocument();
-    expect(within(linhaDe("Ana")).getByText("Administrador")).toBeInTheDocument();
+    expect(within(painelDe("Ana")).getByText("Administrador")).toBeInTheDocument();
   });
 
   it.each<[Papel, string]>([
@@ -414,7 +421,7 @@ describe("o menu de papel", () => {
     await screen.findByText("Bia", { selector: ".equipe-nome" });
 
     expect(screen.queryByRole("button", { name: /^Papel de/ })).not.toBeInTheDocument();
-    expect(within(linhaDe("Bia")).getByText("Analista")).toBeInTheDocument();
+    expect(within(painelDe("Bia")).getByText("Analista")).toBeInTheDocument();
   });
 
   it("o menu abre com Gestor e Analista explicados, o atual marcado, e Tornar administrador depois de um filete", async () => {
@@ -459,7 +466,7 @@ describe("o menu de papel", () => {
     await user.click(screen.getByRole("menuitemradio", { name: /^Gestor/ }));
 
     expect(trocarPapel).toHaveBeenCalledWith("u2", "gestor");
-    expect(within(linhaDe("Bia")).getByText("Salvando…")).toBeInTheDocument();
+    expect(within(painelDe("Bia")).getByText("Salvando…")).toBeInTheDocument();
     expect(botaoDe("Bia")).toHaveAttribute("aria-disabled", "true");
     expect(botaoDe("Bia")).toHaveFocus();
 
@@ -479,7 +486,7 @@ describe("o menu de papel", () => {
     await user.click(botaoDe("Bia")!);
     await user.click(screen.getByRole("menuitemradio", { name: /^Gestor/ }));
 
-    expect(await within(linhaDe("Bia")).findByRole("alert")).toHaveTextContent("O admin só muda de papel pela transferência.");
+    expect(await within(painelDe("Bia")).findByRole("alert")).toHaveTextContent("O admin só muda de papel pela transferência.");
     expect(within(linhaDe("Bia")).getByText("Analista")).toBeInTheDocument();
     expect(refresh).not.toHaveBeenCalled();
   });
@@ -524,7 +531,7 @@ describe("o menu de papel", () => {
     await user.click(screen.getByRole("menuitemradio", { name: /^Gestor/ }));
 
     await waitFor(() => expect(push).toHaveBeenCalledWith("/login"));
-    expect(within(linhaDe("Bia")).queryByRole("alert")).not.toBeInTheDocument();
+    expect(within(painelDe("Bia")).queryByRole("alert")).not.toBeInTheDocument();
   });
 
   it("Esc e um clique fora fecham o menu; Esc devolve o foco ao botão", async () => {
@@ -621,7 +628,7 @@ describe("a transferência da administração", () => {
     const user = userEvent.setup();
     montar("admin", ADMIN.email, null, false, temSenha);
     await screen.findByText("Bia", { selector: ".equipe-nome" });
-    await user.click(within(linhaDe("Bia")).getByRole("button", { name: /^Papel de Bia/ }));
+    await user.click(within(painelDe("Bia")).getByRole("button", { name: /^Papel de Bia/ }));
     await user.click(screen.getByRole("menuitem", { name: /^Tornar administrador/ }));
     return { user, janela: screen.getByRole("dialog", { name: "Transferir administração" }) };
   }
@@ -722,15 +729,15 @@ describe("a transferência da administração", () => {
 
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
     expect(await screen.findByRole("status")).toHaveTextContent("Bia agora é o administrador da conta. Você é Gestor.");
-    expect(within(linhaDe("Bia")).getByText("Administrador")).toBeInTheDocument();
-    expect(within(linhaDe("Ana")).getByText("Gestor")).toBeInTheDocument();
+    expect(within(painelDe("Bia")).getByText("Administrador")).toBeInTheDocument();
+    expect(within(painelDe("Ana")).getByText("Gestor")).toBeInTheDocument();
     expect(refresh).toHaveBeenCalledTimes(1);
   });
 
   it("Esc, Cancelar e um clique no fundo fecham a janela sem chamar a ação", async () => {
     const { user } = await abrirJanela();
     const abrirDeNovo = async () => {
-      await user.click(within(linhaDe("Bia")).getByRole("button", { name: /^Papel de Bia/ }));
+      await user.click(within(painelDe("Bia")).getByRole("button", { name: /^Papel de Bia/ }));
       await user.click(screen.getByRole("menuitem", { name: /^Tornar administrador/ }));
     };
 

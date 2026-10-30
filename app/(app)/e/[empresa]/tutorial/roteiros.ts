@@ -60,7 +60,7 @@ export const TUTORIAIS: Record<TelaDoTutorial, TutorialDaTela> = {
   },
   extratos: {
     nome: "Extratos",
-    mascote: "/mascotes/mascote-explicando.png",
+    mascote: "/mascotes/mascote-arquivo.png",
     passos: [
       { alvo: "filtros", titulo: "Separe o banco do sistema.", texto: "Os filtros mostram só os arquivos do banco, só os do sistema ou os que tiveram problema na leitura." },
       { alvo: "arquivos", titulo: "Todos os arquivos que você enviou.", texto: "Agrupados pelo mês do extrato. Clique num arquivo para ver os detalhes ao lado." },
@@ -72,7 +72,8 @@ export const TUTORIAIS: Record<TelaDoTutorial, TutorialDaTela> = {
     mascote: "/mascotes/mascote-sentado.png",
     passos: [
       { alvo: "grafico", titulo: "Como os meses andaram.", texto: "O gráfico mostra quanto bateu em cada mês." },
-      { alvo: "lista", titulo: "Tudo o que foi conciliado.", texto: "Cada conciliação com as rodadas que ela teve. Clique para abrir a comparação daquela rodada." },
+      { alvo: "lista", titulo: "Tudo o que foi conciliado.", texto: "Cada conciliação é um par de folhas, agrupadas pelo mês do extrato. Clique numa para ver os detalhes ao lado; dois cliques abrem a comparação." },
+      { alvo: "previa", titulo: "As rodadas de cada conciliação.", texto: "Ao lado, o que bateu na rodada que vale e cada execução que ela teve, com as anteriores e as refeitas." },
     ],
   },
   fechamentos: {
@@ -85,7 +86,7 @@ export const TUTORIAIS: Record<TelaDoTutorial, TutorialDaTela> = {
   },
   configuracoes: {
     nome: "Configurações",
-    mascote: "/mascotes/mascote-apresenta.png",
+    mascote: "/mascotes/mascote-laptop.png",
     passos: [
       { alvo: "tolerancia", titulo: "A sua regra da conciliação.", texto: "A tolerância diz quantos dias de diferença entre o banco e o sistema, para mais ou para menos, ainda contam como bateu. Vale a partir da próxima conciliação." },
       { alvo: "fonte-da-verdade", titulo: "O banco é a referência.", texto: "Toda divergência aparece como o sistema divergindo do banco. É no sistema que se corrige." },

@@ -1,36 +1,35 @@
 "use client";
 
-import { Fragment, useState } from "react";
+import { Fragment, useRef, useState } from "react";
 import Link from "@/lib/link-do-app";
-import { ChevronRight } from "lucide-react";
+import { useRoteador } from "@/lib/roteador";
 import type { Execucao } from "@/lib/adaptadores";
 import { caminhoDaConciliacao } from "@/lib/caminhos";
 import { salvar } from "../conciliacoes/[id]/exportar-csv";
 import { formatarDataHora, formatarInteiro } from "../dashboard/resumo";
 import { FaixaFiltros } from "../faixa-filtros";
-import { Grupo, alternarNoConjunto } from "../grupo";
 import { IconeOrigem } from "../icone-origem";
+import { useTrocaSuave } from "@/lib/troca-suave";
 import {
   LEGENDA_DOS_TONS,
   conciliados,
   matchNaTela,
   paraRevisar,
-  porAno,
   porConciliacao,
   porMes,
   segmentos,
   taxaDeMatch,
   type ConciliacaoNoHistorico,
-  type ExecucaoDaConciliacao,
   type MesDoHistorico,
   type SituacaoNoHistorico,
 } from "./execucoes";
 
 /**
- * O histórico conciliação a conciliação: uma linha por extrato do banco, com os números da
- * rodada que vale, e as outras execuções dele (rodadas anteriores, refeitas) abertas embaixo.
- * Agrupado por ano e mês, como Fechamentos. Fica no cliente pelo filtro e pelo que está aberto;
- * as execuções chegam prontas da página, que roda no servidor.
+ * O histórico em folhas, como Conciliações (revisão de 29/10, versão B do artefato "Histórico e
+ * Empresas no padrão"): cada extrato do banco é o par de folhas, agrupadas pelo mês do extrato, e ao
+ * lado a prévia da escolhida, com o que bateu na rodada que vale e todas as rodadas que ela teve
+ * (anteriores e refeitas). Um clique escolhe; dois abrem a comparação. Fica no cliente pelo filtro e
+ * pela escolha; as execuções chegam prontas da página, que roda no servidor.
  */
 
 type Filtro = "todas" | "pendentes";
@@ -39,6 +38,9 @@ const FILTROS: { id: Filtro; rotulo: string; vazio: string }[] = [
   { id: "todas", rotulo: "Todas", vazio: "Nenhuma conciliação nesta página." },
   { id: "pendentes", rotulo: "Com pendência", vazio: "Nenhuma conciliação com pendência nesta página." },
 ];
+
+// abaixo disso a prévia sobe para antes das folhas (o mesmo corte do .conc-mesa em globals.css)
+const PREVIA_AO_LADO = "(min-width: 1100px)";
 
 function comPendencia(conciliacao: ConciliacaoNoHistorico): boolean {
   return paraRevisar(conciliacao.principal.execucao) > 0;
@@ -53,12 +55,16 @@ function plural(quantidade: number, singular: string, plural: string): string {
 }
 
 /**
- * "24/09 14:02" quando rodou no ano do grupo, que o título já diz; com o ano quando não (o
+ * "24/09 14:02" quando rodou no ano do mês do extrato, que o título já diz; com o ano quando não (o
  * extrato de dezembro conciliado em janeiro).
  */
 function quandoRodou(iso: string, ano: string): string {
   const completa = formatarDataHora(iso);
   return completa.slice(6, 10) === ano ? completa.replace(/\/\d{4}/, "") : completa;
+}
+
+function textoDaRodada({ principal, rodadas }: ConciliacaoNoHistorico): string {
+  return `Rodada ${principal.rodada} de ${rodadas}`;
 }
 
 const SELO: Record<SituacaoNoHistorico, { rotulo: string; classe: string }> = {
@@ -68,304 +74,261 @@ const SELO: Record<SituacaoNoHistorico, { rotulo: string; classe: string }> = {
   substituida: { rotulo: "Substituída", classe: "selo hist-selo-substituida" },
 };
 
-function resumoDoAno(meses: MesDoHistorico[]): string {
-  const doAno = meses.flatMap((mes) => mes.conciliacoes);
-  const pendentes = doAno.filter(comPendencia).length;
-  const situacao =
-    pendentes > 0 ? `${formatarInteiro(pendentes)} com pendência` : doAno.length === 1 ? "sem pendência" : "todas sem pendência";
-  return `${plural(doAno.length, "conciliação", "conciliações")} · ${situacao}`;
+function metaDoMes(mes: MesDoHistorico): string {
+  const pendentes = mes.conciliacoes.filter(comPendencia).length;
+  return [
+    plural(mes.conciliacoes.length, "conciliação", "conciliações"),
+    pendentes > 0 ? `${formatarInteiro(pendentes)} com pendência` : "sem pendência",
+  ].join(" · ");
 }
 
 export function HistoricoPorConciliacao({ execucoes }: { execucoes: Execucao[] }) {
   const [filtro, setFiltro] = useState<Filtro>("todas");
+  const [escolhida, setEscolhida] = useState<string | null>(null);
+  const previa = useRef<HTMLElement>(null);
   const todas = porConciliacao(execucoes);
-  const anos = porAno(porMes(todas.filter((conciliacao) => passaNoFiltro(conciliacao, filtro))));
-  // os anos passados começam recolhidos: o que se procura no histórico costuma ser recente, e o
-  // título de cada um já diz quantas conciliações ainda pedem revisão
-  const [anosFechados, setAnosFechados] = useState<ReadonlySet<string>>(
-    () => new Set(porAno(porMes(todas)).slice(1).map(({ ano }) => ano)),
-  );
-  const [abertas, setAbertas] = useState<ReadonlySet<string>>(new Set());
+  const meses = porMes(todas.filter((conciliacao) => passaNoFiltro(conciliacao, filtro)));
+  // a escolhida que o filtro escondeu dá lugar à primeira à vista
+  const emVista = meses.flatMap((mes) => mes.conciliacoes.map((conciliacao) => ({ conciliacao, mes })));
+  const atual = emVista.find((item) => item.conciliacao.extratoBancoId === escolhida) ?? emVista[0] ?? null;
+  useTrocaSuave(previa, atual?.conciliacao.extratoBancoId);
+
+  function escolher(id: string) {
+    setEscolhida(id);
+    // com a prévia acima das folhas, escolher sem ver o que mudou não diria nada
+    if (!window.matchMedia?.(PREVIA_AO_LADO).matches) previa.current?.scrollIntoView?.({ block: "start" });
+  }
 
   return (
-    <section className="hist-linha" aria-labelledby="hist-linha-titulo">
-      <h2 id="hist-linha-titulo" className="vg-secao-titulo">
-        Conciliação a conciliação
-      </h2>
-      <div className="extratos-corpo">
-        <FaixaFiltros>
-          <div className="pills segmentado" role="group" aria-label="Filtrar conciliações">
-            {FILTROS.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                className="pill"
-                aria-pressed={filtro === item.id}
-                onClick={() => setFiltro(item.id)}
-              >
-                {item.rotulo} ({todas.filter((conciliacao) => passaNoFiltro(conciliacao, item.id)).length})
-              </button>
-            ))}
-          </div>
-          <ul className="hist-legenda" aria-label="Legenda das barras">
-            {LEGENDA_DOS_TONS.map((item) => (
-              <li key={item.tom}>
-                <span className="hist-legenda-cor" data-tom={item.tom} aria-hidden="true" />
-                {item.rotulo}
-              </li>
-            ))}
-          </ul>
-        </FaixaFiltros>
-
-        {anos.length === 0 ? (
-          <p className="extratos-vazio">{FILTROS.find((item) => item.id === filtro)?.vazio}</p>
-        ) : (
-          <div className="grupos">
-            {anos.map(({ ano, meses }) => {
-              const tabela = (
-                <Tabela
-                  meses={meses}
-                  abertas={abertas}
-                  onAlternar={(banco) => setAbertas(alternarNoConjunto(banco))}
-                />
-              );
-              // num ano só, a tabela segue sem o título do ano, como em Fechamentos
-              return anos.length > 1 ? (
-                <Grupo
-                  key={ano}
-                  id={`hist-ano-${ano}`}
-                  titulo={ano}
-                  resumo={resumoDoAno(meses)}
-                  fechado={anosFechados.has(ano)}
-                  onAlternar={() => setAnosFechados(alternarNoConjunto(ano))}
-                >
-                  {tabela}
-                </Grupo>
-              ) : (
-                <Fragment key={ano}>{tabela}</Fragment>
-              );
-            })}
-          </div>
-        )}
-      </div>
-    </section>
-  );
-}
-
-function Tabela({
-  meses,
-  abertas,
-  onAlternar,
-}: {
-  meses: MesDoHistorico[];
-  abertas: ReadonlySet<string>;
-  onAlternar: (extratoBancoId: string) => void;
-}) {
-  return (
-    <table className="table hist-tabela" data-tutorial="lista">
-      <colgroup>
-        <col className="hist-col-conciliacao" />
-        <col className="hist-col-rodadas" />
-        <col className="hist-col-lancamentos" />
-        <col className="hist-col-match" />
-        <col className="hist-col-revisar" />
-        <col className="hist-col-quando" />
-        <col className="hist-col-acao" />
-      </colgroup>
-      <thead>
-        <tr>
-          <th scope="col">Conciliação</th>
-          <th scope="col">Rodadas</th>
-          <th scope="col" className="hist-num">
-            Lançamentos
-          </th>
-          <th scope="col">Match</th>
-          <th scope="col" className="hist-num">
-            Para revisar
-          </th>
-          <th scope="col">Quando</th>
-          <th scope="col">
-            <span className="sr-only">Abrir</span>
-          </th>
-        </tr>
-      </thead>
-      {meses.map((mes) => (
-        <tbody key={mes.chave}>
-          <tr className="hist-mes-linha">
-            <th scope="rowgroup" colSpan={7}>
-              <h3 className="hist-mes-titulo">
-                {mes.titulo}
-                <span className="hist-mes-conta">{plural(mes.conciliacoes.length, "conciliação", "conciliações")}</span>
-              </h3>
-            </th>
-          </tr>
-          {mes.conciliacoes.map((conciliacao) => (
-            <LinhasDaConciliacao
-              key={conciliacao.extratoBancoId}
-              conciliacao={conciliacao}
-              ano={mes.chave.slice(0, 4)}
-              aberta={abertas.has(conciliacao.extratoBancoId)}
-              onAlternar={() => onAlternar(conciliacao.extratoBancoId)}
-            />
+    <div className="extratos-corpo">
+      <FaixaFiltros tutorial="filtros">
+        <div className="pills segmentado" role="group" aria-label="Filtrar conciliações">
+          {FILTROS.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              className="pill"
+              aria-pressed={filtro === item.id}
+              onClick={() => setFiltro(item.id)}
+            >
+              {item.rotulo} ({todas.filter((conciliacao) => passaNoFiltro(conciliacao, item.id)).length})
+            </button>
           ))}
-        </tbody>
-      ))}
-    </table>
+        </div>
+        <ul className="hist-legenda" aria-label="Legenda das barras">
+          {LEGENDA_DOS_TONS.map((item) => (
+            <li key={item.tom}>
+              <span className="hist-legenda-cor" data-tom={item.tom} aria-hidden="true" />
+              {item.rotulo}
+            </li>
+          ))}
+        </ul>
+      </FaixaFiltros>
+
+      {!atual ? (
+        <p className="extratos-vazio">{FILTROS.find((item) => item.id === filtro)?.vazio}</p>
+      ) : (
+        <div className="conc-mesa">
+          <div className="conc-meses" data-tutorial="lista">
+            {meses.map((mes) => (
+              <section key={mes.chave} aria-labelledby={`hist-mes-${mes.chave}`}>
+                <div className="conc-mes">
+                  <h2 id={`hist-mes-${mes.chave}`} className="conc-mes-titulo">
+                    {mes.titulo}
+                  </h2>
+                  <span className="conc-mes-meta">{metaDoMes(mes)}</span>
+                </div>
+                <ul className="conc-folhas">
+                  {mes.conciliacoes.map((conciliacao) => (
+                    <li key={conciliacao.extratoBancoId}>
+                      <Folha
+                        conciliacao={conciliacao}
+                        ano={mes.chave.slice(0, 4)}
+                        escolhida={conciliacao.extratoBancoId === atual.conciliacao.extratoBancoId}
+                        onEscolher={() => escolher(conciliacao.extratoBancoId)}
+                      />
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ))}
+          </div>
+          <Previa ref={previa} conciliacao={atual.conciliacao} mes={atual.mes} />
+        </div>
+      )}
+    </div>
   );
 }
 
-/** Um rótulo que só aparece na tela estreita, onde a tabela vira um bloco por linha e perde o cabeçalho. */
-function RotuloMovel({ children }: { children: string }) {
-  return (
-    <span className="hist-rotulo-movel" aria-hidden="true">
-      {children}
-    </span>
+/** O selo da folha: o que ainda pede revisão na rodada que vale, ou que não sobrou nada. */
+function SeloDaPendencia({ conciliacao }: { conciliacao: ConciliacaoNoHistorico }) {
+  const revisar = paraRevisar(conciliacao.principal.execucao);
+  return revisar > 0 ? (
+    <span className="selo selo-risco">{`${formatarInteiro(revisar)} para revisar`}</span>
+  ) : (
+    <span className="selo selo-ok">Sem pendência</span>
   );
 }
 
-function LinhasDaConciliacao({
+/** O par de folhas de uma conciliação, como em Conciliações, com as rodadas no pé. */
+function Folha({
   conciliacao,
   ano,
-  aberta,
-  onAlternar,
+  escolhida,
+  onEscolher,
 }: {
   conciliacao: ConciliacaoNoHistorico;
-  /** O ano do mês do extrato, que o título do grupo já diz. */
+  /** O ano do mês do extrato, que o título do mês já diz. */
   ano: string;
-  aberta: boolean;
-  onAlternar: () => void;
+  escolhida: boolean;
+  onEscolher: () => void;
 }) {
-  const { principal, execucoes, rodadas, arquivoBanco } = conciliacao;
+  const router = useRoteador();
+  const { extratoBancoId, arquivoBanco, principal, rodadas } = conciliacao;
   const { execucao } = principal;
-  const idDasExecucoes = execucoes.map((item) => `hist-execucao-${item.execucao.id}`);
-  const revisar = paraRevisar(execucao);
-
   return (
-    <>
-      <tr className="hist-conciliacao" data-pendente={revisar > 0 || undefined}>
-        <td className="hist-c-conciliacao">
-          <div className="hist-conciliacao-nome">
-            {execucoes.length > 1 ? (
-              <button
-                type="button"
-                className="hist-abrir"
-                aria-expanded={aberta}
-                aria-controls={idDasExecucoes.join(" ")}
-                aria-label={`Execuções de ${arquivoBanco}`}
-                onClick={onAlternar}
-              >
-                <ChevronRight size={15} aria-hidden="true" />
-              </button>
-            ) : (
-              <span className="hist-abrir-vazio" aria-hidden="true" />
-            )}
-            <span className="hist-arquivos">
-              <span className="hist-arquivo">
-                <IconeOrigem origem="banco" tamanho={14} />
-                <span className="hist-arquivo-nome">{arquivoBanco}</span>
-              </span>
-              <span className="hist-arquivo hist-arquivo-sistema">
-                <IconeOrigem origem="sistema" tamanho={13} />
-                <span className="hist-arquivo-nome">{execucao.arquivoSistema}</span>
-              </span>
-            </span>
-          </div>
-        </td>
-        <td className="hist-c-rodadas">
-          <RotuloMovel>Rodadas</RotuloMovel>
-          <QuadradosDasRodadas rodada={principal.rodada} rodadas={rodadas} />
-          <span className="sr-only">{`Rodada ${principal.rodada} de ${rodadas}`}</span>
-        </td>
-        <td className="hist-c-lancamentos hist-num">
-          <RotuloMovel>Lançamentos</RotuloMovel>
-          {formatarInteiro(execucao.lancamentos)}
-        </td>
-        <td className="hist-c-match">
-          <span className="hist-resultado">
-            {execucao.lancamentos > 0 && <BarraDoResultado execucao={execucao} />}
-            <span className="hist-taxa">{matchNaTela(execucao)}</span>
+    <button
+      type="button"
+      className="conc-folha"
+      aria-pressed={escolhida}
+      onClick={onEscolher}
+      // atalho para a comparação, como em Conciliações; o clique simples só escolhe
+      onDoubleClick={() => router.push(caminhoDaConciliacao(extratoBancoId))}
+    >
+      <span className="conc-folha-par" aria-hidden="true">
+        <span className="conc-folha-banco">
+          <span className="hist-arquivo">
+            <IconeOrigem origem="banco" tamanho={14} />
+            <span className="hist-arquivo-nome">{arquivoBanco}</span>
           </span>
-        </td>
-        <td className="hist-c-revisar hist-num">
-          <RotuloMovel>Para revisar</RotuloMovel>
-          {formatarInteiro(revisar)}
-          {execucao.justificadas > 0 && (
-            <span className="hist-justificadas">{` · ${plural(execucao.justificadas, "justificada", "justificadas")}`}</span>
-          )}
-        </td>
-        <td className="hist-c-quando">
-          <RotuloMovel>Quando</RotuloMovel>
-          <time dateTime={execucao.executadaEm} title={formatarDataHora(execucao.executadaEm)}>
-            {quandoRodou(execucao.executadaEm, ano)}
-          </time>
-        </td>
-        <td className="hist-c-acao">
-          {/* pelo endereço só do banco, que abre a rodada mais recente, como o "ver a mais recente" */}
-          <Link href={caminhoDaConciliacao(conciliacao.extratoBancoId)} className="btn btn-secondary hist-ver">
-            Ver{" "}<span className="sr-only">{arquivoBanco}</span>
-          </Link>
-        </td>
-      </tr>
-      {execucoes.length > 1 &&
-        execucoes.map((item, indice) => (
-          <LinhaDaExecucao key={item.execucao.id} id={idDasExecucoes[indice]} item={item} ano={ano} aberta={aberta} />
-        ))}
-    </>
-  );
-}
-
-function LinhaDaExecucao({
-  id,
-  item,
-  ano,
-  aberta,
-}: {
-  id: string;
-  item: ExecucaoDaConciliacao;
-  ano: string;
-  aberta: boolean;
-}) {
-  const { execucao, rodada, situacao } = item;
-  const selo = SELO[situacao];
-  return (
-    <tr id={id} className="hist-execucao" data-situacao={situacao} hidden={!aberta}>
-      <td className="hist-c-conciliacao">
-        <span className="hist-execucao-nome">{`Rodada ${rodada} · ${execucao.arquivoSistema}`}</span>
-      </td>
-      <td className="hist-c-rodadas">
-        <span className={selo.classe}>{selo.rotulo}</span>
-      </td>
-      <td className="hist-c-lancamentos hist-num">
-        <RotuloMovel>Lançamentos</RotuloMovel>
-        {formatarInteiro(execucao.lancamentos)}
-      </td>
-      <td className="hist-c-match">
-        <span className="hist-taxa">{matchNaTela(execucao)}</span>
-      </td>
-      <td className="hist-c-revisar hist-num">
-        <RotuloMovel>Para revisar</RotuloMovel>
-        {formatarInteiro(paraRevisar(execucao))}
-      </td>
-      <td className="hist-c-quando">
-        <RotuloMovel>Quando</RotuloMovel>
+          <span className="conc-folha-linhas">
+            <i />
+            <i />
+            <i />
+          </span>
+        </span>
+        <span className="conc-folha-sistema">
+          <span className="hist-arquivo hist-arquivo-sistema">
+            <IconeOrigem origem="sistema" tamanho={13} />
+            <span className="hist-arquivo-nome">{execucao.arquivoSistema}</span>
+          </span>
+        </span>
+      </span>
+      <span className="sr-only">{`${arquivoBanco} × ${execucao.arquivoSistema}`}</span>
+      <span className="conc-progresso">
+        {execucao.lancamentos > 0 && <BarraDoResultado execucao={execucao} />}
+        <span className="conc-folha-pe">
+          <span className="hist-taxa">{`${matchNaTela(execucao)} bateu`}</span>
+          <SeloDaPendencia conciliacao={conciliacao} />
+        </span>
+      </span>
+      <span className="conc-folha-pe">
         <time dateTime={execucao.executadaEm} title={formatarDataHora(execucao.executadaEm)}>
           {quandoRodou(execucao.executadaEm, ano)}
         </time>
-      </td>
-      <td className="hist-c-acao">
-        {/* a rodada anterior ainda abre, com o aviso de que há uma mais recente; a refeita não:
-            o backend só guarda o resultado mais novo de cada par */}
-        {situacao === "anterior" && (
-          <Link
-            href={caminhoDaConciliacao(execucao.extratoBancoId, execucao.extratoSistemaId)}
-            className="btn btn-secondary hist-ver"
-            aria-label={`Ver a rodada ${rodada}`}
-          >
-            Ver
-          </Link>
+        <QuadradosDasRodadas rodada={principal.rodada} rodadas={rodadas} />
+        <span className="sr-only">{textoDaRodada(conciliacao)}</span>
+      </span>
+    </button>
+  );
+}
+
+/** A conciliação escolhida, ao lado das folhas: o que bateu na rodada que vale e cada execução que ela teve. */
+function Previa({
+  ref,
+  conciliacao,
+  mes,
+}: {
+  ref: React.Ref<HTMLElement>;
+  conciliacao: ConciliacaoNoHistorico;
+  mes: MesDoHistorico;
+}) {
+  const { extratoBancoId, arquivoBanco, principal, execucoes } = conciliacao;
+  const { execucao } = principal;
+  const revisar = paraRevisar(execucao);
+  const ano = mes.chave.slice(0, 4);
+  return (
+    <aside ref={ref} className="conc-previa" aria-label="Conciliação escolhida" aria-live="polite" data-tutorial="previa">
+      <span className="rotulo">{mes.titulo}</span>
+      <h2 className="conc-previa-titulo">{textoDaRodada(conciliacao)}</h2>
+      <div className="conc-previa-arquivos">
+        <span className="hist-arquivo">
+          <IconeOrigem origem="banco" tamanho={14} />
+          <span className="hist-arquivo-nome">{arquivoBanco}</span>
+        </span>
+        <span className="hist-arquivo hist-arquivo-sistema">
+          <IconeOrigem origem="sistema" tamanho={13} />
+          <span className="hist-arquivo-nome">{`× ${execucao.arquivoSistema}`}</span>
+        </span>
+      </div>
+      <div className="extrato-resultado">
+        <p className="conc-previa-numero">
+          <strong>{formatarInteiro(conciliados(execucao))}</strong>
+          {`de ${plural(execucao.lancamentos, "lançamento bate", "lançamentos batem")}`}
+        </p>
+        {execucao.lancamentos > 0 && (
+          <>
+            <BarraDoResultado execucao={execucao} />
+            <ul className="conc-previa-legenda" aria-label="O que a barra mostra">
+              {segmentos(execucao).map((parte) => (
+                <li key={parte.tom}>
+                  <span className="hist-legenda-cor" data-tom={parte.tom} aria-hidden="true" />
+                  {`${formatarInteiro(parte.quantidade)} · ${parte.rotulo}`}
+                </li>
+              ))}
+            </ul>
+          </>
         )}
-      </td>
-    </tr>
+      </div>
+      <dl className="conc-previa-dados">
+        <dt>Para revisar</dt>
+        <dd>
+          {revisar > 0 ? plural(revisar, "linha", "linhas") : "Nada"}
+          {execucao.justificadas > 0 && ` · ${plural(execucao.justificadas, "justificada", "justificadas")}`}
+        </dd>
+        <dt>Tolerância</dt>
+        <dd>{execucao.toleranciaDias === 1 ? "1 dia" : `${formatarInteiro(execucao.toleranciaDias)} dias`}</dd>
+        <dt>Rodou em</dt>
+        <dd>{formatarDataHora(execucao.executadaEm)}</dd>
+      </dl>
+      {execucoes.length > 1 && (
+        <div className="hist-previa-rodadas">
+          <h3 className="hist-previa-rodadas-titulo">Execuções desta conciliação</h3>
+          <ol className="hist-previa-execucoes" aria-label={`Execuções de ${arquivoBanco}`}>
+            {execucoes.map(({ execucao: item, rodada, situacao }) => {
+              const selo = SELO[situacao];
+              return (
+                <li key={item.id} className="hist-previa-execucao" data-situacao={situacao}>
+                  <span className="hist-previa-execucao-nome">{`Rodada ${rodada} · ${item.arquivoSistema}`}</span>
+                  <span className={selo.classe}>{selo.rotulo}</span>
+                  <span className="hist-previa-execucao-numeros">
+                    <time dateTime={item.executadaEm}>{quandoRodou(item.executadaEm, ano)}</time>
+                    {` · ${matchNaTela(item)} · ${plural(paraRevisar(item), "para revisar", "para revisar")}`}
+                  </span>
+                  {/* a rodada anterior ainda abre, com o aviso de que há uma mais recente; a refeita não:
+                      o backend só guarda o resultado mais novo de cada par */}
+                  {situacao === "anterior" && (
+                    <Link
+                      href={caminhoDaConciliacao(item.extratoBancoId, item.extratoSistemaId)}
+                      className="btn btn-ghost hist-previa-execucao-ver"
+                      aria-label={`Ver a rodada ${rodada}`}
+                    >
+                      Ver
+                    </Link>
+                  )}
+                </li>
+              );
+            })}
+          </ol>
+        </div>
+      )}
+      <div className="conc-previa-acoes">
+        {/* pelo endereço só do banco, que abre a rodada que vale */}
+        <Link href={caminhoDaConciliacao(extratoBancoId)} className="btn btn-primary">
+          Abrir a comparação
+        </Link>
+      </div>
+    </aside>
   );
 }
 

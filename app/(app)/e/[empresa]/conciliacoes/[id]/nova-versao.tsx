@@ -2,6 +2,8 @@
 
 import Link from "@/lib/link-do-app";
 import { useEffect, useRef, useState } from "react";
+import { ArrowRight, Upload } from "lucide-react";
+import { formatarDataHora } from "../../dashboard/resumo";
 import { useRoteador } from "@/lib/roteador";
 import { conciliar, type Falha } from "../acoes";
 import {
@@ -17,6 +19,10 @@ import {
 } from "../envio";
 import { ImportacaoInterrompida } from "../nova/importacao-interrompida";
 
+function tamanhoEmKb(bytes: number): string {
+  return `${Math.max(1, Math.round(bytes / 1024)).toLocaleString("pt-BR")} KB`;
+}
+
 /**
  * A nova versão do extrato do sistema, enviada da própria comparação: a pessoa
  * corrigiu o sistema de gestão e concilia de novo com o mesmo extrato do banco. É
@@ -25,14 +31,18 @@ import { ImportacaoInterrompida } from "../nova/importacao-interrompida";
  */
 export function NovaVersao({
   extratoBancoId,
+  rodadaAtual,
   onConcluida,
 }: {
   extratoBancoId: string;
+  /** A rodada que vale hoje e quantas a conciliação já teve; sem ela (o mock), a janela não mostra o "de → para". */
+  rodadaAtual?: { numero: number; total: number; arquivo: string; em: string };
   /** A rodada nova existe: a tela recarrega nela. */
   onConcluida: () => void;
 }) {
   const router = useRoteador();
   const [aberta, setAberta] = useState(false);
+  const [arrastando, setArrastando] = useState(false);
   const [arquivo, setArquivo] = useState<File | null>(null);
   const [etapa, setEtapa] = useState<Etapa>("ocioso");
   const [erro, setErro] = useState<string | null>(null);
@@ -129,13 +139,20 @@ export function NovaVersao({
 
   return (
     <>
-      <button type="button" className="btn btn-secondary" onClick={() => setAberta(true)}>
-        Enviar nova versão do extrato do sistema
+      {/* a ação que fecha o ciclo da conciliação: em destaque, com o texto curto; o nome inteiro fica para o leitor de tela */}
+      <button
+        type="button"
+        className="btn btn-primary nova-versao-botao"
+        aria-label="Enviar nova versão do extrato do sistema"
+        onClick={() => setAberta(true)}
+      >
+        <Upload size={17} aria-hidden="true" />
+        Enviar nova versão
       </button>
       {aberta && (
         <dialog
           ref={dialogo}
-          className="espia nova-versao"
+          className="espia nova-versao modal-suave"
           aria-labelledby="nova-versao-titulo"
           onKeyDown={(evento) => {
             if (evento.key !== "Escape") return;
@@ -166,13 +183,53 @@ export function NovaVersao({
             ) : (
               <>
                 <p className="dialog-body">
-                  O Ledgr concilia de novo com o mesmo extrato do banco, e a tela abre na rodada nova.
+                  O extrato do banco continua o mesmo. O Ledgr concilia de novo e a tela abre na rodada nova.
                 </p>
-                <label className="nova-versao-campo">
-                  <span>Extrato do sistema de gestão</span>
+                {/* de onde para onde: a rodada que vale hoje e a que este arquivo vai abrir */}
+                {rodadaAtual && (
+                  <div className="nova-versao-rodadas">
+                    <div className="nova-versao-rodada">
+                      <span className="nova-versao-rodada-rotulo">{`Rodada ${rodadaAtual.numero} · agora`}</span>
+                      <span className="nova-versao-rodada-arquivo">{rodadaAtual.arquivo}</span>
+                      <span className="nova-versao-rodada-detalhe">{formatarDataHora(rodadaAtual.em)}</span>
+                    </div>
+                    <ArrowRight size={20} aria-hidden="true" className="nova-versao-seta" />
+                    <div className="nova-versao-rodada" data-nova="true">
+                      <span className="nova-versao-rodada-rotulo">{`Rodada ${rodadaAtual.total + 1} · nova`}</span>
+                      <span className="nova-versao-rodada-arquivo">{arquivo ? arquivo.name : "O arquivo corrigido"}</span>
+                      <span className="nova-versao-rodada-detalhe">
+                        {arquivo ? `${tamanhoEmKb(arquivo.size)} · pronto para enviar` : "Escolha abaixo"}
+                      </span>
+                    </div>
+                  </div>
+                )}
+                <label
+                  className="nova-versao-soltar"
+                  data-arrastando={arrastando || undefined}
+                  onDragOver={(evento) => {
+                    evento.preventDefault();
+                    if (!ocupado) setArrastando(true);
+                  }}
+                  onDragLeave={() => setArrastando(false)}
+                  onDrop={(evento) => {
+                    evento.preventDefault();
+                    setArrastando(false);
+                    const solto = evento.dataTransfer.files?.[0];
+                    if (ocupado || !solto) return;
+                    setErro(null);
+                    setArquivo(solto);
+                  }}
+                >
+                  <Upload size={24} aria-hidden="true" className="nova-versao-soltar-icone" />
+                  <span className="nova-versao-soltar-texto">
+                    <strong>{arquivo ? "Trocar o arquivo" : "Solte aqui o CSV corrigido"}</strong>
+                    <span>{arquivo ? `${arquivo.name} · solte outro ou clique` : "ou clique para escolher · até 4MB"}</span>
+                  </span>
                   <input
                     type="file"
                     accept=".csv"
+                    className="sr-only"
+                    aria-label="Extrato do sistema de gestão"
                     disabled={ocupado}
                     onChange={(evento) => {
                       setErro(null);
@@ -201,7 +258,7 @@ export function NovaVersao({
                   </button>
                   <button
                     type="button"
-                    className="btn btn-primary"
+                    className="btn btn-primary nova-versao-enviar"
                     disabled={!arquivo || ocupado}
                     aria-busy={ocupado}
                     onClick={() => void enviar()}

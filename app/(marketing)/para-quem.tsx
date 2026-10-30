@@ -45,7 +45,7 @@ export const PERFIS: Perfil[] = [
       "Só o que não bate pede atenção, já com o motivo",
       "O mês fechado fica registrado, com quem fechou",
     ],
-    mascote: { src: "/mascotes/mascote-caminhando.png", width: 1152, height: 1125 },
+    mascote: { src: "/mascotes/mascote-loja.png", width: 952, height: 720 },
   },
   {
     nome: "Escritório contábil",

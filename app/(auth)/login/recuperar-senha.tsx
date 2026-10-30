@@ -1,6 +1,7 @@
 "use client";
 
 import { AnimatePresence, LazyMotion, MotionConfig, domAnimation, m } from "motion/react";
+import Image from "next/image";
 import { useEffect, useId, useRef, useState, type CSSProperties, type FormEvent } from "react";
 import { pedirRecuperacaoSenha, type ResultadoRecuperacao } from "../acoes";
 import { CampoTexto } from "../_compartilhado/campo-texto";
@@ -262,6 +263,14 @@ function Confirmacao({
       exit={{ opacity: 0 }}
       transition={{ duration: 0.22, ease: CURVA }}
     >
+      <Image
+        src="/mascotes/mascote-envelope.png"
+        alt=""
+        width={555}
+        height={720}
+        sizes="72px"
+        style={{ width: 72, height: "auto", display: "block", marginBottom: 12 }}
+      />
       <p style={estiloEyebrow}>Link enviado</p>
       <h2 id={tituloId} style={estiloTitulo}>
         Confira seu e-mail.

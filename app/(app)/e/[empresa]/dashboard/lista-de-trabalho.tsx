@@ -13,6 +13,7 @@ import { IconeOrigem } from "../icone-origem";
 import { conciliados, segmentos } from "../historico/execucoes";
 import { BarraDoResultado } from "../historico/por-conciliacao";
 import { formatarDataHora, formatarInteiro } from "./resumo";
+import { useTrocaSuave } from "@/lib/troca-suave";
 import {
   agruparPorMes,
   passaNoFiltro,
@@ -80,6 +81,7 @@ export function ListaDeTrabalho({
   // a escolhida que o filtro escondeu dá lugar à primeira à vista
   const emVista = visiveis.flatMap(({ mes, linhas }) => linhas.map((conciliacao) => ({ conciliacao, mes })));
   const atual = emVista.find((item) => item.conciliacao.extratoBancoId === escolhida) ?? emVista[0] ?? null;
+  useTrocaSuave(previa, atual?.conciliacao.extratoBancoId);
 
   function escolher(id: string) {
     setEscolhida(id);
@@ -329,6 +331,12 @@ function Previa({
         {!fechamento && (
           <NovaVersao
             extratoBancoId={extratoBancoId}
+            rodadaAtual={{
+              numero: conciliacao.rodada,
+              total: conciliacao.rodadas,
+              arquivo: arquivoSistema,
+              em: execucao.executadaEm,
+            }}
             onConcluida={() => router.push(caminhoDaConciliacao(extratoBancoId))}
           />
         )}

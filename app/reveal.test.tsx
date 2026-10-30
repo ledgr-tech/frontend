@@ -4,6 +4,23 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { InkHover, MotionRoot, Reveal, SpotlightHover } from "./reveal";
 
 describe("Reveal", () => {
+  it("dentro do app (revelar desligado), o bloco já chega no lugar, sem esperar a viewport", () => {
+    render(
+      <MotionRoot revelar={false}>
+        <Reveal className="bloco" tutorial="estado-do-mes">
+          <span>conteúdo</span>
+        </Reveal>
+      </MotionRoot>,
+    );
+
+    const alvo = screen.getByText("conteúdo").parentElement as HTMLElement;
+    expect(alvo).not.toHaveAttribute("data-reveal");
+    expect(alvo.style.opacity).toBe("");
+    // a classe e o alvo do tutorial continuam no lugar
+    expect(alvo).toHaveClass("bloco");
+    expect(alvo).toHaveAttribute("data-tutorial", "estado-do-mes");
+  });
+
   it("sai de opacity 0 um pouco abaixo, sem escala, e revela quando entra na viewport", async () => {
     render(
       <MotionRoot>

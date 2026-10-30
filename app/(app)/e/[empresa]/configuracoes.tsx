@@ -741,7 +741,7 @@ export function Configuracoes({
               {
                 titulo: "ChatGPT e Claude",
                 descricao:
-                  "Para perguntar ao seu assistente de IA sobre as conciliações de uma empresa. Cada conexão é autorizada pelo admin ou pelo gestor, lê uma empresa só e não muda nada no Ledgr.",
+                  "Pergunte ao ChatGPT ou ao Claude sobre os meses de uma empresa, em português. Abaixo, o que a conexão lê e como ligar em quatro passos.",
               },
             ],
             conteudo: <PainelDeConexoes itens={conexoes.itens} endereco={conexoes.endereco} />,

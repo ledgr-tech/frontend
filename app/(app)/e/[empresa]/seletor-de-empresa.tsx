@@ -21,7 +21,7 @@ type Coluna = "razaoSocial" | "cnpj" | "situacao";
 /** A linha da janela: a empresa do `GET /me` e, depois que o `GET /empresas` responde, a favorita e a situação (backend #157). */
 type Linha = EmpresaDaConta & { favorita?: boolean; situacao?: SituacaoDaEmpresa };
 
-const SITUACAO: Record<SituacaoDaEmpresa, string> = {
+export const SITUACAO: Record<SituacaoDaEmpresa, string> = {
   em_aberto: "Mês em aberto",
   fechado: "Mês fechado",
   sem_conciliacao: "Sem conciliação",
@@ -46,7 +46,8 @@ function Cabeca({ coluna, ordem, onOrdenar, children }: { coluna: Coluna; ordem:
   );
 }
 
-function combina(empresa: Linha, termo: string): boolean {
+/** A busca da janela e da tela Empresas: pela razão social ou pelo CNPJ, com ou sem a máscara. */
+export function combina(empresa: { razaoSocial: string; cnpj: string }, termo: string): boolean {
   const procurado = termo.trim().toLowerCase();
   if (!procurado) return true;
   const digitos = procurado.replace(/\D/g, "");
