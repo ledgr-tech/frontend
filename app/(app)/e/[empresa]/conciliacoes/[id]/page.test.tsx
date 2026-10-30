@@ -1780,7 +1780,7 @@ describe("ConciliacaoPage", () => {
     expect(window.localStorage.getItem("ledgr_densidade")).toBe("padrao");
   });
 
-  it("paginates past the page size and keeps the count honest", async () => {
+  it("shows every line in one continuous list, without pages", async () => {
     const muitas = Array.from({ length: 30 }, (_, i) => ({
       id: `l-${i}`,
       descricao: `Lançamento ${i}`,
@@ -1792,14 +1792,10 @@ describe("ConciliacaoPage", () => {
       historico: [],
     }));
     buscarConciliacao.mockReturnValue({ ...conciliacaoMista, linhas: muitas });
-    const user = userEvent.setup();
     render(<ConciliacaoPage />);
 
-    expect(await screen.findByText("1–25 de 30")).toBeInTheDocument();
-    expect(screen.getByText("1 / 2")).toBeInTheDocument();
-
-    await user.click(screen.getByRole("button", { name: "Próxima" }));
-    expect(screen.getByText("26–30 de 30")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Próxima" })).toBeDisabled();
+    expect((await screen.findAllByText("Lançamento 0")).length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Lançamento 29").length).toBeGreaterThan(0);
+    expect(screen.queryByRole("button", { name: "Próxima" })).not.toBeInTheDocument();
   });
 });
