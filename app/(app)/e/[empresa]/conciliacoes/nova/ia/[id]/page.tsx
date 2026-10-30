@@ -11,8 +11,8 @@ export default async function RevisaoPage({ params }: { params: Promise<{ id: st
   if (!r.ok && r.status === 401) await redirecionarNoApp("/login");
   if (!r.ok && r.status === 404) notFound();
   return (
-    <div>
-      <Cabecalho titulo="Conferir a importação" sobretitulo="Rascunho · nada entra no Ledgr antes de você confirmar" />
+    <div className="nova-tela">
+      <Cabecalho titulo="Conferir a importação" contexto={["rascunho · nada entra no Ledgr antes de você confirmar"]} />
       {r.ok ? (
         <Revisao inicial={r.dados} />
       ) : (

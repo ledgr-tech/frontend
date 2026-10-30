@@ -216,7 +216,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
       {
         id: "enviar",
         titulo: "Enviar os dois extratos",
-        faz: "O extrato do banco vai à esquerda e o do sistema de gestão à direita. Os dois precisam ser do mesmo período.",
+        faz: "O extrato do banco vai na folha da frente e o do sistema de gestão na de trás. Os dois precisam ser do mesmo período.",
         passos: [
           "Arraste ou escolha o extrato do banco: **OFX ou CSV** exportado do internet banking, até 4 MB.",
           "Arraste ou escolha o do sistema de gestão: um **CSV** com data, descrição e valor.",

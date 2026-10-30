@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState, type CSSProperties, type DragEvent } from "react";
+import Image from "next/image";
 import { useRoteador } from "@/lib/roteador";
 import { useEmpresaAtiva, useEmpresasDaConta } from "@/lib/empresa-ativa";
-import { ArrowRight, Check, FileUp, Link2, Scale, ShieldCheck } from "lucide-react";
+import { ArrowRight, Check, Link2, Scale, ShieldCheck } from "lucide-react";
 import { caminhoDaConciliacao } from "@/lib/caminhos";
+import { abrirConfiguracoes } from "@/lib/eventos";
 import { comEmpresa } from "@/lib/rotas";
-import { conciliar, type Falha } from "../acoes";
+import { carregarRegras, conciliar, type Falha } from "../acoes";
 import {
   aguardarProcessamento,
   conferirCsv,
@@ -22,8 +24,9 @@ import {
 import { ImportacaoInterrompida } from "./importacao-interrompida";
 import { PlanosBloqueados } from "./planos-bloqueados";
 import { useAssinatura } from "../../conta";
-import { Reveal } from "@/app/reveal";
 import { Cabecalho } from "../../cabecalho";
+import { IconeOrigem } from "../../icone-origem";
+import { Guia, type Passo } from "./guia";
 
 export default function NovaConciliacaoPage() {
   const router = useRoteador();
@@ -38,11 +41,21 @@ export default function NovaConciliacaoPage() {
   const [recusa, setRecusa] = useState<string | null>(null);
   const [avisos, setAvisos] = useState<string[]>([]);
   const [pendente, setPendente] = useState<Pendente | null>(null);
+  // a tolerância que esta conciliação vai usar; sem resposta (404, erro), a linha não aparece
+  const [toleranciaDias, setToleranciaDias] = useState<number | null>(null);
+  // depois do primeiro envio, as folhas só voltam quando o envio falha: aí elas sobem com fade, em vez
+  // de trocar de supetão com o palco (na chegada à tela, quem anima é a troca de telas)
+  const [jaEnviou, setJaEnviou] = useState(false);
   // para o laço de consulta se a pessoa sair da tela no meio do processamento
   const vivo = useRef(true);
 
   useEffect(() => {
     vivo.current = true;
+    void carregarRegras()
+      .then((regras) => {
+        if (vivo.current && regras.ok) setToleranciaDias(regras.dados.toleranciaDias);
+      })
+      .catch(() => {});
     return () => {
       vivo.current = false;
     };
@@ -88,6 +101,7 @@ export default function NovaConciliacaoPage() {
 
     setErro(null);
     setAvisos([]);
+    setJaEnviou(true);
     setEtapa("conferindo");
 
     try {
@@ -174,6 +188,7 @@ export default function NovaConciliacaoPage() {
 
   const podeConciliar = arquivoBanco !== null && arquivoSistema !== null;
   const ocupado = etapa !== "ocioso";
+  const prontos = (arquivoBanco ? 1 : 0) + (arquivoSistema ? 1 : 0);
   const falta =
     !arquivoBanco && !arquivoSistema
       ? "Envie os dois extratos para conciliar."
@@ -209,72 +224,39 @@ export default function NovaConciliacaoPage() {
 
   return (
     <div className="nova-tela">
-      {/* o mês só se sabe depois de ler as datas dos extratos: a linha fica só com a empresa. A
-          ação principal fica no topo, à direita, como "Enviar nova versão" na comparação */}
-      <Cabecalho
-        titulo="Nova conciliação"
-        contexto={[]}
-        acoes={
-          <>
-            {ocupado && (
-              <span aria-live="polite" className="nova-recado">
-                {RECADO[etapa]}
-              </span>
-            )}
-            {!podeConciliar && !ocupado && (
-              <span id="nova-conciliacao-pendente" className="nova-recado">
-                {falta}
-              </span>
-            )}
-            <button
-              type="button"
-              className="btn nova-conciliar"
-              data-tutorial="conciliar"
-              disabled={!podeConciliar || ocupado}
-              aria-describedby={podeConciliar ? undefined : "nova-conciliacao-pendente"}
-              onClick={() => void conciliarExtratos()}
-            >
-              {ocupado ? "Conciliando…" : "Conciliar extratos"}
-              {!ocupado && <ArrowRight aria-hidden="true" />}
-            </button>
-          </>
-        }
-      />
-      <div className="nova-corpo">
-        {/* num escritório com várias empresas, quem concilia confere para qual está enviando */}
-        {empresas.length > 1 && empresaAtiva && (
-          <p className="nova-empresa">
-            Conciliando para <strong>{empresaAtiva.razaoSocial}</strong>
-          </p>
-        )}
-        {/* em cima dos cartões, perto do botão que a pessoa acabou de clicar */}
-        {erro && (
-          <p role="alert" className="selo selo-risco nova-erro">
-            {erro}
-          </p>
-        )}
+      {/* o mês só se sabe depois de ler as datas dos extratos: a linha diz de onde ele vai sair */}
+      <Cabecalho titulo="Nova conciliação" contexto={["o mês sai das datas do extrato"]} />
 
-        {avisos.length > 0 && (
-          <ul className="nova-avisos">
-            {avisos.map((aviso) => (
-              <li key={aviso}>{aviso}</li>
-            ))}
-          </ul>
-        )}
+      {/* em cima de tudo, perto de onde a pessoa acabou de soltar ou clicar */}
+      {erro && (
+        <p role="alert" className="selo selo-risco nova-erro">
+          {erro}
+        </p>
+      )}
+      {avisos.length > 0 && (
+        <ul className="nova-avisos">
+          {avisos.map((aviso) => (
+            <li key={aviso}>{aviso}</li>
+          ))}
+        </ul>
+      )}
 
-        {ocupado && arquivoBanco && arquivoSistema ? (
-          <Casamento banco={arquivoBanco.name} sistema={arquivoSistema.name} etapa={etapa} />
-        ) : (
-          <Reveal>
-            {/* o encaixe (globals.css): cada lado acende quando o seu extrato entra, e o elo do meio
-                quando entraram os dois */}
-            <div
-              className="nova-encaixe"
-              data-tutorial="encaixe"
-              data-banco={arquivoBanco ? "pronto" : "vazio"}
-              data-sistema={arquivoSistema ? "pronto" : "vazio"}
-            >
-              <CartaoDeExtrato
+      {ocupado && arquivoBanco && arquivoSistema ? (
+        <Palco banco={arquivoBanco.name} sistema={arquivoSistema.name} etapa={etapa} />
+      ) : (
+        <div className={jaEnviou ? "nova-corpo conc-mesa nova-volta" : "nova-corpo conc-mesa"}>
+          <div className="nova-coluna">
+            {/* num escritório com várias empresas, quem concilia confere para qual está enviando */}
+            {empresas.length > 1 && empresaAtiva && (
+              <p className="nova-empresa">
+                Conciliando para <strong>{empresaAtiva.razaoSocial}</strong>
+              </p>
+            )}
+            {/* as folhas de Conciliações, em pé, são as áreas de soltar: o banco na frente, o sistema
+                atrás, e o elo no canto onde se cruzam acende quando entraram as duas */}
+            <div className="nova-folhas" data-tutorial="encaixe" data-ligado={podeConciliar ? "" : undefined}>
+              <FolhaDeExtrato
+                origem="banco"
                 titulo="Extrato do banco"
                 dica="Arquivo OFX ou CSV exportado do internet banking"
                 accept=".ofx,.csv"
@@ -283,14 +265,11 @@ export default function NovaConciliacaoPage() {
                 onArquivo={(arquivo) => escolher("banco", arquivo)}
                 onRecusado={setErro}
               />
-              <span className="nova-elo" aria-hidden="true">
-                <span className="nova-elo-traco nova-elo-traco-banco" />
-                <span className="nova-elo-no">
-                  <Link2 />
-                </span>
-                <span className="nova-elo-traco nova-elo-traco-sistema" />
+              <span className="nova-elo-no" aria-hidden="true">
+                <Link2 />
               </span>
-              <CartaoDeExtrato
+              <FolhaDeExtrato
+                origem="sistema"
                 titulo="Extrato do sistema de gestão"
                 dica="Arquivo CSV exportado do seu sistema de gestão"
                 accept=".csv"
@@ -300,67 +279,119 @@ export default function NovaConciliacaoPage() {
                 onRecusado={setErro}
               />
             </div>
-            <p className="nova-ia">
-              Só tem o PDF do relatório?{" "}
+            <section className="nova-ia-card" aria-labelledby="nova-ia-titulo">
+              <h3 id="nova-ia-titulo" className="font-titulo">
+                Só tem o PDF do relatório?
+              </h3>
+              <p>
+                Use a IA que você já tem, como o ChatGPT ou o Claude, para transformar o PDF no arquivo do
+                Ledgr. Você confere as linhas antes de confirmar.
+              </p>
               {/* página inteira de propósito: na navegação do cliente, o painel do detalhe da linha
                   (conciliacoes/[id]/@painel/(.)[linha]) intercepta /conciliacoes/nova/ia como a linha "ia"
                   da conciliação "nova" (#260). shortcut: sai quando a importação deixar /conciliacoes/ */}
-              <a href={comEmpresa(empresaAtiva?.id ?? "", "/conciliacoes/nova/ia")}>Importar via IA</a>
-            </p>
-          </Reveal>
-        )}
+              <a className="btn btn-secondary" href={comEmpresa(empresaAtiva?.id ?? "", "/conciliacoes/nova/ia")}>
+                Importar via IA <ArrowRight aria-hidden="true" />
+              </a>
+              <Image
+                className="nova-ia-mascote"
+                src="/mascotes/mascote-lupa.png"
+                alt=""
+                width={977}
+                height={1122}
+                sizes="170px"
+              />
+            </section>
+          </div>
 
-        {/* o ciclo, dito antes do envio: o Ledgr só lê e confere, quem corrige é a pessoa, no
-            próprio sistema, e cada nova versão do extrato do sistema vira uma rodada */}
-        <Reveal delay={0.08} className="card nova-como-funciona">
-          <section aria-labelledby="nova-como-funciona-titulo">
-            <h2 id="nova-como-funciona-titulo" className="font-titulo nova-como-titulo">
-              Como funciona
+          <aside className="conc-previa" aria-label="Antes de conciliar">
+            {/* a empresa já está no cabeçalho (e em "Conciliando para", com mais de uma) */}
+            <span className="rotulo">Antes de conciliar</span>
+            <h2 className="conc-previa-titulo" aria-live="polite">
+              {prontos === 2 ? "Pronta para conciliar" : prontos === 1 ? "Falta um extrato" : "Envie os dois extratos"}
             </h2>
-            <p className="nova-como-subtitulo">Três passos, a cada mês.</p>
-            <ol className="nova-passos">
-              <li>
-                <span className="nova-passo-numero" aria-hidden="true">
-                  1
-                </span>
-                <strong>Envie os dois extratos</strong>
-                <span>O do banco e o do seu sistema de gestão, do mesmo período.</span>
-              </li>
-              <li>
-                <span className="nova-passo-numero" aria-hidden="true">
-                  2
-                </span>
-                <strong>Confira e aponte</strong>
-                <span>Marque o que conferiu e justifique o que fica como está.</span>
-              </li>
-              <li>
-                <span className="nova-passo-numero" aria-hidden="true">
-                  3
-                </span>
-                <strong>Corrija no seu sistema e envie de novo</strong>
-                <span>Cada nova versão do extrato do sistema vira uma rodada.</span>
-              </li>
-            </ol>
-            <div className="nova-notas">
-              <p className="nova-nota nova-nota-destaque">
-                <ShieldCheck aria-hidden="true" />
-                <span>O Ledgr não altera nada no seu banco nem no seu sistema: ele só lê os extratos e confere.</span>
+            <div className="extrato-resultado">
+              <p className="conc-previa-numero">
+                <strong>{prontos} de 2</strong> extratos
               </p>
-              <p className="nova-nota">
-                <Scale aria-hidden="true" />
-                <span>
-                  O extrato do banco é sempre a fonte da verdade. Toda divergência aparece como
-                  &ldquo;o sistema diverge do banco&rdquo;. Se o valor no seu sistema estiver diferente,
-                  é ele que precisa de ajuste.
-                </span>
-              </p>
+              <ul className="nova-checklist">
+                <li data-feito={arquivoBanco ? "" : undefined}>
+                  <span className="nova-checklist-marca" aria-hidden="true">
+                    <Check />
+                  </span>
+                  Banco{arquivoBanco ? ": enviado" : ": falta"}
+                </li>
+                <li data-feito={arquivoSistema ? "" : undefined}>
+                  <span className="nova-checklist-marca" aria-hidden="true">
+                    <Check />
+                  </span>
+                  Sistema de gestão{arquivoSistema ? ": enviado" : ": falta"}
+                </li>
+              </ul>
             </div>
-          </section>
-        </Reveal>
-      </div>
+            {/* o ciclo, dito antes do envio: o Ledgr só lê e confere, quem corrige é a pessoa, no
+                próprio sistema, e cada nova versão do extrato do sistema vira uma rodada */}
+            <Guia titulo="Como funciona" subtitulo="Três passos, a cada mês" passos={PASSOS} />
+            <dl className="conc-previa-dados">
+              <dt>Mês</dt>
+              <dd className="nova-apagado">Lido das datas do extrato do banco</dd>
+              {toleranciaDias !== null && (
+                <>
+                  <dt>Tolerância de data</dt>
+                  <dd>
+                    {toleranciaDias === 1 ? "1 dia" : `${toleranciaDias} dias`} ·{" "}
+                    <button type="button" className="nova-link" onClick={() => abrirConfiguracoes("conciliacao")}>
+                      Mudar
+                    </button>
+                  </dd>
+                </>
+              )}
+              <dt>Rodada</dt>
+              <dd>1, a primeira deste extrato</dd>
+            </dl>
+            <div className="conc-previa-acoes">
+              <button
+                type="button"
+                className="btn nova-conciliar"
+                data-tutorial="conciliar"
+                disabled={!podeConciliar}
+                aria-describedby={podeConciliar ? undefined : "nova-conciliacao-pendente"}
+                onClick={() => void conciliarExtratos()}
+              >
+                Conciliar extratos
+                <ArrowRight aria-hidden="true" />
+              </button>
+            </div>
+            {/* o título do painel já diz o que falta à vista; aqui é o motivo do botão desligado, para
+                o leitor de tela */}
+            {!podeConciliar && (
+              <p id="nova-conciliacao-pendente" className="sr-only">
+                {falta}
+              </p>
+            )}
+            <p className="nova-nota">
+              <ShieldCheck aria-hidden="true" />
+              <span>O Ledgr não altera nada no seu banco nem no seu sistema: ele só lê os extratos e confere.</span>
+            </p>
+            <p className="nova-nota">
+              <Scale aria-hidden="true" />
+              <span>
+                O extrato do banco é sempre a fonte da verdade. Toda divergência aparece como &ldquo;o sistema
+                diverge do banco&rdquo;. Se o valor no seu sistema estiver diferente, é ele que precisa de ajuste.
+              </span>
+            </p>
+          </aside>
+        </div>
+      )}
     </div>
   );
 }
+
+const PASSOS: Passo[] = [
+  { titulo: "Envie os dois extratos", texto: "O do banco e o do seu sistema de gestão, do mesmo período." },
+  { titulo: "Confira e aponte", texto: "Marque o que conferiu e justifique o que fica como está." },
+  { titulo: "Corrija no seu sistema e envie de novo", texto: "Cada nova versão do extrato do sistema vira uma rodada." },
+];
 
 function tamanho(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -369,11 +400,12 @@ function tamanho(bytes: number): string {
 }
 
 /**
- * Uma área de soltar: o cartão é o rótulo de um input de arquivo invisível, então clicar em
- * qualquer lugar dele abre a escolha, e "Trocar arquivo" é só o aviso de que dá para escolher de
- * novo. O que é solto em cima não passa pelo accept do input: a extensão é conferida aqui.
+ * Uma área de soltar em forma de folha: a folha é o rótulo de um input de arquivo invisível, então
+ * clicar em qualquer lugar dela abre a escolha, e "Trocar arquivo" é só o aviso de que dá para
+ * escolher de novo. O que é solto em cima não passa pelo accept do input: a extensão é conferida aqui.
  */
-function CartaoDeExtrato({
+function FolhaDeExtrato({
+  origem,
   titulo,
   dica,
   accept,
@@ -382,6 +414,7 @@ function CartaoDeExtrato({
   onArquivo,
   onRecusado,
 }: {
+  origem: Origem;
   titulo: string;
   dica: string;
   accept: string;
@@ -408,7 +441,7 @@ function CartaoDeExtrato({
 
   return (
     <label
-      className="card cartao-arquivo"
+      className={`nova-folha nova-folha-${origem}`}
       data-pronto={arquivo ? "" : undefined}
       data-arrastando={arrastando ? "" : undefined}
       onDragOver={(event) => {
@@ -416,31 +449,36 @@ function CartaoDeExtrato({
         setArrastando(true);
       }}
       onDragLeave={(event) => {
-        // sair do cartão para um filho dele também dispara o dragleave
+        // sair da folha para um filho dela também dispara o dragleave
         if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setArrastando(false);
       }}
       onDrop={aoSoltar}
     >
-      <span className="cartao-arquivo-icone" aria-hidden="true">
-        {arquivo ? <Check /> : <FileUp />}
+      <span className="rotulo nova-folha-rotulo">
+        {/* o ícone de cada lado vira ✓ quando o arquivo entra */}
+        <span className="nova-folha-icone">{arquivo ? <Check aria-hidden="true" /> : <IconeOrigem origem={origem} />}</span>
+        {origem === "banco" ? "Banco" : "Sistema de gestão"}
       </span>
-      <span className="font-titulo cartao-arquivo-titulo">{titulo}</span>
+      <strong className="nova-folha-titulo">{arquivo ? arquivo.name : titulo}</strong>
       {arquivo ? (
-        <>
-          <span className="cartao-arquivo-nome">{arquivo.name}</span>
-          <span className="cartao-arquivo-meta">
-            <span>{tamanho(arquivo.size)}</span> · <span className="cartao-arquivo-trocar">Trocar arquivo</span>
-          </span>
-        </>
+        <span className="nova-folha-dica">
+          <span>{tamanho(arquivo.size)}</span> · <span className="nova-folha-trocar">Trocar arquivo</span>
+        </span>
       ) : (
-        <>
-          <span className="cartao-arquivo-dica">{dica}</span>
-          <span className="cartao-arquivo-acao">Arraste o arquivo ou clique para escolher</span>
-        </>
+        <span className="nova-folha-dica">
+          <span>{dica}</span>. Solte aqui ou clique para escolher.
+        </span>
+      )}
+      {arquivo && origem === "banco" && (
+        <span className="conc-folha-linhas" aria-hidden="true">
+          <i />
+          <i />
+          <i />
+        </span>
       )}
       <input
         aria-label={titulo}
-        className="cartao-arquivo-input"
+        className="nova-folha-input"
         type="file"
         accept={accept}
         onChange={(event) => {
@@ -455,49 +493,69 @@ function CartaoDeExtrato({
 
 // as etapas do envio na ordem em que acontecem (envio.ts)
 const ETAPAS: Etapa[] = ["conferindo", "enviando", "processando", "conciliando"];
-// as larguras das linhas de mentira, do banco e do sistema: parecidas, nunca iguais
-const PARES = [
-  [72, 64],
-  [88, 92],
-  [58, 70],
-  [80, 74],
+// as larguras das barras de valor do banco e do sistema: parecidas, nunca iguais
+const LINHAS = [
+  [64, 60],
+  [56, 46],
+  [76, 74],
+  [70, 60],
+  [66, 64],
+  [60, 82],
+  [80, 56],
+  [72, 66],
 ];
 
 /**
- * No envio, os cartões dão lugar ao casamento: linhas do banco e do sistema que se aproximam e
- * ganham o ✓, uma depois da outra, enquanto a barra de baixo anda com a etapa real. As linhas são
- * só ilustração (o progresso de verdade é a etapa, anunciada ao lado do botão).
+ * No envio, o palco toma a tela: as duas folhas saem da sobreposição para os lados, as linhas de
+ * cada uma entram como barras, sem dado nenhum, e os pares se ligam pelo meio com o ✓ numa onda que
+ * não para até a comparação abrir. As linhas são ilustração; o progresso de verdade é a etapa no topo.
  */
-function Casamento({ banco, sistema, etapa }: { banco: string; sistema: string; etapa: Etapa }) {
+function Palco({ banco, sistema, etapa }: { banco: string; sistema: string; etapa: Etapa }) {
   const indice = ETAPAS.indexOf(etapa) + 1;
+  const folha = (origem: Origem, nome: string) => (
+    <div className={`nova-palco-folha nova-palco-${origem}`}>
+      <div className="nova-palco-cabeca">
+        <span className="rotulo">
+          <IconeOrigem origem={origem} tamanho={15} />
+          {origem === "banco" ? "Banco" : "Sistema de gestão"}
+        </span>
+        <span>{nome}</span>
+      </div>
+      {LINHAS.map((larguras, i) => (
+        <div key={i} className="nova-palco-linha" style={{ "--i": i } as CSSProperties} aria-hidden="true">
+          <span className="nova-palco-barra" style={{ width: "80%" }} />
+          <span className="nova-palco-barra" style={{ width: `${larguras[origem === "banco" ? 0 : 1]}%` }} />
+        </div>
+      ))}
+    </div>
+  );
   return (
-    <div className="card nova-casamento">
-      <div className="nova-casamento-topo">
-        <span className="nova-casamento-lado">
-          <small>Banco</small>
-          <span>{banco}</span>
-        </span>
-        <span className="nova-casamento-lado nova-casamento-lado-sistema">
-          <small>Sistema de gestão</small>
-          <span>{sistema}</span>
-        </span>
+    <div className="nova-palco">
+      <div className="nova-palco-topo">
+        <p className="nova-palco-recado" aria-live="polite">
+          {RECADO[etapa as Exclude<Etapa, "ocioso">]}
+        </p>
+        <div className="nova-etapas">
+          <span className="nova-etapas-barra" aria-hidden="true">
+            {ETAPAS.map((nome, i) => (
+              <span key={nome} data-feita={i < indice ? "" : undefined} />
+            ))}
+          </span>
+          <span className="nova-etapas-texto">{`Etapa ${indice} de ${ETAPAS.length}`}</span>
+        </div>
       </div>
-      <div className="nova-pares" aria-hidden="true">
-        {PARES.map(([larguraBanco, larguraSistema], i) => (
-          <div key={i} className="nova-par" style={{ "--i": i } as CSSProperties}>
-            <span className="nova-par-banco" style={{ width: `${larguraBanco}%` }} />
-            <Check className="nova-par-check" />
-            <span className="nova-par-sistema" style={{ width: `${larguraSistema}%` }} />
-          </div>
-        ))}
-      </div>
-      <div className="nova-etapas">
-        <span className="nova-etapas-barra" aria-hidden="true">
-          {ETAPAS.map((nome, i) => (
-            <span key={nome} data-feita={i < indice ? "" : undefined} />
+      <div className="nova-palco-mesa">
+        {folha("banco", banco)}
+        <div className="nova-palco-elos" aria-hidden="true">
+          {LINHAS.map((_, i) => (
+            <span key={i} className="nova-palco-elo" style={{ "--i": i } as CSSProperties}>
+              <span className="nova-palco-marca">
+                <Check />
+              </span>
+            </span>
           ))}
-        </span>
-        <span className="nova-etapas-texto">{`Etapa ${indice} de ${ETAPAS.length}`}</span>
+        </div>
+        {folha("sistema", sistema)}
       </div>
     </div>
   );
