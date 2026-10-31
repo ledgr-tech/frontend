@@ -192,7 +192,7 @@ describe("AssinaturaPage", () => {
     it.each(["sem_plano", "teste", "teste_encerrado"] as const)(
       "shows only the plans, with a way to subscribe, while the account is %s",
       (situacao) => {
-        comConta({ situacao, plano: null, testeTerminaEm: null });
+        comConta({ situacao, plano: null, testeTerminaEm: null, fimDoTeste: null, cobranca: null });
 
         const planos = within(screen.getByRole("list", { name: "Planos" })).getAllByRole("listitem");
         expect(planos).toHaveLength(PLANOS.length);
@@ -210,16 +210,16 @@ describe("AssinaturaPage", () => {
 
     it("keeps the company in the header, with the trial days or the situation instead of the plan", () => {
       const daqui10 = new Date(Date.now() + 10 * 86_400_000 + 12 * 3_600_000).toISOString().slice(0, 10);
-      const { unmount } = comConta({ situacao: "teste", plano: null, testeTerminaEm: daqui10 });
+      const { unmount } = comConta({ situacao: "teste", plano: null, testeTerminaEm: daqui10, fimDoTeste: null, cobranca: null });
       expect(screen.getByText(/^teste grátis · faltam \d+ dias$/)).toBeInTheDocument();
       unmount();
 
-      comConta({ situacao: "teste_encerrado", plano: null, testeTerminaEm: null });
+      comConta({ situacao: "teste_encerrado", plano: null, testeTerminaEm: null, fimDoTeste: null, cobranca: null });
       expect(screen.getByText("teste grátis encerrado")).toBeInTheDocument();
     });
 
     it("keeps the plan, the usage and the invoices once the account is active", () => {
-      comConta({ situacao: "ativo", plano: "padrao", testeTerminaEm: null });
+      comConta({ situacao: "ativo", plano: "padrao", testeTerminaEm: null, fimDoTeste: null, cobranca: null });
       expect(screen.getByText("Plano atual", { selector: ".dash-rotulo" })).toBeInTheDocument();
       expect(screen.getByRole("table")).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Cancelar assinatura" })).toBeInTheDocument();

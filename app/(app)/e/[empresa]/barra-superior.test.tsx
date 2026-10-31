@@ -338,12 +338,12 @@ describe("BarraSuperior", () => {
     }
 
     it("no teste, mostra quantos dias faltam com link para a Assinatura", async () => {
-      await montarBarra({ situacao: "teste", plano: "padrao", testeTerminaEm: "2026-10-29" });
+      await montarBarra({ situacao: "teste", plano: "padrao", testeTerminaEm: "2026-10-29", fimDoTeste: null, cobranca: null });
       expect(screen.getByRole("link", { name: "Teste grátis · faltam 9 dias" })).toHaveAttribute("href", "/assinatura");
     });
 
     it("teste acabado: aviso em tom de risco que leva aos planos", async () => {
-      await montarBarra({ situacao: "teste_encerrado", plano: "padrao", testeTerminaEm: "2026-10-15" });
+      await montarBarra({ situacao: "teste_encerrado", plano: "padrao", testeTerminaEm: "2026-10-15", fimDoTeste: null, cobranca: null });
       const aviso = screen.getByRole("link", { name: "Seu teste acabou · escolher um plano" });
       expect(aviso).toHaveClass("selo-risco");
       expect(aviso).toHaveAttribute("href", "/plano");

@@ -626,7 +626,7 @@ describe("NovaConciliacaoPage", () => {
   });
 
   it("teste acabado: mostra os planos no lugar do envio", () => {
-    montarComAssinatura({ situacao: "teste_encerrado", plano: "essencial", testeTerminaEm: "2026-10-01" });
+    montarComAssinatura({ situacao: "teste_encerrado", plano: "essencial", testeTerminaEm: "2026-10-01", fimDoTeste: null, cobranca: null });
     expect(screen.getByRole("heading", { name: "Seu teste de 14 dias acabou." })).toBeInTheDocument();
     expect(screen.queryByLabelText("Extrato do banco")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Conciliar extratos" })).not.toBeInTheDocument();
@@ -635,7 +635,7 @@ describe("NovaConciliacaoPage", () => {
   });
 
   it("em teste, o envio segue normal", () => {
-    montarComAssinatura({ situacao: "teste", plano: "padrao", testeTerminaEm: "2026-10-29" });
+    montarComAssinatura({ situacao: "teste", plano: "padrao", testeTerminaEm: "2026-10-29", fimDoTeste: null, cobranca: null });
     expect(screen.getByLabelText("Extrato do banco")).toBeInTheDocument();
   });
 
