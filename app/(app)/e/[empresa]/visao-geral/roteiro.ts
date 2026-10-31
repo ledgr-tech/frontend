@@ -4,9 +4,13 @@
  * geral sem plano é levado antes para /plano. A faixa só o mostra quando o `GET /me` manda a
  * situação da conta; sem ela não há teste para dizer que começou.
  */
+import type { RegrasDaEmpresa } from "../conciliacoes/acoes";
+
 export type DadosDoRoteiro = {
   /** A tolerância já foi salva alguma vez (`atualizado_em` de `/empresa/configuracoes`). */
   toleranciaRevisada: boolean;
+  /** A tolerância de agora e o limite, para o bloco que a confirma ali mesmo. */
+  regras: RegrasDaEmpresa;
   temExtratoDoBanco: boolean;
   conciliou: boolean;
   /** Alguma conciliação sem nada pedindo decisão. */
