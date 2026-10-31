@@ -5,7 +5,7 @@ import { carregarConciliacoes } from "../conciliacoes/acoes";
 import { InkHover, Reveal } from "@/app/reveal";
 import { Cabecalho } from "../cabecalho";
 import { formatarInteiro } from "./resumo";
-import { pedemDecisao } from "./lista";
+import { agruparPorMes, passaNoFiltro } from "./lista";
 import { ListaDeTrabalho } from "./lista-de-trabalho";
 
 /**
@@ -26,7 +26,11 @@ export default async function DashboardPage() {
   if (!resposta.ok && resposta.status === 401) await redirecionarNoApp("/login");
 
   const conciliacoes = resposta.ok ? resposta.dados.conciliacoes : [];
-  const pendentes = conciliacoes.filter((conciliacao) => pedemDecisao(conciliacao) > 0).length;
+  // a mesma conta do filtro "Pedem decisão": num mês fechado nada mais se decide
+  const pendentes = agruparPorMes(conciliacoes, resposta.ok ? resposta.dados.fechamentos : null).reduce(
+    (soma, mes) => soma + mes.conciliacoes.filter((item) => passaNoFiltro(item, mes.fechamento !== null, "pendentes")).length,
+    0,
+  );
   // a primeira da fila que pede decisão: abre escolhida na prévia, com as conferidas que só ela traz
   const emAndamento = resposta.ok ? resposta.dados.emAndamento : null;
 
