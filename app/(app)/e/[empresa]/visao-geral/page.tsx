@@ -8,7 +8,7 @@ import { execucoesVigentes } from "@/lib/rodadas";
 import { formatarMoeda, type Conciliacao } from "@/lib/mock-data";
 import { carregarRoteiro, carregarVisaoGeral, type VisaoGeral } from "../conciliacoes/acoes";
 import { passosDoRoteiro, roteiroVisivel, type DadosDoRoteiro, type PassoDoRoteiro } from "./roteiro";
-import { AcaoDoPasso, ContagemDosPassos, EtiquetaDoPasso, LadoDaTolerancia } from "./primeiros-passos";
+import { AcaoDoPasso, ContagemDosPassos, EnquantoPergunta, EtiquetaDoPasso, LadoDaTolerancia } from "./primeiros-passos";
 import {
   formatarDataHora,
   formatarInteiro,
@@ -119,9 +119,10 @@ function Conteudo({
   ].filter(Boolean);
   // a coluna ao lado do mês é a conexão; sem ela, os dois blocos menores sobem para lá (um só
   // deixaria a coluna quase vazia, então fica na fileira de baixo)
-  // a tolerância nunca confirmada pergunta nessa coluna, no lugar da conexão, até alguém responder
+  // a tolerância nunca confirmada pergunta nessa coluna, no lugar da conexão, até alguém responder;
+  // enquanto ela está lá, os menores que subiriam ficam embaixo (EnquantoPergunta)
   const perguntaTolerancia = roteiro !== null && !roteiro.toleranciaRevisada;
-  const sobem = !conexoes && !perguntaTolerancia && menores.length === 2;
+  const sobem = !conexoes && menores.length === 2;
   const lado = conexoes ? <CartaoDeConexao itens={conexoes.itens} endereco={conexoes.endereco} /> : sobem ? menores : null;
 
   return (
@@ -138,7 +139,7 @@ function Conteudo({
       </Reveal>
 
       <Reveal delay={0.08} className="vg-blocos-meio">
-        {!sobem && menores}
+        {!sobem ? menores : perguntaTolerancia && <EnquantoPergunta passos={passos}>{menores}</EnquantoPergunta>}
         <PedeAtencao conciliacoes={doMes} arquivos={visao.arquivosComLinhasNaoLidas} passos={passos} />
       </Reveal>
 

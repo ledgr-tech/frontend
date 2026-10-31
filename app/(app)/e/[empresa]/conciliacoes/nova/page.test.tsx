@@ -2,7 +2,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import postcss, { type AtRule } from "postcss";
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { avisarToleranciaSalva } from "@/lib/eventos";
 import userEvent from "@testing-library/user-event";
 import NovaConciliacaoPage from "./page";
 import { lerBytes } from "./ler-arquivo";
@@ -175,6 +176,14 @@ describe("NovaConciliacaoPage", () => {
 
     expect(await screen.findByText(/^2 dias/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Mudar" })).toBeInTheDocument();
+  });
+
+  it("a tolerância salva em Configurações aparece aqui sem reabrir a tela", async () => {
+    render(<NovaConciliacaoPage />);
+    await screen.findByText(/^2 dias/);
+
+    act(() => avisarToleranciaSalva(1));
+    expect(screen.getByText(/^1 dia ·/)).toBeInTheDocument();
   });
 
   it("sem resposta da configuração, a linha da tolerância não aparece", async () => {

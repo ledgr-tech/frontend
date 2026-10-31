@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from "react";
 import Link from "@/lib/link-do-app";
 import { useRoteador } from "@/lib/roteador";
+import { avisarToleranciaSalva } from "@/lib/eventos";
 import {
   ArrowLeftRight,
   Info,
@@ -307,6 +308,8 @@ export function ToleranciaEditavel({
       onSalvas(resposta.dados);
       setTexto(String(resposta.dados.toleranciaDias));
       setSalvas(true);
+      // a Nova conciliação, atrás da janela, mostra a tolerância e não é relida pelo refresh
+      avisarToleranciaSalva(resposta.dados.toleranciaDias);
       roteador.refresh();
       return;
     }
