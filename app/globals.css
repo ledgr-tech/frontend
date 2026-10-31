@@ -4838,6 +4838,20 @@ html[data-tema="escuro"] .app-shell {
   .ass-planos { grid-template-columns: repeat(5, minmax(0, 1fr)); }
   .ass-planos > li, .ass-planos > li:nth-child(n+4) { grid-column: auto; }
 }
+/* Os quatro da assinatura (três para assinar e o Volume): dois e dois, depois os quatro lado a lado. */
+@container (min-width: 520px) {
+  .ass-planos[data-quatro] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ass-planos[data-quatro] > li, .ass-planos[data-quatro] > li:nth-child(n+4) { grid-column: auto; }
+}
+@container (min-width: 1000px) {
+  .ass-planos[data-quatro] { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+.ass-planos-topo {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px;
+}
+.ass-planos-topo .ass-titulo { margin: 0; }
+.ass-periodos { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.ass-plano-desconto { margin: -6px 0 0; font-size: 13.5px; font-weight: 600; color: var(--color-ok); }
 .ass-plano {
   display: flex; flex-direction: column; gap: 12px; min-width: 0;
   padding: 22px 20px; border-radius: var(--radius-md);
