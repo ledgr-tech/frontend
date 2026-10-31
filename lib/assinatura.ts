@@ -153,3 +153,12 @@ export function adaptarPrecos(bruto: unknown): PrecoDoPlano[] | null {
     };
   });
 }
+
+/**
+ * Só redireciona para o checkout da Stripe; fora de produção, também para a volta que o backend-fake
+ * devolve (`/assinatura?checkout=...`). Uma resposta estranha nunca manda a pessoa para outro site.
+ */
+export function urlDeCheckoutValida(url: string, producao: boolean): boolean {
+  if (url.startsWith("https://checkout.stripe.com/")) return true;
+  return !producao && url.startsWith("/assinatura?checkout=");
+}
