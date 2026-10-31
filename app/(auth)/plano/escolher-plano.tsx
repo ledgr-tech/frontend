@@ -24,13 +24,12 @@ import { escolherPlano } from "../acoes";
 /**
  * A escolha do plano que começa o teste de 14 dias (spec 2026-10-15-primeiro-uso), guiada: a pessoa
  * diz quantos lançamentos concilia por mês e a tela indica o plano (lib/medidor-de-planos.ts, a mesma
- * conta do Cap. IV da landing). Acima de 350, o plano é combinado com a equipe. `encerrado`: o teste
- * acabou e a pessoa volta para assinar (o link do topo e o bloqueio levam aqui).
+ * conta do Cap. IV da landing). Acima de 350, o plano é combinado com a equipe.
  *
  * shortcut: sem o seletor de período (mensal, anual e "ver outros planos"), porque o teste é sem
  * cartão e os descontos ainda não foram decididos; ele entra com o gateway (#167).
  */
-export function EscolherPlano({ encerrado = false }: { encerrado?: boolean }) {
+export function EscolherPlano() {
   const router = useRouter();
   const idMedidor = useId();
   const [passo, setPasso] = useState(PASSO_INICIAL);
@@ -69,23 +68,13 @@ export function EscolherPlano({ encerrado = false }: { encerrado?: boolean }) {
   return (
     <div className="plano-tela">
       <div className="plano-pergunta">
-        <p className="eyebrow plano-rotulo">{encerrado ? "Assinatura" : "Último passo · 14 dias grátis"}</p>
+        <p className="eyebrow plano-rotulo">Último passo · 14 dias grátis</p>
         <h1 className="titulo-misto plano-titulo">
-          {encerrado ? (
-            <>
-              Seu teste acabou. <em>Escolha um plano.</em>
-            </>
-          ) : (
-            <>
-              Quantos lançamentos você <em>concilia por mês?</em>
-            </>
-          )}
+          Quantos lançamentos você <em>concilia por mês?</em>
         </h1>
         <hr className="plano-traco" />
         <p className="plano-texto">
-          {encerrado
-            ? "O que você já fez continua na conta. Diga quantos lançamentos concilia por mês e veja o plano para assinar."
-            : "Conte os lançamentos do extrato do banco de um mês. Se não souber, arraste até perto: o teste é de 14 dias, sem cartão, e dá para trocar de plano quando quiser."}
+          {"Conte os lançamentos do extrato do banco de um mês. Se não souber, arraste até perto: o teste é de 14 dias, sem cartão, e dá para trocar de plano quando quiser."}
         </p>
 
         <div className="plano-medidor">
@@ -153,14 +142,7 @@ export function EscolherPlano({ encerrado = false }: { encerrado?: boolean }) {
                     </li>
                   ))}
                 </ul>
-                {encerrado ? (
-                  // a cobrança chega com o gateway, depois de 02/11: até lá, assinar é falar com a equipe, e
-                  // a rota de escolher o plano (que começa o teste) não é chamada de novo
-                  <a className="btn btn-primary plano-acao" href={`mailto:${CONTATO}?subject=${encodeURIComponent(`Assinar o ${plano.nome}`)}`}>
-                    {`Assinar o ${plano.nome}`}
-                  </a>
-                ) : (
-                  <button
+                <button
                     type="button"
                     className="btn btn-primary plano-acao"
                     disabled={escolhendo !== null}
@@ -168,7 +150,6 @@ export function EscolherPlano({ encerrado = false }: { encerrado?: boolean }) {
                   >
                     {escolhendo === plano.id ? "Um momento…" : `Começar com o ${plano.nome}`}
                   </button>
-                )}
               </>
             ) : (
               <a className="btn btn-primary plano-acao" href={`mailto:${CONTATO}?subject=${encodeURIComponent("Plano Volume")}`}>

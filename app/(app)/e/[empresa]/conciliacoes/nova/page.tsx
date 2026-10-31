@@ -24,6 +24,7 @@ import {
 import { ImportacaoInterrompida } from "./importacao-interrompida";
 import { PlanosBloqueados } from "./planos-bloqueados";
 import { useAssinatura } from "../../conta";
+import { bloqueiaConciliacao } from "@/lib/assinatura";
 import { Cabecalho } from "../../cabecalho";
 import { IconeOrigem } from "../../icone-origem";
 import { Guia, type Passo } from "./guia";
@@ -210,13 +211,13 @@ export default function NovaConciliacaoPage() {
     );
   }
 
-  // teste acabado (spec 2026-10-15-primeiro-uso, parte 2): os planos no lugar do envio
-  if (assinatura?.situacao === "teste_encerrado" || recusa !== null) {
+  // teste acabado ou assinatura encerrada (backend #180), ou o 402 do backend: os planos no lugar do envio
+  if ((assinatura && bloqueiaConciliacao(assinatura.situacao)) || recusa !== null) {
     return (
       <div className="nova-tela">
         <Cabecalho titulo="Nova conciliação" contexto={[]} />
         <div className="nova-corpo">
-          <PlanosBloqueados motivo={recusa ?? undefined} />
+          <PlanosBloqueados motivo={recusa ?? undefined} situacao={assinatura?.situacao} />
         </div>
       </div>
     );

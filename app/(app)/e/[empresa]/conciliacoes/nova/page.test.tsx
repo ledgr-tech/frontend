@@ -631,7 +631,18 @@ describe("NovaConciliacaoPage", () => {
     expect(screen.queryByLabelText("Extrato do banco")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Conciliar extratos" })).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Ver minhas conciliações" })).toHaveAttribute("href", "/dashboard");
-    expect(screen.getByRole("link", { name: "Assinar o Padrão" })).toHaveAttribute("href", "/plano");
+    expect(screen.getByRole("link", { name: "Assinar o Padrão" })).toHaveAttribute("href", "/assinatura");
+  });
+
+  it("assinatura encerrada: também bloqueia, com o título dela", () => {
+    montarComAssinatura({ situacao: "assinatura_encerrada", plano: "padrao", testeTerminaEm: null, fimDoTeste: null, cobranca: null });
+    expect(screen.getByRole("heading", { name: "Sua assinatura foi encerrada." })).toBeInTheDocument();
+    expect(screen.queryByLabelText("Extrato do banco")).not.toBeInTheDocument();
+  });
+
+  it("pagamento pendente: o envio segue aberto", () => {
+    montarComAssinatura({ situacao: "pagamento_pendente", plano: "padrao", testeTerminaEm: null, fimDoTeste: null, cobranca: null });
+    expect(screen.getByLabelText("Extrato do banco")).toBeInTheDocument();
   });
 
   it("em teste, o envio segue normal", () => {

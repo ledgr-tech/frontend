@@ -133,7 +133,7 @@ describe("NovaVersao", () => {
     await enviar();
 
     expect(await screen.findByRole("alert")).toHaveTextContent("O teste acabou. Escolha um plano para conciliar.");
-    expect(screen.getByRole("link", { name: "Ver os planos" })).toHaveAttribute("href", "/plano");
+    expect(screen.getByRole("link", { name: "Ver os planos" })).toHaveAttribute("href", "/assinatura");
     expect(onConcluida).not.toHaveBeenCalled();
   });
 

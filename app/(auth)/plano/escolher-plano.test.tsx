@@ -73,15 +73,4 @@ describe("EscolherPlano", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Ainda não disponível");
     expect(screen.getByRole("button", { name: "Começar com o Essencial" })).toBeEnabled();
   });
-
-  it("com o teste acabado, assinar fala com a equipe e não começa outro teste", () => {
-    render(<EscolherPlano encerrado />);
-    expect(screen.getByRole("heading", { level: 1, name: "Seu teste acabou. Escolha um plano." })).toBeInTheDocument();
-    const assinar = screen.getByRole("link", { name: "Assinar o Padrão" });
-    expect(assinar.getAttribute("href")).toMatch(/^mailto:ledgrtech@gmail\.com\?subject=/);
-    expect(decodeURIComponent(assinar.getAttribute("href")!)).toContain("Assinar o Padrão");
-    expect(screen.queryByRole("button", { name: /Assinar|Começar/ })).not.toBeInTheDocument();
-    expect(screen.queryByText(/14 dias/)).not.toBeInTheDocument();
-    expect(escolherPlano).not.toHaveBeenCalled();
-  });
 });

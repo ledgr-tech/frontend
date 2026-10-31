@@ -8,20 +8,22 @@ import { EscolherPlano } from "./escolher-plano";
 
 export const metadata: Metadata = { title: "Escolha o plano · Ledgr" };
 
-/** A escolha do plano que começa o teste de 14 dias. Só para quem está logado e ainda não escolheu. */
+/**
+ * A escolha do plano que começa o teste de 14 dias. Só para quem está logado e ainda não escolheu
+ * (`sem_plano`, do backend antes do #180); as outras situações assinam na tela Assinatura.
+ *
+ * ponytail: some junto com o POST /empresa/plano, obsoleto desde o backend #180
+ */
 export default async function PlanoPage() {
   const sessao = await auth();
   if (!sessao?.user?.email) redirect("/login");
   const { assinatura } = await contaDaSessao();
-  // sem plano escolhe o do teste; com o teste acabado, volta para assinar
-  if (assinatura && assinatura.situacao !== "sem_plano" && assinatura.situacao !== "teste_encerrado") {
-    redirect("/visao-geral");
-  }
+  if (assinatura && assinatura.situacao !== "sem_plano") redirect("/assinatura");
   return (
     <MolduraAuth rotulo="Plano" larguraConteudo={1080}>
       {/* o itálico do título em duas vozes é da landing: carregado só aqui, como lá */}
       <div className={fonteDestaque.variable} style={{ width: "100%", display: "flex", justifyContent: "center" }}>
-        <EscolherPlano encerrado={assinatura?.situacao === "teste_encerrado"} />
+        <EscolherPlano />
       </div>
     </MolduraAuth>
   );
