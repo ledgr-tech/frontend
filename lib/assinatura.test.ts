@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   adaptarAssinatura,
+  adaptarPrecos,
   bloqueiaConciliacao,
   cobrancaImediata,
   diasRestantes,
@@ -109,6 +110,29 @@ describe("assinatura", () => {
 
     it("escreve o dia curto", () => {
       expect(formatarDiaCurto("2026-12-14")).toBe("14/12");
+    });
+  });
+
+  describe("os preços da Stripe (GET /assinatura/precos)", () => {
+    const item = (plano: string, periodo: string, valor_centavos: number) => ({ plano, periodo, valor_centavos, moeda: "brl" });
+
+    it("formata, divide por mês e calcula o desconto contra o mensal", () => {
+      expect(adaptarPrecos([item("essencial", "mensal", 14900), item("essencial", "anual", 152000)])).toEqual([
+        { plano: "essencial", periodo: "mensal", centavos: 14900, valor: "R$ 149,00", porMes: null, desconto: null },
+        { plano: "essencial", periodo: "anual", centavos: 152000, valor: "R$ 1.520,00", porMes: "R$ 126,67", desconto: 15 },
+      ]);
+    });
+
+    it("sem o mensal do plano, não há desconto, mas há o valor por mês", () => {
+      expect(adaptarPrecos([item("padrao", "anual", 305000)])).toEqual([
+        { plano: "padrao", periodo: "anual", centavos: 305000, valor: "R$ 3.050,00", porMes: "R$ 254,17", desconto: null },
+      ]);
+    });
+
+    it("deixa de fora o que não é preço de plano e devolve null sem nenhum", () => {
+      expect(adaptarPrecos([item("volume", "mensal", 1000), item("essencial", "mensal", -1), item("essencial", "bienal", 1000)])).toBeNull();
+      expect(adaptarPrecos([])).toBeNull();
+      expect(adaptarPrecos({})).toBeNull();
     });
   });
 });

@@ -112,3 +112,44 @@ export function planosDoTeste(): (Plano & { id: PlanoId })[] {
 }
 
 export const NOME_DO_PLANO = NOMES;
+
+/** Um preço do catálogo da Stripe, pronto para o cartão do plano. `desconto` é a % contra o mensal, null sem ganho. */
+export type PrecoDoPlano = {
+  plano: PlanoId;
+  periodo: Periodo;
+  centavos: number;
+  valor: string;
+  /** O equivalente por mês; null no mensal. */
+  porMes: string | null;
+  desconto: number | null;
+};
+
+const REAIS = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+const emReais = (centavos: number) => REAIS.format(centavos / 100).replace(/ /g, " ");
+
+/** A lista de `GET /assinatura/precos` (backend #180); null sem nenhum preço válido. */
+export function adaptarPrecos(bruto: unknown): PrecoDoPlano[] | null {
+  if (!Array.isArray(bruto)) return null;
+  const validos = bruto.filter(
+    (item): item is { plano: PlanoId; periodo: Periodo; valor_centavos: number } =>
+      !!item &&
+      ehPlano(item.plano) &&
+      PERIODOS.includes(item.periodo) &&
+      Number.isInteger(item.valor_centavos) &&
+      item.valor_centavos > 0,
+  );
+  if (validos.length === 0) return null;
+  return validos.map(({ plano, periodo, valor_centavos: centavos }) => {
+    const meses = MESES_DO_PERIODO[periodo];
+    const mensal = validos.find((item) => item.plano === plano && item.periodo === "mensal")?.valor_centavos;
+    const desconto = mensal && meses > 1 ? Math.round((1 - centavos / (mensal * meses)) * 100) : 0;
+    return {
+      plano,
+      periodo,
+      centavos,
+      valor: emReais(centavos),
+      porMes: meses > 1 ? emReais(Math.round(centavos / meses)) : null,
+      desconto: desconto > 0 ? desconto : null,
+    };
+  });
+}
