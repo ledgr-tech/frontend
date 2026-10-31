@@ -7,8 +7,8 @@ import { caminhoDaConciliacao } from "@/lib/caminhos";
 import { execucoesVigentes } from "@/lib/rodadas";
 import { formatarMoeda, type Conciliacao } from "@/lib/mock-data";
 import { carregarRoteiro, carregarVisaoGeral, type VisaoGeral } from "../conciliacoes/acoes";
-import { passosDoRoteiro, roteiroVisivel } from "./roteiro";
-import { RoteiroFaixa } from "./roteiro-faixa";
+import { passosDoRoteiro, roteiroVisivel, type DadosDoRoteiro, type PassoDoRoteiro } from "./roteiro";
+import { AcaoDoPasso, ContagemDosPassos, EtiquetaDoPasso, LadoDaTolerancia } from "./primeiros-passos";
 import {
   formatarDataHora,
   formatarInteiro,
@@ -16,7 +16,7 @@ import {
   formatarPercentual,
   resumir,
 } from "../dashboard/resumo";
-import { InkHover, Reveal } from "@/app/reveal";
+import { Reveal } from "@/app/reveal";
 import { matchNaTela, porConciliacao } from "../historico/execucoes";
 import { GraficoDeMatch } from "../historico/grafico";
 import { IconeOrigem } from "../icone-origem";
@@ -26,14 +26,14 @@ import type { SaldoDoExtrato } from "@/lib/adaptadores";
 import { carregarConexoesMcp, type ConexaoMcp } from "../conexoes-mcp/acoes";
 import { SEM_SALDO, data } from "../saldo";
 import { CartaoDeConexao } from "./cartao-de-conexao";
-import { MaoApontando } from "./mao-apontando";
 
 /**
  * A home do app: onde o mês está, os atalhos para as outras telas (cada um com o
  * estado dela), o que pede decisão, para onde a taxa de match vai e o que
  * aconteceu por último, em blocos (modelo D do canvas de 29/10). É composta com
  * as peças que as outras telas já têm, e só com dado real: um bloco sem dado não
- * aparece, e sem execução a tela vira o guia dos primeiros passos.
+ * aparece. Sem execução, os mesmos blocos vazios dizem o que fazer para enchê-los, e no primeiro mês
+ * o passo de agora aparece no bloco onde ele acontece (modelo G do artefato de 30/10).
  */
 
 const FALHA_AO_CARREGAR =
@@ -58,31 +58,30 @@ export default async function VisaoGeralPage() {
   const recente = resposta.ok ? resposta.dados.recente : null;
   // o roteiro de primeiros passos (spec 2026-10-15-primeiro-uso, parte 4): só no primeiro mês
   const roteiroAtivo = roteiro && roteiroVisivel(roteiro) ? roteiro : null;
+  const passos = roteiroAtivo && passosDoRoteiro(roteiroAtivo);
 
   return (
     <div>
       <Cabecalho
         titulo="Visão geral"
         contexto={[recente && `competência ${recente.conciliacao.mes.toLowerCase()}`]}
+        acoes={<ContagemDosPassos passos={passos} />}
       />
-
-      {roteiroAtivo && (
-        // dispensado com "Já sei usar", a conta nova volta a ver o começo de antes
-        <RoteiroFaixa passos={passosDoRoteiro(roteiroAtivo)} alternativa={recente === null ? <PrimeirosPassos /> : null} />
-      )}
 
       {!resposta.ok ? (
         <p role="alert" style={{ padding: "48px 0" }}>
           {FALHA_AO_CARREGAR}
         </p>
       ) : recente === null ? (
-        !roteiroAtivo && <PrimeirosPassos />
+        <ContaNova roteiro={roteiroAtivo} passos={passos} />
       ) : (
         <Conteudo
           visao={resposta.dados}
           execucao={recente.execucao}
           conciliacao={recente.conciliacao}
           conexoes={conexoes.ok ? conexoes.dados : null}
+          roteiro={roteiroAtivo}
+          passos={passos}
         />
       )}
     </div>
@@ -94,12 +93,17 @@ function Conteudo({
   execucao,
   conciliacao,
   conexoes,
+  roteiro,
+  passos,
 }: {
   visao: VisaoGeral;
   execucao: Execucao;
   conciliacao: Conciliacao;
   /** Null esconde o bloco: analista, ou a conexão desligada no backend. */
   conexoes: { itens: ConexaoMcp[]; endereco: string | null } | null;
+  /** Null fora do primeiro mês: nenhum bloco fala de passo. */
+  roteiro: DadosDoRoteiro | null;
+  passos: PassoDoRoteiro[] | null;
 }) {
   // o mês em foco inteiro; sem ele (alguma conciliação não carregou), só a mais recente
   const doMes = visao.mes?.conciliacoes ?? [conciliacao];
@@ -115,20 +119,27 @@ function Conteudo({
   ].filter(Boolean);
   // a coluna ao lado do mês é a conexão; sem ela, os dois blocos menores sobem para lá (um só
   // deixaria a coluna quase vazia, então fica na fileira de baixo)
-  const sobem = !conexoes && menores.length === 2;
+  // a tolerância nunca confirmada pergunta nessa coluna, no lugar da conexão, até alguém responder
+  const perguntaTolerancia = roteiro !== null && !roteiro.toleranciaRevisada;
+  const sobem = !conexoes && !perguntaTolerancia && menores.length === 2;
   const lado = conexoes ? <CartaoDeConexao itens={conexoes.itens} endereco={conexoes.endereco} /> : sobem ? menores : null;
-  const temLado = lado !== null;
 
   return (
     <div className="vg-corpo">
-      <Reveal className={temLado ? "vg-blocos-topo" : undefined}>
-        <EstadoDoMes execucao={execucao} resumo={resumo} mes={conciliacao.mes} />
-        {temLado && <div className="vg-blocos-lado">{lado}</div>}
+      <Reveal className="vg-blocos-topo">
+        <EstadoDoMes execucao={execucao} resumo={resumo} mes={conciliacao.mes} passos={passos} />
+        {perguntaTolerancia ? (
+          <LadoDaTolerancia passos={passos} regras={roteiro.regras}>
+            {lado}
+          </LadoDaTolerancia>
+        ) : (
+          lado && <div className="vg-blocos-lado">{lado}</div>
+        )}
       </Reveal>
 
       <Reveal delay={0.08} className="vg-blocos-meio">
         {!sobem && menores}
-        <PedeAtencao conciliacoes={doMes} arquivos={visao.arquivosComLinhasNaoLidas} />
+        <PedeAtencao conciliacoes={doMes} arquivos={visao.arquivosComLinhasNaoLidas} passos={passos} />
       </Reveal>
 
       <Reveal delay={0.16} className="vg-blocos-par">
@@ -156,10 +167,12 @@ function EstadoDoMes({
   execucao,
   resumo,
   mes,
+  passos,
 }: {
   execucao: Execucao;
   resumo: ReturnType<typeof resumir>;
   mes: string;
+  passos: PassoDoRoteiro[] | null;
 }) {
   return (
     <section className="vg-bloco vg-estado" aria-labelledby="vg-estado-titulo" data-tutorial="estado-do-mes">
@@ -180,6 +193,7 @@ function EstadoDoMes({
         </span>
       </div>
       <div className="vg-estado-corpo">
+        <EtiquetaDoPasso passos={passos} id="fechar" />
         <span className="vg-bloco-rotulo">{mes.replace("/", " de ")}</span>
         <h2 id="vg-estado-titulo" className="vg-estado-titulo">
           {`${formatarInteiro(resumo.batidos)} de ${plural(resumo.processados, "lançamento conciliado", "lançamentos conciliados")}`}
@@ -200,6 +214,7 @@ function EstadoDoMes({
         >
           Ver a conciliação
         </Link>
+        <AcaoDoPasso passos={passos} id="fechar" />
       </div>
     </section>
   );
@@ -368,15 +383,18 @@ function Atalho({
 function PedeAtencao({
   conciliacoes,
   arquivos,
+  passos,
 }: {
   /** As conciliações do mês em foco. */
   conciliacoes: Conciliacao[];
   arquivos: VisaoGeral["arquivosComLinhasNaoLidas"];
+  passos: PassoDoRoteiro[] | null;
 }) {
   const grupos = pendenciasDoMes(conciliacoes);
 
   return (
     <section className="vg-bloco vg-atencao">
+      <EtiquetaDoPasso passos={passos} id="divergencias" />
       <h2 id="vg-atencao-titulo" className="vg-bloco-rotulo">
         Pede sua atenção
       </h2>
@@ -428,6 +446,7 @@ function PedeAtencao({
           ))}
         </ul>
       )}
+      <AcaoDoPasso passos={passos} id="divergencias" />
     </section>
   );
 }
@@ -494,64 +513,75 @@ function AtividadeRecente({ execucoes, total }: { execucoes: Execucao[]; total: 
   );
 }
 
-// Os passos e as dicas vêm do onboarding do design (ONB em Ledgr.dc.html), com os
-// numerais romanos dele; o que era cadastro virou upload, que é o que existe.
-const PASSOS = [
-  {
-    numeral: "I",
-    titulo: "Suba o extrato do banco",
-    texto:
-      "É esse extrato que define a verdade da conciliação. Prefira o OFX: ele já vem com data, valor e identificador do lançamento, o que eleva a taxa de match automático.",
-  },
-  {
-    numeral: "II",
-    titulo: "Suba o extrato do sistema de gestão",
-    texto: "O CSV exportado do seu ERP funciona: Cigam, Bling, Tiny ou outro.",
-  },
-  {
-    numeral: "III",
-    titulo: "Revise o que não bateu",
-    texto: "Toda divergência é reportada como “o sistema diverge do banco”, nunca o contrário.",
-  },
-];
+/**
+ * A Visão geral sem nenhuma conciliação: os mesmos blocos de quando há dado, vazios, cada um dizendo
+ * o que fazer para enchê-lo. O estado do mês pede os extratos; a coluna ao lado pergunta a tolerância
+ * enquanto ela nunca foi confirmada.
+ */
+function ContaNova({ roteiro, passos }: { roteiro: DadosDoRoteiro | null; passos: PassoDoRoteiro[] | null }) {
+  const enviouBanco = roteiro?.temExtratoDoBanco ?? false;
 
-function PrimeirosPassos() {
   return (
-    <div className="vg-inicio">
-      <InkHover style={{ flex: "none" }}>
-        <Image
-          src="/mascotes/mascote-apresenta.png"
-          alt="Mascote Ledgr com a prancheta da conciliação"
-          width={824}
-          height={720}
-          sizes="200px"
-          style={{ width: 200, height: "auto", display: "block" }}
-        />
-      </InkHover>
-      <h2 style={{ margin: 0, fontSize: 32, fontWeight: 400, textWrap: "balance" }}>
-        Nenhum extrato por aqui ainda.
-      </h2>
-      <p className="vg-inicio-texto">
-        Suba o extrato do banco e o extrato do sistema de gestão. A primeira conciliação fica
-        pronta em poucos minutos.
-      </p>
-      <ol className="grade-colunas vg-passos" aria-label="Primeiros passos">
-        {PASSOS.map((passo) => (
-          <li key={passo.numeral} className="vg-passo">
-            <span className="vg-passo-numeral" aria-hidden="true">
-              {passo.numeral}
+    <div className="vg-corpo">
+      <Reveal className="vg-blocos-topo">
+        <section className="vg-bloco vg-estado" aria-labelledby="vg-estado-titulo" data-tutorial="estado-do-mes">
+          <div
+            className="vg-anel"
+            role="img"
+            aria-label="Nada conciliado ainda"
+            style={{ "--feito": "0%" } as React.CSSProperties}
+          >
+            <span className="vg-anel-centro" aria-hidden="true">
+              <span className="vg-anel-numero">—</span>
+              conciliado
             </span>
-            <h3 className="vg-passo-titulo">{passo.titulo}</h3>
-            <p className="vg-passo-texto">{passo.texto}</p>
-          </li>
-        ))}
-      </ol>
-      <div className="vg-inicio-acao">
-        <MaoApontando className="vg-inicio-mao" />
-        <Link href="/conciliacoes/nova" className="btn btn-primary" style={{ fontSize: 15, padding: "12px 22px" }}>
-          Fazer o primeiro upload
-        </Link>
-      </div>
+          </div>
+          <div className="vg-estado-corpo">
+            <EtiquetaDoPasso passos={passos} id={enviouBanco ? "conciliar" : "banco"} />
+            <h2 id="vg-estado-titulo" className="vg-estado-titulo">
+              {enviouBanco ? "Falta o extrato do sistema" : "Nenhuma conciliação ainda"}
+            </h2>
+            <span className="vg-nota">
+              {enviouBanco
+                ? "O extrato do banco chegou. Agora o CSV do seu sistema de gestão: o Ledgr compara os dois e mostra aqui o quanto bateu."
+                : "Envie o extrato do banco e o do seu sistema de gestão: o Ledgr compara os dois e mostra aqui o quanto bateu e o que ficou em aberto."}
+            </span>
+            <Link href="/conciliacoes/nova" className="btn btn-primary">
+              {enviouBanco ? "Enviar o extrato do sistema" : "Enviar o extrato do banco"}
+              <ArrowRight size={15} aria-hidden="true" />
+            </Link>
+          </div>
+        </section>
+        {roteiro && !roteiro.toleranciaRevisada && <LadoDaTolerancia passos={passos} regras={roteiro.regras} />}
+      </Reveal>
+
+      <Reveal delay={0.08} className="vg-blocos-par">
+        <section className="vg-bloco vg-atencao">
+          <h2 className="vg-bloco-rotulo">Pede sua atenção</h2>
+          <p className="vg-nota pp-vazio">
+            Os lançamentos que não bateram e pedem decisão aparecem aqui, depois da primeira conciliação.
+          </p>
+        </section>
+        <nav className="vg-bloco" aria-labelledby="vg-atalhos-titulo" data-tutorial="atalhos">
+          <h2 id="vg-atalhos-titulo" className="vg-bloco-rotulo">
+            Atalhos
+          </h2>
+          <ul className="vg-atalhos">
+            <Atalho href="/extratos" icone={Files} nome="Extratos" numero={enviouBanco ? "Só o do banco" : "Nenhum arquivo"}>
+              <span className="vg-atalho-detalhe">OFX ou CSV do banco, CSV do sistema</span>
+            </Atalho>
+            <Atalho href="/dashboard" icone={ArrowLeftRight} nome="Conciliações" numero="Nenhuma">
+              <span className="vg-atalho-detalhe">A primeira aparece aqui</span>
+            </Atalho>
+            <Atalho href="/fechamentos" icone={CalendarCheck} nome="Fechamentos" numero="Nenhum mês">
+              <span className="vg-atalho-detalhe">Fecha depois de resolver o que não bateu</span>
+            </Atalho>
+            <Atalho href="/historico" icone={History} nome="Histórico" numero="Nada ainda">
+              <span className="vg-atalho-detalhe">Cada conciliação fica guardada</span>
+            </Atalho>
+          </ul>
+        </nav>
+      </Reveal>
     </div>
   );
 }

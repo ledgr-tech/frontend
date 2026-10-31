@@ -33,7 +33,8 @@ vi.mock("../../../(auth)/acoes", () => ({
   salvarPreferencias: async () => true,
 }));
 
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
+const refresh = vi.fn();
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), refresh }) }));
 // o painel das chaves tem teste próprio (chaves-api/painel.test.tsx); aqui só importa onde ele aparece
 vi.mock("./chaves-api/painel", () => ({ PainelDeChavesApi: () => <p>painel das chaves</p> }));
 // a seção Conexões só aparece quando o backend devolve a lista; o padrão é a conexão desligada (404)
@@ -185,6 +186,25 @@ describe("Configuracoes", () => {
       );
       expect(linha).toHaveTextContent("Alterada por Ana");
       expect(within(linha).queryByRole("button", { name: "Salvar" })).not.toBeInTheDocument();
+    });
+
+    it("confirms the default with Usar 2 dias while it was never saved, and re-reads the screen", async () => {
+      carregarRegras.mockResolvedValue({ ok: true, dados: { ...REGRAS, atualizadoPor: null, atualizadoEm: null } });
+      salvarToleranciaDias.mockResolvedValue({ ok: true, dados: { ...REGRAS, atualizadoPor: "Ana" } });
+      refresh.mockClear();
+      const user = userEvent.setup();
+      abrir();
+      await user.click(secao("Conciliação"));
+      await campo();
+      const linha = linhaDe("Tolerância de data");
+
+      // sem mudar nada, quem concorda com os 2 dias tem como confirmar (é o que marca o passo 2)
+      await user.click(within(linha).getByRole("button", { name: "Usar 2 dias" }));
+
+      expect(salvarToleranciaDias).toHaveBeenCalledWith(2);
+      expect(await within(linha).findByRole("status")).toHaveTextContent("Tolerância salva");
+      expect(within(linha).queryByRole("button", { name: "Usar 2 dias" })).not.toBeInTheDocument();
+      expect(refresh).toHaveBeenCalled();
     });
 
     it("stops at the limits", async () => {

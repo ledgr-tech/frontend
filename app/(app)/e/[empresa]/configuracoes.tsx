@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from "react";
 import Link from "@/lib/link-do-app";
+import { useRoteador } from "@/lib/roteador";
 import {
   ArrowLeftRight,
   Info,
@@ -262,9 +263,11 @@ function toleranciaSalva(dias: number): string {
 
 /**
  * A tolerância de data, de 0 ao máximo que o backend diz, com − e +. Salvar é por botão, que só
- * aparece com alguma mudança; "Descartar" volta ao valor salvo.
+ * aparece com alguma mudança; "Descartar" volta ao valor salvo. Enquanto ela nunca foi salva, "Usar
+ * N dias" confirma o padrão: é o que marca o passo da tolerância nos primeiros passos. Salvar relê a
+ * tela (`refresh`), e a Visão geral atrás da janela vê o passo marcado.
  */
-function ToleranciaEditavel({
+export function ToleranciaEditavel({
   regras,
   onSalvas,
 }: {
@@ -279,7 +282,9 @@ function ToleranciaEditavel({
   const dias = texto.trim() === "" ? Number.NaN : Number(texto);
   const valido = Number.isInteger(dias) && dias >= 0 && dias <= maximo;
   const mudou = texto !== String(regras.toleranciaDias);
+  const confirmarPadrao = !mudou && !salvas && regras.atualizadoEm === null;
   const limite = `Escolha de 0 a ${maximo} dias.`;
+  const roteador = useRoteador();
 
   function mudar(proximo: string) {
     setTexto(proximo);
@@ -302,6 +307,7 @@ function ToleranciaEditavel({
       onSalvas(resposta.dados);
       setTexto(String(resposta.dados.toleranciaDias));
       setSalvas(true);
+      roteador.refresh();
       return;
     }
     // o 422 é o valor fora do limite do backend: diz o limite, não "confira os campos"
@@ -355,6 +361,13 @@ function ToleranciaEditavel({
           </button>
           <button type="button" className="btn btn-ghost" disabled={salvando} onClick={() => mudar(String(regras.toleranciaDias))}>
             Descartar
+          </button>
+        </div>
+      )}
+      {confirmarPadrao && (
+        <div className="cfg-numero-botoes">
+          <button type="button" className="btn btn-primary" disabled={salvando} onClick={() => void salvar()}>
+            {`Usar ${dias} ${dias === 1 ? "dia" : "dias"}`}
           </button>
         </div>
       )}

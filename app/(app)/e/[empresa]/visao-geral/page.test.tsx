@@ -22,6 +22,7 @@ vi.mock("../conexoes-mcp/acoes", () => ({ carregarConexoesMcp: () => carregarCon
 
 const CONTA_NOVA: DadosDoRoteiro = {
   toleranciaRevisada: false,
+  regras: { toleranciaDias: 2, toleranciaDiasMaximo: 5, atualizadoPor: null, atualizadoEm: null },
   temExtratoDoBanco: false,
   conciliou: false,
   resolveuAlguma: false,
@@ -31,6 +32,8 @@ const CONTA_NOVA: DadosDoRoteiro = {
 
 const redirect = vi.fn();
 vi.mock("next/navigation", () => ({
+  // a tolerância do primeiro passo relê a tela depois de salvar
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
   // o redirect do Next interrompe a renderização lançando; o mock imita isso
   redirect: (destino: string) => {
     redirect(destino);
@@ -514,53 +517,87 @@ describe("VisaoGeralPage", () => {
     expect(screen.queryByText(/mais recentes. As outras/)).not.toBeInTheDocument();
   });
 
-  it("conta nova com roteiro: mostra os primeiros passos no lugar do Nenhum extrato", async () => {
+  it("conta nova: os blocos vazios dizem o que fazer, e a tolerância é perguntada ao lado", async () => {
     carregarRoteiro.mockResolvedValue(CONTA_NOVA);
     com({ execucoes: [], total: 0, recente: null });
     await renderizar();
 
-    expect(await screen.findByRole("heading", { name: "Primeiros passos" })).toBeInTheDocument();
-    expect(screen.queryByText("Nenhum extrato por aqui ainda.")).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Nenhuma conciliação ainda" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Enviar o extrato do banco" })).toHaveAttribute("href", "/conciliacoes/nova");
+    // sem a situação da conta no /me, o plano fica de fora: 5 passos
+    expect(await screen.findByText("Primeiros passos 0 de 5")).toBeInTheDocument();
+    const tolerancia = screen.getByRole("heading", { name: "Quantos dias de diferença ainda contam como bateu?" }).closest("section")!;
+    expect(within(tolerancia).getByText("Próximo passo · 1 de 5")).toBeInTheDocument();
+    // quem concorda com o padrão confirma ali mesmo (o passo 2 travava sem isso)
+    expect(within(tolerancia).getByRole("button", { name: "Usar 2 dias" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Primeiros passos" })).not.toBeInTheDocument();
   });
 
-  it("depois do primeiro mês fechado, o roteiro não aparece", async () => {
-    carregarRoteiro.mockResolvedValue({ ...CONTA_NOVA, conciliou: true, fechouAlgum: true });
+  it("conta nova com o extrato do banco enviado pede o do sistema, com a etiqueta no estado do mês", async () => {
+    carregarRoteiro.mockResolvedValue({ ...CONTA_NOVA, toleranciaRevisada: true, temExtratoDoBanco: true });
     com({ execucoes: [], total: 0, recente: null });
     await renderizar();
 
-    expect(screen.queryByRole("heading", { name: "Primeiros passos" })).not.toBeInTheDocument();
-    expect(screen.getByText("Nenhum extrato por aqui ainda.")).toBeInTheDocument();
+    const estado = screen.getByRole("heading", { name: "Falta o extrato do sistema" }).closest("section")!;
+    expect(await within(estado).findByText("Próximo passo · 3 de 5")).toBeInTheDocument();
+    expect(within(estado).getByRole("link", { name: "Enviar o extrato do sistema" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Usar 2 dias" })).not.toBeInTheDocument();
   });
 
-  it("dispensado com Já sei usar, a conta nova volta a ver o Nenhum extrato", async () => {
+  it("dispensado com Já sei usar, ficam só os blocos vazios", async () => {
     window.localStorage.setItem("ledgr:preferencias", JSON.stringify({ tutoriaisDispensados: [], roteiroDispensado: true }));
     carregarRoteiro.mockResolvedValue(CONTA_NOVA);
     com({ execucoes: [], total: 0, recente: null });
     await renderizar();
 
-    expect(await screen.findByText("Nenhum extrato por aqui ainda.")).toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "Primeiros passos" })).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Nenhuma conciliação ainda" })).toBeInTheDocument();
+    expect(screen.queryByText(/Primeiros passos d/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Próximo passo/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Usar 2 dias" })).not.toBeInTheDocument();
   });
 
-  it("walks through the first steps when there is no conciliação yet", async () => {
+  it("sem os dados do roteiro, a conta nova mostra os blocos vazios sem passo nenhum", async () => {
     com({ execucoes: [], total: 0, recente: null });
     await renderizar();
 
-    expect(screen.getByText("Nenhum extrato por aqui ainda.")).toBeInTheDocument();
-    // a prancheta com o checklist da conciliação é o próprio passo a passo
-    expect(document.querySelector("img")?.getAttribute("src")).toContain("mascote-apresenta");
-    const passos = screen.getByRole("list", { name: "Primeiros passos" });
-    expect(within(passos).getAllByRole("listitem").map((item) => item.querySelector("h3")?.textContent)).toEqual([
-      "Suba o extrato do banco",
-      "Suba o extrato do sistema de gestão",
-      "Revise o que não bateu",
-    ]);
-    expect(screen.getByText("O CSV exportado do seu ERP funciona: Cigam, Bling, Tiny ou outro.")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Fazer o primeiro upload" })).toHaveAttribute(
-      "href",
-      "/conciliacoes/nova",
-    );
-    expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Enviar o extrato do banco" })).toBeInTheDocument();
+    expect(screen.getByText(/pedem decisão aparecem aqui/)).toBeInTheDocument();
+    expect(screen.queryByText(/Próximo passo/)).not.toBeInTheDocument();
+  });
+
+  it("depois da primeira conciliação, o passo de agora vai para o bloco onde ele acontece", async () => {
+    carregarRoteiro.mockResolvedValue({
+      ...CONTA_NOVA,
+      toleranciaRevisada: true,
+      temExtratoDoBanco: true,
+      conciliou: true,
+      conciliacaoComPendencia: "/conciliacoes/banco-e7",
+    });
+    com();
+    await renderizar();
+
+    const atencao = screen.getByRole("heading", { name: "Pede sua atenção" }).closest("section")!;
+    expect(await within(atencao).findByText("Próximo passo · 4 de 5")).toBeInTheDocument();
+    expect(within(atencao).getByRole("link", { name: "Resolver as divergências" })).toHaveAttribute("href", "/conciliacoes/banco-e7");
+    expect(screen.getByText("Primeiros passos 3 de 5")).toBeInTheDocument();
+  });
+
+  it("com a tolerância nunca confirmada, ela é perguntada na coluna ao lado do mês", async () => {
+    carregarRoteiro.mockResolvedValue({ ...CONTA_NOVA, temExtratoDoBanco: true, conciliou: true });
+    com();
+    await renderizar();
+
+    expect(await screen.findByRole("button", { name: "Usar 2 dias" })).toBeInTheDocument();
+    expect(document.querySelector(".vg-blocos-lado")).toHaveTextContent("Quantos dias de diferença");
+  });
+
+  it("depois do primeiro mês fechado, nenhum bloco fala de passo", async () => {
+    carregarRoteiro.mockResolvedValue({ ...CONTA_NOVA, toleranciaRevisada: true, temExtratoDoBanco: true, conciliou: true, fechouAlgum: true });
+    com();
+    await renderizar();
+
+    expect(screen.queryByText(/Primeiros passos d/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Próximo passo/)).not.toBeInTheDocument();
   });
 
   it("asks for a reload when the backend fails", async () => {
