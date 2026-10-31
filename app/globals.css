@@ -4872,6 +4872,7 @@ html[data-tema="escuro"] .app-shell {
   margin: 0; font-size: 14.5px; line-height: 1.72; text-wrap: pretty;
   color: color-mix(in srgb, var(--color-text) 74%, transparent);
 }
+.ass-plano-erro { margin: 0; font-size: 13.5px; color: var(--color-erro); }
 .ass-plano .btn { margin-top: auto; font-size: 14px; padding: 9px 16px; }
 /* nome e preço do plano são título: Newsreader, como os h1–h3 e os números grandes */
 .app-shell :is(.ass-plano-nome, .ass-plano-preco) {

@@ -1,5 +1,5 @@
-import { beforeEach, describe, it, expect, vi } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { PLANOS } from "@/lib/planos";
 import { adaptarPrecos, type Assinatura, type PrecoDoPlano } from "@/lib/assinatura";
@@ -7,6 +7,13 @@ import type { LimitesDaConta } from "@/lib/limites";
 import type { Papel } from "@/lib/papel";
 import { ProvedorDaConta } from "../conta";
 import AssinaturaPage from "./page";
+
+const router = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn(), back: vi.fn(), prefetch: vi.fn() }));
+vi.mock("next/navigation", () => ({
+  useRouter: () => router,
+  usePathname: () => "/e/x/assinatura",
+  useSearchParams: () => new URLSearchParams(window.location.search),
+}));
 
 const precos = vi.hoisted(() => ({ atuais: null as PrecoDoPlano[] | null }));
 const iniciarCheckout = vi.fn();
@@ -48,9 +55,32 @@ const conta = (extra: Partial<Assinatura>): Assinatura => ({
 
 const emDias = (dias: number) => new Date(Date.now() + dias * 86_400_000).toISOString();
 
+const assign = vi.fn();
+const replaceState = vi.fn();
+const localOriginal = window.location;
+
+/** A URL da tela, com a busca da volta da Stripe; `assign` é a ida para a Stripe. */
+function naUrl(busca = "") {
+  Object.defineProperty(window, "location", {
+    configurable: true,
+    value: { ...localOriginal, pathname: "/e/x/assinatura", search: busca, assign },
+  });
+}
+
 beforeEach(() => {
   precos.atuais = CATALOGO;
   iniciarCheckout.mockReset();
+  assign.mockReset();
+  replaceState.mockReset();
+  Object.values(router).forEach((fn) => fn.mockReset());
+  vi.spyOn(window.history, "replaceState").mockImplementation(replaceState);
+  naUrl();
+});
+
+afterEach(() => {
+  Object.defineProperty(window, "location", { configurable: true, value: localOriginal });
+  vi.useRealTimers();
+  vi.restoreAllMocks();
 });
 
 const AVISO =
@@ -331,6 +361,146 @@ describe("AssinaturaPage", () => {
       await montar(conta({ situacao: "ativo", plano: "padrao" }));
       expect(screen.getByText("Plano atual", { selector: ".dash-rotulo" })).toBeInTheDocument();
       expect(screen.getByRole("table")).toBeInTheDocument();
+    });
+  });
+  describe("assinar (backend #180)", () => {
+    const planos = () => within(screen.getByRole("list", { name: "Planos" })).getAllByRole("listitem");
+    const cartao = (nome: string) => planos().find((item) => within(item).queryByRole("heading", { name: nome }))!;
+    const fimEm = (horas: number) => {
+      const fim = new Date(Date.now() + horas * 3_600_000);
+      return { testeTerminaEm: fim.toISOString().slice(0, 10), fimDoTeste: fim.toISOString() };
+    };
+
+    it("com mais de 48 horas de teste, diz quando paga e vai para a Stripe", async () => {
+      const user = userEvent.setup();
+      let abrir!: (valor: unknown) => void;
+      iniciarCheckout.mockReturnValue(new Promise((r) => (abrir = r)));
+      const fim = fimEm(9 * 24);
+      await montar(conta({ situacao: "teste", ...fim }));
+      const [, mes, dia] = fim.testeTerminaEm.split("-");
+      expect(within(cartao("Padrão")).getByText(`Você só paga em ${dia}/${mes}, quando o teste acaba.`)).toBeInTheDocument();
+
+      await user.click(within(cartao("Padrão")).getByRole("button", { name: "Assinar o Padrão" }));
+      expect(iniciarCheckout).toHaveBeenCalledWith("padrao", "mensal");
+      expect(within(cartao("Padrão")).getByRole("button", { name: "Abrindo a Stripe…" })).toBeDisabled();
+      await act(async () => abrir({ ok: true, dados: { url: "https://checkout.stripe.com/c/pay/cs_test_1" } }));
+      expect(assign).toHaveBeenCalledWith("https://checkout.stripe.com/c/pay/cs_test_1");
+    });
+
+    it("leva o período escolhido", async () => {
+      const user = userEvent.setup();
+      iniciarCheckout.mockResolvedValue({ ok: true, dados: { url: "https://checkout.stripe.com/x" } });
+      await montar(conta({ situacao: "teste", ...fimEm(9 * 24) }));
+      await user.click(screen.getByRole("button", { name: "Anual" }));
+      await user.click(within(cartao("Essencial")).getByRole("button", { name: "Assinar o Essencial" }));
+      expect(iniciarCheckout).toHaveBeenCalledWith("essencial", "anual");
+    });
+
+    it.each([
+      ["com menos de 48 horas de teste", () => conta({ situacao: "teste", ...fimEm(47) })],
+      ["com o teste encerrado", () => conta({ situacao: "teste_encerrado" })],
+    ])("%s, avisa que cobra agora antes de chamar", async (_, montarConta) => {
+      const user = userEvent.setup();
+      iniciarCheckout.mockResolvedValue({ ok: true, dados: { url: "https://checkout.stripe.com/x" } });
+      await montar(montarConta());
+      await user.click(within(cartao("Padrão")).getByRole("button", { name: "Assinar o Padrão" }));
+      expect(iniciarCheckout).not.toHaveBeenCalled();
+      expect(within(cartao("Padrão")).getByText("A cobrança é feita agora. Os dias de teste que sobraram não ficam para depois.")).toBeInTheDocument();
+      await user.click(within(cartao("Padrão")).getByRole("button", { name: "Assinar e pagar agora" }));
+      expect(iniciarCheckout).toHaveBeenCalledWith("padrao", "mensal");
+    });
+
+    it("dois cliques rápidos chamam uma vez", async () => {
+      iniciarCheckout.mockReturnValue(new Promise(() => {}));
+      await montar(conta({ situacao: "teste", ...fimEm(9 * 24) }));
+      const botao = within(cartao("Padrão")).getByRole("button", { name: "Assinar o Padrão" });
+      act(() => {
+        botao.click();
+        botao.click();
+      });
+      expect(iniciarCheckout).toHaveBeenCalledTimes(1);
+    });
+
+    it("a recusa aparece no cartão; o 409 relê a conta", async () => {
+      const user = userEvent.setup();
+      iniciarCheckout.mockResolvedValue({ ok: false, status: 409, erro: "A conta já tem uma assinatura." });
+      await montar(conta({ situacao: "teste", ...fimEm(9 * 24) }));
+      await user.click(within(cartao("Padrão")).getByRole("button", { name: "Assinar o Padrão" }));
+      expect(within(cartao("Padrão")).getByRole("alert")).toHaveTextContent("A conta já tem uma assinatura.");
+      expect(router.refresh).toHaveBeenCalled();
+      expect(assign).not.toHaveBeenCalled();
+      expect(within(cartao("Padrão")).getByRole("button", { name: "Assinar o Padrão" })).toBeEnabled();
+    });
+
+    it("um 503 mostra o texto da ação, sem reler", async () => {
+      const user = userEvent.setup();
+      iniciarCheckout.mockResolvedValue({ ok: false, status: 503, erro: "A assinatura não está disponível agora. Tente de novo mais tarde." });
+      await montar(conta({ situacao: "teste", ...fimEm(9 * 24) }));
+      await user.click(within(cartao("Padrão")).getByRole("button", { name: "Assinar o Padrão" }));
+      expect(within(cartao("Padrão")).getByRole("alert")).toHaveTextContent("A assinatura não está disponível agora.");
+      expect(router.refresh).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("a volta da Stripe", () => {
+    const ATIVO = conta({
+      situacao: "ativo",
+      plano: "padrao",
+      cobranca: { status: "active", plano: "padrao", periodo: "mensal", periodoAtualFim: "2026-11-30", cancelaNoFim: false },
+    });
+
+    async function voltar(busca: string, inicial: Assinatura) {
+      naUrl(busca);
+      const pagina = await AssinaturaPage();
+      const arvore = (assinatura: Assinatura) => (
+        <ProvedorDaConta preferencias={null} assinatura={assinatura} papel="admin">
+          {pagina}
+        </ProvedorDaConta>
+      );
+      const tela = render(arvore(inicial));
+      return { trocar: (assinatura: Assinatura) => tela.rerender(arvore(assinatura)) };
+    }
+
+    it("confirmando: relê a cada 3 s até o webhook virar a conta", async () => {
+      vi.useFakeTimers();
+      const { trocar } = await voltar("?checkout=sucesso", conta({ situacao: "teste" }));
+      expect(screen.getByRole("status")).toHaveTextContent("Confirmando seu pagamento…");
+      expect(replaceState).toHaveBeenCalledWith(window.history.state, "", "/e/x/assinatura");
+      act(() => vi.advanceTimersByTime(3000));
+      expect(router.refresh).toHaveBeenCalledTimes(1);
+      act(() => vi.advanceTimersByTime(3000));
+      expect(router.refresh).toHaveBeenCalledTimes(2);
+
+      act(() => trocar(ATIVO));
+      expect(screen.getByRole("status")).toHaveTextContent("Assinatura confirmada: plano Padrão, mensal.");
+      act(() => vi.advanceTimersByTime(9000));
+      expect(router.refresh).toHaveBeenCalledTimes(2);
+    });
+
+    it("sem confirmação em 30 s, diz que pode demorar e para de reler", async () => {
+      vi.useFakeTimers();
+      await voltar("?checkout=sucesso", conta({ situacao: "teste" }));
+      act(() => vi.advanceTimersByTime(30_000));
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "A Stripe ainda não confirmou o pagamento. Isso pode levar alguns minutos; esta tela mostra quando confirmar.",
+      );
+      const vezes = router.refresh.mock.calls.length;
+      act(() => vi.advanceTimersByTime(9000));
+      expect(router.refresh).toHaveBeenCalledTimes(vezes);
+    });
+
+    it("com a conta já assinando, confirma na hora", async () => {
+      vi.useFakeTimers();
+      await voltar("?checkout=sucesso", ATIVO);
+      expect(screen.getByRole("status")).toHaveTextContent("Assinatura confirmada: plano Padrão, mensal.");
+      act(() => vi.advanceTimersByTime(6000));
+      expect(router.refresh).not.toHaveBeenCalled();
+    });
+
+    it("cancelado: diz que nada foi cobrado", async () => {
+      await voltar("?checkout=cancelado", conta({ situacao: "teste" }));
+      expect(screen.getByRole("status")).toHaveTextContent("Você voltou sem assinar. Nada foi cobrado.");
+      expect(replaceState).toHaveBeenCalledWith(window.history.state, "", "/e/x/assinatura");
     });
   });
 });

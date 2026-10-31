@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Reveal } from "@/app/reveal";
 import { PLANOS } from "@/lib/planos";
 import { textoDoLimite } from "@/lib/limites";
+import { useRoteador } from "@/lib/roteador";
 import {
+  cobrancaImediata,
   diasRestantes,
   formatarDiaCurto,
   fraseDoTeste,
@@ -18,7 +20,9 @@ import { useAssinatura, useLimites, usePapel } from "../conta";
 import { Cabecalho } from "../cabecalho";
 import { FaixaDoPlano } from "../empresas/faixa-do-plano";
 import { AssinaturaDeDemonstracao } from "./demonstracao";
+import { iniciarCheckout } from "./acoes";
 import { SeletorDePeriodo } from "./seletor-de-periodo";
+import { VoltaDaStripe } from "./volta-da-stripe";
 
 const MOTIVO_ID = "assinatura-motivo";
 const SUFIXO: Record<Periodo, string> = { mensal: "/mês", trimestral: "/trimestre", semestral: "/semestre", anual: "/ano" };
@@ -60,6 +64,7 @@ export function PainelDaAssinatura({ precos }: { precos: PrecoDoPlano[] | null }
       <Cabecalho titulo="Assinatura" contexto={contexto(assinatura)} />
 
       <div className="ass-corpo">
+        <VoltaDaStripe />
         {situacao === "pagamento_pendente" && (
           <p role="alert" className="aviso-demonstracao">
             O último pagamento não passou. A Stripe vai tentar de novo nos próximos dias; para trocar o cartão, fale com a gente.
@@ -119,6 +124,7 @@ export function PainelDaAssinatura({ precos }: { precos: PrecoDoPlano[] | null }
                     <p className="ass-plano-texto">{plano.limite}</p>
                     {!assinando && (
                       <AssinarPlano
+                        assinatura={assinatura}
                         plano={plano.id}
                         nome={plano.nome}
                         periodo={periodo}
@@ -163,19 +169,68 @@ export function PainelDaAssinatura({ precos }: { precos: PrecoDoPlano[] | null }
   );
 }
 
-/** O Assinar do cartão; desligado, aponta para o motivo. */
+const AVISO_IMEDIATO = "A cobrança é feita agora. Os dias de teste que sobraram não ficam para depois.";
+
+/**
+ * O Assinar do cartão; desligado, aponta para o motivo. Quando a cobrança é na hora (menos de 48 horas
+ * de teste, ou sem teste), o primeiro clique só avisa. Uma `ref` trava antes do primeiro `await`.
+ */
 function AssinarPlano({
+  assinatura,
+  plano,
   nome,
+  periodo,
   motivoId,
 }: {
+  assinatura: Assinatura;
   plano: PlanoId;
   nome: string;
   periodo: Periodo;
   motivoId: string | null;
 }) {
+  const { refresh } = useRoteador();
+  const travado = useRef(false);
+  const [avisado, setAvisado] = useState(false);
+  const [abrindo, setAbrindo] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+  const imediata = cobrancaImediata(assinatura, new Date());
+
+  async function assinar() {
+    if (travado.current) return;
+    if (imediata && !avisado) return setAvisado(true);
+    travado.current = true;
+    setAbrindo(true);
+    setErro(null);
+    const resposta = await iniciarCheckout(plano, periodo);
+    // a trava fica: a página está saindo para a Stripe
+    if (resposta.ok) return window.location.assign(resposta.dados.url);
+    travado.current = false;
+    setAbrindo(false);
+    setErro(resposta.erro);
+    // 409: a conta já assina (outra aba, ou o webhook chegou); relê o /me
+    if (resposta.status === 409) refresh();
+  }
+
   return (
-    <button type="button" className="btn btn-primary" disabled={motivoId !== null} aria-describedby={motivoId ?? undefined}>
-      Assinar o {nome}
-    </button>
+    <>
+      {motivoId === null && avisado && <p className="ass-plano-texto">{AVISO_IMEDIATO}</p>}
+      {motivoId === null && !imediata && assinatura.testeTerminaEm && (
+        <p className="ass-plano-texto">Você só paga em {formatarDiaCurto(assinatura.testeTerminaEm)}, quando o teste acaba.</p>
+      )}
+      {erro && (
+        <p role="alert" className="ass-plano-erro">
+          {erro}
+        </p>
+      )}
+      <button
+        type="button"
+        className="btn btn-primary"
+        disabled={motivoId !== null || abrindo}
+        aria-describedby={motivoId ?? undefined}
+        onClick={assinar}
+      >
+        {abrindo ? "Abrindo a Stripe…" : avisado ? "Assinar e pagar agora" : `Assinar o ${nome}`}
+      </button>
+    </>
   );
 }
