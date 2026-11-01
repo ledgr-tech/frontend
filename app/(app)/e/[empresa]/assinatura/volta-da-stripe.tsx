@@ -24,7 +24,10 @@ export function VoltaDaStripe() {
   const confirmada = cobranca !== null;
 
   useEffect(() => {
-    if (volta) window.history.replaceState(window.history.state, "", window.location.pathname);
+    if (!volta) return;
+    // depois do mount: o efeito do roteador do Next roda depois deste e regravaria a URL com a query
+    const limpar = setTimeout(() => window.history.replaceState(window.history.state, "", window.location.pathname));
+    return () => clearTimeout(limpar);
   }, [volta]);
 
   useEffect(() => {

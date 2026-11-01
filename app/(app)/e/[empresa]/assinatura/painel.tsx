@@ -49,11 +49,13 @@ export function PainelDaAssinatura({ precos }: { precos: PrecoDoPlano[] | null }
   const assinatura = useAssinatura();
   const papel = usePapel();
   const conciliacoes = useLimites()?.conciliacoes ?? null;
-  const [periodo, setPeriodo] = useState<Periodo>("mensal");
+  // sem escolha, o período da assinatura (que chega depois da volta da Stripe), ou o mensal
+  const [escolhido, setPeriodo] = useState<Periodo | null>(null);
 
   if (!assinatura || (assinatura.situacao === "ativo" && !assinatura.cobranca)) return <AssinaturaDeDemonstracao />;
 
   const { situacao, cobranca } = assinatura;
+  const periodo = escolhido ?? cobranca?.periodo ?? "mensal";
   const assinando = situacao === "ativo" || situacao === "pagamento_pendente";
   const motivo = !precos ? "A assinatura pelo cartão ainda não está no ar." : papel !== "admin" ? "Só o administrador da conta assina." : null;
   const doPeriodo = (plano: PlanoId) => precos?.find((p) => p.plano === plano && p.periodo === periodo);

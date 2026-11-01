@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
-import { act, render, screen, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { PLANOS } from "@/lib/planos";
 import { adaptarPrecos, type Assinatura, type PrecoDoPlano } from "@/lib/assinatura";
@@ -308,6 +308,20 @@ describe("AssinaturaPage", () => {
       expect(screen.getByText("plano Padrão · anual · termina em 31/10")).toBeInTheDocument();
     });
 
+    it("assinando no anual, o seletor e os preços começam no anual, também depois da volta da Stripe", async () => {
+      const cobranca = { status: "active", plano: "padrao" as const, periodo: "anual" as const, periodoAtualFim: "2027-10-31", cancelaNoFim: false };
+      const pagina = await AssinaturaPage();
+      const arvore = (assinatura: Assinatura) => (
+        <ProvedorDaConta preferencias={null} assinatura={assinatura} papel="admin">
+          {pagina}
+        </ProvedorDaConta>
+      );
+      const { rerender } = render(arvore(conta({ situacao: "teste" })));
+      rerender(arvore(conta({ situacao: "ativo", plano: "padrao", cobranca })));
+      expect(screen.getByRole("button", { name: "Anual" })).toHaveAttribute("aria-pressed", "true");
+      expect(within(cartao("Padrão")).getByText("R$ 3.050,00")).toBeInTheDocument();
+    });
+
     it("o período troca os preços, o valor por mês e o desconto dos três cartões", async () => {
       const user = userEvent.setup();
       await montar(conta({ situacao: "teste" }));
@@ -465,8 +479,8 @@ describe("AssinaturaPage", () => {
       vi.useFakeTimers();
       const { trocar } = await voltar("?checkout=sucesso", conta({ situacao: "teste" }));
       expect(screen.getByRole("status")).toHaveTextContent("Confirmando seu pagamento…");
-      expect(replaceState).toHaveBeenCalledWith(window.history.state, "", "/e/x/assinatura");
       act(() => vi.advanceTimersByTime(3000));
+      expect(replaceState).toHaveBeenCalledWith(window.history.state, "", "/e/x/assinatura");
       expect(router.refresh).toHaveBeenCalledTimes(1);
       act(() => vi.advanceTimersByTime(3000));
       expect(router.refresh).toHaveBeenCalledTimes(2);
@@ -500,7 +514,7 @@ describe("AssinaturaPage", () => {
     it("cancelado: diz que nada foi cobrado", async () => {
       await voltar("?checkout=cancelado", conta({ situacao: "teste" }));
       expect(screen.getByRole("status")).toHaveTextContent("Você voltou sem assinar. Nada foi cobrado.");
-      expect(replaceState).toHaveBeenCalledWith(window.history.state, "", "/e/x/assinatura");
+      await waitFor(() => expect(replaceState).toHaveBeenCalledWith(window.history.state, "", "/e/x/assinatura"));
     });
   });
 });

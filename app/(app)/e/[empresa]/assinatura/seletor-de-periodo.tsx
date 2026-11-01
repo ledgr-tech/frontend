@@ -8,7 +8,8 @@ const OUTROS: Periodo[] = ["trimestral", "semestral"];
 
 /** Mensal e Anual em destaque; "Ver outros períodos" acrescenta Trimestral e Semestral. */
 export function SeletorDePeriodo({ periodo, onMudar }: { periodo: Periodo; onMudar: (periodo: Periodo) => void }) {
-  const [abertos, setAbertos] = useState(OUTROS.includes(periodo));
+  const [abrir, setAbertos] = useState(false);
+  const abertos = abrir || OUTROS.includes(periodo);
   const opcoes: Periodo[] = abertos ? ["mensal", "trimestral", "semestral", "anual"] : ["mensal", "anual"];
   return (
     <div className="ass-periodos">

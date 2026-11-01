@@ -700,7 +700,7 @@ describe("contaDaSessao", () => {
       Response.json({ ...EU, limites: { empresas: { usadas: 2, maximo: 3 }, usuarios: { usados: 1, maximo: null } } }),
     );
 
-    expect((await contaDaSessao()).limites).toEqual({ empresas: { usadas: 2, maximo: 3 }, usuarios: { usadas: 1, maximo: null } });
+    expect((await contaDaSessao()).limites).toEqual({ empresas: { usadas: 2, maximo: 3 }, usuarios: { usadas: 1, maximo: null }, conciliacoes: null });
 
     fetch.mockResolvedValue(Response.json(EU));
     expect((await contaDaSessao()).limites).toBeNull();
@@ -771,7 +771,7 @@ describe("contaDaSessao", () => {
   it("lê o plano e o teste de 14 dias", async () => {
     fetch.mockResolvedValue(Response.json({ ...EU, situacao: "teste", plano: "padrao", teste_termina_em: "2026-10-29" }));
 
-    expect((await contaDaSessao()).assinatura).toEqual({ situacao: "teste", plano: "padrao", testeTerminaEm: "2026-10-29" });
+    expect((await contaDaSessao()).assinatura).toEqual({ situacao: "teste", plano: "padrao", testeTerminaEm: "2026-10-29", fimDoTeste: "2026-10-29T00:00:00-03:00", cobranca: null });
   });
 
   it("lê as preferências do primeiro uso, só com telas conhecidas", async () => {
