@@ -86,6 +86,9 @@ describe("assinatura", () => {
       expect(adaptarAssinatura({ situacao: "ativo", assinatura: { ...base, periodo: "bienal" } })?.cobranca).toBeNull();
       expect(adaptarAssinatura({ situacao: "ativo", assinatura: { ...base, plano: "volume" } })?.cobranca).toBeNull();
       expect(adaptarAssinatura({ situacao: "ativo", assinatura: "sim" })?.cobranca).toBeNull();
+      // `in` acharia o "constructor" do protótipo
+      expect(adaptarAssinatura({ situacao: "ativo", assinatura: { ...base, plano: "constructor" } })?.cobranca).toBeNull();
+      expect(adaptarAssinatura({ situacao: "teste", plano: "toString" })?.plano).toBeNull();
       expect(adaptarAssinatura({ situacao: "ativo", assinatura: base })?.cobranca).toEqual({
         status: "active", plano: "padrao", periodo: "anual", periodoAtualFim: null, cancelaNoFim: true,
       });

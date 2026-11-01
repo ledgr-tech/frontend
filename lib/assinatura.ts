@@ -35,7 +35,7 @@ export function diaEmSaoPaulo(texto: string): string | null {
   return Number.isNaN(instante.getTime()) ? null : HOJE_EM_SP.format(instante);
 }
 
-const ehPlano = (valor: unknown): valor is PlanoId => typeof valor === "string" && valor in NOMES;
+const ehPlano = (valor: unknown): valor is PlanoId => typeof valor === "string" && Object.hasOwn(NOMES, valor);
 
 function adaptarCobranca(bruto: unknown): Cobranca | null {
   if (!bruto || typeof bruto !== "object") return null;

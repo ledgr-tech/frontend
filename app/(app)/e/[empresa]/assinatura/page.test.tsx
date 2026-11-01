@@ -347,6 +347,11 @@ describe("AssinaturaPage", () => {
       expect(assinar).toBeDisabled();
       expect(assinar).toHaveAccessibleDescription("A assinatura pelo cartão ainda não está no ar.");
       expect(within(cartao("Padrão")).getByText(PLANOS.find((p) => p.nome === "Padrão")!.preco)).toBeInTheDocument();
+      // com o cartão fora do ar, assinar segue sendo pela equipe, como na /plano de antes
+      expect(screen.getByRole("link", { name: "Fale com a gente para assinar" })).toHaveAttribute(
+        "href",
+        "mailto:ledgrtech@gmail.com?subject=Assinar%20um%20plano",
+      );
     });
 
     it("um período que falta para um plano só desliga esse cartão", async () => {
@@ -491,7 +496,7 @@ describe("AssinaturaPage", () => {
       expect(router.refresh).toHaveBeenCalledTimes(2);
     });
 
-    it("sem confirmação em 30 s, diz que pode demorar e para de reler", async () => {
+    it("sem confirmação em 30 s, diz que pode demorar e segue relendo mais devagar", async () => {
       vi.useFakeTimers();
       await voltar("?checkout=sucesso", conta({ situacao: "teste" }));
       act(() => vi.advanceTimersByTime(30_000));
@@ -501,6 +506,14 @@ describe("AssinaturaPage", () => {
       const vezes = router.refresh.mock.calls.length;
       act(() => vi.advanceTimersByTime(9000));
       expect(router.refresh).toHaveBeenCalledTimes(vezes);
+      act(() => vi.advanceTimersByTime(6000));
+      expect(router.refresh).toHaveBeenCalledTimes(vezes + 1);
+    });
+
+    it("com o pagamento pendente e a cobrança criada, também confirma", async () => {
+      vi.useFakeTimers();
+      await voltar("?checkout=sucesso", { ...ATIVO, situacao: "pagamento_pendente" });
+      expect(screen.getByRole("status")).toHaveTextContent("Assinatura confirmada: plano Padrão, mensal.");
     });
 
     it("com a conta já assinando, confirma na hora", async () => {

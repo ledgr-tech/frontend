@@ -10,6 +10,7 @@ import {
   diasRestantes,
   formatarDiaCurto,
   fraseDoTeste,
+  NOME_DO_PLANO,
   planosDoTeste,
   type Assinatura,
   type Periodo,
@@ -34,7 +35,7 @@ function contexto(assinatura: Assinatura): string[] {
   }
   if (situacao === "ativo" && cobranca) {
     const fim = cobranca.periodoAtualFim && `${cobranca.cancelaNoFim ? "termina" : "renova"} em ${formatarDiaCurto(cobranca.periodoAtualFim)}`;
-    return [`plano ${planosDoTeste().find((p) => p.id === cobranca.plano)!.nome}`, cobranca.periodo, fim].filter((parte): parte is string => !!parte);
+    return [`plano ${NOME_DO_PLANO[cobranca.plano]}`, cobranca.periodo, fim].filter((parte): parte is string => !!parte);
   }
   const textos = { sem_plano: "sem plano", teste_encerrado: "teste grátis encerrado", assinatura_encerrada: "assinatura encerrada", pagamento_pendente: "pagamento pendente" };
   return [textos[situacao as keyof typeof textos] ?? ""];
@@ -79,8 +80,15 @@ export function PainelDaAssinatura({ precos }: { precos: PrecoDoPlano[] | null }
           </p>
         )}
         {!assinando && motivo && (
-          <p id={MOTIVO_ID} role="note" className="aviso-demonstracao">
-            {motivo}
+          <p role="note" className="aviso-demonstracao">
+            <span id={MOTIVO_ID}>{motivo}</span>
+            {/* com o cartão fora do ar, assinar segue sendo pela equipe, como era na /plano */}
+            {!precos && (
+              <>
+                {" "}
+                <a href="mailto:ledgrtech@gmail.com?subject=Assinar%20um%20plano">Fale com a gente para assinar</a>
+              </>
+            )}
           </p>
         )}
 
