@@ -61,6 +61,10 @@ export function Shell({
         guardaArquivoOriginal={guardaArquivoOriginal}
       >
         <LucideProvider strokeWidth={TRACO_ICONE}>
+          {/* o primeiro Tab da tela: quem usa só o teclado pula o menu e a barra de cima */}
+          <a className="pular-para-conteudo" href="#conteudo">
+            Pular para o conteúdo
+          </a>
           <div className="app-shell">
             <MenuLateral
               email={email}
@@ -71,7 +75,9 @@ export function Shell({
             />
             <main className="app-principal">
               <BarraSuperior />
-              <div className="app-conteudo">{children}</div>
+              <div id="conteudo" className="app-conteudo" tabIndex={-1}>
+                {children}
+              </div>
               <TutorialDaRota />
               <PainelDaRota />
             </main>

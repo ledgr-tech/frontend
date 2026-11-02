@@ -4234,6 +4234,17 @@ html:not([data-densidade="padrao"]) .app-shell .selo { padding-block: 1px; }
 }
 .esq-resumo > * { display: flex; flex-direction: column; gap: 12px; padding-block: 24px; }
 
+/* "Pular para o conteúdo": escondido até receber o foco, aí aparece no canto de cima */
+.pular-para-conteudo {
+  position: fixed; top: 8px; left: 8px; z-index: 100; padding: 8px 14px;
+  background: var(--color-surface); color: var(--color-text);
+  border: 1px solid var(--color-divider); border-radius: var(--radius-md); font-size: 14px;
+  transform: translateY(calc(-100% - 16px));
+}
+.pular-para-conteudo:focus { transform: none; }
+/* o alvo recebe o foco só pelo link: sem anel em volta da tela inteira */
+.app-conteudo:focus { outline: none; }
+
 /* texto so para leitor de tela */
 .visualmente-oculto {
   position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
