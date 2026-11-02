@@ -65,7 +65,7 @@ function CartaoExtrato({
       </div>
       {campos?.map((campo) => (
         <div key={campo.rotulo} className="det-campo">
-          <span style={{ color: "color-mix(in srgb, var(--color-text) 58%, transparent)" }}>
+          <span style={{ color: "color-mix(in srgb, var(--color-text) 68%, transparent)" }}>
             {campo.rotulo}
           </span>
           <span
@@ -340,7 +340,7 @@ export function DetalheDivergencia({ painel = false }: { painel?: boolean }) {
                   <div key={mes.mes} className="det-cronico-linha">
                     <span className="det-cronico-mes">{mes.mes}</span>
                     <span className="det-cronico-num">{formatarMoeda(mes.valorBanco)}</span>
-                    <span style={{ flex: "none", fontSize: 14, color: "color-mix(in srgb, var(--color-text) 50%, transparent)" }}>
+                    <span style={{ flex: "none", fontSize: 14, color: "color-mix(in srgb, var(--color-text) 68%, transparent)" }}>
                       contra
                     </span>
                     <span className="det-cronico-num" style={{ color: "var(--color-risco-700)" }}>
