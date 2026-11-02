@@ -106,7 +106,7 @@ export default function RegrasPage() {
           <div className="regras-sugeridas-topo">
             <h3 style={{ margin: 0, fontSize: 22, fontWeight: 600 }}>Sugeridas pelo Ledgr</h3>
             <span
-              style={{ fontSize: 13.5, color: "color-mix(in srgb, var(--color-text) 58%, transparent)" }}
+              style={{ fontSize: 13.5, color: "color-mix(in srgb, var(--color-text) 68%, transparent)" }}
             >
               Padrões que repetiram em três meses ou mais.
             </span>
