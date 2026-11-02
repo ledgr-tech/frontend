@@ -64,7 +64,7 @@ export const DETALHES: Record<Indicado, { para: string; itens: [texto: string, e
   },
   padrao: {
     para: "Para o escritório que concilia os clientes.",
-    itens: [["Tudo do Essencial"], ["Pastas de extratos, uma por cliente"]],
+    itens: [["Tudo do Essencial"], ["Empresas clientes, cada uma com os seus extratos"]],
     tag: "Para escritórios",
   },
   avancado: {
