@@ -3,7 +3,8 @@
 Levantamento de 22/09/2026, sobre o app autenticado (`app/(app)`), revisto em 02/11/2026.
 Ranqueado por **impacto neste produto × aderência ao estilo classical**, não por tendência.
 Desde 21/10 as telas moram em `app/(app)/e/[empresa]/` (a empresa ativa vai na URL); os
-caminhos abaixo que começam em `app/(app)/` ficam lá dentro.
+caminhos abaixo que começam em `app/(app)/` ficam lá dentro. O guia ilustrado, com as telas capturadas, é o PDF
+`ledgr-docs/07-tecnico/modelagem-visual/ledgr-guia-v4.pdf` (versão 4, 02/11/2026).
 
 O sistema visual está descrito em `AGENTS.md` e em
 `v2- informações simples/_ds/classical-.../readme.md`. O resumo que importa aqui:
