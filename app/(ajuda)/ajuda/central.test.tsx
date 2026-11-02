@@ -74,12 +74,12 @@ describe("CentralDeAjuda", () => {
   });
 
   it("sem vídeo, a capa diz que ele vem e lista os capítulos", () => {
-    render(<CentralDeAjuda id="historico" />);
+    render(<CentralDeAjuda id="assinatura" />);
     expect(screen.getByText("Vídeo desta tela em breve")).toBeInTheDocument();
     expect(document.querySelector("video")).toBeNull();
     const capitulos = screen.getByRole("list", { name: "Capítulos do vídeo" });
     expect(within(capitulos).getAllByRole("listitem")).toHaveLength(
-      PAGINAS.find((p) => p.id === "historico")!.funcoes.length,
+      PAGINAS.find((p) => p.id === "assinatura")!.funcoes.length,
     );
   });
 

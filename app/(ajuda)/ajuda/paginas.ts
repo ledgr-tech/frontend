@@ -48,6 +48,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
       largura: 1360,
       altura: 850,
     },
+    video: "/ajuda/visao-geral.webm",
     funcoes: [
       {
         id: "primeiros-passos",
@@ -103,6 +104,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
       largura: 1360,
       altura: 850,
     },
+    video: "/ajuda/extratos.webm",
     funcoes: [
       {
         id: "arquivos",
@@ -162,6 +164,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
       largura: 1360,
       altura: 850,
     },
+    video: "/ajuda/conciliacoes.webm",
     funcoes: [
       {
         id: "filtros",
@@ -266,6 +269,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
       largura: 1360,
       altura: 850,
     },
+    video: "/ajuda/comparacao.webm",
     funcoes: [
       {
         id: "resumo",
@@ -367,6 +371,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
       largura: 1360,
       altura: 850,
     },
+    video: "/ajuda/detalhe-da-linha.webm",
     funcoes: [
       {
         id: "lados",
@@ -422,6 +427,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
       largura: 1360,
       altura: 850,
     },
+    video: "/ajuda/fechamentos.webm",
     funcoes: [
       {
         id: "meses",
@@ -502,6 +508,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
       largura: 1360,
       altura: 850,
     },
+    video: "/ajuda/historico.webm",
     funcoes: [
       {
         id: "grafico",
@@ -546,6 +553,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
       largura: 1360,
       altura: 850,
     },
+    video: "/ajuda/empresas.webm",
     funcoes: [
       {
         id: "lista",
@@ -622,6 +630,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
       largura: 1360,
       altura: 850,
     },
+    video: "/ajuda/configuracoes.webm",
     funcoes: [
       {
         id: "abrir",
