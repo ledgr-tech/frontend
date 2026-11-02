@@ -14,10 +14,12 @@ import type { PassoDoRoteiro } from "./roteiro";
  * usar", que é preferência do navegador e da conta, por isso aqui e não no servidor.
  */
 function usePassos(todos: PassoDoRoteiro[] | null): PassoDoRoteiro[] | null {
-  const { carregado, roteiroDispensado } = usePreferencias();
+  // não espera ler o navegador: os passos já vêm no HTML, sem a coluna surgir depois. O preço é
+  // quem dispensou só neste navegador (o PATCH falhou) vê os passos por um instante
+  const { roteiroDispensado } = usePreferencias();
   // sem a situação da conta no /me (o backend de hoje), não há teste começado para mostrar
   const assinatura = useAssinatura();
-  if (!todos || !carregado || roteiroDispensado) return null;
+  if (!todos || roteiroDispensado) return null;
   return assinatura ? todos : todos.filter((passo) => passo.id !== "plano");
 }
 
@@ -79,6 +81,19 @@ export function AcaoDoPasso({ passos, id }: { passos: PassoDoRoteiro[] | null; i
   );
 }
 
+/** Se a pergunta da tolerância está na tela: o passo existe, não foi feito e o roteiro não foi dispensado. */
+function usePergunta(passos: PassoDoRoteiro[] | null): boolean {
+  return usePassos(passos)?.find((passo) => passo.id === "tolerancia")?.feito === false;
+}
+
+/**
+ * Os blocos menores que, sem a pergunta, sobem para a coluna ao lado: com ela na coluna, ficam
+ * na fileira de baixo. Quem dispensa o roteiro só se sabe no navegador, por isso a decisão é aqui.
+ */
+export function EnquantoPergunta({ passos, children }: { passos: PassoDoRoteiro[] | null; children: ReactNode }) {
+  return usePergunta(passos) ? children : null;
+}
+
 /**
  * A coluna ao lado do estado do mês. Enquanto a tolerância nunca foi confirmada, ela pergunta ali
  * mesmo ("Usar 2 dias" grava o padrão); confirmada ou dispensada, volta a ser `children` (a
@@ -93,11 +108,9 @@ export function LadoDaTolerancia({
   regras: RegrasDaEmpresa;
   children?: ReactNode;
 }) {
-  const visiveis = usePassos(passos);
   // o bloco guarda o que salvou: o refresh que relê a Visão geral chega um pouco depois
   const [regras, setRegras] = useState(iniciais);
-  const pergunta = visiveis?.find((passo) => passo.id === "tolerancia")?.feito === false;
-  if (!pergunta) return children ? <div className="vg-blocos-lado">{children}</div> : null;
+  if (!usePergunta(passos)) return children ? <div className="vg-blocos-lado">{children}</div> : null;
   return (
     <div className="vg-blocos-lado">
       <section className="vg-bloco pp-bloco" aria-labelledby="pp-tolerancia-titulo" data-tutorial="tolerancia">

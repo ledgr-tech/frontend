@@ -591,6 +591,27 @@ describe("VisaoGeralPage", () => {
     expect(document.querySelector(".vg-blocos-lado")).toHaveTextContent("Quantos dias de diferença");
   });
 
+  it("sem a pergunta (dispensada), saldo e aprovação sobem para a coluna ao lado", async () => {
+    window.localStorage.setItem("ledgr:preferencias", JSON.stringify({ tutoriaisDispensados: [], roteiroDispensado: true }));
+    carregarRoteiro.mockResolvedValue({ ...CONTA_NOVA, temExtratoDoBanco: true, conciliou: true });
+    carregarConexoesMcp.mockResolvedValue({ ok: false, status: 403, erro: "Só o admin ou o gestor" });
+    const conciliacao = {
+      id: "banco-e7",
+      mes: "Setembro/2026",
+      status: "em_andamento" as const,
+      linhas: LINHAS,
+      saldo: { inicial: 1000, final: 284310.55, data: "2026-09-28" },
+      aguardandoAprovacao: 5,
+    };
+    com({ recente: { execucao: RECENTE, conciliacao } });
+    await renderizar();
+
+    const lado = document.querySelector(".vg-blocos-lado")!;
+    expect(within(lado as HTMLElement).getByRole("region", { name: "Saldo do banco" })).toBeInTheDocument();
+    expect(within(lado as HTMLElement).getByRole("link", { name: /Aguardam aprovação/ })).toBeInTheDocument();
+    expect(screen.getAllByRole("region", { name: "Saldo do banco" })).toHaveLength(1);
+  });
+
   it("depois do primeiro mês fechado, nenhum bloco fala de passo", async () => {
     carregarRoteiro.mockResolvedValue({ ...CONTA_NOVA, toleranciaRevisada: true, temExtratoDoBanco: true, conciliou: true, fechouAlgum: true });
     com();

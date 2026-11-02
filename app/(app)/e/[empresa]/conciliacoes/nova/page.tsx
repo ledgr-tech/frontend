@@ -6,7 +6,7 @@ import { useRoteador } from "@/lib/roteador";
 import { useEmpresaAtiva, useEmpresasDaConta } from "@/lib/empresa-ativa";
 import { ArrowRight, Check, Link2, Scale, ShieldCheck } from "lucide-react";
 import { caminhoDaConciliacao } from "@/lib/caminhos";
-import { abrirConfiguracoes } from "@/lib/eventos";
+import { abrirConfiguracoes, TOLERANCIA_SALVA } from "@/lib/eventos";
 import { comEmpresa } from "@/lib/rotas";
 import { carregarRegras, conciliar, type Falha } from "../acoes";
 import {
@@ -56,8 +56,12 @@ export default function NovaConciliacaoPage() {
         if (vivo.current && regras.ok) setToleranciaDias(regras.dados.toleranciaDias);
       })
       .catch(() => {});
+    // "Mudar" abre Configurações por cima desta tela: o que se salva lá aparece aqui
+    const aoSalvar = (evento: Event) => setToleranciaDias((evento as CustomEvent<number>).detail);
+    window.addEventListener(TOLERANCIA_SALVA, aoSalvar);
     return () => {
       vivo.current = false;
+      window.removeEventListener(TOLERANCIA_SALVA, aoSalvar);
     };
   }, []);
 
