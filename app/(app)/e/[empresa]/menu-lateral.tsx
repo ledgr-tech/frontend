@@ -22,6 +22,7 @@ import {
   History,
   House,
   LogOut,
+  Menu,
   Moon,
   PanelLeftClose,
   PanelLeftOpen,
@@ -130,6 +131,8 @@ export function MenuLateral({
   // a seção pedida por fora (o "Definir agora" do roteiro da Visão geral)
   const [secaoPedida, setSecaoPedida] = useState<string | undefined>();
   const [assistenteAberto, setAssistenteAberto] = useState(false);
+  // no celular (até 900px) as seções ficam atrás do botão Menu, senão ocupam meia tela antes do conteúdo
+  const [secoesAbertas, setSecoesAbertas] = useState(false);
   const botaoAssistente = useRef<HTMLButtonElement>(null);
   const caixaConta = useRef<HTMLDivElement>(null);
   const botaoConta = useRef<HTMLButtonElement>(null);
@@ -219,6 +222,7 @@ export function MenuLateral({
   // ficava sobre a tela nova enquanto ela carregava. O mouse continua em cima; só volta a abrir por
   // cima depois de sair e voltar. Ctrl+clique abre em outra aba, e aí a tela não muda.
   function aoNavegar(evento: EventoMouse) {
+    setSecoesAbertas(false);
     if (!espiar || evento.ctrlKey || evento.metaKey || evento.shiftKey) return;
     setMouseDentro(false);
     setEspiar(podeAnimar(menu.current) ? "fechando" : null);
@@ -307,6 +311,7 @@ export function MenuLateral({
       ref={menu}
       className="app-aside"
       data-espiar={espiar ?? undefined}
+      data-secoes={secoesAbertas ? "abertas" : undefined}
       onPointerEnter={aoEntrar}
       onPointerLeave={aoSair}
     >
@@ -338,6 +343,16 @@ export function MenuLateral({
           <LogoBarras className="app-logo" />
           <PanelLeftOpen {...ICONE} className="app-menu-abrir-icone" />
         </button>
+        <button
+          type="button"
+          className="app-icone-botao app-menu-celular"
+          aria-label="Menu"
+          aria-expanded={secoesAbertas}
+          aria-controls="secoes-do-app"
+          onClick={() => setSecoesAbertas((abertas) => !abertas)}
+        >
+          <Menu {...ICONE} />
+        </button>
       </div>
 
       <Link
@@ -350,7 +365,7 @@ export function MenuLateral({
         <span className="app-rotulo">Nova conciliação</span>
       </Link>
 
-      <nav className="app-nav" aria-label="Seções do app">
+      <nav id="secoes-do-app" className="app-nav" aria-label="Seções do app">
         {ITENS.map((item) => {
           const Icone = item.icone;
           const ativo = estaAtivo(item, caminho);

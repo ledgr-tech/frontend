@@ -38,7 +38,7 @@ export function GraficoDeMatch({
     <div className="hist-grafico-bloco" data-tutorial="grafico">
       <div className="hist-grafico-topo">
         <div>
-          <h6 className="hist-grafico-titulo">Taxa de match automático</h6>
+          <h6 className="hist-grafico-titulo">Taxa de conciliação automática</h6>
           <div className="hist-destaque">
             {formatarPercentual(atual.taxa)} em {mesNaFrase(atual.chave)}
           </div>
@@ -56,7 +56,7 @@ export function GraficoDeMatch({
           <svg className="grafico-fio-linha" viewBox={`0 0 ${meses * 100} 100`} preserveAspectRatio="none" aria-hidden="true">
             <polyline points={fio} vectorEffect="non-scaling-stroke" />
           </svg>
-          <ol className="grafico-fio-pontos" aria-label="Taxa de match por mês">
+          <ol className="grafico-fio-pontos" aria-label="Taxa de conciliação automática por mês">
             {serie.map((ponto, indice) => {
               const lancamentos = `${formatarInteiro(ponto.conciliados)} de ${formatarInteiro(ponto.lancamentos)} lançamentos`;
               return (

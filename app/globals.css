@@ -2262,7 +2262,8 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
   padding: 34px 0 64px;
   display: flex; flex-direction: column; gap: 34px;
 }
-.hist-grafico-bloco { border-block: 1px solid var(--color-divider); padding: 26px 0; }
+/* em cima já há o filete do cabeçalho: só o de baixo, que separa o gráfico da lista */
+.hist-grafico-bloco { border-bottom: 1px solid var(--color-divider); padding: 0 0 26px; }
 .hist-grafico-topo {
   display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between;
   gap: 12px 20px; margin-bottom: 22px;
@@ -3301,6 +3302,7 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
 .app-aside-topo {
   display: flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 0 0 10px;
 }
+.app-aside .app-menu-celular { display: none; }
 .app-aside-marca {
   display: flex; align-items: center; gap: 10px; min-width: 0;
   font-family: var(--font-heading); font-size: 20px; font-weight: 600; line-height: 1;
@@ -3466,7 +3468,8 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
    lista escolhe uma linha e o painel ao lado mostra a escolhida, como as folhas de Conciliações */
 .empresas-corpo { margin-top: 20px; }
 .empresas-filtros { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
-.empresas-busca { width: min(280px, 100%); min-height: 34px; }
+/* largura fixa, sem %: com min(…, 100%) a faixa media o campo pelo tamanho padrão do input e cortava o placeholder */
+.empresas-busca { width: 300px; max-width: 100%; min-height: 34px; }
 .empresas-lista { display: flex; flex-direction: column; gap: 26px; min-width: 0; }
 .empresas-lista .empresas-tabela { margin: 0; }
 .empresas-lista .conc-mes + .empresas-tabela { margin-top: 6px; }
@@ -4195,6 +4198,11 @@ html:not([data-densidade="padrao"]) .app-shell .selo { padding-block: 1px; }
   .app-aside-topo { grid-area: topo; padding: 0; min-height: 0; }
   /* deitado, o menu nao recolhe */
   .app-menu-recolher, .app-menu-abrir { display: none; }
+  /* as secoes (e a Nova conciliacao) ficam atras do botao Menu, no canto direito da marca */
+  .app-aside .app-menu-celular { display: inline-flex; margin-left: auto; }
+  .app-aside:not([data-secoes="abertas"]) :is(.app-nav-nova, .app-nav) { display: none; }
+  /* fechado, sem as linhas vazias (o vão entre elas sobrava embaixo da marca) */
+  .app-aside:not([data-secoes="abertas"]) { grid-template-areas: "topo rodape"; }
   .app-nav-nova { grid-area: nova; justify-self: start; width: auto; }
   .app-nav {
     grid-area: nav; flex: none; flex-direction: row; flex-wrap: wrap; overflow: visible; gap: 4px;
@@ -4642,6 +4650,9 @@ html[data-tema="escuro"] .app-shell {
 .fech-passo[data-feito="false"] .fech-passo-icone { color: var(--color-accent); }
 .fech-passo-corpo { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
 .fech-passo-titulo { font-family: var(--font-heading); font-size: 14.5px; font-weight: 600; }
+/* dentro do passo a coluna é estreita: botões compactos, para o par (Aprovar/Rejeitar, PDF/CSV) caber lado a lado */
+.fech-passo-corpo .fech-acoes { gap: 6px; }
+.fech-passo-corpo .fech-acoes .btn { padding: 6px 11px; font-size: 13px; }
 .fech-passo-texto {
   font-size: 13.5px; line-height: 1.5; overflow-wrap: anywhere;
   color: color-mix(in srgb, var(--color-text) 66%, transparent);

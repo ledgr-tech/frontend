@@ -213,7 +213,7 @@ function JanelaDeEmpresas({ ativa, aoFechar }: { ativa: EmpresaDaConta; aoFechar
                     <td>
                       <span className="seletor-janela-situacao">
                         {empresa.situacao && SITUACAO[empresa.situacao]}
-                        {empresa.id === ativa.id && <span className="tag">Aberta agora</span>}
+                        {empresa.id === ativa.id && <span className="tag tag-accent">Aberta agora</span>}
                       </span>
                     </td>
                     {temFavoritas && (
