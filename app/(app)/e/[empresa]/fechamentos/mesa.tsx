@@ -393,7 +393,7 @@ function Painel({ mes, podeFechar }: { mes: MesDeFechamento; podeFechar: boolean
 
         <Passo feito={mes.naoLidas.length === 0} titulo="Arquivos lidos por inteiro">
           {mes.naoLidas.length === 0 ? (
-            <span className="fech-passo-texto">O parser leu todas as linhas dos arquivos.</span>
+            <span className="fech-passo-texto">O Ledgr leu todas as linhas dos arquivos.</span>
           ) : (
             <>
               <ul className="fech-passo-lista">

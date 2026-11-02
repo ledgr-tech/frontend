@@ -265,7 +265,7 @@ export function PainelDeEmpresas({ empresas: daPagina }: { empresas: EmpresaClie
                               >
                                 {empresa.razaoSocial}
                               </button>
-                              {empresa.id === ativa?.id && <span className="tag">Ativa</span>}
+                              {empresa.id === ativa?.id && <span className="tag tag-accent">Ativa</span>}
                             </span>
                           </td>
                           <td className="empresas-cnpj">{formatarCnpj(empresa.cnpj)}</td>
