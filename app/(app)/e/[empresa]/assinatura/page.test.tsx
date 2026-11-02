@@ -1,10 +1,87 @@
-import { describe, it, expect } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { PLANOS } from "@/lib/planos";
-import type { Assinatura } from "@/lib/assinatura";
+import { adaptarPrecos, type Assinatura, type PrecoDoPlano } from "@/lib/assinatura";
+import type { LimitesDaConta } from "@/lib/limites";
+import type { Papel } from "@/lib/papel";
 import { ProvedorDaConta } from "../conta";
 import AssinaturaPage from "./page";
+
+const router = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn(), back: vi.fn(), prefetch: vi.fn() }));
+vi.mock("next/navigation", () => ({
+  useRouter: () => router,
+  usePathname: () => "/e/x/assinatura",
+  useSearchParams: () => new URLSearchParams(window.location.search),
+}));
+
+const precos = vi.hoisted(() => ({ atuais: null as PrecoDoPlano[] | null }));
+const iniciarCheckout = vi.fn();
+vi.mock("./acoes", () => ({
+  carregarPrecos: async () => precos.atuais,
+  iniciarCheckout: (...args: unknown[]) => iniciarCheckout(...args),
+}));
+
+// o catálogo provisório do backend #180, em centavos
+const CATALOGO = adaptarPrecos(
+  Object.entries({
+    essencial: { mensal: 14900, trimestral: 42500, semestral: 80500, anual: 152000 },
+    padrao: { mensal: 29900, trimestral: 85500, semestral: 161500, anual: 305000 },
+    avancado: { mensal: 59900, trimestral: 171000, semestral: 323000, anual: 610000 },
+  }).flatMap(([plano, valores]) => Object.entries(valores).map(([periodo, valor_centavos]) => ({ plano, periodo, valor_centavos }))),
+)!;
+
+async function montar(
+  assinatura?: Assinatura,
+  { papel = "admin", limites = null }: { papel?: Papel; limites?: LimitesDaConta | null } = {},
+) {
+  const pagina = await AssinaturaPage();
+  if (!assinatura) return render(pagina);
+  return render(
+    <ProvedorDaConta preferencias={null} assinatura={assinatura} papel={papel} limites={limites}>
+      {pagina}
+    </ProvedorDaConta>,
+  );
+}
+
+const conta = (extra: Partial<Assinatura>): Assinatura => ({
+  situacao: "teste",
+  plano: null,
+  testeTerminaEm: null,
+  fimDoTeste: null,
+  cobranca: null,
+  ...extra,
+});
+
+const emDias = (dias: number) => new Date(Date.now() + dias * 86_400_000).toISOString();
+
+const assign = vi.fn();
+const replaceState = vi.fn();
+const localOriginal = window.location;
+
+/** A URL da tela, com a busca da volta da Stripe; `assign` é a ida para a Stripe. */
+function naUrl(busca = "") {
+  Object.defineProperty(window, "location", {
+    configurable: true,
+    value: { ...localOriginal, pathname: "/e/x/assinatura", search: busca, assign },
+  });
+}
+
+beforeEach(() => {
+  precos.atuais = CATALOGO;
+  iniciarCheckout.mockReset();
+  assign.mockReset();
+  replaceState.mockReset();
+  Object.values(router).forEach((fn) => fn.mockReset());
+  vi.spyOn(window.history, "replaceState").mockImplementation(replaceState);
+  naUrl();
+});
+
+afterEach(() => {
+  Object.defineProperty(window, "location", { configurable: true, value: localOriginal });
+  vi.useRealTimers();
+  vi.restoreAllMocks();
+});
 
 const AVISO =
   "A cobrança ainda não está no ar. Plano e faturas desta tela são de demonstração, e nada é alterado por aqui.";
@@ -16,14 +93,14 @@ function linhasDasFaturas() {
 }
 
 describe("AssinaturaPage", () => {
-  it("shows the current plan and the renewal date under the title", () => {
-    render(<AssinaturaPage />);
+  it("shows the current plan and the renewal date under the title", async () => {
+    await montar();
     expect(screen.getByRole("heading", { level: 1, name: "Assinatura" })).toBeInTheDocument();
     expect(screen.getByText("plano Escala · renova em 12 de outubro")).toBeInTheDocument();
   });
 
-  it("summarises the plan, the accounts and September's volume", () => {
-    render(<AssinaturaPage />);
+  it("summarises the plan, the accounts and September's volume", async () => {
+    await montar();
     // "Plano atual" também é o botão do cartão do plano; aqui é o rótulo do resumo
     expect(screen.getByText("Plano atual", { selector: ".dash-rotulo" })).toBeInTheDocument();
     expect(screen.getByText("R$ 149,90 · até 5.000 lançamentos por mês")).toBeInTheDocument();
@@ -34,8 +111,8 @@ describe("AssinaturaPage", () => {
     expect(screen.getByText("Conferidos contra o razão do Cigam")).toBeInTheDocument();
   });
 
-  it("lists the same plans and prices as the landing, marking the current one", () => {
-    render(<AssinaturaPage />);
+  it("lists the same plans and prices as the landing, marking the current one", async () => {
+    await montar();
     const lista = screen.getByRole("list", { name: "Planos" });
     const planos = within(lista).getAllByRole("listitem");
 
@@ -55,8 +132,8 @@ describe("AssinaturaPage", () => {
     expect(within(atual!).getByRole("button", { name: "Plano atual" })).toBeDisabled();
   });
 
-  it("lists the invoices newest first, with the landing's prices", () => {
-    render(<AssinaturaPage />);
+  it("lists the invoices newest first, with the landing's prices", async () => {
+    await montar();
     const linhas = linhasDasFaturas();
 
     expect(linhas.map((linha) => within(linha).getAllByRole("cell")[0].textContent)).toEqual([
@@ -71,8 +148,8 @@ describe("AssinaturaPage", () => {
     expect(within(linhas[3]).getByText("R$ 99,90")).toBeInTheDocument();
   });
 
-  it("colours paid invoices as settled and leaves the upcoming one neutral", () => {
-    render(<AssinaturaPage />);
+  it("colours paid invoices as settled and leaves the upcoming one neutral", async () => {
+    await montar();
     const [outubro, setembro] = linhasDasFaturas();
 
     expect(within(setembro).getByText("Paga")).toHaveClass("selo", "selo-ok");
@@ -81,8 +158,8 @@ describe("AssinaturaPage", () => {
     expect(aVencer).not.toHaveClass("selo-ok");
   });
 
-  it("offers a receipt only for paid invoices", () => {
-    render(<AssinaturaPage />);
+  it("offers a receipt only for paid invoices", async () => {
+    await montar();
     const [outubro, setembro] = linhasDasFaturas();
 
     expect(within(setembro).getByRole("button", { name: "Recibo de setembro de 2026 em PDF" })).toBeInTheDocument();
@@ -90,8 +167,8 @@ describe("AssinaturaPage", () => {
     expect(within(outubro).getByText("—")).toBeInTheDocument();
   });
 
-  it("says billing is not live and keeps every billing change disabled, pointing to why", () => {
-    render(<AssinaturaPage />);
+  it("says billing is not live and keeps every billing change disabled, pointing to why", async () => {
+    await montar();
     expect(screen.getByRole("note")).toHaveTextContent(AVISO);
 
     const trocarPagamento = screen.getByRole("button", { name: "Trocar forma de pagamento" });
@@ -109,7 +186,7 @@ describe("AssinaturaPage", () => {
 
   it("opens the cancel confirmation in the app's modal, with focus on keeping the subscription", async () => {
     const user = userEvent.setup();
-    render(<AssinaturaPage />);
+    await montar();
 
     await user.click(screen.getByRole("button", { name: "Cancelar assinatura" }));
 
@@ -121,7 +198,7 @@ describe("AssinaturaPage", () => {
 
   it("says the access goes on until the end of the paid period (#232)", async () => {
     const user = userEvent.setup();
-    render(<AssinaturaPage />);
+    await montar();
 
     await user.click(screen.getByRole("button", { name: "Cancelar assinatura" }));
 
@@ -134,7 +211,7 @@ describe("AssinaturaPage", () => {
 
   it("never confirms the cancellation, and says why next to the button", async () => {
     const user = userEvent.setup();
-    render(<AssinaturaPage />);
+    await montar();
 
     await user.click(screen.getByRole("button", { name: "Cancelar assinatura" }));
 
@@ -146,7 +223,7 @@ describe("AssinaturaPage", () => {
 
   it("closes on Escape and hands focus back to the button that opened it", async () => {
     const user = userEvent.setup();
-    render(<AssinaturaPage />);
+    await montar();
     const abrir = screen.getByRole("button", { name: "Cancelar assinatura" });
 
     await user.click(abrir);
@@ -158,7 +235,7 @@ describe("AssinaturaPage", () => {
 
   it("closes on Manter assinatura", async () => {
     const user = userEvent.setup();
-    render(<AssinaturaPage />);
+    await montar();
 
     await user.click(screen.getByRole("button", { name: "Cancelar assinatura" }));
     await user.click(screen.getByRole("button", { name: "Manter assinatura" }));
@@ -169,7 +246,7 @@ describe("AssinaturaPage", () => {
 
   it("closes when the backdrop is clicked, but not when the box inside is", async () => {
     const user = userEvent.setup();
-    render(<AssinaturaPage />);
+    await montar();
 
     await user.click(screen.getByRole("button", { name: "Cancelar assinatura" }));
     await user.click(screen.getByText(/fim do período já pago/));
@@ -180,49 +257,277 @@ describe("AssinaturaPage", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
-  describe("by the account's situation", () => {
-    function comConta(assinatura: Assinatura) {
-      return render(
-        <ProvedorDaConta preferencias={null} assinatura={assinatura}>
-          <AssinaturaPage />
-        </ProvedorDaConta>,
-      );
-    }
+  describe("pela situação da conta (backend #180)", () => {
+    const planos = () => within(screen.getByRole("list", { name: "Planos" })).getAllByRole("listitem");
+    const cartao = (nome: string) => planos().find((item) => within(item).queryByRole("heading", { name: nome }))!;
 
-    it.each(["sem_plano", "teste", "teste_encerrado"] as const)(
-      "shows only the plans, with a way to subscribe, while the account is %s",
-      (situacao) => {
-        comConta({ situacao, plano: null, testeTerminaEm: null });
-
-        const planos = within(screen.getByRole("list", { name: "Planos" })).getAllByRole("listitem");
-        expect(planos).toHaveLength(PLANOS.length);
-        expect(screen.getByRole("link", { name: "Assinar o Essencial" })).toHaveAttribute("href", "/plano");
-        expect(screen.getByRole("link", { name: "Fale com a gente" })).toHaveAttribute("href", "/plano");
-
-        expect(screen.queryByText("Atual")).not.toBeInTheDocument();
-        expect(screen.queryByText("Plano atual", { selector: ".dash-rotulo" })).not.toBeInTheDocument();
-        expect(screen.queryByRole("table")).not.toBeInTheDocument();
-        expect(screen.queryByRole("heading", { name: "Faturas" })).not.toBeInTheDocument();
-        expect(screen.queryByRole("button", { name: "Cancelar assinatura" })).not.toBeInTheDocument();
-        expect(screen.queryByRole("note")).not.toBeInTheDocument();
-      },
-    );
-
-    it("keeps the company in the header, with the trial days or the situation instead of the plan", () => {
-      const daqui10 = new Date(Date.now() + 10 * 86_400_000 + 12 * 3_600_000).toISOString().slice(0, 10);
-      const { unmount } = comConta({ situacao: "teste", plano: null, testeTerminaEm: daqui10 });
+    it("no teste: os três planos para assinar, os dias no cabeçalho e o Volume para falar com a gente", async () => {
+      await montar(conta({ situacao: "teste", testeTerminaEm: emDias(9.5).slice(0, 10), fimDoTeste: emDias(9.5) }));
       expect(screen.getByText(/^teste grátis · faltam \d+ dias$/)).toBeInTheDocument();
-      unmount();
-
-      comConta({ situacao: "teste_encerrado", plano: null, testeTerminaEm: null });
-      expect(screen.getByText("teste grátis encerrado")).toBeInTheDocument();
+      expect(planos().map((item) => within(item).getByRole("heading").textContent)).toEqual(["Essencial", "Padrão", "Avançado", "Volume"]);
+      expect(within(cartao("Padrão")).getByText("R$ 299,00")).toBeInTheDocument();
+      expect(within(cartao("Padrão")).getByRole("button", { name: "Assinar o Padrão" })).toBeEnabled();
+      expect(within(cartao("Volume")).getByRole("link", { name: "Fale com a gente" })).toHaveAttribute("href", "mailto:ledgrtech@gmail.com");
+      // nada da demonstração
+      expect(screen.queryByRole("table")).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Cancelar assinatura" })).not.toBeInTheDocument();
     });
 
-    it("keeps the plan, the usage and the invoices once the account is active", () => {
-      comConta({ situacao: "ativo", plano: "padrao", testeTerminaEm: null });
+    it.each([
+      ["teste_encerrado", "teste grátis encerrado"],
+      ["assinatura_encerrada", "assinatura encerrada"],
+      ["pagamento_pendente", "pagamento pendente"],
+    ] as const)("%s diz a situação no cabeçalho", async (situacao, contexto) => {
+      await montar(conta({ situacao }));
+      expect(screen.getByText(contexto)).toBeInTheDocument();
+    });
+
+    it("com o teste ou a assinatura encerrados, lembra que o que foi feito continua", async () => {
+      await montar(conta({ situacao: "assinatura_encerrada" }));
+      expect(screen.getByText(/O que você já fez continua aqui/)).toBeInTheDocument();
+    });
+
+    it("com o pagamento pendente, avisa que a Stripe tenta de novo", async () => {
+      const cobranca = { status: "past_due", plano: "padrao" as const, periodo: "mensal" as const, periodoAtualFim: "2026-12-14", cancelaNoFim: false };
+      await montar(conta({ situacao: "pagamento_pendente", plano: "padrao", cobranca }));
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        "O último pagamento não passou. A Stripe vai tentar de novo nos próximos dias; para trocar o cartão, fale com a gente.",
+      );
+      expect(within(cartao("Padrão")).getByText("Plano atual")).toBeInTheDocument();
+    });
+
+    it("assinando: o plano, o período e a renovação no cabeçalho, e só o plano atual marcado", async () => {
+      const cobranca = { status: "active", plano: "padrao" as const, periodo: "anual" as const, periodoAtualFim: "2027-10-31", cancelaNoFim: false };
+      const { unmount } = await montar(conta({ situacao: "ativo", plano: "padrao", cobranca }));
+      expect(screen.getByText("plano Padrão · anual · renova em 31/10")).toBeInTheDocument();
+      expect(within(cartao("Padrão")).getByText("Plano atual")).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /^Assinar/ })).not.toBeInTheDocument();
+      unmount();
+
+      await montar(conta({ situacao: "ativo", plano: "padrao", cobranca: { ...cobranca, cancelaNoFim: true } }));
+      expect(screen.getByText("plano Padrão · anual · termina em 31/10")).toBeInTheDocument();
+    });
+
+    it("assinando no anual, o seletor e os preços começam no anual, também depois da volta da Stripe", async () => {
+      const cobranca = { status: "active", plano: "padrao" as const, periodo: "anual" as const, periodoAtualFim: "2027-10-31", cancelaNoFim: false };
+      const pagina = await AssinaturaPage();
+      const arvore = (assinatura: Assinatura) => (
+        <ProvedorDaConta preferencias={null} assinatura={assinatura} papel="admin">
+          {pagina}
+        </ProvedorDaConta>
+      );
+      const { rerender } = render(arvore(conta({ situacao: "teste" })));
+      rerender(arvore(conta({ situacao: "ativo", plano: "padrao", cobranca })));
+      expect(screen.getByRole("button", { name: "Anual" })).toHaveAttribute("aria-pressed", "true");
+      expect(within(cartao("Padrão")).getByText("R$ 3.050,00")).toBeInTheDocument();
+    });
+
+    it("o período troca os preços, o valor por mês e o desconto dos três cartões", async () => {
+      const user = userEvent.setup();
+      await montar(conta({ situacao: "teste" }));
+      expect(screen.getByRole("button", { name: "Mensal" })).toHaveAttribute("aria-pressed", "true");
+      expect(screen.queryByRole("button", { name: "Trimestral" })).not.toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: "Anual" }));
+      expect(within(cartao("Essencial")).getByText("R$ 1.520,00")).toBeInTheDocument();
+      expect(within(cartao("Essencial")).getByText("R$ 126,67 por mês")).toBeInTheDocument();
+      expect(within(cartao("Essencial")).getByText("15% a menos que o mensal")).toBeInTheDocument();
+      expect(within(cartao("Avançado")).getByText("R$ 6.100,00")).toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: "Ver outros períodos" }));
+      await user.click(screen.getByRole("button", { name: "Semestral" }));
+      expect(within(cartao("Padrão")).getByText("R$ 1.615,00")).toBeInTheDocument();
+    });
+
+    it("sem os preços da Stripe, mostra os de referência, sem período, e o Assinar desligado", async () => {
+      precos.atuais = null;
+      await montar(conta({ situacao: "teste" }));
+      expect(screen.queryByRole("button", { name: "Anual" })).not.toBeInTheDocument();
+      const assinar = within(cartao("Padrão")).getByRole("button", { name: "Assinar o Padrão" });
+      expect(assinar).toBeDisabled();
+      expect(assinar).toHaveAccessibleDescription("A assinatura pelo cartão ainda não está no ar.");
+      expect(within(cartao("Padrão")).getByText(PLANOS.find((p) => p.nome === "Padrão")!.preco)).toBeInTheDocument();
+      // com o cartão fora do ar, assinar segue sendo pela equipe, como na /plano de antes
+      expect(screen.getByRole("link", { name: "Fale com a gente para assinar" })).toHaveAttribute(
+        "href",
+        "mailto:ledgrtech@gmail.com?subject=Assinar%20um%20plano",
+      );
+    });
+
+    it("um período que falta para um plano só desliga esse cartão", async () => {
+      precos.atuais = CATALOGO.filter((p) => !(p.plano === "avancado" && p.periodo === "anual"));
+      const user = userEvent.setup();
+      await montar(conta({ situacao: "teste" }));
+      await user.click(screen.getByRole("button", { name: "Anual" }));
+      expect(within(cartao("Avançado")).getByText("Indisponível neste período")).toBeInTheDocument();
+      expect(within(cartao("Avançado")).getByRole("button", { name: "Assinar o Avançado" })).toBeDisabled();
+      expect(within(cartao("Padrão")).getByRole("button", { name: "Assinar o Padrão" })).toBeEnabled();
+    });
+
+    it("gestor e analista veem os planos, mas só o administrador assina", async () => {
+      await montar(conta({ situacao: "teste" }), { papel: "gestor" });
+      const assinar = within(cartao("Padrão")).getByRole("button", { name: "Assinar o Padrão" });
+      expect(assinar).toBeDisabled();
+      expect(assinar).toHaveAccessibleDescription("Só o administrador da conta assina.");
+    });
+
+    it("mostra a franquia de conciliações do mês", async () => {
+      await montar(conta({ situacao: "teste" }), { limites: { empresas: null, usuarios: null, conciliacoes: { usadas: 3, maximo: 20 } } });
+      expect(screen.getByText("3 de 20 conciliações este mês")).toBeInTheDocument();
+    });
+
+    it("ativo sem a cobrança da Stripe (o piloto ativado à mão) segue a tela de demonstração", async () => {
+      await montar(conta({ situacao: "ativo", plano: "padrao" }));
       expect(screen.getByText("Plano atual", { selector: ".dash-rotulo" })).toBeInTheDocument();
       expect(screen.getByRole("table")).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "Cancelar assinatura" })).toBeInTheDocument();
+    });
+  });
+  describe("assinar (backend #180)", () => {
+    const planos = () => within(screen.getByRole("list", { name: "Planos" })).getAllByRole("listitem");
+    const cartao = (nome: string) => planos().find((item) => within(item).queryByRole("heading", { name: nome }))!;
+    const fimEm = (horas: number) => {
+      const fim = new Date(Date.now() + horas * 3_600_000);
+      return { testeTerminaEm: fim.toISOString().slice(0, 10), fimDoTeste: fim.toISOString() };
+    };
+
+    it("com mais de 48 horas de teste, diz quando paga e vai para a Stripe", async () => {
+      const user = userEvent.setup();
+      let abrir!: (valor: unknown) => void;
+      iniciarCheckout.mockReturnValue(new Promise((r) => (abrir = r)));
+      const fim = fimEm(9 * 24);
+      await montar(conta({ situacao: "teste", ...fim }));
+      const [, mes, dia] = fim.testeTerminaEm.split("-");
+      expect(within(cartao("Padrão")).getByText(`Você só paga em ${dia}/${mes}, quando o teste acaba.`)).toBeInTheDocument();
+
+      await user.click(within(cartao("Padrão")).getByRole("button", { name: "Assinar o Padrão" }));
+      expect(iniciarCheckout).toHaveBeenCalledWith("padrao", "mensal");
+      expect(within(cartao("Padrão")).getByRole("button", { name: "Abrindo a Stripe…" })).toBeDisabled();
+      await act(async () => abrir({ ok: true, dados: { url: "https://checkout.stripe.com/c/pay/cs_test_1" } }));
+      expect(assign).toHaveBeenCalledWith("https://checkout.stripe.com/c/pay/cs_test_1");
+    });
+
+    it("leva o período escolhido", async () => {
+      const user = userEvent.setup();
+      iniciarCheckout.mockResolvedValue({ ok: true, dados: { url: "https://checkout.stripe.com/x" } });
+      await montar(conta({ situacao: "teste", ...fimEm(9 * 24) }));
+      await user.click(screen.getByRole("button", { name: "Anual" }));
+      await user.click(within(cartao("Essencial")).getByRole("button", { name: "Assinar o Essencial" }));
+      expect(iniciarCheckout).toHaveBeenCalledWith("essencial", "anual");
+    });
+
+    it.each([
+      ["com menos de 48 horas de teste", () => conta({ situacao: "teste", ...fimEm(47) })],
+      ["com o teste encerrado", () => conta({ situacao: "teste_encerrado" })],
+    ])("%s, avisa que cobra agora antes de chamar", async (_, montarConta) => {
+      const user = userEvent.setup();
+      iniciarCheckout.mockResolvedValue({ ok: true, dados: { url: "https://checkout.stripe.com/x" } });
+      await montar(montarConta());
+      await user.click(within(cartao("Padrão")).getByRole("button", { name: "Assinar o Padrão" }));
+      expect(iniciarCheckout).not.toHaveBeenCalled();
+      expect(within(cartao("Padrão")).getByText("A cobrança é feita agora. Os dias de teste que sobraram não ficam para depois.")).toBeInTheDocument();
+      await user.click(within(cartao("Padrão")).getByRole("button", { name: "Assinar e pagar agora" }));
+      expect(iniciarCheckout).toHaveBeenCalledWith("padrao", "mensal");
+    });
+
+    it("dois cliques rápidos chamam uma vez", async () => {
+      iniciarCheckout.mockReturnValue(new Promise(() => {}));
+      await montar(conta({ situacao: "teste", ...fimEm(9 * 24) }));
+      const botao = within(cartao("Padrão")).getByRole("button", { name: "Assinar o Padrão" });
+      act(() => {
+        botao.click();
+        botao.click();
+      });
+      expect(iniciarCheckout).toHaveBeenCalledTimes(1);
+    });
+
+    it("a recusa aparece no cartão; o 409 relê a conta", async () => {
+      const user = userEvent.setup();
+      iniciarCheckout.mockResolvedValue({ ok: false, status: 409, erro: "A conta já tem uma assinatura." });
+      await montar(conta({ situacao: "teste", ...fimEm(9 * 24) }));
+      await user.click(within(cartao("Padrão")).getByRole("button", { name: "Assinar o Padrão" }));
+      expect(within(cartao("Padrão")).getByRole("alert")).toHaveTextContent("A conta já tem uma assinatura.");
+      expect(router.refresh).toHaveBeenCalled();
+      expect(assign).not.toHaveBeenCalled();
+      expect(within(cartao("Padrão")).getByRole("button", { name: "Assinar o Padrão" })).toBeEnabled();
+    });
+
+    it("um 503 mostra o texto da ação, sem reler", async () => {
+      const user = userEvent.setup();
+      iniciarCheckout.mockResolvedValue({ ok: false, status: 503, erro: "A assinatura não está disponível agora. Tente de novo mais tarde." });
+      await montar(conta({ situacao: "teste", ...fimEm(9 * 24) }));
+      await user.click(within(cartao("Padrão")).getByRole("button", { name: "Assinar o Padrão" }));
+      expect(within(cartao("Padrão")).getByRole("alert")).toHaveTextContent("A assinatura não está disponível agora.");
+      expect(router.refresh).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("a volta da Stripe", () => {
+    const ATIVO = conta({
+      situacao: "ativo",
+      plano: "padrao",
+      cobranca: { status: "active", plano: "padrao", periodo: "mensal", periodoAtualFim: "2026-11-30", cancelaNoFim: false },
+    });
+
+    async function voltar(busca: string, inicial: Assinatura) {
+      naUrl(busca);
+      const pagina = await AssinaturaPage();
+      const arvore = (assinatura: Assinatura) => (
+        <ProvedorDaConta preferencias={null} assinatura={assinatura} papel="admin">
+          {pagina}
+        </ProvedorDaConta>
+      );
+      const tela = render(arvore(inicial));
+      return { trocar: (assinatura: Assinatura) => tela.rerender(arvore(assinatura)) };
+    }
+
+    it("confirmando: relê a cada 3 s até o webhook virar a conta", async () => {
+      vi.useFakeTimers();
+      const { trocar } = await voltar("?checkout=sucesso", conta({ situacao: "teste" }));
+      expect(screen.getByRole("status")).toHaveTextContent("Confirmando seu pagamento…");
+      act(() => vi.advanceTimersByTime(3000));
+      expect(replaceState).toHaveBeenCalledWith(window.history.state, "", "/e/x/assinatura");
+      expect(router.refresh).toHaveBeenCalledTimes(1);
+      act(() => vi.advanceTimersByTime(3000));
+      expect(router.refresh).toHaveBeenCalledTimes(2);
+
+      act(() => trocar(ATIVO));
+      expect(screen.getByRole("status")).toHaveTextContent("Assinatura confirmada: plano Padrão, mensal.");
+      act(() => vi.advanceTimersByTime(9000));
+      expect(router.refresh).toHaveBeenCalledTimes(2);
+    });
+
+    it("sem confirmação em 30 s, diz que pode demorar e segue relendo mais devagar", async () => {
+      vi.useFakeTimers();
+      await voltar("?checkout=sucesso", conta({ situacao: "teste" }));
+      act(() => vi.advanceTimersByTime(30_000));
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "A Stripe ainda não confirmou o pagamento. Isso pode levar alguns minutos; esta tela mostra quando confirmar.",
+      );
+      const vezes = router.refresh.mock.calls.length;
+      act(() => vi.advanceTimersByTime(9000));
+      expect(router.refresh).toHaveBeenCalledTimes(vezes);
+      act(() => vi.advanceTimersByTime(6000));
+      expect(router.refresh).toHaveBeenCalledTimes(vezes + 1);
+    });
+
+    it("com o pagamento pendente e a cobrança criada, também confirma", async () => {
+      vi.useFakeTimers();
+      await voltar("?checkout=sucesso", { ...ATIVO, situacao: "pagamento_pendente" });
+      expect(screen.getByRole("status")).toHaveTextContent("Assinatura confirmada: plano Padrão, mensal.");
+    });
+
+    it("com a conta já assinando, confirma na hora", async () => {
+      vi.useFakeTimers();
+      await voltar("?checkout=sucesso", ATIVO);
+      expect(screen.getByRole("status")).toHaveTextContent("Assinatura confirmada: plano Padrão, mensal.");
+      act(() => vi.advanceTimersByTime(6000));
+      expect(router.refresh).not.toHaveBeenCalled();
+    });
+
+    it("cancelado: diz que nada foi cobrado", async () => {
+      await voltar("?checkout=cancelado", conta({ situacao: "teste" }));
+      expect(screen.getByRole("status")).toHaveTextContent("Você voltou sem assinar. Nada foi cobrado.");
+      await waitFor(() => expect(replaceState).toHaveBeenCalledWith(window.history.state, "", "/e/x/assinatura"));
     });
   });
 });

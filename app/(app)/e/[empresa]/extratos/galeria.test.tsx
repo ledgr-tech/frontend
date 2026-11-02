@@ -466,7 +466,7 @@ describe("Galeria de extratos", () => {
       await user.click(painel().getByRole("button", { name: "Conciliar" }));
 
       expect(painel().getByRole("alert")).toHaveTextContent("O teste acabou. Escolha um plano para conciliar.");
-      expect(painel().getByRole("link", { name: "Ver os planos" })).toHaveAttribute("href", "/plano");
+      expect(painel().getByRole("link", { name: "Ver os planos" })).toHaveAttribute("href", "/assinatura");
     });
 
     it("says why when the backend refuses", async () => {

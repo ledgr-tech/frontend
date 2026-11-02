@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { Execucao } from "@/lib/adaptadores";
 import type { Resultado, VisaoGeral } from "./conciliacoes/acoes";
@@ -338,15 +338,20 @@ describe("BarraSuperior", () => {
     }
 
     it("no teste, mostra quantos dias faltam com link para a Assinatura", async () => {
-      await montarBarra({ situacao: "teste", plano: "padrao", testeTerminaEm: "2026-10-29" });
+      await montarBarra({ situacao: "teste", plano: "padrao", testeTerminaEm: "2026-10-29", fimDoTeste: null, cobranca: null });
       expect(screen.getByRole("link", { name: "Teste grátis · faltam 9 dias" })).toHaveAttribute("href", "/assinatura");
     });
 
-    it("teste acabado: aviso em tom de risco que leva aos planos", async () => {
-      await montarBarra({ situacao: "teste_encerrado", plano: "padrao", testeTerminaEm: "2026-10-15" });
-      const aviso = screen.getByRole("link", { name: "Seu teste acabou · escolher um plano" });
+    it.each([
+      ["teste_encerrado", "Seu teste acabou · assinar um plano", "Teste acabou"],
+      ["assinatura_encerrada", "Assinatura encerrada · assinar de novo", "Encerrada"],
+      ["pagamento_pendente", "Pagamento pendente", "Pagamento"],
+    ] as const)("%s: aviso em tom de risco que leva à Assinatura", async (situacao, frase, curta) => {
+      await montarBarra({ situacao, plano: "padrao", testeTerminaEm: null, fimDoTeste: null, cobranca: null });
+      const aviso = screen.getByRole("link", { name: frase });
       expect(aviso).toHaveClass("selo-risco");
-      expect(aviso).toHaveAttribute("href", "/plano");
+      expect(aviso).toHaveAttribute("href", "/assinatura");
+      expect(within(aviso).getByText(curta)).toBeInTheDocument();
     });
 
     it("sem assinatura ou com o plano ativo, não mostra nada", async () => {

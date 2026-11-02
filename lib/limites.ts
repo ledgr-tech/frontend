@@ -4,7 +4,8 @@
  * com elas (spec 2026-10-22-empresas-na-configuracao).
  */
 export type Limite = { usadas: number; maximo: number | null };
-export type LimitesDaConta = { empresas: Limite | null; usuarios: Limite | null };
+export type LimitesDaConta = { empresas: Limite | null; usuarios: Limite | null; conciliacoes?: Limite | null };
+export type TipoDeLimite = "empresas" | "usuarios" | "conciliacoes";
 export type SituacaoDoLimite = "livre" | "folga" | "perto" | "no-limite" | "acima";
 
 function lerLimite(bruto: unknown, campoUsadas: "usadas" | "usados"): Limite | null {
@@ -18,10 +19,15 @@ function lerLimite(bruto: unknown, campoUsadas: "usadas" | "usados"): Limite | n
 /** Null sem o campo ou sem nenhum dos dois válido: um backend anterior ao #133 não mostra aviso algum. */
 export function adaptarLimites(bruto: unknown): LimitesDaConta | null {
   if (!bruto || typeof bruto !== "object") return null;
-  const { empresas, usuarios } = bruto as Record<string, unknown>;
+  const { empresas, usuarios, conciliacoes } = bruto as Record<string, unknown>;
   // o backend chama de `usados` as pessoas e de `usadas` as empresas; aqui o tipo é um só
-  const limites = { empresas: lerLimite(empresas, "usadas"), usuarios: lerLimite(usuarios, "usados") };
-  return limites.empresas || limites.usuarios ? limites : null;
+  const limites = {
+    empresas: lerLimite(empresas, "usadas"),
+    usuarios: lerLimite(usuarios, "usados"),
+    // a franquia do mês civil de São Paulo, de todas as empresas da conta (backend #180)
+    conciliacoes: lerLimite(conciliacoes, "usadas"),
+  };
+  return limites.empresas || limites.usuarios || limites.conciliacoes ? limites : null;
 }
 
 export function situacaoDoLimite({ usadas, maximo }: Limite): SituacaoDoLimite {
@@ -38,8 +44,9 @@ const PALAVRAS = {
 };
 
 /** A frase do aviso, ou null quando não há o que avisar (sem limite, ou com folga). */
-export function textoDoLimite(tipo: "empresas" | "usuarios", limite: Limite): string | null {
+export function textoDoLimite(tipo: TipoDeLimite, limite: Limite): string | null {
   const situacao = situacaoDoLimite(limite);
+  if (tipo === "conciliacoes") return textoDaFranquia(situacao, limite);
   const { um, varias, maisDe } = PALAVRAS[tipo];
   const { usadas, maximo } = limite;
   if (situacao === "perto" && maximo !== null) {
@@ -56,6 +63,24 @@ export function textoDoLimite(tipo: "empresas" | "usuarios", limite: Limite): st
     return tipo === "empresas"
       ? `A conta tem ${maisDe} (${usadas}) do que o plano permite (${maximo}). Nada some; só não dá para adicionar.`
       : `A conta tem ${maisDe} (${usadas}) do que o plano permite (${maximo}). Ninguém perde o acesso; só não dá para convidar.`;
+  }
+  return null;
+}
+
+/** A franquia de conciliações recomeça a cada mês, então o texto fala do mês, não de trocar de plano. */
+function textoDaFranquia(situacao: SituacaoDoLimite, { usadas, maximo }: Limite): string | null {
+  if (maximo === null) return null;
+  if (situacao === "perto") {
+    const faltam = maximo - usadas;
+    return faltam === 1
+      ? "Falta 1 conciliação para o limite do plano neste mês."
+      : `Faltam ${faltam} conciliações para o limite do plano neste mês.`;
+  }
+  if (situacao === "no-limite") {
+    return `O plano chegou ao limite de ${maximo} ${maximo === 1 ? "conciliação" : "conciliações"} neste mês. A franquia recomeça no dia 1º.`;
+  }
+  if (situacao === "acima") {
+    return `A conta fez mais conciliações (${usadas}) do que o plano permite neste mês (${maximo}). As próximas esperam o dia 1º.`;
   }
   return null;
 }

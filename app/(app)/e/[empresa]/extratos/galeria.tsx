@@ -545,7 +545,7 @@ function ConciliarArquivo({ arquivo, arquivos }: { arquivo: ArquivoExtrato; arqu
         </p>
       )}
       {semPlano && (
-        <Link href="/plano" className="btn btn-secondary">
+        <Link href="/assinatura" className="btn btn-secondary">
           Ver os planos
         </Link>
       )}

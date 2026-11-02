@@ -243,7 +243,7 @@ export function NovaVersao({
                   </p>
                 )}
                 {erro && semPlano && (
-                  <Link href="/plano" className="btn btn-secondary">
+                  <Link href="/assinatura" className="btn btn-secondary">
                     Ver os planos
                   </Link>
                 )}
