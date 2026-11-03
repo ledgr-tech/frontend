@@ -78,10 +78,10 @@ export function cobrancaImediata(assinatura: Assinatura, agora: Date): boolean {
   return new Date(assinatura.fimDoTeste).getTime() - agora.getTime() < ANTECEDENCIA_DO_TESTE_MS;
 }
 
-/** `2026-12-14` → `14/12`. */
-export function formatarDiaCurto(dia: string): string {
-  const [, mes, d] = dia.split("-");
-  return `${d}/${mes}`;
+/** `2026-12-14` → `14/12`; fora do ano corrente em São Paulo, `14/12/2027` (a renovação do anual, a virada do ano). */
+export function formatarDiaCurto(dia: string, agora: Date): string {
+  const [ano, mes, d] = dia.split("-");
+  return ano === HOJE_EM_SP.format(agora).slice(0, 4) ? `${d}/${mes}` : `${d}/${mes}/${ano}`;
 }
 
 /** Dias de calendário até o fim do teste, contados em São Paulo; nunca negativo. */
@@ -102,7 +102,7 @@ export function fraseCurtaDoTeste(dias: number): string {
   return dias === 1 ? "Teste · 1 dia" : `Teste · ${dias} dias`;
 }
 
-/** Os três planos do teste, com preço e faixa de lib/planos (a tabela que vale ainda está aberta). */
+/** Os três planos do teste, com a faixa de lib/planos; o preço é o da Stripe (`PrecoDoPlano`). */
 export function planosDoTeste(): (Plano & { id: PlanoId })[] {
   return (Object.keys(NOMES) as PlanoId[]).map((id) => {
     const plano = PLANOS.find((p) => p.nome === NOMES[id]);

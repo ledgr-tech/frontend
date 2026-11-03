@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Check } from "lucide-react";
 import { NumeroAnimado } from "@/app/(app)/e/[empresa]/numero-animado";
 import { formatarVolume, teclarNoMedidor, useAlturaQueDesliza } from "@/app/medidor-suave";
-import { planosDoTeste } from "@/lib/assinatura";
+import { planosDoTeste, type PlanoId } from "@/lib/assinatura";
 import {
   CONTATO,
   DETALHES,
@@ -26,6 +26,10 @@ import {
  * shortcut: só o preço mensal; o período (mensal, anual, "ver outros planos") entra com o gateway e
  * os descontos dos sócios (#167).
  */
+// ponytail: a landing ainda anuncia os preços antigos, fixos aqui desde que saíram de lib/planos (#296);
+// passa a ler GET /assinatura/precos quando os preços forem definidos (issue a abrir).
+const PRECO_NA_LANDING: Record<PlanoId, string> = { essencial: "R$ 49,90", padrao: "R$ 79,90", avancado: "R$ 99,90" };
+
 export function ReguaQueMede() {
   const idMedidor = useId();
   const [passo, setPasso] = useState(PASSO_INICIAL);
@@ -102,7 +106,7 @@ export function ReguaQueMede() {
             <p className="regua-mede-para">{detalhes.para}</p>
             {plano && (
               <p className="regua-mede-preco">
-                <span>{plano.preco}</span> <small>/mês</small>
+                <span>{PRECO_NA_LANDING[plano.id]}</span> <small>/mês</small>
               </p>
             )}
             <ul className="regua-mede-itens">

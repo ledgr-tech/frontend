@@ -3,7 +3,7 @@
 import { Reveal } from "@/app/reveal";
 import { PLANOS } from "@/lib/planos";
 import { CancelarAssinatura } from "./cancelar-assinatura";
-import { ASSINATURA, FATURAS, NUMEROS } from "./dados";
+import { ASSINATURA, FATURAS, NUMEROS, PRECO_DE_DEMONSTRACAO } from "./dados";
 import { Cabecalho } from "../cabecalho";
 
 /**
@@ -69,7 +69,7 @@ export function AssinaturaDeDemonstracao() {
                       {atual && <span className="ass-plano-atual">Atual</span>}
                     </div>
                     <div className="ass-plano-valor">
-                      <span className="ass-plano-preco">{opcao.preco}</span>
+                      <span className="ass-plano-preco">{PRECO_DE_DEMONSTRACAO[opcao.nome]}</span>
                       {!opcao.contato && <span className="ass-plano-sufixo">/mês</span>}
                     </div>
                     <span className="ass-plano-filete" aria-hidden="true" />

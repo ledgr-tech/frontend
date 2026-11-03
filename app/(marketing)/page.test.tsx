@@ -1,6 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { PLANOS } from "@/lib/planos";
 import { fonteDestaque } from "./fonte-destaque";
 import LandingPage from "./page";
 
@@ -460,7 +459,7 @@ describe("LandingPage", () => {
     const preco = document.getElementById("preco")!;
     // começa no Padrão; os outros preços só aparecem quando o medidor chega neles
     expect(preco.textContent).toContain("R$ 79,90");
-    for (const plano of PLANOS.filter((p) => p.nome !== "Padrão")) expect(preco.textContent).not.toContain(plano.preco);
+    for (const outro of ["R$ 49,90", "R$ 99,90"]) expect(preco.textContent).not.toContain(outro);
   });
 
   it("shows what comes in every plan as a trail of cards, with the page's own August in the demos", () => {
