@@ -1482,6 +1482,7 @@ describe("carregarRoteiro", () => {
     backendDoRoteiro();
     expect(await carregarRoteiro()).toEqual({
       toleranciaRevisada: false,
+      regras: { toleranciaDias: 2, toleranciaDiasMaximo: 5, atualizadoPor: null, atualizadoEm: null },
       temExtratoDoBanco: false,
       conciliou: false,
       resolveuAlguma: false,

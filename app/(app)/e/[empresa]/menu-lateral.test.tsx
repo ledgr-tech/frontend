@@ -68,6 +68,22 @@ describe("MenuLateral", () => {
     expect(screen.getByRole("navigation", { name: "Seções do app" })).not.toHaveTextContent("em breve");
   });
 
+  it("on a phone, the Menu button opens the sections and choosing one closes them", () => {
+    const { container } = montar();
+    const menu = screen.getByRole("button", { name: "Menu" });
+    const aside = container.querySelector(".app-aside")!;
+    expect(menu).toHaveAttribute("aria-expanded", "false");
+    expect(menu).toHaveAttribute("aria-controls", screen.getByRole("navigation", { name: "Seções do app" }).id);
+
+    fireEvent.click(menu);
+    expect(menu).toHaveAttribute("aria-expanded", "true");
+    expect(aside).toHaveAttribute("data-secoes", "abertas");
+
+    fireEvent.click(screen.getByRole("link", { name: "Extratos" }));
+    expect(menu).toHaveAttribute("aria-expanded", "false");
+    expect(aside).not.toHaveAttribute("data-secoes");
+  });
+
   it.each([
     ["Fechamentos", "/fechamentos"],
     ["Empresas", "/empresas"],

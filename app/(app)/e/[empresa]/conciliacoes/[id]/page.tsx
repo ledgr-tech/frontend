@@ -74,7 +74,6 @@ function textoDoVazio(filtro: Filtro, justificadas: number): string {
 }
 
 /** Quantas linhas por página. 4.218 lançamentos não cabem numa tela. */
-const POR_PAGINA = 25;
 /** Do ponteiro sair da linha ao cartão fechar: o tempo de atravessar o vão até ele. */
 const ESPERA_PARA_FECHAR_MS = 150;
 
@@ -145,7 +144,6 @@ export default function ConciliacaoPage() {
     return ehDivergencia(status) ? status : "todos";
   });
   const [ordem, setOrdem] = useState<Ordem>({ coluna: "data", crescente: true });
-  const [pagina, setPagina] = useState(0);
   // null enquanto não lemos a preferência: só existe no cliente
   const [densidade, setDensidade] = useState<Densidade | null>(null);
   // a decisão que não gravou, dita acima da tabela
@@ -230,11 +228,6 @@ export default function ConciliacaoPage() {
   const larguraValor = larguraDoValor(conciliacao.linhas);
   const categoria = ehDivergencia(filtro) ? filtro : null;
   const ordenadas = ordenarLinhas(filtrarLinhas(conciliacao.linhas, filtro, rodadaDasLinhas), ordem);
-  const totalPaginas = Math.max(1, Math.ceil(ordenadas.length / POR_PAGINA));
-  // limita em vez de corrigir num efeito: filtrar pode encurtar a lista e deixar a
-  // página atual fora do fim, e reagir a isso com setState causaria render extra
-  const paginaAtual = Math.min(pagina, totalPaginas - 1);
-  const visiveis = ordenadas.slice(paginaAtual * POR_PAGINA, (paginaAtual + 1) * POR_PAGINA);
 
   function escolherDensidade(proxima: Densidade) {
     aplicarDensidade(proxima);
@@ -243,7 +236,6 @@ export default function ConciliacaoPage() {
 
   function escolherFiltro(proximo: Filtro) {
     setFiltro(proximo);
-    setPagina(0);
     setMarcadas(new Set());
     // replaceState, não navegação: o Next sincroniza o useSearchParams sem remontar
     // a página nem buscar as linhas de novo, e o histórico não ganha um passo por clique
@@ -258,7 +250,6 @@ export default function ConciliacaoPage() {
     setOrdem((atual) =>
       atual.coluna === coluna ? { coluna, crescente: !atual.crescente } : { coluna, crescente: true },
     );
-    setPagina(0);
   }
 
   // decidir só onde há onde gravar, só na rodada que vale (a passada é para ler) e só com o mês
@@ -628,8 +619,10 @@ export default function ConciliacaoPage() {
                     ))}
                 </tr>
               </thead>
+              {/* contínua, sem páginas: num extrato grande, folhear de 25 em 25 escondia o resto do mês.
+                  ponytail: tudo no DOM; se arquivos de milhares de linhas pesarem, virtualizar aqui */}
               <tbody role="rowgroup">
-                {visiveis.map((linha) => {
+                {ordenadas.map((linha) => {
                   const status = statusDaLinha(linha);
                   const situacao = situacaoDaLinha(linha, rodadaDasLinhas);
                   // conferida ou justificada, a linha sai da cor da categoria: alguém já cuidou dela
@@ -829,35 +822,6 @@ export default function ConciliacaoPage() {
             <p className="tabela-vazia">{textoDoVazio(filtro, justificadas.length)}</p>
           )}
 
-          {totalPaginas > 1 && (
-            <div className="paginacao">
-              <span className="paginacao-conta">
-                {paginaAtual * POR_PAGINA + 1}–
-                {Math.min((paginaAtual + 1) * POR_PAGINA, ordenadas.length)} de {ordenadas.length}
-              </span>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  disabled={paginaAtual === 0}
-                  onClick={() => setPagina(paginaAtual - 1)}
-                >
-                  Anterior
-                </button>
-                <span className="paginacao-conta">
-                  {paginaAtual + 1} / {totalPaginas}
-                </span>
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  disabled={paginaAtual >= totalPaginas - 1}
-                  onClick={() => setPagina(paginaAtual + 1)}
-                >
-                  Próxima
-                </button>
-              </div>
-            </div>
-          )}
           {/* como no extrato do banco: o saldo inicial em cima, o final no fim */}
           <SaldoNoFim saldo={conciliacao.saldo} />
         </Reveal>

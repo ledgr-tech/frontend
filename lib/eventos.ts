@@ -7,6 +7,12 @@ export const ABRIR_TUTORIAL = "ledgr:abrir-tutorial";
 export const ABRIR_CONFIGURACOES = "ledgr:abrir-configuracoes";
 export const ABRIR_AJUDA = "ledgr:abrir-ajuda";
 export const ABRIR_ASSISTENTE = "ledgr:abrir-assistente";
+/** A tolerância foi salva (em Configurações ou na Visão geral); `detail` é a nova, em dias. */
+export const TOLERANCIA_SALVA = "ledgr:tolerancia-salva";
+
+export function avisarToleranciaSalva(dias: number): void {
+  window.dispatchEvent(new CustomEvent(TOLERANCIA_SALVA, { detail: dias }));
+}
 
 export function abrirAjuda(): void {
   window.dispatchEvent(new CustomEvent(ABRIR_AJUDA));

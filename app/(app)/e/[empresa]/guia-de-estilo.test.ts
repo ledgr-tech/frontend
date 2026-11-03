@@ -5,7 +5,7 @@ import ts from "typescript";
 import postcss from "postcss";
 
 /**
- * O guia de estilo (docs/Ledgr-guia-de-estilo.pdf, cap. II) nas telas do app. O teste de tela
+ * O guia de estilo (ledgr-docs/07-tecnico/modelagem-visual/ledgr-guia-v4.pdf, cap. II) nas telas do app. O teste de tela
  * não carrega o globals.css, então um `style={{}}` que troca a fonte ou uma regra nova com outro
  * espaçamento passa sem ninguém ver; este lê o código e o CSS e confere as regras que já furaram.
  */

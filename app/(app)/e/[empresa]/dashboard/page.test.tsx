@@ -112,6 +112,25 @@ describe("DashboardPage", () => {
     expect(screen.getByText("2 conciliações · 1 pede decisão")).toBeInTheDocument();
   });
 
+  it("leaves a closed month out of what asks for a decision, like the filter below", async () => {
+    com({
+      fechamentos: [
+        {
+          competencia: "2026-09",
+          estado: "fechado",
+          ressalva: "Pendências conhecidas.",
+          fechadoPor: "Maria Financeiro",
+          fechadoEm: "2026-10-09T16:33:00Z",
+          reabertoPor: null,
+          reabertoEm: null,
+        },
+      ],
+    });
+    await renderizar();
+    expect(screen.getByText("2 conciliações")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Pedem decisão (0)" })).toBeInTheDocument();
+  });
+
   it("opens the first in the queue in the preview, in place of the old continue strip", async () => {
     com();
     await renderizar();

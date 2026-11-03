@@ -1,3 +1,4 @@
+import LinkDoApp from "@/lib/link-do-app";
 import { Cabecalho } from "../../../cabecalho";
 import { carregarPromptIa } from "./acoes";
 import { ImportarViaIa } from "./importar-via-ia";
@@ -10,8 +11,16 @@ import { ImportarViaIa } from "./importar-via-ia";
 export default async function ImportarViaIaPage() {
   const prompt = await carregarPromptIa();
   return (
-    <div>
-      <Cabecalho titulo="Importar via IA" sobretitulo="Nova conciliação · relatório de lançamentos" />
+    <div className="nova-tela">
+      <Cabecalho
+        titulo="Importar via IA"
+        contexto={["relatório de lançamentos"]}
+        acoes={
+          <LinkDoApp href="/conciliacoes/nova" className="nova-link nova-voltar">
+            Voltar para Nova conciliação
+          </LinkDoApp>
+        }
+      />
       {prompt.ok ? (
         <ImportarViaIa prompt={prompt.dados} />
       ) : (

@@ -18,7 +18,7 @@ export const TUTORIAIS: Record<TelaDoTutorial, TutorialDaTela> = {
     nome: "Visão geral",
     mascote: "/mascotes/mascote-apresenta.png",
     passos: [
-      { alvo: "roteiro", titulo: "Este é o seu roteiro.", texto: "Cada passo se marca sozinho quando você faz. Comece pela tolerância de dias: ela diz quantos dias de diferença entre o banco e o sistema ainda contam como bateu." },
+      { alvo: "primeiros-passos", titulo: "Seus primeiros passos.", texto: "Cada bloco desta tela diz o que fazer para enchê-lo, e o passo de agora leva a etiqueta Próximo passo. Os traços aqui marcam o que já foi feito." },
       { alvo: "estado-do-mes", titulo: "O mês em um número.", texto: "Quantos lançamentos do mês aberto já bateram e quanto ainda está em aberto." },
       { alvo: "atalhos", titulo: "Atalhos para o resto.", texto: "Extratos, conciliações, fechamentos e histórico, com o que mudou desde a última vez." },
     ],
@@ -36,7 +36,7 @@ export const TUTORIAIS: Record<TelaDoTutorial, TutorialDaTela> = {
     nome: "Nova conciliação",
     mascote: "/mascotes/mascote-joinha.png",
     passos: [
-      { alvo: "encaixe", titulo: "Encaixe os dois extratos.", texto: "O do banco vai à esquerda e o do sistema de gestão à direita, do mesmo período." },
+      { alvo: "encaixe", titulo: "Encaixe os dois extratos.", texto: "Solte o do banco na folha da frente e o do sistema de gestão na de trás, do mesmo período." },
       { alvo: "conciliar", titulo: "Concilie.", texto: "Com os dois arquivos, o botão libera. A comparação abre sozinha quando terminar." },
     ],
   },

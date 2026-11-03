@@ -46,6 +46,9 @@ const cormorantGaramond = localFont({
     { path: "./fonts/cormorant-garamond/cormorant-garamond-latin.woff2", weight: "600" },
   ],
   variable: "--font-display-family",
+  // sem preload: nenhuma primeira tela usa (o hero da landing é Inter, Mono e o itálico de
+  // destaque, outra fonte; no app só a escolha de plano). Pré-carregada, ia junto em toda página
+  preload: false,
   declarations: [
     {
       prop: "unicode-range",

@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useState } from "react";
+import { InkHover } from "@/app/reveal";
 import { abrirConfiguracoes } from "@/lib/eventos";
 import { formatarDataHora } from "../dashboard/resumo";
 import type { ConexaoMcp } from "../conexoes-mcp/acoes";
@@ -32,8 +33,9 @@ export function CartaoDeConexao({ itens, endereco }: { itens: ConexaoMcp[]; ende
     .sort()
     .at(-1);
 
+  // o traço da caneta da landing (InkHover), claro sobre a tinta do cartão
   return (
-    <section className="vg-bloco vg-conexao" aria-labelledby="vg-conexao-titulo">
+    <InkHover as="section" tone="light" className="vg-bloco vg-conexao" aria-labelledby="vg-conexao-titulo">
       <span className="vg-conexao-rotulo">Conexões</span>
       {ativas.length === 0 ? (
         <>
@@ -81,6 +83,6 @@ export function CartaoDeConexao({ itens, endereco }: { itens: ConexaoMcp[]; ende
         className="vg-conexao-mascote"
         aria-hidden="true"
       />
-    </section>
+    </InkHover>
   );
 }

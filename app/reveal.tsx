@@ -105,19 +105,25 @@ export function InkHover({
   className,
   tone = "dark",
   clip = true,
+  as: Tag = "div",
+  "aria-labelledby": rotuladoPor,
 }: {
   children: ReactNode;
   style?: CSSProperties;
   className?: string;
   tone?: "dark" | "light";
   clip?: boolean;
+  /** `section` para o bloco que é uma região da tela, com o título em `aria-labelledby` */
+  as?: "div" | "section";
+  "aria-labelledby"?: string;
 }) {
   const lastPoint = useRef<{ x: number; y: number } | null>(null);
   const reducedMotion = useReducedMotion();
 
   return (
-    <div
+    <Tag
       className={className}
+      aria-labelledby={rotuladoPor}
       style={{ position: "relative", overflow: clip ? "hidden" : "visible", ...style }}
       onMouseMove={(e) => {
         const bloco = e.currentTarget;
@@ -151,7 +157,7 @@ export function InkHover({
       }}
     >
       {children}
-    </div>
+    </Tag>
   );
 }
 

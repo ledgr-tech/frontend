@@ -1,7 +1,10 @@
 # Ledgr — o que falta de design
 
-Levantamento de 22/09/2026, sobre o app autenticado (`app/(app)`). Ranqueado por
-**impacto neste produto × aderência ao estilo classical**, não por tendência.
+Levantamento de 22/09/2026, sobre o app autenticado (`app/(app)`), revisto em 02/11/2026.
+Ranqueado por **impacto neste produto × aderência ao estilo classical**, não por tendência.
+Desde 21/10 as telas moram em `app/(app)/e/[empresa]/` (a empresa ativa vai na URL); os
+caminhos abaixo que começam em `app/(app)/` ficam lá dentro. O guia ilustrado, com as telas capturadas, é o PDF
+`ledgr-docs/07-tecnico/modelagem-visual/ledgr-guia-v4.pdf` (versão 4, 02/11/2026).
 
 O sistema visual está descrito em `AGENTS.md` e em
 `v2- informações simples/_ds/classical-.../readme.md`. O resumo que importa aqui:
@@ -10,21 +13,28 @@ preenchimento**, filete carregando a estrutura, identidade tipográfica.
 
 **Regras de 24/09/2026** (ver `docs/superpowers/specs/2026-09-24-refino-visual-design.md`):
 
-- **O dourado é para cinco coisas:** a ação principal (`.btn-primary`, "Nova
+- **O dourado é para seis coisas:** a ação principal (`.btn-primary`, "Nova
   conciliação"), o foco do teclado, o status "atenção", desde 27/09 o rótulo
   de cartão flutuante (o `h6` do cartão de lançamento e o do assistente, que
-  aparecem por cima da tela) e, desde 02/10, o fio da linha das rodadas. Hover e seleção usam `--tinta-hover` /
+  aparecem por cima da tela), desde 02/10 o fio da linha das rodadas e, desde
+  29/10, o envio dos extratos (as folhas da Nova conciliação e o "Enviar nova
+  versão", que é o primário da casa). A lista oficial fica no comentário do
+  `.app-shell`, em `globals.css`. Texto em dourado usa o tom 700: o base
+  (`#b68235`) tem só 3:1 sobre o fundo. Hover e seleção usam `--tinta-hover` /
   `--tinta-ativa`, neutros. Cabeçalho de tabela, aba selecionada, rótulo pequeno
   (`h6`) fora de cartão flutuante, item ativo do menu, botão fantasma
   (`.btn-ghost`), link de ação dentro de lista ("Revisar") e numeral decorativo
   não são dourados.
 - **Duas fontes:** títulos (`h1`–`h3` a partir de ~20px) e números em destaque em
   Newsreader (`--font-titulo`, com tamanho óptico); o resto em Inter. A Cormorant
-  Garamond (`--font-display`) fica só na landing. Desde 02/10, a fonte nunca vai em
+  Garamond (`--font-display`) fica só na landing, e a itálica dela só no trecho em
+  destaque de cada título principal da landing (`.titulo-misto` + `<em>`). Desde 02/10, a fonte nunca vai em
   `style={{}}`: número ou título grande que não é `h1`–`h3` leva `.font-titulo`, e
   rótulo pequeno em caixa alta leva `.rotulo` (12px, +0,08em; o `h6` de 14px é o
   rótulo de seção). Os ícones Lucide têm traço 1,75 (`TRACO_ICONE`, que o Shell
-  passa a todos). `app/(app)/guia-de-estilo.test.ts` confere essas regras.
+  passa a todos). `app/(app)/e/[empresa]/guia-de-estilo.test.ts` confere essas regras,
+  e também a régua do rótulo em caixa alta (+0,08em, em 11, 12 ou 14px) e a entrada
+  suave das janelas.
 - **Banco e sistema são duas folhas** de canto arredondado: `--folha-banco` (papel
   claro) e `--folha-sistema` (cinza quente) — mesmo matiz, só a claridade muda;
   outra cor diria "outra coisa", não "outra folha". Com o ícone de origem
@@ -58,6 +68,34 @@ preenchimento**, filete carregando a estrutura, identidade tipográfica.
   dentro" da landing, deitado. O fio se desenha uma vez ao abrir a tela, e aparece
   inteiro com movimento reduzido. O trecho até o fechamento fica tracejado enquanto
   alguma linha pede decisão.
+
+**Regras de 15/10 a 30/10** (revisões de estilo de 15/10 e 27/10 e de animações de 29/10):
+
+- **Lista à esquerda, painel da escolhida à direita.** Conciliações, Histórico, Empresas e,
+  desde 30/10, a Nova conciliação seguem o mesmo arranjo: `.conc-mesa` com a lista (7 partes)
+  e o `.conc-previa` (5 partes, mínimo de 320px), que fica parado abaixo da faixa de filtros.
+  Abaixo de 1100px o painel sobe para antes da lista. Conciliações e Histórico mostram cada
+  conciliação como o par de folhas do banco e do sistema (`.conc-folha`), agrupado pelo mês do
+  extrato do banco; a primeira que pede decisão já vem escolhida. Sem quadradinhos de número no
+  topo: o painel diz o que importa.
+- **Escolher numa tabela é neutro.** Em `.tabela-escolha` (Empresas, Equipe) a linha
+  escolhida fica na `--tinta-ativa` com um filete de 2px na cor do texto à esquerda, nunca no
+  dourado nem no verde. Um clique escolhe; dois cliques abrem.
+- **O detalhe da linha abre num painel lateral** (`.painel-lateral`, rota interceptada), sobre
+  a comparação, com anterior e próxima e Esc para fechar. O fundo escurece menos que o de janela
+  modal (`rgb(12 11 10 / 0.32)`) e não desfoca, porque a comparação continua sendo lida atrás. A
+  URL e a página inteira continuam existindo.
+- **Janela modal entra suave.** As janelas das telas (`ModalDaTela`, `<dialog>` nativo com
+  `showModal`) usam `.modal-suave`: sobem 12px e crescem de 97% em 0,24 s, e o fundo aparece
+  junto. Só para quem não pediu menos movimento. O fundo segue a regra de 27/09.
+- **Uma curva só para entrar e sair** (29/10): `--ease-out` (`cubic-bezier(0.22, 1, 0.36, 1)`),
+  e `CURVA_DE_SAIDA` em `lib/troca-suave.ts` no JS. A troca de tela é uma `ViewTransition`: a
+  tela que sai some em 120ms e a nova sobe em 200ms. Por isso, **dentro do app e da Central de
+  ajuda os blocos não entram mais em cascata** (`MotionRoot revelar={false}`): a cascata por
+  cima da troca de tela fazia o conteúdo levar quase um segundo para assentar. O `Reveal`
+  continua na landing.
+- **Tutorial do mascote é cartão no canto, não janela** (15/10): o destaque do passo é traço
+  neutro, nunca dourado, e a tela continua usável por trás.
 
 ## Tier 1 — buracos, não polimento
 
@@ -188,6 +226,9 @@ fundo claro desfocado da tela de acesso (`.recuperar-fundo`).
 > esperava o fade de novo), e entra subindo 16px em vez de crescer de 96%, que
 > borrava o texto dos blocos grandes. É o que fazem Linear, Stripe e Vercel. O
 > prop `once` saiu, porque virou o único comportamento.
+>
+> **Mudado em 29/10:** dentro do app os blocos não entram mais em cascata; a troca de tela
+> já anima a chegada (ver "Regras de 15/10 a 30/10", no topo). O `Reveal` fica na landing.
 
 ### 8. Divulgação progressiva no detalhe da divergência — ✅ feito
 
@@ -215,10 +256,11 @@ campos rotulados.
 
 Metade do que o mercado "aprova" destruiria esta identidade.
 
-- **Glassmorphism.** E aqui tem dívida nossa: o `backdrop-filter: blur(6px)` da
-  barra superior é a coisa mais "SaaS 2021" do código. Trocar por barra opaca.
-  (O desfoque atrás de janela modal, regra de 27/09, é outra coisa: ele tira a
-  tela de trás de foco. O que fica de fora é superfície de vidro.)
+- **Glassmorphism.** A barra superior do app tinha `backdrop-filter: blur(6px)`, a
+  coisa mais "SaaS 2021" do código; desde 15/10 ela é opaca (`.app-topo`). O
+  desfoque atrás de janela modal, regra de 27/09, é outra coisa: ele tira a tela de
+  trás de foco. O que fica de fora é superfície de vidro. Ainda há um resto: a barra
+  da Central de ajuda (`.ajd-barra`) tem fundo a 92% com `blur(8px)`.
 - **Bento grid, gradiente mesh, glow / neon.** Briga direto com "cor como traço,
   sem preenchimentos grandes".
 - **Soft UI, tudo arredondado.** O sistema é filete e raio pequeno; inflar apaga o
@@ -242,12 +284,11 @@ Metade do que o mercado "aprova" destruiria esta identidade.
 
 ## Dívidas pontuais anotadas pelo caminho
 
-- `--color-erro` (`#a94f33`) está fora da rampa de `risco`, entre o 600 e o 700.
-  É a cor de erro dos formulários de login e cadastro. Alinhar para
-  `var(--color-risco-600)` é uma linha, mas mexe em duas telas já verificadas.
-- O `eslint-disable` de `react-hooks/set-state-in-effect` em
-  `app/(auth)/login/page.tsx:122` não é mais necessário e gera o único warning do
-  lint.
+- ~~`--color-erro` (`#a94f33`) está fora da rampa de `risco`.~~ Resolvido em 15/10: é
+  o passo 700 da terracota (`#8a4934`, 5,1:1 sobre o fundo claro), e dentro do
+  `.app-shell` aponta para `--color-risco-700`, que o tema escuro espelha.
+- ~~O `eslint-disable` de `react-hooks/set-state-in-effect` no login gera warning.~~
+  O lint não acusa mais nada no app; o comentário continua no login.
 - ~~O `AGENTS.md` dizia Cormorant e Lora enquanto o código carregava Inter.~~
   Resolvido em 24/09/2026: o `AGENTS.md` descreve o que o código faz (Inter no
   corpo e na interface, Newsreader nos títulos do app, Cormorant nos destaques da

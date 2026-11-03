@@ -1145,7 +1145,8 @@ export async function carregarRoteiro(): Promise<DadosDoRoteiro | null> {
     const maisPendente = [...pendencias].sort((a, b) => b.pedem - a.pedem)[0];
     return {
       // null antes da primeira mudança (backend #85)
-      toleranciaRevisada: adaptarRegras(configuracoes).atualizadoEm !== null,
+      toleranciaRevisada: configuracoes.atualizado_em !== null,
+      regras: adaptarRegras(configuracoes),
       temExtratoDoBanco: extratos.itens.some((item) => item.origem === "banco"),
       conciliou: lista.dados.execucoes.length > 0,
       resolveuAlguma: pendencias.some(({ pedem }) => pedem === 0),

@@ -48,6 +48,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
       largura: 1360,
       altura: 850,
     },
+    video: "/ajuda/visao-geral.webm",
     funcoes: [
       {
         id: "primeiros-passos",
@@ -103,6 +104,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
       largura: 1360,
       altura: 850,
     },
+    video: "/ajuda/extratos.webm",
     funcoes: [
       {
         id: "arquivos",
@@ -162,6 +164,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
       largura: 1360,
       altura: 850,
     },
+    video: "/ajuda/conciliacoes.webm",
     funcoes: [
       {
         id: "filtros",
@@ -216,7 +219,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
       {
         id: "enviar",
         titulo: "Enviar os dois extratos",
-        faz: "O extrato do banco vai à esquerda e o do sistema de gestão à direita. Os dois precisam ser do mesmo período.",
+        faz: "O extrato do banco vai na folha da frente e o do sistema de gestão na de trás. Os dois precisam ser do mesmo período.",
         passos: [
           "Arraste ou escolha o extrato do banco: **OFX ou CSV** exportado do internet banking, até 4 MB.",
           "Arraste ou escolha o do sistema de gestão: um **CSV** com data, descrição e valor.",
@@ -266,6 +269,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
       largura: 1360,
       altura: 850,
     },
+    video: "/ajuda/comparacao.webm",
     funcoes: [
       {
         id: "resumo",
@@ -367,6 +371,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
       largura: 1360,
       altura: 850,
     },
+    video: "/ajuda/detalhe-da-linha.webm",
     funcoes: [
       {
         id: "lados",
@@ -422,6 +427,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
       largura: 1360,
       altura: 850,
     },
+    video: "/ajuda/fechamentos.webm",
     funcoes: [
       {
         id: "meses",
@@ -502,6 +508,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
       largura: 1360,
       altura: 850,
     },
+    video: "/ajuda/historico.webm",
     funcoes: [
       {
         id: "grafico",
@@ -546,6 +553,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
       largura: 1360,
       altura: 850,
     },
+    video: "/ajuda/empresas.webm",
     funcoes: [
       {
         id: "lista",
@@ -622,6 +630,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
       largura: 1360,
       altura: 850,
     },
+    video: "/ajuda/configuracoes.webm",
     funcoes: [
       {
         id: "abrir",
@@ -712,6 +721,23 @@ export const PAGINAS: PaginaDeAjuda[] = [
           "Escolha um plano antes do fim do teste para continuar conciliando.",
         ],
       },
+      // ponytail: publicar no dia em que o backend ligar STRIPE_HABILITADO (#180)
+      // {
+      //   id: "assinar",
+      //   titulo: "Assinar um plano",
+      //   faz: "Assina um plano com cartão, pela página de pagamento da Stripe. Só o administrador da conta assina.",
+      //   passos: [
+      //     "Escolha o período e clique em **Assinar** no plano que quer.",
+      //     "Pague na página da Stripe. Ao voltar, a tela confirma a assinatura em alguns segundos.",
+      //   ],
+      //   nota: "Assinando durante o teste, a cobrança só acontece quando ele acaba. Nas últimas 48 horas do teste, ou depois dele, a cobrança é feita na hora.",
+      // },
+      // {
+      //   id: "periodo",
+      //   titulo: "Período e desconto",
+      //   faz: "Os planos podem ser pagos por mês ou por ano; em **Ver outros períodos** aparecem o trimestral e o semestral. Cada cartão mostra o preço do período, quanto dá por mês e o desconto em relação ao mensal.",
+      //   passos: ["Clique no período acima dos planos para trocar os preços."],
+      // },
       {
         id: "plano",
         titulo: "Plano atual e faturas",

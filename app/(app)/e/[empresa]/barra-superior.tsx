@@ -209,8 +209,8 @@ export function BarraSuperior() {
       {diasDeTeste !== null && (
         <SeloDoTeste href="/assinatura" frase={fraseDoTeste(diasDeTeste)} curta={fraseCurtaDoTeste(diasDeTeste)} />
       )}
-      {assinatura?.situacao === "teste_encerrado" && (
-        <SeloDoTeste href="/plano" risco frase="Seu teste acabou · escolher um plano" curta="Teste acabou" />
+      {assinatura && assinatura.situacao in SELOS_DE_RISCO && (
+        <SeloDoTeste href="/assinatura" risco {...SELOS_DE_RISCO[assinatura.situacao as keyof typeof SELOS_DE_RISCO]} />
       )}
 
       <MenuDeAjuda />
@@ -277,6 +277,13 @@ export function BarraSuperior() {
     </div>
   );
 }
+
+/** O que a conta precisa resolver na Assinatura (backend #180), em tom de risco. */
+const SELOS_DE_RISCO = {
+  teste_encerrado: { frase: "Seu teste acabou · assinar um plano", curta: "Teste acabou" },
+  assinatura_encerrada: { frase: "Assinatura encerrada · assinar de novo", curta: "Encerrada" },
+  pagamento_pendente: { frase: "Pagamento pendente", curta: "Pagamento" },
+};
 
 function SeloDoTeste({ href, frase, curta, risco = false }: { href: string; frase: string; curta: string; risco?: boolean }) {
   return (

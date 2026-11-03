@@ -5,7 +5,7 @@ describe("adaptarLimites", () => {
   it("lê empresas e usuários do /me; o backend chama de `usados` os usuários, o tipo é um só", () => {
     expect(
       adaptarLimites({ empresas: { usadas: 2, maximo: 3 }, usuarios: { usados: 1, maximo: null } }),
-    ).toEqual({ empresas: { usadas: 2, maximo: 3 }, usuarios: { usadas: 1, maximo: null } });
+    ).toEqual({ empresas: { usadas: 2, maximo: 3 }, usuarios: { usadas: 1, maximo: null }, conciliacoes: null });
   });
 
   it.each([undefined, null, {}, { empresas: "x" }, { empresas: { usadas: -1, maximo: 3 } }, { empresas: { usadas: 1, maximo: "3" } }])(
@@ -16,10 +16,19 @@ describe("adaptarLimites", () => {
   );
 
   it("com só um dos dois válido, o outro vem null", () => {
-    expect(adaptarLimites({ empresas: { usadas: 2, maximo: 3 } })).toEqual({ empresas: { usadas: 2, maximo: 3 }, usuarios: null });
+    expect(adaptarLimites({ empresas: { usadas: 2, maximo: 3 } })).toEqual({ empresas: { usadas: 2, maximo: 3 }, usuarios: null, conciliacoes: null });
     expect(adaptarLimites({ empresas: { usadas: 2, maximo: 3 }, usuarios: { usados: "x", maximo: 1 } })).toEqual({
       empresas: { usadas: 2, maximo: 3 },
       usuarios: null,
+      conciliacoes: null,
+    });
+  });
+
+  it("lê a franquia de conciliações do mês (backend #180)", () => {
+    expect(adaptarLimites({ conciliacoes: { usadas: 3, maximo: 20 } })).toEqual({
+      empresas: null,
+      usuarios: null,
+      conciliacoes: { usadas: 3, maximo: 20 },
     });
   });
 });
@@ -74,6 +83,16 @@ describe("textoDoLimite", () => {
     );
     expect(textoDoLimite("usuarios", { usadas: 4, maximo: 3 })).toBe(
       "A conta tem mais pessoas (4) do que o plano permite (3). Ninguém perde o acesso; só não dá para convidar.",
+    );
+  });
+
+  it("conciliações: perto, no limite e acima, sempre no mês", () => {
+    expect(textoDoLimite("conciliacoes", { usadas: 19, maximo: 20 })).toBe("Falta 1 conciliação para o limite do plano neste mês.");
+    expect(textoDoLimite("conciliacoes", { usadas: 20, maximo: 20 })).toBe(
+      "O plano chegou ao limite de 20 conciliações neste mês. A franquia recomeça no dia 1º.",
+    );
+    expect(textoDoLimite("conciliacoes", { usadas: 21, maximo: 20 })).toBe(
+      "A conta fez mais conciliações (21) do que o plano permite neste mês (20). As próximas esperam o dia 1º.",
     );
   });
 });

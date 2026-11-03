@@ -19,15 +19,24 @@ export function ModalDaTela({
 }) {
   const dialogo = useRef<HTMLDialogElement>(null);
   const tituloId = useId();
+  const quemAbriu = useRef<Element | null>(null);
 
   useEffect(() => {
     const elemento = dialogo.current;
-    if (!elemento || elemento.open) return;
-    if (typeof elemento.showModal === "function") elemento.showModal();
-    // sem showModal (navegador antigo, jsdom): abre do mesmo jeito
-    else elemento.setAttribute("open", "");
-    // o showModal já leva o foco para dentro; sem ele, o Esc nunca chegaria à janela
-    if (!elemento.contains(document.activeElement)) elemento.querySelector<HTMLElement>("input, textarea, select, button")?.focus();
+    // a janela desmonta sem `close()`, e aí o navegador não devolve o foco: volta aqui a quem a abriu
+    // guardado uma vez só: no StrictMode o efeito roda de novo com o foco já dentro da janela
+    quemAbriu.current ??= document.activeElement;
+    if (elemento && !elemento.open) {
+      if (typeof elemento.showModal === "function") elemento.showModal();
+      // sem showModal (navegador antigo, jsdom): abre do mesmo jeito
+      else elemento.setAttribute("open", "");
+      // o showModal já leva o foco para dentro; sem ele, o Esc nunca chegaria à janela
+      if (!elemento.contains(document.activeElement)) elemento.querySelector<HTMLElement>("input, textarea, select, button")?.focus();
+    }
+    return () => {
+      const alvo = quemAbriu.current;
+      if (alvo instanceof HTMLElement && alvo.isConnected) alvo.focus();
+    };
   }, []);
 
   return (
