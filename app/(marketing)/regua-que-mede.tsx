@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Check } from "lucide-react";
 import { NumeroAnimado } from "@/app/(app)/e/[empresa]/numero-animado";
 import { formatarVolume, teclarNoMedidor, useAlturaQueDesliza } from "@/app/medidor-suave";
-import { planosDoTeste, type PlanoId } from "@/lib/assinatura";
+import { planosDoTeste } from "@/lib/assinatura";
 import {
   CONTATO,
   DETALHES,
@@ -23,13 +23,9 @@ import {
  * é o controle, a marca do plano indicado acende) e o plano numa folha de papel, como os cards de "Em
  * todo plano" no hover. "Começar com o …" guarda o plano para o /plano abrir nele depois do cadastro.
  *
- * shortcut: só o preço mensal; o período (mensal, anual, "ver outros planos") entra com o gateway e
- * os descontos dos sócios (#167).
+ * ponytail: sem preço, o teste grátis no lugar. Os preços entram lendo GET /assinatura/precos quando
+ * os definitivos estiverem no catálogo live da Stripe (#302); antes disso, a rota traz os provisórios.
  */
-// ponytail: a landing ainda anuncia os preços antigos, fixos aqui desde que saíram de lib/planos (#296);
-// passa a ler GET /assinatura/precos quando os preços forem definidos (issue a abrir).
-const PRECO_NA_LANDING: Record<PlanoId, string> = { essencial: "R$ 49,90", padrao: "R$ 79,90", avancado: "R$ 99,90" };
-
 export function ReguaQueMede() {
   const idMedidor = useId();
   const [passo, setPasso] = useState(PASSO_INICIAL);
@@ -106,7 +102,8 @@ export function ReguaQueMede() {
             <p className="regua-mede-para">{detalhes.para}</p>
             {plano && (
               <p className="regua-mede-preco">
-                <span>{PRECO_NA_LANDING[plano.id]}</span> <small>/mês</small>
+                {/* sem preço até os definitivos estarem no catálogo live da Stripe (#302): o teste grátis no lugar */}
+                <span>14 dias grátis</span> <small>sem cartão</small>
               </p>
             )}
             <ul className="regua-mede-itens">
@@ -129,7 +126,7 @@ export function ReguaQueMede() {
                 Fale com a gente
               </a>
             )}
-            <p className="regua-mede-rodape">{plano ? "14 dias grátis, sem cartão" : CONTATO}</p>
+            {!plano && <p className="regua-mede-rodape">{CONTATO}</p>}
           </div>
         </div>
       </section>

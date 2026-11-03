@@ -159,13 +159,15 @@ describe("Precos", () => {
     const folha = () => screen.getByRole("region", { name: /O seu plano é o|Vamos combinar/ });
     const arrastarPara = (passo: number) => fireEvent.change(medidor(), { target: { value: String(passo) } });
 
-    it("asks how many entries a month, and starts on the Padrão with its monthly price", () => {
+    it("asks how many entries a month, and starts on the Padrão with the free trial in place of a price", () => {
       renderPrecos();
       expect(screen.getByText(/Quantos lançamentos você/)).toBeInTheDocument();
       expect(medidor()).toHaveAttribute("aria-valuetext", "180 lançamentos por mês");
       expect(within(folha()).getByRole("heading", { name: "O seu plano é o Padrão." })).toBeInTheDocument();
-      expect(within(folha()).getByText("R$ 79,90")).toBeInTheDocument();
-      expect(within(folha()).getByText("14 dias grátis, sem cartão")).toBeInTheDocument();
+      // sem preço até os definitivos estarem no catálogo live (#302)
+      expect(within(folha()).getByText("14 dias grátis")).toBeInTheDocument();
+      expect(within(folha()).getByText("sem cartão")).toBeInTheDocument();
+      expect(folha().textContent).not.toMatch(/R\$/);
     });
 
     it("lights the mark of the plan for the volume, on the same four marks as the ruler", () => {

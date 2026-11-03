@@ -12,16 +12,6 @@ import { PLANOS, type Plano } from "@/lib/planos";
  * tela deixam de nascer desligados.
  */
 
-// ponytail: preços de demonstração, como as faturas; lib/planos não tem preço desde a #296.
-// Saem junto com esta tela, quando a cobrança real (backend #166) chegar.
-export const PRECO_DE_DEMONSTRACAO: Record<string, string> = {
-  Essencial: "R$ 49,90",
-  Padrão: "R$ 79,90",
-  Avançado: "R$ 99,90",
-  Escala: "R$ 149,90",
-  Volume: "Sob consulta",
-};
-
 function plano(nome: string): Plano {
   const encontrado = PLANOS.find((p) => p.nome === nome);
   if (!encontrado) throw new Error(`Plano "${nome}" não está em lib/planos.ts`);
@@ -32,7 +22,6 @@ function plano(nome: string): Plano {
 // antes de a landing criar o Escala. Pela landing, 4.218 lançamentos em
 // setembro cabem no Escala, e o Volume começa acima de 5.000.
 const ATUAL = plano("Escala");
-const ANTERIOR = plano("Avançado");
 
 export const ASSINATURA = {
   plano: ATUAL,
@@ -42,7 +31,7 @@ export const ASSINATURA = {
 };
 
 export const NUMEROS = [
-  { rotulo: "Plano atual", valor: ATUAL.nome, nota: `${PRECO_DE_DEMONSTRACAO[ATUAL.nome]} · ${ATUAL.limite}` },
+  { rotulo: "Plano atual", valor: ATUAL.nome, nota: ATUAL.limite },
   { rotulo: "Contas conciliadas", valor: "4", nota: "Sicredi, Sicoob, Itaú e Banco do Brasil" },
   { rotulo: "Lançamentos em setembro", valor: "4.218", nota: "Conferidos contra o razão do Cigam" },
 ];
@@ -50,15 +39,14 @@ export const NUMEROS = [
 export type Fatura = {
   competencia: string;
   vencimento: string;
-  valor: string;
   situacao: "Paga" | "A vencer";
 };
 
-// Da mais nova para a mais antiga. O valor é o preço do plano de cada mês: o
-// design cobrava R$ 249,00, que não é preço de plano nenhum na landing.
+// Da mais nova para a mais antiga. Sem valor: os preços ainda não foram definidos, e a
+// demonstração é o que o piloto vê em produção (#296).
 export const FATURAS: Fatura[] = [
-  { competencia: "Outubro de 2026", vencimento: "12 de outubro", valor: PRECO_DE_DEMONSTRACAO[ATUAL.nome], situacao: "A vencer" },
-  { competencia: "Setembro de 2026", vencimento: "12 de setembro", valor: PRECO_DE_DEMONSTRACAO[ATUAL.nome], situacao: "Paga" },
-  { competencia: "Agosto de 2026", vencimento: "12 de agosto", valor: PRECO_DE_DEMONSTRACAO[ATUAL.nome], situacao: "Paga" },
-  { competencia: "Julho de 2026", vencimento: "12 de julho", valor: PRECO_DE_DEMONSTRACAO[ANTERIOR.nome], situacao: "Paga" },
+  { competencia: "Outubro de 2026", vencimento: "12 de outubro", situacao: "A vencer" },
+  { competencia: "Setembro de 2026", vencimento: "12 de setembro", situacao: "Paga" },
+  { competencia: "Agosto de 2026", vencimento: "12 de agosto", situacao: "Paga" },
+  { competencia: "Julho de 2026", vencimento: "12 de julho", situacao: "Paga" },
 ];

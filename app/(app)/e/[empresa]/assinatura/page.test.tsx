@@ -2,7 +2,6 @@ import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { PLANOS } from "@/lib/planos";
-import { PRECO_DE_DEMONSTRACAO } from "./dados";
 import { adaptarPrecos, type Assinatura, type PrecoDoPlano } from "@/lib/assinatura";
 import type { LimitesDaConta } from "@/lib/limites";
 import type { Papel } from "@/lib/papel";
@@ -104,7 +103,7 @@ describe("AssinaturaPage", () => {
     await montar();
     // "Plano atual" também é o botão do cartão do plano; aqui é o rótulo do resumo
     expect(screen.getByText("Plano atual", { selector: ".dash-rotulo" })).toBeInTheDocument();
-    expect(screen.getByText("R$ 149,90 · até 5.000 lançamentos por mês")).toBeInTheDocument();
+    expect(screen.getByText("até 5.000 lançamentos por mês", { selector: ".dash-nota" })).toBeInTheDocument();
     expect(screen.getByText("Contas conciliadas")).toBeInTheDocument();
     expect(screen.getByText("Sicredi, Sicoob, Itaú e Banco do Brasil")).toBeInTheDocument();
     expect(screen.getByText("Lançamentos em setembro")).toBeInTheDocument();
@@ -112,7 +111,7 @@ describe("AssinaturaPage", () => {
     expect(screen.getByText("Conferidos contra o razão do Cigam")).toBeInTheDocument();
   });
 
-  it("lists the plans with the demonstration prices, marking the current one", async () => {
+  it("lists the plans without prices (only Volume is sob consulta), marking the current one", async () => {
     await montar();
     const lista = screen.getByRole("list", { name: "Planos" });
     const planos = within(lista).getAllByRole("listitem");
@@ -120,7 +119,8 @@ describe("AssinaturaPage", () => {
     expect(planos).toHaveLength(PLANOS.length);
     PLANOS.forEach((plano, i) => {
       expect(within(planos[i]).getByRole("heading", { name: plano.nome })).toBeInTheDocument();
-      expect(within(planos[i]).getByText(PRECO_DE_DEMONSTRACAO[plano.nome])).toBeInTheDocument();
+      // sem preço da Stripe, nenhum valor, nem de demonstração (#296)
+      expect(planos[i].textContent).not.toMatch(/R\$/);
       expect(within(planos[i]).getByText(plano.limite)).toBeInTheDocument();
     });
 
@@ -143,10 +143,10 @@ describe("AssinaturaPage", () => {
       "Agosto de 2026",
       "Julho de 2026",
     ]);
-    // Escala desde agosto; julho foi cobrado no Avançado
     expect(within(linhas[1]).getByText("12 de setembro")).toBeInTheDocument();
-    expect(within(linhas[1]).getByText("R$ 149,90")).toBeInTheDocument();
-    expect(within(linhas[3]).getByText("R$ 99,90")).toBeInTheDocument();
+    // sem valor: os preços ainda não foram definidos (#296)
+    expect(screen.queryByRole("columnheader", { name: "Valor" })).not.toBeInTheDocument();
+    for (const linha of linhas) expect(linha.textContent).not.toMatch(/R\$/);
   });
 
   it("colours paid invoices as settled and leaves the upcoming one neutral", async () => {
