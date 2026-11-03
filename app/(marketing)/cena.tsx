@@ -19,7 +19,7 @@ export function Cena({
   children: ReactNode;
   className?: string;
   style?: CSSProperties;
-  as?: "div" | "ul" | "article" | "section";
+  as?: "div" | "ul" | "ol" | "li" | "article" | "section" | "figure";
   /** quanto da tela o bloco precisa entrar para contar como visto */
   margem?: NonNullable<Parameters<typeof useInView>[1]>["margin"];
 }) {
@@ -49,15 +49,16 @@ export function Cena({
  */
 export function Contagem({ valor }: { valor: number }) {
   const ref = useRef<HTMLSpanElement>(null);
-  const visto = useInView(ref, { once: true, margin: "0px 0px -25% 0px" });
+  const visto = useInView(ref, { once: true, margin: "0px 0px -12% 0px" });
   const [mostrado, setMostrado] = useState(valor);
 
   useEffect(() => {
     if (!visto) return;
     if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
     const controle = animate(0, valor, {
-      duration: 1.4,
-      delay: 1.2,
+      // o número aparece junto com a dor (0,3s), então começa a contar logo, sem esperar a rolagem passar
+      duration: 1.2,
+      delay: 0.3,
       ease: [0.22, 1, 0.36, 1],
       onUpdate: (atual) => setMostrado(Math.round(atual)),
     });

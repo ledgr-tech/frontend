@@ -303,7 +303,7 @@ p.eyebrow {
   --nova-tracejado: color-mix(in srgb, var(--color-text) 26%, transparent);
   --nova-pronto: color-mix(in srgb, var(--color-accent) 60%, var(--color-divider));
 }
-.nova-corpo { padding: 30px 0 64px; }
+.nova-corpo { padding: 30px 0 28px; }
 .nova-coluna { display: flex; flex-direction: column; gap: 26px; min-width: 0; }
 /* o painel fica parado ao lado das folhas: compacto para caber inteiro na janela (sem rolar junto), e
    preso logo abaixo da barra do topo, porque esta tela não tem a faixa de filtros das listas */
@@ -373,11 +373,11 @@ p.eyebrow {
 /* a importação via IA, um card com o mascote da lupa ao fundo */
 .nova-ia-card {
   position: relative; overflow: hidden; display: flex; flex-direction: column; align-items: flex-start; gap: 8px;
-  max-width: 760px; padding: 22px 180px 22px 24px;
+  max-width: none; padding: 16px 200px 16px 24px;
   border: 1px solid var(--color-divider); border-radius: var(--radius-md); background: var(--color-surface);
 }
 .nova-ia-card h3 { margin: 0; font-size: 21px; font-weight: 600; }
-.nova-ia-card p { margin: 0; max-width: 48ch; font-size: 14px; line-height: 1.55; color: color-mix(in srgb, var(--color-text) 76%, transparent); }
+.nova-ia-card p { margin: 0; max-width: 72ch; font-size: 14px; line-height: 1.55; color: color-mix(in srgb, var(--color-text) 76%, transparent); }
 .nova-ia-card .btn { margin-top: 6px; }
 .nova-ia-card .btn svg { width: 16px; height: 16px; }
 .nova-ia-mascote { position: absolute; right: -8px; bottom: -34px; width: 170px; height: auto; opacity: 0.9; transform: rotate(-6deg); pointer-events: none; }
@@ -538,12 +538,22 @@ p.eyebrow {
 .ia-rev .input { width: 100%; }
 
 /* estreito: as folhas mais baixas e quase inteiras, o card da IA com o mascote embaixo */
+/* sem sobreposição: o texto de uma folha nunca fica por baixo da outra; o elo vai ao meio, entre as duas */
+@container nova (min-width: 0px) {
+  .nova-folhas { height: auto; max-width: none; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 56px; }
+  /* a altura segue a janela para a tela caber sem rolar: o que fica acima (barra, título) e abaixo (card da
+     IA) soma uns 580px; nunca menos de 230px, onde o texto da folha ainda cabe inteiro */
+  .nova-folha { position: relative; inset: auto; padding: 32px 30px; min-height: clamp(230px, calc(100dvh - 580px), 460px); }
+  .nova-folha-sistema { justify-content: flex-start; }
+  /* o elo exatamente no centro do vão entre as folhas (inset + margin auto, sem transform: a animação usa) */
+  .nova-elo-no { inset: 0; margin: auto; }
+}
 @container nova (max-width: 559px) {
-  .nova-folhas { height: 430px; }
-  .nova-folha { padding: 22px 22px; }
-  .nova-folha-banco { inset: 0 28px 190px 0; }
-  .nova-folha-sistema { inset: 170px 0 0 28px; }
-  .nova-elo-no { left: calc(100% - 28px - 18px); top: calc(170px - 18px); }
+  .nova-folhas { grid-template-columns: minmax(0, 1fr); gap: 28px; }
+  .nova-folha { min-height: 190px; }
+  .nova-elo-no { position: relative; left: auto; top: auto; justify-self: center; margin-block: -32px; }
+}
+@container nova (max-width: 559px) {
   .nova-folha-titulo { font-size: 22px; }
   .nova-palco-mesa { grid-template-columns: minmax(0, 1fr) 40px minmax(0, 1fr); }
   .nova-palco-linha { grid-template-columns: minmax(0, 1fr); }
@@ -5536,17 +5546,19 @@ html[data-tema="escuro"] .app-shell {
 .kin-traco { position: absolute; left: 0; right: 0; bottom: -0.04em; height: 0.11em; border-radius: 99px; background: var(--color-accent); transform-origin: left center; }
 .kin-grifo { display: inline-block; padding: 0.1em 0.45em; border-radius: 8px; background: var(--color-risco-200); border: 1px solid var(--color-risco-400); color: var(--color-risco-800); font-weight: 600; rotate: -2deg; box-shadow: 0 12px 24px -14px rgb(45 35 20 / 0.55); }
 @media (prefers-reduced-motion: no-preference) {
-  .mao[data-cena="nao"] :is(.mao-folha, .mao-linha, .mao-marca, .mao-dor), .mao-ponte[data-cena="nao"] .kin-grifo { opacity: 0; }
+  /* cada parte do Cap. II é uma cena própria (conferencia-a-mao.tsx): as folhas, cada dor e o fecho entram
+     quando elas mesmas chegam à tela, com atrasos curtos, para a animação acompanhar a rolagem */
+  .mao-folhas[data-cena="nao"] :is(.mao-folha, .mao-linha, .mao-marca), .mao-dor[data-cena="nao"], .mao-ponte[data-cena="nao"] .kin-grifo { opacity: 0; }
   :is(.mao-ponte, .regra-cena)[data-cena="nao"] .kin-traco { transform: scaleX(0); }
-  .mao[data-cena="sim"] .mao-folha[data-folha="banco"] { animation: kin-folha-esq 1.1s cubic-bezier(0.34, 1.3, 0.64, 1) backwards; }
-  .mao[data-cena="sim"] .mao-folha[data-folha="sistema"] { animation: kin-folha-dir 1.1s cubic-bezier(0.34, 1.3, 0.64, 1) 0.08s backwards; }
-  .mao[data-cena="sim"] .mao-linha { animation: kin-entra-esq 0.4s ease-out 0.5s backwards; }
-  .mao[data-cena="sim"] .mao-marca { animation: kin-estala 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 1s backwards; }
-  .mao[data-cena="sim"] .mao-dor { animation: kin-sobe 0.8s cubic-bezier(0.34, 1.4, 0.64, 1) 1.1s backwards; }
-  .mao[data-cena="sim"] .mao-dor:nth-child(2) { animation-delay: 1.24s; }
-  .mao[data-cena="sim"] .mao-dor:nth-child(3) { animation-delay: 1.38s; }
-  :is(.mao-ponte, .regra-cena)[data-cena="sim"] .kin-traco { animation: kin-traco 0.6s cubic-bezier(0.65, 0, 0.35, 1) 0.2s backwards; }
-  .mao-ponte[data-cena="sim"] .kin-grifo { animation: kin-estala 0.9s cubic-bezier(0.34, 1.56, 0.64, 1) 0.7s backwards; }
+  .mao-folhas[data-cena="sim"] .mao-folha[data-folha="banco"] { animation: kin-folha-esq 0.9s cubic-bezier(0.34, 1.3, 0.64, 1) backwards; }
+  .mao-folhas[data-cena="sim"] .mao-folha[data-folha="sistema"] { animation: kin-folha-dir 0.9s cubic-bezier(0.34, 1.3, 0.64, 1) 0.08s backwards; }
+  .mao-folhas[data-cena="sim"] .mao-linha { animation: kin-entra-esq 0.4s ease-out 0.35s backwards; }
+  .mao-folhas[data-cena="sim"] .mao-marca { animation: kin-estala 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.7s backwards; }
+  .mao-dor[data-cena="sim"] { animation: kin-sobe 0.7s cubic-bezier(0.34, 1.4, 0.64, 1) backwards; }
+  .mao-dor[data-cena="sim"]:nth-child(2) { animation-delay: 0.1s; }
+  .mao-dor[data-cena="sim"]:nth-child(3) { animation-delay: 0.2s; }
+  :is(.mao-ponte, .regra-cena)[data-cena="sim"] .kin-traco { animation: kin-traco 0.6s cubic-bezier(0.65, 0, 0.35, 1) 0.1s backwards; }
+  .mao-ponte[data-cena="sim"] .kin-grifo { animation: kin-estala 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) 0.4s backwards; }
 }
 
 /* --- Como funciona: o formato de cada arquivo e os cinco selos do passo III --- */

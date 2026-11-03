@@ -68,8 +68,9 @@ export function ConferenciaAMao({
   const resto = (total - banco.length).toLocaleString("pt-BR");
 
   return (
-    <Cena className="mao" margem="0px 0px -28% 0px">
-      <figure className="mao-folhas">
+    // cada parte é uma cena: as folhas, cada dor e o fecho entram quando elas mesmas chegam à tela
+    <div className="mao">
+      <Cena as="figure" className="mao-folhas" margem="0px 0px -18% 0px">
         <figcaption className="sr-only">As duas telas de agosto como chegam à mão, com as linhas de cada dor numeradas</figcaption>
         <div className="mao-folha" data-folha="banco">
           <p className="mao-folha-nome" id="mao-banco">
@@ -100,11 +101,11 @@ export function ConferenciaAMao({
             </li>
           </ul>
         </div>
-      </figure>
+      </Cena>
 
       <ol className="mao-dores" aria-label="O que custa conferir à mão">
         {dores.map((dor, i) => (
-          <li key={dor.titulo} className="mao-dor">
+          <Cena as="li" key={dor.titulo} className="mao-dor" margem="0px 0px -12% 0px">
             <div className="mao-dor-topo">
               <span className="mao-marca" aria-hidden="true">
                 {i + 1}
@@ -117,12 +118,12 @@ export function ConferenciaAMao({
             </p>
             <h3 className="mao-dor-titulo">{dor.titulo}</h3>
             <p className="mao-dor-texto">{dor.texto}</p>
-          </li>
+          </Cena>
         ))}
       </ol>
 
       {/* o fecho ganha o gesto do hero: o traço dourado sob a frase e o grifo que estala */}
-      <Cena className="mao-ponte">
+      <Cena className="mao-ponte" margem="0px 0px -12% 0px">
         <p>
           <em className="kin-sublinha">
             O Ledgr confere todas as linhas
@@ -131,6 +132,6 @@ export function ConferenciaAMao({
           e aponta <span className="kin-grifo">só as que não batem</span>, com o motivo.
         </p>
       </Cena>
-    </Cena>
+    </div>
   );
 }

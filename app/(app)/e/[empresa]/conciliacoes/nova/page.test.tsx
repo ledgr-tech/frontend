@@ -569,10 +569,14 @@ describe("NovaConciliacaoPage", () => {
     });
 
     // estreito, as folhas quase inteiras, uma descendo menos sob a outra, e o elo no canto que sobra
-    it("encolhe a sobreposição das folhas quando a coluna é estreita", () => {
+    // as folhas ficam lado a lado, sem se cobrir, e o elo no centro do vão; no celular empilham
+    it("põe as folhas lado a lado, sem sobreposição, e empilha no celular", () => {
+      const sempre = "nova (min-width: 0px)";
+      expect(dentroDe("container", sempre, ".nova-folhas")).toMatchObject({ display: "grid" });
+      expect(dentroDe("container", sempre, ".nova-folha")).toMatchObject({ position: "relative", inset: "auto" });
+      expect(dentroDe("container", sempre, ".nova-elo-no")).toMatchObject({ inset: "0", margin: "auto" });
       const estreito = "nova (max-width: 559px)";
-      expect(dentroDe("container", estreito, ".nova-folha-banco")).toMatchObject({ inset: "0 28px 190px 0" });
-      expect(dentroDe("container", estreito, ".nova-folha-sistema")).toMatchObject({ inset: "170px 0 0 28px" });
+      expect(dentroDe("container", estreito, ".nova-folhas")).toMatchObject({ "grid-template-columns": "minmax(0, 1fr)" });
     });
   });
 
