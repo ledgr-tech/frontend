@@ -26,6 +26,9 @@ export const MARCAS: [passo: number, rotulo: string][] = [
 
 export type Indicado = PlanoId | "volume";
 
+/** O evento com que um perfil de "Para quem é" põe a régua da landing no plano dele (o `detail` é o plano). */
+export const ESCOLHER_PLANO = "ledgr:escolher-plano";
+
 const TETO: Record<Indicado, number> = { essencial: 100, padrao: 200, avancado: 350, volume: 6000 };
 
 export function planoDoVolume(lancamentos: number): Indicado {

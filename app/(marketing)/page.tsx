@@ -5,11 +5,14 @@ import { DIVERGENCIAS } from "@/lib/adaptadores";
 import { depoimentosDaLanding } from "@/lib/depoimentos";
 import { LogoBarras } from "@/app/(app)/e/[empresa]/logo-barras";
 import { CabecalhoSite } from "./cabecalho-site";
-import { CATEGORIAS, QUANTAS_CATEGORIAS } from "./categorias";
+import { seloDoStatus } from "@/app/(app)/e/[empresa]/dashboard/resumo";
+import { QUANTAS_CATEGORIAS } from "./categorias";
+import { Cena } from "./cena";
 import { ExtratoComparacao, type LinhaExtrato } from "./comparacao";
 import { ConferenciaAMao, type Dor } from "./conferencia-a-mao";
 import { Depoimentos } from "./depoimentos";
 import { DicaDoMouse } from "./dica-do-mouse";
+import { Hero } from "./hero";
 import { InkHover, MotionRoot, Reveal } from "../reveal";
 import { fonteDestaque } from "./fonte-destaque";
 import { PorDentro } from "./por-dentro";
@@ -122,6 +125,7 @@ const DORES: Dor[] = [
   {
     rotulo: "Tempo",
     numero: LANCAMENTOS_DE_AGOSTO.toLocaleString("pt-BR"),
+    contar: LANCAMENTOS_DE_AGOSTO,
     unidade: "linhas",
     titulo: "Horas que não voltam",
     texto: "Cada linha do banco é procurada no sistema, uma por uma, e no mês seguinte começa tudo de novo.",
@@ -142,21 +146,26 @@ const DORES: Dor[] = [
   },
 ];
 
-const PASSOS = [
+// O formato de cada arquivo vai numa etiqueta; no passo III, as categorias vão nos selos do app, com o
+// rótulo e o tom do relatório (seloDoStatus), em vez de uma frase com as cinco por extenso.
+const PASSOS: { num: string; titulo: string; texto: string; formatos?: string[]; selos?: boolean }[] = [
   {
     num: "I",
     titulo: "Suba o extrato do banco",
     texto: "OFX ou CSV, direto do internet banking. Quando os dois lados discordam, vale o que está nesse extrato.",
+    formatos: ["OFX", "CSV"],
   },
   {
     num: "II",
     titulo: "Suba o extrato do sistema",
     texto: "Exporte o razão do seu ERP ou sistema de gestão no mesmo período, em CSV.",
+    formatos: ["CSV"],
   },
   {
     num: "III",
     titulo: "Receba as divergências",
-    texto: `Relatório nas ${DIVERGENCIAS.length} categorias: ${CATEGORIAS}.`,
+    texto: `Relatório nas ${DIVERGENCIAS.length} categorias:`,
+    selos: true,
   },
 ];
 
@@ -241,7 +250,7 @@ const RODAPE_COLUNAS = [
 export default function LandingPage() {
   const depoimentos = depoimentosDaLanding();
   return (
-    <main className={fonteDestaque.variable}>
+    <main className={`landing ${fonteDestaque.variable}`}>
       <MotionRoot>
       <CabecalhoSite />
 
@@ -262,73 +271,7 @@ export default function LandingPage() {
             opacity: 0.55,
           }}
         />
-        <div
-          className="hero-grid"
-          style={{
-            position: "relative",
-            maxWidth: 1600,
-            margin: "0 auto",
-            padding: "clamp(56px, 9vw, 108px) clamp(20px, 4.2vw, 56px) clamp(56px, 8vw, 96px)",
-            display: "grid",
-            gap: 56,
-            alignItems: "center",
-          }}
-        >
-          <div>
-            <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 28 }}>
-              <span
-                className="eyebrow"
-                style={{
-                  fontSize: 12,
-                  letterSpacing: "0.14em",
-                  textTransform: "uppercase",
-                  color: "var(--color-accent-700)",
-                }}
-              >
-                Cap. I · O fechamento do mês
-              </span>
-              <span style={{ flex: 1, maxWidth: 120, height: 1, background: "var(--color-divider)" }} />
-            </div>
-            <h1 className="titulo-misto" style={{ margin: "0 0 24px", fontSize: "clamp(40px, 4.4vw, 72px)" }}>
-              Pare de conciliar extrato <em>à mão.</em>
-            </h1>
-            <div style={{ width: 84, height: 1, background: "var(--color-accent)", marginBottom: 26 }} />
-            <p
-              style={{
-                margin: "0 0 34px",
-                fontSize: "clamp(16px, 1.2vw, 19px)",
-                lineHeight: 1.72,
-                maxWidth: "44ch",
-              }}
-            >
-              Continue no sistema de gestão que você já usa. Suba o extrato do banco e o do sistema:
-              em minutos o Ledgr confere linha por linha e aponta só o que não bate, com o motivo de
-              cada diferença.
-            </p>
-            <Link href="/cadastro" className="btn btn-primary" style={{ fontSize: 15.5, padding: "13px 24px" }}>
-              Começar agora
-            </Link>
-          </div>
-          <InkHover
-            clip={false}
-            className="hero-illustration"
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-            }}
-          >
-            <Image
-              src="/mascotes/mascote-apresenta.png"
-              alt="Mascote Ledgr com prancheta de conciliação e dinheiro"
-              width={824}
-              height={720}
-              sizes="(max-width: 680px) 90vw, 440px"
-              preload
-              style={{ position: "relative", zIndex: 1, width: "96%", maxWidth: 440, height: "auto" }}
-            />
-          </InkHover>
-        </div>
+        <Hero banco={EXTRATO_BANCO} sistema={EXTRATO_SISTEMA} />
       </section>
 
       {/* em números */}
@@ -500,6 +443,25 @@ export default function LandingPage() {
                 <div style={{ fontSize: 15, lineHeight: 1.72 }}>
                   {passo.texto}
                 </div>
+                {passo.formatos && (
+                  <ul className="passo-formato" aria-label="Formatos aceitos">
+                    {passo.formatos.map((formato) => (
+                      <li key={formato}>{formato}</li>
+                    ))}
+                  </ul>
+                )}
+                {passo.selos && (
+                  <Cena as="ul" className="passo-selos">
+                    {DIVERGENCIAS.map((status) => {
+                      const selo = seloDoStatus(status);
+                      return (
+                        <li key={status}>
+                          <span className={`selo selo-${selo.tom}`}>{selo.rotulo}</span>
+                        </li>
+                      );
+                    })}
+                  </Cena>
+                )}
               </Reveal>
             ))}
           </div>
@@ -507,7 +469,9 @@ export default function LandingPage() {
               conferidas pelo Ledgr (os selos e os motivos são dele) */}
           <Reveal className="pratica">
             <p className="rotulo-parte rotulo-parte-ledgr">Na prática</p>
-            <h3 className="pratica-titulo">As mesmas duas telas, conferidas pelo Ledgr.</h3>
+            <h3 className="pratica-titulo titulo-misto">
+              As mesmas duas telas, <em>conferidas pelo Ledgr.</em>
+            </h3>
             <p className="pratica-texto">
               Os dois extratos de agosto lado a lado, como na conferência à mão. A diferença é que cada
               linha já vem marcada, e as que não batem vêm com o motivo.
@@ -537,7 +501,7 @@ export default function LandingPage() {
       >
         <div style={{ position: "relative", maxWidth: 1600, margin: "0 auto", padding: "clamp(64px, 9vw, 96px) clamp(20px, 4.2vw, 56px)" }}>
           <div className="por-dentro">
-            <PorDentro banco={EXTRATO_BANCO} sistema={EXTRATO_SISTEMA}>
+            <PorDentro>
               <h2 className="titulo-misto por-dentro-intro">
                 Cada lançamento, do extrato <em>ao seu sistema.</em>
               </h2>
@@ -548,16 +512,13 @@ export default function LandingPage() {
 
       {/* por que o Ledgr: as saídas de hoje e o Ledgr, pergunta por pergunta, depois que o produto
           já foi explicado. O link "Por que o Ledgr" do rodapé desce até aqui */}
-      <section id="por-que" className="onda onda-faixa-clara" style={{ background: "var(--color-surface)" }}>
-        <div style={{ maxWidth: 1600, margin: "0 auto", padding: "clamp(64px, 9vw, 96px) clamp(20px, 4.2vw, 56px)" }}>
-          <PorQueOLedgr />
-        </div>
-      </section>
+      <PorQueOLedgr />
 
       {/* regra de ouro */}
       <section id="regra" className="onda onda-superficie">
         <div style={{ maxWidth: 1600, margin: "0 auto", padding: "clamp(64px, 9vw, 96px) clamp(20px, 4.2vw, 56px)" }}>
           <Reveal>
+            <Cena className="regra-cena">
             <InkHover
               className="regra-card"
               style={{
@@ -584,7 +545,11 @@ export default function LandingPage() {
               </div>
               <div>
                 <h2 className="titulo-misto" style={{ margin: "0 0 12px", fontSize: "clamp(26px, 2.4vw, 42px)" }}>
-                  O extrato do banco é sempre <em>a fonte da verdade.</em>
+                    O extrato do banco é sempre{" "}
+                  <em className="kin-sublinha">
+                    a fonte da verdade.
+                    <span className="kin-traco" aria-hidden="true" />
+                  </em>
                 </h2>
                 <p
                   style={{
@@ -602,6 +567,7 @@ export default function LandingPage() {
                 §
               </div>
             </InkHover>
+            </Cena>
           </Reveal>
         </div>
       </section>

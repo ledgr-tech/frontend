@@ -1,19 +1,21 @@
 "use client";
 
-import { useId, useState, type CSSProperties } from "react";
+import { useEffect, useId, useState, type CSSProperties } from "react";
 import Link from "next/link";
 import { Check } from "lucide-react";
 import { NumeroAnimado } from "@/app/(app)/e/[empresa]/numero-animado";
 import { formatarVolume, teclarNoMedidor, useAlturaQueDesliza } from "@/app/medidor-suave";
-import { planosDoTeste } from "@/lib/assinatura";
+import { planosDoTeste, type PlanoId } from "@/lib/assinatura";
 import {
   CONTATO,
   DETALHES,
+  ESCOLHER_PLANO,
   MARCAS,
   PASSO_INICIAL,
   ULTIMO_PASSO,
   lembrarPlano,
   marcaDoPlano,
+  passoDoPlano,
   planoDoVolume,
   volumeDoPasso,
 } from "@/lib/medidor-de-planos";
@@ -35,6 +37,16 @@ export function ReguaQueMede() {
   const detalhes = DETALHES[indicado];
   const acesa = marcaDoPlano(indicado);
   const { caixa, conteudo } = useAlturaQueDesliza(indicado);
+
+  // "Ver o meu plano", nos perfis de "Para quem é": a régua vai ao teto do plano daquele perfil
+  useEffect(() => {
+    const escolher = (evento: Event) => {
+      const plano = (evento as CustomEvent<PlanoId>).detail;
+      if (plano in DETALHES) setPasso(passoDoPlano(plano));
+    };
+    window.addEventListener(ESCOLHER_PLANO, escolher);
+    return () => window.removeEventListener(ESCOLHER_PLANO, escolher);
+  }, []);
 
   return (
     <div className="regua-mede">

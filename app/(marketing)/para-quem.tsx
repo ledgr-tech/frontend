@@ -1,5 +1,7 @@
 import Image from "next/image";
+import type { PlanoId } from "@/lib/assinatura";
 import { Reveal } from "../reveal";
+import { MeuPlano } from "./meu-plano";
 
 // "Para quem é" (mentoria de 26/10, #233; desenho escolhido em 27/10: "Topo 4" com as folhas da "7E"):
 // os quatro perfis que o Ledgr atende, logo antes do preço e do "Começar agora", do menor ao maior.
@@ -11,6 +13,8 @@ type Perfil = {
   quem: string;
   pontos: string[];
   mascote: { src: string; width: number; height: number };
+  /** o plano em que "Ver o meu plano" põe a régua de Preços, pelo "para quem" de cada plano */
+  plano: PlanoId;
 };
 
 export const PERFIS: Perfil[] = [
@@ -24,6 +28,7 @@ export const PERFIS: Perfil[] = [
       "Sem fidelidade nem taxa de implantação",
     ],
     mascote: { src: "/mascotes/mascote-laptop.png", width: 824, height: 720 },
+    plano: "essencial",
   },
   {
     nome: "Consultor contábil",
@@ -35,6 +40,7 @@ export const PERFIS: Perfil[] = [
       "A conciliação em CSV e o fechamento em PDF",
     ],
     mascote: { src: "/mascotes/mascote-maleta.png", width: 778, height: 720 },
+    plano: "padrao",
   },
   {
     nome: "Empresa",
@@ -46,6 +52,7 @@ export const PERFIS: Perfil[] = [
       "O mês fechado fica registrado, com quem fechou",
     ],
     mascote: { src: "/mascotes/mascote-loja.png", width: 952, height: 720 },
+    plano: "essencial",
   },
   {
     nome: "Escritório contábil",
@@ -57,6 +64,7 @@ export const PERFIS: Perfil[] = [
       "O relatório do fechamento pronto para mandar ao cliente",
     ],
     mascote: { src: "/mascotes/mascote-arquivo.png", width: 758, height: 720 },
+    plano: "avancado",
   },
 ];
 
@@ -95,6 +103,7 @@ export function ParaQuem() {
                     <li key={ponto}>{ponto}</li>
                   ))}
                 </ul>
+                <MeuPlano plano={perfil.plano} />
               </div>
             </Reveal>
           </li>
