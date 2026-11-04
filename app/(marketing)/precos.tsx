@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { estaResolvida, seloDoStatus } from "@/app/(app)/e/[empresa]/dashboard/resumo";
 import { IconeOrigem } from "@/app/(app)/e/[empresa]/icone-origem";
 import { SeloIa } from "@/app/(app)/e/[empresa]/selo-ia";
-import { Reveal } from "@/app/reveal";
+import { NumeralQueDesce, Reveal } from "@/app/reveal";
 import { QUANTAS_CATEGORIAS } from "./categorias";
 import type { LinhaExtrato } from "./comparacao";
 import { DicaDoMouse } from "./dica-do-mouse";
@@ -259,9 +259,7 @@ export function Precos({
               {BENEFICIOS.map((beneficio) => (
                 <li key={beneficio.num} className="preco-etapa">
                   <Reveal viewport={NA_PONTA_DO_FIO} className="preco-etapa-corpo">
-                    <span className="preco-num" aria-hidden="true">
-                      {beneficio.num}
-                    </span>
+                    <NumeralQueDesce className="preco-num">{beneficio.num}</NumeralQueDesce>
                     <CartaoBeneficio beneficio={beneficio}>{demonstracoes[beneficio.demonstracao]}</CartaoBeneficio>
                   </Reveal>
                 </li>

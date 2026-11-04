@@ -81,6 +81,40 @@ export function Reveal({
   );
 }
 
+/**
+ * O numeral (I, II, III, IV) das trilhas de "Por dentro" e de Preços: cai de cima girando e crescendo,
+ * passa um pouco do ponto e assenta (como o back.out do GSAP), um instante depois do bloco, na altura
+ * em que a etapa se revela. Só esses dois usam.
+ */
+export function NumeralQueDesce({ children, className }: { children: ReactNode; className: string }) {
+  const revelar = useContext(RevelarContexto);
+  if (!revelar) {
+    return (
+      <span className={className} aria-hidden="true">
+        {children}
+      </span>
+    );
+  }
+  return (
+    <m.span
+      className={className}
+      aria-hidden="true"
+      initial={{ opacity: 0, transform: "translateY(-90px) rotate(-12deg) scale(0.6)" }}
+      whileInView={{ opacity: 1, transform: "translateY(0px) rotate(0deg) scale(1)" }}
+      viewport={{ once: true, amount: 0, margin: "0px 0px -40% 0px" }}
+      // back.out(1.7) do GSAP: passa um pouco do ponto e assenta. O fade termina antes do pouso
+      transition={{
+        duration: 0.9,
+        delay: 0.12,
+        ease: [0.34, 1.56, 0.64, 1],
+        opacity: { duration: 0.35, delay: 0.12, ease: "easeOut" },
+      }}
+    >
+      {children}
+    </m.span>
+  );
+}
+
 const INK_STROKE_MIN_DISTANCE = 16;
 
 function prefersReducedMotion() {
