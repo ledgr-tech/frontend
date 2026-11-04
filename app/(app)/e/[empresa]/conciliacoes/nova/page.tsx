@@ -24,7 +24,8 @@ import {
 import { ImportacaoInterrompida } from "./importacao-interrompida";
 import { PlanosBloqueados } from "./planos-bloqueados";
 import { useAssinatura } from "../../conta";
-import { bloqueiaConciliacao } from "@/lib/assinatura";
+import { bloqueiaConciliacao, type PrecoDoPlano } from "@/lib/assinatura";
+import { carregarPrecos } from "../../assinatura/acoes";
 import { Cabecalho } from "../../cabecalho";
 import { IconeOrigem } from "../../icone-origem";
 import { Guia, type Passo } from "./guia";
@@ -40,6 +41,7 @@ export default function NovaConciliacaoPage() {
   const empresas = useEmpresasDaConta();
   // o backend recusou a conciliação pelo plano (402): o texto dele vai no lugar do envio
   const [recusa, setRecusa] = useState<string | null>(null);
+  const [precos, setPrecos] = useState<PrecoDoPlano[] | null>(null);
   const [avisos, setAvisos] = useState<string[]>([]);
   const [pendente, setPendente] = useState<Pendente | null>(null);
   // a tolerância que esta conciliação vai usar; sem resposta (404, erro), a linha não aparece
@@ -201,6 +203,21 @@ export default function NovaConciliacaoPage() {
         ? "Falta o extrato do banco."
         : "Falta o extrato do sistema de gestão.";
 
+  // teste acabado ou assinatura encerrada (backend #180), ou o 402 do backend: os planos no lugar do envio
+  const bloqueada = (assinatura !== null && bloqueiaConciliacao(assinatura.situacao)) || recusa !== null;
+
+  // os preços da Stripe, os mesmos da Assinatura, só quando a tela bloqueia
+  useEffect(() => {
+    if (!bloqueada) return;
+    let viva = true;
+    void carregarPrecos()
+      .then((lidos) => viva && setPrecos(lidos))
+      .catch(() => {});
+    return () => {
+      viva = false;
+    };
+  }, [bloqueada]);
+
   if (pendente) {
     return (
       <div style={{ padding: "36px 0 64px" }}>
@@ -215,13 +232,12 @@ export default function NovaConciliacaoPage() {
     );
   }
 
-  // teste acabado ou assinatura encerrada (backend #180), ou o 402 do backend: os planos no lugar do envio
-  if ((assinatura && bloqueiaConciliacao(assinatura.situacao)) || recusa !== null) {
+  if (bloqueada) {
     return (
       <div className="nova-tela">
         <Cabecalho titulo="Nova conciliação" contexto={[]} />
         <div className="nova-corpo">
-          <PlanosBloqueados motivo={recusa ?? undefined} situacao={assinatura?.situacao} />
+          <PlanosBloqueados motivo={recusa ?? undefined} situacao={assinatura?.situacao} precos={precos} />
         </div>
       </div>
     );

@@ -34,7 +34,7 @@ function contexto(assinatura: Assinatura): string[] {
     return [testeTerminaEm ? fraseDoTeste(diasRestantes(testeTerminaEm, new Date())).toLowerCase() : "teste grátis"];
   }
   if (situacao === "ativo" && cobranca) {
-    const fim = cobranca.periodoAtualFim && `${cobranca.cancelaNoFim ? "termina" : "renova"} em ${formatarDiaCurto(cobranca.periodoAtualFim)}`;
+    const fim = cobranca.periodoAtualFim && `${cobranca.cancelaNoFim ? "termina" : "renova"} em ${formatarDiaCurto(cobranca.periodoAtualFim, new Date())}`;
     return [`plano ${NOME_DO_PLANO[cobranca.plano]}`, cobranca.periodo, fim].filter((parte): parte is string => !!parte);
   }
   const textos = { sem_plano: "sem plano", teste_encerrado: "teste grátis encerrado", assinatura_encerrada: "assinatura encerrada", pagamento_pendente: "pagamento pendente" };
@@ -106,28 +106,27 @@ export function PainelDaAssinatura({ precos }: { precos: PrecoDoPlano[] | null }
                 const atual = assinando && cobranca?.plano === plano.id;
                 const indisponivelId = `assinatura-indisponivel-${plano.id}`;
                 return (
-                  <li key={plano.id} className="ass-plano" data-atual={atual ? "true" : undefined}>
+                  // o id é o destino do "Assinar o X" da tela de bloqueio (/assinatura#plano-padrao)
+                  <li key={plano.id} id={`plano-${plano.id}`} className="ass-plano" data-atual={atual ? "true" : undefined}>
                     <div className="ass-plano-topo">
                       <h4 className="ass-plano-nome">{plano.nome}</h4>
                       {atual && <span className="ass-plano-atual">Plano atual</span>}
                     </div>
-                    <div className="ass-plano-valor">
-                      {!precos ? (
-                        <>
-                          <span className="ass-plano-preco">{plano.preco}</span>
-                          <span className="ass-plano-sufixo">/mês</span>
-                        </>
-                      ) : preco ? (
-                        <>
-                          <span className="ass-plano-preco">{preco.valor}</span>
-                          <span className="ass-plano-sufixo">{SUFIXO[periodo]}</span>
-                        </>
-                      ) : (
-                        <span id={indisponivelId} className="ass-plano-texto">
-                          Indisponível neste período
-                        </span>
-                      )}
-                    </div>
+                    {/* sem os preços da Stripe, nenhum valor: os de lib/planos não valem (#296) */}
+                    {precos && (
+                      <div className="ass-plano-valor">
+                        {preco ? (
+                          <>
+                            <span className="ass-plano-preco">{preco.valor}</span>
+                            <span className="ass-plano-sufixo">{SUFIXO[periodo]}</span>
+                          </>
+                        ) : (
+                          <span id={indisponivelId} className="ass-plano-texto">
+                            Indisponível neste período
+                          </span>
+                        )}
+                      </div>
+                    )}
                     {preco?.porMes && <p className="ass-plano-texto">{preco.porMes} por mês</p>}
                     {preco?.desconto && <p className="ass-plano-desconto">{preco.desconto}% a menos que o mensal</p>}
                     <span className="ass-plano-filete" aria-hidden="true" />
@@ -149,7 +148,7 @@ export function PainelDaAssinatura({ precos }: { precos: PrecoDoPlano[] | null }
                   <h4 className="ass-plano-nome">{volume.nome}</h4>
                 </div>
                 <div className="ass-plano-valor">
-                  <span className="ass-plano-preco">{volume.preco}</span>
+                  <span className="ass-plano-preco">Sob consulta</span>
                 </div>
                 <span className="ass-plano-filete" aria-hidden="true" />
                 <p className="ass-plano-texto">{volume.limite}</p>
@@ -179,7 +178,11 @@ export function PainelDaAssinatura({ precos }: { precos: PrecoDoPlano[] | null }
   );
 }
 
-const AVISO_IMEDIATO = "A cobrança é feita agora. Os dias de teste que sobraram não ficam para depois.";
+// os dias que sobraram só existem no teste em andamento (com menos de 48 horas)
+const avisoImediato = (assinatura: Assinatura) =>
+  assinatura.situacao === "teste"
+    ? "A cobrança é feita agora. Os dias de teste que sobraram não ficam para depois."
+    : "A cobrança é feita agora.";
 
 /**
  * O Assinar do cartão; desligado, aponta para o motivo. Quando a cobrança é na hora (menos de 48 horas
@@ -223,9 +226,9 @@ function AssinarPlano({
 
   return (
     <>
-      {motivoId === null && avisado && <p className="ass-plano-texto">{AVISO_IMEDIATO}</p>}
+      {motivoId === null && avisado && <p className="ass-plano-texto">{avisoImediato(assinatura)}</p>}
       {motivoId === null && !imediata && assinatura.testeTerminaEm && (
-        <p className="ass-plano-texto">Você só paga em {formatarDiaCurto(assinatura.testeTerminaEm)}, quando o teste acaba.</p>
+        <p className="ass-plano-texto">Você só paga em {formatarDiaCurto(assinatura.testeTerminaEm, new Date())}, quando o teste acaba.</p>
       )}
       {erro && (
         <p role="alert" className="ass-plano-erro">

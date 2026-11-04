@@ -68,10 +68,12 @@ export function AssinaturaDeDemonstracao() {
                       <h4 className="ass-plano-nome">{opcao.nome}</h4>
                       {atual && <span className="ass-plano-atual">Atual</span>}
                     </div>
-                    <div className="ass-plano-valor">
-                      <span className="ass-plano-preco">{opcao.preco}</span>
-                      {!opcao.contato && <span className="ass-plano-sufixo">/mês</span>}
-                    </div>
+                    {/* sem preço da Stripe, nenhum valor, nem de demonstração (#296) */}
+                    {opcao.contato && (
+                      <div className="ass-plano-valor">
+                        <span className="ass-plano-preco">Sob consulta</span>
+                      </div>
+                    )}
                     <span className="ass-plano-filete" aria-hidden="true" />
                     <p className="ass-plano-texto">{opcao.limite}</p>
                     {atual && <p className="ass-plano-texto">{faixa}</p>}
@@ -100,7 +102,6 @@ export function AssinaturaDeDemonstracao() {
                   <tr>
                     <th>Competência</th>
                     <th style={{ width: 170 }}>Vencimento</th>
-                    <th style={{ width: 140, textAlign: "right" }}>Valor</th>
                     <th style={{ width: 130, textAlign: "right" }}>Situação</th>
                     <th style={{ width: 110, textAlign: "right" }}>Recibo</th>
                   </tr>
@@ -110,7 +111,6 @@ export function AssinaturaDeDemonstracao() {
                     <tr key={fatura.competencia}>
                       <td style={{ fontSize: 15 }}>{fatura.competencia}</td>
                       <td className="dash-celula-fraca">{fatura.vencimento}</td>
-                      <td className="ass-fatura-valor">{fatura.valor}</td>
                       <td style={{ textAlign: "right" }}>
                         <span className={fatura.situacao === "Paga" ? "selo selo-ok" : "selo"}>
                           {fatura.situacao}

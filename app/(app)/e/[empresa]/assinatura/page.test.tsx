@@ -103,7 +103,7 @@ describe("AssinaturaPage", () => {
     await montar();
     // "Plano atual" também é o botão do cartão do plano; aqui é o rótulo do resumo
     expect(screen.getByText("Plano atual", { selector: ".dash-rotulo" })).toBeInTheDocument();
-    expect(screen.getByText("R$ 149,90 · até 5.000 lançamentos por mês")).toBeInTheDocument();
+    expect(screen.getByText("até 5.000 lançamentos por mês", { selector: ".dash-nota" })).toBeInTheDocument();
     expect(screen.getByText("Contas conciliadas")).toBeInTheDocument();
     expect(screen.getByText("Sicredi, Sicoob, Itaú e Banco do Brasil")).toBeInTheDocument();
     expect(screen.getByText("Lançamentos em setembro")).toBeInTheDocument();
@@ -111,7 +111,7 @@ describe("AssinaturaPage", () => {
     expect(screen.getByText("Conferidos contra o razão do Cigam")).toBeInTheDocument();
   });
 
-  it("lists the same plans and prices as the landing, marking the current one", async () => {
+  it("lists the plans without prices (only Volume is sob consulta), marking the current one", async () => {
     await montar();
     const lista = screen.getByRole("list", { name: "Planos" });
     const planos = within(lista).getAllByRole("listitem");
@@ -119,7 +119,8 @@ describe("AssinaturaPage", () => {
     expect(planos).toHaveLength(PLANOS.length);
     PLANOS.forEach((plano, i) => {
       expect(within(planos[i]).getByRole("heading", { name: plano.nome })).toBeInTheDocument();
-      expect(within(planos[i]).getByText(plano.preco)).toBeInTheDocument();
+      // sem preço da Stripe, nenhum valor, nem de demonstração (#296)
+      expect(planos[i].textContent).not.toMatch(/R\$/);
       expect(within(planos[i]).getByText(plano.limite)).toBeInTheDocument();
     });
 
@@ -142,10 +143,10 @@ describe("AssinaturaPage", () => {
       "Agosto de 2026",
       "Julho de 2026",
     ]);
-    // Escala desde agosto; julho foi cobrado no Avançado
     expect(within(linhas[1]).getByText("12 de setembro")).toBeInTheDocument();
-    expect(within(linhas[1]).getByText("R$ 149,90")).toBeInTheDocument();
-    expect(within(linhas[3]).getByText("R$ 99,90")).toBeInTheDocument();
+    // sem valor: os preços ainda não foram definidos (#296)
+    expect(screen.queryByRole("columnheader", { name: "Valor" })).not.toBeInTheDocument();
+    for (const linha of linhas) expect(linha.textContent).not.toMatch(/R\$/);
   });
 
   it("colours paid invoices as settled and leaves the upcoming one neutral", async () => {
@@ -297,15 +298,18 @@ describe("AssinaturaPage", () => {
     });
 
     it("assinando: o plano, o período e a renovação no cabeçalho, e só o plano atual marcado", async () => {
+      // a renovação de outro ano leva o ano
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date("2026-11-03T12:00:00-03:00"));
       const cobranca = { status: "active", plano: "padrao" as const, periodo: "anual" as const, periodoAtualFim: "2027-10-31", cancelaNoFim: false };
       const { unmount } = await montar(conta({ situacao: "ativo", plano: "padrao", cobranca }));
-      expect(screen.getByText("plano Padrão · anual · renova em 31/10")).toBeInTheDocument();
+      expect(screen.getByText("plano Padrão · anual · renova em 31/10/2027")).toBeInTheDocument();
       expect(within(cartao("Padrão")).getByText("Plano atual")).toBeInTheDocument();
       expect(screen.queryByRole("button", { name: /^Assinar/ })).not.toBeInTheDocument();
       unmount();
 
       await montar(conta({ situacao: "ativo", plano: "padrao", cobranca: { ...cobranca, cancelaNoFim: true } }));
-      expect(screen.getByText("plano Padrão · anual · termina em 31/10")).toBeInTheDocument();
+      expect(screen.getByText("plano Padrão · anual · termina em 31/10/2027")).toBeInTheDocument();
     });
 
     it("assinando no anual, o seletor e os preços começam no anual, também depois da volta da Stripe", async () => {
@@ -339,14 +343,15 @@ describe("AssinaturaPage", () => {
       expect(within(cartao("Padrão")).getByText("R$ 1.615,00")).toBeInTheDocument();
     });
 
-    it("sem os preços da Stripe, mostra os de referência, sem período, e o Assinar desligado", async () => {
+    it("sem os preços da Stripe, nenhum valor, sem período, e o Assinar desligado", async () => {
       precos.atuais = null;
       await montar(conta({ situacao: "teste" }));
       expect(screen.queryByRole("button", { name: "Anual" })).not.toBeInTheDocument();
       const assinar = within(cartao("Padrão")).getByRole("button", { name: "Assinar o Padrão" });
       expect(assinar).toBeDisabled();
       expect(assinar).toHaveAccessibleDescription("A assinatura pelo cartão ainda não está no ar.");
-      expect(within(cartao("Padrão")).getByText(PLANOS.find((p) => p.nome === "Padrão")!.preco)).toBeInTheDocument();
+      // os de lib/planos não valem mais (#296): sem a Stripe, nenhum R$ nos planos do teste
+      for (const nome of ["Essencial", "Padrão", "Avançado"]) expect(cartao(nome).textContent).not.toMatch(/R\$/);
       // com o cartão fora do ar, assinar segue sendo pela equipe, como na /plano de antes
       expect(screen.getByRole("link", { name: "Fale com a gente para assinar" })).toHaveAttribute(
         "href",
@@ -415,16 +420,19 @@ describe("AssinaturaPage", () => {
       expect(iniciarCheckout).toHaveBeenCalledWith("essencial", "anual");
     });
 
+    const SEM_TESTE = "A cobrança é feita agora.";
     it.each([
-      ["com menos de 48 horas de teste", () => conta({ situacao: "teste", ...fimEm(47) })],
-      ["com o teste encerrado", () => conta({ situacao: "teste_encerrado" })],
-    ])("%s, avisa que cobra agora antes de chamar", async (_, montarConta) => {
+      ["com menos de 48 horas de teste", () => conta({ situacao: "teste", ...fimEm(47) }), `${SEM_TESTE} Os dias de teste que sobraram não ficam para depois.`],
+      // sem teste em andamento, não há dias que sobraram
+      ["com o teste encerrado", () => conta({ situacao: "teste_encerrado" }), SEM_TESTE],
+      ["com a assinatura encerrada", () => conta({ situacao: "assinatura_encerrada" }), SEM_TESTE],
+    ])("%s, avisa que cobra agora antes de chamar", async (_, montarConta, aviso) => {
       const user = userEvent.setup();
       iniciarCheckout.mockResolvedValue({ ok: true, dados: { url: "https://checkout.stripe.com/x" } });
       await montar(montarConta());
       await user.click(within(cartao("Padrão")).getByRole("button", { name: "Assinar o Padrão" }));
       expect(iniciarCheckout).not.toHaveBeenCalled();
-      expect(within(cartao("Padrão")).getByText("A cobrança é feita agora. Os dias de teste que sobraram não ficam para depois.")).toBeInTheDocument();
+      expect(within(cartao("Padrão")).getByText(aviso)).toBeInTheDocument();
       await user.click(within(cartao("Padrão")).getByRole("button", { name: "Assinar e pagar agora" }));
       expect(iniciarCheckout).toHaveBeenCalledWith("padrao", "mensal");
     });

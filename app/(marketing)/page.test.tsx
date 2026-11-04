@@ -1,6 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { PLANOS } from "@/lib/planos";
 import { fonteDestaque } from "./fonte-destaque";
 import LandingPage from "./page";
 
@@ -455,12 +454,12 @@ describe("LandingPage", () => {
     expect(screen.getByText("Receba as divergências")).toBeInTheDocument();
   });
 
-  it("shows only the monthly price of the plan the guided ruler points to", () => {
+  it("shows no price, only the free trial, until the final prices are in the live catalogue (#302)", () => {
     render(<LandingPage />);
-    const preco = document.getElementById("preco")!;
-    // começa no Padrão; os outros preços só aparecem quando o medidor chega neles
-    expect(preco.textContent).toContain("R$ 79,90");
-    for (const plano of PLANOS.filter((p) => p.nome !== "Padrão")) expect(preco.textContent).not.toContain(plano.preco);
+    // só a régua: o resto da seção tem os exemplos da conciliação, com valores
+    const regua = document.querySelector(".regua-mede")!;
+    expect(regua.textContent).toContain("14 dias grátis");
+    expect(regua.textContent).not.toMatch(/R\$ ?\d/);
   });
 
   it("shows what comes in every plan as a trail of cards, with the page's own August in the demos", () => {

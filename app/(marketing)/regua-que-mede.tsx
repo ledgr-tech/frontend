@@ -23,8 +23,8 @@ import {
  * é o controle, a marca do plano indicado acende) e o plano numa folha de papel, como os cards de "Em
  * todo plano" no hover. "Começar com o …" guarda o plano para o /plano abrir nele depois do cadastro.
  *
- * shortcut: só o preço mensal; o período (mensal, anual, "ver outros planos") entra com o gateway e
- * os descontos dos sócios (#167).
+ * ponytail: sem preço, o teste grátis no lugar. Os preços entram lendo GET /assinatura/precos quando
+ * os definitivos estiverem no catálogo live da Stripe (#302); antes disso, a rota traz os provisórios.
  */
 export function ReguaQueMede() {
   const idMedidor = useId();
@@ -102,7 +102,8 @@ export function ReguaQueMede() {
             <p className="regua-mede-para">{detalhes.para}</p>
             {plano && (
               <p className="regua-mede-preco">
-                <span>{plano.preco}</span> <small>/mês</small>
+                {/* sem preço até os definitivos estarem no catálogo live da Stripe (#302): o teste grátis no lugar */}
+                <span>14 dias grátis</span> <small>sem cartão</small>
               </p>
             )}
             <ul className="regua-mede-itens">
@@ -125,7 +126,7 @@ export function ReguaQueMede() {
                 Fale com a gente
               </a>
             )}
-            <p className="regua-mede-rodape">{plano ? "14 dias grátis, sem cartão" : CONTATO}</p>
+            {!plano && <p className="regua-mede-rodape">{CONTATO}</p>}
           </div>
         </div>
       </section>

@@ -9,7 +9,7 @@ import NovaConciliacaoPage from "./page";
 import { lerBytes } from "./ler-arquivo";
 import { ProvedorDaConta } from "../../conta";
 import { ProvedorDaEmpresa } from "@/lib/empresa-ativa";
-import type { Assinatura } from "@/lib/assinatura";
+import type { Assinatura, PrecoDoPlano } from "@/lib/assinatura";
 
 const push = vi.fn();
 vi.mock("next/navigation", () => ({
@@ -28,6 +28,9 @@ vi.mock("../acoes", () => ({
 }));
 
 vi.mock("../../../../../(auth)/acoes", () => ({ salvarPreferencias: async () => true }));
+// os preços da Stripe que a tela de bloqueio mostra; null é a cobrança desligada
+const carregarPrecos = vi.fn(async (): Promise<PrecoDoPlano[] | null> => null);
+vi.mock("../../assinatura/acoes", () => ({ carregarPrecos: () => carregarPrecos() }));
 
 function montarComAssinatura(assinatura: Assinatura | null) {
   return render(
@@ -637,10 +640,24 @@ describe("NovaConciliacaoPage", () => {
   it("teste acabado: mostra os planos no lugar do envio", () => {
     montarComAssinatura({ situacao: "teste_encerrado", plano: "essencial", testeTerminaEm: "2026-10-01", fimDoTeste: null, cobranca: null });
     expect(screen.getByRole("heading", { name: "Seu teste de 14 dias acabou." })).toBeInTheDocument();
+    expect(screen.queryByText(/A franquia recomeça/)).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Extrato do banco")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Conciliar extratos" })).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Ver minhas conciliações" })).toHaveAttribute("href", "/dashboard");
-    expect(screen.getByRole("link", { name: "Assinar o Padrão" })).toHaveAttribute("href", "/assinatura");
+    // o cartão do plano na Assinatura
+    expect(screen.getByRole("link", { name: "Assinar o Padrão" })).toHaveAttribute("href", "/assinatura#plano-padrao");
+  });
+
+  it("com os preços da Stripe, o mensal de cada plano; sem eles, nenhum valor (#296)", async () => {
+    const mensal = (plano: PrecoDoPlano["plano"], valor: string): PrecoDoPlano => ({ plano, periodo: "mensal", centavos: 0, valor, porMes: null, desconto: null });
+    carregarPrecos.mockResolvedValueOnce([mensal("essencial", "R$ 149,00"), mensal("padrao", "R$ 299,00"), mensal("avancado", "R$ 599,00")]);
+    const { unmount } = montarComAssinatura({ situacao: "teste_encerrado", plano: "padrao", testeTerminaEm: "2026-10-01", fimDoTeste: null, cobranca: null });
+    expect(await screen.findByText(/^R\$ 299,00 \/mês · /)).toBeInTheDocument();
+    unmount();
+
+    montarComAssinatura({ situacao: "teste_encerrado", plano: "padrao", testeTerminaEm: "2026-10-01", fimDoTeste: null, cobranca: null });
+    await waitFor(() => expect(carregarPrecos).toHaveBeenCalledTimes(2));
+    expect(screen.getByRole("region", { name: "Seu teste de 14 dias acabou." }).textContent).not.toMatch(/R\$/);
   });
 
   it("assinatura encerrada: também bloqueia, com o título dela", () => {
@@ -657,6 +674,21 @@ describe("NovaConciliacaoPage", () => {
   it("em teste, o envio segue normal", () => {
     montarComAssinatura({ situacao: "teste", plano: "padrao", testeTerminaEm: "2026-10-29", fimDoTeste: null, cobranca: null });
     expect(screen.getByLabelText("Extrato do banco")).toBeInTheDocument();
+  });
+
+  it.each([
+    ["em teste", "teste" as const],
+    ["assinando", "ativo" as const],
+  ])("%s, o 402 é a franquia do mês, não o fim do teste (#295)", async (_, situacao) => {
+    conciliar.mockResolvedValue({ ok: false, status: 402, erro: "Sua conta chegou ao limite de conciliações do mês no plano Padrão." });
+    const user = userEvent.setup();
+    montarComAssinatura({ situacao, plano: "padrao", testeTerminaEm: null, fimDoTeste: null, cobranca: null });
+    await user.upload(screen.getByLabelText("Extrato do banco"), arquivo("banco.ofx"));
+    await user.upload(screen.getByLabelText("Extrato do sistema de gestão"), arquivo("sistema.csv"));
+    await user.click(screen.getByRole("button", { name: "Conciliar extratos" }));
+    expect(await screen.findByRole("heading", { name: "Sua conta chegou ao limite de conciliações deste mês." })).toBeInTheDocument();
+    expect(screen.getByText("Sua conta chegou ao limite de conciliações do mês no plano Padrão.")).toBeInTheDocument();
+    expect(screen.getByText("A franquia recomeça no dia 1º. Para conciliar antes, escolha um plano maior.")).toBeInTheDocument();
   });
 
   it("o backend recusou com 402: mostra os planos com o texto dele", async () => {

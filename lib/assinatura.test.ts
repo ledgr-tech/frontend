@@ -111,8 +111,13 @@ describe("assinatura", () => {
       expect(cobrancaImediata({ ...teste("2026-12-01T00:00:00Z"), situacao: "teste_encerrado" }, agora)).toBe(true);
     });
 
-    it("escreve o dia curto", () => {
-      expect(formatarDiaCurto("2026-12-14")).toBe("14/12");
+    it("escreve o dia curto, com o ano só fora do ano corrente em São Paulo", () => {
+      const agora = new Date("2026-11-03T12:00:00-03:00");
+      expect(formatarDiaCurto("2026-12-14", agora)).toBe("14/12");
+      expect(formatarDiaCurto("2027-11-03", agora)).toBe("03/11/2027");
+      // 31/12 às 22h em São Paulo já é 2027 em UTC: o ano que vale é o de São Paulo
+      expect(formatarDiaCurto("2027-01-03", new Date("2026-12-31T22:00:00-03:00"))).toBe("03/01/2027");
+      expect(formatarDiaCurto("2026-12-31", new Date("2026-12-31T22:00:00-03:00"))).toBe("31/12");
     });
   });
 
