@@ -24,6 +24,10 @@ describe("cenas do mockup", () => {
     }
     expect(cenas.janelaDeJustificativa).toContain("{{TEXTO}}");
     expect(cenas.janelaDeJustificativa).toMatch(/Justificar/);
+    // como o app: os dois valores da linha e a explicação com o selo da IA
+    expect(cenas.janelaDeJustificativa).toMatch(/3\.200,00/);
+    expect(cenas.janelaDeJustificativa).toMatch(/3\.020,00/);
+    expect(cenas.janelaDeJustificativa).toMatch(/Gerada por IA/);
     expect(cenas.barraDeCima).toContain("falta 1 dia");
   });
 
