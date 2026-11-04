@@ -80,6 +80,7 @@ describe("LandingPage", () => {
 
     for (const titulo of titulos) expect(titulo).toHaveClass("titulo-misto");
     expect(titulos.map((titulo) => [titulo.textContent, [...titulo.querySelectorAll("em")].map((em) => em.textContent)])).toEqual([
+      ["O sistema que você já usa, o mês que você já fecha.", ["o mês que você já fecha."]],
       ["Fechar o mês ainda é procurar linha por linha.", ["linha por linha."]],
       ["Três passos. A conferência linha por linha fica com o Ledgr.", ["com o Ledgr."]],
       ["Cada lançamento, do extrato ao seu sistema.", ["ao seu sistema."]],
@@ -113,6 +114,8 @@ describe("LandingPage", () => {
   });
 
   it("links each profile to its plan on the price ruler", () => {
+    // sem animação a régua vai direto ao plano; a corrida em si está em regua-que-mede.test.tsx
+    vi.stubGlobal("matchMedia", (consulta: string) => ({ matches: consulta.includes("reduce"), media: consulta }));
     const { container } = render(<LandingPage />);
     const secao = container.querySelector<HTMLElement>("#para-quem")!;
     const links = within(secao).getAllByRole("link", { name: "Ver o meu plano" });
@@ -180,7 +183,7 @@ describe("LandingPage", () => {
 
   it("counts the same five divergence categories the product reports", () => {
     render(<LandingPage />);
-    const prova = screen.getByText("categorias de divergência, sempre nomeadas").parentElement!;
+    const prova = screen.getByText("categorias de divergência, todas com nome").parentElement!;
     // por extenso, como os outros destaques da faixa
     expect(within(prova).getByText("Cinco")).toBeInTheDocument();
   });
@@ -219,11 +222,12 @@ describe("LandingPage", () => {
     const { container } = render(<LandingPage />);
     const faixa = within(secoes(container)[1]);
     // abre com o argumento do pitch; as credenciais continuam na FAQ e no rodapé
-    expect(faixa.getByText("sistemas para trocar: o Ledgr usa o que o seu sistema de gestão já exporta")).toBeInTheDocument();
+    expect(faixa.getByRole("heading", { name: "O sistema que você já usa, o mês que você já fecha." })).toBeInTheDocument();
+    expect(faixa.getByText("sistemas para trocar")).toBeInTheDocument();
     expect(faixa.queryByText(/credenciais bancárias/)).not.toBeInTheDocument();
     expect(screen.getByText(/não pede nenhuma credencial bancária\.$/)).toBeInTheDocument();
-    expect(faixa.getByText("para o relatório ficar pronto depois que você sobe os arquivos")).toBeInTheDocument();
-    expect(faixa.getByText("categorias de divergência, sempre nomeadas")).toBeInTheDocument();
+    expect(faixa.getByText("para o relatório ficar pronto")).toBeInTheDocument();
+    expect(faixa.getByText("categorias de divergência, todas com nome")).toBeInTheDocument();
     // por extenso: algarismo solto na faixa ficava com cara de letra
     expect([...faixa.getAllByText(/./, { selector: ".numero-destaque" })].map((valor) => valor.textContent)).toEqual([
       "Zero",
@@ -292,16 +296,15 @@ describe("LandingPage", () => {
     });
   });
 
-  it("ends the flow in Por dentro with the product video, which loads only near the screen", () => {
+  it("ends the flow in Por dentro with the app animation, which loads its screens only near the viewport", () => {
     const { container } = render(<LandingPage />);
-    const video = container.querySelector<HTMLVideoElement>("#por-dentro video")!;
-    expect(video).toHaveAttribute("src", "/landing/conciliacao.webm");
-    expect(video).toHaveAttribute("poster", "/landing/conciliacao-capa.webp");
-    expect(video).toHaveAttribute("preload", "none");
-    expect(video.muted).toBe(true);
-    expect(video).toHaveAttribute("controls");
-    expect(video).toHaveAccessibleName(/^Gravação do Ledgr/);
-    expect(within(container.querySelector<HTMLElement>("#por-dentro")!).getByText(/35 segundos, sem som$/)).toBeInTheDocument();
+    const secao = container.querySelector<HTMLElement>("#por-dentro")!;
+    expect(secao.querySelector("video")).toBeNull();
+    const quadro = secao.querySelector<HTMLElement>(".mockup-quadro")!;
+    expect(quadro).toHaveAccessibleName(/^Animação do Ledgr/);
+    // sem rolar até perto, as telas (HTML do app) ainda não vieram: só a abertura
+    expect(quadro.querySelector(".mockup-cena")).toBeNull();
+    expect(within(secao).getByText(/animação de cerca de 40 segundos$/)).toBeInTheDocument();
   });
 
   it("shows the app screen under the hero, with line #1082 highlighted, as a showcase that is not clickable", () => {

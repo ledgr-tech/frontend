@@ -6,6 +6,7 @@ import {
   ArrowLeftRight,
   CalendarCheck,
   ChevronsUpDown,
+  Building2,
   CreditCard,
   Files,
   History,
@@ -50,6 +51,7 @@ const MENU: [string, LucideIcon][] = [
   ["Conciliações", ArrowLeftRight],
   ["Fechamentos", CalendarCheck],
   ["Histórico", History],
+  ["Empresas", Building2],
   ["Assinatura", CreditCard],
 ];
 const ICONE = { size: 18, strokeWidth: 1.5, "aria-hidden": true } as const;
@@ -92,6 +94,53 @@ const LINHAS = (Object.entries(PENDENTES) as [Divergencia, number][]).flatMap(([
   linhasDe(status, quantidade),
 );
 
+/** O menu lateral da réplica (também o do mockup do vídeo); `ativo` é o item aceso. */
+export function MenuDaVitrine({ ativo, empresa = EMPRESA, conta = "Financeiro", iniciais = "FI" }: { ativo: string; empresa?: string; conta?: string; iniciais?: string }) {
+  return (
+    <div className="vitrine-menu">
+      <span className="vitrine-marca">
+        <LogoBarras className="app-logo" />
+        Ledgr
+      </span>
+      <span className="vitrine-item vitrine-nova">
+        <Plus {...ICONE} />
+        Nova conciliação
+      </span>
+      <div className="vitrine-nav">
+        {MENU.map(([nome, Icone]) => (
+          <span key={nome} className="vitrine-item" data-ativo={nome === ativo || undefined}>
+            <Icone {...ICONE} />
+            {nome}
+          </span>
+        ))}
+      </div>
+      <div className="vitrine-assistente">
+        <Image
+          src="/mascotes/mascote-chatbot.png"
+          alt=""
+          width={1254}
+          height={1254}
+          sizes="36px"
+          className="app-assistente-mascote"
+        />
+        <span className="app-assistente-texto">
+          <span className="app-assistente-chamada">Assistente</span>
+          <span className="app-assistente-titulo">Fale com o Ledgr</span>
+          <span className="app-assistente-detalhe">O mês e como usar o app</span>
+        </span>
+      </div>
+      <div className="vitrine-conta">
+        <span className="app-conta-iniciais">{iniciais}</span>
+        <span className="vitrine-conta-texto">
+          <span className="app-conta-nome">{conta}</span>
+          <span className="app-conta-empresa">{empresa}</span>
+        </span>
+        <ChevronsUpDown {...ICONE} size={15} className="vitrine-conta-seta" />
+      </div>
+    </div>
+    );
+}
+
 export function Vitrine({
   banco,
   sistema,
@@ -128,49 +177,7 @@ export function Vitrine({
           <span />
         </div>
         <div className="vitrine-app" style={escala ? { zoom: escala, width: compacta ? LARGURA_COMPACTA : undefined } : undefined}>
-          {!compacta && (
-          <div className="vitrine-menu">
-            <span className="vitrine-marca">
-              <LogoBarras className="app-logo" />
-              Ledgr
-            </span>
-            <span className="vitrine-item vitrine-nova">
-              <Plus {...ICONE} />
-              Nova conciliação
-            </span>
-            <div className="vitrine-nav">
-              {MENU.map(([nome, Icone]) => (
-                <span key={nome} className="vitrine-item" data-ativo={nome === "Conciliações" || undefined}>
-                  <Icone {...ICONE} />
-                  {nome}
-                </span>
-              ))}
-            </div>
-            <div className="vitrine-assistente">
-              <Image
-                src="/mascotes/mascote-chatbot.png"
-                alt=""
-                width={1254}
-                height={1254}
-                sizes="36px"
-                className="app-assistente-mascote"
-              />
-              <span className="app-assistente-texto">
-                <span className="app-assistente-chamada">Assistente</span>
-                <span className="app-assistente-titulo">Fale com o Ledgr</span>
-                <span className="app-assistente-detalhe">O mês e como usar o app</span>
-              </span>
-            </div>
-            <div className="vitrine-conta">
-              <span className="app-conta-iniciais">FI</span>
-              <span className="vitrine-conta-texto">
-                <span className="app-conta-nome">Financeiro</span>
-                <span className="app-conta-empresa">{EMPRESA}</span>
-              </span>
-              <ChevronsUpDown {...ICONE} size={15} className="vitrine-conta-seta" />
-            </div>
-          </div>
-          )}
+          {!compacta && <MenuDaVitrine ativo="Conciliações" />}
 
           <div className="vitrine-principal">
             <div className="vitrine-topo">

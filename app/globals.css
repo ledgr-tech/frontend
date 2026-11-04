@@ -1362,6 +1362,72 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
   width: var(--cartao-largura); margin-left: calc(var(--cartao-largura) / -2); text-align: left;
 }
 .vitrine-app .cartao-lancamento { animation: none; }
+/* o mockup do vídeo (app/(marketing)/mockup-demo.tsx): a réplica de 1280×940 encolhida por transform
+   dentro de um quadro de 1280×940, com as telas reais do app trocando por dentro */
+.mockup-quadro { position: relative; aspect-ratio: 1280 / 940; overflow: hidden; background: var(--color-bg); }
+.mockup-app { position: absolute; top: 0; left: 0; transform-origin: 0 0; }
+/* a margem lateral do app (--recuo-lateral) vem do .app-principal, que a moldura da vitrine não usa */
+.mockup-principal { --recuo-lateral: 40px; display: flex; flex-direction: column; min-height: 0; }
+.mockup-visor { position: relative; flex: 1; min-height: 0; overflow: hidden; }
+.mockup-cena { transition: transform 0.9s cubic-bezier(0.22, 1, 0.36, 1); animation: mockup-entra 0.4s ease both; }
+@keyframes mockup-entra { from { opacity: 0; } }
+/* a janela de justificar, sobre a tela escurecida e borrada, como o <dialog> do app */
+.mockup-veu {
+  position: absolute; inset: 0; z-index: 80; display: none; align-items: center; justify-content: center;
+  background: rgb(32 31 29 / 0.32); backdrop-filter: blur(3px);
+}
+.mockup-veu[data-aberto] { display: flex; animation: mockup-entra 0.25s ease both; }
+.mockup-veu dialog { position: relative; inset: auto; display: block; margin: 0; }
+.mockup-cursor {
+  position: absolute; top: 0; left: 0; z-index: 90; pointer-events: none; opacity: 0; overflow: visible;
+  transition: transform 1s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.3s;
+  filter: drop-shadow(0 2px 3px rgb(32 31 29 / 0.28));
+}
+.mockup-cursor[data-visivel] { opacity: 1; }
+.mockup-clique { fill: var(--color-accent); opacity: 0; transform-origin: 2px 2px; animation: mockup-clique 0.55s ease-out; }
+@keyframes mockup-clique { from { opacity: 0.55; transform: scale(0.15); } to { opacity: 0; transform: scale(1); } }
+/* a abertura: logo, título e uma linha, sobre o papel da faixa clara */
+.mockup-intro {
+  position: absolute; inset: 0; z-index: 100; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 18px; text-align: center; padding: 0 8%;
+  background: var(--grao-claro) var(--faixa-clara);
+  opacity: 0; visibility: hidden; transition: opacity 0.7s ease, visibility 0s linear 0.7s;
+}
+.mockup-intro[data-aberta] { opacity: 1; visibility: visible; transition: opacity 0.4s ease; }
+.mockup-intro[data-aberta] > * { animation: mockup-sobe 0.9s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.mockup-intro[data-aberta] > :nth-child(2) { animation-delay: 0.25s; }
+.mockup-intro[data-aberta] > :nth-child(3) { animation-delay: 0.6s; }
+@keyframes mockup-sobe { from { opacity: 0; transform: translateY(18px); } }
+.mockup-intro-logo { width: 54px; height: auto; }
+.mockup-intro-titulo { margin: 0; font-size: clamp(26px, 4.6vw, 58px); line-height: 1.1; max-width: 18ch; }
+.mockup-intro-sub { margin: 0; font-size: clamp(12px, 1.4vw, 17px); color: var(--color-neutral-300); letter-spacing: 0.02em; }
+/* Fechamentos: no app o painel do mês é preso e rola por dentro (altura da janela do navegador); no mockup
+   ele abre inteiro, e a cena encolhe para caber na janela */
+.mockup-cena .extrato-painel { position: static; max-height: none; overflow: visible; }
+.mockup-cena[data-cena="fechamentos"] { zoom: 0.82; }
+/* o encerramento: os três passos caem um a um, com o back.out das demais animações */
+.mockup-fim-passos { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
+.mockup-fim-passos li {
+  display: flex; align-items: center; gap: 10px; padding: 10px 18px 10px 10px; border-radius: 999px;
+  background: var(--color-surface); border: 1px solid var(--color-divider); font-size: clamp(12px, 1.5vw, 18px);
+  box-shadow: 0 8px 22px -14px rgb(45 35 20 / 0.45);
+}
+.mockup-fim-passos li span {
+  display: grid; place-items: center; width: 1.9em; height: 1.9em; border-radius: 50%;
+  background: var(--color-accent); color: #fff; font-weight: 600; font-variant-numeric: tabular-nums;
+}
+.mockup-fim[data-aberta] .mockup-fim-passos { animation: none; }
+.mockup-fim[data-aberta] .mockup-fim-passos li {
+  animation: mockup-cai 0.85s cubic-bezier(0.34, 1.56, 0.64, 1) both; animation-delay: calc(0.7s + var(--i) * 0.28s);
+}
+@keyframes mockup-cai { from { opacity: 0; transform: translateY(-34px) scale(0.8); } }
+@media (prefers-reduced-motion: reduce) {
+  .mockup-cena[data-cena="fechamentos"] { zoom: 0.82; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mockup-intro { display: none; }
+  .mockup-cena, .mockup-veu[data-aberto] { animation: none; }
+}
 /* a demonstração de "O problema" (comparacao.tsx): a mesma tabela, com o cartão preso à linha
    como na réplica. Ele sobe ao abrir, menos quando o ponteiro vem direto de outra linha */
 .demonstracao-folhas .table tbody .celula-status { position: relative; }
@@ -1438,7 +1504,19 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
   .rodape-rede { transition: none; }
   .rodape-rede:hover, .rodape-rede:focus-visible { transform: none; }
 }
-.numeros-grade { --grade-recuo: 28px; --grade-linha: color-mix(in srgb, var(--color-neutral-100) 22%, transparent); }
+/* a faixa escura "em números": o título à esquerda e, à direita, os três números em lista, cada um com
+   um filete em cima e o último também embaixo */
+.numeros-dois { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: clamp(28px, 6vw, 96px); align-items: center; }
+.numeros-titulo { margin: 0; font-size: clamp(32px, 3.4vw, 48px); color: var(--color-neutral-100); text-wrap: balance; }
+.numeros-titulo em { color: var(--color-accent); }
+.numeros-grade { --grade-linha: color-mix(in srgb, var(--color-neutral-100) 22%, transparent); display: grid; }
+.numeros-item {
+  display: grid; grid-template-columns: minmax(110px, 150px) minmax(0, 1fr); align-items: baseline; gap: 16px;
+  padding-block: 16px; border-top: 1px solid var(--grade-linha);
+}
+.numeros-item:last-child { border-bottom: 1px solid var(--grade-linha); }
+.numeros-item .numero-destaque { font-size: 34px; font-weight: 400; line-height: 1; color: var(--color-neutral-100); }
+.numeros-rotulo { font-size: 15px; line-height: 1.6; color: var(--color-neutral-400); }
 .passos-grade { --grade-recuo: 30px; }
 .passos-grade > * { padding-block: 30px; }
 
@@ -1746,14 +1824,17 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
 .regua-mede-valor output { font-size: clamp(60px, 7vw, 92px); line-height: 1; color: var(--color-accent); }
 .regua-mede-valor span { font-size: 15px; color: var(--color-neutral-300); }
 .regua-mede-controle { -webkit-appearance: none; appearance: none; width: 100%; height: 30px; margin: 0; background: none; cursor: pointer; }
+/* 2px e não 1px: com o zoom do navegador abaixo de 100%, 1px de CSS vale menos de um pixel da tela e o
+   traço some conforme a posição vertical, que muda com a altura da folha do plano (em 200 ele sumia).
+   Com 2px sobra sempre pelo menos um pixel da tela. */
 .regua-mede-controle::-webkit-slider-runnable-track {
-  height: 1px;
+  height: 2px; border-radius: 1px;
   background: linear-gradient(90deg, var(--color-accent) var(--cheio, 33%), color-mix(in srgb, var(--color-neutral-300) 30%, transparent) var(--cheio, 33%));
 }
-.regua-mede-controle::-moz-range-track { height: 1px; background: color-mix(in srgb, var(--color-neutral-300) 30%, transparent); }
-.regua-mede-controle::-moz-range-progress { height: 1px; background: var(--color-accent); }
+.regua-mede-controle::-moz-range-track { height: 2px; border-radius: 1px; background: color-mix(in srgb, var(--color-neutral-300) 30%, transparent); }
+.regua-mede-controle::-moz-range-progress { height: 2px; border-radius: 1px; background: var(--color-accent); }
 .regua-mede-controle::-webkit-slider-thumb {
-  -webkit-appearance: none; width: 3px; height: 28px; margin-top: -14px; border-radius: 2px; background: var(--color-accent-300);
+  -webkit-appearance: none; width: 3px; height: 28px; margin-top: -13px; border-radius: 2px; background: var(--color-accent-300);
   box-shadow: 0 0 0 7px color-mix(in srgb, var(--color-accent) 22%, transparent);
 }
 .regua-mede-controle::-moz-range-thumb { width: 3px; height: 28px; border: 0; border-radius: 2px; background: var(--color-accent-300); }
@@ -1903,9 +1984,8 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
   .grade-colunas { grid-template-columns: minmax(0, 1fr); }
   .grade-colunas > * { padding-inline: 0; }
   .grade-colunas > * + * { border-left: none; border-top: 1px solid var(--grade-linha, var(--color-divider)); }
-  .numeros-grade > * { padding-block: 22px; }
-  .numeros-grade > :first-child { padding-top: 0; }
-  .numeros-grade > :last-child { padding-bottom: 0; }
+  .numeros-dois { grid-template-columns: minmax(0, 1fr); }
+  .numeros-item { grid-template-columns: minmax(0, 1fr); gap: 4px; }
   .passos-grade > * { padding-block: 24px; }
 
   /* imagens de fundo e mascotes menores, para acompanharem a coluna */
@@ -1921,7 +2001,6 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
   .regra-card { grid-template-columns: 1fr !important; row-gap: 12px; padding: 30px 22px !important; }
   .regra-icon { font-size: 56px !important; }
   .regra-icon-mirror { display: none; }
-  .numeros-marca { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -2550,9 +2629,6 @@ html[data-tema="escuro"] .app-shell {
 .tabela-folhas tbody tr[data-situacao="conferida"] > td:not(.celula-status) {
   color: color-mix(in srgb, var(--color-text) 70%, transparent);
 }
-/* o que bateu fica quieto, sem selo: só o que pede revisão ganha cor. Os 70% (e não o
-   --texto-apagado) seguram 4,5:1 sobre a página e sobre a folha cinza do sistema. */
-.status-batido { font-size: 12.5px; color: color-mix(in srgb, var(--color-text) 70%, transparent); }
 /* o campo errado, em vermelho em toda divergência (a data ou o valor): o olho acha de longe
    tudo o que falta resolver, seja qual for o tom do selo */
 .tabela-folhas tbody tr > td[data-diverge] { color: var(--color-risco-700); }
@@ -4227,7 +4303,7 @@ html:not([data-densidade="padrao"]) .app-shell .selo { padding-block: 1px; }
 }
 /* os filtros e, logo ao lado, quantas das linhas em revisão já foram conferidas */
 .tabela-filtros { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
-/* 70%, como o .status-batido: os 62% davam 4,48:1 sobre a página, abaixo dos 4,5 */
+/* 70%, como o texto apagado das linhas conferidas: os 62% davam 4,48:1 sobre a página, abaixo dos 4,5 */
 .tabela-progresso {
   font-size: 13.5px; font-variant-numeric: tabular-nums;
   color: color-mix(in srgb, var(--color-text) 70%, transparent);
