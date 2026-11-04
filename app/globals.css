@@ -4353,7 +4353,8 @@ html:not([data-densidade="padrao"]) .app-shell .selo { padding-block: 1px; }
   transition: background-color 150ms ease, box-shadow 150ms ease, border-color 150ms ease;
 }
 .pill:hover { background: var(--tinta-hover); }
-.pill[aria-pressed="true"] {
+a.pill { text-decoration: none; }
+.pill[aria-pressed="true"], .pill[aria-current="page"] {
   border-color: color-mix(in srgb, var(--color-text) 30%, transparent);
   background: var(--tinta-ativa); font-weight: 500;
 }
@@ -4368,7 +4369,7 @@ html:not([data-densidade="padrao"]) .app-shell .selo { padding-block: 1px; }
   border: none; border-radius: var(--radius-sm); padding: 5px 13px; background: transparent;
 }
 .segmentado .pill:hover { background: var(--tinta-hover); }
-.segmentado .pill[aria-pressed="true"] {
+.segmentado .pill[aria-pressed="true"], .segmentado .pill[aria-current="page"] {
   background: var(--superficie-elevada); box-shadow: var(--shadow-sm); font-weight: 500;
 }
 
