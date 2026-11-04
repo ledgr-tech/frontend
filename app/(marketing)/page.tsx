@@ -30,14 +30,14 @@ const AGOSTO: ResumoDoMes = {
   paraRevisar: `157 de ${LANCAMENTOS_DE_AGOSTO.toLocaleString("pt-BR")} para revisar`,
 };
 
-// A faixa logo abaixo do hero, só com o que é quantidade, e por extenso: algarismo solto em
-// tamanho grande ficava com cara de letra. Abre com o argumento central do pitch (não trocar de
-// sistema); o zero de credenciais bancárias continua na FAQ e no rodapé. "Alto volume" e
-// "Automático" não eram número.
+// A faixa logo abaixo do hero: o título diz o assunto e a lista é a prova, só com o que é quantidade,
+// e por extenso (algarismo solto em tamanho grande ficava com cara de letra). Abre com o argumento
+// central do pitch (não trocar de sistema); o zero de credenciais bancárias continua na FAQ e no
+// rodapé. Rótulos curtos e do mesmo tamanho, para a lista ler como uma coisa só.
 const NUMEROS = [
-  { valor: "Zero", rotulo: "sistemas para trocar: o Ledgr usa o que o seu sistema de gestão já exporta" },
-  { valor: "Minutos", rotulo: "para o relatório ficar pronto depois que você sobe os arquivos" },
-  { valor: QUANTAS_CATEGORIAS, rotulo: "categorias de divergência, sempre nomeadas" },
+  { valor: "Zero", rotulo: "sistemas para trocar" },
+  { valor: "Minutos", rotulo: "para o relatório ficar pronto" },
+  { valor: QUANTAS_CATEGORIAS, rotulo: "categorias de divergência, todas com nome" },
 ];
 
 // ponytail: as `explicacao` desta demonstração são no estilo da IA, que estará
@@ -274,64 +274,26 @@ export default function LandingPage() {
         <Hero banco={EXTRATO_BANCO} sistema={EXTRATO_SISTEMA} />
       </section>
 
-      {/* em números */}
+      {/* em números: o título diz o assunto e os três números vêm como prova, em lista (modelo I, decidido em 04/11) */}
       <section
         className="onda onda-papel grao"
-        style={{
-          position: "relative",
-          overflow: "hidden",
-          backgroundColor: "var(--faixa-escura)",
-        }}
+        style={{ position: "relative", overflow: "hidden", backgroundColor: "var(--faixa-escura)" }}
       >
-        {/* marca em traço fino, cortada na borda esquerda */}
-        <svg
-          aria-hidden="true"
-          className="numeros-marca"
-          viewBox="0 0 2000 1627"
-          fill="none"
-          style={{
-            position: "absolute",
-            top: -50,
-            left: -80,
-            width: "clamp(220px, 22vw, 380px)",
-            height: "auto",
-            color: "var(--color-accent-700)",
-            opacity: 0.15,
-            pointerEvents: "none",
-          }}
-        >
-          <g stroke="currentColor" strokeWidth={3}>
-            <rect x="60" y="43" width="1162" height="463" rx="231.5" vectorEffect="non-scaling-stroke" />
-            <rect x="76" y="560" width="1896" height="463" rx="231.5" vectorEffect="non-scaling-stroke" />
-            <rect x="43" y="1060" width="1629" height="463" rx="231.5" vectorEffect="non-scaling-stroke" />
-          </g>
-        </svg>
         <div style={{ position: "relative", maxWidth: 1600, margin: "0 auto", padding: "clamp(52px, 7vw, 72px) clamp(20px, 4.2vw, 56px)" }}>
-          <div className="grade-colunas numeros-grade">
-            {NUMEROS.map((numero, i) => (
-              <Reveal
-                key={numero.rotulo}
-                delay={i * 0.08}
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 10,
-                }}
-              >
-                <span
-                  className="numero-destaque"
-                  style={{
-                    fontSize: "clamp(36px, 3.4vw, 46px)",
-                    fontWeight: 400,
-                    lineHeight: 1,
-                    color: "var(--color-neutral-100)",
-                  }}
-                >
-                  {numero.valor}
-                </span>
-                <span style={{ fontSize: 14, lineHeight: 1.6, color: "var(--color-neutral-400)" }}>{numero.rotulo}</span>
-              </Reveal>
-            ))}
+          <div className="numeros-dois">
+            <Reveal>
+              <h2 className="titulo-misto numeros-titulo">
+                <span style={{ display: "block" }}>O sistema que você já usa,</span> <em>o mês que você já fecha.</em>
+              </h2>
+            </Reveal>
+            <div className="numeros-grade">
+              {NUMEROS.map((numero, i) => (
+                <Reveal key={numero.rotulo} delay={0.1 + i * 0.08} className="numeros-item">
+                  <span className="numero-destaque">{numero.valor}</span>
+                  <span className="numeros-rotulo">{numero.rotulo}</span>
+                </Reveal>
+              ))}
+            </div>
           </div>
         </div>
       </section>

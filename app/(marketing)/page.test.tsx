@@ -80,6 +80,7 @@ describe("LandingPage", () => {
 
     for (const titulo of titulos) expect(titulo).toHaveClass("titulo-misto");
     expect(titulos.map((titulo) => [titulo.textContent, [...titulo.querySelectorAll("em")].map((em) => em.textContent)])).toEqual([
+      ["O sistema que você já usa, o mês que você já fecha.", ["o mês que você já fecha."]],
       ["Fechar o mês ainda é procurar linha por linha.", ["linha por linha."]],
       ["Três passos. A conferência linha por linha fica com o Ledgr.", ["com o Ledgr."]],
       ["Cada lançamento, do extrato ao seu sistema.", ["ao seu sistema."]],
@@ -182,7 +183,7 @@ describe("LandingPage", () => {
 
   it("counts the same five divergence categories the product reports", () => {
     render(<LandingPage />);
-    const prova = screen.getByText("categorias de divergência, sempre nomeadas").parentElement!;
+    const prova = screen.getByText("categorias de divergência, todas com nome").parentElement!;
     // por extenso, como os outros destaques da faixa
     expect(within(prova).getByText("Cinco")).toBeInTheDocument();
   });
@@ -221,11 +222,12 @@ describe("LandingPage", () => {
     const { container } = render(<LandingPage />);
     const faixa = within(secoes(container)[1]);
     // abre com o argumento do pitch; as credenciais continuam na FAQ e no rodapé
-    expect(faixa.getByText("sistemas para trocar: o Ledgr usa o que o seu sistema de gestão já exporta")).toBeInTheDocument();
+    expect(faixa.getByRole("heading", { name: "O sistema que você já usa, o mês que você já fecha." })).toBeInTheDocument();
+    expect(faixa.getByText("sistemas para trocar")).toBeInTheDocument();
     expect(faixa.queryByText(/credenciais bancárias/)).not.toBeInTheDocument();
     expect(screen.getByText(/não pede nenhuma credencial bancária\.$/)).toBeInTheDocument();
-    expect(faixa.getByText("para o relatório ficar pronto depois que você sobe os arquivos")).toBeInTheDocument();
-    expect(faixa.getByText("categorias de divergência, sempre nomeadas")).toBeInTheDocument();
+    expect(faixa.getByText("para o relatório ficar pronto")).toBeInTheDocument();
+    expect(faixa.getByText("categorias de divergência, todas com nome")).toBeInTheDocument();
     // por extenso: algarismo solto na faixa ficava com cara de letra
     expect([...faixa.getAllByText(/./, { selector: ".numero-destaque" })].map((valor) => valor.textContent)).toEqual([
       "Zero",
