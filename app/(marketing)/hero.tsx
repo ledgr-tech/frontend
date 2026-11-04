@@ -16,9 +16,6 @@ import { Cena } from "./cena";
 import type { LinhaExtrato } from "./comparacao";
 import { Vitrine } from "./vitrine";
 
-// A curva de sempre do guia (os adesivos usam uma mola, no próprio componente).
-const SUAVE = [0.22, 1, 0.36, 1] as const;
-
 const LINHA_1 = "Pare de conciliar";
 const LINHA_2 = "extrato";
 const DESTAQUE = "à mão.";
@@ -26,6 +23,8 @@ const TITULO = `${LINHA_1} ${LINHA_2} ${DESTAQUE}`;
 
 // O título entra letra por letra; o resto espera ele terminar, para não chegar tudo junto
 // (o colega achou o primeiro corte "carregando muita coisa ao mesmo tempo").
+// As entradas são CSS (kin-entra-* no globals.css), não motion: com motion, o texto saía do servidor
+// com opacity:0 e só aparecia depois do JavaScript (no celular, ~4 s medidos em 04/11).
 const PASSO_DA_LETRA = 0.024;
 const LETRAS = (LINHA_1 + LINHA_2 + DESTAQUE).replaceAll(" ", "").length;
 // as letras começam logo depois do rótulo "Cap. I": a página real já gasta um tempo montando o React,
@@ -35,6 +34,9 @@ const FIM_DO_TITULO = INICIO_DAS_LETRAS + LETRAS * PASSO_DA_LETRA + 0.6;
 
 /** Giro de cada letra na entrada, entre -10° e 10°: fixo por posição, para o servidor e o navegador baterem. */
 const giro = (n: number) => ((n * 37) % 21) - 10;
+
+/** O atraso da entrada, lido pelo CSS. */
+const atraso = (segundos: number) => ({ "--atraso": `${segundos}s` }) as CSSProperties;
 
 /** As letras de um trecho, cada uma subindo da linha de base. `inicio` é a posição da primeira no título. */
 function Letras({ texto, inicio }: { texto: string; inicio: number }) {
@@ -46,16 +48,14 @@ function Letras({ texto, inicio }: { texto: string; inicio: number }) {
         {[...palavra].map((letra, i) => {
           const posicao = n++;
           return (
-            <m.span
+            <span
               key={i}
               className="kin-l"
               data-reveal
-              initial={{ opacity: 0, y: "110%", rotate: giro(posicao) }}
-              animate={{ opacity: 1, y: "0%", rotate: 0 }}
-              transition={{ duration: 0.8, delay: INICIO_DAS_LETRAS + posicao * PASSO_DA_LETRA, ease: [0.34, 1.3, 0.64, 1] }}
+              style={{ ...atraso(INICIO_DAS_LETRAS + posicao * PASSO_DA_LETRA), "--giro": `${giro(posicao)}deg` } as CSSProperties}
             >
               {letra}
-            </m.span>
+            </span>
           );
         })}
       </span>
@@ -77,7 +77,7 @@ function Adesivo({
   profundidade,
   mouse,
   rolagem,
-  atraso,
+  espera,
   children,
 }: {
   classe: string;
@@ -89,7 +89,7 @@ function Adesivo({
   profundidade: number;
   mouse: MotionValue<number>;
   rolagem: MotionValue<number>;
-  atraso: number;
+  espera: number;
   children: ReactNode;
 }) {
   const reduzido = useReducedMotion();
@@ -98,26 +98,28 @@ function Adesivo({
   return (
     <m.span className="kin-adesivo-lugar" aria-hidden="true" style={{ ...posicao, ...(reduzido ? {} : { x, y }) }}>
       <span className="kin-flutua">
-        <m.span
-          className={`kin-adesivo ${classe}`}
+        <span
+          className={`kin-adesivo kin-adesivo-solto ${classe}`}
           data-reveal
-          initial={{ opacity: 0, scale: 0, rotate: inclinacao + (inclinacao > 0 ? -30 : 30) }}
-          animate={{ opacity: 1, scale: 1, rotate: inclinacao }}
-          transition={{ type: "spring", bounce: 0.55, duration: 0.9, delay: atraso }}
+          style={{
+            ...atraso(espera),
+            "--inclinacao": `${inclinacao}deg`,
+            "--inclinacao-antes": `${inclinacao + (inclinacao > 0 ? -30 : 30)}deg`,
+          } as CSSProperties}
         >
           {children}
-        </m.span>
+        </span>
       </span>
     </m.span>
   );
 }
 
 /** Um bloco da faixa de baixo (o texto, o botão), subindo depois do título. */
-function Sobe({ atraso, children }: { atraso: number; children: ReactNode }) {
+function Sobe({ espera, children }: { espera: number; children: ReactNode }) {
   return (
-    <m.div data-reveal initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: atraso, ease: SUAVE }}>
+    <div className="kin-sobe-bloco" data-reveal style={atraso(espera)}>
       {children}
-    </m.div>
+    </div>
   );
 }
 
@@ -154,9 +156,9 @@ export function Hero({ banco, sistema }: { banco: LinhaExtrato[]; sistema: Linha
           mouse.set((evento.clientX - caixa.left) / caixa.width - 0.5);
         }}
       >
-        <m.p className="eyebrow kin-olho" data-reveal initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: SUAVE }}>
+        <p className="eyebrow kin-olho" data-reveal>
           Cap. I · O fechamento do mês
-        </m.p>
+        </p>
         <h1 className="kin-titulo">
           <span className="sr-only">{TITULO}</span>
           <m.span className="kin-linha" aria-hidden="true" style={reduzido ? undefined : { x: abreLinha1 }}>
@@ -169,23 +171,10 @@ export function Hero({ banco, sistema }: { banco: LinhaExtrato[]; sistema: Linha
                 <Letras texto={DESTAQUE} inicio={(LINHA_1 + LINHA_2).replaceAll(" ", "").length} />
               </em>
               {/* sublinhado, e não risco: riscado, o título lia "Pare de conciliar extrato com o Ledgr" */}
-              <m.span
-                className="kin-sublinhado"
-                data-reveal
-                initial={{ scaleX: 0 }}
-                animate={{ scaleX: 1 }}
-                transition={{ duration: 0.45, delay: FIM_DO_TITULO + 0.75, ease: [0.65, 0, 0.35, 1] }}
-              />
-              <m.span
-                className="kin-adesivo kin-adesivo-tinta"
-                style={{ rotate: -6 }}
-                data-reveal
-                initial={{ opacity: 0, scale: 2.6 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.55, delay: FIM_DO_TITULO + 1.15, ease: [0.34, 2, 0.64, 1] }}
-              >
+              <span className="kin-sublinhado" data-reveal style={atraso(FIM_DO_TITULO + 0.75)} />
+              <span className="kin-adesivo kin-adesivo-tinta" data-reveal style={atraso(FIM_DO_TITULO + 1.15)}>
                 O Ledgr confere por você.
-              </m.span>
+              </span>
             </span>
           </m.span>
         </h1>
@@ -197,7 +186,7 @@ export function Hero({ banco, sistema }: { banco: LinhaExtrato[]; sistema: Linha
           profundidade={1.2}
           mouse={mouse}
           rolagem={rolagem}
-          atraso={FIM_DO_TITULO + 0.35}
+          espera={FIM_DO_TITULO + 0.35}
         >
           <Check size="0.9em" strokeWidth={3} aria-hidden="true" />
           Conciliado
@@ -210,18 +199,18 @@ export function Hero({ banco, sistema }: { banco: LinhaExtrato[]; sistema: Linha
           profundidade={2}
           mouse={mouse}
           rolagem={rolagem}
-          atraso={FIM_DO_TITULO + 0.49}
+          espera={FIM_DO_TITULO + 0.49}
         >
           Valor diverge
         </Adesivo>
         <div className="kin-base">
-          <Sobe atraso={FIM_DO_TITULO + 1.45}>
+          <Sobe espera={FIM_DO_TITULO + 1.45}>
             <p className="kin-texto">
               Continue no sistema de gestão que você já usa. Suba o extrato do banco e o do sistema: em minutos o Ledgr
               confere linha por linha e aponta só o que não bate, com o motivo de cada diferença.
             </p>
           </Sobe>
-          <Sobe atraso={FIM_DO_TITULO + 1.55}>
+          <Sobe espera={FIM_DO_TITULO + 1.55}>
             <Link href="/cadastro" className="btn btn-primary" style={{ fontSize: 15.5, padding: "14px 26px" }}>
               Começar agora
             </Link>

@@ -339,7 +339,7 @@ export default function LandingPage() {
           aria-hidden="true"
           width={1000}
           height={1000}
-          sizes="480px"
+          sizes="(max-width: 760px) 280px, 480px"
           className="como-marca"
           style={{ position: "absolute", bottom: -170, left: -70, width: 480, height: "auto", opacity: 0.04, pointerEvents: "none" }}
         />
@@ -368,7 +368,7 @@ export default function LandingPage() {
                 height={1000}
                 // o mesmo sizes da marca d'água desta seção: as duas pegam a mesma largura do srcset,
                 // e a imagem baixa uma vez só
-                sizes="480px"
+                sizes="(max-width: 760px) 280px, 480px"
                 className="como-mascote"
                 style={{ flex: "none", width: 240, height: "auto" }}
               />
@@ -553,7 +553,7 @@ export default function LandingPage() {
           aria-hidden="true"
           width={1000}
           height={1000}
-          sizes="480px"
+          sizes="(max-width: 760px) 280px, 480px"
           className="perguntas-marca"
           style={{ position: "absolute", bottom: 20, right: 24, width: 480, height: "auto", opacity: 0.04, pointerEvents: "none" }}
         />
@@ -566,7 +566,7 @@ export default function LandingPage() {
                 width={1000}
                 height={1000}
                 // o mesmo sizes da marca d'água desta seção, para a imagem baixar uma vez só
-                sizes="480px"
+                sizes="(max-width: 760px) 280px, 480px"
                 className="perguntas-mascote"
                 style={{ width: 180, height: "auto", display: "block" }}
               />
@@ -627,7 +627,7 @@ export default function LandingPage() {
           aria-hidden="true"
           width={1000}
           height={1000}
-          sizes="480px"
+          sizes="(max-width: 760px) 300px, 480px"
           className="preco-mascote"
         />
         <div className="preco-conteudo">
