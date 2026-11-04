@@ -9,6 +9,7 @@ import {
   fraseCurtaDoTeste,
   fraseDoTeste,
   planosDoTeste,
+  textoDaFranquia,
   type Assinatura,
 } from "./assinatura";
 
@@ -126,15 +127,24 @@ describe("assinatura", () => {
 
     it("formata, divide por mês e calcula o desconto contra o mensal", () => {
       expect(adaptarPrecos([item("essencial", "mensal", 14900), item("essencial", "anual", 152000)])).toEqual([
-        { plano: "essencial", periodo: "mensal", centavos: 14900, valor: "R$ 149,00", porMes: null, desconto: null },
-        { plano: "essencial", periodo: "anual", centavos: 152000, valor: "R$ 1.520,00", porMes: "R$ 126,67", desconto: 15 },
+        { plano: "essencial", periodo: "mensal", centavos: 14900, valor: "R$ 149,00", porMes: null, desconto: null, conciliacoesPorMes: null },
+        { plano: "essencial", periodo: "anual", centavos: 152000, valor: "R$ 1.520,00", porMes: "R$ 126,67", desconto: 15, conciliacoesPorMes: null },
       ]);
     });
 
     it("sem o mensal do plano, não há desconto, mas há o valor por mês", () => {
       expect(adaptarPrecos([item("padrao", "anual", 305000)])).toEqual([
-        { plano: "padrao", periodo: "anual", centavos: 305000, valor: "R$ 3.050,00", porMes: "R$ 254,17", desconto: null },
+        { plano: "padrao", periodo: "anual", centavos: 305000, valor: "R$ 3.050,00", porMes: "R$ 254,17", desconto: null, conciliacoesPorMes: null },
       ]);
+    });
+
+    it("a franquia vem de limites; sem número, não há linha, nunca 'ilimitado' (#297)", () => {
+      const comFranquia = (plano: string, conciliacoes_por_mes: unknown) => ({ ...item(plano, "mensal", 14900), limites: { conciliacoes_por_mes, empresas: null, usuarios: null } });
+      const precos = adaptarPrecos([comFranquia("essencial", 1500), comFranquia("padrao", null), comFranquia("avancado", "30")]);
+      expect(textoDaFranquia(precos, "essencial")).toBe("até 1.500 conciliações por mês");
+      expect(textoDaFranquia(precos, "padrao")).toBeNull();
+      expect(textoDaFranquia(precos, "avancado")).toBeNull();
+      expect(textoDaFranquia(null, "essencial")).toBeNull();
     });
 
     it("deixa de fora o que não é preço de plano e devolve null sem nenhum", () => {

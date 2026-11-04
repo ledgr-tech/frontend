@@ -741,7 +741,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
       {
         id: "plano",
         titulo: "Plano atual e faturas",
-        faz: "O plano em uso, quantas contas e lançamentos ele cobre, os outros planos e a lista de faturas, com competência, vencimento, valor, situação e recibo.",
+        faz: "O plano em uso, os outros planos e a lista de faturas, com competência, vencimento, valor, situação e recibo.",
         passos: [
           "Para trocar de plano, clique em **Mudar para** no plano que quer.",
         ],

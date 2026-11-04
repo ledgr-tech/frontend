@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "@/lib/link-do-app";
-import { planosDoTeste, type PrecoDoPlano, type SituacaoDaConta } from "@/lib/assinatura";
+import { planosDoTeste, textoDaFranquia, type PrecoDoPlano, type SituacaoDaConta } from "@/lib/assinatura";
 
 const FRANQUIA = "Sua conta chegou ao limite de conciliações deste mês.";
 
@@ -36,10 +36,11 @@ export function PlanosBloqueados({
         <ul className="bloqueio-planos">
           {planosDoTeste().map((plano) => {
             const preco = precos?.find((p) => p.plano === plano.id && p.periodo === "mensal");
+            const resumo = [preco && `${preco.valor} /mês`, textoDaFranquia(precos, plano.id)].filter(Boolean).join(" · ");
             return (
               <li key={plano.id} className="card">
                 <strong>{plano.nome}</strong>
-                <span>{preco ? `${preco.valor} /mês · ${plano.limite}` : plano.limite}</span>
+                {resumo && <span>{resumo}</span>}
                 <Link href={`/assinatura#plano-${plano.id}`} className="btn btn-secondary">{`Assinar o ${plano.nome}`}</Link>
               </li>
             );

@@ -75,7 +75,7 @@ export function AssinaturaDeDemonstracao() {
                       </div>
                     )}
                     <span className="ass-plano-filete" aria-hidden="true" />
-                    <p className="ass-plano-texto">{opcao.limite}</p>
+                    {opcao.descricao && <p className="ass-plano-texto">{opcao.descricao}</p>}
                     {atual && <p className="ass-plano-texto">{faixa}</p>}
                     {/* o plano atual não é ação, é estado; os outros seriam troca de plano */}
                     <button

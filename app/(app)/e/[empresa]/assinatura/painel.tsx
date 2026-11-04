@@ -12,6 +12,7 @@ import {
   fraseDoTeste,
   NOME_DO_PLANO,
   planosDoTeste,
+  textoDaFranquia,
   type Assinatura,
   type Periodo,
   type PlanoId,
@@ -103,6 +104,7 @@ export function PainelDaAssinatura({ precos }: { precos: PrecoDoPlano[] | null }
             <ul className="ass-planos" data-quatro="true" aria-labelledby="assinatura-planos">
               {planosDoTeste().map((plano) => {
                 const preco = doPeriodo(plano.id);
+                const franquia = textoDaFranquia(precos, plano.id);
                 const atual = assinando && cobranca?.plano === plano.id;
                 const indisponivelId = `assinatura-indisponivel-${plano.id}`;
                 return (
@@ -129,8 +131,12 @@ export function PainelDaAssinatura({ precos }: { precos: PrecoDoPlano[] | null }
                     )}
                     {preco?.porMes && <p className="ass-plano-texto">{preco.porMes} por mês</p>}
                     {preco?.desconto && <p className="ass-plano-desconto">{preco.desconto}% a menos que o mensal</p>}
-                    <span className="ass-plano-filete" aria-hidden="true" />
-                    <p className="ass-plano-texto">{plano.limite}</p>
+                    {franquia && (
+                      <>
+                        <span className="ass-plano-filete" aria-hidden="true" />
+                        <p className="ass-plano-texto">{franquia}</p>
+                      </>
+                    )}
                     {!assinando && (
                       <AssinarPlano
                         assinatura={assinatura}
@@ -151,7 +157,7 @@ export function PainelDaAssinatura({ precos }: { precos: PrecoDoPlano[] | null }
                   <span className="ass-plano-preco">Sob consulta</span>
                 </div>
                 <span className="ass-plano-filete" aria-hidden="true" />
-                <p className="ass-plano-texto">{volume.limite}</p>
+                <p className="ass-plano-texto">{volume.descricao}</p>
                 <a href="mailto:ledgrtech@gmail.com" className="btn btn-secondary">
                   Fale com a gente
                 </a>

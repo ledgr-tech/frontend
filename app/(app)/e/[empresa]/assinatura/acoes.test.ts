@@ -32,7 +32,7 @@ describe("carregarPrecos", () => {
   it("lê a rota pública e adapta", async () => {
     chamarBackend.mockResolvedValueOnce([{ plano: "essencial", periodo: "mensal", valor_centavos: 14900, moeda: "brl" }]);
     expect(await carregarPrecos()).toEqual([
-      { plano: "essencial", periodo: "mensal", centavos: 14900, valor: "R$ 149,00", porMes: null, desconto: null },
+      { plano: "essencial", periodo: "mensal", centavos: 14900, valor: "R$ 149,00", porMes: null, desconto: null, conciliacoesPorMes: null },
     ]);
     expect(chamarBackend).toHaveBeenCalledWith("/assinatura/precos", { publica: true });
   });
