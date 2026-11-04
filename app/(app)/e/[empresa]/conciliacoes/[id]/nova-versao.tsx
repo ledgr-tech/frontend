@@ -18,6 +18,7 @@ import {
   type Pendente,
 } from "../envio";
 import { ImportacaoInterrompida } from "../nova/importacao-interrompida";
+import { LinhasNaoLidas } from "../linhas-nao-lidas";
 
 function tamanhoEmKb(bytes: number): string {
   return `${Math.max(1, Math.round(bytes / 1024)).toLocaleString("pt-BR")} KB`;
@@ -234,23 +235,11 @@ export function NovaVersao({
               />
             ) : parcial ? (
               <>
-                <p role="alert" className="selo selo-risco nova-versao-erro">
-                  {parcial.erros.length > 0
-                    ? `${parcial.erros.length} ${parcial.erros.length === 1 ? "linha do extrato do sistema não foi lida" : "linhas do extrato do sistema não foram lidas"}.`
-                    : "Algumas linhas do extrato do sistema não foram lidas."}
-                </p>
+                <LinhasNaoLidas origem="sistema" erros={parcial.erros} />
                 <p className="dialog-body">
                   A nova rodada usará somente as linhas válidas. Volte para corrigir o arquivo ou confirme que deseja continuar sem as linhas rejeitadas.
                   Se voltar ou fechar, o arquivo enviado fica em Extratos, sem conciliação.
                 </p>
-                {parcial.erros.length > 0 && (
-                  <ul className="importacao-problemas">
-                    {parcial.erros.slice(0, 5).map((linha, indice) => (
-                      <li key={`${linha.identificador}-${indice}`}>{`Linha ${linha.identificador}: ${linha.motivo}`}</li>
-                    ))}
-                    {parcial.erros.length > 5 && <li>{`e mais ${parcial.erros.length - 5} linhas não lidas.`}</li>}
-                  </ul>
-                )}
                 {recados}
                 {/* a chave monta botões novos: sem ela, o React reaproveitaria o "Enviar e conciliar" focado como
                     "Continuar", e um Enter a mais concluiria sem a pessoa ler; o foco vai para a saída que não concilia */}

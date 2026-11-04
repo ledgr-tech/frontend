@@ -9,7 +9,7 @@ import { caminhoDaConciliacao } from "@/lib/caminhos";
 import { abrirConfiguracoes, TOLERANCIA_SALVA } from "@/lib/eventos";
 import { comEmpresa } from "@/lib/rotas";
 import { extratoGrandeDemais, TAMANHO_MAXIMO_UPLOAD_BYTES } from "@/lib/limite-de-upload";
-import { carregarRegras, conciliar, type Falha } from "../acoes";
+import { carregarRegras, conciliar, type Falha, type SituacaoExtrato } from "../acoes";
 import {
   aguardarProcessamento,
   conferirCsv,
@@ -22,6 +22,7 @@ import {
   type Pendente,
 } from "../envio";
 import { ImportacaoInterrompida } from "./importacao-interrompida";
+import { LinhasNaoLidas } from "../linhas-nao-lidas";
 import { PlanosBloqueados } from "./planos-bloqueados";
 import { useAssinatura } from "../../conta";
 import { bloqueiaConciliacao, type PrecoDoPlano } from "@/lib/assinatura";
@@ -42,8 +43,11 @@ export default function NovaConciliacaoPage() {
   // o backend recusou a conciliação pelo plano (402): o texto dele vai no lugar do envio
   const [recusa, setRecusa] = useState<string | null>(null);
   const [precos, setPrecos] = useState<PrecoDoPlano[] | null>(null);
-  const [avisos, setAvisos] = useState<string[]>([]);
   const [pendente, setPendente] = useState<Pendente | null>(null);
+  // os dois extratos subiram, mas algum veio lido em parte: a conciliação espera a pessoa decidir
+  const [parcial, setParcial] = useState<{ banco: string; sistema: string; lidosEmParte: SituacaoExtrato[] } | null>(
+    null,
+  );
   // a tolerância que esta conciliação vai usar; sem resposta (404, erro), a linha não aparece
   const [toleranciaDias, setToleranciaDias] = useState<number | null>(null);
   // depois do primeiro envio, as folhas só voltam quando o envio falha: aí elas sobem com fade, em vez
@@ -107,7 +111,6 @@ export default function NovaConciliacaoPage() {
     }
 
     setErro(null);
-    setAvisos([]);
     setJaEnviou(true);
     setEtapa("conferindo");
 
@@ -155,7 +158,7 @@ export default function NovaConciliacaoPage() {
       aguardarProcessamento(sistema.dados.extratoId, () => vivo.current),
     ]);
 
-    const recados: string[] = [];
+    const lidosEmParte: SituacaoExtrato[] = [];
     for (const situacao of situacoes) {
       if (situacao === null) {
         setEtapa("ocioso");
@@ -168,18 +171,21 @@ export default function NovaConciliacaoPage() {
         setErro(motivoDaRecusa(situacao));
         return;
       }
-      if (situacao.erros.length > 0) {
-        // "concluido_com_erros": a conciliação segue, mas quem enviou precisa
-        // saber que parte das linhas ficou de fora.
-        recados.push(
-          `${situacao.erros.length} linha(s) do extrato do ${situacao.origem} não foram lidas.`,
-        );
-      }
+      if (situacao.status === "concluido_com_erros") lidosEmParte.push(situacao);
     }
-    setAvisos(recados);
+    if (lidosEmParte.length > 0) {
+      // conciliar com linhas de fora não tem volta do lado do banco (não há nova versão dele nem rota
+      // para apagar a conciliação): a conciliação só nasce depois da decisão, e continuar reaproveita os uploads
+      setParcial({ banco: banco.dados.extratoId, sistema: sistema.dados.extratoId, lidosEmParte });
+      setEtapa("ocioso");
+      return;
+    }
+    await concluir(banco.dados.extratoId, sistema.dados.extratoId);
+  }
 
+  async function concluir(bancoId: string, sistemaId: string) {
     setEtapa("conciliando");
-    const resultado = await conciliar(banco.dados.extratoId, sistema.dados.extratoId);
+    const resultado = await conciliar(bancoId, sistemaId);
     if (!resultado.ok && resultado.status === 402) {
       setEtapa("ocioso");
       setRecusa(resultado.erro);
@@ -190,7 +196,31 @@ export default function NovaConciliacaoPage() {
     // A listagem do resultado parte do extrato do banco (o do sistema seria
     // ambíguo, porque pode ter sido conciliado com vários extratos de banco), e
     // o do sistema vai junto para filtrar só as linhas deste par.
-    router.push(caminhoDaConciliacao(banco.dados.extratoId, sistema.dados.extratoId));
+    router.push(caminhoDaConciliacao(bancoId, sistemaId));
+  }
+
+  async function continuarComLinhasValidas() {
+    if (!parcial) return;
+    setErro(null);
+    try {
+      await concluir(parcial.banco, parcial.sistema);
+    } catch {
+      setEtapa("ocioso");
+      setErro(ERRO_SEM_RESPOSTA);
+    }
+  }
+
+  function voltarParaCorrigir() {
+    if (!parcial) return;
+    // o arquivo lido em parte sai da folha, à espera do corrigido; o outro fica.
+    // ponytail: a próxima tentativa sobe os dois de novo, e o que veio inteiro vira uma cópia em Extratos;
+    // o #308 descarta os dois ao voltar quando o backend tiver a rota (backend#185)
+    for (const { origem } of parcial.lidosEmParte) {
+      if (origem === "banco") setArquivoBanco(null);
+      else setArquivoSistema(null);
+    }
+    setParcial(null);
+    setErro(null);
   }
 
   const podeConciliar = arquivoBanco !== null && arquivoSistema !== null;
@@ -243,6 +273,41 @@ export default function NovaConciliacaoPage() {
     );
   }
 
+  // continuar troca a decisão pelo palco; se a conciliação falha, ela volta com o motivo, sem reenviar
+  if (parcial && !ocupado) {
+    return (
+      <div style={{ padding: "36px 0 64px" }}>
+        <div className="importacao">
+          <div>
+            <h1 className="importacao-titulo">Nem todas as linhas foram lidas</h1>
+            <p className="importacao-texto">
+              A conciliação usará somente as linhas válidas. Volte para corrigir o arquivo ou confirme que deseja
+              continuar sem as linhas rejeitadas. Se voltar ou sair desta tela, os dois arquivos enviados ficam em
+              Extratos, sem conciliação.
+            </p>
+          </div>
+          {parcial.lidosEmParte.map(({ origem, erros }) => (
+            <LinhasNaoLidas key={origem} origem={origem} erros={erros} />
+          ))}
+          {erro && (
+            <p role="alert" className="selo selo-risco nova-versao-erro">
+              {erro}
+            </p>
+          )}
+          <div className="importacao-acoes">
+            {/* o foco vai para a saída que não concilia: um Enter a mais não concilia sem a pessoa ler */}
+            <button type="button" className="btn btn-secondary" autoFocus onClick={voltarParaCorrigir}>
+              Voltar para corrigir
+            </button>
+            <button type="button" className="btn btn-primary" onClick={() => void continuarComLinhasValidas()}>
+              Continuar com linhas válidas
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="nova-tela">
       {/* o mês só se sabe depois de ler as datas dos extratos: a linha diz de onde ele vai sair */}
@@ -253,13 +318,6 @@ export default function NovaConciliacaoPage() {
         <p role="alert" className="selo selo-risco nova-erro">
           {erro}
         </p>
-      )}
-      {avisos.length > 0 && (
-        <ul className="nova-avisos">
-          {avisos.map((aviso) => (
-            <li key={aviso}>{aviso}</li>
-          ))}
-        </ul>
       )}
 
       {ocupado && arquivoBanco && arquivoSistema ? (

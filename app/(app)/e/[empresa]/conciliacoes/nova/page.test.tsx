@@ -266,21 +266,80 @@ describe("NovaConciliacaoPage", () => {
     await waitFor(() => expect(push).toHaveBeenCalledWith("/login"));
   });
 
-  it("avisa das linhas que o parser não leu, mas segue conciliando", async () => {
-    situacaoDoExtrato.mockImplementation((id: string) =>
-      Promise.resolve(
-        id === "extrato-banco"
-          ? concluido("banco", [{ identificador: "L12", motivo: "valor inválido" }])
-          : concluido("sistema"),
-      ),
-    );
+  describe("extrato lido em parte", () => {
+    type Erro = { identificador: string; motivo: string };
+    const L12: Erro = { identificador: "L12", motivo: "valor inválido" };
 
-    await enviarOsDois();
+    function lidoEmParte(doBanco: Erro[], doSistema: Erro[] = []) {
+      situacaoDoExtrato.mockImplementation((id: string) =>
+        Promise.resolve(id === "extrato-banco" ? concluido("banco", doBanco) : concluido("sistema", doSistema)),
+      );
+    }
 
-    expect(
-      await screen.findByText("1 linha(s) do extrato do banco não foram lidas."),
-    ).toBeInTheDocument();
-    await waitFor(() => expect(push).toHaveBeenCalledWith("/conciliacoes/extrato-banco?sistema=extrato-sistema"));
+    it("para antes de conciliar, diz quais linhas ficaram de fora e põe o foco em voltar", async () => {
+      lidoEmParte([L12]);
+
+      await enviarOsDois();
+
+      expect(await screen.findByRole("alert")).toHaveTextContent("1 linha do extrato do banco não foi lida.");
+      expect(screen.getByText("Linha L12: valor inválido")).toBeInTheDocument();
+      expect(screen.getByText(/os dois arquivos enviados ficam em Extratos, sem conciliação\./)).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Voltar para corrigir" })).toHaveFocus();
+      expect(conciliar).not.toHaveBeenCalled();
+    });
+
+    it("com os dois lidos em parte, mostra cada um com as primeiras linhas", async () => {
+      const seis = Array.from({ length: 6 }, (_, i) => ({ identificador: String(i + 2), motivo: "data inválida" }));
+      lidoEmParte([L12], seis);
+
+      await enviarOsDois();
+
+      const alertas = await screen.findAllByRole("alert");
+      expect(alertas.map((alerta) => alerta.textContent)).toEqual([
+        "1 linha do extrato do banco não foi lida.",
+        "6 linhas do extrato do sistema não foram lidas.",
+      ]);
+      expect(screen.getByText("e mais 1 linha não lida.")).toBeInTheDocument();
+    });
+
+    it("continua com as linhas válidas sem enviar os arquivos de novo", async () => {
+      lidoEmParte([L12]);
+      const user = await enviarOsDois();
+
+      await user.click(await screen.findByRole("button", { name: "Continuar com linhas válidas" }));
+
+      expect(conciliar).toHaveBeenCalledWith("extrato-banco", "extrato-sistema");
+      expect(enviarExtrato).toHaveBeenCalledTimes(2);
+      await waitFor(() => expect(push).toHaveBeenCalledWith("/conciliacoes/extrato-banco?sistema=extrato-sistema"));
+    });
+
+    it("volta para corrigir sem conciliar: o arquivo lido em parte sai da folha e o outro fica", async () => {
+      lidoEmParte([L12]);
+      const user = await enviarOsDois();
+
+      await user.click(await screen.findByRole("button", { name: "Voltar para corrigir" }));
+
+      expect(conciliar).not.toHaveBeenCalled();
+      expect(screen.getByLabelText("Extrato do banco").closest("label")).not.toHaveAttribute("data-pronto");
+      expect(screen.getByLabelText("Extrato do sistema de gestão").closest("label")).toHaveAttribute("data-pronto");
+      expect(screen.getByRole("button", { name: "Conciliar extratos" })).toHaveAccessibleDescription(
+        "Falta o extrato do banco.",
+      );
+    });
+
+    it("se a conciliação falha depois da decisão, volta a ela com o motivo e tenta de novo sem reenviar", async () => {
+      lidoEmParte([L12]);
+      conciliar.mockRejectedValueOnce(new Error("Failed to fetch"));
+      const user = await enviarOsDois();
+
+      await user.click(await screen.findByRole("button", { name: "Continuar com linhas válidas" }));
+      expect(await screen.findByText(/Recarregue a página/)).toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: "Continuar com linhas válidas" }));
+
+      await waitFor(() => expect(push).toHaveBeenCalledWith("/conciliacoes/extrato-banco?sistema=extrato-sistema"));
+      expect(conciliar).toHaveBeenCalledTimes(2);
+      expect(enviarExtrato).toHaveBeenCalledTimes(2);
+    });
   });
 
   // 4MB e não os 5MB do backend: o arquivo passa por uma Server Action, e a
