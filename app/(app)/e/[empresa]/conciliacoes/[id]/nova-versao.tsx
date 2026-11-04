@@ -5,7 +5,8 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowRight, Upload } from "lucide-react";
 import { formatarDataHora } from "../../dashboard/resumo";
 import { useRoteador } from "@/lib/roteador";
-import { conciliar, type Falha } from "../acoes";
+import { extratoGrandeDemais, TAMANHO_MAXIMO_UPLOAD_BYTES } from "@/lib/limite-de-upload";
+import { conciliar, type Falha, type SituacaoExtrato } from "../acoes";
 import {
   aguardarProcessamento,
   conferirCsv,
@@ -13,11 +14,11 @@ import {
   motivoDaRecusa,
   RECADO,
   subir,
-  TAMANHO_MAXIMO_BYTES,
   type Etapa,
   type Pendente,
 } from "../envio";
 import { ImportacaoInterrompida } from "../nova/importacao-interrompida";
+import { LinhasNaoLidas } from "../linhas-nao-lidas";
 
 function tamanhoEmKb(bytes: number): string {
   return `${Math.max(1, Math.round(bytes / 1024)).toLocaleString("pt-BR")} KB`;
@@ -49,7 +50,10 @@ export function NovaVersao({
   // 402: o teste acabou (spec 2026-10-15-primeiro-uso); o motivo vem com o caminho para os planos
   const [semPlano, setSemPlano] = useState(false);
   const [pendente, setPendente] = useState<Pendente | null>(null);
+  const [parcial, setParcial] = useState<{ extratoId: string; erros: SituacaoExtrato["erros"] } | null>(null);
   const dialogo = useRef<HTMLDialogElement>(null);
+  // trava também os cliques que chegam antes do próximo render
+  const emAndamento = useRef(false);
   // para o laço de consulta se a tela sair no meio do processamento
   const vivo = useRef(true);
   const ocupado = etapa !== "ocioso";
@@ -70,11 +74,13 @@ export function NovaVersao({
   }, [aberta]);
 
   function fechar() {
-    if (ocupado) return;
+    if (emAndamento.current) return;
     setAberta(false);
     setArquivo(null);
     setErro(null);
     setPendente(null);
+    setParcial(null);
+    setSemPlano(false);
   }
 
   function falhar(falha: Falha) {
@@ -88,15 +94,18 @@ export function NovaVersao({
   }
 
   async function enviar(escolhido = arquivo) {
-    if (!escolhido) return;
-    if (escolhido.size > TAMANHO_MAXIMO_BYTES) {
-      setErro(`O arquivo "${escolhido.name}" passa de 4MB. Exporte um período menor.`);
+    if (!escolhido || emAndamento.current || parcial) return;
+    if (escolhido.size > TAMANHO_MAXIMO_UPLOAD_BYTES) {
+      setErro(extratoGrandeDemais(escolhido.name));
       return;
     }
+    emAndamento.current = true;
     setErro(null);
+    setSemPlano(false);
     setEtapa("conferindo");
     try {
       const conferido = await conferirCsv(escolhido, "sistema");
+      if (!vivo.current) return;
       if (!conferido.pronto) {
         setEtapa("ocioso");
         if ("erro" in conferido) setErro(conferido.erro);
@@ -106,10 +115,12 @@ export function NovaVersao({
 
       setEtapa("enviando");
       const enviado = await subir(escolhido, "sistema");
+      if (!vivo.current) return;
       if (!enviado.ok) return falhar(enviado);
 
       setEtapa("processando");
       const situacao = await aguardarProcessamento(enviado.dados.extratoId, () => vivo.current);
+      if (!vivo.current) return;
       if (situacao === null) {
         setEtapa("ocioso");
         setErro("O processamento demorou mais que o esperado. Tente de novo em instantes.");
@@ -121,21 +132,59 @@ export function NovaVersao({
         setErro(motivoDaRecusa(situacao));
         return;
       }
-
-      setEtapa("conciliando");
-      const resultado = await conciliar(extratoBancoId, enviado.dados.extratoId);
-      setSemPlano(!resultado.ok && resultado.status === 402);
-      if (!resultado.ok) return falhar(resultado);
-
-      setEtapa("ocioso");
-      setAberta(false);
-      setArquivo(null);
-      onConcluida();
+      if (situacao.status === "concluido_com_erros") {
+        // A rodada só nasce depois da decisão; continuar reutiliza este upload.
+        setParcial({ extratoId: enviado.dados.extratoId, erros: situacao.erros });
+        setEtapa("ocioso");
+        return;
+      }
+      await concluirExtrato(enviado.dados.extratoId);
     } catch {
+      if (!vivo.current) return;
       setEtapa("ocioso");
       setErro(ERRO_SEM_RESPOSTA);
+    } finally {
+      emAndamento.current = false;
     }
   }
+
+  async function concluirExtrato(extratoId: string) {
+    setEtapa("conciliando");
+    const resultado = await conciliar(extratoBancoId, extratoId);
+    if (!vivo.current) return;
+    setSemPlano(!resultado.ok && resultado.status === 402);
+    if (!resultado.ok) return falhar(resultado);
+
+    setEtapa("ocioso");
+    setAberta(false);
+    setArquivo(null);
+    setParcial(null);
+    onConcluida();
+  }
+
+  async function continuarComLinhasValidas() {
+    if (!parcial || emAndamento.current) return;
+    emAndamento.current = true;
+    setErro(null);
+    setSemPlano(false);
+    try {
+      await concluirExtrato(parcial.extratoId);
+    } catch {
+      if (!vivo.current) return;
+      setEtapa("ocioso");
+      setErro(ERRO_SEM_RESPOSTA);
+    } finally {
+      emAndamento.current = false;
+    }
+  }
+
+  const recados = (
+    <>
+      {erro && <p role="alert" className="selo selo-risco nova-versao-erro">{erro}</p>}
+      {erro && semPlano && <Link href="/assinatura" className="btn btn-secondary">Ver os planos</Link>}
+      {ocupado && <p aria-live="polite" className="dialog-body">{RECADO[etapa]}</p>}
+    </>
+  );
 
   return (
     <>
@@ -156,6 +205,10 @@ export function NovaVersao({
           aria-labelledby="nova-versao-titulo"
           onKeyDown={(evento) => {
             if (evento.key !== "Escape") return;
+            evento.preventDefault();
+            fechar();
+          }}
+          onCancel={(evento) => {
             evento.preventDefault();
             fechar();
           }}
@@ -180,6 +233,43 @@ export function NovaVersao({
                   setArquivo(null);
                 }}
               />
+            ) : parcial ? (
+              <>
+                <LinhasNaoLidas origem="sistema" erros={parcial.erros} />
+                <p className="dialog-body">
+                  A nova rodada usará somente as linhas válidas. Volte para corrigir o arquivo ou confirme que deseja continuar sem as linhas rejeitadas.
+                  Se voltar ou fechar, o arquivo enviado fica em Extratos, sem conciliação.
+                </p>
+                {recados}
+                {/* a chave monta botões novos: sem ela, o React reaproveitaria o "Enviar e conciliar" focado como
+                    "Continuar", e um Enter a mais concluiria sem a pessoa ler; o foco vai para a saída que não concilia */}
+                <div className="dialog-actions" key="decisao">
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    disabled={ocupado}
+                    autoFocus
+                    onClick={() => {
+                      if (emAndamento.current) return;
+                      setParcial(null);
+                      setArquivo(null);
+                      setErro(null);
+                      setSemPlano(false);
+                    }}
+                  >
+                    Voltar para corrigir
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-primary nova-versao-enviar"
+                    disabled={ocupado}
+                    aria-busy={ocupado}
+                    onClick={() => void continuarComLinhasValidas()}
+                  >
+                    Continuar com linhas válidas
+                  </button>
+                </div>
+              </>
             ) : (
               <>
                 <p className="dialog-body">
@@ -223,7 +313,7 @@ export function NovaVersao({
                   <Upload size={24} aria-hidden="true" className="nova-versao-soltar-icone" />
                   <span className="nova-versao-soltar-texto">
                     <strong>{arquivo ? "Trocar o arquivo" : "Solte aqui o CSV corrigido"}</strong>
-                    <span>{arquivo ? `${arquivo.name} · solte outro ou clique` : "ou clique para escolher · até 4MB"}</span>
+                    <span>{arquivo ? `${arquivo.name} · solte outro ou clique` : "ou clique para escolher · até 4 MB"}</span>
                   </span>
                   <input
                     type="file"
@@ -237,21 +327,7 @@ export function NovaVersao({
                     }}
                   />
                 </label>
-                {erro && (
-                  <p role="alert" className="selo selo-risco nova-versao-erro">
-                    {erro}
-                  </p>
-                )}
-                {erro && semPlano && (
-                  <Link href="/assinatura" className="btn btn-secondary">
-                    Ver os planos
-                  </Link>
-                )}
-                {ocupado && (
-                  <p aria-live="polite" className="dialog-body">
-                    {RECADO[etapa]}
-                  </p>
-                )}
+                {recados}
                 <div className="dialog-actions">
                   <button type="button" className="btn btn-secondary" onClick={fechar} disabled={ocupado}>
                     Cancelar

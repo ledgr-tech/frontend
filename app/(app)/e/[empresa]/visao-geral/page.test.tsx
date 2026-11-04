@@ -108,25 +108,27 @@ const LINHAS: LinhaComparacao[] = [
 ];
 
 function com(visao: Partial<VisaoGeral> = {}) {
-  carregarVisaoGeral.mockResolvedValue({
-    ok: true,
-    dados: {
-      execucoes: EXECUCOES,
-      total: EXECUCOES.length,
-      recente: {
-        execucao: RECENTE,
-        conciliacao: {
-          id: "banco-e7",
-          extratoSistemaId: "sistema-e7",
-          mes: "Setembro/2026",
-          status: "em_andamento",
-          linhas: LINHAS,
-        },
+  const dados: VisaoGeral = {
+    execucoes: EXECUCOES,
+    total: EXECUCOES.length,
+    recente: {
+      execucao: RECENTE,
+      conciliacao: {
+        id: "banco-e7",
+        extratoSistemaId: "sistema-e7",
+        mes: "Setembro/2026",
+        status: "em_andamento",
+        linhas: LINHAS,
       },
-      arquivosComLinhasNaoLidas: [],
-      ...visao,
     },
-  });
+    arquivosComLinhasNaoLidas: [],
+    ...visao,
+  };
+  // sem o mês no teste, o mês em foco é só a conciliação recente
+  if (!dados.mes && dados.recente) {
+    dados.mes = { competencia: "2026-09", fechado: false, conciliacoes: [dados.recente.conciliacao] };
+  }
+  carregarVisaoGeral.mockResolvedValue({ ok: true, dados });
 }
 
 async function renderizar() {
@@ -631,6 +633,33 @@ describe("VisaoGeralPage", () => {
     expect(screen.getByRole("alert")).toHaveTextContent(
       "Não foi possível carregar a visão geral. Recarregue a página e tente de novo.",
     );
+  });
+
+  it("does not sum the month when its lines did not all load, and keeps the rest of the home", async () => {
+    com({ mes: { competencia: "2026-09", fechado: false, conciliacoes: null } });
+    await renderizar();
+
+    expect(screen.getByRole("heading", { name: "Confira o mês nas conciliações" })).toBeInTheDocument();
+    expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
+    expect(screen.queryByText(/lançamentos conciliados/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/em aberto/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Pede sua atenção" })).not.toBeInTheDocument();
+    expect(
+      within(screen.getByRole("navigation", { name: "Atalhos" })).getByRole("link", { name: /Fechamentos/ }),
+    ).toHaveTextContent("Confira as conciliações do mês");
+    expect(screen.getByRole("table", { name: "Atividade recente" })).toBeInTheDocument();
+  });
+
+  it("with the month incomplete, keeps it closed and leaves out the approvals it could not sum", async () => {
+    const conciliacao = { id: "banco-e7", mes: "Setembro/2026", status: "em_andamento" as const, linhas: LINHAS, aguardandoAprovacao: 5 };
+    com({ recente: { execucao: RECENTE, conciliacao }, mes: { competencia: "2026-09", fechado: true, conciliacoes: null } });
+    await renderizar();
+
+    expect(screen.getByRole("heading", { name: "Confira o mês nas conciliações" })).toBeInTheDocument();
+    expect(
+      within(screen.getByRole("navigation", { name: "Atalhos" })).getByRole("link", { name: /Fechamentos/ }),
+    ).toHaveTextContent("Mês fechado");
+    expect(screen.queryByRole("link", { name: /Aguardam aprovação/ })).not.toBeInTheDocument();
   });
 
   it("sends an expired session back to the login", async () => {

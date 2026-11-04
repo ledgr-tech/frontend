@@ -105,10 +105,12 @@ function Conteudo({
   roteiro: DadosDoRoteiro | null;
   passos: PassoDoRoteiro[] | null;
 }) {
-  // o mês em foco inteiro; sem ele (alguma conciliação não carregou), só a mais recente
-  const doMes = visao.mes?.conciliacoes ?? [conciliacao];
-  const resumo = resumir(doMes);
-  const aguardando = doMes.reduce((soma, item) => soma + (item.aguardandoAprovacao ?? 0), 0);
+  // o mês em foco inteiro; null quando as linhas dele não vieram inteiras, e os blocos que somam o mês
+  // dizem isso em vez de mostrar um total pela metade. As aprovações também: sem o mês inteiro, a soma
+  // delas sairia pela metade, então o bloco some e o passo de aprovar fica em Fechamentos
+  const doMes = visao.mes?.conciliacoes ?? null;
+  const resumo = doMes && resumir(doMes);
+  const aguardando = doMes?.reduce((soma, item) => soma + (item.aguardandoAprovacao ?? 0), 0) ?? 0;
 
   const menores = [
     // undefined é o backend sem saldo (antes da #118): a tela não fala de saldo
@@ -140,7 +142,7 @@ function Conteudo({
 
       <Reveal delay={0.08} className="vg-blocos-meio">
         {!sobem ? menores : perguntaTolerancia && <EnquantoPergunta passos={passos}>{menores}</EnquantoPergunta>}
-        <PedeAtencao conciliacoes={doMes} arquivos={visao.arquivosComLinhasNaoLidas} passos={passos} />
+        {doMes && <PedeAtencao conciliacoes={doMes} arquivos={visao.arquivosComLinhasNaoLidas} passos={passos} />}
       </Reveal>
 
       <Reveal delay={0.16} className="vg-blocos-par">
@@ -152,7 +154,7 @@ function Conteudo({
           visao={visao}
           execucao={execucao}
           conciliacao={conciliacao}
-          divergentes={resumo.divergentes}
+          divergentes={resumo && resumo.divergentes}
           mesFechado={visao.mes?.fechado ?? false}
         />
       </Reveal>
@@ -171,40 +173,57 @@ function EstadoDoMes({
   passos,
 }: {
   execucao: Execucao;
-  resumo: ReturnType<typeof resumir>;
+  /** Null sem as linhas inteiras do mês. */
+  resumo: ReturnType<typeof resumir> | null;
   mes: string;
   passos: PassoDoRoteiro[] | null;
 }) {
   return (
     <section className="vg-bloco vg-estado" aria-labelledby="vg-estado-titulo" data-tutorial="estado-do-mes">
-      <div
-        className="vg-anel"
-        role="progressbar"
-        aria-label="Lançamentos conciliados"
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-valuenow={Math.round(resumo.taxaMatch)}
-        aria-valuetext={`${formatarPercentual(resumo.taxaMatch)} conciliado`}
-        style={{ "--feito": `${resumo.taxaMatch}%` } as React.CSSProperties}
-      >
-        <span className="vg-anel-centro" aria-hidden="true">
-          {/* para baixo: 99,6% não vira "100%" com lançamento em aberto */}
-          <span className="vg-anel-numero">{`${Math.floor(resumo.taxaMatch)}%`}</span>
-          conciliado
-        </span>
-      </div>
+      {resumo && (
+        <div
+          className="vg-anel"
+          role="progressbar"
+          aria-label="Lançamentos conciliados"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={Math.round(resumo.taxaMatch)}
+          aria-valuetext={`${formatarPercentual(resumo.taxaMatch)} conciliado`}
+          style={{ "--feito": `${resumo.taxaMatch}%` } as React.CSSProperties}
+        >
+          <span className="vg-anel-centro" aria-hidden="true">
+            {/* para baixo: 99,6% não vira "100%" com lançamento em aberto */}
+            <span className="vg-anel-numero">{`${Math.floor(resumo.taxaMatch)}%`}</span>
+            conciliado
+          </span>
+        </div>
+      )}
       <div className="vg-estado-corpo">
         <EtiquetaDoPasso passos={passos} id="fechar" />
         <span className="vg-bloco-rotulo">{mes.replace("/", " de ")}</span>
-        <h2 id="vg-estado-titulo" className="vg-estado-titulo">
-          {`${formatarInteiro(resumo.batidos)} de ${plural(resumo.processados, "lançamento conciliado", "lançamentos conciliados")}`}
-        </h2>
-        {resumo.valorDivergente > 0 ? (
-          <span className="vg-estado-aberto">{`${formatarMoedaCurta(resumo.valorDivergente)} em aberto`}</span>
+        {resumo ? (
+          <>
+            <h2 id="vg-estado-titulo" className="vg-estado-titulo">
+              {`${formatarInteiro(resumo.batidos)} de ${plural(resumo.processados, "lançamento conciliado", "lançamentos conciliados")}`}
+            </h2>
+            {resumo.valorDivergente > 0 ? (
+              <span className="vg-estado-aberto">{`${formatarMoedaCurta(resumo.valorDivergente)} em aberto`}</span>
+            ) : (
+              <span className="vg-estado-aberto" data-zerado="true">
+                Nenhum valor em aberto
+              </span>
+            )}
+          </>
         ) : (
-          <span className="vg-estado-aberto" data-zerado="true">
-            Nenhum valor em aberto
-          </span>
+          <>
+            <h2 id="vg-estado-titulo" className="vg-estado-titulo">
+              Confira o mês nas conciliações
+            </h2>
+            <span className="vg-nota">
+              A visão geral não conseguiu ler todas as linhas deste mês e, para não mostrar um total pela metade, não
+              soma os números aqui.
+            </span>
+          </>
         )}
         <span className="vg-nota">
           {`Última conciliação em ${formatarDataHora(execucao.executadaEm)} · ${execucao.arquivoBanco} × ${execucao.arquivoSistema}`}
@@ -272,8 +291,8 @@ function Atalhos({
   visao: VisaoGeral;
   execucao: Execucao;
   conciliacao: Conciliacao;
-  /** As do mês em foco inteiro, não só da última conciliação. */
-  divergentes: number;
+  /** As do mês em foco inteiro, não só da última conciliação; null sem as linhas inteiras dele. */
+  divergentes: number | null;
   mesFechado: boolean;
 }) {
   const arquivos = extratosDasExecucoes(visao.execucoes);
@@ -330,11 +349,13 @@ function Atalhos({
             <span className={`vg-ponto vg-ponto-${mesFechado || pronto ? "ok" : "atencao"}`} aria-hidden="true" />
             {mesFechado
               ? "Mês fechado"
-              : pronto
-                ? "Pronto para fechar"
-                : divergentes > 0
-                  ? `${plural(divergentes, "pendência", "pendências")} no mês`
-                  : "Linhas não lidas na última conciliação"}
+              : divergentes === null
+                ? "Confira as conciliações do mês"
+                : pronto
+                  ? "Pronto para fechar"
+                  : divergentes > 0
+                    ? `${plural(divergentes, "pendência", "pendências")} no mês`
+                    : "Linhas não lidas na última conciliação"}
           </span>
         </Atalho>
 

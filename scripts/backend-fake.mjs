@@ -734,8 +734,8 @@ const servidor = createServer(async (req, res) => {
     return semCorpo();
   }
 
-  // ----- importacao via IA (#224/#225): o bastante para ver as telas. Um arquivo com "erro"
-  // no conteudo volta com a tabela de erros; qualquer outro vira um rascunho de exemplo. -----
+  // ----- importacao via IA (#224/#225): o bastante para ver as telas e remover uma linha. Um arquivo
+  // com "erro" no conteudo volta com a tabela de erros; qualquer outro vira um rascunho de exemplo. -----
 
   if (rota("GET", "/importacoes-ia/prompt")) {
     return json(res, 200, { versao_schema: "1", versao_prompt: "1", prompt:
@@ -765,6 +765,14 @@ const servidor = createServer(async (req, res) => {
     return json(res, 200, { importacao_id: umaImportacao[1], total: itens.length, itens, resumo: { quantidade: itens.length,
       total_entradas: soma((l) => l.valor > 0), total_saidas: soma((l) => l.valor < 0), periodo_inicio: itens[0]?.data ?? null,
       periodo_fim: itens.at(-1)?.data ?? null, expira_em: new Date(Date.now() + 7 * 864e5).toISOString() } });
+  }
+  const umaLinhaIa = rota("DELETE", /^\/importacoes-ia\/([^/]+)\/lancamentos\/([^/]+)$/);
+  if (umaLinhaIa) {
+    const itens = importacoesIa.get(umaLinhaIa[1]) ?? [];
+    const posicao = itens.findIndex((l) => l.id === umaLinhaIa[2]);
+    if (posicao < 0) return json(res, 404, { detail: "Lançamento não encontrado." });
+    itens.splice(posicao, 1);
+    return semCorpo();
   }
 
   // ----- chaves da API (#135) e conexoes MCP (#136) -----
@@ -861,7 +869,8 @@ const servidor = createServer(async (req, res) => {
         nome_arquivo: e.nome,
         origem: e.origem,
         formato: e.formato,
-        status: "concluido",
+        // como o backend (#13): linha rejeitada deixa o extrato `concluido_com_erros`
+        status: e.erros.length ? "concluido_com_erros" : "concluido",
         quantidade_lancamentos: e.lancamentos.length,
         linhas_nao_lidas: e.erros.length,
         periodo_inicio: e.periodoInicio,
@@ -878,7 +887,7 @@ const servidor = createServer(async (req, res) => {
     if (!dados) return json(res, 404, { detail: "Extrato nao encontrado." });
     return json(res, 200, {
       extrato_id: extrato[1],
-      status: "concluido",
+      status: dados.erros.length ? "concluido_com_erros" : "concluido",
       origem: dados.origem,
       quantidade_lancamentos: dados.lancamentos.length,
       periodo_inicio: dados.periodoInicio,

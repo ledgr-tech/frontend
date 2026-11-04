@@ -718,6 +718,82 @@ describe("carregarVisaoGeral", () => {
 
     expect(await carregarVisaoGeral()).toMatchObject({ ok: false, status: 401 });
   });
+
+  /** Dois pares de setembro (ou a primeira página de `lista`); as linhas de cada um saem de `linhas`, que pode lançar. */
+  function backendDoMes(
+    linhas: (banco: string) => { total: number; itens: ItemConciliacaoAPI[] },
+    lista = { total: 2, itens: [execucao("e-2", BANCO_RECENTE), execucao("e-1", BANCO_ANTERIOR)] },
+  ) {
+    chamarBackend.mockImplementation(async (caminho: string) => {
+      const [rota, query] = caminho.split("?");
+      if (rota === "/execucoes") return { limit: 50, offset: 0, ...lista };
+      if (rota === "/fechamentos") return { itens: [] };
+      if (rota.startsWith("/conciliacoes/")) {
+        const banco = rota.split("/")[2];
+        return { extrato_id: banco, limit: 1000, offset: Number(new URLSearchParams(query).get("offset")), ...linhas(banco) };
+      }
+      if (rota.startsWith("/extratos/")) return situacao(rota.split("/")[2]);
+      throw new Error(`caminho inesperado: ${caminho}`);
+    });
+  }
+
+  it.each([BANCO_RECENTE, BANCO_ANTERIOR])(
+    "não soma o mês quando as linhas de %s passam do teto de páginas, e a home segue",
+    async (cortado) => {
+      // 10.001 linhas: a divergência da última ficaria fora do número do mês (revisão de 03/11)
+      const pagina = Array.from({ length: 1000 }, (_, indice) => ({ ...itemConciliacao, id: `c-${indice}` }));
+      backendDoMes((banco) => (banco === cortado ? { total: 10_001, itens: pagina } : { total: 1, itens: [itemConciliacao] }));
+
+      const resultado = await carregarVisaoGeral();
+
+      if (!resultado.ok) throw new Error(resultado.erro);
+      expect(resultado.dados.recente?.execucao.id).toBe("e-2");
+      expect(resultado.dados.mes).toMatchObject({ competencia: "2026-09", conciliacoes: null });
+    },
+  );
+
+  it("não soma o mês quando a conciliação de outro par não carrega, e a home segue", async () => {
+    backendDoMes((banco) => {
+      if (banco === BANCO_ANTERIOR) throw new ErroBackend(503, "Serviço indisponível.");
+      return { total: 1, itens: [itemConciliacao] };
+    });
+
+    const resultado = await carregarVisaoGeral();
+
+    if (!resultado.ok) throw new Error(resultado.erro);
+    expect(resultado.dados.recente?.execucao.id).toBe("e-2");
+    expect(resultado.dados.mes).toMatchObject({ competencia: "2026-09", conciliacoes: null });
+  });
+
+  it("não soma o mês quando ele pode seguir na segunda página de /execucoes", async () => {
+    // 51 execuções e a mais antiga da primeira página ainda rodou em setembro: a 51ª pode ser de setembro
+    backendDoMes(() => ({ total: 1, itens: [itemConciliacao] }), {
+      total: 51,
+      itens: [execucao("e-2", BANCO_RECENTE), execucao("e-1", BANCO_ANTERIOR)],
+    });
+
+    const resultado = await carregarVisaoGeral();
+
+    if (!resultado.ok) throw new Error(resultado.erro);
+    expect(resultado.dados.mes).toMatchObject({ competencia: "2026-09", conciliacoes: null });
+  });
+
+  it("soma o mês quando a primeira página já chega a uma execução de antes dele", async () => {
+    const agosto = {
+      ...execucao("e-0", "5c6d7e8f-9a0b-4c1d-8e2f-3a4b5c6d7e8f"),
+      periodo_inicio: "2026-08-01",
+      executada_em: "2026-08-31T12:00:00Z",
+    };
+    backendDoMes(() => ({ total: 1, itens: [itemConciliacao] }), {
+      total: 51,
+      itens: [execucao("e-2", BANCO_RECENTE), execucao("e-1", BANCO_ANTERIOR), agosto],
+    });
+
+    const resultado = await carregarVisaoGeral();
+
+    if (!resultado.ok) throw new Error(resultado.erro);
+    expect(resultado.dados.mes?.conciliacoes).toHaveLength(2);
+  });
 });
 
 describe("explicarDivergencia", () => {
