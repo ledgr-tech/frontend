@@ -1366,19 +1366,20 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
    dentro de um quadro 16:10, com as telas reais do app trocando por dentro */
 .mockup-quadro { position: relative; aspect-ratio: 1280 / 800; overflow: hidden; background: var(--color-bg); }
 .mockup-app { position: absolute; top: 0; left: 0; transform-origin: 0 0; }
-.mockup-principal { display: flex; flex-direction: column; min-height: 0; }
+/* a margem lateral do app (--recuo-lateral) vem do .app-principal, que a moldura da vitrine não usa */
+.mockup-principal { --recuo-lateral: 40px; display: flex; flex-direction: column; min-height: 0; }
 .mockup-visor { position: relative; flex: 1; min-height: 0; overflow: hidden; }
 .mockup-cena { transition: transform 0.9s cubic-bezier(0.22, 1, 0.36, 1); animation: mockup-entra 0.4s ease both; }
 @keyframes mockup-entra { from { opacity: 0; } }
 /* a janela de justificar, sobre a tela escurecida e borrada, como o <dialog> do app */
 .mockup-veu {
-  position: absolute; inset: 0; z-index: 30; display: none; align-items: center; justify-content: center;
+  position: absolute; inset: 0; z-index: 80; display: none; align-items: center; justify-content: center;
   background: rgb(32 31 29 / 0.32); backdrop-filter: blur(3px);
 }
 .mockup-veu[data-aberto] { display: flex; animation: mockup-entra 0.25s ease both; }
 .mockup-veu dialog { position: relative; inset: auto; display: block; margin: 0; }
 .mockup-cursor {
-  position: absolute; top: 0; left: 0; z-index: 50; pointer-events: none; opacity: 0; overflow: visible;
+  position: absolute; top: 0; left: 0; z-index: 90; pointer-events: none; opacity: 0; overflow: visible;
   transition: transform 1s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.3s;
   filter: drop-shadow(0 2px 3px rgb(32 31 29 / 0.28));
 }
@@ -1387,7 +1388,7 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
 @keyframes mockup-clique { from { opacity: 0.55; transform: scale(0.15); } to { opacity: 0; transform: scale(1); } }
 /* a abertura: logo, título e uma linha, sobre o papel da faixa clara */
 .mockup-intro {
-  position: absolute; inset: 0; z-index: 60; display: flex; flex-direction: column; align-items: center;
+  position: absolute; inset: 0; z-index: 100; display: flex; flex-direction: column; align-items: center;
   justify-content: center; gap: 18px; text-align: center; padding: 0 8%;
   background: var(--grao-claro) var(--faixa-clara);
   opacity: 0; visibility: hidden; transition: opacity 0.7s ease, visibility 0s linear 0.7s;

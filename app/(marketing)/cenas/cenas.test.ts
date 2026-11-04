@@ -18,7 +18,10 @@ describe("cenas do mockup", () => {
 
   it("o cartão, a janela e a barra de cima vêm à parte", () => {
     expect(cenas.cartaoDoHover).toContain("cartao-lancamento");
-    expect(cenas.comparacao).not.toContain("cartao-lancamento ");
+    // nenhuma cena guarda um cartão aberto (ficaria preso por cima da tela depois de justificar)
+    for (const cena of [cenas.novaVazia, cenas.novaBanco, cenas.novaPronta, cenas.comparando, cenas.comparacao, cenas.comparacaoJustificada, cenas.fechamentos]) {
+      expect(cena).not.toContain("cartao-lancamento");
+    }
     expect(cenas.janelaDeJustificativa).toContain("{{TEXTO}}");
     expect(cenas.janelaDeJustificativa).toMatch(/Justificar/);
     expect(cenas.barraDeCima).toContain("falta 1 dia");
