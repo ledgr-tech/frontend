@@ -532,6 +532,58 @@ describe("AssinaturaPage", () => {
       expect(router.refresh).not.toHaveBeenCalled();
     });
 
+    describe("a comemoração (#300)", () => {
+      beforeEach(() => {
+        vi.useFakeTimers({ toFake: ["Date"] });
+        vi.setSystemTime(new Date("2026-11-03T12:00:00-03:00"));
+      });
+      const janela = () => screen.getByRole("dialog", { name: "Assinatura confirmada" });
+
+      it("assinando no teste: o plano, a primeira cobrança no fim dele e o que o plano libera", async () => {
+        await voltar("?checkout=sucesso", conta({ ...ATIVO, cobranca: { ...ATIVO.cobranca!, status: "trialing", periodoAtualFim: "2026-11-17" } }));
+        expect(within(janela()).getByRole("heading", { name: "O plano Padrão é seu." })).toBeInTheDocument();
+        expect(within(janela()).getByText("Você só paga em 17/11, quando o teste acaba. Até lá, nada muda: siga conciliando como antes.")).toBeInTheDocument();
+        expect(within(janela()).getByText("Primeira cobrança")).toBeInTheDocument();
+        expect(within(janela()).getByText("Mensal")).toBeInTheDocument();
+        expect(within(janela()).getByText("Empresas clientes, cada uma com os seus extratos")).toBeInTheDocument();
+        expect(within(janela()).getByRole("link", { name: "Começar uma conciliação" })).toHaveAttribute("href", "/conciliacoes/nova");
+      });
+
+      it("fora do teste: a cobrança já foi feita, e a próxima leva o ano quando é no ano seguinte", async () => {
+        await voltar("?checkout=sucesso", conta({ ...ATIVO, cobranca: { ...ATIVO.cobranca!, periodo: "anual", periodoAtualFim: "2027-11-03" } }));
+        expect(within(janela()).getByText("A primeira cobrança foi feita agora. O que você já fez continua aqui.")).toBeInTheDocument();
+        expect(within(janela()).getByText("Próxima cobrança")).toBeInTheDocument();
+        expect(within(janela()).getByText("03/11/2027")).toBeInTheDocument();
+        expect(within(janela()).getByText("Anual")).toBeInTheDocument();
+      });
+
+      it("fecha e fica a linha de sempre; recarregar não repete, porque o sucesso sai da URL", async () => {
+        const user = userEvent.setup();
+        await voltar("?checkout=sucesso", ATIVO);
+        await user.click(within(janela()).getByRole("button", { name: "Ver a assinatura" }));
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+        expect(screen.getByRole("status")).toHaveTextContent("Assinatura confirmada: plano Padrão, mensal.");
+        await waitFor(() => expect(replaceState).toHaveBeenCalledWith(window.history.state, "", "/e/x/assinatura"));
+      });
+
+      it("o X fecha também", async () => {
+        const user = userEvent.setup();
+        await voltar("?checkout=sucesso", ATIVO);
+        await user.click(within(janela()).getByRole("button", { name: "Fechar" }));
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      });
+
+      it("com o pagamento pendente, não comemora", async () => {
+        await voltar("?checkout=sucesso", { ...ATIVO, situacao: "pagamento_pendente" });
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      });
+
+      it("sem a volta da Stripe, não abre", async () => {
+        await voltar("", ATIVO);
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      });
+    });
+
     it("cancelado: diz que nada foi cobrado", async () => {
       await voltar("?checkout=cancelado", conta({ situacao: "teste" }));
       expect(screen.getByRole("status")).toHaveTextContent("Você voltou sem assinar. Nada foi cobrado.");

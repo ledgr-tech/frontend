@@ -4911,6 +4911,86 @@ html[data-tema="escuro"] .app-shell {
 }
 .ass-recibo:disabled { opacity: 0.45; cursor: not-allowed; }
 
+/* ---------- a comemoração da assinatura (#300): versão D do artefato "Comemoração da assinatura" ----------
+   O livro-razão: o rótulo dourado com filete até o X, o título e a medalha, o plano em linhas pontilhadas
+   até o valor e o que ele libera. O <dialog> toma a tela (transparente) para o confete cair por cima do
+   fundo escurecido e por baixo da janela; clicar fora da janela continua fechando. */
+.comemoracao {
+  width: 100vw; height: 100dvh; max-width: none; max-height: none; margin: 0; padding: 16px;
+  box-sizing: border-box; display: grid; place-items: center; overflow-y: auto;
+}
+.comemoracao .dialog {
+  position: relative; z-index: 1; width: min(600px, 100%); box-sizing: border-box;
+  gap: 18px; padding: 28px 32px 24px; background: var(--color-bg);
+}
+.app-shell .comemoracao .dialog-title {
+  display: flex; align-items: center; gap: 12px; margin-right: 44px;
+  font-family: var(--font-body); font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--color-accent-700);
+}
+.comemoracao .dialog-title::after {
+  content: ""; flex: 1; height: 1px; background: color-mix(in srgb, var(--color-accent) 45%, transparent);
+}
+.comemoracao-fechar {
+  position: absolute; top: 18px; right: 20px; width: 36px; height: 36px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 0; border-radius: 999px; background: transparent; color: var(--color-text); cursor: pointer;
+}
+.comemoracao-fechar:hover { background: var(--tinta-hover); }
+.comemoracao-topo { display: grid; grid-template-columns: minmax(0, 1fr) 132px; gap: 20px; align-items: center; }
+.comemoracao-chamada { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.comemoracao-titulo { margin: 0; font-size: 32px; font-weight: 500; line-height: 1.12; text-wrap: balance; }
+.comemoracao-texto { margin: 0; font-size: 15px; line-height: 1.55; color: var(--texto-apagado); text-wrap: pretty; }
+.comemoracao-medalha { width: 132px; height: auto; }
+.comemoracao-razao { margin: 0; display: flex; flex-direction: column; }
+.comemoracao-razao > div { display: flex; align-items: baseline; gap: 8px; padding: 6px 0; }
+.comemoracao-razao dt { flex: none; font-size: 14px; color: var(--texto-apagado); }
+.comemoracao-pontilhado {
+  flex: 1; border-bottom: 1px dotted color-mix(in srgb, var(--color-text) 40%, transparent); transform: translateY(-4px);
+}
+.comemoracao-razao dd { margin: 0; font-size: 19px; }
+.comemoracao-libera { display: flex; flex-direction: column; gap: 8px; padding-top: 14px; border-top: 1px solid var(--color-divider); }
+.app-shell .comemoracao-libera-titulo {
+  margin: 0; font-family: var(--font-body); font-size: 14px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+}
+.comemoracao-libera ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; font-size: 14px; line-height: 1.45; }
+.comemoracao-libera li { display: flex; gap: 10px; align-items: flex-start; }
+.comemoracao-libera svg { flex: none; margin-top: 2px; }
+.comemoracao-em-breve {
+  margin-left: 8px; padding: 1px 8px; border: 1px solid var(--color-divider); border-radius: 999px;
+  font-size: 12px; color: var(--texto-apagado); white-space: nowrap;
+}
+.comemoracao .dialog-actions { margin-top: 0; flex-wrap: wrap; }
+/* o confete de papel da medalha: tiras na folha do banco e na do sistema com contorno de tinta, um
+   quadradinho de tinta e, poucas, as de contorno dourado. Sem movimento, fica parado onde está */
+.comemoracao-chuva { position: fixed; inset: 0; overflow: hidden; pointer-events: none; }
+.confete {
+  position: absolute; left: var(--x); top: var(--y); width: var(--l); height: var(--a);
+  box-sizing: border-box; border-radius: 2px; transform: rotate(var(--r));
+}
+.confete-papel { background: var(--folha-banco); border: 1.5px solid var(--color-text); }
+.confete-folha { background: var(--folha-sistema); border: 1.5px solid var(--color-text); }
+.confete-tinta { background: var(--color-text); }
+.confete-ouro { border: 1.5px solid var(--color-accent); }
+@media (prefers-reduced-motion: no-preference) {
+  .confete { animation: confete-cai var(--dur) var(--atraso) linear infinite; }
+  .comemoracao-medalha { animation: comemoracao-medalha 0.6s 0.12s var(--ease-out) both; }
+}
+@keyframes confete-cai {
+  from { transform: translate3d(0, calc(-1 * var(--y) - 40px), 0) rotate(var(--r)); }
+  to { transform: translate3d(var(--deriva), calc(100dvh - var(--y) + 40px), 0) rotate(var(--giro)); }
+}
+@keyframes comemoracao-medalha {
+  0% { opacity: 0; transform: scale(0.82) rotate(-6deg); }
+  70% { opacity: 1; transform: scale(1.03) rotate(1deg); }
+}
+@media (max-width: 560px) {
+  .comemoracao .dialog { padding: 22px 20px 20px; }
+  .comemoracao-topo { grid-template-columns: minmax(0, 1fr); }
+  .comemoracao-medalha { order: -1; width: 104px; justify-self: center; }
+  .comemoracao .dialog-actions .btn { flex: 1 1 100%; }
+}
+
 /* o porquê do "Cancelar mesmo assim" desligado, logo abaixo dele */
 /* cancelar nao e acao principal: sem dourado, texto apagado e fundo neutro no hover */
 .ass-cancelar { padding-inline: var(--space-1); color: var(--texto-apagado); }

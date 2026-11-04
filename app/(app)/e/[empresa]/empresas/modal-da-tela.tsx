@@ -7,14 +7,20 @@ import { useEffect, useId, useRef, type ReactNode } from "react";
  * escurecido e desfocado e a entrada suave: o mesmo <dialog> nativo com `showModal` da comparação
  * (`.espia` por fora, a `.dialog` de sempre por dentro), que prende o foco e fecha no Esc. Fecha também
  * com um clique no fundo. Monta só quando aberta; o que quem a abre guarda (a lista, a aba) não se perde.
+ * `classe` vai no <dialog>, e `fundo` fica nele, antes da caixa: o que desenha por cima do fundo escurecido
+ * e por baixo da janela (o confete da comemoração da assinatura).
  */
 export function ModalDaTela({
   titulo,
   aoFechar,
+  classe,
+  fundo,
   children,
 }: {
   titulo: string;
   aoFechar: () => void;
+  classe?: string;
+  fundo?: ReactNode;
   children: ReactNode;
 }) {
   const dialogo = useRef<HTMLDialogElement>(null);
@@ -42,7 +48,7 @@ export function ModalDaTela({
   return (
     <dialog
       ref={dialogo}
-      className="espia modal-suave"
+      className={classe ? `espia modal-suave ${classe}` : "espia modal-suave"}
       aria-labelledby={tituloId}
       onKeyDown={(evento) => {
         if (evento.key !== "Escape") return;
@@ -55,6 +61,7 @@ export function ModalDaTela({
         if (evento.target === evento.currentTarget) aoFechar();
       }}
     >
+      {fundo}
       <div className="dialog">
         <span id={tituloId} className="dialog-title">
           {titulo}
