@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { m, useInView, useReducedMotion, useScroll, useTransform } from "motion/react";
 import { LogoBarras } from "@/app/(app)/e/[empresa]/logo-barras";
 import { MenuDaVitrine } from "./vitrine";
@@ -57,6 +57,7 @@ export function MockupDemo({ descricao }: { descricao: string }) {
   const [cena, setCena] = useState<Cena>("comparacao");
   const [menu, setMenu] = useState<string>(MENU_ATIVO.conciliacoes);
   const [intro, setIntro] = useState(false);
+  const [fim, setFim] = useState(false);
   const [rolagem, setRolagem] = useState(0);
   const [hover, setHover] = useState(true);
   const [janela, setJanela] = useState(false);
@@ -128,6 +129,7 @@ export function MockupDemo({ descricao }: { descricao: string }) {
           setDigitado("");
           setMenu(MENU_ATIVO.conciliacoes);
           setCena("novaVazia");
+          setFim(false);
           setIntro(true);
           await dorme(3600, sinal);
           setIntro(false);
@@ -182,7 +184,13 @@ export function MockupDemo({ descricao }: { descricao: string }) {
           setMenu(MENU_ATIVO.fechamentos);
           setCena("fechamentos");
           setCursor((a) => ({ ...a, visivel: false }));
-          await dorme(4200, sinal);
+          await dorme(4400, sinal);
+
+          // o encerramento: rápido, simples e prático
+          setFim(true);
+          await dorme(6200, sinal);
+          setFim(false);
+          await dorme(900, sinal);
         }
       } catch (erro) {
         if (!(erro instanceof Interrompido)) throw erro;
@@ -234,6 +242,7 @@ export function MockupDemo({ descricao }: { descricao: string }) {
                   {html && (
                     <div
                       key={cena}
+                      data-cena={cena}
                       ref={cenaRef}
                       className="mockup-cena"
                       style={{ transform: `translateY(${-rolagem}px)` }}
@@ -267,6 +276,22 @@ export function MockupDemo({ descricao }: { descricao: string }) {
                 Do extrato ao <em>fechamento do mês.</em>
               </p>
               <p className="mockup-intro-sub">Um mês conciliado, passo a passo</p>
+            </div>
+
+            <div className="mockup-intro mockup-fim" data-aberta={fim && !reduzido ? "" : undefined} aria-hidden="true">
+              <LogoBarras className="mockup-intro-logo" />
+              <p className="titulo-misto mockup-intro-titulo">
+                Rápido, simples e <em>prático.</em>
+              </p>
+              <ol className="mockup-fim-passos">
+                {["Envie os dois extratos", "Confira e aponte", "Feche o mês"].map((passo, i) => (
+                  <li key={passo} style={{ "--i": i } as CSSProperties}>
+                    <span>{i + 1}</span>
+                    {passo}
+                  </li>
+                ))}
+              </ol>
+              <p className="mockup-intro-sub">Em minutos, o Ledgr confere linha por linha · 14 dias grátis, sem cartão</p>
             </div>
           </div>
         </div>

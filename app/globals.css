@@ -1401,6 +1401,29 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
 .mockup-intro-logo { width: 54px; height: auto; }
 .mockup-intro-titulo { margin: 0; font-size: clamp(26px, 4.6vw, 58px); line-height: 1.1; max-width: 18ch; }
 .mockup-intro-sub { margin: 0; font-size: clamp(12px, 1.4vw, 17px); color: var(--color-neutral-300); letter-spacing: 0.02em; }
+/* Fechamentos: no app o painel do mês é preso e rola por dentro (altura da janela do navegador); no mockup
+   ele abre inteiro, e a cena encolhe para caber na janela */
+.mockup-cena .extrato-painel { position: static; max-height: none; overflow: visible; }
+.mockup-cena[data-cena="fechamentos"] { zoom: 0.82; }
+/* o encerramento: os três passos caem um a um, com o back.out das demais animações */
+.mockup-fim-passos { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
+.mockup-fim-passos li {
+  display: flex; align-items: center; gap: 10px; padding: 10px 18px 10px 10px; border-radius: 999px;
+  background: var(--color-surface); border: 1px solid var(--color-divider); font-size: clamp(12px, 1.5vw, 18px);
+  box-shadow: 0 8px 22px -14px rgb(45 35 20 / 0.45);
+}
+.mockup-fim-passos li span {
+  display: grid; place-items: center; width: 1.9em; height: 1.9em; border-radius: 50%;
+  background: var(--color-accent); color: #fff; font-weight: 600; font-variant-numeric: tabular-nums;
+}
+.mockup-fim[data-aberta] .mockup-fim-passos { animation: none; }
+.mockup-fim[data-aberta] .mockup-fim-passos li {
+  animation: mockup-cai 0.85s cubic-bezier(0.34, 1.56, 0.64, 1) both; animation-delay: calc(0.7s + var(--i) * 0.28s);
+}
+@keyframes mockup-cai { from { opacity: 0; transform: translateY(-34px) scale(0.8); } }
+@media (prefers-reduced-motion: reduce) {
+  .mockup-cena[data-cena="fechamentos"] { zoom: 0.82; }
+}
 @media (prefers-reduced-motion: reduce) {
   .mockup-intro { display: none; }
   .mockup-cena, .mockup-veu[data-aberto] { animation: none; }
