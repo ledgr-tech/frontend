@@ -633,22 +633,19 @@ describe("VisaoGeralPage", () => {
     );
   });
 
-  it("não exibe totais nem pendências quando os dados do mês estão incompletos", async () => {
-    carregarVisaoGeral.mockResolvedValue({
-      ok: false,
-      status: 503,
-      codigo: "dados_do_mes_incompletos",
-      erro: "Detalhe interno do servidor.",
-    });
-
+  it("does not sum the month when its lines did not all load, and keeps the rest of the home", async () => {
+    com({ mes: { competencia: "2026-09", fechado: false, conciliacoes: null } });
     await renderizar();
 
-    expect(screen.getByRole("alert")).toHaveTextContent("Não foi possível carregar todos os dados do mês.");
-    expect(screen.getByRole("link", { name: "Consulte Conciliações" })).toHaveAttribute("href", "/dashboard");
-    expect(screen.queryByText("Detalhe interno do servidor.")).not.toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "Pede sua atenção" })).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Confira o mês nas conciliações" })).toBeInTheDocument();
     expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
-    expect(screen.queryByRole("table", { name: "Atividade recente" })).not.toBeInTheDocument();
+    expect(screen.queryByText(/lançamentos conciliados/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/em aberto/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Pede sua atenção" })).not.toBeInTheDocument();
+    expect(
+      within(screen.getByRole("navigation", { name: "Atalhos" })).getByRole("link", { name: /Fechamentos/ }),
+    ).toHaveTextContent("Confira as conciliações do mês");
+    expect(screen.getByRole("table", { name: "Atividade recente" })).toBeInTheDocument();
   });
 
   it("sends an expired session back to the login", async () => {

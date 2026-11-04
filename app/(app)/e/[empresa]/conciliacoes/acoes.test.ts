@@ -604,94 +604,11 @@ describe("carregarVisaoGeral", () => {
     return { extrato_id: id, status: "concluido", origem: "banco", quantidade_lancamentos: 2, erros };
   }
 
-  function backendDoMes(execucoes: ExecucaoAPI[], linhas: (banco: string, offset: number) => { total: number; itens: ItemConciliacaoAPI[] }) {
-    chamarBackend.mockImplementation(async (caminho: string) => {
-      const [rota, query] = caminho.split("?");
-      const offset = Number(new URLSearchParams(query).get("offset") ?? 0);
-      if (rota === "/execucoes") {
-        return { total: execucoes.length, limit: 50, offset, itens: execucoes.slice(offset, offset + 50) };
-      }
-      if (rota === "/fechamentos") return { itens: [] };
-      if (rota.startsWith("/conciliacoes/")) {
-        const banco = rota.split("/")[2];
-        return { extrato_id: banco, limit: 1000, offset, ...linhas(banco, offset) };
-      }
-      if (rota.startsWith("/extratos/")) return situacao(rota.split("/")[2]);
-      throw new Error(`caminho inesperado: ${caminho}`);
-    });
-  }
-
-  it.each([BANCO_RECENTE, BANCO_ANTERIOR])("não publica métricas do mês quando a conciliação %s tem 10.001 linhas", async (bancoTruncado) => {
-    const pagina = Array.from({ length: 1000 }, (_, indice) => ({ ...itemConciliacao, id: `c-${indice}` }));
-    backendDoMes([execucao("e-2", BANCO_RECENTE), execucao("e-1", BANCO_ANTERIOR)], (banco) =>
-      banco === bancoTruncado ? { total: 10_001, itens: pagina } : { total: 1, itens: [itemConciliacao] },
-    );
-
-    expect(await carregarVisaoGeral()).toMatchObject({ ok: false, status: 503 });
-  });
-
-  it("inclui no mês a conciliação da segunda página de execuções", async () => {
-    const execucoes = [
-      ...Array.from({ length: 50 }, (_, indice) => execucao(`e-recente-${indice}`, BANCO_RECENTE)),
-      execucao("e-anterior", BANCO_ANTERIOR),
-    ];
-    backendDoMes(execucoes, () => ({ total: 1, itens: [itemConciliacao] }));
-
-    const resultado = await carregarVisaoGeral();
-
-    if (!resultado.ok) throw new Error(resultado.erro);
-    expect(resultado.dados.mes?.conciliacoes.map(({ id }) => id)).toEqual([BANCO_RECENTE, BANCO_ANTERIOR]);
-    expect(resultado.dados.execucoes).toHaveLength(51);
-    expect(chamarBackend).toHaveBeenCalledWith("/execucoes?limit=50&offset=50");
-  });
-
-  it.each(["vazia", "falhou", "mudou", "repetida"])("não publica o mês quando a segunda página de execuções fica %s", async (falha) => {
-    chamarBackend.mockImplementation(async (caminho: string) => {
-      if (caminho === "/fechamentos") return { itens: [] };
-      if (caminho === "/execucoes?limit=50&offset=0") {
-        return { total: 51, limit: 50, offset: 0, itens: Array.from({ length: 50 }, (_, indice) => execucao(`e-${indice}`, BANCO_RECENTE)) };
-      }
-      if (caminho === "/execucoes?limit=50&offset=50") {
-        if (falha === "falhou") throw new ErroBackend(503, "Serviço indisponível.");
-        if (falha === "mudou") return { total: 52, limit: 50, offset: 50, itens: [execucao("e-50", BANCO_ANTERIOR)] };
-        if (falha === "repetida") return { total: 51, limit: 50, offset: 50, itens: [execucao("e-0", BANCO_RECENTE)] };
-        return { total: 51, limit: 50, offset: 50, itens: [] };
-      }
-      if (caminho.startsWith("/conciliacoes/")) {
-        return { extrato_id: BANCO_RECENTE, total: 1, limit: 1000, offset: 0, itens: [itemConciliacao] };
-      }
-      if (caminho.startsWith("/extratos/")) return situacao(caminho.split("/")[2]);
-      throw new Error(`caminho inesperado: ${caminho}`);
-    });
-
-    expect(await carregarVisaoGeral()).toMatchObject({ ok: false, status: 503 });
-  });
-
-  it("não publica métricas parciais ao atingir o teto de páginas de execuções", async () => {
-    backendDoMes(Array.from({ length: 501 }, (_, indice) => execucao(`e-${indice}`, BANCO_RECENTE)), () => ({
-      total: 1,
-      itens: [itemConciliacao],
-    }));
-
-    expect(await carregarVisaoGeral()).toMatchObject({ ok: false, status: 503 });
-    expect(chamarBackend.mock.calls.filter(([caminho]) => String(caminho).startsWith("/execucoes"))).toHaveLength(10);
-  });
-
-  it("não apresenta só a conciliação recente como mês inteiro quando outro par falha", async () => {
-    backendDoMes([execucao("e-2", BANCO_RECENTE), execucao("e-1", BANCO_ANTERIOR)], (banco) => {
-      if (banco === BANCO_ANTERIOR) throw new ErroBackend(503, "Serviço indisponível.");
-      return { total: 1, itens: [itemConciliacao] };
-    });
-
-    expect(await carregarVisaoGeral()).toMatchObject({ ok: false, status: 503 });
-  });
-
   /** /execucoes, as linhas da mais recente e o detalhe de cada arquivo pedido. */
   function backendComVisao(execucoes: ExecucaoAPI[], extratos: Record<string, unknown>) {
     chamarBackend.mockImplementation(async (caminho: string) => {
-      if (caminho === "/fechamentos") return { itens: [] };
       if (caminho.startsWith("/execucoes")) {
-        return { total: execucoes.length, limit: 50, offset: 0, itens: execucoes };
+        return { total: 7, limit: 50, offset: 0, itens: execucoes };
       }
       if (caminho.startsWith(`/conciliacoes/${BANCO_RECENTE}`)) {
         return { extrato_id: BANCO_RECENTE, total: 1, limit: 1000, offset: 0, itens: [itemConciliacao] };
@@ -749,7 +666,7 @@ describe("carregarVisaoGeral", () => {
       [
         execucao("e-3", BANCO_RECENTE),
         execucao("e-2", BANCO_ANTERIOR, false),
-        { ...execucao("e-1", BANCO_ANTERIOR), periodo_inicio: "2026-08-01" },
+        execucao("e-1", BANCO_ANTERIOR),
       ],
       {
         [BANCO_RECENTE]: situacao(BANCO_RECENTE),
@@ -763,7 +680,7 @@ describe("carregarVisaoGeral", () => {
     const resultado = await carregarVisaoGeral();
 
     if (!resultado.ok) throw new Error(resultado.erro);
-    expect(resultado.dados.total).toBe(3);
+    expect(resultado.dados.total).toBe(7);
     expect(resultado.dados.execucoes.map((item) => item.id)).toEqual(["e-3", "e-2", "e-1"]);
     expect(resultado.dados.recente?.execucao.id).toBe("e-3");
     expect(resultado.dados.recente?.conciliacao.linhas.map((linha) => linha.id)).toEqual(["c-1"]);
@@ -800,6 +717,51 @@ describe("carregarVisaoGeral", () => {
     chamarBackend.mockRejectedValue(new ErroBackend(401, "Token expirado"));
 
     expect(await carregarVisaoGeral()).toMatchObject({ ok: false, status: 401 });
+  });
+
+  /** Dois pares de setembro; as linhas de cada um saem de `linhas`, que pode lançar. */
+  function backendDoMes(linhas: (banco: string) => { total: number; itens: ItemConciliacaoAPI[] }) {
+    chamarBackend.mockImplementation(async (caminho: string) => {
+      const [rota, query] = caminho.split("?");
+      if (rota === "/execucoes") {
+        return { total: 2, limit: 50, offset: 0, itens: [execucao("e-2", BANCO_RECENTE), execucao("e-1", BANCO_ANTERIOR)] };
+      }
+      if (rota === "/fechamentos") return { itens: [] };
+      if (rota.startsWith("/conciliacoes/")) {
+        const banco = rota.split("/")[2];
+        return { extrato_id: banco, limit: 1000, offset: Number(new URLSearchParams(query).get("offset")), ...linhas(banco) };
+      }
+      if (rota.startsWith("/extratos/")) return situacao(rota.split("/")[2]);
+      throw new Error(`caminho inesperado: ${caminho}`);
+    });
+  }
+
+  it.each([BANCO_RECENTE, BANCO_ANTERIOR])(
+    "não soma o mês quando as linhas de %s passam do teto de páginas, e a home segue",
+    async (cortado) => {
+      // 10.001 linhas: a divergência da última ficaria fora do número do mês (revisão de 03/11)
+      const pagina = Array.from({ length: 1000 }, (_, indice) => ({ ...itemConciliacao, id: `c-${indice}` }));
+      backendDoMes((banco) => (banco === cortado ? { total: 10_001, itens: pagina } : { total: 1, itens: [itemConciliacao] }));
+
+      const resultado = await carregarVisaoGeral();
+
+      if (!resultado.ok) throw new Error(resultado.erro);
+      expect(resultado.dados.recente?.execucao.id).toBe("e-2");
+      expect(resultado.dados.mes).toMatchObject({ competencia: "2026-09", conciliacoes: null });
+    },
+  );
+
+  it("não soma o mês quando a conciliação de outro par não carrega, e a home segue", async () => {
+    backendDoMes((banco) => {
+      if (banco === BANCO_ANTERIOR) throw new ErroBackend(503, "Serviço indisponível.");
+      return { total: 1, itens: [itemConciliacao] };
+    });
+
+    const resultado = await carregarVisaoGeral();
+
+    if (!resultado.ok) throw new Error(resultado.erro);
+    expect(resultado.dados.recente?.execucao.id).toBe("e-2");
+    expect(resultado.dados.mes).toMatchObject({ competencia: "2026-09", conciliacoes: null });
   });
 });
 

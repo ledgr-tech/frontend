@@ -48,7 +48,7 @@ import { podeFecharMes } from "@/lib/papel";
  * como chamaria qualquer outra.
  */
 
-export type Falha = { ok: false; erro: string; status: number; codigo?: "dados_do_mes_incompletos" };
+export type Falha = { ok: false; erro: string; status: number };
 export type Resultado<T> = { ok: true; dados: T } | Falha;
 
 /** Status do processamento assíncrono do extrato (`normalizar_extrato`). */
@@ -357,8 +357,8 @@ async function fechamentoAtivo(periodoInicio: string | null): Promise<Fechamento
   }
 }
 
-// 50 por página (o backend aceita até 100). A visão geral reúne as páginas antes
-// de resumir o mês; o histórico pagina na tela.
+// 50 por página (o backend aceita até 100). As telas que resumem — visão geral,
+// fechamentos, extratos — leem só a primeira; o histórico pagina.
 const EXECUCOES_POR_PAGINA = 50;
 
 export type ListaExecucoes = {
@@ -707,10 +707,11 @@ export type VisaoGeral = {
   /**
    * O mês em foco (revisão de 15/10): o aberto mais recente, ou o mais recente se todos estão
    * fechados, com as linhas de todas as conciliações dele. O número do topo, "Pede sua atenção" e
-   * o atalho de Fechamentos olham o mês inteiro, não só a última conciliação. A leitura falha quando
-   * não consegue obter todas as execuções ou todas as linhas do mês, para não publicar totais parciais.
+   * o atalho de Fechamentos olham o mês inteiro, não só a última conciliação. `conciliacoes` é null
+   * quando as linhas do mês não vieram inteiras (um par não carregou, ou passou do teto de páginas de
+   * `carregarConciliacao`): a home não soma um mês pela metade.
    */
-  mes?: { competencia: string; fechado: boolean; conciliacoes: Conciliacao[] };
+  mes?: { competencia: string; fechado: boolean; conciliacoes: Conciliacao[] | null };
 };
 
 /**
@@ -722,23 +723,7 @@ export type VisaoGeral = {
 export async function carregarVisaoGeral(): Promise<Resultado<VisaoGeral>> {
   const [lista, fechamentos] = await Promise.all([listarExecucoes(), listarFechamentos()]);
   if (!lista.ok) return lista;
-  const { total } = lista.dados;
-  const execucoes = [...lista.dados.execucoes];
-  const incompleta: Falha = {
-    ok: false,
-    status: 503,
-    codigo: "dados_do_mes_incompletos",
-    erro: "Não foi possível carregar todos os dados do mês. Consulte Conciliações e tente de novo mais tarde.",
-  };
-  // Uma execução de outra página pode ser outro par do mesmo mês ou mudar a rodada vigente.
-  // O teto evita uma quantidade ilimitada de chamadas; ao atingi-lo, nenhum resumo parcial é publicado.
-  for (let pagina = 1; execucoes.length < total && pagina < MAXIMO_DE_PAGINAS; pagina += 1) {
-    const proxima = await listarExecucoes(pagina);
-    if (!proxima.ok) return proxima;
-    if (proxima.dados.total !== total || proxima.dados.execucoes.length === 0) return incompleta;
-    execucoes.push(...proxima.dados.execucoes);
-  }
-  if (execucoes.length !== total || new Set(execucoes.map(({ id }) => id)).size !== total) return incompleta;
+  const { execucoes, total } = lista.dados;
 
   // a rodada que vale de cada extrato do banco: a v1 reconciliada depois da v2 é a execução mais
   // nova, mas não a rodada de agora
@@ -766,12 +751,8 @@ export async function carregarVisaoGeral(): Promise<Resultado<VisaoGeral>> {
     situacaoDoExtrato(maisRecente.extratoBancoId),
     situacaoDoExtrato(maisRecente.extratoSistemaId),
   ]);
-  const completas: Conciliacao[] = [];
-  for (const resultado of conciliacoes) {
-    if (!resultado.ok) return resultado;
-    if (resultado.dados.truncada) return incompleta;
-    completas.push(resultado.dados.conciliacao);
-  }
+  const [conciliacao] = conciliacoes;
+  if (!conciliacao.ok) return conciliacao;
 
   // o detalhe do arquivo é aviso a mais, não o dado principal: se não carregar,
   // a home abre sem ele
@@ -784,14 +765,24 @@ export async function carregarVisaoGeral(): Promise<Resultado<VisaoGeral>> {
       ? [{ nome, linhas: situacao.dados.erros.length }]
       : [],
   );
+  // os números do mês saem das linhas: com um par cortado no teto de páginas, a home mostraria um
+  // mês pela metade como inteiro (100% conciliado com divergência na linha 10.001)
+  const inteiras = conciliacoes.flatMap((resultado) =>
+    resultado.ok && !resultado.dados.truncada ? [resultado.dados.conciliacao] : [],
+  );
+
   return {
     ok: true,
     dados: {
       execucoes,
       total,
-      recente: { execucao: maisRecente, conciliacao: completas[0] },
+      recente: { execucao: maisRecente, conciliacao: conciliacao.dados.conciliacao },
       arquivosComLinhasNaoLidas,
-      mes: { competencia: foco, fechado: fechados.has(foco), conciliacoes: completas },
+      mes: {
+        competencia: foco,
+        fechado: fechados.has(foco),
+        conciliacoes: inteiras.length === conciliacoes.length ? inteiras : null,
+      },
     },
   };
 }
