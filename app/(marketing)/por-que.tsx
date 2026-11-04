@@ -37,7 +37,7 @@ export const MOTIVOS: Motivo[] = [
       "Alguém que entenda de contabilidade, linha por linha, com as duas telas abertas.",
       "O sistema novo, depois que tudo estiver nele.",
     ],
-    mascote: { src: "/mascotes/mascote-explicando.png", width: 1000, height: 1000, sizes: "480px" },
+    mascote: { src: "/mascotes/mascote-explicando.png", width: 1000, height: 1000, sizes: "(max-width: 760px) 280px, 480px" },
   },
   {
     pergunta: "Para começar",

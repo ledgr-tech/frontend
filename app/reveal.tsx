@@ -19,7 +19,7 @@ export function MotionRoot({ children, revelar = true }: { children: ReactNode; 
           {/* sem JS o initial={{opacity:0}} do SSR deixaria a página em branco, o fio das trilhas
               de "Por dentro" e de Preços ficaria recortado, e a tela da vitrine, invisível */}
           <noscript>
-            <style>{`[data-reveal]{opacity:1!important;transform:none!important}.por-dentro-fio,.preco-fio{clip-path:none!important}.vitrine-app{visibility:visible!important}`}</style>
+            <style>{`[data-reveal]{opacity:1!important;transform:none!important}.por-dentro-fio,.preco-fio{clip-path:none!important}.vitrine-app{visibility:visible!important;display:grid!important}.vitrine-janela::after{display:none!important}`}</style>
           </noscript>
           {children}
         </MotionConfig>

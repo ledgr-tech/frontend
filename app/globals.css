@@ -5698,13 +5698,28 @@ html[data-tema="escuro"] .app-shell {
 .kin-adesivo { position: relative; display: inline-flex; align-items: center; gap: 0.4em; padding: 0.55em 0.9em; border-radius: 10px; font: 600 clamp(14px, 1.3vw, 21px)/1 var(--font-body); letter-spacing: -0.01em; white-space: nowrap; box-shadow: 0 18px 34px -18px rgb(45 35 20 / 0.5); }
 .kin-adesivo-ok { background: var(--color-ok-200); color: var(--color-ok-800); border: 1px solid var(--color-ok-400); }
 .kin-adesivo-risco { background: var(--color-risco-200); color: var(--color-risco-800); border: 1px solid var(--color-risco-400); }
-.kin-adesivo-tinta { position: absolute; z-index: 4; left: 22%; top: 96%; font-size: 0.2em; padding: 0.5em 0.8em; border-radius: 12px; background: var(--color-text); color: var(--color-bg); box-shadow: 0 22px 40px -18px rgb(20 16 10 / 0.6); letter-spacing: -0.02em; }
+.kin-adesivo-tinta { rotate: -6deg; position: absolute; z-index: 4; left: 22%; top: 96%; font-size: 0.2em; padding: 0.5em 0.8em; border-radius: 12px; background: var(--color-text); color: var(--color-bg); box-shadow: 0 22px 40px -18px rgb(20 16 10 / 0.6); letter-spacing: -0.02em; }
 .kin-flutua { display: inline-flex; align-items: center; gap: 0.4em; }
 .kin-base { position: relative; z-index: 2; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 24px 48px; margin-top: calc(0.62 * var(--t)); padding-top: 28px; border-top: 1px solid var(--color-divider); }
 .kin-texto { margin: 0; max-width: 56ch; font-size: clamp(16px, 1.2vw, 19px); line-height: 1.7; }
 .kin-palco { margin-top: clamp(56px, 8vw, 110px); perspective: 1800px; }
 .kin-palco .vitrine { max-width: 1100px; margin: 0 auto; transform-origin: 50% 0; }
+.kin-adesivo-solto { rotate: var(--inclinacao); }
+@keyframes kin-entra-letra { from { opacity: 0; transform: translateY(110%) rotate(var(--giro)); } }
+@keyframes kin-entra-olho { from { opacity: 0; transform: translateY(18px); } }
+@keyframes kin-entra-bloco { from { opacity: 0; transform: translateY(24px); } }
+@keyframes kin-entra-sublinhado { from { transform: scaleX(0); } }
+@keyframes kin-entra-tinta { from { opacity: 0; scale: 2.6; } }
+@keyframes kin-entra-adesivo { from { opacity: 0; scale: 0; rotate: var(--inclinacao-antes); } }
 @media (prefers-reduced-motion: no-preference) {
+  /* em CSS para começar na primeira pintura, sem esperar o JavaScript (os atrasos vêm do hero.tsx) */
+  .kin-l { animation: kin-entra-letra 0.8s cubic-bezier(0.34, 1.3, 0.64, 1) var(--atraso) backwards; }
+  .kin-olho { animation: kin-entra-olho 0.5s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
+  .kin-sobe-bloco { animation: kin-entra-bloco 0.6s cubic-bezier(0.22, 1, 0.36, 1) var(--atraso) backwards; }
+  .kin-sublinhado { animation: kin-entra-sublinhado 0.45s cubic-bezier(0.65, 0, 0.35, 1) var(--atraso) backwards; }
+  .kin-adesivo-tinta { animation: kin-entra-tinta 0.55s cubic-bezier(0.34, 2, 0.64, 1) var(--atraso) backwards; }
+  /* a mola do adesivo (bounce 0,55), amostrada */
+  .kin-adesivo-solto { animation: kin-entra-adesivo 1.5s linear(0.000, 0.083, 0.281, 0.526, 0.765, 0.963, 1.102, 1.180, 1.205, 1.190, 1.151, 1.101, 1.051, 1.010, 0.980, 0.964, 0.958, 0.961, 0.968, 0.979, 0.989, 0.998, 1.004, 1.007, 1) var(--atraso) backwards; }
   .kin-flutua { animation: kin-flutua 3s ease-in-out 3.4s 4; }
   .kin-palco[data-cena="nao"] :is(tbody tr, .relatorio-lista li, .celula-status > span:first-child, .cartao-lancamento) { opacity: 0; }
   .kin-palco[data-cena="sim"] .relatorio-lista li { animation: kin-sobe 0.5s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
@@ -5735,6 +5750,11 @@ html[data-tema="escuro"] .app-shell {
 /* a tela da vitrine fica invisível até a escala ser medida: o HTML do servidor chega no tamanho
    cheio e, encolhendo depois, ela empurrava o fim da primeira tela no celular (CLS 0,17, medido em 03/11) */
 .vitrine:not([data-medida]) .vitrine-app { visibility: hidden; }
+/* a do hero nem é montada antes da medida: no tamanho cheio, ela e o zoom depois obrigavam o navegador
+   a montar a página duas vezes (layout cerca de 30% maior no celular, medido em 04/11), e puxava a Newsreader.
+   O ::after reserva a altura dela (desenho de 1048 x ~810), para o resto da página não pular */
+.vitrine-compacta:not([data-medida]) .vitrine-app { display: none; }
+.vitrine-compacta:not([data-medida]) .vitrine-janela::after { content: ""; display: block; aspect-ratio: 1048 / 810; }
 /* a vitrine compacta (o hero): sem o menu lateral, para a tabela caber maior */
 .vitrine-compacta .vitrine-app { grid-template-columns: minmax(0, 1fr); }
 
@@ -5797,7 +5817,7 @@ html[data-tema="escuro"] .app-shell {
 .kin-lat-titulo { margin: 0; font-size: clamp(42px, 6.2vw, 100px); max-width: 13ch; letter-spacing: -0.04em; }
 .kin-lat-dica { margin: 28px 0 0; font: 500 12px/1 var(--font-mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--color-accent-700); }
 .kin-lat-dica span { display: inline-block; margin-left: 8px; }
-.kin-motivo-num { margin: 0; font-family: var(--font-destaque-family), var(--font-display), serif; font-style: italic; font-weight: 500; font-size: clamp(64px, 7vw, 124px); line-height: 0.85; color: var(--color-accent); }
+.kin-motivo-num { margin: 0; font-family: var(--font-destaque-family), var(--font-display), serif; font-style: italic; font-weight: 500; font-size: clamp(64px, 7vw, 124px); line-height: 0.85; color: var(--color-accent-600); }
 .kin-motivo-pergunta { margin: 18px 0 0; font: 500 13px/1.2 var(--font-mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--color-accent-700); }
 .kin-motivo-ledgr { margin: 14px 0 0; font: 500 clamp(38px, 5.4vw, 88px)/1.02 var(--font-body); letter-spacing: -0.04em; max-width: 13ch; }
 .kin-motivo-ledgr .kin-pal { display: inline-block; }

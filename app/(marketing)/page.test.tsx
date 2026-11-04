@@ -68,6 +68,14 @@ describe("LandingPage", () => {
     ]);
   });
 
+  it("does not hide the top of the hero behind JavaScript", () => {
+    // com opacity:0 no HTML, o título só aparecia depois do JavaScript (no celular, ~4 s): a entrada é CSS
+    const { container } = render(<LandingPage />);
+    const entradas = [...container.querySelectorAll<HTMLElement>(".kin-topo [data-reveal]")];
+    expect(entradas.length).toBeGreaterThan(0);
+    for (const entrada of entradas) expect(entrada.style.opacity).toBe("");
+  });
+
   it("sets one short stretch of each main title in the display italic", () => {
     const { container } = render(<LandingPage />);
     // o hero tem o título próprio, letra por letra (hero.tsx): o mesmo itálico no "à mão.", num h1 que
