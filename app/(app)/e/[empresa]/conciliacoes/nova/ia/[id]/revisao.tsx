@@ -9,6 +9,7 @@ import { formatarDataHora } from "../../../../dashboard/resumo";
 import { IconeOrigem } from "../../../../icone-origem";
 import {
   acrescentarLinhaAoRascunho,
+  carregarRascunho,
   confirmarImportacao,
   corrigirLinhaDoRascunho,
   descartarImportacao,
@@ -20,6 +21,7 @@ import {
 
 type Campos = { data: string; valor: string; descricao: string };
 const VAZIA: Campos = { data: "", valor: "", descricao: "" };
+const FALHA_AO_ATUALIZAR_RESUMO = "A linha foi removida, mas não foi possível atualizar o resumo. Tente atualizar o resumo antes de confirmar.";
 
 /**
  * A tela de conferência (#225), no molde da Nova conciliação (versão D, 30/10): a tabela do rascunho
@@ -32,6 +34,7 @@ export function Revisao({ inicial }: { inicial: Rascunho }) {
   const roteador = useRoteador();
   const [linhas, setLinhas] = useState<LinhaDoRascunho[]>(inicial.itens);
   const [resumo, setResumo] = useState<ResumoDoRascunho>(inicial.resumo);
+  const [resumoDesatualizado, setResumoDesatualizado] = useState(false);
   const [editando, setEditando] = useState<string | null>(null);
   const [campos, setCampos] = useState<Campos>(VAZIA);
   const [nova, setNova] = useState(false);
@@ -39,6 +42,7 @@ export function Revisao({ inicial }: { inicial: Rascunho }) {
   const [ocupado, setOcupado] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const trava = useRef(false);
+  const edicaoPendente = editando !== null || nova;
 
   /** Uma chamada por vez: a trava fecha antes do primeiro await, como nos outros painéis. */
   async function executar(trabalho: () => Promise<string | null>) {
@@ -76,17 +80,32 @@ export function Revisao({ inicial }: { inicial: Rascunho }) {
       return null;
     });
 
+  async function atualizarResumo(): Promise<string | null> {
+    try {
+      // O resumo vem de todas as linhas, inclusive as que não cabem na primeira página.
+      const r = await carregarRascunho(inicial.id);
+      if (!r.ok) return FALHA_AO_ATUALIZAR_RESUMO;
+      setLinhas(r.dados.itens);
+      setResumo(r.dados.resumo);
+      setResumoDesatualizado(false);
+      return null;
+    } catch {
+      return FALHA_AO_ATUALIZAR_RESUMO;
+    }
+  }
+
   const remover = (linha: LinhaDoRascunho) =>
     executar(async () => {
       const r = await removerLinhaDoRascunho(inicial.id, linha.id);
       if (!r.ok) return r.erro;
       setLinhas((atual) => atual.filter((l) => l.id !== linha.id));
-      setResumo((atual) => ({ ...atual, quantidade: atual.quantidade - 1 }));
-      return null;
+      setResumoDesatualizado(true);
+      return atualizarResumo();
     });
 
   const confirmar = () =>
     executar(async () => {
+      if (edicaoPendente || resumoDesatualizado || resumo.quantidade === 0) return null;
       const r = await confirmarImportacao(inicial.id);
       if (!r.ok) return r.erro;
       roteador.push("/extratos");
@@ -133,7 +152,7 @@ export function Revisao({ inicial }: { inicial: Rascunho }) {
     );
   }
 
-  const maisLinhasQueAsMostradas = inicial.total > inicial.itens.length;
+  const maisLinhasQueAsMostradas = resumo.quantidade > linhas.length;
   const dataBr = (iso: string) => iso.slice(0, 10).split("-").reverse().join("/");
   const periodo =
     resumo.periodoInicio && resumo.periodoFim ? `${dataBr(resumo.periodoInicio)} a ${dataBr(resumo.periodoFim)}` : null;
@@ -147,10 +166,10 @@ export function Revisao({ inicial }: { inicial: Rascunho }) {
             <IconeOrigem origem="sistema" tamanho={13} />
             Relatório de lançamentos · rascunho
           </span>
-          <span>{`${resumo.quantidade} ${resumo.quantidade === 1 ? "lançamento" : "lançamentos"} lidos do arquivo da IA`}</span>
+          <span>{resumoDesatualizado ? "Resumo aguardando atualização" : `${resumo.quantidade} ${resumo.quantidade === 1 ? "lançamento" : "lançamentos"} lidos do arquivo da IA`}</span>
         </div>
-        {maisLinhasQueAsMostradas && (
-          <p role="note" className="ia-rev-nota">{`Mostrando as primeiras ${inicial.itens.length} de ${inicial.total} linhas. As demais entram junto na confirmação.`}</p>
+        {!resumoDesatualizado && maisLinhasQueAsMostradas && (
+          <p role="note" className="ia-rev-nota">{`Mostrando ${linhas.length} de ${resumo.quantidade} linhas. As demais entram junto na confirmação.`}</p>
         )}
         <div className="ia-rolavel">
           <table className="table" aria-label="Linhas importadas">
@@ -182,7 +201,7 @@ export function Revisao({ inicial }: { inicial: Rascunho }) {
                         type="button"
                         className="btn btn-ghost"
                         aria-label={`Corrigir linha ${linha.numero}`}
-                        disabled={ocupado}
+                        disabled={ocupado || resumoDesatualizado}
                         onClick={() => {
                           setEditando(linha.id);
                           setNova(false);
@@ -192,7 +211,7 @@ export function Revisao({ inicial }: { inicial: Rascunho }) {
                       >
                         <Pencil size={16} aria-hidden="true" />
                       </button>
-                      <button type="button" className="btn btn-ghost" aria-label={`Remover linha ${linha.numero}`} disabled={ocupado} onClick={() => remover(linha)}>
+                      <button type="button" className="btn btn-ghost" aria-label={`Remover linha ${linha.numero}`} disabled={ocupado || resumoDesatualizado} onClick={() => remover(linha)}>
                         <Trash2 size={16} aria-hidden="true" />
                       </button>
                     </td>
@@ -211,6 +230,7 @@ export function Revisao({ inicial }: { inicial: Rascunho }) {
                 <button
                   type="button"
                   className="btn btn-secondary"
+                  disabled={ocupado || resumoDesatualizado}
                   onClick={() => {
                     setNova(true);
                     setCampos(VAZIA);
@@ -230,27 +250,47 @@ export function Revisao({ inicial }: { inicial: Rascunho }) {
         <span className="rotulo">{`Rascunho · vale até ${formatarDataHora(resumo.expiraEm).slice(0, 10)}`}</span>
         <h2 className="conc-previa-titulo">Confira antes de confirmar</h2>
         <div className="extrato-resultado" role="status">
-          <p className="conc-previa-numero">
-            <strong>{resumo.quantidade}</strong> {resumo.quantidade === 1 ? "lançamento" : "lançamentos"}
-          </p>
-        </div>
-        <dl className="conc-previa-dados">
-          <dt>Entradas</dt>
-          <dd>{formatarMoeda(Number(resumo.totalEntradas))}</dd>
-          <dt>Saídas</dt>
-          <dd>{formatarMoeda(Number(resumo.totalSaidas))}</dd>
-          {periodo && (
-            <>
-              <dt>Período</dt>
-              <dd>{periodo}</dd>
-            </>
+          {resumoDesatualizado ? (
+            <p>{ocupado ? "Atualizando resumo…" : "Atualize o resumo para conferir os totais antes de confirmar."}</p>
+          ) : (
+            <p className="conc-previa-numero">
+              <strong>{resumo.quantidade}</strong> {resumo.quantidade === 1 ? "lançamento" : "lançamentos"}
+            </p>
           )}
-        </dl>
+        </div>
+        {!resumoDesatualizado && (
+          <dl className="conc-previa-dados">
+            <dt>Entradas</dt>
+            <dd>{formatarMoeda(Number(resumo.totalEntradas))}</dd>
+            <dt>Saídas</dt>
+            <dd>{formatarMoeda(Number(resumo.totalSaidas))}</dd>
+            {periodo && (
+              <>
+                <dt>Período</dt>
+                <dd>{periodo}</dd>
+              </>
+            )}
+          </dl>
+        )}
         <div className="conc-previa-acoes">
-          <button type="button" className="btn nova-conciliar" onClick={confirmar} disabled={ocupado || resumo.quantidade === 0}>
-            {`Confirmar ${resumo.quantidade} ${resumo.quantidade === 1 ? "lançamento" : "lançamentos"}`}
+          {resumoDesatualizado && (
+            <button type="button" className="btn btn-secondary" onClick={() => executar(atualizarResumo)} disabled={ocupado}>
+              Atualizar resumo
+            </button>
+          )}
+          <button
+            type="button"
+            className="btn nova-conciliar"
+            onClick={confirmar}
+            disabled={ocupado || edicaoPendente || resumoDesatualizado || resumo.quantidade === 0}
+            aria-describedby={edicaoPendente ? "ia-edicao-pendente" : undefined}
+          >
+            {resumoDesatualizado ? "Confirmar importação" : `Confirmar ${resumo.quantidade} ${resumo.quantidade === 1 ? "lançamento" : "lançamentos"}`}
             <ArrowRight aria-hidden="true" />
           </button>
+          {edicaoPendente && (
+            <p id="ia-edicao-pendente" className="nova-nota">Salve ou cancele a edição da linha antes de confirmar a importação.</p>
+          )}
           {confirmandoDescarte ? (
             <>
               <button type="button" className="btn btn-secondary" onClick={descartar} disabled={ocupado}>

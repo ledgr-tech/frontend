@@ -70,7 +70,13 @@ export default async function VisaoGeralPage() {
 
       {!resposta.ok ? (
         <p role="alert" style={{ padding: "48px 0" }}>
-          {FALHA_AO_CARREGAR}
+          {resposta.codigo === "dados_do_mes_incompletos" ? (
+            <>
+              Não foi possível carregar todos os dados do mês. <Link href="/dashboard">Consulte Conciliações</Link> para conferir os lançamentos.
+            </>
+          ) : (
+            FALHA_AO_CARREGAR
+          )}
         </p>
       ) : recente === null ? (
         <ContaNova roteiro={roteiroAtivo} passos={passos} />

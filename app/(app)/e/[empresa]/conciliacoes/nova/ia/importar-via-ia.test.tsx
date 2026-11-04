@@ -20,6 +20,33 @@ describe("ImportarViaIa", () => {
     Object.defineProperty(navigator, "clipboard", { value: { writeText: vi.fn().mockResolvedValue(undefined) }, configurable: true });
   });
 
+  it("recusa arquivo entre 4 e 5 MB antes de chamar a action", async () => {
+    const arquivo = new File(["{}"], "resposta.json", { type: "application/json" });
+    Object.defineProperty(arquivo, "size", { value: Math.round(4.8 * 1024 * 1024) });
+    const user = userEvent.setup();
+    render(<ImportarViaIa prompt={PROMPT} />);
+
+    await user.upload(screen.getByLabelText("Arquivo da IA"), arquivo);
+    await user.click(within(painel()).getByRole("button", { name: /Importar e conferir/ }));
+
+    expect(screen.getByRole("alert")).toHaveTextContent("O arquivo passa de 4 MB.");
+    expect(importarViaIa).not.toHaveBeenCalled();
+  });
+
+  it("envia arquivo de exatamente 4 MB", async () => {
+    importarViaIa.mockResolvedValue({ ok: true, dados: { importacaoId: "rascunho" } });
+    const arquivo = new File(["{}"], "resposta.json", { type: "application/json" });
+    Object.defineProperty(arquivo, "size", { value: 4 * 1024 * 1024 });
+    const user = userEvent.setup();
+    render(<ImportarViaIa prompt={PROMPT} />);
+
+    await user.upload(screen.getByLabelText("Arquivo da IA"), arquivo);
+    await user.click(within(painel()).getByRole("button", { name: /Importar e conferir/ }));
+
+    expect(importarViaIa).toHaveBeenCalledOnce();
+    expect((importarViaIa.mock.calls[0][0] as FormData).get("arquivo")).toBe(arquivo);
+  });
+
   it("marca os passos no painel conforme a pessoa avança", async () => {
     const user = userEvent.setup();
     render(<ImportarViaIa prompt={PROMPT} />);

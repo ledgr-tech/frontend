@@ -3,11 +3,10 @@
 import { useRef, useState, type FormEvent } from "react";
 import { ArrowRight, Check, Copy, FileJson, ShieldCheck } from "lucide-react";
 import { useRoteador } from "@/lib/roteador";
+import { TAMANHO_MAXIMO_UPLOAD_BYTES } from "@/lib/limite-de-upload";
 import { MensagemErro } from "../../../../../../(auth)/_compartilhado/mensagem-erro";
 import { Guia, type Passo } from "../guia";
 import { importarViaIa, type ErroDeCampo, type PromptDaIa } from "./acoes";
-
-const TAMANHO_MAXIMO = 5 * 1024 * 1024;
 
 const PASSOS: Passo[] = [
   { titulo: "Copie o prompt", texto: "É o texto que ensina a IA a devolver o arquivo no formato do Ledgr." },
@@ -54,7 +53,7 @@ export function ImportarViaIa({ prompt }: { prompt: PromptDaIa }) {
   async function enviar(e: FormEvent) {
     e.preventDefault();
     if (!arquivo || trava.current) return;
-    if (arquivo.size > TAMANHO_MAXIMO) return setErro("O arquivo passa de 5 MB.");
+    if (arquivo.size > TAMANHO_MAXIMO_UPLOAD_BYTES) return setErro("O arquivo passa de 4 MB. Envie um arquivo menor.");
     trava.current = true;
     setEnviando(true);
     setErro(null);
@@ -129,7 +128,7 @@ export function ImportarViaIa({ prompt }: { prompt: PromptDaIa }) {
               <span>{tamanho(arquivo.size)}</span> · <span className="nova-folha-trocar">Trocar arquivo</span>
             </span>
           ) : (
-            <span className="nova-folha-dica">JSON ou TXT, até 5 MB. Solte aqui ou clique para escolher.</span>
+            <span className="nova-folha-dica">JSON ou TXT, até 4 MB. Solte aqui ou clique para escolher.</span>
           )}
           {arquivo && (
             <span className="ia-json" aria-hidden="true">
@@ -200,7 +199,7 @@ export function ImportarViaIa({ prompt }: { prompt: PromptDaIa }) {
         />
         <dl className="conc-previa-dados">
           <dt>Formato</dt>
-          <dd>JSON ou TXT, até 5 MB</dd>
+          <dd>JSON ou TXT, até 4 MB</dd>
           <dt>Extrato do banco</dt>
           <dd>Continua em OFX ou CSV</dd>
           <dt>Depois</dt>

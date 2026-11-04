@@ -633,6 +633,24 @@ describe("VisaoGeralPage", () => {
     );
   });
 
+  it("não exibe totais nem pendências quando os dados do mês estão incompletos", async () => {
+    carregarVisaoGeral.mockResolvedValue({
+      ok: false,
+      status: 503,
+      codigo: "dados_do_mes_incompletos",
+      erro: "Detalhe interno do servidor.",
+    });
+
+    await renderizar();
+
+    expect(screen.getByRole("alert")).toHaveTextContent("Não foi possível carregar todos os dados do mês.");
+    expect(screen.getByRole("link", { name: "Consulte Conciliações" })).toHaveAttribute("href", "/dashboard");
+    expect(screen.queryByText("Detalhe interno do servidor.")).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Pede sua atenção" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
+    expect(screen.queryByRole("table", { name: "Atividade recente" })).not.toBeInTheDocument();
+  });
+
   it("sends an expired session back to the login", async () => {
     carregarVisaoGeral.mockResolvedValue({ ok: false, status: 401, erro: "Sua sessão expirou." });
     await expect(VisaoGeralPage()).rejects.toThrow("NEXT_REDIRECT");
