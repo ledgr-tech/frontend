@@ -38,6 +38,8 @@ import { TabelaFolhas } from "./tabela-folhas";
  */
 
 const LARGURA = 1280;
+// sem o menu lateral (a vitrine do hero), a tela do app tem a largura da área principal
+const LARGURA_COMPACTA = 1048;
 const EMPRESA = "Sua empresa";
 
 // ponytail: cópia dos nomes e ícones do menu (ITENS em app/(app)/e/[empresa]/menu-lateral.tsx).
@@ -94,11 +96,14 @@ export function Vitrine({
   banco,
   sistema,
   destaque,
+  compacta = false,
 }: {
   banco: LinhaExtrato[];
   sistema: LinhaExtrato[];
   /** a descrição da linha que fica acesa na tabela */
   destaque: string;
+  /** sem o menu lateral, para a tabela caber maior (o hero) */
+  compacta?: boolean;
 }) {
   const janela = useRef<HTMLDivElement>(null);
   const [escala, setEscala] = useState<number | null>(null);
@@ -106,15 +111,15 @@ export function Vitrine({
   useLayoutEffect(() => {
     const elemento = janela.current;
     if (!elemento || typeof ResizeObserver === "undefined") return;
-    const medir = (largura: number) => largura > 0 && setEscala(largura / LARGURA);
+    const medir = (largura: number) => largura > 0 && setEscala(largura / (compacta ? LARGURA_COMPACTA : LARGURA));
     medir(elemento.clientWidth);
     const observador = new ResizeObserver(([entrada]) => medir(entrada.contentRect.width));
     observador.observe(elemento);
     return () => observador.disconnect();
-  }, []);
+  }, [compacta]);
 
   return (
-    <figure className="vitrine">
+    <figure className={compacta ? "vitrine vitrine-compacta" : "vitrine"} data-medida={escala ? "" : undefined}>
       {/* vitrine: fora do foco, do clique e do leitor de tela; quem descreve é a legenda */}
       <div className="vitrine-janela" ref={janela} inert>
         <div className="vitrine-barra" aria-hidden="true">
@@ -122,7 +127,8 @@ export function Vitrine({
           <span />
           <span />
         </div>
-        <div className="vitrine-app" style={escala ? { zoom: escala } : undefined}>
+        <div className="vitrine-app" style={escala ? { zoom: escala, width: compacta ? LARGURA_COMPACTA : undefined } : undefined}>
+          {!compacta && (
           <div className="vitrine-menu">
             <span className="vitrine-marca">
               <LogoBarras className="app-logo" />
@@ -164,6 +170,7 @@ export function Vitrine({
               <ChevronsUpDown {...ICONE} size={15} className="vitrine-conta-seta" />
             </div>
           </div>
+          )}
 
           <div className="vitrine-principal">
             <div className="vitrine-topo">
