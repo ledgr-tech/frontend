@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ImportarViaIa } from "./importar-via-ia";
 
@@ -94,5 +94,32 @@ describe("ImportarViaIa", () => {
     expect(within(painel()).getByRole("heading", { level: 2 })).toHaveTextContent("O arquivo tem problemas");
     // o último passo só fica feito quando o arquivo passa
     expect(within(painel()).getAllByRole("listitem").at(-1)).not.toHaveAttribute("data-feito");
+  });
+
+  it("diz por que recusou o arquivo solto, mesmo com o grande demais ainda escolhido", async () => {
+    const grande = new File(["{}"], "resposta.json", { type: "application/json" });
+    Object.defineProperty(grande, "size", { value: Math.round(4.8 * 1024 * 1024) });
+    const user = userEvent.setup();
+    render(<ImportarViaIa prompt={PROMPT} />);
+
+    await user.upload(screen.getByLabelText("Arquivo da IA"), grande);
+    const folha = screen.getByLabelText("Arquivo da IA").closest("label")!;
+    fireEvent.drop(folha, { dataTransfer: { files: [new File(["%PDF"], "relatorio.pdf", { type: "application/pdf" })] } });
+
+    expect(within(painel()).getByRole("alert")).toHaveTextContent("O arquivo da IA precisa ser JSON ou TXT.");
+    expect(within(painel()).getByRole("button", { name: /Importar e conferir/ })).toBeDisabled();
+  });
+
+  it("avisa embaixo do botão de copiar quando não consegue copiar o prompt", async () => {
+    render(<ImportarViaIa prompt={PROMPT} />);
+    // sem o userEvent, que troca a área de transferência por um dublê que nunca falha
+    Object.defineProperty(navigator, "clipboard", { value: { writeText: vi.fn().mockRejectedValue(new Error("negado")) }, configurable: true });
+
+    fireEvent.click(screen.getByRole("button", { name: "Copiar prompt" }));
+
+    const secao = screen.getByRole("region", { name: "Prompt para a IA" });
+    expect(await within(secao).findByRole("alert")).toHaveTextContent("Não foi possível copiar.");
+    expect(screen.getByRole("button", { name: "Copiar prompt" })).toHaveAccessibleDescription(/Não foi possível copiar/);
+    expect(within(painel()).queryByRole("alert")).not.toBeInTheDocument();
   });
 });

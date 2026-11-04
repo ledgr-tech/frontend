@@ -77,6 +77,9 @@ describe("NovaVersao", () => {
     expect(await screen.findByText("Linha 4: Data inválida")).toBeInTheDocument();
     expect(screen.getByText("Linha 8: Valor inválido")).toBeInTheDocument();
     expect(screen.getByRole("alert")).toHaveTextContent("2 linhas do extrato do sistema não foram lidas.");
+    expect(screen.getByText(/Se voltar ou fechar, o arquivo enviado fica em Extratos, sem conciliação\./)).toBeInTheDocument();
+    // o "Enviar e conciliar" saiu da tela: o foco vai para a saída que não concilia
+    expect(screen.getByRole("button", { name: "Voltar para corrigir" })).toHaveFocus();
     expect(conciliar).not.toHaveBeenCalled();
     expect(onConcluida).not.toHaveBeenCalled();
 
@@ -198,9 +201,26 @@ describe("NovaVersao", () => {
     await enviar(csv(5 * 1024 * 1024));
 
     expect(screen.getByRole("alert")).toHaveTextContent(
-      'O arquivo "erp-setembro-v3.csv" passa de 4MB. Exporte um período menor.',
+      'O arquivo "erp-setembro-v3.csv" passa de 4 MB. Exporte um período menor.',
     );
     expect(enviarExtrato).not.toHaveBeenCalled();
+  });
+
+  it("lists the first five rejected lines and counts the rest", async () => {
+    const erros = Array.from({ length: 7 }, (_, indice) => ({ identificador: String(indice + 1), motivo: "Data inválida" }));
+    situacaoDoExtrato.mockResolvedValue(situacao("concluido_com_erros", erros));
+    await enviar();
+
+    expect(await screen.findByText("e mais 2 linhas não lidas.")).toBeInTheDocument();
+    expect(screen.getAllByText(/^Linha \d: Data inválida$/)).toHaveLength(5);
+  });
+
+  it("still asks when the backend reports rejected lines without listing them", async () => {
+    situacaoDoExtrato.mockResolvedValue(situacao("concluido_com_erros"));
+    await enviar();
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Algumas linhas do extrato do sistema não foram lidas.");
+    expect(conciliar).not.toHaveBeenCalled();
   });
 
   it("says why the backend could not read the file", async () => {

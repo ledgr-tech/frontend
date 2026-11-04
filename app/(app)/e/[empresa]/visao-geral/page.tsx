@@ -105,9 +105,10 @@ function Conteudo({
   roteiro: DadosDoRoteiro | null;
   passos: PassoDoRoteiro[] | null;
 }) {
-  // o mês em foco inteiro (sem o mês, só a mais recente); null quando as linhas dele não vieram
-  // inteiras, e os blocos que somam o mês dizem isso em vez de mostrar um total pela metade
-  const doMes = visao.mes ? visao.mes.conciliacoes : [conciliacao];
+  // o mês em foco inteiro; null quando as linhas dele não vieram inteiras, e os blocos que somam o mês
+  // dizem isso em vez de mostrar um total pela metade. As aprovações também: sem o mês inteiro, a soma
+  // delas sairia pela metade, então o bloco some e o passo de aprovar fica em Fechamentos
+  const doMes = visao.mes?.conciliacoes ?? null;
   const resumo = doMes && resumir(doMes);
   const aguardando = doMes?.reduce((soma, item) => soma + (item.aguardandoAprovacao ?? 0), 0) ?? 0;
 

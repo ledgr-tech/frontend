@@ -2,7 +2,7 @@
 
 import { pareceUuid } from "@/lib/adaptadores";
 import { ErroBackend, chamarBackend } from "@/lib/backend";
-import { TAMANHO_MAXIMO_UPLOAD_BYTES } from "@/lib/limite-de-upload";
+import { ARQUIVO_GRANDE_DEMAIS, TAMANHO_MAXIMO_UPLOAD_BYTES } from "@/lib/limite-de-upload";
 import type { Falha, Resultado } from "../../acoes";
 
 /**
@@ -91,7 +91,7 @@ export async function importarViaIa(
     return { ok: false, status: 422, erro: "Escolha o arquivo que a IA devolveu.", erros: [], totalErros: 0 };
   }
   if (arquivo.size > TAMANHO_MAXIMO_UPLOAD_BYTES) {
-    return { ok: false, status: 413, erro: "O arquivo passa de 4 MB. Envie um arquivo menor.", erros: [], totalErros: 0 };
+    return { ok: false, status: 413, erro: ARQUIVO_GRANDE_DEMAIS, erros: [], totalErros: 0 };
   }
   const corpo = new FormData();
   corpo.append("arquivo", arquivo);

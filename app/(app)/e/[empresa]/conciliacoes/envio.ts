@@ -9,13 +9,6 @@ import { lerBytes } from "./nova/ler-arquivo";
  * no navegador e chama as actions.
  */
 
-/**
- * Conferido antes de subir. Abaixo dos 5MB do backend de propósito: o arquivo
- * passa por uma Server Action, e a Vercel corta o corpo da requisição em 4,5MB
- * (o `bodySizeLimit` do next.config.ts acompanha esse teto).
- */
-export { TAMANHO_MAXIMO_UPLOAD_BYTES as TAMANHO_MAXIMO_BYTES } from "@/lib/limite-de-upload";
-
 // A Server Action lançou em vez de devolver um Resultado: corpo grande demais,
 // rede caída ou deploy novo no meio ("Failed to find Server Action"). Recarregar
 // resolve os dois últimos.

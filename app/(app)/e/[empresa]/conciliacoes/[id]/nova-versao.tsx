@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowRight, Upload } from "lucide-react";
 import { formatarDataHora } from "../../dashboard/resumo";
 import { useRoteador } from "@/lib/roteador";
+import { extratoGrandeDemais, TAMANHO_MAXIMO_UPLOAD_BYTES } from "@/lib/limite-de-upload";
 import { conciliar, type Falha, type SituacaoExtrato } from "../acoes";
 import {
   aguardarProcessamento,
@@ -13,7 +14,6 @@ import {
   motivoDaRecusa,
   RECADO,
   subir,
-  TAMANHO_MAXIMO_BYTES,
   type Etapa,
   type Pendente,
 } from "../envio";
@@ -94,8 +94,8 @@ export function NovaVersao({
 
   async function enviar(escolhido = arquivo) {
     if (!escolhido || emAndamento.current || parcial) return;
-    if (escolhido.size > TAMANHO_MAXIMO_BYTES) {
-      setErro(`O arquivo "${escolhido.name}" passa de 4MB. Exporte um período menor.`);
+    if (escolhido.size > TAMANHO_MAXIMO_UPLOAD_BYTES) {
+      setErro(extratoGrandeDemais(escolhido.name));
       return;
     }
     emAndamento.current = true;
@@ -241,6 +241,7 @@ export function NovaVersao({
                 </p>
                 <p className="dialog-body">
                   A nova rodada usará somente as linhas válidas. Volte para corrigir o arquivo ou confirme que deseja continuar sem as linhas rejeitadas.
+                  Se voltar ou fechar, o arquivo enviado fica em Extratos, sem conciliação.
                 </p>
                 {parcial.erros.length > 0 && (
                   <ul className="importacao-problemas">
@@ -251,11 +252,14 @@ export function NovaVersao({
                   </ul>
                 )}
                 {recados}
-                <div className="dialog-actions">
+                {/* a chave monta botões novos: sem ela, o React reaproveitaria o "Enviar e conciliar" focado como
+                    "Continuar", e um Enter a mais concluiria sem a pessoa ler; o foco vai para a saída que não concilia */}
+                <div className="dialog-actions" key="decisao">
                   <button
                     type="button"
                     className="btn btn-secondary"
                     disabled={ocupado}
+                    autoFocus
                     onClick={() => {
                       if (emAndamento.current) return;
                       setParcial(null);
@@ -320,7 +324,7 @@ export function NovaVersao({
                   <Upload size={24} aria-hidden="true" className="nova-versao-soltar-icone" />
                   <span className="nova-versao-soltar-texto">
                     <strong>{arquivo ? "Trocar o arquivo" : "Solte aqui o CSV corrigido"}</strong>
-                    <span>{arquivo ? `${arquivo.name} · solte outro ou clique` : "ou clique para escolher · até 4MB"}</span>
+                    <span>{arquivo ? `${arquivo.name} · solte outro ou clique` : "ou clique para escolher · até 4 MB"}</span>
                   </span>
                   <input
                     type="file"

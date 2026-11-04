@@ -295,7 +295,7 @@ describe("NovaConciliacaoPage", () => {
     await user.upload(screen.getByLabelText("Extrato do sistema de gestão"), arquivo("sistema.csv"));
     await user.click(screen.getByRole("button", { name: "Conciliar extratos" }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("passa de 4MB");
+    expect(await screen.findByRole("alert")).toHaveTextContent("passa de 4 MB");
     expect(enviarExtrato).not.toHaveBeenCalled();
   });
 

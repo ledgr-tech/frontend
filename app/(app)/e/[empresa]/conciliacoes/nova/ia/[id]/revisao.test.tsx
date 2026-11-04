@@ -53,6 +53,12 @@ function resumo() {
   return within(screen.getByRole("complementary", { name: "Resumo do rascunho" }));
 }
 
+/** O ícone só pede a confirmação na própria linha; quem apaga é o "Remover" dela. */
+async function removerLinha1(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(screen.getByRole("button", { name: "Remover linha 1" }));
+  await user.click(screen.getByRole("button", { name: "Remover de vez a linha 1" }));
+}
+
 describe("Revisao da importação via IA", () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -105,11 +111,41 @@ describe("Revisao da importação via IA", () => {
     expect(confirmar()).toBeDisabled();
   });
 
-  it("relê entradas, saídas e período completos depois de excluir uma linha", async () => {
+  it("não deixa cancelar a correção enquanto ela está sendo salva", async () => {
+    // cancelar no meio só esconderia a correção, que o backend grava mesmo assim
+    const user = userEvent.setup();
+    let terminar!: (resultado: unknown) => void;
+    acoes.corrigir.mockReturnValue(new Promise((resolve) => (terminar = resolve)));
+    render(<Revisao inicial={INICIAL} />);
+
+    await user.click(screen.getByRole("button", { name: "Corrigir linha 1" }));
+    await user.click(screen.getByRole("button", { name: "Salvar" }));
+    expect(screen.getByRole("button", { name: "Cancelar" })).toBeDisabled();
+
+    terminar({ ok: true, dados: { linha: { ...LINHA, valor: "150" }, resumo: INICIAL.resumo } });
+    expect(await screen.findByText(/R\$\s*150,00/)).toBeVisible();
+  });
+
+  it("pede confirmação na própria linha antes de remover, e Manter desiste", async () => {
     const user = userEvent.setup();
     render(<Revisao inicial={INICIAL} />);
 
     await user.click(screen.getByRole("button", { name: "Remover linha 1" }));
+    expect(acoes.remover).not.toHaveBeenCalled();
+    // o ícone saiu da tela: o foco vai para o que não apaga nada, então Enter duas vezes não remove
+    expect(screen.getByRole("button", { name: "Manter linha 1" })).toHaveFocus();
+
+    await user.click(screen.getByRole("button", { name: "Manter linha 1" }));
+    expect(acoes.remover).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Remover linha 1" })).toBeInTheDocument();
+    expect(screen.getByText("Recebimento inicial")).toBeVisible();
+  });
+
+  it("relê entradas, saídas e período completos depois de excluir uma linha", async () => {
+    const user = userEvent.setup();
+    render(<Revisao inicial={INICIAL} />);
+
+    await removerLinha1(user);
     expect(acoes.remover).toHaveBeenCalledWith(INICIAL.id, LINHA.id);
     expect(acoes.carregar).toHaveBeenCalledWith(INICIAL.id);
     expect(screen.queryByText("Recebimento inicial")).not.toBeInTheDocument();
@@ -129,6 +165,7 @@ describe("Revisao da importação via IA", () => {
     render(<Revisao inicial={inicial} />);
 
     fireEvent.click(screen.getByLabelText("Remover linha 1", { exact: true }));
+    fireEvent.click(screen.getByLabelText("Remover de vez a linha 1"));
     expect(await resumo().findByText(/R\$\s*4\.499,00/)).toBeVisible();
     expect(resumo().getByText(/R\$\s*9\.000,00/)).toBeVisible();
     expect(resumo().getByText("02/10/2026 a 15/10/2026")).toBeVisible();
@@ -140,7 +177,7 @@ describe("Revisao da importação via IA", () => {
     acoes.remover.mockResolvedValue({ ok: false, erro: "Não foi possível remover." });
     render(<Revisao inicial={INICIAL} />);
 
-    await user.click(screen.getByRole("button", { name: "Remover linha 1" }));
+    await removerLinha1(user);
     expect(await screen.findByRole("alert")).toHaveTextContent("Não foi possível remover.");
     expect(screen.getByText("Recebimento inicial")).toBeVisible();
     expect(resumo().getByText(/R\$\s*300,00/)).toBeVisible();
@@ -154,7 +191,7 @@ describe("Revisao da importação via IA", () => {
     else acoes.carregar.mockRejectedValueOnce(new Error("Failed to fetch"));
     render(<Revisao inicial={INICIAL} />);
 
-    await user.click(screen.getByRole("button", { name: "Remover linha 1" }));
+    await removerLinha1(user);
     expect(await screen.findByRole("alert")).toHaveTextContent("A linha foi removida, mas não foi possível atualizar o resumo.");
     expect(screen.queryByText("Recebimento inicial")).not.toBeInTheDocument();
     expect(confirmar()).toBeDisabled();

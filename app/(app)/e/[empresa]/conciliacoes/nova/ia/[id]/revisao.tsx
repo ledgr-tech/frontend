@@ -25,7 +25,7 @@ const FALHA_AO_ATUALIZAR_RESUMO = "A linha foi removida, mas não foi possível 
 
 /**
  * A tela de conferência (#225), no molde da Nova conciliação (versão D, 30/10): a tabela do rascunho
- * dentro da folha do sistema, com corrigir e remover por ícone, e o painel ao lado com quantos
+ * dentro da folha do sistema, com corrigir e remover por ícone (remover pede confirmação na linha), e o painel ao lado com quantos
  * lançamentos, entradas, saídas e as ações Confirmar e Descartar (Descartar pede confirmação). Cada mudança vai ao backend na
  * hora e devolve o resumo recalculado; só "Confirmar" faz os lançamentos entrarem no sistema, e
  * "Descartar" apaga o rascunho. O rascunho vence em 7 dias.
@@ -39,6 +39,8 @@ export function Revisao({ inicial }: { inicial: Rascunho }) {
   const [campos, setCampos] = useState<Campos>(VAZIA);
   const [nova, setNova] = useState(false);
   const [confirmandoDescarte, setConfirmandoDescarte] = useState(false);
+  // a linha em que "Remover" espera a confirmação: um clique no ícone ao lado do lápis não apaga nada
+  const [removendo, setRemovendo] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const trava = useRef(false);
@@ -140,6 +142,7 @@ export function Revisao({ inicial }: { inicial: Rascunho }) {
           <button
             type="button"
             className="btn btn-ghost"
+            disabled={ocupado}
             onClick={() => {
               setEditando(null);
               setNova(false);
@@ -197,23 +200,38 @@ export function Revisao({ inicial }: { inicial: Rascunho }) {
                     <td>{linha.descricao}</td>
                     <td className="rel-num">{formatarMoeda(Number(linha.valor))}</td>
                     <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
-                      <button
-                        type="button"
-                        className="btn btn-ghost"
-                        aria-label={`Corrigir linha ${linha.numero}`}
-                        disabled={ocupado || resumoDesatualizado}
-                        onClick={() => {
-                          setEditando(linha.id);
-                          setNova(false);
-                          setCampos({ data: linha.data, valor: linha.valor, descricao: linha.descricao });
-                          setErro(null);
-                        }}
-                      >
-                        <Pencil size={16} aria-hidden="true" />
-                      </button>
-                      <button type="button" className="btn btn-ghost" aria-label={`Remover linha ${linha.numero}`} disabled={ocupado || resumoDesatualizado} onClick={() => remover(linha)}>
-                        <Trash2 size={16} aria-hidden="true" />
-                      </button>
+                      {removendo === linha.id ? (
+                        <>
+                          <button type="button" className="btn btn-perigo" aria-label={`Remover de vez a linha ${linha.numero}`} disabled={ocupado} onClick={() => remover(linha)}>
+                            Remover
+                          </button>{" "}
+                          {/* o ícone que trouxe até aqui sumiu: o foco vem para o que não apaga nada */}
+                          <button type="button" className="btn btn-ghost" aria-label={`Manter linha ${linha.numero}`} disabled={ocupado} autoFocus onClick={() => setRemovendo(null)}>
+                            Manter
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            className="btn btn-ghost"
+                            aria-label={`Corrigir linha ${linha.numero}`}
+                            disabled={ocupado || resumoDesatualizado}
+                            onClick={() => {
+                              setEditando(linha.id);
+                              setNova(false);
+                              setRemovendo(null);
+                              setCampos({ data: linha.data, valor: linha.valor, descricao: linha.descricao });
+                              setErro(null);
+                            }}
+                          >
+                            <Pencil size={16} aria-hidden="true" />
+                          </button>
+                          <button type="button" className="btn btn-ghost" aria-label={`Remover linha ${linha.numero}`} disabled={ocupado || resumoDesatualizado} onClick={() => setRemovendo(linha.id)}>
+                            <Trash2 size={16} aria-hidden="true" />
+                          </button>
+                        </>
+                      )}
                     </td>
                   </tr>
                 ),
@@ -233,6 +251,7 @@ export function Revisao({ inicial }: { inicial: Rascunho }) {
                   disabled={ocupado || resumoDesatualizado}
                   onClick={() => {
                     setNova(true);
+                    setRemovendo(null);
                     setCampos(VAZIA);
                     setErro(null);
                   }}

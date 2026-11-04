@@ -719,13 +719,14 @@ describe("carregarVisaoGeral", () => {
     expect(await carregarVisaoGeral()).toMatchObject({ ok: false, status: 401 });
   });
 
-  /** Dois pares de setembro; as linhas de cada um saem de `linhas`, que pode lançar. */
-  function backendDoMes(linhas: (banco: string) => { total: number; itens: ItemConciliacaoAPI[] }) {
+  /** Dois pares de setembro (ou a primeira página de `lista`); as linhas de cada um saem de `linhas`, que pode lançar. */
+  function backendDoMes(
+    linhas: (banco: string) => { total: number; itens: ItemConciliacaoAPI[] },
+    lista = { total: 2, itens: [execucao("e-2", BANCO_RECENTE), execucao("e-1", BANCO_ANTERIOR)] },
+  ) {
     chamarBackend.mockImplementation(async (caminho: string) => {
       const [rota, query] = caminho.split("?");
-      if (rota === "/execucoes") {
-        return { total: 2, limit: 50, offset: 0, itens: [execucao("e-2", BANCO_RECENTE), execucao("e-1", BANCO_ANTERIOR)] };
-      }
+      if (rota === "/execucoes") return { limit: 50, offset: 0, ...lista };
       if (rota === "/fechamentos") return { itens: [] };
       if (rota.startsWith("/conciliacoes/")) {
         const banco = rota.split("/")[2];
@@ -762,6 +763,36 @@ describe("carregarVisaoGeral", () => {
     if (!resultado.ok) throw new Error(resultado.erro);
     expect(resultado.dados.recente?.execucao.id).toBe("e-2");
     expect(resultado.dados.mes).toMatchObject({ competencia: "2026-09", conciliacoes: null });
+  });
+
+  it("não soma o mês quando ele pode seguir na segunda página de /execucoes", async () => {
+    // 51 execuções e a mais antiga da primeira página ainda rodou em setembro: a 51ª pode ser de setembro
+    backendDoMes(() => ({ total: 1, itens: [itemConciliacao] }), {
+      total: 51,
+      itens: [execucao("e-2", BANCO_RECENTE), execucao("e-1", BANCO_ANTERIOR)],
+    });
+
+    const resultado = await carregarVisaoGeral();
+
+    if (!resultado.ok) throw new Error(resultado.erro);
+    expect(resultado.dados.mes).toMatchObject({ competencia: "2026-09", conciliacoes: null });
+  });
+
+  it("soma o mês quando a primeira página já chega a uma execução de antes dele", async () => {
+    const agosto = {
+      ...execucao("e-0", "5c6d7e8f-9a0b-4c1d-8e2f-3a4b5c6d7e8f"),
+      periodo_inicio: "2026-08-01",
+      executada_em: "2026-08-31T12:00:00Z",
+    };
+    backendDoMes(() => ({ total: 1, itens: [itemConciliacao] }), {
+      total: 51,
+      itens: [execucao("e-2", BANCO_RECENTE), execucao("e-1", BANCO_ANTERIOR), agosto],
+    });
+
+    const resultado = await carregarVisaoGeral();
+
+    if (!resultado.ok) throw new Error(resultado.erro);
+    expect(resultado.dados.mes?.conciliacoes).toHaveLength(2);
   });
 });
 

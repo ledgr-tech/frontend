@@ -3,7 +3,7 @@
 import { useRef, useState, type FormEvent } from "react";
 import { ArrowRight, Check, Copy, FileJson, ShieldCheck } from "lucide-react";
 import { useRoteador } from "@/lib/roteador";
-import { TAMANHO_MAXIMO_UPLOAD_BYTES } from "@/lib/limite-de-upload";
+import { ARQUIVO_GRANDE_DEMAIS, TAMANHO_MAXIMO_UPLOAD_BYTES } from "@/lib/limite-de-upload";
 import { MensagemErro } from "../../../../../../(auth)/_compartilhado/mensagem-erro";
 import { Guia, type Passo } from "../guia";
 import { importarViaIa, type ErroDeCampo, type PromptDaIa } from "./acoes";
@@ -13,8 +13,6 @@ const PASSOS: Passo[] = [
   { titulo: "Use na IA que você já tem", texto: "Cole o prompt no ChatGPT, no Claude ou em outra, e anexe o PDF do relatório." },
   { titulo: "Traga o arquivo e confira", texto: "Envie o JSON que ela devolveu e revise as linhas antes de confirmar." },
 ];
-
-const GRANDE_DEMAIS = "O arquivo passa de 4 MB. Envie um arquivo menor.";
 
 function tamanho(bytes: number): string {
   return bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
@@ -35,6 +33,8 @@ export function ImportarViaIa({ prompt }: { prompt: PromptDaIa }) {
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [erros, setErros] = useState<ErroDeCampo[]>([]);
+  // a falha de copiar é do prompt, não do arquivo: fica embaixo do botão "Copiar prompt"
+  const [falhaAoCopiar, setFalhaAoCopiar] = useState(false);
   const trava = useRef(false);
   // o limite vale já na escolha: o arquivo aparece, mas o botão não liga e o motivo fica ao lado dele
   const grandeDemais = arquivo !== null && arquivo.size > TAMANHO_MAXIMO_UPLOAD_BYTES;
@@ -43,8 +43,9 @@ export function ImportarViaIa({ prompt }: { prompt: PromptDaIa }) {
     try {
       await navigator.clipboard.writeText(prompt.prompt);
       setCopiado(true);
+      setFalhaAoCopiar(false);
     } catch {
-      setErro("Não foi possível copiar. Selecione o texto do prompt e copie à mão.");
+      setFalhaAoCopiar(true);
     }
   }
 
@@ -80,7 +81,8 @@ export function ImportarViaIa({ prompt }: { prompt: PromptDaIa }) {
   }
 
   const comErros = erros.length > 0;
-  const aviso = grandeDemais ? GRANDE_DEMAIS : comErros ? null : erro;
+  // o recado mais novo vence o do tamanho: soltar um PDF por cima do arquivo grande diz por que o PDF não serve
+  const aviso = comErros ? null : (erro ?? (grandeDemais ? ARQUIVO_GRANDE_DEMAIS : null));
   const titulo =
     comErros || grandeDemais ? "O arquivo tem problemas" : arquivo ? "Pronto para conferir" : copiado ? "Agora, a IA" : "Comece pelo prompt";
 
@@ -92,11 +94,19 @@ export function ImportarViaIa({ prompt }: { prompt: PromptDaIa }) {
             <h2 id="ia-prompt" className="font-titulo">
               Prompt para a IA
             </h2>
-            <button type="button" className="btn btn-secondary" onClick={copiar}>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={copiar}
+              aria-describedby={falhaAoCopiar ? "erro-copiar-prompt" : undefined}
+            >
               {copiado ? <Check size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />}
               {copiado ? "Prompt copiado" : "Copiar prompt"}
             </button>
           </div>
+          {falhaAoCopiar && (
+            <MensagemErro id="erro-copiar-prompt">Não foi possível copiar. Selecione o texto do prompt e copie à mão.</MensagemErro>
+          )}
           <pre tabIndex={0} aria-label="Prompt para a IA">
             {prompt.prompt}
           </pre>

@@ -8,6 +8,7 @@ import { ArrowRight, Check, Link2, Scale, ShieldCheck } from "lucide-react";
 import { caminhoDaConciliacao } from "@/lib/caminhos";
 import { abrirConfiguracoes, TOLERANCIA_SALVA } from "@/lib/eventos";
 import { comEmpresa } from "@/lib/rotas";
+import { extratoGrandeDemais, TAMANHO_MAXIMO_UPLOAD_BYTES } from "@/lib/limite-de-upload";
 import { carregarRegras, conciliar, type Falha } from "../acoes";
 import {
   aguardarProcessamento,
@@ -16,7 +17,6 @@ import {
   motivoDaRecusa,
   RECADO,
   subir,
-  TAMANHO_MAXIMO_BYTES,
   type Etapa,
   type Origem,
   type Pendente,
@@ -99,10 +99,10 @@ export default function NovaConciliacaoPage() {
   async function conciliarExtratos(banco = arquivoBanco, sistema = arquivoSistema) {
     if (!banco || !sistema) return;
 
-    const grande = [banco, sistema].find((arquivo) => arquivo.size > TAMANHO_MAXIMO_BYTES);
+    const grande = [banco, sistema].find((arquivo) => arquivo.size > TAMANHO_MAXIMO_UPLOAD_BYTES);
     if (grande) {
       // sem isso, o arquivo inteiro sobe só pra requisição ser recusada no caminho
-      setErro(`O arquivo "${grande.name}" passa de 4MB. Exporte um período menor.`);
+      setErro(extratoGrandeDemais(grande.name));
       return;
     }
 

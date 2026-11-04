@@ -708,8 +708,9 @@ export type VisaoGeral = {
    * O mês em foco (revisão de 15/10): o aberto mais recente, ou o mais recente se todos estão
    * fechados, com as linhas de todas as conciliações dele. O número do topo, "Pede sua atenção" e
    * o atalho de Fechamentos olham o mês inteiro, não só a última conciliação. `conciliacoes` é null
-   * quando as linhas do mês não vieram inteiras (um par não carregou, ou passou do teto de páginas de
-   * `carregarConciliacao`): a home não soma um mês pela metade.
+   * quando as linhas do mês não vieram inteiras (um par não carregou, passou do teto de páginas de
+   * `carregarConciliacao`, ou o mês pode seguir depois da primeira página de `/execucoes`): a home não
+   * soma um mês pela metade.
    */
   mes?: { competencia: string; fechado: boolean; conciliacoes: Conciliacao[] | null };
 };
@@ -770,6 +771,11 @@ export async function carregarVisaoGeral(): Promise<Resultado<VisaoGeral>> {
   const inteiras = conciliacoes.flatMap((resultado) =>
     resultado.ok && !resultado.dados.truncada ? [resultado.dados.conciliacao] : [],
   );
+  // ponytail: /execucoes não filtra por mês, então a primeira página só traz o mês em foco inteiro quando
+  // chega a uma execução que rodou antes dele (nenhuma do mês roda antes de ele começar); com um filtro
+  // por competência no backend, o mês viria direto e somaria mesmo com muitas execuções
+  const ultima = execucoes[execucoes.length - 1];
+  const mesPodeSeguir = total > execucoes.length && competencia(null, ultima.executadaEm) >= foco;
 
   return {
     ok: true,
@@ -781,7 +787,7 @@ export async function carregarVisaoGeral(): Promise<Resultado<VisaoGeral>> {
       mes: {
         competencia: foco,
         fechado: fechados.has(foco),
-        conciliacoes: inteiras.length === conciliacoes.length ? inteiras : null,
+        conciliacoes: !mesPodeSeguir && inteiras.length === conciliacoes.length ? inteiras : null,
       },
     },
   };
