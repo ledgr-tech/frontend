@@ -18,20 +18,17 @@ function plano(nome: string): Plano {
   return encontrado;
 }
 
-// O design põe a empresa no "Volume, acima de 350 lançamentos" — a faixa de
-// antes de a landing criar o Escala. Pela landing, 4.218 lançamentos em
-// setembro cabem no Escala, e o Volume começa acima de 5.000.
 const ATUAL = plano("Escala");
 
 export const ASSINATURA = {
   plano: ATUAL,
   renovaEm: "12 de outubro",
-  /** O porquê desta faixa, no cartão do plano atual. */
-  faixa: "É a sua faixa: 4.218 lançamentos em setembro, quatro bancos.",
+  /** O que a conta usa, no cartão do plano atual. */
+  faixa: "Quatro bancos conciliados em setembro.",
 };
 
 export const NUMEROS = [
-  { rotulo: "Plano atual", valor: ATUAL.nome, nota: ATUAL.limite },
+  { rotulo: "Plano atual", valor: ATUAL.nome, nota: `Renova em ${ASSINATURA.renovaEm}` },
   { rotulo: "Contas conciliadas", valor: "4", nota: "Sicredi, Sicoob, Itaú e Banco do Brasil" },
   { rotulo: "Lançamentos em setembro", valor: "4.218", nota: "Conferidos contra o razão do Cigam" },
 ];

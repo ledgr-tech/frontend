@@ -712,10 +712,12 @@ describe("NovaConciliacaoPage", () => {
   });
 
   it("com os preços da Stripe, o mensal de cada plano; sem eles, nenhum valor (#296)", async () => {
-    const mensal = (plano: PrecoDoPlano["plano"], valor: string): PrecoDoPlano => ({ plano, periodo: "mensal", centavos: 0, valor, porMes: null, desconto: null });
-    carregarPrecos.mockResolvedValueOnce([mensal("essencial", "R$ 149,00"), mensal("padrao", "R$ 299,00"), mensal("avancado", "R$ 599,00")]);
+    const mensal = (plano: PrecoDoPlano["plano"], valor: string, conciliacoesPorMes: number | null): PrecoDoPlano => ({ plano, periodo: "mensal", centavos: 0, valor, porMes: null, desconto: null, conciliacoesPorMes });
+    carregarPrecos.mockResolvedValueOnce([mensal("essencial", "R$ 149,00", null), mensal("padrao", "R$ 299,00", 60), mensal("avancado", "R$ 599,00", null)]);
     const { unmount } = montarComAssinatura({ situacao: "teste_encerrado", plano: "padrao", testeTerminaEm: "2026-10-01", fimDoTeste: null, cobranca: null });
-    expect(await screen.findByText(/^R\$ 299,00 \/mês · /)).toBeInTheDocument();
+    expect(await screen.findByText("R$ 299,00 /mês · até 60 conciliações por mês")).toBeInTheDocument();
+    // sem franquia configurada, só o preço (#297)
+    expect(screen.getByText("R$ 149,00 /mês")).toBeInTheDocument();
     unmount();
 
     montarComAssinatura({ situacao: "teste_encerrado", plano: "padrao", testeTerminaEm: "2026-10-01", fimDoTeste: null, cobranca: null });

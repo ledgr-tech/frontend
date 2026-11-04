@@ -103,7 +103,7 @@ describe("AssinaturaPage", () => {
     await montar();
     // "Plano atual" também é o botão do cartão do plano; aqui é o rótulo do resumo
     expect(screen.getByText("Plano atual", { selector: ".dash-rotulo" })).toBeInTheDocument();
-    expect(screen.getByText("até 5.000 lançamentos por mês", { selector: ".dash-nota" })).toBeInTheDocument();
+    expect(screen.getByText("Renova em 12 de outubro", { selector: ".dash-nota" })).toBeInTheDocument();
     expect(screen.getByText("Contas conciliadas")).toBeInTheDocument();
     expect(screen.getByText("Sicredi, Sicoob, Itaú e Banco do Brasil")).toBeInTheDocument();
     expect(screen.getByText("Lançamentos em setembro")).toBeInTheDocument();
@@ -121,14 +121,15 @@ describe("AssinaturaPage", () => {
       expect(within(planos[i]).getByRole("heading", { name: plano.nome })).toBeInTheDocument();
       // sem preço da Stripe, nenhum valor, nem de demonstração (#296)
       expect(planos[i].textContent).not.toMatch(/R\$/);
-      expect(within(planos[i]).getByText(plano.limite)).toBeInTheDocument();
+      // nenhum limite de lançamentos: a franquia é de conciliações (#297)
+      expect(planos[i].textContent).not.toMatch(/lançamentos por mês/);
     });
 
     const atual = planos.find((item) => within(item).queryByText("Atual"));
     expect(atual).toBeDefined();
     expect(within(atual!).getByRole("heading", { name: "Escala" })).toBeInTheDocument();
     expect(
-      within(atual!).getByText("É a sua faixa: 4.218 lançamentos em setembro, quatro bancos."),
+      within(atual!).getByText("Quatro bancos conciliados em setembro."),
     ).toBeInTheDocument();
     expect(within(atual!).getByRole("button", { name: "Plano atual" })).toBeDisabled();
   });
@@ -379,6 +380,18 @@ describe("AssinaturaPage", () => {
     it("mostra a franquia de conciliações do mês", async () => {
       await montar(conta({ situacao: "teste" }), { limites: { empresas: null, usuarios: null, conciliacoes: { usadas: 3, maximo: 20 } } });
       expect(screen.getByText("3 de 20 conciliações este mês")).toBeInTheDocument();
+    });
+
+    it("o cartão de cada plano traz a franquia do backend, igual em todo período; sem número, nenhuma linha (#297)", async () => {
+      precos.atuais = adaptarPrecos([
+        { plano: "essencial", periodo: "mensal", valor_centavos: 14900, limites: { conciliacoes_por_mes: 30 } },
+        { plano: "essencial", periodo: "anual", valor_centavos: 152000, limites: { conciliacoes_por_mes: 30 } },
+        { plano: "padrao", periodo: "mensal", valor_centavos: 29900, limites: { conciliacoes_por_mes: null } },
+      ]);
+      await montar(conta({ situacao: "teste" }));
+      const cartao = (nome: string) => screen.getByRole("heading", { name: nome }).closest("li")!;
+      expect(within(cartao("Essencial")).getByText("até 30 conciliações por mês")).toBeInTheDocument();
+      expect(cartao("Padrão").textContent).not.toMatch(/conciliações|ilimitad/i);
     });
 
     it("ativo sem a cobrança da Stripe (o piloto ativado à mão) segue a tela de demonstração", async () => {

@@ -122,6 +122,8 @@ export type PrecoDoPlano = {
   /** O equivalente por mês; null no mensal. */
   porMes: string | null;
   desconto: number | null;
+  /** A franquia do plano (backend #183), igual nos quatro períodos; null é "sem valor para mostrar", nunca "ilimitado". */
+  conciliacoesPorMes: number | null;
 };
 
 const REAIS = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
@@ -131,7 +133,7 @@ const emReais = (centavos: number) => REAIS.format(centavos / 100).replace(/ /g
 export function adaptarPrecos(bruto: unknown): PrecoDoPlano[] | null {
   if (!Array.isArray(bruto)) return null;
   const validos = bruto.filter(
-    (item): item is { plano: PlanoId; periodo: Periodo; valor_centavos: number } =>
+    (item): item is { plano: PlanoId; periodo: Periodo; valor_centavos: number; limites?: { conciliacoes_por_mes?: unknown } } =>
       !!item &&
       ehPlano(item.plano) &&
       PERIODOS.includes(item.periodo) &&
@@ -139,8 +141,9 @@ export function adaptarPrecos(bruto: unknown): PrecoDoPlano[] | null {
       item.valor_centavos > 0,
   );
   if (validos.length === 0) return null;
-  return validos.map(({ plano, periodo, valor_centavos: centavos }) => {
+  return validos.map(({ plano, periodo, valor_centavos: centavos, limites }) => {
     const meses = MESES_DO_PERIODO[periodo];
+    const franquia = limites?.conciliacoes_por_mes;
     const mensal = validos.find((item) => item.plano === plano && item.periodo === "mensal")?.valor_centavos;
     const desconto = mensal && meses > 1 ? Math.round((1 - centavos / (mensal * meses)) * 100) : 0;
     return {
@@ -150,8 +153,16 @@ export function adaptarPrecos(bruto: unknown): PrecoDoPlano[] | null {
       valor: emReais(centavos),
       porMes: meses > 1 ? emReais(Math.round(centavos / meses)) : null,
       desconto: desconto > 0 ? desconto : null,
+      conciliacoesPorMes: typeof franquia === "number" && Number.isInteger(franquia) && franquia > 0 ? franquia : null,
     };
   });
+}
+
+/** A linha da franquia no cartão do plano, de qualquer período dele; null sem número (as variáveis do backend vazias). */
+export function textoDaFranquia(precos: PrecoDoPlano[] | null, plano: PlanoId): string | null {
+  const franquia = precos?.find((p) => p.plano === plano)?.conciliacoesPorMes ?? null;
+  if (franquia === null) return null;
+  return `até ${franquia.toLocaleString("pt-BR")} ${franquia === 1 ? "conciliação" : "conciliações"} por mês`;
 }
 
 /**
