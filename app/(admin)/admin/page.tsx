@@ -3,7 +3,8 @@ import { notFound, redirect } from "next/navigation";
 import { formatarCnpj } from "../../(auth)/cadastro/passos";
 import { formatarDataHora } from "../../(app)/e/[empresa]/dashboard/resumo";
 import { listarContas } from "./acoes";
-import { POR_PAGINA, ROTULO_DA_SITUACAO, SITUACOES, agoraEmMs, chaveDaSituacao, classeDoSelo, prazoDoTeste } from "./situacao";
+import { NavDoAdmin, Paginacao } from "./navegacao";
+import { ROTULO_DA_SITUACAO, SITUACOES, agoraEmMs, chaveDaSituacao, classeDoSelo, prazoDoTeste } from "./situacao";
 
 type Busca = { busca?: string; situacao?: string; ordem?: string; pagina?: string };
 
@@ -38,6 +39,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
 
   return (
     <div>
+      <NavDoAdmin atual="/admin" />
       <div className="dash-cabecalho">
         <div>
           <div className="det-kicker">Painel interno</div>
@@ -127,32 +129,14 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
                 })}
               </tbody>
             </table>
-            <nav
-              aria-label="Páginas"
-              style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 18px", borderTop: "1px solid var(--color-divider)", fontSize: 14 }}
-            >
-              <span>{`${r.dados.offset + 1} a ${r.dados.offset + r.dados.itens.length} de ${r.dados.total} contas`}</span>
-              <span style={{ display: "flex", gap: 8 }}>
-                {pagina > 1 ? (
-                  <Link className="btn btn-ghost" href={endereco(filtros, pagina - 1)}>
-                    Anterior
-                  </Link>
-                ) : (
-                  <span className="btn btn-ghost" aria-disabled="true" style={{ opacity: 0.45 }}>
-                    Anterior
-                  </span>
-                )}
-                {pagina * POR_PAGINA < r.dados.total ? (
-                  <Link className="btn btn-secondary" href={endereco(filtros, pagina + 1)}>
-                    Próxima
-                  </Link>
-                ) : (
-                  <span className="btn btn-secondary" aria-disabled="true" style={{ opacity: 0.45 }}>
-                    Próxima
-                  </span>
-                )}
-              </span>
-            </nav>
+            <Paginacao
+              pagina={pagina}
+              offset={r.dados.offset}
+              quantos={r.dados.itens.length}
+              total={r.dados.total}
+              nome="contas"
+              endereco={(p) => endereco(filtros, p)}
+            />
           </div>
         )}
       </form>
