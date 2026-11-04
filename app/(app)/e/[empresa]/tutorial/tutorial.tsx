@@ -17,6 +17,45 @@ const INTERVALO_MS = 100;
 const FOLGA = 8;
 /** O canto do buraco: o --radius-md (16px) dos cartões mais a folga. */
 const RAIO = 20;
+/** A distância do cartão até a borda da tela. */
+const MARGEM = 24;
+/** Por quantos quadros o alvo fica parado antes de o cartão escolher o lado. */
+const QUADROS_PARADO = 10;
+
+/** No celular, o cartão ocupa a largura toda: não há lado para onde desviar. */
+function naLarguraToda(largura: number): boolean {
+  return largura > window.innerWidth / 2 + 120;
+}
+
+type Caixa = { left: number; top: number; right: number; bottom: number };
+
+function areaEmComum(a: Caixa, b: Caixa): number {
+  const largura = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+  const altura = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+  return largura > 0 && altura > 0 ? largura * altura : 0;
+}
+
+/**
+ * Se o cartão deve ir para o canto esquerdo: quando ali ele e o mascote cobririam menos da metade
+ * do que cobrem do alvo no canto direito. Por pouco, não vale o cartão pular de um canto para o outro.
+ */
+export function cartaoVaiParaEsquerda(
+  alvo: Caixa,
+  cartao: { top: number; width: number; height: number },
+  mascote: { acima: number; largura: number },
+): boolean {
+  if (naLarguraToda(cartao.width)) return false;
+  const cobertoCom = (left: number) => {
+    const right = left + cartao.width;
+    const { top } = cartao;
+    return (
+      areaEmComum(alvo, { left, top, right, bottom: top + cartao.height }) +
+      areaEmComum(alvo, { left: right - mascote.largura, top: top - mascote.acima, right, bottom: top })
+    );
+  };
+  const direita = cobertoCom(window.innerWidth - MARGEM - cartao.width);
+  return direita > 0 && cobertoCom(MARGEM) < direita / 2;
+}
 
 function vistosNestaSessao(): string[] {
   try {
@@ -59,14 +98,17 @@ function furo(x: number, y: number, largura: number, altura: number): string {
 
 /**
  * Rola até o alvo ficar na parte livre da tela: abaixo da barra do topo, que gruda na rolagem, e
- * acima do cartão quando ele ocupa a largura toda (celular). Com "nearest", o que já está à vista
- * não se mexe; o alvo mais alto que o espaço livre fica com o começo à vista.
+ * acima do cartão e do mascote que sai por cima dele, quando o cartão ocupa a largura toda (celular).
+ * Com "nearest", o que já está à vista não se mexe; o alvo mais alto que o espaço livre fica com o
+ * começo à vista.
  */
-function trazerParaAVista(alvo: HTMLElement, cartao: HTMLElement | null) {
+function trazerParaAVista(alvo: HTMLElement, cartao: HTMLElement | null, mascote: HTMLElement | null) {
   const naJanela = alvo.closest("dialog") !== null;
   const topo = naJanela ? 0 : (document.querySelector(".app-topo")?.getBoundingClientRect().bottom ?? 0);
   const caixa = cartao?.getBoundingClientRect();
-  const embaixo = caixa && caixa.width > window.innerWidth / 2 + 120 ? window.innerHeight - caixa.top : 0;
+  // offsetTop, não o retângulo: o mascote pode estar no meio da subida da animação
+  const acima = Math.max(0, -(mascote?.offsetTop ?? 0));
+  const embaixo = caixa && naLarguraToda(caixa.width) ? window.innerHeight - caixa.top + acima : 0;
   alvo.style.scrollMarginTop = `${Math.max(0, topo) + 2 * FOLGA}px`;
   alvo.style.scrollMarginBottom = `${Math.max(0, embaixo) + 2 * FOLGA}px`;
   const suave = !window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
@@ -74,8 +116,8 @@ function trazerParaAVista(alvo: HTMLElement, cartao: HTMLElement | null) {
 }
 
 /**
- * O tutorial de uma tela (spec 2026-10-15-primeiro-uso, parte 3): um cartão do mascote no canto,
- * que destaca a parte da tela de cada passo. Abre sozinho na primeira visita; "Não mostrar de
+ * O tutorial de uma tela (spec 2026-10-15-primeiro-uso, parte 3): um cartão de vidro no canto, com
+ * o mascote do passo atrás dele, que destaca a parte da tela de cada passo. Abre sozinho na primeira visita; "Não mostrar de
  * novo" guarda na conta; o "?" da barra do topo reabre. Não é modal: dá para clicar fora.
  */
 export function Tutorial({
@@ -95,8 +137,10 @@ export function Tutorial({
   const [aberto, setAberto] = useState(false);
   const [indice, setIndice] = useState(0);
   const [naoMostrar, setNaoMostrar] = useState(false);
+  const [naEsquerda, setNaEsquerda] = useState(false);
   const cartao = useRef<HTMLDivElement>(null);
   const destaque = useRef<HTMLDivElement>(null);
+  const mascoteAtras = useRef<HTMLImageElement>(null);
   const focoAnterior = useRef<HTMLElement | null>(null);
   const titulo = useId();
 
@@ -107,6 +151,7 @@ export function Tutorial({
     setPassos(naTela.length > 0 ? naTela : todos);
     setIndice(0);
     setNaoMostrar(false);
+    setNaEsquerda(false);
     setAberto(true);
   }
 
@@ -174,12 +219,26 @@ export function Tutorial({
     let timer: ReturnType<typeof setTimeout> | undefined;
     let quadro = 0;
     let ultimo = "";
+    let parado = 0;
     const seguir = () => {
       if (!alvo || !veu) return;
       const { top, left, width, height } = alvo.getBoundingClientRect();
       veu.hidden = width === 0 && height === 0;
       const recorte = furo(left - FOLGA, top - FOLGA, width + 2 * FOLGA, height + 2 * FOLGA);
-      if (recorte !== ultimo) veu.style.clipPath = ultimo = recorte;
+      if (recorte !== ultimo) {
+        veu.style.clipPath = ultimo = recorte;
+        parado = 0;
+      }
+      // só com o alvo parado: no meio da rolagem, o cartão trocaria de lado à toa
+      if (++parado === QUADROS_PARADO && cartao.current) {
+        const imagem = mascoteAtras.current;
+        setNaEsquerda(
+          cartaoVaiParaEsquerda(alvo.getBoundingClientRect(), cartao.current.getBoundingClientRect(), {
+            acima: Math.max(0, -(imagem?.offsetTop ?? 0)),
+            largura: imagem?.offsetWidth ?? 0,
+          }),
+        );
+      }
       quadro = requestAnimationFrame(seguir);
     };
     const destacar = () => {
@@ -189,7 +248,7 @@ export function Tutorial({
         return;
       }
       alvo.setAttribute(ATIVO, "");
-      trazerParaAVista(alvo, cartao.current);
+      trazerParaAVista(alvo, cartao.current, mascoteAtras.current);
       seguir();
     };
     destacar();
@@ -211,51 +270,66 @@ export function Tutorial({
   if (!aberto) return null;
   const passo = passos[indice];
   const ultimo = indice === passos.length - 1;
+  const proximo = passos[indice + 1];
 
   return (
     <>
       <div ref={destaque} className="tutorial-destaque" aria-hidden="true" hidden />
-      <div
-        ref={cartao}
-        role="dialog"
-        aria-labelledby={titulo}
-        tabIndex={-1}
-        className="card tutorial"
-        onKeyDown={(evento) => {
-          if (evento.key !== "Escape") return;
-          // dentro da janela de Configurações, o Esc fecha só o tutorial, não a janela
-          evento.preventDefault();
-          evento.stopPropagation();
-          fechar();
-        }}
-      >
-        <div className="tutorial-topo">
-          <Image src={mascote} alt="" width={52} height={52} className="tutorial-mascote" />
-          <span className="tutorial-contagem">{`${nome} · ${indice + 1} de ${passos.length}`}</span>
-          <button type="button" className="app-icone-botao" aria-label="Fechar o tutorial" onClick={fechar}>
-            <X size={16} />
-          </button>
-        </div>
-        <h2 id={titulo} className="tutorial-titulo">
-          {passo.titulo}
-        </h2>
-        <p className="tutorial-texto">{passo.texto}</p>
-        <label className="tutorial-caixa">
-          <input type="checkbox" checked={naoMostrar} onChange={(evento) => setNaoMostrar(evento.target.checked)} />
-          Não mostrar de novo
-        </label>
-        <div className="tutorial-acoes">
-          <span className="tutorial-pontos" aria-hidden="true">
-            {passos.map((item, i) => (
-              <span key={item.alvo} data-atual={i === indice || undefined} />
-            ))}
-          </span>
-          <button type="button" className="btn btn-ghost" onClick={fechar}>
-            Pular
-          </button>
-          <button type="button" className="btn btn-primary" onClick={() => (ultimo ? fechar() : setIndice(indice + 1))}>
-            {ultimo ? "Entendi" : "Próximo"}
-          </button>
+      <div className="tutorial-envelope" data-lado={naEsquerda ? "esquerda" : undefined}>
+        {/* a key troca a imagem a cada passo, e a nova sobe com a animação de entrada */}
+        <Image
+          key={passo.mascote ?? mascote}
+          ref={mascoteAtras}
+          src={passo.mascote ?? mascote}
+          alt=""
+          width={240}
+          height={240}
+          loading="eager"
+          className="tutorial-mascote-atras"
+        />
+        {/* já baixa o mascote do próximo passo, para ele não aparecer só depois de subir */}
+        {proximo && <Image src={proximo.mascote ?? mascote} alt="" width={240} height={240} loading="eager" hidden />}
+        <div
+          ref={cartao}
+          role="dialog"
+          aria-labelledby={titulo}
+          tabIndex={-1}
+          className="card tutorial"
+          onKeyDown={(evento) => {
+            if (evento.key !== "Escape") return;
+            // dentro da janela de Configurações, o Esc fecha só o tutorial, não a janela
+            evento.preventDefault();
+            evento.stopPropagation();
+            fechar();
+          }}
+        >
+          <div className="tutorial-topo">
+            <span className="tutorial-contagem">{`${nome} · ${indice + 1} de ${passos.length}`}</span>
+            <button type="button" className="app-icone-botao" aria-label="Fechar o tutorial" onClick={fechar}>
+              <X size={16} />
+            </button>
+          </div>
+          <h2 id={titulo} className="tutorial-titulo">
+            {passo.titulo}
+          </h2>
+          <p className="tutorial-texto">{passo.texto}</p>
+          <label className="tutorial-caixa">
+            <input type="checkbox" checked={naoMostrar} onChange={(evento) => setNaoMostrar(evento.target.checked)} />
+            Não mostrar de novo
+          </label>
+          <div className="tutorial-acoes">
+            <span className="tutorial-pontos" aria-hidden="true">
+              {passos.map((item, i) => (
+                <span key={item.alvo} data-atual={i === indice || undefined} />
+              ))}
+            </span>
+            <button type="button" className="btn btn-ghost" onClick={fechar}>
+              Pular
+            </button>
+            <button type="button" className="btn btn-primary" onClick={() => (ultimo ? fechar() : setIndice(indice + 1))}>
+              {ultimo ? "Entendi" : "Próximo"}
+            </button>
+          </div>
         </div>
       </div>
     </>

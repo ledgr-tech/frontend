@@ -1,13 +1,16 @@
+import { readFileSync } from "node:fs";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { Tutorial } from "./tutorial";
+import { cartaoVaiParaEsquerda, Tutorial } from "./tutorial";
 import { ProvedorDaConta } from "../conta";
 import { abrirTutorial } from "@/lib/eventos";
+import { TUTORIAIS } from "./roteiros";
 
 vi.mock("../../../../(auth)/acoes", () => ({ salvarPreferencias: vi.fn(async () => true) }));
 
 const esperar = () => new Promise((r) => setTimeout(r, 20));
+const mascoteAtras = () => document.querySelector(".tutorial-mascote-atras")?.getAttribute("src");
 
 // a tela de Extratos sem o painel do arquivo: o terceiro passo do tutorial não tem alvo
 const TELA = (
@@ -165,6 +168,94 @@ describe("Tutorial", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     act(() => abrirTutorial());
     expect(await screen.findByRole("dialog", { name: "Separe o banco do sistema." })).toBeInTheDocument();
+  });
+
+  it("cada passo traz o seu mascote, atrás do cartão e fora dele", async () => {
+    const user = userEvent.setup();
+    montar();
+    const cartao = await screen.findByRole("dialog");
+    expect(cartao.querySelector("img")).toBeNull();
+    expect(mascoteAtras()).toContain("mascote-dupla");
+    await user.click(screen.getByRole("button", { name: "Próximo" }));
+    expect(mascoteAtras()).toContain("mascote-arquivo");
+  });
+
+  it("o passo sem mascote próprio fica com o da tela", async () => {
+    const [primeiro] = TUTORIAIS.extratos.passos;
+    const { mascote } = primeiro;
+    delete primeiro.mascote;
+    try {
+      montar();
+      await screen.findByRole("dialog");
+      expect(mascoteAtras()).toContain("mascote-arquivo");
+    } finally {
+      primeiro.mascote = mascote;
+    }
+  });
+
+  it("com o cartão na largura toda, o alvo rola para acima do cartão e do mascote", async () => {
+    const caixa = vi.spyOn(Element.prototype, "getBoundingClientRect").mockReturnValue({ top: 500, left: 0, width: 700, height: 200 } as DOMRect);
+    const posicao = vi.spyOn(HTMLElement.prototype, "offsetTop", "get").mockReturnValue(-84);
+    try {
+      montar();
+      await waitFor(() => expect(screen.getByText("filtros")).toHaveAttribute("data-tutorial-ativo"));
+      // a janela do jsdom tem 768 de altura: 268 do cartão, 84 do mascote e a folga de 16
+      expect(screen.getByText("filtros").style.scrollMarginBottom).toBe("368px");
+    } finally {
+      caixa.mockRestore();
+      posicao.mockRestore();
+    }
+  });
+
+  it("o cartão vai para a esquerda quando cobriria o alvo à direita", async () => {
+    const caixa = vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (this: Element) {
+      return (this.matches("[data-tutorial]")
+        ? { top: 300, bottom: 700, left: 600, right: 1000, width: 400, height: 400 }
+        : { top: 454, bottom: 744, left: 560, right: 1000, width: 440, height: 290 }) as DOMRect;
+    });
+    try {
+      montar();
+      await waitFor(() => expect(document.querySelector(".tutorial-envelope")).toHaveAttribute("data-lado", "esquerda"));
+    } finally {
+      caixa.mockRestore();
+    }
+  });
+
+  describe("o lado do cartão, numa tela de 1024 por 768", () => {
+    const cartao = { top: 454, width: 440, height: 290 };
+    const mascote = { acima: 128, largura: 240 };
+
+    it("sai da direita quando o alvo está embaixo do cartão", () => {
+      const alvo = { top: 300, bottom: 700, left: 600, right: 1000 };
+      expect(cartaoVaiParaEsquerda(alvo, cartao, mascote)).toBe(true);
+    });
+
+    it("sai da direita quando só o mascote cobre o alvo", () => {
+      const alvo = { top: 340, bottom: 440, left: 800, right: 1000 };
+      expect(cartaoVaiParaEsquerda(alvo, cartao, mascote)).toBe(true);
+    });
+
+    it("fica à direita quando o alvo está livre, à esquerda ou acima do mascote", () => {
+      expect(cartaoVaiParaEsquerda({ top: 300, bottom: 700, left: 40, right: 440 }, cartao, mascote)).toBe(false);
+      expect(cartaoVaiParaEsquerda({ top: 40, bottom: 300, left: 600, right: 1000 }, cartao, mascote)).toBe(false);
+    });
+
+    it("fica à direita quando o outro canto cobriria quase o mesmo", () => {
+      expect(cartaoVaiParaEsquerda({ top: 500, bottom: 700, left: 24, right: 1000 }, cartao, mascote)).toBe(false);
+      expect(cartaoVaiParaEsquerda({ top: 500, bottom: 700, left: 200, right: 1000 }, cartao, mascote)).toBe(false);
+    });
+
+    it("fica onde está com o cartão na largura toda", () => {
+      const alvo = { top: 300, bottom: 700, left: 600, right: 1000 };
+      expect(cartaoVaiParaEsquerda(alvo, { ...cartao, width: 700 }, mascote)).toBe(false);
+    });
+  });
+
+  it("o mascote só anima para quem não pediu menos movimento", () => {
+    const css = readFileSync("app/globals.css", "utf8");
+    const antes = css.slice(0, css.indexOf("animation: tutorial-mascote-sobe"));
+    expect(antes.slice(antes.lastIndexOf("@media"))).toContain("prefers-reduced-motion: no-preference");
+    expect(css.match(/animation: tutorial-mascote-sobe/g)).toHaveLength(1);
   });
 
   it("desmontar com o tutorial aberto tira o destaque", async () => {

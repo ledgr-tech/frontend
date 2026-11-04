@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import { describe, it, expect } from "vitest";
 import { TELAS_DO_TUTORIAL } from "@/lib/preferencias";
 import { telaDoCaminho, TUTORIAIS } from "./roteiros";
@@ -14,6 +15,13 @@ describe("tutoriais", () => {
         // texto do app sem travessão entre orações
         expect(passo.texto).not.toMatch(/ — /);
       }
+    }
+  });
+
+  it("o mascote de cada passo é um arquivo que existe", () => {
+    for (const tela of TELAS_DO_TUTORIAL) {
+      const { mascote, passos } = TUTORIAIS[tela];
+      for (const passo of passos) expect(existsSync(`public${passo.mascote ?? mascote}`)).toBe(true);
     }
   });
 
