@@ -59,11 +59,11 @@ function explicacao(analise: Parada, origem: "banco" | "sistema"): string {
   const seguir =
     " Nada foi enviado. Aponte quais colunas têm a data, o histórico e o valor, e o Ledgr ajusta o arquivo antes de enviar.";
   if (analise.motivo === "formato") {
-    return `As colunas d${arquivo.slice(1)} estão lá, mas os valores ou as datas estão num formato que o Ledgr ainda não lê direto (como 1.500,75). Nada foi enviado. Confirme as colunas e o Ledgr ajusta o arquivo antes de enviar.`;
+    return `As colunas d${arquivo} estão lá, mas os valores ou as datas estão num formato que o Ledgr ainda não lê direto (como 1.500,75). Nada foi enviado. Confirme as colunas e o Ledgr ajusta o arquivo antes de enviar.`;
   }
   const faltando = analise.faltando.map((papel) => NOME_DO_PAPEL[papel]);
   if (faltando.length === 0) {
-    return `As colunas d${arquivo.slice(1)} não têm os nomes que o Ledgr lê direto.${seguir}`;
+    return `As colunas d${arquivo} não têm os nomes que o Ledgr lê direto.${seguir}`;
   }
   const qual =
     faltando.length === 1

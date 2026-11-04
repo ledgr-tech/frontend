@@ -14,6 +14,8 @@ const PASSOS: Passo[] = [
   { titulo: "Traga o arquivo e confira", texto: "Envie o JSON que ela devolveu e revise as linhas antes de confirmar." },
 ];
 
+const GRANDE_DEMAIS = "O arquivo passa de 4 MB. Envie um arquivo menor.";
+
 function tamanho(bytes: number): string {
   return bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
@@ -34,6 +36,8 @@ export function ImportarViaIa({ prompt }: { prompt: PromptDaIa }) {
   const [erro, setErro] = useState<string | null>(null);
   const [erros, setErros] = useState<ErroDeCampo[]>([]);
   const trava = useRef(false);
+  // o limite vale já na escolha: o arquivo aparece, mas o botão não liga e o motivo fica ao lado dele
+  const grandeDemais = arquivo !== null && arquivo.size > TAMANHO_MAXIMO_UPLOAD_BYTES;
 
   async function copiar() {
     try {
@@ -52,8 +56,7 @@ export function ImportarViaIa({ prompt }: { prompt: PromptDaIa }) {
 
   async function enviar(e: FormEvent) {
     e.preventDefault();
-    if (!arquivo || trava.current) return;
-    if (arquivo.size > TAMANHO_MAXIMO_UPLOAD_BYTES) return setErro("O arquivo passa de 4 MB. Envie um arquivo menor.");
+    if (!arquivo || grandeDemais || trava.current) return;
     trava.current = true;
     setEnviando(true);
     setErro(null);
@@ -77,7 +80,9 @@ export function ImportarViaIa({ prompt }: { prompt: PromptDaIa }) {
   }
 
   const comErros = erros.length > 0;
-  const titulo = comErros ? "O arquivo tem problemas" : arquivo ? "Pronto para conferir" : copiado ? "Agora, a IA" : "Comece pelo prompt";
+  const aviso = grandeDemais ? GRANDE_DEMAIS : comErros ? null : erro;
+  const titulo =
+    comErros || grandeDemais ? "O arquivo tem problemas" : arquivo ? "Pronto para conferir" : copiado ? "Agora, a IA" : "Comece pelo prompt";
 
   return (
     <form onSubmit={enviar} className="nova-corpo conc-mesa">
@@ -100,7 +105,7 @@ export function ImportarViaIa({ prompt }: { prompt: PromptDaIa }) {
         {/* a folha do sistema em pé, com a do banco atrás: o arquivo da IA vira o extrato do sistema */}
         <label
           className="ia-folha"
-          data-pronto={arquivo ? "" : undefined}
+          data-pronto={arquivo && !grandeDemais ? "" : undefined}
           data-arrastando={arrastando ? "" : undefined}
           onDragOver={(event) => {
             event.preventDefault();
@@ -119,7 +124,7 @@ export function ImportarViaIa({ prompt }: { prompt: PromptDaIa }) {
           }}
         >
           <span className="rotulo nova-folha-rotulo">
-            <span className="nova-folha-icone">{arquivo ? <Check aria-hidden="true" /> : <FileJson aria-hidden="true" />}</span>
+            <span className="nova-folha-icone">{arquivo && !grandeDemais ? <Check aria-hidden="true" /> : <FileJson aria-hidden="true" />}</span>
             Arquivo que a IA devolveu
           </span>
           <strong className="nova-folha-titulo">{arquivo ? arquivo.name : "Solte aqui o JSON da IA"}</strong>
@@ -150,7 +155,6 @@ export function ImportarViaIa({ prompt }: { prompt: PromptDaIa }) {
           />
         </label>
 
-        {erro && !comErros && <MensagemErro id="erro-importacao-ia">{erro}</MensagemErro>}
         {comErros && (
           <section className="ia-erros" aria-labelledby="ia-erros" role="alert">
             <div className="ia-erros-topo">
@@ -195,7 +199,7 @@ export function ImportarViaIa({ prompt }: { prompt: PromptDaIa }) {
           titulo="Como importar"
           subtitulo="A conferência final é sua"
           passos={PASSOS}
-          feitos={[copiado, copiado && arquivo !== null, arquivo !== null && !comErros]}
+          feitos={[copiado, copiado && arquivo !== null, arquivo !== null && !comErros && !grandeDemais]}
         />
         <dl className="conc-previa-dados">
           <dt>Formato</dt>
@@ -206,11 +210,18 @@ export function ImportarViaIa({ prompt }: { prompt: PromptDaIa }) {
           <dd>Você confere as linhas num rascunho antes de confirmar</dd>
         </dl>
         <div className="conc-previa-acoes">
-          <button type="submit" className="btn nova-conciliar" disabled={!arquivo || enviando}>
+          <button
+            type="submit"
+            className="btn nova-conciliar"
+            disabled={!arquivo || grandeDemais || enviando}
+            aria-describedby={aviso ? "erro-importacao-ia" : undefined}
+          >
             {enviando ? "Lendo o arquivo…" : "Importar e conferir"}
             {!enviando && <ArrowRight aria-hidden="true" />}
           </button>
         </div>
+        {/* embaixo do botão, no painel preso ao topo: debaixo do cartão do arquivo, o aviso caía fora da janela */}
+        {aviso && <MensagemErro id="erro-importacao-ia">{aviso}</MensagemErro>}
         <p className="nova-nota">
           <ShieldCheck aria-hidden="true" />
           <span>O Ledgr não usa nenhuma IA: ele só recebe o arquivo que você traz. Nada entra no sistema antes de você confirmar.</span>

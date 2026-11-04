@@ -20,17 +20,25 @@ describe("ImportarViaIa", () => {
     Object.defineProperty(navigator, "clipboard", { value: { writeText: vi.fn().mockResolvedValue(undefined) }, configurable: true });
   });
 
-  it("recusa arquivo entre 4 e 5 MB antes de chamar a action", async () => {
+  it("recusa arquivo entre 4 e 5 MB já na escolha, com o motivo ao lado do botão", async () => {
     const arquivo = new File(["{}"], "resposta.json", { type: "application/json" });
     Object.defineProperty(arquivo, "size", { value: Math.round(4.8 * 1024 * 1024) });
     const user = userEvent.setup();
     render(<ImportarViaIa prompt={PROMPT} />);
 
     await user.upload(screen.getByLabelText("Arquivo da IA"), arquivo);
-    await user.click(within(painel()).getByRole("button", { name: /Importar e conferir/ }));
 
-    expect(screen.getByRole("alert")).toHaveTextContent("O arquivo passa de 4 MB.");
+    // sem clique nenhum: o botão não liga e o motivo está no painel, onde fica o botão
+    const botao = within(painel()).getByRole("button", { name: /Importar e conferir/ });
+    expect(botao).toBeDisabled();
+    expect(botao).toHaveAccessibleDescription("O arquivo passa de 4 MB. Envie um arquivo menor.");
+    expect(within(painel()).getByRole("alert")).toHaveTextContent("O arquivo passa de 4 MB.");
     expect(importarViaIa).not.toHaveBeenCalled();
+
+    // trocar por um arquivo menor libera o botão e tira o aviso
+    await user.upload(screen.getByLabelText("Arquivo da IA"), new File(["{}"], "menor.json", { type: "application/json" }));
+    expect(botao).toBeEnabled();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
   it("envia arquivo de exatamente 4 MB", async () => {
