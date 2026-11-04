@@ -4955,6 +4955,11 @@ html[data-tema="escuro"] .app-shell {
   z-index: 60;
   width: min(440px, calc(100vw - 32px));
 }
+/* quando cobriria o alvo à direita, vai para o outro canto. 64px em vez de 48px: o 100vw conta a
+   barra de rolagem, que a posição à direita não conta */
+.tutorial-envelope[data-lado="esquerda"] {
+  transform: translateX(calc(100% + 64px - 100vw));
+}
 .tutorial-mascote-atras {
   position: absolute;
   z-index: 0;
@@ -5087,6 +5092,9 @@ html[data-tema="escuro"] .app-shell {
       opacity: 0;
       transform: translateY(8px);
     }
+  }
+  .tutorial-envelope {
+    transition: transform 320ms var(--ease-out);
   }
   .tutorial-mascote-atras {
     animation: tutorial-mascote-sobe 320ms var(--ease-out) both;
