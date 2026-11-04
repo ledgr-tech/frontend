@@ -9,6 +9,10 @@
 // Sem tela, grava todas. Cada vídeo sai em public/ajuda/<tela>.webm; ligue-o no campo video da página.
 // A Nova conciliação ENVIA os CSVs de verdade: grave-a por último, e com o backend-fake recém-subido
 // (ou troque o mês dos CSVs), senão a conciliação repete.
+//
+// Com --html (sem ffmpeg), em vez do vídeo guarda a tela em HTML para a Central tocar (demonstracao.tsx):
+//   node scripts/ajuda-videos/gravar.mjs --html comparacao
+// Sai em public/ajuda/<tela>.json; ligue-o no campo demonstracao da página.
 import { chromium } from "playwright-core";
 import os from "node:os";
 import path from "node:path";
@@ -28,6 +32,7 @@ const ALTURA = 850;
 const FPS = 30;
 const ESCALA = 2; // pixels reais por pixel da página: texto nítido
 const FFMPEG = process.env.FFMPEG; // o ffmpeg que vem com o Playwright
+const HTML = process.argv.includes("--html");
 fs.mkdirSync(SAIDA, { recursive: true });
 
 const pausa = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -484,9 +489,10 @@ const ROTEIROS = {
 async function gravar(browser, estado, empresa, tela) {
   const roteiro = ROTEIROS[tela];
   const ctx = await browser.newContext({
-    viewport: { width: LARGURA, height: ALTURA },
+    // em HTML, a largura da janela do player (1280 × 800): a tela capturada não muda de leiaute nele
+    viewport: HTML ? { width: 1280, height: 800 } : { width: LARGURA, height: ALTURA },
     storageState: estado,
-    deviceScaleFactor: ESCALA,
+    deviceScaleFactor: HTML ? 1 : ESCALA,
     colorScheme: "light",
   });
   // sem os tutoriais do mascote e sem o roteiro de primeiros passos por cima
@@ -499,6 +505,7 @@ async function gravar(browser, estado, empresa, tela) {
   if (roteiro.antes) await roteiro.antes(t);
   await page.evaluate(() => document.fonts.ready);
   await page.mouse.move(700, 500);
+  if (HTML) return capturar(ctx, page, t, roteiro, tela);
 
   // a gravação do Playwright sai em 1 Mbps e embaça o texto: aqui guardo os quadros do navegador em JPEG
   // de qualidade alta e monto o vídeo depois, com o ffmpeg, no bitrate que o texto precisa
@@ -529,6 +536,90 @@ async function gravar(browser, estado, empresa, tela) {
   return codificar(quadros, path.join(PUBLICO, `${tela}.webm`));
 }
 
+// --html: em vez de quadros, o #conteudo de cada passo, com o alvo marcado (data-passo), a legenda e o tempo
+// desde o começo; o player toca no mesmo ritmo. Um passo que não mudou a tela reaproveita a cena anterior.
+async function capturar(ctx, page, t, roteiro, tela) {
+  const cenas = [];
+  const passos = [];
+  const t0 = Date.now();
+  let semMarcas = null;
+  let marcas = 0;
+  let fala = {};
+  let foco = null;
+  const ler = () =>
+    page
+      .evaluate(() => {
+        // sem endereços do app nem o id do #conteudo (a Central tem o seu)
+        const limpar = (e) => {
+          if (!e) return "";
+          const copia = e.cloneNode(true);
+          copia.removeAttribute("id");
+          copia.removeAttribute("tabindex");
+          for (const a of copia.querySelectorAll("[href]")) a.removeAttribute("href");
+          return copia.outerHTML;
+        };
+        const conteudo = document.querySelector("#conteudo");
+        const texto = (seletor) => document.querySelector(seletor)?.textContent.trim();
+        return conteudo && {
+          html: limpar(conteudo),
+          menu: texto('.app-aside a[aria-current="page"]'),
+          barra: limpar(document.querySelector(".app-topo")),
+          conta: { nome: texto(".app-conta-nome"), empresa: texto(".app-conta-empresa"), iniciais: texto(".app-conta-iniciais") },
+        };
+      })
+      .catch(() => null); // no meio de uma navegação
+  const marcar = async (loc) => {
+    const id = marcas++;
+    await loc.evaluate((e, id) => e.setAttribute("data-passo", id), String(id));
+    return id;
+  };
+  let primeira = null;
+  const guardar = async (extra = {}) => {
+    const lido = await ler();
+    if (!lido) return;
+    primeira ??= lido;
+    const { html, menu } = lido;
+    const tem = (m) => html.includes(`data-passo="${m}"`);
+    const limpo = html.replace(/ data-passo="\d+"/g, "");
+    const ultima = cenas.length - 1;
+    const usadas = passos.filter((p) => p.cena === ultima).flatMap((p) => [p.foco, p.cursor]).filter((m) => m != null);
+    if (limpo === semMarcas && usadas.every(tem)) cenas[ultima] = html;
+    else cenas.push(html);
+    semMarcas = limpo;
+    // o destaque de um passo anterior que sumiu da tela nova não vai junto
+    passos.push({ t: Date.now() - t0, cena: cenas.length - 1, menu, ...fala, ...(foco != null && tem(foco) && { foco }), ...extra });
+  };
+
+  t.focar = async (loc) => {
+    foco = loc ? await marcar(loc) : null;
+  };
+  t.legenda = async (n, texto, detalhe) => {
+    fala = { n, texto, detalhe };
+    await guardar();
+  };
+  t.passo = async (loc, n, texto, detalhe, ms = 4200) => {
+    fala = { n, texto, detalhe };
+    await t.focar(loc);
+    await guardar();
+    await pausa(ms);
+  };
+  for (const [nome, cliques] of [["clicar", 1], ["duplo", 2]]) {
+    const fazer = t[nome];
+    t[nome] = async (loc) => {
+      await guardar({ cursor: await marcar(loc), clique: cliques });
+      await fazer(loc);
+      await pausa(400);
+      await guardar();
+    };
+  }
+
+  await roteiro.cena(t, { page });
+  await ctx.close();
+  const saida = path.join(PUBLICO, `${tela}.json`);
+  fs.writeFileSync(saida, JSON.stringify({ barra: primeira.barra, conta: primeira.conta, cenas, passos, fim: Date.now() - t0 }));
+  return { saida, cenas: cenas.length, passos: passos.length, kb: Math.round(fs.statSync(saida).size / 1024) };
+}
+
 // cada quadro dura até o próximo chegar; o último fica meio segundo
 async function codificar(quadros, saida) {
   const ff = spawn(FFMPEG, ["-y", "-loglevel", "error", "-f", "image2pipe", "-framerate", String(FPS), "-c:v", "mjpeg", "-i", "pipe:0",
@@ -548,7 +639,8 @@ async function codificar(quadros, saida) {
 }
 
 async function main() {
-  const telas = process.argv.slice(2).length ? process.argv.slice(2) : Object.keys(ROTEIROS);
+  const pedidas = process.argv.slice(2).filter((a) => a !== "--html");
+  const telas = pedidas.length ? pedidas : Object.keys(ROTEIROS);
   for (const tela of telas) if (!ROTEIROS[tela]) throw new Error(`tela sem roteiro: ${tela}`);
   const browser = await chromium.launch({ channel: "chrome" });
 

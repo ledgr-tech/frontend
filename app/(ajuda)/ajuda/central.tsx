@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Reveal } from "../../reveal";
 import { Texto } from "./blocos";
+import { Demonstracao } from "./demonstracao";
 import { PAGINAS, paginaDeAjuda, type ImagemDaAjuda } from "./paginas";
 
 /**
@@ -95,7 +96,9 @@ export function CentralDeAjuda({ id }: { id: string }) {
         <p className="ajd-serve">{pagina.serve}</p>
 
         <div className="ajd-video">
-          {pagina.video ? (
+          {pagina.demonstracao ? (
+            <Demonstracao src={pagina.demonstracao} titulo={pagina.titulo} capa={pagina.capa} />
+          ) : pagina.video ? (
             <video
               src={pagina.video}
               poster={pagina.capa.src}

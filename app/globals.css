@@ -5310,6 +5310,35 @@ html[data-tema="escuro"] .app-shell {
 .ajd-capitulos { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 12px 0 0; padding: 0; list-style: none; font-size: 13.5px; color: var(--texto-apagado); }
 .ajd-capitulos li { display: flex; gap: 6px; }
 .ajd-capitulos span { font-weight: 600; font-variant-numeric: tabular-nums; color: var(--color-accent-700); }
+/* a tela tocando em HTML (demonstracao.tsx): a janela da vitrine com a réplica de 1280 × 800 encolhida por
+   transform, e a câmera chegando perto do que a legenda fala */
+.ajd-demo .mockup-quadro { aspect-ratio: 16 / 10; }
+.ajd-demo .mockup-app { height: 800px; transition: transform 0.9s cubic-bezier(0.22, 1, 0.36, 1); }
+/* as cores da réplica seguem o tema da Central (a vitrine da landing as prende no claro) */
+.ajd-demo .vitrine-app {
+  --tinta-hover: inherit; --tinta-ativa: inherit; --texto-apagado: inherit;
+  --folha-banco: inherit; --folha-sistema: inherit; --superficie-elevada: inherit;
+}
+.ajd-demo-capa { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: top left; }
+.ajd-demo-anel {
+  position: absolute; z-index: 85; border-radius: 12px; pointer-events: none; opacity: 0;
+  box-shadow: 0 0 0 9999px rgb(20 18 16 / 0.42), 0 0 0 3px var(--color-accent);
+  transition: left 0.6s ease, top 0.6s ease, width 0.6s ease, height 0.6s ease, opacity 0.3s;
+}
+.ajd-demo-rodape { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-top: 14px; }
+.ajd-demo-legenda { display: flex; gap: 12px; min-height: 3.3em; margin: 0; font-size: 15px; line-height: 1.5; }
+.ajd-demo-numero {
+  flex: none; display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%;
+  font-size: 13px; font-weight: 700; color: var(--color-bg); background: var(--color-accent-700);
+}
+.ajd-demo-legenda small { display: block; font-size: 14px; color: var(--texto-apagado); }
+.ajd-demo-controles {
+  flex: none; display: flex; align-items: center; gap: 2px;
+  font-size: 13px; color: var(--texto-apagado); font-variant-numeric: tabular-nums;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ajd-demo .mockup-app, .ajd-demo .mockup-cena, .ajd-demo-anel, .ajd-demo .mockup-cursor { transition: none; animation: none; }
+}
 
 .ajd-funcao { padding-top: 48px; scroll-margin-top: 88px; }
 [data-reveal] + [data-reveal] > .ajd-funcao { margin-top: 8px; border-top: 1px solid var(--color-divider); }

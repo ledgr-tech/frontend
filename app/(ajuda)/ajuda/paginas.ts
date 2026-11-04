@@ -34,6 +34,8 @@ export type PaginaDeAjuda = {
   funcoes: FuncaoDaAjuda[];
   /** shortcut: o vídeo entra quando houver gravação, um arquivo em public/ajuda/; sem ele, a capa diz "em breve". */
   video?: string;
+  /** A tela tocando em HTML (demonstracao.tsx), no lugar do vídeo: o arquivo de public/ajuda/ que `gravar.mjs --html` gera. */
+  demonstracao?: string;
 };
 
 export const PAGINAS: PaginaDeAjuda[] = [
@@ -269,7 +271,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
       largura: 1360,
       altura: 850,
     },
-    video: "/ajuda/comparacao.webm",
+    demonstracao: "/ajuda/comparacao.json",
     funcoes: [
       {
         id: "resumo",
