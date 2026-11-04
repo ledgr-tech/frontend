@@ -248,9 +248,9 @@ describe("ConciliacaoPage", () => {
     expect(curto).toHaveAttribute("aria-hidden", "true");
     expect(within(status).getByText("Valor diverge na mesma data")).toHaveClass("sr-only");
 
-    // o que bateu fica quieto: o nome sem selo, para o olho ir direto ao que pede revisão
+    // o que bateu também leva o selo, em verde: clientes acham mais fácil de ver
     const batida = screen.getByRole("button", { name: "Pagamento batido" }).closest("tr")!;
-    expect(within(batida).getByText("Conciliado")).not.toHaveClass("selo");
+    expect(within(batida).getByText("Conciliado")).toHaveClass("selo", "selo-ok");
   });
 
   it("marks the field that diverges: the values when the value differs, the dates when the date does", async () => {

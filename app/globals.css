@@ -1824,14 +1824,17 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
 .regua-mede-valor output { font-size: clamp(60px, 7vw, 92px); line-height: 1; color: var(--color-accent); }
 .regua-mede-valor span { font-size: 15px; color: var(--color-neutral-300); }
 .regua-mede-controle { -webkit-appearance: none; appearance: none; width: 100%; height: 30px; margin: 0; background: none; cursor: pointer; }
+/* 2px e não 1px: com o zoom do navegador abaixo de 100%, 1px de CSS vale menos de um pixel da tela e o
+   traço some conforme a posição vertical, que muda com a altura da folha do plano (em 200 ele sumia).
+   Com 2px sobra sempre pelo menos um pixel da tela. */
 .regua-mede-controle::-webkit-slider-runnable-track {
-  height: 1px;
+  height: 2px; border-radius: 1px;
   background: linear-gradient(90deg, var(--color-accent) var(--cheio, 33%), color-mix(in srgb, var(--color-neutral-300) 30%, transparent) var(--cheio, 33%));
 }
-.regua-mede-controle::-moz-range-track { height: 1px; background: color-mix(in srgb, var(--color-neutral-300) 30%, transparent); }
-.regua-mede-controle::-moz-range-progress { height: 1px; background: var(--color-accent); }
+.regua-mede-controle::-moz-range-track { height: 2px; border-radius: 1px; background: color-mix(in srgb, var(--color-neutral-300) 30%, transparent); }
+.regua-mede-controle::-moz-range-progress { height: 2px; border-radius: 1px; background: var(--color-accent); }
 .regua-mede-controle::-webkit-slider-thumb {
-  -webkit-appearance: none; width: 3px; height: 28px; margin-top: -14px; border-radius: 2px; background: var(--color-accent-300);
+  -webkit-appearance: none; width: 3px; height: 28px; margin-top: -13px; border-radius: 2px; background: var(--color-accent-300);
   box-shadow: 0 0 0 7px color-mix(in srgb, var(--color-accent) 22%, transparent);
 }
 .regua-mede-controle::-moz-range-thumb { width: 3px; height: 28px; border: 0; border-radius: 2px; background: var(--color-accent-300); }
@@ -2626,9 +2629,6 @@ html[data-tema="escuro"] .app-shell {
 .tabela-folhas tbody tr[data-situacao="conferida"] > td:not(.celula-status) {
   color: color-mix(in srgb, var(--color-text) 70%, transparent);
 }
-/* o que bateu fica quieto, sem selo: só o que pede revisão ganha cor. Os 70% (e não o
-   --texto-apagado) seguram 4,5:1 sobre a página e sobre a folha cinza do sistema. */
-.status-batido { font-size: 12.5px; color: color-mix(in srgb, var(--color-text) 70%, transparent); }
 /* o campo errado, em vermelho em toda divergência (a data ou o valor): o olho acha de longe
    tudo o que falta resolver, seja qual for o tom do selo */
 .tabela-folhas tbody tr > td[data-diverge] { color: var(--color-risco-700); }
@@ -4303,7 +4303,7 @@ html:not([data-densidade="padrao"]) .app-shell .selo { padding-block: 1px; }
 }
 /* os filtros e, logo ao lado, quantas das linhas em revisão já foram conferidas */
 .tabela-filtros { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
-/* 70%, como o .status-batido: os 62% davam 4,48:1 sobre a página, abaixo dos 4,5 */
+/* 70%, como o texto apagado das linhas conferidas: os 62% davam 4,48:1 sobre a página, abaixo dos 4,5 */
 .tabela-progresso {
   font-size: 13.5px; font-variant-numeric: tabular-nums;
   color: color-mix(in srgb, var(--color-text) 70%, transparent);

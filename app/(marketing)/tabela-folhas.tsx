@@ -174,10 +174,10 @@ export function TabelaFolhas({
               <td role="cell" data-rotulo="Banco" data-diverge={diverge("valor")} className="dash-valor-celula folha-banco">
                 {b.valorBanco ? marcar("valor", b.valorBanco) : "—"}
               </td>
-              {/* o nome curto cabe no eixo; o inteiro fica para o leitor de tela. O que bateu vai
-                  sem selo: só o que pede revisão ganha cor */}
+              {/* o nome curto cabe no eixo; o inteiro fica para o leitor de tela. Todo status leva o
+                  selo na cor dele, o Conciliado em verde, como no app */}
               <td role="cell" data-rotulo="Status" className="celula-status">
-                <span className={revisar ? `selo selo-${selo.tom}` : "status-batido"} aria-hidden="true">
+                <span className={`selo selo-${selo.tom}`} aria-hidden="true">
                   {rotuloCurto(b)}
                 </span>
                 <span className="sr-only">{selo.rotulo}</span>

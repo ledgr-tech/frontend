@@ -731,10 +731,10 @@ export default function ConciliacaoPage() {
                           <span className="folha-vazia-marca">sem lançamento no banco</span>
                         </td>
                       )}
-                      {/* o nome curto cabe no eixo; o inteiro fica para o leitor de tela. O que
-                          bateu vai sem selo: só o que pede revisão ganha cor, e o olho vai direto nele */}
+                      {/* o nome curto cabe no eixo; o inteiro fica para o leitor de tela. Todo status leva
+                          o selo na cor dele, o Conciliado em verde (a pedido de clientes: acham mais fácil) */}
                       <td role="cell" data-rotulo="Status" className="celula-status">
-                        <span className={comCartao ? `selo selo-${tom}` : "status-batido"} aria-hidden="true">
+                        <span className={`selo selo-${tom}`} aria-hidden="true">
                           {situacao === "justificada" ? "Justificada" : situacao === "aguardando" ? "Aguardando" : rotuloCurto(linha)}
                         </span>
                         <span className="sr-only">
