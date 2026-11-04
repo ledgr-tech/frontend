@@ -18,7 +18,8 @@ import { MenuDaVitrine } from "./vitrine";
  */
 
 const LARGURA = 1280;
-const ALTURA = 800;
+// a Nova conciliação é a tela mais alta (857 px de conteúdo + 78 da barra de cima): cabe inteira sem cortar o painel "Antes de conciliar"
+const ALTURA = 940;
 const MENU_ATIVO = { conciliacoes: "Conciliações", fechamentos: "Fechamentos" } as const;
 
 type Cenas = typeof import("./cenas");
@@ -150,7 +151,8 @@ export function MockupDemo({ descricao }: { descricao: string }) {
           // a comparação: o resumo, depois a tabela, e o cartão de uma linha
           setCena("comparacao");
           await dorme(2200, sinal);
-          setRolagem(330);
+          // a tabela sobe até a linha do hover ficar a meia altura: o cartão abre para baixo dela e tem de caber na janela
+          setRolagem(480);
           await dorme(1400, sinal);
           await mover(achaLinha(cenaAtual(), "09/07", "PIX ENVIA")?.querySelector<HTMLElement>(".celula-status") ?? null);
           setHover(true);

@@ -1362,9 +1362,9 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
   width: var(--cartao-largura); margin-left: calc(var(--cartao-largura) / -2); text-align: left;
 }
 .vitrine-app .cartao-lancamento { animation: none; }
-/* o mockup do vídeo (app/(marketing)/mockup-demo.tsx): a réplica de 1280×800 encolhida por transform
-   dentro de um quadro 16:10, com as telas reais do app trocando por dentro */
-.mockup-quadro { position: relative; aspect-ratio: 1280 / 800; overflow: hidden; background: var(--color-bg); }
+/* o mockup do vídeo (app/(marketing)/mockup-demo.tsx): a réplica de 1280×940 encolhida por transform
+   dentro de um quadro de 1280×940, com as telas reais do app trocando por dentro */
+.mockup-quadro { position: relative; aspect-ratio: 1280 / 940; overflow: hidden; background: var(--color-bg); }
 .mockup-app { position: absolute; top: 0; left: 0; transform-origin: 0 0; }
 /* a margem lateral do app (--recuo-lateral) vem do .app-principal, que a moldura da vitrine não usa */
 .mockup-principal { --recuo-lateral: 40px; display: flex; flex-direction: column; min-height: 0; }
@@ -1481,7 +1481,19 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
   .rodape-rede { transition: none; }
   .rodape-rede:hover, .rodape-rede:focus-visible { transform: none; }
 }
-.numeros-grade { --grade-recuo: 28px; --grade-linha: color-mix(in srgb, var(--color-neutral-100) 22%, transparent); }
+/* a faixa escura "em números": o título à esquerda e, à direita, os três números em lista, cada um com
+   um filete em cima e o último também embaixo */
+.numeros-dois { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: clamp(28px, 6vw, 96px); align-items: center; }
+.numeros-titulo { margin: 0; font-size: clamp(32px, 3.4vw, 48px); color: var(--color-neutral-100); text-wrap: balance; }
+.numeros-titulo em { color: var(--color-accent); }
+.numeros-grade { --grade-linha: color-mix(in srgb, var(--color-neutral-100) 22%, transparent); display: grid; }
+.numeros-item {
+  display: grid; grid-template-columns: minmax(110px, 150px) minmax(0, 1fr); align-items: baseline; gap: 16px;
+  padding-block: 16px; border-top: 1px solid var(--grade-linha);
+}
+.numeros-item:last-child { border-bottom: 1px solid var(--grade-linha); }
+.numeros-item .numero-destaque { font-size: 34px; font-weight: 400; line-height: 1; color: var(--color-neutral-100); }
+.numeros-rotulo { font-size: 15px; line-height: 1.6; color: var(--color-neutral-400); }
 .passos-grade { --grade-recuo: 30px; }
 .passos-grade > * { padding-block: 30px; }
 
@@ -1946,9 +1958,8 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
   .grade-colunas { grid-template-columns: minmax(0, 1fr); }
   .grade-colunas > * { padding-inline: 0; }
   .grade-colunas > * + * { border-left: none; border-top: 1px solid var(--grade-linha, var(--color-divider)); }
-  .numeros-grade > * { padding-block: 22px; }
-  .numeros-grade > :first-child { padding-top: 0; }
-  .numeros-grade > :last-child { padding-bottom: 0; }
+  .numeros-dois { grid-template-columns: minmax(0, 1fr); }
+  .numeros-item { grid-template-columns: minmax(0, 1fr); gap: 4px; }
   .passos-grade > * { padding-block: 24px; }
 
   /* imagens de fundo e mascotes menores, para acompanharem a coluna */
@@ -1964,7 +1975,6 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
   .regra-card { grid-template-columns: 1fr !important; row-gap: 12px; padding: 30px 22px !important; }
   .regra-icon { font-size: 56px !important; }
   .regra-icon-mirror { display: none; }
-  .numeros-marca { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
