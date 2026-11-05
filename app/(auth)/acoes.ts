@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { CredentialsSignin } from "next-auth";
 import { signIn, signOut } from "@/auth";
-import { ErroBackend, chamarBackend, emailDaSessao } from "@/lib/backend";
+import { ErroBackend, chamarBackend, ehContaInativa, emailDaSessao } from "@/lib/backend";
 import { RECUSA_DEMONSTRACAO, demoAberta, ehContaDeDemonstracao } from "@/lib/demo";
 import { COOKIE_CADASTRO_GOOGLE, COOKIE_CONVITE_GOOGLE, VALIDADE_ID_TOKEN_SEGUNDOS } from "@/lib/google";
 import { MuitasEntradas, type UsuarioAPI } from "@/lib/login";
@@ -384,7 +384,10 @@ export async function consultarConvite(token: string): Promise<ResultadoConsulta
 export type ResultadoAceite =
   /** `entrou: false` é conta criada com a sessão que não abriu: falta só entrar. */
   | { ok: true; entrou: boolean }
-  | { ok: false; erro: "convite_invalido" | "email_cadastrado" | "senha_invalida" | "muitas_tentativas" | "falha" };
+  | {
+      ok: false;
+      erro: "convite_invalido" | "email_cadastrado" | "senha_invalida" | "conta_inativa" | "muitas_tentativas" | "falha";
+    };
 
 /**
  * Cria a conta pelo convite (`POST /convites/aceitar`), na empresa de quem convidou e
@@ -410,6 +413,7 @@ export async function aceitarConvite(token: string, email: string, nome: string,
     if (erro.status === 409) return { ok: false, erro: "email_cadastrado" };
     if (erro.status === 422 && erro.campos.includes("senha")) return { ok: false, erro: "senha_invalida" };
     if (erro.status === 422) return { ok: false, erro: "convite_invalido" };
+    if (ehContaInativa(erro)) return { ok: false, erro: "conta_inativa" };
     if (erro.status === 429) return { ok: false, erro: "muitas_tentativas" };
     return { ok: false, erro: "falha" };
   }

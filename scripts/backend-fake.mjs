@@ -592,6 +592,23 @@ const servidor = createServer(async (req, res) => {
   const proibido = (detail = "Seu papel na conta não permite fazer isso.") => json(res, 403, { detail });
   const pedida = req.headers["x-ledgr-empresa"];
   if (pedida && !conta.empresas.includes(pedida)) return json(res, 403, { detail: "Esta empresa não é da sua conta." });
+  // a conta inativa do backend #156, para todas as contas com CONTA_INATIVA=1: escrita dá 403 com o código,
+  // menos as da própria pessoa, o checkout e as revogações (app/core/conta_inativa.py, LIBERADAS)
+  const liberadas = [
+    /^POST \/me\/(senha|email)$/,
+    /^PATCH \/me\/preferencias$/,
+    /^DELETE \/me$/,
+    /^(PUT|DELETE) \/empresas\/[^/]+\/favorita$/,
+    /^POST \/assinatura\/checkout$/,
+    /^DELETE \/(chaves-api|conexoes-mcp|empresa\/usuarios)\/[^/]+$/,
+    /^DELETE \/fechamentos\/[^/]+\/links\/[^/]+$/,
+  ];
+  if (process.env.CONTA_INATIVA === "1" && metodo !== "GET" && !liberadas.some((r) => r.test(`${metodo} ${caminho}`))) {
+    return json(res, 403, {
+      detail: "Esta conta está inativa. Você pode consultar e exportar os dados, mas não pode fazer alterações. Fale com o Ledgr para reativar.",
+      codigo: "conta_inativa",
+    });
+  }
   const b = empresas.get(pedida ?? conta.empresas[0]);
   const semCorpo = () => (res.writeHead(204), res.end());
 

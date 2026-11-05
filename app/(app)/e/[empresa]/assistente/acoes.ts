@@ -1,6 +1,6 @@
 "use server";
 
-import { ErroBackend, chamarBackend, emailDaSessao } from "@/lib/backend";
+import { ErroBackend, chamarBackend, ehContaInativa, emailDaSessao } from "@/lib/backend";
 import { ehContaDeDemonstracao } from "@/lib/demo";
 import type { Falha, Resultado } from "../conciliacoes/acoes";
 
@@ -32,6 +32,7 @@ function traduzir(erro: unknown): Falha {
   if (status === 401) return { ok: false, status, erro: "Sua sessão expirou. Entre de novo para continuar." };
   // 429: o limite do dia ("Tente amanhã") ou o por minuto, com o texto do backend
   if (status === 429) return { ok: false, status, erro: erro.detalhe || "Muitas perguntas seguidas. Espere um pouco." };
+  if (ehContaInativa(erro)) return { ok: false, status, erro: erro.detalhe };
   // 503 (desligado, sem a Central ou o provedor falhou) e 404 (backend antes do #137): indisponível
   return { ok: false, status, erro: "O assistente está indisponível no momento." };
 }

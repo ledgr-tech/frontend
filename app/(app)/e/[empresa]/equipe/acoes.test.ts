@@ -122,6 +122,12 @@ describe("convidar", () => {
     expect(await convidar("ana@x.com", "analista")).toEqual({ ok: false, status, erro: texto });
   });
 
+  it("o 403 da conta inativa (backend #156) chega com o texto do backend, não com o de papel", async () => {
+    chamarBackend.mockRejectedValueOnce(new ErroBackend(403, "Esta conta está inativa.", [], {}, undefined, [], "conta_inativa"));
+
+    expect(await convidar("ana@x.com", "analista")).toEqual({ ok: false, status: 403, erro: "Esta conta está inativa." });
+  });
+
   it("não manda ao backend um papel que não existe", async () => {
     expect(await convidar("bia@x.com", "dono" as never)).toEqual({ ok: false, status: 422, erro: "Escolha o papel da pessoa." });
     expect(chamarBackend).not.toHaveBeenCalled();

@@ -1,7 +1,7 @@
 "use server";
 
 import { adaptarEmpresaCliente, type EmpresaCliente, type EmpresaClienteAPI } from "@/lib/adaptadores";
-import { ErroBackend, chamarBackend, emailDaSessao } from "@/lib/backend";
+import { ErroBackend, chamarBackend, ehContaInativa, emailDaSessao } from "@/lib/backend";
 import { RECUSA_DEMONSTRACAO, ehContaDeDemonstracao } from "@/lib/demo";
 import { caracteresCnpj, validarCnpj } from "../../../../(auth)/cadastro/passos";
 import type { Falha, Resultado } from "../conciliacoes/acoes";
@@ -27,7 +27,7 @@ function traduzir(erro: unknown, aoCadastrar = false): Falha {
   }
   const { status } = erro;
   if (status === 401) return { ok: false, status, erro: SESSAO_EXPIRADA };
-  if (status === 403) return { ok: false, status, erro: "Seu papel na conta não permite fazer isso." };
+  if (status === 403 && !ehContaInativa(erro)) return { ok: false, status, erro: "Seu papel na conta não permite fazer isso." };
   if (aoCadastrar && status === 409) return { ok: false, status, erro: "Esta empresa já está cadastrada na conta." };
   if (aoCadastrar && status === 429) return { ok: false, status, erro: limiteDeCadastros(erro.segundosParaTentar) };
   if (aoCadastrar && status === 422 && erro.mensagens.cnpj) {

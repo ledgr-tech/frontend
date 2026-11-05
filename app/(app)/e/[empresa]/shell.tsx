@@ -26,6 +26,7 @@ export function Shell({
   assinatura = null,
   limites = null,
   guardaArquivoOriginal = false,
+  contaInativa = false,
   children,
 }: {
   email: string;
@@ -46,6 +47,8 @@ export function Shell({
   limites?: LimitesDaConta | null;
   /** Se a conta guarda o original de cada extrato, do `GET /me` (backend #139). */
   guardaArquivoOriginal?: boolean;
+  /** Uma escrita foi recusada há pouco porque a conta está inativa (backend #156): a barra de cima avisa. */
+  contaInativa?: boolean;
   children: ReactNode;
 }) {
   return (
@@ -74,7 +77,7 @@ export function Shell({
               onSair={() => void sair()}
             />
             <main className="app-principal">
-              <BarraSuperior />
+              <BarraSuperior contaInativa={contaInativa} />
               <div id="conteudo" className="app-conteudo" tabIndex={-1}>
                 {children}
               </div>
