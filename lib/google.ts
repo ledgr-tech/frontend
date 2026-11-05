@@ -39,12 +39,19 @@ export const MENSAGEM_GOOGLE: Record<ErroGoogle, string> = {
 export const COOKIE_CONVITE_GOOGLE = "ledgr-convite-google";
 
 /** O que volta a `/aceitar-convite?google=<motivo>` quando o Google não aceitou o convite. */
-export type ErroConviteGoogle = "email_diferente" | "convite_invalido" | "email_cadastrado" | "muitas_tentativas" | "falha";
+export type ErroConviteGoogle =
+  | "email_diferente"
+  | "convite_invalido"
+  | "email_cadastrado"
+  | "conta_inativa"
+  | "muitas_tentativas"
+  | "falha";
 
 const ERROS_CONVITE_GOOGLE: readonly string[] = [
   "email_diferente",
   "convite_invalido",
   "email_cadastrado",
+  "conta_inativa",
   "muitas_tentativas",
   "falha",
 ];

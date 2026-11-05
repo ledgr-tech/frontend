@@ -92,6 +92,19 @@ describe("BarraSuperior", () => {
     Object.defineProperty(window.navigator, "platform", { value: valor, configurable: true });
   }
 
+  it("depois de uma escrita recusada por conta inativa (backend #156), avisa em tom de risco, com e-mail para o Ledgr", async () => {
+    render(<BarraSuperior contaInativa />);
+    await screen.findByRole("button", { name: /Avisos \d/ });
+    const aviso = screen.getByRole("link", { name: "Conta inativa · falar com o Ledgr" });
+    expect(aviso).toHaveClass("selo-risco");
+    expect(aviso).toHaveAttribute("href", "mailto:ledgrtech@gmail.com?subject=Reativar%20a%20conta");
+  });
+
+  it("sem a recusa, não fala de conta inativa", async () => {
+    await montar();
+    expect(screen.queryByText(/Conta inativa/)).not.toBeInTheDocument();
+  });
+
   it("leaves the account and the theme to the side menu", async () => {
     await montar();
     expect(screen.queryByRole("button", { name: "Sair" })).not.toBeInTheDocument();

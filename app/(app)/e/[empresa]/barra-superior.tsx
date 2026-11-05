@@ -32,7 +32,7 @@ function combina(linha: LinhaComparacao, termo: string): boolean {
 type Leitura = { situacao: "lendo" } | { situacao: "falhou" } | { situacao: "pronta"; visao: VisaoGeral };
 
 // O tema e a conta (nome, empresa e Sair) moram no rodapé do menu lateral.
-export function BarraSuperior() {
+export function BarraSuperior({ contaInativa = false }: { contaInativa?: boolean }) {
   const assinatura = useAssinatura();
   const diasDeTeste =
     assinatura?.situacao === "teste" && assinatura.testeTerminaEm ? diasRestantes(assinatura.testeTerminaEm, new Date()) : null;
@@ -211,6 +211,19 @@ export function BarraSuperior() {
       )}
       {assinatura && assinatura.situacao in SELOS_DE_RISCO && (
         <SeloDoTeste href="/assinatura" risco {...SELOS_DE_RISCO[assinatura.situacao as keyof typeof SELOS_DE_RISCO]} />
+      )}
+      {/* a conta inativa (backend #156): só depois de uma escrita recusada, que é quando a tela sabe */}
+      {contaInativa && (
+        <a
+          href="mailto:ledgrtech@gmail.com?subject=Reativar%20a%20conta"
+          className="selo selo-risco app-teste"
+          aria-label="Conta inativa · falar com o Ledgr"
+        >
+          <span className="app-teste-longo">Conta inativa · falar com o Ledgr</span>
+          <span className="app-teste-curto" aria-hidden="true">
+            Conta inativa
+          </span>
+        </a>
       )}
 
       <MenuDeAjuda />

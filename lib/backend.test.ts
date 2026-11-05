@@ -2,17 +2,25 @@
 //
 // node, e não jsdom: o `emailDaSessao` confere o token com o jose, que no jsdom recusa a chave (ver lib/token.test.ts).
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { baixarDoBackend, chamarBackend, emailDaSessao, ErroBackend } from "./backend";
+import { baixarDoBackend, chamarBackend, contaRecusouPorInativa, ehContaInativa, emailDaSessao, ErroBackend } from "./backend";
 import { assinarToken } from "./token";
 
 // o cookie da sessão é o JWT; aqui ele é só uma string conhecida
 const cookie = vi.hoisted(() => ({ valor: "jwt-de-teste" as string | undefined }));
+// o aviso da conta inativa (backend #156); `set` lança como fora de uma Server Action quando `travado`
+const aviso = vi.hoisted(() => ({ presente: false, travado: false, set: vi.fn(), delete: vi.fn() }));
 // os cabeçalhos que a Vercel escreve na requisição do navegador; `null` = fora de uma requisição
 const requisicao = vi.hoisted(() => ({ cabecalhos: {} as Record<string, string> | null }));
 vi.mock("next/headers", () => ({
   cookies: async () => ({
     get: (nome: string) =>
       nome === "authjs.session-token" && cookie.valor ? { value: cookie.valor } : undefined,
+    has: (nome: string) => nome === "ledgr-conta-inativa" && aviso.presente,
+    set: (...args: unknown[]) => {
+      if (aviso.travado) throw new Error("Cookies can only be modified in a Server Action or Route Handler.");
+      aviso.set(...args);
+    },
+    delete: (...args: unknown[]) => aviso.delete(...args),
   }),
   headers: async () => {
     if (!requisicao.cabecalhos) throw new Error("`headers` was called outside a request scope.");
@@ -308,5 +316,68 @@ describe("a empresa ativa nas chamadas ao backend (#169)", () => {
     requisicao.cabecalhos = { "x-ledgr-empresa": A };
     await chamarBackend("/login", { method: "POST", corpo: {}, publica: true });
     expect(enviado().has("X-Ledgr-Empresa")).toBe(false);
+  });
+});
+
+describe("a conta inativa (backend #156)", () => {
+  const INATIVA = "Esta conta está inativa. Você pode consultar e exportar os dados, mas não pode fazer alterações. Fale com o Ledgr para reativar.";
+
+  beforeEach(() => {
+    cookie.valor = "jwt-de-teste";
+    requisicao.cabecalhos = {};
+    Object.assign(aviso, { presente: false, travado: false });
+    aviso.set.mockReset();
+    aviso.delete.mockReset();
+    fetch.mockReset();
+    vi.stubGlobal("fetch", fetch);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("o 403 dela traz o código, e o aviso vai para o cookie que a barra de cima lê", async () => {
+    fetch.mockResolvedValue(Response.json({ detail: INATIVA, codigo: "conta_inativa" }, { status: 403 }));
+
+    const erro = await chamarBackend("/extratos/upload", { method: "POST", corpo: {} }).catch((e: unknown) => e);
+
+    expect(erro).toMatchObject({ status: 403, detalhe: INATIVA, codigo: "conta_inativa" });
+    expect(ehContaInativa(erro)).toBe(true);
+    expect(aviso.set).toHaveBeenCalledWith("ledgr-conta-inativa", "1", expect.objectContaining({ httpOnly: true, maxAge: 600 }));
+  });
+
+  it("o 403 de papel não é conta inativa e não mexe no aviso", async () => {
+    fetch.mockResolvedValue(Response.json({ detail: "Só o admin ou o gestor." }, { status: 403 }));
+
+    const erro = await chamarBackend("/fechamentos", { method: "POST", corpo: {} }).catch((e: unknown) => e);
+
+    expect(ehContaInativa(erro)).toBe(false);
+    expect(aviso.set).not.toHaveBeenCalled();
+  });
+
+  it("a escrita que passa apaga o aviso; a leitura, não", async () => {
+    aviso.presente = true;
+    fetch.mockImplementation(async () => Response.json({}));
+
+    await chamarBackend("/extratos");
+    expect(aviso.delete).not.toHaveBeenCalled();
+
+    await chamarBackend("/empresa/configuracoes", { method: "PUT", corpo: {} });
+    expect(aviso.delete).toHaveBeenCalledWith("ledgr-conta-inativa");
+  });
+
+  it("renderizando uma página, onde cookie não se grava, o erro chega do mesmo jeito", async () => {
+    aviso.travado = true;
+    fetch.mockResolvedValue(Response.json({ detail: INATIVA, codigo: "conta_inativa" }, { status: 403 }));
+
+    await expect(chamarBackend("/convites/aceitar", { method: "POST", corpo: {}, publica: true })).rejects.toMatchObject({
+      codigo: "conta_inativa",
+    });
+  });
+
+  it("o layout lê o aviso do cookie", async () => {
+    expect(await contaRecusouPorInativa()).toBe(false);
+    aviso.presente = true;
+    expect(await contaRecusouPorInativa()).toBe(true);
   });
 });

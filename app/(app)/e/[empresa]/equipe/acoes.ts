@@ -9,7 +9,7 @@ import {
   type Pessoa,
   type PessoaAPI,
 } from "@/lib/adaptadores";
-import { ErroBackend, chamarBackend, emailDaSessao } from "@/lib/backend";
+import { ErroBackend, chamarBackend, ehContaInativa, emailDaSessao } from "@/lib/backend";
 import { RECUSA_DEMONSTRACAO, ehContaDeDemonstracao } from "@/lib/demo";
 import { ehPapel, podeConvidar, type Papel } from "@/lib/papel";
 import type { Falha, Resultado } from "../conciliacoes/acoes";
@@ -48,7 +48,7 @@ function traduzir(erro: unknown, contexto: "geral" | "convite" | "papel" = "gera
   }
   const { status } = erro;
   if (status === 401) return { ok: false, status, erro: SESSAO_EXPIRADA };
-  if (status === 403) return { ok: false, status, erro: "Seu papel na conta não permite fazer isso." };
+  if (status === 403 && !ehContaInativa(erro)) return { ok: false, status, erro: "Seu papel na conta não permite fazer isso." };
   const aoConvidar = contexto === "convite";
   if (aoConvidar && status === 409) return { ok: false, status, erro: "Este e-mail já tem conta no Ledgr." };
   if (aoConvidar && status === 429) return { ok: false, status, erro: limiteDeConvites(erro.segundosParaTentar) };
