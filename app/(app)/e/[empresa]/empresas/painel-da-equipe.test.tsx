@@ -266,7 +266,7 @@ describe("a equipe", () => {
     carregarEquipe.mockResolvedValueOnce({ ok: false, status: 500, erro: "x" });
     montar();
 
-    expect(await screen.findByText("Não foi possível carregar agora.")).toBeInTheDocument();
+    expect(await screen.findByText("Não foi possível carregar a equipe.")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Tentar de novo" }));
 
     expect(await screen.findByText("Bia", { selector: ".equipe-nome" })).toBeInTheDocument();

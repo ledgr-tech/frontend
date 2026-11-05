@@ -18,7 +18,8 @@ import {
 import { estaResolvida, pedeDecisao, statusDaLinha } from "../../../dashboard/resumo";
 import { Barra, EsqueletoTela } from "../../../esqueleto";
 import { NumeroAnimado } from "../../../numero-animado";
-import { FALHA_AO_CARREGAR, useConciliacao } from "../../usar-conciliacao";
+import { FalhaAoCarregar } from "../../../falha-ao-carregar";
+import { recarregarOhNavegador, useConciliacao } from "../../usar-conciliacao";
 import { IconeOrigem, type Origem } from "../../../icone-origem";
 import { ExplicacaoDaDivergencia } from "./explicacao";
 import { historicoDaLinha, rotuloComDecisao, situacaoDaLinha } from "../situacao";
@@ -124,14 +125,13 @@ export function DetalheDivergencia({ painel = false }: { painel?: boolean }) {
 
   if (estado.situacao === "falhou") {
     return (
-      <div style={{ padding: "76px 0", textAlign: "center" }}>
-        <p role="alert" style={{ margin: "0 0 20px" }}>
-          {FALHA_AO_CARREGAR}
-        </p>
-        <Link href="/dashboard" className="btn btn-secondary">
-          Voltar para Conciliações
-        </Link>
-      </div>
+      <FalhaAoCarregar
+        oQue="a conciliação"
+        status={estado.status}
+        tentar={recarregarOhNavegador}
+        voltar={{ href: "/dashboard", rotulo: "Voltar para Conciliações" }}
+        nivel="h1"
+      />
     );
   }
 

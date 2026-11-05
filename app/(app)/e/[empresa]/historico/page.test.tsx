@@ -420,12 +420,11 @@ describe("HistoricoPage", () => {
     expect(screen.queryByRole("button", { name: /Exportar histórico/ })).not.toBeInTheDocument();
   });
 
-  it("asks for a reload when the backend fails", async () => {
+  it("offers a retry when the backend fails", async () => {
     listarExecucoes.mockResolvedValue({ ok: false, status: 0, erro: "Não foi possível falar com o servidor." });
     await renderizar();
-    expect(screen.getByRole("alert")).toHaveTextContent(
-      "Não foi possível carregar o histórico. Recarregue a página e tente de novo.",
-    );
+    expect(screen.getByRole("alert")).toHaveTextContent("Não foi possível carregar o histórico.");
+    expect(screen.getByRole("button", { name: "Tentar de novo" })).toBeInTheDocument();
   });
 
   it("sends an expired session back to the login", async () => {

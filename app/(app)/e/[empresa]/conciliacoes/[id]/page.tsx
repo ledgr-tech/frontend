@@ -3,7 +3,6 @@
 import { Fragment, useEffect, useId, useRef, useState, type CSSProperties, type FormEvent } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { useRoteador } from "@/lib/roteador";
-import Image from "next/image";
 import Link from "@/lib/link-do-app";
 import { ehDivergencia } from "@/lib/adaptadores";
 import { caminhoDaConciliacao } from "@/lib/caminhos";
@@ -24,8 +23,10 @@ import {
   seloDoStatus,
   statusDaLinha,
 } from "../../dashboard/resumo";
-import { FALHA_AO_CARREGAR, useConciliacao } from "../usar-conciliacao";
+import { recarregarOhNavegador, useConciliacao } from "../usar-conciliacao";
 import { EsqueletoTela } from "../../esqueleto";
+import { FalhaAoCarregar } from "../../falha-ao-carregar";
+import { TelaDeAviso } from "@/app/tela-de-aviso";
 import { filtrarLinhas, ordenarLinhas, type Coluna, type Filtro, type Ordem } from "./ordenar";
 import { continuaDivergindo, decisoesLigadas, situacaoDaLinha } from "./situacao";
 import { cabecalhoDoGrupo, contarGrupos, juntarGrupos } from "./grupos";
@@ -179,26 +180,27 @@ export default function ConciliacaoPage() {
 
   if (estado.situacao === "ausente") {
     return (
-      <div className="vg-inicio">
-        {/* o que não foi achado, o mascote procura de lupa */}
-        <Image
-          src="/mascotes/mascote-lupa.png"
-          alt=""
-          width={977}
-          height={1122}
-          sizes="140px"
-          style={{ width: 140, height: "auto", display: "block" }}
-        />
-        <p style={{ margin: 0 }}>Conciliação não encontrada.</p>
-      </div>
+      <TelaDeAviso
+        titulo="Esta conciliação não foi encontrada."
+        texto="O endereço pode ter mudado, ou o link chegou incompleto."
+        mascote="lupa"
+      >
+        <Link href="/dashboard" className="btn btn-primary">
+          Ver as conciliações
+        </Link>
+      </TelaDeAviso>
     );
   }
 
   if (estado.situacao === "falhou") {
     return (
-      <div style={{ padding: "48px 0" }}>
-        <p role="alert">{FALHA_AO_CARREGAR}</p>
-      </div>
+      <FalhaAoCarregar
+        oQue="a conciliação"
+        status={estado.status}
+        tentar={recarregarOhNavegador}
+        voltar={{ href: "/dashboard", rotulo: "Ver as conciliações" }}
+        nivel="h1"
+      />
     );
   }
 

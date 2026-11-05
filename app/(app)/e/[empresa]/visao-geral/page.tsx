@@ -22,6 +22,7 @@ import { GraficoDeMatch } from "../historico/grafico";
 import { IconeOrigem } from "../icone-origem";
 import { pendenciasDoMes } from "./pendencias";
 import { Cabecalho } from "../cabecalho";
+import { FalhaAoCarregar } from "../falha-ao-carregar";
 import type { SaldoDoExtrato } from "@/lib/adaptadores";
 import { carregarConexoesMcp, type ConexaoMcp } from "../conexoes-mcp/acoes";
 import { SEM_SALDO, data } from "../saldo";
@@ -35,9 +36,6 @@ import { CartaoDeConexao } from "./cartao-de-conexao";
  * aparece. Sem execução, os mesmos blocos vazios dizem o que fazer para enchê-los, e no primeiro mês
  * o passo de agora aparece no bloco onde ele acontece (modelo G do artefato de 30/10).
  */
-
-const FALHA_AO_CARREGAR =
-  "Não foi possível carregar a visão geral. Recarregue a página e tente de novo.";
 
 /** Quantas conciliações a atividade recente mostra; o resto fica no histórico. */
 const NA_ATIVIDADE = 5;
@@ -69,9 +67,7 @@ export default async function VisaoGeralPage() {
       />
 
       {!resposta.ok ? (
-        <p role="alert" style={{ padding: "48px 0" }}>
-          {FALHA_AO_CARREGAR}
-        </p>
+        <FalhaAoCarregar oQue="a visão geral" status={resposta.status} voltar={null} />
       ) : recente === null ? (
         <ContaNova roteiro={roteiroAtivo} passos={passos} />
       ) : (
