@@ -2,9 +2,10 @@
 
 import { pareceUuid } from "@/lib/adaptadores";
 import { ErroBackend, chamarBackend } from "@/lib/backend";
+import { ehUf } from "@/lib/uf";
 import type { Falha, Resultado } from "../../(app)/e/[empresa]/conciliacoes/acoes";
 import { ROTULO_DA_ORIGEM, dataDoFiltro } from "./cobranca";
-import { POR_PAGINA, SITUACOES } from "./situacao";
+import { POR_PAGINA, SITUACOES, UF_NAO_INFORMADA } from "./situacao";
 
 /**
  * O painel interno do Ledgr (backend #156/PR #176, front #222, parte 1): quem opera o produto vê as contas
@@ -24,6 +25,9 @@ export type ContaDoPainel = {
   assinaturaAtiva: boolean;
   inativa: boolean;
   criadaEm: string;
+  /** Null na conta que não informou (backend #184). */
+  cidade: string | null;
+  uf: string | null;
 };
 
 export type ListaDeContas = { total: number; limit: number; offset: number; itens: ContaDoPainel[] };
@@ -131,6 +135,9 @@ type ContaAPI = {
   assinatura_ativa: boolean;
   inativa: boolean;
   criada_em: string;
+  // ausentes num backend antes do #184
+  cidade?: string | null;
+  uf?: string | null;
 };
 
 type DetalheAPI = ContaAPI & {
@@ -205,6 +212,8 @@ function conta(c: ContaAPI): ContaDoPainel {
     assinaturaAtiva: c.assinatura_ativa,
     inativa: c.inativa,
     criadaEm: c.criada_em,
+    cidade: c.cidade ?? null,
+    uf: c.uf ?? null,
   };
 }
 
@@ -286,6 +295,33 @@ export async function listarPagamentos(filtros: { status?: string; desde?: strin
     const r = await chamarBackend<Lista<PagamentoAPI & { conta_id: string; razao_social: string }>>(`/admin/pagamentos?${q}`);
     return { ok: true, dados: { ...r, itens: r.itens.map((p) => ({ ...pagamento(p), contaId: p.conta_id, razaoSocial: p.razao_social })) } };
   } catch (erro) {
+    return traduzir(erro);
+  }
+}
+
+/** O histórico inteiro de uma conta, do mais recente ao mais antigo; o detalhe da conta traz só os 12 últimos. */
+export async function listarPagamentosDaConta(id: string, numero?: number): Promise<Resultado<Lista<Pagamento>>> {
+  if (!pareceUuid(id)) return SEM_CONTA;
+  const q = new URLSearchParams({ limit: String(POR_PAGINA), offset: String((pagina(numero) - 1) * POR_PAGINA) });
+  try {
+    const r = await chamarBackend<Lista<PagamentoAPI>>(`/admin/contas/${id}/pagamentos?${q}`);
+    return { ok: true, dados: { ...r, itens: r.itens.map(pagamento) } };
+  } catch (erro) {
+    return traduzir(erro);
+  }
+}
+
+export type ContasDoGrupo = { contas: number; assinando: number };
+export type ContasPorUf = ContasDoGrupo & { ufs: (ContasDoGrupo & { uf: string })[]; naoInformada: ContasDoGrupo };
+
+/** Onde estão os clientes e onde estão assinando (backend #184). "Assinando" é a situação `ativo` do painel. */
+export async function contarContasPorUf(): Promise<Resultado<ContasPorUf>> {
+  try {
+    const r = await chamarBackend<ContasDoGrupo & { ufs: (ContasDoGrupo & { uf: string })[]; nao_informada: ContasDoGrupo }>("/admin/contas/por-uf");
+    return { ok: true, dados: { contas: r.contas, assinando: r.assinando, ufs: r.ufs, naoInformada: r.nao_informada } };
+  } catch (erro) {
+    // num backend antes do #184, "por-uf" cai na rota do detalhe e volta como um id inválido
+    if (erro instanceof ErroBackend && erro.status === 422) return { ok: false, status: 422, erro: "A contagem por estado ainda não está disponível neste backend." };
     return traduzir(erro);
   }
 }
@@ -457,6 +493,7 @@ export async function listarContas(filtros: {
   busca?: string;
   situacao?: string;
   ordem?: string;
+  uf?: string;
   pagina?: number;
 }): Promise<Resultado<ListaDeContas>> {
   const consulta = new URLSearchParams();
@@ -464,6 +501,7 @@ export async function listarContas(filtros: {
   if (busca) consulta.set("busca", busca);
   if (filtros.situacao && (SITUACOES as readonly string[]).includes(filtros.situacao)) consulta.set("situacao", filtros.situacao);
   if (filtros.ordem === "teste_termina_em") consulta.set("ordem", "teste_termina_em");
+  if (filtros.uf && (filtros.uf === UF_NAO_INFORMADA || ehUf(filtros.uf))) consulta.set("uf", filtros.uf);
   const pagina = Math.max(1, Math.floor(filtros.pagina ?? 1) || 1);
   consulta.set("limit", String(POR_PAGINA));
   consulta.set("offset", String((pagina - 1) * POR_PAGINA));

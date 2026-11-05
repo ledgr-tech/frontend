@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { formatarCnpj } from "../../../(auth)/cadastro/passos";
 import { formatarDataHora, formatarInteiro } from "../../../(app)/e/[empresa]/dashboard/resumo";
 import { detalharConta } from "../acoes";
-import { ROTULO_DA_SITUACAO, chaveDaSituacao, classeDoSelo } from "../situacao";
+import { ROTULO_DA_SITUACAO, chaveDaSituacao, classeDoSelo, localDaConta } from "../situacao";
 import { ROTULO_DA_ORIGEM, ROTULO_DO_PAGAMENTO, ROTULO_DO_PERIODO, ROTULO_DO_STATUS, formatarValor } from "../cobranca";
 import { AcoesDaConta } from "./acoes-da-conta";
 import { AcoesDaAssinatura, DarCupom } from "./cobranca-da-conta";
@@ -122,6 +122,8 @@ export default async function ContaPage({ params }: { params: Promise<{ conta: s
           <dl style={{ margin: 0, display: "grid", gridTemplateColumns: "auto 1fr", gap: "6px 16px", fontSize: 14 }}>
             <dt style={{ opacity: 0.7 }}>Admin</dt>
             <dd style={{ margin: 0 }}>{c.admin ? `${c.admin.nome} · ${c.admin.email}` : "—"}</dd>
+            <dt style={{ opacity: 0.7 }}>Local</dt>
+            <dd style={{ margin: 0 }}>{localDaConta(c)}</dd>
             <dt style={{ opacity: 0.7 }}>Último login</dt>
             <dd style={{ margin: 0 }}>{data(c.ultimoLoginEm)}</dd>
             <dt style={{ opacity: 0.7 }}>Criada em</dt>
@@ -238,6 +240,8 @@ export default async function ContaPage({ params }: { params: Promise<{ conta: s
             </table>
           )}
           <p style={{ margin: 0, fontSize: 12.5, opacity: 0.7 }}>Os 12 mais recentes, como o webhook da Stripe guardou. Reembolso é no painel da Stripe.</p>
+          {/* o detalhe não diz o total: com 12 pode haver mais */}
+          {c.pagamentos.length >= 12 && <Link href={`/admin/${c.id}/pagamentos`}>Ver todos os pagamentos</Link>}
         </section>
       </div>
     </div>
