@@ -4,9 +4,10 @@ import { formatarCnpj } from "../../(auth)/cadastro/passos";
 import { formatarDataHora } from "../../(app)/e/[empresa]/dashboard/resumo";
 import { listarContas } from "./acoes";
 import { NavDoAdmin, Paginacao } from "./navegacao";
-import { ROTULO_DA_SITUACAO, SITUACOES, agoraEmMs, chaveDaSituacao, classeDoSelo, prazoDoTeste } from "./situacao";
+import { UFS } from "@/lib/uf";
+import { ROTULO_DA_SITUACAO, SITUACOES, UF_NAO_INFORMADA, agoraEmMs, chaveDaSituacao, classeDoSelo, localDaConta, prazoDoTeste } from "./situacao";
 
-type Busca = { busca?: string; situacao?: string; ordem?: string; pagina?: string };
+type Busca = { busca?: string; situacao?: string; ordem?: string; uf?: string; pagina?: string };
 
 const FILTROS = [{ valor: "", rotulo: "Todas" }, ...SITUACOES.map((s) => ({ valor: s, rotulo: ROTULO_DA_SITUACAO[s] }))];
 
@@ -15,6 +16,7 @@ function endereco(base: Busca, pagina: number): string {
   if (base.busca) q.set("busca", base.busca);
   if (base.situacao) q.set("situacao", base.situacao);
   if (base.ordem) q.set("ordem", base.ordem);
+  if (base.uf) q.set("uf", base.uf);
   if (pagina > 1) q.set("pagina", String(pagina));
   const texto = q.toString();
   return texto ? `/admin?${texto}` : "/admin";
@@ -50,7 +52,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
 
       <form method="get" role="search" className="extratos-corpo" style={{ paddingTop: 20 }}>
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center", justifyContent: "space-between" }}>
-          <div style={{ display: "flex", gap: 8, order: 2 }}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, order: 2, flex: "1 1 100%" }}>
             <input
               className="input"
               type="search"
@@ -58,11 +60,20 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
               defaultValue={filtros.busca ?? ""}
               placeholder="Razão social, CNPJ ou e-mail do admin"
               aria-label="Buscar conta"
-              style={{ width: 300 }}
+              style={{ flex: "1 1 300px", maxWidth: 420 }}
             />
             <select className="input" name="ordem" defaultValue={filtros.ordem ?? ""} aria-label="Ordem">
               <option value="">Mais novas primeiro</option>
               <option value="teste_termina_em">Teste termina antes</option>
+            </select>
+            <select className="input" name="uf" defaultValue={filtros.uf ?? ""} aria-label="Estado">
+              <option value="">Todos os estados</option>
+              {UFS.map((uf) => (
+                <option key={uf} value={uf}>
+                  {uf}
+                </option>
+              ))}
+              <option value={UF_NAO_INFORMADA}>Não informado</option>
             </select>
             <button type="submit" name="situacao" value={situacaoAtual} className="btn btn-secondary">
               Buscar
@@ -87,6 +98,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
               <thead>
                 <tr>
                   <th scope="col">Conta</th>
+                  <th scope="col">Local</th>
                   <th scope="col">Plano</th>
                   <th scope="col">Situação</th>
                   <th scope="col">Teste termina</th>
@@ -105,6 +117,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
                         <strong>{c.razaoSocial}</strong>
                         <div style={{ fontSize: 12.5, opacity: 0.65 }}>{formatarCnpj(c.cnpj)}</div>
                       </td>
+                      <td>{localDaConta(c)}</td>
                       <td>{c.plano ?? "—"}</td>
                       <td>
                         <span className={classeDoSelo(chave)}>{ROTULO_DA_SITUACAO[chave] ?? c.situacao}</span>
