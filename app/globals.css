@@ -5315,7 +5315,7 @@ html[data-tema="escuro"] .app-shell {
 .ajd-demo .mockup-quadro { aspect-ratio: 16 / 10; }
 .ajd-demo .mockup-app { height: 800px; transition: transform 0.9s cubic-bezier(0.22, 1, 0.36, 1); }
 /* as cores da réplica seguem o tema da Central (a vitrine da landing as prende no claro) */
-.ajd-demo .vitrine-app {
+:is(.ajd-demo, .ajd-fig) .vitrine-app {
   --tinta-hover: inherit; --tinta-ativa: inherit; --texto-apagado: inherit;
   --folha-banco: inherit; --folha-sistema: inherit; --superficie-elevada: inherit;
 }
@@ -5356,7 +5356,13 @@ html[data-tema="escuro"] .app-shell {
   transition: translate 0.25s var(--ease-out), box-shadow 0.25s ease-out;
 }
 .ajd-figura:hover { translate: 0 -2px; box-shadow: var(--shadow-md); }
-.ajd-figura img { display: block; width: 100%; height: auto; }
+/* a figura da seção (FiguraDaTela): a réplica parada, recortada no que a seção fala; o clique é do botão em volta */
+.ajd-fig { position: relative; overflow: hidden; background: var(--color-bg); }
+.ajd-fig .mockup-app { pointer-events: none; }
+.ajd-fig .mockup-cena { animation: none; transition: none; }
+/* numa janela ou no painel por cima da página, só ela aparece: sem o fundo escuro e sem a tela atrás */
+.ajd-fig[data-na-camada] .ajd-demo-camada { background: none; backdrop-filter: none; }
+.ajd-fig[data-na-camada] :is(.mockup-principal, .vitrine-menu) { visibility: hidden; }
 .ajd-funcao .ajd-como { margin-top: 20px; font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--texto-apagado); }
 .ajd-passos { display: flex; flex-direction: column; gap: 12px; margin: 10px 0 0; padding: 0; list-style: none; counter-reset: passo; }
 .ajd-passos li { counter-increment: passo; display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 12px; }
@@ -5398,6 +5404,7 @@ html[data-tema="escuro"] .app-shell {
 .ajd-ampliada::backdrop { background: color-mix(in srgb, #000 60%, transparent); }
 .ajd-ampliada img { display: block; max-width: 100%; width: auto; height: auto; max-height: calc(94vh - 50px); border-radius: 12px; background: var(--color-bg); box-shadow: var(--shadow-lg); }
 .ajd-ampliada .btn { flex: none; background: var(--color-bg); }
+.ajd-ampliada-figura { max-width: 100%; overflow: hidden; border-radius: 12px; box-shadow: var(--shadow-lg); }
 
 @media (prefers-reduced-motion: no-preference) {
   /* a cada tela o artigo entra subindo de leve; o menu e "Nesta página" ficam parados */

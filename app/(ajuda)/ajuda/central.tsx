@@ -1,12 +1,16 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Reveal } from "../../reveal";
 import { Texto } from "./blocos";
-import { Demonstracao } from "./demonstracao";
-import { PAGINAS, paginaDeAjuda, type ImagemDaAjuda } from "./paginas";
+import { Demonstracao, FiguraDaTela } from "./demonstracao";
+import { PAGINAS, paginaDeAjuda } from "./paginas";
+
+/** Até 420 px de altura e no máximo 1,5× o tamanho no app: uma figura pequena (um botão) não vira um cartaz. */
+const larguraDaFigura = ({ largura, altura }: { largura: number; altura: number }) =>
+  Math.round(Math.min((420 * largura) / altura, largura * 1.5));
 
 /**
  * A Central de ajuda (#171), feita para ler: as telas à esquerda, o texto no centro e, à direita,
@@ -18,7 +22,7 @@ export function CentralDeAjuda({ id }: { id: string }) {
   const anterior = PAGINAS[indice - 1];
   const proxima = PAGINAS[indice + 1];
   const [atual, setAtual] = useState(pagina.funcoes[0]?.id);
-  const [ampliada, setAmpliada] = useState<{ imagem: ImagemDaAjuda; alt: string } | null>(null);
+  const [ampliada, setAmpliada] = useState<{ alt: string; conteudo: ReactNode } | null>(null);
   const titulo = useRef<HTMLHeadingElement>(null);
   const listaDoIndice = useRef<HTMLOListElement>(null);
   const marca = useRef<HTMLSpanElement>(null);
@@ -104,7 +108,18 @@ export function CentralDeAjuda({ id }: { id: string }) {
               className="ajd-video-capa"
               aria-label={`Ver a tela ${pagina.titulo} maior`}
               onClick={() =>
-                setAmpliada({ imagem: pagina.capa, alt: `A tela ${pagina.titulo}` })
+                setAmpliada({
+                  alt: `A tela ${pagina.titulo}`,
+                  conteudo: (
+                    <Image
+                      src={pagina.capa.src}
+                      width={pagina.capa.largura}
+                      height={pagina.capa.altura}
+                      alt={`A tela ${pagina.titulo}`}
+                      sizes="96vw"
+                    />
+                  ),
+                })
               }
             >
               <Image
@@ -142,26 +157,41 @@ export function CentralDeAjuda({ id }: { id: string }) {
               <p>
                 <Texto>{funcao.faz}</Texto>
               </p>
-              {funcao.imagem && (
+              {funcao.figura && (
                 <button
                   type="button"
                   className="ajd-figura"
-                  // a largura sai da proporção, com até 420px de altura: o espaço fica reservado antes
-                  // da imagem carregar, e a rolagem até uma âncora não para no meio do caminho
-                  style={{
-                    width: `min(100%, ${Math.round((420 * funcao.imagem.largura) / funcao.imagem.altura)}px)`,
-                  }}
+                  // a largura sai da proporção: o espaço fica reservado antes do arquivo chegar, e a rolagem
+                  // até uma âncora não para no meio do caminho
+                  style={{ width: `min(100%, ${larguraDaFigura(funcao.figura)}px)` }}
                   aria-label={`Ampliar a imagem de ${funcao.titulo}`}
                   onClick={() =>
-                    setAmpliada({ imagem: funcao.imagem!, alt: funcao.titulo })
+                    setAmpliada({
+                      alt: funcao.titulo,
+                      conteudo: (
+                        // grande, até 1,5× o app, sem passar da janela
+                        <div
+                          className="ajd-ampliada-figura"
+                          style={{
+                            width: `min(96vw, ${Math.round(funcao.figura!.largura * 1.5)}px, calc((94vh - 50px) * ${funcao.figura!.largura / funcao.figura!.altura}))`,
+                          }}
+                        >
+                          <FiguraDaTela
+                            src={`/ajuda/${pagina.id}--figuras.json`}
+                            id={funcao.id}
+                            {...funcao.figura!}
+                            rotulo={funcao.titulo}
+                          />
+                        </div>
+                      ),
+                    })
                   }
                 >
-                  <Image
-                    src={funcao.imagem.src}
-                    width={funcao.imagem.largura}
-                    height={funcao.imagem.altura}
-                    alt={`${funcao.titulo}, na tela ${pagina.titulo}`}
-                    sizes="(max-width: 820px) 100vw, 680px"
+                  <FiguraDaTela
+                    src={`/ajuda/${pagina.id}--figuras.json`}
+                    id={funcao.id}
+                    {...funcao.figura}
+                    rotulo={`${funcao.titulo}, na tela ${pagina.titulo}`}
                   />
                 </button>
               )}
@@ -226,21 +256,23 @@ export function CentralDeAjuda({ id }: { id: string }) {
       </aside>
 
       {ampliada && (
-        <ImagemAmpliada {...ampliada} onFechar={() => setAmpliada(null)} />
+        <Ampliada alt={ampliada.alt} onFechar={() => setAmpliada(null)}>
+          {ampliada.conteudo}
+        </Ampliada>
       )}
     </div>
   );
 }
 
-/** A imagem grande, numa janela que fecha com Esc, no botão ou clicando fora. */
-function ImagemAmpliada({
-  imagem,
+/** A imagem (ou a figura) grande, numa janela que fecha com Esc, no botão ou clicando fora. */
+function Ampliada({
   alt,
   onFechar,
+  children,
 }: {
-  imagem: ImagemDaAjuda;
   alt: string;
   onFechar: () => void;
+  children: ReactNode;
 }) {
   const janela = useRef<HTMLDialogElement>(null);
   useEffect(() => {
@@ -260,13 +292,7 @@ function ImagemAmpliada({
       <button type="button" className="btn btn-secondary" onClick={onFechar}>
         Fechar
       </button>
-      <Image
-        src={imagem.src}
-        width={imagem.largura}
-        height={imagem.altura}
-        alt={alt}
-        sizes="96vw"
-      />
+      {children}
     </dialog>
   );
 }

@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import type { DadosDaDemonstracao } from "./demonstracao";
+import type { DadosDaDemonstracao, DadosDasFiguras } from "./demonstracao";
 import { PAGINAS } from "./paginas";
 
 // os itens do menu da vitrine (app/(marketing)/vitrine.tsx), onde o player acha um alvo do menu lateral
@@ -29,6 +29,31 @@ describe("demonstrações da Central", () => {
       }
     }
     // HTML estático: nada que rode nem endereço de uma tela do app
+    for (const html of [dados.barra, ...dados.cenas, ...(dados.camadas ?? [])]) {
+      expect(html).not.toMatch(/<script/i);
+      expect(html).not.toMatch(/href="\/e\//);
+    }
+  });
+});
+
+// as figuras das seções são capturas do app (gravar.mjs --figuras): se uma captura nova perder o que a figura
+// recorta, ela some sem erro nenhum; e o tamanho da página reserva o espaço, então tem de ser o da captura
+describe("figuras da Central", () => {
+  const paginas = PAGINAS.filter((p) => p.funcoes.some((f) => f.figura));
+
+  it("existe ao menos uma", () => expect(paginas.length).toBeGreaterThan(0));
+
+  it.each(paginas.map((p) => [p.id]))("%s: cada figura acha o que recorta, no tamanho da página", (id) => {
+    const caminho = join("public", "ajuda", `${id}--figuras.json`);
+    expect(existsSync(caminho), caminho).toBe(true);
+    const dados: DadosDasFiguras = JSON.parse(readFileSync(caminho, "utf8"));
+    for (const funcao of PAGINAS.find((p) => p.id === id)!.funcoes.filter((f) => f.figura)) {
+      const figura = dados.figuras[funcao.id];
+      expect(figura, funcao.id).toBeDefined();
+      expect({ largura: figura.largura, altura: figura.altura }, funcao.id).toEqual(funcao.figura);
+      const tela = dados.cenas[figura.cena] + (figura.camada == null ? "" : dados.camadas![figura.camada]);
+      expect(tela, funcao.id).toContain(`data-figura="${funcao.id}"`);
+    }
     for (const html of [dados.barra, ...dados.cenas, ...(dados.camadas ?? [])]) {
       expect(html).not.toMatch(/<script/i);
       expect(html).not.toMatch(/href="\/e\//);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
 import Image from "next/image";
 import { useInView, useReducedMotion } from "motion/react";
 import { ChevronLeft, ChevronRight, Pause, Play } from "lucide-react";
@@ -52,6 +52,31 @@ type Caixa = { x: number; y: number; w: number; h: number; naCena?: boolean };
 
 const entre = (v: number, min: number, max: number) => Math.min(Math.max(v, min), Math.max(min, max));
 
+// cada arquivo é buscado uma vez: as figuras de uma página dividem o mesmo (uma falha tenta de novo na próxima vez)
+const arquivos = new Map<string, Promise<unknown>>();
+function useArquivo<T>(src: string): T | null {
+  const [lido, setLido] = useState<{ src: string; dados: T | null } | null>(null);
+  useEffect(() => {
+    let vivo = true;
+    if (!arquivos.has(src))
+      arquivos.set(
+        src,
+        fetch(src)
+          .then((r) => (r.ok ? r.json() : null))
+          .catch(() => null)
+          .then((dados) => {
+            if (!dados) arquivos.delete(src);
+            return dados;
+          }),
+      );
+    void arquivos.get(src)!.then((dados) => vivo && setLido({ src, dados: dados as T | null }));
+    return () => {
+      vivo = false;
+    };
+  }, [src]);
+  return lido?.src === src ? lido.dados : null;
+}
+
 export function Demonstracao({ src, titulo, capa }: { src: string; titulo: string; capa: ImagemDaAjuda }) {
   const raiz = useRef<HTMLDivElement>(null);
   const quadro = useRef<HTMLDivElement>(null);
@@ -66,21 +91,10 @@ export function Demonstracao({ src, titulo, capa }: { src: string; titulo: strin
   const reduzido = useReducedMotion();
   const naTela = useInView(raiz, { amount: 0.3 });
 
-  const [dados, setDados] = useState<DadosDaDemonstracao | null>(null);
+  const dados = useArquivo<DadosDaDemonstracao>(src);
   const [i, setI] = useState(0);
   const [tocar, setTocar] = useState<boolean | null>(null);
   const tocando = Boolean(dados) && (tocar ?? !reduzido) && naTela;
-
-  useEffect(() => {
-    let vivo = true;
-    fetch(src)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => vivo && setDados(d))
-      .catch(() => {});
-    return () => {
-      vivo = false;
-    };
-  }, [src]);
 
   // cada passo dura até o próximo começar, como no gravador; o último segura um pouco antes de recomeçar
   useEffect(() => {
@@ -218,28 +232,23 @@ export function Demonstracao({ src, titulo, capa }: { src: string; titulo: strin
         </div>
         <div className="mockup-quadro" ref={quadro} role="img" aria-label={`A tela ${titulo} do Ledgr, com dados de exemplo`}>
           {dados && passo ? (
-            <div className="vitrine-app mockup-app" ref={app} inert>
-              <MenuDaVitrine
-                ativo={passo.menu ?? ""}
-                empresa={dados.conta.empresa}
-                conta={dados.conta.nome}
-                iniciais={dados.conta.iniciais}
-              />
-              <div className="vitrine-principal mockup-principal">
-                <div dangerouslySetInnerHTML={{ __html: dados.barra }} />
-                <div className="mockup-visor" ref={visor}>
-                  <div key={passo.cena} ref={cena} className="mockup-cena" dangerouslySetInnerHTML={{ __html: dados.cenas[passo.cena] }} />
-                </div>
-              </div>
-              {dados.camadas?.[passo.cena] ? (
-                <div key={passo.cena} ref={camada} className="ajd-demo-camada" dangerouslySetInnerHTML={{ __html: dados.camadas[passo.cena] }} />
-              ) : null}
+            <Replica
+              dados={dados}
+              cena={passo.cena}
+              camada={dados.camadas?.[passo.cena]}
+              chaveDaCamada={passo.cena}
+              menu={passo.menu}
+              appRef={app}
+              visorRef={visor}
+              cenaRef={cena}
+              camadaRef={camada}
+            >
               <div className="ajd-demo-anel" ref={anel} />
               <svg className="mockup-cursor" ref={seta} width="22" height="26" viewBox="0 0 22 26" aria-hidden="true">
                 <path d="M2 2 2 21l5.2-4.6 3.6 7.6 3.4-1.6-3.6-7.4H18z" fill="#fff" stroke="#201f1d" strokeWidth="1.6" strokeLinejoin="round" />
                 <circle ref={onda} className="mockup-clique" cx="2" cy="2" r="14" />
               </svg>
-            </div>
+            </Replica>
           ) : (
             <Image
               src={capa.src}
@@ -283,6 +292,134 @@ export function Demonstracao({ src, titulo, capa }: { src: string; titulo: strin
           ) : null}
         </div>
       </div>
+    </div>
+  );
+}
+
+type Telas = Pick<DadosDaDemonstracao, "barra" | "conta" | "cenas" | "camadas">;
+type RefDeDiv = RefObject<HTMLDivElement | null>;
+
+/** O app numa cena capturada: o menu da vitrine, a barra do topo, a cena no visor e o que estava por cima dela. */
+function Replica({
+  dados,
+  cena,
+  camada,
+  chaveDaCamada,
+  menu,
+  altura = ALTURA,
+  appRef,
+  visorRef,
+  cenaRef,
+  camadaRef,
+  children,
+}: {
+  dados: Telas;
+  cena: number;
+  camada?: string;
+  chaveDaCamada: number;
+  menu?: string;
+  altura?: number;
+  appRef: RefDeDiv;
+  visorRef: RefDeDiv;
+  cenaRef: RefDeDiv;
+  camadaRef: RefDeDiv;
+  children?: ReactNode;
+}) {
+  return (
+    <div className="vitrine-app mockup-app" ref={appRef} inert style={{ height: altura }}>
+      <MenuDaVitrine ativo={menu ?? ""} empresa={dados.conta.empresa} conta={dados.conta.nome} iniciais={dados.conta.iniciais} />
+      <div className="vitrine-principal mockup-principal">
+        <div dangerouslySetInnerHTML={{ __html: dados.barra }} />
+        <div className="mockup-visor" ref={visorRef}>
+          <div key={cena} ref={cenaRef} className="mockup-cena" dangerouslySetInnerHTML={{ __html: dados.cenas[cena] }} />
+        </div>
+      </div>
+      {camada ? <div key={chaveDaCamada} ref={camadaRef} className="ajd-demo-camada" dangerouslySetInnerHTML={{ __html: camada }} /> : null}
+      {children}
+    </div>
+  );
+}
+
+export type FiguraCapturada = {
+  cena: number;
+  camada: number | null;
+  menu?: string;
+  /** a altura da janela na captura: um painel inteiro pede mais que 800 */
+  alturaDaTela: number;
+  /** a folga em volta dos elementos, em px do app */
+  pad: number;
+  largura: number;
+  altura: number;
+};
+
+export type DadosDasFiguras = Telas & { figuras: Record<string, FiguraCapturada> };
+
+/**
+ * A figura de uma seção da Central, no lugar da captura em imagem (que borrava): a mesma réplica da
+ * demonstração, parada na cena que `gravar.mjs --figuras` capturou e recortada nos elementos marcados com
+ * data-figura. O espaço vem de largura e altura (da página), reservado antes do arquivo chegar.
+ */
+export function FiguraDaTela({ src, id, largura, altura, rotulo }: { src: string; id: string; largura: number; altura: number; rotulo: string }) {
+  const dados = useArquivo<DadosDasFiguras>(src);
+  const figura = dados?.figuras[id];
+  const quadro = useRef<HTMLDivElement>(null);
+  const app = useRef<HTMLDivElement>(null);
+  const visor = useRef<HTMLDivElement>(null);
+  const cena = useRef<HTMLDivElement>(null);
+  const camada = useRef<HTMLDivElement>(null);
+
+  const aplicar = useCallback(() => {
+    const [q, a, v, c] = [quadro.current, app.current, visor.current, cena.current];
+    if (!figura || !q || !a || !v || !c) return;
+    for (const raiz of [c, camada.current])
+      for (const e of raiz?.querySelectorAll<HTMLElement>("[data-rolagem]") ?? []) e.scrollTop = Number(e.dataset.rolagem);
+    // mede com a réplica em 1:1, em px do app
+    a.style.transform = "none";
+    c.style.transform = "none";
+    const marcados = [...a.querySelectorAll(`[data-figura="${id}"]`)];
+    const rs = marcados.map((e) => e.getBoundingClientRect()).filter((r) => r.width && r.height);
+    if (!rs.length) return;
+    const ra = a.getBoundingClientRect();
+    const x = Math.min(...rs.map((r) => r.left)) - ra.left;
+    let y = Math.min(...rs.map((r) => r.top)) - ra.top;
+    const w = Math.max(...rs.map((r) => r.right)) - ra.left - x;
+    // na cena, ela rola até a figura ficar no alto do visor; numa janela por cima, só ela aparece
+    const naCena = c.contains(marcados[0]);
+    q.toggleAttribute("data-na-camada", !naCena);
+    if (naCena) {
+      const rv = v.getBoundingClientRect();
+      const rolagem = entre(y - figura.pad - (rv.top - ra.top), 0, c.getBoundingClientRect().height - rv.height);
+      c.style.transform = `translateY(${-rolagem}px)`;
+      y -= rolagem;
+    }
+    a.style.transform = `scale(${q.clientWidth / (w + 2 * figura.pad)}) translate(${figura.pad - x}px, ${figura.pad - y}px)`;
+  }, [figura, id]);
+
+  useLayoutEffect(() => aplicar(), [aplicar]);
+  useLayoutEffect(() => {
+    const q = quadro.current;
+    if (!q || typeof ResizeObserver === "undefined") return;
+    const observador = new ResizeObserver(() => aplicar());
+    observador.observe(q);
+    return () => observador.disconnect();
+  }, [aplicar]);
+
+  return (
+    <div className="ajd-fig" ref={quadro} role="img" aria-label={rotulo} style={{ aspectRatio: `${largura} / ${altura}` }}>
+      {dados && figura ? (
+        <Replica
+          dados={dados}
+          cena={figura.cena}
+          camada={figura.camada == null ? undefined : dados.camadas?.[figura.camada]}
+          chaveDaCamada={figura.camada ?? -1}
+          menu={figura.menu}
+          altura={figura.alturaDaTela}
+          appRef={app}
+          visorRef={visor}
+          cenaRef={cena}
+          camadaRef={camada}
+        />
+      ) : null}
     </div>
   );
 }

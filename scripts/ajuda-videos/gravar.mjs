@@ -13,6 +13,9 @@
 // Com --html (sem ffmpeg), em vez do vídeo guarda a tela em HTML para a Central tocar (demonstracao.tsx):
 //   node scripts/ajuda-videos/gravar.mjs --html comparacao
 // Sai em public/ajuda/<tela>.json; ligue-o no campo demonstracao da página.
+// Com --figuras, as figuras das seções da página (FIGURAS), em public/ajuda/<tela>--figuras.json; o tamanho que
+// ele mostra de cada uma vai no campo figura da seção:
+//   node scripts/ajuda-videos/gravar.mjs --figuras extratos
 import { chromium } from "playwright-core";
 import os from "node:os";
 import path from "node:path";
@@ -32,7 +35,9 @@ const ALTURA = 850;
 const FPS = 30;
 const ESCALA = 2; // pixels reais por pixel da página: texto nítido
 const FFMPEG = process.env.FFMPEG; // o ffmpeg que vem com o Playwright
-const HTML = process.argv.includes("--html");
+const FIGURAS_ = process.argv.includes("--figuras");
+// as figuras usam a mesma captura em HTML das demonstrações
+const HTML = process.argv.includes("--html") || FIGURAS_;
 fs.mkdirSync(SAIDA, { recursive: true });
 
 const pausa = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -509,8 +514,219 @@ const ROTEIROS = {
   },
 };
 
+// --figuras: a figura de cada seção da página da Central (FiguraDaTela), no lugar das capturas .webp. Uma tomada
+// prepara a tela (antes) e marca o que cada figura mostra (alvo, um ou mais elementos: a figura é a caixa que
+// cobre todos); pad é a folga em volta, max corta uma lista comprida. altura: a da janela, para o painel caber
+// inteiro sem rolar (na réplica ele fica estático, com a altura toda).
+const janelaDeConfiguracoes = (page) => page.getByRole("dialog", { name: /configurações/i });
+const secaoDeConfiguracoes = (page, nome) => janelaDeConfiguracoes(page).getByRole("button", { name: nome }).first();
+const abrirConciliacaoDe = async (t, banco) => {
+  await t.abrir("dashboard");
+  await botao(t.page, /^Todas \(/).click();
+  await pausa(600);
+  await cartao(t.page, banco).click();
+  await pausa(600);
+  await t.page.getByRole("link", { name: /abrir a comparação/i }).first().click();
+  await t.esperar(/\/conciliacoes\/[0-9a-f-]{20,}/);
+};
+const FIGURAS = {
+  "visao-geral": {
+    inicio: "visao-geral",
+    tomadas: [{ figuras: [{ id: "estado-do-mes", alvo: (p) => alvo(p, "estado-do-mes") }, { id: "atalhos", alvo: (p) => alvo(p, "atalhos") }] }],
+  },
+  extratos: {
+    inicio: "extratos",
+    tomadas: [
+      { figuras: [{ id: "filtros", alvo: (p) => alvo(p, "filtros") }, { id: "arquivos", alvo: (p) => alvo(p, "arquivos"), max: 600 }] },
+      {
+        altura: 1000,
+        antes: async ({ page }) => {
+          await cartao(page, /^Extrato do banco/).click();
+          await pausa(1200);
+        },
+        figuras: [{ id: "painel", alvo: (p) => alvo(p, "painel") }],
+      },
+    ],
+  },
+  conciliacoes: { inicio: "dashboard", tomadas: [{ figuras: [{ id: "filtros", alvo: (p) => alvo(p, "filtros") }] }] },
+  "nova-conciliacao": {
+    inicio: "conciliacoes/nova",
+    tomadas: [
+      { figuras: [{ id: "enviar", alvo: (p) => alvo(p, "encaixe") }] },
+      // o botão como o texto diz: livre, com os dois arquivos no lugar (só escolher não envia nada)
+      {
+        antes: async ({ page }) => {
+          await page.locator('input[aria-label="Extrato do banco"]').setInputFiles(path.join(AQUI, "banco-dezembro-2025.csv"));
+          await page.locator('input[aria-label="Extrato do sistema de gestão"]').setInputFiles(path.join(AQUI, "erp-dezembro-2025.csv"));
+          await pausa(1500);
+        },
+        figuras: [{ id: "conciliar", alvo: (p) => alvo(p, "conciliar") }],
+      },
+    ],
+  },
+  comparacao: {
+    antes: abrirComparacao,
+    tomadas: [
+      {
+        figuras: [
+          { id: "resumo", alvo: (p) => alvo(p, "resumo") },
+          { id: "filtros", alvo: (p) => alvo(p, "filtros") },
+          { id: "rodadas", alvo: (p) => p.locator("nav.rodadas-linha"), pad: 10 },
+        ],
+      },
+      {
+        antes: async ({ page }) => {
+          await botao(page, /^Só revisão/).click();
+          await pausa(800);
+        },
+        // a coluna Conferida nas linhas que pedem revisão: uma já conferida, a outra não
+        figuras: [{ id: "conferir", alvo: (p) => [p.locator("main table thead").first(), p.locator("main tbody tr")] }],
+      },
+      { antes: (t) => abrirConciliacaoDe(t, /^08-agosto-banco/), figuras: [{ id: "mes-fechado", alvo: (p) => p.locator(".mes-fechado-aviso"), pad: 8 }] },
+    ],
+  },
+  "detalhe-da-linha": {
+    tomadas: [
+      {
+        // setembro tem a divergência de valor com os dois lados; o detalhe abre ao lado, no duplo clique
+        antes: async (t) => {
+          await abrirConciliacaoDe(t, /^09-setembro-banco/);
+          await t.page.locator('main tbody tr[data-situacao="a_conferir"]').filter({ hasText: "Valor diverge" }).first().dblclick();
+          await t.page.locator("aside.painel-lateral").waitFor();
+          await pausa(1500);
+        },
+        figuras: [{ id: "lados", alvo: (p) => p.locator("aside.painel-lateral [data-tutorial=lados]") }],
+      },
+      { figuras: [{ id: "motivo", alvo: (p) => p.locator("aside.painel-lateral .det-causa") }] },
+    ],
+  },
+  fechamentos: {
+    inicio: "fechamentos",
+    tomadas: [
+      { figuras: [{ id: "meses", alvo: (p) => alvo(p, "meses"), max: 640 }] },
+      {
+        altura: 1000,
+        antes: async ({ page }) => {
+          await cartao(page, /^Competência\s*Outubro/).click();
+          await pausa(1200);
+        },
+        figuras: [{ id: "o-que-falta", alvo: (p) => alvo(p, "painel") }],
+      },
+      {
+        altura: 1000,
+        antes: async ({ page }) => {
+          await botao(page, /^Fechados/).click();
+          await pausa(1200);
+          await cartao(page, /^Competência\s*Agosto/).click();
+          await pausa(1200);
+        },
+        figuras: [
+          { id: "reabrir", alvo: (p) => alvo(p, "painel") },
+          { id: "relatorio", alvo: (p) => alvo(p, "painel").locator(".fech-passo").filter({ hasText: "Relatório para o contador" }), pad: 10 },
+        ],
+      },
+    ],
+  },
+  historico: { inicio: "historico", tomadas: [{ figuras: [{ id: "grafico", alvo: (p) => alvo(p, "grafico") }] }] },
+  empresas: {
+    inicio: "empresas",
+    tomadas: [
+      {
+        antes: async ({ page }) => {
+          await botao(page, /^Equipe \(/).click();
+          await pausa(1200);
+          await botao(page, /^Gabriela Gestora/).click();
+          await pausa(1000);
+        },
+        figuras: [{ id: "equipe", alvo: (p) => [alvo(p, "equipe"), alvo(p, "pessoa")] }],
+      },
+    ],
+  },
+  configuracoes: {
+    inicio: "visao-geral",
+    tomadas: [
+      {
+        antes: async ({ page }) => {
+          await page.keyboard.press("Control+Comma");
+          await janelaDeConfiguracoes(page).waitFor();
+          await secaoDeConfiguracoes(page, /^Conta$/).click();
+          await pausa(1200);
+        },
+        figuras: [{ id: "conta", alvo: janelaDeConfiguracoes, pad: 0 }],
+      },
+      {
+        antes: async ({ page }) => {
+          await secaoDeConfiguracoes(page, /^Conciliação$/).click();
+          await pausa(1200);
+        },
+        figuras: [{ id: "tolerancia", alvo: janelaDeConfiguracoes, pad: 0 }],
+      },
+      {
+        antes: async ({ page }) => {
+          await secaoDeConfiguracoes(page, /^Aparência$/).click();
+          await pausa(1200);
+        },
+        figuras: [{ id: "aparencia", alvo: janelaDeConfiguracoes, pad: 0 }],
+      },
+    ],
+  },
+};
+
+async function fotografar(page, t, receita, tela) {
+  const cenas = [];
+  const camadas = [];
+  const figuras = {};
+  // a mesma cena (ou janela) em duas tomadas vai uma vez só
+  const indice = (lista, html) => (lista.includes(html) ? lista.indexOf(html) : lista.push(html) - 1);
+  let primeira = null;
+  for (const tomada of receita.tomadas) {
+    const alturaDaTela = tomada.altura ?? 800;
+    await page.setViewportSize({ width: 1280, height: alturaDaTela });
+    if (tomada.antes) await tomada.antes(t);
+    await pausa(500);
+    for (const f of tomada.figuras) {
+      const alvos = [f.alvo(page)].flat();
+      await alvos[0].first().scrollIntoViewIfNeeded();
+      for (const a of alvos) await a.evaluateAll((es, id) => es.forEach((e) => e.setAttribute("data-figura", id)), f.id);
+    }
+    // a caixa de cada figura, na tela do app: o player mede de novo na réplica, esta só reserva o espaço
+    const caixas = await page.evaluate((ids) => Object.fromEntries(ids.map((id) => {
+      const rs = [...document.querySelectorAll(`[data-figura="${id}"]`)].map((e) => e.getBoundingClientRect()).filter((r) => r.width && r.height);
+      if (!rs.length) return [id, null];
+      const x = Math.min(...rs.map((r) => r.left));
+      const y = Math.min(...rs.map((r) => r.top));
+      return [id, { w: Math.max(...rs.map((r) => r.right)) - x, h: Math.max(...rs.map((r) => r.bottom)) - y }];
+    })), tomada.figuras.map((f) => f.id));
+    const lido = await lerTela(page);
+    await page.evaluate(() => document.querySelectorAll("[data-figura]").forEach((e) => e.removeAttribute("data-figura")));
+    primeira ??= lido;
+    const cena = indice(cenas, lido.html);
+    const camada = lido.camada ? indice(camadas, lido.camada) : null;
+    for (const f of tomada.figuras) {
+      const caixa = caixas[f.id];
+      if (!caixa) throw new Error(`figura sem alvo: ${f.id}`);
+      const pad = f.pad ?? 12;
+      figuras[f.id] = {
+        cena,
+        camada,
+        menu: lido.menu,
+        alturaDaTela,
+        pad,
+        largura: Math.round(caixa.w + 2 * pad),
+        altura: Math.round(Math.min(caixa.h, f.max ?? Infinity) + 2 * pad),
+      };
+    }
+  }
+  const saida = path.join(PUBLICO, `${tela}--figuras.json`);
+  fs.writeFileSync(saida, JSON.stringify({ barra: primeira.barra, conta: primeira.conta, cenas, camadas, figuras }));
+  return {
+    kb: Math.round(fs.statSync(saida).size / 1024),
+    figuras: Object.fromEntries(Object.entries(figuras).map(([id, f]) => [id, `${f.largura}x${f.altura}`])),
+  };
+}
+
 async function gravar(browser, estado, empresa, tela) {
-  const roteiro = ROTEIROS[tela];
+  const roteiro = FIGURAS_ ? FIGURAS[tela] : ROTEIROS[tela];
   const ctx = await browser.newContext({
     // em HTML, a largura da janela do player (1280 × 800): a tela capturada não muda de leiaute nele
     viewport: HTML ? { width: 1280, height: 800 } : { width: LARGURA, height: ALTURA },
@@ -530,6 +746,11 @@ async function gravar(browser, estado, empresa, tela) {
   if (roteiro.antes) await roteiro.antes(t);
   await page.evaluate(() => document.fonts.ready);
   await page.mouse.move(700, 500);
+  if (FIGURAS_) {
+    const feito = await fotografar(page, t, roteiro, tela);
+    await ctx.close();
+    return feito;
+  }
   if (HTML) return capturar(ctx, page, t, roteiro, tela);
 
   // a gravação do Playwright sai em 1 Mbps e embaça o texto: aqui guardo os quadros do navegador em JPEG
@@ -561,6 +782,58 @@ async function gravar(browser, estado, empresa, tela) {
   return codificar(quadros, path.join(PUBLICO, `${tela}.webm`));
 }
 
+// o #conteudo da tela como está agora, em HTML estático, e o que o app põe por cima dele (as janelas abertas, o painel
+// da linha), a barra do topo, o item do menu e a conta
+const lerTela = (page) =>
+  page
+    .evaluate(() => {
+      const conteudo = document.querySelector("#conteudo");
+      if (!conteudo) return null;
+      // o que fica por cima da página vai à parte: as janelas abertas e o que o app prende na tela (o painel da linha)
+      const fixos = [...conteudo.querySelectorAll("*")].filter(
+        (e) => getComputedStyle(e).position === "fixed" && e.getClientRects().length && !e.closest("dialog"),
+      );
+      const camadas = [...document.querySelectorAll("dialog[open]"), ...fixos.filter((e) => !fixos.some((f) => f !== e && f.contains(e)))];
+      for (const e of camadas) e.setAttribute("data-camada", "");
+      // a cópia estática: o que foi digitado vira atributo, a rolagem de dentro vai em data-rolagem, a janela fica no
+      // lugar e no tamanho em que estava na tela de 1280 × 800, e sem endereços do app nem o id do #conteudo
+      const limpar = (e) => {
+        if (!e) return "";
+        const originais = [e, ...e.querySelectorAll("*")];
+        const copia = e.cloneNode(true);
+        const copias = [copia, ...copia.querySelectorAll("*")];
+        originais.forEach((o, i) => {
+          const c = copias[i];
+          if (o.scrollTop > 0) c.setAttribute("data-rolagem", String(Math.round(o.scrollTop)));
+          if (o instanceof HTMLInputElement) {
+            if (o.type === "checkbox" || o.type === "radio") c.toggleAttribute("checked", o.checked);
+            else if (o.type !== "file") c.setAttribute("value", o.value);
+          } else if (o instanceof HTMLTextAreaElement) c.textContent = o.value;
+          else if (o instanceof HTMLSelectElement) [...c.options].forEach((op, j) => op.toggleAttribute("selected", j === o.selectedIndex));
+          else if (o instanceof HTMLDialogElement) {
+            const r = o.getBoundingClientRect();
+            c.setAttribute("style", `position:absolute;inset:auto;left:${r.left}px;top:${r.top}px;width:${r.width}px;height:${r.height}px;margin:0;max-width:none;max-height:none`);
+            if (o.matches(":modal")) c.setAttribute("data-modal", "");
+          }
+        });
+        for (const x of copia.querySelectorAll("[data-camada]")) x.remove();
+        for (const a of copia.querySelectorAll("[href]")) a.removeAttribute("href");
+        for (const nome of ["id", "tabindex", "data-camada"]) copia.removeAttribute(nome);
+        return copia.outerHTML;
+      };
+      const texto = (seletor) => document.querySelector(seletor)?.textContent.trim();
+      const lido = {
+        html: limpar(conteudo),
+        camada: camadas.map(limpar).join(""),
+        menu: texto('.app-aside a[aria-current="page"]'),
+        barra: limpar(document.querySelector(".app-topo")),
+        conta: { nome: texto(".app-conta-nome"), empresa: texto(".app-conta-empresa"), iniciais: texto(".app-conta-iniciais") },
+      };
+      for (const e of camadas) e.removeAttribute("data-camada");
+      return lido;
+    })
+    .catch(() => null); // no meio de uma navegação
+
 // --html: em vez de quadros, o #conteudo de cada passo, com o alvo marcado (data-passo), a legenda e o tempo
 // desde o começo; o player toca no mesmo ritmo. Um passo que não mudou a tela reaproveita a cena anterior.
 async function capturar(ctx, page, t, roteiro, tela) {
@@ -572,55 +845,7 @@ async function capturar(ctx, page, t, roteiro, tela) {
   let marcas = 0;
   let fala = {};
   let foco = null;
-  const ler = () =>
-    page
-      .evaluate(() => {
-        const conteudo = document.querySelector("#conteudo");
-        if (!conteudo) return null;
-        // o que fica por cima da página vai à parte: as janelas abertas e o que o app prende na tela (o painel da linha)
-        const fixos = [...conteudo.querySelectorAll("*")].filter(
-          (e) => getComputedStyle(e).position === "fixed" && e.getClientRects().length && !e.closest("dialog"),
-        );
-        const camadas = [...document.querySelectorAll("dialog[open]"), ...fixos.filter((e) => !fixos.some((f) => f !== e && f.contains(e)))];
-        for (const e of camadas) e.setAttribute("data-camada", "");
-        // a cópia estática: o que foi digitado vira atributo, a rolagem de dentro vai em data-rolagem, a janela fica no
-        // lugar e no tamanho em que estava na tela de 1280 × 800, e sem endereços do app nem o id do #conteudo
-        const limpar = (e) => {
-          if (!e) return "";
-          const originais = [e, ...e.querySelectorAll("*")];
-          const copia = e.cloneNode(true);
-          const copias = [copia, ...copia.querySelectorAll("*")];
-          originais.forEach((o, i) => {
-            const c = copias[i];
-            if (o.scrollTop > 0) c.setAttribute("data-rolagem", String(Math.round(o.scrollTop)));
-            if (o instanceof HTMLInputElement) {
-              if (o.type === "checkbox" || o.type === "radio") c.toggleAttribute("checked", o.checked);
-              else if (o.type !== "file") c.setAttribute("value", o.value);
-            } else if (o instanceof HTMLTextAreaElement) c.textContent = o.value;
-            else if (o instanceof HTMLSelectElement) [...c.options].forEach((op, j) => op.toggleAttribute("selected", j === o.selectedIndex));
-            else if (o instanceof HTMLDialogElement) {
-              const r = o.getBoundingClientRect();
-              c.setAttribute("style", `position:absolute;inset:auto;left:${r.left}px;top:${r.top}px;width:${r.width}px;height:${r.height}px;margin:0;max-width:none;max-height:none`);
-              if (o.matches(":modal")) c.setAttribute("data-modal", "");
-            }
-          });
-          for (const x of copia.querySelectorAll("[data-camada]")) x.remove();
-          for (const a of copia.querySelectorAll("[href]")) a.removeAttribute("href");
-          for (const nome of ["id", "tabindex", "data-camada"]) copia.removeAttribute(nome);
-          return copia.outerHTML;
-        };
-        const texto = (seletor) => document.querySelector(seletor)?.textContent.trim();
-        const lido = {
-          html: limpar(conteudo),
-          camada: camadas.map(limpar).join(""),
-          menu: texto('.app-aside a[aria-current="page"]'),
-          barra: limpar(document.querySelector(".app-topo")),
-          conta: { nome: texto(".app-conta-nome"), empresa: texto(".app-conta-empresa"), iniciais: texto(".app-conta-iniciais") },
-        };
-        for (const e of camadas) e.removeAttribute("data-camada");
-        return lido;
-      })
-      .catch(() => null); // no meio de uma navegação
+  const ler = () => lerTela(page);
   // um alvo no menu lateral vai pelo nome do item ("menu:<nome>"): o menu do player é o da vitrine, não uma cópia
   const marcar = async (loc) => {
     const id = marcas++;
@@ -712,9 +937,10 @@ async function codificar(quadros, saida) {
 }
 
 async function main() {
-  const pedidas = process.argv.slice(2).filter((a) => a !== "--html");
-  const telas = pedidas.length ? pedidas : Object.keys(ROTEIROS);
-  for (const tela of telas) if (!ROTEIROS[tela]) throw new Error(`tela sem roteiro: ${tela}`);
+  const pedidas = process.argv.slice(2).filter((a) => !a.startsWith("--"));
+  const mapa = FIGURAS_ ? FIGURAS : ROTEIROS;
+  const telas = pedidas.length ? pedidas : Object.keys(mapa);
+  for (const tela of telas) if (!mapa[tela]) throw new Error(`tela sem roteiro: ${tela}`);
   const browser = await chromium.launch({ channel: "chrome" });
 
   // entrar antes de gravar: o vídeo começa já dentro do app
