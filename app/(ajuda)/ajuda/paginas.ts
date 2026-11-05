@@ -33,7 +33,7 @@ export type PaginaDeAjuda = {
   /** A tela inteira: capa do vídeo e referência da tela. */
   capa: ImagemDaAjuda;
   funcoes: FuncaoDaAjuda[];
-  /** A tela tocando em HTML (demonstracao.tsx): o arquivo de public/ajuda/ que `gravar.mjs --html` gera; sem ele, a capa diz "em breve". */
+  /** A tela tocando em HTML (demonstracao.tsx): o arquivo de public/ajuda/ que `gravar.mjs` gera; sem ele, a capa diz "em breve". */
   demonstracao?: string;
 };
 
@@ -335,13 +335,21 @@ export const PAGINAS: PaginaDeAjuda[] = [
       {
         id: "motivo",
         titulo: "O provável motivo",
-        faz: "Quando a conciliação roda, o Ledgr lê os dois lados de cada divergência e explica, em linguagem simples, por que a linha não casou.",
+        // ponytail: o texto de hoje, com a IA desligada em produção (o "Explicar" devolve o texto padrão do Ledgr).
+        // No dia em que ela ligar (backend #140, depois da política revisada em #190/#197), volta este:
+        //   faz: "Quando a conciliação roda, o Ledgr lê os dois lados de cada divergência e explica, em linguagem simples, por que a linha não casou.",
+        //   passos: [
+        //     "Abra a linha e leia a explicação, marcada como “Gerada por IA”.",
+        //     "Se a explicação ainda não estiver pronta, clique em **Explicar esta divergência**.",
+        //     "Confira no seu sistema de gestão antes de decidir.",
+        //   ],
+        //   nota: "Dados resumidos de cada divergência são enviados à OpenAI ao conciliar; linhas conciliadas não são. A IA explica; quem decide é você.",
+        faz: "O Ledgr explica, em linguagem simples, por que a linha não casou.",
         passos: [
-          "Abra a linha e leia a explicação, marcada como “Gerada por IA”.",
-          "Se a explicação ainda não estiver pronta, clique em **Explicar esta divergência**.",
-          "Confira no seu sistema de gestão antes de decidir.",
+          "Abra a linha e clique em **Explicar esta divergência**.",
+          "Leia o provável motivo e confira no seu sistema de gestão antes de decidir.",
         ],
-        nota: "Dados resumidos de cada divergência são enviados à OpenAI ao conciliar; linhas conciliadas não são. A IA explica; quem decide é você.",
+        nota: "A explicação ajuda a entender a divergência; quem decide é você.",
         figura: { largura: 535, altura: 273 },
       },
       {

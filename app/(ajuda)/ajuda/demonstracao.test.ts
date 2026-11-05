@@ -7,7 +7,7 @@ import { PAGINAS } from "./paginas";
 // os itens do menu da vitrine (app/(marketing)/vitrine.tsx), onde o player acha um alvo do menu lateral
 const ITENS_DO_MENU = ["Nova conciliação", "Visão geral", "Extratos", "Conciliações", "Fechamentos", "Histórico", "Empresas", "Assinatura"];
 
-// as cenas são capturas do app (gravar.mjs --html): se uma captura nova perder o alvo de um passo, o destaque
+// as cenas são capturas do app (gravar.mjs): se uma captura nova perder o alvo de um passo, o destaque
 // e o cursor somem sem erro nenhum
 describe("demonstrações da Central", () => {
   const paginas = PAGINAS.filter((p) => p.demonstracao);

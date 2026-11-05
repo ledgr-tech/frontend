@@ -10,7 +10,7 @@ import type { ImagemDaAjuda } from "./paginas";
 
 /**
  * A tela do app tocando em HTML, no lugar do vídeo (que borrava: a tela de 1360 px cabia em 680). As
- * cenas são o conteúdo do app capturado a cada passo por `gravar.mjs --html`, com o alvo de cada passo
+ * cenas são o conteúdo do app capturado a cada passo por `gravar.mjs`, com o alvo de cada passo
  * marcado (data-passo), dentro da moldura da vitrine da landing. A câmera chega perto do que a legenda
  * fala, e o texto continua nítido porque é HTML; as cores seguem o tema da Central.
  *
