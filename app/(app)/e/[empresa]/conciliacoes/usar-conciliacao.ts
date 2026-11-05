@@ -23,7 +23,8 @@ import { carregarConciliacaoEmRodadas, type RodadaVista } from "./acoes";
 export type EstadoConciliacao =
   | { situacao: "carregando" }
   | { situacao: "ausente" }
-  | { situacao: "falhou" }
+  /** Sem `status`, a Server Action nem respondeu. */
+  | { situacao: "falhou"; status?: number }
   | {
       situacao: "pronta";
       conciliacao: Conciliacao;
@@ -40,10 +41,10 @@ export type EstadoConciliacao =
 
 /**
  * A Server Action lançou em vez de devolver um Resultado (rede caída, deploy
- * novo no meio). Não é "não encontrada": recarregar costuma resolver.
+ * novo no meio). Não é "não encontrada". Recarrega o navegador, e não só a
+ * conciliação: depois de um deploy, a página aberta chama uma action que não existe mais.
  */
-export const FALHA_AO_CARREGAR =
-  "Não foi possível carregar a conciliação. Recarregue a página e tente de novo.";
+export const recarregarOhNavegador = () => window.location.reload();
 
 /**
  * `sistema` é o extrato do sistema da rodada, lido de `?sistema=` na URL; sem ele,
@@ -98,7 +99,12 @@ export function useConciliacao(
         if (cancelado) return;
         if (!resposta.ok) {
           if (resposta.status === 401) irPara.current.push("/login");
-          setEstado({ situacao: "ausente" });
+          // só o 404 é "não existe": com o servidor fora, a conciliação continua lá
+          setEstado(
+            resposta.status === 404 || resposta.status === 401
+              ? { situacao: "ausente" }
+              : { situacao: "falhou", status: resposta.status },
+          );
           return;
         }
         setEstado({

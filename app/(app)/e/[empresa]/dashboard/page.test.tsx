@@ -269,12 +269,11 @@ describe("DashboardPage", () => {
     expect(document.querySelector("img")?.getAttribute("src")).toContain("mascote-explicando");
   });
 
-  it("asks for a reload when the backend fails", async () => {
+  it("offers a retry when the backend fails", async () => {
     carregarConciliacoes.mockResolvedValue({ ok: false, status: 0, erro: "Não foi possível falar com o servidor." });
     await renderizar();
-    expect(screen.getByRole("alert")).toHaveTextContent(
-      "Não foi possível carregar suas conciliações. Recarregue a página e tente de novo.",
-    );
+    expect(screen.getByRole("alert")).toHaveTextContent("Não foi possível carregar suas conciliações.");
+    expect(screen.getByRole("button", { name: "Tentar de novo" })).toBeInTheDocument();
   });
 
   it("sends an expired session back to the login", async () => {
