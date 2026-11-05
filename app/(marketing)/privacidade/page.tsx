@@ -25,6 +25,11 @@ export default function PrivacidadePage() {
           guardada só como hash, um resumo criptográfico que não permite ler a senha de volta.
         </li>
         <li>
+          <strong>Cidade e estado da conta:</strong> preenchidos pela consulta do CNPJ ou informados por você
+          no cadastro, para sabermos em que regiões estão nossos clientes. Esses dois dados não são
+          compartilhados com ninguém e não aparecem na API nem nas conexões com assistentes de IA.
+        </li>
+        <li>
           <strong>Dos extratos:</strong> a data, o valor e a descrição de cada lançamento dos arquivos que
           você envia, o resultado da conciliação e o histórico das conciliações. A descrição pode conter o
           nome de uma pessoa, como num Pix ou num pagamento a fornecedor.
