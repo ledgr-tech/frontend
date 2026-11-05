@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState, type CSSProperties, type FormEvent } from "react";
+import { Fragment, useEffect, useId, useRef, useState, type CSSProperties, type FormEvent } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { useRoteador } from "@/lib/roteador";
 import Image from "next/image";
@@ -28,6 +28,7 @@ import { FALHA_AO_CARREGAR, useConciliacao } from "../usar-conciliacao";
 import { EsqueletoTela } from "../../esqueleto";
 import { filtrarLinhas, ordenarLinhas, type Coluna, type Filtro, type Ordem } from "./ordenar";
 import { continuaDivergindo, decisoesLigadas, situacaoDaLinha } from "./situacao";
+import { cabecalhoDoGrupo, juntarGrupos } from "./grupos";
 import { decidir, type ResultadoDaDecisao } from "./decidir";
 import { aplicarDensidade, densidadeAtual, type Densidade } from "../../densidade";
 import { IconeOrigem, type Origem } from "../../icone-origem";
@@ -227,7 +228,8 @@ export default function ConciliacaoPage() {
   const aguardando = emRevisao.filter((linha) => situacaoDaLinha(linha, rodadaDasLinhas) === "aguardando").length;
   const larguraValor = larguraDoValor(conciliacao.linhas);
   const categoria = ehDivergencia(filtro) ? filtro : null;
-  const ordenadas = ordenarLinhas(filtrarLinhas(conciliacao.linhas, filtro, rodadaDasLinhas), ordem);
+  // os lançamentos de um lote conciliado por soma (backend #131) ficam juntos, sob o resumo dele
+  const ordenadas = juntarGrupos(ordenarLinhas(filtrarLinhas(conciliacao.linhas, filtro, rodadaDasLinhas), ordem));
 
   function escolherDensidade(proxima: Densidade) {
     aplicarDensidade(proxima);
@@ -622,7 +624,10 @@ export default function ConciliacaoPage() {
               {/* contínua, sem páginas: num extrato grande, folhear de 25 em 25 escondia o resto do mês.
                   ponytail: tudo no DOM; se arquivos de milhares de linhas pesarem, virtualizar aqui */}
               <tbody role="rowgroup">
-                {ordenadas.map((linha) => {
+                {ordenadas.map((linha, indice) => {
+                  // o primeiro membro de cada lote leva antes uma linha com o resumo do grupo inteiro
+                  const abreGrupo = linha.grupo && linha.grupoId && ordenadas[indice - 1]?.grupoId !== linha.grupoId;
+                  const idDoGrupo = linha.grupoId ? `${idCartao}-grupo-${linha.grupoId}` : undefined;
                   const status = statusDaLinha(linha);
                   const situacao = situacaoDaLinha(linha, rodadaDasLinhas);
                   // conferida ou justificada, a linha sai da cor da categoria: alguém já cuidou dela
@@ -677,10 +682,18 @@ export default function ConciliacaoPage() {
                     </button>
                   );
                   return (
-                    // o tom do status pinta o hover: a linha acende na cor do veredito dela
+                    <Fragment key={linha.id}>
+                    {abreGrupo && linha.grupo && (
+                      <tr role="row" id={idDoGrupo} data-tom="ok">
+                        <td role="cell" colSpan={podeDecidir ? 8 : 7} className="dash-celula-fraca">
+                          <span className="selo selo-ok">Conciliado por soma</span> {cabecalhoDoGrupo(linha.grupo)}
+                        </td>
+                      </tr>
+                    )}
+                    {/* o tom do status pinta o hover: a linha acende na cor do veredito dela */}
                     <tr
-                      key={linha.id}
                       role="row"
+                      aria-describedby={linha.grupoId ? idDoGrupo : undefined}
                       data-tom={tom}
                       data-situacao={situacao}
                       onMouseEnter={
@@ -800,6 +813,7 @@ export default function ConciliacaoPage() {
                         </td>
                       )}
                     </tr>
+                    </Fragment>
                   );
                 })}
               </tbody>
