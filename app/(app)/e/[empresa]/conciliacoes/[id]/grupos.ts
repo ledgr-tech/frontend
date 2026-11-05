@@ -44,3 +44,14 @@ export function cabecalhoDoGrupo(grupo: Grupo): string {
   const dias = grupo.maiorDesvioDias;
   return dias > 0 ? `${texto} · até ${dias} ${dias === 1 ? "dia" : "dias"} de diferença` : texto;
 }
+
+/** Quantos lotes distintos há nas linhas (backend #131): grupos, não lançamentos. */
+export function contarGrupos(linhas: LinhaComparacao[]): number {
+  return new Set(linhas.flatMap((linha) => (linha.grupoId ? [linha.grupoId] : []))).size;
+}
+
+/** "1 lote conciliado por soma", nos dois relatórios; null sem nenhum, para a linha nem aparecer. */
+export function textoDosLotes(agrupamentos: number | undefined): string | null {
+  if (!agrupamentos) return null;
+  return agrupamentos === 1 ? "1 lote conciliado por soma" : `${agrupamentos.toLocaleString("pt-BR")} lotes conciliados por soma`;
+}

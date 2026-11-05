@@ -477,4 +477,26 @@ describe("DetalheDivergenciaPage", () => {
     );
     expect(screen.queryByText("Lançamento não encontrado.")).not.toBeInTheDocument();
   });
+
+  // backend #131: a linha agrupada tem uma ponta só, mas está resolvida: o centro diz o lote, não "sem par"
+  it("shows the lot summary in the middle of a line conciliated by sum, with nothing to decide", async () => {
+    const lote = { quantidadeBanco: 1, quantidadeSistema: 10, valorUnico: -150000, maiorDesvioDias: 0 };
+    buscarConciliacao.mockReturnValue({
+      ...conciliacao,
+      linhas: [
+        { id: "lc-2", descricao: "Pagamento lote", data: "10/09", dataISO: "2026-09-10", valorBanco: -150000, valorSistema: null, status: "match_agrupado", grupoId: "g1", grupo: lote, decisao: null, explicacao: null, historico: [] },
+        { id: "lc-9", descricao: "Fornecedor A", data: "10/09", dataISO: "2026-09-10", valorBanco: null, valorSistema: -15000, status: "divergente_valor", explicacao: null, historico: [] },
+      ],
+    });
+    render(<DetalheDivergenciaPage />);
+
+    expect(await screen.findByText(/1 lançamento do banco de R\$\s150\.000,00 = 10 do sistema/)).toBeInTheDocument();
+    expect(screen.queryByText("sem par")).not.toBeInTheDocument();
+    expect(screen.getByText("Conciliado")).toBeInTheDocument();
+    expect(screen.queryByText("Precisa de ajuste")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Justificar/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+    // a divergência do lado de lá não vira par da linha agrupada
+    expect(screen.queryByText("R$ 15.000,00")).not.toBeInTheDocument();
+  });
 });

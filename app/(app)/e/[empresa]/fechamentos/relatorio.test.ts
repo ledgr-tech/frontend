@@ -199,3 +199,12 @@ describe("as conciliadas com o agrupamento (backend #131)", () => {
     expect(relatorio.conciliadas).toBe(6);
   });
 });
+
+describe("os lotes conciliados por soma no relatório do fechamento (backend #131)", () => {
+  it("vêm do resumo, 0 quando ausentes", () => {
+    const comLote = montarRelatorio({ fechamento: fechamento(), resumo: resumo({ agrupamentos: 1 }), empresa: EMPRESA, conciliacoes: [] });
+    expect(comLote.agrupamentos).toBe(1);
+    const semChave = montarRelatorio({ fechamento: fechamento(), resumo: resumo({ agrupamentos: undefined }), empresa: EMPRESA, conciliacoes: [] });
+    expect(semChave.agrupamentos).toBe(0);
+  });
+});

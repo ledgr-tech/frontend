@@ -52,3 +52,12 @@ describe("Relatorio", () => {
     expect(total([linha("juros", "divergente_valor", 12640, 12604)])).toBe("1 linha pede revisão · R$ 36 em aberto");
   });
 });
+
+describe("Relatorio com lotes conciliados por soma (backend #131)", () => {
+  it("diz quantos lotes houve, só quando houve", () => {
+    const { rerender } = render(createElement(Relatorio, { linhas: [], agrupamentos: 2, ativa: null, onEscolher: () => {} }));
+    expect(screen.getByText(/2 lotes conciliados por soma/)).toBeInTheDocument();
+    rerender(createElement(Relatorio, { linhas: [], agrupamentos: 0, ativa: null, onEscolher: () => {} }));
+    expect(screen.queryByText(/conciliados? por soma/)).not.toBeInTheDocument();
+  });
+});

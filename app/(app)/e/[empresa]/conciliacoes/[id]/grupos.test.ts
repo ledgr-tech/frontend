@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { LinhaComparacao } from "@/lib/mock-data";
-import { cabecalhoDoGrupo, juntarGrupos } from "./grupos";
+import { cabecalhoDoGrupo, contarGrupos, juntarGrupos, textoDosLotes } from "./grupos";
 
 const LOTE = { quantidadeBanco: 1, quantidadeSistema: 2, valorUnico: -150000, maiorDesvioDias: 0 };
 
@@ -48,5 +48,19 @@ describe("cabecalhoDoGrupo", () => {
       "1 lançamento do banco de R$ 150.000,00 = 10 do sistema · até 2 dias de diferença",
     );
     expect(cabecalhoDoGrupo({ ...LOTE, maiorDesvioDias: 1 })).toMatch(/até 1 dia de diferença$/);
+  });
+});
+
+describe("textoDosLotes e contarGrupos", () => {
+  it("diz quantos lotes foram conciliados por soma, e nada sem nenhum", () => {
+    expect(textoDosLotes(1)).toBe("1 lote conciliado por soma");
+    expect(textoDosLotes(3)).toBe("3 lotes conciliados por soma");
+    expect(textoDosLotes(0)).toBeNull();
+    expect(textoDosLotes(undefined)).toBeNull();
+  });
+
+  it("conta os grupos distintos, não as linhas", () => {
+    expect(contarGrupos([doBanco("x"), doSistema("y"), doSistema("z"), linha("a")])).toBe(1);
+    expect(contarGrupos([linha("a")])).toBe(0);
   });
 });

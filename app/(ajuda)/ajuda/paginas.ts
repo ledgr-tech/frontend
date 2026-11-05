@@ -358,6 +358,14 @@ export const PAGINAS: PaginaDeAjuda[] = [
           altura: 67,
         },
       },
+      // descomentar no dia em que o backend ligar AGRUPAMENTO_HABILITADO (#131)
+      // {
+      //   id: "agrupamento",
+      //   titulo: "Agrupamento por soma",
+      //   faz: "Quando um lançamento de um lado é a soma de vários do outro, como um lote pago de uma vez, os lançamentos aparecem juntos, sob uma linha que resume o lote, e já entram como conciliados.",
+      //   passos: ["Os lançamentos do lote ficam seguidos na comparação, com o lançamento único primeiro."],
+      //   nota: "O Ledgr agrupa automaticamente um lançamento de um lado com vários do outro quando a soma bate exatamente, ao centavo, e as datas estão dentro da tolerância de data da empresa. Não agrupa quando há mais de uma combinação possível, quando a soma tem diferença de um centavo que seja (tarifa, desconto, juros, retenção ou taxa de maquininha), quando os lançamentos têm sinais diferentes ou quando um pagamento individual do banco já casou com um lançamento do lote. Esses casos continuam como divergência para você justificar.",
+      // },
     ],
   },
   {

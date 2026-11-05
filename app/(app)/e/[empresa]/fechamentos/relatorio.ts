@@ -50,6 +50,8 @@ export type RelatorioDoFechamento = {
   ressalva: string | null;
   total: number;
   conciliadas: number;
+  /** Lotes conciliados por soma (backend #131); 0 nos fechamentos de antes. */
+  agrupamentos: number;
   justificadas: number;
   pendentes: number;
   linhasNaoLidas: number;
@@ -106,6 +108,7 @@ export function montarRelatorio({
     ressalva: fechamento.ressalva,
     total: contagens.total ?? 0,
     conciliadas: (contagens.match_exato ?? 0) + (contagens.match_tolerancia ?? 0) + (contagens.match_agrupado ?? 0),
+    agrupamentos: resumo.agrupamentos ?? 0,
     justificadas: resumo.justificadas,
     pendentes: resumo.pendentes,
     linhasNaoLidas: resumo.linhasNaoLidas,

@@ -28,7 +28,7 @@ import { FALHA_AO_CARREGAR, useConciliacao } from "../usar-conciliacao";
 import { EsqueletoTela } from "../../esqueleto";
 import { filtrarLinhas, ordenarLinhas, type Coluna, type Filtro, type Ordem } from "./ordenar";
 import { continuaDivergindo, decisoesLigadas, situacaoDaLinha } from "./situacao";
-import { cabecalhoDoGrupo, juntarGrupos } from "./grupos";
+import { cabecalhoDoGrupo, contarGrupos, juntarGrupos } from "./grupos";
 import { decidir, type ResultadoDaDecisao } from "./decidir";
 import { aplicarDensidade, densidadeAtual, type Densidade } from "../../densidade";
 import { IconeOrigem, type Origem } from "../../icone-origem";
@@ -430,6 +430,7 @@ export default function ConciliacaoPage() {
           <Relatorio
             linhas={emRevisao}
             justificadas={justificadas.length}
+            agrupamentos={contarGrupos(conciliacao.linhas)}
             ativa={categoria}
             onEscolher={(status) => escolherFiltro(status ?? "revisao")}
           />
