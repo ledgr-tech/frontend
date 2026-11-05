@@ -3,6 +3,8 @@
 // com ajustes de texto onde o original não batia com os campos da tela.
 // Decisões em docs/superpowers/specs/2026-09-15-tela-cadastro-design.md
 
+import { UFS } from "@/lib/uf";
+
 export const SENHA_MINIMA = 8;
 
 export type CampoCadastro = {
@@ -11,7 +13,14 @@ export type CampoCadastro = {
   rotulo: string;
   /** exemplo de preenchimento, visível com o campo em foco */
   exemplo?: string;
-  tipo: "text" | "email" | "password";
+  tipo: "text" | "email" | "password" | "select";
+  /** as escolhas de um `select`; a primeira, vazia, é "nenhuma ainda" */
+  opcoes?: readonly string[];
+  /**
+   * Vazio só é cobrado depois de `verificarCadastro`, que pode trazer o valor da Receita (cidade e UF,
+   * backend #184). Preenchido, a checagem do campo roda antes, como a dos outros.
+   */
+  aposVerificar?: boolean;
   autoComplete: string;
   inputMode?: "text" | "numeric" | "email";
   autoCapitalize?: string;
@@ -138,6 +147,26 @@ export const PASSOS: PassoCadastro[] = [
         mensagemVazio: "Informe o CNPJ.",
         formatar: formatarCnpj,
         validar: validarCnpj,
+      },
+      {
+        id: "cidade",
+        rotulo: "Cidade",
+        tipo: "text",
+        autoComplete: "address-level2",
+        autoCapitalize: "words",
+        maxLength: 80,
+        aposVerificar: true,
+        mensagemVazio: "Informe a cidade.",
+        validar: (valor) => (valor.trim().length < 2 ? "A cidade deve ter de 2 a 80 caracteres." : undefined),
+      },
+      {
+        id: "uf",
+        rotulo: "Estado",
+        tipo: "select",
+        opcoes: UFS,
+        autoComplete: "address-level1",
+        aposVerificar: true,
+        mensagemVazio: "Escolha o estado.",
       },
     ],
     botao: "Continuar",
