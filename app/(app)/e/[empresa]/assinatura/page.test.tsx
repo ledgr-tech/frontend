@@ -261,18 +261,105 @@ describe("AssinaturaPage", () => {
 
   describe("pela situação da conta (backend #180)", () => {
     const planos = () => within(screen.getByRole("list", { name: "Planos" })).getAllByRole("listitem");
-    const cartao = (nome: string) => planos().find((item) => within(item).queryByRole("heading", { name: nome }))!;
+    const cartao = (nome: string) => planos().find((item) => item.textContent?.includes(nome))!;
+    const painel = () => screen.getByRole("region", { name: "Plano escolhido" });
+    const abrir = (user: ReturnType<typeof userEvent.setup>, nome: string) => user.click(within(cartao(nome)).getByRole("button"));
 
-    it("no teste: os três planos para assinar, os dias no cabeçalho e o Volume para falar com a gente", async () => {
+    it("no teste: as três folhas, os dias no cabeçalho, o Assinar no painel e o Volume para falar com a gente", async () => {
       await montar(conta({ situacao: "teste", testeTerminaEm: emDias(9.5).slice(0, 10), fimDoTeste: emDias(9.5) }));
       expect(screen.getByText(/^teste grátis · faltam \d+ dias$/)).toBeInTheDocument();
-      expect(planos().map((item) => within(item).getByRole("heading").textContent)).toEqual(["Essencial", "Padrão", "Avançado", "Volume"]);
+      expect(planos()).toHaveLength(3);
       expect(within(cartao("Padrão")).getByText("R$ 299,00")).toBeInTheDocument();
-      expect(within(cartao("Padrão")).getByRole("button", { name: "Assinar o Padrão" })).toBeEnabled();
-      expect(within(cartao("Volume")).getByRole("link", { name: "Fale com a gente" })).toHaveAttribute("href", "mailto:ledgrtech@gmail.com");
+      // o Padrão, o mais comum, já vem aberto
+      expect(within(cartao("Padrão")).getByRole("button")).toHaveAttribute("aria-pressed", "true");
+      expect(within(painel()).getByRole("button", { name: "Assinar o Padrão" })).toBeEnabled();
+      const volume = screen.getByRole("region", { name: "Concilia em grande volume?" });
+      expect(volume).toHaveTextContent("Plano Volume · sob consulta");
+      expect(within(volume).getByRole("link", { name: "Fale com a gente" })).toHaveAttribute("href", "mailto:ledgrtech@gmail.com");
       // nada da demonstração
       expect(screen.queryByRole("table")).not.toBeInTheDocument();
       expect(screen.queryByRole("button", { name: "Cancelar assinatura" })).not.toBeInTheDocument();
+    });
+
+    it("no teste, a folha aberta leva o selo com o dia do fim, e ele segue o clique", async () => {
+      const user = userEvent.setup();
+      const fim = emDias(9.5);
+      await montar(conta({ situacao: "teste", testeTerminaEm: fim.slice(0, 10), fimDoTeste: fim }));
+      const [, mes, dia] = fim.slice(0, 10).split("-");
+      expect(within(cartao("Padrão")).getByText(`Grátis até ${dia}/${mes}`)).toBeInTheDocument();
+      await abrir(user, "Essencial");
+      expect(within(cartao("Essencial")).getByText(`Grátis até ${dia}/${mes}`)).toBeInTheDocument();
+      expect(within(cartao("Padrão")).queryByText(/^Grátis até/)).not.toBeInTheDocument();
+      expect(within(painel()).getByRole("heading", { name: "Essencial" })).toBeInTheDocument();
+    });
+
+    it("com menos de 48 horas de teste a cobrança é na hora, então nenhum selo promete grátis", async () => {
+      await montar(conta({ situacao: "teste", testeTerminaEm: emDias(1).slice(0, 10), fimDoTeste: emDias(1) }));
+      expect(screen.queryByText(/^Grátis até/)).not.toBeInTheDocument();
+      expect(within(painel()).getByText("É feita agora.")).toBeInTheDocument();
+    });
+
+    it("o link da tela de bloqueio já abre o plano escolhido lá", async () => {
+      Object.defineProperty(window, "location", {
+        configurable: true,
+        value: { ...localOriginal, pathname: "/e/x/assinatura", search: "", hash: "#plano-avancado", assign },
+      });
+      await montar(conta({ situacao: "teste_encerrado" }));
+      expect(within(painel()).getByRole("heading", { name: "Avançado" })).toBeInTheDocument();
+    });
+
+    describe("assinando: o painel segue a folha aberta", () => {
+      const cobranca = { status: "active", plano: "padrao" as const, periodo: "mensal" as const, periodoAtualFim: "2026-12-14", cancelaNoFim: false };
+      const assinante = conta({ situacao: "ativo", plano: "padrao", cobranca });
+
+      it("o seu plano abre com o pagamento, o uso e os caminhos pela equipe", async () => {
+        await montar(assinante, { limites: { empresas: { usadas: 2, maximo: 5 }, usuarios: { usadas: 2, maximo: 3 }, conciliacoes: { usadas: 8, maximo: null } } });
+        expect(within(painel()).getByRole("heading", { name: "Padrão" })).toBeInTheDocument();
+        expect(painel()).toHaveTextContent("R$ 299,00 por mês, no cartão");
+        expect(painel()).toHaveTextContent(/Em dia\. Renova em 14\/12/);
+        expect(painel()).toHaveTextContent("2 de 5");
+        expect(within(cartao("Padrão")).getByText("Seu plano")).toBeInTheDocument();
+        expect(cartao("Padrão")).toHaveTextContent("8 conciliações este mês");
+        expect(within(painel()).getByRole("link", { name: "Trocar o cartão" }).getAttribute("href")).toMatch(/^mailto:ledgrtech@gmail\.com/);
+        expect(within(painel()).getByRole("link", { name: "Cancelar a assinatura" })).toBeInTheDocument();
+      });
+
+      it("com o cancelamento agendado, diz quando termina e não oferece cancelar de novo", async () => {
+        await montar(conta({ situacao: "ativo", plano: "padrao", cobranca: { ...cobranca, cancelaNoFim: true } }));
+        expect(painel()).toHaveTextContent(/Termina em 14\/12/);
+        expect(within(painel()).queryByRole("link", { name: "Cancelar a assinatura" })).not.toBeInTheDocument();
+      });
+
+      it("outra folha compara com o seu plano, com a diferença de um mês, e volta", async () => {
+        const user = userEvent.setup();
+        await montar(assinante);
+        await abrir(user, "Essencial");
+        expect(within(painel()).getByRole("heading", { name: "Essencial" })).toBeInTheDocument();
+        expect(painel()).toHaveTextContent("R$ 150,00 a menos por mês que o Padrão");
+        expect(within(painel()).getByRole("link", { name: "Fale com a gente para trocar" })).toBeInTheDocument();
+
+        await abrir(user, "Avançado");
+        expect(painel()).toHaveTextContent("R$ 300,00 a mais por mês que o Padrão");
+
+        await user.click(screen.getByRole("button", { name: "Anual" }));
+        // (6.100 - 3.050) / 12
+        expect(painel()).toHaveTextContent("R$ 254,17 a mais por mês que o Padrão, os dois no anual");
+
+        await user.click(within(painel()).getByRole("button", { name: "Voltar à sua assinatura" }));
+        expect(within(painel()).getByRole("heading", { name: "Padrão" })).toBeInTheDocument();
+        expect(within(painel()).queryByText(/Diferença/)).not.toBeInTheDocument();
+      });
+
+      it("avisa quando o uso do mês passa da franquia do plano aberto", async () => {
+        const user = userEvent.setup();
+        precos.atuais = adaptarPrecos([
+          { plano: "essencial", periodo: "mensal", valor_centavos: 14900, limites: { conciliacoes_por_mes: 2 } },
+          { plano: "padrao", periodo: "mensal", valor_centavos: 29900, limites: { conciliacoes_por_mes: 80 } },
+        ]);
+        await montar(assinante, { limites: { empresas: null, usuarios: null, conciliacoes: { usadas: 8, maximo: 80 } } });
+        await abrir(user, "Essencial");
+        expect(within(painel()).getByRole("note")).toHaveTextContent("Neste mês você fez 8 conciliações, e este plano inclui até 2.");
+      });
     });
 
     it.each([
@@ -292,10 +379,9 @@ describe("AssinaturaPage", () => {
     it("com o pagamento pendente, avisa que a Stripe tenta de novo", async () => {
       const cobranca = { status: "past_due", plano: "padrao" as const, periodo: "mensal" as const, periodoAtualFim: "2026-12-14", cancelaNoFim: false };
       await montar(conta({ situacao: "pagamento_pendente", plano: "padrao", cobranca }));
-      expect(screen.getByRole("alert")).toHaveTextContent(
-        "O último pagamento não passou. A Stripe vai tentar de novo nos próximos dias; para trocar o cartão, fale com a gente.",
-      );
-      expect(within(cartao("Padrão")).getByText("Plano atual")).toBeInTheDocument();
+      expect(screen.getByRole("alert")).toHaveTextContent("Não passou. A Stripe vai tentar de novo nos próximos dias.");
+      expect(within(cartao("Padrão")).getByText("Pagamento pendente")).toBeInTheDocument();
+      expect(within(painel()).getByRole("link", { name: "Trocar o cartão" })).toHaveClass("btn-primary");
     });
 
     it("assinando: o plano, o período e a renovação no cabeçalho, e só o plano atual marcado", async () => {
@@ -336,7 +422,9 @@ describe("AssinaturaPage", () => {
       await user.click(screen.getByRole("button", { name: "Anual" }));
       expect(within(cartao("Essencial")).getByText("R$ 1.520,00")).toBeInTheDocument();
       expect(within(cartao("Essencial")).getByText("R$ 126,67 por mês")).toBeInTheDocument();
-      expect(within(cartao("Essencial")).getByText("15% a menos que o mensal")).toBeInTheDocument();
+      expect(within(cartao("Essencial")).getByText("15% a menos")).toBeInTheDocument();
+      await abrir(user, "Essencial");
+      expect(within(painel()).getByText("15% a menos que o mensal")).toBeInTheDocument();
       expect(within(cartao("Avançado")).getByText("R$ 6.100,00")).toBeInTheDocument();
 
       await user.click(screen.getByRole("button", { name: "Ver outros períodos" }));
@@ -348,9 +436,10 @@ describe("AssinaturaPage", () => {
       precos.atuais = null;
       await montar(conta({ situacao: "teste" }));
       expect(screen.queryByRole("button", { name: "Anual" })).not.toBeInTheDocument();
-      const assinar = within(cartao("Padrão")).getByRole("button", { name: "Assinar o Padrão" });
+      const assinar = within(painel()).getByRole("button", { name: "Assinar o Padrão" });
       expect(assinar).toBeDisabled();
       expect(assinar).toHaveAccessibleDescription("A assinatura pelo cartão ainda não está no ar.");
+      expect(painel().textContent).not.toMatch(/R\$/);
       // os de lib/planos não valem mais (#296): sem a Stripe, nenhum R$ nos planos do teste
       for (const nome of ["Essencial", "Padrão", "Avançado"]) expect(cartao(nome).textContent).not.toMatch(/R\$/);
       // com o cartão fora do ar, assinar segue sendo pela equipe, como na /plano de antes
@@ -360,19 +449,22 @@ describe("AssinaturaPage", () => {
       );
     });
 
-    it("um período que falta para um plano só desliga esse cartão", async () => {
+    it("um período que falta para um plano só desliga o Assinar desse plano", async () => {
       precos.atuais = CATALOGO.filter((p) => !(p.plano === "avancado" && p.periodo === "anual"));
       const user = userEvent.setup();
       await montar(conta({ situacao: "teste" }));
       await user.click(screen.getByRole("button", { name: "Anual" }));
       expect(within(cartao("Avançado")).getByText("Indisponível neste período")).toBeInTheDocument();
-      expect(within(cartao("Avançado")).getByRole("button", { name: "Assinar o Avançado" })).toBeDisabled();
-      expect(within(cartao("Padrão")).getByRole("button", { name: "Assinar o Padrão" })).toBeEnabled();
+      expect(within(painel()).getByRole("button", { name: "Assinar o Padrão" })).toBeEnabled();
+      await abrir(user, "Avançado");
+      const assinar = within(painel()).getByRole("button", { name: "Assinar o Avançado" });
+      expect(assinar).toBeDisabled();
+      expect(assinar).toHaveAccessibleDescription("Indisponível neste período");
     });
 
     it("gestor e analista veem os planos, mas só o administrador assina", async () => {
       await montar(conta({ situacao: "teste" }), { papel: "gestor" });
-      const assinar = within(cartao("Padrão")).getByRole("button", { name: "Assinar o Padrão" });
+      const assinar = within(painel()).getByRole("button", { name: "Assinar o Padrão" });
       expect(assinar).toBeDisabled();
       expect(assinar).toHaveAccessibleDescription("Só o administrador da conta assina.");
     });
@@ -382,15 +474,14 @@ describe("AssinaturaPage", () => {
       expect(screen.getByText("3 de 20 conciliações este mês")).toBeInTheDocument();
     });
 
-    it("o cartão de cada plano traz a franquia do backend, igual em todo período; sem número, nenhuma linha (#297)", async () => {
+    it("a folha de cada plano traz a franquia do backend, igual em todo período; sem número, nenhuma linha (#297)", async () => {
       precos.atuais = adaptarPrecos([
         { plano: "essencial", periodo: "mensal", valor_centavos: 14900, limites: { conciliacoes_por_mes: 30 } },
         { plano: "essencial", periodo: "anual", valor_centavos: 152000, limites: { conciliacoes_por_mes: 30 } },
         { plano: "padrao", periodo: "mensal", valor_centavos: 29900, limites: { conciliacoes_por_mes: null } },
       ]);
       await montar(conta({ situacao: "teste" }));
-      const cartao = (nome: string) => screen.getByRole("heading", { name: nome }).closest("li")!;
-      expect(within(cartao("Essencial")).getByText("até 30 conciliações por mês")).toBeInTheDocument();
+      expect(cartao("Essencial")).toHaveTextContent("até 30 conciliações por mês");
       expect(cartao("Padrão").textContent).not.toMatch(/conciliações|ilimitad/i);
     });
 
@@ -402,7 +493,9 @@ describe("AssinaturaPage", () => {
   });
   describe("assinar (backend #180)", () => {
     const planos = () => within(screen.getByRole("list", { name: "Planos" })).getAllByRole("listitem");
-    const cartao = (nome: string) => planos().find((item) => within(item).queryByRole("heading", { name: nome }))!;
+    const cartao = (nome: string) => planos().find((item) => item.textContent?.includes(nome))!;
+    const painel = () => screen.getByRole("region", { name: "Plano escolhido" });
+    const abrir = (user: ReturnType<typeof userEvent.setup>, nome: string) => user.click(within(cartao(nome)).getByRole("button"));
     const fimEm = (horas: number) => {
       const fim = new Date(Date.now() + horas * 3_600_000);
       return { testeTerminaEm: fim.toISOString().slice(0, 10), fimDoTeste: fim.toISOString() };
@@ -415,11 +508,11 @@ describe("AssinaturaPage", () => {
       const fim = fimEm(9 * 24);
       await montar(conta({ situacao: "teste", ...fim }));
       const [, mes, dia] = fim.testeTerminaEm.split("-");
-      expect(within(cartao("Padrão")).getByText(`Você só paga em ${dia}/${mes}, quando o teste acaba.`)).toBeInTheDocument();
+      expect(painel()).toHaveTextContent(`Em ${dia}/${mes}, quando o teste acaba.`);
 
-      await user.click(within(cartao("Padrão")).getByRole("button", { name: "Assinar o Padrão" }));
+      await user.click(within(painel()).getByRole("button", { name: "Assinar o Padrão" }));
       expect(iniciarCheckout).toHaveBeenCalledWith("padrao", "mensal");
-      expect(within(cartao("Padrão")).getByRole("button", { name: "Abrindo a Stripe…" })).toBeDisabled();
+      expect(within(painel()).getByRole("button", { name: "Abrindo a Stripe…" })).toBeDisabled();
       await act(async () => abrir({ ok: true, dados: { url: "https://checkout.stripe.com/c/pay/cs_test_1" } }));
       expect(assign).toHaveBeenCalledWith("https://checkout.stripe.com/c/pay/cs_test_1");
     });
@@ -429,7 +522,8 @@ describe("AssinaturaPage", () => {
       iniciarCheckout.mockResolvedValue({ ok: true, dados: { url: "https://checkout.stripe.com/x" } });
       await montar(conta({ situacao: "teste", ...fimEm(9 * 24) }));
       await user.click(screen.getByRole("button", { name: "Anual" }));
-      await user.click(within(cartao("Essencial")).getByRole("button", { name: "Assinar o Essencial" }));
+      await abrir(user, "Essencial");
+      await user.click(within(painel()).getByRole("button", { name: "Assinar o Essencial" }));
       expect(iniciarCheckout).toHaveBeenCalledWith("essencial", "anual");
     });
 
@@ -443,17 +537,17 @@ describe("AssinaturaPage", () => {
       const user = userEvent.setup();
       iniciarCheckout.mockResolvedValue({ ok: true, dados: { url: "https://checkout.stripe.com/x" } });
       await montar(montarConta());
-      await user.click(within(cartao("Padrão")).getByRole("button", { name: "Assinar o Padrão" }));
+      await user.click(within(painel()).getByRole("button", { name: "Assinar o Padrão" }));
       expect(iniciarCheckout).not.toHaveBeenCalled();
-      expect(within(cartao("Padrão")).getByText(aviso)).toBeInTheDocument();
-      await user.click(within(cartao("Padrão")).getByRole("button", { name: "Assinar e pagar agora" }));
+      expect(within(painel()).getByText(aviso)).toBeInTheDocument();
+      await user.click(within(painel()).getByRole("button", { name: "Assinar e pagar agora" }));
       expect(iniciarCheckout).toHaveBeenCalledWith("padrao", "mensal");
     });
 
     it("dois cliques rápidos chamam uma vez", async () => {
       iniciarCheckout.mockReturnValue(new Promise(() => {}));
       await montar(conta({ situacao: "teste", ...fimEm(9 * 24) }));
-      const botao = within(cartao("Padrão")).getByRole("button", { name: "Assinar o Padrão" });
+      const botao = within(painel()).getByRole("button", { name: "Assinar o Padrão" });
       act(() => {
         botao.click();
         botao.click();
@@ -465,19 +559,19 @@ describe("AssinaturaPage", () => {
       const user = userEvent.setup();
       iniciarCheckout.mockResolvedValue({ ok: false, status: 409, erro: "A conta já tem uma assinatura." });
       await montar(conta({ situacao: "teste", ...fimEm(9 * 24) }));
-      await user.click(within(cartao("Padrão")).getByRole("button", { name: "Assinar o Padrão" }));
-      expect(within(cartao("Padrão")).getByRole("alert")).toHaveTextContent("A conta já tem uma assinatura.");
+      await user.click(within(painel()).getByRole("button", { name: "Assinar o Padrão" }));
+      expect(within(painel()).getByRole("alert")).toHaveTextContent("A conta já tem uma assinatura.");
       expect(router.refresh).toHaveBeenCalled();
       expect(assign).not.toHaveBeenCalled();
-      expect(within(cartao("Padrão")).getByRole("button", { name: "Assinar o Padrão" })).toBeEnabled();
+      expect(within(painel()).getByRole("button", { name: "Assinar o Padrão" })).toBeEnabled();
     });
 
     it("um 503 mostra o texto da ação, sem reler", async () => {
       const user = userEvent.setup();
       iniciarCheckout.mockResolvedValue({ ok: false, status: 503, erro: "A assinatura não está disponível agora. Tente de novo mais tarde." });
       await montar(conta({ situacao: "teste", ...fimEm(9 * 24) }));
-      await user.click(within(cartao("Padrão")).getByRole("button", { name: "Assinar o Padrão" }));
-      expect(within(cartao("Padrão")).getByRole("alert")).toHaveTextContent("A assinatura não está disponível agora.");
+      await user.click(within(painel()).getByRole("button", { name: "Assinar o Padrão" }));
+      expect(within(painel()).getByRole("alert")).toHaveTextContent("A assinatura não está disponível agora.");
       expect(router.refresh).not.toHaveBeenCalled();
     });
   });
