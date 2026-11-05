@@ -31,13 +31,18 @@ const LIVRES = {
   cnpjDisponivel: true,
   cnpjSituacao: "nao_verificado",
   razaoSocialReceita: null,
+  cidadeReceita: null,
+  ufReceita: null,
 };
 
 type Usuario = ReturnType<typeof userEvent.setup>;
 
 async function preencher(user: Usuario, valores: Record<string, string>) {
   for (const [rotulo, valor] of Object.entries(valores)) {
-    await user.type(screen.getByLabelText(rotulo), valor);
+    const campo = screen.getByLabelText(rotulo);
+    // o Estado é uma lista: escolhe, em vez de digitar
+    if (campo instanceof HTMLSelectElement) await user.selectOptions(campo, valor);
+    else await user.type(campo, valor);
   }
 }
 
@@ -46,7 +51,8 @@ async function continuar(user: Usuario) {
 }
 
 const ACESSO = { "Seu nome": "Ana Souza", "E-mail": "financeiro@telhacerta.com.br", Senha: "conciliar2026" };
-const EMPRESA = { "Razão social": "Telha Certa Ltda", CNPJ: "12.345.678/0001-95" };
+const EMPRESA = { "Razão social": "Telha Certa Ltda", CNPJ: "12.345.678/0001-95", Cidade: "Campinas", Estado: "SP" };
+const SO_A_EMPRESA = { "Razão social": "Telha Certa Ltda", CNPJ: "12.345.678/0001-95" };
 
 function titulo() {
   return screen.getByRole("heading", { level: 1 });
@@ -208,7 +214,7 @@ describe("CadastroPage", () => {
 
     await preencher(user, ACESSO);
     await continuar(user);
-    await preencher(user, { "Razão social": "Telha Certa Ltda", CNPJ: "123456780001" });
+    await preencher(user, { "Razão social": "Telha Certa Ltda", CNPJ: "123456780001", Cidade: "Campinas", Estado: "SP" });
     expect(screen.getByLabelText("CNPJ")).toHaveValue("12.345.678/0001");
     await continuar(user);
     expect(screen.getByLabelText("CNPJ")).toHaveAccessibleDescription("O CNPJ tem 14 caracteres. Confira o número.");
@@ -243,7 +249,7 @@ describe("CadastroPage", () => {
 
     await preencher(user, ACESSO);
     await continuar(user);
-    await preencher(user, { "Razão social": "Telha Certa Ltda", CNPJ: "12abc34501de35" });
+    await preencher(user, { "Razão social": "Telha Certa Ltda", CNPJ: "12abc34501de35", Cidade: "Campinas", Estado: "SP" });
     expect(screen.getByLabelText("CNPJ")).toHaveValue("12.ABC.345/01DE-35");
     expect(screen.getByLabelText("CNPJ")).not.toHaveAttribute("inputmode", "numeric");
     await continuar(user);
@@ -355,6 +361,8 @@ describe("CadastroPage", () => {
       senha: "conciliar2026",
       razaoSocial: "Telha Certa Ltda",
       cnpj: "12.345.678/0001-95",
+      cidade: "Campinas",
+      uf: "SP",
     });
   });
 
@@ -645,6 +653,119 @@ describe("CadastroPage", () => {
       expect(await screen.findByLabelText("Sistema de gestão")).toBeInTheDocument();
     });
 
+    // backend #184: cidade e estado são obrigatórios na tela, mas só depois da conferência, que pode trazê-los
+    describe("city and state", () => {
+      async function ateAEmpresaSemLocal(user: Usuario) {
+        await preencher(user, ACESSO);
+        await continuar(user);
+        await preencher(user, SO_A_EMPRESA);
+        await continuar(user);
+      }
+
+      it("shows the state as a labelled list of the 27 states, after the CNPJ", async () => {
+        const user = userEvent.setup();
+        render(<CadastroPage />);
+        await preencher(user, ACESSO);
+        await continuar(user);
+
+        const estado = screen.getByRole("combobox", { name: "Estado" });
+        expect(within(estado).getAllByRole("option")).toHaveLength(28);
+        expect(screen.getByLabelText("Cidade")).toHaveAttribute("autocomplete", "address-level2");
+      });
+
+      it("fills both from the CNPJ and stops once to let the person check them", async () => {
+        verificarCadastro.mockResolvedValue({ ...LIVRES, cnpjSituacao: "ativa", cidadeReceita: "SÃO PAULO", ufReceita: "SP" });
+        const user = userEvent.setup();
+        render(<CadastroPage />);
+
+        await ateAEmpresaSemLocal(user);
+
+        expect(await screen.findByText("Preenchemos a cidade e o estado pelo CNPJ. Confira e continue.")).toBeInTheDocument();
+        expect(screen.getByLabelText("Cidade")).toHaveValue("SÃO PAULO");
+        expect(screen.getByLabelText("Estado")).toHaveValue("SP");
+        expect(titulo()).toHaveTextContent("Vamos cadastrar a empresa.");
+
+        await continuar(user);
+        expect(await screen.findByLabelText("Sistema de gestão")).toBeInTheDocument();
+      });
+
+      it("never replaces what the person typed", async () => {
+        verificarCadastro.mockResolvedValue({ ...LIVRES, cnpjSituacao: "ativa", cidadeReceita: "SÃO PAULO", ufReceita: "SP" });
+        const user = userEvent.setup();
+        render(<CadastroPage />);
+
+        await ateAEmpresa(user);
+
+        expect(await screen.findByLabelText("Sistema de gestão")).toBeInTheDocument();
+        await user.click(screen.getByRole("button", { name: "Voltar" }));
+        expect(screen.getByLabelText("Cidade")).toHaveValue("Campinas");
+      });
+
+      it("asks for both when the check can't answer", async () => {
+        verificarCadastro.mockResolvedValue({ ok: false, erro: "indisponivel" });
+        const user = userEvent.setup();
+        render(<CadastroPage />);
+
+        await ateAEmpresaSemLocal(user);
+
+        expect(await screen.findByLabelText("Cidade")).toHaveAccessibleDescription("Informe a cidade.");
+        expect(screen.getByLabelText("Estado")).toHaveAccessibleDescription("Escolha o estado.");
+        expect(screen.getByLabelText("Cidade")).toHaveFocus();
+        expect(titulo()).toHaveTextContent("Vamos cadastrar a empresa.");
+      });
+
+      it("still asks for the city after the company-name suggestion, when it was erased", async () => {
+        verificarCadastro.mockResolvedValue({
+          ...LIVRES,
+          cnpjSituacao: "ativa",
+          razaoSocialReceita: "TELHA CERTA COMERCIO DE TELHAS LTDA",
+        });
+        const user = userEvent.setup();
+        render(<CadastroPage />);
+
+        await ateAEmpresa(user);
+        await screen.findByRole("button", { name: /Usar a razão social da Receita/ });
+        await user.clear(screen.getByLabelText("Cidade"));
+        await continuar(user);
+
+        expect(screen.getByLabelText("Cidade")).toHaveAccessibleDescription("Informe a cidade.");
+        expect(verificarCadastro).toHaveBeenCalledTimes(1);
+        expect(titulo()).toHaveTextContent("Vamos cadastrar a empresa.");
+      });
+
+      it("refuses a one-letter city before checking", async () => {
+        const user = userEvent.setup();
+        render(<CadastroPage />);
+        await preencher(user, ACESSO);
+        await continuar(user);
+        await preencher(user, { ...SO_A_EMPRESA, Cidade: "X" });
+        await continuar(user);
+
+        expect(screen.getByLabelText("Cidade")).toHaveAccessibleDescription("A cidade deve ter de 2 a 80 caracteres.");
+        expect(verificarCadastro).not.toHaveBeenCalled();
+      });
+
+      it("points out the state or the city the server refused, with the screen's own text", async () => {
+        cadastrar.mockResolvedValue({ ok: false, erro: "invalido", campos: ["uf"] });
+        const user = userEvent.setup();
+        render(<CadastroPage />);
+
+        await concluirCadastro(user);
+
+        const estado = await screen.findByLabelText("Estado");
+        expect(estado).toHaveAccessibleDescription("Escolha um estado da lista.");
+        await waitFor(() => expect(estado).toHaveFocus());
+
+        cadastrar.mockResolvedValue({ ok: false, erro: "invalido", campos: ["cidade"] });
+        await continuar(user);
+        await user.type(await screen.findByLabelText("Sistema de gestão"), "{selectall}Omie");
+        await user.click(screen.getByRole("button", { name: "Concluir cadastro" }));
+        const cidade = await screen.findByLabelText("Cidade");
+        await waitFor(() => expect(cidade).toHaveAccessibleDescription("A cidade deve ter de 2 a 80 caracteres."));
+        await waitFor(() => expect(cidade).toHaveFocus());
+      });
+    });
+
     it("moves on when the action itself fails", async () => {
       verificarCadastro.mockRejectedValue(new Error("Failed to fetch"));
       const user = userEvent.setup();
@@ -690,6 +811,8 @@ describe("CadastroPage", () => {
           nome: "Ana Souza",
           razaoSocial: "Telha Certa Ltda",
           cnpj: "12.345.678/0001-95",
+          cidade: "Campinas",
+          uf: "SP",
         }),
       );
       expect(cadastrar).not.toHaveBeenCalled();
