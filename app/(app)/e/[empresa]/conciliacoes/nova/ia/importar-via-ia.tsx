@@ -5,6 +5,7 @@ import { ArrowRight, Check, Copy, FileJson, ShieldCheck } from "lucide-react";
 import { useRoteador } from "@/lib/roteador";
 import { ARQUIVO_GRANDE_DEMAIS, TAMANHO_MAXIMO_UPLOAD_BYTES } from "@/lib/limite-de-upload";
 import { MensagemErro } from "../../../../../../(auth)/_compartilhado/mensagem-erro";
+import { formatarInteiro } from "../../../dashboard/resumo";
 import { Guia, type Passo } from "../guia";
 import { importarViaIa, type ErroDeCampo, type PromptDaIa } from "./acoes";
 
@@ -33,6 +34,8 @@ export function ImportarViaIa({ prompt }: { prompt: PromptDaIa }) {
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [erros, setErros] = useState<ErroDeCampo[]>([]);
+  // a lista para em 50: sem o total, quem corrige esses acha que acabou
+  const [totalErros, setTotalErros] = useState(0);
   // a falha de copiar é do prompt, não do arquivo: fica embaixo do botão "Copiar prompt"
   const [falhaAoCopiar, setFalhaAoCopiar] = useState(false);
   const trava = useRef(false);
@@ -69,6 +72,7 @@ export function ImportarViaIa({ prompt }: { prompt: PromptDaIa }) {
       if (!r.ok) {
         setErro(r.erro);
         setErros(r.erros);
+        setTotalErros(r.totalErros);
         return;
       }
       roteador.push(`/conciliacoes/nova/ia/${r.dados.importacaoId}`);
@@ -168,12 +172,15 @@ export function ImportarViaIa({ prompt }: { prompt: PromptDaIa }) {
         {comErros && (
           <section className="ia-erros" aria-labelledby="ia-erros" role="alert">
             <div className="ia-erros-topo">
-              <span className="selo selo-risco">{`${erros.length} ${erros.length === 1 ? "erro" : "erros"}`}</span>
+              <span className="selo selo-risco">{`${formatarInteiro(totalErros)} ${totalErros === 1 ? "erro" : "erros"}`}</span>
               <h2 id="ia-erros" className="font-titulo">
                 {erro}
               </h2>
             </div>
             <p>Corrija os pontos abaixo no arquivo, ou peça à IA para refazer a resposta, e envie de novo.</p>
+            {totalErros > erros.length && (
+              <p>{`Aparecem os ${formatarInteiro(erros.length)} primeiros de ${formatarInteiro(totalErros)}. Ao enviar de novo, os que restarem aparecem aqui.`}</p>
+            )}
             <div className="ia-rolavel">
               <table className="table" aria-label="Erros do arquivo">
                 <thead>

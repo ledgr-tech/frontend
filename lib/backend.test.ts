@@ -336,6 +336,15 @@ describe("a conta inativa (backend #156)", () => {
     vi.unstubAllGlobals();
   });
 
+  it("um 422 com a lista de erros traz o total, que passa do tamanho da lista", async () => {
+    const erros = [{ caminho: "lancamentos[0].valor", lancamento: 1, mensagem: "O valor precisa ser um número." }];
+    fetch.mockResolvedValue(Response.json({ detail: "x", erros, total_erros: 200 }, { status: 422 }));
+
+    const erro = await chamarBackend("/importacoes-ia", { method: "POST", corpo: {} }).catch((e: unknown) => e);
+
+    expect(erro).toMatchObject({ status: 422, erros, totalErros: 200 });
+  });
+
   it("o 403 dela traz o código, e o aviso vai para o cookie que a barra de cima lê", async () => {
     fetch.mockResolvedValue(Response.json({ detail: INATIVA, codigo: "conta_inativa" }, { status: 403 }));
 
