@@ -12,6 +12,9 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const PORTA = Number(process.env.PORT ?? 8000);
+// as flags do backend de verdade, ligadas por padrão; =0 deixa como em produção (as capturas da Central)
+const APROVACAO = process.env.APROVACAO_JUSTIFICATIVAS_HABILITADA !== "0";
+const MCP = process.env.MCP_HABILITADO !== "0";
 const PASTA_EXEMPLOS = join(import.meta.dirname, "..", "exemplos-extratos");
 const TOLERANCIA_MAXIMA = 5;
 
@@ -437,7 +440,10 @@ function decidir(b, eu, bancoId, chave, tipo, texto, em = agora()) {
     registro.decisao = { tipo, texto: null, autor: eu.nome, em, rodada };
   } else if (tipo === "justificada") {
     if (!texto_) return { status: 422, corpo: { detail: "Escreva a justificativa." } };
-    registro.decisao = gestao
+    // sem a aprovação (produção), a justificativa nasce valendo, sem situação: como antes do backend #132
+    registro.decisao = !APROVACAO
+      ? { tipo, texto: texto_, autor: eu.nome, em, rodada }
+      : gestao
       ? { tipo, texto: texto_, autor: eu.nome, em, rodada, situacao: "aprovada", aprovada_por: eu.nome, aprovada_em: em }
       : { tipo, texto: texto_, autor: eu.nome, em, rodada, situacao: "pendente" };
   } else if (tipo === "conferencia_desfeita" || tipo === "justificativa_desfeita") {
@@ -814,6 +820,8 @@ const servidor = createServer(async (req, res) => {
     return semCorpo();
   }
 
+  // com MCP_HABILITADO desligado, o backend responde 404 em todas as rotas de conexão
+  if (!MCP && caminho.startsWith("/conexoes-mcp")) return json(res, 404, { detail: "Not Found" });
   const pedido = caminho.match(/^\/conexoes-mcp\/pedidos\/([^/]+)(\/aprovar|\/recusar)?$/);
   if (pedido) {
     const p = pedidosMcp.get(pedido[1]);
