@@ -59,6 +59,13 @@ describe("aprovadaDepois e podeDesfazerAprovacao (backend #164)", () => {
     expect(podeDesfazerAprovacao(nascidaAprovada, "Bia")).toBe(false);
   });
 
+  it("com a resposta do backend (#174), ela decide: o mesmo nome não basta, e o admin desfaz nas exceções", () => {
+    // a Bia com o mesmo nome de quem aprovou: o backend sabe que não foi ela
+    expect(podeDesfazerAprovacao({ ...aprovadaPorGil, podeDesfazerAprovacao: false }, "Gil Gestor")).toBe(false);
+    // o admin, com o Gil fora da conta: o nome não bate, mas o backend deixa
+    expect(podeDesfazerAprovacao({ ...aprovadaPorGil, podeDesfazerAprovacao: true }, "Ana Admin")).toBe(true);
+  });
+
   it("a pendente, a sem quem aprovou e a conferida não têm aprovação a desfazer", () => {
     expect(podeDesfazerAprovacao({ ...aprovadaPorGil, situacao: "pendente" }, "Gil Gestor")).toBe(false);
     expect(aprovadaDepois(JUSTIFICADA)).toBe(false);
