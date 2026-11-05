@@ -488,8 +488,9 @@ export function FormularioCadastro({ google }: PropsCadastro) {
           })}
         </div>
 
-        {/* role="status": o leitor de tela anuncia sem tirar o foco da cidade, que a pessoa vai conferir */}
-        <p role="status" className="campo-requisito" style={{ display: avisoReceita ? "block" : "none" }}>
+        {/* role="status": o leitor de tela anuncia sem tirar o foco da cidade, que a pessoa vai conferir.
+            Vazia, a região fica no sr-only, e não fora da árvore: a que acaba de aparecer não é anunciada */}
+        <p role="status" className={avisoReceita ? "campo-requisito" : "sr-only"} style={avisoReceita ? { display: "block" } : undefined}>
           {avisoReceita}
         </p>
 

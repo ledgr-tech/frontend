@@ -673,6 +673,15 @@ describe("CadastroPage", () => {
         expect(screen.getByLabelText("Cidade")).toHaveAttribute("autocomplete", "address-level2");
       });
 
+      // a região de aviso já existe antes do texto: leitor de tela não anuncia a que acaba de aparecer
+      it("keeps the notice region in the accessibility tree before it has anything to say", async () => {
+        const user = userEvent.setup();
+        render(<CadastroPage />);
+        await preencher(user, ACESSO);
+        await continuar(user);
+        expect(screen.getByRole("status")).toBeEmptyDOMElement();
+      });
+
       it("fills both from the CNPJ and stops once to let the person check them", async () => {
         verificarCadastro.mockResolvedValue({ ...LIVRES, cnpjSituacao: "ativa", cidadeReceita: "SÃO PAULO", ufReceita: "SP" });
         const user = userEvent.setup();
