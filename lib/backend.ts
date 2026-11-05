@@ -85,6 +85,14 @@ async function lembrarContaInativa(inativa: boolean): Promise<void> {
   }
 }
 
+/**
+ * O cookie é do navegador, não da conta: quem entra ou sai começa sem o aviso (o `events` do `auth.ts`),
+ * ou a recusa de um convite, ou a conta de quem usou o navegador antes, apareceria em outra conta.
+ */
+export async function esquecerContaInativa(): Promise<void> {
+  await lembrarContaInativa(false);
+}
+
 /** Para o layout: houve uma escrita recusada por conta inativa há pouco. */
 export async function contaRecusouPorInativa(): Promise<boolean> {
   return (await cookies()).has(COOKIE_CONTA_INATIVA);

@@ -2,7 +2,7 @@
 //
 // node, e não jsdom: o `emailDaSessao` confere o token com o jose, que no jsdom recusa a chave (ver lib/token.test.ts).
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { baixarDoBackend, chamarBackend, contaRecusouPorInativa, ehContaInativa, emailDaSessao, ErroBackend } from "./backend";
+import { baixarDoBackend, chamarBackend, contaRecusouPorInativa, ehContaInativa, esquecerContaInativa, emailDaSessao, ErroBackend } from "./backend";
 import { assinarToken } from "./token";
 
 // o cookie da sessão é o JWT; aqui ele é só uma string conhecida
@@ -373,6 +373,12 @@ describe("a conta inativa (backend #156)", () => {
     await expect(chamarBackend("/convites/aceitar", { method: "POST", corpo: {}, publica: true })).rejects.toMatchObject({
       codigo: "conta_inativa",
     });
+  });
+
+  it("entrar ou sair esquece o aviso: ele é do navegador, não da conta", async () => {
+    aviso.presente = true;
+    await esquecerContaInativa();
+    expect(aviso.delete).toHaveBeenCalledWith("ledgr-conta-inativa");
   });
 
   it("o layout lê o aviso do cookie", async () => {
