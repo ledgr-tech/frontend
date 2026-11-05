@@ -36,3 +36,10 @@ describe("adaptarRelatorioPublico", () => {
     expect(r.pares[0].justificadas?.[0]).toMatchObject({ data: "04/09/2026", valorBanco: -9.9, valorSistema: null, decididoPor: "Ana" });
   });
 });
+
+describe("os lotes conciliados por soma no relatório público (backend #131)", () => {
+  it("vêm do resumo, 0 no fechamento de antes", () => {
+    expect(adaptarRelatorioPublico({ ...base, resumo: { ...base.resumo, agrupamentos: 2 } }).agrupamentos).toBe(2);
+    expect(adaptarRelatorioPublico(base).agrupamentos).toBe(0);
+  });
+});

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Execucao } from "@/lib/adaptadores";
+import { adaptarExecucao, type Execucao } from "@/lib/adaptadores";
 import {
   alturasNoGrafico,
   matchNaTela,
@@ -10,6 +10,7 @@ import {
   segmentos,
   serieMensal,
   taxaDeMatch,
+  conciliados,
 } from "./execucoes";
 import { formatarPercentual } from "../dashboard/resumo";
 
@@ -268,5 +269,27 @@ describe("segmentos", () => {
       ["Data diverge, Falta", 4],
       ["Tarifa", 2],
     ]);
+  });
+});
+
+describe("conciliados com o agrupamento (backend #131)", () => {
+  // fixa a regra de hoje: o que não é divergência conta como conciliado, e as linhas agrupadas entram aí
+  it("conta as linhas agrupadas como conciliadas", () => {
+    const execucao = adaptarExecucao({
+      id: "x",
+      extrato_banco_id: "b",
+      extrato_sistema_id: "s",
+      nome_arquivo_banco: "b.ofx",
+      nome_arquivo_sistema: "s.csv",
+      executada_em: "2026-09-24T17:02:11Z",
+      tolerancia_dias: 0,
+      contagens: {
+        total: 13, match_exato: 0, match_tolerancia: 0, match_agrupado: 11, agrupamentos: 1, duplicado: 0,
+        sem_correspondencia: 2, tarifa_bancaria: 0, divergente_valor: 0, divergente_data: 0,
+      },
+      percentual_acerto: "84.62",
+      atual: true,
+    });
+    expect(conciliados(execucao)).toBe(11);
   });
 });

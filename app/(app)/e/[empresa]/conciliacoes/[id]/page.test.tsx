@@ -1798,4 +1798,32 @@ describe("ConciliacaoPage", () => {
     expect(screen.getAllByText("Lançamento 29").length).toBeGreaterThan(0);
     expect(screen.queryByRole("button", { name: "Próxima" })).not.toBeInTheDocument();
   });
+
+  // backend #131: o lote pago de uma vez fica junto, sob o resumo, sem caixa de conferir
+  it("keeps a lot conciliated by sum together under its summary, with nothing to check", async () => {
+    const lote = { quantidadeBanco: 1, quantidadeSistema: 2, valorUnico: -9000, maiorDesvioDias: 0 };
+    buscarConciliacao.mockReturnValue({
+      ...conciliacaoEmAndamento,
+      linhas: [
+        { id: "m-1", descricao: "Fornecedor A", data: "10/09", valorBanco: null, valorSistema: -4000, status: "match_agrupado", grupoId: "g1", grupo: lote, decisao: null, explicacao: null, historico: [] },
+        { ...conciliacaoEmAndamento.linhas[0], decisao: null },
+        { id: "m-0", descricao: "Pagamento lote", data: "10/09", valorBanco: -9000, valorSistema: null, status: "match_agrupado", grupoId: "g1", grupo: lote, decisao: null, explicacao: null, historico: [] },
+        { id: "m-2", descricao: "Fornecedor B", data: "10/09", valorBanco: null, valorSistema: -5000, status: "match_agrupado", grupoId: "g1", grupo: lote, decisao: null, explicacao: null, historico: [] },
+      ],
+    });
+    render(<ConciliacaoPage />);
+
+    const resumo = await screen.findByText(/1 lançamento do banco de R\$\s9\.000,00 = 2 do sistema/);
+    const cabecalho = resumo.closest("tr")!;
+    const linhas = screen.getAllByRole("row");
+    const inicio = linhas.indexOf(cabecalho);
+    const membros = linhas.slice(inicio + 1, inicio + 4);
+    // a ponta única primeiro, e os três seguidos, mesmo com a ordem por data misturando
+    expect(within(membros[0]).getByRole("button", { name: "Pagamento lote" })).toBeInTheDocument();
+    for (const membro of membros) {
+      expect(membro).toHaveAttribute("aria-describedby", cabecalho.id);
+      expect(within(membro).queryByRole("checkbox")).not.toBeInTheDocument();
+    }
+    expect(screen.getAllByText(/1 lançamento do banco de/)).toHaveLength(1);
+  });
 });

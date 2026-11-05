@@ -24,6 +24,7 @@ import { ExplicacaoDaDivergencia } from "./explicacao";
 import { historicoDaLinha, rotuloComDecisao, situacaoDaLinha } from "../situacao";
 import { aguardaAprovacao, estaJustificada } from "@/lib/aprovacao";
 import { parDoOutroLado } from "../par";
+import { cabecalhoDoGrupo } from "../grupos";
 import { Cabecalho } from "../../../cabecalho";
 import { InkHover, Reveal } from "@/app/reveal";
 import { SeloIa } from "../../../selo-ia";
@@ -247,9 +248,12 @@ export function DetalheDivergencia({ painel = false }: { painel?: boolean }) {
             <div className="det-delta-valor" data-resolvida={estaResolvida(linha.status) || undefined}>
               {/* o Δ do design vai sem símbolo de moeda; formatar o número direto evita
                   depender do espaço não-quebrável que o formato de moeda insere */}
-              {delta === null
-                ? "sem par"
-                : `Δ ${delta.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+              {/* o lote conciliado por soma (backend #131) tem uma ponta só, e está resolvido: o centro diz o lote */}
+              {linha.grupo
+                ? cabecalhoDoGrupo(linha.grupo)
+                : delta === null
+                  ? "sem par"
+                  : `Δ ${delta.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
             </div>
             <div className="det-delta-linha" />
           </div>

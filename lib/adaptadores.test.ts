@@ -416,6 +416,7 @@ describe("adaptarExecucao", () => {
       // o backend que ainda não guarda decisões não manda a contagem: nenhuma justificada
       justificadas: 0,
       aguardandoAprovacao: 0,
+      agrupamentos: 0,
       periodoInicio: "2026-09-01",
     });
   });
@@ -592,5 +593,73 @@ describe("equipe e convites", () => {
     const base = { id: "u1", nome: "Ana", email: "ana@x.com", criado_em: "2026-10-01T00:00:00Z" };
     expect(adaptarPessoa({ ...base, administrador: true }).papel).toBe("admin");
     expect(adaptarPessoa({ ...base, administrador: false }).papel).toBe("analista");
+  });
+});
+
+// backend #131: o lote pago de uma vez (um lançamento de um lado = a soma de vários do outro)
+describe("o agrupamento por soma (backend #131)", () => {
+  const LOTE = { quantidade_banco: 1, quantidade_sistema: 10, valor_unico: "-150000.00", maior_desvio_dias: 0 };
+  const DO_BANCO = { id: "lb-9", data: "2026-09-10", valor: "-150000.00", descricao: "Pagamento lote", tipo: "debito" };
+  const DO_SISTEMA = { id: "ls-9", data: "2026-09-10", valor: "-5000.00", descricao: "Fornecedor A", tipo: "debito" };
+
+  function agrupado(parcial: Partial<ItemConciliacaoAPI>): ItemConciliacaoAPI {
+    return item({ status: "match_agrupado", regra_aplicada: "agrupamento", score_confianca: "0.900", grupo_id: "g1", grupo: LOTE, ...parcial });
+  }
+
+  it("lê o grupo da linha, com o valor único em número", () => {
+    const linha = adaptarLinha(agrupado({ lancamento_banco: DO_BANCO, lancamento_sistema: null }));
+    expect(linha.status).toBe("match_agrupado");
+    expect(linha.grupoId).toBe("g1");
+    expect(linha.grupo).toEqual({ quantidadeBanco: 1, quantidadeSistema: 10, valorUnico: -150000, maiorDesvioDias: 0 });
+  });
+
+  it("explica a ponta única como o total, e a outra como parte dele", () => {
+    expect(adaptarLinha(agrupado({ lancamento_banco: DO_BANCO, lancamento_sistema: null })).explicacao).toBe(
+      "Conciliado por soma: este lançamento do banco é o total de 10 lançamentos do sistema.",
+    );
+    expect(adaptarLinha(agrupado({ lancamento_banco: null, lancamento_sistema: DO_SISTEMA })).explicacao).toBe(
+      "Conciliado por soma: este lançamento do sistema entra num total de R$ 150.000,00 do banco, junto com outros 9.",
+    );
+  });
+
+  it("conta os dias de diferença quando há", () => {
+    const linha = adaptarLinha(
+      agrupado({ lancamento_banco: DO_BANCO, lancamento_sistema: null, grupo: { ...LOTE, maior_desvio_dias: 2 } }),
+    );
+    expect(linha.explicacao).toBe(
+      "Conciliado por soma: este lançamento do banco é o total de 10 lançamentos do sistema. Datas até 2 dias distantes, dentro da tolerância.",
+    );
+  });
+
+  it("a linha sem grupo não ganha grupoId nem grupo", () => {
+    const linha = adaptarLinha(item({ grupo_id: null, grupo: null }));
+    expect("grupoId" in linha).toBe(false);
+    expect("grupo" in linha).toBe(false);
+  });
+
+  it("as contagens da execução trazem os agrupamentos, 0 nas execuções de antes", () => {
+    const comLote = adaptarExecucao(
+      execucao({
+        contagens: {
+          total: 13, match_exato: 0, match_tolerancia: 0, match_agrupado: 11, agrupamentos: 1, duplicado: 0,
+          sem_correspondencia: 2, tarifa_bancaria: 0, divergente_valor: 0, divergente_data: 0,
+        },
+      }),
+    );
+    expect(comLote.agrupamentos).toBe(1);
+    expect(adaptarExecucao(execucao()).agrupamentos).toBe(0);
+  });
+
+  it("o fechamento gravado antes da #131 lê 0 nas duas chaves", () => {
+    const resumo = adaptarResumoDoFechamento({
+      pares: [],
+      contagens: { total: 6, match_exato: 5, match_tolerancia: 1, duplicado: 0, sem_correspondencia: 0, tarifa_bancaria: 0, divergente_valor: 0, divergente_data: 0 },
+      justificadas: 0,
+      pendentes: 0,
+      linhas_nao_lidas: 0,
+      valor_em_aberto: "0",
+    });
+    expect(resumo.contagens.match_agrupado).toBe(0);
+    expect(resumo.agrupamentos).toBe(0);
   });
 });
