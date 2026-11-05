@@ -105,7 +105,7 @@ export async function importarViaIa(
     return {
       ...traduzir(erro),
       erros: erro instanceof ErroBackend ? erro.erros : [],
-      totalErros: erro instanceof ErroBackend ? Math.max(erro.erros.length, 0) : 0,
+      totalErros: erro instanceof ErroBackend ? (erro.totalErros ?? erro.erros.length) : 0,
     };
   }
 }
