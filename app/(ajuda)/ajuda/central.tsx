@@ -98,13 +98,6 @@ export function CentralDeAjuda({ id }: { id: string }) {
         <div className="ajd-video">
           {pagina.demonstracao ? (
             <Demonstracao src={pagina.demonstracao} titulo={pagina.titulo} capa={pagina.capa} />
-          ) : pagina.video ? (
-            <video
-              src={pagina.video}
-              poster={pagina.capa.src}
-              controls
-              preload="metadata"
-            />
           ) : (
             <button
               type="button"

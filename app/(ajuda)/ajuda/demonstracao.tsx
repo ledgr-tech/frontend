@@ -30,10 +30,10 @@ export type PassoDaDemonstracao = {
   n?: string;
   texto?: string;
   detalhe?: string;
-  /** o data-passo do que a legenda destaca */
-  foco?: number;
-  /** o data-passo onde o cursor clica */
-  cursor?: number;
+  /** o data-passo do que a legenda destaca, ou "menu:<nome>" para um item do menu lateral */
+  foco?: number | string;
+  /** o data-passo onde o cursor clica, ou "menu:<nome>" */
+  cursor?: number | string;
   clique?: number;
 };
 
@@ -41,11 +41,14 @@ export type DadosDaDemonstracao = {
   barra: string;
   conta: { nome?: string; empresa?: string; iniciais?: string };
   cenas: string[];
+  /** o que o app põe por cima da página em cada cena: as janelas abertas e o painel da linha */
+  camadas?: string[];
   passos: PassoDaDemonstracao[];
   fim: number;
 };
 
-type Caixa = { x: number; y: number; w: number; h: number };
+/** em px do app; na cena, y conta do topo dela (que rola), e fora dela, do topo do app */
+type Caixa = { x: number; y: number; w: number; h: number; naCena?: boolean };
 
 const entre = (v: number, min: number, max: number) => Math.min(Math.max(v, min), Math.max(min, max));
 
@@ -55,6 +58,7 @@ export function Demonstracao({ src, titulo, capa }: { src: string; titulo: strin
   const app = useRef<HTMLDivElement>(null);
   const visor = useRef<HTMLDivElement>(null);
   const cena = useRef<HTMLDivElement>(null);
+  const camada = useRef<HTMLDivElement>(null);
   const anel = useRef<HTMLDivElement>(null);
   const seta = useRef<SVGSVGElement>(null);
   const onda = useRef<SVGCircleElement>(null);
@@ -98,6 +102,9 @@ export function Demonstracao({ src, titulo, capa }: { src: string; titulo: strin
         e.style.transition = e.dataset.vista === undefined ? "none" : "";
         e.dataset.vista = "";
       }
+      // a rolagem de dentro das listas e janelas, como estava na captura
+      for (const raiz of [c, camada.current])
+        for (const e of raiz?.querySelectorAll<HTMLElement>("[data-rolagem]") ?? []) e.scrollTop = Number(e.dataset.rolagem);
       // medidas em px do app (1280 × 800), mesmo no meio de uma transição da câmera
       const ra = a.getBoundingClientRect();
       const k = ra.width / LARGURA || 1;
@@ -105,27 +112,33 @@ export function Demonstracao({ src, titulo, capa }: { src: string; titulo: strin
       const rv = v.getBoundingClientRect();
       const topoDoVisor = (rv.top - ra.top) / k;
       const alturaDoVisor = rv.height / k;
-      const caixa = (id?: number): Caixa | null => {
-        const e = id == null ? null : c.querySelector(`[data-passo="${id}"]`);
+      const caixa = (id?: number | string): Caixa | null => {
+        if (id == null) return null;
+        const e =
+          typeof id === "string"
+            ? [...a.querySelectorAll(".vitrine-menu .vitrine-item")].find((x) => id.slice(5).startsWith(x.textContent?.trim() || "\u0000"))
+            : a.querySelector(`[data-passo="${id}"]`);
         if (!e) return null;
         const r = e.getBoundingClientRect();
-        return { x: (r.left - ra.left) / k, y: (r.top - rc.top) / k, w: r.width / k, h: r.height / k };
+        const naCena = c.contains(e);
+        return { x: (r.left - ra.left) / k, y: (r.top - (naCena ? rc.top : ra.top)) / k, w: r.width / k, h: r.height / k, naCena };
       };
       const foco = caixa(passo.foco);
       const alvo = caixa(passo.cursor);
 
-      // a cena rola até o alvo, como a página rolava no vídeo
-      const guia = alvo ?? foco;
+      // a cena rola até o alvo, como a página rolava no vídeo (um alvo numa janela por cima não mexe nela)
+      const guia = [alvo, foco].find((b) => b?.naCena);
       if (guia) {
         const desejada = guia.h > alturaDoVisor * 0.85 ? guia.y - 16 : guia.y + guia.h / 2 - alturaDoVisor / 2;
         rolagem.current = entre(desejada, 0, rc.height / k - alturaDoVisor);
       } else if (i === 0) rolagem.current = 0;
       c.style.transform = `translateY(${-rolagem.current}px)`;
-      // a parte da caixa que fica à vista no visor, em px do app
+      // a parte da caixa que fica à vista, em px do app
       const naJanela = (b: Caixa): Caixa => {
+        if (!b.naCena) return b;
         const topo = Math.max(topoDoVisor + b.y - rolagem.current, topoDoVisor + 4);
         const base = Math.min(topoDoVisor + b.y - rolagem.current + b.h, topoDoVisor + alturaDoVisor - 4);
-        return { x: b.x, y: topo, w: b.w, h: Math.max(0, base - topo) };
+        return { x: b.x, y: topo, w: b.w, h: Math.max(0, base - topo), naCena: true };
       };
 
       const f = foco && naJanela(foco);
@@ -181,7 +194,12 @@ export function Demonstracao({ src, titulo, capa }: { src: string; titulo: strin
 
   // anterior e próximo andam de legenda em legenda, não de clique em clique
   const marcos = useMemo(
-    () => dados?.passos.flatMap((p, j) => (j === 0 || p.texto !== dados.passos[j - 1].texto ? [j] : [])) ?? [],
+    // cada legenda nova é um passo, mesmo quando só o detalhe muda (o Detalhe da linha faz isso no 3)
+    () =>
+      dados?.passos.flatMap((p, j) => {
+        const antes = dados.passos[j - 1];
+        return !antes || p.texto !== antes.texto || p.detalhe !== antes.detalhe ? [j] : [];
+      }) ?? [],
     [dados],
   );
   const marco = Math.max(0, marcos.findLastIndex((j) => j <= i));
@@ -213,6 +231,9 @@ export function Demonstracao({ src, titulo, capa }: { src: string; titulo: strin
                   <div key={passo.cena} ref={cena} className="mockup-cena" dangerouslySetInnerHTML={{ __html: dados.cenas[passo.cena] }} />
                 </div>
               </div>
+              {dados.camadas?.[passo.cena] ? (
+                <div key={passo.cena} ref={camada} className="ajd-demo-camada" dangerouslySetInnerHTML={{ __html: dados.camadas[passo.cena] }} />
+              ) : null}
               <div className="ajd-demo-anel" ref={anel} />
               <svg className="mockup-cursor" ref={seta} width="22" height="26" viewBox="0 0 22 26" aria-hidden="true">
                 <path d="M2 2 2 21l5.2-4.6 3.6 7.6 3.4-1.6-3.6-7.4H18z" fill="#fff" stroke="#201f1d" strokeWidth="1.6" strokeLinejoin="round" />

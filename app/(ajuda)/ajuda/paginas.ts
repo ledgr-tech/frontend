@@ -32,9 +32,7 @@ export type PaginaDeAjuda = {
   /** A tela inteira: capa do vídeo e referência da tela. */
   capa: ImagemDaAjuda;
   funcoes: FuncaoDaAjuda[];
-  /** shortcut: o vídeo entra quando houver gravação, um arquivo em public/ajuda/; sem ele, a capa diz "em breve". */
-  video?: string;
-  /** A tela tocando em HTML (demonstracao.tsx), no lugar do vídeo: o arquivo de public/ajuda/ que `gravar.mjs --html` gera. */
+  /** A tela tocando em HTML (demonstracao.tsx): o arquivo de public/ajuda/ que `gravar.mjs --html` gera; sem ele, a capa diz "em breve". */
   demonstracao?: string;
 };
 
@@ -50,7 +48,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
       largura: 1360,
       altura: 850,
     },
-    video: "/ajuda/visao-geral.webm",
+    demonstracao: "/ajuda/visao-geral.json",
     funcoes: [
       {
         id: "primeiros-passos",
@@ -106,7 +104,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
       largura: 1360,
       altura: 850,
     },
-    video: "/ajuda/extratos.webm",
+    demonstracao: "/ajuda/extratos.json",
     funcoes: [
       {
         id: "arquivos",
@@ -166,7 +164,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
       largura: 1360,
       altura: 850,
     },
-    video: "/ajuda/conciliacoes.webm",
+    demonstracao: "/ajuda/conciliacoes.json",
     funcoes: [
       {
         id: "filtros",
@@ -216,7 +214,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
       largura: 1360,
       altura: 850,
     },
-    video: "/ajuda/nova-conciliacao.webm",
+    demonstracao: "/ajuda/nova-conciliacao.json",
     funcoes: [
       {
         id: "enviar",
@@ -373,7 +371,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
       largura: 1360,
       altura: 850,
     },
-    video: "/ajuda/detalhe-da-linha.webm",
+    demonstracao: "/ajuda/detalhe-da-linha.json",
     funcoes: [
       {
         id: "lados",
@@ -429,7 +427,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
       largura: 1360,
       altura: 850,
     },
-    video: "/ajuda/fechamentos.webm",
+    demonstracao: "/ajuda/fechamentos.json",
     funcoes: [
       {
         id: "meses",
@@ -510,7 +508,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
       largura: 1360,
       altura: 850,
     },
-    video: "/ajuda/historico.webm",
+    demonstracao: "/ajuda/historico.json",
     funcoes: [
       {
         id: "grafico",
@@ -555,7 +553,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
       largura: 1360,
       altura: 850,
     },
-    video: "/ajuda/empresas.webm",
+    demonstracao: "/ajuda/empresas.json",
     funcoes: [
       {
         id: "lista",
@@ -632,7 +630,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
       largura: 1360,
       altura: 850,
     },
-    video: "/ajuda/configuracoes.webm",
+    demonstracao: "/ajuda/configuracoes.json",
     funcoes: [
       {
         id: "abrir",

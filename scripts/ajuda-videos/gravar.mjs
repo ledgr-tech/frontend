@@ -321,7 +321,9 @@ const ROTEIROS = {
       await pausa(800);
     },
     async cena(t, { page }) {
-      const linha = page.locator("main tbody tr").first();
+      // uma linha ainda sem decisão: a já conferida não oferece Justificar
+      const naoConferida = page.locator('button[aria-label*="como conferida"]:not([aria-pressed="true"]):not([aria-checked="true"])');
+      const linha = page.locator("main tbody tr").filter({ has: naoConferida }).first();
       await t.passo(linha, "", "Dê um duplo clique numa linha que diverge", "", 2600);
       await t.duplo(linha);
       const painel = page.locator("aside.painel-lateral");
@@ -329,18 +331,39 @@ const ROTEIROS = {
       await t.focar(null);
       await pausa(1600);
       await t.passo(painel, "1", "Banco de um lado, sistema do outro", "Data, descrição e valor de cada lado, com a diferença entre os dois.", 5000);
+      // sem clicar: com a IA desligada (produção hoje) o texto que volta é o do motor, e o
+      // backend-fake devolve outro, que ninguém vê de verdade
       const explicar = painel.getByRole("button", { name: /explicar esta divergência/i });
       if (await explicar.count()) {
-        await t.passo(explicar, "2", "O provável motivo", "O Ledgr explica por que a linha não casou. Confira no seu sistema antes de decidir.", 3000);
-        await t.clicar(explicar);
-        await pausa(3000);
-      }
-      const justificar = painel.getByRole("button", { name: /^justificar$/i });
-      if (await justificar.count()) {
-        await t.passo(justificar, "3", "Conferir ou justificar", "A decisão vai para o relatório do mês.", 4000);
+        await t.passo(explicar, "2", "O provável motivo", "Clique em **Explicar esta divergência** e confira no seu sistema antes de decidir.", 4200);
       }
       const inteira = painel.getByText(/^abrir em página inteira$/i);
-      if (await inteira.count()) await t.passo(inteira, "4", "Para ver maior, **Abrir em página inteira**", "Abaixo fica o histórico da linha: cada evento, quem fez e quando.", 3800);
+      if (await inteira.count()) await t.passo(inteira, "", "Para ver maior, **Abrir em página inteira**", "No fim do detalhe fica o **Histórico do lançamento**: cada evento, quem fez e quando.", 3800);
+
+      // conferir e justificar são da comparação: o círculo da linha e a janela que abre na descrição
+      const fechar = painel.getByRole("button", { name: "Fechar" });
+      await t.passo(fechar, "3", "Conferir ou justificar", "A decisão é tomada na comparação: feche o detalhe.", 2600);
+      await t.clicar(fechar);
+      await painel.waitFor({ state: "detached" });
+      await pausa(800);
+      const circulo = linha.locator('button[aria-label*="como conferida"]');
+      await t.passo(circulo, "3", "Conferir ou justificar", "Já olhou e vai corrigir no sistema? O círculo da linha a marca como **conferida**.", 4600);
+      const descricao = linha.locator("button.celula-abrir");
+      await t.passo(descricao, "3", "Conferir ou justificar", "Ou clique na descrição para abrir a janela da linha.", 3000);
+      await t.clicar(descricao);
+      const espia = page.locator("dialog.espia[open]");
+      await espia.waitFor();
+      await pausa(800);
+      const campo = espia.locator("textarea");
+      await t.passo(campo, "3", "Conferir ou justificar", "Escreva o motivo e clique em **Justificar**.", 2600);
+      await t.clicar(campo);
+      await page.keyboard.type("Tarifa cobrada no dia seguinte", { delay: 60 });
+      await pausa(800);
+      await t.clicar(espia.getByRole("button", { name: /^Justificar$/ }));
+      const desfazer = espia.getByRole("button", { name: /^Desfazer justificativa$/ });
+      await desfazer.waitFor();
+      await pausa(600);
+      await t.passo(desfazer, "3", "A decisão vai para o relatório do mês", "Para voltar atrás, **Desfazer justificativa**.", 4600);
     },
     fim: ["Detalhe da linha", "Decida cada divergência"],
   },
@@ -494,6 +517,8 @@ async function gravar(browser, estado, empresa, tela) {
     storageState: estado,
     deviceScaleFactor: HTML ? 1 : ESCALA,
     colorScheme: "light",
+    // em HTML, os números animados já no valor final e nenhuma transição no meio da captura
+    reducedMotion: HTML ? "reduce" : "no-preference",
   });
   // sem os tutoriais do mascote e sem o roteiro de primeiros passos por cima
   await ctx.addInitScript(() => localStorage.setItem("ledgr:preferencias", JSON.stringify({ tutoriaisDispensados: ["visao-geral","conciliacoes","nova-conciliacao","comparacao","divergencia","extratos","historico","fechamentos","configuracoes"], roteiroDispensado: true })));
@@ -540,6 +565,7 @@ async function gravar(browser, estado, empresa, tela) {
 // desde o começo; o player toca no mesmo ritmo. Um passo que não mudou a tela reaproveita a cena anterior.
 async function capturar(ctx, page, t, roteiro, tela) {
   const cenas = [];
+  const camadas = [];
   const passos = [];
   const t0 = Date.now();
   let semMarcas = null;
@@ -549,42 +575,83 @@ async function capturar(ctx, page, t, roteiro, tela) {
   const ler = () =>
     page
       .evaluate(() => {
-        // sem endereços do app nem o id do #conteudo (a Central tem o seu)
+        const conteudo = document.querySelector("#conteudo");
+        if (!conteudo) return null;
+        // o que fica por cima da página vai à parte: as janelas abertas e o que o app prende na tela (o painel da linha)
+        const fixos = [...conteudo.querySelectorAll("*")].filter(
+          (e) => getComputedStyle(e).position === "fixed" && e.getClientRects().length && !e.closest("dialog"),
+        );
+        const camadas = [...document.querySelectorAll("dialog[open]"), ...fixos.filter((e) => !fixos.some((f) => f !== e && f.contains(e)))];
+        for (const e of camadas) e.setAttribute("data-camada", "");
+        // a cópia estática: o que foi digitado vira atributo, a rolagem de dentro vai em data-rolagem, a janela fica no
+        // lugar e no tamanho em que estava na tela de 1280 × 800, e sem endereços do app nem o id do #conteudo
         const limpar = (e) => {
           if (!e) return "";
+          const originais = [e, ...e.querySelectorAll("*")];
           const copia = e.cloneNode(true);
-          copia.removeAttribute("id");
-          copia.removeAttribute("tabindex");
+          const copias = [copia, ...copia.querySelectorAll("*")];
+          originais.forEach((o, i) => {
+            const c = copias[i];
+            if (o.scrollTop > 0) c.setAttribute("data-rolagem", String(Math.round(o.scrollTop)));
+            if (o instanceof HTMLInputElement) {
+              if (o.type === "checkbox" || o.type === "radio") c.toggleAttribute("checked", o.checked);
+              else if (o.type !== "file") c.setAttribute("value", o.value);
+            } else if (o instanceof HTMLTextAreaElement) c.textContent = o.value;
+            else if (o instanceof HTMLSelectElement) [...c.options].forEach((op, j) => op.toggleAttribute("selected", j === o.selectedIndex));
+            else if (o instanceof HTMLDialogElement) {
+              const r = o.getBoundingClientRect();
+              c.setAttribute("style", `position:absolute;inset:auto;left:${r.left}px;top:${r.top}px;width:${r.width}px;height:${r.height}px;margin:0;max-width:none;max-height:none`);
+              if (o.matches(":modal")) c.setAttribute("data-modal", "");
+            }
+          });
+          for (const x of copia.querySelectorAll("[data-camada]")) x.remove();
           for (const a of copia.querySelectorAll("[href]")) a.removeAttribute("href");
+          for (const nome of ["id", "tabindex", "data-camada"]) copia.removeAttribute(nome);
           return copia.outerHTML;
         };
-        const conteudo = document.querySelector("#conteudo");
         const texto = (seletor) => document.querySelector(seletor)?.textContent.trim();
-        return conteudo && {
+        const lido = {
           html: limpar(conteudo),
+          camada: camadas.map(limpar).join(""),
           menu: texto('.app-aside a[aria-current="page"]'),
           barra: limpar(document.querySelector(".app-topo")),
           conta: { nome: texto(".app-conta-nome"), empresa: texto(".app-conta-empresa"), iniciais: texto(".app-conta-iniciais") },
         };
+        for (const e of camadas) e.removeAttribute("data-camada");
+        return lido;
       })
       .catch(() => null); // no meio de uma navegação
+  // um alvo no menu lateral vai pelo nome do item ("menu:<nome>"): o menu do player é o da vitrine, não uma cópia
   const marcar = async (loc) => {
     const id = marcas++;
-    await loc.evaluate((e, id) => e.setAttribute("data-passo", id), String(id));
-    return id;
+    const noMenu = await loc.evaluate((e, id) => {
+      // a janela de Configurações mora dentro do menu lateral: o que está numa janela é capturado com ela
+      if (e.closest(".app-aside") && !e.closest("dialog")) return e.textContent.trim();
+      e.setAttribute("data-passo", id);
+      return null;
+    }, String(id));
+    return noMenu ? `menu:${noMenu}` : id;
   };
   let primeira = null;
   const guardar = async (extra = {}) => {
+    // o mouse sai de cima da página: um cartão de hover aberto pelo caminho não é parte da explicação
+    await page.mouse.move(1, 1);
     const lido = await ler();
     if (!lido) return;
     primeira ??= lido;
-    const { html, menu } = lido;
-    const tem = (m) => html.includes(`data-passo="${m}"`);
-    const limpo = html.replace(/ data-passo="\d+"/g, "");
+    const { html, camada, menu } = lido;
+    const tudo = html + camada;
+    const tem = (m) => typeof m === "string" || tudo.includes(`data-passo="${m}"`);
+    const limpo = tudo.replace(/ data-passo="\d+"/g, "");
     const ultima = cenas.length - 1;
     const usadas = passos.filter((p) => p.cena === ultima).flatMap((p) => [p.foco, p.cursor]).filter((m) => m != null);
-    if (limpo === semMarcas && usadas.every(tem)) cenas[ultima] = html;
-    else cenas.push(html);
+    if (limpo === semMarcas && usadas.every(tem)) {
+      cenas[ultima] = html;
+      camadas[ultima] = camada;
+    } else {
+      cenas.push(html);
+      camadas.push(camada);
+    }
     semMarcas = limpo;
     // o destaque de um passo anterior que sumiu da tela nova não vai junto
     passos.push({ t: Date.now() - t0, cena: cenas.length - 1, menu, ...fala, ...(foco != null && tem(foco) && { foco }), ...extra });
@@ -603,6 +670,12 @@ async function capturar(ctx, page, t, roteiro, tela) {
     await guardar();
     await pausa(ms);
   };
+  // o que foi digitado aparece na tela antes de o roteiro seguir (na busca de Configurações, ele limpa logo depois)
+  const digitar = page.keyboard.type.bind(page.keyboard);
+  page.keyboard.type = async (...args) => {
+    await digitar(...args);
+    await guardar();
+  };
   for (const [nome, cliques] of [["clicar", 1], ["duplo", 2]]) {
     const fazer = t[nome];
     t[nome] = async (loc) => {
@@ -616,7 +689,7 @@ async function capturar(ctx, page, t, roteiro, tela) {
   await roteiro.cena(t, { page });
   await ctx.close();
   const saida = path.join(PUBLICO, `${tela}.json`);
-  fs.writeFileSync(saida, JSON.stringify({ barra: primeira.barra, conta: primeira.conta, cenas, passos, fim: Date.now() - t0 }));
+  fs.writeFileSync(saida, JSON.stringify({ barra: primeira.barra, conta: primeira.conta, cenas, camadas, passos, fim: Date.now() - t0 }));
   return { saida, cenas: cenas.length, passos: passos.length, kb: Math.round(fs.statSync(saida).size / 1024) };
 }
 

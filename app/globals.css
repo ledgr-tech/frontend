@@ -5320,6 +5320,11 @@ html[data-tema="escuro"] .app-shell {
   --folha-banco: inherit; --folha-sistema: inherit; --superficie-elevada: inherit;
 }
 .ajd-demo-capa { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: top left; }
+/* o que o app põe por cima da página (as janelas, o painel da linha) cobre a réplica inteira: o transform faz o
+   position: fixed de dentro valer nela, e a janela já vem no lugar e no tamanho da captura, sobre o mesmo fundo
+   do dialog::backdrop do app */
+.ajd-demo-camada { position: absolute; inset: 0; z-index: 80; transform: translateZ(0); }
+.ajd-demo-camada:has(> dialog[data-modal]) { background: rgb(12 11 10 / 0.55); backdrop-filter: blur(3px); }
 .ajd-demo-anel {
   position: absolute; z-index: 85; border-radius: 12px; pointer-events: none; opacity: 0;
   box-shadow: 0 0 0 9999px rgb(20 18 16 / 0.42), 0 0 0 3px var(--color-accent);
