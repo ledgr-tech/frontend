@@ -66,6 +66,8 @@ export type Decisao = {
   /** Quem aprovou e quando (ISO 8601); só na aprovada. */
   aprovadaPor?: string;
   aprovadaEm?: string;
+  /** Do backend #174: se quem está logado pode desfazer a aprovação agora. Sem o campo, a tela decide pelo nome. */
+  podeDesfazerAprovacao?: boolean;
 };
 
 export type EventoDecisao = {

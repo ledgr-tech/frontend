@@ -43,6 +43,8 @@ const INVALIDO = "Este convite expirou ou já foi usado. Peça um novo a quem co
 const ERROS_DO_ACEITE: Record<Exclude<Extract<ResultadoAceite, { ok: false }>["erro"], "convite_invalido">, Erros> = {
   email_cadastrado: { geral: "Este e-mail já tem conta no Ledgr. Entre com ela.", jaTemConta: true },
   senha_invalida: { senha: `A senha precisa ter de ${SENHA_MINIMA} a 72 caracteres.` },
+  // a conta de quem convidou foi inativada pelo Ledgr (backend #156): o convite volta a valer na reativação
+  conta_inativa: { geral: "A conta que enviou este convite está inativa e não recebe pessoas novas agora. Fale com quem convidou." },
   muitas_tentativas: { geral: "Muitas tentativas seguidas. Espere um minuto e tente de novo." },
   falha: { geral: "Não foi possível agora. Tente de novo em instantes." },
 };
@@ -68,7 +70,7 @@ const estiloBotao: CSSProperties = { fontSize: 15.5, padding: "clamp(10px, 1.6vh
 /** O que a página diz na volta do Google com recusa, com o convite já na tela. */
 function errosDaVolta(erro: Exclude<ErroConviteGoogle, "convite_invalido">, convite: ConsultaConvite): Erros {
   if (erro === "email_diferente") return { geral: `Entre no Google com ${convite.email} para aceitar.` };
-  if (erro === "email_cadastrado") return ERROS_DO_ACEITE.email_cadastrado;
+  if (erro === "email_cadastrado" || erro === "conta_inativa") return ERROS_DO_ACEITE[erro];
   return { geral: MENSAGEM_GOOGLE[erro] };
 }
 

@@ -1645,6 +1645,12 @@ describe("fechar e reabrir o mês são do admin e do gestor; todos justificam (#
     chamarBackend.mockRejectedValue(new ErroBackend(403, "Forbidden"));
     expect(await fecharMes("2026-09")).toEqual({ ok: false, status: 403, erro: SO_O_GESTOR_FECHA });
   });
+
+  it("o da conta inativa (backend #156) chega com o texto do backend: não é falta de papel", async () => {
+    conta.papel = "admin";
+    chamarBackend.mockRejectedValue(new ErroBackend(403, "Esta conta está inativa.", [], {}, undefined, [], "conta_inativa"));
+    expect(await fecharMes("2026-09")).toEqual({ ok: false, status: 403, erro: "Esta conta está inativa." });
+  });
 });
 
 describe("aprovar e rejeitar justificativas (backend #132)", () => {

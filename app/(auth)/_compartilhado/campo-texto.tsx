@@ -99,3 +99,45 @@ export function CampoTexto({
     </div>
   );
 }
+
+type PropsCampoLista = Pick<PropsCampoTexto, "id" | "rotulo" | "valor" | "onValor" | "autoComplete" | "disabled" | "erro" | "tremor"> & {
+  opcoes: readonly string[];
+  ref?: Ref<HTMLSelectElement>;
+};
+
+/**
+ * O par do `CampoTexto` para uma lista fechada (o Estado do cadastro). O `select` nunca está em
+ * `:placeholder-shown`, então o CSS deixa o rótulo sempre na borda.
+ */
+export function CampoLista({ id, rotulo, valor, onValor, opcoes, autoComplete, disabled, erro, tremor, ref }: PropsCampoLista) {
+  const erroId = `${id}-erro`;
+  return (
+    <div className="field">
+      <div className="campo-flutuante" data-tremor={tremor}>
+        <select
+          ref={ref}
+          id={id}
+          className="input"
+          autoComplete={autoComplete}
+          aria-invalid={erro ? true : undefined}
+          aria-describedby={erro ? erroId : undefined}
+          disabled={disabled}
+          value={valor}
+          onChange={(evento) => onValor(evento.target.value)}
+          style={{ minHeight: 50, fontSize: 16, padding: "12px 18px" }}
+        >
+          <option value="" />
+          {opcoes.map((opcao) => (
+            <option key={opcao} value={opcao}>
+              {opcao}
+            </option>
+          ))}
+        </select>
+        <label htmlFor={id} className="campo-flutuante-rotulo">
+          {rotulo}
+        </label>
+      </div>
+      {erro && <MensagemErro id={erroId}>{erro}</MensagemErro>}
+    </div>
+  );
+}

@@ -22,7 +22,7 @@ import {
   type ListaExecucoesAPI,
   type ListaExtratosAPI,
 } from "@/lib/adaptadores";
-import { chamarBackend, emailDaSessao, ErroBackend } from "@/lib/backend";
+import { chamarBackend, ehContaInativa, emailDaSessao, ErroBackend } from "@/lib/backend";
 import { RECUSA_DEMONSTRACAO, ehContaDeDemonstracao } from "@/lib/demo";
 import { caminhoDaConciliacao } from "@/lib/caminhos";
 import { compararRodadas, execucoesVigentes, rodadasDoBanco, type Mudancas } from "@/lib/rodadas";
@@ -112,9 +112,11 @@ async function recusaSeNaoPodeFechar(erro: string): Promise<Falha | null> {
   return podeFecharMes(papel) ? null : { ok: false, status: 403, erro };
 }
 
-/** O 403 do backend para quem não pode fechar o mês chega com o mesmo texto da tela. */
+/** O 403 do backend para quem não pode fechar o mês chega com o mesmo texto da tela; o da conta inativa, com o dele. */
 function traduzirDoFechamento(erro: unknown, texto: string): Falha {
-  return erro instanceof ErroBackend && erro.status === 403 ? { ok: false, status: 403, erro: texto } : traduzir(erro);
+  return erro instanceof ErroBackend && erro.status === 403 && !ehContaInativa(erro)
+    ? { ok: false, status: 403, erro: texto }
+    : traduzir(erro);
 }
 
 /** O 404 de uma linha que a tela ainda mostra: o par foi conciliado de novo depois que ela abriu. */

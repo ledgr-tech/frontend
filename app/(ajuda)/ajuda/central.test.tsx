@@ -145,7 +145,7 @@ describe("o conteúdo da ajuda", () => {
     expect(passosDaEquipe).toMatch(/senha atual/);
     expect(passosDaEquipe).toMatch(/você vira \*\*Gestor\*\*/);
     expect(equipe.nota).toMatch(/Só o administrador troca papéis e passa a administração/);
-    expect(equipe.imagem?.src).toBe("/ajuda/empresas--equipe.webp");
+    expect(equipe.figura).toBeDefined();
 
     const configuracoes = PAGINAS.find((pagina) => pagina.id === "configuracoes")!;
     expect(configuracoes.funcoes.some((funcao) => funcao.id === "empresas" || funcao.id === "equipe")).toBe(false);
@@ -155,12 +155,8 @@ describe("o conteúdo da ajuda", () => {
     expect(existsSync(join("public", "ajuda", "configuracoes--equipe.webp"))).toBe(false);
   });
 
-  it("toda imagem existe em public/", () => {
-    for (const pagina of PAGINAS) {
-      for (const imagem of [pagina.capa, ...pagina.funcoes.map((f) => f.imagem)]) {
-        if (imagem) expect(existsSync(join("public", imagem.src)), imagem.src).toBe(true);
-      }
-    }
+  it("toda capa existe em public/", () => {
+    for (const pagina of PAGINAS) expect(existsSync(join("public", pagina.capa.src)), pagina.capa.src).toBe(true);
   });
 
   it("toda tela com tutorial tem a sua página", () => {

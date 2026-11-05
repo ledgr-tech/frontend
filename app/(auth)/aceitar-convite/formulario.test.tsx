@@ -147,6 +147,20 @@ describe("AceitarConvite", () => {
     expect(await screen.findByText(INVALIDO)).toBeInTheDocument();
   });
 
+  it("com a conta de quem convidou inativa (backend #156), diz isso nas duas portas do aceite", async () => {
+    const INATIVA = "A conta que enviou este convite está inativa e não recebe pessoas novas agora. Fale com quem convidou.";
+    aceitarConvite.mockResolvedValue({ ok: false, erro: "conta_inativa" });
+    const { unmount } = render(<AceitarConvite conectadoComo={null} google={SEM_GOOGLE} />);
+
+    await preencher("Ana", "senha-boa-1");
+    expect(await screen.findByText(INATIVA)).toBeInTheDocument();
+    unmount();
+
+    abrirLink("/aceitar-convite?google=conta_inativa");
+    render(<AceitarConvite conectadoComo={null} google={{ ligado: true, erro: "conta_inativa", convite: CONVITE }} />);
+    expect(await screen.findByText(INATIVA)).toBeInTheDocument();
+  });
+
   it("muitas tentativas pede para esperar", async () => {
     aceitarConvite.mockResolvedValue({ ok: false, erro: "muitas_tentativas" });
     render(<AceitarConvite conectadoComo={null} google={SEM_GOOGLE} />);

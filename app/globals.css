@@ -5310,6 +5310,40 @@ html[data-tema="escuro"] .app-shell {
 .ajd-capitulos { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 12px 0 0; padding: 0; list-style: none; font-size: 13.5px; color: var(--texto-apagado); }
 .ajd-capitulos li { display: flex; gap: 6px; }
 .ajd-capitulos span { font-weight: 600; font-variant-numeric: tabular-nums; color: var(--color-accent-700); }
+/* a tela tocando em HTML (demonstracao.tsx): a janela da vitrine com a réplica de 1280 × 800 encolhida por
+   transform, e a câmera chegando perto do que a legenda fala */
+.ajd-demo .mockup-quadro { aspect-ratio: 16 / 10; }
+.ajd-demo .mockup-app { height: 800px; transition: transform 0.9s cubic-bezier(0.22, 1, 0.36, 1); }
+/* as cores da réplica seguem o tema da Central (a vitrine da landing as prende no claro) */
+:is(.ajd-demo, .ajd-fig) .vitrine-app {
+  --tinta-hover: inherit; --tinta-ativa: inherit; --texto-apagado: inherit;
+  --folha-banco: inherit; --folha-sistema: inherit; --superficie-elevada: inherit;
+}
+.ajd-demo-capa { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: top left; }
+/* o que o app põe por cima da página (as janelas, o painel da linha) cobre a réplica inteira: o transform faz o
+   position: fixed de dentro valer nela, e a janela já vem no lugar e no tamanho da captura, sobre o mesmo fundo
+   do dialog::backdrop do app */
+.ajd-demo-camada { position: absolute; inset: 0; z-index: 80; transform: translateZ(0); }
+.ajd-demo-camada:has(> dialog[data-modal]) { background: rgb(12 11 10 / 0.55); backdrop-filter: blur(3px); }
+.ajd-demo-anel {
+  position: absolute; z-index: 85; border-radius: 12px; pointer-events: none; opacity: 0;
+  box-shadow: 0 0 0 9999px rgb(20 18 16 / 0.42), 0 0 0 3px var(--color-accent);
+  transition: left 0.6s ease, top 0.6s ease, width 0.6s ease, height 0.6s ease, opacity 0.3s;
+}
+.ajd-demo-rodape { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-top: 14px; }
+.ajd-demo-legenda { display: flex; gap: 12px; min-height: 3.3em; margin: 0; font-size: 15px; line-height: 1.5; }
+.ajd-demo-numero {
+  flex: none; display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%;
+  font-size: 13px; font-weight: 700; color: var(--color-bg); background: var(--color-accent-700);
+}
+.ajd-demo-legenda small { display: block; font-size: 14px; color: var(--texto-apagado); }
+.ajd-demo-controles {
+  flex: none; display: flex; align-items: center; gap: 2px;
+  font-size: 13px; color: var(--texto-apagado); font-variant-numeric: tabular-nums;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ajd-demo .mockup-app, .ajd-demo .mockup-cena, .ajd-demo-anel, .ajd-demo .mockup-cursor { transition: none; animation: none; }
+}
 
 .ajd-funcao { padding-top: 48px; scroll-margin-top: 88px; }
 [data-reveal] + [data-reveal] > .ajd-funcao { margin-top: 8px; border-top: 1px solid var(--color-divider); }
@@ -5322,7 +5356,13 @@ html[data-tema="escuro"] .app-shell {
   transition: translate 0.25s var(--ease-out), box-shadow 0.25s ease-out;
 }
 .ajd-figura:hover { translate: 0 -2px; box-shadow: var(--shadow-md); }
-.ajd-figura img { display: block; width: 100%; height: auto; }
+/* a figura da seção (FiguraDaTela): a réplica parada, recortada no que a seção fala; o clique é do botão em volta */
+.ajd-fig { position: relative; overflow: hidden; background: var(--color-bg); }
+.ajd-fig .mockup-app { pointer-events: none; }
+.ajd-fig .mockup-cena { animation: none; transition: none; }
+/* numa janela ou no painel por cima da página, só ela aparece: sem o fundo escuro e sem a tela atrás */
+.ajd-fig[data-na-camada] .ajd-demo-camada { background: none; backdrop-filter: none; }
+.ajd-fig[data-na-camada] :is(.mockup-principal, .vitrine-menu) { visibility: hidden; }
 .ajd-funcao .ajd-como { margin-top: 20px; font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--texto-apagado); }
 .ajd-passos { display: flex; flex-direction: column; gap: 12px; margin: 10px 0 0; padding: 0; list-style: none; counter-reset: passo; }
 .ajd-passos li { counter-increment: passo; display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 12px; }
@@ -5364,6 +5404,7 @@ html[data-tema="escuro"] .app-shell {
 .ajd-ampliada::backdrop { background: color-mix(in srgb, #000 60%, transparent); }
 .ajd-ampliada img { display: block; max-width: 100%; width: auto; height: auto; max-height: calc(94vh - 50px); border-radius: 12px; background: var(--color-bg); box-shadow: var(--shadow-lg); }
 .ajd-ampliada .btn { flex: none; background: var(--color-bg); }
+.ajd-ampliada-figura { max-width: 100%; overflow: hidden; border-radius: 12px; box-shadow: var(--shadow-lg); }
 
 @media (prefers-reduced-motion: no-preference) {
   /* a cada tela o artigo entra subindo de leve; o menu e "Nesta página" ficam parados */

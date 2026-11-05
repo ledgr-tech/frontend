@@ -1,7 +1,7 @@
 "use server";
 
 import { pareceUuid } from "@/lib/adaptadores";
-import { ErroBackend, chamarBackend, emailDaSessao } from "@/lib/backend";
+import { ErroBackend, chamarBackend, ehContaInativa, emailDaSessao } from "@/lib/backend";
 import { RECUSA_DEMONSTRACAO, ehContaDeDemonstracao } from "@/lib/demo";
 import { podeFecharMes } from "@/lib/papel";
 import { ehPedidoDeConexao } from "@/lib/rotas";
@@ -61,7 +61,7 @@ function traduzir(erro: unknown, aoPedir = false): Falha {
   if (!(erro instanceof ErroBackend)) return { ok: false, status: 0, erro: "Não foi possível falar com o servidor." };
   const { status } = erro;
   if (status === 401) return { ok: false, status, erro: "Sua sessão expirou. Entre de novo para continuar." };
-  if (status === 403) return { ok: false, status, erro: SO_ADMIN_OU_GESTOR_CONECTA };
+  if (status === 403 && !ehContaInativa(erro)) return { ok: false, status, erro: SO_ADMIN_OU_GESTOR_CONECTA };
   // no pedido, o 404 é o pedido vencido ou já usado; o da empresa (de outra conta) vira 422, para a tela
   // pedir outra empresa em vez de dar o pedido por perdido
   if (aoPedir && status === 404 && erro.detalhe === "Empresa não encontrada.") return { ok: false, status: 422, erro: erro.detalhe };

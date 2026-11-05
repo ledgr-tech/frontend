@@ -34,6 +34,9 @@ vi.mock("next/navigation", () => ({
 const contaDaSessao = vi.fn();
 vi.mock("../../../(auth)/acoes", () => ({ contaDaSessao: () => contaDaSessao() }));
 
+const recusouPorInativa = vi.fn();
+vi.mock("@/lib/backend", () => ({ contaRecusouPorInativa: () => recusouPorInativa() }));
+
 vi.mock("./shell", () => ({
   Shell: ({ email, children }: { email: string; children: React.ReactNode }) => (
     <div data-email={email}>{children}</div>
@@ -47,6 +50,15 @@ describe("AppLayout", () => {
     notFound.mockClear();
     contaDaSessao.mockReset();
     contaDaSessao.mockResolvedValue({ empresa: "", temSenha: true, empresas: [], preferencias: null, assinatura: null });
+    recusouPorInativa.mockResolvedValue(false);
+  });
+
+  it("depois de uma escrita recusada por conta inativa (backend #156), o shell avisa", async () => {
+    auth.mockResolvedValue({ user: { email: "financeiro@telhacerta.com.br" } });
+    expect(shell(await AppLayout({ children: "conteúdo", params })).contaInativa).toBe(false);
+
+    recusouPorInativa.mockResolvedValue(true);
+    expect(shell(await AppLayout({ children: "conteúdo", params })).contaInativa).toBe(true);
   });
 
   it("manda para o login quando não há sessão", async () => {

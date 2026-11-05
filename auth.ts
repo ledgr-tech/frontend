@@ -1,6 +1,7 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
+import { esquecerContaInativa } from "@/lib/backend";
 import { aoVoltarDoGoogle, autorizar, autorizarDepoisDoCadastroGoogle } from "@/lib/login";
 import { DURACAO_SESSAO_SEGUNDOS, assinarToken, lerToken } from "@/lib/token";
 
@@ -40,6 +41,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     // Login pelo Google (backend #73): só com AUTH_GOOGLE_ID e AUTH_GOOGLE_SECRET no servidor (ver lib/google.ts)
     ...(process.env.AUTH_GOOGLE_ID ? [Google] : []),
   ],
+  // o aviso de conta inativa é do navegador: não passa de uma sessão para outra
+  events: { signIn: esquecerContaInativa, signOut: esquecerContaInativa },
   callbacks: {
     signIn({ user, account }) {
       if (account?.provider !== "google") return true;

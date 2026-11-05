@@ -12,6 +12,9 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const PORTA = Number(process.env.PORT ?? 8000);
+// as flags do backend de verdade, ligadas por padrão; =0 deixa como em produção (as capturas da Central)
+const APROVACAO = process.env.APROVACAO_JUSTIFICATIVAS_HABILITADA !== "0";
+const MCP = process.env.MCP_HABILITADO !== "0";
 const PASTA_EXEMPLOS = join(import.meta.dirname, "..", "exemplos-extratos");
 const TOLERANCIA_MAXIMA = 5;
 
@@ -437,7 +440,10 @@ function decidir(b, eu, bancoId, chave, tipo, texto, em = agora()) {
     registro.decisao = { tipo, texto: null, autor: eu.nome, em, rodada };
   } else if (tipo === "justificada") {
     if (!texto_) return { status: 422, corpo: { detail: "Escreva a justificativa." } };
-    registro.decisao = gestao
+    // sem a aprovação (produção), a justificativa nasce valendo, sem situação: como antes do backend #132
+    registro.decisao = !APROVACAO
+      ? { tipo, texto: texto_, autor: eu.nome, em, rodada }
+      : gestao
       ? { tipo, texto: texto_, autor: eu.nome, em, rodada, situacao: "aprovada", aprovada_por: eu.nome, aprovada_em: em }
       : { tipo, texto: texto_, autor: eu.nome, em, rodada, situacao: "pendente" };
   } else if (tipo === "conferencia_desfeita" || tipo === "justificativa_desfeita") {
@@ -592,6 +598,23 @@ const servidor = createServer(async (req, res) => {
   const proibido = (detail = "Seu papel na conta não permite fazer isso.") => json(res, 403, { detail });
   const pedida = req.headers["x-ledgr-empresa"];
   if (pedida && !conta.empresas.includes(pedida)) return json(res, 403, { detail: "Esta empresa não é da sua conta." });
+  // a conta inativa do backend #156, para todas as contas com CONTA_INATIVA=1: escrita dá 403 com o código,
+  // menos as da própria pessoa, o checkout e as revogações (app/core/conta_inativa.py, LIBERADAS)
+  const liberadas = [
+    /^POST \/me\/(senha|email)$/,
+    /^PATCH \/me\/preferencias$/,
+    /^DELETE \/me$/,
+    /^(PUT|DELETE) \/empresas\/[^/]+\/favorita$/,
+    /^POST \/assinatura\/checkout$/,
+    /^DELETE \/(chaves-api|conexoes-mcp|empresa\/usuarios)\/[^/]+$/,
+    /^DELETE \/fechamentos\/[^/]+\/links\/[^/]+$/,
+  ];
+  if (process.env.CONTA_INATIVA === "1" && metodo !== "GET" && !liberadas.some((r) => r.test(`${metodo} ${caminho}`))) {
+    return json(res, 403, {
+      detail: "Esta conta está inativa. Você pode consultar e exportar os dados, mas não pode fazer alterações. Fale com o Ledgr para reativar.",
+      codigo: "conta_inativa",
+    });
+  }
   const b = empresas.get(pedida ?? conta.empresas[0]);
   const semCorpo = () => (res.writeHead(204), res.end());
 
@@ -797,6 +820,8 @@ const servidor = createServer(async (req, res) => {
     return semCorpo();
   }
 
+  // com MCP_HABILITADO desligado, o backend responde 404 em todas as rotas de conexão
+  if (!MCP && caminho.startsWith("/conexoes-mcp")) return json(res, 404, { detail: "Not Found" });
   const pedido = caminho.match(/^\/conexoes-mcp\/pedidos\/([^/]+)(\/aprovar|\/recusar)?$/);
   if (pedido) {
     const p = pedidosMcp.get(pedido[1]);

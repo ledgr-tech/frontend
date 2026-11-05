@@ -1,7 +1,7 @@
 "use server";
 
 import { pareceUuid } from "@/lib/adaptadores";
-import { ErroBackend, chamarBackend, emailDaSessao } from "@/lib/backend";
+import { ErroBackend, chamarBackend, ehContaInativa, emailDaSessao } from "@/lib/backend";
 import { RECUSA_DEMONSTRACAO, ehContaDeDemonstracao } from "@/lib/demo";
 import { podeFecharMes } from "@/lib/papel";
 import { contaDaSessao } from "../../../../(auth)/acoes";
@@ -56,7 +56,7 @@ function traduzir(erro: unknown): Falha {
   if (!(erro instanceof ErroBackend)) return { ok: false, status: 0, erro: "Não foi possível falar com o servidor." };
   const { status } = erro;
   if (status === 401) return { ok: false, status, erro: "Sua sessão expirou. Entre de novo para continuar." };
-  if (status === 403) return { ok: false, status, erro: SO_ADMIN_OU_GESTOR };
+  if (status === 403 && !ehContaInativa(erro)) return { ok: false, status, erro: SO_ADMIN_OU_GESTOR };
   if (status === 429) return { ok: false, status, erro: "Muitas tentativas seguidas. Espere um minuto e tente de novo." };
   // 404 (sem fechamento ativo, ou a flag desligada) e 409 (5 ativos) chegam com o texto do backend
   return { ok: false, status, erro: erro.detalhe };

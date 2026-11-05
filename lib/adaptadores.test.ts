@@ -195,6 +195,17 @@ describe("adaptarLinha", () => {
     });
   });
 
+  it("lê se quem está logado pode desfazer a aprovação (backend #174), e não inventa o campo quando ele não vem", () => {
+    const base = { tipo: "justificada" as const, texto: "Juros.", autor: "Bia", em: "2026-10-20T10:00:00Z", rodada: 1 };
+    const decisao = { ...base, situacao: "aprovada" as const, aprovada_por: "Gil", aprovada_em: "2026-10-21T09:00:00Z" };
+
+    const comCampo = adaptarLinha(item({ status: "divergente_valor", decisao: { ...decisao, pode_desfazer_aprovacao: false } }));
+    expect(comCampo.decisao).toMatchObject({ aprovadaPor: "Gil", podeDesfazerAprovacao: false });
+
+    const semCampo = adaptarLinha(item({ status: "divergente_valor", decisao }));
+    expect(semCampo.decisao && "podeDesfazerAprovacao" in semCampo.decisao).toBe(false);
+  });
+
   it("sem o campo, a linha não tem decisão (undefined, não null)", () => {
     const linha = adaptarLinha(item());
     expect(linha.decisao).toBeUndefined();

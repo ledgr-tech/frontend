@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { CredentialsSignin } from "next-auth";
 import { signIn, signOut } from "@/auth";
-import { ErroBackend, chamarBackend, emailDaSessao } from "@/lib/backend";
+import { ErroBackend, chamarBackend, ehContaInativa, emailDaSessao } from "@/lib/backend";
 import { RECUSA_DEMONSTRACAO, demoAberta, ehContaDeDemonstracao } from "@/lib/demo";
 import { COOKIE_CADASTRO_GOOGLE, COOKIE_CONVITE_GOOGLE, VALIDADE_ID_TOKEN_SEGUNDOS } from "@/lib/google";
 import { MuitasEntradas, type UsuarioAPI } from "@/lib/login";
@@ -14,6 +14,7 @@ import { destinoDepoisDoLogin } from "@/lib/rotas";
 import { ehTela, type Preferencias } from "@/lib/preferencias";
 import { adaptarAssinatura, type Assinatura, type PlanoId } from "@/lib/assinatura";
 import { adaptarLimites, type LimitesDaConta } from "@/lib/limites";
+import { ehUf } from "@/lib/uf";
 import { adaptarConsultaConvite, type ConsultaConvite, type ConsultaConviteAPI } from "@/lib/adaptadores";
 
 /**
@@ -108,6 +109,9 @@ export type DadosCadastro = {
   senha: string;
   razaoSocial: string;
   cnpj: string;
+  /** Da conta (backend #184): a cidade vai aparada, na caixa em que veio; a UF, em maiúscula. */
+  cidade: string;
+  uf: string;
 };
 
 export type CampoCadastroAPI = keyof DadosCadastro;
@@ -139,7 +143,14 @@ const CAMPO_DO_FORMULARIO: Record<string, CampoCadastroAPI> = {
   senha: "senha",
   razao_social: "razaoSocial",
   cnpj: "cnpj",
+  cidade: "cidade",
+  uf: "uf",
 };
+
+/** A cidade e a UF como o `/register` e o `/register/google` recebem (backend #184). */
+function localDaConta(dados: Pick<DadosCadastro, "cidade" | "uf">) {
+  return { cidade: dados.cidade.trim(), uf: dados.uf.trim().toUpperCase() };
+}
 
 /**
  * Os dois 422 do CNPJ na Receita (backend #119) chegam no mesmo formato da recusa de formato, com
@@ -167,6 +178,7 @@ export async function cadastrar(dados: DadosCadastro): Promise<ResultadoCadastro
         senha: dados.senha,
         razao_social: dados.razaoSocial,
         cnpj: dados.cnpj,
+        ...localDaConta(dados),
       },
       publica: true,
     });
@@ -212,7 +224,7 @@ const SITUACOES_CNPJ: readonly SituacaoCnpj[] = ["ativa", "inativa", "nao_encont
  * `id_token`.
  */
 export async function cadastrarComGoogle(
-  dados: Pick<DadosCadastro, "nome" | "razaoSocial" | "cnpj">,
+  dados: Pick<DadosCadastro, "nome" | "razaoSocial" | "cnpj" | "cidade" | "uf">,
 ): Promise<ResultadoCadastro> {
   const pote = await cookies();
   const idToken = pote.get(COOKIE_CADASTRO_GOOGLE)?.value;
@@ -224,6 +236,7 @@ export async function cadastrarComGoogle(
         id_token: idToken,
         razao_social: dados.razaoSocial,
         cnpj: dados.cnpj,
+        ...localDaConta(dados),
         // sem nome, o backend usa o da conta Google; vazio ele recusa
         ...(dados.nome && { nome: dados.nome }),
       },
@@ -265,6 +278,9 @@ export type ResultadoVerificacao =
       cnpjSituacao: SituacaoCnpj;
       /** A razão social que a Receita devolveu; null sem ela. */
       razaoSocialReceita: string | null;
+      /** A cidade e a UF da Receita (backend #184), para pré-preencher; null sem elas ou com a UF fora das 27. */
+      cidadeReceita: string | null;
+      ufReceita: string | null;
     }
   /** O backend recusou o formato, com as mesmas regras do `POST /register`. */
   | { ok: false; erro: "invalido"; campos: CampoCadastroAPI[] }
@@ -287,6 +303,8 @@ export async function verificarCadastro(
       cnpj_disponivel: boolean;
       cnpj_situacao?: unknown;
       razao_social?: unknown;
+      cidade?: unknown;
+      uf?: unknown;
     }>("/register/verificar", { method: "POST", corpo: { email: dados.email, cnpj: dados.cnpj }, publica: true });
     const situacao = SITUACOES_CNPJ.find((valor) => valor === resposta.cnpj_situacao) ?? "nao_verificado";
     const razaoSocial = typeof resposta.razao_social === "string" ? resposta.razao_social.trim() : "";
@@ -296,6 +314,8 @@ export async function verificarCadastro(
       cnpjDisponivel: resposta.cnpj_disponivel,
       cnpjSituacao: situacao,
       razaoSocialReceita: razaoSocial || null,
+      cidadeReceita: (typeof resposta.cidade === "string" && resposta.cidade.trim()) || null,
+      ufReceita: typeof resposta.uf === "string" && ehUf(resposta.uf) ? resposta.uf : null,
     };
   } catch (erro) {
     if (erro instanceof ErroBackend && erro.status === 422) {
@@ -384,7 +404,10 @@ export async function consultarConvite(token: string): Promise<ResultadoConsulta
 export type ResultadoAceite =
   /** `entrou: false` é conta criada com a sessão que não abriu: falta só entrar. */
   | { ok: true; entrou: boolean }
-  | { ok: false; erro: "convite_invalido" | "email_cadastrado" | "senha_invalida" | "muitas_tentativas" | "falha" };
+  | {
+      ok: false;
+      erro: "convite_invalido" | "email_cadastrado" | "senha_invalida" | "conta_inativa" | "muitas_tentativas" | "falha";
+    };
 
 /**
  * Cria a conta pelo convite (`POST /convites/aceitar`), na empresa de quem convidou e
@@ -410,6 +433,7 @@ export async function aceitarConvite(token: string, email: string, nome: string,
     if (erro.status === 409) return { ok: false, erro: "email_cadastrado" };
     if (erro.status === 422 && erro.campos.includes("senha")) return { ok: false, erro: "senha_invalida" };
     if (erro.status === 422) return { ok: false, erro: "convite_invalido" };
+    if (ehContaInativa(erro)) return { ok: false, erro: "conta_inativa" };
     if (erro.status === 429) return { ok: false, erro: "muitas_tentativas" };
     return { ok: false, erro: "falha" };
   }
