@@ -1,7 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { chaveDaSituacao, classeDoSelo, prazoDoTeste } from "./situacao";
+import { chaveDaSituacao, classeDoSelo, localDaConta, prazoDoTeste } from "./situacao";
 
 const AGORA = Date.parse("2026-10-28T12:00:00Z");
+
+describe("localDaConta", () => {
+  it("mostra o que veio, e diz quando não veio nada", () => {
+    expect(localDaConta({ cidade: "Porto Alegre", uf: "RS" })).toBe("Porto Alegre · RS");
+    expect(localDaConta({ cidade: null, uf: "RS" })).toBe("RS");
+    expect(localDaConta({ cidade: null, uf: null })).toBe("não informada");
+  });
+});
 
 describe("prazoDoTeste", () => {
   it("diz quanto falta e quanto faz", () => {

@@ -3,6 +3,7 @@ import { POR_PAGINA } from "./situacao";
 
 const SECOES = [
   { href: "/admin", rotulo: "Contas" },
+  { href: "/admin/estados", rotulo: "Estados" },
   { href: "/admin/pagamentos", rotulo: "Pagamentos" },
   { href: "/admin/cancelamentos", rotulo: "Cancelamentos" },
   { href: "/admin/vencimentos", rotulo: "Vencimentos" },
