@@ -60,13 +60,16 @@ export type SituacaoExtrato = CamposDeSaldoAPI & {
   erros: { identificador: string; motivo: string }[];
 };
 
-/** O `total` é a soma das sete categorias. */
+/** O `total` é a soma das oito categorias; `agrupamentos` conta grupos e fica fora dela. */
 export type ContagensConciliacao = {
   extrato_banco_id: string;
   extrato_sistema_id: string;
   total: number;
   match_exato: number;
   match_tolerancia: number;
+  /** Backend #131: ausentes antes dele, 0 com a flag desligada. */
+  match_agrupado?: number;
+  agrupamentos?: number;
   duplicado: number;
   sem_correspondencia: number;
   tarifa_bancaria: number;

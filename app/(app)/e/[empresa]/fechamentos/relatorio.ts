@@ -105,7 +105,7 @@ export function montarRelatorio({
     fechadoEm: fechamento.fechadoEm,
     ressalva: fechamento.ressalva,
     total: contagens.total ?? 0,
-    conciliadas: (contagens.match_exato ?? 0) + (contagens.match_tolerancia ?? 0),
+    conciliadas: (contagens.match_exato ?? 0) + (contagens.match_tolerancia ?? 0) + (contagens.match_agrupado ?? 0),
     justificadas: resumo.justificadas,
     pendentes: resumo.pendentes,
     linhasNaoLidas: resumo.linhasNaoLidas,

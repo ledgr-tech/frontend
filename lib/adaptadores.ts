@@ -2,6 +2,7 @@ import { caminhoDaConciliacao } from "./caminhos";
 import { ehPapel, lerPapel, type Papel } from "./papel";
 import { aguardaAprovacao } from "./aprovacao";
 import { rodadasDoBanco } from "./rodadas";
+import { formatarMoeda } from "./mock-data";
 import type {
   CampoLancamento,
   Conciliacao,
@@ -55,6 +56,17 @@ export type ItemConciliacaoAPI = {
    */
   decisao?: DecisaoAPI | null;
   eventos?: EventoDecisao[];
+  /** O grupo do `match_agrupado` (backend #131); null nas outras linhas, ausente antes dele. */
+  grupo_id?: string | null;
+  grupo?: GrupoAPI | null;
+};
+
+/** O resumo do grupo inteiro (backend #131); `valor_unico` é o do lançamento único, com sinal. */
+export type GrupoAPI = {
+  quantidade_banco: number;
+  quantidade_sistema: number;
+  valor_unico: string;
+  maior_desvio_dias: number;
 };
 
 /**
@@ -155,12 +167,27 @@ function campos(lancamento: LancamentoAPI): CampoLancamento[] {
  */
 function explicar(item: ItemConciliacaoAPI): string | null {
   // o motor só pareia nos matches; as divergências esperam a explicação do backend
+  if (item.status === "match_agrupado" && item.grupo) return explicarGrupo(item.grupo, item.lancamento_banco ? "banco" : "sistema");
   if (item.status === "match_exato") return "Bateu: mesmo valor e mesma data nos dois extratos.";
   if (item.status !== "match_tolerancia" || !item.lancamento_banco || !item.lancamento_sistema) return null;
   const banco = item.lancamento_banco.data;
   const sistema = item.lancamento_sistema.data;
   const dias = Math.round(Math.abs(Date.parse(banco) - Date.parse(sistema)) / 86_400_000);
   return `Bateu com ${dias} ${dias === 1 ? "dia" : "dias"} de diferença (${paraDiaMes(banco)} no banco, ${paraDiaMes(sistema)} no sistema), dentro da tolerância da empresa.`;
+}
+
+/** A frase do lote (backend #131): a ponta única é o total; cada membro entra nele com os outros. */
+function explicarGrupo(grupo: GrupoAPI, lado: "banco" | "sistema"): string {
+  const outro = lado === "banco" ? "sistema" : "banco";
+  const doLado = lado === "banco" ? grupo.quantidade_banco : grupo.quantidade_sistema;
+  const doOutro = lado === "banco" ? grupo.quantidade_sistema : grupo.quantidade_banco;
+  const total = formatarMoeda(Math.abs(Number(grupo.valor_unico)));
+  const frase =
+    doLado === 1
+      ? `Conciliado por soma: este lançamento do ${lado} é o total de ${doOutro} lançamentos do ${outro}.`
+      : `Conciliado por soma: este lançamento do ${lado} entra num total de ${total} do ${outro}, junto com outros ${doLado - 1}.`;
+  const dias = grupo.maior_desvio_dias;
+  return dias > 0 ? `${frase} Datas até ${dias} ${dias === 1 ? "dia distante" : "dias distantes"}, dentro da tolerância.` : frase;
 }
 
 /**
@@ -212,6 +239,17 @@ export function adaptarLinha(item: ItemConciliacaoAPI): LinhaComparacao {
     historico: [],
     camposBanco: item.lancamento_banco ? campos(item.lancamento_banco) : undefined,
     camposSistema: item.lancamento_sistema ? campos(item.lancamento_sistema) : undefined,
+    ...(item.grupo_id ? { grupoId: item.grupo_id } : {}),
+    ...(item.grupo
+      ? {
+          grupo: {
+            quantidadeBanco: item.grupo.quantidade_banco,
+            quantidadeSistema: item.grupo.quantidade_sistema,
+            valorUnico: paraNumero(item.grupo.valor_unico) ?? 0,
+            maiorDesvioDias: item.grupo.maior_desvio_dias,
+          },
+        }
+      : {}),
   };
 }
 
@@ -292,6 +330,9 @@ export type ExecucaoAPI = {
     tarifa_bancaria: number;
     divergente_valor: number;
     divergente_data: number;
+    /** Linhas agrupadas e quantos grupos (backend #131): 0 nas execuções de antes, ausentes antes dele. */
+    match_agrupado?: number;
+    agrupamentos?: number;
     /**
      * Das divergências, quantas estão justificadas (spec 2026-10-02-conciliacao-em-rodadas).
      * Proposta ao backend: ausente enquanto ele não guarda decisões.
@@ -340,6 +381,8 @@ export type Execucao = {
   justificadas: number;
   /** Justificativas esperando o admin ou o gestor aprovar; seguram o fechamento do mês. Ausente = 0. */
   aguardandoAprovacao?: number;
+  /** Lotes conciliados por soma (backend #131): grupos, não linhas. 0 quando ausente. */
+  agrupamentos?: number;
   /**
    * A primeira data do extrato do banco (AAAA-MM-DD), a mesma em todas as rodadas dele: o mês
    * dela é o mês da conciliação, no fechamento do backend e em todas as telas. Null sem período.
@@ -387,6 +430,7 @@ export function adaptarExecucao(item: ExecucaoAPI): Execucao {
     atual: item.atual,
     justificadas: item.contagens.justificadas ?? 0,
     aguardandoAprovacao: item.contagens.aguardando_aprovacao ?? 0,
+    agrupamentos: item.contagens.agrupamentos ?? 0,
     periodoInicio: item.periodo_inicio ?? null,
   };
 }
@@ -404,7 +448,8 @@ export type ResumoFechamentoAPI = {
     nome_arquivo_banco: string;
     nome_arquivo_sistema: string;
   }[];
-  contagens: Record<StatusLinha | "total", number>;
+  /** `match_agrupado` e `agrupamentos` (backend #131) faltam no resumo gravado antes dele. */
+  contagens: Record<Exclude<StatusLinha, "match_agrupado"> | "total", number> & { match_agrupado?: number; agrupamentos?: number };
   justificadas: number;
   /** Ausente no resumo gravado antes do backend #132. */
   aguardando_aprovacao?: number;
@@ -422,6 +467,8 @@ export type ResumoDoFechamento = {
     arquivoSistema: string;
   }[];
   contagens: Record<StatusLinha | "total", number>;
+  /** Lotes conciliados por soma (backend #131); ausente = 0. */
+  agrupamentos?: number;
   justificadas: number;
   /** Ausente = 0. */
   aguardandoAprovacao?: number;
@@ -441,7 +488,8 @@ export function adaptarResumoDoFechamento(resumo: ResumoFechamentoAPI): ResumoDo
       arquivoBanco: par.nome_arquivo_banco,
       arquivoSistema: par.nome_arquivo_sistema,
     })),
-    contagens: resumo.contagens,
+    contagens: { ...resumo.contagens, match_agrupado: resumo.contagens.match_agrupado ?? 0 },
+    agrupamentos: resumo.contagens.agrupamentos ?? 0,
     justificadas: resumo.justificadas,
     aguardandoAprovacao: resumo.aguardando_aprovacao ?? 0,
     pendentes: resumo.pendentes,

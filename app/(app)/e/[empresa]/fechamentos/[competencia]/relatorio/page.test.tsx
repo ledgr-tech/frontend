@@ -55,6 +55,7 @@ const RESUMO: ResumoDoFechamento = {
     divergente_data: 4,
     sem_correspondencia: 1,
     tarifa_bancaria: 1,
+    match_agrupado: 0,
   },
   justificadas: 27,
   pendentes: 1,

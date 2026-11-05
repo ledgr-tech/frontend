@@ -10,6 +10,8 @@ import {
   formatarDiaMes,
   periodoDasLinhas,
   pedeDecisao,
+  estaResolvida,
+  seloDoStatus,
 } from "./resumo";
 
 function linha(
@@ -228,5 +230,14 @@ describe("pedeDecisao e a aprovação das justificativas (backend #132)", () => 
 
   it("a justificada que espera aprovação ainda segura o mês", () => {
     expect(pedeDecisao({ ...divergente, decisao: { ...justificada, situacao: "pendente" } })).toBe(true);
+  });
+});
+
+describe("match_agrupado (backend #131)", () => {
+  it("é resolvido: não pede decisão e tem o selo verde de conciliado", () => {
+    expect(estaResolvida("match_agrupado")).toBe(true);
+    expect(pedeDecisao(linha("match_agrupado", -150000, null))).toBe(false);
+    expect(seloDoStatus("match_agrupado")).toEqual({ rotulo: "Conciliado por agrupamento", tom: "ok" });
+    expect(rotuloCurto(linha("match_agrupado", null, -5000))).toBe("Conciliado");
   });
 });
