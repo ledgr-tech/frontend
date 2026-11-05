@@ -127,7 +127,7 @@ export type PrecoDoPlano = {
 };
 
 const REAIS = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
-const emReais = (centavos: number) => REAIS.format(centavos / 100).replace(/ /g, " ");
+export const emReais = (centavos: number) => REAIS.format(centavos / 100).replace(/ /g, " ");
 
 /** A lista de `GET /assinatura/precos` (backend #180); null sem nenhum preço válido. */
 export function adaptarPrecos(bruto: unknown): PrecoDoPlano[] | null {

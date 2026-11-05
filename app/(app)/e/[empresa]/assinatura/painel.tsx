@@ -1,10 +1,9 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { Reveal } from "@/app/reveal";
+import Image from "next/image";
+import { ArrowRight } from "lucide-react";
+import { useRef, useState, useSyncExternalStore } from "react";
 import { PLANOS } from "@/lib/planos";
-import { textoDoLimite } from "@/lib/limites";
-import { useRoteador } from "@/lib/roteador";
 import {
   cobrancaImediata,
   diasRestantes,
@@ -18,16 +17,28 @@ import {
   type PlanoId,
   type PrecoDoPlano,
 } from "@/lib/assinatura";
+import type { Limite } from "@/lib/limites";
 import { useAssinatura, useLimites, usePapel } from "../conta";
 import { Cabecalho } from "../cabecalho";
-import { FaixaDoPlano } from "../empresas/faixa-do-plano";
+import { FaixaFiltros } from "../faixa-filtros";
 import { AssinaturaDeDemonstracao } from "./demonstracao";
-import { iniciarCheckout } from "./acoes";
+import { PainelDoPlano, POR_EXTENSO, TextoDaFranquia } from "./painel-do-plano";
 import { SeletorDePeriodo } from "./seletor-de-periodo";
 import { VoltaDaStripe } from "./volta-da-stripe";
 
 const MOTIVO_ID = "assinatura-motivo";
-const SUFIXO: Record<Periodo, string> = { mensal: "/mês", trimestral: "/trimestre", semestral: "/semestre", anual: "/ano" };
+// o mesmo corte do .fech-area em globals.css: até aí o painel desce para baixo das folhas
+const PAINEL_AO_LADO = "(min-width: 1001px)";
+
+function ouvirFragmento(avisar: () => void) {
+  window.addEventListener("hashchange", avisar);
+  return () => window.removeEventListener("hashchange", avisar);
+}
+/** O plano do fragmento do endereço; no servidor, que não o recebe, nenhum. */
+function usePlanoDoLink(): PlanoId | null {
+  const plano = useSyncExternalStore(ouvirFragmento, () => /^#plano-(\w+)$/.exec(window.location.hash ?? "")?.[1] ?? null, () => null);
+  return plano && Object.hasOwn(NOME_DO_PLANO, plano) ? (plano as PlanoId) : null;
+}
 
 function contexto(assinatura: Assinatura): string[] {
   const { situacao, testeTerminaEm, cobranca } = assinatura;
@@ -43,43 +54,57 @@ function contexto(assinatura: Assinatura): string[] {
 }
 
 /**
- * A Assinatura pela situação do `GET /me` (backend #180): os planos com o preço da Stripe no período
- * escolhido e, para o administrador, o Assinar. Sem a situação, ou `ativo` sem cobrança na Stripe (o
- * piloto ativado à mão), segue a tela de demonstração.
+ * A Assinatura pela situação do `GET /me` (backend #180), no desenho da mesa de Fechamentos: os planos em
+ * folhas com o preço da Stripe no período escolhido e, ao lado, o painel do plano aberto (a sua
+ * assinatura, a comparação com outro plano ou o Assinar). O Volume, sem preço de tabela, é um cartão
+ * abaixo das folhas. Sem a situação, ou `ativo` sem cobrança na Stripe (o piloto ativado à mão), segue a
+ * tela de demonstração.
  */
 export function PainelDaAssinatura({ precos }: { precos: PrecoDoPlano[] | null }) {
   const assinatura = useAssinatura();
   const papel = usePapel();
-  const conciliacoes = useLimites()?.conciliacoes ?? null;
+  const limites = useLimites();
   // sem escolha, o período da assinatura (que chega depois da volta da Stripe), ou o mensal
   const [escolhido, setPeriodo] = useState<Periodo | null>(null);
+  const [aberto, setAberto] = useState<PlanoId | null>(null);
+  // nada anima ao abrir a tela, só o que a pessoa mudou
+  const [mudou, setMudou] = useState(false);
+  const painel = useRef<HTMLElement>(null);
+
+  // a tela de bloqueio manda para /assinatura#plano-padrao: abre direto o plano que a pessoa escolheu lá
+  const planoDoLink = usePlanoDoLink();
 
   if (!assinatura || (assinatura.situacao === "ativo" && !assinatura.cobranca)) return <AssinaturaDeDemonstracao />;
 
-  const { situacao, cobranca } = assinatura;
+  const { situacao, cobranca, plano: planoDaConta, testeTerminaEm } = assinatura;
   const periodo = escolhido ?? cobranca?.periodo ?? "mensal";
   const assinando = situacao === "ativo" || situacao === "pagamento_pendente";
+  const planoAtual = assinando ? (cobranca?.plano ?? planoDaConta) : null;
+  const planoAberto = aberto ?? planoDoLink ?? planoAtual ?? planoDaConta ?? "padrao";
   const motivo = !precos ? "A assinatura pelo cartão ainda não está no ar." : papel !== "admin" ? "Só o administrador da conta assina." : null;
   const doPeriodo = (plano: PlanoId) => precos?.find((p) => p.plano === plano && p.periodo === periodo);
   const volume = PLANOS.find((p) => p.contato)!;
+  // "Grátis até": só no teste que ainda não cobra na hora (a Stripe exige 48 horas de antecedência)
+  const gratisAte = situacao === "teste" && testeTerminaEm && !cobrancaImediata(assinatura, new Date()) ? formatarDiaCurto(testeTerminaEm, new Date()) : null;
+
+  function abrir(plano: PlanoId) {
+    setMudou(true);
+    setAberto(plano);
+    // com o painel abaixo das folhas, escolher sem ver o que mudou não diria nada
+    if (!window.matchMedia?.(PAINEL_AO_LADO).matches) painel.current?.scrollIntoView?.({ block: "start" });
+  }
+
+  function mudarPeriodo(novo: Periodo) {
+    setMudou(true);
+    setPeriodo(novo);
+  }
 
   return (
     <div>
       <Cabecalho titulo="Assinatura" contexto={contexto(assinatura)} />
 
-      <div className="ass-corpo">
+      <div className="extratos-corpo ass-mesa-corpo">
         <VoltaDaStripe />
-        {situacao === "pagamento_pendente" && (
-          <p role="alert" className="aviso-demonstracao">
-            O último pagamento não passou. A Stripe vai tentar de novo nos próximos dias; para trocar o cartão, fale com a gente.
-          </p>
-        )}
-        {(situacao === "teste_encerrado" || situacao === "assinatura_encerrada") && (
-          <p role="note" className="aviso-demonstracao">
-            <strong>O que você já fez continua aqui:</strong> extratos, conciliações e fechamentos. Assine um plano para
-            conciliar de novo.
-          </p>
-        )}
         {!assinando && motivo && (
           <p role="note" className="aviso-demonstracao">
             <span id={MOTIVO_ID}>{motivo}</span>
@@ -93,163 +118,170 @@ export function PainelDaAssinatura({ precos }: { precos: PrecoDoPlano[] | null }
           </p>
         )}
 
-        <Reveal>
-          <section className="ass-planos-caixa">
-            <div className="ass-planos-topo">
-              <h3 id="assinatura-planos" className="ass-titulo">
-                Planos
-              </h3>
-              {precos && <SeletorDePeriodo periodo={periodo} onMudar={setPeriodo} />}
-            </div>
-            <ul className="ass-planos" data-quatro="true" aria-labelledby="assinatura-planos">
-              {planosDoTeste().map((plano) => {
-                const preco = doPeriodo(plano.id);
-                const franquia = textoDaFranquia(precos, plano.id);
-                const atual = assinando && cobranca?.plano === plano.id;
-                const indisponivelId = `assinatura-indisponivel-${plano.id}`;
-                return (
-                  // o id é o destino do "Assinar o X" da tela de bloqueio (/assinatura#plano-padrao)
-                  <li key={plano.id} id={`plano-${plano.id}`} className="ass-plano" data-atual={atual ? "true" : undefined}>
-                    <div className="ass-plano-topo">
-                      <h4 className="ass-plano-nome">{plano.nome}</h4>
-                      {atual && <span className="ass-plano-atual">Plano atual</span>}
-                    </div>
-                    {/* sem os preços da Stripe, nenhum valor: os de lib/planos não valem (#296) */}
-                    {precos && (
-                      <div className="ass-plano-valor">
-                        {preco ? (
-                          <>
-                            <span className="ass-plano-preco">{preco.valor}</span>
-                            <span className="ass-plano-sufixo">{SUFIXO[periodo]}</span>
-                          </>
-                        ) : (
-                          <span id={indisponivelId} className="ass-plano-texto">
-                            Indisponível neste período
-                          </span>
-                        )}
-                      </div>
-                    )}
-                    {preco?.porMes && <p className="ass-plano-texto">{preco.porMes} por mês</p>}
-                    {preco?.desconto && <p className="ass-plano-desconto">{preco.desconto}% a menos que o mensal</p>}
-                    {franquia && (
-                      <>
-                        <span className="ass-plano-filete" aria-hidden="true" />
-                        <p className="ass-plano-texto">{franquia}</p>
-                      </>
-                    )}
-                    {!assinando && (
-                      <AssinarPlano
-                        assinatura={assinatura}
-                        plano={plano.id}
-                        nome={plano.nome}
-                        periodo={periodo}
-                        motivoId={motivo ? MOTIVO_ID : precos && !preco ? indisponivelId : null}
-                      />
-                    )}
-                  </li>
-                );
-              })}
-              <li className="ass-plano">
-                <div className="ass-plano-topo">
-                  <h4 className="ass-plano-nome">{volume.nome}</h4>
-                </div>
-                <div className="ass-plano-valor">
-                  <span className="ass-plano-preco">Sob consulta</span>
-                </div>
-                <span className="ass-plano-filete" aria-hidden="true" />
-                <p className="ass-plano-texto">{volume.descricao}</p>
-                <a href="mailto:ledgrtech@gmail.com" className="btn btn-secondary">
-                  Fale com a gente
-                </a>
-              </li>
-            </ul>
-          </section>
-        </Reveal>
-
-        {conciliacoes && (
-          <FaixaDoPlano
-            contagem={
-              conciliacoes.maximo === null
-                ? `${conciliacoes.usadas} conciliações este mês`
-                : `${conciliacoes.usadas} de ${conciliacoes.maximo} conciliações este mês`
-            }
-            usadas={conciliacoes.usadas}
-            maximo={conciliacoes.maximo}
-            aviso={textoDoLimite("conciliacoes", conciliacoes)}
-            verPlanos={false}
-          />
+        {precos && (
+          <FaixaFiltros>
+            <SeletorDePeriodo periodo={periodo} onMudar={mudarPeriodo} />
+          </FaixaFiltros>
         )}
+
+        <div className="extratos-area fech-area ass-mesa" data-mudou={mudou || undefined}>
+          <div className="grupos">
+            <section className="grupo" aria-labelledby="assinatura-planos">
+              <div className="grupo-topo">
+                <h2 id="assinatura-planos" className="grupo-titulo">
+                  Planos
+                </h2>
+                <span className="grupo-meta">3 planos</span>
+              </div>
+              <div className="grupo-corpo">
+                <ul className="extratos-grade ass-folhas" data-longo={periodo !== "mensal" || undefined} aria-labelledby="assinatura-planos">
+                  {planosDoTeste().map((plano) => (
+                    <FolhaDoPlano
+                      key={plano.id}
+                      id={plano.id}
+                      nome={plano.nome}
+                      preco={doPeriodo(plano.id)}
+                      periodo={periodo}
+                      comPrecos={precos !== null}
+                      franquia={textoDaFranquia(precos, plano.id)}
+                      uso={plano.id === planoAtual ? (limites?.conciliacoes ?? null) : null}
+                      seu={plano.id === planoAtual}
+                      pendente={situacao === "pagamento_pendente"}
+                      aberta={plano.id === planoAberto}
+                      gratisAte={plano.id === planoAberto ? gratisAte : null}
+                      aoAbrir={() => abrir(plano.id)}
+                    />
+                  ))}
+                </ul>
+              </div>
+            </section>
+
+            <section className="nova-ia-card ass-volume" aria-labelledby="assinatura-volume">
+              <Image className="nova-ia-mascote ass-volume-mascote" src="/mascotes/mascote-maleta.png" alt="" width={778} height={720} sizes="160px" />
+              <div className="ass-volume-texto">
+                <span className="rotulo">Plano {volume.nome} · sob consulta</span>
+                <h3 id="assinatura-volume" className="font-titulo">
+                  Concilia em grande volume?
+                </h3>
+                <p>
+                  Para <b>indústria e multi-banco</b>. A equipe monta o plano com você.
+                </p>
+              </div>
+              <a href="mailto:ledgrtech@gmail.com" className="btn btn-secondary">
+                Fale com a gente <ArrowRight aria-hidden="true" />
+              </a>
+            </section>
+          </div>
+
+          <PainelDoPlano
+            ref={painel}
+            assinatura={assinatura}
+            plano={planoAberto}
+            planoAtual={planoAtual}
+            periodo={periodo}
+            precos={precos}
+            limites={limites}
+            motivoId={motivo ? MOTIVO_ID : doPeriodo(planoAberto) ? null : `assinatura-indisponivel-${planoAberto}`}
+            aoVoltar={planoAtual ? () => abrir(planoAtual) : undefined}
+          />
+        </div>
       </div>
     </div>
   );
 }
 
-// os dias que sobraram só existem no teste em andamento (com menos de 48 horas)
-const avisoImediato = (assinatura: Assinatura) =>
-  assinatura.situacao === "teste"
-    ? "A cobrança é feita agora. Os dias de teste que sobraram não ficam para depois."
-    : "A cobrança é feita agora.";
-
-/**
- * O Assinar do cartão; desligado, aponta para o motivo. Quando a cobrança é na hora (menos de 48 horas
- * de teste, ou sem teste), o primeiro clique só avisa. Uma `ref` trava antes do primeiro `await`.
- */
-function AssinarPlano({
-  assinatura,
-  plano,
+/** Uma folha da mesa, com o mesmo desenho nos três planos; na sua, o meio é o uso do mês. */
+function FolhaDoPlano({
+  id,
   nome,
+  preco,
   periodo,
-  motivoId,
+  comPrecos,
+  franquia,
+  uso,
+  seu,
+  pendente,
+  aberta,
+  gratisAte,
+  aoAbrir,
 }: {
-  assinatura: Assinatura;
-  plano: PlanoId;
+  id: PlanoId;
   nome: string;
+  preco: PrecoDoPlano | undefined;
   periodo: Periodo;
-  motivoId: string | null;
+  comPrecos: boolean;
+  franquia: string | null;
+  uso: Limite | null;
+  seu: boolean;
+  pendente: boolean;
+  aberta: boolean;
+  gratisAte: string | null;
+  aoAbrir: () => void;
 }) {
-  const { refresh } = useRoteador();
-  const travado = useRef(false);
-  const [avisado, setAvisado] = useState(false);
-  const [abrindo, setAbrindo] = useState(false);
-  const [erro, setErro] = useState<string | null>(null);
-  const imediata = cobrancaImediata(assinatura, new Date());
-
-  async function assinar() {
-    if (travado.current) return;
-    if (imediata && !avisado) return setAvisado(true);
-    travado.current = true;
-    setAbrindo(true);
-    setErro(null);
-    const resposta = await iniciarCheckout(plano, periodo);
-    // a trava fica: a página está saindo para a Stripe
-    if (resposta.ok) return window.location.assign(resposta.dados.url);
-    travado.current = false;
-    setAbrindo(false);
-    setErro(resposta.erro);
-    // 409: a conta já assina (outra aba, ou o webhook chegou); relê o /me
-    if (resposta.status === 409) refresh();
-  }
-
   return (
-    <>
-      {motivoId === null && avisado && <p className="ass-plano-texto">{avisoImediato(assinatura)}</p>}
-      {motivoId === null && !imediata && assinatura.testeTerminaEm && (
-        <p className="ass-plano-texto">Você só paga em {formatarDiaCurto(assinatura.testeTerminaEm, new Date())}, quando o teste acaba.</p>
-      )}
-      {erro && (
-        <p role="alert" className="ass-plano-erro">
-          {erro}
-        </p>
-      )}
-      <button
-        type="button"
-        className="btn btn-primary"
-        disabled={motivoId !== null || abrindo}
-        aria-describedby={motivoId ?? undefined}
-        onClick={assinar}
-      >
-        {abrindo ? "Abrindo a Stripe…" : avisado ? "Assinar e pagar agora" : `Assinar o ${nome}`}
+    // o id é o destino do "Assinar o X" da tela de bloqueio (/assinatura#plano-padrao)
+    <li id={`plano-${id}`}>
+      <button type="button" className="extrato-cartao" data-tom={seu ? (pendente ? "risco" : "ok") : undefined} aria-pressed={aberta} onClick={aoAbrir}>
+        <span className="extrato-folha mes-folha ass-folha">
+          <span className="extrato-folha-titulo">{seu ? "Seu plano" : "Plano"}</span>
+          <span className="mes-folha-nome">{nome}</span>
+          <MeioDaFolha franquia={franquia} uso={uso} />
+          {/* sem os preços da Stripe, nenhum valor: os de lib/planos não valem (#296) */}
+          {comPrecos && (
+            <span className="ass-folha-pe">
+              {preco ? (
+                <>
+                  {/* a chave troca junto com o valor, e o valor novo chega com um fade */}
+                  <span key={preco.valor} className="mes-folha-taxa ass-folha-preco">
+                    {preco.valor}
+                  </span>
+                  <span className="mes-folha-rotulo">{POR_EXTENSO[periodo]}</span>
+                  {preco.porMes && <span className="mes-folha-rotulo">{preco.porMes} por mês</span>}
+                  {preco.desconto && <span className="ass-folha-desconto">{preco.desconto}% a menos</span>}
+                </>
+              ) : (
+                <span id={`assinatura-indisponivel-${id}`} className="mes-folha-rotulo">
+                  Indisponível neste período
+                </span>
+              )}
+            </span>
+          )}
+          {gratisAte && <span className="ass-folha-selo">Grátis até {gratisAte}</span>}
+        </span>
+        {seu && <span className={pendente ? "selo selo-risco" : "selo selo-ok"}>{pendente ? "Pagamento pendente" : "Plano atual"}</span>}
       </button>
-    </>
+    </li>
+  );
+}
+
+function MeioDaFolha({ franquia, uso }: { franquia: string | null; uso: Limite | null }) {
+  if (uso) {
+    return (
+      <>
+        <span className="ass-folha-meio">
+          <b>{uso.maximo === null ? uso.usadas : `${uso.usadas} de ${uso.maximo}`}</b> {uso.maximo === null && uso.usadas === 1 ? "conciliação" : "conciliações"} este mês
+        </span>
+        {uso.maximo !== null && (
+          <span className="vg-progresso">
+            <span className="vg-progresso-feito" style={{ width: `${uso.maximo === 0 ? 100 : Math.min(100, Math.max(3, Math.round((uso.usadas / uso.maximo) * 100)))}%` }} />
+          </span>
+        )}
+      </>
+    );
+  }
+  if (franquia) {
+    return (
+      <span className="ass-folha-meio">
+        <TextoDaFranquia texto={franquia} />
+      </span>
+    );
+  }
+  // sem número no backend: as linhas do papel, como nas folhas de Conciliações
+  return (
+    <span className="conc-folha-linhas ass-folha-linhas" aria-hidden="true">
+      <i />
+      <i />
+      <i />
+    </span>
   );
 }
