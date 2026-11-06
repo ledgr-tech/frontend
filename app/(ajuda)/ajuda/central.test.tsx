@@ -165,3 +165,23 @@ describe("o conteúdo da ajuda", () => {
     expect(ajudaDaTela(null)).toBeUndefined();
   });
 });
+
+describe("a página Nova conciliação ensina a exportar e a importar via IA", () => {
+  const funcoes = PAGINAS.find((pagina) => pagina.id === "nova-conciliacao")!.funcoes;
+
+  it("traz a exportação do banco e do sistema e a importação via IA, depois do envio", () => {
+    const ids = funcoes.map((funcao) => funcao.id);
+    expect(ids.slice(ids.indexOf("enviar"), ids.indexOf("enviar") + 4)).toEqual([
+      "enviar",
+      "exportar-banco",
+      "exportar-sistema",
+      "importar-via-ia",
+    ]);
+  });
+
+  it("a importação termina em enviar o banco, e o PDF aponta para ela", () => {
+    const via = funcoes.find((funcao) => funcao.id === "importar-via-ia")!;
+    expect(via.passos!.join(" ")).toMatch(/Confirmar.*extrato do banco/);
+    expect(funcoes.find((funcao) => funcao.id === "enviar")!.nota).toContain("Importar via IA");
+  });
+});
