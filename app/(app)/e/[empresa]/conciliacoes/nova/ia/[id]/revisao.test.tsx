@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Revisao } from "./revisao";
 import type { Rascunho } from "../acoes";
@@ -84,6 +84,15 @@ describe("Revisao da importação via IA", () => {
     expect(confirmar()).toBeEnabled();
     await user.click(confirmar());
     expect(acoes.confirmar).toHaveBeenCalledWith(INICIAL.id);
+  });
+
+  it("confirmar leva à Nova conciliação com o sistema já criado, para enviar o banco", async () => {
+    const user = userEvent.setup();
+    render(<Revisao inicial={INICIAL} />);
+
+    await user.click(confirmar());
+
+    await waitFor(() => expect(acoes.push).toHaveBeenCalledWith("/conciliacoes/nova?sistema=extrato-1"));
   });
 
   it("impede confirmar uma linha nova não salva e libera ao cancelar", async () => {

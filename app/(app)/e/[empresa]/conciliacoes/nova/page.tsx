@@ -2,12 +2,13 @@
 
 import { useEffect, useRef, useState, type CSSProperties, type DragEvent } from "react";
 import Image from "next/image";
+import { useSearchParams } from "next/navigation";
 import { useRoteador } from "@/lib/roteador";
 import { useEmpresaAtiva, useEmpresasDaConta } from "@/lib/empresa-ativa";
 import { ArrowRight, Check, Link2, Scale, ShieldCheck } from "lucide-react";
 import { caminhoDaConciliacao } from "@/lib/caminhos";
 import { abrirConfiguracoes, TOLERANCIA_SALVA } from "@/lib/eventos";
-import { comEmpresa } from "@/lib/rotas";
+import { comEmpresa, ehUuid } from "@/lib/rotas";
 import { extratoGrandeDemais, TAMANHO_MAXIMO_UPLOAD_BYTES } from "@/lib/limite-de-upload";
 import { carregarRegras, conciliar, type Falha, type SituacaoExtrato } from "../acoes";
 import {
@@ -33,6 +34,10 @@ import { Guia, type Passo } from "./guia";
 
 export default function NovaConciliacaoPage() {
   const router = useRoteador();
+  // a importação via IA confirmada leva para cá com o id do extrato do sistema já criado (?sistema=):
+  // a folha do sistema vem pronta e só falta o banco
+  const idDaIa = useSearchParams()?.get("sistema") ?? null;
+  const sistemaDaIa = idDaIa !== null && ehUuid(idDaIa) ? idDaIa : null;
   const [arquivoBanco, setArquivoBanco] = useState<File | null>(null);
   const [arquivoSistema, setArquivoSistema] = useState<File | null>(null);
   const [etapa, setEtapa] = useState<Etapa>("ocioso");
@@ -101,9 +106,9 @@ export default function NovaConciliacaoPage() {
   }
 
   async function conciliarExtratos(banco = arquivoBanco, sistema = arquivoSistema) {
-    if (!banco || !sistema) return;
+    if (!banco || (!sistema && !sistemaDaIa)) return;
 
-    const grande = [banco, sistema].find((arquivo) => arquivo.size > TAMANHO_MAXIMO_UPLOAD_BYTES);
+    const grande = [banco, sistema].find((arquivo) => arquivo && arquivo.size > TAMANHO_MAXIMO_UPLOAD_BYTES);
     if (grande) {
       // sem isso, o arquivo inteiro sobe só pra requisição ser recusada no caminho
       setErro(extratoGrandeDemais(grande.name));
@@ -116,7 +121,7 @@ export default function NovaConciliacaoPage() {
 
     try {
       // nada sobe antes de os dois estarem prontos: extrato órfão no backend não tem volta
-      if (!(await conferir(banco, "banco")) || !(await conferir(sistema, "sistema"))) {
+      if (!(await conferir(banco, "banco")) || (sistema && !(await conferir(sistema, "sistema")))) {
         setEtapa("ocioso");
         return;
       }
@@ -146,16 +151,19 @@ export default function NovaConciliacaoPage() {
     setPendente(null);
   }
 
-  async function enviarEConciliar(arquivoBanco: File, arquivoSistema: File) {
+  async function enviarEConciliar(arquivoBanco: File, arquivoSistema: File | null) {
     const banco = await subir(arquivoBanco, "banco");
     if (!banco.ok) return falhar(banco);
-    const sistema = await subir(arquivoSistema, "sistema");
+    // o sistema da importação via IA já é um extrato lido: só o banco sobe e espera
+    const sistema = arquivoSistema
+      ? await subir(arquivoSistema, "sistema")
+      : { ok: true as const, dados: { extratoId: sistemaDaIa ?? "" } };
     if (!sistema.ok) return falhar(sistema);
 
     setEtapa("processando");
     const situacoes = await Promise.all([
       aguardarProcessamento(banco.dados.extratoId, () => vivo.current),
-      aguardarProcessamento(sistema.dados.extratoId, () => vivo.current),
+      ...(arquivoSistema ? [aguardarProcessamento(sistema.dados.extratoId, () => vivo.current)] : []),
     ]);
 
     const lidosEmParte: SituacaoExtrato[] = [];
@@ -223,11 +231,12 @@ export default function NovaConciliacaoPage() {
     setErro(null);
   }
 
-  const podeConciliar = arquivoBanco !== null && arquivoSistema !== null;
+  const sistemaPronto = arquivoSistema !== null || sistemaDaIa !== null;
+  const podeConciliar = arquivoBanco !== null && sistemaPronto;
   const ocupado = etapa !== "ocioso";
-  const prontos = (arquivoBanco ? 1 : 0) + (arquivoSistema ? 1 : 0);
+  const prontos = (arquivoBanco ? 1 : 0) + (sistemaPronto ? 1 : 0);
   const falta =
-    !arquivoBanco && !arquivoSistema
+    !arquivoBanco && !sistemaPronto
       ? "Envie os dois extratos para conciliar."
       : !arquivoBanco
         ? "Falta o extrato do banco."
@@ -320,8 +329,8 @@ export default function NovaConciliacaoPage() {
         </p>
       )}
 
-      {ocupado && arquivoBanco && arquivoSistema ? (
-        <Palco banco={arquivoBanco.name} sistema={arquivoSistema.name} etapa={etapa} />
+      {ocupado && arquivoBanco && sistemaPronto ? (
+        <Palco banco={arquivoBanco.name} sistema={arquivoSistema?.name ?? "Importação via IA"} etapa={etapa} />
       ) : (
         <div className={jaEnviou ? "nova-corpo conc-mesa nova-volta" : "nova-corpo conc-mesa"}>
           <div className="nova-coluna">
@@ -347,17 +356,32 @@ export default function NovaConciliacaoPage() {
               <span className="nova-elo-no" aria-hidden="true">
                 <Link2 />
               </span>
-              <FolhaDeExtrato
-                origem="sistema"
-                titulo="Extrato do sistema de gestão"
-                dica="Arquivo CSV exportado do seu sistema de gestão"
-                accept=".csv"
-                formatos="CSV"
-                arquivo={arquivoSistema}
-                onArquivo={(arquivo) => escolher("sistema", arquivo)}
-                onRecusado={setErro}
-              />
+              {sistemaDaIa ? (
+                // o rascunho da IA já virou extrato ao confirmar: a folha vem pronta e não se troca aqui
+                <div className="nova-folha nova-folha-sistema" data-pronto="">
+                  <span className="rotulo nova-folha-rotulo">
+                    <span className="nova-folha-icone">
+                      <Check aria-hidden="true" />
+                    </span>
+                    Sistema de gestão
+                  </span>
+                  <strong className="nova-folha-titulo">Importação via IA</strong>
+                  <span className="nova-folha-dica">Já confirmado</span>
+                </div>
+              ) : (
+                <FolhaDeExtrato
+                  origem="sistema"
+                  titulo="Extrato do sistema de gestão"
+                  dica="Arquivo CSV exportado do seu sistema de gestão"
+                  accept=".csv"
+                  formatos="CSV"
+                  arquivo={arquivoSistema}
+                  onArquivo={(arquivo) => escolher("sistema", arquivo)}
+                  onRecusado={setErro}
+                />
+              )}
             </div>
+            {!sistemaDaIa && (
             <section className="nova-ia-card" aria-labelledby="nova-ia-titulo">
               <h3 id="nova-ia-titulo" className="font-titulo">
                 Só tem o PDF do relatório?
@@ -381,6 +405,7 @@ export default function NovaConciliacaoPage() {
                 sizes="170px"
               />
             </section>
+            )}
           </div>
 
           <aside className="conc-previa" aria-label="Antes de conciliar">
@@ -400,11 +425,11 @@ export default function NovaConciliacaoPage() {
                   </span>
                   Banco{arquivoBanco ? ": enviado" : ": falta"}
                 </li>
-                <li data-feito={arquivoSistema ? "" : undefined}>
+                <li data-feito={sistemaPronto ? "" : undefined}>
                   <span className="nova-checklist-marca" aria-hidden="true">
                     <Check />
                   </span>
-                  Sistema de gestão{arquivoSistema ? ": enviado" : ": falta"}
+                  Sistema de gestão{sistemaPronto ? ": enviado" : ": falta"}
                 </li>
               </ul>
             </div>

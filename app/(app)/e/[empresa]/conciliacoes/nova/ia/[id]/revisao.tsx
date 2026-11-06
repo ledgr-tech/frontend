@@ -110,7 +110,8 @@ export function Revisao({ inicial }: { inicial: Rascunho }) {
       if (edicaoPendente || resumoDesatualizado || resumo.quantidade === 0) return null;
       const r = await confirmarImportacao(inicial.id);
       if (!r.ok) return r.erro;
-      roteador.push("/extratos");
+      // segue para a Nova conciliação com o sistema já pronto: só falta enviar o extrato do banco
+      roteador.push(`/conciliacoes/nova?sistema=${r.dados.extratoId}`);
       return null;
     });
 
@@ -327,7 +328,7 @@ export function Revisao({ inicial }: { inicial: Rascunho }) {
         </div>
         <p className="nova-nota">
           <ShieldCheck aria-hidden="true" />
-          <span>Ao confirmar, as linhas entram como o extrato do sistema e aparecem em Extratos, prontas para conciliar com o do banco.</span>
+          <span>Ao confirmar, as linhas entram como o extrato do sistema e você segue para enviar o extrato do banco.</span>
         </p>
       </aside>
     </div>
