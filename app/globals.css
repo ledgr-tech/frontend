@@ -2803,6 +2803,12 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
   border-radius: var(--radius-sm);
   font-size: 13px; font-style: italic; color: color-mix(in srgb, var(--color-text) 70%, transparent);
 }
+/* o lado único de um lote conciliado por soma: folha lisa com um fio ligando ao lançamento de cima */
+.folha-fio { position: relative; }
+.folha-fio::before {
+  content: ""; position: absolute; top: 0; bottom: 0; left: 22px;
+  border-left: 2px solid color-mix(in srgb, var(--color-ok) 55%, transparent);
+}
 
 /* O hover acende a linha na cor do veredito dela: verde se casou, terracota se
    custa dinheiro, dourado se falta par, cinza se já está explicado. Vale para
@@ -4155,6 +4161,8 @@ html:not([data-densidade="padrao"]) .app-shell .selo { padding-block: 1px; }
     font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
     color: color-mix(in srgb, var(--color-text) 68%, transparent);
   }
+  /* o fio do lote só faz sentido ao lado do outro lançamento: no cartão, a célula some */
+  .tabela-cartoes .table td.folha-fio { display: none; }
 
   /* a descrição é o título do cartão: ocupa a linha toda, sem rótulo */
   .tabela-cartoes .table td[data-destaque="true"] {

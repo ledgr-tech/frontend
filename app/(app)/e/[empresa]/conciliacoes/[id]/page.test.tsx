@@ -1825,5 +1825,14 @@ describe("ConciliacaoPage", () => {
       expect(within(membro).queryByRole("checkbox")).not.toBeInTheDocument();
     }
     expect(screen.getAllByText(/1 lançamento do banco de/)).toHaveLength(1);
+    // sem ruído: um selo só (no primeiro membro) e, no lado único, folha com fio no lugar do tracejado
+    expect(within(membros[0]).getByText("Conciliado")).toHaveClass("selo-ok");
+    expect(within(membros[1]).queryByText("Conciliado")).not.toBeInTheDocument();
+    expect(within(membros[2]).queryByText("Conciliado")).not.toBeInTheDocument();
+    for (const membro of membros) {
+      expect(membro).not.toHaveTextContent(/sem lançamento no/);
+    }
+    expect(membros[0].querySelector("td.folha-sistema.folha-fio")).not.toBeNull();
+    expect(membros[1].querySelector("td.folha-banco.folha-fio")).not.toBeNull();
   });
 });

@@ -740,17 +740,25 @@ export default function ConciliacaoPage() {
                           </td>
                         </>
                       ) : (
+                        // num lote o lado único é o esperado, não uma falta: folha lisa com um fio, sem a marca
+                        linha.grupoId ? (
+                          <td role="cell" colSpan={3} className="folha-banco folha-fio" />
+                        ) : (
                         // uma célula só no lugar de três traços: a folha diz que falta, não que está em branco
                         <td role="cell" colSpan={3} data-rotulo="Banco" className="folha-banco folha-vazia">
                           <span className="folha-vazia-marca">sem lançamento no banco</span>
                         </td>
+                        )
                       )}
                       {/* o nome curto cabe no eixo; o inteiro fica para o leitor de tela. Todo status leva
                           o selo na cor dele, o Conciliado em verde (a pedido de clientes: acham mais fácil) */}
                       <td role="cell" data-rotulo="Status" className="celula-status">
-                        <span className={`selo selo-${tom}`} aria-hidden="true">
-                          {situacao === "justificada" ? "Justificada" : situacao === "aguardando" ? "Aguardando" : rotuloCurto(linha)}
-                        </span>
+                        {/* num lote o veredito é um só: o selo vai no primeiro membro, o fio liga os outros */}
+                        {(!linha.grupoId || abreGrupo) && (
+                          <span className={`selo selo-${tom}`} aria-hidden="true">
+                            {situacao === "justificada" ? "Justificada" : situacao === "aguardando" ? "Aguardando" : rotuloCurto(linha)}
+                          </span>
+                        )}
                         <span className="sr-only">
                           {situacao === "justificada"
                             ? `${status.rotulo} · justificada`
@@ -788,9 +796,13 @@ export default function ConciliacaoPage() {
                           </td>
                         </>
                       ) : (
-                        <td role="cell" colSpan={3} data-rotulo="Sistema" className="folha-sistema folha-vazia">
-                          <span className="folha-vazia-marca">sem lançamento no sistema</span>
-                        </td>
+                        linha.grupoId ? (
+                          <td role="cell" colSpan={3} className="folha-sistema folha-fio" />
+                        ) : (
+                          <td role="cell" colSpan={3} data-rotulo="Sistema" className="folha-sistema folha-vazia">
+                            <span className="folha-vazia-marca">sem lançamento no sistema</span>
+                          </td>
+                        )
                       )}
                       {podeDecidir && (
                         <td role="cell" data-rotulo={marcando ? "Marcar" : "Conferida"} className="celula-conferir">
