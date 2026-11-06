@@ -473,8 +473,9 @@ describe("DetalheDivergenciaPage", () => {
     render(<DetalheDivergenciaPage />);
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Não foi possível carregar a conciliação. Recarregue a página e tente de novo.",
+      "Não foi possível carregar a conciliação.",
     );
+    expect(screen.getByRole("button", { name: "Tentar de novo" })).toBeInTheDocument();
     expect(screen.queryByText("Lançamento não encontrado.")).not.toBeInTheDocument();
   });
 

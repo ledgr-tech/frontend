@@ -1,5 +1,8 @@
+import Link from "@/lib/link-do-app";
 import { redirecionarNoApp } from "@/lib/rotas-servidor";
+import { TelaDeAviso } from "@/app/tela-de-aviso";
 import { Cabecalho } from "../cabecalho";
+import { FalhaAoCarregar } from "../falha-ao-carregar";
 import { carregarEmpresas } from "./acoes";
 import { PainelDeEmpresas } from "./painel-de-empresas";
 
@@ -10,9 +13,6 @@ import { PainelDeEmpresas } from "./painel-de-empresas";
  * (a equipe ele mesmo carrega). `?aba=equipe` abre na Equipe: o painel lê a aba da URL do navegador, para o voltar não mostrar uma aba e a URL outra.
  */
 
-const FALHA_AO_CARREGAR = "Não foi possível carregar as empresas. Recarregue a página e tente de novo.";
-const SEM_A_ROTA = "As empresas ainda não estão disponíveis.";
-
 export default async function EmpresasPage() {
   const resposta = await carregarEmpresas();
   if (!resposta.ok && resposta.status === 401) await redirecionarNoApp("/login");
@@ -22,9 +22,19 @@ export default async function EmpresasPage() {
   return (
     <div>
       <Cabecalho titulo="Empresas" />
-      <p role={resposta.status === 404 ? undefined : "alert"} style={{ padding: "48px 0" }}>
-        {resposta.status === 404 ? SEM_A_ROTA : FALHA_AO_CARREGAR}
-      </p>
+      {resposta.status === 404 ? (
+        <TelaDeAviso
+          titulo="As empresas ainda não estão disponíveis."
+          texto="Esta parte do Ledgr ainda não está ligada. Nenhuma ação sua é necessária."
+          nivel="h2"
+        >
+          <Link href="/visao-geral" className="btn btn-secondary">
+            Ir para a visão geral
+          </Link>
+        </TelaDeAviso>
+      ) : (
+        <FalhaAoCarregar oQue="as empresas" status={resposta.status} />
+      )}
     </div>
   );
 }

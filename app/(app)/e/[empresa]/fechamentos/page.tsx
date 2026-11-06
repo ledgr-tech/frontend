@@ -7,6 +7,7 @@ import { agruparPorMes } from "./fechamento";
 import { InkHover, Reveal } from "@/app/reveal";
 import { MesaDeFechamento } from "./mesa";
 import { Cabecalho } from "../cabecalho";
+import { FalhaAoCarregar } from "../falha-ao-carregar";
 
 /**
  * Os fechamentos, mês a mês: cada competência com o que ainda segura o
@@ -21,9 +22,6 @@ import { Cabecalho } from "../cabecalho";
  * o PDF do mês fechado (`[competencia]/relatorio`, #117) e o CSV de cada
  * conciliação; a planilha de ajustes e o envio por e-mail, não.
  */
-
-const FALHA_AO_CARREGAR =
-  "Não foi possível carregar os fechamentos. Recarregue a página e tente de novo.";
 
 export default async function FechamentosPage({
   searchParams,
@@ -48,9 +46,7 @@ export default async function FechamentosPage({
       />
 
       {!resposta.ok ? (
-        <p role="alert" style={{ padding: "48px 0" }}>
-          {FALHA_AO_CARREGAR}
-        </p>
+        <FalhaAoCarregar oQue="os fechamentos" status={resposta.status} />
       ) : meses.length === 0 ? (
         <SemConciliacao />
       ) : (

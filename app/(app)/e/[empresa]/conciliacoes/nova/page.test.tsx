@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import postcss, { type AtRule } from "postcss";
@@ -12,8 +12,11 @@ import { ProvedorDaEmpresa } from "@/lib/empresa-ativa";
 import type { Assinatura, PrecoDoPlano } from "@/lib/assinatura";
 
 const push = vi.fn();
+// a query da tela (?sistema=): a importação via IA confirmada chega com o id do extrato do sistema
+let consulta = "";
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push }),
+  useSearchParams: () => new URLSearchParams(consulta),
 }));
 
 const enviarExtrato = vi.fn();
@@ -801,5 +804,65 @@ describe("a empresa para a qual se concilia (#169)", () => {
     render(<NovaConciliacaoPage />);
 
     expect(screen.queryByText(/Conciliando para/)).not.toBeInTheDocument();
+  });
+});
+
+describe("depois da importação via IA, só falta o banco", () => {
+  const SISTEMA_DA_IA = "11111111-1111-4111-8111-111111111111";
+
+  beforeEach(() => {
+    push.mockClear();
+    enviarExtrato.mockReset();
+    situacaoDoExtrato.mockReset();
+    conciliar.mockReset();
+    carregarRegras.mockReset();
+    carregarRegras.mockResolvedValue({ ok: false, status: 404, erro: "" });
+    enviarExtrato.mockResolvedValue({ ok: true, dados: { extratoId: "extrato-banco" } });
+    situacaoDoExtrato.mockResolvedValue(concluido("banco"));
+    conciliar.mockResolvedValue({ ok: true, dados: {} });
+    consulta = `sistema=${SISTEMA_DA_IA}`;
+  });
+
+  afterEach(() => {
+    consulta = "";
+    cleanup();
+  });
+
+  it("mostra o sistema pronto, sem campo para ele, e pede só o banco", async () => {
+    const user = userEvent.setup();
+    render(<NovaConciliacaoPage />);
+
+    expect(screen.getByText("Importação via IA")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Extrato do sistema de gestão")).not.toBeInTheDocument();
+    expect(screen.queryByText("Só tem o PDF do relatório?")).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Falta um extrato" })).toBeInTheDocument();
+    const botao = screen.getByRole("button", { name: "Conciliar extratos" });
+    expect(botao).toBeDisabled();
+    expect(botao).toHaveAccessibleDescription("Falta o extrato do banco.");
+
+    await user.upload(screen.getByLabelText("Extrato do banco"), arquivo("banco.ofx"));
+    expect(screen.getByRole("heading", { name: "Pronta para conciliar" })).toBeInTheDocument();
+    expect(botao).toBeEnabled();
+  });
+
+  it("sobe só o banco e concilia com o extrato que a IA já criou", async () => {
+    const user = userEvent.setup();
+    render(<NovaConciliacaoPage />);
+    await user.upload(screen.getByLabelText("Extrato do banco"), arquivo("banco.ofx"));
+    await user.click(screen.getByRole("button", { name: "Conciliar extratos" }));
+
+    await waitFor(() => expect(conciliar).toHaveBeenCalledWith("extrato-banco", SISTEMA_DA_IA));
+    expect(enviarExtrato).toHaveBeenCalledTimes(1);
+    expect((enviarExtrato.mock.calls[0] as [FormData])[0].get("origem")).toBe("banco");
+    // o extrato do sistema já está lido: não há o que esperar por ele
+    expect(situacaoDoExtrato).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(push).toHaveBeenCalledWith(`/conciliacoes/extrato-banco?sistema=${SISTEMA_DA_IA}`));
+  });
+
+  it("ignora um ?sistema= que não é um id", () => {
+    consulta = "sistema=qualquer-coisa";
+    render(<NovaConciliacaoPage />);
+
+    expect(screen.getByLabelText("Extrato do sistema de gestão")).toBeInTheDocument();
   });
 });

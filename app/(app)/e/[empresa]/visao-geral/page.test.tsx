@@ -630,9 +630,8 @@ describe("VisaoGeralPage", () => {
       erro: "Não foi possível falar com o servidor.",
     });
     await renderizar();
-    expect(screen.getByRole("alert")).toHaveTextContent(
-      "Não foi possível carregar a visão geral. Recarregue a página e tente de novo.",
-    );
+    expect(screen.getByRole("alert")).toHaveTextContent("Não foi possível carregar a visão geral.");
+    expect(screen.getByRole("button", { name: "Tentar de novo" })).toBeInTheDocument();
   });
 
   it("does not sum the month when its lines did not all load, and keeps the rest of the home", async () => {

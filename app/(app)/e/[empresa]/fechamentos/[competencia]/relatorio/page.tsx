@@ -7,6 +7,7 @@ import { carregarRelatorioDoFechamento } from "../../../conciliacoes/acoes";
 import { tituloDaCompetencia } from "../../fechamento";
 import { Folha } from "../../folha";
 import { montarRelatorio } from "../../relatorio";
+import { FalhaAoCarregar } from "../../../falha-ao-carregar";
 import { Imprimir } from "./imprimir";
 
 /**
@@ -14,8 +15,6 @@ import { Imprimir } from "./imprimir";
  * "Relatório em PDF" do "Entregar o fechamento" do design (Ledgr.dc.html). Na tela, uma prévia da
  * folha com o botão de imprimir; na impressão, só a folha, em A4 (`.rel-*` em globals.css).
  */
-
-const FALHA_AO_CARREGAR = "Não foi possível carregar o relatório. Recarregue a página e tente de novo.";
 
 export default async function RelatorioPage({ params, searchParams }: PageProps<"/e/[empresa]/fechamentos/[competencia]/relatorio">) {
   const { competencia } = await params;
@@ -38,9 +37,8 @@ export default async function RelatorioPage({ params, searchParams }: PageProps<
       </div>
 
       {!resposta.ok ? (
-        <p role="alert" style={{ padding: "48px 0" }}>
-          {FALHA_AO_CARREGAR}
-        </p>
+        // sem segundo botão: a barra de cima já volta a Fechamentos
+        <FalhaAoCarregar oQue="o relatório" status={resposta.status} voltar={null} nivel="h1" />
       ) : !resposta.dados.fechamento ? (
         <div className="rel-aviso">
           <h1>{`${tituloDaCompetencia(competencia)} ainda não está fechado.`}</h1>

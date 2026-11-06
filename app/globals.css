@@ -4934,6 +4934,82 @@ html[data-tema="escuro"] .app-shell {
   font-family: var(--font-titulo); font-variant-numeric: lining-nums tabular-nums;
 }
 
+/* ── A mesa da Assinatura: as folhas de Fechamentos e o painel do plano aberto ── */
+.ass-mesa-corpo { padding-top: 26px; }
+.extratos-area.ass-mesa { grid-template-columns: minmax(0, 8fr) minmax(300px, 4fr); gap: 24px; }
+.ass-mesa .grupos { gap: 24px; }
+.ass-folhas { margin: 0; padding: 0; list-style: none; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+.ass-folhas > li { display: flex; min-width: 0; scroll-margin-top: 96px; }
+.ass-folhas .extrato-cartao { width: 100%; }
+/* o mesmo pé nas três: o preço fica na mesma altura; o período mais longo traz mais linhas */
+.ass-folha {
+  aspect-ratio: auto; height: 204px;
+  transition: height 260ms var(--ease-out), box-shadow 180ms ease, border-color 180ms ease, transform 180ms var(--ease-out);
+}
+[data-longo] .ass-folha { height: 246px; }
+.ass-folha .mes-folha-nome { font-weight: 600; }
+.ass-folha .vg-progresso { flex: none; margin-top: 8px; }
+.ass-folha-meio { margin-top: 8px; font-size: 12.5px; line-height: 1.4; color: color-mix(in srgb, var(--color-text) 78%, transparent); }
+.ass-folha-meio b { font-weight: 700; color: var(--color-text); font-variant-numeric: tabular-nums; }
+.ass-folha-linhas { margin-top: 14px; }
+.ass-folha-pe { display: flex; flex-direction: column; gap: 1px; margin-top: auto; min-height: 44px; }
+[data-longo] .ass-folha-pe { min-height: 74px; }
+.ass-folha .ass-folha-preco { margin: 0; font-size: 22px; font-weight: 600; line-height: 1.2; white-space: nowrap; }
+.ass-folha-pe .mes-folha-rotulo { margin: 0; }
+.ass-folha-desconto { margin-top: 2px; font-size: 12px; font-weight: 700; color: var(--color-ok-700); }
+/* o adereço do teste grátis, na folha aberta */
+.ass-folha-selo {
+  position: absolute; top: 10px; right: 8px; padding: 3px 8px; border: 1px solid var(--color-accent); border-radius: 999px;
+  background: var(--color-accent-100); color: var(--color-accent-700);
+  font-size: 11px; font-weight: 700; white-space: nowrap; transform: rotate(4deg);
+}
+/* o Volume: o cartão de "Só tem o PDF", espelhado, com o mascote à esquerda e o botão à direita */
+.ass-volume { flex-direction: row; align-items: center; justify-content: space-between; gap: 12px 20px; padding: 20px 24px 20px 168px; min-height: 124px; }
+.ass-volume-mascote { right: auto; left: -8px; bottom: -30px; width: 160px; opacity: 1; transform: rotate(5deg); }
+.ass-volume-texto { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.ass-volume .rotulo { font-size: 11.5px; font-weight: 600; white-space: nowrap; color: var(--color-accent-700); }
+.ass-volume p b { font-weight: 600; color: var(--color-text); }
+.ass-volume .btn { flex: none; margin: 0; display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
+.ass-painel .extrato-painel-nome { font-weight: 600; }
+.ass-painel b { font-weight: 600; color: var(--color-text); }
+.ass-painel .conc-previa-dados { margin: 0; }
+.ass-painel-mascote { flex: none; width: 56px; height: auto; }
+.ass-painel-texto { margin: 0; }
+.ass-painel-aviso { font-size: 13.5px; }
+.ass-painel .ass-passos { margin-top: -6px; border-top: 0; grid-template-columns: minmax(0, 1fr); }
+.ass-painel-link { align-self: flex-start; }
+.ass-painel-voltar { align-self: flex-start; padding: 0; border: 0; background: none; font: inherit; font-size: 13.5px; cursor: pointer; }
+.ass-desconto { font-weight: 600; color: var(--color-ok-700); }
+.ass-usos { display: flex; flex-direction: column; gap: 10px; margin-top: 2px; }
+.ass-uso { display: flex; flex-direction: column; gap: 6px; }
+.ass-uso-linha { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; }
+.ass-uso-linha b { font-variant-numeric: tabular-nums; }
+/* a ação principal da tela, no tom do "Nova conciliação" */
+.ass-painel .btn-primary { background: color-mix(in srgb, var(--color-accent) 14%, transparent); font-weight: 600; }
+.ass-painel .btn-primary:hover { background: color-mix(in srgb, var(--color-accent) 24%, transparent); }
+/* as transições: só o que a pessoa mudou, nunca ao abrir a tela (o painel fica com useTrocaSuave) */
+.ass-mesa .vg-progresso-feito { transition: width 320ms var(--ease-out); }
+.ass-mesa .btn { transition: background 160ms ease, color 160ms ease, border-color 160ms ease, transform 120ms var(--ease-out); }
+.ass-mesa .btn:active { transform: scale(0.98); }
+.ass-folhas .extrato-cartao:active .ass-folha { transform: scale(0.985); }
+@media (hover: hover) { .ass-folhas .extrato-cartao:hover .ass-folha { transform: translateY(-2px); } }
+.ass-mesa[data-mudou] .ass-folha-preco { animation: ass-troca 200ms ease both; }
+.ass-mesa[data-mudou] .ass-folha-selo { animation: ass-selo 240ms var(--ease-out) both; }
+@keyframes ass-troca { from { opacity: 0.35; } to { opacity: 1; } }
+@keyframes ass-selo { from { opacity: 0; transform: rotate(0deg) scale(0.86); } to { opacity: 1; transform: rotate(4deg) scale(1); } }
+@media (prefers-reduced-motion: reduce) {
+  .ass-folha, .ass-mesa .vg-progresso-feito, .ass-mesa .btn { transition: none; }
+  .ass-mesa[data-mudou] .ass-folha-preco, .ass-mesa[data-mudou] .ass-folha-selo { animation: none; }
+  .ass-mesa .btn:active, .ass-folhas .extrato-cartao:active .ass-folha, .ass-folhas .extrato-cartao:hover .ass-folha { transform: none; }
+}
+@media (max-width: 1200px) { .ass-volume { flex-direction: column; align-items: flex-start; padding: 20px 24px 130px; } }
+@media (max-width: 1000px) { .extratos-area.ass-mesa { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 560px) {
+  .ass-folha, [data-longo] .ass-folha { height: auto; min-height: 204px; }
+  .ass-folha-selo { position: static; order: -1; align-self: flex-start; margin-bottom: 6px; transform: none; }
+  .ass-mesa[data-mudou] .ass-folha-selo { animation: none; }
+}
+
 .ass-faturas { border-top: 1px solid var(--color-divider); padding-top: 28px; }
 /* o "PDF" do recibo: botão com cara de link, porque ainda não baixa nada */
 .ass-recibo {

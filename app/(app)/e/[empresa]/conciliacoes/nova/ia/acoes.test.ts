@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { ErroBackend } from "@/lib/backend";
 import { importarViaIa } from "./acoes";
 
 const chamarBackend = vi.fn();
@@ -42,5 +43,17 @@ describe("importarViaIa: limite do envio", () => {
   it("pede um arquivo quando ele está ausente", async () => {
     expect(await importarViaIa(new FormData())).toMatchObject({ ok: false, status: 422 });
     expect(chamarBackend).not.toHaveBeenCalled();
+  });
+
+  const ERROS = [{ caminho: "lancamentos[0].valor", lancamento: 1, mensagem: "O valor precisa ser um número." }];
+
+  it("usa o total do backend, não o tamanho da lista", async () => {
+    chamarBackend.mockRejectedValue(new ErroBackend(422, "x", [], {}, undefined, ERROS, undefined, 200));
+    expect(await importarViaIa(dadosDoArquivo(10))).toMatchObject({ erros: ERROS, totalErros: 200 });
+  });
+
+  it("sem o total, conta a lista", async () => {
+    chamarBackend.mockRejectedValue(new ErroBackend(422, "x", [], {}, undefined, ERROS));
+    expect(await importarViaIa(dadosDoArquivo(10))).toMatchObject({ totalErros: 1 });
   });
 });

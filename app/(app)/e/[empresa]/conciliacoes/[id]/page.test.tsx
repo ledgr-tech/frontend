@@ -621,9 +621,10 @@ describe("ConciliacaoPage", () => {
     buscarConciliacao.mockReturnValue(null);
     render(<ConciliacaoPage />);
     expect(
-      await screen.findByText("Conciliação não encontrada.")
+      await screen.findByText("Esta conciliação não foi encontrada.")
     ).toBeInTheDocument();
     expect(document.querySelector("img")?.getAttribute("src")).toContain("mascote-lupa");
+    expect(screen.getByRole("link", { name: "Ver as conciliações" })).toBeInTheDocument();
   });
 
   it("loads only the lines of the pair named in the URL, and keeps it in the link to a line", async () => {
@@ -853,6 +854,15 @@ describe("ConciliacaoPage", () => {
     expect(container.querySelector("[aria-busy=\"true\"]")).not.toBeNull();
   });
 
+  it("does not call it not found when the backend is down", async () => {
+    rota.id = "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20";
+    carregarConciliacao.mockResolvedValue({ ok: false, status: 503, erro: "x" });
+    render(<ConciliacaoPage />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Não foi possível carregar a conciliação.");
+    expect(screen.queryByText("Esta conciliação não foi encontrada.")).not.toBeInTheDocument();
+  });
+
   it("offers a reload instead of an endless skeleton when the backend call throws", async () => {
     // a Server Action lançou (rede, deploy novo no meio) em vez de devolver um Resultado
     rota.id = "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20";
@@ -860,8 +870,9 @@ describe("ConciliacaoPage", () => {
     const { container } = render(<ConciliacaoPage />);
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Não foi possível carregar a conciliação. Recarregue a página e tente de novo.",
+      "Não foi possível carregar a conciliação.",
     );
+    expect(screen.getByRole("button", { name: "Tentar de novo" })).toBeInTheDocument();
     expect(container.querySelector("[aria-busy=\"true\"]")).toBeNull();
   });
 

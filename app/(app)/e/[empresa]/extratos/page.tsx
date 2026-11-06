@@ -5,15 +5,13 @@ import { formatarInteiro } from "../dashboard/resumo";
 import { Reveal } from "@/app/reveal";
 import { Galeria } from "./galeria";
 import { Cabecalho } from "../cabecalho";
+import { FalhaAoCarregar } from "../falha-ao-carregar";
 
 /**
  * "Extratos carregados" do design, com o que o backend sabe hoje: todos os
  * arquivos enviados (`GET /extratos`), cada um com a situação da leitura, as
  * linhas que o parser não conseguiu ler e, se já entrou numa, a conciliação.
  */
-
-const FALHA_AO_CARREGAR =
-  "Não foi possível carregar os extratos. Recarregue a página e tente de novo.";
 
 const cinza = (opacidade: number) =>
   `color-mix(in srgb, var(--color-text) ${opacidade}%, transparent)`;
@@ -33,9 +31,7 @@ export default async function ExtratosPage() {
       />
 
       {!resposta.ok ? (
-        <p role="alert" style={{ padding: "48px 0" }}>
-          {FALHA_AO_CARREGAR}
-        </p>
+        <FalhaAoCarregar oQue="os extratos" status={resposta.status} />
       ) : resposta.dados.arquivos.length === 0 ? (
         <div
           style={{

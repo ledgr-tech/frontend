@@ -42,6 +42,8 @@ export class ErroBackend extends Error {
     readonly erros: { caminho: string; lancamento: number | null; mensagem: string }[] = [],
     /** O `codigo` do corpo, quando o backend manda um (o `conta_inativa` do backend #156). */
     readonly codigo?: string,
+    /** O `total_erros` desse mesmo 422: a lista `erros` para em 50, e este conta todos. */
+    readonly totalErros?: number,
   ) {
     super(detalhe);
     this.name = "ErroBackend";
@@ -163,7 +165,8 @@ async function erroDaResposta(resposta: Response): Promise<ErroBackend> {
         ? corpo.erros.filter((e: { mensagem?: unknown }) => typeof e?.mensagem === "string")
         : [];
       const codigo = typeof corpo.codigo === "string" ? corpo.codigo : undefined;
-      return new ErroBackend(resposta.status, corpo.detail, [], {}, segundos, erros, codigo);
+      const totalErros = Number.isInteger(corpo.total_erros) ? corpo.total_erros : undefined;
+      return new ErroBackend(resposta.status, corpo.detail, [], {}, segundos, erros, codigo, totalErros);
     }
     if (Array.isArray(corpo?.detail)) {
       const itens: { loc: unknown[]; msg?: unknown }[] = corpo.detail.filter(

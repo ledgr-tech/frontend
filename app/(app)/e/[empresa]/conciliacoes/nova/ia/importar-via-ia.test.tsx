@@ -96,6 +96,44 @@ describe("ImportarViaIa", () => {
     expect(within(painel()).getAllByRole("listitem").at(-1)).not.toHaveAttribute("data-feito");
   });
 
+  it("com mais erros que a lista, conta todos e diz que aparecem só os primeiros", async () => {
+    importarViaIa.mockResolvedValue({
+      ok: false,
+      status: 422,
+      erro: "O arquivo não passou na conferência",
+      erros: Array.from({ length: 50 }, (_, i) => ({ lancamento: i + 1, caminho: `lancamentos[${i}].valor`, mensagem: "O valor precisa ser um número." })),
+      totalErros: 1200,
+    });
+    const user = userEvent.setup();
+    render(<ImportarViaIa prompt={PROMPT} />);
+
+    await user.upload(screen.getByLabelText("Arquivo da IA"), new File(["{}"], "resposta.json", { type: "application/json" }));
+    await user.click(within(painel()).getByRole("button", { name: /Importar e conferir/ }));
+
+    const alerta = await screen.findByRole("alert");
+    expect(alerta).toHaveTextContent("1.200 erros");
+    expect(alerta).toHaveTextContent("Aparecem os 50 primeiros de 1.200.");
+  });
+
+  it("com todos os erros na lista, não fala em primeiros", async () => {
+    importarViaIa.mockResolvedValue({
+      ok: false,
+      status: 422,
+      erro: "O arquivo não passou na conferência",
+      erros: [{ lancamento: 4, caminho: "lancamentos[3].valor", mensagem: "O valor precisa ser um número." }],
+      totalErros: 1,
+    });
+    const user = userEvent.setup();
+    render(<ImportarViaIa prompt={PROMPT} />);
+
+    await user.upload(screen.getByLabelText("Arquivo da IA"), new File(["{}"], "resposta.json", { type: "application/json" }));
+    await user.click(within(painel()).getByRole("button", { name: /Importar e conferir/ }));
+
+    const alerta = await screen.findByRole("alert");
+    expect(alerta).toHaveTextContent("1 erro");
+    expect(alerta).not.toHaveTextContent("primeiros");
+  });
+
   it("diz por que recusou o arquivo solto, mesmo com o grande demais ainda escolhido", async () => {
     const grande = new File(["{}"], "resposta.json", { type: "application/json" });
     Object.defineProperty(grande, "size", { value: Math.round(4.8 * 1024 * 1024) });
