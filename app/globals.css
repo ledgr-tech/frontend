@@ -2803,13 +2803,20 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
   border-radius: var(--radius-sm);
   font-size: 13px; font-style: italic; color: color-mix(in srgb, var(--color-text) 70%, transparent);
 }
-/* o lado único de um lote conciliado por soma: folha lisa com um fio ligando ao lançamento de cima */
-.folha-fio { position: relative; }
-.folha-fio::before {
-  content: ""; position: absolute; top: 0; bottom: 0; left: 22px;
-  border-left: 2px solid color-mix(in srgb, var(--color-ok) 55%, transparent);
+/* o lote conciliado por soma: uma linha só, com o resumo no lugar do outro lado; aberto, os membros vêm abaixo */
+.lote-resumo {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 12px;
+  border: 1px solid color-mix(in srgb, var(--color-ok) 45%, transparent); border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-ok) 10%, transparent);
+  font: inherit; font-size: 14px; font-weight: 600; color: var(--color-text); text-align: left; cursor: pointer;
+  transition: background 150ms ease, border-color 150ms ease;
 }
-
+.lote-resumo:hover { background: color-mix(in srgb, var(--color-ok) 18%, transparent); border-color: var(--color-ok); }
+.lote-resumo-seta { font-size: 16px; line-height: 1; }
+.lote-resumo-texto { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lote-resumo-acao { flex: none; font-size: 12.5px; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+.lote-resumo:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+.tabela-folhas tr[data-lote-membro] > td { font-size: 0.94em; color: color-mix(in srgb, var(--color-text) 78%, transparent); }
 /* O hover acende a linha na cor do veredito dela: verde se casou, terracota se
    custa dinheiro, dourado se falta par, cinza se já está explicado. Vale para
    qualquer tabela cujas linhas tragam data-tom (comparação e dashboard). */
@@ -4161,8 +4168,6 @@ html:not([data-densidade="padrao"]) .app-shell .selo { padding-block: 1px; }
     font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
     color: color-mix(in srgb, var(--color-text) 68%, transparent);
   }
-  /* o fio do lote só faz sentido ao lado do outro lançamento: no cartão, a célula some */
-  .tabela-cartoes .table td.folha-fio { display: none; }
 
   /* a descrição é o título do cartão: ocupa a linha toda, sem rótulo */
   .tabela-cartoes .table td[data-destaque="true"] {

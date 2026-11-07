@@ -34,6 +34,26 @@ export function juntarGrupos(linhas: LinhaComparacao[]): LinhaComparacao[] {
   return resultado;
 }
 
+/**
+ * Cada lote com a ponta única e os membros que a somam, só dos que estão na lista. Sem a ponta ou sem
+ * membros (um filtro escondeu um lado) o lote não entra e as linhas saem soltas, como as outras.
+ */
+export function montarLotes(linhas: LinhaComparacao[]): Map<string, { ponta: LinhaComparacao; membros: LinhaComparacao[] }> {
+  const lotes = new Map<string, { ponta: LinhaComparacao; membros: LinhaComparacao[] }>();
+  const pontas = new Map<string, LinhaComparacao>();
+  const membros = new Map<string, LinhaComparacao[]>();
+  for (const linha of linhas) {
+    if (!linha.grupoId) continue;
+    if (ehPontaUnica(linha)) pontas.set(linha.grupoId, linha);
+    else membros.set(linha.grupoId, [...(membros.get(linha.grupoId) ?? []), linha]);
+  }
+  for (const [id, ponta] of pontas) {
+    const deles = membros.get(id);
+    if (deles) lotes.set(id, { ponta, membros: deles });
+  }
+  return lotes;
+}
+
 /** "1 lançamento do banco de R$ 150.000,00 = 10 do sistema", com os dias de diferença quando há. */
 export function cabecalhoDoGrupo(grupo: Grupo): string {
   const doBanco = grupo.quantidadeBanco === 1;

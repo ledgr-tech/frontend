@@ -1810,8 +1810,9 @@ describe("ConciliacaoPage", () => {
     expect(screen.queryByRole("button", { name: "Próxima" })).not.toBeInTheDocument();
   });
 
-  // backend #131: o lote pago de uma vez fica junto, sob o resumo, sem caixa de conferir
-  it("keeps a lot conciliated by sum together under its summary, with nothing to check", async () => {
+  // backend #131: o lote pago de uma vez é uma linha só, com o resumo dos membros, já aberto e que recolhe ao clicar
+  it("shows a lot conciliated by sum as one row, open by default and collapsible", async () => {
+    const user = userEvent.setup();
     const lote = { quantidadeBanco: 1, quantidadeSistema: 2, valorUnico: -9000, maiorDesvioDias: 0 };
     buscarConciliacao.mockReturnValue({
       ...conciliacaoEmAndamento,
@@ -1824,26 +1825,24 @@ describe("ConciliacaoPage", () => {
     });
     render(<ConciliacaoPage />);
 
-    const resumo = await screen.findByText(/1 lançamento do banco de R\$\s9\.000,00 = 2 do sistema/);
-    const cabecalho = resumo.closest("tr")!;
-    const linhas = screen.getAllByRole("row");
-    const inicio = linhas.indexOf(cabecalho);
-    const membros = linhas.slice(inicio + 1, inicio + 4);
-    // a ponta única primeiro, e os três seguidos, mesmo com a ordem por data misturando
-    expect(within(membros[0]).getByRole("button", { name: "Pagamento lote" })).toBeInTheDocument();
-    for (const membro of membros) {
-      expect(membro).toHaveAttribute("aria-describedby", cabecalho.id);
-      expect(within(membro).queryByRole("checkbox")).not.toBeInTheDocument();
-    }
-    expect(screen.getAllByText(/1 lançamento do banco de/)).toHaveLength(1);
-    // sem ruído: um selo só (no primeiro membro) e, no lado único, folha com fio no lugar do tracejado
-    expect(within(membros[0]).getByText("Conciliado")).toHaveClass("selo-ok");
-    expect(within(membros[1]).queryByText("Conciliado")).not.toBeInTheDocument();
-    expect(within(membros[2]).queryByText("Conciliado")).not.toBeInTheDocument();
-    for (const membro of membros) {
-      expect(membro).not.toHaveTextContent(/sem lançamento no/);
-    }
-    expect(membros[0].querySelector("td.folha-sistema.folha-fio")).not.toBeNull();
-    expect(membros[1].querySelector("td.folha-banco.folha-fio")).not.toBeNull();
+    const resumo = await screen.findByRole("button", { name: /2 lançamentos somados/ });
+    // sem faixa de resumo: o lote é a linha da ponta única, com o outro lado resumido e já aberto
+    expect(screen.queryByText("Conciliado por soma")).not.toBeInTheDocument();
+    expect(resumo).toHaveAttribute("aria-expanded", "true");
+    const linhaDoLote = resumo.closest("tr")!;
+    expect(within(linhaDoLote).getByRole("button", { name: "Pagamento lote" })).toBeInTheDocument();
+    expect(within(linhaDoLote).getByText("Conciliado")).toHaveClass("selo-ok");
+    expect(within(linhaDoLote).queryByRole("checkbox")).not.toBeInTheDocument();
+    // aberto desde o início: os membros já aparecem, sem clicar
+    expect(screen.getByText("Fornecedor A")).toBeInTheDocument();
+    expect(screen.getByText("Fornecedor B")).toBeInTheDocument();
+
+    await user.click(resumo);
+
+    expect(resumo).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByText("Fornecedor A")).not.toBeInTheDocument();
+    expect(screen.queryByText("Fornecedor B")).not.toBeInTheDocument();
+    await user.click(resumo);
+    expect(screen.getByText("Fornecedor A")).toBeInTheDocument();
   });
 });

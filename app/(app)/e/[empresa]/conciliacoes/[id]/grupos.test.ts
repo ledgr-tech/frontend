@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { LinhaComparacao } from "@/lib/mock-data";
-import { cabecalhoDoGrupo, contarGrupos, juntarGrupos, textoDosLotes } from "./grupos";
+import { cabecalhoDoGrupo, contarGrupos, juntarGrupos, montarLotes, textoDosLotes } from "./grupos";
 
 const LOTE = { quantidadeBanco: 1, quantidadeSistema: 2, valorUnico: -150000, maiorDesvioDias: 0 };
 
@@ -62,5 +62,18 @@ describe("textoDosLotes e contarGrupos", () => {
   it("conta os grupos distintos, não as linhas", () => {
     expect(contarGrupos([doBanco("x"), doSistema("y"), doSistema("z"), linha("a")])).toBe(1);
     expect(contarGrupos([linha("a")])).toBe(0);
+  });
+});
+
+describe("montarLotes", () => {
+  it("separa a ponta única dos membros de cada lote", () => {
+    const lotes = montarLotes([doSistema("s1"), linha("solta"), doBanco("b1"), doSistema("s2")]);
+    expect(lotes.get("g1")?.ponta.id).toBe("b1");
+    expect(lotes.get("g1")?.membros.map((l) => l.id)).toEqual(["s1", "s2"]);
+  });
+
+  it("deixa de fora o lote a que falta a ponta ou os membros", () => {
+    expect(montarLotes([doSistema("s1")]).size).toBe(0);
+    expect(montarLotes([doBanco("b1")]).size).toBe(0);
   });
 });

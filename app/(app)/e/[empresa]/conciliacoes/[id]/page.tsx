@@ -29,7 +29,7 @@ import { FalhaAoCarregar } from "../../falha-ao-carregar";
 import { TelaDeAviso } from "@/app/tela-de-aviso";
 import { filtrarLinhas, ordenarLinhas, type Coluna, type Filtro, type Ordem } from "./ordenar";
 import { continuaDivergindo, decisoesLigadas, situacaoDaLinha } from "./situacao";
-import { cabecalhoDoGrupo, contarGrupos, juntarGrupos } from "./grupos";
+import { contarGrupos, juntarGrupos, montarLotes } from "./grupos";
 import { decidir, type ResultadoDaDecisao } from "./decidir";
 import { aplicarDensidade, densidadeAtual, type Densidade } from "../../densidade";
 import { IconeOrigem, type Origem } from "../../icone-origem";
@@ -138,6 +138,8 @@ export default function ConciliacaoPage() {
   // a janela da linha guarda a chave, não a linha: depois de justificar, ela mostra a linha como voltou
   const [chaveAberta, setChaveAberta] = useState<string | null>(null);
   const [cartao, setCartao] = useState<CartaoAberto | null>(null);
+  // os lotes conciliados por soma que a pessoa recolheu: por padrão todos vêm abertos, para ler sem clicar
+  const [lotesFechados, setLotesFechados] = useState<Set<string>>(new Set());
   const idCartao = useId();
   // a categoria do relatório chega pela URL: quem volta do detalhe de uma linha
   // reencontra o mesmo recorte
@@ -232,6 +234,7 @@ export default function ConciliacaoPage() {
   const categoria = ehDivergencia(filtro) ? filtro : null;
   // os lançamentos de um lote conciliado por soma (backend #131) ficam juntos, sob o resumo dele
   const ordenadas = juntarGrupos(ordenarLinhas(filtrarLinhas(conciliacao.linhas, filtro, rodadaDasLinhas), ordem));
+  const lotes = montarLotes(ordenadas);
 
   function escolherDensidade(proxima: Densidade) {
     aplicarDensidade(proxima);
@@ -627,9 +630,7 @@ export default function ConciliacaoPage() {
               {/* contínua, sem páginas: num extrato grande, folhear de 25 em 25 escondia o resto do mês.
                   ponytail: tudo no DOM; se arquivos de milhares de linhas pesarem, virtualizar aqui */}
               <tbody role="rowgroup">
-                {ordenadas.map((linha, indice) => {
-                  // o primeiro membro de cada lote leva antes uma linha com o resumo do grupo inteiro
-                  const abreGrupo = linha.grupo && linha.grupoId && ordenadas[indice - 1]?.grupoId !== linha.grupoId;
+                {ordenadas.map((linha) => {
                   const idDoGrupo = linha.grupoId ? `${idCartao}-grupo-${linha.grupoId}` : undefined;
                   const status = statusDaLinha(linha);
                   const situacao = situacaoDaLinha(linha, rodadaDasLinhas);
@@ -668,14 +669,14 @@ export default function ConciliacaoPage() {
                   };
                   // botão de verdade: a linha inteira com onClick não era alcançável por
                   // teclado. Fica na descrição do banco; sem lançamento no banco, na do sistema.
-                  const abrir = (descricao: string) => (
+                  const abrir = (descricao: string, alvo: LinhaComparacao = linha) => (
                     <button
                       type="button"
                       className="celula-abrir"
                       aria-describedby={cartao?.linha.id === linha.id ? idCartao : undefined}
                       onClick={() => {
                         setCartao(null);
-                        setChaveAberta(chaveDaLinha(linha));
+                        setChaveAberta(chaveDaLinha(alvo));
                       }}
                       onFocus={(evento) => comCartao && abrirCartao(evento.currentTarget.closest("tr")!)}
                       onBlur={fecharCartao}
@@ -684,19 +685,73 @@ export default function ConciliacaoPage() {
                       {descricao}
                     </button>
                   );
+                  // um lote conciliado por soma é uma linha só: a ponta única de um lado e, do outro, o resumo dos
+                  // lançamentos que a somam; abrir o resumo mostra cada um deles logo abaixo
+                  const lote = linha.grupoId ? lotes.get(linha.grupoId) : undefined;
+                  const ehPonta = lote?.ponta === linha;
+                  const pontaNoBanco = lote ? lote.ponta.valorBanco !== null : false;
+                  const loteAberto = !!linha.grupoId && !lotesFechados.has(linha.grupoId);
+                  const celulasDe = (l: LinhaComparacao, lado: "banco" | "sistema") => {
+                    const dados = ladosDaLinha(l)[lado];
+                    if (!dados) return null;
+                    const folha = lado === "banco" ? "folha-banco" : "folha-sistema";
+                    const valor = lado === "banco" ? l.valorBanco : l.valorSistema;
+                    const rotulo = lado === "banco" ? ["Data", "Descrição", "Banco"] : ["Data no sistema", "Descrição no sistema", "Sistema"];
+                    return (
+                      <>
+                        <td role="cell" data-rotulo={rotulo[0]} className={`dash-celula-fraca ${folha}`}>{dados.data}</td>
+                        <td role="cell" data-rotulo={rotulo[1]} data-destaque="true" className={`${folha} celula-descricao`} title={dados.descricao}>
+                          {abrir(dados.descricao, l)}
+                        </td>
+                        <td role="cell" data-rotulo={rotulo[2]} className={`dash-valor-celula ${folha}`}>
+                          {valor !== null ? formatarMoeda(valor) : "—"}
+                        </td>
+                      </>
+                    );
+                  };
+                  // o outro lado da ponta: quantos lançamentos somam e o total, com o botão que abre a lista
+                  const resumoDoLote = (lado: "banco" | "sistema") => {
+                    if (!lote || !linha.grupoId) return null;
+                    const grupoId = linha.grupoId;
+                    const quantos = lote.membros.length;
+                    return (
+                      <td role="cell" colSpan={3} data-rotulo={lado === "banco" ? "Banco" : "Sistema"} className={lado === "banco" ? "folha-banco" : "folha-sistema"}>
+                        <button
+                          type="button"
+                          id={idDoGrupo}
+                          className="lote-resumo"
+                          title={`${quantos} lançamentos ${lado === "banco" ? "do banco" : "do sistema"} somam ${formatarMoeda(Math.abs(lote.ponta.valorBanco ?? lote.ponta.valorSistema ?? 0))}${lote.membros[0]?.grupo?.maiorDesvioDias ? ` · até ${lote.membros[0].grupo.maiorDesvioDias} dia(s) de diferença` : ""}`}
+                          aria-expanded={loteAberto}
+                          onClick={() =>
+                            setLotesFechados((atual) => {
+                              const proximo = new Set(atual);
+                              if (!proximo.delete(grupoId)) proximo.add(grupoId);
+                              return proximo;
+                            })
+                          }
+                        >
+                          <span className="lote-resumo-seta" aria-hidden="true">{loteAberto ? "▾" : "▸"}</span>
+                          <span className="lote-resumo-texto">{quantos} lançamentos somados</span>
+                          <span className="lote-resumo-acao">{loteAberto ? "Recolher" : "Ver lançamentos"}</span>
+                        </button>
+                      </td>
+                    );
+                  };
                   return (
                     <Fragment key={linha.id}>
-                    {abreGrupo && linha.grupo && (
-                      <tr role="row" id={idDoGrupo} data-tom="ok">
-                        <td role="cell" colSpan={podeDecidir ? 8 : 7} className="dash-celula-fraca">
-                          <span className="selo selo-ok">Conciliado por soma</span> {cabecalhoDoGrupo(linha.grupo)}
-                        </td>
-                      </tr>
-                    )}
-                    {/* o tom do status pinta o hover: a linha acende na cor do veredito dela */}
+                    {lote && !ehPonta ? (
+                      loteAberto && (
+                        <tr role="row" data-tom={tom} data-situacao={situacao} data-lote-membro="">
+                          {pontaNoBanco ? <td role="cell" colSpan={3} className="folha-banco" /> : celulasDe(linha, "banco")}
+                          <td role="cell" data-rotulo="Status" className="celula-status" />
+                          {pontaNoBanco ? celulasDe(linha, "sistema") : <td role="cell" colSpan={3} className="folha-sistema" />}
+                          {podeDecidir && <td role="cell" className="celula-conferir" />}
+                        </tr>
+                      )
+                    ) : (
+                    /* o tom do status pinta o hover: a linha acende na cor do veredito dela */
                     <tr
                       role="row"
-                      aria-describedby={linha.grupoId ? idDoGrupo : undefined}
                       data-tom={tom}
                       data-situacao={situacao}
                       onMouseEnter={
@@ -741,26 +796,20 @@ export default function ConciliacaoPage() {
                             {linha.valorBanco !== null ? marcar("valor", formatarMoeda(linha.valorBanco)) : "—"}
                           </td>
                         </>
+                      ) : ehPonta ? (
+                        resumoDoLote("banco")
                       ) : (
-                        // num lote o lado único é o esperado, não uma falta: folha lisa com um fio, sem a marca
-                        linha.grupoId ? (
-                          <td role="cell" colSpan={3} className="folha-banco folha-fio" />
-                        ) : (
                         // uma célula só no lugar de três traços: a folha diz que falta, não que está em branco
                         <td role="cell" colSpan={3} data-rotulo="Banco" className="folha-banco folha-vazia">
                           <span className="folha-vazia-marca">sem lançamento no banco</span>
                         </td>
-                        )
                       )}
                       {/* o nome curto cabe no eixo; o inteiro fica para o leitor de tela. Todo status leva
                           o selo na cor dele, o Conciliado em verde (a pedido de clientes: acham mais fácil) */}
                       <td role="cell" data-rotulo="Status" className="celula-status">
-                        {/* num lote o veredito é um só: o selo vai no primeiro membro, o fio liga os outros */}
-                        {(!linha.grupoId || abreGrupo) && (
-                          <span className={`selo selo-${tom}`} aria-hidden="true">
-                            {situacao === "justificada" ? "Justificada" : situacao === "aguardando" ? "Aguardando" : rotuloCurto(linha)}
-                          </span>
-                        )}
+                        <span className={`selo selo-${tom}`} aria-hidden="true">
+                          {situacao === "justificada" ? "Justificada" : situacao === "aguardando" ? "Aguardando" : rotuloCurto(linha)}
+                        </span>
                         <span className="sr-only">
                           {situacao === "justificada"
                             ? `${status.rotulo} · justificada`
@@ -797,14 +846,12 @@ export default function ConciliacaoPage() {
                             {linha.valorSistema !== null ? marcar("valor", formatarMoeda(linha.valorSistema)) : "—"}
                           </td>
                         </>
+                      ) : ehPonta ? (
+                        resumoDoLote("sistema")
                       ) : (
-                        linha.grupoId ? (
-                          <td role="cell" colSpan={3} className="folha-sistema folha-fio" />
-                        ) : (
-                          <td role="cell" colSpan={3} data-rotulo="Sistema" className="folha-sistema folha-vazia">
-                            <span className="folha-vazia-marca">sem lançamento no sistema</span>
-                          </td>
-                        )
+                        <td role="cell" colSpan={3} data-rotulo="Sistema" className="folha-sistema folha-vazia">
+                          <span className="folha-vazia-marca">sem lançamento no sistema</span>
+                        </td>
                       )}
                       {podeDecidir && (
                         <td role="cell" data-rotulo={marcando ? "Marcar" : "Conferida"} className="celula-conferir">
@@ -828,6 +875,7 @@ export default function ConciliacaoPage() {
                         </td>
                       )}
                     </tr>
+                    )}
                     </Fragment>
                   );
                 })}
