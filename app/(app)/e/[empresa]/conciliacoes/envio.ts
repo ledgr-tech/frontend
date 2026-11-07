@@ -34,6 +34,14 @@ export const RECADO: Record<Exclude<Etapa, "ocioso">, string> = {
   conciliando: "Comparando banco e sistema…",
 };
 
+// a linha menor sob o recado: o que o sistema faz naquela etapa, sem prometer o que não faz
+export const DETALHE: Record<Exclude<Etapa, "ocioso">, string> = {
+  conferindo: "Vendo se colunas e datas estão no formato certo",
+  enviando: "Mandando os arquivos para o servidor",
+  processando: "Separando data, descrição e valor de cada linha",
+  conciliando: "Vendo o que está correto e o que precisa da sua decisão",
+};
+
 function esperar(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }

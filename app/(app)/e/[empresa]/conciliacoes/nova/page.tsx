@@ -16,6 +16,7 @@ import {
   conferirCsv,
   ERRO_SEM_RESPOSTA,
   motivoDaRecusa,
+  DETALHE,
   RECADO,
   subir,
   type Etapa,
@@ -607,12 +608,18 @@ const LINHAS = [
   [60, 82],
   [80, 56],
   [72, 66],
+  [58, 70],
+  [68, 52],
+  [74, 62],
+  [62, 78],
+  [70, 58],
+  [66, 72],
 ];
 
 /**
  * No envio, o palco toma a tela: as duas folhas saem da sobreposição para os lados, as linhas de
  * cada uma entram como barras, sem dado nenhum, e os pares se ligam pelo meio com o ✓ numa onda que
- * não para até a comparação abrir. As linhas são ilustração; o progresso de verdade é a etapa no topo.
+ * não para até a comparação abrir. As linhas são ilustração; o progresso de verdade é a etapa no topo e o texto embaixo.
  */
 function Palco({ banco, sistema, etapa }: { banco: string; sistema: string; etapa: Etapa }) {
   const indice = ETAPAS.indexOf(etapa) + 1;
@@ -636,9 +643,6 @@ function Palco({ banco, sistema, etapa }: { banco: string; sistema: string; etap
   return (
     <div className="nova-palco">
       <div className="nova-palco-topo">
-        <p className="nova-palco-recado" aria-live="polite">
-          {RECADO[etapa as Exclude<Etapa, "ocioso">]}
-        </p>
         <div className="nova-etapas">
           <span className="nova-etapas-barra" aria-hidden="true">
             {ETAPAS.map((nome, i) => (
@@ -660,6 +664,11 @@ function Palco({ banco, sistema, etapa }: { banco: string; sistema: string; etap
           ))}
         </div>
         {folha("sistema", sistema)}
+      </div>
+      {/* a key refaz a entrada a cada etapa: o texto novo chega, não troca de supetão */}
+      <div className="nova-palco-rodape" key={etapa} aria-live="polite">
+        <p className="nova-palco-recado">{RECADO[etapa as Exclude<Etapa, "ocioso">]}</p>
+        <p className="nova-palco-detalhe">{DETALHE[etapa as Exclude<Etapa, "ocioso">]}</p>
       </div>
     </div>
   );

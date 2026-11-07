@@ -436,8 +436,11 @@ p.eyebrow {
    0,32s entre pares, a onda começa em 1,2s, depois de as folhas saírem da sobreposição) */
 .nova-palco { display: flex; flex-direction: column; gap: 22px; padding: 26px 0 56px; }
 .nova-palco-topo { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; }
-.nova-palco-recado { flex: 1 1 260px; margin: 0; font-family: var(--font-titulo); font-size: 26px; font-weight: 500; }
 .nova-palco-topo .nova-etapas { flex: 1 1 320px; }
+/* o texto da etapa mora embaixo das folhas: título e uma linha do que o sistema faz agora */
+.nova-palco-rodape { display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; }
+.nova-palco-recado { margin: 0; font-family: var(--font-titulo); font-size: 26px; font-weight: 500; }
+.nova-palco-detalhe { margin: 0; font-size: 15px; color: var(--texto-apagado); }
 .nova-etapas { display: flex; align-items: center; gap: 12px; }
 .nova-etapas-barra { flex: 1; display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
 .nova-etapas-barra span {
@@ -446,7 +449,14 @@ p.eyebrow {
 }
 .nova-etapas-barra span[data-feita] { background: var(--color-accent); }
 .nova-etapas-texto { font-size: 13px; white-space: nowrap; font-variant-numeric: tabular-nums; color: var(--texto-apagado); }
-.nova-palco-mesa { display: grid; grid-template-columns: minmax(0, 1fr) 96px minmax(0, 1fr); align-items: start; }
+/* as folhas enchem a tela: a mesa tem a altura da janela (menos o que há em volta) e corta o que passa,
+   com o fim esmaecido, como um extrato que continua. 716px = as 14 linhas inteiras (72 + 14 × 46) */
+.nova-palco-mesa {
+  display: grid; grid-template-columns: minmax(0, 1fr) 96px minmax(0, 1fr); align-items: start;
+  height: clamp(320px, calc(100svh - 380px), 716px); overflow: hidden;
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 90px), transparent);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 90px), transparent);
+}
 .nova-palco-folha { min-width: 0; border: 1px solid var(--color-divider); border-radius: 10px; box-shadow: var(--shadow-md); overflow: hidden; }
 .nova-palco-banco { background: var(--folha-banco); animation: nova-banco-sai 0.45s var(--ease-out) both; }
 .nova-palco-sistema { background: var(--folha-sistema); animation: nova-sistema-sai 0.45s var(--ease-out) both; }
@@ -575,7 +585,7 @@ p.eyebrow {
 .nova-folhas[data-ligado] .nova-elo-no { animation: nova-elo-acende 420ms var(--ease-out); }
 @keyframes nova-elo-acende { 40% { transform: scale(1.18); } }
 .nova-conciliar { transition: background-color 200ms var(--ease-out), border-color 200ms var(--ease-out), color 200ms var(--ease-out); }
-.nova-palco-topo, .nova-volta, .ia-erros, .nova-erro { animation: nova-surgir 200ms var(--ease-out) backwards; }
+.nova-palco-topo, .nova-palco-rodape, .nova-volta, .ia-erros, .nova-erro { animation: nova-surgir 200ms var(--ease-out) backwards; }
 @keyframes nova-surgir { from { opacity: 0; transform: translateY(6px); } }
 
 /* com menos movimento: nada se mexe, o palco fica com as folhas lado a lado e a etapa no topo */
@@ -585,7 +595,7 @@ p.eyebrow {
   .nova-folha[data-pronto] .nova-folha-icone svg, .ia-folha[data-pronto] .nova-folha-icone svg,
   .nova-checklist li[data-feito] .nova-checklist-marca svg, .nova-guia-passos li[data-feito] .nova-guia-num svg,
   .nova-folha .conc-folha-linhas, .ia-json,
-  .nova-folhas[data-ligado] .nova-elo-no, .nova-palco-topo, .nova-volta, .ia-erros, .nova-erro { animation: none; }
+  .nova-folhas[data-ligado] .nova-elo-no, .nova-palco-topo, .nova-palco-rodape, .nova-volta, .ia-erros, .nova-erro { animation: none; }
 }
 
 .ink-drop {
