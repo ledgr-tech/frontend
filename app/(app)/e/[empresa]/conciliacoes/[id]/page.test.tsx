@@ -35,7 +35,9 @@ vi.mock("../acoes", () => ({
   },
   registrarDecisao: (...args: unknown[]) => registrarDecisao(...args),
   decidirLinhas: (...args: unknown[]) => decidirLinhas(...args),
+  explicarDivergencia: (...args: unknown[]) => explicarDivergencia(...args),
 }));
+const explicarDivergencia = vi.fn();
 const decidirLinhas = vi.fn();
 
 const BANCO = "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20";
@@ -167,6 +169,7 @@ describe("ConciliacaoPage", () => {
     carregarConciliacao.mockReset();
     registrarDecisao.mockReset();
     registrarDecisaoNoMock.mockReset();
+    explicarDivergencia.mockReset();
     navegar.push.mockReset();
     window.localStorage.clear();
     delete document.documentElement.dataset.densidade;
@@ -1760,6 +1763,190 @@ describe("ConciliacaoPage", () => {
         expect(within(janela).queryByLabelText("Justificativa")).not.toBeInTheDocument();
       });
     });
+    describe("o painel da direita (#338)", () => {
+      const SALDO = { inicial: 441555.86, final: 46147.12, data: "2026-10-29" };
+      const pendente: Decisao = { ...decisao("justificada"), situacao: "pendente" };
+      const comPendente: Conciliacao = {
+        ...comCampo,
+        saldo: SALDO,
+        linhas: comCampo.linhas.map((linha) => (linha.id === "lc-2" ? { ...linha, decisao: pendente } : linha)),
+      };
+      const comSaldo: Conciliacao = { ...comCampo, saldo: SALDO };
+      const painel = () => screen.getByRole("complementary", { name: "Detalhe da linha e saldo do extrato" });
+
+      beforeEach(() => {
+        // tela larga, com mouse: onde o painel existe
+        vi.stubGlobal("matchMedia", () => ({ matches: true }));
+      });
+      afterEach(() => {
+        vi.unstubAllGlobals();
+        podeFechar.valor = true;
+      });
+
+      it("aparece só onde há margem para ele, e leva o saldo no lugar da faixa do topo", async () => {
+        doBackend(comSaldo);
+        const larga = render(<ConciliacaoPage />);
+        await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" });
+        expect(painel()).toHaveTextContent("Saldo final");
+        // o saldo mora só no painel: a faixa do topo não se repete
+        expect(screen.queryByRole("region", { name: "Saldo do extrato do banco" })).not.toBeInTheDocument();
+        larga.unmount();
+
+        vi.stubGlobal("matchMedia", (consulta: string) => ({ matches: consulta === "(hover: hover)" }));
+        doBackend(comSaldo);
+        render(<ConciliacaoPage />);
+        await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" });
+        expect(screen.queryByRole("complementary", { name: "Detalhe da linha e saldo do extrato" })).not.toBeInTheDocument();
+        expect(screen.getByRole("region", { name: "Saldo do extrato do banco" })).toBeInTheDocument();
+      });
+
+      it("o hover preenche o painel, no lugar do balão, e o último fica quando o ponteiro sai", async () => {
+        doBackend(comSaldo);
+        const user = userEvent.setup();
+        render(<ConciliacaoPage />);
+
+        const linha = (await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" })).closest("tr")!;
+        expect(painel()).toHaveTextContent("Passe o mouse sobre uma linha");
+        await user.hover(linha);
+        expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+        expect(within(painel()).getByRole("heading", { name: "Boleto Aço Norte Bobinas" })).toBeInTheDocument();
+        expect(within(painel()).getByText("Em foco")).toBeInTheDocument();
+        expect(linha).toHaveAttribute("data-foco");
+
+        await user.unhover(linha);
+        expect(within(painel()).getByRole("heading", { name: "Boleto Aço Norte Bobinas" })).toBeInTheDocument();
+      });
+
+      it("um clique na linha a fixa, o ponteiro por outra não a troca, e outro clique solta", async () => {
+        doBackend(comSaldo);
+        const user = userEvent.setup();
+        render(<ConciliacaoPage />);
+        const primeira = (await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" })).closest("tr")!;
+        const outra = screen.getByRole("button", { name: "Tarifa TED" }).closest("tr")!;
+
+        await user.click(within(primeira).getAllByRole("cell")[0]);
+        expect(within(painel()).getByText("Fixado")).toBeInTheDocument();
+        expect(primeira).toHaveAttribute("data-fixo");
+
+        await user.hover(outra);
+        expect(within(painel()).getByRole("heading", { name: "Boleto Aço Norte Bobinas" })).toBeInTheDocument();
+
+        await user.click(within(primeira).getAllByRole("cell")[0]);
+        expect(within(painel()).queryByText("Fixado")).not.toBeInTheDocument();
+        await user.hover(outra);
+        expect(within(painel()).getByRole("heading", { name: "Tarifa TED" })).toBeInTheDocument();
+      });
+
+      it("um clique na descrição só escolhe a linha: a janela da linha não abre", async () => {
+        doBackend(comSaldo);
+        const user = userEvent.setup();
+        render(<ConciliacaoPage />);
+
+        await user.click(await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" }));
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+        expect(screen.queryByRole("link", { name: "Abrir detalhe" })).not.toBeInTheDocument();
+        expect(within(painel()).getByText("Fixado")).toBeInTheDocument();
+      });
+
+      it("o teclado também preenche o painel: o foco na descrição leva a linha a ele", async () => {
+        doBackend(comSaldo);
+        render(<ConciliacaoPage />);
+        const botao = await screen.findByRole("button", { name: "Tarifa TED" });
+        act(() => botao.focus());
+        expect(within(painel()).getByRole("heading", { name: "Tarifa TED" })).toBeInTheDocument();
+      });
+
+      it("o duplo clique, na linha ou na descrição, abre o detalhe; o botão do painel também", async () => {
+        doBackend(comSaldo);
+        const user = userEvent.setup();
+        render(<ConciliacaoPage />);
+        const tr = (await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" })).closest("tr")!;
+        const rota2 = expect.stringMatching(/\/lc-2(\?|$)/);
+
+        await user.dblClick(within(tr).getAllByRole("cell")[0]);
+        expect(navegar.push).toHaveBeenCalledWith(rota2);
+        navegar.push.mockReset();
+        await user.dblClick(within(tr).getByRole("button", { name: "Boleto Aço Norte Bobinas" }));
+        expect(navegar.push).toHaveBeenCalledWith(rota2);
+        navegar.push.mockReset();
+
+        await user.click(within(tr).getAllByRole("cell")[0]);
+        await user.click(within(painel()).getByRole("button", { name: "Abrir detalhe" }));
+        expect(navegar.push).toHaveBeenCalledWith(rota2);
+      });
+
+      it("justifica pelo painel: grava a decisão, a linha vira Aguardando e o painel mostra a nota", async () => {
+        doBackend(comSaldo);
+        registrarDecisao.mockResolvedValue({ ok: true, dados: pendente });
+        const user = userEvent.setup();
+        render(<ConciliacaoPage />);
+        const tr = (await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" })).closest("tr")!;
+
+        await user.hover(tr);
+        await user.click(within(painel()).getByRole("button", { name: "Justificar" }));
+        // com o campo aberto a linha fica fixada: o ponteiro por outra não a troca
+        await user.hover(screen.getByRole("button", { name: "Tarifa TED" }).closest("tr")!);
+        expect(within(painel()).getByRole("heading", { name: "Boleto Aço Norte Bobinas" })).toBeInTheDocument();
+
+        await user.type(within(painel()).getByLabelText("Justificativa"), "Juros de dois dias de atraso.");
+        await user.click(within(painel()).getByRole("button", { name: "Justificar" }));
+
+        expect(registrarDecisao).toHaveBeenCalledWith(BANCO, "b:lc-2", "justificada", "Juros de dois dias de atraso.");
+        expect(within(tr).getAllByRole("cell")[3]).toHaveTextContent("Aguardando");
+        expect(painel()).toHaveTextContent("aguardando aprovação");
+        // solto o campo, o ponteiro volta a trocar a linha
+        await user.hover(screen.getByRole("button", { name: "Tarifa TED" }).closest("tr")!);
+        expect(within(painel()).getByRole("heading", { name: "Tarifa TED" })).toBeInTheDocument();
+      });
+
+      it("o admin e o gestor aprovam e rejeitam pelo painel", async () => {
+        doBackend(comPendente);
+        registrarDecisao.mockResolvedValue({ ok: true, dados: { ...pendente, situacao: "aprovada", aprovadaPor: "Gil Gestor", aprovadaEm: "2026-10-21T09:00:00Z" } });
+        const user = userEvent.setup();
+        render(<ConciliacaoPage />);
+        const tr = (await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" })).closest("tr")!;
+
+        await user.hover(tr);
+        await user.click(within(painel()).getByRole("button", { name: "Aprovar" }));
+        expect(registrarDecisao).toHaveBeenCalledWith(BANCO, "b:lc-2", "justificativa_aprovada", undefined);
+        expect(within(tr).getAllByRole("cell")[3]).toHaveTextContent("Justificada");
+        expect(painel()).toHaveTextContent("Aprovada por Gil Gestor em");
+      });
+
+      it("o analista vê que aguarda e não ganha botão de aprovar", async () => {
+        podeFechar.valor = false;
+        doBackend(comPendente);
+        const user = userEvent.setup();
+        render(<ConciliacaoPage />);
+
+        await user.hover((await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" })).closest("tr")!);
+        expect(painel()).toHaveTextContent("Aguarda a aprovação do admin ou do gestor da conta.");
+        expect(within(painel()).queryByRole("button", { name: "Aprovar" })).not.toBeInTheDocument();
+      });
+
+      it("o mês fechado não oferece decidir pelo painel", async () => {
+        doBackend(comSaldo, { fechamento: { competencia: "2026-09", fechadoPor: "Gil Gestor", fechadoEm: "2026-10-01T10:00:00Z" } });
+        const user = userEvent.setup();
+        render(<ConciliacaoPage />);
+
+        await user.hover((await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" })).closest("tr")!);
+        expect(within(painel()).queryByRole("button", { name: "Justificar" })).not.toBeInTheDocument();
+      });
+
+      it("pede a explicação no clique e a deixa na linha", async () => {
+        doBackend({ ...comSaldo, linhas: comSaldo.linhas.map((linha) => (linha.id === "lc-2" ? { ...linha, explicacao: null } : linha)) });
+        explicarDivergencia.mockResolvedValue({ ok: true, dados: { texto: "A folha está incompleta.", geradaPorIa: true, indisponibilidade: null } });
+        const user = userEvent.setup();
+        render(<ConciliacaoPage />);
+
+        await user.hover((await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" })).closest("tr")!);
+        await user.click(within(painel()).getByRole("button", { name: "Explicar esta divergência" }));
+        expect(explicarDivergencia).toHaveBeenCalledWith("lc-2");
+        expect(await within(painel()).findByText("A folha está incompleta.")).toBeInTheDocument();
+        expect(within(painel()).getByText("Gerada por IA · confira antes de decidir")).toBeInTheDocument();
+      });
+    });
+
   });
 
   it("sorts by a column and flips the direction on a second click", async () => {
