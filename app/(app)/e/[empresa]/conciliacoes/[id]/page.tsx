@@ -19,7 +19,6 @@ import {
   estaResolvida,
   formatarDataHora,
   formatarInteiro,
-  rotuloCurto,
   seloDoStatus,
   statusDaLinha,
 } from "../../dashboard/resumo";
@@ -28,7 +27,7 @@ import { EsqueletoTela } from "../../esqueleto";
 import { FalhaAoCarregar } from "../../falha-ao-carregar";
 import { TelaDeAviso } from "@/app/tela-de-aviso";
 import { filtrarLinhas, ordenarLinhas, type Coluna, type Filtro, type Ordem } from "./ordenar";
-import { continuaDivergindo, decisoesLigadas, situacaoDaLinha } from "./situacao";
+import { continuaDivergindo, decisoesLigadas, seloDaLinha, situacaoDaLinha, tomDaLinha } from "./situacao";
 import { contarGrupos, juntarGrupos, montarLotes } from "./grupos";
 import { decidir, type ResultadoDaDecisao } from "./decidir";
 import { aplicarDensidade, densidadeAtual, type Densidade } from "../../densidade";
@@ -38,6 +37,8 @@ import { Relatorio } from "./relatorio";
 import { NovaVersao } from "./nova-versao";
 import { LinhaDasRodadas } from "./linha-das-rodadas";
 import { CirculoDeConferir } from "./circulo-de-conferir";
+import { PainelDoExtrato } from "./painel-do-extrato";
+import { usePainelAtivo } from "./painel-ativo";
 import { competencia, tituloDaCompetencia } from "../../fechamentos/fechamento";
 import { larguraDoValor } from "./largura";
 import { Reveal } from "@/app/reveal";
@@ -141,6 +142,12 @@ export default function ConciliacaoPage() {
   // os lotes conciliados por soma que a pessoa recolheu: por padrão todos vêm abertos, para ler sem clicar
   const [lotesFechados, setLotesFechados] = useState<Set<string>>(new Set());
   const idCartao = useId();
+  // o painel da direita (#338): onde há margem para ele, o hover e o clique mexem nele, e não no balão
+  const painel = usePainelAtivo();
+  // a linha em foco no painel, pela chave: o ponteiro a troca; o clique a fixa; escrever ou esperar a trava
+  const [foco, setFoco] = useState<string | null>(null);
+  const [fixada, setFixada] = useState(false);
+  const [ocupada, setOcupada] = useState(false);
   // a categoria do relatório chega pela URL: quem volta do detalhe de uma linha
   // reencontra o mesmo recorte
   const [filtro, setFiltro] = useState<Filtro>(() => {
@@ -290,6 +297,7 @@ export default function ConciliacaoPage() {
     return resposta.erro;
   }
 
+  const linhaEmFoco = foco === null ? null : (conciliacao.linhas.find((linha) => chaveDaLinha(linha) === foco) ?? null);
   const linhaAberta = chaveAberta === null ? null : (conciliacao.linhas.find((linha) => chaveDaLinha(linha) === chaveAberta) ?? null);
 
   /** Troca uma linha na conciliação que estiver na tela quando a resposta chegar. */
@@ -379,6 +387,8 @@ export default function ConciliacaoPage() {
         }
       />
       {/* os avisos e as faixas do topo ficam juntos; o resumo e a tabela abrem blocos com mais ar (#228) */}
+      {/* com o painel (#338), o corpo e ele lado a lado: a tabela com a largura de sempre e o painel na margem */}
+      <div className="comparacao-grade" data-painel={painel ? "" : undefined}>
       <div className="comparacao-corpo">
         {/* A tela ordena e filtra a lista inteira no cliente, então só faz sentido
             com a lista inteira em mãos. Se o teto de páginas cortou, dizer isso é
@@ -428,7 +438,7 @@ export default function ConciliacaoPage() {
         )}
         {/* o saldo do extrato do banco (#118), o primeiro número que o contador procura: o mesmo em
             todas as rodadas, junto do resumo do par */}
-        <FaixaDoSaldo saldo={conciliacao.saldo} />
+        {!painel && <FaixaDoSaldo saldo={conciliacao.saldo} />}
         {/* desligar uma categoria volta ao "Só revisão": as cinco são o que ele junta.
             As justificadas saem das categorias e são contadas à parte. */}
         <Reveal className="comparacao-bloco">
@@ -635,8 +645,7 @@ export default function ConciliacaoPage() {
                   const status = statusDaLinha(linha);
                   const situacao = situacaoDaLinha(linha, rodadaDasLinhas);
                   // conferida ou justificada, a linha sai da cor da categoria: alguém já cuidou dela
-                  const tom =
-                    situacao === "aguardando" ? "atencao" : situacao === "conferida" || situacao === "justificada" ? "neutro" : status.tom;
+                  const tom = tomDaLinha(linha, rodadaDasLinhas);
                   const { banco, sistema } = ladosDaLinha(linha);
                   // o cartão só nas linhas que pedem revisão, como na landing: nas batidas seria ruído
                   const comCartao = !estaResolvida(linha.status);
@@ -661,6 +670,20 @@ export default function ConciliacaoPage() {
                       ancora: (tr.querySelector(".celula-status .selo") ?? tr.querySelector(".celula-status") ?? tr).getBoundingClientRect(),
                     });
                   };
+                  // o painel da direita: o ponteiro (ou o foco do teclado) leva a linha a ele, e o clique a fixa;
+                  // fixada, ou com a pessoa escrevendo ali, o ponteiro passando por outra não a troca
+                  const focar = (alvo: LinhaComparacao) => {
+                    if (!fixada && !ocupada) setFoco(chaveDaLinha(alvo));
+                  };
+                  const fixar = (alvo: LinhaComparacao) => {
+                    if (ocupada) return;
+                    const chave = chaveDaLinha(alvo);
+                    if (fixada && foco === chave) setFixada(false);
+                    else {
+                      setFoco(chave);
+                      setFixada(true);
+                    }
+                  };
                   const fecharCartao = () =>
                     setCartao((atual) => (atual?.linha.id === linha.id ? null : atual));
                   const fecharCartaoDepois = () => {
@@ -674,12 +697,20 @@ export default function ConciliacaoPage() {
                       type="button"
                       className="celula-abrir"
                       aria-describedby={cartao?.linha.id === linha.id ? idCartao : undefined}
+                      // com o painel, um clique na descrição só escolhe a linha (como na tabela: um clique
+                      // escolhe, dois abrem); a janela da linha fica para as telas sem margem
                       onClick={() => {
+                        if (painel) {
+                          fixar(alvo);
+                          return;
+                        }
                         setCartao(null);
                         setChaveAberta(chaveDaLinha(alvo));
                       }}
-                      onFocus={(evento) => comCartao && abrirCartao(evento.currentTarget.closest("tr")!)}
-                      onBlur={fecharCartao}
+                      onFocus={(evento) =>
+                        painel ? focar(alvo) : comCartao && abrirCartao(evento.currentTarget.closest("tr")!)
+                      }
+                      onBlur={painel ? undefined : fecharCartao}
                       onKeyDown={(evento) => evento.key === "Escape" && fecharCartao()}
                     >
                       {descricao}
@@ -754,14 +785,29 @@ export default function ConciliacaoPage() {
                       role="row"
                       data-tom={tom}
                       data-situacao={situacao}
+                      data-foco={painel && foco === chaveDaLinha(linha) ? "" : undefined}
+                      data-fixo={painel && fixada && foco === chaveDaLinha(linha) ? "" : undefined}
                       onMouseEnter={
-                        comCartao ? (evento) => temHover() && abrirCartao(evento.currentTarget) : undefined
+                        painel
+                          ? () => focar(linha)
+                          : comCartao
+                            ? (evento) => temHover() && abrirCartao(evento.currentTarget)
+                            : undefined
                       }
-                      onMouseLeave={comCartao ? fecharCartaoDepois : undefined}
+                      onMouseLeave={painel ? undefined : comCartao ? fecharCartaoDepois : undefined}
+                      onClick={
+                        painel
+                          ? (evento) => {
+                              if ((evento.target as Element).closest("button, a, input")) return;
+                              fixar(linha);
+                            }
+                          : undefined
+                      }
                       // atalho para o detalhe inteiro; o círculo de conferir e a descrição (que abre o
-                      // espia, e trata o segundo clique lá) ficam com os cliques deles
+                      // espia, e trata o segundo clique lá) ficam com os cliques deles; com o painel a
+                      // descrição não abre a janela, então o duplo clique nela também leva ao detalhe
                       onDoubleClick={(evento) => {
-                        if ((evento.target as Element).closest("button, a, input")) return;
+                        if ((evento.target as Element).closest(painel ? "button:not(.celula-abrir), a, input" : "button, a, input")) return;
                         // o duplo clique do navegador seleciona a palavra; ela ficaria azul atrás do painel
                         window.getSelection()?.removeAllRanges();
                         setCartao(null);
@@ -808,7 +854,7 @@ export default function ConciliacaoPage() {
                           o selo na cor dele, o Conciliado em verde (a pedido de clientes: acham mais fácil) */}
                       <td role="cell" data-rotulo="Status" className="celula-status">
                         <span className={`selo selo-${tom}`} aria-hidden="true">
-                          {situacao === "justificada" ? "Justificada" : situacao === "aguardando" ? "Aguardando" : rotuloCurto(linha)}
+                          {seloDaLinha(linha, rodadaDasLinhas).rotulo}
                         </span>
                         <span className="sr-only">
                           {situacao === "justificada"
@@ -934,6 +980,37 @@ export default function ConciliacaoPage() {
             }}
           />
         )}
+      </div>
+      {painel && (
+        <div className="comparacao-lateral">
+          <PainelDoExtrato
+            linha={linhaEmFoco}
+            fixada={fixada}
+            rodada={rodadaDasLinhas}
+            linhas={conciliacao.linhas}
+            saldo={conciliacao.saldo}
+            real={real}
+            podeDecidir={podeDecidir}
+            podeAprovar={podeAprovar}
+            onJustificar={(texto) => (linhaEmFoco ? gravarDecisao(linhaEmFoco, "justificada", texto) : Promise.resolve(null))}
+            onAprovar={() => (linhaEmFoco ? gravarDecisao(linhaEmFoco, "justificativa_aprovada") : Promise.resolve(null))}
+            onRejeitar={(motivo) =>
+              linhaEmFoco ? gravarDecisao(linhaEmFoco, "justificativa_rejeitada", motivo || undefined) : Promise.resolve(null)
+            }
+            onExplicada={(linha, explicacao) =>
+              trocarLinha(chaveDaLinha(linha), (atual) => ({
+                ...atual,
+                explicacao: explicacao.texto,
+                explicacaoPorIa: explicacao.geradaPorIa,
+              }))
+            }
+            onAbrirDetalhe={() => {
+              if (linhaEmFoco) router.push(caminhoDaConciliacao(conciliacao.id, conciliacao.extratoSistemaId, linhaEmFoco.id));
+            }}
+            onOcupar={setOcupada}
+          />
+        </div>
+      )}
       </div>
     </div>
   );

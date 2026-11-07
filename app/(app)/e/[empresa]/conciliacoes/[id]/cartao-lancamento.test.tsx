@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import type { LinhaComparacao } from "@/lib/mock-data";
-import { CartaoLancamento } from "./cartao-lancamento";
+import { CartaoLancamento, dadosDoLancamento } from "./cartao-lancamento";
 
 const LINHA: LinhaComparacao = {
   id: "lc-1",
@@ -139,5 +139,41 @@ describe("CartaoLancamento", () => {
     // conferida nesta mesma rodada: não há o que avisar
     rerender(<CartaoLancamento id="c" aberto={{ linha: conferida, ancora: celula(600, 500) }} rodada={1} />);
     expect(screen.getByRole("tooltip")).not.toHaveTextContent("continua divergindo");
+  });
+});
+
+describe("dadosDoLancamento", () => {
+  it("diz os dois lados, a diferença e a explicação da divergência de valor", () => {
+    const dados = dadosDoLancamento(LINHA, 1, [LINHA]);
+    expect(dados.rotulo).toBe("Valor diverge na mesma data");
+    expect(dados.titulo).toBe("Boleto Aço Norte Bobinas");
+    expect(dados.banco).toEqual({ data: "04/09", valor: "-R$ 12.640,00" });
+    expect(dados.sistema).toEqual({ data: "04/09", valor: "-R$ 12.604,00" });
+    expect(dados.diferenca).toBe("R$ 36,00");
+    expect(dados.explicacao).toMatch(/juros/);
+    expect(dados.geradaPorIa).toBe(false);
+    expect(dados.nota).toBeNull();
+  });
+
+  it("o lado sem lançamento é null e não há diferença a dizer", () => {
+    const dados = dadosDoLancamento({ ...LINHA, status: "sem_correspondencia", valorSistema: null }, 1, []);
+    expect(dados.sistema).toBeNull();
+    expect(dados.diferenca).toBeNull();
+    expect(dados.banco?.valor).toBe("-R$ 12.640,00");
+  });
+
+  it("a decisão vem junto do rótulo e vira a nota da linha", () => {
+    const justificada = {
+      ...LINHA,
+      decisao: { tipo: "justificada" as const, texto: "Juros de dois dias.", autor: "Marina", em: "2026-09-30T13:12:00Z", rodada: 1 },
+    };
+    const dados = dadosDoLancamento(justificada, 1, [justificada]);
+    expect(dados.rotulo).toBe("Valor diverge na mesma data · justificada");
+    expect(dados.nota?.titulo).toMatch(/^Justificada por Marina em /);
+    expect(dados.nota?.texto).toBe("Juros de dois dias.");
+  });
+
+  it("marca a explicação que veio da IA", () => {
+    expect(dadosDoLancamento({ ...LINHA, explicacaoPorIa: true }, 1, [LINHA]).geradaPorIa).toBe(true);
   });
 });
