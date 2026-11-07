@@ -149,7 +149,7 @@ const dias = (a, b) => Math.abs(Date.parse(a) - Date.parse(b)) / 86400000;
 
 function conciliar(banco, sistema, tolerancia) {
   const linhas = [];
-  const par = (status, b, s, regra = null, score = null) => linhas.push({ status, b, s, regra, score });
+  const par = (status, b, s, regra = null, score = null, grupo = null) => linhas.push({ status, b, s, regra, score, grupo });
 
   // 1) exato: mesmo valor + data; excedente de um grupo com par e duplicado
   const grupos = new Map();
@@ -190,6 +190,26 @@ function conciliar(banco, sistema, tolerancia) {
     soltosS = soltosS.filter((l) => !usados.has(l.id));
   }
 
+  // 2b) soma (#131): 1 lancamento de um lado = 2 ou 3 do outro, mesmo sinal, ate `tolerancia` dias; o fake olha so
+  // pares e trios (ponytail: o backend real procura subconjuntos maiores)
+  const combos = (lista) => [...lista.flatMap((a, i) => lista.slice(i + 1).map((b) => [a, b])),
+    ...lista.flatMap((a, i) => lista.slice(i + 1).flatMap((b, j) => lista.slice(i + j + 2).map((c) => [a, b, c])))];
+  const cents = (l) => Math.round(Number(l.valor) * 100);
+  for (const [unicos, outros, unicoEhBanco] of [[soltosB, soltosS, true], [soltosS, soltosB, false]]) {
+    for (const u of [...unicos]) {
+      const achado = combos(outros).find((c) => c.reduce((t, l) => t + cents(l), 0) === cents(u)
+        && c.every((l) => cents(l) * cents(u) > 0 && dias(l.data, u.data) <= tolerancia));
+      if (!achado) continue;
+      const g = randomUUID();
+      const desvio = Math.max(...achado.map((l) => dias(l.data, u.data)));
+      const grupo = { quantidade_banco: unicoEhBanco ? 1 : achado.length, quantidade_sistema: unicoEhBanco ? achado.length : 1,
+        valor_unico: u.valor, maior_desvio_dias: desvio };
+      linhas.push({ status: "match_agrupado", b: unicoEhBanco ? u : null, s: unicoEhBanco ? null : u, regra: "soma", score: "1.000", grupo, grupoId: g });
+      for (const m of achado) linhas.push({ status: "match_agrupado", b: unicoEhBanco ? null : m, s: unicoEhBanco ? m : null, regra: "soma", score: "1.000", grupo, grupoId: g });
+      for (const l of [u, ...achado]) { const k = (unicoEhBanco ? soltosB : soltosS).indexOf(l); if (k >= 0) (unicoEhBanco ? soltosB : soltosS).splice(k, 1); else (unicoEhBanco ? soltosS : soltosB).splice((unicoEhBanco ? soltosS : soltosB).indexOf(l), 1); }
+    }
+  }
+
   // 3) o que sobrou: tarifa (so banco) > divergente_valor > divergente_data > sem_correspondencia
   const classifica = (l, outros, banco) => {
     const desc = l.descricao.trim().toLowerCase();
@@ -203,7 +223,7 @@ function conciliar(banco, sistema, tolerancia) {
   return linhas;
 }
 
-const CATEGORIAS = ["match_exato", "match_tolerancia", "duplicado", "sem_correspondencia", "tarifa_bancaria", "divergente_valor", "divergente_data"];
+const CATEGORIAS = ["match_exato", "match_tolerancia", "match_agrupado", "duplicado", "sem_correspondencia", "tarifa_bancaria", "divergente_valor", "divergente_data"];
 
 function contar(lista) {
   const zero = Object.fromEntries([["total", lista.length], ...CATEGORIAS.map((c) => [c, 0])]);
@@ -225,6 +245,7 @@ function executar(b, bancoId, sistemaId, executadaEm = agora()) {
     lancamento_banco: l.b,
     lancamento_sistema: l.s,
     chave: l.b?.id ?? chaveDoSistema(l.s),
+    ...(l.grupo ? { grupo_id: l.grupoId, grupo: l.grupo } : {}),
   }));
   itens.set(`${bancoId}|${sistemaId}`, lista);
   const contagens = contar(lista);
@@ -788,6 +809,52 @@ const servidor = createServer(async (req, res) => {
     return json(res, 200, { importacao_id: umaImportacao[1], total: itens.length, itens, resumo: { quantidade: itens.length,
       total_entradas: soma((l) => l.valor > 0), total_saidas: soma((l) => l.valor < 0), periodo_inicio: itens[0]?.data ?? null,
       periodo_fim: itens.at(-1)?.data ?? null, expira_em: new Date(Date.now() + 7 * 864e5).toISOString() } });
+  }
+  const resumoIa = (itens) => {
+    const soma = (f) => itens.filter(f).reduce((t, l) => t + l.valor, 0).toFixed(2);
+    return { quantidade: itens.length, total_entradas: soma((l) => l.valor > 0), total_saidas: soma((l) => l.valor < 0),
+      periodo_inicio: itens.map((l) => l.data).sort()[0] ?? null, periodo_fim: itens.map((l) => l.data).sort().at(-1) ?? null,
+      expira_em: new Date(Date.now() + 7 * 864e5).toISOString() };
+  };
+  const linhasIa = rota("POST", /^\/importacoes-ia\/([^/]+)\/lancamentos$/);
+  if (linhasIa) {
+    const itens = importacoesIa.get(linhasIa[1]);
+    if (!itens) return json(res, 404, { detail: "Importação não encontrada." });
+    const c = await corpoJson(req);
+    const lancamento = { id: randomUUID(), numero: itens.length + 1, data: c.data, descricao: c.descricao, valor: Number(c.valor) };
+    itens.push(lancamento);
+    return json(res, 201, { lancamento, resumo: resumoIa(itens) });
+  }
+  const editaLinhaIa = rota("PATCH", /^\/importacoes-ia\/([^/]+)\/lancamentos\/([^/]+)$/);
+  if (editaLinhaIa) {
+    const itens = importacoesIa.get(editaLinhaIa[1]) ?? [];
+    const l = itens.find((x) => x.id === editaLinhaIa[2]);
+    if (!l) return json(res, 404, { detail: "Lançamento não encontrado." });
+    const c = await corpoJson(req);
+    Object.assign(l, { data: c.data, descricao: c.descricao, valor: Number(c.valor) });
+    return json(res, 200, { lancamento: l, resumo: resumoIa(itens) });
+  }
+  const confirmaIa = rota("POST", /^\/importacoes-ia\/([^/]+)\/confirmar$/);
+  if (confirmaIa) {
+    const itens = importacoesIa.get(confirmaIa[1]);
+    if (!itens) return json(res, 404, { detail: "Importação não encontrada." });
+    const lancamentos = itens.map((l) => ({ data: l.data, descricao: l.descricao, valor: l.valor.toFixed(2) }));
+    const vistas = new Map();
+    for (const l of lancamentos) {
+      const k = `${l.valor}|${l.data}|${normalizar(l.descricao)}`;
+      vistas.set(k, (vistas.get(k) ?? 0) + 1);
+      Object.defineProperty(l, "ocorrencia", { value: vistas.get(k) });
+    }
+    const datas = lancamentos.map((l) => l.data).sort();
+    const extratoId = randomUUID();
+    b.extratos.set(extratoId, { origem: "sistema", nome: "Importação via IA", formato: "csv", lancamentos, erros: [],
+      periodoInicio: datas[0] ?? null, periodoFim: datas.at(-1) ?? null, enviadoEm: agora() });
+    importacoesIa.delete(confirmaIa[1]);
+    return json(res, 200, { extrato_id: extratoId });
+  }
+  if (umaImportacao && metodo === "DELETE") {
+    importacoesIa.delete(umaImportacao[1]);
+    return semCorpo();
   }
   const umaLinhaIa = rota("DELETE", /^\/importacoes-ia\/([^/]+)\/lancamentos\/([^/]+)$/);
   if (umaLinhaIa) {
