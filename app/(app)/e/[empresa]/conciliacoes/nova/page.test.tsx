@@ -543,6 +543,11 @@ describe("NovaConciliacaoPage", () => {
       expect(within(palco).getByText("banco.ofx")).toBeInTheDocument();
       expect(within(palco).getByText("sistema.csv")).toBeInTheDocument();
       expect(within(palco).getByText("Comparando banco e sistema…")).toBeInTheDocument();
+      expect(within(palco).getByText("Vendo o que está correto e o que precisa da sua decisão")).toBeInTheDocument();
+      // o texto da etapa fica embaixo da mesa das folhas, não no topo
+      const mesa = palco.querySelector(".nova-palco-mesa") as Element;
+      const recado = within(palco).getByText("Comparando banco e sistema…");
+      expect(mesa.compareDocumentPosition(recado) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
       expect(screen.queryByLabelText("Extrato do banco")).not.toBeInTheDocument();
     });
 
@@ -593,6 +598,7 @@ describe("NovaConciliacaoPage", () => {
         ".nova-folha[data-pronto] .nova-folha-icone svg",
         ".nova-folhas[data-ligado] .nova-elo-no",
         ".nova-volta",
+        ".nova-palco-rodape",
         ".ia-erros",
       ]) {
         expect(dentroDe("media", reduzido, seletor)).toMatchObject({ animation: "none" });
