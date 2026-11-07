@@ -78,10 +78,10 @@ export function cobrancaImediata(assinatura: Assinatura, agora: Date): boolean {
   return new Date(assinatura.fimDoTeste).getTime() - agora.getTime() < ANTECEDENCIA_DO_TESTE_MS;
 }
 
-/** `2026-12-14` → `14/12`. */
-export function formatarDiaCurto(dia: string): string {
-  const [, mes, d] = dia.split("-");
-  return `${d}/${mes}`;
+/** `2026-12-14` → `14/12`; fora do ano corrente em São Paulo, `14/12/2027` (a renovação do anual, a virada do ano). */
+export function formatarDiaCurto(dia: string, agora: Date): string {
+  const [ano, mes, d] = dia.split("-");
+  return ano === HOJE_EM_SP.format(agora).slice(0, 4) ? `${d}/${mes}` : `${d}/${mes}/${ano}`;
 }
 
 /** Dias de calendário até o fim do teste, contados em São Paulo; nunca negativo. */
@@ -102,7 +102,7 @@ export function fraseCurtaDoTeste(dias: number): string {
   return dias === 1 ? "Teste · 1 dia" : `Teste · ${dias} dias`;
 }
 
-/** Os três planos do teste, com preço e faixa de lib/planos (a tabela que vale ainda está aberta). */
+/** Os três planos do teste, com a faixa de lib/planos; o preço é o da Stripe (`PrecoDoPlano`). */
 export function planosDoTeste(): (Plano & { id: PlanoId })[] {
   return (Object.keys(NOMES) as PlanoId[]).map((id) => {
     const plano = PLANOS.find((p) => p.nome === NOMES[id]);
@@ -122,16 +122,18 @@ export type PrecoDoPlano = {
   /** O equivalente por mês; null no mensal. */
   porMes: string | null;
   desconto: number | null;
+  /** A franquia do plano (backend #183), igual nos quatro períodos; null é "sem valor para mostrar", nunca "ilimitado". */
+  conciliacoesPorMes: number | null;
 };
 
 const REAIS = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
-const emReais = (centavos: number) => REAIS.format(centavos / 100).replace(/ /g, " ");
+export const emReais = (centavos: number) => REAIS.format(centavos / 100).replace(/ /g, " ");
 
 /** A lista de `GET /assinatura/precos` (backend #180); null sem nenhum preço válido. */
 export function adaptarPrecos(bruto: unknown): PrecoDoPlano[] | null {
   if (!Array.isArray(bruto)) return null;
   const validos = bruto.filter(
-    (item): item is { plano: PlanoId; periodo: Periodo; valor_centavos: number } =>
+    (item): item is { plano: PlanoId; periodo: Periodo; valor_centavos: number; limites?: { conciliacoes_por_mes?: unknown } } =>
       !!item &&
       ehPlano(item.plano) &&
       PERIODOS.includes(item.periodo) &&
@@ -139,8 +141,9 @@ export function adaptarPrecos(bruto: unknown): PrecoDoPlano[] | null {
       item.valor_centavos > 0,
   );
   if (validos.length === 0) return null;
-  return validos.map(({ plano, periodo, valor_centavos: centavos }) => {
+  return validos.map(({ plano, periodo, valor_centavos: centavos, limites }) => {
     const meses = MESES_DO_PERIODO[periodo];
+    const franquia = limites?.conciliacoes_por_mes;
     const mensal = validos.find((item) => item.plano === plano && item.periodo === "mensal")?.valor_centavos;
     const desconto = mensal && meses > 1 ? Math.round((1 - centavos / (mensal * meses)) * 100) : 0;
     return {
@@ -150,8 +153,16 @@ export function adaptarPrecos(bruto: unknown): PrecoDoPlano[] | null {
       valor: emReais(centavos),
       porMes: meses > 1 ? emReais(Math.round(centavos / meses)) : null,
       desconto: desconto > 0 ? desconto : null,
+      conciliacoesPorMes: typeof franquia === "number" && Number.isInteger(franquia) && franquia > 0 ? franquia : null,
     };
   });
+}
+
+/** A linha da franquia no cartão do plano, de qualquer período dele; null sem número (as variáveis do backend vazias). */
+export function textoDaFranquia(precos: PrecoDoPlano[] | null, plano: PlanoId): string | null {
+  const franquia = precos?.find((p) => p.plano === plano)?.conciliacoesPorMes ?? null;
+  if (franquia === null) return null;
+  return `até ${franquia.toLocaleString("pt-BR")} ${franquia === 1 ? "conciliação" : "conciliações"} por mês`;
 }
 
 /**

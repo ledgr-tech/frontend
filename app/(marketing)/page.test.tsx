@@ -1,6 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { PLANOS } from "@/lib/planos";
 import { fonteDestaque } from "./fonte-destaque";
 import LandingPage from "./page";
 
@@ -50,9 +49,10 @@ describe("LandingPage", () => {
 
   it("uses one label for every link into the signup", () => {
     const { container } = render(<LandingPage />);
-    // cabeçalho, hero e preço; a régua de Preços nomeia o plano que leva ao cadastro, de propósito
+    // cabeçalho, hero, o fim da faixa do "Por que o Ledgr" e preço; a régua de Preços nomeia o plano
+    // que leva ao cadastro, de propósito
     const rotulos = [...container.querySelectorAll('a[href="/cadastro"]:not(.regua-mede-acao)')].map((link) => link.textContent);
-    expect(rotulos).toHaveLength(3);
+    expect(rotulos).toHaveLength(4);
     expect(new Set(rotulos)).toEqual(new Set(["Começar agora"]));
     expect(container.querySelector(".regua-mede-acao")).toHaveTextContent(/^Começar com o /);
   });
@@ -68,14 +68,27 @@ describe("LandingPage", () => {
     ]);
   });
 
+  it("does not hide the top of the hero behind JavaScript", () => {
+    // com opacity:0 no HTML, o título só aparecia depois do JavaScript (no celular, ~4 s): a entrada é CSS
+    const { container } = render(<LandingPage />);
+    const entradas = [...container.querySelectorAll<HTMLElement>(".kin-topo [data-reveal]")];
+    expect(entradas.length).toBeGreaterThan(0);
+    for (const entrada of entradas) expect(entrada.style.opacity).toBe("");
+  });
+
   it("sets one short stretch of each main title in the display italic", () => {
     const { container } = render(<LandingPage />);
+    // o hero tem o título próprio, letra por letra (hero.tsx): o mesmo itálico no "à mão.", num h1 que
+    // o leitor de tela lê inteiro pelo texto escondido, e não letra por letra
+    const hero = container.querySelector<HTMLElement>("main h1")!;
+    expect(hero).toHaveAccessibleName("Pare de conciliar extrato à mão.");
+    expect([...hero.querySelectorAll("em")].map((em) => em.textContent)).toEqual(["à mão."]);
     // a tela do app na vitrine tem os títulos dela, fora da mistura da landing
-    const titulos = [...container.querySelectorAll<HTMLElement>("main :is(h1, h2)")].filter((titulo) => !titulo.closest(".vitrine"));
+    const titulos = [...container.querySelectorAll<HTMLElement>("main h2")].filter((titulo) => !titulo.closest(".vitrine"));
 
     for (const titulo of titulos) expect(titulo).toHaveClass("titulo-misto");
     expect(titulos.map((titulo) => [titulo.textContent, [...titulo.querySelectorAll("em")].map((em) => em.textContent)])).toEqual([
-      ["Pare de conciliar extrato à mão.", ["à mão."]],
+      ["O sistema que você já usa, o mês que você já fecha.", ["o mês que você já fecha."]],
       ["Fechar o mês ainda é procurar linha por linha.", ["linha por linha."]],
       ["Três passos. A conferência linha por linha fica com o Ledgr.", ["com o Ledgr."]],
       ["Cada lançamento, do extrato ao seu sistema.", ["ao seu sistema."]],
@@ -106,6 +119,31 @@ describe("LandingPage", () => {
     // a pergunta fica junto dos perfis, não na abertura
     expect(within(secao as HTMLElement).getByText("Qual desses é você?")).not.toHaveClass("para-quem-frase");
     expect(secao.nextElementSibling).toHaveAttribute("id", "preco");
+  });
+
+  it("links each profile to its plan on the price ruler", () => {
+    // sem animação a régua vai direto ao plano; a corrida em si está em regua-que-mede.test.tsx
+    vi.stubGlobal("matchMedia", (consulta: string) => ({ matches: consulta.includes("reduce"), media: consulta }));
+    const { container } = render(<LandingPage />);
+    const secao = container.querySelector<HTMLElement>("#para-quem")!;
+    const links = within(secao).getAllByRole("link", { name: "Ver o meu plano" });
+    // sem JS, o link desce até o preço
+    for (const link of links) expect(link).toHaveAttribute("href", "#preco");
+    const regua = () => container.querySelector<HTMLElement>(".regua-mede")!;
+    regua().scrollIntoView = vi.fn();
+    const plano = () => regua().querySelector("#regua-mede-plano")!.textContent;
+
+    // o Escritório contábil vai ao Avançado, o plano "para o escritório com equipe"
+    fireEvent.click(links[3]);
+    expect(plano()).toBe("O seu plano é o Avançado.");
+    expect(regua().scrollIntoView).toHaveBeenCalled();
+    // o Usuário único e a Empresa, ao Essencial; o Consultor contábil, ao Padrão
+    fireEvent.click(links[0]);
+    expect(plano()).toBe("O seu plano é o Essencial.");
+    fireEvent.click(links[1]);
+    expect(plano()).toBe("O seu plano é o Padrão.");
+    fireEvent.click(links[2]);
+    expect(plano()).toBe("O seu plano é o Essencial.");
   });
 
   it("loads the display italic only on the landing, under the variable its titles use", () => {
@@ -139,8 +177,8 @@ describe("LandingPage", () => {
     const { container } = render(<LandingPage />);
     for (const mascote of ["mascote-explicando", "mascote-sentado"]) {
       const copias = [...container.querySelectorAll("img")].filter((img) => img.src.includes(mascote));
-      // a marca d'água transparente e o mascote visível
-      expect(copias).toHaveLength(2);
+      // a marca d'água transparente e o mascote visível (o "explicando" ainda volta no painel 02 do Por que)
+      expect(copias.length).toBeGreaterThanOrEqual(2);
       // o mesmo `sizes` faz o navegador escolher a mesma largura do srcset, e baixar uma vez só
       expect(new Set(copias.map((img) => img.getAttribute("sizes")))).toHaveProperty("size", 1);
     }
@@ -153,7 +191,7 @@ describe("LandingPage", () => {
 
   it("counts the same five divergence categories the product reports", () => {
     render(<LandingPage />);
-    const prova = screen.getByText("categorias de divergência, sempre nomeadas").parentElement!;
+    const prova = screen.getByText("categorias de divergência, todas com nome").parentElement!;
     // por extenso, como os outros destaques da faixa
     expect(within(prova).getByText("Cinco")).toBeInTheDocument();
   });
@@ -192,11 +230,12 @@ describe("LandingPage", () => {
     const { container } = render(<LandingPage />);
     const faixa = within(secoes(container)[1]);
     // abre com o argumento do pitch; as credenciais continuam na FAQ e no rodapé
-    expect(faixa.getByText("sistemas para trocar: o Ledgr usa o que o seu sistema de gestão já exporta")).toBeInTheDocument();
+    expect(faixa.getByRole("heading", { name: "O sistema que você já usa, o mês que você já fecha." })).toBeInTheDocument();
+    expect(faixa.getByText("sistemas para trocar")).toBeInTheDocument();
     expect(faixa.queryByText(/credenciais bancárias/)).not.toBeInTheDocument();
     expect(screen.getByText(/não pede nenhuma credencial bancária\.$/)).toBeInTheDocument();
-    expect(faixa.getByText("para o relatório ficar pronto depois que você sobe os arquivos")).toBeInTheDocument();
-    expect(faixa.getByText("categorias de divergência, sempre nomeadas")).toBeInTheDocument();
+    expect(faixa.getByText("para o relatório ficar pronto")).toBeInTheDocument();
+    expect(faixa.getByText("categorias de divergência, todas com nome")).toBeInTheDocument();
     // por extenso: algarismo solto na faixa ficava com cara de letra
     expect([...faixa.getAllByText(/./, { selector: ".numero-destaque" })].map((valor) => valor.textContent)).toEqual([
       "Zero",
@@ -265,13 +304,25 @@ describe("LandingPage", () => {
     });
   });
 
-  it("shows the whole app screen below the flow, with line #1082 highlighted, as a showcase that is not clickable", () => {
+  it("ends the flow in Por dentro with the app animation, which loads its screens only near the viewport", () => {
     const { container } = render(<LandingPage />);
-    const tela = container.querySelector<HTMLElement>("#por-dentro .vitrine-app")!;
+    const secao = container.querySelector<HTMLElement>("#por-dentro")!;
+    expect(secao.querySelector("video")).toBeNull();
+    const quadro = secao.querySelector<HTMLElement>(".mockup-quadro")!;
+    expect(quadro).toHaveAccessibleName(/^Animação do Ledgr/);
+    // sem rolar até perto, as telas (HTML do app) ainda não vieram: só a abertura
+    expect(quadro.querySelector(".mockup-cena")).toBeNull();
+    expect(within(secao).getByText(/animação de cerca de 40 segundos$/)).toBeInTheDocument();
+  });
+
+  it("shows the app screen under the hero, with line #1082 highlighted, as a showcase that is not clickable", () => {
+    const { container } = render(<LandingPage />);
+    const hero = secoes(container)[0];
+    const tela = hero.querySelector<HTMLElement>(".vitrine-app")!;
     expect(tela.closest("[inert]")).not.toBeNull();
     const dentro = within(tela);
-    // o casco do app, com Conciliações aceso, e a comparação direta de agosto de uma empresa genérica
-    expect(dentro.getByText("Conciliações").closest("[data-ativo]")).not.toBeNull();
+    // só a área principal do app, sem o menu lateral, para a tabela caber maior no hero
+    expect(tela.querySelector(".vitrine-menu")).toBeNull();
     expect(dentro.getByRole("heading", { name: "Comparação direta" })).toBeInTheDocument();
     expect(dentro.getByText("Sua empresa · competência agosto/2026 · 4.218 lançamentos")).toBeInTheDocument();
     // o relatório é o componente do app, com o mesmo agosto do topo da página
@@ -289,7 +340,7 @@ describe("LandingPage", () => {
 
   it("freezes the app's hover card open over line #1082 in the showcase, with the reason for the difference", () => {
     const { container } = render(<LandingPage />);
-    const linha = container.querySelector<HTMLElement>("#por-dentro .vitrine-app tr[data-destacada]")!;
+    const linha = secoes(container)[0].querySelector<HTMLElement>(".vitrine-app tr[data-destacada]")!;
     const cartao = within(linha.querySelector<HTMLElement>(".cartao-lancamento")!);
     expect(cartao.getByText("Lançamento · Valor diverge na mesma data")).toBeInTheDocument();
     expect(cartao.getByText("Pagamento fornecedor #1082")).toBeInTheDocument();
@@ -390,6 +441,8 @@ describe("LandingPage", () => {
 
   it("names each line's status with the same labels the app uses", () => {
     render(<LandingPage />);
+    // só a tabela: os selos do terceiro passo, logo acima, usam os mesmos rótulos
+    const demonstracao = () => within(document.querySelector<HTMLElement>("#como .tabela-folhas")!);
     // uma linha por par, como no app: o selo aparece uma vez, na coluna de status
     expect(demonstracao().getAllByText("Match exato")).toHaveLength(1);
     expect(demonstracao().getAllByText("Valor diverge na mesma data")).toHaveLength(2);
@@ -398,10 +451,10 @@ describe("LandingPage", () => {
     expect(demonstracao().getByText("Tarifa bancária")).toBeInTheDocument();
   });
 
-  it("draws the demo with the same two-sheet table as the app window in Por dentro", () => {
+  it("draws the demo with the same two-sheet table as the app window under the hero", () => {
     render(<LandingPage />);
     const titulos = (raiz: Element) => raiz.querySelector(".tabela-folhas .folhas-titulos")!.textContent;
-    const vitrine = document.querySelector("#por-dentro .vitrine-app")!;
+    const vitrine = document.querySelector(".kin-palco .vitrine-app")!;
     expect(titulos(document.getElementById("como")!)).toBe(titulos(vitrine));
     // as mesmas cinco linhas de agosto, na mesma ordem
     const descricoes = (raiz: Element) =>
@@ -409,11 +462,20 @@ describe("LandingPage", () => {
     expect(descricoes(document.getElementById("como")!)).toEqual(descricoes(vitrine));
   });
 
-  it("lists the five categories by the app's names, once, in the third step", () => {
+  it("shows the five categories in the third step as the app's seals, with its names and tones", () => {
     render(<LandingPage />);
-    const lista =
-      "valor diverge na mesma data, possível duplicidade, mesmo valor em outra data, sem correspondência e tarifa bancária";
-    expect(screen.getByText(`Relatório nas 5 categorias: ${lista}.`)).toBeInTheDocument();
+    expect(screen.getByText("Relatório nas 5 categorias:")).toBeInTheDocument();
+    const selos = [...document.querySelectorAll("#como .passo-selos .selo")];
+    expect(selos.map((selo) => [selo.textContent, selo.className])).toEqual([
+      ["Valor diverge na mesma data", "selo selo-risco"],
+      ["Possível duplicidade", "selo selo-risco"],
+      ["Mesmo valor em outra data", "selo selo-atencao"],
+      ["Sem correspondência", "selo selo-atencao"],
+      ["Tarifa bancária", "selo selo-neutro"],
+    ]);
+    // o formato de cada arquivo, na etiqueta dos dois primeiros passos
+    const formatos = [...document.querySelectorAll('#como ul[aria-label="Formatos aceitos"]')];
+    expect(formatos.map((lista) => [...lista.querySelectorAll("li")].map((item) => item.textContent))).toEqual([["OFX", "CSV"], ["CSV"]]);
     // o convite que repetia a lista (e o resto da página) saiu
     expect(screen.queryByText(/Cada divergência vem com o nome da categoria/)).not.toBeInTheDocument();
   });
@@ -455,12 +517,12 @@ describe("LandingPage", () => {
     expect(screen.getByText("Receba as divergências")).toBeInTheDocument();
   });
 
-  it("shows only the monthly price of the plan the guided ruler points to", () => {
+  it("shows no price, only the free trial, until the final prices are in the live catalogue (#302)", () => {
     render(<LandingPage />);
-    const preco = document.getElementById("preco")!;
-    // começa no Padrão; os outros preços só aparecem quando o medidor chega neles
-    expect(preco.textContent).toContain("R$ 79,90");
-    for (const plano of PLANOS.filter((p) => p.nome !== "Padrão")) expect(preco.textContent).not.toContain(plano.preco);
+    // só a régua: o resto da seção tem os exemplos da conciliação, com valores
+    const regua = document.querySelector(".regua-mede")!;
+    expect(regua.textContent).toContain("14 dias grátis");
+    expect(regua.textContent).not.toMatch(/R\$ ?\d/);
   });
 
   it("shows what comes in every plan as a trail of cards, with the page's own August in the demos", () => {
@@ -480,15 +542,14 @@ describe("LandingPage", () => {
 
   describe("Por que o Ledgr", () => {
     const porQue = () => document.getElementById("por-que")!;
-    const tabela = () => within(porQue()).getByRole("table", { name: "As saídas de hoje e o Ledgr, pergunta por pergunta" });
-    const linhas = () => [...porQue().querySelectorAll<HTMLTableRowElement>("tbody tr")];
+    const paineis = () => [...porQue().querySelectorAll<HTMLElement>("article.kin-motivo")];
 
     it("sits on its own between Por dentro and Regra de ouro", () => {
       render(<LandingPage />);
       expect(porQue().tagName).toBe("SECTION");
       expect(document.getElementById("por-dentro")!.nextElementSibling).toBe(porQue());
       expect(porQue().nextElementSibling).toBe(document.getElementById("regra"));
-      expect(document.getElementById("problema")!.querySelector(".por-que-tabela")).toBeNull();
+      expect(document.getElementById("problema")!.querySelector(".kin-motivo")).toBeNull();
     });
 
     it("opens with its label and title, without taking a chapter label", () => {
@@ -496,64 +557,59 @@ describe("LandingPage", () => {
       expect(within(porQue()).getByText("Por que o Ledgr")).toHaveClass("rotulo-parte");
       const titulo = within(porQue()).getByRole("heading", { level: 2, name: "Sem trocar de sistema, e sem voltar para o manual." });
       expect(titulo.querySelector("em")!.textContent).toBe("e sem voltar para o manual.");
+      expect(porQue()).toHaveAccessibleName("Sem trocar de sistema, e sem voltar para o manual.");
     });
 
-    it("is a table of the three ways, with each question once", () => {
+    it("gives each question its own panel, in the order of the old table", () => {
       render(<LandingPage />);
-      expect(within(tabela()).getAllByRole("columnheader").map((celula) => celula.textContent)).toEqual([
-        "Hoje",
-        "Com o Ledgr",
-        "Conferir à mão",
-        "Migrar para um sistema com conciliação",
-        "Ledgr",
-      ]);
-      expect(within(tabela()).getAllByRole("rowheader").map((celula) => celula.textContent)).toEqual([
+      expect(paineis().map((painel) => within(painel).getByRole("heading", { level: 3 }).textContent)).toEqual([
         "Trocar de sistema",
         "Quem confere, todo mês",
         "Para começar",
         "O que custa",
       ]);
+      // o número do painel é enfeite: o leitor de tela não o lê
+      for (const painel of paineis()) expect(painel.querySelector(".kin-motivo-num")).toHaveAttribute("aria-hidden", "true");
     });
 
-    it("leads each answer with the direct answer in bold, so reading across a row compares the three ways", () => {
+    it("leads each panel with the Ledgr's answer, big, and the rest of the sentence below", () => {
       render(<LandingPage />);
-      const destaques = linhas().map((linha) => [...linha.querySelectorAll("td")].map((celula) => celula.querySelector("strong")?.textContent));
-      expect(destaques).toEqual([
-        ["Não precisa.", "Precisa.", "Não precisa."],
-        ["Alguém que entenda de contabilidade", "O sistema novo", "O Ledgr, linha por linha"],
-        ["A planilha de sempre.", "Migrar cadastros, contas e histórico", "Subir dois arquivos"],
-        ["As horas de quem confere", "A mensalidade do sistema novo", "Pelo volume de lançamentos do mês"],
+      expect(paineis().map((painel) => painel.querySelector(".kin-motivo-ledgr")!.textContent)).toEqual([
+        "Não precisa.",
+        "O Ledgr, linha por linha.",
+        "Subir dois arquivos.",
+        "Pelo volume de lançamentos do mês.",
       ]);
-      // o negrito abre a resposta: o resto da frase continua lá, logo depois dele
-      for (const celula of porQue().querySelectorAll("tbody td")) {
-        expect(celula.firstChild).toBe(celula.querySelector("strong"));
-      }
-      expect(linhas()[0].querySelectorAll("td")[1].textContent).toBe("Precisa. A empresa inteira passa para o sistema novo.");
+      // cada palavra anima num inline-block, e o espaço no começo de um deles some na tela: o espaço
+      // fica entre as palavras, nunca dentro delas ("Nãoprecisa." no navegador, embora o texto tivesse o espaço)
+      for (const palavra of porQue().querySelectorAll(".kin-motivo-ledgr .kin-pal")) expect(palavra.textContent).toMatch(/^\S+$/);
+      const [trocar, quem] = paineis().map((painel) => painel.querySelector(".kin-motivo-detalhe")!.textContent);
+      expect(trocar).toBe("Funciona com o sistema que você já usa.");
+      expect(quem).toBe("Você revisa só o que não bate, já com o motivo.");
     });
 
-    it("highlights only the Ledgr column", () => {
+    it("keeps the two ways of today under each answer, named, as the table compared them", () => {
       render(<LandingPage />);
-      const destacadas = [...porQue().querySelectorAll("td.por-que-ledgr")];
-      expect(destacadas).toHaveLength(4);
-      expect(destacadas).toEqual(linhas().map((linha) => linha.querySelectorAll("td")[2]));
-    });
-
-    it("names each answer by its way, for the phone layout", () => {
-      render(<LandingPage />);
-      for (const linha of linhas()) {
-        expect([...linha.querySelectorAll("td")].map((celula) => celula.dataset.rotulo)).toEqual([
+      for (const painel of paineis()) {
+        expect(within(painel).getByText("Hoje")).toHaveClass("kin-hoje-rotulo");
+        expect([...painel.querySelectorAll("dl dt")].map((termo) => termo.textContent)).toEqual([
           "Conferir à mão",
           "Migrar para um sistema com conciliação",
-          "Ledgr",
         ]);
       }
+      expect(paineis()[0].querySelectorAll("dl dd")[1].textContent).toBe("Precisa. A empresa inteira passa para o sistema novo.");
     });
 
-    it("says the Ledgr keeps your system and leaves you only what does not match", () => {
+    it("ends the strip with the call to start", () => {
       render(<LandingPage />);
-      const [trocar, quem] = [...porQue().querySelectorAll("td.por-que-ledgr")].map((celula) => celula.textContent);
-      expect(trocar).toMatch(/^Não precisa\./);
-      expect(quem).toMatch(/você revisa só o que não bate, já com o motivo/);
+      const fim = porQue().querySelector<HTMLElement>(".kin-motivo-fim")!;
+      expect(within(fim).getByRole("link", { name: "Começar agora" })).toHaveAttribute("href", "/cadastro");
+    });
+
+    it("stays a strip that scrolls sideways where it cannot measure itself (no pinning, no progress line)", () => {
+      render(<LandingPage />);
+      expect(porQue()).not.toHaveAttribute("data-presa");
+      expect(porQue().querySelector(".kin-lat-barra")).toBeNull();
     });
 
     it("compares kinds of solution, without naming competitors", () => {

@@ -13,7 +13,7 @@ import {
   type ResultadoCadastro,
   type ResultadoVerificacao,
 } from "../acoes";
-import { CampoTexto } from "../_compartilhado/campo-texto";
+import { CampoLista, CampoTexto } from "../_compartilhado/campo-texto";
 import { MensagemErro } from "../_compartilhado/mensagem-erro";
 import { MolduraAuth } from "../_compartilhado/moldura-auth";
 import { TituloDigitado } from "../_compartilhado/titulo-digitado";
@@ -57,7 +57,15 @@ const INVALIDO: Record<CampoCadastroAPI, string> = {
   senha: "Senha longa demais. Use no máximo 72 caracteres.",
   razaoSocial: "Confira a razão social.",
   cnpj: "Os dígitos do CNPJ não conferem. Confira o número.",
+  cidade: "A cidade deve ter de 2 a 80 caracteres.",
+  uf: "Escolha um estado da lista.",
 };
+
+/** O aviso de quando a Receita preencheu o que estava vazio (backend #184). */
+function avisoDaReceita(preenchidos: Valores): string {
+  if (preenchidos.cidade && preenchidos.uf) return "Preenchemos a cidade e o estado pelo CNPJ. Confira e continue.";
+  return preenchidos.cidade ? "Preenchemos a cidade pelo CNPJ. Confira e continue." : "Preenchemos o estado pelo CNPJ. Confira e continue.";
+}
 
 // sem campo a apontar: não é erro de quem digitou
 const ERRO_GERAL = {
@@ -99,7 +107,7 @@ export function FormularioCadastro({ google }: PropsCadastro) {
   const [fase, setFase] = useState<FaseCriacao>("criando");
   const botaoEnviar = useRef<HTMLButtonElement>(null);
   const [erroGeral, setErroGeral] = useState<string>();
-  const campos = useRef<Record<string, HTMLInputElement | null>>({});
+  const campos = useRef<Record<string, HTMLInputElement | HTMLSelectElement | null>>({});
   // quando o backend recusa um campo de outro passo, o foco vai para o campo, e não para o título
   const campoAFocar = useRef<string | null>(null);
   const titulo = useRef<HTMLHeadingElement>(null);
@@ -110,6 +118,8 @@ export function FormularioCadastro({ google }: PropsCadastro) {
   const botaoSugestao = useRef<HTMLButtonElement>(null);
   // e-mail e CNPJ cuja conferência só parou para mostrar a sugestão: o próximo "Continuar" segue sem conferir de novo
   const sugestaoOferecida = useRef<string | null>(null);
+  // a cidade e o estado que a Receita preencheu: o passo para uma vez com este aviso
+  const [avisoReceita, setAvisoReceita] = useState<string | null>(null);
 
   const passo = passos[indicePasso];
   const ultimoPasso = indicePasso === passos.length - 1;
@@ -189,7 +199,7 @@ export function FormularioCadastro({ google }: PropsCadastro) {
     const email = (valores.email ?? "").trim();
     const cnpj = valores.cnpj ?? "";
     const chave = `${email}|${cnpj}`;
-    if (sugestaoOferecida.current === chave) return true;
+    if (sugestaoOferecida.current === chave) return cobrarAposVerificar({}, chave);
     setVerificando(true);
     let resultado: ResultadoVerificacao;
     try {
@@ -209,6 +219,7 @@ export function FormularioCadastro({ google }: PropsCadastro) {
         voltarAoCampo(novos);
         return false;
       }
+      const preenchidos = preencherPelaReceita(resultado.cidadeReceita, resultado.ufReceita);
       const daReceita = resultado.cnpjSituacao === "ativa" ? resultado.razaoSocialReceita : null;
       if (daReceita && normalizarRazao(daReceita) !== normalizarRazao(valores.razaoSocial ?? "")) {
         // para uma vez no passo para mostrar a sugestão; seguir com a razão digitada continua valendo
@@ -216,10 +227,51 @@ export function FormularioCadastro({ google }: PropsCadastro) {
         setSugestaoRazao(daReceita);
         return false;
       }
-      return true;
+      return cobrarAposVerificar(preenchidos, chave);
     }
     if (resultado.erro === "invalido") {
       voltarAoCampo(Object.fromEntries(resultado.campos.map((campo) => [campo, INVALIDO[campo]])));
+      return false;
+    }
+    return cobrarAposVerificar({}, chave);
+  }
+
+  /** Põe a cidade e a UF da Receita (backend #184) só onde a pessoa não escreveu nada; devolve o que pôs. */
+  function preencherPelaReceita(cidade: string | null | undefined, uf: string | null | undefined): Valores {
+    const preenchidos: Valores = {};
+    if (cidade && !(valores.cidade ?? "").trim()) preenchidos.cidade = cidade;
+    if (uf && !valores.uf) preenchidos.uf = uf;
+    if (Object.keys(preenchidos).length > 0) {
+      setValores((atual) => ({ ...atual, ...preenchidos }));
+      setAvisoReceita(avisoDaReceita(preenchidos));
+    }
+    return preenchidos;
+  }
+
+  /**
+   * Os campos `aposVerificar` (cidade e estado) são cobrados por todo caminho que deixaria o passo
+   * seguir: depois da conferência, sem resposta dela e no atalho de quem já viu a sugestão. Com algo
+   * vindo da Receita, o passo para uma vez para a pessoa conferir.
+   */
+  function cobrarAposVerificar(preenchidos: Valores, chave: string): boolean {
+    const atuais = { ...valores, ...preenchidos };
+    const novos: Erros = {};
+    for (const campo of passo.campos) {
+      if (!campo.aposVerificar) continue;
+      const mensagem = validarCampo(campo, atuais[campo.id] ?? "");
+      if (mensagem) novos[campo.id] = mensagem;
+    }
+    const ids = Object.keys(novos);
+    if (ids.length > 0) {
+      setErros((atual) => ({ ...atual, ...novos }));
+      tremer(ids);
+      campos.current[ids[0]]?.focus();
+      return false;
+    }
+    const primeiro = Object.keys(preenchidos)[0];
+    if (primeiro) {
+      sugestaoOferecida.current = chave;
+      campos.current[primeiro]?.focus();
       return false;
     }
     return true;
@@ -231,6 +283,8 @@ export function FormularioCadastro({ google }: PropsCadastro) {
       nome: (valores.nome ?? "").trim(),
       razaoSocial: (valores.razaoSocial ?? "").trim(),
       cnpj: valores.cnpj ?? "",
+      cidade: (valores.cidade ?? "").trim(),
+      uf: valores.uf ?? "",
     };
     try {
       resultado = google
@@ -276,7 +330,10 @@ export function FormularioCadastro({ google }: PropsCadastro) {
     if (concluindo || verificando) return;
     const novos: Erros = {};
     for (const campo of passo.campos) {
-      const mensagem = validarCampo(campo, valores[campo.id] ?? "");
+      const valor = valores[campo.id] ?? "";
+      // o vazio destes espera a conferência, que pode trazê-los
+      if (campo.aposVerificar && !valor.trim()) continue;
+      const mensagem = validarCampo(campo, valor);
       if (mensagem) novos[campo.id] = mensagem;
     }
     const invalidos = passo.campos.filter((campo) => novos[campo.id]);
@@ -297,6 +354,7 @@ export function FormularioCadastro({ google }: PropsCadastro) {
     }
     if (passo.id === "empresa" && !(await livres())) return;
     setSugestaoRazao(null);
+    setAvisoReceita(null);
 
     const proximoPasso = passos[indicePasso + 1];
     // o e-mail do responsável começa igual ao e-mail de acesso
@@ -308,6 +366,7 @@ export function FormularioCadastro({ google }: PropsCadastro) {
 
   function voltar() {
     setSugestaoRazao(null);
+    setAvisoReceita(null);
     setErros(errosForaDoPasso);
     setErroGeral(undefined);
     setIndicePasso((atual) => Math.max(0, atual - 1));
@@ -359,6 +418,24 @@ export function FormularioCadastro({ google }: PropsCadastro) {
             const ehSenha = campo.tipo === "password";
             const senhaAtendida = valor.length >= SENHA_MINIMA;
             const comSugestao = campo.id === "razaoSocial" && sugestaoRazao !== null;
+            if (campo.tipo === "select") {
+              return (
+                <CampoLista
+                  key={campo.id}
+                  ref={(elemento) => {
+                    campos.current[campo.id] = elemento;
+                  }}
+                  id={id}
+                  rotulo={campo.rotulo}
+                  opcoes={campo.opcoes ?? []}
+                  autoComplete={campo.autoComplete}
+                  erro={erros[campo.id]}
+                  tremor={tremorDe(campo.id)}
+                  valor={valor}
+                  onValor={(novo) => alterar(campo.id, novo)}
+                />
+              );
+            }
             return (
               <CampoTexto
                 key={campo.id}
@@ -410,6 +487,12 @@ export function FormularioCadastro({ google }: PropsCadastro) {
             );
           })}
         </div>
+
+        {/* role="status": o leitor de tela anuncia sem tirar o foco da cidade, que a pessoa vai conferir.
+            Vazia, a região fica no sr-only, e não fora da árvore: a que acaba de aparecer não é anunciada */}
+        <p role="status" className={avisoReceita ? "campo-requisito" : "sr-only"} style={avisoReceita ? { display: "block" } : undefined}>
+          {avisoReceita}
+        </p>
 
         {erroGeral && (
           <div style={{ marginTop: "clamp(12px, 2vh, 16px)" }}>

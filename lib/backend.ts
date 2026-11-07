@@ -40,10 +40,64 @@ export class ErroBackend extends Error {
     readonly segundosParaTentar?: number,
     /** A lista `erros` de um 422 que traz `detail` em texto (a importação via IA, backend #172): um item por campo errado. */
     readonly erros: { caminho: string; lancamento: number | null; mensagem: string }[] = [],
+    /** O `codigo` do corpo, quando o backend manda um (o `conta_inativa` do backend #156). */
+    readonly codigo?: string,
+    /** O `total_erros` desse mesmo 422: a lista `erros` para em 50, e este conta todos. */
+    readonly totalErros?: number,
   ) {
     super(detalhe);
     this.name = "ErroBackend";
   }
+}
+
+/**
+ * A conta inativa (backend #156) recusa toda escrita com 403, mas não é falta de papel: o `detalhe`
+ * dela já diz o que houve e o que fazer, e as telas o mostram no lugar do texto de papel.
+ */
+export function ehContaInativa(erro: unknown): erro is ErroBackend & { codigo: "conta_inativa" } {
+  return erro instanceof ErroBackend && erro.codigo === "conta_inativa";
+}
+
+const COOKIE_CONTA_INATIVA = "ledgr-conta-inativa";
+
+/**
+ * O `GET /me` não diz que a conta está inativa: só a escrita recusada diz. O cookie leva o aviso à
+ * barra de cima, porque gravar cookie numa Server Action já renderiza o layout de novo. A primeira
+ * escrita que passar apaga o cookie (passam também as da própria pessoa, como as preferências; a
+ * recusa seguinte grava de novo).
+ * ponytail: dura 10 min depois da última recusa, porque nada avisa a reativação. Com um campo no
+ * `GET /me`, ler dele e apagar isto.
+ */
+async function lembrarContaInativa(inativa: boolean): Promise<void> {
+  try {
+    const pote = await cookies();
+    if (inativa) {
+      pote.set(COOKIE_CONTA_INATIVA, "1", {
+        httpOnly: true,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+        path: "/",
+        maxAge: 600,
+      });
+    } else if (pote.has(COOKIE_CONTA_INATIVA)) {
+      pote.delete(COOKIE_CONTA_INATIVA);
+    }
+  } catch {
+    // renderizando uma página não se grava cookie: fica só o texto do erro
+  }
+}
+
+/**
+ * O cookie é do navegador, não da conta: quem entra ou sai começa sem o aviso (o `events` do `auth.ts`),
+ * ou a recusa de um convite, ou a conta de quem usou o navegador antes, apareceria em outra conta.
+ */
+export async function esquecerContaInativa(): Promise<void> {
+  await lembrarContaInativa(false);
+}
+
+/** Para o layout: houve uma escrita recusada por conta inativa há pouco. */
+export async function contaRecusouPorInativa(): Promise<boolean> {
+  return (await cookies()).has(COOKIE_CONTA_INATIVA);
 }
 
 /**
@@ -110,7 +164,9 @@ async function erroDaResposta(resposta: Response): Promise<ErroBackend> {
       const erros = Array.isArray(corpo.erros)
         ? corpo.erros.filter((e: { mensagem?: unknown }) => typeof e?.mensagem === "string")
         : [];
-      return new ErroBackend(resposta.status, corpo.detail, [], {}, segundos, erros);
+      const codigo = typeof corpo.codigo === "string" ? corpo.codigo : undefined;
+      const totalErros = Number.isInteger(corpo.total_erros) ? corpo.total_erros : undefined;
+      return new ErroBackend(resposta.status, corpo.detail, [], {}, segundos, erros, codigo, totalErros);
     }
     if (Array.isArray(corpo?.detail)) {
       const itens: { loc: unknown[]; msg?: unknown }[] = corpo.detail.filter(
@@ -176,7 +232,12 @@ async function requisitar(caminho: string, init: Opcoes = {}): Promise<Response>
     signal: resto.signal ?? AbortSignal.timeout(PRAZO_PADRAO_MS),
   });
 
-  if (!resposta.ok) throw await erroDaResposta(resposta);
+  if (!resposta.ok) {
+    const erro = await erroDaResposta(resposta);
+    if (ehContaInativa(erro)) await lembrarContaInativa(true);
+    throw erro;
+  }
+  if ((resto.method ?? "GET").toUpperCase() !== "GET") await lembrarContaInativa(false);
   return resposta;
 }
 

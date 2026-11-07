@@ -145,7 +145,7 @@ describe("o conteúdo da ajuda", () => {
     expect(passosDaEquipe).toMatch(/senha atual/);
     expect(passosDaEquipe).toMatch(/você vira \*\*Gestor\*\*/);
     expect(equipe.nota).toMatch(/Só o administrador troca papéis e passa a administração/);
-    expect(equipe.imagem?.src).toBe("/ajuda/empresas--equipe.webp");
+    expect(equipe.figura).toBeDefined();
 
     const configuracoes = PAGINAS.find((pagina) => pagina.id === "configuracoes")!;
     expect(configuracoes.funcoes.some((funcao) => funcao.id === "empresas" || funcao.id === "equipe")).toBe(false);
@@ -155,17 +155,33 @@ describe("o conteúdo da ajuda", () => {
     expect(existsSync(join("public", "ajuda", "configuracoes--equipe.webp"))).toBe(false);
   });
 
-  it("toda imagem existe em public/", () => {
-    for (const pagina of PAGINAS) {
-      for (const imagem of [pagina.capa, ...pagina.funcoes.map((f) => f.imagem)]) {
-        if (imagem) expect(existsSync(join("public", imagem.src)), imagem.src).toBe(true);
-      }
-    }
+  it("toda capa existe em public/", () => {
+    for (const pagina of PAGINAS) expect(existsSync(join("public", pagina.capa.src)), pagina.capa.src).toBe(true);
   });
 
   it("toda tela com tutorial tem a sua página", () => {
     for (const tela of TELAS_DO_TUTORIAL) expect(ajudaDaTela(tela), tela).toBeDefined();
     expect(ajudaDaTela("divergencia")?.id).toBe("detalhe-da-linha");
     expect(ajudaDaTela(null)).toBeUndefined();
+  });
+});
+
+describe("a página Nova conciliação ensina a exportar e a importar via IA", () => {
+  const funcoes = PAGINAS.find((pagina) => pagina.id === "nova-conciliacao")!.funcoes;
+
+  it("traz a exportação do banco e do sistema e a importação via IA, depois do envio", () => {
+    const ids = funcoes.map((funcao) => funcao.id);
+    expect(ids.slice(ids.indexOf("enviar"), ids.indexOf("enviar") + 4)).toEqual([
+      "enviar",
+      "exportar-banco",
+      "exportar-sistema",
+      "importar-via-ia",
+    ]);
+  });
+
+  it("a importação termina em enviar o banco, e o PDF aponta para ela", () => {
+    const via = funcoes.find((funcao) => funcao.id === "importar-via-ia")!;
+    expect(via.passos!.join(" ")).toMatch(/Confirmar.*extrato do banco/);
+    expect(funcoes.find((funcao) => funcao.id === "enviar")!.nota).toContain("Importar via IA");
   });
 });

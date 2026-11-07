@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { redirecionarNoApp } from "@/lib/rotas-servidor";
 import { Cabecalho } from "../../../../cabecalho";
+import { FalhaAoCarregar } from "../../../../falha-ao-carregar";
 import { carregarRascunho } from "../acoes";
 import { Revisao } from "./revisao";
 
@@ -16,9 +17,8 @@ export default async function RevisaoPage({ params }: { params: Promise<{ id: st
       {r.ok ? (
         <Revisao inicial={r.dados} />
       ) : (
-        <p role="alert" style={{ padding: "48px 0" }}>
-          {r.erro}
-        </p>
+        // o texto do backend diz mais que o genérico: o motivo do rascunho não abrir
+        <FalhaAoCarregar oQue="o rascunho" status={r.status} texto={r.erro} voltar={{ href: "/conciliacoes/nova", rotulo: "Voltar à nova conciliação" }} />
       )}
     </div>
   );

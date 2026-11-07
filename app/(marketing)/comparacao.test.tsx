@@ -61,9 +61,9 @@ describe("ExtratoComparacao", () => {
       expect(within(status as HTMLElement).getByText("Valor diverge na mesma data")).toHaveClass("sr-only");
     });
 
-    it("leaves a matched line quiet, without a seal, as the app does", () => {
+    it("gives a matched line the green seal, as the app does", () => {
       render(<ExtratoComparacao banco={[BATIDA]} sistema={[BATIDA]} />);
-      expect(screen.getByText("Conciliado")).toHaveClass("status-batido");
+      expect(screen.getByText("Conciliado")).toHaveClass("selo", "selo-ok");
       expect(screen.getByText("Match exato")).toHaveClass("sr-only");
     });
 

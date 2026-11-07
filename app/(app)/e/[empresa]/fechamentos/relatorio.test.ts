@@ -36,7 +36,9 @@ function resumo(parcial: Partial<ResumoDoFechamento> = {}): ResumoDoFechamento {
       divergente_data: 2,
       sem_correspondencia: 1,
       tarifa_bancaria: 1,
+      match_agrupado: 0,
     },
+    agrupamentos: 0,
     justificadas: 6,
     pendentes: 2,
     linhasNaoLidas: 0,
@@ -175,5 +177,34 @@ describe("montarRelatorio", () => {
     });
 
     expect(relatorio).toMatchObject({ empresa: "", cnpj: "" });
+  });
+});
+
+describe("as conciliadas com o agrupamento (backend #131)", () => {
+  const CONTAGENS = { total: 20, match_exato: 5, match_tolerancia: 1, divergente_valor: 3, duplicado: 0, divergente_data: 0, sem_correspondencia: 0, tarifa_bancaria: 0 };
+
+  it("somam as linhas agrupadas", () => {
+    const relatorio = montarRelatorio({
+      fechamento: fechamento(),
+      resumo: resumo({ contagens: { ...CONTAGENS, match_agrupado: 11 } }),
+      empresa: EMPRESA,
+      conciliacoes: [],
+    });
+    expect(relatorio.conciliadas).toBe(17);
+  });
+
+  it("no fechamento sem a chave, somam 0 e não NaN", () => {
+    const semChave = { ...CONTAGENS } as ResumoDoFechamento["contagens"];
+    const relatorio = montarRelatorio({ fechamento: fechamento(), resumo: resumo({ contagens: semChave }), empresa: EMPRESA, conciliacoes: [] });
+    expect(relatorio.conciliadas).toBe(6);
+  });
+});
+
+describe("os lotes conciliados por soma no relatório do fechamento (backend #131)", () => {
+  it("vêm do resumo, 0 quando ausentes", () => {
+    const comLote = montarRelatorio({ fechamento: fechamento(), resumo: resumo({ agrupamentos: 1 }), empresa: EMPRESA, conciliacoes: [] });
+    expect(comLote.agrupamentos).toBe(1);
+    const semChave = montarRelatorio({ fechamento: fechamento(), resumo: resumo({ agrupamentos: undefined }), empresa: EMPRESA, conciliacoes: [] });
+    expect(semChave.agrupamentos).toBe(0);
   });
 });

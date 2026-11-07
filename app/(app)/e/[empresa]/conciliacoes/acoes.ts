@@ -22,7 +22,7 @@ import {
   type ListaExecucoesAPI,
   type ListaExtratosAPI,
 } from "@/lib/adaptadores";
-import { chamarBackend, emailDaSessao, ErroBackend } from "@/lib/backend";
+import { chamarBackend, ehContaInativa, emailDaSessao, ErroBackend } from "@/lib/backend";
 import { RECUSA_DEMONSTRACAO, ehContaDeDemonstracao } from "@/lib/demo";
 import { caminhoDaConciliacao } from "@/lib/caminhos";
 import { compararRodadas, execucoesVigentes, rodadasDoBanco, type Mudancas } from "@/lib/rodadas";
@@ -60,13 +60,16 @@ export type SituacaoExtrato = CamposDeSaldoAPI & {
   erros: { identificador: string; motivo: string }[];
 };
 
-/** O `total` é a soma das sete categorias. */
+/** O `total` é a soma das oito categorias; `agrupamentos` conta grupos e fica fora dela. */
 export type ContagensConciliacao = {
   extrato_banco_id: string;
   extrato_sistema_id: string;
   total: number;
   match_exato: number;
   match_tolerancia: number;
+  /** Backend #131: ausentes antes dele, 0 com a flag desligada. */
+  match_agrupado?: number;
+  agrupamentos?: number;
   duplicado: number;
   sem_correspondencia: number;
   tarifa_bancaria: number;
@@ -109,9 +112,11 @@ async function recusaSeNaoPodeFechar(erro: string): Promise<Falha | null> {
   return podeFecharMes(papel) ? null : { ok: false, status: 403, erro };
 }
 
-/** O 403 do backend para quem não pode fechar o mês chega com o mesmo texto da tela. */
+/** O 403 do backend para quem não pode fechar o mês chega com o mesmo texto da tela; o da conta inativa, com o dele. */
 function traduzirDoFechamento(erro: unknown, texto: string): Falha {
-  return erro instanceof ErroBackend && erro.status === 403 ? { ok: false, status: 403, erro: texto } : traduzir(erro);
+  return erro instanceof ErroBackend && erro.status === 403 && !ehContaInativa(erro)
+    ? { ok: false, status: 403, erro: texto }
+    : traduzir(erro);
 }
 
 /** O 404 de uma linha que a tela ainda mostra: o par foi conciliado de novo depois que ela abriu. */
@@ -707,10 +712,12 @@ export type VisaoGeral = {
   /**
    * O mês em foco (revisão de 15/10): o aberto mais recente, ou o mais recente se todos estão
    * fechados, com as linhas de todas as conciliações dele. O número do topo, "Pede sua atenção" e
-   * o atalho de Fechamentos olham o mês inteiro, não só a última conciliação. Ausente quando alguma
-   * conciliação do mês não carregou: a home cai para só a recente, como era.
+   * o atalho de Fechamentos olham o mês inteiro, não só a última conciliação. `conciliacoes` é null
+   * quando as linhas do mês não vieram inteiras (um par não carregou, passou do teto de páginas de
+   * `carregarConciliacao`, ou o mês pode seguir depois da primeira página de `/execucoes`): a home não
+   * soma um mês pela metade.
    */
-  mes?: { competencia: string; fechado: boolean; conciliacoes: Conciliacao[] };
+  mes?: { competencia: string; fechado: boolean; conciliacoes: Conciliacao[] | null };
 };
 
 /**
@@ -764,7 +771,16 @@ export async function carregarVisaoGeral(): Promise<Resultado<VisaoGeral>> {
       ? [{ nome, linhas: situacao.dados.erros.length }]
       : [],
   );
-  const todasCarregaram = conciliacoes.every((resultado) => resultado.ok);
+  // os números do mês saem das linhas: com um par cortado no teto de páginas, a home mostraria um
+  // mês pela metade como inteiro (100% conciliado com divergência na linha 10.001)
+  const inteiras = conciliacoes.flatMap((resultado) =>
+    resultado.ok && !resultado.dados.truncada ? [resultado.dados.conciliacao] : [],
+  );
+  // ponytail: /execucoes não filtra por mês, então a primeira página só traz o mês em foco inteiro quando
+  // chega a uma execução que rodou antes dele (nenhuma do mês roda antes de ele começar); com um filtro
+  // por competência no backend, o mês viria direto e somaria mesmo com muitas execuções
+  const ultima = execucoes[execucoes.length - 1];
+  const mesPodeSeguir = total > execucoes.length && competencia(null, ultima.executadaEm) >= foco;
 
   return {
     ok: true,
@@ -773,13 +789,11 @@ export async function carregarVisaoGeral(): Promise<Resultado<VisaoGeral>> {
       total,
       recente: { execucao: maisRecente, conciliacao: conciliacao.dados.conciliacao },
       arquivosComLinhasNaoLidas,
-      ...(todasCarregaram && {
-        mes: {
-          competencia: foco,
-          fechado: fechados.has(foco),
-          conciliacoes: conciliacoes.flatMap((resultado) => (resultado.ok ? [resultado.dados.conciliacao] : [])),
-        },
-      }),
+      mes: {
+        competencia: foco,
+        fechado: fechados.has(foco),
+        conciliacoes: !mesPodeSeguir && inteiras.length === conciliacoes.length ? inteiras : null,
+      },
     },
   };
 }

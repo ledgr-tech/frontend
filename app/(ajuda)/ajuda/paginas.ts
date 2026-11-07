@@ -19,7 +19,8 @@ export type FuncaoDaAjuda = {
   /** Como fazer, em passos. */
   passos?: string[];
   nota?: string;
-  imagem?: ImagemDaAjuda;
+  /** A figura da seção, em HTML (FiguraDaTela): o tamanho que `gravar.mjs --figuras` mostra, para reservar o espaço. */
+  figura?: { largura: number; altura: number };
 };
 
 export type PaginaDeAjuda = {
@@ -32,8 +33,8 @@ export type PaginaDeAjuda = {
   /** A tela inteira: capa do vídeo e referência da tela. */
   capa: ImagemDaAjuda;
   funcoes: FuncaoDaAjuda[];
-  /** shortcut: o vídeo entra quando houver gravação, um arquivo em public/ajuda/; sem ele, a capa diz "em breve". */
-  video?: string;
+  /** A tela tocando em HTML (demonstracao.tsx): o arquivo de public/ajuda/ que `gravar.mjs` gera; sem ele, a capa diz "em breve". */
+  demonstracao?: string;
 };
 
 export const PAGINAS: PaginaDeAjuda[] = [
@@ -48,7 +49,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
       largura: 1360,
       altura: 850,
     },
-    video: "/ajuda/visao-geral.webm",
+    demonstracao: "/ajuda/visao-geral.json",
     funcoes: [
       {
         id: "primeiros-passos",
@@ -70,11 +71,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
           "Leia o cartão do mês no topo.",
           "Se houver pendências, clique em **Revisar** para ir direto a elas.",
         ],
-        imagem: {
-          src: "/ajuda/visao-geral--estado-do-mes.webp",
-          largura: 1000,
-          altura: 153,
-        },
+        figura: { largura: 961, altura: 306 },
       },
       {
         id: "atalhos",
@@ -85,11 +82,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
           "Clique numa conciliação recente para abrir a comparação dela.",
         ],
         nota: "Quando nada pede decisão, a tela diz “Nada pede sua atenção agora.”",
-        imagem: {
-          src: "/ajuda/visao-geral--atalhos.webp",
-          largura: 1000,
-          altura: 214,
-        },
+        figura: { largura: 485, altura: 681 },
       },
     ],
   },
@@ -104,7 +97,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
       largura: 1360,
       altura: 850,
     },
-    video: "/ajuda/extratos.webm",
+    demonstracao: "/ajuda/extratos.json",
     funcoes: [
       {
         id: "arquivos",
@@ -115,11 +108,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
           "Clique num arquivo para ver os detalhes no painel ao lado.",
           "Dê um duplo clique para abrir direto a conciliação do arquivo.",
         ],
-        imagem: {
-          src: "/ajuda/extratos--arquivos.webp",
-          largura: 781,
-          altura: 900,
-        },
+        figura: { largura: 613, altura: 624 },
       },
       {
         id: "filtros",
@@ -129,11 +118,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
           "Escolha **Todos**, **Do banco**, **Do sistema** ou **Com problema** no topo da lista.",
           "Em **Com problema**, o número entre parênteses diz quantos arquivos têm linhas não lidas.",
         ],
-        imagem: {
-          src: "/ajuda/extratos--filtros.webp",
-          largura: 1000,
-          altura: 80,
-        },
+        figura: { largura: 993, altura: 82 },
       },
       {
         id: "painel",
@@ -145,11 +130,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
           "Clique em **Ver conciliação** para abrir a comparação.",
         ],
         nota: "Quando o banco não manda o saldo no arquivo, o painel diz “Saldo não informado no arquivo”, e não R$ 0,00.",
-        imagem: {
-          src: "/ajuda/extratos--painel.webp",
-          largura: 352,
-          altura: 626,
-        },
+        figura: { largura: 344, altura: 690 },
       },
     ],
   },
@@ -164,7 +145,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
       largura: 1360,
       altura: 850,
     },
-    video: "/ajuda/conciliacoes.webm",
+    demonstracao: "/ajuda/conciliacoes.json",
     funcoes: [
       {
         id: "filtros",
@@ -174,11 +155,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
           "Escolha **Pedem decisão**, **Sem pendência**, **Mês fechado** ou **Todas** no topo da lista.",
           "Para ver tudo o que já rodou, clique em **Ver o histórico**.",
         ],
-        imagem: {
-          src: "/ajuda/conciliacoes--filtros.webp",
-          largura: 1000,
-          altura: 80,
-        },
+        figura: { largura: 993, altura: 82 },
       },
       {
         id: "fila",
@@ -214,7 +191,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
       largura: 1360,
       altura: 850,
     },
-    video: "/ajuda/nova-conciliacao.webm",
+    demonstracao: "/ajuda/nova-conciliacao.json",
     funcoes: [
       {
         id: "enviar",
@@ -224,12 +201,45 @@ export const PAGINAS: PaginaDeAjuda[] = [
           "Arraste ou escolha o extrato do banco: **OFX ou CSV** exportado do internet banking, até 4 MB.",
           "Arraste ou escolha o do sistema de gestão: um **CSV** com data, descrição e valor.",
         ],
-        nota: "PDF ainda não é aceito. O mês da conciliação é o do extrato do banco.",
-        imagem: {
-          src: "/ajuda/nova-conciliacao--enviar.webp",
-          largura: 1000,
-          altura: 213,
-        },
+        nota: "O PDF não entra direto: para ele, use **Importar via IA**. O mês da conciliação é o do extrato do banco.",
+        figura: { largura: 557, altura: 302 },
+      },
+      {
+        id: "exportar-banco",
+        titulo: "Exportar o extrato do banco",
+        faz: "O arquivo que você envia na folha do banco sai do internet banking do seu banco. Cada banco tem a sua tela, mas o caminho é parecido.",
+        passos: [
+          "Entre no internet banking e abra a tela de **Extrato**.",
+          "Escolha o período do mês inteiro, do primeiro ao último dia.",
+          "Use a opção de **exportar** ou **baixar** e escolha o formato **OFX** ou **CSV**.",
+          "Confira que o arquivo tem até 4 MB e envie na folha do banco.",
+        ],
+        nota: "O período do banco precisa ser o mesmo do relatório do sistema. Se o banco só oferece PDF, peça o OFX ou o CSV ao gerente.",
+      },
+      {
+        id: "exportar-sistema",
+        titulo: "Exportar o relatório do sistema de gestão",
+        faz: "O arquivo da folha do sistema é o relatório de lançamentos do mesmo mês, com data, descrição e valor de cada lançamento.",
+        passos: [
+          "No sistema de gestão, abra o relatório de **lançamentos** (movimentação financeira) do mesmo período do extrato.",
+          "Exporte em **CSV** e envie na folha do sistema.",
+          "Se o sistema só gera **PDF**, siga **Importar o PDF via IA**, logo abaixo.",
+        ],
+        nota: "Se o CSV vier num formato que o Ledgr não reconhece, ele pede para você apontar as colunas.",
+      },
+      {
+        id: "importar-via-ia",
+        titulo: "Importar o PDF do sistema via IA",
+        faz: "Quando o relatório do sistema só existe em PDF, você usa a IA que já tem (ChatGPT, Claude ou outra) para transformá-lo no arquivo do Ledgr. O Ledgr não usa nenhuma IA: ele só recebe o arquivo que você traz.",
+        passos: [
+          "Na Nova conciliação, clique em **Importar via IA**.",
+          "Clique em **Copiar prompt**, cole na IA e anexe o PDF do relatório.",
+          "Salve o que a IA devolver como arquivo JSON ou TXT, até 4 MB, e envie na folha do sistema.",
+          "Clique em **Importar e conferir**. Se o arquivo tiver erros, a tela lista cada um para você corrigir com a IA e enviar de novo.",
+          "Confira as linhas no rascunho: corrija, remova ou acrescente o que faltar.",
+          "Clique em **Confirmar** e envie o extrato do banco: o sistema já vem pronto, só falta o banco. Depois, **Conciliar extratos**.",
+        ],
+        nota: "Nada entra no Ledgr antes de você confirmar, e a conferência final é sua: confira as linhas com o relatório original. O rascunho não confirmado expira depois de alguns dias.",
       },
       {
         id: "conciliar",
@@ -239,11 +249,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
           "Clique em **Conciliar extratos**.",
           "Espere a comparação abrir.",
         ],
-        imagem: {
-          src: "/ajuda/nova-conciliacao--conciliar.webp",
-          largura: 231,
-          altura: 76,
-        },
+        figura: { largura: 362, altura: 64 },
       },
       {
         id: "apontar-colunas",
@@ -269,7 +275,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
       largura: 1360,
       altura: 850,
     },
-    video: "/ajuda/comparacao.webm",
+    demonstracao: "/ajuda/comparacao.json",
     funcoes: [
       {
         id: "resumo",
@@ -279,11 +285,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
           "Leia o resumo antes da lista.",
           "Clique numa categoria para ver só as linhas dela.",
         ],
-        imagem: {
-          src: "/ajuda/comparacao--resumo.webp",
-          largura: 1000,
-          altura: 173,
-        },
+        figura: { largura: 929, altura: 188 },
       },
       {
         id: "saldo",
@@ -301,11 +303,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
           "Clique no nome de uma coluna para ordenar por ela.",
           "Em **Padrão** ou **Compacta**, deixe as linhas mais espaçadas ou mais juntas.",
         ],
-        imagem: {
-          src: "/ajuda/comparacao--filtros.webp",
-          largura: 527,
-          altura: 69,
-        },
+        figura: { largura: 498, altura: 62 },
       },
       {
         id: "conferir",
@@ -314,11 +312,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
         passos: [
           "Clique no círculo da coluna **Conferida** na linha que você já olhou.",
         ],
-        imagem: {
-          src: "/ajuda/comparacao--conferir.webp",
-          largura: 136,
-          altura: 62,
-        },
+        figura: { largura: 929, altura: 160 },
       },
       {
         id: "abrir-linha",
@@ -338,11 +332,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
           "Clique em **Enviar nova versão**, no topo da comparação.",
           "A comparação abre na rodada nova.",
         ],
-        imagem: {
-          src: "/ajuda/comparacao--rodadas-linha.webp",
-          largura: 139,
-          altura: 54,
-        },
+        figura: { largura: 251, altura: 54 },
       },
       {
         id: "mes-fechado",
@@ -352,12 +342,16 @@ export const PAGINAS: PaginaDeAjuda[] = [
           "Clique em **Ver o fechamento**.",
           "Reabra o mês em Fechamentos para mexer de novo.",
         ],
-        imagem: {
-          src: "/ajuda/comparacao--mes-fechado.webp",
-          largura: 1000,
-          altura: 67,
-        },
+        figura: { largura: 921, altura: 60 },
       },
+      // descomentar no dia em que o backend ligar AGRUPAMENTO_HABILITADO (#131)
+      // {
+      //   id: "agrupamento",
+      //   titulo: "Agrupamento por soma",
+      //   faz: "Quando um lançamento de um lado é a soma de vários do outro, como um lote pago de uma vez, os lançamentos aparecem juntos, sob uma linha que resume o lote, e já entram como conciliados.",
+      //   passos: ["Os lançamentos do lote ficam seguidos na comparação, com o lançamento único primeiro."],
+      //   nota: "O Ledgr agrupa automaticamente um lançamento de um lado com vários do outro quando a soma bate exatamente, ao centavo, e as datas estão dentro da tolerância de data da empresa. Não agrupa quando há mais de uma combinação possível, quando a soma tem diferença de um centavo que seja (tarifa, desconto, juros, retenção ou taxa de maquininha), quando os lançamentos têm sinais diferentes ou quando um pagamento individual do banco já casou com um lançamento do lote. Esses casos continuam como divergência para você justificar.",
+      // },
     ],
   },
   {
@@ -371,7 +365,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
       largura: 1360,
       altura: 850,
     },
-    video: "/ajuda/detalhe-da-linha.webm",
+    demonstracao: "/ajuda/detalhe-da-linha.json",
     funcoes: [
       {
         id: "lados",
@@ -381,27 +375,27 @@ export const PAGINAS: PaginaDeAjuda[] = [
           "Compare os dois lados.",
           "Veja em **Data no sistema** e **Descrição no sistema** o que precisa ser corrigido lá.",
         ],
-        imagem: {
-          src: "/ajuda/detalhe-da-linha--lados.webp",
-          largura: 543,
-          altura: 452,
-        },
+        figura: { largura: 535, altura: 444 },
       },
       {
         id: "motivo",
         titulo: "O provável motivo",
-        faz: "Quando a conciliação roda, o Ledgr lê os dois lados de cada divergência e explica, em linguagem simples, por que a linha não casou.",
+        // ponytail: o texto de hoje, com a IA desligada em produção (o "Explicar" devolve o texto padrão do Ledgr).
+        // No dia em que ela ligar (backend #140, depois da política revisada em #190/#197), volta este:
+        //   faz: "Quando a conciliação roda, o Ledgr lê os dois lados de cada divergência e explica, em linguagem simples, por que a linha não casou.",
+        //   passos: [
+        //     "Abra a linha e leia a explicação, marcada como “Gerada por IA”.",
+        //     "Se a explicação ainda não estiver pronta, clique em **Explicar esta divergência**.",
+        //     "Confira no seu sistema de gestão antes de decidir.",
+        //   ],
+        //   nota: "Dados resumidos de cada divergência são enviados à OpenAI ao conciliar; linhas conciliadas não são. A IA explica; quem decide é você.",
+        faz: "O Ledgr explica, em linguagem simples, por que a linha não casou.",
         passos: [
-          "Abra a linha e leia a explicação, marcada como “Gerada por IA”.",
-          "Se a explicação ainda não estiver pronta, clique em **Explicar esta divergência**.",
-          "Confira no seu sistema de gestão antes de decidir.",
+          "Abra a linha e clique em **Explicar esta divergência**.",
+          "Leia o provável motivo e confira no seu sistema de gestão antes de decidir.",
         ],
-        nota: "Dados resumidos de cada divergência são enviados à OpenAI ao conciliar; linhas conciliadas não são. A IA explica; quem decide é você.",
-        imagem: {
-          src: "/ajuda/detalhe-da-linha--motivo.webp",
-          largura: 543,
-          altura: 260,
-        },
+        nota: "A explicação ajuda a entender a divergência; quem decide é você.",
+        figura: { largura: 535, altura: 273 },
       },
       {
         id: "decidir",
@@ -427,7 +421,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
       largura: 1360,
       altura: 850,
     },
-    video: "/ajuda/fechamentos.webm",
+    demonstracao: "/ajuda/fechamentos.json",
     funcoes: [
       {
         id: "meses",
@@ -437,11 +431,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
           "Filtre por **Todos**, **Prontos para fechar**, **Com pendência** ou **Fechados**.",
           "Clique no mês que quer fechar.",
         ],
-        imagem: {
-          src: "/ajuda/fechamentos--meses.webp",
-          largura: 388,
-          altura: 669,
-        },
+        figura: { largura: 327, altura: 664 },
       },
       {
         id: "o-que-falta",
@@ -451,11 +441,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
           "Veja o que ainda não está pronto no painel do mês.",
           "Clique em **Revisar pendências** para ir até elas.",
         ],
-        imagem: {
-          src: "/ajuda/fechamentos--o-que-falta.webp",
-          largura: 744,
-          altura: 543,
-        },
+        figura: { largura: 630, altura: 723 },
       },
       {
         id: "fechar",
@@ -475,11 +461,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
           "Abra o mês fechado.",
           "Clique em **Reabrir** com o nome do mês, por exemplo **Reabrir agosto**.",
         ],
-        imagem: {
-          src: "/ajuda/fechamentos--reabrir.webp",
-          largura: 744,
-          altura: 609,
-        },
+        figura: { largura: 630, altura: 754 },
       },
       {
         id: "relatorio",
@@ -490,11 +472,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
           "O relatório abre numa nova aba com a impressão do navegador. Escolha **Salvar como PDF**.",
           "Para a planilha, clique em **Exportar CSV**. Ela abre no Excel com os acentos certos.",
         ],
-        imagem: {
-          src: "/ajuda/fechamentos--fechar.webp",
-          largura: 744,
-          altura: 687,
-        },
+        figura: { largura: 286, altura: 201 },
       },
     ],
   },
@@ -508,17 +486,13 @@ export const PAGINAS: PaginaDeAjuda[] = [
       largura: 1360,
       altura: 850,
     },
-    video: "/ajuda/historico.webm",
+    demonstracao: "/ajuda/historico.json",
     funcoes: [
       {
         id: "grafico",
         titulo: "Como os meses andaram",
         faz: "O gráfico mostra quanto bateu em cada mês.",
-        imagem: {
-          src: "/ajuda/historico--grafico.webp",
-          largura: 1000,
-          altura: 282,
-        },
+        figura: { largura: 961, altura: 284 },
       },
       {
         id: "lista",
@@ -553,7 +527,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
       largura: 1360,
       altura: 850,
     },
-    video: "/ajuda/empresas.webm",
+    demonstracao: "/ajuda/empresas.json",
     funcoes: [
       {
         id: "lista",
@@ -611,11 +585,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
           "Para desistir de um convite, clique nele em **Convites pendentes** e depois em **Cancelar convite**.",
         ],
         nota: "Só o administrador troca papéis e passa a administração, e remove pessoas. Quem acabou de receber a administração vê os controles na hora. O analista vê a lista, concilia e justifica, mas não fecha o mês nem convida ninguém. Os convites pendentes contam no limite de pessoas do plano.",
-        imagem: {
-          src: "/ajuda/empresas--equipe.webp",
-          largura: 1360,
-          altura: 850,
-        },
+        figura: { largura: 961, altura: 501 },
       },
     ],
   },
@@ -630,7 +600,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
       largura: 1360,
       altura: 850,
     },
-    video: "/ajuda/configuracoes.webm",
+    demonstracao: "/ajuda/configuracoes.json",
     funcoes: [
       {
         id: "abrir",
@@ -651,11 +621,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
           "Abra o link que chega no e-mail novo e clique em **Confirmar e-mail novo**. Ele vale por 60 minutos.",
         ],
         nota: "O e-mail só muda quando você confirma pelo link; depois, as sessões abertas são encerradas e você entra com o e-mail novo. Quem entra só com o Google não tem senha no Ledgr, então não vê Trocar senha nem Trocar e-mail: o e-mail é o da conta Google.",
-        imagem: {
-          src: "/ajuda/configuracoes--conta.webp",
-          largura: 960,
-          altura: 640,
-        },
+        figura: { largura: 960, altura: 640 },
       },
       {
         id: "tolerancia",
@@ -667,11 +633,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
           "Clique em **Salvar**.",
         ],
         nota: "Vale a partir da próxima conciliação. Com 0, só casam lançamentos do mesmo dia.",
-        imagem: {
-          src: "/ajuda/configuracoes--tolerancia.webp",
-          largura: 960,
-          altura: 640,
-        },
+        figura: { largura: 960, altura: 640 },
       },
       {
         id: "api",
@@ -694,11 +656,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
           "Em **Densidade das tabelas**, escolha **Padrão** ou **Compacta**.",
           "Em **Menu lateral**, deixe **Aberto** ou **Recolhido**. O atalho é Ctrl e B.",
         ],
-        imagem: {
-          src: "/ajuda/configuracoes--aparencia.webp",
-          largura: 960,
-          altura: 640,
-        },
+        figura: { largura: 960, altura: 640 },
       },
     ],
   },
@@ -727,7 +685,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
       //   titulo: "Assinar um plano",
       //   faz: "Assina um plano com cartão, pela página de pagamento da Stripe. Só o administrador da conta assina.",
       //   passos: [
-      //     "Escolha o período e clique em **Assinar** no plano que quer.",
+      //     "Escolha o período, clique na folha do plano que quer e em **Assinar**, no painel ao lado.",
       //     "Pague na página da Stripe. Ao voltar, a tela confirma a assinatura em alguns segundos.",
       //   ],
       //   nota: "Assinando durante o teste, a cobrança só acontece quando ele acaba. Nas últimas 48 horas do teste, ou depois dele, a cobrança é feita na hora.",
@@ -736,12 +694,12 @@ export const PAGINAS: PaginaDeAjuda[] = [
       //   id: "periodo",
       //   titulo: "Período e desconto",
       //   faz: "Os planos podem ser pagos por mês ou por ano; em **Ver outros períodos** aparecem o trimestral e o semestral. Cada cartão mostra o preço do período, quanto dá por mês e o desconto em relação ao mensal.",
-      //   passos: ["Clique no período acima dos planos para trocar os preços."],
+      //   passos: ["Clique no período acima das folhas para trocar os preços."],
       // },
       {
         id: "plano",
         titulo: "Plano atual e faturas",
-        faz: "O plano em uso, quantas contas e lançamentos ele cobre, os outros planos e a lista de faturas, com competência, vencimento, valor, situação e recibo.",
+        faz: "O plano em uso, os outros planos e a lista de faturas, com competência, vencimento, valor, situação e recibo.",
         passos: [
           "Para trocar de plano, clique em **Mudar para** no plano que quer.",
         ],

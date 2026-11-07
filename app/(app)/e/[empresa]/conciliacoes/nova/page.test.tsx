@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import postcss, { type AtRule } from "postcss";
@@ -9,11 +9,14 @@ import NovaConciliacaoPage from "./page";
 import { lerBytes } from "./ler-arquivo";
 import { ProvedorDaConta } from "../../conta";
 import { ProvedorDaEmpresa } from "@/lib/empresa-ativa";
-import type { Assinatura } from "@/lib/assinatura";
+import type { Assinatura, PrecoDoPlano } from "@/lib/assinatura";
 
 const push = vi.fn();
+// a query da tela (?sistema=): a importação via IA confirmada chega com o id do extrato do sistema
+let consulta = "";
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push }),
+  useSearchParams: () => new URLSearchParams(consulta),
 }));
 
 const enviarExtrato = vi.fn();
@@ -28,6 +31,9 @@ vi.mock("../acoes", () => ({
 }));
 
 vi.mock("../../../../../(auth)/acoes", () => ({ salvarPreferencias: async () => true }));
+// os preços da Stripe que a tela de bloqueio mostra; null é a cobrança desligada
+const carregarPrecos = vi.fn(async (): Promise<PrecoDoPlano[] | null> => null);
+vi.mock("../../assinatura/acoes", () => ({ carregarPrecos: () => carregarPrecos() }));
 
 function montarComAssinatura(assinatura: Assinatura | null) {
   return render(
@@ -263,21 +269,80 @@ describe("NovaConciliacaoPage", () => {
     await waitFor(() => expect(push).toHaveBeenCalledWith("/login"));
   });
 
-  it("avisa das linhas que o parser não leu, mas segue conciliando", async () => {
-    situacaoDoExtrato.mockImplementation((id: string) =>
-      Promise.resolve(
-        id === "extrato-banco"
-          ? concluido("banco", [{ identificador: "L12", motivo: "valor inválido" }])
-          : concluido("sistema"),
-      ),
-    );
+  describe("extrato lido em parte", () => {
+    type Erro = { identificador: string; motivo: string };
+    const L12: Erro = { identificador: "L12", motivo: "valor inválido" };
 
-    await enviarOsDois();
+    function lidoEmParte(doBanco: Erro[], doSistema: Erro[] = []) {
+      situacaoDoExtrato.mockImplementation((id: string) =>
+        Promise.resolve(id === "extrato-banco" ? concluido("banco", doBanco) : concluido("sistema", doSistema)),
+      );
+    }
 
-    expect(
-      await screen.findByText("1 linha(s) do extrato do banco não foram lidas."),
-    ).toBeInTheDocument();
-    await waitFor(() => expect(push).toHaveBeenCalledWith("/conciliacoes/extrato-banco?sistema=extrato-sistema"));
+    it("para antes de conciliar, diz quais linhas ficaram de fora e põe o foco em voltar", async () => {
+      lidoEmParte([L12]);
+
+      await enviarOsDois();
+
+      expect(await screen.findByRole("alert")).toHaveTextContent("1 linha do extrato do banco não foi lida.");
+      expect(screen.getByText("Linha L12: valor inválido")).toBeInTheDocument();
+      expect(screen.getByText(/os dois arquivos enviados ficam em Extratos, sem conciliação\./)).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Voltar para corrigir" })).toHaveFocus();
+      expect(conciliar).not.toHaveBeenCalled();
+    });
+
+    it("com os dois lidos em parte, mostra cada um com as primeiras linhas", async () => {
+      const seis = Array.from({ length: 6 }, (_, i) => ({ identificador: String(i + 2), motivo: "data inválida" }));
+      lidoEmParte([L12], seis);
+
+      await enviarOsDois();
+
+      const alertas = await screen.findAllByRole("alert");
+      expect(alertas.map((alerta) => alerta.textContent)).toEqual([
+        "1 linha do extrato do banco não foi lida.",
+        "6 linhas do extrato do sistema não foram lidas.",
+      ]);
+      expect(screen.getByText("e mais 1 linha não lida.")).toBeInTheDocument();
+    });
+
+    it("continua com as linhas válidas sem enviar os arquivos de novo", async () => {
+      lidoEmParte([L12]);
+      const user = await enviarOsDois();
+
+      await user.click(await screen.findByRole("button", { name: "Continuar com linhas válidas" }));
+
+      expect(conciliar).toHaveBeenCalledWith("extrato-banco", "extrato-sistema");
+      expect(enviarExtrato).toHaveBeenCalledTimes(2);
+      await waitFor(() => expect(push).toHaveBeenCalledWith("/conciliacoes/extrato-banco?sistema=extrato-sistema"));
+    });
+
+    it("volta para corrigir sem conciliar: o arquivo lido em parte sai da folha e o outro fica", async () => {
+      lidoEmParte([L12]);
+      const user = await enviarOsDois();
+
+      await user.click(await screen.findByRole("button", { name: "Voltar para corrigir" }));
+
+      expect(conciliar).not.toHaveBeenCalled();
+      expect(screen.getByLabelText("Extrato do banco").closest("label")).not.toHaveAttribute("data-pronto");
+      expect(screen.getByLabelText("Extrato do sistema de gestão").closest("label")).toHaveAttribute("data-pronto");
+      expect(screen.getByRole("button", { name: "Conciliar extratos" })).toHaveAccessibleDescription(
+        "Falta o extrato do banco.",
+      );
+    });
+
+    it("se a conciliação falha depois da decisão, volta a ela com o motivo e tenta de novo sem reenviar", async () => {
+      lidoEmParte([L12]);
+      conciliar.mockRejectedValueOnce(new Error("Failed to fetch"));
+      const user = await enviarOsDois();
+
+      await user.click(await screen.findByRole("button", { name: "Continuar com linhas válidas" }));
+      expect(await screen.findByText(/Recarregue a página/)).toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: "Continuar com linhas válidas" }));
+
+      await waitFor(() => expect(push).toHaveBeenCalledWith("/conciliacoes/extrato-banco?sistema=extrato-sistema"));
+      expect(conciliar).toHaveBeenCalledTimes(2);
+      expect(enviarExtrato).toHaveBeenCalledTimes(2);
+    });
   });
 
   // 4MB e não os 5MB do backend: o arquivo passa por uma Server Action, e a
@@ -292,7 +357,7 @@ describe("NovaConciliacaoPage", () => {
     await user.upload(screen.getByLabelText("Extrato do sistema de gestão"), arquivo("sistema.csv"));
     await user.click(screen.getByRole("button", { name: "Conciliar extratos" }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("passa de 4MB");
+    expect(await screen.findByRole("alert")).toHaveTextContent("passa de 4 MB");
     expect(enviarExtrato).not.toHaveBeenCalled();
   });
 
@@ -478,6 +543,11 @@ describe("NovaConciliacaoPage", () => {
       expect(within(palco).getByText("banco.ofx")).toBeInTheDocument();
       expect(within(palco).getByText("sistema.csv")).toBeInTheDocument();
       expect(within(palco).getByText("Comparando banco e sistema…")).toBeInTheDocument();
+      expect(within(palco).getByText("Vendo o que está correto e o que precisa da sua decisão")).toBeInTheDocument();
+      // o texto da etapa fica embaixo da mesa das folhas, não no topo
+      const mesa = palco.querySelector(".nova-palco-mesa") as Element;
+      const recado = within(palco).getByText("Comparando banco e sistema…");
+      expect(mesa.compareDocumentPosition(recado) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
       expect(screen.queryByLabelText("Extrato do banco")).not.toBeInTheDocument();
     });
 
@@ -528,6 +598,7 @@ describe("NovaConciliacaoPage", () => {
         ".nova-folha[data-pronto] .nova-folha-icone svg",
         ".nova-folhas[data-ligado] .nova-elo-no",
         ".nova-volta",
+        ".nova-palco-rodape",
         ".ia-erros",
       ]) {
         expect(dentroDe("media", reduzido, seletor)).toMatchObject({ animation: "none" });
@@ -569,10 +640,14 @@ describe("NovaConciliacaoPage", () => {
     });
 
     // estreito, as folhas quase inteiras, uma descendo menos sob a outra, e o elo no canto que sobra
-    it("encolhe a sobreposição das folhas quando a coluna é estreita", () => {
+    // as folhas ficam lado a lado, sem se cobrir, e o elo no centro do vão; no celular empilham
+    it("põe as folhas lado a lado, sem sobreposição, e empilha no celular", () => {
+      const sempre = "nova (min-width: 0px)";
+      expect(dentroDe("container", sempre, ".nova-folhas")).toMatchObject({ display: "grid" });
+      expect(dentroDe("container", sempre, ".nova-folha")).toMatchObject({ position: "relative", inset: "auto" });
+      expect(dentroDe("container", sempre, ".nova-elo-no")).toMatchObject({ inset: "0", margin: "auto" });
       const estreito = "nova (max-width: 559px)";
-      expect(dentroDe("container", estreito, ".nova-folha-banco")).toMatchObject({ inset: "0 28px 190px 0" });
-      expect(dentroDe("container", estreito, ".nova-folha-sistema")).toMatchObject({ inset: "170px 0 0 28px" });
+      expect(dentroDe("container", estreito, ".nova-folhas")).toMatchObject({ "grid-template-columns": "minmax(0, 1fr)" });
     });
   });
 
@@ -637,10 +712,26 @@ describe("NovaConciliacaoPage", () => {
   it("teste acabado: mostra os planos no lugar do envio", () => {
     montarComAssinatura({ situacao: "teste_encerrado", plano: "essencial", testeTerminaEm: "2026-10-01", fimDoTeste: null, cobranca: null });
     expect(screen.getByRole("heading", { name: "Seu teste de 14 dias acabou." })).toBeInTheDocument();
+    expect(screen.queryByText(/A franquia recomeça/)).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Extrato do banco")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Conciliar extratos" })).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Ver minhas conciliações" })).toHaveAttribute("href", "/dashboard");
-    expect(screen.getByRole("link", { name: "Assinar o Padrão" })).toHaveAttribute("href", "/assinatura");
+    // o cartão do plano na Assinatura
+    expect(screen.getByRole("link", { name: "Assinar o Padrão" })).toHaveAttribute("href", "/assinatura#plano-padrao");
+  });
+
+  it("com os preços da Stripe, o mensal de cada plano; sem eles, nenhum valor (#296)", async () => {
+    const mensal = (plano: PrecoDoPlano["plano"], valor: string, conciliacoesPorMes: number | null): PrecoDoPlano => ({ plano, periodo: "mensal", centavos: 0, valor, porMes: null, desconto: null, conciliacoesPorMes });
+    carregarPrecos.mockResolvedValueOnce([mensal("essencial", "R$ 149,00", null), mensal("padrao", "R$ 299,00", 60), mensal("avancado", "R$ 599,00", null)]);
+    const { unmount } = montarComAssinatura({ situacao: "teste_encerrado", plano: "padrao", testeTerminaEm: "2026-10-01", fimDoTeste: null, cobranca: null });
+    expect(await screen.findByText("R$ 299,00 /mês · até 60 conciliações por mês")).toBeInTheDocument();
+    // sem franquia configurada, só o preço (#297)
+    expect(screen.getByText("R$ 149,00 /mês")).toBeInTheDocument();
+    unmount();
+
+    montarComAssinatura({ situacao: "teste_encerrado", plano: "padrao", testeTerminaEm: "2026-10-01", fimDoTeste: null, cobranca: null });
+    await waitFor(() => expect(carregarPrecos).toHaveBeenCalledTimes(2));
+    expect(screen.getByRole("region", { name: "Seu teste de 14 dias acabou." }).textContent).not.toMatch(/R\$/);
   });
 
   it("assinatura encerrada: também bloqueia, com o título dela", () => {
@@ -657,6 +748,21 @@ describe("NovaConciliacaoPage", () => {
   it("em teste, o envio segue normal", () => {
     montarComAssinatura({ situacao: "teste", plano: "padrao", testeTerminaEm: "2026-10-29", fimDoTeste: null, cobranca: null });
     expect(screen.getByLabelText("Extrato do banco")).toBeInTheDocument();
+  });
+
+  it.each([
+    ["em teste", "teste" as const],
+    ["assinando", "ativo" as const],
+  ])("%s, o 402 é a franquia do mês, não o fim do teste (#295)", async (_, situacao) => {
+    conciliar.mockResolvedValue({ ok: false, status: 402, erro: "Sua conta chegou ao limite de conciliações do mês no plano Padrão." });
+    const user = userEvent.setup();
+    montarComAssinatura({ situacao, plano: "padrao", testeTerminaEm: null, fimDoTeste: null, cobranca: null });
+    await user.upload(screen.getByLabelText("Extrato do banco"), arquivo("banco.ofx"));
+    await user.upload(screen.getByLabelText("Extrato do sistema de gestão"), arquivo("sistema.csv"));
+    await user.click(screen.getByRole("button", { name: "Conciliar extratos" }));
+    expect(await screen.findByRole("heading", { name: "Sua conta chegou ao limite de conciliações deste mês." })).toBeInTheDocument();
+    expect(screen.getByText("Sua conta chegou ao limite de conciliações do mês no plano Padrão.")).toBeInTheDocument();
+    expect(screen.getByText("A franquia recomeça no dia 1º. Para conciliar antes, escolha um plano maior.")).toBeInTheDocument();
   });
 
   it("o backend recusou com 402: mostra os planos com o texto dele", async () => {
@@ -704,5 +810,65 @@ describe("a empresa para a qual se concilia (#169)", () => {
     render(<NovaConciliacaoPage />);
 
     expect(screen.queryByText(/Conciliando para/)).not.toBeInTheDocument();
+  });
+});
+
+describe("depois da importação via IA, só falta o banco", () => {
+  const SISTEMA_DA_IA = "11111111-1111-4111-8111-111111111111";
+
+  beforeEach(() => {
+    push.mockClear();
+    enviarExtrato.mockReset();
+    situacaoDoExtrato.mockReset();
+    conciliar.mockReset();
+    carregarRegras.mockReset();
+    carregarRegras.mockResolvedValue({ ok: false, status: 404, erro: "" });
+    enviarExtrato.mockResolvedValue({ ok: true, dados: { extratoId: "extrato-banco" } });
+    situacaoDoExtrato.mockResolvedValue(concluido("banco"));
+    conciliar.mockResolvedValue({ ok: true, dados: {} });
+    consulta = `sistema=${SISTEMA_DA_IA}`;
+  });
+
+  afterEach(() => {
+    consulta = "";
+    cleanup();
+  });
+
+  it("mostra o sistema pronto, sem campo para ele, e pede só o banco", async () => {
+    const user = userEvent.setup();
+    render(<NovaConciliacaoPage />);
+
+    expect(screen.getByText("Importação via IA")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Extrato do sistema de gestão")).not.toBeInTheDocument();
+    expect(screen.queryByText("Só tem o PDF do relatório?")).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Falta um extrato" })).toBeInTheDocument();
+    const botao = screen.getByRole("button", { name: "Conciliar extratos" });
+    expect(botao).toBeDisabled();
+    expect(botao).toHaveAccessibleDescription("Falta o extrato do banco.");
+
+    await user.upload(screen.getByLabelText("Extrato do banco"), arquivo("banco.ofx"));
+    expect(screen.getByRole("heading", { name: "Pronta para conciliar" })).toBeInTheDocument();
+    expect(botao).toBeEnabled();
+  });
+
+  it("sobe só o banco e concilia com o extrato que a IA já criou", async () => {
+    const user = userEvent.setup();
+    render(<NovaConciliacaoPage />);
+    await user.upload(screen.getByLabelText("Extrato do banco"), arquivo("banco.ofx"));
+    await user.click(screen.getByRole("button", { name: "Conciliar extratos" }));
+
+    await waitFor(() => expect(conciliar).toHaveBeenCalledWith("extrato-banco", SISTEMA_DA_IA));
+    expect(enviarExtrato).toHaveBeenCalledTimes(1);
+    expect((enviarExtrato.mock.calls[0] as [FormData])[0].get("origem")).toBe("banco");
+    // o extrato do sistema já está lido: não há o que esperar por ele
+    expect(situacaoDoExtrato).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(push).toHaveBeenCalledWith(`/conciliacoes/extrato-banco?sistema=${SISTEMA_DA_IA}`));
+  });
+
+  it("ignora um ?sistema= que não é um id", () => {
+    consulta = "sistema=qualquer-coisa";
+    render(<NovaConciliacaoPage />);
+
+    expect(screen.getByLabelText("Extrato do sistema de gestão")).toBeInTheDocument();
   });
 });

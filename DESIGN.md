@@ -1,10 +1,10 @@
 # Ledgr — o que falta de design
 
-Levantamento de 22/09/2026, sobre o app autenticado (`app/(app)`), revisto em 02/11/2026.
+Levantamento de 22/09/2026, sobre o app autenticado (`app/(app)`), revisto em 04/11/2026.
 Ranqueado por **impacto neste produto × aderência ao estilo classical**, não por tendência.
 Desde 21/10 as telas moram em `app/(app)/e/[empresa]/` (a empresa ativa vai na URL); os
 caminhos abaixo que começam em `app/(app)/` ficam lá dentro. O guia ilustrado, com as telas capturadas, é o PDF
-`ledgr-docs/07-tecnico/modelagem-visual/ledgr-guia-v4.pdf` (versão 4, 02/11/2026).
+`ledgr-docs/07-tecnico/modelagem-visual/ledgr-guia-v5.pdf` (versão 5, 04/11/2026).
 
 O sistema visual está descrito em `AGENTS.md` e em
 `v2- informações simples/_ds/classical-.../readme.md`. O resumo que importa aqui:
@@ -24,7 +24,10 @@ preenchimento**, filete carregando a estrutura, identidade tipográfica.
   `--tinta-ativa`, neutros. Cabeçalho de tabela, aba selecionada, rótulo pequeno
   (`h6`) fora de cartão flutuante, item ativo do menu, botão fantasma
   (`.btn-ghost`), link de ação dentro de lista ("Revisar") e numeral decorativo
-  não são dourados.
+  não são dourados. Fora da lista, por serem sinal pequeno e não acento: as etiquetas
+  "Próximo passo", "Ativa" e "Aberta agora" e o contador de Avisos usam o dourado claro
+  (`.tag-accent`). Na landing o dourado também leva o olho: numerais romanos, fio das
+  trilhas, sublinhado do hero e links do rodapé.
 - **Duas fontes:** títulos (`h1`–`h3` a partir de ~20px) e números em destaque em
   Newsreader (`--font-titulo`, com tamanho óptico); o resto em Inter. A Cormorant
   Garamond (`--font-display`) fica só na landing, e a itálica dela só no trecho em
@@ -58,7 +61,7 @@ preenchimento**, filete carregando a estrutura, identidade tipográfica.
   sistema não resolve uma linha conferida numa rodada passada, o círculo volta vazio com um ↻
   dourado dentro (status de atenção). O eixo leva só o veredito, **alinhado à esquerda** como o
   texto das folhas, e fica nos 9rem de sempre.
-- **Gráfico é fio, não bloco (03/10).** A taxa de match mês a mês (Histórico e visão geral) é
+- **Gráfico é fio, não bloco (03/10).** A taxa de conciliação automática mês a mês (Histórico e visão geral) é
   uma linha fina no verde dos acertos, com pontos vazados e o mês de agora cheio; os 100% num
   tracejado claro e a base num filete. Um ponto por mês do extrato, como Fechamentos, com a taxa
   pesada pelos lançamentos do mês. A linha se desenha uma vez ao abrir, como o fio das rodadas, e
@@ -95,7 +98,37 @@ preenchimento**, filete carregando a estrutura, identidade tipográfica.
   cima da troca de tela fazia o conteúdo levar quase um segundo para assentar. O `Reveal`
   continua na landing.
 - **Tutorial do mascote é cartão no canto, não janela** (15/10): o destaque do passo é traço
-  neutro, nunca dourado, e a tela continua usável por trás.
+  neutro, nunca dourado, e a tela continua usável por trás. Desde 04/11 o cartão é de vidro
+  fosco (ver "O que eu não traria"), com o mascote do passo atrás dele.
+
+**Regras de 03/11 e 04/11** (guia v5, págs. 12, 14 e 25; ver
+`docs/superpowers/specs/2026-11-03-landing-animada-design.md`):
+
+- **A landing pode mais.** Referência gsap.com: a landing vende e o app trabalha. O hero e a
+  faixa lateral vão além da regra calma de propósito; cor, tipografia e selos não mudam, e o
+  movimento forte não entra no app nem na Central. A régua, em `app/(marketing)/`:
+  - **Título do hero:** letra por letra, 0,8 s cada, 0,024 s entre elas, giro fixo de até 10°.
+    O título é Inter 500 com a itálica da Cormorant a 1,14em (`.kin-titulo`).
+  - **Adesivos:** entram por mola depois do título, flutuam e seguem o mouse e a rolagem, cada
+    um numa profundidade.
+  - **Janela do hero:** vem deitada (rotateX 34°, escala 84%) e se endireita com a rolagem;
+    endireitada, fica sem transformação.
+  - **Cap. II:** as folhas chegam de lados opostos, as linhas descem, os marcadores estalam e o
+    4.218 conta do zero.
+  - **Trilhas de Por dentro e Preço:** o fio desenha com a rolagem, e a etapa entra quando a
+    ponta dele chega a 60% da tela.
+  - **Por que o Ledgr:** a seção fica presa e os painéis correm de lado.
+  - **Janela animada:** toca só quando está na tela, com cursor e clique desenhados e as telas
+    de verdade.
+  - **Barra do topo:** transparente no começo da página; com fundo, desfoque e filete depois de
+    rolar.
+  - **O resto:** o `Reveal`, que sobe 16px em sequência (0, 0,08, 0,16 s), uma vez, na
+    `--ease-out`.
+- **O que nunca muda na landing.** Com `prefers-reduced-motion` tudo chega parado e inteiro; sem
+  JavaScript o conteúdo aparece parado e nada depende da animação para ser lido; quem volta
+  rolando não espera a entrada de novo. A faixa de Por que o Ledgr vira uma tira que se arrasta.
+- **Peça de marketing segue a mesma régua.** Vídeo e motion podem ir até onde a landing vai, mas
+  peça com tela do app mostra o app como ele é, calmo.
 
 ## Tier 1 — buracos, não polimento
 
@@ -259,8 +292,10 @@ Metade do que o mercado "aprova" destruiria esta identidade.
 - **Glassmorphism.** A barra superior do app tinha `backdrop-filter: blur(6px)`, a
   coisa mais "SaaS 2021" do código; desde 15/10 ela é opaca (`.app-topo`). O
   desfoque atrás de janela modal, regra de 27/09, é outra coisa: ele tira a tela de
-  trás de foco. O que fica de fora é superfície de vidro. Ainda há um resto: a barra
-  da Central de ajuda (`.ajd-barra`) tem fundo a 92% com `blur(8px)`.
+  trás de foco. O que fica de fora é superfície de vidro, com três exceções registradas
+  no guia v5: o cartão do tutorial (`.tutorial`, fundo a 80% com `blur(14px)`, desde
+  04/11), o cabeçalho do site (`blur(6px)`, só depois de rolar) e a barra da Central de
+  ajuda (`.ajd-barra`, fundo a 92% com `blur(8px)`). Superfície nova não leva vidro.
 - **Bento grid, gradiente mesh, glow / neon.** Briga direto com "cor como traço,
   sem preenchimentos grandes".
 - **Soft UI, tudo arredondado.** O sistema é filete e raio pequeno; inflar apaga o
@@ -275,8 +310,9 @@ Metade do que o mercado "aprova" destruiria esta identidade.
     passos de Fechamentos; o selo de texto gerado por IA.
 
   Botão de ação tem rótulo, não ícone ("Enviar", "Exportar histórico", "Sair",
-  "Explicar esta divergência"). A exceção é o X de fechar janela, que é controle
-  e não ação. Decisões de 24/09/2026 em
+  "Explicar esta divergência"). As exceções são controles, não ações: o X de fechar
+  janela e o botão Menu no celular. A seta vem depois do rótulo quando a ação leva
+  adiante ("Conciliar extratos →", "Importar via IA →"). Decisões de 24/09/2026 em
   `docs/superpowers/specs/2026-09-24-menu-lateral-recolhivel-design.md` e
   `2026-09-24-refino-visual-design.md`.
 - **Sparkle de IA.** O assistente existe no design como conversa com o mascote,

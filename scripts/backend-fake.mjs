@@ -12,6 +12,9 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const PORTA = Number(process.env.PORT ?? 8000);
+// as flags do backend de verdade, ligadas por padrão; =0 deixa como em produção (as capturas da Central)
+const APROVACAO = process.env.APROVACAO_JUSTIFICATIVAS_HABILITADA !== "0";
+const MCP = process.env.MCP_HABILITADO !== "0";
 const PASTA_EXEMPLOS = join(import.meta.dirname, "..", "exemplos-extratos");
 const TOLERANCIA_MAXIMA = 5;
 
@@ -146,7 +149,7 @@ const dias = (a, b) => Math.abs(Date.parse(a) - Date.parse(b)) / 86400000;
 
 function conciliar(banco, sistema, tolerancia) {
   const linhas = [];
-  const par = (status, b, s, regra = null, score = null) => linhas.push({ status, b, s, regra, score });
+  const par = (status, b, s, regra = null, score = null, grupo = null) => linhas.push({ status, b, s, regra, score, grupo });
 
   // 1) exato: mesmo valor + data; excedente de um grupo com par e duplicado
   const grupos = new Map();
@@ -187,6 +190,26 @@ function conciliar(banco, sistema, tolerancia) {
     soltosS = soltosS.filter((l) => !usados.has(l.id));
   }
 
+  // 2b) soma (#131): 1 lancamento de um lado = 2 ou 3 do outro, mesmo sinal, ate `tolerancia` dias; o fake olha so
+  // pares e trios (ponytail: o backend real procura subconjuntos maiores)
+  const combos = (lista) => [...lista.flatMap((a, i) => lista.slice(i + 1).map((b) => [a, b])),
+    ...lista.flatMap((a, i) => lista.slice(i + 1).flatMap((b, j) => lista.slice(i + j + 2).map((c) => [a, b, c])))];
+  const cents = (l) => Math.round(Number(l.valor) * 100);
+  for (const [unicos, outros, unicoEhBanco] of [[soltosB, soltosS, true], [soltosS, soltosB, false]]) {
+    for (const u of [...unicos]) {
+      const achado = combos(outros).find((c) => c.reduce((t, l) => t + cents(l), 0) === cents(u)
+        && c.every((l) => cents(l) * cents(u) > 0 && dias(l.data, u.data) <= tolerancia));
+      if (!achado) continue;
+      const g = randomUUID();
+      const desvio = Math.max(...achado.map((l) => dias(l.data, u.data)));
+      const grupo = { quantidade_banco: unicoEhBanco ? 1 : achado.length, quantidade_sistema: unicoEhBanco ? achado.length : 1,
+        valor_unico: u.valor, maior_desvio_dias: desvio };
+      linhas.push({ status: "match_agrupado", b: unicoEhBanco ? u : null, s: unicoEhBanco ? null : u, regra: "soma", score: "1.000", grupo, grupoId: g });
+      for (const m of achado) linhas.push({ status: "match_agrupado", b: unicoEhBanco ? null : m, s: unicoEhBanco ? m : null, regra: "soma", score: "1.000", grupo, grupoId: g });
+      for (const l of [u, ...achado]) { const k = (unicoEhBanco ? soltosB : soltosS).indexOf(l); if (k >= 0) (unicoEhBanco ? soltosB : soltosS).splice(k, 1); else (unicoEhBanco ? soltosS : soltosB).splice((unicoEhBanco ? soltosS : soltosB).indexOf(l), 1); }
+    }
+  }
+
   // 3) o que sobrou: tarifa (so banco) > divergente_valor > divergente_data > sem_correspondencia
   const classifica = (l, outros, banco) => {
     const desc = l.descricao.trim().toLowerCase();
@@ -200,7 +223,7 @@ function conciliar(banco, sistema, tolerancia) {
   return linhas;
 }
 
-const CATEGORIAS = ["match_exato", "match_tolerancia", "duplicado", "sem_correspondencia", "tarifa_bancaria", "divergente_valor", "divergente_data"];
+const CATEGORIAS = ["match_exato", "match_tolerancia", "match_agrupado", "duplicado", "sem_correspondencia", "tarifa_bancaria", "divergente_valor", "divergente_data"];
 
 function contar(lista) {
   const zero = Object.fromEntries([["total", lista.length], ...CATEGORIAS.map((c) => [c, 0])]);
@@ -222,6 +245,7 @@ function executar(b, bancoId, sistemaId, executadaEm = agora()) {
     lancamento_banco: l.b,
     lancamento_sistema: l.s,
     chave: l.b?.id ?? chaveDoSistema(l.s),
+    ...(l.grupo ? { grupo_id: l.grupoId, grupo: l.grupo } : {}),
   }));
   itens.set(`${bancoId}|${sistemaId}`, lista);
   const contagens = contar(lista);
@@ -437,7 +461,10 @@ function decidir(b, eu, bancoId, chave, tipo, texto, em = agora()) {
     registro.decisao = { tipo, texto: null, autor: eu.nome, em, rodada };
   } else if (tipo === "justificada") {
     if (!texto_) return { status: 422, corpo: { detail: "Escreva a justificativa." } };
-    registro.decisao = gestao
+    // sem a aprovação (produção), a justificativa nasce valendo, sem situação: como antes do backend #132
+    registro.decisao = !APROVACAO
+      ? { tipo, texto: texto_, autor: eu.nome, em, rodada }
+      : gestao
       ? { tipo, texto: texto_, autor: eu.nome, em, rodada, situacao: "aprovada", aprovada_por: eu.nome, aprovada_em: em }
       : { tipo, texto: texto_, autor: eu.nome, em, rodada, situacao: "pendente" };
   } else if (tipo === "conferencia_desfeita" || tipo === "justificativa_desfeita") {
@@ -592,6 +619,23 @@ const servidor = createServer(async (req, res) => {
   const proibido = (detail = "Seu papel na conta não permite fazer isso.") => json(res, 403, { detail });
   const pedida = req.headers["x-ledgr-empresa"];
   if (pedida && !conta.empresas.includes(pedida)) return json(res, 403, { detail: "Esta empresa não é da sua conta." });
+  // a conta inativa do backend #156, para todas as contas com CONTA_INATIVA=1: escrita dá 403 com o código,
+  // menos as da própria pessoa, o checkout e as revogações (app/core/conta_inativa.py, LIBERADAS)
+  const liberadas = [
+    /^POST \/me\/(senha|email)$/,
+    /^PATCH \/me\/preferencias$/,
+    /^DELETE \/me$/,
+    /^(PUT|DELETE) \/empresas\/[^/]+\/favorita$/,
+    /^POST \/assinatura\/checkout$/,
+    /^DELETE \/(chaves-api|conexoes-mcp|empresa\/usuarios)\/[^/]+$/,
+    /^DELETE \/fechamentos\/[^/]+\/links\/[^/]+$/,
+  ];
+  if (process.env.CONTA_INATIVA === "1" && metodo !== "GET" && !liberadas.some((r) => r.test(`${metodo} ${caminho}`))) {
+    return json(res, 403, {
+      detail: "Esta conta está inativa. Você pode consultar e exportar os dados, mas não pode fazer alterações. Fale com o Ledgr para reativar.",
+      codigo: "conta_inativa",
+    });
+  }
   const b = empresas.get(pedida ?? conta.empresas[0]);
   const semCorpo = () => (res.writeHead(204), res.end());
 
@@ -734,8 +778,8 @@ const servidor = createServer(async (req, res) => {
     return semCorpo();
   }
 
-  // ----- importacao via IA (#224/#225): o bastante para ver as telas. Um arquivo com "erro"
-  // no conteudo volta com a tabela de erros; qualquer outro vira um rascunho de exemplo. -----
+  // ----- importacao via IA (#224/#225): o bastante para ver as telas e remover uma linha. Um arquivo
+  // com "erro" no conteudo volta com a tabela de erros; qualquer outro vira um rascunho de exemplo. -----
 
   if (rota("GET", "/importacoes-ia/prompt")) {
     return json(res, 200, { versao_schema: "1", versao_prompt: "1", prompt:
@@ -766,6 +810,60 @@ const servidor = createServer(async (req, res) => {
       total_entradas: soma((l) => l.valor > 0), total_saidas: soma((l) => l.valor < 0), periodo_inicio: itens[0]?.data ?? null,
       periodo_fim: itens.at(-1)?.data ?? null, expira_em: new Date(Date.now() + 7 * 864e5).toISOString() } });
   }
+  const resumoIa = (itens) => {
+    const soma = (f) => itens.filter(f).reduce((t, l) => t + l.valor, 0).toFixed(2);
+    return { quantidade: itens.length, total_entradas: soma((l) => l.valor > 0), total_saidas: soma((l) => l.valor < 0),
+      periodo_inicio: itens.map((l) => l.data).sort()[0] ?? null, periodo_fim: itens.map((l) => l.data).sort().at(-1) ?? null,
+      expira_em: new Date(Date.now() + 7 * 864e5).toISOString() };
+  };
+  const linhasIa = rota("POST", /^\/importacoes-ia\/([^/]+)\/lancamentos$/);
+  if (linhasIa) {
+    const itens = importacoesIa.get(linhasIa[1]);
+    if (!itens) return json(res, 404, { detail: "Importação não encontrada." });
+    const c = await corpoJson(req);
+    const lancamento = { id: randomUUID(), numero: itens.length + 1, data: c.data, descricao: c.descricao, valor: Number(c.valor) };
+    itens.push(lancamento);
+    return json(res, 201, { lancamento, resumo: resumoIa(itens) });
+  }
+  const editaLinhaIa = rota("PATCH", /^\/importacoes-ia\/([^/]+)\/lancamentos\/([^/]+)$/);
+  if (editaLinhaIa) {
+    const itens = importacoesIa.get(editaLinhaIa[1]) ?? [];
+    const l = itens.find((x) => x.id === editaLinhaIa[2]);
+    if (!l) return json(res, 404, { detail: "Lançamento não encontrado." });
+    const c = await corpoJson(req);
+    Object.assign(l, { data: c.data, descricao: c.descricao, valor: Number(c.valor) });
+    return json(res, 200, { lancamento: l, resumo: resumoIa(itens) });
+  }
+  const confirmaIa = rota("POST", /^\/importacoes-ia\/([^/]+)\/confirmar$/);
+  if (confirmaIa) {
+    const itens = importacoesIa.get(confirmaIa[1]);
+    if (!itens) return json(res, 404, { detail: "Importação não encontrada." });
+    const lancamentos = itens.map((l) => ({ data: l.data, descricao: l.descricao, valor: l.valor.toFixed(2) }));
+    const vistas = new Map();
+    for (const l of lancamentos) {
+      const k = `${l.valor}|${l.data}|${normalizar(l.descricao)}`;
+      vistas.set(k, (vistas.get(k) ?? 0) + 1);
+      Object.defineProperty(l, "ocorrencia", { value: vistas.get(k) });
+    }
+    const datas = lancamentos.map((l) => l.data).sort();
+    const extratoId = randomUUID();
+    b.extratos.set(extratoId, { origem: "sistema", nome: "Importação via IA", formato: "csv", lancamentos, erros: [],
+      periodoInicio: datas[0] ?? null, periodoFim: datas.at(-1) ?? null, enviadoEm: agora() });
+    importacoesIa.delete(confirmaIa[1]);
+    return json(res, 200, { extrato_id: extratoId });
+  }
+  if (umaImportacao && metodo === "DELETE") {
+    importacoesIa.delete(umaImportacao[1]);
+    return semCorpo();
+  }
+  const umaLinhaIa = rota("DELETE", /^\/importacoes-ia\/([^/]+)\/lancamentos\/([^/]+)$/);
+  if (umaLinhaIa) {
+    const itens = importacoesIa.get(umaLinhaIa[1]) ?? [];
+    const posicao = itens.findIndex((l) => l.id === umaLinhaIa[2]);
+    if (posicao < 0) return json(res, 404, { detail: "Lançamento não encontrado." });
+    itens.splice(posicao, 1);
+    return semCorpo();
+  }
 
   // ----- chaves da API (#135) e conexoes MCP (#136) -----
 
@@ -789,6 +887,8 @@ const servidor = createServer(async (req, res) => {
     return semCorpo();
   }
 
+  // com MCP_HABILITADO desligado, o backend responde 404 em todas as rotas de conexão
+  if (!MCP && caminho.startsWith("/conexoes-mcp")) return json(res, 404, { detail: "Not Found" });
   const pedido = caminho.match(/^\/conexoes-mcp\/pedidos\/([^/]+)(\/aprovar|\/recusar)?$/);
   if (pedido) {
     const p = pedidosMcp.get(pedido[1]);
@@ -861,7 +961,8 @@ const servidor = createServer(async (req, res) => {
         nome_arquivo: e.nome,
         origem: e.origem,
         formato: e.formato,
-        status: "concluido",
+        // como o backend (#13): linha rejeitada deixa o extrato `concluido_com_erros`
+        status: e.erros.length ? "concluido_com_erros" : "concluido",
         quantidade_lancamentos: e.lancamentos.length,
         linhas_nao_lidas: e.erros.length,
         periodo_inicio: e.periodoInicio,
@@ -878,7 +979,7 @@ const servidor = createServer(async (req, res) => {
     if (!dados) return json(res, 404, { detail: "Extrato nao encontrado." });
     return json(res, 200, {
       extrato_id: extrato[1],
-      status: "concluido",
+      status: dados.erros.length ? "concluido_com_erros" : "concluido",
       origem: dados.origem,
       quantidade_lancamentos: dados.lancamentos.length,
       periodo_inicio: dados.periodoInicio,

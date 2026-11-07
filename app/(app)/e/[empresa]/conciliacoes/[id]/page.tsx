@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect, useId, useRef, useState, type CSSProperties, type FormEvent } from "react";
+import { Fragment, useEffect, useId, useRef, useState, type CSSProperties, type FormEvent } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { useRoteador } from "@/lib/roteador";
-import Image from "next/image";
 import Link from "@/lib/link-do-app";
 import { ehDivergencia } from "@/lib/adaptadores";
 import { caminhoDaConciliacao } from "@/lib/caminhos";
@@ -20,14 +19,16 @@ import {
   estaResolvida,
   formatarDataHora,
   formatarInteiro,
-  rotuloCurto,
   seloDoStatus,
   statusDaLinha,
 } from "../../dashboard/resumo";
-import { FALHA_AO_CARREGAR, useConciliacao } from "../usar-conciliacao";
+import { recarregarOhNavegador, useConciliacao } from "../usar-conciliacao";
 import { EsqueletoTela } from "../../esqueleto";
+import { FalhaAoCarregar } from "../../falha-ao-carregar";
+import { TelaDeAviso } from "@/app/tela-de-aviso";
 import { filtrarLinhas, ordenarLinhas, type Coluna, type Filtro, type Ordem } from "./ordenar";
-import { continuaDivergindo, decisoesLigadas, situacaoDaLinha } from "./situacao";
+import { continuaDivergindo, decisoesLigadas, seloDaLinha, situacaoDaLinha, tomDaLinha } from "./situacao";
+import { contarGrupos, juntarGrupos, montarLotes } from "./grupos";
 import { decidir, type ResultadoDaDecisao } from "./decidir";
 import { aplicarDensidade, densidadeAtual, type Densidade } from "../../densidade";
 import { IconeOrigem, type Origem } from "../../icone-origem";
@@ -36,6 +37,8 @@ import { Relatorio } from "./relatorio";
 import { NovaVersao } from "./nova-versao";
 import { LinhaDasRodadas } from "./linha-das-rodadas";
 import { CirculoDeConferir } from "./circulo-de-conferir";
+import { PainelDoExtrato } from "./painel-do-extrato";
+import { usePainelAtivo } from "./painel-ativo";
 import { competencia, tituloDaCompetencia } from "../../fechamentos/fechamento";
 import { larguraDoValor } from "./largura";
 import { Reveal } from "@/app/reveal";
@@ -136,7 +139,15 @@ export default function ConciliacaoPage() {
   // a janela da linha guarda a chave, não a linha: depois de justificar, ela mostra a linha como voltou
   const [chaveAberta, setChaveAberta] = useState<string | null>(null);
   const [cartao, setCartao] = useState<CartaoAberto | null>(null);
+  // os lotes conciliados por soma que a pessoa recolheu: por padrão todos vêm abertos, para ler sem clicar
+  const [lotesFechados, setLotesFechados] = useState<Set<string>>(new Set());
   const idCartao = useId();
+  // o painel da direita (#338): onde há margem para ele, o hover e o clique mexem nele, e não no balão
+  const painel = usePainelAtivo();
+  // a linha em foco no painel, pela chave: o ponteiro a troca; o clique a fixa; escrever ou esperar a trava
+  const [foco, setFoco] = useState<string | null>(null);
+  const [fixada, setFixada] = useState(false);
+  const [ocupada, setOcupada] = useState(false);
   // a categoria do relatório chega pela URL: quem volta do detalhe de uma linha
   // reencontra o mesmo recorte
   const [filtro, setFiltro] = useState<Filtro>(() => {
@@ -178,26 +189,27 @@ export default function ConciliacaoPage() {
 
   if (estado.situacao === "ausente") {
     return (
-      <div className="vg-inicio">
-        {/* o que não foi achado, o mascote procura de lupa */}
-        <Image
-          src="/mascotes/mascote-lupa.png"
-          alt=""
-          width={977}
-          height={1122}
-          sizes="140px"
-          style={{ width: 140, height: "auto", display: "block" }}
-        />
-        <p style={{ margin: 0 }}>Conciliação não encontrada.</p>
-      </div>
+      <TelaDeAviso
+        titulo="Esta conciliação não foi encontrada."
+        texto="O endereço pode ter mudado, ou o link chegou incompleto."
+        mascote="lupa"
+      >
+        <Link href="/dashboard" className="btn btn-primary">
+          Ver as conciliações
+        </Link>
+      </TelaDeAviso>
     );
   }
 
   if (estado.situacao === "falhou") {
     return (
-      <div style={{ padding: "48px 0" }}>
-        <p role="alert">{FALHA_AO_CARREGAR}</p>
-      </div>
+      <FalhaAoCarregar
+        oQue="a conciliação"
+        status={estado.status}
+        tentar={recarregarOhNavegador}
+        voltar={{ href: "/dashboard", rotulo: "Ver as conciliações" }}
+        nivel="h1"
+      />
     );
   }
 
@@ -227,7 +239,9 @@ export default function ConciliacaoPage() {
   const aguardando = emRevisao.filter((linha) => situacaoDaLinha(linha, rodadaDasLinhas) === "aguardando").length;
   const larguraValor = larguraDoValor(conciliacao.linhas);
   const categoria = ehDivergencia(filtro) ? filtro : null;
-  const ordenadas = ordenarLinhas(filtrarLinhas(conciliacao.linhas, filtro, rodadaDasLinhas), ordem);
+  // os lançamentos de um lote conciliado por soma (backend #131) ficam juntos, sob o resumo dele
+  const ordenadas = juntarGrupos(ordenarLinhas(filtrarLinhas(conciliacao.linhas, filtro, rodadaDasLinhas), ordem));
+  const lotes = montarLotes(ordenadas);
 
   function escolherDensidade(proxima: Densidade) {
     aplicarDensidade(proxima);
@@ -283,6 +297,7 @@ export default function ConciliacaoPage() {
     return resposta.erro;
   }
 
+  const linhaEmFoco = foco === null ? null : (conciliacao.linhas.find((linha) => chaveDaLinha(linha) === foco) ?? null);
   const linhaAberta = chaveAberta === null ? null : (conciliacao.linhas.find((linha) => chaveDaLinha(linha) === chaveAberta) ?? null);
 
   /** Troca uma linha na conciliação que estiver na tela quando a resposta chegar. */
@@ -372,6 +387,8 @@ export default function ConciliacaoPage() {
         }
       />
       {/* os avisos e as faixas do topo ficam juntos; o resumo e a tabela abrem blocos com mais ar (#228) */}
+      {/* com o painel (#338), o corpo e ele lado a lado: a tabela com a largura de sempre e o painel na margem */}
+      <div className="comparacao-grade" data-painel={painel ? "" : undefined}>
       <div className="comparacao-corpo">
         {/* A tela ordena e filtra a lista inteira no cliente, então só faz sentido
             com a lista inteira em mãos. Se o teto de páginas cortou, dizer isso é
@@ -421,13 +438,14 @@ export default function ConciliacaoPage() {
         )}
         {/* o saldo do extrato do banco (#118), o primeiro número que o contador procura: o mesmo em
             todas as rodadas, junto do resumo do par */}
-        <FaixaDoSaldo saldo={conciliacao.saldo} />
+        {!painel && <FaixaDoSaldo saldo={conciliacao.saldo} />}
         {/* desligar uma categoria volta ao "Só revisão": as cinco são o que ele junta.
             As justificadas saem das categorias e são contadas à parte. */}
         <Reveal className="comparacao-bloco">
           <Relatorio
             linhas={emRevisao}
             justificadas={justificadas.length}
+            agrupamentos={contarGrupos(conciliacao.linhas)}
             ativa={categoria}
             onEscolher={(status) => escolherFiltro(status ?? "revisao")}
           />
@@ -623,11 +641,11 @@ export default function ConciliacaoPage() {
                   ponytail: tudo no DOM; se arquivos de milhares de linhas pesarem, virtualizar aqui */}
               <tbody role="rowgroup">
                 {ordenadas.map((linha) => {
+                  const idDoGrupo = linha.grupoId ? `${idCartao}-grupo-${linha.grupoId}` : undefined;
                   const status = statusDaLinha(linha);
                   const situacao = situacaoDaLinha(linha, rodadaDasLinhas);
                   // conferida ou justificada, a linha sai da cor da categoria: alguém já cuidou dela
-                  const tom =
-                    situacao === "aguardando" ? "atencao" : situacao === "conferida" || situacao === "justificada" ? "neutro" : status.tom;
+                  const tom = tomDaLinha(linha, rodadaDasLinhas);
                   const { banco, sistema } = ladosDaLinha(linha);
                   // o cartão só nas linhas que pedem revisão, como na landing: nas batidas seria ruído
                   const comCartao = !estaResolvida(linha.status);
@@ -652,6 +670,20 @@ export default function ConciliacaoPage() {
                       ancora: (tr.querySelector(".celula-status .selo") ?? tr.querySelector(".celula-status") ?? tr).getBoundingClientRect(),
                     });
                   };
+                  // o painel da direita: o ponteiro (ou o foco do teclado) leva a linha a ele, e o clique a fixa;
+                  // fixada, ou com a pessoa escrevendo ali, o ponteiro passando por outra não a troca
+                  const focar = (alvo: LinhaComparacao) => {
+                    if (!fixada && !ocupada) setFoco(chaveDaLinha(alvo));
+                  };
+                  const fixar = (alvo: LinhaComparacao) => {
+                    if (ocupada) return;
+                    const chave = chaveDaLinha(alvo);
+                    if (fixada && foco === chave) setFixada(false);
+                    else {
+                      setFoco(chave);
+                      setFixada(true);
+                    }
+                  };
                   const fecharCartao = () =>
                     setCartao((atual) => (atual?.linha.id === linha.id ? null : atual));
                   const fecharCartaoDepois = () => {
@@ -660,37 +692,122 @@ export default function ConciliacaoPage() {
                   };
                   // botão de verdade: a linha inteira com onClick não era alcançável por
                   // teclado. Fica na descrição do banco; sem lançamento no banco, na do sistema.
-                  const abrir = (descricao: string) => (
+                  const abrir = (descricao: string, alvo: LinhaComparacao = linha) => (
                     <button
                       type="button"
                       className="celula-abrir"
                       aria-describedby={cartao?.linha.id === linha.id ? idCartao : undefined}
+                      // com o painel, um clique na descrição só escolhe a linha (como na tabela: um clique
+                      // escolhe, dois abrem); a janela da linha fica para as telas sem margem
                       onClick={() => {
+                        if (painel) {
+                          fixar(alvo);
+                          return;
+                        }
                         setCartao(null);
-                        setChaveAberta(chaveDaLinha(linha));
+                        setChaveAberta(chaveDaLinha(alvo));
                       }}
-                      onFocus={(evento) => comCartao && abrirCartao(evento.currentTarget.closest("tr")!)}
-                      onBlur={fecharCartao}
+                      onFocus={(evento) =>
+                        painel ? focar(alvo) : comCartao && abrirCartao(evento.currentTarget.closest("tr")!)
+                      }
+                      onBlur={painel ? undefined : fecharCartao}
                       onKeyDown={(evento) => evento.key === "Escape" && fecharCartao()}
                     >
                       {descricao}
                     </button>
                   );
+                  // um lote conciliado por soma é uma linha só: a ponta única de um lado e, do outro, o resumo dos
+                  // lançamentos que a somam; abrir o resumo mostra cada um deles logo abaixo
+                  const lote = linha.grupoId ? lotes.get(linha.grupoId) : undefined;
+                  const ehPonta = lote?.ponta === linha;
+                  const pontaNoBanco = lote ? lote.ponta.valorBanco !== null : false;
+                  const loteAberto = !!linha.grupoId && !lotesFechados.has(linha.grupoId);
+                  const celulasDe = (l: LinhaComparacao, lado: "banco" | "sistema") => {
+                    const dados = ladosDaLinha(l)[lado];
+                    if (!dados) return null;
+                    const folha = lado === "banco" ? "folha-banco" : "folha-sistema";
+                    const valor = lado === "banco" ? l.valorBanco : l.valorSistema;
+                    const rotulo = lado === "banco" ? ["Data", "Descrição", "Banco"] : ["Data no sistema", "Descrição no sistema", "Sistema"];
+                    return (
+                      <>
+                        <td role="cell" data-rotulo={rotulo[0]} className={`dash-celula-fraca ${folha}`}>{dados.data}</td>
+                        <td role="cell" data-rotulo={rotulo[1]} data-destaque="true" className={`${folha} celula-descricao`} title={dados.descricao}>
+                          {abrir(dados.descricao, l)}
+                        </td>
+                        <td role="cell" data-rotulo={rotulo[2]} className={`dash-valor-celula ${folha}`}>
+                          {valor !== null ? formatarMoeda(valor) : "—"}
+                        </td>
+                      </>
+                    );
+                  };
+                  // o outro lado da ponta: quantos lançamentos somam e o total, com o botão que abre a lista
+                  const resumoDoLote = (lado: "banco" | "sistema") => {
+                    if (!lote || !linha.grupoId) return null;
+                    const grupoId = linha.grupoId;
+                    const quantos = lote.membros.length;
+                    return (
+                      <td role="cell" colSpan={3} data-rotulo={lado === "banco" ? "Banco" : "Sistema"} className={lado === "banco" ? "folha-banco" : "folha-sistema"}>
+                        <button
+                          type="button"
+                          id={idDoGrupo}
+                          className="lote-resumo"
+                          title={`${quantos} lançamentos ${lado === "banco" ? "do banco" : "do sistema"} somam ${formatarMoeda(Math.abs(lote.ponta.valorBanco ?? lote.ponta.valorSistema ?? 0))}${lote.membros[0]?.grupo?.maiorDesvioDias ? ` · até ${lote.membros[0].grupo.maiorDesvioDias} dia(s) de diferença` : ""}`}
+                          aria-expanded={loteAberto}
+                          onClick={() =>
+                            setLotesFechados((atual) => {
+                              const proximo = new Set(atual);
+                              if (!proximo.delete(grupoId)) proximo.add(grupoId);
+                              return proximo;
+                            })
+                          }
+                        >
+                          <span className="lote-resumo-seta" aria-hidden="true">{loteAberto ? "▾" : "▸"}</span>
+                          <span className="lote-resumo-texto">{quantos} lançamentos somados</span>
+                          <span className="lote-resumo-acao">{loteAberto ? "Recolher" : "Ver lançamentos"}</span>
+                        </button>
+                      </td>
+                    );
+                  };
                   return (
-                    // o tom do status pinta o hover: a linha acende na cor do veredito dela
+                    <Fragment key={linha.id}>
+                    {lote && !ehPonta ? (
+                      loteAberto && (
+                        <tr role="row" data-tom={tom} data-situacao={situacao} data-lote-membro="">
+                          {pontaNoBanco ? <td role="cell" colSpan={3} className="folha-banco" /> : celulasDe(linha, "banco")}
+                          <td role="cell" data-rotulo="Status" className="celula-status" />
+                          {pontaNoBanco ? celulasDe(linha, "sistema") : <td role="cell" colSpan={3} className="folha-sistema" />}
+                          {podeDecidir && <td role="cell" className="celula-conferir" />}
+                        </tr>
+                      )
+                    ) : (
+                    /* o tom do status pinta o hover: a linha acende na cor do veredito dela */
                     <tr
-                      key={linha.id}
                       role="row"
                       data-tom={tom}
                       data-situacao={situacao}
+                      data-foco={painel && foco === chaveDaLinha(linha) ? "" : undefined}
+                      data-fixo={painel && fixada && foco === chaveDaLinha(linha) ? "" : undefined}
                       onMouseEnter={
-                        comCartao ? (evento) => temHover() && abrirCartao(evento.currentTarget) : undefined
+                        painel
+                          ? () => focar(linha)
+                          : comCartao
+                            ? (evento) => temHover() && abrirCartao(evento.currentTarget)
+                            : undefined
                       }
-                      onMouseLeave={comCartao ? fecharCartaoDepois : undefined}
+                      onMouseLeave={painel ? undefined : comCartao ? fecharCartaoDepois : undefined}
+                      onClick={
+                        painel
+                          ? (evento) => {
+                              if ((evento.target as Element).closest("button, a, input")) return;
+                              fixar(linha);
+                            }
+                          : undefined
+                      }
                       // atalho para o detalhe inteiro; o círculo de conferir e a descrição (que abre o
-                      // espia, e trata o segundo clique lá) ficam com os cliques deles
+                      // espia, e trata o segundo clique lá) ficam com os cliques deles; com o painel a
+                      // descrição não abre a janela, então o duplo clique nela também leva ao detalhe
                       onDoubleClick={(evento) => {
-                        if ((evento.target as Element).closest("button, a, input")) return;
+                        if ((evento.target as Element).closest(painel ? "button:not(.celula-abrir), a, input" : "button, a, input")) return;
                         // o duplo clique do navegador seleciona a palavra; ela ficaria azul atrás do painel
                         window.getSelection()?.removeAllRanges();
                         setCartao(null);
@@ -725,17 +842,19 @@ export default function ConciliacaoPage() {
                             {linha.valorBanco !== null ? marcar("valor", formatarMoeda(linha.valorBanco)) : "—"}
                           </td>
                         </>
+                      ) : ehPonta ? (
+                        resumoDoLote("banco")
                       ) : (
                         // uma célula só no lugar de três traços: a folha diz que falta, não que está em branco
                         <td role="cell" colSpan={3} data-rotulo="Banco" className="folha-banco folha-vazia">
                           <span className="folha-vazia-marca">sem lançamento no banco</span>
                         </td>
                       )}
-                      {/* o nome curto cabe no eixo; o inteiro fica para o leitor de tela. O que
-                          bateu vai sem selo: só o que pede revisão ganha cor, e o olho vai direto nele */}
+                      {/* o nome curto cabe no eixo; o inteiro fica para o leitor de tela. Todo status leva
+                          o selo na cor dele, o Conciliado em verde (a pedido de clientes: acham mais fácil) */}
                       <td role="cell" data-rotulo="Status" className="celula-status">
-                        <span className={comCartao ? `selo selo-${tom}` : "status-batido"} aria-hidden="true">
-                          {situacao === "justificada" ? "Justificada" : situacao === "aguardando" ? "Aguardando" : rotuloCurto(linha)}
+                        <span className={`selo selo-${tom}`} aria-hidden="true">
+                          {seloDaLinha(linha, rodadaDasLinhas).rotulo}
                         </span>
                         <span className="sr-only">
                           {situacao === "justificada"
@@ -773,6 +892,8 @@ export default function ConciliacaoPage() {
                             {linha.valorSistema !== null ? marcar("valor", formatarMoeda(linha.valorSistema)) : "—"}
                           </td>
                         </>
+                      ) : ehPonta ? (
+                        resumoDoLote("sistema")
                       ) : (
                         <td role="cell" colSpan={3} data-rotulo="Sistema" className="folha-sistema folha-vazia">
                           <span className="folha-vazia-marca">sem lançamento no sistema</span>
@@ -800,6 +921,8 @@ export default function ConciliacaoPage() {
                         </td>
                       )}
                     </tr>
+                    )}
+                    </Fragment>
                   );
                 })}
               </tbody>
@@ -857,6 +980,37 @@ export default function ConciliacaoPage() {
             }}
           />
         )}
+      </div>
+      {painel && (
+        <div className="comparacao-lateral">
+          <PainelDoExtrato
+            linha={linhaEmFoco}
+            fixada={fixada}
+            rodada={rodadaDasLinhas}
+            linhas={conciliacao.linhas}
+            saldo={conciliacao.saldo}
+            real={real}
+            podeDecidir={podeDecidir}
+            podeAprovar={podeAprovar}
+            onJustificar={(texto) => (linhaEmFoco ? gravarDecisao(linhaEmFoco, "justificada", texto) : Promise.resolve(null))}
+            onAprovar={() => (linhaEmFoco ? gravarDecisao(linhaEmFoco, "justificativa_aprovada") : Promise.resolve(null))}
+            onRejeitar={(motivo) =>
+              linhaEmFoco ? gravarDecisao(linhaEmFoco, "justificativa_rejeitada", motivo || undefined) : Promise.resolve(null)
+            }
+            onExplicada={(linha, explicacao) =>
+              trocarLinha(chaveDaLinha(linha), (atual) => ({
+                ...atual,
+                explicacao: explicacao.texto,
+                explicacaoPorIa: explicacao.geradaPorIa,
+              }))
+            }
+            onAbrirDetalhe={() => {
+              if (linhaEmFoco) router.push(caminhoDaConciliacao(conciliacao.id, conciliacao.extratoSistemaId, linhaEmFoco.id));
+            }}
+            onOcupar={setOcupada}
+          />
+        </div>
+      )}
       </div>
     </div>
   );

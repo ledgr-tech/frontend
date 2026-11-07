@@ -78,10 +78,11 @@ describe("a tela Empresas", () => {
     expect(screen.queryByRole("table")).not.toBeInTheDocument();
   });
 
-  it("outra falha avisa e pede para recarregar", async () => {
+  it("outra falha avisa e oferece tentar de novo", async () => {
     carregarEmpresas.mockResolvedValue({ ok: false, status: 500, erro: "x" });
     await abrir();
 
-    expect(screen.getByRole("alert")).toHaveTextContent("Não foi possível carregar as empresas. Recarregue a página e tente de novo.");
+    expect(screen.getByRole("alert")).toHaveTextContent("Não foi possível carregar as empresas.");
+    expect(screen.getByRole("button", { name: "Tentar de novo" })).toBeInTheDocument();
   });
 });

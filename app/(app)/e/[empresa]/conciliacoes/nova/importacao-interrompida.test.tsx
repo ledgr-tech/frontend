@@ -77,7 +77,9 @@ describe("ImportacaoInterrompida", () => {
 
     it("explains a file whose columns are right but whose numbers are not", () => {
       montar("data;valor;descricao\n04/09/2026;1.500,75;Pix\n");
-      expect(screen.getByText(/os valores ou as datas estão num formato que o Ledgr ainda não lê direto/)).toBeInTheDocument();
+      expect(
+        screen.getByText(/^As colunas do arquivo do sistema estão lá, mas os valores ou as datas estão num formato que o Ledgr ainda não lê direto/),
+      ).toBeInTheDocument();
     });
 
     it("lets the person pick another file instead", async () => {

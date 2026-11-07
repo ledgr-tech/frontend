@@ -176,7 +176,7 @@ export function PainelDaEquipe({
           <p className="empresas-nota">A equipe ainda não está disponível.</p>
         ) : (
           <div className="equipe-falha">
-            <p className="empresas-nota">Não foi possível carregar agora.</p>
+            <p role="alert" className="empresas-nota">Não foi possível carregar a equipe.</p>
             <button type="button" className="btn btn-secondary" onClick={recarregar}>
               Tentar de novo
             </button>

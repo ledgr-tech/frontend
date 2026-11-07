@@ -1,19 +1,19 @@
-// Grava os vídeos-tutoriais da Central de ajuda (#199): app local + legendas, destaque e cursor desenhados na página.
-// Um roteiro por tela, em ROTEIROS, com os textos da página dela em app/(ajuda)/ajuda/paginas.ts.
+// Grava as telas da Central de ajuda (#199) em HTML, para a Central tocar (demonstracao.tsx): um roteiro por tela em
+// ROTEIROS, com os textos da página dela em app/(ajuda)/ajuda/paginas.ts, e as figuras das seções, uma receita por
+// página em FIGURAS.
 //
-// Como rodar (Windows, Git Bash), com o backend-fake em :8000 (npm run backend-fake, conta Telha Certa) e o
-// front de produção local em :3950 (npm run build e npx next start -p 3950, com LEDGR_API_URL=http://localhost:8000
-// e AUTH_TRUST_HOST=true no .env.local):
-//   npm i --no-save playwright-core && npx playwright-core install ffmpeg
-//   FFMPEG=<%LOCALAPPDATA%/ms-playwright/ffmpeg-*/ffmpeg-win64.exe> node scripts/ajuda-videos/gravar.mjs visao-geral extratos ...
-// Sem tela, grava todas. Cada vídeo sai em public/ajuda/<tela>.webm; ligue-o no campo video da página.
-// A Nova conciliação ENVIA os CSVs de verdade: grave-a por último, e com o backend-fake recém-subido
-// (ou troque o mês dos CSVs), senão a conciliação repete.
+// Como rodar (Windows, Git Bash), com o backend-fake recém-subido como a produção está (conta Telha Certa):
+//   PORT=8001 APROVACAO_JUSTIFICATIVAS_HABILITADA=0 MCP_HABILITADO=0 node scripts/backend-fake.mjs
+// e o front de produção local em :3950 (npm run build; LEDGR_API_URL=http://localhost:8001 AUTH_TRUST_HOST=true
+// npx next start -p 3950):
+//   node scripts/ajuda-videos/gravar.mjs comparacao extratos ...    → public/ajuda/<tela>.json (campo demonstracao)
+//   node scripts/ajuda-videos/gravar.mjs --figuras extratos ...      → public/ajuda/<tela>--figuras.json (campo figura,
+//                                                                      com o tamanho que ele mostra de cada uma)
+// Sem tela, grava todas. A Nova conciliação ENVIA os CSVs de verdade e o Detalhe da linha justifica uma linha: grave
+// cada uma com o backend-fake recém-subido, senão a conciliação repete e as outras telas mostram a justificativa.
 import { chromium } from "playwright-core";
-import os from "node:os";
 import path from "node:path";
 import fs from "node:fs";
-import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const BASE = process.env.BASE ?? "http://localhost:3950";
@@ -22,156 +22,15 @@ const EMAIL = process.env.EMAIL ?? "financeiro@telhacerta.com.br";
 const SENHA = process.env.SENHA ?? "ledgr2026";
 const AQUI = path.dirname(fileURLToPath(import.meta.url));
 const PUBLICO = path.join(AQUI, "..", "..", "public", "ajuda");
-const SAIDA = process.env.SAIDA ?? path.join(os.tmpdir(), "ledgr-ajuda-videos");
-const LARGURA = 1360;
-const ALTURA = 850;
-const FPS = 30;
-const ESCALA = 2; // pixels reais por pixel da página: texto nítido
-const FFMPEG = process.env.FFMPEG; // o ffmpeg que vem com o Playwright
-fs.mkdirSync(SAIDA, { recursive: true });
+const FIGURAS_ = process.argv.includes("--figuras");
 
 const pausa = (ms) => new Promise((r) => setTimeout(r, ms));
-// **negrito** dos textos da ajuda vira destaque na legenda
-const marcar = (s) => s && s.replace(/\*\*(.+?)\*\*/g, "<em>$1</em>");
 
-// o que fica desenhado por cima do app: legenda embaixo, destaque no elemento, cursor
-function OVERLAY() {
-  if (window.__v) return;
-  if (!document.documentElement) return void new MutationObserver((_, o) => { if (document.documentElement) { o.disconnect(); OVERLAY(); } }).observe(document, { childList: true });
-  const css = document.createElement("style");
-  css.textContent = `
-    [data-tutorial]{scroll-margin-top:100px}
-    #v-legenda,#v-foco,#v-cursor,#v-capa,.v-onda{inset:auto;margin:0;border:0;padding:0;overflow:visible;background:none;color:inherit}
-    #v-legenda{position:fixed;left:50%;bottom:28px;transform:translate(-50%,16px);z-index:2147483646;max-width:880px;
-      background:rgba(32,31,29,.94);color:#f3f2f2;border-radius:16px;padding:16px 26px;opacity:0;
-      font:500 18px/1.4 Inter,system-ui,sans-serif;box-shadow:0 12px 40px rgba(0,0,0,.35);
-      transition:opacity .35s,transform .35s;display:flex;gap:16px;align-items:center;pointer-events:none}
-    #v-legenda.on{opacity:1;transform:translate(-50%,0)}
-    #v-legenda b{display:grid;place-items:center;flex:none;width:34px;height:34px;border-radius:50%;
-      background:#b68235;color:#fff;font:700 17px Inter,system-ui,sans-serif}
-    #v-legenda em{font-style:normal;font-weight:600;color:#e0b878}
-    #v-legenda small{display:block;font-weight:400;font-size:15px;opacity:.78;margin-top:2px}
-    #v-foco{position:fixed;z-index:2147483645;border-radius:14px;pointer-events:none;opacity:0;
-      box-shadow:0 0 0 9999px rgba(20,18,16,.5),0 0 0 3px #b68235;transition:all .4s ease}
-    #v-cursor{position:fixed;z-index:2147483647;left:0;top:0;width:26px;height:26px;pointer-events:none;
-      transform:translate(-100px,-100px);transition:transform .05s linear}
-    #v-cursor svg{filter:drop-shadow(0 2px 3px rgba(0,0,0,.4))}
-    .v-onda{position:fixed;z-index:2147483646;width:14px;height:14px;margin:-7px;border-radius:50%;
-      border:3px solid #b68235;pointer-events:none;animation:v-onda .6s ease-out forwards}
-    @keyframes v-onda{to{transform:scale(4);opacity:0}}
-    #v-capa{position:fixed;inset:0;z-index:2147483647;display:grid;place-items:center;text-align:center;
-      background:#201f1d;color:#f3f2f2;opacity:0;pointer-events:none;transition:opacity .5s}
-    #v-capa.on{opacity:1}
-    #v-capa h1{font:600 54px/1.1 Newsreader,Georgia,serif;margin:0 0 14px}
-    #v-capa p{font:400 21px Inter,system-ui,sans-serif;opacity:.75;margin:0}
-  `;
-  document.documentElement.append(css);
-  // em popover, para ficar na camada de cima como o <dialog> das janelas do app; sem isso a legenda
-  // fica atrás do fundo desfocado de uma janela aberta
-  const mk = (id, html = "", tag = "div") => {
-    const e = document.createElement(tag);
-    if (id) e.id = id;
-    e.innerHTML = html;
-    e.popover = "manual";
-    document.documentElement.append(e);
-    e.showPopover();
-    return e;
-  };
-  // uma janela que abre depois do overlay passa por cima dele: o overlay sobe de novo, uma vez por janela
-  let janelaDeCima = null;
-  const subir = () => {
-    const janela = [...document.querySelectorAll("dialog[open]")].at(-1) ?? null;
-    if (janela === janelaDeCima) return;
-    janelaDeCima = janela;
-    if (janela) for (const e of [foco, legenda, capa, cursor]) { e.hidePopover(); e.showPopover(); }
-  };
-  const legenda = mk("v-legenda");
-  const foco = mk("v-foco");
-  const cursor = mk(
-    "v-cursor",
-    '<svg width="26" height="26" viewBox="0 0 24 24"><path d="M3 2l7.5 19 2.6-7.9L21 10.5z" fill="#201f1d" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/></svg>',
-  );
-  const capa = mk("v-capa");
-  window.__v = {
-    legenda(passo, texto, detalhe) {
-      subir();
-      if (!texto) return void legenda.classList.remove("on");
-      legenda.innerHTML = (passo ? `<b>${passo}</b>` : "") + `<div>${texto}${detalhe ? `<small>${detalhe}</small>` : ""}</div>`;
-      legenda.classList.add("on");
-    },
-    foco(r) {
-      subir();
-      if (!r) return void (foco.style.opacity = 0);
-      const m = 8;
-      Object.assign(foco.style, {
-        opacity: 1,
-        left: r.x - m + "px",
-        top: r.y - m + "px",
-        width: r.width + 2 * m + "px",
-        height: r.height + 2 * m + "px",
-      });
-    },
-    capa(titulo, sub) {
-      if (!titulo) return void capa.classList.remove("on");
-      capa.innerHTML = `<div><h1>${titulo}</h1><p>${sub}</p></div>`;
-      capa.classList.add("on");
-    },
-    onda(x, y) {
-      subir();
-      const o = mk("");
-      o.className = "v-onda";
-      o.style.left = x + "px";
-      o.style.top = y + "px";
-      setTimeout(() => o.remove(), 700);
-    },
-  };
-  addEventListener("mousemove", (e) => (cursor.style.transform = `translate(${e.clientX - 4}px,${e.clientY - 2}px)`), true);
-};
-
-// o que cada roteiro usa: legenda, destaque, cursor com marca de clique e navegação dentro da empresa
+// o que roteiros e receitas usam para andar pelo app, dentro da empresa; capturar() acrescenta a legenda, o
+// destaque e os cliques, que viram passos
 function ferramentas(page, empresa) {
-  const v = (fn, ...args) => page.evaluate(([f, a]) => window.__v[f](...a), [fn, args]);
-  // o destaque não passa da tela: um painel mais alto que ela rola até o começo, logo abaixo da barra
-  // do topo (scroll-margin-top do OVERLAY), e ganha só a parte visível
-  const caixa = async (loc) => {
-    await loc.scrollIntoViewIfNeeded();
-    let r = await loc.boundingBox();
-    const alto = r.height > ALTURA * 0.6;
-    if (alto) await loc.evaluate((e) => e.scrollIntoView({ block: "start", behavior: "smooth" }));
-    await pausa(alto ? 700 : 300);
-    r = await loc.boundingBox();
-    const y = Math.max(r.y, alto ? 90 : 12);
-    return { x: r.x, y, width: r.width, height: Math.min(r.y + r.height, ALTURA - 12) - y };
-  };
-  let cursorEm = { x: 700, y: 500 };
-  const ir = async (loc) => {
-    const r = await caixa(loc);
-    // passo a passo, com pausa: o cursor precisa de quadros no caminho para não "teletransportar"
-    const alvo = { x: r.x + r.width / 2, y: r.y + r.height / 2 };
-    const de = cursorEm;
-    const passos = 45;
-    for (let i = 1; i <= passos; i++) {
-      const e = 0.5 - Math.cos((i / passos) * Math.PI) / 2; // começa e termina devagar
-      await page.mouse.move(de.x + (alvo.x - de.x) * e, de.y + (alvo.y - de.y) * e);
-      await pausa(16);
-    }
-    cursorEm = alvo;
-    await v("onda", alvo.x, alvo.y);
-    await pausa(250);
-  };
-  const t = {
+  return {
     page,
-    v,
-    legenda: (passo, texto, detalhe) => v("legenda", passo, marcar(texto), marcar(detalhe)),
-    focar: async (loc) => v("foco", loc ? await caixa(loc) : null),
-    clicar: async (loc) => {
-      await ir(loc);
-      await loc.click();
-    },
-    duplo: async (loc) => {
-      await ir(loc);
-      await loc.dblclick();
-    },
     abrir: async (tela) => {
       await page.goto(`${BASE}/e/${empresa}/${tela}`);
       await page.waitForLoadState("networkidle");
@@ -181,18 +40,7 @@ function ferramentas(page, empresa) {
       await page.waitForLoadState("networkidle");
       await pausa(800);
     },
-    // um passo do roteiro: legenda, destaque no que ela fala e tempo para ler
-    passo: async (loc, n, texto, detalhe, ms = 4200) => {
-      await t.legenda(n, texto, detalhe);
-      await t.focar(loc);
-      await pausa(ms);
-    },
-    soltar: async () => {
-      await v("foco");
-      await v("legenda");
-    },
   };
-  return t;
 }
 
 const botao = (page, nome) => page.getByRole("button", { name: nome }).first();
@@ -206,11 +54,9 @@ const abrirComparacao = async (t) => {
   await t.esperar(/\/conciliacoes\/[0-9a-f-]{20,}/);
 };
 
-// inicio: a tela em que o vídeo começa; antes: o que roda antes da gravação; cena: o vídeo
+// inicio: a tela em que a captura começa; antes: o que roda antes dela; cena: os passos
 const ROTEIROS = {
   "visao-geral": {
-    titulo: "Visão geral",
-    sub: "Como está o mês e o que pede sua atenção",
     inicio: "visao-geral",
     async cena(t, { page }) {
       await t.passo(null, "", "A primeira tela depois do login", "Mostra como está o mês aberto e o que pede sua atenção agora.", 3800);
@@ -222,12 +68,9 @@ const ROTEIROS = {
       await t.esperar(/\/conciliacoes\/[0-9a-f-]{20,}/);
       await t.passo(null, "", "A comparação dessa conciliação abre", "", 2600);
     },
-    fim: ["Visão geral", "O ponto de partida de cada dia"],
   },
 
   extratos: {
-    titulo: "Extratos",
-    sub: "Todos os arquivos que você enviou",
     inicio: "extratos",
     async cena(t, { page }) {
       await t.passo(null, "", "Todos os arquivos que você enviou", "Do banco e do sistema de gestão, conciliados ou não.", 3600);
@@ -252,12 +95,9 @@ const ROTEIROS = {
       await t.esperar(/\/conciliacoes\/[0-9a-f-]{20,}/);
       await pausa(1600);
     },
-    fim: ["Extratos", "Cada arquivo e o que aconteceu com ele"],
   },
 
   conciliacoes: {
-    titulo: "Conciliações",
-    sub: "A sua fila de trabalho",
     inicio: "dashboard",
     async cena(t, { page }) {
       await t.passo(null, "", "A sua fila de trabalho", "Um par de folhas por extrato do banco, com as abertas primeiro.", 3600);
@@ -280,12 +120,9 @@ const ROTEIROS = {
       await t.esperar(/\/conciliacoes\/[0-9a-f-]{20,}/);
       await pausa(1600);
     },
-    fim: ["Conciliações", "Continue de onde parou"],
   },
 
   comparacao: {
-    titulo: "Comparação",
-    sub: "O banco e o sistema lado a lado",
     antes: abrirComparacao,
     async cena(t, { page }) {
       await t.passo(null, "", "O extrato do banco é a fonte da verdade", "É sempre o sistema que diverge do banco.", 3800);
@@ -304,19 +141,18 @@ const ROTEIROS = {
       await t.passo(grupoDe(grupoDe(rodadas)), "5", "Cada versão do sistema vira uma rodada", "A linha das rodadas mostra qual vale.", 4000);
       await t.passo(botao(page, /enviar nova versão/i), "6", "Corrigiu o sistema? **Enviar nova versão**", "A comparação abre na rodada nova.", 3800);
     },
-    fim: ["Comparação", "Revise o que não bateu"],
   },
 
   "detalhe-da-linha": {
-    titulo: "Detalhe da linha",
-    sub: "Uma divergência de perto",
     antes: async (t) => {
       await abrirComparacao(t);
       await botao(t.page, /^Só revisão/).click();
       await pausa(800);
     },
     async cena(t, { page }) {
-      const linha = page.locator("main tbody tr").first();
+      // uma linha ainda sem decisão: a já conferida não oferece Justificar
+      const naoConferida = page.locator('button[aria-label*="como conferida"]:not([aria-pressed="true"]):not([aria-checked="true"])');
+      const linha = page.locator("main tbody tr").filter({ has: naoConferida }).first();
       await t.passo(linha, "", "Dê um duplo clique numa linha que diverge", "", 2600);
       await t.duplo(linha);
       const painel = page.locator("aside.painel-lateral");
@@ -324,25 +160,43 @@ const ROTEIROS = {
       await t.focar(null);
       await pausa(1600);
       await t.passo(painel, "1", "Banco de um lado, sistema do outro", "Data, descrição e valor de cada lado, com a diferença entre os dois.", 5000);
+      // sem clicar: com a IA desligada (produção hoje) o texto que volta é o do motor, e o
+      // backend-fake devolve outro, que ninguém vê de verdade
       const explicar = painel.getByRole("button", { name: /explicar esta divergência/i });
       if (await explicar.count()) {
-        await t.passo(explicar, "2", "O provável motivo", "O Ledgr explica por que a linha não casou. Confira no seu sistema antes de decidir.", 3000);
-        await t.clicar(explicar);
-        await pausa(3000);
-      }
-      const justificar = painel.getByRole("button", { name: /^justificar$/i });
-      if (await justificar.count()) {
-        await t.passo(justificar, "3", "Conferir ou justificar", "A decisão vai para o relatório do mês.", 4000);
+        await t.passo(explicar, "2", "O provável motivo", "Clique em **Explicar esta divergência** e confira no seu sistema antes de decidir.", 4200);
       }
       const inteira = painel.getByText(/^abrir em página inteira$/i);
-      if (await inteira.count()) await t.passo(inteira, "4", "Para ver maior, **Abrir em página inteira**", "Abaixo fica o histórico da linha: cada evento, quem fez e quando.", 3800);
+      if (await inteira.count()) await t.passo(inteira, "", "Para ver maior, **Abrir em página inteira**", "No fim do detalhe fica o **Histórico do lançamento**: cada evento, quem fez e quando.", 3800);
+
+      // conferir e justificar são da comparação: o círculo da linha e a janela que abre na descrição
+      const fechar = painel.getByRole("button", { name: "Fechar" });
+      await t.passo(fechar, "3", "Conferir ou justificar", "A decisão é tomada na comparação: feche o detalhe.", 2600);
+      await t.clicar(fechar);
+      await painel.waitFor({ state: "detached" });
+      await pausa(800);
+      const circulo = linha.locator('button[aria-label*="como conferida"]');
+      await t.passo(circulo, "3", "Conferir ou justificar", "Já olhou e vai corrigir no sistema? O círculo da linha a marca como **conferida**.", 4600);
+      const descricao = linha.locator("button.celula-abrir");
+      await t.passo(descricao, "3", "Conferir ou justificar", "Ou clique na descrição para abrir a janela da linha.", 3000);
+      await t.clicar(descricao);
+      const espia = page.locator("dialog.espia[open]");
+      await espia.waitFor();
+      await pausa(800);
+      const campo = espia.locator("textarea");
+      await t.passo(campo, "3", "Conferir ou justificar", "Escreva o motivo e clique em **Justificar**.", 2600);
+      await t.clicar(campo);
+      await page.keyboard.type("Tarifa cobrada no dia seguinte", { delay: 60 });
+      await pausa(800);
+      await t.clicar(espia.getByRole("button", { name: /^Justificar$/ }));
+      const desfazer = espia.getByRole("button", { name: /^Desfazer justificativa$/ });
+      await desfazer.waitFor();
+      await pausa(600);
+      await t.passo(desfazer, "3", "A decisão vai para o relatório do mês", "Para voltar atrás, **Desfazer justificativa**.", 4600);
     },
-    fim: ["Detalhe da linha", "Decida cada divergência"],
   },
 
   fechamentos: {
-    titulo: "Fechamentos",
-    sub: "Feche o mês e gere o relatório",
     inicio: "fechamentos",
     async cena(t, { page }) {
       await t.passo(null, "", "Onde você fecha o mês", "Depois de conciliar e decidir as divergências.", 3400);
@@ -363,12 +217,9 @@ const ROTEIROS = {
       const reabrir = botao(page, /^reabrir/i);
       if (await reabrir.count()) await t.passo(reabrir, "5", "Precisa mexer de novo? **Reabrir** o mês", "Só o administrador e o gestor fecham e reabrem.", 3800);
     },
-    fim: ["Fechamentos", "O mês fechado, pronto para o contador"],
   },
 
   historico: {
-    titulo: "Histórico",
-    sub: "Tudo o que já foi conciliado",
     inicio: "historico",
     async cena(t, { page }) {
       await t.passo(alvo(page, "grafico"), "1", "Como os meses andaram", "Quanto bateu em cada mês.", 4200);
@@ -381,12 +232,9 @@ const ROTEIROS = {
       await t.passo(alvo(page, "previa"), "4", "As rodadas da escolhida", "A que **Vale**, as anteriores com **Ver**, e as substituídas.", 5200);
       await t.passo(botao(page, /exportar histórico/i), "5", "**Exportar histórico** leva tudo para uma planilha", "", 3400);
     },
-    fim: ["Histórico", "Mês a mês, tudo o que rodou"],
   },
 
   empresas: {
-    titulo: "Empresas",
-    sub: "As empresas clientes e a equipe",
     inicio: "empresas",
     async cena(t, { page }) {
       await t.passo(alvo(page, "lista"), "1", "As empresas da sua conta", "Com o CNPJ e a situação do mês. Procure pela razão social ou pelo CNPJ.", 4600);
@@ -409,12 +257,9 @@ const ROTEIROS = {
       await t.passo(alvo(page, "pessoa"), "5", "O papel explicado, e o que dá para fazer", "Só o administrador troca papéis e remove pessoas.", 4800);
       await t.passo(botao(page, /^convidar pessoa$/i), "6", "**Convidar pessoa**: o e-mail e o papel", "A pessoa recebe um link para criar o acesso.", 3800);
     },
-    fim: ["Empresas", "Cada cliente com os seus dados"],
   },
 
   configuracoes: {
-    titulo: "Configurações",
-    sub: "A conta, a aparência e a regra da conciliação",
     inicio: "visao-geral",
     async cena(t, { page }) {
       await t.legenda("1", "Aperte **Ctrl** e **,**", "Ou clique no seu nome no menu lateral e em **Configurações**.");
@@ -442,12 +287,9 @@ const ROTEIROS = {
       await t.clicar(secao(/^Aparência$/));
       await pausa(3800);
     },
-    fim: ["Configurações", "Ctrl e vírgula, de qualquer tela"],
   },
 
   "nova-conciliacao": {
-    titulo: "Nova conciliação",
-    sub: "Como enviar os dois extratos e conciliar",
     inicio: "visao-geral",
     async cena(t, { page }) {
       const menu = page.getByRole("link", { name: /nova concilia/i }).first();
@@ -477,21 +319,232 @@ const ROTEIROS = {
       await t.passo(null, "", "Pronto: a comparação abre sozinha", "O que bateu fica de um lado; o que diverge, para você revisar.", 3500);
       await t.passo(alvo(page, "resumo"), "", "O resumo mostra as divergências por categoria", "Clique numa categoria para ver só as linhas dela.", 5000);
     },
-    fim: ["Conciliação pronta", "Veja a Comparação para revisar as divergências"],
   },
 };
 
+// --figuras: a figura de cada seção da página da Central (FiguraDaTela), no lugar das capturas .webp. Uma tomada
+// prepara a tela (antes) e marca o que cada figura mostra (alvo, um ou mais elementos: a figura é a caixa que
+// cobre todos); pad é a folga em volta, max corta uma lista comprida. altura: a da janela, para o painel caber
+// inteiro sem rolar (na réplica ele fica estático, com a altura toda).
+const janelaDeConfiguracoes = (page) => page.getByRole("dialog", { name: /configurações/i });
+const secaoDeConfiguracoes = (page, nome) => janelaDeConfiguracoes(page).getByRole("button", { name: nome }).first();
+const abrirConciliacaoDe = async (t, banco) => {
+  await t.abrir("dashboard");
+  await botao(t.page, /^Todas \(/).click();
+  await pausa(600);
+  await cartao(t.page, banco).click();
+  await pausa(600);
+  await t.page.getByRole("link", { name: /abrir a comparação/i }).first().click();
+  await t.esperar(/\/conciliacoes\/[0-9a-f-]{20,}/);
+};
+const FIGURAS = {
+  "visao-geral": {
+    inicio: "visao-geral",
+    tomadas: [{ figuras: [{ id: "estado-do-mes", alvo: (p) => alvo(p, "estado-do-mes") }, { id: "atalhos", alvo: (p) => alvo(p, "atalhos") }] }],
+  },
+  extratos: {
+    inicio: "extratos",
+    tomadas: [
+      { figuras: [{ id: "filtros", alvo: (p) => alvo(p, "filtros") }, { id: "arquivos", alvo: (p) => alvo(p, "arquivos"), max: 600 }] },
+      {
+        altura: 1000,
+        antes: async ({ page }) => {
+          await cartao(page, /^Extrato do banco/).click();
+          await pausa(1200);
+        },
+        figuras: [{ id: "painel", alvo: (p) => alvo(p, "painel") }],
+      },
+    ],
+  },
+  conciliacoes: { inicio: "dashboard", tomadas: [{ figuras: [{ id: "filtros", alvo: (p) => alvo(p, "filtros") }] }] },
+  "nova-conciliacao": {
+    inicio: "conciliacoes/nova",
+    tomadas: [
+      { figuras: [{ id: "enviar", alvo: (p) => alvo(p, "encaixe") }] },
+      // o botão como o texto diz: livre, com os dois arquivos no lugar (só escolher não envia nada)
+      {
+        antes: async ({ page }) => {
+          await page.locator('input[aria-label="Extrato do banco"]').setInputFiles(path.join(AQUI, "banco-dezembro-2025.csv"));
+          await page.locator('input[aria-label="Extrato do sistema de gestão"]').setInputFiles(path.join(AQUI, "erp-dezembro-2025.csv"));
+          await pausa(1500);
+        },
+        figuras: [{ id: "conciliar", alvo: (p) => alvo(p, "conciliar") }],
+      },
+    ],
+  },
+  comparacao: {
+    antes: abrirComparacao,
+    tomadas: [
+      {
+        figuras: [
+          { id: "resumo", alvo: (p) => alvo(p, "resumo") },
+          { id: "filtros", alvo: (p) => alvo(p, "filtros") },
+          { id: "rodadas", alvo: (p) => p.locator("nav.rodadas-linha"), pad: 10 },
+        ],
+      },
+      {
+        antes: async ({ page }) => {
+          await botao(page, /^Só revisão/).click();
+          await pausa(800);
+        },
+        // a coluna Conferida nas linhas que pedem revisão: uma já conferida, a outra não
+        figuras: [{ id: "conferir", alvo: (p) => [p.locator("main table thead").first(), p.locator("main tbody tr")] }],
+      },
+      { antes: (t) => abrirConciliacaoDe(t, /^08-agosto-banco/), figuras: [{ id: "mes-fechado", alvo: (p) => p.locator(".mes-fechado-aviso"), pad: 8 }] },
+    ],
+  },
+  "detalhe-da-linha": {
+    tomadas: [
+      {
+        // setembro tem a divergência de valor com os dois lados; o detalhe abre ao lado, no duplo clique
+        antes: async (t) => {
+          await abrirConciliacaoDe(t, /^09-setembro-banco/);
+          await t.page.locator('main tbody tr[data-situacao="a_conferir"]').filter({ hasText: "Valor diverge" }).first().dblclick();
+          await t.page.locator("aside.painel-lateral").waitFor();
+          await pausa(1500);
+        },
+        figuras: [{ id: "lados", alvo: (p) => p.locator("aside.painel-lateral [data-tutorial=lados]") }],
+      },
+      { figuras: [{ id: "motivo", alvo: (p) => p.locator("aside.painel-lateral .det-causa") }] },
+    ],
+  },
+  fechamentos: {
+    inicio: "fechamentos",
+    tomadas: [
+      { figuras: [{ id: "meses", alvo: (p) => alvo(p, "meses"), max: 640 }] },
+      {
+        altura: 1000,
+        antes: async ({ page }) => {
+          await cartao(page, /^Competência\s*Outubro/).click();
+          await pausa(1200);
+        },
+        figuras: [{ id: "o-que-falta", alvo: (p) => alvo(p, "painel") }],
+      },
+      {
+        altura: 1000,
+        antes: async ({ page }) => {
+          await botao(page, /^Fechados/).click();
+          await pausa(1200);
+          await cartao(page, /^Competência\s*Agosto/).click();
+          await pausa(1200);
+        },
+        figuras: [
+          { id: "reabrir", alvo: (p) => alvo(p, "painel") },
+          { id: "relatorio", alvo: (p) => alvo(p, "painel").locator(".fech-passo").filter({ hasText: "Relatório para o contador" }), pad: 10 },
+        ],
+      },
+    ],
+  },
+  historico: { inicio: "historico", tomadas: [{ figuras: [{ id: "grafico", alvo: (p) => alvo(p, "grafico") }] }] },
+  empresas: {
+    inicio: "empresas",
+    tomadas: [
+      {
+        antes: async ({ page }) => {
+          await botao(page, /^Equipe \(/).click();
+          await pausa(1200);
+          await botao(page, /^Gabriela Gestora/).click();
+          await pausa(1000);
+        },
+        figuras: [{ id: "equipe", alvo: (p) => [alvo(p, "equipe"), alvo(p, "pessoa")] }],
+      },
+    ],
+  },
+  configuracoes: {
+    inicio: "visao-geral",
+    tomadas: [
+      {
+        antes: async ({ page }) => {
+          await page.keyboard.press("Control+Comma");
+          await janelaDeConfiguracoes(page).waitFor();
+          await secaoDeConfiguracoes(page, /^Conta$/).click();
+          await pausa(1200);
+        },
+        figuras: [{ id: "conta", alvo: janelaDeConfiguracoes, pad: 0 }],
+      },
+      {
+        antes: async ({ page }) => {
+          await secaoDeConfiguracoes(page, /^Conciliação$/).click();
+          await pausa(1200);
+        },
+        figuras: [{ id: "tolerancia", alvo: janelaDeConfiguracoes, pad: 0 }],
+      },
+      {
+        antes: async ({ page }) => {
+          await secaoDeConfiguracoes(page, /^Aparência$/).click();
+          await pausa(1200);
+        },
+        figuras: [{ id: "aparencia", alvo: janelaDeConfiguracoes, pad: 0 }],
+      },
+    ],
+  },
+};
+
+async function fotografar(page, t, receita, tela) {
+  const cenas = [];
+  const camadas = [];
+  const figuras = {};
+  // a mesma cena (ou janela) em duas tomadas vai uma vez só
+  const indice = (lista, html) => (lista.includes(html) ? lista.indexOf(html) : lista.push(html) - 1);
+  let primeira = null;
+  for (const tomada of receita.tomadas) {
+    const alturaDaTela = tomada.altura ?? 800;
+    await page.setViewportSize({ width: 1280, height: alturaDaTela });
+    if (tomada.antes) await tomada.antes(t);
+    await pausa(500);
+    for (const f of tomada.figuras) {
+      const alvos = [f.alvo(page)].flat();
+      await alvos[0].first().scrollIntoViewIfNeeded();
+      for (const a of alvos) await a.evaluateAll((es, id) => es.forEach((e) => e.setAttribute("data-figura", id)), f.id);
+    }
+    // a caixa de cada figura, na tela do app: o player mede de novo na réplica, esta só reserva o espaço
+    const caixas = await page.evaluate((ids) => Object.fromEntries(ids.map((id) => {
+      const rs = [...document.querySelectorAll(`[data-figura="${id}"]`)].map((e) => e.getBoundingClientRect()).filter((r) => r.width && r.height);
+      if (!rs.length) return [id, null];
+      const x = Math.min(...rs.map((r) => r.left));
+      const y = Math.min(...rs.map((r) => r.top));
+      return [id, { w: Math.max(...rs.map((r) => r.right)) - x, h: Math.max(...rs.map((r) => r.bottom)) - y }];
+    })), tomada.figuras.map((f) => f.id));
+    const lido = await lerTela(page);
+    await page.evaluate(() => document.querySelectorAll("[data-figura]").forEach((e) => e.removeAttribute("data-figura")));
+    primeira ??= lido;
+    const cena = indice(cenas, lido.html);
+    const camada = lido.camada ? indice(camadas, lido.camada) : null;
+    for (const f of tomada.figuras) {
+      const caixa = caixas[f.id];
+      if (!caixa) throw new Error(`figura sem alvo: ${f.id}`);
+      const pad = f.pad ?? 12;
+      figuras[f.id] = {
+        cena,
+        camada,
+        menu: lido.menu,
+        alturaDaTela,
+        pad,
+        largura: Math.round(caixa.w + 2 * pad),
+        altura: Math.round(Math.min(caixa.h, f.max ?? Infinity) + 2 * pad),
+      };
+    }
+  }
+  const saida = path.join(PUBLICO, `${tela}--figuras.json`);
+  fs.writeFileSync(saida, JSON.stringify({ barra: primeira.barra, conta: primeira.conta, cenas, camadas, figuras }));
+  return {
+    kb: Math.round(fs.statSync(saida).size / 1024),
+    figuras: Object.fromEntries(Object.entries(figuras).map(([id, f]) => [id, `${f.largura}x${f.altura}`])),
+  };
+}
+
 async function gravar(browser, estado, empresa, tela) {
-  const roteiro = ROTEIROS[tela];
+  const roteiro = FIGURAS_ ? FIGURAS[tela] : ROTEIROS[tela];
   const ctx = await browser.newContext({
-    viewport: { width: LARGURA, height: ALTURA },
+    // a janela do player (1280 × 800): a tela capturada não muda de leiaute nele; os números animados já no valor
+    // final e nenhuma transição no meio da captura
+    viewport: { width: 1280, height: 800 },
     storageState: estado,
-    deviceScaleFactor: ESCALA,
     colorScheme: "light",
+    reducedMotion: "reduce",
   });
   // sem os tutoriais do mascote e sem o roteiro de primeiros passos por cima
   await ctx.addInitScript(() => localStorage.setItem("ledgr:preferencias", JSON.stringify({ tutoriaisDispensados: ["visao-geral","conciliacoes","nova-conciliacao","comparacao","divergencia","extratos","historico","fechamentos","configuracoes"], roteiroDispensado: true })));
-  await ctx.addInitScript(OVERLAY);
   const page = await ctx.newPage();
   page.setDefaultTimeout(10000);
   const t = ferramentas(page, empresa);
@@ -499,61 +552,156 @@ async function gravar(browser, estado, empresa, tela) {
   if (roteiro.antes) await roteiro.antes(t);
   await page.evaluate(() => document.fonts.ready);
   await page.mouse.move(700, 500);
-
-  // a gravação do Playwright sai em 1 Mbps e embaça o texto: aqui guardo os quadros do navegador em JPEG
-  // de qualidade alta e monto o vídeo depois, com o ffmpeg, no bitrate que o texto precisa
-  const pastaQuadros = path.join(SAIDA, `${tela}-${Date.now()}`);
-  fs.mkdirSync(pastaQuadros, { recursive: true });
-  const quadros = [];
-  const cdp = await ctx.newCDPSession(page);
-  cdp.on("Page.screencastFrame", ({ data, metadata, sessionId }) => {
-    const arq = path.join(pastaQuadros, String(quadros.length).padStart(6, "0") + ".jpg");
-    fs.writeFileSync(arq, Buffer.from(data, "base64"));
-    quadros.push({ arq, t: metadata.timestamp });
-    cdp.send("Page.screencastFrameAck", { sessionId }).catch(() => {});
-  });
-  await cdp.send("Page.startScreencast", { format: "jpeg", quality: 92, everyNthFrame: 1, maxWidth: LARGURA * ESCALA, maxHeight: ALTURA * ESCALA });
-
-  await t.v("capa", roteiro.titulo, roteiro.sub);
-  await pausa(3200);
-  await t.v("capa");
-  await pausa(900);
-  await roteiro.cena(t, { page });
-  await t.soltar();
-  await t.v("capa", ...roteiro.fim);
-  await pausa(3000);
-
-  await cdp.send("Page.stopScreencast");
+  const feito = await (FIGURAS_ ? fotografar(page, t, roteiro, tela) : capturar(page, t, roteiro, tela));
   await ctx.close();
-  fs.writeFileSync(path.join(pastaQuadros, "quadros.json"), JSON.stringify(quadros));
-  return codificar(quadros, path.join(PUBLICO, `${tela}.webm`));
+  return feito;
 }
 
-// cada quadro dura até o próximo chegar; o último fica meio segundo
-async function codificar(quadros, saida) {
-  const ff = spawn(FFMPEG, ["-y", "-loglevel", "error", "-f", "image2pipe", "-framerate", String(FPS), "-c:v", "mjpeg", "-i", "pipe:0",
-    "-vf", "crop=iw*1345/1360:ih:0:0,scale=1898:1200:flags=lanczos,format=yuv420p", "-c:v", "libvpx-vp9", "-crf", "30", "-b:v", "0", "-row-mt", "1", "-an", saida], { stdio: ["pipe", "inherit", "inherit"] });
-  const terminou = new Promise((resolve) => ff.on("close", resolve));
-  const t0 = quadros[0].t;
-  const total = Math.ceil((quadros.at(-1).t - t0 + 0.5) * FPS);
-  let j = 0;
-  for (let k = 0; k < total; k++) {
-    while (j + 1 < quadros.length && quadros[j + 1].t - t0 <= k / FPS) j++;
-    if (!ff.stdin.write(fs.readFileSync(quadros[j].arq))) await new Promise((r) => ff.stdin.once("drain", r));
+// o #conteudo da tela como está agora, em HTML estático, e o que o app põe por cima dele (as janelas abertas, o painel
+// da linha), a barra do topo, o item do menu e a conta
+const lerTela = (page) =>
+  page
+    .evaluate(() => {
+      const conteudo = document.querySelector("#conteudo");
+      if (!conteudo) return null;
+      // o que fica por cima da página vai à parte: as janelas abertas e o que o app prende na tela (o painel da linha)
+      const fixos = [...conteudo.querySelectorAll("*")].filter(
+        (e) => getComputedStyle(e).position === "fixed" && e.getClientRects().length && !e.closest("dialog"),
+      );
+      const camadas = [...document.querySelectorAll("dialog[open]"), ...fixos.filter((e) => !fixos.some((f) => f !== e && f.contains(e)))];
+      for (const e of camadas) e.setAttribute("data-camada", "");
+      // a cópia estática: o que foi digitado vira atributo, a rolagem de dentro vai em data-rolagem, a janela fica no
+      // lugar e no tamanho em que estava na tela de 1280 × 800, e sem endereços do app nem o id do #conteudo
+      const limpar = (e) => {
+        if (!e) return "";
+        const originais = [e, ...e.querySelectorAll("*")];
+        const copia = e.cloneNode(true);
+        const copias = [copia, ...copia.querySelectorAll("*")];
+        originais.forEach((o, i) => {
+          const c = copias[i];
+          if (o.scrollTop > 0) c.setAttribute("data-rolagem", String(Math.round(o.scrollTop)));
+          if (o instanceof HTMLInputElement) {
+            if (o.type === "checkbox" || o.type === "radio") c.toggleAttribute("checked", o.checked);
+            else if (o.type !== "file") c.setAttribute("value", o.value);
+          } else if (o instanceof HTMLTextAreaElement) c.textContent = o.value;
+          else if (o instanceof HTMLSelectElement) [...c.options].forEach((op, j) => op.toggleAttribute("selected", j === o.selectedIndex));
+          else if (o instanceof HTMLDialogElement) {
+            const r = o.getBoundingClientRect();
+            c.setAttribute("style", `position:absolute;inset:auto;left:${r.left}px;top:${r.top}px;width:${r.width}px;height:${r.height}px;margin:0;max-width:none;max-height:none`);
+            if (o.matches(":modal")) c.setAttribute("data-modal", "");
+          }
+        });
+        for (const x of copia.querySelectorAll("[data-camada]")) x.remove();
+        for (const a of copia.querySelectorAll("[href]")) a.removeAttribute("href");
+        for (const nome of ["id", "tabindex", "data-camada"]) copia.removeAttribute(nome);
+        return copia.outerHTML;
+      };
+      const texto = (seletor) => document.querySelector(seletor)?.textContent.trim();
+      const lido = {
+        html: limpar(conteudo),
+        camada: camadas.map(limpar).join(""),
+        menu: texto('.app-aside a[aria-current="page"]'),
+        barra: limpar(document.querySelector(".app-topo")),
+        conta: { nome: texto(".app-conta-nome"), empresa: texto(".app-conta-empresa"), iniciais: texto(".app-conta-iniciais") },
+      };
+      for (const e of camadas) e.removeAttribute("data-camada");
+      return lido;
+    })
+    .catch(() => null); // no meio de uma navegação
+
+// A demonstração: o #conteudo de cada passo, com o alvo marcado (data-passo), a legenda e o tempo
+// desde o começo; o player toca no mesmo ritmo. Um passo que não mudou a tela reaproveita a cena anterior.
+async function capturar(page, t, roteiro, tela) {
+  const cenas = [];
+  const camadas = [];
+  const passos = [];
+  const t0 = Date.now();
+  let semMarcas = null;
+  let marcas = 0;
+  let fala = {};
+  let foco = null;
+  const ler = () => lerTela(page);
+  // um alvo no menu lateral vai pelo nome do item ("menu:<nome>"): o menu do player é o da vitrine, não uma cópia
+  const marcar = async (loc) => {
+    const id = marcas++;
+    const noMenu = await loc.evaluate((e, id) => {
+      // a janela de Configurações mora dentro do menu lateral: o que está numa janela é capturado com ela
+      if (e.closest(".app-aside") && !e.closest("dialog")) return e.textContent.trim();
+      e.setAttribute("data-passo", id);
+      return null;
+    }, String(id));
+    return noMenu ? `menu:${noMenu}` : id;
+  };
+  let primeira = null;
+  const guardar = async (extra = {}) => {
+    // o mouse sai de cima da página: um cartão de hover aberto pelo caminho não é parte da explicação
+    await page.mouse.move(1, 1);
+    const lido = await ler();
+    if (!lido) return;
+    primeira ??= lido;
+    const { html, camada, menu } = lido;
+    const tudo = html + camada;
+    const tem = (m) => typeof m === "string" || tudo.includes(`data-passo="${m}"`);
+    const limpo = tudo.replace(/ data-passo="\d+"/g, "");
+    const ultima = cenas.length - 1;
+    const usadas = passos.filter((p) => p.cena === ultima).flatMap((p) => [p.foco, p.cursor]).filter((m) => m != null);
+    if (limpo === semMarcas && usadas.every(tem)) {
+      cenas[ultima] = html;
+      camadas[ultima] = camada;
+    } else {
+      cenas.push(html);
+      camadas.push(camada);
+    }
+    semMarcas = limpo;
+    // o destaque de um passo anterior que sumiu da tela nova não vai junto
+    passos.push({ t: Date.now() - t0, cena: cenas.length - 1, menu, ...fala, ...(foco != null && tem(foco) && { foco }), ...extra });
+  };
+
+  t.focar = async (loc) => {
+    foco = loc ? await marcar(loc) : null;
+  };
+  t.legenda = async (n, texto, detalhe) => {
+    fala = { n, texto, detalhe };
+    await guardar();
+  };
+  t.passo = async (loc, n, texto, detalhe, ms = 4200) => {
+    fala = { n, texto, detalhe };
+    await t.focar(loc);
+    await guardar();
+    await pausa(ms);
+  };
+  // o que foi digitado aparece na tela antes de o roteiro seguir (na busca de Configurações, ele limpa logo depois)
+  const digitar = page.keyboard.type.bind(page.keyboard);
+  page.keyboard.type = async (...args) => {
+    await digitar(...args);
+    await guardar();
+  };
+  // o cursor do player leva 1 s até o alvo; o clique acontece quando ele chega
+  for (const [nome, cliques] of [["clicar", 1], ["duplo", 2]]) {
+    t[nome] = async (loc) => {
+      await guardar({ cursor: await marcar(loc), clique: cliques });
+      await pausa(1000);
+      await (cliques === 2 ? loc.dblclick() : loc.click());
+      await pausa(400);
+      await guardar();
+    };
   }
-  ff.stdin.end();
-  const status = await terminou;
-  if (status !== 0) throw new Error(`ffmpeg saiu com ${status}: ${saida}`);
-  return { saida, segundos: Math.round(total / FPS), mb: (fs.statSync(saida).size / 1e6).toFixed(1) };
+
+  await roteiro.cena(t, { page });
+  const saida = path.join(PUBLICO, `${tela}.json`);
+  fs.writeFileSync(saida, JSON.stringify({ barra: primeira.barra, conta: primeira.conta, cenas, camadas, passos, fim: Date.now() - t0 }));
+  return { saida, cenas: cenas.length, passos: passos.length, kb: Math.round(fs.statSync(saida).size / 1024) };
 }
 
 async function main() {
-  const telas = process.argv.slice(2).length ? process.argv.slice(2) : Object.keys(ROTEIROS);
-  for (const tela of telas) if (!ROTEIROS[tela]) throw new Error(`tela sem roteiro: ${tela}`);
+  const pedidas = process.argv.slice(2).filter((a) => !a.startsWith("--"));
+  const mapa = FIGURAS_ ? FIGURAS : ROTEIROS;
+  const telas = pedidas.length ? pedidas : Object.keys(mapa);
+  for (const tela of telas) if (!mapa[tela]) throw new Error(`tela sem roteiro: ${tela}`);
   const browser = await chromium.launch({ channel: "chrome" });
 
-  // entrar antes de gravar: o vídeo começa já dentro do app
-  const login = await browser.newContext({ viewport: { width: LARGURA, height: ALTURA } });
+  // entrar antes de gravar: a captura começa já dentro do app
+  const login = await browser.newContext({ viewport: { width: 1280, height: 800 } });
   const pl = await login.newPage();
   await pl.goto(`${BASE}/login`);
   await pl.getByLabel(/e-?mail/i).first().fill(EMAIL);

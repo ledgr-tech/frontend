@@ -8,6 +8,7 @@ import { Reveal } from "@/app/reveal";
 import { GraficoDeMatch } from "./grafico";
 import { ExportarHistorico, HistoricoPorConciliacao } from "./por-conciliacao";
 import { Cabecalho } from "../cabecalho";
+import { FalhaAoCarregar } from "../falha-ao-carregar";
 
 /**
  * O histórico lê `GET /execucoes` no servidor, uma página por vez, e junta as
@@ -16,9 +17,6 @@ import { Cabecalho } from "../cabecalho";
  * Fechamentos. O backend conta por execução e não guarda ajuste em reais, "fechado
  * com ressalva" nem economia acumulada, então isso do design segue fora.
  */
-
-const FALHA_AO_CARREGAR =
-  "Não foi possível carregar o histórico. Recarregue a página e tente de novo.";
 
 /** "3 conciliações nesta página", ou nada sem execução. */
 function conciliacoesDaPagina(execucoes: Execucao[]): string | null {
@@ -54,9 +52,7 @@ export default async function HistoricoPage({ searchParams }: PageProps<"/e/[emp
       />
 
       {!resposta.ok ? (
-        <p role="alert" className="extratos-vazio">
-          {FALHA_AO_CARREGAR}
-        </p>
+        <FalhaAoCarregar oQue="o histórico" status={resposta.status} />
       ) : resposta.dados.execucoes.length === 0 ? (
         <SemExecucoes pagina={pagina} />
       ) : (

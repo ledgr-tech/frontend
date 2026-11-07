@@ -31,6 +31,8 @@ export type RelatorioPublicoAPI = {
     linhas_nao_lidas: number;
     valor_em_aberto: string | number;
     categorias: Partial<Record<Divergencia, number>>;
+    /** Lotes conciliados por soma (backend #131); 0 nos fechamentos de antes, ausente antes dele. */
+    agrupamentos?: number;
   };
   pares: {
     arquivo_banco: string;
@@ -77,6 +79,7 @@ export function adaptarRelatorioPublico(r: RelatorioPublicoAPI): RelatorioDoFech
     ressalva: r.ressalva,
     total: r.resumo.total,
     conciliadas: r.resumo.conciliadas,
+    agrupamentos: r.resumo.agrupamentos ?? 0,
     justificadas: r.resumo.justificadas,
     pendentes: r.resumo.pendentes,
     linhasNaoLidas: r.resumo.linhas_nao_lidas,

@@ -2,35 +2,43 @@
 
 import { useEffect, useRef, useState, type CSSProperties, type DragEvent } from "react";
 import Image from "next/image";
+import { useSearchParams } from "next/navigation";
 import { useRoteador } from "@/lib/roteador";
 import { useEmpresaAtiva, useEmpresasDaConta } from "@/lib/empresa-ativa";
 import { ArrowRight, Check, Link2, Scale, ShieldCheck } from "lucide-react";
 import { caminhoDaConciliacao } from "@/lib/caminhos";
 import { abrirConfiguracoes, TOLERANCIA_SALVA } from "@/lib/eventos";
-import { comEmpresa } from "@/lib/rotas";
-import { carregarRegras, conciliar, type Falha } from "../acoes";
+import { comEmpresa, ehUuid } from "@/lib/rotas";
+import { extratoGrandeDemais, TAMANHO_MAXIMO_UPLOAD_BYTES } from "@/lib/limite-de-upload";
+import { carregarRegras, conciliar, type Falha, type SituacaoExtrato } from "../acoes";
 import {
   aguardarProcessamento,
   conferirCsv,
   ERRO_SEM_RESPOSTA,
   motivoDaRecusa,
+  DETALHE,
   RECADO,
   subir,
-  TAMANHO_MAXIMO_BYTES,
   type Etapa,
   type Origem,
   type Pendente,
 } from "../envio";
 import { ImportacaoInterrompida } from "./importacao-interrompida";
+import { LinhasNaoLidas } from "../linhas-nao-lidas";
 import { PlanosBloqueados } from "./planos-bloqueados";
 import { useAssinatura } from "../../conta";
-import { bloqueiaConciliacao } from "@/lib/assinatura";
+import { bloqueiaConciliacao, type PrecoDoPlano } from "@/lib/assinatura";
+import { carregarPrecos } from "../../assinatura/acoes";
 import { Cabecalho } from "../../cabecalho";
 import { IconeOrigem } from "../../icone-origem";
 import { Guia, type Passo } from "./guia";
 
 export default function NovaConciliacaoPage() {
   const router = useRoteador();
+  // a importação via IA confirmada leva para cá com o id do extrato do sistema já criado (?sistema=):
+  // a folha do sistema vem pronta e só falta o banco
+  const idDaIa = useSearchParams()?.get("sistema") ?? null;
+  const sistemaDaIa = idDaIa !== null && ehUuid(idDaIa) ? idDaIa : null;
   const [arquivoBanco, setArquivoBanco] = useState<File | null>(null);
   const [arquivoSistema, setArquivoSistema] = useState<File | null>(null);
   const [etapa, setEtapa] = useState<Etapa>("ocioso");
@@ -40,8 +48,12 @@ export default function NovaConciliacaoPage() {
   const empresas = useEmpresasDaConta();
   // o backend recusou a conciliação pelo plano (402): o texto dele vai no lugar do envio
   const [recusa, setRecusa] = useState<string | null>(null);
-  const [avisos, setAvisos] = useState<string[]>([]);
+  const [precos, setPrecos] = useState<PrecoDoPlano[] | null>(null);
   const [pendente, setPendente] = useState<Pendente | null>(null);
+  // os dois extratos subiram, mas algum veio lido em parte: a conciliação espera a pessoa decidir
+  const [parcial, setParcial] = useState<{ banco: string; sistema: string; lidosEmParte: SituacaoExtrato[] } | null>(
+    null,
+  );
   // a tolerância que esta conciliação vai usar; sem resposta (404, erro), a linha não aparece
   const [toleranciaDias, setToleranciaDias] = useState<number | null>(null);
   // depois do primeiro envio, as folhas só voltam quando o envio falha: aí elas sobem com fade, em vez
@@ -95,23 +107,22 @@ export default function NovaConciliacaoPage() {
   }
 
   async function conciliarExtratos(banco = arquivoBanco, sistema = arquivoSistema) {
-    if (!banco || !sistema) return;
+    if (!banco || (!sistema && !sistemaDaIa)) return;
 
-    const grande = [banco, sistema].find((arquivo) => arquivo.size > TAMANHO_MAXIMO_BYTES);
+    const grande = [banco, sistema].find((arquivo) => arquivo && arquivo.size > TAMANHO_MAXIMO_UPLOAD_BYTES);
     if (grande) {
       // sem isso, o arquivo inteiro sobe só pra requisição ser recusada no caminho
-      setErro(`O arquivo "${grande.name}" passa de 4MB. Exporte um período menor.`);
+      setErro(extratoGrandeDemais(grande.name));
       return;
     }
 
     setErro(null);
-    setAvisos([]);
     setJaEnviou(true);
     setEtapa("conferindo");
 
     try {
       // nada sobe antes de os dois estarem prontos: extrato órfão no backend não tem volta
-      if (!(await conferir(banco, "banco")) || !(await conferir(sistema, "sistema"))) {
+      if (!(await conferir(banco, "banco")) || (sistema && !(await conferir(sistema, "sistema")))) {
         setEtapa("ocioso");
         return;
       }
@@ -141,19 +152,22 @@ export default function NovaConciliacaoPage() {
     setPendente(null);
   }
 
-  async function enviarEConciliar(arquivoBanco: File, arquivoSistema: File) {
+  async function enviarEConciliar(arquivoBanco: File, arquivoSistema: File | null) {
     const banco = await subir(arquivoBanco, "banco");
     if (!banco.ok) return falhar(banco);
-    const sistema = await subir(arquivoSistema, "sistema");
+    // o sistema da importação via IA já é um extrato lido: só o banco sobe e espera
+    const sistema = arquivoSistema
+      ? await subir(arquivoSistema, "sistema")
+      : { ok: true as const, dados: { extratoId: sistemaDaIa ?? "" } };
     if (!sistema.ok) return falhar(sistema);
 
     setEtapa("processando");
     const situacoes = await Promise.all([
       aguardarProcessamento(banco.dados.extratoId, () => vivo.current),
-      aguardarProcessamento(sistema.dados.extratoId, () => vivo.current),
+      ...(arquivoSistema ? [aguardarProcessamento(sistema.dados.extratoId, () => vivo.current)] : []),
     ]);
 
-    const recados: string[] = [];
+    const lidosEmParte: SituacaoExtrato[] = [];
     for (const situacao of situacoes) {
       if (situacao === null) {
         setEtapa("ocioso");
@@ -166,18 +180,21 @@ export default function NovaConciliacaoPage() {
         setErro(motivoDaRecusa(situacao));
         return;
       }
-      if (situacao.erros.length > 0) {
-        // "concluido_com_erros": a conciliação segue, mas quem enviou precisa
-        // saber que parte das linhas ficou de fora.
-        recados.push(
-          `${situacao.erros.length} linha(s) do extrato do ${situacao.origem} não foram lidas.`,
-        );
-      }
+      if (situacao.status === "concluido_com_erros") lidosEmParte.push(situacao);
     }
-    setAvisos(recados);
+    if (lidosEmParte.length > 0) {
+      // conciliar com linhas de fora não tem volta do lado do banco (não há nova versão dele nem rota
+      // para apagar a conciliação): a conciliação só nasce depois da decisão, e continuar reaproveita os uploads
+      setParcial({ banco: banco.dados.extratoId, sistema: sistema.dados.extratoId, lidosEmParte });
+      setEtapa("ocioso");
+      return;
+    }
+    await concluir(banco.dados.extratoId, sistema.dados.extratoId);
+  }
 
+  async function concluir(bancoId: string, sistemaId: string) {
     setEtapa("conciliando");
-    const resultado = await conciliar(banco.dados.extratoId, sistema.dados.extratoId);
+    const resultado = await conciliar(bancoId, sistemaId);
     if (!resultado.ok && resultado.status === 402) {
       setEtapa("ocioso");
       setRecusa(resultado.erro);
@@ -188,18 +205,58 @@ export default function NovaConciliacaoPage() {
     // A listagem do resultado parte do extrato do banco (o do sistema seria
     // ambíguo, porque pode ter sido conciliado com vários extratos de banco), e
     // o do sistema vai junto para filtrar só as linhas deste par.
-    router.push(caminhoDaConciliacao(banco.dados.extratoId, sistema.dados.extratoId));
+    router.push(caminhoDaConciliacao(bancoId, sistemaId));
   }
 
-  const podeConciliar = arquivoBanco !== null && arquivoSistema !== null;
+  async function continuarComLinhasValidas() {
+    if (!parcial) return;
+    setErro(null);
+    try {
+      await concluir(parcial.banco, parcial.sistema);
+    } catch {
+      setEtapa("ocioso");
+      setErro(ERRO_SEM_RESPOSTA);
+    }
+  }
+
+  function voltarParaCorrigir() {
+    if (!parcial) return;
+    // o arquivo lido em parte sai da folha, à espera do corrigido; o outro fica.
+    // ponytail: a próxima tentativa sobe os dois de novo, e o que veio inteiro vira uma cópia em Extratos;
+    // o #308 descarta os dois ao voltar quando o backend tiver a rota (backend#185)
+    for (const { origem } of parcial.lidosEmParte) {
+      if (origem === "banco") setArquivoBanco(null);
+      else setArquivoSistema(null);
+    }
+    setParcial(null);
+    setErro(null);
+  }
+
+  const sistemaPronto = arquivoSistema !== null || sistemaDaIa !== null;
+  const podeConciliar = arquivoBanco !== null && sistemaPronto;
   const ocupado = etapa !== "ocioso";
-  const prontos = (arquivoBanco ? 1 : 0) + (arquivoSistema ? 1 : 0);
+  const prontos = (arquivoBanco ? 1 : 0) + (sistemaPronto ? 1 : 0);
   const falta =
-    !arquivoBanco && !arquivoSistema
+    !arquivoBanco && !sistemaPronto
       ? "Envie os dois extratos para conciliar."
       : !arquivoBanco
         ? "Falta o extrato do banco."
         : "Falta o extrato do sistema de gestão.";
+
+  // teste acabado ou assinatura encerrada (backend #180), ou o 402 do backend: os planos no lugar do envio
+  const bloqueada = (assinatura !== null && bloqueiaConciliacao(assinatura.situacao)) || recusa !== null;
+
+  // os preços da Stripe, os mesmos da Assinatura, só quando a tela bloqueia
+  useEffect(() => {
+    if (!bloqueada) return;
+    let viva = true;
+    void carregarPrecos()
+      .then((lidos) => viva && setPrecos(lidos))
+      .catch(() => {});
+    return () => {
+      viva = false;
+    };
+  }, [bloqueada]);
 
   if (pendente) {
     return (
@@ -215,13 +272,47 @@ export default function NovaConciliacaoPage() {
     );
   }
 
-  // teste acabado ou assinatura encerrada (backend #180), ou o 402 do backend: os planos no lugar do envio
-  if ((assinatura && bloqueiaConciliacao(assinatura.situacao)) || recusa !== null) {
+  if (bloqueada) {
     return (
       <div className="nova-tela">
         <Cabecalho titulo="Nova conciliação" contexto={[]} />
         <div className="nova-corpo">
-          <PlanosBloqueados motivo={recusa ?? undefined} situacao={assinatura?.situacao} />
+          <PlanosBloqueados motivo={recusa ?? undefined} situacao={assinatura?.situacao} precos={precos} />
+        </div>
+      </div>
+    );
+  }
+
+  // continuar troca a decisão pelo palco; se a conciliação falha, ela volta com o motivo, sem reenviar
+  if (parcial && !ocupado) {
+    return (
+      <div style={{ padding: "36px 0 64px" }}>
+        <div className="importacao">
+          <div>
+            <h1 className="importacao-titulo">Nem todas as linhas foram lidas</h1>
+            <p className="importacao-texto">
+              A conciliação usará somente as linhas válidas. Volte para corrigir o arquivo ou confirme que deseja
+              continuar sem as linhas rejeitadas. Se voltar ou sair desta tela, os dois arquivos enviados ficam em
+              Extratos, sem conciliação.
+            </p>
+          </div>
+          {parcial.lidosEmParte.map(({ origem, erros }) => (
+            <LinhasNaoLidas key={origem} origem={origem} erros={erros} />
+          ))}
+          {erro && (
+            <p role="alert" className="selo selo-risco nova-versao-erro">
+              {erro}
+            </p>
+          )}
+          <div className="importacao-acoes">
+            {/* o foco vai para a saída que não concilia: um Enter a mais não concilia sem a pessoa ler */}
+            <button type="button" className="btn btn-secondary" autoFocus onClick={voltarParaCorrigir}>
+              Voltar para corrigir
+            </button>
+            <button type="button" className="btn btn-primary" onClick={() => void continuarComLinhasValidas()}>
+              Continuar com linhas válidas
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -238,16 +329,9 @@ export default function NovaConciliacaoPage() {
           {erro}
         </p>
       )}
-      {avisos.length > 0 && (
-        <ul className="nova-avisos">
-          {avisos.map((aviso) => (
-            <li key={aviso}>{aviso}</li>
-          ))}
-        </ul>
-      )}
 
-      {ocupado && arquivoBanco && arquivoSistema ? (
-        <Palco banco={arquivoBanco.name} sistema={arquivoSistema.name} etapa={etapa} />
+      {ocupado && arquivoBanco && sistemaPronto ? (
+        <Palco banco={arquivoBanco.name} sistema={arquivoSistema?.name ?? "Importação via IA"} etapa={etapa} />
       ) : (
         <div className={jaEnviou ? "nova-corpo conc-mesa nova-volta" : "nova-corpo conc-mesa"}>
           <div className="nova-coluna">
@@ -273,17 +357,32 @@ export default function NovaConciliacaoPage() {
               <span className="nova-elo-no" aria-hidden="true">
                 <Link2 />
               </span>
-              <FolhaDeExtrato
-                origem="sistema"
-                titulo="Extrato do sistema de gestão"
-                dica="Arquivo CSV exportado do seu sistema de gestão"
-                accept=".csv"
-                formatos="CSV"
-                arquivo={arquivoSistema}
-                onArquivo={(arquivo) => escolher("sistema", arquivo)}
-                onRecusado={setErro}
-              />
+              {sistemaDaIa ? (
+                // o rascunho da IA já virou extrato ao confirmar: a folha vem pronta e não se troca aqui
+                <div className="nova-folha nova-folha-sistema" data-pronto="">
+                  <span className="rotulo nova-folha-rotulo">
+                    <span className="nova-folha-icone">
+                      <Check aria-hidden="true" />
+                    </span>
+                    Sistema de gestão
+                  </span>
+                  <strong className="nova-folha-titulo">Importação via IA</strong>
+                  <span className="nova-folha-dica">Já confirmado</span>
+                </div>
+              ) : (
+                <FolhaDeExtrato
+                  origem="sistema"
+                  titulo="Extrato do sistema de gestão"
+                  dica="Arquivo CSV exportado do seu sistema de gestão"
+                  accept=".csv"
+                  formatos="CSV"
+                  arquivo={arquivoSistema}
+                  onArquivo={(arquivo) => escolher("sistema", arquivo)}
+                  onRecusado={setErro}
+                />
+              )}
             </div>
+            {!sistemaDaIa && (
             <section className="nova-ia-card" aria-labelledby="nova-ia-titulo">
               <h3 id="nova-ia-titulo" className="font-titulo">
                 Só tem o PDF do relatório?
@@ -307,6 +406,7 @@ export default function NovaConciliacaoPage() {
                 sizes="170px"
               />
             </section>
+            )}
           </div>
 
           <aside className="conc-previa" aria-label="Antes de conciliar">
@@ -326,11 +426,11 @@ export default function NovaConciliacaoPage() {
                   </span>
                   Banco{arquivoBanco ? ": enviado" : ": falta"}
                 </li>
-                <li data-feito={arquivoSistema ? "" : undefined}>
+                <li data-feito={sistemaPronto ? "" : undefined}>
                   <span className="nova-checklist-marca" aria-hidden="true">
                     <Check />
                   </span>
-                  Sistema de gestão{arquivoSistema ? ": enviado" : ": falta"}
+                  Sistema de gestão{sistemaPronto ? ": enviado" : ": falta"}
                 </li>
               </ul>
             </div>
@@ -508,12 +608,18 @@ const LINHAS = [
   [60, 82],
   [80, 56],
   [72, 66],
+  [58, 70],
+  [68, 52],
+  [74, 62],
+  [62, 78],
+  [70, 58],
+  [66, 72],
 ];
 
 /**
  * No envio, o palco toma a tela: as duas folhas saem da sobreposição para os lados, as linhas de
  * cada uma entram como barras, sem dado nenhum, e os pares se ligam pelo meio com o ✓ numa onda que
- * não para até a comparação abrir. As linhas são ilustração; o progresso de verdade é a etapa no topo.
+ * não para até a comparação abrir. As linhas são ilustração; o progresso de verdade é a etapa no topo e o texto embaixo.
  */
 function Palco({ banco, sistema, etapa }: { banco: string; sistema: string; etapa: Etapa }) {
   const indice = ETAPAS.indexOf(etapa) + 1;
@@ -537,9 +643,6 @@ function Palco({ banco, sistema, etapa }: { banco: string; sistema: string; etap
   return (
     <div className="nova-palco">
       <div className="nova-palco-topo">
-        <p className="nova-palco-recado" aria-live="polite">
-          {RECADO[etapa as Exclude<Etapa, "ocioso">]}
-        </p>
         <div className="nova-etapas">
           <span className="nova-etapas-barra" aria-hidden="true">
             {ETAPAS.map((nome, i) => (
@@ -561,6 +664,11 @@ function Palco({ banco, sistema, etapa }: { banco: string; sistema: string; etap
           ))}
         </div>
         {folha("sistema", sistema)}
+      </div>
+      {/* a key refaz a entrada a cada etapa: o texto novo chega, não troca de supetão */}
+      <div className="nova-palco-rodape" key={etapa} aria-live="polite">
+        <p className="nova-palco-recado">{RECADO[etapa as Exclude<Etapa, "ocioso">]}</p>
+        <p className="nova-palco-detalhe">{DETALHE[etapa as Exclude<Etapa, "ocioso">]}</p>
       </div>
     </div>
   );

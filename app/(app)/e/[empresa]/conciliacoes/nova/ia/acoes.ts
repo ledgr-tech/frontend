@@ -2,6 +2,7 @@
 
 import { pareceUuid } from "@/lib/adaptadores";
 import { ErroBackend, chamarBackend } from "@/lib/backend";
+import { ARQUIVO_GRANDE_DEMAIS, TAMANHO_MAXIMO_UPLOAD_BYTES } from "@/lib/limite-de-upload";
 import type { Falha, Resultado } from "../../acoes";
 
 /**
@@ -89,6 +90,9 @@ export async function importarViaIa(
   if (!(arquivo instanceof File)) {
     return { ok: false, status: 422, erro: "Escolha o arquivo que a IA devolveu.", erros: [], totalErros: 0 };
   }
+  if (arquivo.size > TAMANHO_MAXIMO_UPLOAD_BYTES) {
+    return { ok: false, status: 413, erro: ARQUIVO_GRANDE_DEMAIS, erros: [], totalErros: 0 };
+  }
   const corpo = new FormData();
   corpo.append("arquivo", arquivo);
   try {
@@ -101,7 +105,7 @@ export async function importarViaIa(
     return {
       ...traduzir(erro),
       erros: erro instanceof ErroBackend ? erro.erros : [],
-      totalErros: erro instanceof ErroBackend ? Math.max(erro.erros.length, 0) : 0,
+      totalErros: erro instanceof ErroBackend ? (erro.totalErros ?? erro.erros.length) : 0,
     };
   }
 }

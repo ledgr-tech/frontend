@@ -215,6 +215,9 @@ describe("cadastrar", () => {
     senha: "s3nha-forte",
     razaoSocial: "Telha Certa Ltda",
     cnpj: "12.345.678/0001-95",
+    // backend #184: a cidade vai aparada, na caixa em que veio; a UF, em maiúscula
+    cidade: "  Ribeirão Preto ",
+    uf: "sp",
   };
 
   function respostaDoBackend(status: number, corpo: object) {
@@ -235,6 +238,8 @@ describe("cadastrar", () => {
       senha: "s3nha-forte",
       razao_social: "Telha Certa Ltda",
       cnpj: "12.345.678/0001-95",
+      cidade: "Ribeirão Preto",
+      uf: "SP",
     });
     expect(signIn).toHaveBeenCalledWith("credentials", {
       email: "ana@telhacerta.com.br",
@@ -274,6 +279,13 @@ describe("cadastrar", () => {
     });
 
     expect(await cadastrar(DADOS)).toEqual({ ok: false, erro: "invalido", campos: ["razaoSocial", "cnpj"] });
+  });
+
+  it("o 422 da cidade e o da UF (backend #184) voltam como campos do formulário, sem o msg", async () => {
+    respostaDoBackend(422, { detail: [{ loc: ["body", "uf"], msg: "Value error, UF inválida: use a sigla de um dos 27 estados" }] });
+    expect(await cadastrar(DADOS)).toEqual({ ok: false, erro: "invalido", campos: ["uf"] });
+    respostaDoBackend(422, { detail: [{ loc: ["body", "cidade"], msg: "Value error, a cidade deve ter de 2 a 80 caracteres" }] });
+    expect(await cadastrar(DADOS)).toEqual({ ok: false, erro: "invalido", campos: ["cidade"] });
   });
 
   // backend #119: a recusa da Receita vem no mesmo 422 do formato, com loc no cnpj; só a msg a separa
@@ -339,7 +351,7 @@ describe("entrarComGoogle", () => {
 });
 
 describe("cadastrarComGoogle", () => {
-  const DADOS = { nome: "Ana Souza", razaoSocial: "Telha Certa Ltda", cnpj: "12.345.678/0001-95" };
+  const DADOS = { nome: "Ana Souza", razaoSocial: "Telha Certa Ltda", cnpj: "12.345.678/0001-95", cidade: " Ribeirão Preto", uf: "sp" };
 
   function respostaDoBackend(status: number, corpo: object) {
     fetch.mockResolvedValue(Response.json(corpo, { status }));
@@ -361,6 +373,8 @@ describe("cadastrarComGoogle", () => {
       id_token: "id-token-do-google",
       razao_social: "Telha Certa Ltda",
       cnpj: "12.345.678/0001-95",
+      cidade: "Ribeirão Preto",
+      uf: "SP",
       nome: "Ana Souza",
     });
     expect(signIn).toHaveBeenCalledWith("google-cadastro", { redirect: false });
@@ -406,6 +420,8 @@ describe("cadastrarComGoogle", () => {
 
     respostaDoBackend(422, { detail: [{ loc: ["body", "nome"], msg: "Field required" }] });
     expect(await cadastrarComGoogle(DADOS)).toEqual({ ok: false, erro: "invalido", campos: ["nome"] });
+    respostaDoBackend(422, { detail: [{ loc: ["body", "uf"], msg: "Value error, UF inválida: use a sigla de um dos 27 estados" }] });
+    expect(await cadastrarComGoogle(DADOS)).toEqual({ ok: false, erro: "invalido", campos: ["uf"] });
   });
 
   it("separa o Google desligado, o limite por minuto e o backend fora do ar", async () => {
@@ -425,6 +441,18 @@ describe("verificarCadastro", () => {
     fetch.mockResolvedValue(Response.json(corpo, { status }));
   }
 
+  it("traz a cidade e a UF da Receita para pré-preencher (backend #184), a cidade na caixa em que veio", async () => {
+    respostaDoBackend(200, { email_disponivel: true, cnpj_disponivel: true, cidade: "SÃO PAULO", uf: "SP" });
+    expect(await verificarCadastro(DADOS)).toMatchObject({ cidadeReceita: "SÃO PAULO", ufReceita: "SP" });
+  });
+
+  it("descarta a UF fora das 27 siglas e a cidade em branco", async () => {
+    for (const uf of ["XX", 12, undefined]) {
+      respostaDoBackend(200, { email_disponivel: true, cnpj_disponivel: true, cidade: "  ", uf });
+      expect(await verificarCadastro(DADOS)).toMatchObject({ cidadeReceita: null, ufReceita: null });
+    }
+  });
+
   it("confere e-mail e CNPJ juntos, sem Bearer e sem criar nada", async () => {
     respostaDoBackend(200, { email_disponivel: true, cnpj_disponivel: true });
 
@@ -434,6 +462,8 @@ describe("verificarCadastro", () => {
       cnpjDisponivel: true,
       cnpjSituacao: "nao_verificado",
       razaoSocialReceita: null,
+      cidadeReceita: null,
+      ufReceita: null,
     });
 
     const [url, init] = fetch.mock.calls[0] as [string, RequestInit];

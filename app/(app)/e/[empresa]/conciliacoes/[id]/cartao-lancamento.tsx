@@ -40,14 +40,10 @@ const MARGEM = 16;
 /** Entre o cartão e a linha: o espaço da seta que aponta para o status. */
 const VAO = 10;
 
-function valorDoLado(lado: Lado, valor: number | null): string {
-  return lado && valor !== null ? `${lado.data} · ${formatarMoeda(valor)}` : "—";
-}
-
 /** A decisão sobre a linha, quando há o que dizer dela no cartão. */
-type NotaDoCartao = { titulo: string; texto: string | null };
+export type NotaDoCartao = { titulo: string; texto: string | null };
 
-function notaDaLinha(linha: LinhaComparacao, rodada: number): NotaDoCartao | null {
+export function notaDaLinha(linha: LinhaComparacao, rodada: number): NotaDoCartao | null {
   const decisao = linha.decisao;
   if (!decisao) return null;
   const situacao = situacaoDaLinha(linha, rodada);
@@ -63,6 +59,57 @@ function notaDaLinha(linha: LinhaComparacao, rodada: number): NotaDoCartao | nul
     };
   }
   return null;
+}
+
+/** O lançamento de um lado: a data e o valor já formatados, ou null quando o lado não tem o lançamento. */
+export type ValorDoLado = { data: string; valor: string } | null;
+
+/** Tudo o que se diz de uma linha ao lado da tabela: o balão de hoje e o painel da comparação leem daqui. */
+export type DadosDoLancamento = {
+  /** "Valor diverge na mesma data · justificada": o status do motor, com a decisão junto. */
+  rotulo: string;
+  titulo: string;
+  banco: ValorDoLado;
+  sistema: ValorDoLado;
+  /** O nome do lançamento no sistema, inteiro, quando não é o do título. */
+  descricaoSistema: string | null;
+  /** Quanto os dois valores se afastam, na divergência de valor. */
+  diferenca: string | null;
+  nota: NotaDoCartao | null;
+  explicacao: string | null;
+  geradaPorIa: boolean;
+};
+
+function comValor(lado: Lado, valor: number | null): ValorDoLado {
+  return lado && valor !== null ? { data: lado.data, valor: formatarMoeda(valor) } : null;
+}
+
+/**
+ * Os dados da linha para o cartão e o painel. Uma divergência de valor ou de data chega com um lado só: o
+ * outro é o par que o motor quase casou, achado nas outras linhas (`parDoOutroLado`).
+ */
+export function dadosDoLancamento(linha: LinhaComparacao, rodada: number, linhas: LinhaComparacao[]): DadosDoLancamento {
+  const { banco, sistema } = ladosDaLinha(linha);
+  const par = parDoOutroLado(linha, linhas);
+  const valorBanco = par?.lado === "banco" ? par.valor : linha.valorBanco;
+  const valorSistema = par?.lado === "sistema" ? par.valor : linha.valorSistema;
+  const doPar = par ? { data: par.data, valor: formatarMoeda(par.valor) } : null;
+  return {
+    // o status do motor não muda com a justificativa: ela vem junto, não no lugar dele
+    rotulo: rotuloComDecisao(statusDaLinha(linha).rotulo, situacaoDaLinha(linha, rodada)),
+    titulo: linha.descricao,
+    banco: par?.lado === "banco" ? doPar : comValor(banco, linha.valorBanco),
+    sistema: par?.lado === "sistema" ? doPar : comValor(sistema, linha.valorSistema),
+    descricaoSistema: sistema && sistema.descricao !== linha.descricao ? sistema.descricao : null,
+    // "R$ 15,32 × R$ 15,31" se lê mal; "Diferença: R$ 0,01" diz o tamanho do problema
+    diferenca:
+      linha.status === "divergente_valor" && valorBanco !== null && valorSistema !== null
+        ? formatarMoeda(Math.abs(valorBanco - valorSistema))
+        : null,
+    nota: notaDaLinha(linha, rodada),
+    explicacao: linha.explicacao,
+    geradaPorIa: linha.explicacaoPorIa ?? false,
+  };
 }
 
 /**
@@ -165,12 +212,8 @@ export function CartaoLancamento({
   onMouseLeave?: () => void;
 }) {
   const { linha, ancora } = aberto;
-  const { banco, sistema } = ladosDaLinha(linha);
-  // "Valor diverge" e "Data diverge" chegam com um lado só; o outro é o par que o motor quase casou
-  const par = parDoOutroLado(linha, linhas);
-  const valorBanco = par?.lado === "banco" ? par.valor : linha.valorBanco;
-  const valorSistema = par?.lado === "sistema" ? par.valor : linha.valorSistema;
-  const rotulo = statusDaLinha(linha).rotulo;
+  const dados = dadosDoLancamento(linha, rodada, linhas);
+  const textoDoLado = (lado: ValorDoLado) => (lado ? `${lado.data} · ${lado.valor}` : "—");
   const tela = document.documentElement;
   const acima = ancora.top > ESPACO_ACIMA;
   // o meio do cartão no meio da coluna, sem passar da borda da tela; a seta segue a coluna
@@ -194,21 +237,15 @@ export function CartaoLancamento({
       onMouseLeave={onMouseLeave}
     >
       <ConteudoCartao
-        // o status do motor não muda com a justificativa: ela vem junto, não no lugar dele
-        rotulo={rotuloComDecisao(rotulo, situacaoDaLinha(linha, rodada))}
-        nota={notaDaLinha(linha, rodada)}
-        titulo={linha.descricao}
-        banco={par?.lado === "banco" ? `${par.data} · ${formatarMoeda(par.valor)}` : valorDoLado(banco, linha.valorBanco)}
-        sistema={par?.lado === "sistema" ? `${par.data} · ${formatarMoeda(par.valor)}` : valorDoLado(sistema, linha.valorSistema)}
-        explicacao={linha.explicacao}
-        geradaPorIa={linha.explicacaoPorIa}
-        descricaoSistema={sistema && sistema.descricao !== linha.descricao ? sistema.descricao : null}
-        diferenca={
-          // "R$ 15,32 × R$ 15,31" se lê mal; "Diferença: R$ 0,01" diz o tamanho do problema
-          linha.status === "divergente_valor" && valorBanco !== null && valorSistema !== null
-            ? formatarMoeda(Math.abs(valorBanco - valorSistema))
-            : null
-        }
+        rotulo={dados.rotulo}
+        nota={dados.nota}
+        titulo={dados.titulo}
+        banco={textoDoLado(dados.banco)}
+        sistema={textoDoLado(dados.sistema)}
+        explicacao={dados.explicacao}
+        geradaPorIa={dados.geradaPorIa}
+        descricaoSistema={dados.descricaoSistema}
+        diferenca={dados.diferenca}
       />
     </div>
   );

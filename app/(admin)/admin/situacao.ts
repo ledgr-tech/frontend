@@ -4,6 +4,14 @@ export const SITUACOES = ["sem_plano", "teste", "teste_encerrado", "ativo", "ina
 
 export const POR_PAGINA = 20;
 
+/** O valor de `?uf=` para as contas sem estado (backend #184). */
+export const UF_NAO_INFORMADA = "nao_informada";
+
+/** "Porto Alegre · RS"; só o que veio; "não informada" nas contas anteriores à #184 e nas que não informaram. */
+export function localDaConta(conta: { cidade: string | null; uf: string | null }): string {
+  return [conta.cidade, conta.uf].filter(Boolean).join(" · ") || "não informada";
+}
+
 export const ROTULO_DA_SITUACAO: Record<string, string> = {
   sem_plano: "Sem plano",
   teste: "Em teste",

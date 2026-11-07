@@ -20,7 +20,7 @@ vi.mock("../acoes", () => ({
 const BANCO = "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20";
 const onConcluida = vi.fn();
 
-function situacao(status: "concluido" | "erro", erros: { identificador: string; motivo: string }[] = []) {
+function situacao(status: "concluido" | "concluido_com_erros" | "erro", erros: { identificador: string; motivo: string }[] = []) {
   return {
     ok: true as const,
     dados: { extrato_id: "extrato-novo", status, origem: "sistema" as const, quantidade_lancamentos: 3, erros },
@@ -65,6 +65,95 @@ describe("NovaVersao", () => {
     const [dados] = enviarExtrato.mock.calls[0] as [FormData];
     expect(dados.get("origem")).toBe("sistema");
     expect(conciliar).toHaveBeenCalledWith(BANCO, "extrato-novo");
+  });
+
+  it("shows rejected lines and waits for consent before conciliating the valid lines", async () => {
+    situacaoDoExtrato.mockResolvedValue(situacao("concluido_com_erros", [
+      { identificador: "4", motivo: "Data inválida" },
+      { identificador: "8", motivo: "Valor inválido" },
+    ]));
+    const user = await enviar();
+
+    expect(await screen.findByText("Linha 4: Data inválida")).toBeInTheDocument();
+    expect(screen.getByText("Linha 8: Valor inválido")).toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent("2 linhas do extrato do sistema não foram lidas.");
+    expect(screen.getByText(/Se voltar ou fechar, o arquivo enviado fica em Extratos, sem conciliação\./)).toBeInTheDocument();
+    // o "Enviar e conciliar" saiu da tela: o foco vai para a saída que não concilia
+    expect(screen.getByRole("button", { name: "Voltar para corrigir" })).toHaveFocus();
+    expect(conciliar).not.toHaveBeenCalled();
+    expect(onConcluida).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "Continuar com linhas válidas" }));
+
+    await waitFor(() => expect(onConcluida).toHaveBeenCalledTimes(1));
+    expect(conciliar).toHaveBeenCalledWith(BANCO, "extrato-novo");
+    expect(enviarExtrato).toHaveBeenCalledTimes(1);
+  });
+
+  it("lets the user return to correct the file without conciliating the partial import", async () => {
+    situacaoDoExtrato.mockResolvedValueOnce(situacao("concluido_com_erros", [
+      { identificador: "4", motivo: "Data inválida" },
+    ]));
+    const user = await enviar();
+    await user.click(await screen.findByRole("button", { name: "Voltar para corrigir" }));
+
+    expect(conciliar).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Enviar e conciliar" })).toBeDisabled();
+    await user.upload(screen.getByLabelText("Extrato do sistema de gestão"), csv());
+    await user.click(screen.getByRole("button", { name: "Enviar e conciliar" }));
+
+    await waitFor(() => expect(onConcluida).toHaveBeenCalledTimes(1));
+    expect(enviarExtrato).toHaveBeenCalledTimes(2);
+    expect(conciliar).toHaveBeenCalledTimes(1);
+  });
+
+  it("cancels the partial import decision and clears it when reopening", async () => {
+    situacaoDoExtrato.mockResolvedValue(situacao("concluido_com_erros", [
+      { identificador: "4", motivo: "Data inválida" },
+    ]));
+    const user = await enviar();
+    const continuar = await screen.findByRole("button", { name: "Continuar com linhas válidas" });
+    continuar.focus();
+    await user.keyboard("{Escape}");
+
+    expect(conciliar).not.toHaveBeenCalled();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Enviar nova versão do extrato do sistema" }));
+    expect(screen.queryByRole("button", { name: "Continuar com linhas válidas" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Enviar e conciliar" })).toBeDisabled();
+  });
+
+  it("continues once on a double click and does not cancel while conciliating", async () => {
+    situacaoDoExtrato.mockResolvedValue(situacao("concluido_com_erros", [
+      { identificador: "4", motivo: "Data inválida" },
+    ]));
+    let finalizar!: (resultado: { ok: true; dados: { total: number } }) => void;
+    conciliar.mockReturnValue(new Promise((resolve) => { finalizar = resolve; }));
+    const user = await enviar();
+    await user.dblClick(await screen.findByRole("button", { name: "Continuar com linhas válidas" }));
+    await user.keyboard("{Escape}");
+
+    expect(conciliar).toHaveBeenCalledTimes(1);
+    expect(enviarExtrato).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Voltar para corrigir" })).toBeDisabled();
+    finalizar({ ok: true, dados: { total: 3 } });
+    await waitFor(() => expect(onConcluida).toHaveBeenCalledTimes(1));
+  });
+
+  it("retries a failed consented conciliation without uploading the file again", async () => {
+    situacaoDoExtrato.mockResolvedValue(situacao("concluido_com_erros", [
+      { identificador: "4", motivo: "Data inválida" },
+    ]));
+    conciliar.mockResolvedValueOnce({ ok: false, status: 503, erro: "Tente de novo." });
+    const user = await enviar();
+    await user.click(await screen.findByRole("button", { name: "Continuar com linhas válidas" }));
+    expect(await screen.findByText("Tente de novo.")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Continuar com linhas válidas" }));
+
+    await waitFor(() => expect(onConcluida).toHaveBeenCalledTimes(1));
+    expect(conciliar).toHaveBeenCalledTimes(2);
+    expect(enviarExtrato).toHaveBeenCalledTimes(1);
   });
 
   it("shows which round it replaces and which one the chosen file opens", async () => {
@@ -112,9 +201,26 @@ describe("NovaVersao", () => {
     await enviar(csv(5 * 1024 * 1024));
 
     expect(screen.getByRole("alert")).toHaveTextContent(
-      'O arquivo "erp-setembro-v3.csv" passa de 4MB. Exporte um período menor.',
+      'O arquivo "erp-setembro-v3.csv" passa de 4 MB. Exporte um período menor.',
     );
     expect(enviarExtrato).not.toHaveBeenCalled();
+  });
+
+  it("lists the first five rejected lines and counts the rest", async () => {
+    const erros = Array.from({ length: 7 }, (_, indice) => ({ identificador: String(indice + 1), motivo: "Data inválida" }));
+    situacaoDoExtrato.mockResolvedValue(situacao("concluido_com_erros", erros));
+    await enviar();
+
+    expect(await screen.findByText("e mais 2 linhas não lidas.")).toBeInTheDocument();
+    expect(screen.getAllByText(/^Linha \d: Data inválida$/)).toHaveLength(5);
+  });
+
+  it("still asks when the backend reports rejected lines without listing them", async () => {
+    situacaoDoExtrato.mockResolvedValue(situacao("concluido_com_erros"));
+    await enviar();
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Algumas linhas do extrato do sistema não foram lidas.");
+    expect(conciliar).not.toHaveBeenCalled();
   });
 
   it("says why the backend could not read the file", async () => {

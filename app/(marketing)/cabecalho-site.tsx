@@ -37,6 +37,19 @@ export function CabecalhoSite() {
   const cabecalho = useRef<HTMLElement>(null);
   const botao = useRef<HTMLButtonElement>(null);
   const menuId = useId();
+  // No começo da página a barra é transparente e se mistura ao hero; depois de 40px ganha fundo e filete.
+  // Um marcador a 40px do topo diz quando a página saiu do começo. Nada de ouvir a rolagem: ler
+  // window.scrollY no evento forçava o navegador a recalcular o layout a cada quadro (mais de meio
+  // segundo de CPU numa rolagem da página inteira, medido em 03/11).
+  const [noTopo, setNoTopo] = useState(true);
+  const sentinela = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    const marcador = sentinela.current;
+    if (!marcador || typeof IntersectionObserver === "undefined") return;
+    const observador = new IntersectionObserver(([entrada]) => setNoTopo(entrada.isIntersecting));
+    observador.observe(marcador);
+    return () => observador.disconnect();
+  }, []);
 
   useEffect(() => {
     if (!aberto) return;
@@ -73,8 +86,12 @@ export function CabecalhoSite() {
   };
 
   return (
+    <>
+    <span ref={sentinela} className="site-sentinela" aria-hidden="true" />
     <header
       ref={cabecalho}
+      className="site-cabecalho"
+      data-no-topo={noTopo && !aberto ? "" : undefined}
       style={{
         position: "sticky",
         top: 0,
@@ -195,5 +212,6 @@ export function CabecalhoSite() {
         </div>
       )}
     </header>
+    </>
   );
 }

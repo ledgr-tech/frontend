@@ -1,7 +1,7 @@
 import "server-only";
 import { cookies } from "next/headers";
 import { CredentialsSignin, type User } from "next-auth";
-import { ErroBackend, chamarBackend } from "./backend";
+import { ErroBackend, chamarBackend, ehContaInativa } from "./backend";
 import { COOKIE_CADASTRO_GOOGLE, COOKIE_CONVITE_GOOGLE, type ErroConviteGoogle, VALIDADE_ID_TOKEN_SEGUNDOS, type ErroGoogle } from "./google";
 
 /**
@@ -106,6 +106,8 @@ export async function aceitarConviteNoBackendComGoogle(token: string, idToken: s
     if (erro.status === 409) {
       return { ok: false, erro: erro.detalhe.includes("diferente") ? "email_diferente" : "email_cadastrado" };
     }
+    // a conta de quem convidou está inativa (backend #156); o cookie do convite fica, para depois da reativação
+    if (ehContaInativa(erro)) return { ok: false, erro: "conta_inativa" };
     if (erro.status === 429) return { ok: false, erro: "muitas_tentativas" };
     return { ok: false, erro: "falha" };
   }
