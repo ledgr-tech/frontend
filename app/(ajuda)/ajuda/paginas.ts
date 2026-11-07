@@ -285,14 +285,14 @@ export const PAGINAS: PaginaDeAjuda[] = [
           "Leia o resumo antes da lista.",
           "Clique numa categoria para ver só as linhas dela.",
         ],
-        figura: { largura: 929, altura: 188 },
+        figura: { largura: 638, altura: 331 },
       },
       {
         id: "saldo",
         titulo: "O saldo do extrato",
-        faz: "Uma faixa acima do resumo mostra o saldo inicial e o final do extrato do banco, quando o arquivo traz.",
+        faz: "O saldo inicial e o final do extrato do banco aparecem no pé do painel da direita, quando o arquivo traz. Em telas estreitas, ficam acima do resumo.",
         passos: ["Confira o saldo final com o do internet banking."],
-        nota: "Se há linhas não lidas, a faixa avisa que o saldo inicial depende delas em vez de calcular um número errado.",
+        nota: "Se há linhas não lidas, o saldo inicial depende delas.",
       },
       {
         id: "filtros",
@@ -312,14 +312,52 @@ export const PAGINAS: PaginaDeAjuda[] = [
         passos: [
           "Clique no círculo da coluna **Conferida** na linha que você já olhou.",
         ],
-        figura: { largura: 929, altura: 160 },
+        figura: { largura: 638, altura: 160 },
+      },
+      {
+        id: "painel",
+        titulo: "Lançamento em foco",
+        faz: "O painel da direita mostra data, descrição e valor de cada lado, com a diferença entre os dois.",
+        passos: [
+          "Passe o mouse sobre uma linha. O detalhe da linha aparece no painel.",
+          "Clique numa linha para fixar. Clique nela de novo para soltar.",
+        ],
+        nota: "Em telas estreitas, passe o mouse sobre uma divergência para ver o balão ou clique na descrição para abrir a janela.",
+        figura: { largura: 331, altura: 682 },
+      },
+      {
+        id: "voltar-ao-topo",
+        titulo: "Voltar ao topo do extrato",
+        faz: "Volta ao início da comparação.",
+        passos: ["Clique em **Voltar ao topo do extrato** no pé do painel."],
+      },
+      {
+        id: "justificar",
+        titulo: "Justificar",
+        faz: "Uma divergência com explicação não precisa travar o fechamento. A decisão vai para o relatório do mês.",
+        passos: [
+          "Escolha uma divergência e clique em **Justificar** no painel. Em telas estreitas, clique na descrição da linha.",
+          "Escreva o motivo e clique em **Justificar**.",
+        ],
+        nota: "Fica no registro com o seu nome e o horário. Desfazer depois gera um novo registro.",
+        figura: { largura: 305, altura: 508 },
+      },
+      {
+        id: "explicar",
+        titulo: "Explicar esta divergência",
+        faz: "O Ledgr explica, em linguagem simples, por que a linha não casou.",
+        passos: [
+          "Escolha uma divergência e clique em **Explicar esta divergência** quando o botão aparecer. Em telas estreitas, abra o detalhe.",
+          "Leia o provável motivo e confira no seu sistema de gestão antes de decidir.",
+        ],
+        nota: "A explicação ajuda a entender a divergência; quem decide é você.",
       },
       {
         id: "abrir-linha",
         titulo: "Abrir uma linha",
         faz: "Abre o detalhe da linha num painel ao lado, sem sair da comparação.",
         passos: [
-          "Dê um duplo clique na linha.",
+          "Clique em **Abrir detalhe** no painel ou dê um duplo clique na linha.",
           "Para ver maior, clique em **Abrir em página inteira**.",
         ],
       },
@@ -342,7 +380,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
           "Clique em **Ver o fechamento**.",
           "Reabra o mês em Fechamentos para mexer de novo.",
         ],
-        figura: { largura: 921, altura: 60 },
+        figura: { largura: 630, altura: 83 },
       },
       // descomentar no dia em que o backend ligar AGRUPAMENTO_HABILITADO (#131)
       // {

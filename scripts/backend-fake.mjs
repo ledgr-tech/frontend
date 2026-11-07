@@ -84,6 +84,21 @@ function lerOfx(texto) {
   return { lancamentos, erros: [] };
 }
 
+// As capturas da comparação usam o saldo do próprio OFX de exemplo.
+function saldoDoOfx(texto, lancamentos, erros, fator) {
+  const bloco = texto.match(/<LEDGERBAL>([\s\S]*?)<\/LEDGERBAL>/i)?.[1] ?? "";
+  const valor = bloco.match(/<BALAMT>\s*(-?\d+(?:\.\d+)?)/i)?.[1];
+  const data = bloco.match(/<DTASOF>\s*(\d{4})(\d{2})(\d{2})/i);
+  if (!valor || !data) return { saldo_inicial: null, saldo_final: null, saldo_data: null };
+  const finalEmCentavos = Math.round(Number(valor) * fator * 100);
+  const movimentoEmCentavos = lancamentos.reduce((total, linha) => total + Math.round(Number(linha.valor) * 100), 0);
+  return {
+    saldo_inicial: erros.length ? null : ((finalEmCentavos - movimentoEmCentavos) / 100).toFixed(2),
+    saldo_final: (finalEmCentavos / 100).toFixed(2),
+    saldo_data: `${data[1]}-${data[2]}-${data[3]}`,
+  };
+}
+
 function dataCsv(bruto) {
   const t = bruto.trim();
   if (/^\d{4}-\d{2}-\d{2}$/.test(t)) return t;
@@ -137,7 +152,8 @@ function registrarExtrato(b, nome, origem, bytes, enviadoEm = agora(), fator = 1
   }
   const datas = lancamentos.map((l) => l.data).sort();
   const id = randomUUID();
-  b.extratos.set(id, { origem, nome, formato, lancamentos, erros, periodoInicio: datas[0] ?? null, periodoFim: datas.at(-1) ?? null, enviadoEm });
+  const saldo = origem === "banco" && formato === "ofx" ? saldoDoOfx(texto, lancamentos, erros, fator) : undefined;
+  b.extratos.set(id, { origem, nome, formato, lancamentos, erros, saldo, periodoInicio: datas[0] ?? null, periodoFim: datas.at(-1) ?? null, enviadoEm });
   return id;
 }
 
@@ -1046,7 +1062,7 @@ const servidor = createServer(async (req, res) => {
       return res.end(Buffer.from(csv(encontradas), "utf8"));
     }
     const lim = Number(q.get("limit") ?? 100);
-    return json(res, 200, { extrato_id: bancoId, total: encontradas.length, limit: lim, offset,
+    return json(res, 200, { extrato_id: bancoId, total: encontradas.length, limit: lim, offset, ...b.extratos.get(bancoId)?.saldo,
       aguardando_aprovacao: encontradas.filter((i) => i.decisao?.situacao === "pendente").length,
       itens: encontradas.slice(offset, offset + lim) });
   }

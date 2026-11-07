@@ -320,7 +320,7 @@ export function Tutorial({
           <div className="tutorial-acoes">
             <span className="tutorial-pontos" aria-hidden="true">
               {passos.map((item, i) => (
-                <span key={item.alvo} data-atual={i === indice || undefined} />
+                <span key={item.titulo} data-atual={i === indice || undefined} />
               ))}
             </span>
             <button type="button" className="btn btn-ghost" onClick={fechar}>

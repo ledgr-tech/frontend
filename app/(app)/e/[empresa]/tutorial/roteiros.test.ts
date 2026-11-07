@@ -4,11 +4,13 @@ import { TELAS_DO_TUTORIAL } from "@/lib/preferencias";
 import { telaDoCaminho, TUTORIAIS } from "./roteiros";
 
 describe("tutoriais", () => {
-  it("cada tela tem de 2 a 4 passos curtos, com alvo", () => {
+  it("cada tela tem passos curtos, com até quatro passos fora do painel da comparação", () => {
     for (const tela of TELAS_DO_TUTORIAL) {
       const { passos } = TUTORIAIS[tela];
       expect(passos.length).toBeGreaterThanOrEqual(2);
-      expect(passos.length).toBeLessThanOrEqual(4);
+      const painel = passos.filter((passo) => tela === "comparacao" && passo.alvo === "painel");
+      expect(passos.length - painel.length).toBeLessThanOrEqual(4);
+      if (tela === "comparacao") expect(painel.map((passo) => passo.titulo)).toEqual(["Lançamento em foco", "Fixado", "Justificar", "Abrir detalhe"]);
       for (const passo of passos) {
         expect(passo.alvo).toMatch(/^[a-z-]+$/);
         expect(passo.texto.length).toBeLessThanOrEqual(220);

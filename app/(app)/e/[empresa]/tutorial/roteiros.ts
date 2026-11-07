@@ -50,6 +50,10 @@ export const TUTORIAIS: Record<TelaDoTutorial, TutorialDaTela> = {
       { alvo: "resumo", titulo: "O resumo antes da lista.", texto: "Cada categoria diz quantos lançamentos caíram nela e quanto valem. Clique numa para ver só essas linhas.", mascote: "/mascotes/mascote-explicando.png" },
       { alvo: "filtros", titulo: "Escolha o que ver.", texto: "Os filtros mostram tudo, só o que pede decisão ou só o que já bateu.", mascote: "/mascotes/mascote-lupa.png" },
       { alvo: "conferida", titulo: "Marque o que você já olhou.", texto: "A coluna Conferida é sua: marque as divergências que já conferiu. As que bateram não precisam.", mascote: "/mascotes/mascote-joinha.png" },
+      { alvo: "painel", titulo: "Lançamento em foco", texto: "Passe o mouse sobre uma linha. O detalhe da linha aparece aqui.", mascote: "/mascotes/mascote-lupa.png" },
+      { alvo: "painel", titulo: "Fixado", texto: "Clique numa linha para fixar.", mascote: "/mascotes/mascote-lupa.png" },
+      { alvo: "painel", titulo: "Justificar", texto: "Clique em Justificar e escreva o motivo. A decisão vai para o fechamento.", mascote: "/mascotes/mascote-explicando.png" },
+      { alvo: "painel", titulo: "Abrir detalhe", texto: "Clique em Abrir detalhe ou dê um duplo clique na linha. O detalhe abre ao lado, sem sair da comparação.", mascote: "/mascotes/mascote-dupla.png" },
     ],
   },
   divergencia: {

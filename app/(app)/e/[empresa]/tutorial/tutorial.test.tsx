@@ -64,6 +64,27 @@ describe("Tutorial", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
+  it.each([true, false])("o tutorial da comparação acompanha a presença do painel (%s)", async (temPainel) => {
+    const user = userEvent.setup();
+    render(
+      <ProvedorDaConta preferencias={null}>
+        <div data-tutorial="filtros" />
+        {temPainel && <aside data-tutorial="painel">Painel da comparação</aside>}
+        <Tutorial tela="comparacao" atraso={0} />
+      </ProvedorDaConta>,
+    );
+    await screen.findByRole("dialog", { name: "Escolha o que ver." });
+    if (temPainel) {
+      for (const nome of ["Lançamento em foco", "Fixado", "Justificar", "Abrir detalhe"]) {
+        await user.click(screen.getByRole("button", { name: "Próximo" }));
+        expect(screen.getByRole("dialog", { name: nome })).toBeInTheDocument();
+        await waitFor(() => expect(screen.getByRole("complementary")).toHaveAttribute("data-tutorial-ativo"));
+      }
+    }
+    await user.click(screen.getByRole("button", { name: "Entendi" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
   it("Esc fecha, devolve o foco e só volta numa próxima sessão", async () => {
     const user = userEvent.setup();
     const { unmount } = montar();

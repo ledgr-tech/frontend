@@ -60,9 +60,11 @@ test("entrar, conciliar, justificar e fechar o mês", async ({ page }) => {
   // a tarifa que só o banco tem: a única em "Só revisão", aberta pela descrição
   await expect(page.getByRole("button", { name: "Só revisão (1)" })).toBeVisible();
   await page.getByRole("button", { name: "TARIFA BANCARIA", exact: true }).click();
-  await page.getByLabel("Justificativa").fill("Tarifa do banco, lançada no sistema no mês seguinte.");
-  await page.getByRole("button", { name: "Justificar", exact: true }).click();
-  await expect(page.getByLabel("Justificativa")).toHaveCount(0);
+  const previa = page.getByRole("complementary", { name: "Detalhe da linha e saldo do extrato" });
+  await previa.getByRole("button", { name: "Justificar", exact: true }).click();
+  await previa.getByLabel("Justificativa").fill("Tarifa do banco, lançada no sistema no mês seguinte.");
+  await previa.getByRole("button", { name: "Justificar", exact: true }).click();
+  await expect(previa.getByLabel("Justificativa")).toHaveCount(0);
 
   await page.goto(`/e/${empresa}/fechamentos?mes=${competencia}`);
   await pularTutorial(page);
