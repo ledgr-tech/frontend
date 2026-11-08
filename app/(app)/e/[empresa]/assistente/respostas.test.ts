@@ -133,6 +133,10 @@ describe("responder", () => {
     });
   });
 
+  it("indica que o mês em foco já foi fechado", () => {
+    expect(responder("O que falta para fechar?", { ...contexto(), fechado: true })?.texto).toBe("Mês fechado.");
+  });
+
   it("lembra das linhas não lidas, que ficam fora da conta", () => {
     const resposta = responder("falta algo?", contexto(LINHAS, [{ nome: "erp.csv", linhas: 2 }]))!;
     expect(resposta.texto).toContain("Atenção: 2 linhas de erp.csv não foram lidas e ficaram fora da conta.");

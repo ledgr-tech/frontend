@@ -53,12 +53,17 @@ describe("PainelDaRota", () => {
 
   it("fecha pelo X e pelo Esc", async () => {
     const user = userEvent.setup();
-    render(<PainelDaRota />);
+    render(<><button>Fora da ajuda</button><PainelDaRota /></>);
     act(() => abrirAjuda());
     await user.click(screen.getByRole("button", { name: "Fechar a ajuda" }));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 
     act(() => abrirAjuda());
+    const painel = screen.getByRole("dialog");
+    screen.getByRole("button", { name: "Fora da ajuda" }).focus();
+    await user.keyboard("{Escape}");
+    expect(painel).toBeInTheDocument();
+    screen.getByRole("button", { name: "Fechar a ajuda" }).focus();
     await user.keyboard("{Escape}");
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });

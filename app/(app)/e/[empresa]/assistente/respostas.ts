@@ -30,6 +30,7 @@ export type Contexto = {
   batidos: number;
   taxa: number;
   divergentes: number;
+  fechado?: boolean;
   valorAberto: number;
   grupos: Pendencia[];
   naoLidas: { nome: string; linhas: number }[];
@@ -59,6 +60,7 @@ export function montarContexto(visao: VisaoGeral): Contexto | null {
     batidos: resumo.batidos,
     taxa: resumo.taxaMatch,
     divergentes: resumo.divergentes,
+    fechado: visao.mes?.fechado,
     valorAberto: resumo.valorDivergente,
     grupos: pendencias(conciliacao),
     naoLidas: visao.arquivosComLinhasNaoLidas,
@@ -104,6 +106,24 @@ function normalizar(texto: string): string {
   return texto.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 }
 
+export function pedePassosParaFechar(pergunta: string): boolean {
+  return /^(?:como|onde)\b.*\b(?:fech[oa]r?|encerr[oa]r?)\b.*\bmes\b/.test(normalizar(pergunta));
+}
+
+export function assuntoDoMes(pergunta: string, mes?: string) {
+  const texto = normalizar(pergunta);
+  // Perguntas de uso vão à Central, inclusive quando citam termos da conciliação.
+  if (/^(?:como\s+(?!esta\b)|onde\b)/.test(texto)) return null;
+  if (/\b(explic|maior)/.test(texto)) return "explicar";
+  if (/\btarifa/.test(texto)) return "tarifas";
+  if (/\bduplic/.test(texto)) return "duplicidades";
+  if (/\b(falta|fech)/.test(texto)) return "fechamento";
+  // No começo da palavra: "previsão" não é pergunta sobre revisão.
+  if (/\b(sobr|abert|diverg|pendenc|revis)/.test(texto)) return "pendencias";
+  if (/\b(resum|como esta|mes\b)/.test(texto) || (mes && texto.includes(mes))) return "resumo";
+  return null;
+}
+
 /** A primeira mensagem, como a do design: o mês em uma frase. */
 export function saudacao(contexto: Contexto): string {
   if (contexto.divergentes === 0) {
@@ -124,16 +144,15 @@ export function sugestoes(contexto: Contexto): string[] {
 }
 
 /** A resposta do roteiro sobre o mês, ou null quando a pergunta não é dele (vai ao assistente da Central). */
-export function responder(pergunta: string, contexto: Contexto): Resposta | null {
-  const texto = normalizar(pergunta);
+export function responder(pergunta: string, contexto: Contexto, assunto = assuntoDoMes(pergunta, contexto.mes)): Resposta | null {
   const { Mes, mes } = contexto;
 
-  if (/\b(explic|maior)/.test(texto)) {
+  if (assunto === "explicar") {
     if (!contexto.maior) return { texto: `Nenhuma divergência em aberto em ${mes}: não há o que explicar.` };
     return { texto: "", explicar: true };
   }
 
-  if (/\btarifa/.test(texto)) {
+  if (assunto === "tarifas") {
     const tarifas = grupo(contexto, "Tarifa bancária");
     if (!tarifas) return { texto: `Nenhuma tarifa bancária sobrou em ${mes}.` };
     return {
@@ -142,7 +161,7 @@ export function responder(pergunta: string, contexto: Contexto): Resposta | null
     };
   }
 
-  if (/\bduplic/.test(texto)) {
+  if (assunto === "duplicidades") {
     const duplicadas = grupo(contexto, "Possível duplicidade");
     if (!duplicadas) return { texto: `Nenhuma possível duplicidade em ${mes}.` };
     return {
@@ -151,7 +170,8 @@ export function responder(pergunta: string, contexto: Contexto): Resposta | null
     };
   }
 
-  if (/\b(falta|fech)/.test(texto)) {
+  if (assunto === "fechamento") {
+    if (contexto.fechado) return { texto: "Mês fechado.", link: { href: "/fechamentos", rotulo: "Ir aos fechamentos" } };
     if (contexto.divergentes === 0 && contexto.naoLidas.length === 0) {
       return { texto: `Nada: ${mes} está pronto para fechar.`, link: { href: "/fechamentos", rotulo: "Ir aos fechamentos" } };
     }
@@ -164,14 +184,13 @@ export function responder(pergunta: string, contexto: Contexto): Resposta | null
         ? `: ${plural(maisCaro.quantidade, "linha", "linhas")}, ${formatarMoedaCurta(maisCaro.valor)} dos ${formatarMoedaCurta(contexto.valorAberto)} em aberto`
         : `: ${plural(maisCaro.quantidade, "linha", "linhas")}`;
     return {
-      texto: `Faltam ${plural(contexto.divergentes, "decisão sua", "decisões suas")}. Comece por “${maisCaro.rotulo}”${peso}.${naoLidas(contexto)}`,
+      texto: `${contexto.divergentes === 1 ? "Falta" : "Faltam"} ${plural(contexto.divergentes, "decisão sua", "decisões suas")}. Comece por “${maisCaro.rotulo}”${peso}.${naoLidas(contexto)}`,
       link: { href: maisCaro.href, rotulo: "Revisar" },
     };
   }
 
-  // no começo da palavra: "previsão" não é pergunta sobre revisão
-  if (/\b(sobr|abert|diverg|pendenc|revis)/.test(texto)) {
-    if (contexto.divergentes === 0) return { texto: `Nada sobrou: todos os lançamentos de ${mes} casaram.` };
+  if (assunto === "pendencias") {
+    if (contexto.divergentes === 0) return { texto: "Nada sobrou para revisar." };
     const partes = contexto.grupos.map(
       (item) =>
         `${item.rotulo}: ${formatarInteiro(item.quantidade)}${item.valor > 0 ? ` (${formatarMoedaCurta(item.valor)})` : ""}`,
@@ -183,7 +202,7 @@ export function responder(pergunta: string, contexto: Contexto): Resposta | null
     return { texto: `${inicio}. ${lista(partes)}.`, link: { href: contexto.caminho, rotulo: "Abrir a lista" } };
   }
 
-  if (/\b(resum|como esta|mes\b)/.test(texto) || texto.includes(mes)) {
+  if (assunto === "resumo") {
     const aberto =
       contexto.valorAberto > 0
         ? ` Ficaram ${formatarMoedaCurta(contexto.valorAberto)} em aberto, em ${plural(contexto.divergentes, "linha", "linhas")}.`

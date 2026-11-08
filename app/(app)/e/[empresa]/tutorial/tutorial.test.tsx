@@ -67,11 +67,15 @@ describe("Tutorial", () => {
   it("Esc fecha, devolve o foco e só volta numa próxima sessão", async () => {
     const user = userEvent.setup();
     const { unmount } = montar();
-    screen.getByRole("button", { name: "fora" }).focus();
+    const origem = screen.getByRole("button", { name: "fora" });
+    origem.focus();
     await screen.findByRole("dialog");
+    const tutorialAoVoltar = vi.fn(() => screen.queryByRole("dialog"));
+    origem.addEventListener("focus", tutorialAoVoltar, { once: true });
     await user.keyboard("{Escape}");
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "fora" })).toHaveFocus();
+    expect(origem).toHaveFocus();
+    expect(tutorialAoVoltar).toHaveReturnedWith(null);
     expect(document.querySelector("[data-tutorial-ativo]")).toBeNull();
     unmount();
 

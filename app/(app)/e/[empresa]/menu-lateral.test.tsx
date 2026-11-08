@@ -213,12 +213,19 @@ describe("MenuLateral", () => {
     expect(cartao).toHaveAttribute("aria-expanded", "true");
     expect(cartao).toHaveAttribute("aria-controls", painel.id);
     expect(await within(painel).findByText(/Ainda não há conciliação para eu olhar/)).toBeInTheDocument();
+    await user.click(within(painel).getByRole("button", { name: "Como fecho o mês?" }));
+    await within(painel).findByRole("link", { name: "Fechar o mês" });
+    const campo = within(painel).getByRole("textbox", { name: "Sua pergunta" });
+    await user.type(campo, "rascunho");
 
     // fechar devolve o foco ao cartão, e o cartão abre e fecha o mesmo painel
     await user.click(within(painel).getByRole("button", { name: "Fechar conversa" }));
     expect(screen.queryByRole("dialog", { name: "Fale com o Ledgr" })).not.toBeInTheDocument();
     expect(cartao).toHaveFocus();
     await user.click(cartao);
+    expect(within(painel).getByRole("link", { name: "Fechar o mês" })).toBeInTheDocument();
+    expect(campo).toHaveValue("rascunho");
+    expect(campo).toHaveFocus();
     await user.click(cartao);
     expect(screen.queryByRole("dialog", { name: "Fale com o Ledgr" })).not.toBeInTheDocument();
   });

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRoteador } from "@/lib/roteador";
-import { carregarVisaoGeral } from "../conciliacoes/acoes";
+import { carregarVisaoGeral, type Resultado } from "../conciliacoes/acoes";
 import { Conversa, TopoDoLedgr } from "./conversa";
 import { montarContexto, type Contexto } from "./respostas";
 
@@ -12,20 +12,24 @@ type Estado =
   | { situacao: "vazio" }
   | { situacao: "pronto"; contexto: Contexto };
 
+async function lerContexto(): Promise<Resultado<Contexto | null>> {
+  const resposta = await carregarVisaoGeral();
+  return resposta.ok ? { ok: true, dados: montarContexto(resposta.dados) } : resposta;
+}
+
 /**
  * "Fale com o Ledgr" como no design: um painel que abre ao lado do cartão do
  * menu, não uma tela. Vive no menu, que é do layout, então continua aberto
  * quando um link da conversa leva a outra tela. Lê o mesmo que a visão geral (a
- * última conciliação) cada vez que abre; sem ela, a conversa fica só com as dúvidas
- * de uso, que vão ao assistente da Central (#172).
+ * última conciliação) ao abrir pela primeira vez e antes de responder sobre o mês.
  */
-export function PainelAssistente({ id, onFechar }: { id: string; onFechar: () => void }) {
+export function PainelAssistente({ id, aberto = true, onFechar }: { id: string; aberto?: boolean; onFechar: () => void }) {
   const router = useRoteador();
   const [estado, setEstado] = useState<Estado>({ situacao: "carregando" });
 
   useEffect(() => {
     let vivo = true;
-    carregarVisaoGeral()
+    lerContexto()
       .then((resposta) => {
         if (!vivo) return;
         if (!resposta.ok && resposta.status === 401) {
@@ -36,7 +40,7 @@ export function PainelAssistente({ id, onFechar }: { id: string; onFechar: () =>
           setEstado({ situacao: "falhou" });
           return;
         }
-        const contexto = montarContexto(resposta.dados);
+        const contexto = resposta.dados;
         setEstado(contexto ? { situacao: "pronto", contexto } : { situacao: "vazio" });
       })
       // a Server Action lançou (rede, deploy novo no meio) em vez de devolver um Resultado
@@ -46,6 +50,15 @@ export function PainelAssistente({ id, onFechar }: { id: string; onFechar: () =>
     };
   }, [router]);
 
+  async function atualizarContexto() {
+    const resposta = await lerContexto();
+    if (resposta.ok) {
+      const contexto = resposta.dados;
+      setEstado(contexto ? { situacao: "pronto", contexto } : { situacao: "vazio" });
+    }
+    return resposta;
+  }
+
   return (
     // não modal: dá para ler a conversa e mexer na tela ao lado ao mesmo tempo
     <section
@@ -53,7 +66,15 @@ export function PainelAssistente({ id, onFechar }: { id: string; onFechar: () =>
       className="asst-painel"
       role="dialog"
       aria-label="Fale com o Ledgr"
-      onKeyDown={(evento) => evento.key === "Escape" && onFechar()}
+      aria-hidden={!aberto || undefined}
+      inert={!aberto}
+      tabIndex={-1}
+      onKeyDown={(evento) => {
+        if (evento.key !== "Escape") return;
+        evento.preventDefault();
+        evento.stopPropagation();
+        onFechar();
+      }}
     >
       {estado.situacao === "carregando" ? (
         <>
@@ -66,6 +87,8 @@ export function PainelAssistente({ id, onFechar }: { id: string; onFechar: () =>
         <Conversa
           contexto={estado.situacao === "pronto" ? estado.contexto : null}
           semDados={estado.situacao === "falhou" ? "falhou" : "vazio"}
+          aberta={aberto}
+          atualizarContexto={atualizarContexto}
           onFechar={onFechar}
         />
       )}

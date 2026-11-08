@@ -130,10 +130,12 @@ export function MenuLateral({
   const [configAberta, setConfigAberta] = useState(false);
   // a seção pedida por fora (o "Definir agora" do roteiro da Visão geral)
   const [secaoPedida, setSecaoPedida] = useState<string | undefined>();
-  const [assistenteAberto, setAssistenteAberto] = useState(false);
+  const [assistente, setAssistente] = useState<"novo" | "aberto" | "fechado">("novo");
+  const assistenteAberto = assistente === "aberto";
   // no celular (até 900px) as seções ficam atrás do botão Menu, senão ocupam meia tela antes do conteúdo
   const [secoesAbertas, setSecoesAbertas] = useState(false);
   const botaoAssistente = useRef<HTMLButtonElement>(null);
+  const botaoMenuCelular = useRef<HTMLButtonElement>(null);
   const caixaConta = useRef<HTMLDivElement>(null);
   const botaoConta = useRef<HTMLButtonElement>(null);
 
@@ -147,7 +149,7 @@ export function MenuLateral({
   }, []);
   // "Pergunte sobre esta tela", na Central de ajuda
   useEffect(() => {
-    const abrir = () => setAssistenteAberto(true);
+    const abrir = () => setAssistente("aberto");
     window.addEventListener(ABRIR_ASSISTENTE, abrir);
     return () => window.removeEventListener(ABRIR_ASSISTENTE, abrir);
   }, []);
@@ -346,6 +348,7 @@ export function MenuLateral({
         <button
           type="button"
           className="app-icone-botao app-menu-celular"
+          ref={botaoMenuCelular}
           aria-label="Menu"
           aria-expanded={secoesAbertas}
           aria-controls="secoes-do-app"
@@ -395,7 +398,7 @@ export function MenuLateral({
           data-dica="Fale com o Ledgr"
           aria-expanded={assistenteAberto}
           aria-controls={assistenteAberto ? "painel-assistente" : undefined}
-          onClick={() => setAssistenteAberto((aberto) => !aberto)}
+          onClick={() => setAssistente((atual) => atual === "aberto" ? "fechado" : "aberto")}
         >
           <Image
             src="/mascotes/mascote-chatbot.png"
@@ -411,13 +414,14 @@ export function MenuLateral({
             <span className="app-assistente-detalhe">O mês e como usar o app</span>
           </span>
         </button>
-        {assistenteAberto && (
+        {assistente !== "novo" && (
           <PainelAssistente
             id="painel-assistente"
+            aberto={assistenteAberto}
             onFechar={() => {
-              setAssistenteAberto(false);
-              // o botão de fechar some com o painel: o foco volta ao cartão que o abriu
+              setAssistente("fechado");
               botaoAssistente.current?.focus();
+              if (document.activeElement !== botaoAssistente.current) botaoMenuCelular.current?.focus();
             }}
           />
         )}

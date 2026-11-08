@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
-import { m, useInView, useReducedMotion, useScroll, useTransform } from "motion/react";
+import { m, useInView, useScroll, useTransform } from "motion/react";
 import { LogoBarras } from "@/app/(app)/e/[empresa]/logo-barras";
+import { useMovimentoReduzido } from "@/app/reveal";
 import { MenuDaVitrine } from "./vitrine";
 
 /**
@@ -46,7 +47,7 @@ export function MockupDemo({ descricao }: { descricao: string }) {
   const app = useRef<HTMLDivElement>(null);
   const cenaRef = useRef<HTMLDivElement>(null);
   const veuRef = useRef<HTMLDivElement>(null);
-  const reduzido = useReducedMotion();
+  const reduzido = useMovimentoReduzido();
   const perto = useInView(palco, { margin: "600px 0px", once: true });
   const naTela = useInView(quadro, { amount: 0.4 });
 
@@ -63,6 +64,8 @@ export function MockupDemo({ descricao }: { descricao: string }) {
   const [janela, setJanela] = useState(false);
   const [digitado, setDigitado] = useState("");
   const [cursor, setCursor] = useState<{ x: number; y: number; visivel: boolean; clique: number }>({ x: 640, y: 420, visivel: false, clique: 0 });
+  const cenaVisivel = reduzido ? "comparacao" : cena;
+  const mostrarCartao = reduzido || hover;
 
   // as cenas pesam ~140 KB: só baixam quando a janela chega perto da tela
   useEffect(() => {
@@ -87,7 +90,7 @@ export function MockupDemo({ descricao }: { descricao: string }) {
   // o cartão do hover, aberto sobre a linha como no app
   useEffect(() => {
     const raiz = cenaRef.current;
-    if (!raiz || !cenas || cena !== "comparacao" || !hover) return;
+    if (!raiz || !cenas || cenaVisivel !== "comparacao" || !mostrarCartao) return;
     const linha = achaLinha(raiz, "09/07", "PIX ENVIA");
     const celula = linha?.querySelector<HTMLElement>(".celula-status");
     if (!linha || !celula) return;
@@ -97,7 +100,7 @@ export function MockupDemo({ descricao }: { descricao: string }) {
       linha.removeAttribute("data-destacada");
       celula.querySelector(".cartao-lancamento")?.remove();
     };
-  }, [cenas, cena, hover]);
+  }, [cenas, cenaVisivel, mostrarCartao]);
 
   const rodar = useCallback(
     async (c: Cenas, sinal: AbortSignal) => {
@@ -216,7 +219,7 @@ export function MockupDemo({ descricao }: { descricao: string }) {
     v >= 1 ? "none" : `perspective(1600px) translateY(${70 * (1 - v)}px) rotateX(${20 * (1 - v)}deg) scale(${0.86 + 0.14 * v})`,
   );
 
-  const html = cenas?.[cena];
+  const html = cenas?.[cenaVisivel];
   const modal = cenas?.janelaDeJustificativa.replace("{{TEXTO}}", digitado);
 
   return (
@@ -235,30 +238,30 @@ export function MockupDemo({ descricao }: { descricao: string }) {
               inert
               style={{ transform: `scale(${escala ?? 1})`, height: ALTURA }}
             >
-              <MenuDaVitrine ativo={menu} empresa="Empresa de Teste Ltda" conta="Teste" iniciais="TE" />
+              <MenuDaVitrine ativo={reduzido ? MENU_ATIVO.conciliacoes : menu} empresa="Empresa de Teste Ltda" conta="Teste" iniciais="TE" />
               <div className="vitrine-principal mockup-principal">
                 {cenas && <div dangerouslySetInnerHTML={{ __html: cenas.barraDeCima }} />}
                 <div className="mockup-visor">
                   {html && (
                     <div
-                      key={cena}
-                      data-cena={cena}
+                      key={cenaVisivel}
+                      data-cena={cenaVisivel}
                       ref={cenaRef}
                       className="mockup-cena"
-                      style={{ transform: `translateY(${-rolagem}px)` }}
+                      style={reduzido ? undefined : { transform: `translateY(${-rolagem}px)` }}
                       dangerouslySetInnerHTML={{ __html: html }}
                     />
                   )}
                 </div>
               </div>
 
-              <div className="mockup-veu" data-aberto={janela || undefined} ref={veuRef}>
+              <div className="mockup-veu" data-aberto={janela && !reduzido ? "" : undefined} ref={veuRef}>
                 {modal && <div dangerouslySetInnerHTML={{ __html: modal }} />}
               </div>
 
               <svg
                 className="mockup-cursor"
-                data-visivel={cursor.visivel || undefined}
+                data-visivel={cursor.visivel && !reduzido ? "" : undefined}
                 style={{ transform: `translate(${cursor.x}px, ${cursor.y}px)` }}
                 width="22"
                 height="26"
@@ -270,7 +273,7 @@ export function MockupDemo({ descricao }: { descricao: string }) {
               </svg>
             </div>
 
-            <div className="mockup-intro" data-aberta={(intro || !cenas) && !reduzido ? "" : undefined} aria-hidden="true">
+            <div className="mockup-intro" data-aberta={intro || !cenas ? "" : undefined} aria-hidden="true">
               <LogoBarras className="mockup-intro-logo" />
               <p className="titulo-misto mockup-intro-titulo">
                 Do extrato ao <em>fechamento do mês.</em>
