@@ -240,6 +240,41 @@ describe("ConciliacaoPage", () => {
     expect(within(linha).getAllByRole("cell")[3]).toHaveAttribute("data-rotulo", "Status");
   });
 
+  it("renderiza uma página, mas ordena e filtra todos os lançamentos", async () => {
+    const base = conciliacaoEmAndamento.linhas[0];
+    buscarConciliacao.mockReturnValue({
+      ...conciliacaoEmAndamento,
+      linhas: [
+        ...Array.from({ length: 51 }, (_, i) => ({
+          ...base,
+          id: `batida-${i}`,
+          descricao: `Pagamento ${i + 1}`,
+          status: "match_exato",
+        })),
+        { ...base, data: "06/09" },
+      ],
+    });
+    const user = userEvent.setup();
+    const { container } = render(<ConciliacaoPage />);
+    const paginas = await screen.findByRole("navigation", { name: "Páginas de lançamentos" });
+    expect(within(paginas).getByText("1–50 de 52")).toBeInTheDocument();
+    expect(container.querySelectorAll("tbody tr")).toHaveLength(50);
+    expect(screen.queryByRole("button", { name: base.descricao })).not.toBeInTheDocument();
+
+    await user.click(within(paginas).getByRole("button", { name: "Próxima" }));
+    expect(within(paginas).getByText("51–52 de 52")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: base.descricao })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Data" }));
+    expect(within(paginas).getByText("1–50 de 52")).toBeInTheDocument();
+    expect(container.querySelector("tbody tr")).toHaveTextContent(base.descricao);
+
+    await user.click(screen.getByRole("button", { name: "Só revisão (1)" }));
+    expect(paginas).not.toBeInTheDocument();
+    expect(container.querySelectorAll("tbody tr")).toHaveLength(1);
+    expect(screen.getByRole("button", { name: base.descricao })).toBeInTheDocument();
+  });
+
   it("names the status in a few words, and keeps the full name for screen readers", async () => {
     buscarConciliacao.mockReturnValue(conciliacaoMista);
     render(<ConciliacaoPage />);

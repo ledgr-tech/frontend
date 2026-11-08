@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useId, useRef, useState, type CSSProperties, type FormEvent } from "react";
+import { Fragment, useEffect, useId, useMemo, useRef, useState, type CSSProperties, type FormEvent } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { useRoteador } from "@/lib/roteador";
 import Link from "@/lib/link-do-app";
@@ -29,6 +29,7 @@ import { TelaDeAviso } from "@/app/tela-de-aviso";
 import { filtrarLinhas, ordenarLinhas, type Coluna, type Filtro, type Ordem } from "./ordenar";
 import { continuaDivergindo, decisoesLigadas, seloDaLinha, situacaoDaLinha, tomDaLinha } from "./situacao";
 import { contarGrupos, juntarGrupos, montarLotes } from "./grupos";
+import { paginarLinhas } from "./paginacao";
 import { decidir, type ResultadoDaDecisao } from "./decidir";
 import { aplicarDensidade, densidadeAtual, type Densidade } from "../../densidade";
 import { IconeOrigem, type Origem } from "../../icone-origem";
@@ -76,7 +77,6 @@ function textoDoVazio(filtro: Filtro, justificadas: number): string {
   return "Nada em revisão nesta competência: todos os lançamentos bateram.";
 }
 
-/** Quantas linhas por página. 4.218 lançamentos não cabem numa tela. */
 /** Do ponteiro sair da linha ao cartão fechar: o tempo de atravessar o vão até ele. */
 const ESPERA_PARA_FECHAR_MS = 150;
 
@@ -155,6 +155,7 @@ export default function ConciliacaoPage() {
     return ehDivergencia(status) ? status : "todos";
   });
   const [ordem, setOrdem] = useState<Ordem>({ coluna: "data", crescente: true });
+  const [paginacao, setPaginacao] = useState({ id: params.id, sistema, indice: 0 });
   // null enquanto não lemos a preferência: só existe no cliente
   const [densidade, setDensidade] = useState<Densidade | null>(null);
   // a decisão que não gravou, dita acima da tabela
@@ -165,6 +166,21 @@ export default function ConciliacaoPage() {
   const [marcadas, setMarcadas] = useState<ReadonlySet<string>>(() => new Set());
   // sair da linha só fecha o cartão depois de um instante: dá tempo de o ponteiro chegar nele
   const fechandoCartao = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  const pronta = estado.situacao === "pronta" ? estado.conciliacao : null;
+  const rodadaDasLinhas = pronta?.rodada ?? 1;
+  const { emRevisao, justificadas, larguraValor, ordenadas, lotes, paginas } = useMemo(() => {
+    const linhas = pronta?.linhas ?? [];
+    const ordenadas = juntarGrupos(ordenarLinhas(filtrarLinhas(linhas, filtro, rodadaDasLinhas), ordem));
+    return {
+      emRevisao: filtrarLinhas(linhas, "revisao", rodadaDasLinhas),
+      justificadas: filtrarLinhas(linhas, "justificadas", rodadaDasLinhas),
+      larguraValor: larguraDoValor(linhas),
+      ordenadas,
+      lotes: montarLotes(ordenadas),
+      paginas: paginarLinhas(ordenadas),
+    };
+  }, [pronta, filtro, ordem, rodadaDasLinhas]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -229,19 +245,21 @@ export default function ConciliacaoPage() {
     );
   }
 
-  // a rodada das linhas decide se uma conferência ainda vale (situacao.ts)
-  const rodadaDasLinhas = conciliacao.rodada ?? 1;
   const ligadas = decisoesLigadas(conciliacao, real);
-  const emRevisao = filtrarLinhas(conciliacao.linhas, "revisao", rodadaDasLinhas);
-  const justificadas = filtrarLinhas(conciliacao.linhas, "justificadas", rodadaDasLinhas);
   const conferidas = emRevisao.filter((linha) => situacaoDaLinha(linha, rodadaDasLinhas) === "conferida").length;
   // justificadas que esperam aprovação: continuam em revisão, porque o mês não fecha com elas
   const aguardando = emRevisao.filter((linha) => situacaoDaLinha(linha, rodadaDasLinhas) === "aguardando").length;
-  const larguraValor = larguraDoValor(conciliacao.linhas);
   const categoria = ehDivergencia(filtro) ? filtro : null;
-  // os lançamentos de um lote conciliado por soma (backend #131) ficam juntos, sob o resumo dele
-  const ordenadas = juntarGrupos(ordenarLinhas(filtrarLinhas(conciliacao.linhas, filtro, rodadaDasLinhas), ordem));
-  const lotes = montarLotes(ordenadas);
+  const indiceSalvo = paginacao.id === params.id && paginacao.sistema === sistema ? paginacao.indice : 0;
+  const indice = Math.min(indiceSalvo, Math.max(0, paginas.length - 1));
+  const pagina = paginas[indice];
+  const linhasVisiveis = pagina ? ordenadas.slice(pagina.inicio, pagina.fim) : [];
+
+  function irParaPagina(proxima: number) {
+    setPaginacao({ id: params.id, sistema, indice: proxima });
+    setCartao(null);
+    if (!fixada && !ocupada) setFoco(null);
+  }
 
   function escolherDensidade(proxima: Densidade) {
     aplicarDensidade(proxima);
@@ -250,6 +268,7 @@ export default function ConciliacaoPage() {
 
   function escolherFiltro(proximo: Filtro) {
     setFiltro(proximo);
+    irParaPagina(0);
     setMarcadas(new Set());
     // replaceState, não navegação: o Next sincroniza o useSearchParams sem remontar
     // a página nem buscar as linhas de novo, e o histórico não ganha um passo por clique
@@ -261,6 +280,7 @@ export default function ConciliacaoPage() {
   }
 
   function alternarOrdem(coluna: Coluna) {
+    irParaPagina(0);
     setOrdem((atual) =>
       atual.coluna === coluna ? { coluna, crescente: !atual.crescente } : { coluna, crescente: true },
     );
@@ -544,6 +564,21 @@ export default function ConciliacaoPage() {
         )}
 
         <Reveal delay={0.08}>
+          {pagina && paginas.length > 1 && (
+            <nav className="paginacao paginacao-comparacao" aria-label="Páginas de lançamentos">
+              <span className="paginacao-conta" aria-live="polite">
+                {formatarInteiro(pagina.inicio + 1)}–{formatarInteiro(pagina.fim)} de {formatarInteiro(ordenadas.length)}
+              </span>
+              <div className="paginacao-botoes">
+                <button type="button" className="btn btn-secondary" disabled={indice === 0} onClick={() => irParaPagina(indice - 1)}>
+                  Anterior
+                </button>
+                <button type="button" className="btn btn-secondary" disabled={indice === paginas.length - 1} onClick={() => irParaPagina(indice + 1)}>
+                  Próxima
+                </button>
+              </div>
+            </nav>
+          )}
           <div className="dash-tabela-rolagem tabela-cartoes">
             <table
               className="table tabela-folhas folhas-com-eixo"
@@ -637,10 +672,8 @@ export default function ConciliacaoPage() {
                     ))}
                 </tr>
               </thead>
-              {/* contínua, sem páginas: num extrato grande, folhear de 25 em 25 escondia o resto do mês.
-                  ponytail: tudo no DOM; se arquivos de milhares de linhas pesarem, virtualizar aqui */}
               <tbody role="rowgroup">
-                {ordenadas.map((linha) => {
+                {linhasVisiveis.map((linha) => {
                   const idDoGrupo = linha.grupoId ? `${idCartao}-grupo-${linha.grupoId}` : undefined;
                   const status = statusDaLinha(linha);
                   const situacao = situacaoDaLinha(linha, rodadaDasLinhas);

@@ -4629,6 +4629,7 @@ th:is([aria-sort="ascending"], [aria-sort="descending"]) .th-ordena-seta { opaci
   font-size: 13.5px; font-variant-numeric: tabular-nums;
   color: color-mix(in srgb, var(--color-text) 68%, transparent);
 }
+.paginacao-comparacao { padding: 0 0 14px; }
 .tabela-vazia {
   margin: 0; padding: 28px var(--space-2); font-size: 14.5px;
   color: color-mix(in srgb, var(--color-text) 68%, transparent);
