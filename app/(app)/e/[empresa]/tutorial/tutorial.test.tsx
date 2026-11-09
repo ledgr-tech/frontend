@@ -117,24 +117,34 @@ describe("Tutorial", () => {
 
   it("o véu tem um buraco no alvo, com folga e cantos redondos, e some ao fechar", async () => {
     const user = userEvent.setup();
-    const alvo = document.createElement("div");
-    alvo.setAttribute("data-tutorial", "filtros");
-    alvo.getBoundingClientRect = () => ({ top: 100, left: 40, width: 300, height: 50 }) as DOMRect;
-    const tela = document.createElement("div");
-    tela.append(alvo);
-    document.body.append(tela);
-    montar(<span />);
+    montar(
+      <div
+        data-tutorial="filtros"
+        ref={(alvo) => {
+          if (alvo) {
+            alvo.getBoundingClientRect = () => ({ top: 100, left: 40, width: 300, height: 50 }) as DOMRect;
+          }
+        }}
+      />,
+    );
     await screen.findByRole("dialog");
     const recorte = document.querySelector<HTMLElement>(".tutorial-destaque")!;
     await waitFor(() => expect(recorte).toBeVisible());
-    // o alvo vai de (40, 100) a (340, 150); com a folga de 8, o buraco vai de (32, 92) a (348, 158),
-    // e o traçado começa no fim do canto de cima à esquerda (raio 20)
-    expect(recorte.style.clipPath).toContain(
-      "M52 92h276a20 20 0 0 1 20 20v26a20 20 0 0 1 -20 20h-276a20 20 0 0 1 -20 -20v-26a20 20 0 0 1 20 -20Z",
-    );
+    const caminho = recorte.style.clipPath;
+    expect(caminho).toMatch(/^path\(evenodd,\s*"/);
+    const buraco = caminho.split(/[Zz]\s*(?=M)/)[1] ?? "";
+    // Com folga de 8 e raio de 20, o buraco vai de (32, 92) a (348, 158).
+    expect(buraco).toMatch(/^M\s*52\s+92\s*h/);
+    const lados = [...buraco.matchAll(/([hv])\s*(-?\d+(?:\.\d+)?)/g)];
+    expect(lados.map(([, eixo, medida]) => [eixo, Number(medida)])).toEqual([
+      ["h", 276], ["v", 26], ["h", -276], ["v", -26],
+    ]);
+    const raios = [...buraco.matchAll(/a\s*(\d+(?:\.\d+)?)\s+(\d+(?:\.\d+)?)/g)];
+    expect(raios.map(([, rx, ry]) => [Number(rx), Number(ry)])).toEqual([
+      [20, 20], [20, 20], [20, 20], [20, 20],
+    ]);
     await user.click(screen.getByRole("button", { name: "Pular" }));
     expect(document.querySelector(".tutorial-destaque")).toBeNull();
-    tela.remove();
   });
 
   it("Esc fecha mesmo com o foco fora do cartão", async () => {
