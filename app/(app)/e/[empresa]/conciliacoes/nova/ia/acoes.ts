@@ -3,7 +3,7 @@
 import { pareceUuid } from "@/lib/adaptadores";
 import { ErroBackend, chamarBackend } from "@/lib/backend";
 import { ARQUIVO_GRANDE_DEMAIS, TAMANHO_MAXIMO_UPLOAD_BYTES } from "@/lib/limite-de-upload";
-import type { Falha, Resultado } from "../../acoes";
+import { conciliar, situacaoDoExtrato, verificarNovaVersao, type Falha, type Resultado } from "../../acoes";
 
 /**
  * Importação do relatório de lançamentos via IA (backend #158/#159, PRs #172 e #173; front #224 e #225): o
@@ -196,4 +196,39 @@ export async function descartarImportacao(id: string): Promise<Resultado<null>> 
   } catch (erro) {
     return traduzir(erro);
   }
+}
+
+export type ContextoNovaVersaoIa = { banco: string; sistemaAnterior?: string };
+
+export async function recuperarExtratoConfirmado(id: string): Promise<Resultado<{ extratoId: string }>> {
+  const rascunho = await carregarRascunho(id);
+  if (rascunho.ok) return { ok: false, status: 409, erro: "Confirme a importação antes de conciliar." };
+  if (rascunho.status !== 409) return rascunho;
+  const extrato = await situacaoDoExtrato(id);
+  if (!extrato.ok) return extrato;
+  if (extrato.dados.origem !== "sistema" || extrato.dados.status !== "concluido") {
+    return { ok: false, status: 409, erro: "O extrato do sistema ainda não está pronto." };
+  }
+  return { ok: true, dados: { extratoId: extrato.dados.extrato_id } };
+}
+
+export async function concluirNovaVersaoIa(
+  contexto: ContextoNovaVersaoIa,
+  importacaoId: string,
+  retomar = false,
+): Promise<{ ok: true; dados: { extratoId: string } } | (Falha & { confirmada?: boolean })> {
+  const { banco, sistemaAnterior } = contexto;
+  // O backend confirma no mesmo ID do rascunho. Procure o par antes de repetir um POST.
+  const alvo = await verificarNovaVersao(banco, sistemaAnterior, importacaoId);
+  if (!alvo.ok) return alvo;
+  if (alvo.dados.jaConciliada) return { ok: true, dados: { extratoId: importacaoId } };
+
+  let confirmado = retomar ? await recuperarExtratoConfirmado(importacaoId) : await confirmarImportacao(importacaoId);
+  if (!retomar && !confirmado.ok && confirmado.status === 409) {
+    confirmado = await recuperarExtratoConfirmado(importacaoId);
+  }
+  if (!confirmado.ok) return confirmado;
+  const { extratoId } = confirmado.dados;
+  const resultado = await conciliar(banco, extratoId);
+  return resultado.ok ? { ok: true, dados: { extratoId } } : { ...resultado, confirmada: true };
 }

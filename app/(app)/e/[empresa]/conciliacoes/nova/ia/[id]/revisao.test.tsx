@@ -12,13 +12,16 @@ const acoes = vi.hoisted(() => ({
   descartar: vi.fn(),
   remover: vi.fn(),
   push: vi.fn(),
+  replace: vi.fn(),
+  concluir: vi.fn(),
 }));
 
-vi.mock("@/lib/roteador", () => ({ useRoteador: () => ({ push: acoes.push }) }));
+vi.mock("@/lib/roteador", () => ({ useRoteador: () => ({ push: acoes.push, replace: acoes.replace }) }));
 vi.mock("../acoes", () => ({
   acrescentarLinhaAoRascunho: acoes.acrescentar,
   carregarRascunho: acoes.carregar,
   confirmarImportacao: acoes.confirmar,
+  concluirNovaVersaoIa: acoes.concluir,
   corrigirLinhaDoRascunho: acoes.corrigir,
   descartarImportacao: acoes.descartar,
   removerLinhaDoRascunho: acoes.remover,
@@ -212,5 +215,61 @@ describe("Revisao da importação via IA", () => {
     expect(acoes.carregar).toHaveBeenCalledTimes(2);
     expect(acoes.remover).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+});
+
+describe("Revisao da nova versão", () => {
+  const contexto = { banco: "banco-original", sistemaAnterior: "sistema-antigo", arquivoBanco: "banco.ofx" };
+
+  beforeEach(() => vi.resetAllMocks());
+
+  it("só concilia após confirmar e abre a rodada exata", async () => {
+    acoes.concluir.mockResolvedValue({ ok: true, dados: { extratoId: "sistema-novo" } });
+    render(<Revisao inicial={INICIAL} contexto={contexto} />);
+    expect(screen.getByText(/mesmo extrato do banco \(banco\.ofx\)/)).toBeVisible();
+    expect(acoes.concluir).not.toHaveBeenCalled();
+
+    const botao = confirmar();
+    fireEvent.click(botao);
+    fireEvent.click(botao);
+
+    await waitFor(() => expect(acoes.replace).toHaveBeenCalledWith("/conciliacoes/banco-original?sistema=sistema-novo"));
+    expect(acoes.concluir).toHaveBeenCalledExactlyOnceWith(contexto, INICIAL.id);
+    expect(acoes.confirmar).not.toHaveBeenCalled();
+  });
+
+  it("descarta o rascunho e volta à rodada de origem", async () => {
+    const user = userEvent.setup();
+    acoes.descartar.mockResolvedValue({ ok: true, dados: null });
+    render(<Revisao inicial={INICIAL} contexto={contexto} />);
+    await user.click(screen.getByRole("button", { name: "Descartar importação" }));
+    await user.click(screen.getByRole("button", { name: "Descartar de vez" }));
+
+    expect(acoes.descartar).toHaveBeenCalledWith(INICIAL.id);
+    expect(acoes.concluir).not.toHaveBeenCalled();
+    expect(acoes.push).toHaveBeenCalledWith("/conciliacoes/banco-original?sistema=sistema-antigo");
+  });
+
+  it("mantém o rascunho se não conseguiu confirmar", async () => {
+    const user = userEvent.setup();
+    acoes.concluir.mockResolvedValue({ ok: false, status: 503, erro: "Falha ao confirmar." });
+    render(<Revisao inicial={INICIAL} contexto={contexto} />);
+    await user.click(confirmar());
+    expect(await screen.findByText("Falha ao confirmar.")).toBeVisible();
+    expect(confirmar()).toBeEnabled();
+    expect(screen.queryByText("Extrato do sistema confirmado")).not.toBeInTheDocument();
+  });
+
+  it("oferece retomada quando a conciliação falha depois de confirmar", async () => {
+    const user = userEvent.setup();
+    acoes.concluir.mockResolvedValueOnce({ ok: false, status: 503, erro: "Tente novamente.", confirmada: true })
+      .mockResolvedValueOnce({ ok: true, dados: { extratoId: "sistema-novo" } });
+    render(<Revisao inicial={INICIAL} contexto={contexto} />);
+    await user.click(confirmar());
+    expect(await screen.findByText("Tente novamente.")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Tentar conciliar novamente" }));
+
+    expect(acoes.concluir).toHaveBeenNthCalledWith(2, contexto, INICIAL.id, true);
+    expect(acoes.replace).toHaveBeenCalledWith("/conciliacoes/banco-original?sistema=sistema-novo");
   });
 });

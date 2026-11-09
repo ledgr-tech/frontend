@@ -804,6 +804,9 @@ const servidor = createServer(async (req, res) => {
   const umaImportacao = caminho.match(/^\/importacoes-ia\/([^/]+)$/);
   if (umaImportacao && metodo === "GET") {
     const itens = importacoesIa.get(umaImportacao[1]);
+    if (b.extratos.get(umaImportacao[1])?.formato === "json") {
+      return json(res, 409, { detail: "Esta importação já foi confirmada." });
+    }
     if (!itens) return json(res, 404, { detail: "Importação não encontrada." });
     const soma = (f) => itens.filter(f).reduce((t, l) => t + l.valor, 0).toFixed(2);
     return json(res, 200, { importacao_id: umaImportacao[1], total: itens.length, itens, resumo: { quantidade: itens.length,
@@ -837,6 +840,9 @@ const servidor = createServer(async (req, res) => {
   const confirmaIa = rota("POST", /^\/importacoes-ia\/([^/]+)\/confirmar$/);
   if (confirmaIa) {
     const itens = importacoesIa.get(confirmaIa[1]);
+    if (b.extratos.get(confirmaIa[1])?.formato === "json") {
+      return json(res, 409, { detail: "Esta importação já foi confirmada." });
+    }
     if (!itens) return json(res, 404, { detail: "Importação não encontrada." });
     const lancamentos = itens.map((l) => ({ data: l.data, descricao: l.descricao, valor: l.valor.toFixed(2) }));
     const vistas = new Map();
@@ -846,8 +852,8 @@ const servidor = createServer(async (req, res) => {
       Object.defineProperty(l, "ocorrencia", { value: vistas.get(k) });
     }
     const datas = lancamentos.map((l) => l.data).sort();
-    const extratoId = randomUUID();
-    b.extratos.set(extratoId, { origem: "sistema", nome: "Importação via IA", formato: "csv", lancamentos, erros: [],
+    const extratoId = confirmaIa[1];
+    b.extratos.set(extratoId, { origem: "sistema", nome: "ledgr-lancamentos.json", formato: "json", lancamentos, erros: [],
       periodoInicio: datas[0] ?? null, periodoFim: datas.at(-1) ?? null, enviadoEm: agora() });
     importacoesIa.delete(confirmaIa[1]);
     return json(res, 200, { extrato_id: extratoId });

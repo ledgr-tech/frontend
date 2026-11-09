@@ -1,11 +1,12 @@
 "use client";
 
 import { useRef, useState, type FormEvent } from "react";
-import { ArrowRight, Check, Copy, FileJson, ShieldCheck } from "lucide-react";
+import { ArrowRight, Check, FileJson, ShieldCheck } from "lucide-react";
 import { useRoteador } from "@/lib/roteador";
 import { ARQUIVO_GRANDE_DEMAIS, TAMANHO_MAXIMO_UPLOAD_BYTES } from "@/lib/limite-de-upload";
 import { MensagemErro } from "../../../../../../(auth)/_compartilhado/mensagem-erro";
-import { formatarInteiro } from "../../../dashboard/resumo";
+import { ErrosImportacaoIa } from "./erros-importacao-ia";
+import { PromptIa } from "./prompt-ia";
 import { Guia, type Passo } from "../guia";
 import { importarViaIa, type ErroDeCampo, type PromptDaIa } from "./acoes";
 
@@ -36,21 +37,9 @@ export function ImportarViaIa({ prompt }: { prompt: PromptDaIa }) {
   const [erros, setErros] = useState<ErroDeCampo[]>([]);
   // a lista para em 50: sem o total, quem corrige esses acha que acabou
   const [totalErros, setTotalErros] = useState(0);
-  // a falha de copiar é do prompt, não do arquivo: fica embaixo do botão "Copiar prompt"
-  const [falhaAoCopiar, setFalhaAoCopiar] = useState(false);
   const trava = useRef(false);
   // o limite vale já na escolha: o arquivo aparece, mas o botão não liga e o motivo fica ao lado dele
   const grandeDemais = arquivo !== null && arquivo.size > TAMANHO_MAXIMO_UPLOAD_BYTES;
-
-  async function copiar() {
-    try {
-      await navigator.clipboard.writeText(prompt.prompt);
-      setCopiado(true);
-      setFalhaAoCopiar(false);
-    } catch {
-      setFalhaAoCopiar(true);
-    }
-  }
 
   function escolher(escolhido: File | null) {
     setArquivo(escolhido);
@@ -93,28 +82,7 @@ export function ImportarViaIa({ prompt }: { prompt: PromptDaIa }) {
   return (
     <form onSubmit={enviar} className="nova-corpo conc-mesa">
       <div className="nova-coluna">
-        <section className="ia-prompt" aria-labelledby="ia-prompt">
-          <div className="ia-prompt-topo">
-            <h2 id="ia-prompt" className="font-titulo">
-              Prompt para a IA
-            </h2>
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={copiar}
-              aria-describedby={falhaAoCopiar ? "erro-copiar-prompt" : undefined}
-            >
-              {copiado ? <Check size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />}
-              {copiado ? "Prompt copiado" : "Copiar prompt"}
-            </button>
-          </div>
-          {falhaAoCopiar && (
-            <MensagemErro id="erro-copiar-prompt">Não foi possível copiar. Selecione o texto do prompt e copie à mão.</MensagemErro>
-          )}
-          <pre tabIndex={0} aria-label="Prompt para a IA">
-            {prompt.prompt}
-          </pre>
-        </section>
+        <PromptIa prompt={prompt.prompt} onCopiado={() => setCopiado(true)} />
 
         {/* a folha do sistema em pé, com a do banco atrás: o arquivo da IA vira o extrato do sistema */}
         <label
@@ -169,42 +137,7 @@ export function ImportarViaIa({ prompt }: { prompt: PromptDaIa }) {
           />
         </label>
 
-        {comErros && (
-          <section className="ia-erros" aria-labelledby="ia-erros" role="alert">
-            <div className="ia-erros-topo">
-              <span className="selo selo-risco">{`${formatarInteiro(totalErros)} ${totalErros === 1 ? "erro" : "erros"}`}</span>
-              <h2 id="ia-erros" className="font-titulo">
-                {erro}
-              </h2>
-            </div>
-            <p>Corrija os pontos abaixo no arquivo, ou peça à IA para refazer a resposta, e envie de novo.</p>
-            {totalErros > erros.length && (
-              <p>{`Aparecem os ${formatarInteiro(erros.length)} primeiros de ${formatarInteiro(totalErros)}. Ao enviar de novo, os que restarem aparecem aqui.`}</p>
-            )}
-            <div className="ia-rolavel">
-              <table className="table" aria-label="Erros do arquivo">
-                <thead>
-                  <tr>
-                    <th scope="col">Lançamento</th>
-                    <th scope="col">Campo</th>
-                    <th scope="col">O que corrigir</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {erros.map((e, i) => (
-                    <tr key={i}>
-                      <td>{e.lancamento ?? "—"}</td>
-                      <td>
-                        <code>{e.caminho || "arquivo"}</code>
-                      </td>
-                      <td>{e.mensagem}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
-        )}
+        {comErros && erro && <ErrosImportacaoIa erro={erro} erros={erros} totalErros={totalErros} />}
       </div>
 
       <aside className="conc-previa" aria-label="Importação via IA">

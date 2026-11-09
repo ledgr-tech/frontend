@@ -261,7 +261,7 @@ export type ConciliacaoEmRodadas = {
 const RODADAS_POR_PAGINA = 100;
 
 /** Todas as execuções de um extrato do banco, pelo filtro `?extrato_banco_id=` (backend #82). */
-async function execucoesDoBanco(extratoBancoId: string): Promise<Resultado<Execucao[]>> {
+async function execucoesDoBanco(extratoBancoId: string, exigirHistoricoCompleto = false): Promise<Resultado<Execucao[]>> {
   const pagina = (numero: number) =>
     `/execucoes?extrato_banco_id=${extratoBancoId}&limit=${RODADAS_POR_PAGINA}&offset=${numero * RODADAS_POR_PAGINA}`;
   try {
@@ -271,6 +271,9 @@ async function execucoesDoBanco(extratoBancoId: string): Promise<Resultado<Execu
       const proxima = await chamarBackend<ListaExecucoesAPI>(pagina(numero));
       if (proxima.itens.length === 0) break;
       itens.push(...proxima.itens);
+    }
+    if (exigirHistoricoCompleto && itens.length < primeira.total) {
+      return { ok: false, status: 503, erro: "Não foi possível verificar todas as rodadas. Tente novamente." };
     }
     return { ok: true, dados: itens.map(adaptarExecucao) };
   } catch (erro) {
@@ -350,16 +353,49 @@ export async function carregarConciliacaoEmRodadas(
  * backend ainda recusa a escrita com o 409, que ela mostra.
  */
 async function fechamentoAtivo(periodoInicio: string | null): Promise<Fechamento | null> {
-  // o período vem do backend, mas vira parte da URL: só segue com cara de AAAA-MM
-  const mes = periodoInicio?.slice(0, 7);
-  if (!mes || !COMPETENCIA.test(mes)) return null;
   try {
-    const lista = await chamarBackend<{ itens: FechamentoAPI[] }>(`/fechamentos?competencia=${mes}`);
-    const [maisRecente] = lista.itens;
-    return maisRecente?.estado === "fechado" ? adaptarFechamento(maisRecente) : null;
+    return await lerFechamentoAtivo(periodoInicio);
   } catch {
     return null;
   }
+}
+
+async function lerFechamentoAtivo(periodoInicio: string | null): Promise<Fechamento | null> {
+  const mes = periodoInicio?.slice(0, 7);
+  if (!mes || !COMPETENCIA.test(mes)) return null;
+  const lista = await chamarBackend<{ itens: FechamentoAPI[] }>(`/fechamentos?competencia=${mes}`);
+  const [maisRecente] = lista.itens;
+  return maisRecente?.estado === "fechado" ? adaptarFechamento(maisRecente) : null;
+}
+
+export async function verificarNovaVersao(
+  banco: string,
+  sistemaAnterior?: string,
+  sistemaNovo?: string,
+): Promise<Resultado<{ arquivoBanco: string; jaConciliada: boolean }>> {
+  if (![banco, sistemaAnterior, sistemaNovo].every((id) => id === undefined || pareceUuid(id))) {
+    return { ok: false, status: 404, erro: "A comparação de origem não foi encontrada." };
+  }
+  const execucoes = await execucoesDoBanco(banco, true);
+  if (!execucoes.ok) return execucoes;
+  const rodadas = rodadasDoBanco(execucoes.dados, banco);
+  const vigente = rodadas.at(-1);
+  if (!vigente) return { ok: false, status: 404, erro: "A comparação de origem não foi encontrada." };
+  const { arquivoBanco, periodoInicio } = vigente.execucao;
+  if (sistemaNovo && rodadas.some((rodada) => rodada.extratoSistemaId === sistemaNovo)) {
+    return { ok: true, dados: { arquivoBanco, jaConciliada: true } };
+  }
+  if (sistemaAnterior && sistemaAnterior !== vigente.extratoSistemaId) {
+    return { ok: false, status: 409, erro: "A comparação já tem uma rodada mais recente. Volte à comparação para continuar." };
+  }
+  try {
+    if (await lerFechamentoAtivo(periodoInicio)) {
+      return { ok: false, status: 409, erro: "O mês está fechado. Reabra o mês para enviar uma nova versão." };
+    }
+  } catch (erro) {
+    return traduzir(erro);
+  }
+  return { ok: true, dados: { arquivoBanco, jaConciliada: false } };
 }
 
 // 50 por página (o backend aceita até 100). As telas que resumem — visão geral,

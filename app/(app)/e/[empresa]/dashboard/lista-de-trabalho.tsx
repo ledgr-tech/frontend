@@ -331,6 +331,7 @@ function Previa({
         {!fechamento && (
           <NovaVersao
             extratoBancoId={extratoBancoId}
+            extratoSistemaId={execucao.extratoSistemaId}
             rodadaAtual={{
               numero: conciliacao.rodada,
               total: conciliacao.rodadas,
