@@ -257,6 +257,7 @@ export default function ConciliacaoPage() {
 
   function irParaPagina(proxima: number) {
     setPaginacao({ id: params.id, sistema, indice: proxima });
+    setMarcadas(new Set());
     setCartao(null);
     if (!fixada && !ocupada) setFoco(null);
   }
@@ -269,7 +270,6 @@ export default function ConciliacaoPage() {
   function escolherFiltro(proximo: Filtro) {
     setFiltro(proximo);
     irParaPagina(0);
-    setMarcadas(new Set());
     // replaceState, não navegação: o Next sincroniza o useSearchParams sem remontar
     // a página nem buscar as linhas de novo, e o histórico não ganha um passo por clique
     const url = new URLSearchParams(window.location.search);
@@ -292,9 +292,10 @@ export default function ConciliacaoPage() {
   // marcar várias para decidir de uma vez: só quem aprova, só com o backend (o lote não tem mock) e só
   // no filtro delas, onde a última coluna fica livre da conferência
   const marcando = podeDecidir && podeAprovar && real && filtro === "aguardando";
-  // marcada que saiu do filtro (decidida na janela da linha) não conta mais
-  const chavesMarcadas = marcando ? ordenadas.map(chaveDaLinha).filter((chave) => marcadas.has(chave)) : [];
-  const todasMarcadas = ordenadas.length > 0 && chavesMarcadas.length === ordenadas.length;
+  // Uma linha que saiu da página, por exemplo depois de uma decisão, não entra no lote.
+  const chavesDaPagina = marcando ? linhasVisiveis.map(chaveDaLinha) : [];
+  const chavesMarcadas = chavesDaPagina.filter((chave) => marcadas.has(chave));
+  const todasMarcadas = chavesDaPagina.length > 0 && chavesMarcadas.length === chavesDaPagina.length;
 
   function alternarMarca(chave: string) {
     setMarcadas((atual) => {
@@ -544,12 +545,12 @@ export default function ConciliacaoPage() {
           )}
         </Reveal>
 
-        {marcando && ordenadas.length > 0 && (
+        {chavesDaPagina.length > 0 && (
           <div className="lote-faixa" role="region" aria-label="Decidir as marcadas">
             <span className="tabela-progresso">
               {chavesMarcadas.length === 0
-                ? "Marque as justificativas para aprovar ou rejeitar de uma vez."
-                : `${formatarInteiro(chavesMarcadas.length)} de ${formatarInteiro(ordenadas.length)} ${ordenadas.length === 1 ? "marcada" : "marcadas"}`}
+                ? "Marque as justificativas desta página para aprovar ou rejeitar de uma vez."
+                : `${formatarInteiro(chavesMarcadas.length)} de ${formatarInteiro(chavesDaPagina.length)} ${chavesDaPagina.length === 1 ? "marcada" : "marcadas"} na página`}
             </span>
             {chavesMarcadas.length > 0 && (
               <DecisaoEmLote quantidade={chavesMarcadas.length} objeto={{ um: "marcada", varios: "marcadas" }} onDecidir={decidirMarcadas} />
@@ -659,10 +660,10 @@ export default function ConciliacaoPage() {
                         <input
                           type="checkbox"
                           className="lote-marca"
-                          aria-label="Marcar todas as justificativas aguardando aprovação"
+                          aria-label="Marcar todas as justificativas da página"
                           checked={todasMarcadas}
-                          disabled={ordenadas.length === 0}
-                          onChange={() => setMarcadas(todasMarcadas ? new Set() : new Set(ordenadas.map(chaveDaLinha)))}
+                          disabled={chavesDaPagina.length === 0}
+                          onChange={() => setMarcadas(new Set(todasMarcadas ? [] : chavesDaPagina))}
                         />
                       </th>
                     ) : (
