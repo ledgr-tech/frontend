@@ -240,6 +240,41 @@ describe("ConciliacaoPage", () => {
     expect(within(linha).getAllByRole("cell")[3]).toHaveAttribute("data-rotulo", "Status");
   });
 
+  it("renderiza uma página, mas ordena e filtra todos os lançamentos", async () => {
+    const base = conciliacaoEmAndamento.linhas[0];
+    buscarConciliacao.mockReturnValue({
+      ...conciliacaoEmAndamento,
+      linhas: [
+        ...Array.from({ length: 51 }, (_, i) => ({
+          ...base,
+          id: `batida-${i}`,
+          descricao: `Pagamento ${i + 1}`,
+          status: "match_exato",
+        })),
+        { ...base, data: "06/09" },
+      ],
+    });
+    const user = userEvent.setup();
+    const { container } = render(<ConciliacaoPage />);
+    const paginas = await screen.findByRole("navigation", { name: "Páginas de lançamentos" });
+    expect(within(paginas).getByText("1–50 de 52")).toBeInTheDocument();
+    expect(container.querySelectorAll("tbody tr")).toHaveLength(50);
+    expect(screen.queryByRole("button", { name: base.descricao })).not.toBeInTheDocument();
+
+    await user.click(within(paginas).getByRole("button", { name: "Próxima" }));
+    expect(within(paginas).getByText("51–52 de 52")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: base.descricao })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Data" }));
+    expect(within(paginas).getByText("1–50 de 52")).toBeInTheDocument();
+    expect(container.querySelector("tbody tr")).toHaveTextContent(base.descricao);
+
+    await user.click(screen.getByRole("button", { name: "Só revisão (1)" }));
+    expect(paginas).not.toBeInTheDocument();
+    expect(container.querySelectorAll("tbody tr")).toHaveLength(1);
+    expect(screen.getByRole("button", { name: base.descricao })).toBeInTheDocument();
+  });
+
   it("names the status in a few words, and keeps the full name for screen readers", async () => {
     buscarConciliacao.mockReturnValue(conciliacaoMista);
     render(<ConciliacaoPage />);
@@ -1568,7 +1603,7 @@ describe("ConciliacaoPage", () => {
           expect(screen.getByRole("checkbox", { name: "Marcar Boleto Aço Norte Bobinas" })).not.toBeChecked();
           expect(screen.getByRole("checkbox", { name: "Marcar Tarifa pacote de serviços" })).toBeInTheDocument();
           expect(screen.queryByRole("button", { name: "Pagamento batido" })).not.toBeInTheDocument();
-          expect(screen.getByText("Marque as justificativas para aprovar ou rejeitar de uma vez.")).toBeInTheDocument();
+          expect(screen.getByText("Marque as justificativas desta página para aprovar ou rejeitar de uma vez.")).toBeInTheDocument();
         });
 
         it("aprova as marcadas pelas chaves do backend, e a tela é lida de novo", async () => {
@@ -1579,7 +1614,7 @@ describe("ConciliacaoPage", () => {
 
           await user.click(await screen.findByRole("button", { name: "Aguardando aprovação (2)" }));
           await user.click(screen.getByRole("checkbox", { name: "Marcar Boleto Aço Norte Bobinas" }));
-          expect(screen.getByText("1 de 2 marcadas")).toBeInTheDocument();
+          expect(screen.getByText("1 de 2 marcadas na página")).toBeInTheDocument();
           carregarConciliacao.mockClear();
           await user.click(screen.getByRole("button", { name: "Aprovar a marcada" }));
 
@@ -1594,12 +1629,52 @@ describe("ConciliacaoPage", () => {
           render(<ConciliacaoPage />);
 
           await user.click(await screen.findByRole("button", { name: "Aguardando aprovação (2)" }));
-          await user.click(screen.getByRole("checkbox", { name: "Marcar todas as justificativas aguardando aprovação" }));
+          await user.click(screen.getByRole("checkbox", { name: "Marcar todas as justificativas da página" }));
           await user.click(screen.getByRole("button", { name: "Rejeitar…" }));
           await user.type(screen.getByLabelText("Motivo da rejeição (opcional)"), "Sem comprovante.");
           await user.click(screen.getByRole("button", { name: "Rejeitar as 2 marcadas" }));
 
           expect(decidirLinhas).toHaveBeenCalledWith(BANCO, ["b:lc-2", "b:lc-3"], "rejeitar", "Sem comprovante.");
+        });
+
+        it("o admin marca só as 50 justificativas da página e perde a seleção ao navegar", async () => {
+          const base = comCampo.linhas.find((linha) => linha.id === "lc-2")!;
+          const linhas = Array.from({ length: 52 }, (_, i) => ({
+            ...base,
+            id: `pendente-${i}`,
+            chave: `b:pendente-${i}`,
+            descricao: `Pagamento ${i + 1}`,
+            decisao: pendente,
+          }));
+          doBackend({ ...comCampo, linhas });
+          decidirLinhas.mockResolvedValue({ ok: true, dados: { processadas: 50, ignoradas: 0 } });
+          const user = userEvent.setup();
+          render(<ConciliacaoPage />);
+
+          const filtro = await screen.findByRole("button", { name: "Aguardando aprovação (52)" });
+          await user.click(filtro);
+          const marcarTodas = () => screen.getByRole("checkbox", { name: "Marcar todas as justificativas da página" });
+          await user.click(marcarTodas());
+          expect(marcarTodas()).toBeChecked();
+          expect(screen.getByText("50 de 50 marcadas na página")).toBeInTheDocument();
+
+          const paginas = screen.getByRole("navigation", { name: "Páginas de lançamentos" });
+          await user.click(within(paginas).getByRole("button", { name: "Próxima" }));
+          expect(screen.queryAllByRole("checkbox", { checked: true })).toHaveLength(0);
+          await user.click(marcarTodas());
+          expect(screen.getByText("2 de 2 marcadas na página")).toBeInTheDocument();
+
+          await user.click(screen.getByRole("button", { name: "Data" }));
+          expect(within(paginas).getByText("1–50 de 52")).toBeInTheDocument();
+          expect(screen.queryAllByRole("checkbox", { checked: true })).toHaveLength(0);
+          await user.click(marcarTodas());
+          await user.click(screen.getByRole("button", { name: "Todos (52)" }));
+          await user.click(filtro);
+          expect(screen.queryAllByRole("checkbox", { checked: true })).toHaveLength(0);
+
+          await user.click(marcarTodas());
+          await user.click(screen.getByRole("button", { name: "Aprovar as 50 marcadas" }));
+          expect(decidirLinhas).toHaveBeenCalledWith(BANCO, linhas.slice(0, 50).map((linha) => linha.chave), "aprovar", undefined);
         });
 
         it("mostra o motivo de o lote não ter gravado", async () => {

@@ -138,7 +138,7 @@ describe("a equipe", () => {
     montar();
     await screen.findByText("Bia", { selector: ".equipe-nome" });
 
-    const janela = screen.getByRole("dialog", { name: "Convidar pessoa" });
+    const janela = await screen.findByRole("dialog", { name: "Convidar pessoa" });
     expect(within(janela).getByLabelText("E-mail da pessoa")).toBeInTheDocument();
     await user.click(within(janela).getByRole("button", { name: "Fechar" }));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
@@ -324,7 +324,8 @@ describe("a faixa do plano para pessoas", () => {
     await screen.findByText("Bia", { selector: ".equipe-nome" });
     expect(screen.getByText(/chegou ao limite de 3 pessoas/)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Ver planos" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Enviar convite" })).toBeEnabled();
+    const janela = await screen.findByRole("dialog", { name: "Convidar pessoa" });
+    expect(within(janela).getByRole("button", { name: "Enviar convite" })).toBeEnabled();
   });
 
   it("sem máximo e com uma pessoa só, a contagem fala no singular", async () => {
