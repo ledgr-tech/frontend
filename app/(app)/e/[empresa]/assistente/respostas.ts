@@ -112,8 +112,6 @@ export function pedePassosParaFechar(pergunta: string): boolean {
 
 export function assuntoDoMes(pergunta: string, mes?: string) {
   const texto = normalizar(pergunta);
-  // Perguntas de uso vão à Central, inclusive quando citam termos da conciliação.
-  if (/^(?:como\s+(?!esta\b)|onde\b)/.test(texto)) return null;
   if (/\b(explic|maior)/.test(texto)) return "explicar";
   if (/\btarifa/.test(texto)) return "tarifas";
   if (/\bduplic/.test(texto)) return "duplicidades";

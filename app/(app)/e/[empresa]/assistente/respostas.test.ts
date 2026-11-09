@@ -174,6 +174,10 @@ describe("responder", () => {
     expect(texto("divergencias", contexto())).toMatch(/^Os R\$ 4\.261 em aberto/);
   });
 
+  it("responde localmente sobre as pendências mesmo com uma pergunta iniciada por Como", () => {
+    expect(responder("Como estão as pendências de R$ 500?", contexto())?.texto).toMatch(/^Os R\$.*em aberto/);
+  });
+
   it("pede a explicação à IA só quando há divergência para explicar", () => {
     expect(responder("Explique a maior divergência", contexto())).toEqual({ texto: "", explicar: true });
     expect(responder("explica", contexto([linha("l1", "match_exato", 100, 100)]))!.texto).toBe(
@@ -183,6 +187,7 @@ describe("responder", () => {
 
   it("o que não é do roteiro fica para o assistente da Central (null), em vez de inventar", () => {
     expect(responder("como convido alguém da equipe?", contexto())).toBeNull();
+    expect(responder("Onde altero a senha da minha conta?", contexto())).toBeNull();
     // "previsão" não é pergunta sobre revisão
     expect(responder("qual a previsão do tempo?", contexto())).toBeNull();
   });

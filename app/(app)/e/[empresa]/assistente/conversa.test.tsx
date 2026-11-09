@@ -280,8 +280,9 @@ describe("Conversa", () => {
       const user = userEvent.setup();
       render(<Conversa contexto={CONTEXTO} onFechar={vi.fn()} />);
 
-      await user.click(screen.getByRole("button", { name: "Resumo de setembro" }));
+      await user.type(screen.getByLabelText("Sua pergunta"), "Como estão as pendências de R$ 500?{Enter}");
 
+      expect(await within(conversa()).findByText(/^Os R\$.*em aberto/)).toBeInTheDocument();
       expect(perguntarAoAssistente).not.toHaveBeenCalled();
     });
 
