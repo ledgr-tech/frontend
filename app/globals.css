@@ -1435,7 +1435,8 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
   .mockup-cena[data-cena="fechamentos"] { zoom: 0.82; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .mockup-intro { display: none; }
+  .mockup-intro, .mockup-cursor { display: none; }
+  .mockup-cena { transition: none; }
   .mockup-cena, .mockup-veu[data-aberto] { animation: none; }
 }
 /* a demonstração de "O problema" (comparacao.tsx): a mesma tabela, com o cartão preso à linha
@@ -3753,12 +3754,15 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
    quem concilia. */
 .asst-painel {
   position: absolute; z-index: 80; left: calc(100% + 28px); bottom: -8px;
-  width: 372px; max-height: calc(100vh - 32px);
+  width: 480px; height: min(640px, calc(100dvh - 160px));
   display: flex; flex-direction: column; overflow: hidden;
   border: 1px solid var(--color-divider); border-radius: var(--radius-md);
   background: var(--color-surface); box-shadow: var(--shadow-lg);
   animation: cartao-lancamento-surgir 0.18s var(--ease-out);
 }
+/* A Ajuda e o tutorial têm prioridade. O chat fica montado com a conversa e a rolagem. */
+.app-shell:has(:is(.tutorial-envelope, #menu-de-ajuda, .ajd-painel)) .asst-painel,
+.asst-painel[aria-hidden="true"] { visibility: hidden; }
 .asst-topo {
   flex: none; display: flex; align-items: center; gap: 11px;
   padding: 14px 14px 14px 16px; border-bottom: 1px solid var(--color-divider);
@@ -3771,7 +3775,6 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
 .asst-nome { font-family: var(--font-heading); font-size: 19px; font-weight: 600; line-height: 1.15; }
 .asst-ponto {
   flex: none; width: 5px; height: 5px; border-radius: 50%; background: var(--color-accent);
-  animation: asst-pulso 1.6s ease-in-out infinite;
 }
 @keyframes asst-pulso { 50% { opacity: 0.35; } }
 .asst-fechar {
@@ -3789,14 +3792,19 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
 .asst-painel-corpo p { margin: 0; }
 
 .asst-mensagens {
-  flex: 1 1 auto; min-height: 120px; max-height: 292px; overflow-y: auto;
-  display: flex; flex-direction: column; gap: 12px; padding: 16px;
+  flex: 1 1 auto; min-height: 0; overflow-y: auto;
+  overscroll-behavior-y: contain; scrollbar-width: none;
+  display: flex; flex-direction: column; gap: 12px; padding: 18px;
 }
+.asst-mensagens::-webkit-scrollbar { display: none; }
+.asst-mensagens:focus-visible { outline: 2px solid var(--color-accent); outline-offset: -2px; }
 .asst-linha { display: flex; align-items: flex-start; gap: 9px; }
 .asst-linha-voce { justify-content: flex-end; }
+.asst-linha[data-nova] { animation: asst-mensagem-entra 200ms var(--ease-out); }
+@keyframes asst-mensagem-entra { from { opacity: 0; transform: translateY(5px); } }
 .asst-bolha {
-  margin: 0; max-width: 85%; padding: 9px 12px;
-  border-radius: var(--radius-md); font-size: 13.5px; line-height: 1.55; overflow-wrap: anywhere;
+  margin: 0; max-width: 85%; padding: 10px 13px;
+  border-radius: var(--radius-md); font-size: 14px; line-height: 1.6; overflow-wrap: anywhere;
 }
 /* o passo a passo do assistente da Central vem em linhas (1., 2., …): a quebra de linha fica */
 .asst-bolha p { margin: 0; white-space: pre-line; }
@@ -3828,7 +3836,7 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
 
 .asst-sugestoes { flex: none; display: flex; flex-wrap: wrap; gap: 7px; padding: 0 16px 14px; }
 .asst-sugestoes .pill { font-size: 12px; padding: 6px 10px; }
-.asst-sugestoes .pill:disabled { opacity: 0.5; cursor: default; }
+.asst-sugestoes .pill[aria-disabled="true"] { opacity: 0.5; cursor: default; }
 .asst-campo {
   flex: none; display: flex; align-items: center; gap: 10px;
   padding: 10px 12px 10px 16px; border-top: 1px solid var(--color-divider);
@@ -3839,7 +3847,7 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
 }
 .asst-campo:focus-within { box-shadow: inset 0 2px 0 -1px var(--color-accent); }
 @media (prefers-reduced-motion: reduce) {
-  .asst-painel, .asst-ponto, .asst-digitando span { animation: none; }
+  .asst-painel, .asst-linha[data-nova], .asst-digitando span { animation: none; }
 }
 
 /* ── Configurações ─────────────────────────────────────────────────────────────
@@ -4350,7 +4358,7 @@ html:not([data-densidade="padrao"]) .app-shell .selo { padding-block: 1px; }
     position: static; height: auto; border-right: none;
     border-bottom: 1px solid var(--color-divider);
     display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center;
-    grid-template-areas: "topo rodape" "nova nova" "nav nav";
+    grid-template-areas: "topo rodape" "nova nova" "nav nav" "assistente assistente";
     gap: 10px 12px; padding: 12px 16px;
   }
   .app-aside-topo { grid-area: topo; padding: 0; min-height: 0; }
@@ -4367,7 +4375,13 @@ html:not([data-densidade="padrao"]) .app-shell .selo { padding-block: 1px; }
   }
   /* sem o width: 100% do menu em pe, os itens medem o proprio texto e embrulham */
   .app-nav-item { width: auto; }
-  .app-assistente { display: none; }
+  .app-assistente-envelope { grid-area: assistente; }
+  .app-aside:not([data-secoes="abertas"]) .app-assistente-envelope { display: contents; }
+  .app-aside:not([data-secoes="abertas"]) .app-assistente { display: none; }
+  .asst-painel {
+    position: fixed; inset: auto 12px max(12px, env(safe-area-inset-bottom)) 12px;
+    width: auto; height: min(640px, calc(100dvh - 24px));
+  }
   .app-aside-rodape { grid-area: rodape; border-top: none; padding-top: 0; }
   /* so as iniciais no canto; o nome continua no botao para o leitor de tela */
   .app-conta-texto {
@@ -5958,6 +5972,13 @@ html[data-tema="escuro"] .app-shell {
 .kin-palco { margin-top: clamp(56px, 8vw, 110px); perspective: 1800px; }
 .kin-palco .vitrine { max-width: 1100px; margin: 0 auto; transform-origin: 50% 0; }
 .kin-adesivo-solto { rotate: var(--inclinacao); }
+@media (prefers-reduced-motion: reduce) {
+  :is(.kin-linha, .kin-adesivo-lugar, .kin-palco > [data-reveal], .mockup-demo > [data-reveal]) {
+    /* Os valores de rolagem podem deixar o último quadro no estilo do elemento. */
+    transform: none !important;
+    opacity: 1 !important;
+  }
+}
 @keyframes kin-entra-letra { from { opacity: 0; transform: translateY(110%) rotate(var(--giro)); } }
 @keyframes kin-entra-olho { from { opacity: 0; transform: translateY(18px); } }
 @keyframes kin-entra-bloco { from { opacity: 0; transform: translateY(24px); } }
@@ -6017,8 +6038,11 @@ html[data-tema="escuro"] .app-shell {
 .site-cabecalho[data-no-topo] { background: transparent !important; border-bottom-color: transparent !important; backdrop-filter: none !important; }
 
 /* --- botões da landing: a setinha que anda no hover --- */
-.landing :is(.btn-primary, .regua-mede-acao)::after { content: "→"; display: inline-block; margin-left: 0.45em; transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
-.landing :is(.btn-primary, .regua-mede-acao):hover::after { transform: translateX(4px); }
+.landing :is(.btn-primary, .regua-mede-acao)::after { content: "→"; display: inline-block; margin-left: 0.45em; }
+@media (prefers-reduced-motion: no-preference) {
+  .landing :is(.btn-primary, .regua-mede-acao)::after { transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
+  .landing :is(.btn-primary, .regua-mede-acao):hover::after { transform: translateX(4px); }
+}
 
 /* --- Cap. II: números na voz do hero, marcadores como selo do guia, o fecho com traço e grifo --- */
 .mao .mao-dor-numero { font-family: var(--font-body); font-weight: 500; letter-spacing: -0.045em; font-size: clamp(46px, 4.4vw, 68px); line-height: 1; font-variant-numeric: tabular-nums lining-nums; }
@@ -6065,6 +6089,7 @@ html[data-tema="escuro"] .app-shell {
 .kin-lat-fixo { position: relative; overflow-x: auto; scroll-snap-type: x mandatory; padding: clamp(64px, 9vw, 96px) 0; }
 .kin-lat[data-presa] .kin-lat-fixo { position: sticky; top: 0; height: 100vh; overflow: hidden; scroll-snap-type: none; padding: 77px 0 16vh; display: flex; flex-direction: column; justify-content: center; }
 .kin-lat-trilho { display: flex; width: max-content; align-items: stretch; padding: 0 clamp(20px, 4.2vw, 56px); }
+.kin-lat:not([data-presa]) .kin-lat-trilho { transform: none !important; }
 .kin-motivo { flex: none; width: min(82vw, 1080px); display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 24px; padding: 8px clamp(24px, 4vw, 72px); border-left: 1px solid var(--color-divider); scroll-snap-align: start; }
 .kin-motivo-intro { display: block; width: min(78vw, 940px); border-left: 0; padding-left: clamp(4px, 1.4vw, 20px); align-self: center; }
 .kin-lat-titulo { margin: 0; font-size: clamp(42px, 6.2vw, 100px); max-width: 13ch; letter-spacing: -0.04em; }
@@ -6123,8 +6148,11 @@ html[data-tema="escuro"] .app-shell {
 .para-quem-mascote { transition: rotate 0.3s cubic-bezier(0.22, 1, 0.36, 1); }
 .para-quem-perfil:hover .para-quem-mascote { rotate: -8deg; }
 .meu-plano { align-self: flex-start; margin-top: auto; padding-top: 20px; font: 600 14px/1.2 var(--font-body); color: var(--color-accent-700); text-decoration: none; }
-.meu-plano::after { content: "→"; display: inline-block; margin-left: 0.4em; transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
-.para-quem-perfil:hover .meu-plano::after { transform: translateX(4px); }
+.meu-plano::after { content: "→"; display: inline-block; margin-left: 0.4em; }
+@media (prefers-reduced-motion: no-preference) {
+  .meu-plano::after { transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
+  .para-quem-perfil:hover .meu-plano::after { transform: translateX(4px); }
+}
 @media (prefers-reduced-motion: reduce) {
   .para-quem-perfil, .para-quem-mascote { transition: none; }
   .para-quem-perfil:hover { translate: none; }

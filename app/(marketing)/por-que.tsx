@@ -2,9 +2,10 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { m, useReducedMotion, useScroll, useSpring, useTransform } from "motion/react";
+import { m, useScroll, useSpring, useTransform } from "motion/react";
 import { Fragment, useLayoutEffect, useRef, useState } from "react";
 import { LogoBarras } from "@/app/(app)/e/[empresa]/logo-barras";
+import { useMovimentoReduzido } from "@/app/reveal";
 import { Cena } from "./cena";
 
 // "Por que o Ledgr": as duas saídas que a empresa tem hoje e o Ledgr, cada uma respondendo às
@@ -62,7 +63,7 @@ const PERIODO_DA_ONDA = 17;
  * terço de tela a mais no fim, já com tudo parado, é onde a onda desce em seta para a próxima seção.
  */
 export function PorQueOLedgr() {
-  const reduzido = useReducedMotion();
+  const reduzido = useMovimentoReduzido();
   const secao = useRef<HTMLElement>(null);
   const fixo = useRef<HTMLDivElement>(null);
   const trilho = useRef<HTMLDivElement>(null);
@@ -76,10 +77,13 @@ export function PorQueOLedgr() {
       const faixa = trilho.current;
       if (!caixa || !faixa) return;
       const distancia = Math.max(0, faixa.scrollWidth - caixa.clientWidth);
-      const extra = Math.round(window.innerHeight * 0.35);
+      const altura = window.innerHeight;
+      // Mesmo respiro da faixa fixa no CSS. Se os cartões não couberem, deixa a tira rolar.
+      const cabe = faixa.offsetHeight <= altura * 0.84 - 77;
+      const extra = Math.round(altura * 0.35);
       const margem = Math.min(56, Math.max(20, caixa.clientWidth * 0.042));
       const barra = Math.floor((caixa.clientWidth - 2 * margem) / PERIODO_DA_ONDA) * PERIODO_DA_ONDA;
-      setMedidas(distancia > 0 ? { distancia, extra, altura: window.innerHeight + distancia + extra, barra } : null);
+      setMedidas(cabe && distancia > 0 ? { distancia, extra, altura: altura + distancia + extra, barra } : null);
     };
     medir();
     const observador = new ResizeObserver(medir);
@@ -101,7 +105,7 @@ export function PorQueOLedgr() {
   const fioDaSeta = useTransform(scrollYProgress, [ate, desce], ["inset(0 0 100% 0)", "inset(0 0 0% 0)"]);
   const ponta = useTransform(scrollYProgress, [desce, 1], [0, 1]);
 
-  const presa = medidas !== null;
+  const presa = !reduzido && medidas !== null;
 
   return (
     <section

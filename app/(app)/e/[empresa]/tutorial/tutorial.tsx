@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { X } from "lucide-react";
 import { ABRIR_TUTORIAL } from "@/lib/eventos";
@@ -158,7 +158,6 @@ export function Tutorial({
   function fechar() {
     if (naoMostrar) dispensarTutorial(tela);
     setAberto(false);
-    focoAnterior.current?.focus?.();
   }
 
   // o Esc da janela e o "?" chamam sempre a versão atual (com a caixa como está agora)
@@ -263,8 +262,14 @@ export function Tutorial({
     };
   }, [aberto, indice, passos, espera]);
 
-  useEffect(() => {
-    if (aberto) cartao.current?.focus();
+  useLayoutEffect(() => {
+    if (aberto) {
+      cartao.current?.focus();
+    } else {
+      // O chat só volta a ficar visível quando o cartão sai do DOM.
+      focoAnterior.current?.focus({ preventScroll: true });
+      focoAnterior.current = null;
+    }
   }, [aberto, indice]);
 
   if (!aberto) return null;

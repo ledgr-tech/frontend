@@ -12,17 +12,15 @@ export const CURVA_DE_SAIDA = "cubic-bezier(0.22, 1, 0.36, 1)";
  * tela já cuida da entrada) e, para quem pediu menos movimento, fica só o fade.
  */
 export function useTrocaSuave(ref: RefObject<HTMLElement | null>, chave: unknown) {
-  const primeira = useRef(true);
+  const anterior = useRef(chave);
 
   useEffect(() => {
-    if (primeira.current) {
-      primeira.current = false;
-      return;
-    }
+    if (Object.is(anterior.current, chave)) return;
+    anterior.current = chave;
     const elemento = ref.current;
     if (!elemento || typeof elemento.animate !== "function") return;
     const reduzido = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ?? false;
-    elemento.animate(
+    const animacao = elemento.animate(
       reduzido
         ? [{ opacity: 0.4 }, { opacity: 1 }]
         : [
@@ -31,5 +29,6 @@ export function useTrocaSuave(ref: RefObject<HTMLElement | null>, chave: unknown
           ],
       { duration: 160, easing: CURVA_DE_SAIDA },
     );
+    return () => animacao.cancel();
   }, [ref, chave]);
 }

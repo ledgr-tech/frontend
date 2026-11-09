@@ -1,7 +1,7 @@
 "use client";
 
 import { LazyMotion, MotionConfig, domAnimation, m, useMotionValue, useTransform } from "motion/react";
-import { createContext, useContext, useRef, useState } from "react";
+import { createContext, useContext, useRef, useSyncExternalStore } from "react";
 import type { CSSProperties, ReactNode } from "react";
 
 // dentro do app a troca de tela já anima a chegada; os blocos entrando em cascata por cima dela faziam o
@@ -117,17 +117,21 @@ export function NumeralQueDesce({ children, className }: { children: ReactNode; 
 
 const INK_STROKE_MIN_DISTANCE = 16;
 
-function prefersReducedMotion() {
-  return (
-    typeof window !== "undefined" &&
-    typeof window.matchMedia === "function" &&
-    window.matchMedia("(prefers-reduced-motion: reduce)").matches
-  );
+const CONSULTA_MOVIMENTO = "(prefers-reduced-motion: reduce)";
+
+function observarMovimento(atualizar: () => void) {
+  const consulta = window.matchMedia?.(CONSULTA_MOVIMENTO);
+  consulta?.addEventListener?.("change", atualizar);
+  return () => consulta?.removeEventListener?.("change", atualizar);
 }
 
-function useReducedMotion() {
-  const [reducedMotion] = useState(prefersReducedMotion);
-  return reducedMotion;
+function lerMovimentoReduzido() {
+  return window.matchMedia?.(CONSULTA_MOVIMENTO).matches ?? false;
+}
+
+// O HTML do servidor já chega parado, inclusive na primeira pintura de quem pediu menos movimento.
+export function useMovimentoReduzido() {
+  return useSyncExternalStore(observarMovimento, lerMovimentoReduzido, () => true);
 }
 
 // teto de traços ao mesmo tempo, caso o animationend não chegue (bloco escondido não anima)
@@ -152,7 +156,7 @@ export function InkHover({
   "aria-labelledby"?: string;
 }) {
   const lastPoint = useRef<{ x: number; y: number } | null>(null);
-  const reducedMotion = useReducedMotion();
+  const reducedMotion = useMovimentoReduzido();
 
   return (
     <Tag
@@ -206,7 +210,7 @@ export function SpotlightHover({
 }) {
   const mouseX = useMotionValue(-9999);
   const mouseY = useMotionValue(-9999);
-  const reducedMotion = useReducedMotion();
+  const reducedMotion = useMovimentoReduzido();
   const spotlight = useTransform(
     [mouseX, mouseY],
     ([x, y]) =>

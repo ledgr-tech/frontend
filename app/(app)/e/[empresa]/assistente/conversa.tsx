@@ -1,19 +1,19 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import Link from "@/lib/link-do-app";
 import { useRoteador } from "@/lib/roteador";
 import { caminhoSemEmpresa } from "@/lib/rotas";
 import { Sparkles, X } from "lucide-react";
-import { explicarDivergencia } from "../conciliacoes/acoes";
+import { explicarDivergencia, type Resultado } from "../conciliacoes/acoes";
 import { formatarMoedaCurta } from "../dashboard/resumo";
 import { telaDoCaminho } from "../tutorial/roteiros";
 import { ajudaDaTela } from "../../../../(ajuda)/ajuda/paginas";
 import { lembrarDeOndeVeio } from "../../../../(ajuda)/ajuda/voltar";
 import { perguntarAoAssistente, type TurnoDaConversa } from "./acoes";
-import { foraDoRoteiro, responder, saudacao, sugestoes, type Contexto } from "./respostas";
+import { assuntoDoMes, foraDoRoteiro, pedePassosParaFechar, responder, saudacao, sugestoes, type Contexto } from "./respostas";
 
 /**
  * A conversa com o Ledgr ("chatbot" do APP em Ledgr.dc.html), dentro do painel
@@ -21,7 +21,7 @@ import { foraDoRoteiro, responder, saudacao, sugestoes, type Contexto } from "./
  * O que é sobre o mês sai de `responder`, com os números da última conciliação; a
  * explicação de uma divergência é a IA do backend. O resto ("como faço…") vai ao
  * assistente da Central de ajuda (backend #137, front #172), com a tela aberta e as
- * últimas mensagens. Só as chamadas de verdade têm espera, para não encenar.
+ * últimas mensagens. As respostas locais dão uma pausa curta entre os balões.
  */
 
 type LinkDaMensagem = { href: string; rotulo: string };
@@ -44,7 +44,11 @@ type Mensagem = {
 export type SemDados = "vazio" | "falhou";
 
 const CENTRAL: LinkDaMensagem = { href: "/ajuda", rotulo: "Abrir a Central de ajuda" };
+const FECHAR_O_MES = ajudaDaTela("fechamentos")?.funcoes.find((funcao) => funcao.id === "fechar");
+const FALHA_DE_REDE = "Não foi possível falar com o servidor. Tente de novo em instantes.";
 const MAXIMO_TURNOS = 6;
+const INTERVALO_DA_RESPOSTA = 420;
+const agora = () => performance.now();
 
 const SUGESTOES_DE_USO = ["Como envio o extrato do banco?", "Como convido alguém da equipe?", "Como fecho o mês?"];
 
@@ -93,11 +97,15 @@ export function TopoDoLedgr({ status, onFechar }: { status?: string; onFechar: (
 export function Conversa({
   contexto,
   semDados = "vazio",
+  aberta = true,
+  atualizarContexto,
   onFechar,
 }: {
   /** null quando não há conciliação (ou ela não carregou): a conversa fica só com as dúvidas de uso. */
   contexto: Contexto | null;
   semDados?: SemDados;
+  aberta?: boolean;
+  atualizarContexto: () => Promise<Resultado<Contexto | null>>;
   onFechar: () => void;
 }) {
   const router = useRoteador();
@@ -114,23 +122,32 @@ export function Conversa({
         },
   ]);
   const [texto, setTexto] = useState("");
-  // o que a espera está fazendo: lendo o extrato (a explicação) ou procurando na Central
-  const [lendo, setLendo] = useState<"extrato" | "central" | null>(null);
+  const [lendo, setLendo] = useState<"resposta" | "extrato" | "central" | null>(null);
   const proximoId = useRef(1);
-  const fim = useRef<HTMLDivElement>(null);
+  const historico = useRef<HTMLDivElement>(null);
+  const campo = useRef<HTMLInputElement>(null);
+  const acompanhar = useRef(true);
+  const esperaDaResposta = useRef<number | undefined>(undefined);
 
-  useEffect(() => {
-    fim.current?.scrollIntoView?.({ block: "nearest" });
+  useLayoutEffect(() => {
+    const area = historico.current;
+    if (area && acompanhar.current) area.scrollTop = area.scrollHeight;
   }, [mensagens, lendo]);
+
+  useEffect(() => () => window.clearTimeout(esperaDaResposta.current), []);
+
+  useLayoutEffect(() => {
+    if (!aberta) return;
+    const destino = window.matchMedia?.("(max-width: 900px)").matches ? campo.current?.closest<HTMLElement>(".asst-painel") : campo.current;
+    destino?.focus({ preventScroll: true });
+  }, [aberta]);
 
   function acrescentar(mensagem: Omit<Mensagem, "id">) {
     const id = proximoId.current++;
     setMensagens((atuais) => [...atuais, { ...mensagem, id }]);
   }
 
-  async function explicar() {
-    const maior = contexto?.maior;
-    if (!maior) return;
+  async function explicar(maior: NonNullable<Contexto["maior"]>) {
     setLendo("extrato");
     try {
       const resposta = await explicarDivergencia(maior.id);
@@ -150,7 +167,7 @@ export function Conversa({
           : { de: "ledgr", texto: resposta.erro },
       );
     } catch {
-      acrescentar({ de: "ledgr", texto: "Não foi possível falar com o servidor. Tente de novo em instantes." });
+      acrescentar({ de: "ledgr", texto: FALHA_DE_REDE });
     } finally {
       setLendo(null);
     }
@@ -194,28 +211,78 @@ export function Conversa({
         links: [CENTRAL],
       });
     } catch {
-      acrescentar({ de: "ledgr", texto: "Não foi possível falar com o servidor. Tente de novo em instantes.", links: [CENTRAL] });
+      acrescentar({ de: "ledgr", texto: FALHA_DE_REDE, links: [CENTRAL] });
     } finally {
       setLendo(null);
+    }
+  }
+
+  function mostrarResposta(mensagem: Omit<Mensagem, "id">, inicio: number) {
+    const restante = INTERVALO_DA_RESPOSTA - (agora() - inicio);
+    const publicar = () => {
+      acrescentar(mensagem);
+      setLendo(null);
+    };
+    if (restante <= 0 || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+      publicar();
+      return;
+    }
+    setLendo("resposta");
+    esperaDaResposta.current = window.setTimeout(publicar, restante);
+  }
+
+  async function responderSobreOMes(pergunta: string, assunto: NonNullable<ReturnType<typeof assuntoDoMes>>, inicio: number) {
+    setLendo("resposta");
+    try {
+      const atual = await atualizarContexto();
+      if (!atual.ok) {
+        if (atual.status === 401) {
+          setLendo(null);
+          router.push("/login");
+        } else {
+          mostrarResposta({ de: "ledgr", texto: saudacaoSemDados("falhou"), links: [CENTRAL] }, inicio);
+        }
+        return;
+      }
+      if (!atual.dados) {
+        mostrarResposta({ de: "ledgr", texto: saudacaoSemDados("vazio"), links: [{ href: "/conciliacoes/nova", rotulo: "Nova conciliação" }] }, inicio);
+        return;
+      }
+      const resposta = responder(pergunta, atual.dados, assunto);
+      if (resposta?.explicar && atual.dados.maior) {
+        await explicar(atual.dados.maior);
+      } else {
+        mostrarResposta({
+          de: "ledgr",
+          texto: resposta?.texto ?? foraDoRoteiro(atual.dados),
+          links: resposta?.link ? [resposta.link] : undefined,
+        }, inicio);
+      }
+    } catch {
+      mostrarResposta({ de: "ledgr", texto: saudacaoSemDados("falhou"), links: [CENTRAL] }, inicio);
     }
   }
 
   function perguntar(pergunta: string) {
     const limpa = pergunta.trim();
     if (!limpa || lendo) return;
-    const anteriores = mensagens;
-    const resposta = contexto ? responder(limpa, contexto) : null;
-    acrescentar({ de: "voce", texto: limpa, daCentral: resposta === null });
+    const passos = pedePassosParaFechar(limpa) ? FECHAR_O_MES : undefined;
+    const assunto = assuntoDoMes(limpa, contexto?.mes);
+    const inicio = agora();
+    acompanhar.current = true;
+    acrescentar({ de: "voce", texto: limpa, daCentral: !passos && assunto === null });
     setTexto("");
-    if (resposta?.explicar) {
-      void explicar();
-      return;
+    if (passos) {
+      mostrarResposta({
+        de: "ledgr",
+        texto: [...(passos.passos ?? []), passos.nota].filter(Boolean).join("\n").replaceAll("**", ""),
+        links: [{ href: "/ajuda/fechamentos#fechar", rotulo: passos.titulo }],
+      }, inicio);
+    } else if (assunto) {
+      void responderSobreOMes(limpa, assunto, inicio);
+    } else {
+      void perguntarACentral(limpa, mensagens);
     }
-    if (resposta) {
-      acrescentar({ de: "ledgr", texto: resposta.texto, links: resposta.link && [resposta.link] });
-      return;
-    }
-    void perguntarACentral(limpa, anteriores);
   }
 
   function enviar(evento: FormEvent<HTMLFormElement>) {
@@ -239,10 +306,20 @@ export function Conversa({
       />
 
       {/* role="log": o leitor de tela anuncia cada mensagem nova, sem roubar o foco */}
-      <div className="asst-mensagens" role="log" aria-label="Conversa com o Ledgr" aria-live="polite">
+      <div
+        ref={historico}
+        className="asst-mensagens"
+        role="log"
+        aria-label="Conversa com o Ledgr"
+        aria-live="polite"
+        tabIndex={0}
+        onScroll={({ currentTarget }) => {
+          acompanhar.current = currentTarget.scrollHeight - currentTarget.scrollTop - currentTarget.clientHeight <= 48;
+        }}
+      >
         {mensagens.map((mensagem) =>
           mensagem.de === "ledgr" ? (
-            <div key={mensagem.id} className="asst-linha">
+            <div key={mensagem.id} className="asst-linha" data-nova={mensagem.id > 0 || undefined}>
               <Mascote tamanho={28} rosto />
               <div className="asst-bolha asst-bolha-ledgr">
                 {mensagem.ia && (
@@ -267,7 +344,7 @@ export function Conversa({
               </div>
             </div>
           ) : (
-            <div key={mensagem.id} className="asst-linha asst-linha-voce">
+            <div key={mensagem.id} className="asst-linha asst-linha-voce" data-nova>
               <p className="asst-bolha asst-bolha-voce">{mensagem.texto}</p>
             </div>
           ),
@@ -275,7 +352,15 @@ export function Conversa({
         {lendo && (
           <div
             className="asst-linha"
-            aria-label={lendo === "central" ? "O Ledgr está procurando na Central de ajuda" : "O Ledgr está lendo o extrato"}
+            data-nova
+            role="status"
+            aria-label={
+              lendo === "central"
+                ? "O Ledgr está procurando na Central de ajuda"
+                : lendo === "extrato"
+                  ? "O Ledgr está lendo o extrato"
+                  : "O Ledgr está preparando a resposta"
+            }
           >
             <Mascote tamanho={28} rosto />
             <span className="asst-bolha asst-digitando" aria-hidden="true">
@@ -285,12 +370,11 @@ export function Conversa({
             </span>
           </div>
         )}
-        <div ref={fim} />
       </div>
 
       <div className="asst-sugestoes" role="group" aria-label="Perguntas sugeridas">
         {(contexto ? sugestoes(contexto) : SUGESTOES_DE_USO).map((sugestao) => (
-          <button key={sugestao} type="button" className="pill" disabled={lendo !== null} onClick={() => perguntar(sugestao)}>
+          <button key={sugestao} type="button" className="pill" aria-disabled={lendo !== null || undefined} onClick={() => perguntar(sugestao)}>
             {sugestao}
           </button>
         ))}
@@ -298,6 +382,7 @@ export function Conversa({
 
       <form className="asst-campo" onSubmit={enviar}>
         <input
+          ref={campo}
           type="text"
           value={texto}
           onChange={(evento) => setTexto(evento.target.value)}
@@ -305,8 +390,6 @@ export function Conversa({
           maxLength={500}
           aria-label="Sua pergunta"
           autoComplete="off"
-          // o painel abriu para uma pergunta: o cursor já espera nela
-          autoFocus
         />
         <button type="submit" className="btn btn-secondary" disabled={lendo !== null || !texto.trim()}>
           Enviar

@@ -5,13 +5,13 @@ import { Check } from "lucide-react";
 import {
   m,
   useMotionValue,
-  useReducedMotion,
   useScroll,
   useSpring,
   useTransform,
   type MotionValue,
 } from "motion/react";
 import { Fragment, useRef, type CSSProperties, type ReactNode } from "react";
+import { useMovimentoReduzido } from "@/app/reveal";
 import { Cena } from "./cena";
 import type { LinhaExtrato } from "./comparacao";
 import { Vitrine } from "./vitrine";
@@ -78,6 +78,7 @@ function Adesivo({
   mouse,
   rolagem,
   espera,
+  reduzido,
   children,
 }: {
   classe: string;
@@ -90,9 +91,9 @@ function Adesivo({
   mouse: MotionValue<number>;
   rolagem: MotionValue<number>;
   espera: number;
+  reduzido: boolean;
   children: ReactNode;
 }) {
-  const reduzido = useReducedMotion();
   const x = useSpring(useTransform(mouse, (v) => v * 36 * profundidade), { stiffness: 80, damping: 18 });
   const y = useTransform(rolagem, [0, 1], ["0%", `${-120 * velocidade}%`]);
   return (
@@ -129,7 +130,7 @@ function Sobe({ espera, children }: { espera: number; children: ReactNode }) {
  * Embaixo, a "Comparação direta" numa janela, que se endireita conforme entra na tela.
  */
 export function Hero({ banco, sistema }: { banco: LinhaExtrato[]; sistema: LinhaExtrato[] }) {
-  const reduzido = useReducedMotion();
+  const reduzido = useMovimentoReduzido();
   const topo = useRef<HTMLDivElement>(null);
   const palco = useRef<HTMLDivElement>(null);
   const mouse = useMotionValue(0);
@@ -152,6 +153,7 @@ export function Hero({ banco, sistema }: { banco: LinhaExtrato[]; sistema: Linha
         className="kin-topo"
         ref={topo}
         onPointerMove={(evento) => {
+          if (reduzido) return;
           const caixa = evento.currentTarget.getBoundingClientRect();
           mouse.set((evento.clientX - caixa.left) / caixa.width - 0.5);
         }}
@@ -187,6 +189,7 @@ export function Hero({ banco, sistema }: { banco: LinhaExtrato[]; sistema: Linha
           mouse={mouse}
           rolagem={rolagem}
           espera={FIM_DO_TITULO + 0.35}
+          reduzido={reduzido}
         >
           <Check size="0.9em" strokeWidth={3} aria-hidden="true" />
           Conciliado
@@ -200,6 +203,7 @@ export function Hero({ banco, sistema }: { banco: LinhaExtrato[]; sistema: Linha
           mouse={mouse}
           rolagem={rolagem}
           espera={FIM_DO_TITULO + 0.49}
+          reduzido={reduzido}
         >
           Valor diverge
         </Adesivo>

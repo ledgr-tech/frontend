@@ -1,8 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { ComponentProps } from "react";
 import type { Explicacao, Resultado } from "../conciliacoes/acoes";
-import { Conversa } from "./conversa";
+import { Conversa as ConversaDoLedgr } from "./conversa";
 import type { Contexto } from "./respostas";
 
 // a explicação é a IA do backend; aqui a action devolve o que ele responderia
@@ -13,6 +14,7 @@ vi.mock("../conciliacoes/acoes", () => ({
 
 // o que o roteiro do mês não responde vai ao assistente da Central (backend #137)
 const perguntarAoAssistente = vi.fn();
+const atualizarContexto = vi.fn<(contexto: Contexto | null) => Promise<Resultado<Contexto | null>>>();
 vi.mock("./acoes", () => ({
   perguntarAoAssistente: (...args: unknown[]) => perguntarAoAssistente(...args),
 }));
@@ -48,10 +50,15 @@ function conversa() {
   return screen.getByRole("log", { name: "Conversa com o Ledgr" });
 }
 
+function Conversa(props: Omit<ComponentProps<typeof ConversaDoLedgr>, "atualizarContexto">) {
+  return <ConversaDoLedgr {...props} atualizarContexto={() => atualizarContexto(props.contexto)} />;
+}
+
 describe("Conversa", () => {
   beforeEach(() => {
     explicarDivergencia.mockReset();
     perguntarAoAssistente.mockReset();
+    atualizarContexto.mockReset().mockImplementation(async (dados) => ({ ok: true, dados }));
     push.mockReset();
   });
 
@@ -68,6 +75,7 @@ describe("Conversa", () => {
     expect(document.querySelector(".asst-topo img")?.getAttribute("src")).toContain("mascote-chatbot");
     // o painel abriu para uma pergunta
     expect(screen.getByRole("textbox", { name: "Sua pergunta" })).toHaveFocus();
+    expect(conversa()).toHaveAttribute("tabindex", "0");
   });
 
   it("closes from its own header", async () => {
@@ -79,19 +87,67 @@ describe("Conversa", () => {
     expect(onFechar).toHaveBeenCalledOnce();
   });
 
-  it("answers a suggested question right away, with a way to the screen that has the detail", async () => {
-    const user = userEvent.setup();
+  it("mostra a pergunta e a espera antes de publicar a resposta local", async () => {
+    vi.useFakeTimers();
+    try {
+      render(<Conversa contexto={CONTEXTO} onFechar={vi.fn()} />);
+      const sugestao = screen.getByRole("button", { name: "O que falta para fechar?" });
+      fireEvent.click(sugestao);
+      fireEvent.click(sugestao);
+
+      expect(within(conversa()).getAllByText("O que falta para fechar?")).toHaveLength(1);
+      expect(within(conversa()).getByRole("status", { name: "O Ledgr está preparando a resposta" })).toBeInTheDocument();
+      expect(conversa()).not.toHaveTextContent("Faltam 42 decisões suas.");
+
+      await act(async () => {});
+      act(() => vi.runOnlyPendingTimers());
+
+      expect(conversa()).toHaveTextContent("Faltam 42 decisões suas.");
+      expect(within(conversa()).queryByRole("status")).not.toBeInTheDocument();
+      expect(within(conversa()).getByRole("link", { name: "Revisar" })).toHaveAttribute("href", "/conciliacoes/b/l1?sistema=s");
+      expect(explicarDivergencia).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("mostra a resposta local sem pausa com movimento reduzido", async () => {
+    vi.stubGlobal("matchMedia", (consulta: string) => ({ matches: consulta === "(prefers-reduced-motion: reduce)" }));
+    try {
+      render(<Conversa contexto={CONTEXTO} onFechar={vi.fn()} />);
+      await act(async () => fireEvent.click(screen.getByRole("button", { name: "O que falta para fechar?" })));
+      expect(conversa()).toHaveTextContent("Faltam 42 decisões suas.");
+      expect(within(conversa()).queryByRole("status")).not.toBeInTheDocument();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("responde com as pendências atuais, mesmo que a saudação tenha um número anterior", async () => {
+    atualizarContexto.mockResolvedValue({ ok: true, dados: { ...CONTEXTO, divergentes: 41 } });
     render(<Conversa contexto={CONTEXTO} onFechar={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: "O que falta para fechar?" }));
+    expect(await within(conversa()).findByText(/^Faltam 41 decisões suas/)).toBeInTheDocument();
+    expect(atualizarContexto).toHaveBeenCalledOnce();
+    expect(perguntarAoAssistente).not.toHaveBeenCalled();
+  });
 
-    await user.click(screen.getByRole("button", { name: "O que falta para fechar?" }));
+  it("avisa quando não consegue atualizar o mês", async () => {
+    atualizarContexto.mockResolvedValue({ ok: false, status: 503, erro: "indisponível" });
+    render(<Conversa contexto={CONTEXTO} onFechar={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: "O que falta para fechar?" }));
+    expect(await within(conversa()).findByText(/^Não consegui ler a última conciliação agora/)).toBeInTheDocument();
+    expect(conversa()).not.toHaveTextContent("Faltam 42 decisões suas.");
+  });
 
-    expect(within(conversa()).getByText("O que falta para fechar?")).toBeInTheDocument();
-    expect(conversa()).toHaveTextContent("Faltam 42 decisões suas.");
-    expect(within(conversa()).getByRole("link", { name: "Revisar" })).toHaveAttribute(
-      "href",
-      "/conciliacoes/b/l1?sistema=s",
-    );
-    expect(explicarDivergencia).not.toHaveBeenCalled();
+  it.each([CONTEXTO, null])("explica como fechar o mês usando os passos da Central", async (contexto) => {
+    const user = userEvent.setup();
+    render(<Conversa contexto={contexto} onFechar={vi.fn()} />);
+    await user.type(screen.getByLabelText("Sua pergunta"), "Como fecho o mês?{Enter}");
+    expect(await within(conversa()).findByText(/Clique em Fechar o mês\./)).toHaveTextContent("escreva a ressalva");
+    expect(within(conversa()).getByRole("link", { name: "Fechar o mês" })).toHaveAttribute("href", "/ajuda/fechamentos#fechar");
+    expect(atualizarContexto).not.toHaveBeenCalled();
+    expect(perguntarAoAssistente).not.toHaveBeenCalled();
   });
 
   it("answers what is typed, and empties the field", async () => {
@@ -102,7 +158,7 @@ describe("Conversa", () => {
     expect(screen.getByRole("button", { name: "Enviar" })).toBeDisabled();
     await user.type(campo, "e as tarifas?{Enter}");
 
-    expect(conversa()).toHaveTextContent("14 tarifas bancárias em setembro");
+    expect(await within(conversa()).findByText(/14 tarifas bancárias em setembro/)).toBeInTheDocument();
     expect(campo).toHaveValue("");
   });
 
@@ -207,6 +263,7 @@ describe("Conversa", () => {
       render(<Conversa contexto={CONTEXTO} onFechar={vi.fn()} />);
 
       await user.click(screen.getByRole("button", { name: "Resumo de setembro" }));
+      await within(conversa()).findByText(/^Setembro: 140 lançamentos/);
       await user.click(screen.getByRole("button", { name: "Explique a maior divergência" }));
       await within(conversa()).findByText(/Juros de atraso/);
       await user.type(screen.getByLabelText("Sua pergunta"), "como convido alguém?{Enter}");
@@ -223,8 +280,9 @@ describe("Conversa", () => {
       const user = userEvent.setup();
       render(<Conversa contexto={CONTEXTO} onFechar={vi.fn()} />);
 
-      await user.click(screen.getByRole("button", { name: "Resumo de setembro" }));
+      await user.type(screen.getByLabelText("Sua pergunta"), "Como estão as pendências de R$ 500?{Enter}");
 
+      expect(await within(conversa()).findByText(/^Os R\$.*em aberto/)).toBeInTheDocument();
       expect(perguntarAoAssistente).not.toHaveBeenCalled();
     });
 
@@ -266,16 +324,16 @@ describe("Conversa", () => {
       expect(await within(conversa()).findByText(/limite de perguntas de hoje/)).toBeInTheDocument();
     });
 
-    it("sem conciliação, toda pergunta vai à Central, e as sugestões são de uso", async () => {
+    it("sem conciliação, sugere perguntas de uso e encaminha as que não conhece à Central", async () => {
       perguntarAoAssistente.mockResolvedValue(RESPOSTA);
       const user = userEvent.setup();
       render(<Conversa contexto={null} onFechar={vi.fn()} />);
 
       expect(conversa()).toHaveTextContent("Ainda não há conciliação para eu olhar");
       expect(screen.getByRole("heading", { level: 6 })).toHaveTextContent(/^Assistente$/);
-      await user.click(screen.getByRole("button", { name: "Como fecho o mês?" }));
+      await user.click(screen.getByRole("button", { name: "Como convido alguém da equipe?" }));
 
-      expect(perguntarAoAssistente).toHaveBeenCalledWith("Como fecho o mês?", "fechamentos", expect.any(Array));
+      expect(perguntarAoAssistente).toHaveBeenCalledWith("Como convido alguém da equipe?", "fechamentos", expect.any(Array));
     });
 
     it("sessão vencida vai ao login", async () => {
@@ -283,7 +341,7 @@ describe("Conversa", () => {
       const user = userEvent.setup();
       render(<Conversa contexto={null} onFechar={vi.fn()} />);
 
-      await user.click(screen.getByRole("button", { name: "Como fecho o mês?" }));
+      await user.click(screen.getByRole("button", { name: "Como convido alguém da equipe?" }));
 
       await vi.waitFor(() => expect(push).toHaveBeenCalledWith("/login"));
     });

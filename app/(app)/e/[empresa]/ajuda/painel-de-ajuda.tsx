@@ -39,17 +39,7 @@ function PainelDeAjuda({ pagina }: { pagina: PaginaDeAjuda }) {
   }, []);
 
   useEffect(() => {
-    if (!aberto) return;
-    titulo.current?.focus();
-    // dentro de uma janela <dialog>, o Esc é dela
-    const tecla = (evento: KeyboardEvent) => {
-      if (evento.key !== "Escape" || document.querySelector("dialog[open]"))
-        return;
-      setAberto(false);
-      focarBotaoDeAjuda();
-    };
-    window.addEventListener("keydown", tecla);
-    return () => window.removeEventListener("keydown", tecla);
+    if (aberto) titulo.current?.focus();
   }, [aberto]);
 
   // a Central abre em tela cheia; o "Voltar ao Ledgr" de lá traz de volta a esta tela
@@ -69,6 +59,12 @@ function PainelDeAjuda({ pagina }: { pagina: PaginaDeAjuda }) {
       className="ajd-painel"
       role="dialog"
       aria-label={`Ajuda: ${pagina.titulo}`}
+      onKeyDown={(evento) => {
+        if (evento.key !== "Escape") return;
+        evento.preventDefault();
+        evento.stopPropagation();
+        fechar();
+      }}
     >
       <div className="ajd-painel-topo">
         <Image
