@@ -3,6 +3,9 @@
 import { Fragment, useRef, useState } from "react";
 import { ArrowRight, Pencil, Plus, ShieldCheck, Trash2 } from "lucide-react";
 import { useRoteador } from "@/lib/roteador";
+import { caminhoDaConciliacao } from "@/lib/caminhos";
+import type { Falha } from "../../../acoes";
+import { RetomarNovaVersao } from "./retomar-nova-versao";
 import { formatarMoeda } from "@/lib/mock-data";
 import { MensagemErro } from "../../../../../../../(auth)/_compartilhado/mensagem-erro";
 import { formatarDataHora } from "../../../../dashboard/resumo";
@@ -11,6 +14,8 @@ import {
   acrescentarLinhaAoRascunho,
   carregarRascunho,
   confirmarImportacao,
+  concluirNovaVersaoIa,
+  type ContextoNovaVersaoIa,
   corrigirLinhaDoRascunho,
   descartarImportacao,
   removerLinhaDoRascunho,
@@ -30,7 +35,13 @@ const FALHA_AO_ATUALIZAR_RESUMO = "A linha foi removida, mas não foi possível 
  * hora e devolve o resumo recalculado; só "Confirmar" faz os lançamentos entrarem no sistema, e
  * "Descartar" apaga o rascunho. O rascunho vence em 7 dias.
  */
-export function Revisao({ inicial }: { inicial: Rascunho }) {
+export function Revisao({
+  inicial,
+  contexto,
+}: {
+  inicial: Rascunho;
+  contexto?: ContextoNovaVersaoIa & { arquivoBanco: string };
+}) {
   const roteador = useRoteador();
   const [linhas, setLinhas] = useState<LinhaDoRascunho[]>(inicial.itens);
   const [resumo, setResumo] = useState<ResumoDoRascunho>(inicial.resumo);
@@ -43,6 +54,8 @@ export function Revisao({ inicial }: { inicial: Rascunho }) {
   const [removendo, setRemovendo] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const [falhaAoConciliar, setFalhaAoConciliar] = useState<Falha | null>(null);
+  const [saindo, setSaindo] = useState(false);
   const trava = useRef(false);
   const edicaoPendente = editando !== null || nova;
 
@@ -107,7 +120,25 @@ export function Revisao({ inicial }: { inicial: Rascunho }) {
 
   const confirmar = () =>
     executar(async () => {
-      if (edicaoPendente || resumoDesatualizado || resumo.quantidade === 0) return null;
+      if (edicaoPendente || resumoDesatualizado || resumo.quantidade === 0 || saindo) return null;
+      if (contexto) {
+        const r = await concluirNovaVersaoIa(contexto, inicial.id);
+        if (r.ok) {
+          setSaindo(true);
+          roteador.replace(caminhoDaConciliacao(contexto.banco, r.dados.extratoId));
+          return null;
+        }
+        if (r.status === 401) {
+          setSaindo(true);
+          roteador.push("/login");
+          return null;
+        }
+        if (r.confirmada) {
+          setFalhaAoConciliar(r);
+          return null;
+        }
+        return r.erro;
+      }
       const r = await confirmarImportacao(inicial.id);
       if (!r.ok) return r.erro;
       // segue para a Nova conciliação com o sistema já pronto: só falta enviar o extrato do banco
@@ -119,7 +150,7 @@ export function Revisao({ inicial }: { inicial: Rascunho }) {
     executar(async () => {
       const r = await descartarImportacao(inicial.id);
       if (!r.ok && r.status !== 404) return r.erro;
-      roteador.push("/conciliacoes/nova");
+      roteador.push(contexto ? caminhoDaConciliacao(contexto.banco, contexto.sistemaAnterior) : "/conciliacoes/nova");
       return null;
     });
 
@@ -158,6 +189,10 @@ export function Revisao({ inicial }: { inicial: Rascunho }) {
 
   const maisLinhasQueAsMostradas = resumo.quantidade > linhas.length;
   const dataBr = (iso: string) => iso.slice(0, 10).split("-").reverse().join("/");
+  if (contexto && falhaAoConciliar) {
+    return <RetomarNovaVersao contexto={contexto} importacaoId={inicial.id} falhaInicial={falhaAoConciliar} />;
+  }
+
   const periodo =
     resumo.periodoInicio && resumo.periodoFim ? `${dataBr(resumo.periodoInicio)} a ${dataBr(resumo.periodoFim)}` : null;
 
@@ -302,7 +337,7 @@ export function Revisao({ inicial }: { inicial: Rascunho }) {
             type="button"
             className="btn nova-conciliar"
             onClick={confirmar}
-            disabled={ocupado || edicaoPendente || resumoDesatualizado || resumo.quantidade === 0}
+            disabled={ocupado || saindo || edicaoPendente || resumoDesatualizado || resumo.quantidade === 0}
             aria-describedby={edicaoPendente ? "ia-edicao-pendente" : undefined}
           >
             {resumoDesatualizado ? "Confirmar importação" : `Confirmar ${resumo.quantidade} ${resumo.quantidade === 1 ? "lançamento" : "lançamentos"}`}
@@ -328,7 +363,11 @@ export function Revisao({ inicial }: { inicial: Rascunho }) {
         </div>
         <p className="nova-nota">
           <ShieldCheck aria-hidden="true" />
-          <span>Ao confirmar, as linhas entram como o extrato do sistema e você segue para enviar o extrato do banco.</span>
+          <span>
+            {contexto
+              ? `Ao confirmar, o Ledgr abre uma nova rodada com o mesmo extrato do banco (${contexto.arquivoBanco}).`
+              : "Ao confirmar, as linhas entram como o extrato do sistema e você segue para enviar o extrato do banco."}
+          </span>
         </p>
       </aside>
     </div>

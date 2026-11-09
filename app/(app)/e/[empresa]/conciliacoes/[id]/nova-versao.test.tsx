@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NovaVersao } from "./nova-versao";
 
@@ -15,6 +15,13 @@ vi.mock("../acoes", () => ({
   enviarExtrato: (dados: FormData) => enviarExtrato(dados),
   situacaoDoExtrato: (id: string) => situacaoDoExtrato(id),
   conciliar: (banco: string, sistema: string) => conciliar(banco, sistema),
+}));
+
+const carregarPromptIa = vi.fn();
+const importarViaIa = vi.fn();
+vi.mock("../nova/ia/acoes", () => ({
+  carregarPromptIa: () => carregarPromptIa(),
+  importarViaIa: (dados: FormData) => importarViaIa(dados),
 }));
 
 const BANCO = "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20";
@@ -48,6 +55,8 @@ async function enviar(arquivo = csv()) {
 describe("NovaVersao", () => {
   beforeEach(() => {
     push.mockClear();
+    carregarPromptIa.mockReset();
+    importarViaIa.mockReset();
     onConcluida.mockReset();
     enviarExtrato.mockReset();
     situacaoDoExtrato.mockReset();
@@ -170,7 +179,7 @@ describe("NovaVersao", () => {
     expect(screen.getByText("Rodada 2 · agora")).toBeInTheDocument();
     expect(screen.getByText("erp-setembro-v2.csv")).toBeInTheDocument();
     expect(screen.getByText("Rodada 3 · nova")).toBeInTheDocument();
-    expect(screen.getByText("Solte aqui o CSV corrigido")).toBeInTheDocument();
+    expect(screen.getByText("Solte aqui o arquivo corrigido")).toBeInTheDocument();
     // sem arquivo, o enviar não tem o que mandar
     expect(screen.getByRole("button", { name: "Enviar e conciliar" })).toBeDisabled();
 
@@ -189,12 +198,93 @@ describe("NovaVersao", () => {
     expect(screen.queryByText(/· agora$/)).not.toBeInTheDocument();
   });
 
-  it("accepts only CSV, because the backend does not read the ERP's PDF yet", async () => {
+  it("accepts CSV and JSON and explains the upload limit", async () => {
     const user = userEvent.setup();
     render(<NovaVersao extratoBancoId={BANCO} onConcluida={onConcluida} />);
     await user.click(screen.getByRole("button", { name: "Enviar nova versão do extrato do sistema" }));
 
-    expect(screen.getByLabelText("Extrato do sistema de gestão")).toHaveAttribute("accept", ".csv");
+    expect(screen.getByLabelText("Extrato do sistema de gestão")).toHaveAttribute("accept", ".csv,.json");
+    expect(screen.getByText("CSV ou JSON, até 4 MB.")).toBeVisible();
+  });
+
+  it.each(["seletor", "arrastar"])("envia JSON pelo %s para revisão com o contexto da rodada", async (modo) => {
+    const user = userEvent.setup();
+    const arquivo = new File(["{}"], "corrigido.json", { type: "application/json" });
+    importarViaIa.mockResolvedValue({ ok: true, dados: { importacaoId: "rascunho", quantidade: 2 } });
+    render(<NovaVersao extratoBancoId={BANCO} extratoSistemaId="anterior" onConcluida={onConcluida} />);
+    await user.click(screen.getByRole("button", { name: "Enviar nova versão do extrato do sistema" }));
+    const campo = screen.getByLabelText("Extrato do sistema de gestão");
+    if (modo === "seletor") await user.upload(campo, arquivo);
+    else fireEvent.drop(campo.closest("label")!, { dataTransfer: { files: [arquivo] } });
+
+    await user.click(screen.getByRole("button", { name: "Importar e conferir" }));
+
+    await waitFor(() => expect(push).toHaveBeenCalledWith(`/conciliacoes/nova/ia/rascunho?banco=${BANCO}&sistemaAnterior=anterior`));
+    expect(importarViaIa.mock.calls[0][0].get("arquivo")).toBe(arquivo);
+    expect(enviarExtrato).not.toHaveBeenCalled();
+    expect(conciliar).not.toHaveBeenCalled();
+  });
+
+  it("carrega e copia o prompt sem sair do diálogo e deixa cancelar", async () => {
+    const user = userEvent.setup();
+    carregarPromptIa.mockResolvedValue({ ok: true, dados: { prompt: "O prompt original" } });
+    render(<NovaVersao extratoBancoId={BANCO} onConcluida={onConcluida} />);
+    await user.click(screen.getByRole("button", { name: "Enviar nova versão do extrato do sistema" }));
+    expect(carregarPromptIa).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "Gerar JSON com IA" }));
+    await user.click(await screen.findByRole("button", { name: "Copiar prompt" }));
+    expect(await navigator.clipboard.readText()).toBe("O prompt original");
+    expect(screen.getByRole("dialog")).toBeVisible();
+
+    await user.click(screen.getByRole("button", { name: "Cancelar" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(push).not.toHaveBeenCalled();
+    expect(importarViaIa).not.toHaveBeenCalled();
+  });
+
+  it("permite enviar o JSON com o prompt indisponível e mostra a validação do backend", async () => {
+    const user = userEvent.setup();
+    carregarPromptIa.mockResolvedValue({ ok: false, status: 503, erro: "Prompt indisponível." });
+    importarViaIa.mockResolvedValue({
+      ok: false, status: 422, erro: "JSON inválido.", totalErros: 54,
+      erros: [{ caminho: "lancamentos[0].valor", mensagem: "Informe o valor.", lancamento: 1 }],
+    });
+    render(<NovaVersao extratoBancoId={BANCO} onConcluida={onConcluida} />);
+    await user.click(screen.getByRole("button", { name: "Enviar nova versão do extrato do sistema" }));
+    await user.click(screen.getByRole("button", { name: "Gerar JSON com IA" }));
+    expect(await screen.findByText("Prompt indisponível.")).toBeVisible();
+    await user.upload(screen.getByLabelText("Extrato do sistema de gestão"), new File(["{}"], "corrigido.json"));
+    await user.click(screen.getByRole("button", { name: "Importar e conferir" }));
+
+    expect(await screen.findByText("JSON inválido.")).toBeVisible();
+    expect(screen.getByText("54 erros")).toBeVisible();
+    expect(push).not.toHaveBeenCalled();
+    expect(conciliar).not.toHaveBeenCalled();
+  });
+
+  it("mostra carregamento e recusa substituição enquanto está enviando", async () => {
+    const user = userEvent.setup();
+    importarViaIa.mockReturnValue(new Promise(() => {}));
+    render(<NovaVersao extratoBancoId={BANCO} onConcluida={onConcluida} />);
+    await user.click(screen.getByRole("button", { name: "Enviar nova versão do extrato do sistema" }));
+    const campo = screen.getByLabelText("Extrato do sistema de gestão");
+    await user.upload(campo, new File(["{}"], "corrigido.json"));
+    await user.click(screen.getByRole("button", { name: "Importar e conferir" }));
+    expect(campo).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Cancelar" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Importar e conferir" })).toHaveAttribute("aria-busy", "true");
+    expect(importarViaIa).toHaveBeenCalledTimes(1);
+  });
+
+  it("limpa o arquivo selecionado se receber uma extensão inválida pelo arraste", async () => {
+    const user = userEvent.setup();
+    render(<NovaVersao extratoBancoId={BANCO} onConcluida={onConcluida} />);
+    await user.click(screen.getByRole("button", { name: "Enviar nova versão do extrato do sistema" }));
+    const campo = screen.getByLabelText("Extrato do sistema de gestão");
+    await user.upload(campo, csv());
+    fireEvent.drop(campo.closest("label")!, { dataTransfer: { files: [new File([""], "arquivo.pdf")] } });
+    expect(screen.getByRole("alert")).toHaveTextContent("Escolha um arquivo CSV ou JSON.");
+    expect(screen.getByRole("button", { name: "Enviar e conciliar" })).toBeDisabled();
   });
 
   it("refuses a file over 4MB without sending it", async () => {

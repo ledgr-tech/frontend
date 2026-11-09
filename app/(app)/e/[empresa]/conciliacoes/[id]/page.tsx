@@ -393,6 +393,7 @@ export default function ConciliacaoPage() {
           (!rodada || rodada.numero === rodada.total) && (
             <NovaVersao
               extratoBancoId={conciliacao.id}
+              extratoSistemaId={rodada?.extratoSistemaId ?? conciliacao.extratoSistemaId ?? undefined}
               rodadaAtual={
                 rodada
                   ? { numero: rodada.numero, total: rodada.total, arquivo: rodada.arquivoSistema, em: rodada.executadaEm }

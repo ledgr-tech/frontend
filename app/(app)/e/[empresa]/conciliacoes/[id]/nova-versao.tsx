@@ -19,6 +19,9 @@ import {
 } from "../envio";
 import { ImportacaoInterrompida } from "../nova/importacao-interrompida";
 import { LinhasNaoLidas } from "../linhas-nao-lidas";
+import { carregarPromptIa, importarViaIa, type FalhaDaImportacao, type PromptDaIa } from "../nova/ia/acoes";
+import { ErrosImportacaoIa } from "../nova/ia/erros-importacao-ia";
+import { PromptIa } from "../nova/ia/prompt-ia";
 
 function tamanhoEmKb(bytes: number): string {
   return `${Math.max(1, Math.round(bytes / 1024)).toLocaleString("pt-BR")} KB`;
@@ -32,10 +35,12 @@ function tamanhoEmKb(bytes: number): string {
  */
 export function NovaVersao({
   extratoBancoId,
+  extratoSistemaId,
   rodadaAtual,
   onConcluida,
 }: {
   extratoBancoId: string;
+  extratoSistemaId?: string;
   /** A rodada que vale hoje e quantas a conciliação já teve; sem ela (o mock), a janela não mostra o "de → para". */
   rodadaAtual?: { numero: number; total: number; arquivo: string; em: string };
   /** A rodada nova existe: a tela recarrega nela. */
@@ -47,6 +52,11 @@ export function NovaVersao({
   const [arquivo, setArquivo] = useState<File | null>(null);
   const [etapa, setEtapa] = useState<Etapa>("ocioso");
   const [erro, setErro] = useState<string | null>(null);
+  const [erroIa, setErroIa] = useState<FalhaDaImportacao | null>(null);
+  const [mostrarPrompt, setMostrarPrompt] = useState(false);
+  const [prompt, setPrompt] = useState<PromptDaIa | null>(null);
+  const [carregandoPrompt, setCarregandoPrompt] = useState(false);
+  const [erroPrompt, setErroPrompt] = useState<string | null>(null);
   // 402: o teste acabou (spec 2026-10-15-primeiro-uso); o motivo vem com o caminho para os planos
   const [semPlano, setSemPlano] = useState(false);
   const [pendente, setPendente] = useState<Pendente | null>(null);
@@ -80,6 +90,8 @@ export function NovaVersao({
     setErro(null);
     setPendente(null);
     setParcial(null);
+    setErroIa(null);
+    setMostrarPrompt(false);
     setSemPlano(false);
   }
 
@@ -93,6 +105,63 @@ export function NovaVersao({
     setErro(falha.erro);
   }
 
+  function escolher(escolhido: File) {
+    if (emAndamento.current) return;
+    setErro(null);
+    setErroIa(null);
+    setSemPlano(false);
+    if (!/\.(csv|json)$/i.test(escolhido.name)) {
+      setArquivo(null);
+      setErro("Escolha um arquivo CSV ou JSON.");
+    } else if (escolhido.size > TAMANHO_MAXIMO_UPLOAD_BYTES) {
+      setArquivo(null);
+      setErro(extratoGrandeDemais(escolhido.name));
+    } else {
+      setArquivo(escolhido);
+    }
+  }
+
+  async function carregarInstrucoes() {
+    if (carregandoPrompt || prompt) return;
+    setCarregandoPrompt(true);
+    setErroPrompt(null);
+    try {
+      const resultado = await carregarPromptIa();
+      if (!vivo.current) return;
+      if (resultado.ok) setPrompt(resultado.dados);
+      else setErroPrompt(resultado.erro);
+    } catch {
+      if (vivo.current) setErroPrompt(ERRO_SEM_RESPOSTA);
+    } finally {
+      if (vivo.current) setCarregandoPrompt(false);
+    }
+  }
+
+  async function revisarJson(escolhido: File) {
+    setEtapa("enviando");
+    const dados = new FormData();
+    dados.append("arquivo", escolhido);
+    const resultado = await importarViaIa(dados);
+    if (!vivo.current) return;
+    if (!resultado.ok) {
+      if (resultado.erros.length && resultado.status !== 401) {
+        setErroIa(resultado);
+        setEtapa("ocioso");
+        return;
+      }
+      falhar(resultado);
+      return;
+    }
+
+    const busca = new URLSearchParams({ banco: extratoBancoId });
+    if (extratoSistemaId) busca.set("sistemaAnterior", extratoSistemaId);
+    setAberta(false);
+    setArquivo(null);
+    setMostrarPrompt(false);
+    setEtapa("ocioso");
+    router.push(`/conciliacoes/nova/ia/${resultado.dados.importacaoId}?${busca}`);
+  }
+
   async function enviar(escolhido = arquivo) {
     if (!escolhido || emAndamento.current || parcial) return;
     if (escolhido.size > TAMANHO_MAXIMO_UPLOAD_BYTES) {
@@ -101,9 +170,14 @@ export function NovaVersao({
     }
     emAndamento.current = true;
     setErro(null);
+    setErroIa(null);
     setSemPlano(false);
-    setEtapa("conferindo");
     try {
+      if (/\.json$/i.test(escolhido.name)) {
+        await revisarJson(escolhido);
+        return;
+      }
+      setEtapa("conferindo");
       const conferido = await conferirCsv(escolhido, "sistema");
       if (!vivo.current) return;
       if (!conferido.pronto) {
@@ -305,28 +379,59 @@ export function NovaVersao({
                     evento.preventDefault();
                     setArrastando(false);
                     const solto = evento.dataTransfer.files?.[0];
-                    if (ocupado || !solto) return;
-                    setErro(null);
-                    setArquivo(solto);
+                    if (solto) escolher(solto);
                   }}
                 >
                   <Upload size={24} aria-hidden="true" className="nova-versao-soltar-icone" />
                   <span className="nova-versao-soltar-texto">
-                    <strong>{arquivo ? "Trocar o arquivo" : "Solte aqui o CSV corrigido"}</strong>
-                    <span>{arquivo ? `${arquivo.name} · solte outro ou clique` : "ou clique para escolher · até 4 MB"}</span>
+                    <strong>{arquivo ? "Trocar o arquivo" : "Solte aqui o arquivo corrigido"}</strong>
+                    <span>{arquivo ? `${arquivo.name} · solte outro ou clique` : "ou clique para escolher"}</span>
                   </span>
                   <input
                     type="file"
-                    accept=".csv"
+                    accept=".csv,.json"
                     className="sr-only"
                     aria-label="Extrato do sistema de gestão"
+                    aria-describedby="nova-versao-formatos"
                     disabled={ocupado}
                     onChange={(evento) => {
-                      setErro(null);
-                      setArquivo(evento.target.files?.[0] ?? null);
+                      const escolhido = evento.target.files?.[0];
+                      if (escolhido) escolher(escolhido);
+                      evento.target.value = "";
                     }}
                   />
                 </label>
+                <p id="nova-versao-formatos" className="dialog-body">CSV ou JSON, até 4 MB.</p>
+                <div>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    aria-expanded={mostrarPrompt}
+                    disabled={ocupado}
+                    onClick={() => {
+                      setMostrarPrompt(!mostrarPrompt);
+                      if (!mostrarPrompt) void carregarInstrucoes();
+                    }}
+                  >
+                    Gerar JSON com IA
+                  </button>
+                </div>
+                {mostrarPrompt && (
+                  <>
+                    <p className="dialog-body">Copie o prompt, cole na IA que você usa e anexe o PDF do relatório. Envie aqui o JSON que ela devolver.</p>
+                    {carregandoPrompt && <p role="status" className="dialog-body">Carregando o prompt…</p>}
+                    {erroPrompt && (
+                      <div>
+                        <p role="alert" className="dialog-body">{erroPrompt}</p>
+                        <button type="button" className="btn btn-secondary" onClick={() => void carregarInstrucoes()}>
+                          Tentar carregar o prompt
+                        </button>
+                      </div>
+                    )}
+                    {prompt && <PromptIa prompt={prompt.prompt} />}
+                  </>
+                )}
+                {erroIa && <ErrosImportacaoIa erro={erroIa.erro} erros={erroIa.erros} totalErros={erroIa.totalErros} />}
                 {recados}
                 <div className="dialog-actions">
                   <button type="button" className="btn btn-secondary" onClick={fechar} disabled={ocupado}>
@@ -339,7 +444,7 @@ export function NovaVersao({
                     aria-busy={ocupado}
                     onClick={() => void enviar()}
                   >
-                    Enviar e conciliar
+                    {arquivo && /\.json$/i.test(arquivo.name) ? "Importar e conferir" : "Enviar e conciliar"}
                   </button>
                 </div>
               </>
