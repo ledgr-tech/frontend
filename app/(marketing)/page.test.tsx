@@ -300,7 +300,7 @@ describe("LandingPage", () => {
     // com movimento reduzido, o globals.css mostra o fio inteiro por cima do recorte
     it("starts with the line undrawn, to be drawn as the page scrolls", () => {
       render(<LandingPage />);
-      expect(fio().style.clipPath).toBe("inset(0 0 100% 0)");
+      expect(fio().style.clipPath).toMatch(/^inset\(0(?:px)? 0(?:px)? 100%(?: 0(?:px)?)?\)$/);
     });
   });
 
