@@ -4,7 +4,7 @@ import type { TelaDoTutorial } from "@/lib/preferencias";
  * O tutorial de cada tela, apresentado pelo mascote (spec 2026-10-15-primeiro-uso, parte 3).
  * `alvo` é o `data-tutorial` do elemento que o passo destaca; o passo só entra no tutorial quando
  * o alvo está na tela (o roteiro dispensado, a conta sem conciliação). Numa tela vazia, o "?" mostra
- * todos, sem destaque. Rascunho: o texto final passa pela revisão dos sócios.
+ * os passos que podem ser lidos sem alvo. Rascunho: o texto final passa pela revisão dos sócios.
  */
 export type PassoDoTutorial = {
   alvo: string;
@@ -12,8 +12,14 @@ export type PassoDoTutorial = {
   texto: string;
   /** O mascote no gesto do que o passo mostra; sem ele, vale o da tela. */
   mascote?: string;
+  requerAlvo?: boolean;
 };
 export type TutorialDaTela = { nome: string; mascote: string; passos: PassoDoTutorial[] };
+
+export function passosDaAbertura(passos: PassoDoTutorial[], temAlvo: (passo: PassoDoTutorial) => boolean) {
+  const visiveis = passos.filter(temAlvo);
+  return visiveis.length > 0 ? visiveis : passos.filter((passo) => !passo.requerAlvo);
+}
 
 export const TUTORIAIS: Record<TelaDoTutorial, TutorialDaTela> = {
   "visao-geral": {
@@ -52,7 +58,7 @@ export const TUTORIAIS: Record<TelaDoTutorial, TutorialDaTela> = {
       { alvo: "conferida", titulo: "Marque o que você já olhou.", texto: "A coluna Conferida é sua: marque as divergências que já conferiu. As que bateram não precisam.", mascote: "/mascotes/mascote-joinha.png" },
       { alvo: "painel", titulo: "Lançamento em foco", texto: "Passe o mouse sobre uma linha. O detalhe da linha aparece aqui.", mascote: "/mascotes/mascote-lupa.png" },
       { alvo: "painel", titulo: "Fixado", texto: "Clique numa linha para fixar.", mascote: "/mascotes/mascote-lupa.png" },
-      { alvo: "painel", titulo: "Justificar", texto: "Clique em Justificar e escreva o motivo. A decisão vai para o fechamento.", mascote: "/mascotes/mascote-explicando.png" },
+      { alvo: "justificar", requerAlvo: true, titulo: "Justificar", texto: "Clique em Justificar e escreva o motivo. A decisão vai para o fechamento.", mascote: "/mascotes/mascote-explicando.png" },
       { alvo: "painel", titulo: "Abrir detalhe", texto: "Clique em Abrir detalhe ou dê um duplo clique na linha. O detalhe abre ao lado, sem sair da comparação.", mascote: "/mascotes/mascote-dupla.png" },
     ],
   },

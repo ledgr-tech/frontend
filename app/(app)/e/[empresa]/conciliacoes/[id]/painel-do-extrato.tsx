@@ -331,7 +331,7 @@ function QuadroDoLancamento({
         )}
         {!modo && acoes?.justificar && (
           <>
-            <button type="button" className="btn btn-secondary" onClick={() => abrirCampo("justificar")}>
+            <button type="button" className="btn btn-secondary" data-tutorial="justificar" onClick={() => abrirCampo("justificar")}>
               Justificar
             </button>
             {abrir(true)}

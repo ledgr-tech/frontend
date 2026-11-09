@@ -1,14 +1,14 @@
 import { existsSync } from "node:fs";
 import { describe, it, expect } from "vitest";
 import { TELAS_DO_TUTORIAL } from "@/lib/preferencias";
-import { telaDoCaminho, TUTORIAIS } from "./roteiros";
+import { passosDaAbertura, telaDoCaminho, TUTORIAIS } from "./roteiros";
 
 describe("tutoriais", () => {
   it("cada tela tem passos curtos, com até quatro passos fora do painel da comparação", () => {
     for (const tela of TELAS_DO_TUTORIAL) {
       const { passos } = TUTORIAIS[tela];
       expect(passos.length).toBeGreaterThanOrEqual(2);
-      const painel = passos.filter((passo) => tela === "comparacao" && passo.alvo === "painel");
+      const painel = passos.filter((passo) => tela === "comparacao" && ["painel", "justificar"].includes(passo.alvo));
       expect(passos.length - painel.length).toBeLessThanOrEqual(4);
       if (tela === "comparacao") expect(painel.map((passo) => passo.titulo)).toEqual(["Lançamento em foco", "Fixado", "Justificar", "Abrir detalhe"]);
       for (const passo of passos) {
@@ -18,6 +18,16 @@ describe("tutoriais", () => {
         expect(passo.texto).not.toMatch(/ — /);
       }
     }
+  });
+
+  it("só inclui Justificar quando o botão existe, mesmo ao abrir sem nenhum alvo", () => {
+    const { passos } = TUTORIAIS.comparacao;
+    const titulos = (alvos: string[]) =>
+      passosDaAbertura(passos, ({ alvo }) => alvos.includes(alvo)).map((passo) => passo.titulo);
+
+    expect(titulos(["painel"])).toEqual(["Lançamento em foco", "Fixado", "Abrir detalhe"]);
+    expect(titulos(["painel", "justificar"])).toContain("Justificar");
+    expect(titulos([])).not.toContain("Justificar");
   });
 
   it("o mascote de cada passo é um arquivo que existe", () => {

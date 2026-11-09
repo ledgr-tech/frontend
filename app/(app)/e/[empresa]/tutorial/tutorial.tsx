@@ -6,7 +6,7 @@ import { X } from "lucide-react";
 import { ABRIR_TUTORIAL } from "@/lib/eventos";
 import type { TelaDoTutorial } from "@/lib/preferencias";
 import { usePreferencias } from "../conta";
-import { TUTORIAIS, type PassoDoTutorial } from "./roteiros";
+import { passosDaAbertura, TUTORIAIS, type PassoDoTutorial } from "./roteiros";
 
 const ATIVO = "data-tutorial-ativo";
 /** As telas cujo tutorial já abriu sozinho nesta sessão: voltar a uma tela não o reabre. */
@@ -146,9 +146,7 @@ export function Tutorial({
 
   function abrir() {
     focoAnterior.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    // numa tela vazia, só o "?" abre: aí vão todos os passos, sem destaque
-    const naTela = todos.filter((passo) => alvoDe(passo));
-    setPassos(naTela.length > 0 ? naTela : todos);
+    setPassos(passosDaAbertura(todos, (passo) => alvoDe(passo) !== null));
     setIndice(0);
     setNaoMostrar(false);
     setNaEsquerda(false);

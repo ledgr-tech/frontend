@@ -64,22 +64,30 @@ describe("Tutorial", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
-  it.each([true, false])("o tutorial da comparação acompanha a presença do painel (%s)", async (temPainel) => {
+  it.each([
+    { temPainel: false, podeJustificar: false, etapas: [] },
+    { temPainel: true, podeJustificar: false, etapas: ["Lançamento em foco", "Fixado", "Abrir detalhe"] },
+    { temPainel: true, podeJustificar: true, etapas: ["Lançamento em foco", "Fixado", "Justificar", "Abrir detalhe"] },
+  ])("o tutorial da comparação acompanha o painel ($temPainel) e o botão ($podeJustificar)", async ({ temPainel, podeJustificar, etapas }) => {
     const user = userEvent.setup();
     render(
       <ProvedorDaConta preferencias={null}>
         <div data-tutorial="filtros" />
-        {temPainel && <aside data-tutorial="painel">Painel da comparação</aside>}
+        {temPainel && (
+          <aside data-tutorial="painel">
+            Painel da comparação
+            {podeJustificar && <button data-tutorial="justificar">Justificar</button>}
+          </aside>
+        )}
         <Tutorial tela="comparacao" atraso={0} />
       </ProvedorDaConta>,
     );
     await screen.findByRole("dialog", { name: "Escolha o que ver." });
-    if (temPainel) {
-      for (const nome of ["Lançamento em foco", "Fixado", "Justificar", "Abrir detalhe"]) {
-        await user.click(screen.getByRole("button", { name: "Próximo" }));
-        expect(screen.getByRole("dialog", { name: nome })).toBeInTheDocument();
-        await waitFor(() => expect(screen.getByRole("complementary")).toHaveAttribute("data-tutorial-ativo"));
-      }
+    for (const nome of etapas) {
+      await user.click(screen.getByRole("button", { name: "Próximo" }));
+      expect(screen.getByRole("dialog", { name: nome })).toBeInTheDocument();
+      const alvo = nome === "Justificar" ? screen.getByRole("button", { name: "Justificar" }) : screen.getByRole("complementary");
+      await waitFor(() => expect(alvo).toHaveAttribute("data-tutorial-ativo"));
     }
     await user.click(screen.getByRole("button", { name: "Entendi" }));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
