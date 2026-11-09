@@ -18,8 +18,8 @@ import { seloDaLinha, situacaoDaLinha } from "./situacao";
 /**
  * O painel da direita da comparação (issue #338): o lançamento em que o mouse está, grande, e embaixo os
  * dois saldos do extrato e o caminho de volta ao topo. Substitui o balão do hover onde há margem para ele
- * (a partir de 1700px, ver `.comparacao-grade` em globals.css). O quadro tem sempre os mesmos lugares,
- * cheios ou vazios, e a altura fixa: só o conteúdo muda quando o ponteiro troca de linha.
+ * (a partir de 1100px, ver `.comparacao-grade` em globals.css). A altura do quadro acompanha a
+ * janela; dentro da mesma janela só o conteúdo muda quando o ponteiro troca de linha.
  */
 
 const FALHA = "Não foi possível pedir a explicação agora. Tente de novo em instantes.";
@@ -63,7 +63,7 @@ export type PropsDoPainel = {
 export function PainelDoExtrato(props: PropsDoPainel) {
   const { linha, fixada, saldo } = props;
   return (
-    <aside className="comp-painel conc-previa" aria-label="Detalhe da linha e saldo do extrato">
+    <aside className="comp-painel conc-previa" aria-label="Detalhe da linha e saldo do extrato" data-tutorial="painel">
       {/* só avisa leitor de tela quando a linha está fixada: o ponteiro passando mudaria o texto a cada linha */}
       <div aria-live={fixada ? "polite" : "off"}>
         <QuadroDoLancamento key={linha?.id ?? "vazio"} {...props} />
@@ -331,7 +331,7 @@ function QuadroDoLancamento({
         )}
         {!modo && acoes?.justificar && (
           <>
-            <button type="button" className="btn btn-secondary" onClick={() => abrirCampo("justificar")}>
+            <button type="button" className="btn btn-secondary" data-tutorial="justificar" onClick={() => abrirCampo("justificar")}>
               Justificar
             </button>
             {abrir(true)}
@@ -417,7 +417,9 @@ function Saldos({ saldo }: { saldo: SaldoDoExtrato | null | undefined }) {
               <div>
                 <dt>Saldo inicial</dt>
                 {/* com linhas não lidas a soma sairia incompleta: o backend não calcula, e o front também não */}
-                <dd>{saldo.inicial === null ? "depende das linhas não lidas" : formatarMoeda(saldo.inicial)}</dd>
+                <dd data-sem-inicial={saldo.inicial === null || undefined}>
+                  {saldo.inicial === null ? "depende das linhas não lidas" : formatarMoeda(saldo.inicial)}
+                </dd>
               </div>
               <div data-final="">
                 <dt>Saldo final</dt>

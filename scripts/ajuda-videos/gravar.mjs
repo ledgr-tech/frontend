@@ -53,6 +53,10 @@ const abrirComparacao = async (t) => {
   await t.page.getByRole("link", { name: /abrir a comparação/i }).click();
   await t.esperar(/\/conciliacoes\/[0-9a-f-]{20,}/);
 };
+const linhaParaJustificar = (page) =>
+  page.locator("main tbody tr").filter({
+    has: page.locator('button[aria-label*="como conferida"]:not([aria-pressed="true"])'),
+  }).first();
 
 // inicio: a tela em que a captura começa; antes: o que roda antes dela; cena: os passos
 const ROTEIROS = {
@@ -136,10 +140,26 @@ const ROTEIROS = {
       await pausa(1800);
       const circulo = botao(page, /como conferida/i);
       await t.passo(circulo, "3", "Marque o que já conferiu", "O círculo da coluna **Conferida** é seu. As linhas que bateram não precisam.", 4200);
-      await t.passo(page.locator("main tbody tr").first(), "4", "Dê um duplo clique numa linha para abrir o detalhe", "Ele abre ao lado, sem sair da comparação.", 3600);
       const rodadas = page.getByRole("link", { name: /^Rodada / }).first();
-      await t.passo(grupoDe(grupoDe(rodadas)), "5", "Cada versão do sistema vira uma rodada", "A linha das rodadas mostra qual vale.", 4000);
-      await t.passo(botao(page, /enviar nova versão/i), "6", "Corrigiu o sistema? **Enviar nova versão**", "A comparação abre na rodada nova.", 3800);
+      await t.passo(grupoDe(grupoDe(rodadas)), "4", "Cada versão do sistema vira uma rodada", "A linha das rodadas mostra qual vale.", 3200);
+      await t.passo(botao(page, /enviar nova versão/i), "5", "Corrigiu o sistema? **Enviar nova versão**", "A comparação abre na rodada nova.", 3000);
+      const linha = linhaParaJustificar(page);
+      const painel = alvo(page, "painel");
+      await linha.hover();
+      await t.passo(painel, "6", "Lançamento em foco", "Passe o mouse sobre uma linha. O detalhe da linha aparece no painel.", 3400);
+      await t.legenda("6", "Clique numa linha para fixar", "Clique nela de novo para soltar.");
+      await t.clicar(linha.locator("button.celula-abrir").first());
+      const explicar = painel.getByRole("button", { name: "Explicar esta divergência" });
+      if (await explicar.count()) await t.passo(explicar, "7", "Explicar esta divergência", "Leia o provável motivo e confira no seu sistema de gestão antes de decidir.", 3000);
+      const justificar = painel.getByRole("button", { name: "Justificar", exact: true });
+      await t.passo(justificar, "8", "Justificar", "Escreva o motivo e clique em **Justificar**.", 2600);
+      await t.clicar(justificar);
+      await t.passo(painel.getByLabel("Justificativa", { exact: true }), "8", "Justificativa", "Fica no registro com o seu nome e o horário.", 2600);
+      await t.clicar(painel.getByRole("button", { name: "Voltar", exact: true }));
+      await t.passo(painel.locator(".comp-saldos"), "9", "O saldo do extrato", "Confira o saldo final com o do internet banking. Use **Voltar ao topo do extrato** para voltar ao início.", 3600);
+      const detalhe = painel.getByRole("button", { name: "Abrir detalhe" });
+      await t.passo(detalhe, "10", "Abrir detalhe", "Clique no botão ou dê um duplo clique na linha. O detalhe abre ao lado, sem sair da comparação.", 3200);
+      await t.clicar(detalhe);
     },
   },
 
@@ -169,7 +189,7 @@ const ROTEIROS = {
       const inteira = painel.getByText(/^abrir em página inteira$/i);
       if (await inteira.count()) await t.passo(inteira, "", "Para ver maior, **Abrir em página inteira**", "No fim do detalhe fica o **Histórico do lançamento**: cada evento, quem fez e quando.", 3800);
 
-      // conferir e justificar são da comparação: o círculo da linha e a janela que abre na descrição
+      // conferir e justificar são da comparação: o círculo da linha e o painel em foco
       const fechar = painel.getByRole("button", { name: "Fechar" });
       await t.passo(fechar, "3", "Conferir ou justificar", "A decisão é tomada na comparação: feche o detalhe.", 2600);
       await t.clicar(fechar);
@@ -177,22 +197,22 @@ const ROTEIROS = {
       await pausa(800);
       const circulo = linha.locator('button[aria-label*="como conferida"]');
       await t.passo(circulo, "3", "Conferir ou justificar", "Já olhou e vai corrigir no sistema? O círculo da linha a marca como **conferida**.", 4600);
-      const descricao = linha.locator("button.celula-abrir");
-      await t.passo(descricao, "3", "Conferir ou justificar", "Ou clique na descrição para abrir a janela da linha.", 3000);
+      const descricao = linha.locator("button.celula-abrir").first();
+      await t.passo(descricao, "3", "Conferir ou justificar", "Clique numa linha para fixar.", 3000);
       await t.clicar(descricao);
-      const espia = page.locator("dialog.espia[open]");
-      await espia.waitFor();
-      await pausa(800);
-      const campo = espia.locator("textarea");
+      const previa = alvo(page, "painel");
+      const justificar = previa.getByRole("button", { name: "Justificar", exact: true });
+      await t.clicar(justificar);
+      const campo = previa.getByLabel("Justificativa", { exact: true });
       await t.passo(campo, "3", "Conferir ou justificar", "Escreva o motivo e clique em **Justificar**.", 2600);
       await t.clicar(campo);
       await page.keyboard.type("Tarifa cobrada no dia seguinte", { delay: 60 });
       await pausa(800);
-      await t.clicar(espia.getByRole("button", { name: /^Justificar$/ }));
-      const desfazer = espia.getByRole("button", { name: /^Desfazer justificativa$/ });
-      await desfazer.waitFor();
+      await t.clicar(justificar);
+      const nota = previa.locator(".comp-nota");
+      await nota.waitFor();
       await pausa(600);
-      await t.passo(desfazer, "3", "A decisão vai para o relatório do mês", "Para voltar atrás, **Desfazer justificativa**.", 4600);
+      await t.passo(nota, "3", "A decisão vai para o relatório do mês", "", 4600);
     },
   },
 
@@ -389,6 +409,18 @@ const FIGURAS = {
         },
         // a coluna Conferida nas linhas que pedem revisão: uma já conferida, a outra não
         figuras: [{ id: "conferir", alvo: (p) => [p.locator("main table thead").first(), p.locator("main tbody tr")] }],
+      },
+      {
+        antes: async ({ page }) => {
+          await linhaParaJustificar(page).locator("button.celula-abrir").first().click();
+        },
+        figuras: [{ id: "painel", alvo: (p) => alvo(p, "painel") }],
+      },
+      {
+        antes: async ({ page }) => {
+          await alvo(page, "painel").getByRole("button", { name: "Justificar", exact: true }).click();
+        },
+        figuras: [{ id: "justificar", alvo: (p) => alvo(p, "painel").locator(".comp-foco") }],
       },
       { antes: (t) => abrirConciliacaoDe(t, /^08-agosto-banco/), figuras: [{ id: "mes-fechado", alvo: (p) => p.locator(".mes-fechado-aviso"), pad: 8 }] },
     ],
@@ -590,6 +622,10 @@ const lerTela = (page) =>
             c.setAttribute("style", `position:absolute;inset:auto;left:${r.left}px;top:${r.top}px;width:${r.width}px;height:${r.height}px;margin:0;max-width:none;max-height:none`);
             if (o.matches(":modal")) c.setAttribute("data-modal", "");
           }
+          if (o.matches(".comparacao-grade[data-painel]")) {
+            c.style.setProperty("--comp-largura-painel", `${o.querySelector(".comp-painel").offsetWidth}px`);
+          }
+          if (o.matches(".comp-painel")) c.style.maxHeight = getComputedStyle(o).maxHeight;
         });
         for (const x of copia.querySelectorAll("[data-camada]")) x.remove();
         for (const a of copia.querySelectorAll("[href]")) a.removeAttribute("href");

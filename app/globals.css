@@ -2694,29 +2694,53 @@ html[data-tema="escuro"] .app-shell {
 }
 
 /* ── O painel da direita da comparação (#338, guia v5 págs. 14 e 15) ─────────────────────────────────────────
-   A partir de 1700px a tabela mantém os 1240px de sempre e o painel, de 348px, ocupa a margem que sobra: a
-   coluna do app deixa de ficar centralizada nesta tela (o recuo desce para 32px). Abaixo disso nada muda, e o
-   balão do hover segue como era. O painel é, quase todo, o lançamento em foco; embaixo ficam os dois saldos
-   do extrato e o caminho de volta ao topo. O veredito é traço (borda, bolinha e selo), nunca fundo. */
-.comparacao-grade { display: block; }
+   Abaixo de 1100px a comparação usa o balão. Com painel, a tabela ocupa o espaço que sobra;
+   a partir de 1700px voltam a tabela de até 1240px e o painel de 348px. */
+.comparacao-grade[data-painel] {
+  display: grid; grid-template-columns: minmax(0, 1fr) var(--comp-largura-painel, clamp(300px, 24vw, 348px));
+  column-gap: 16px; align-items: start;
+}
+@media (min-width: 1100px) {
+  .app-principal:has(.comparacao-grade[data-painel]) { --recuo-lateral: 24px; }
+}
 @media (min-width: 1700px) {
   .app-principal:has(.comparacao-grade[data-painel]) { --recuo-lateral: 32px; }
-  .comparacao-grade[data-painel] {
-    display: grid; grid-template-columns: minmax(0, 1240px) 348px; column-gap: 36px; align-items: start;
+  .app-principal .comparacao-grade[data-painel] {
+    grid-template-columns: minmax(0, 1240px) 348px; column-gap: 36px;
   }
 }
 .comparacao-grade > .comparacao-corpo { min-width: 0; }
+.comparacao-grade[data-painel] .dash-tabela-rolagem { container: tabela-comparacao / inline-size; }
+@container tabela-comparacao (width < 900px) {
+  /* Data, valor, veredito e Conferida têm espaço próprio; as descrições repartem o restante. */
+  .dash-tabela-rolagem .folhas-com-eixo { min-width: calc(21.75rem + 2 * var(--valor-largura, 8rem)); }
+  .folhas-com-eixo col.col-data { width: 3.5rem; }
+  .folhas-com-eixo col.col-valor { width: var(--valor-largura, 8rem); }
+  .folhas-com-eixo col.col-eixo { width: 6.75rem; }
+  .folhas-com-eixo :is(col.col-conferir, .th-conferir) { width: 5rem; }
+  .folhas-com-eixo :is(th, td) { padding-inline: 5px; }
+  .folhas-com-eixo :is(.dash-celula-fraca, .dash-valor-celula) { white-space: nowrap; }
+  .folhas-com-eixo .dash-celula-fraca { font-size: 12px; }
+  .folhas-com-eixo .dash-valor-celula { font-size: 14px; }
+  .folhas-com-eixo .celula-status .selo { padding-inline: 5px; }
+  .folhas-com-eixo .th-ordena { gap: 3px; font-size: 10px; letter-spacing: 0.04em; }
+  .folhas-com-eixo .th-ordena > span:first-child { overflow: hidden; text-overflow: ellipsis; }
+}
 /* o mesmo 32px de respiro do corpo, para o painel começar na altura do resumo; gruda abaixo da barra do topo */
 .comparacao-lateral { position: sticky; top: calc(var(--app-topo-altura, 78px) + 14px); padding-top: 32px; }
 .comp-painel.conc-previa {
-  position: static; gap: 10px; padding: 12px; overflow-y: auto;
-  max-height: calc(100vh - var(--app-topo-altura, 78px) - 14px - 32px - 18px);
+  position: static; gap: 10px; padding: 12px; overflow: visible; container-type: inline-size;
+  max-height: max(420px, calc(100dvh - var(--app-topo-altura, 78px) - 14px - 32px - 18px));
+}
+.comp-painel > [aria-live] { display: flex; flex-direction: column; min-height: 0; }
+@media (max-height: 561px) {
+  .comparacao-lateral { position: static; }
 }
 
 /* o quadro tem sempre os mesmos lugares, cheios ou vazios, e a altura fixa: o que muda é o conteúdo, não a caixa */
 .comp-foco {
   --tom: var(--color-text);
-  display: flex; flex-direction: column; gap: 10px; height: 690px; overflow: hidden; padding: 16px 18px;
+  display: flex; flex-direction: column; gap: 10px; height: 690px; min-height: 0; overflow: hidden; padding: 16px 18px;
   border: 1px solid color-mix(in srgb, var(--tom) 55%, var(--color-divider)); border-radius: var(--radius-md);
   background: transparent;
   animation: comp-foco-entra 200ms var(--ease-out);
@@ -2782,16 +2806,17 @@ html[data-tema="escuro"] .app-shell {
 .comp-form textarea { resize: none; font-size: 14px; line-height: 1.5; }
 .comp-form .espia-aviso { margin: 0; }
 /* as ações da linha, no pé do quadro: o que decide e o caminho do detalhe, numa linha só */
-.comp-acoes { display: flex; gap: 8px; min-height: 38px; }
+.comp-acoes { display: flex; flex: none; flex-wrap: wrap; gap: 8px; min-height: 38px; }
 .comp-acoes .btn { flex: 1 1 0; justify-content: center; white-space: nowrap; padding-inline: 10px; }
 
 /* embaixo do painel: os dois saldos do extrato, em destaque, e o caminho de volta ao topo */
-.comp-saldos { display: flex; flex-direction: column; gap: 10px; padding: 4px 4px 0; }
+.comp-saldos { display: flex; flex: none; flex-direction: column; gap: 10px; padding: 4px 4px 0; }
 .comp-saldos dl { display: grid; grid-template-columns: 1fr 1fr; margin: 0; border-top: 1px solid var(--color-divider); }
 .comp-saldos dl > div { display: flex; flex-direction: column; gap: 2px; padding: 10px 0 2px; min-width: 0; }
 .comp-saldos dl > div + div { padding-left: 14px; border-left: 1px solid var(--color-divider); }
 .comp-saldos dt { font-size: 12px; color: var(--texto-apagado); }
-.comp-saldos dd { margin: 0; font-family: var(--font-titulo); font-size: 22px; font-weight: 500; line-height: 1.15; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.comp-saldos dd { margin: 0; font-family: var(--font-titulo); font-size: clamp(18px, 7cqi, 22px); font-weight: 500; line-height: 1.15; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.comp-saldos dd[data-sem-inicial] { font: inherit; color: var(--texto-apagado); }
 .comp-saldos [data-final] dd { font-weight: 600; }
 .comp-saldo-data { margin: 0; font-size: 12.5px; color: var(--texto-apagado); }
 .comp-saldo-data strong { color: var(--color-text); font-weight: 600; font-variant-numeric: tabular-nums; }

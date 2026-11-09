@@ -119,7 +119,7 @@ function CabecalhoOrdenavel({
       aria-sort={ativa ? (ordem.crescente ? "ascending" : "descending") : "none"}
     >
       <button type="button" className="th-ordena" onClick={() => onOrdenar(coluna)}>
-        {children}
+        <span>{children}</span>
         <span className="th-ordena-seta" aria-hidden="true">
           {ativa ? (ordem.crescente ? "▲" : "▼") : "↕"}
         </span>
@@ -409,7 +409,7 @@ export default function ConciliacaoPage() {
         }
       />
       {/* os avisos e as faixas do topo ficam juntos; o resumo e a tabela abrem blocos com mais ar (#228) */}
-      {/* com o painel (#338), o corpo e ele lado a lado: a tabela com a largura de sempre e o painel na margem */}
+      {/* com o painel (#338), a tabela usa o espaço que sobra à esquerda */}
       <div className="comparacao-grade" data-painel={painel ? "" : undefined}>
       <div className="comparacao-corpo">
         {/* A tela ordena e filtra a lista inteira no cliente, então só faz sentido

@@ -1858,21 +1858,22 @@ describe("ConciliacaoPage", () => {
         podeFechar.valor = true;
       });
 
-      it("aparece só onde há margem para ele, e leva o saldo no lugar da faixa do topo", async () => {
-        doBackend(comSaldo);
-        const larga = render(<ConciliacaoPage />);
-        await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" });
-        expect(painel()).toHaveTextContent("Saldo final");
-        // o saldo mora só no painel: a faixa do topo não se repete
-        expect(screen.queryByRole("region", { name: "Saldo do extrato do banco" })).not.toBeInTheDocument();
-        larga.unmount();
-
-        vi.stubGlobal("matchMedia", (consulta: string) => ({ matches: consulta === "(hover: hover)" }));
+      it.each([1099, 1100])("a %ipx, mostra o saldo em um só lugar", async (largura) => {
+        vi.stubGlobal("matchMedia", (consulta: string) => ({
+          matches: consulta === "(hover: hover)" || largura >= Number(consulta.match(/min-width: (\d+)/)?.[1]),
+        }));
         doBackend(comSaldo);
         render(<ConciliacaoPage />);
         await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" });
-        expect(screen.queryByRole("complementary", { name: "Detalhe da linha e saldo do extrato" })).not.toBeInTheDocument();
-        expect(screen.getByRole("region", { name: "Saldo do extrato do banco" })).toBeInTheDocument();
+        const faixa = screen.queryByRole("region", { name: "Saldo do extrato do banco" });
+        if (largura === 1100) {
+          expect(painel()).toHaveTextContent("Saldo final");
+          expect(painel()).toHaveAttribute("data-tutorial", "painel");
+          expect(faixa).not.toBeInTheDocument();
+        } else {
+          expect(screen.queryByRole("complementary", { name: "Detalhe da linha e saldo do extrato" })).not.toBeInTheDocument();
+          expect(faixa).toHaveTextContent("Saldo final");
+        }
       });
 
       it("o hover preenche o painel, no lugar do balão, e o último fica quando o ponteiro sai", async () => {

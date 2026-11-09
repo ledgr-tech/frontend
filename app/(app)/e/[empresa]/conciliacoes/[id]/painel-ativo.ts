@@ -1,11 +1,10 @@
 import { useSyncExternalStore } from "react";
 
 /**
- * A partir de que largura o painel da direita cabe (issue #338): a tabela mantém os 1240px de sempre e o
- * painel, de 348px, ocupa a margem que sobra. Abaixo disso a comparação segue como era, com o balão no hover.
- * O CSS usa o mesmo número (`.comparacao-grade` em globals.css).
+ * A largura mínima da comparação com painel. Abaixo disso, volta o balão no hover.
+ * O CSS usa o mesmo limite para o recuo da tela (`.comparacao-grade` em globals.css).
  */
-export const LARGURA_DO_PAINEL = 1700;
+export const LARGURA_DO_PAINEL = 1100;
 const CONSULTA = `(min-width: ${LARGURA_DO_PAINEL}px)`;
 
 function inscrever(avisar: () => void): () => void {

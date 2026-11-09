@@ -9,17 +9,17 @@ function telaDe(largura: number) {
   let atual = largura;
   const ouvintes = new Set<Ouvinte>();
   const consultas: string[] = [];
-  window.matchMedia = ((consulta: string) => {
+  vi.stubGlobal("matchMedia", (consulta: string) => {
     consultas.push(consulta);
     return {
       get matches() {
-        return atual >= LARGURA_DO_PAINEL;
+        return atual >= Number(consulta.match(/\d+/)?.[0]);
       },
       media: consulta,
       addEventListener: (_: string, ouvinte: Ouvinte) => ouvintes.add(ouvinte),
       removeEventListener: (_: string, ouvinte: Ouvinte) => ouvintes.delete(ouvinte),
     } as unknown as MediaQueryList;
-  }) as typeof window.matchMedia;
+  });
   return {
     consultas,
     ouvintes,
@@ -31,28 +31,27 @@ function telaDe(largura: number) {
 }
 
 describe("usePainelAtivo", () => {
-  afterEach(() => vi.restoreAllMocks());
+  afterEach(() => vi.unstubAllGlobals());
 
-  it("pergunta pela largura de 1700px", () => {
+  it("pergunta pela largura de 1100px", () => {
     const tela = telaDe(1920);
     renderHook(() => usePainelAtivo());
-    expect(tela.consultas.every((consulta) => consulta === "(min-width: 1700px)")).toBe(true);
+    expect(LARGURA_DO_PAINEL).toBe(1100);
+    expect(new Set(tela.consultas)).toEqual(new Set(["(min-width: 1100px)"]));
   });
 
-  it("é verdadeiro numa tela larga e falso numa estreita", () => {
-    telaDe(1920);
-    expect(renderHook(() => usePainelAtivo()).result.current).toBe(true);
-    telaDe(1440);
-    expect(renderHook(() => usePainelAtivo()).result.current).toBe(false);
+  it.each([[1099, false], [1100, true], [1536, true], [1700, true]])("a %ipx, painel ativo: %s", (largura, ativo) => {
+    telaDe(largura);
+    expect(renderHook(() => usePainelAtivo()).result.current).toBe(ativo);
   });
 
   it("acompanha a janela quando ela muda de largura, e para de escutar ao sair", () => {
-    const tela = telaDe(1440);
+    const tela = telaDe(1099);
     const { result, unmount } = renderHook(() => usePainelAtivo());
     expect(result.current).toBe(false);
-    act(() => tela.mudar(1800));
+    act(() => tela.mudar(1100));
     expect(result.current).toBe(true);
-    act(() => tela.mudar(1280));
+    act(() => tela.mudar(1099));
     expect(result.current).toBe(false);
     unmount();
     expect(tela.ouvintes.size).toBe(0);
