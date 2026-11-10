@@ -402,14 +402,11 @@ export function MenuLateral({
           aria-controls={assistenteAberto ? "painel-assistente" : undefined}
           onClick={() => setAssistente((atual) => atual === "aberto" ? "fechado" : "aberto")}
         >
-          <Image
-            src="/mascotes/mascote-chatbot.png"
-            alt=""
-            width={1254}
-            height={1254}
-            sizes="36px"
-            className="app-assistente-mascote"
-          />
+          {/* o corpo e a luva são duas imagens: só a luva acena (ver .app-assistente-mao) */}
+          <span className="app-assistente-figura" aria-hidden="true">
+            <Image src="/mascotes/mascote-chatbot-corpo.png" alt="" width={400} height={400} sizes="64px" className="app-assistente-corpo" />
+            <Image src="/mascotes/mascote-chatbot-mao.png" alt="" width={114} height={127} sizes="20px" className="app-assistente-mao" />
+          </span>
           <span className="app-rotulo app-assistente-texto">
             <span className="app-assistente-chamada">Assistente</span>
             <span className="app-assistente-titulo">Fale com o Ledgr</span>
