@@ -2230,7 +2230,8 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
    O detalhe da linha abre à direita, sobre a comparação, que continua legível atrás: o fundo
    escurece menos que o de janela modal e não desfoca. Dentro dele o detalhe usa o mesmo arranjo
    empilhado do celular (o painel tem a largura de um). */
-.painel-fundo { position: fixed; inset: 0; z-index: 90; background: rgb(12 11 10 / 0.32); }
+.painel-fundo { position: fixed; inset: 0; z-index: 90; background: rgb(12 11 10 / 0.32); animation: painel-fundo-entrar 0.24s var(--ease-out); }
+@keyframes painel-fundo-entrar { from { opacity: 0; } }
 .painel-lateral {
   position: fixed; top: 0; right: 0; bottom: 0; z-index: 91;
   width: min(560px, 100vw); overflow-y: auto; overscroll-behavior: contain;
@@ -2240,7 +2241,7 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
 }
 .painel-lateral:focus { outline: none; }
 @keyframes painel-entrar { from { transform: translateX(24px); opacity: 0; } }
-@media (prefers-reduced-motion: reduce) { .painel-lateral { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .painel-lateral, .painel-fundo { animation: none; } }
 .painel-nav { display: flex; align-items: center; gap: 4px; }
 .painel-nav-icone { padding: 6px 8px; }
 .painel-lateral .dash-cabecalho { padding: 18px 0; align-items: flex-start; flex-direction: column-reverse; }
@@ -3109,6 +3110,7 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
 }
 .vg-progresso-feito {
   display: block; height: 100%; border-radius: inherit; background: var(--color-ok);
+  transition: width 320ms var(--ease-out);
 }
 
 /* o que pede atencao a esquerda, a tendencia a direita; empilha abaixo de 1100px */
@@ -3662,12 +3664,16 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
 .empresas-estrela {
   display: inline-grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: var(--radius-sm);
   background: transparent; color: color-mix(in srgb, var(--color-text) 35%, transparent); cursor: pointer;
+  transition: color 150ms ease, background-color 150ms ease;
 }
+/* uma transição e não um keyframe: as estrelas já favoritas não pulsam ao carregar a lista */
+.empresas-estrela svg { transition: fill 150ms ease, transform 160ms var(--ease-out); }
+.empresas-estrela:active svg { transform: scale(0.85); }
 .empresas-estrela:hover { background: var(--tinta-hover); color: var(--color-text); }
 .empresas-estrela[aria-pressed="true"] { color: var(--color-accent); }
 .empresas-estrela[aria-pressed="true"] svg { fill: currentColor; }
 /* a tabela em que um clique escolhe a linha: a escolhida fica na tinta neutra com o filete à esquerda */
-.tabela-escolha tbody tr { cursor: pointer; }
+.tabela-escolha tbody tr { cursor: pointer; transition: background-color 120ms ease, box-shadow 120ms ease; }
 .tabela-escolha tbody tr:hover { background: var(--tinta-hover); }
 .tabela-escolha tbody tr[aria-selected="true"] { background: var(--tinta-ativa); box-shadow: inset 2px 0 0 var(--color-text); }
 .tabela-escolha td { vertical-align: middle; }
@@ -3686,7 +3692,7 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
 }
 .faixa-plano strong { font-family: var(--font-titulo); font-size: 17px; font-weight: 600; color: var(--color-text); }
 .faixa-plano-barra { flex: 0 0 120px; height: 6px; border-radius: 3px; background: var(--tinta-ativa); overflow: hidden; }
-.faixa-plano-barra i { display: block; height: 100%; background: var(--color-accent); border-radius: 3px; }
+.faixa-plano-barra i { display: block; height: 100%; background: var(--color-accent); border-radius: 3px; transition: width 320ms var(--ease-out), background-color 200ms ease; }
 .faixa-plano-barra[data-no-limite="true"] i { background: var(--color-risco); }
 .equipe-estado { margin: 24px 0 0; }
 .equipe-falha { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
@@ -3723,7 +3729,7 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
 .equipe-menu-item[aria-checked="true"] > b::after { content: " · atual"; font-weight: 400; color: color-mix(in srgb, var(--color-text) 68%, transparent); }
 .equipe-menu-filete { margin: 6px 4px; border: 0; border-top: 1px solid var(--color-divider); }
 @media (prefers-reduced-motion: no-preference) {
-  .equipe-menu { animation: equipe-menu-entra 0.16s ease-out; }
+  .equipe-menu { animation: equipe-menu-entra 0.16s var(--ease-out); }
   @keyframes equipe-menu-entra { from { opacity: 0; transform: translateY(-4px); } }
 }
 @media (max-width: 520px) { .equipe-menu { width: min(300px, calc(100vw - 48px)); } }
@@ -4212,6 +4218,16 @@ html:has(.app-shell) { scrollbar-gutter: stable; }
 @keyframes app-painel-abrir-fade { from { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) {
   .app-avisos-painel, .ajd-menu, .app-conta-painel { animation-name: app-painel-abrir-fade; }
+}
+/* a saída é mais curta e discreta que a entrada (100ms, 3% de encolhimento) e não aceita mais cliques;
+   o `usePresenca` segura o menu montado só esse tempo */
+.app-avisos-painel[data-saindo], .ajd-menu[data-saindo], .app-conta-painel[data-saindo], .equipe-menu[data-saindo] {
+  animation: app-painel-fechar 100ms var(--ease-out) forwards; pointer-events: none;
+}
+@keyframes app-painel-fechar { to { opacity: 0; transform: scale(0.97); } }
+@keyframes app-painel-fechar-fade { to { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .app-avisos-painel[data-saindo], .ajd-menu[data-saindo], .app-conta-painel[data-saindo], .equipe-menu[data-saindo] { animation-name: app-painel-fechar-fade; }
 }
 .app-busca-painel { left: 0; right: 0; max-height: 60vh; overflow-y: auto; }
 .app-busca-achado {
@@ -5155,7 +5171,6 @@ html[data-tema="escuro"] .app-shell {
 .ass-painel .btn-primary { background: color-mix(in srgb, var(--color-accent) 14%, transparent); font-weight: 600; }
 .ass-painel .btn-primary:hover { background: color-mix(in srgb, var(--color-accent) 24%, transparent); }
 /* as transições: só o que a pessoa mudou, nunca ao abrir a tela (o painel fica com useTrocaSuave) */
-.ass-mesa .vg-progresso-feito { transition: width 320ms var(--ease-out); }
 .ass-mesa .btn { transition: background 160ms ease, color 160ms ease, border-color 160ms ease, transform 120ms var(--ease-out); }
 .ass-mesa .btn:active { transform: scale(0.98); }
 .ass-folhas .extrato-cartao:active .ass-folha { transform: scale(0.985); }
@@ -5165,7 +5180,7 @@ html[data-tema="escuro"] .app-shell {
 @keyframes ass-troca { from { opacity: 0.35; } to { opacity: 1; } }
 @keyframes ass-selo { from { opacity: 0; transform: rotate(0deg) scale(0.86); } to { opacity: 1; transform: rotate(4deg) scale(1); } }
 @media (prefers-reduced-motion: reduce) {
-  .ass-folha, .ass-mesa .vg-progresso-feito, .ass-mesa .btn { transition: none; }
+  .ass-folha, .ass-mesa .btn { transition: none; }
   .ass-mesa[data-mudou] .ass-folha-preco, .ass-mesa[data-mudou] .ass-folha-selo { animation: none; }
   .ass-mesa .btn:active, .ass-folhas .extrato-cartao:active .ass-folha, .ass-folhas .extrato-cartao:hover .ass-folha { transform: none; }
 }
@@ -6192,4 +6207,14 @@ html[data-tema="escuro"] .app-shell {
 @media (prefers-reduced-motion: no-preference) {
   .faq-question::after { transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
   .faq-item[open] .faq-answer { animation: kin-sobe 0.4s cubic-bezier(0.22, 1, 0.36, 1); }
+}
+
+/* --- pequenas animações do app: avisos de ação concluída, rótulo "copiado", barras e escolha na lista ---
+   Só opacity/transform (as barras seguem a regra de width do ass-mesa); com menos movimento, nada se mexe. */
+.cfg-feito, .equipe-feito, .explicacao-aviso { animation: nova-surgir 200ms var(--ease-out) backwards; }
+.rotulo-troca { animation: nova-surgir 160ms var(--ease-out) backwards; }
+@media (prefers-reduced-motion: reduce) {
+  .cfg-feito, .equipe-feito, .explicacao-aviso, .rotulo-troca { animation: none; }
+  .vg-progresso-feito, .faixa-plano-barra i, .tabela-escolha tbody tr, .empresas-estrela, .empresas-estrela svg { transition: none; }
+  .empresas-estrela:active svg { transform: none; }
 }

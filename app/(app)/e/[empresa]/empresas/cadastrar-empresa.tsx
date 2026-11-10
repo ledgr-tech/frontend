@@ -1,6 +1,7 @@
 "use client";
 
 import { useId, useRef, useState, type FormEvent } from "react";
+import { BotaoFecharJanela } from "./modal-da-tela";
 import type { EmpresaCliente } from "@/lib/adaptadores";
 import { gravarEmpresaRecente } from "@/lib/empresa-recente";
 import LinkDoApp from "@/lib/link-do-app";
@@ -106,9 +107,9 @@ export function CadastrarEmpresa({ noLimite, aoCadastrar, aoFechar }: { noLimite
         <button type="submit" className="btn btn-primary" disabled={enviando || noLimite}>
           {enviando ? "Cadastrando…" : "Cadastrar empresa"}
         </button>
-        <button type="button" className="btn btn-secondary" onClick={aoFechar}>
+        <BotaoFecharJanela aoFechar={aoFechar} className="btn btn-secondary">
           Cancelar
-        </button>
+        </BotaoFecharJanela>
         {aviso?.planos && (
           <LinkDoApp href="/assinatura" className="btn btn-secondary">
             Ver planos

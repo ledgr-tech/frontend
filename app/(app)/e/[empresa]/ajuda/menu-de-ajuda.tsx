@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { caminhoSemEmpresa } from "@/lib/rotas";
 import { BookOpen, CircleHelp, LibraryBig, RotateCcw } from "lucide-react";
 import { abrirAjuda, abrirTutorial } from "@/lib/eventos";
+import { usePresenca } from "@/lib/troca-suave";
 import { telaDoCaminho } from "../tutorial/roteiros";
 import { ajudaDaTela } from "../../../../(ajuda)/ajuda/paginas";
 import { lembrarDeOndeVeio } from "../../../../(ajuda)/ajuda/voltar";
@@ -18,6 +19,7 @@ const ICONE = { size: 18, "aria-hidden": true } as const;
  */
 export function MenuDeAjuda() {
   const [aberto, setAberto] = useState(false);
+  const presenca = usePresenca(aberto);
   const caixa = useRef<HTMLDivElement>(null);
   const botao = useRef<HTMLButtonElement>(null);
   const tela = telaDoCaminho(caminhoSemEmpresa(usePathname()));
@@ -61,8 +63,8 @@ export function MenuDeAjuda() {
         <span className="ajd-botao-rotulo">Ajuda</span>
       </button>
 
-      {aberto && (
-        <div id="menu-de-ajuda" className="app-painel ajd-menu">
+      {presenca.montado && (
+        <div id="menu-de-ajuda" className="app-painel ajd-menu" data-saindo={presenca.saindo || undefined}>
           {pagina && (
             <button
               type="button"

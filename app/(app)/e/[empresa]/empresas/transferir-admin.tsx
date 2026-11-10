@@ -1,6 +1,7 @@
 "use client";
 
 import { useId, useRef, useState, type FormEvent } from "react";
+import { BotaoFecharJanela } from "./modal-da-tela";
 import type { Pessoa } from "@/lib/adaptadores";
 import { MensagemErro } from "../../../../(auth)/_compartilhado/mensagem-erro";
 import type { Resultado } from "../conciliacoes/acoes";
@@ -96,9 +97,9 @@ export function TransferirAdmin({
         <button type="submit" className="btn btn-primary" disabled={enviando}>
           {enviando ? "Transferindo…" : "Transferir administração"}
         </button>
-        <button type="button" className="btn btn-secondary" onClick={aoFechar}>
+        <BotaoFecharJanela aoFechar={aoFechar} className="btn btn-secondary">
           Cancelar
-        </button>
+        </BotaoFecharJanela>
       </div>
     </form>
   );

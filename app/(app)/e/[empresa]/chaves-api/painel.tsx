@@ -131,7 +131,7 @@ function TokenNovo({ nome, token, onFechar }: { nome: string; token: string; onF
       {copiado === "manual" && <p className="cfg-linha-descricao">O navegador não deixou copiar: a chave está selecionada, use Ctrl+C.</p>}
       <div className="cfg-form-botoes">
         <button type="button" className="btn btn-primary" onClick={copiar}>
-          {copiado === "sim" ? "Copiada" : "Copiar chave"}
+          {copiado === "sim" ? <span className="rotulo-troca">Copiada</span> : "Copiar chave"}
         </button>
         <button type="button" className="btn btn-secondary" onClick={onFechar}>
           Já guardei

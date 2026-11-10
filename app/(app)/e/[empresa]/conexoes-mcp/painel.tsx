@@ -79,7 +79,7 @@ export function PainelDeConexoes({ itens: iniciais, endereco }: { itens: Conexao
             <span className="conexao-endereco-rotulo">Endereço do conector</span>
             <code>{endereco}</code>
             <button type="button" className="btn btn-secondary" onClick={copiar}>
-              {copiado ? "Copiado" : "Copiar"}
+              {copiado ? <span className="rotulo-troca">Copiado</span> : "Copiar"}
             </button>
           </div>
         )}

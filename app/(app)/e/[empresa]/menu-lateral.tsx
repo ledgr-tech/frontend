@@ -38,6 +38,7 @@ import { alternarMenu, menuRecolhido } from "./menu";
 import { aplicarTema, temaAtual, type Tema } from "./tema";
 import { ABRIR_ASSISTENTE, ABRIR_CONFIGURACOES } from "@/lib/eventos";
 import type { Papel } from "@/lib/papel";
+import { usePresenca } from "@/lib/troca-suave";
 
 type ItemMenu = {
   nome: string;
@@ -127,6 +128,7 @@ export function MenuLateral({
   // faria o ícone trocar sozinho depois da hidratação
   const [tema, setTema] = useState<Tema | null>(null);
   const [contaAberta, setContaAberta] = useState(false);
+  const conta = usePresenca(contaAberta);
   const [configAberta, setConfigAberta] = useState(false);
   // a seção pedida por fora (o "Definir agora" do roteiro da Visão geral)
   const [secaoPedida, setSecaoPedida] = useState<string | undefined>();
@@ -448,8 +450,8 @@ export function MenuLateral({
             <ChevronsUpDown {...ICONE} size={15} className="app-conta-seta" />
           </button>
 
-          {contaAberta && (
-            <div id="menu-conta" className="app-painel app-conta-painel">
+          {conta.montado && (
+            <div id="menu-conta" className="app-painel app-conta-painel" data-saindo={conta.saindo || undefined}>
               <span className="app-conta-email">{email}</span>
               <button
                 type="button"

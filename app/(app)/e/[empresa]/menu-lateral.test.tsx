@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MenuLateral } from "./menu-lateral";
 import { ProvedorDaConta } from "./conta";
@@ -270,7 +270,7 @@ describe("MenuLateral", () => {
     await user.click(screen.getByRole("button", { name: /Financeiro/ }));
     await user.keyboard("{Escape}");
 
-    expect(screen.queryByRole("button", { name: "Sair" })).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Sair" })).not.toBeInTheDocument());
   });
 
   it("opens the settings window from the account menu, closing the menu", async () => {
