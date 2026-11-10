@@ -118,7 +118,7 @@ test("reenviar JSON na comparação mantém o banco e abre a nova rodada", async
   await page.getByRole("button", { name: "Copiar prompt" }).click();
   await expect(page.getByRole("button", { name: "Prompt copiado" })).toBeVisible();
   expect(await page.evaluate(() => navigator.clipboard.readText())).toContain("versao_schema");
-  const campo = page.getByLabel("Extrato do sistema de gestão");
+  const campo = page.getByLabel("Extrato corrigido do sistema");
   await campo.setInputFiles({ ...jsonDoSistema, buffer: Buffer.from('{"erro":true}') });
   await page.getByRole("button", { name: "Conciliar de novo" }).click();
   await expect(page.getByText("O arquivo não passou na conferência")).toBeVisible();

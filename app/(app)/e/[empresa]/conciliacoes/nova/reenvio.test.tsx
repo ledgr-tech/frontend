@@ -53,7 +53,7 @@ function csv(tamanho?: number) {
   return arquivo;
 }
 
-const CAMPO = "Extrato do sistema de gestão";
+const CAMPO = "Extrato corrigido do sistema";
 
 async function abrir() {
   const user = userEvent.setup();
@@ -94,7 +94,7 @@ describe("Nova conciliação em modo reenvio", () => {
 
     expect(carregarContextoDoReenvio).toHaveBeenCalledWith(BANCO, ANTERIOR);
     expect(screen.getByRole("heading", { name: "Nova versão do extrato do sistema" })).toBeInTheDocument();
-    expect(screen.getByText(/competência setembro de 2026/)).toBeInTheDocument();
+    expect(screen.getByText(/Setembro de 2026 · rodada 3/)).toBeInTheDocument();
     expect(screen.getByText(/rodada 3, com o mesmo extrato do banco/)).toBeInTheDocument();
     // a folha do banco só mostra qual é: não há onde soltar nem escolher arquivo do banco
     expect(screen.getByText("banco-setembro.ofx")).toBeInTheDocument();
@@ -324,7 +324,7 @@ describe("Nova conciliação em modo reenvio", () => {
       dataTransfer: { files: [new File([""], "arquivo.pdf")] },
     });
 
-    expect(screen.getByRole("alert")).toHaveTextContent("O extrato do sistema de gestão precisa ser um arquivo CSV ou JSON.");
+    expect(screen.getByRole("alert")).toHaveTextContent("O extrato corrigido do sistema precisa ser um arquivo CSV ou JSON.");
     // o que já estava escolhido continua
     expect(screen.getByRole("button", { name: "Conciliar de novo" })).toBeEnabled();
   });

@@ -46,10 +46,7 @@ export function CartaoDaIaNoReenvio({ desligado }: { desligado: boolean }) {
       <h3 id="nova-ia-titulo" className="font-titulo">
         Só tem o PDF do relatório?
       </h3>
-      <p>
-        Use a IA que você já tem, como o ChatGPT ou o Claude, para transformar o PDF no arquivo do Ledgr. Você confere
-        as linhas antes de confirmar.
-      </p>
+      <p>Gere o JSON com a IA que você já usa. Você confere as linhas antes de confirmar.</p>
       <div>
         <button
           type="button"

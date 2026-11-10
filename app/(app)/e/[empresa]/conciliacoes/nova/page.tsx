@@ -444,7 +444,7 @@ function NovaConciliacao() {
         contexto={
           reenvio
             ? [
-                `competência ${tituloDaCompetencia(reenvio.competencia).toLowerCase()}`,
+                tituloDaCompetencia(reenvio.competencia),
                 `rodada ${reenvio.rodada}, com o mesmo extrato do banco`,
               ]
             : ["o mês sai das datas do extrato"]
@@ -508,7 +508,7 @@ function NovaConciliacao() {
               {reenvio ? (
                 <FolhaDeExtrato
                   origem="sistema"
-                  titulo="Extrato do sistema de gestão"
+                  titulo="Extrato corrigido do sistema"
                   dica="CSV ou JSON, até 4 MB"
                   accept=".csv,.json"
                   formatos="CSV ou JSON"
