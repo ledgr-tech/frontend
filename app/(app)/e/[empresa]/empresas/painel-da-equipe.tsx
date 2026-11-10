@@ -13,7 +13,7 @@ import { useEmail, useLimites, usePapel } from "../conta";
 import { cancelarConvite, carregarEquipe, convidar, removerPessoa, trocarPapel, type Equipe } from "../equipe/acoes";
 import { FaixaDoPlano } from "./faixa-do-plano";
 import { DESCRICAO_DO_PAPEL, MenuDePapel } from "./menu-de-papel";
-import { ModalDaTela } from "./modal-da-tela";
+import { BotaoFecharJanela, ModalDaTela } from "./modal-da-tela";
 import { TransferirAdmin } from "./transferir-admin";
 import { useTrocaSuave } from "@/lib/troca-suave";
 
@@ -627,9 +627,9 @@ function ConvidarPessoa({
         <button type="submit" className="btn btn-primary" disabled={enviando}>
           {enviando ? "Enviando…" : "Enviar convite"}
         </button>
-        <button type="button" className="btn btn-secondary" onClick={aoFechar}>
+        <BotaoFecharJanela aoFechar={aoFechar} className="btn btn-secondary">
           Fechar
-        </button>
+        </BotaoFecharJanela>
         <span className="equipe-nota">O link vale por 7 dias.</span>
       </div>
     </form>

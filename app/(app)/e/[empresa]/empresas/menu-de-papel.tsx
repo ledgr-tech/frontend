@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, type KeyboardEvent } from "react";
 import { ChevronDown } from "lucide-react";
 import { ROTULO_DO_PAPEL, type Papel } from "@/lib/papel";
+import { usePresenca } from "@/lib/troca-suave";
 
 /** O que cada papel permite, o mesmo texto do cartão do convite e do menu de papel. */
 export const DESCRICAO_DO_PAPEL: Partial<Record<Papel, string>> = {
@@ -40,6 +41,7 @@ export function MenuDePapel({
   const envelope = useRef<HTMLSpanElement>(null);
   const botao = useRef<HTMLButtonElement>(null);
   const menuId = useId();
+  const presenca = usePresenca(aberto);
 
   useEffect(() => {
     if (!aberto) return;
@@ -96,8 +98,8 @@ export function MenuDePapel({
         {salvando ? "Salvando…" : ROTULO_DO_PAPEL[papel]}
         {!salvando && <ChevronDown size={14} aria-hidden="true" />}
       </button>
-      {aberto && (
-        <div id={menuId} role="menu" aria-label={`Papel de ${nome}`} className="equipe-menu">
+      {presenca.montado && (
+        <div id={menuId} role="menu" aria-label={`Papel de ${nome}`} className="equipe-menu" data-saindo={presenca.saindo || undefined}>
           {(["gestor", "analista"] as const).map((opcao) => (
             <button
               key={opcao}

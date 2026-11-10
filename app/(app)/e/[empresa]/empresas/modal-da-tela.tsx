@@ -1,6 +1,18 @@
 "use client";
 
-import { useEffect, useId, useRef, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useId, useRef, type ComponentProps, type ReactNode } from "react";
+import { sairComSuavidade } from "@/lib/troca-suave";
+
+const FecharJanela = createContext<(() => void) | null>(null);
+
+/**
+ * O botão de fechar de dentro da janela (Cancelar, Fechar, Voltar): fecha com a saída suave da
+ * `ModalDaTela` que o envolve. Fora de uma (um teste do conteúdo, por exemplo), fecha na hora com
+ * `aoFechar`.
+ */
+export function BotaoFecharJanela({ aoFechar, ...resto }: Omit<ComponentProps<"button">, "onClick" | "type"> & { aoFechar: () => void }) {
+  return <button type="button" {...resto} onClick={useContext(FecharJanela) ?? aoFechar} />;
+}
 
 /**
  * A janela modal da tela Empresas (cadastrar empresa, convidar pessoa), no meio da tela, com o fundo
@@ -26,6 +38,25 @@ export function ModalDaTela({
   const dialogo = useRef<HTMLDialogElement>(null);
   const tituloId = useId();
   const quemAbriu = useRef<Element | null>(null);
+  const saindo = useRef(false);
+
+  // a saída (140ms, mais curta e discreta que a entrada) toca antes de a janela desmontar; uma vez só
+  function fechar() {
+    if (saindo.current) return;
+    saindo.current = true;
+    const elemento = dialogo.current;
+    void Promise.all([
+      sairComSuavidade(
+        elemento,
+        [
+          { opacity: 1, transform: "translateY(0) scale(1)" },
+          { opacity: 0, transform: "translateY(8px) scale(0.98)" },
+        ],
+        140,
+      ),
+      sairComSuavidade(elemento, [{ opacity: 1 }, { opacity: 0 }], 140, "::backdrop"),
+    ]).then(aoFechar);
+  }
 
   useEffect(() => {
     const elemento = dialogo.current;
@@ -53,21 +84,23 @@ export function ModalDaTela({
       onKeyDown={(evento) => {
         if (evento.key !== "Escape") return;
         evento.preventDefault();
-        aoFechar();
+        fechar();
       }}
       onClose={aoFechar}
       // o fundo escurecido é o próprio <dialog> (a caixa de dentro cobre a largura toda): clicar nele é clicar fora
       onClick={(evento) => {
-        if (evento.target === evento.currentTarget) aoFechar();
+        if (evento.target === evento.currentTarget) fechar();
       }}
     >
       {fundo}
-      <div className="dialog">
-        <span id={tituloId} className="dialog-title">
-          {titulo}
-        </span>
-        {children}
-      </div>
+      <FecharJanela.Provider value={fechar}>
+        <div className="dialog">
+          <span id={tituloId} className="dialog-title">
+            {titulo}
+          </span>
+          {children}
+        </div>
+      </FecharJanela.Provider>
     </dialog>
   );
 }
