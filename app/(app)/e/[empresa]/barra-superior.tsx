@@ -9,6 +9,7 @@ import { MenuDeAjuda } from "./ajuda/menu-de-ajuda";
 import { diasRestantes, fraseCurtaDoTeste, fraseDoTeste } from "@/lib/assinatura";
 import { useAssinatura } from "./conta";
 import { useTeclaDeAtalho } from "@/lib/plataforma";
+import { usePresenca } from "@/lib/troca-suave";
 import { formatarMoeda, type LinhaComparacao } from "@/lib/mock-data";
 import { avisosDoMes, idsLidos, marcarLidos } from "./avisos";
 import { carregarVisaoGeral, type VisaoGeral } from "./conciliacoes/acoes";
@@ -39,6 +40,7 @@ export function BarraSuperior({ contaInativa = false }: { contaInativa?: boolean
   const [termo, setTermo] = useState("");
   const [buscaAberta, setBuscaAberta] = useState(false);
   const [avisosAbertos, setAvisosAbertos] = useState(false);
+  const presencaDosAvisos = usePresenca(avisosAbertos);
   const [leitura, setLeitura] = useState<Leitura>({ situacao: "lendo" });
   const [lidos, setLidos] = useState<string[]>([]);
   const tecla = useTeclaDeAtalho();
@@ -249,8 +251,8 @@ export function BarraSuperior({ contaInativa = false }: { contaInativa?: boolean
           )}
         </button>
 
-        {avisosAbertos && (
-          <div className="app-painel app-avisos-painel">
+        {presencaDosAvisos.montado && (
+          <div className="app-painel app-avisos-painel" data-saindo={presencaDosAvisos.saindo || undefined}>
             <div className="app-avisos-topo">
               <span style={{ fontSize: 17, fontWeight: 600 }}>
                 Avisos

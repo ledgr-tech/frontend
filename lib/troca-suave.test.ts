@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { renderHook } from "@testing-library/react";
-import { useTrocaSuave } from "./troca-suave";
+import { act } from "@testing-library/react";
+import { sairComSuavidade, usePresenca, useTrocaSuave } from "./troca-suave";
 
 function painelComAnimate() {
   const elemento = document.createElement("aside");
@@ -41,5 +42,45 @@ describe("useTrocaSuave", () => {
     const ref = { current: document.createElement("aside") };
     const { rerender } = renderHook(({ chave }) => useTrocaSuave(ref, chave), { initialProps: { chave: "a" } });
     expect(() => rerender({ chave: "b" })).not.toThrow();
+  });
+});
+
+describe("usePresenca", () => {
+  it("segura o elemento montado por ms depois de fechar, e reabrir cancela a espera", () => {
+    vi.useFakeTimers();
+    const { result, rerender } = renderHook(({ aberto }) => usePresenca(aberto, 100), { initialProps: { aberto: true } });
+    expect(result.current).toEqual({ montado: true, saindo: false });
+
+    rerender({ aberto: false });
+    expect(result.current).toEqual({ montado: true, saindo: true });
+    act(() => { vi.advanceTimersByTime(60); });
+    rerender({ aberto: true });
+    act(() => { vi.advanceTimersByTime(200); });
+    expect(result.current).toEqual({ montado: true, saindo: false });
+
+    rerender({ aberto: false });
+    act(() => { vi.advanceTimersByTime(100); });
+    expect(result.current).toEqual({ montado: false, saindo: false });
+    vi.useRealTimers();
+  });
+});
+
+describe("sairComSuavidade", () => {
+  it("sem animate ou sem elemento, resolve na hora", async () => {
+    await expect(sairComSuavidade(null, [], 100)).resolves.toBeUndefined();
+    await expect(sairComSuavidade(document.createElement("div"), [], 100)).resolves.toBeUndefined();
+  });
+
+  it("espera a animação acabar e, com menos movimento, usa só o fade", async () => {
+    vi.stubGlobal("matchMedia", (consulta: string) => ({ matches: consulta.includes("reduce") }));
+    const elemento = document.createElement("div");
+    const animate = vi.fn(() => ({ finished: Promise.resolve() }));
+    Object.assign(elemento, { animate });
+    await sairComSuavidade(elemento, [{ transform: "none" }, { transform: "scale(0.9)" }], 140, "::backdrop");
+    expect(animate).toHaveBeenCalledWith(
+      [{ opacity: 1 }, { opacity: 0 }],
+      expect.objectContaining({ duration: 140, fill: "forwards", pseudoElement: "::backdrop" }),
+    );
+    vi.unstubAllGlobals();
   });
 });

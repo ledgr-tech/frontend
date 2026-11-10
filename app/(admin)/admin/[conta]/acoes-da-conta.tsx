@@ -2,7 +2,7 @@
 
 import { useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { ModalDaTela } from "../../../(app)/e/[empresa]/empresas/modal-da-tela";
+import { BotaoFecharJanela, ModalDaTela } from "../../../(app)/e/[empresa]/empresas/modal-da-tela";
 import { agirNaConta, type AcaoDaConta } from "../acoes";
 
 type Acao = { acao: AcaoDaConta; botao: string; titulo: (nome: string) => string; aviso: string };
@@ -104,9 +104,9 @@ export function AcoesDaConta({ id, nome, inativa, piloto }: { id: string; nome: 
               </p>
             )}
             <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 14 }}>
-              <button type="button" className="btn btn-ghost" onClick={fechar}>
+              <BotaoFecharJanela aoFechar={fechar} className="btn btn-ghost">
                 Cancelar
-              </button>
+              </BotaoFecharJanela>
               <button type="submit" className="btn btn-primary" disabled={enviando || !motivo.trim()}>
                 {escolhida.botao}
               </button>

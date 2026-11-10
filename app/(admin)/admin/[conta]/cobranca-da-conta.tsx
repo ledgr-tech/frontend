@@ -2,7 +2,7 @@
 
 import { useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { ModalDaTela } from "../../../(app)/e/[empresa]/empresas/modal-da-tela";
+import { BotaoFecharJanela, ModalDaTela } from "../../../(app)/e/[empresa]/empresas/modal-da-tela";
 import { formatarDataHora } from "../../../(app)/e/[empresa]/dashboard/resumo";
 import { cancelarAssinatura, darCupom, listarCupons, manterAssinatura, type CupomDado, type CupomDaStripe } from "../acoes";
 
@@ -113,9 +113,9 @@ export function AcoesDaAssinatura({ id, nome, agendado, fimDoPeriodo }: { id: st
             <CampoDoMotivo valor={motivo} mudar={setMotivo} />
             <Erro texto={erro} />
             <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 14 }}>
-              <button type="button" className="btn btn-ghost" onClick={fechar}>
+              <BotaoFecharJanela aoFechar={fechar} className="btn btn-ghost">
                 Voltar
-              </button>
+              </BotaoFecharJanela>
               <button type="submit" className="btn btn-primary" disabled={enviando || !motivo.trim()}>
                 {enviando ? "Enviando…" : botao}
               </button>
@@ -243,9 +243,9 @@ export function DarCupom({ id, nome, assinaturaViva }: { id: string; nome: strin
               )}
               <Erro texto={erro} />
               <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-                <button type="button" className="btn btn-ghost" onClick={fechar}>
+                <BotaoFecharJanela aoFechar={fechar} className="btn btn-ghost">
                   Cancelar
-                </button>
+                </BotaoFecharJanela>
                 <button type="submit" className="btn btn-primary" disabled={enviando || !cupomId}>
                   {enviando ? "Enviando…" : "Dar cupom"}
                 </button>

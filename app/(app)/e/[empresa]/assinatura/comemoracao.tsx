@@ -7,7 +7,7 @@ import Link from "@/lib/link-do-app";
 import { formatarDiaCurto, NOME_DO_PLANO, type Cobranca } from "@/lib/assinatura";
 import { DETALHES } from "@/lib/medidor-de-planos";
 import { useLimites } from "../conta";
-import { ModalDaTela } from "../empresas/modal-da-tela";
+import { BotaoFecharJanela, ModalDaTela } from "../empresas/modal-da-tela";
 
 type Peca = { tipo: "papel" | "folha" | "tinta" | "ouro"; estilo: CSSProperties };
 
@@ -67,9 +67,9 @@ export function ComemoracaoDaAssinatura({ cobranca, aoFechar }: { cobranca: Cobr
         </div>
       }
     >
-      <button type="button" className="comemoracao-fechar" aria-label="Fechar" onClick={aoFechar}>
+      <BotaoFecharJanela aoFechar={aoFechar} className="comemoracao-fechar" aria-label="Fechar">
         <X size={18} aria-hidden="true" />
-      </button>
+      </BotaoFecharJanela>
       <div className="comemoracao-topo">
         <div className="comemoracao-chamada">
           <h2 className="comemoracao-titulo">O plano {nome} é seu.</h2>
@@ -109,9 +109,9 @@ export function ComemoracaoDaAssinatura({ cobranca, aoFechar }: { cobranca: Cobr
         </ul>
       </section>
       <div className="dialog-actions">
-        <button type="button" className="btn btn-secondary" onClick={aoFechar}>
+        <BotaoFecharJanela aoFechar={aoFechar} className="btn btn-secondary">
           Ver a assinatura
-        </button>
+        </BotaoFecharJanela>
         <Link href="/conciliacoes/nova" className="btn btn-primary">
           Começar uma conciliação
         </Link>

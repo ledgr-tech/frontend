@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { ModalDaTela } from "../empresas/modal-da-tela";
+import { BotaoFecharJanela, ModalDaTela } from "../empresas/modal-da-tela";
 
 /** O que muda ao cancelar (#232): o período pago vale até o fim; depois, só consulta. */
 export function textoDoCancelamento(fimDoPeriodo: string): string {
@@ -44,9 +44,9 @@ export function CancelarAssinatura({ fimDoPeriodo }: { fimDoPeriodo: string }) {
           </p>
           <div className="dialog-actions">
             {/* o primeiro botão recebe o foco: um Enter distraído mantém a assinatura */}
-            <button type="button" className="btn btn-secondary" onClick={fechar}>
+            <BotaoFecharJanela aoFechar={fechar} className="btn btn-secondary">
               Manter assinatura
-            </button>
+            </BotaoFecharJanela>
             <button type="button" className="btn btn-primary" disabled aria-describedby="assinatura-cancelar-nota">
               Cancelar mesmo assim
             </button>

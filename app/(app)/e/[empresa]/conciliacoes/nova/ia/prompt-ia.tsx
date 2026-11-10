@@ -34,7 +34,7 @@ export function PromptIa({ prompt, onCopiado }: { prompt: string; onCopiado?: ()
           aria-describedby={falhaAoCopiar ? erroAoCopiar : undefined}
         >
           {copiado ? <Check size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />}
-          {copiado ? "Prompt copiado" : "Copiar prompt"}
+          {copiado ? <span className="rotulo-troca">Prompt copiado</span> : "Copiar prompt"}
         </button>
       </div>
       {falhaAoCopiar && (

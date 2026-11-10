@@ -451,7 +451,7 @@ describe("o menu de papel", () => {
     await user.click(botaoDe("Bia")!);
     await user.click(screen.getByRole("menuitemradio", { name: /^Analista/ }));
 
-    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole("menu")).not.toBeInTheDocument());
     expect(trocarPapel).not.toHaveBeenCalled();
   });
 
@@ -542,12 +542,12 @@ describe("o menu de papel", () => {
     await user.click(botaoDe("Bia")!);
     expect(screen.getByRole("menu")).toBeInTheDocument();
     await user.keyboard("{Escape}");
-    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole("menu")).not.toBeInTheDocument());
     expect(botaoDe("Bia")).toHaveFocus();
 
     await user.click(botaoDe("Bia")!);
     await user.click(document.body);
-    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole("menu")).not.toBeInTheDocument());
   });
 
   it("o foco entra no papel atual e as setas andam pelos itens", async () => {
@@ -576,7 +576,7 @@ describe("o menu de papel", () => {
     await user.keyboard("{Home}");
     expect(screen.getByRole("menuitemradio", { name: /^Gestor/ })).toHaveFocus();
     await user.keyboard("{Tab}");
-    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole("menu")).not.toBeInTheDocument());
   });
 
   it("escolher um papel devolve o foco ao botão, que não se desliga de verdade enquanto salva", async () => {
@@ -640,7 +640,7 @@ describe("a transferência da administração", () => {
     expect(
       within(janela).getByText("Bia passa a ser o administrador da conta e você passa a ser Gestor. Só o novo administrador pode desfazer isso."),
     ).toBeInTheDocument();
-    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole("menu")).not.toBeInTheDocument());
   });
 
   it("na conta com senha, a senha é obrigatória e vai ao backend", async () => {
