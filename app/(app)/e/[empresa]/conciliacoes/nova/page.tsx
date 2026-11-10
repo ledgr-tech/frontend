@@ -47,6 +47,14 @@ import { ErrosImportacaoIa } from "./ia/erros-importacao-ia";
 import { Guia, type Passo } from "./guia";
 
 export default function NovaConciliacaoPage() {
+  const parametros = useSearchParams();
+  // outro par na mesma rota (?banco=&sistemaAnterior=) é outra tela: sem a key, o contexto e os arquivos
+  // do par anterior ficariam valendo até a leitura do novo terminar
+  const chave = `${parametros?.get("banco") ?? ""}|${parametros?.get("sistemaAnterior") ?? ""}`;
+  return <NovaConciliacao key={chave} />;
+}
+
+function NovaConciliacao() {
   const router = useRoteador();
   // a importação via IA confirmada leva para cá com o id do extrato do sistema já criado (?sistema=):
   // a folha do sistema vem pronta e só falta o banco
