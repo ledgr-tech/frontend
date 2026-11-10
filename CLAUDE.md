@@ -5,6 +5,7 @@
 - Work on `develop`, never commit directly to `main`. Non-trivial feature work should happen in an isolated git worktree under `.worktrees/` (already gitignored) on its own branch, merged/PR'd back into `develop` when done.
 - Before committing: `npm run test && npm run lint && npm run build`. Running `build` (not just `test`) matters — see the route-group typo note in `AGENTS.md`; it's the kind of bug tests alone won't catch.
 - Real screen copy/data (landing page sections, product terminology, etc.) should come from the Claude Design export for this project, not be invented — check for the source file before writing placeholder text.
+- Agents: up to ~5 files, one agent does it. Above that, one worktree per part, with disjoint files. `app/globals.css`, `CLAUDE.md`, `app/(ajuda)/ajuda/paginas.ts`, `scripts/backend-fake.mjs`, `lib/backend.ts` and `lib/adaptadores.ts` belong to one agent at a time (the orchestrating session, at the end). Before a PR, run the `verificador` and `revisor` subagents (`.claude/agents/`). An agent never merges and never pushes to `main` or `develop`; the approval a PR needs is a person's.
 
 ## Backend status
 
