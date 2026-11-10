@@ -108,20 +108,24 @@ test("reenviar JSON na comparação mantém o banco e abre a nova rodada", async
 
   const primeiraRodada = new URL(page.url());
   await page.getByRole("button", { name: "Enviar nova versão do extrato do sistema" }).click();
-  const dialogo = page.getByRole("dialog", { name: "Nova versão do extrato do sistema" });
-  await dialogo.getByRole("button", { name: "Gerar JSON com IA" }).click();
-  await dialogo.getByRole("button", { name: "Copiar prompt" }).click();
-  await expect(dialogo.getByRole("button", { name: "Prompt copiado" })).toBeVisible();
+  // a Nova conciliação em modo reenvio; /conciliacoes/nova não pode abrir o painel da linha "nova" (#260)
+  await page.waitForURL((url) => url.pathname === `${caminho}/nova` && url.searchParams.has("sistemaAnterior"));
+  await expect(page.getByRole("heading", { name: "Nova versão do extrato do sistema" })).toBeVisible();
+  await expect(page.getByRole("complementary", { name: "Detalhe da linha e saldo do extrato" })).toHaveCount(0);
+  await expect(page.getByText("Mantido", { exact: true })).toBeVisible();
+  await expect(page.getByText("banco.ofx")).toBeVisible();
+  await page.getByRole("button", { name: "Gerar JSON com IA" }).click();
+  await page.getByRole("button", { name: "Copiar prompt" }).click();
+  await expect(page.getByRole("button", { name: "Prompt copiado" })).toBeVisible();
   expect(await page.evaluate(() => navigator.clipboard.readText())).toContain("versao_schema");
-  const campo = dialogo.getByLabel("Extrato do sistema de gestão");
+  const campo = page.getByLabel("Extrato corrigido do sistema");
   await campo.setInputFiles({ ...jsonDoSistema, buffer: Buffer.from('{"erro":true}') });
-  await dialogo.getByRole("button", { name: "Importar e conferir" }).click();
-  await expect(dialogo.getByText("O arquivo não passou na conferência")).toBeVisible();
-  await expect(dialogo.getByText("Rodada 1 · agora")).toBeVisible();
-  expect(page.url()).toBe(primeiraRodada.href);
+  await page.getByRole("button", { name: "Conciliar de novo" }).click();
+  await expect(page.getByText("O arquivo não passou na conferência")).toBeVisible();
+  await expect(page.getByText(/rodada 2, com o mesmo extrato do banco/)).toBeVisible();
 
   await campo.setInputFiles({ ...jsonDoSistema, name: "sistema-corrigido.json" });
-  await dialogo.getByRole("button", { name: "Importar e conferir" }).click();
+  await page.getByRole("button", { name: "Conciliar de novo" }).click();
   await expect(page.getByText(/mesmo extrato do banco \(banco\.ofx\)/)).toBeVisible();
   await page.getByRole("button", { name: /^Confirmar \d+ lançamentos/ }).click();
   await page.waitForURL((url) => url.pathname === primeiraRodada.pathname && url.searchParams.has("sistema"));

@@ -18,6 +18,15 @@ export function caminhoDaConciliacao(
   return `/conciliacoes/${encodeURIComponent(extratoBancoId)}${linha}${par}`;
 }
 
+/**
+ * A nova versão do extrato do sistema, na tela da Nova conciliação (os ids dão o resto do contexto).
+ * Fica em /conciliacoes/nova, nunca em /conciliacoes/[id]/...: o painel da linha interceptaria (#260).
+ */
+export function caminhoDoReenvio(extratoBancoId: string, extratoSistemaAnteriorId: string): string {
+  const busca = new URLSearchParams({ banco: extratoBancoId, sistemaAnterior: extratoSistemaAnteriorId });
+  return `/conciliacoes/nova?${busca}`;
+}
+
 /** Fechamentos já aberto num mês (AAAA-MM), como a linha das rodadas leva até lá. */
 export function caminhoDoFechamento(mes: string): string {
   return `/fechamentos?mes=${encodeURIComponent(mes)}`;
