@@ -564,7 +564,6 @@ export default function ConciliacaoPage() {
                     <span className="folha-titulo-conteudo">
                       <IconeOrigem origem="banco" />
                       <span className="folha-nome">Extrato do banco</span>
-                      <span className="folha-etiqueta">Fonte da verdade</span>
                     </span>
                   </th>
                   <td className="folha-fora" aria-hidden="true" />

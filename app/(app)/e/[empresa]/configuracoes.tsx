@@ -891,6 +891,7 @@ export function Configuracoes({
               <X size={18} aria-hidden="true" />
             </button>
 
+            <div className="cfg-rolagem">
             {achados === null ? (
               <section aria-labelledby="cfg-secao">
                 <h2 id="cfg-secao" className="cfg-titulo">
@@ -914,6 +915,7 @@ export function Configuracoes({
                 </section>
               ))
             )}
+            </div>
           </div>
         </div>
       )}
