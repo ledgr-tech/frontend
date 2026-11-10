@@ -42,6 +42,7 @@ yarn-error.log*
 *.p12
 *.pem
 credentials.json
+/.claude/conta-de-teste.txt
 
 # git worktrees used for isolated agent work
 /.worktrees/
