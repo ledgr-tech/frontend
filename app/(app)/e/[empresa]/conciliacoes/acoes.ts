@@ -398,6 +398,44 @@ export async function verificarNovaVersao(
   return { ok: true, dados: { arquivoBanco, jaConciliada: false } };
 }
 
+/** O que a tela de reenvio mostra da conciliação de origem, lido pelos ids (nada de nome de arquivo na URL). */
+export type ContextoDoReenvio = {
+  arquivoBanco: string;
+  /** O mês da conciliação (AAAA-MM), do período do extrato do banco. */
+  competencia: string;
+  /** A rodada que o arquivo novo vai abrir. */
+  rodada: number;
+  arquivoAnterior: string;
+};
+
+/**
+ * Só lê: mês fechado ou rodada que já passou não são checados aqui. A regra é do backend, e a tela mostra o
+ * texto dele quando o conciliar recusa (409).
+ */
+export async function carregarContextoDoReenvio(
+  banco: string,
+  sistemaAnterior: string,
+): Promise<Resultado<ContextoDoReenvio>> {
+  const naoAchou = { ok: false as const, status: 404, erro: "A comparação de origem não foi encontrada." };
+  if (!pareceUuid(banco) || !pareceUuid(sistemaAnterior)) return naoAchou;
+  const execucoes = await execucoesDoBanco(banco, true);
+  if (!execucoes.ok) return execucoes;
+  const rodadas = rodadasDoBanco(execucoes.dados, banco);
+  const anterior = rodadas.find((rodada) => rodada.extratoSistemaId === sistemaAnterior);
+  const vigente = rodadas.at(-1);
+  if (!anterior || !vigente) return naoAchou;
+  const { arquivoBanco, periodoInicio, executadaEm } = vigente.execucao;
+  return {
+    ok: true,
+    dados: {
+      arquivoBanco,
+      competencia: competencia(periodoInicio, executadaEm),
+      rodada: rodadas.length + 1,
+      arquivoAnterior: anterior.arquivoSistema,
+    },
+  };
+}
+
 // 50 por página (o backend aceita até 100). As telas que resumem — visão geral,
 // fechamentos, extratos — leem só a primeira; o histórico pagina.
 const EXECUCOES_POR_PAGINA = 50;

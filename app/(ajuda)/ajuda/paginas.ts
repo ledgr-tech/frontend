@@ -367,7 +367,8 @@ export const PAGINAS: PaginaDeAjuda[] = [
         faz: "Cada extrato do sistema conciliado com o mesmo extrato do banco vira uma rodada. A linha das rodadas mostra qual vale.",
         passos: [
           "Corrija o que divergiu no sistema de gestão e exporte um CSV novo.",
-          "Clique em **Enviar nova versão**, no topo da comparação.",
+          "Clique em **Enviar nova versão**, no topo da comparação. Abre a tela com o extrato do banco mantido e a folha do sistema vazia.",
+          "Solte o arquivo corrigido (CSV ou JSON) na folha do sistema e clique em **Conciliar de novo**. Só tem o PDF? **Gerar JSON com IA** dá o prompt.",
           "A comparação abre na rodada nova.",
         ],
         figura: { largura: 251, altura: 54 },

@@ -11,6 +11,7 @@ import {
   carregarConciliacaoEmRodadas,
   carregarFechamentos,
   carregarConciliacoes,
+  carregarContextoDoReenvio,
   carregarRegras,
   carregarRoteiro,
   carregarRelatorioDoFechamento,
@@ -1835,5 +1836,62 @@ describe("aprovar e rejeitar justificativas (backend #132)", () => {
     expect(await rejeitarPendentes("2026-09")).toEqual({ ok: false, status: 403, erro: SO_O_GESTOR_APROVA });
     expect(await decidirLinhas(BANCO_RECENTE, ["lb-1"], "aprovar")).toEqual({ ok: false, status: 403, erro: SO_O_GESTOR_APROVA });
     expect(chamarBackend).not.toHaveBeenCalled();
+  });
+});
+
+describe("carregarContextoDoReenvio", () => {
+  beforeEach(() => {
+    chamarBackend.mockReset();
+  });
+
+  it("lê pelos ids o banco, o mês, a rodada nova e o arquivo que ela substitui", async () => {
+    backendComRodadas();
+
+    const resultado = await carregarContextoDoReenvio(BANCO_RECENTE, SISTEMA_V2);
+
+    expect(resultado).toEqual({
+      ok: true,
+      dados: {
+        arquivoBanco: "e-v2-banco.ofx",
+        competencia: "2026-09",
+        rodada: 3,
+        arquivoAnterior: "e-v2-sistema.csv",
+      },
+    });
+  });
+
+  it("não checa mês fechado nem rodada passada: isso é do backend, no conciliar", async () => {
+    backendComRodadas(duasRodadas(), [fechamento("2026-09")]);
+
+    const resultado = await carregarContextoDoReenvio(BANCO_RECENTE, SISTEMA_V1);
+
+    expect(resultado.ok).toBe(true);
+    expect(chamarBackend.mock.calls.some(([caminho]) => String(caminho).startsWith("/fechamentos"))).toBe(false);
+  });
+
+  it("um sistema anterior que não é rodada deste banco não é encontrado", async () => {
+    backendComRodadas();
+
+    const resultado = await carregarContextoDoReenvio(BANCO_RECENTE, "5c5c5c5c-1e3f-4a5b-8c6d-9e0f1a2b3c4d");
+
+    expect(resultado).toMatchObject({ ok: false, status: 404 });
+  });
+
+  it("id que não é UUID nem chega ao backend", async () => {
+    const resultado = await carregarContextoDoReenvio("../fechamentos", SISTEMA_V1);
+
+    expect(resultado).toMatchObject({ ok: false, status: 404 });
+    expect(chamarBackend).not.toHaveBeenCalled();
+  });
+
+  it("sem todas as rodadas não arrisca um número de rodada errado", async () => {
+    const [v2] = duasRodadas();
+    chamarBackend.mockResolvedValue({ total: 150, limit: 100, offset: 0, itens: [v2] });
+    chamarBackend.mockResolvedValueOnce({ total: 150, limit: 100, offset: 0, itens: [v2] });
+    chamarBackend.mockResolvedValueOnce({ total: 150, limit: 100, offset: 100, itens: [] });
+
+    const resultado = await carregarContextoDoReenvio(BANCO_RECENTE, SISTEMA_V2);
+
+    expect(resultado).toMatchObject({ ok: false, status: 503 });
   });
 });

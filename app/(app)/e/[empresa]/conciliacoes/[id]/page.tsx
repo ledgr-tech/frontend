@@ -394,16 +394,6 @@ export default function ConciliacaoPage() {
             <NovaVersao
               extratoBancoId={conciliacao.id}
               extratoSistemaId={rodada?.extratoSistemaId ?? conciliacao.extratoSistemaId ?? undefined}
-              rodadaAtual={
-                rodada
-                  ? { numero: rodada.numero, total: rodada.total, arquivo: rodada.arquivoSistema, em: rodada.executadaEm }
-                  : undefined
-              }
-              onConcluida={() => {
-                // a URL só do banco abre a rodada mais recente; se ela já era essa, recarrega
-                router.replace(caminhoDaConciliacao(conciliacao.id));
-                recarregar();
-              }}
             />
           )
         }
