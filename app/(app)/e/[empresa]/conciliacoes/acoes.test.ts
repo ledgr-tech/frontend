@@ -19,6 +19,7 @@ import {
   conciliar,
   enviarExtrato,
   explicarDivergencia,
+  carregarDetalhesDaDivergencia,
   fecharMes,
   listarExecucoes,
   listarExtratos,
@@ -839,7 +840,19 @@ describe("explicarDivergencia", () => {
         texto: "Há lançamentos do outro lado na mesma data, mas nenhum com este valor.",
         geradaPorIa: true,
         indisponibilidade: null,
+        detalhes: [],
       },
+    });
+  });
+
+  it("lê os detalhes do POST e ignora a linha malformada", async () => {
+    chamarBackend.mockResolvedValue(
+      resposta({ detalhes: [{ rotulo: "Banco", valor: "-R$ 79,61 em 01/10/2026" }, { rotulo: "sem valor" }, null] }),
+    );
+
+    expect(await explicarDivergencia(LINHA)).toMatchObject({
+      ok: true,
+      dados: { detalhes: [{ rotulo: "Banco", valor: "-R$ 79,61 em 01/10/2026" }] },
     });
   });
 
@@ -1893,5 +1906,27 @@ describe("carregarContextoDoReenvio", () => {
     const resultado = await carregarContextoDoReenvio(BANCO_RECENTE, SISTEMA_V2);
 
     expect(resultado).toMatchObject({ ok: false, status: 503 });
+  });
+});
+
+
+describe("carregarDetalhesDaDivergencia", () => {
+  const LINHA = "6f55ff77-7794-4079-8186-ba17414abbe6";
+
+  it("lê os fatos da linha numa rota só de leitura", async () => {
+    chamarBackend.mockResolvedValue({ texto: "No banco: R$ 1,00.", detalhes: [{ rotulo: "Banco", valor: "R$ 1,00" }] });
+
+    const resultado = await carregarDetalhesDaDivergencia(LINHA);
+
+    const [caminho, init] = chamarBackend.mock.calls.at(-1) as [string, RequestInit | undefined];
+    expect(caminho).toBe(`/explicacoes/${LINHA}/detalhes`);
+    expect(init?.method ?? "GET").toBe("GET");
+    expect(resultado).toEqual({ ok: true, dados: { texto: "No banco: R$ 1,00.", detalhes: [{ rotulo: "Banco", valor: "R$ 1,00" }] } });
+  });
+
+  it("não chama o backend com um id que não é de linha", async () => {
+    chamarBackend.mockClear();
+    expect(await carregarDetalhesDaDivergencia("nao-e-uuid")).toMatchObject({ ok: false, status: 404 });
+    expect(chamarBackend).not.toHaveBeenCalled();
   });
 });
