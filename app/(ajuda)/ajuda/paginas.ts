@@ -84,6 +84,18 @@ export const PAGINAS: PaginaDeAjuda[] = [
         nota: "Quando nada pede decisão, a tela diz “Nada pede sua atenção agora.”",
         figura: { largura: 485, altura: 681 },
       },
+      // descomentar no dia em que o backend ligar ASSISTENTE_HABILITADO (#137)
+      // {
+      //   id: "assistente",
+      //   titulo: "Fale com o Ledgr",
+      //   faz: "Um assistente para tirar dúvidas de uso e sobre o mês aberto. Abre ao lado, em qualquer tela, pelo cartão **Fale com o Ledgr** no menu lateral.",
+      //   passos: [
+      //     "Clique em **Fale com o Ledgr**.",
+      //     "Escolha uma pergunta sugerida, como **Como fecho o mês?**, ou escreva a sua, com até 500 caracteres.",
+      //     "Leia a resposta. Quando vem da Central de ajuda, ela traz a marca de IA e as seções que usou, com link para abri-las.",
+      //   ],
+      //   nota: "Perguntas sobre os números do mês são respondidas pelo próprio Ledgr, com os dados da sua conta. As de como usar o app vão para a IA, que lê só os textos da Central de ajuda: a descrição dos seus lançamentos não é enviada. Se o assistente estiver indisponível, ele indica a Central de ajuda. Há um limite diário de perguntas.",
+      // },
     ],
   },
   {
@@ -391,6 +403,17 @@ export const PAGINAS: PaginaDeAjuda[] = [
       //   passos: ["Os lançamentos do lote ficam seguidos na comparação, com o lançamento único primeiro."],
       //   nota: "O Ledgr agrupa automaticamente um lançamento de um lado com vários do outro quando a soma bate exatamente, ao centavo, e as datas estão dentro da tolerância de data da empresa. Não agrupa quando há mais de uma combinação possível, quando a soma tem diferença de um centavo que seja (tarifa, desconto, juros, retenção ou taxa de maquininha), quando os lançamentos têm sinais diferentes ou quando um pagamento individual do banco já casou com um lançamento do lote. Esses casos continuam como divergência para você justificar.",
       // },
+      // descomentar no dia em que o backend ligar APROVACAO_JUSTIFICATIVAS_HABILITADA (#132)
+      // {
+      //   id: "aprovar-em-lote",
+      //   titulo: "Aprovar ou rejeitar várias justificativas",
+      //   faz: "O administrador e o gestor decidem várias justificativas aguardando aprovação de uma vez, sem abrir linha por linha.",
+      //   passos: [
+      //     "No filtro, escolha **Aguardando aprovação**. A última coluna vira caixas de marcar.",
+      //     "Marque as linhas, ou a caixa do topo para marcar todas, e use os botões de aprovar ou rejeitar as marcadas. Rejeitar pede um motivo, opcional.",
+      //   ],
+      //   nota: "Vale até 500 linhas por vez. Trocar de filtro limpa a seleção.",
+      // },
     ],
   },
   {
@@ -447,6 +470,18 @@ export const PAGINAS: PaginaDeAjuda[] = [
         ],
         nota: "Abaixo fica o histórico da linha: cada evento, quem fez e quando.",
       },
+      // descomentar no dia em que o backend ligar APROVACAO_JUSTIFICATIVAS_HABILITADA (#132)
+      // {
+      //   id: "aprovacao",
+      //   titulo: "Aprovar ou rejeitar uma justificativa",
+      //   faz: "Quem justifica escreve o motivo, e a linha fica **aguardando aprovação**. O administrador e o gestor leem o motivo e decidem.",
+      //   passos: [
+      //     "Abra a linha aguardando aprovação e leia o motivo.",
+      //     "Clique em **Aprovar** para aceitar, ou em **Rejeitar** para devolver a linha, com um motivo se quiser.",
+      //     "Para voltar atrás numa aprovação, clique em **Desfazer aprovação…**.",
+      //   ],
+      //   nota: "Enquanto aguarda, a linha continua pedindo decisão e não conta como justificada. O analista vê que a justificativa aguarda e ainda pode desfazê-la, mas não aprova nem rejeita. Quem pode desfazer uma aprovação é decidido pelo Ledgr conforme o papel e quem aprovou.",
+      // },
     ],
   },
   {
@@ -492,6 +527,18 @@ export const PAGINAS: PaginaDeAjuda[] = [
         ],
         nota: "Só o administrador e o gestor fecham e reabrem o mês. Mês fechado trava a comparação: ninguém confere, justifica ou concilia de novo até reabrir.",
       },
+      // descomentar no dia em que o backend ligar APROVACAO_JUSTIFICATIVAS_HABILITADA (#132)
+      // {
+      //   id: "aprovar-justificativas",
+      //   titulo: "Aprovar as justificativas",
+      //   faz: "Com a aprovação ligada, uma justificativa escrita fica **aguardando aprovação** até o administrador ou o gestor decidir. O mês não fecha enquanto houver alguma aguardando, nem com ressalva.",
+      //   passos: [
+      //     "No painel do mês, veja o passo **Aprovar as N justificativas**.",
+      //     "Clique em **Aprovar as N justificativas** para aprovar todas de uma vez, ou em **Rejeitar…** para devolvê-las, com um motivo se quiser.",
+      //     "Para decidir uma a uma, abra a conciliação pelo filtro **Aguardando aprovação**.",
+      //   ],
+      //   nota: "Só o administrador e o gestor aprovam e rejeitam. Uma justificativa rejeitada volta a ser divergência, com o motivo no histórico da linha. Em **Fechar mesmo assim** a ressalva não libera justificativa aguardando: aprove ou rejeite antes.",
+      // },
       {
         id: "reabrir",
         titulo: "Reabrir o mês",
@@ -686,6 +733,20 @@ export const PAGINAS: PaginaDeAjuda[] = [
         ],
         nota: "A chave aparece uma vez só. Se perder, revogue e crie outra. A conta tem no máximo 10 chaves ativas, e os links de documentação (OpenAPI e llms.txt) ficam no alto da seção.",
       },
+      // descomentar no dia em que o backend ligar MCP_HABILITADO (#136)
+      // {
+      //   id: "conexoes",
+      //   titulo: "Conectar o ChatGPT ou o Claude",
+      //   faz: "Deixa o ChatGPT ou o Claude consultar o Ledgr numa conversa, só para ler: conciliações, divergências e fechamentos. Só o administrador e o gestor veem esta seção.",
+      //   passos: [
+      //     "Abra **Conexões** e clique em **Copiar** no **Endereço do conector**.",
+      //     "No Claude ou no ChatGPT, adicione um conector personalizado e cole o endereço. A seção **Como conectar** mostra o caminho de cada um.",
+      //     "O Ledgr abre pedindo a sua entrada. Escolha a empresa e clique em **Autorizar**, ou em **Recusar**.",
+      //     "Numa conversa, ative o Ledgr nas ferramentas e pergunte.",
+      //     "Para cortar o acesso, clique em **Revogar** na conexão.",
+      //   ],
+      //   nota: "A conexão é só de leitura: não confere, não justifica, não fecha mês e não muda nada no Ledgr. Ela lê uma empresa só; para outra, conecte de novo.",
+      // },
       {
         id: "aparencia",
         titulo: "Aparência",
