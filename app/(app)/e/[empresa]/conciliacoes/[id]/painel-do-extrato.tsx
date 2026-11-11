@@ -7,12 +7,13 @@ import { formatarMoeda, type LinhaComparacao } from "@/lib/mock-data";
 import { useRoteador } from "@/lib/roteador";
 import { aprovadaDepois } from "@/lib/aprovacao";
 import { MensagemErro } from "@/app/(auth)/_compartilhado/mensagem-erro";
-import { formatarDataHora } from "../../dashboard/resumo";
+import { estaResolvida, formatarDataHora } from "../../dashboard/resumo";
 import { SeloIa } from "../../selo-ia";
 import { SEM_SALDO, data as dataDoSaldo } from "../../saldo";
 import { explicarDivergencia, type Explicacao, type Indisponibilidade } from "../acoes";
 import { dadosDoLancamento, type ValorDoLado } from "./cartao-lancamento";
 import { acoesDoPainel, ofereceExplicacao } from "./painel-da-comparacao";
+import { DetalhesDaLinha, ListaDeDetalhes, useDetalhesDaDivergencia } from "./[linha]/detalhes-da-divergencia";
 import { seloDaLinha, situacaoDaLinha } from "./situacao";
 
 /**
@@ -276,11 +277,13 @@ function QuadroDoLancamento({
                 <div className="comp-explicacao">
                   {dados.geradaPorIa && <SeloIa />}
                   <p>{dados.explicacao}</p>
+                  {/* os fatos calculados pelo backend (#196), abaixo do texto da IA; só divergência com dado do backend */}
+                  {real && !estaResolvida(linha.status) && <DetalhesDaLinha key={linha.id} linhaId={linha.id} />}
                 </div>
               ) : (
                 ofereceExplicacao(linha, real) && (
                   <div className="comp-explicar">
-                    <p>O Ledgr lê os dois lados desta linha e explica, em linguagem simples, por que ela não casou.</p>
+                    <FatosOuConvite key={linha.id} linhaId={linha.id} />
                     {falhaDaExplicacao && (
                       <p role="alert" className="explicacao-erro">
                         {falhaDaExplicacao}
@@ -435,5 +438,22 @@ function Saldos({ saldo }: { saldo: SaldoDoExtrato | null | undefined }) {
         Voltar ao topo do extrato
       </button>
     </section>
+  );
+}
+
+/**
+ * Os fatos da divergência calculados pelo backend (#196); sem eles (um backend anterior, uma falha), o convite de
+ * sempre. O resultado de outra linha nunca aparece nesta: o hook confere o id.
+ */
+function FatosOuConvite({ linhaId }: { linhaId: string }) {
+  const fatos = useDetalhesDaDivergencia(linhaId);
+  if (!fatos?.texto) {
+    return <p>O Ledgr lê os dois lados desta linha e explica, em linguagem simples, por que ela não casou.</p>;
+  }
+  return (
+    <>
+      <p>{fatos.texto}</p>
+      <ListaDeDetalhes detalhes={fatos.detalhes} />
+    </>
   );
 }

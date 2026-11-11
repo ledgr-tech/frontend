@@ -25,6 +25,8 @@ vi.mock("next/navigation", () => ({
 const carregarConciliacao = vi.fn();
 const registrarDecisao = vi.fn();
 vi.mock("../acoes", () => ({
+  // um backend anterior ao #196: sem a rota dos fatos, o painel segue como estava
+  carregarDetalhesDaDivergencia: async () => ({ ok: false, status: 404, erro: "Não encontrada." }),
   carregarConciliacao: (...args: unknown[]) => carregarConciliacao(...args),
   // a tela carrega pela rodada; aqui ela embrulha a carga de sempre, sem rodada
   carregarConciliacaoEmRodadas: async (...args: unknown[]) => {

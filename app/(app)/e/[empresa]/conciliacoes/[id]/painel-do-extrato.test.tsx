@@ -3,7 +3,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { SaldoDoExtrato } from "@/lib/adaptadores";
 import type { Decisao, LinhaComparacao } from "@/lib/mock-data";
-import type { Explicacao, Resultado } from "../acoes";
+import type { DetalhesDaDivergencia, Explicacao, Resultado } from "../acoes";
 import { PainelDoExtrato } from "./painel-do-extrato";
 
 const push = vi.fn();
@@ -12,8 +12,10 @@ vi.mock("next/navigation", () => ({
 }));
 
 const explicarDivergencia = vi.fn<(id: string) => Promise<Resultado<Explicacao>>>();
+const carregarDetalhes = vi.fn<(id: string) => Promise<Resultado<DetalhesDaDivergencia>>>();
 vi.mock("../acoes", () => ({
   explicarDivergencia: (id: string) => explicarDivergencia(id),
+  carregarDetalhesDaDivergencia: (id: string) => carregarDetalhes(id),
 }));
 
 const SALDO: SaldoDoExtrato = { inicial: 441555.86, final: 46147.12, data: "2026-10-29" };
@@ -63,6 +65,8 @@ function montar(props: Props = {}) {
 
 describe("PainelDoExtrato", () => {
   beforeEach(() => {
+    carregarDetalhes.mockReset();
+    carregarDetalhes.mockResolvedValue({ ok: false, status: 404, erro: "Não encontrada." });
     push.mockReset();
     explicarDivergencia.mockReset();
   });
@@ -179,6 +183,23 @@ describe("PainelDoExtrato", () => {
       resolver({ ok: true, dados });
       await waitFor(() => expect(onExplicada).toHaveBeenCalledWith(DIVERGENTE, dados));
       expect(onOcupar).toHaveBeenLastCalledWith(false);
+    });
+
+    it("com os fatos do backend, mostra o texto e os detalhes no lugar do convite, sem pedir a IA", async () => {
+      carregarDetalhes.mockResolvedValue({
+        ok: true,
+        dados: {
+          texto: "No banco: -R$ 178.631,96. No sistema: -R$ 11.671,63.",
+          detalhes: [{ rotulo: "Diferença de valor", valor: "R$ 166.960,33" }],
+        },
+      });
+      montar();
+
+      expect(await screen.findByText("No banco: -R$ 178.631,96. No sistema: -R$ 11.671,63.")).toBeInTheDocument();
+      expect(screen.getByText("Diferença de valor")).toBeInTheDocument();
+      expect(carregarDetalhes).toHaveBeenCalledWith(DIVERGENTE.id);
+      expect(explicarDivergencia).not.toHaveBeenCalled();
+      expect(screen.getByRole("button", { name: "Explicar esta divergência" })).toBeInTheDocument();
     });
 
     it("a falha vira uma frase no lugar, com o botão de tentar de novo", async () => {
