@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 
 export default function PrivacidadePage() {
   return (
-    <DocumentoLegal titulo="Política de privacidade">
+    <DocumentoLegal titulo="Política de privacidade" versao="10 de novembro de 2026">
       <h2>Quem é quem</h2>
       <p>
         O Ledgr concilia o extrato do banco com o extrato do sistema de gestão da sua empresa. Nos
@@ -23,6 +23,16 @@ export default function PrivacidadePage() {
         <li>
           <strong>Da conta:</strong> seu nome, seu e-mail, a razão social e o CNPJ da empresa. A senha é
           guardada só como hash, um resumo criptográfico que não permite ler a senha de volta.
+        </li>
+        <li>
+          <strong>Entrada pelo Google:</strong> se você entra com a sua conta Google, recebemos dela o seu
+          nome, o seu e-mail e o identificador da conta Google. O Ledgr guarda o identificador para
+          reconhecer você nos próximos acessos.
+        </li>
+        <li>
+          <strong>Convites e equipe:</strong> quando alguém da sua conta convida uma pessoa, o e-mail dela
+          fica guardado no convite. Quem é removido da equipe perde o acesso na hora, mas o nome continua no
+          histórico de decisões da empresa.
         </li>
         <li>
           <strong>Cidade e estado da conta:</strong> preenchidos pela consulta do CNPJ ou informados por você
@@ -60,9 +70,47 @@ export default function PrivacidadePage() {
 
       <h2>Cookies</h2>
       <p>
-        O Ledgr usa um único cookie, o da sessão, que mantém você conectado por até 7 dias, ou até fechar
-        o navegador se você desmarcar “Manter sessão ativa”. A página não consegue ler esse cookie. Não há
-        cookie de publicidade nem de análise de audiência.
+        O principal cookie do Ledgr é o da sessão, que mantém você conectado por até 7 dias contados do
+        login, ou até fechar o navegador se você desmarcar “Manter sessão ativa”. Os outros servem só ao
+        funcionamento do app:
+      </p>
+      <ul>
+        <li>a última empresa que você abriu, para o app voltar a ela (fica só no seu navegador);</li>
+        <li>
+          durante uma entrada, um cadastro ou o aceite de um convite pelo Google, os dados dessa etapa, por
+          até 1 hora;
+        </li>
+        <li>o aviso de conta inativa, por até 10 minutos depois de uma ação recusada.</li>
+      </ul>
+      <p>
+        A página não consegue ler o cookie da sessão nem os do Google e do aviso. Não há cookie de
+        publicidade nem de análise de audiência.
+      </p>
+
+      <h2>Quando os dados saem da sua conta por escolha sua</h2>
+      <ul>
+        <li>
+          <strong>Link público do relatório:</strong> o administrador ou o gestor da conta pode gerar um link do
+          relatório de um mês fechado e enviá-lo a quem quiser, como o contador. Quem tiver o link vê, sem
+          login, a razão social, o CNPJ, os números do mês e as linhas justificadas e pendentes, com a
+          descrição de cada lançamento, que pode conter o nome de uma pessoa. A escolha de com quem
+          compartilhar é sua. O link vale de 1 a 90 dias, pode ser revogado a qualquer momento e deixa de
+          abrir se o mês for reaberto.
+        </li>
+        <li>
+          <strong>Chaves de API:</strong> o administrador ou o gestor da conta pode criar chaves para ferramentas que a
+          própria empresa conecta, como o sistema de gestão ou uma planilha. Elas só leem dados, sem a
+          descrição dos lançamentos nem nomes, e param de funcionar na hora em que são revogadas.
+        </li>
+      </ul>
+
+      <h2>O que a equipe do Ledgr vê</h2>
+      <p>
+        Para suporte e cobrança, a equipe do Ledgr tem um painel interno com os dados comerciais de cada
+        conta (plano, situação da assinatura, pagamentos, cidade e estado), o contato de quem administra a
+        conta e contagens de uso. O painel não mostra lançamentos, descrições, justificativas, nomes de
+        arquivo nem dados das empresas clientes além das contagens, e nenhum dado de cartão passa pelo
+        Ledgr. Cada acesso ao painel fica registrado, com quem acessou e qual conta foi consultada.
       </p>
 
       <h2>Explicações por IA</h2>
@@ -137,6 +185,7 @@ export default function PrivacidadePage() {
       <ul>
         <li>O arquivo enviado não é guardado.</li>
         <li>Lançamentos, conciliações, histórico e explicações ficam enquanto a conta existir.</li>
+        <li>O registro de acessos ao painel interno da equipe do Ledgr fica por 1 ano.</li>
         <li>
           O que vai para a OpenAI para gerar uma explicação fica até 30 dias nos registros de
           monitoramento de abuso dela.
