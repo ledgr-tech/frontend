@@ -120,7 +120,8 @@ export default function PrivacidadePage() {
           <strong>O que a IA lê:</strong> a razão social e o CNPJ da empresa escolhida (numa empresa
           individual, a razão social costuma ser o nome do dono), os meses com conciliação e se estão
           fechados, os números de cada mês e de cada conciliação, as divergências (categoria, data, valor,
-          situação e o lado, banco ou sistema) e os fechamentos, com a informação de se houve ressalva.
+          situação e o lado, banco ou sistema), o período de cada extrato e a data de cada conciliação, e os
+          fechamentos, com a informação de se houve ressalva.
         </li>
         <li>
           <strong>O que ela nunca recebe:</strong> a descrição dos lançamentos, o texto das justificativas e
