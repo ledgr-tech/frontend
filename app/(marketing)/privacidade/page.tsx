@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 
 export default function PrivacidadePage() {
   return (
-    <DocumentoLegal titulo="Política de privacidade" versao="10 de novembro de 2026">
+    <DocumentoLegal titulo="Política de privacidade" versao="11 de novembro de 2026">
       <h2>Quem é quem</h2>
       <p>
         O Ledgr concilia o extrato do banco com o extrato do sistema de gestão da sua empresa. Nos
@@ -101,6 +101,44 @@ export default function PrivacidadePage() {
           <strong>Chaves de API:</strong> o administrador ou o gestor da conta pode criar chaves para ferramentas que a
           própria empresa conecta, como o sistema de gestão ou uma planilha. Elas só leem dados, sem a
           descrição dos lançamentos nem nomes, e param de funcionar na hora em que são revogadas.
+        </li>
+        <li>
+          <strong>Conexão com o ChatGPT ou o Claude:</strong> o administrador ou o gestor da conta pode
+          conectar uma dessas IAs a uma empresa, para perguntar sobre as conciliações dela numa conversa. O
+          que ela lê e para onde os dados vão estão na seção seguinte.
+        </li>
+      </ul>
+
+      <h2 id="conexao-ia">Conexão com o ChatGPT ou o Claude</h2>
+      <p>
+        A conexão é opcional e só lê: não confere, não justifica, não fecha mês e não muda nada no Ledgr. Só
+        o administrador ou o gestor da conta pode autorizá-la, cada conexão vale para uma empresa, e a conta
+        tem no máximo 10 conexões ativas.
+      </p>
+      <ul>
+        <li>
+          <strong>O que a IA lê:</strong> a razão social e o CNPJ da empresa escolhida, os meses com
+          conciliação e se estão fechados, os números de cada mês e de cada conciliação, as divergências
+          (categoria, data, valor e situação) e os fechamentos.
+        </li>
+        <li>
+          <strong>O que ela nunca recebe:</strong> a descrição dos lançamentos, o texto das justificativas e
+          das ressalvas, nomes de pessoas e de arquivos, e a cidade e o estado da conta.
+        </li>
+        <li>
+          <strong>Para onde vai:</strong> para a conta de IA de quem conectou, na OpenAI (ChatGPT) ou na
+          Anthropic (Claude). Aqui elas não são fornecedoras do Ledgr: tratam o que recebem pelas regras da
+          conta que a pessoa tem com elas, como as de guardar as conversas e de usá-las para treinar
+          modelos. O Ledgr não controla o que acontece com os dados depois que chegam lá.
+        </li>
+        <li>
+          <strong>Como parar:</strong> a conexão pode ser revogada a qualquer momento em Configurações ›
+          Conexões, e o acesso acaba na hora. Ela também acaba sozinha quando quem a criou sai da equipe,
+          desativa a conta ou passa a analista. Revogar não apaga o que a IA já leu.
+        </li>
+        <li>
+          <strong>O que o Ledgr registra:</strong> qual consulta foi feita, por qual conexão e se deu
+          certo, sem guardar o que foi respondido.
         </li>
       </ul>
 
@@ -215,6 +253,15 @@ export default function PrivacidadePage() {
         Esta política muda quando o Ledgr muda. A data no topo diz qual versão está valendo. Veja também
         os <Link href="/termos">Termos de uso</Link>.
       </p>
+      <ul>
+        <li>
+          11 de novembro de 2026: entrada pelo Google, convites, cidade e estado da conta, link público do
+          relatório, chaves de API, conexão com o ChatGPT ou o Claude, o que a equipe do Ledgr vê e os
+          cookies.
+        </li>
+        <li>20 de outubro de 2026: as explicações por IA como funcionam hoje e a desativação da conta.</li>
+        <li>27 de setembro de 2026: primeira versão.</li>
+      </ul>
     </DocumentoLegal>
   );
 }

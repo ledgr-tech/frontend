@@ -159,6 +159,14 @@ export function Consentimento({
           <span className="consent-rotulo">O que poderá fazer</span>
           <p>{dados.descricaoEscopo}</p>
           <p>Só leitura: não confere, não justifica, não fecha mês e não muda nada no Ledgr.</p>
+          <p>
+            {`O que for lido passa para a sua conta do ${dados.cliente} e fica sob as regras dela. Veja a `}
+            {/* em outra aba: o pedido vale minutos, e sair desta tela não pode custar a conexão */}
+            <a href="/privacidade#conexao-ia" target="_blank" rel="noopener" className="link-animado">
+              Política de privacidade
+            </a>
+            .
+          </p>
         </div>
 
         {podeAutorizar ? (

@@ -61,6 +61,17 @@ describe("Consentimento", () => {
     expect(carregarPedidoDeConexao).toHaveBeenCalledWith("Xy_9");
   });
 
+  it("diz que o lido vai para a conta da IA e abre a Política em outra aba, sem perder o pedido (#361)", async () => {
+    abrir();
+
+    expect(await screen.findByText(/passa para a sua conta do Claude/)).toBeInTheDocument();
+    // o rodapé da moldura já leva à Política inteira; este leva à seção da conexão
+    const politica = screen
+      .getAllByRole("link", { name: "Política de privacidade" })
+      .find((link) => link.getAttribute("href") === "/privacidade#conexao-ia");
+    expect(politica).toHaveAttribute("target", "_blank");
+  });
+
   it("avisa quando o pedido vem de um programa do próprio computador", async () => {
     carregarPedidoDeConexao.mockResolvedValue({ ok: true, dados: pedido({ origem: { host: "127.0.0.1", loopback: true } }) });
     abrir();
