@@ -117,28 +117,34 @@ export default function PrivacidadePage() {
       </p>
       <ul>
         <li>
-          <strong>O que a IA lê:</strong> a razão social e o CNPJ da empresa escolhida, os meses com
-          conciliação e se estão fechados, os números de cada mês e de cada conciliação, as divergências
-          (categoria, data, valor e situação) e os fechamentos.
+          <strong>O que a IA lê:</strong> a razão social e o CNPJ da empresa escolhida (numa empresa
+          individual, a razão social costuma ser o nome do dono), os meses com conciliação e se estão
+          fechados, os números de cada mês e de cada conciliação, as divergências (categoria, data, valor,
+          situação e o lado, banco ou sistema) e os fechamentos, com a informação de se houve ressalva.
         </li>
         <li>
           <strong>O que ela nunca recebe:</strong> a descrição dos lançamentos, o texto das justificativas e
-          das ressalvas, nomes de pessoas e de arquivos, e a cidade e o estado da conta.
+          das ressalvas, o nome de quem usa o Ledgr, nomes de arquivos, e a cidade e o estado da conta.
         </li>
         <li>
           <strong>Para onde vai:</strong> para a conta de IA de quem conectou, na OpenAI (ChatGPT) ou na
           Anthropic (Claude). Aqui elas não são fornecedoras do Ledgr: tratam o que recebem pelas regras da
           conta que a pessoa tem com elas, como as de guardar as conversas e de usá-las para treinar
-          modelos. O Ledgr não controla o que acontece com os dados depois que chegam lá.
+          modelos. Quem conecta um programa do próprio computador, como o Claude Code, manda os dados para
+          esse programa e para a IA que ele usa. O Ledgr não controla o que acontece com os dados depois que
+          chegam lá.
         </li>
         <li>
-          <strong>Como parar:</strong> a conexão pode ser revogada a qualquer momento em Configurações ›
-          Conexões, e o acesso acaba na hora. Ela também acaba sozinha quando quem a criou sai da equipe,
-          desativa a conta ou passa a analista. Revogar não apaga o que a IA já leu.
+          <strong>Como parar:</strong> o administrador ou o gestor revoga a conexão a qualquer momento em
+          Configurações › Conexões, e o acesso acaba na hora. Remover o Ledgr no ChatGPT ou no Claude pode
+          não revogar a conexão: para ter certeza, revogue também no Ledgr. Ela também acaba sozinha quando
+          quem a criou sai da equipe, desativa a própria conta ou passa a analista. Revogar não apaga o que a
+          IA já leu.
         </li>
         <li>
-          <strong>O que o Ledgr registra:</strong> qual consulta foi feita, por qual conexão e se deu
-          certo, sem guardar o que foi respondido.
+          <strong>O que o Ledgr registra:</strong> qual ferramenta foi usada, por qual conexão e se deu
+          certo, sem guardar o que foi respondido. A lista de conexões mostra quem autorizou cada uma,
+          quando, a empresa e o último uso.
         </li>
       </ul>
 
@@ -259,7 +265,11 @@ export default function PrivacidadePage() {
           relatório, chaves de API, conexão com o ChatGPT ou o Claude, o que a equipe do Ledgr vê e os
           cookies.
         </li>
-        <li>20 de outubro de 2026: as explicações por IA como funcionam hoje e a desativação da conta.</li>
+        <li>
+          29 de outubro de 2026: as explicações por IA passaram a ser geradas ao conciliar, e entrou a
+          desativação da conta. A data no topo continuou 20 de outubro.
+        </li>
+        <li>20 de outubro de 2026: as explicações por IA, só quando pedidas, e o cadastro sem o passo do banco.</li>
         <li>27 de setembro de 2026: primeira versão.</li>
       </ul>
     </DocumentoLegal>

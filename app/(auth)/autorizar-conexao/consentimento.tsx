@@ -160,7 +160,10 @@ export function Consentimento({
           <p>{dados.descricaoEscopo}</p>
           <p>Só leitura: não confere, não justifica, não fecha mês e não muda nada no Ledgr.</p>
           <p>
-            {`O que for lido passa para a sua conta do ${dados.cliente} e fica sob as regras dela. Veja a `}
+            {/* no loopback, o nome do cliente é o que o programa disse ser (o alerta acima avisa) */}
+            {dados.origem.loopback
+              ? "O que for lido passa para o programa que pediu e para a IA que ele usa, e fica sob as regras deles. Veja a "
+              : `O que for lido passa para a sua conta do ${dados.cliente} e fica sob as regras dela. Veja a `}
             {/* em outra aba: o pedido vale minutos, e sair desta tela não pode custar a conexão */}
             <a href="/privacidade#conexao-ia" target="_blank" rel="noopener" className="link-animado">
               Política de privacidade

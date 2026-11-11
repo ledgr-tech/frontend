@@ -77,6 +77,9 @@ describe("Consentimento", () => {
     abrir();
 
     expect(await screen.findByRole("note")).toHaveTextContent("programa no seu próprio computador");
+    // e não promete que o lido vai para a conta do nome que o programa deu a si mesmo
+    expect(screen.getByText(/passa para o programa que pediu e para a IA que ele usa/)).toBeInTheDocument();
+    expect(screen.queryByText(/passa para a sua conta do/)).not.toBeInTheDocument();
   });
 
   it("com várias empresas, pede a escolha antes de autorizar e manda a escolhida", async () => {

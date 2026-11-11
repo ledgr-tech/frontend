@@ -26,14 +26,14 @@ export default function TermosPage() {
 
       <h2>A sua conta</h2>
       <ul>
-        <li>Quem cria a conta declara que pode agir em nome da empresa cadastrada.</li>
+        <li>Quem cria a conta, ou cadastra uma empresa nela, declara que pode agir em nome dessa empresa.</li>
         <li>
           Mantenha a senha só com você. Se desconfiar que mais alguém sabe, troque a senha ou escreva para
           o suporte.
         </li>
         <li>
-          Uma conta pode ter várias pessoas, cada uma com um papel: administrador, gestor ou analista. O
-          papel decide o que cada pessoa pode fazer, como fechar o mês ou conectar uma IA.
+          Uma conta pode ter várias empresas e várias pessoas, cada uma com um papel: administrador, gestor
+          ou analista. O papel decide o que cada pessoa pode fazer, como fechar o mês ou conectar uma IA.
         </li>
       </ul>
 
@@ -71,13 +71,13 @@ export default function TermosPage() {
       <ul>
         <li>A conexão é opcional, e só o administrador ou o gestor da conta pode autorizá-la.</li>
         <li>
-          Quem autoriza declara que a empresa permite compartilhar esses dados com a IA escolhida e com a
-          empresa que a oferece.
+          Quem autoriza declara que a empresa escolhida permite compartilhar os dados que a conexão lê com a
+          IA e com quem a oferece, como a OpenAI ou a Anthropic.
         </li>
         <li>
-          A conexão só lê e vale para uma empresa. Ela pode ser revogada a qualquer momento em
-          Configurações › Conexões, e o acesso acaba na hora. O Ledgr pode suspender ou desligar a conexão,
-          por exemplo para proteger a conta ou o serviço.
+          A conexão só lê e vale para uma empresa. O administrador ou o gestor pode revogá-la a qualquer
+          momento em Configurações › Conexões, e o acesso acaba na hora. O Ledgr pode suspender ou desligar
+          a conexão, por exemplo para proteger a conta ou o serviço.
         </li>
         <li>
           As respostas são da IA, não do Ledgr, e podem errar: confira os números no Ledgr antes de decidir.
@@ -94,7 +94,10 @@ export default function TermosPage() {
           tentar manipular as explicações por IA, por exemplo escrevendo instruções nas descrições dos
           extratos;
         </li>
-        <li>sobrecarregar o serviço de propósito, ou automatizar acessos sem combinar com a gente.</li>
+        <li>
+          sobrecarregar o serviço de propósito, ou automatizar acessos por fora da API e das conexões que o
+          Ledgr oferece, sem combinar com a gente.
+        </li>
       </ul>
 
       <h2>Encerramento</h2>
@@ -109,8 +112,15 @@ export default function TermosPage() {
 
       <h2>Mudanças</h2>
       <ul>
-        <li>11 de novembro de 2026: os papéis da equipe e a conexão com o ChatGPT ou o Claude.</li>
-        <li>20 de outubro de 2026: as explicações por IA como funcionam hoje.</li>
+        <li>
+          11 de novembro de 2026: as várias empresas e os papéis de uma conta, e a conexão com o ChatGPT ou o
+          Claude.
+        </li>
+        <li>
+          29 de outubro de 2026: as explicações por IA passaram a ser geradas ao conciliar. A data no topo
+          continuou 20 de outubro.
+        </li>
+        <li>20 de outubro de 2026: as explicações por IA, só quando pedidas, e a OpenAI como fornecedora.</li>
         <li>27 de setembro de 2026: primeira versão.</li>
       </ul>
     </DocumentoLegal>
