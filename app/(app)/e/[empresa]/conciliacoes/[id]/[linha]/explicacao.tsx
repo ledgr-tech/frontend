@@ -7,6 +7,7 @@ import { useRoteador } from "@/lib/roteador";
 import { InkHover } from "@/app/reveal";
 import { SeloIa } from "../../../selo-ia";
 import { explicarDivergencia, type Explicacao, type Indisponibilidade } from "../../acoes";
+import { ListaDeDetalhes, useDetalhesDaDivergencia } from "./detalhes-da-divergencia";
 
 const FALHA = "Não foi possível pedir a explicação agora. Tente de novo em instantes.";
 
@@ -43,6 +44,8 @@ export function ExplicacaoDaDivergencia({
 }) {
   const router = useRoteador();
   const [estado, setEstado] = useState<Estado>({ etapa: "ocioso" });
+  // os fatos calculados pelo backend (#196) abrem junto com a linha, sem custo; sem eles, é o texto de antes
+  const fatos = useDetalhesDaDivergencia(linhaId);
 
   async function explicar() {
     setEstado({ etapa: "explicando" });
@@ -85,14 +88,23 @@ export function ExplicacaoDaDivergencia({
           <>
             {pronta.geradaPorIa && <SeloIa />}
             <p className="det-causa-texto">{pronta.texto}</p>
+            {/* os fatos do POST, ou os que já estavam na tela */}
+            <ListaDeDetalhes detalhes={pronta.detalhes?.length ? pronta.detalhes : (fatos?.detalhes ?? [])} />
             {aviso && <p className="explicacao-aviso">{aviso}</p>}
           </>
         ) : (
           <>
-            <p className="det-causa-texto">
-              O Ledgr lê os dois lados desta linha e explica, em linguagem simples, por que ela não
-              casou.
-            </p>
+            {fatos?.texto ? (
+              <>
+                <p className="det-causa-texto">{fatos.texto}</p>
+                <ListaDeDetalhes detalhes={fatos.detalhes} />
+              </>
+            ) : (
+              <p className="det-causa-texto">
+                O Ledgr lê os dois lados desta linha e explica, em linguagem simples, por que ela não
+                casou.
+              </p>
+            )}
             {estado.etapa === "falhou" && (
               <p role="alert" className="explicacao-erro">
                 {estado.erro}

@@ -983,12 +983,17 @@ export async function reabrirMes(competencia: string): Promise<Resultado<Fechame
 /** Por que o texto é o fixo do motor, e não o da IA; null quando veio da IA. */
 export type Indisponibilidade = "desabilitado" | "erro_provedor" | "limite_diario";
 
+/** Uma linha dos fatos da divergência, já formatada em pt-BR pelo backend (backend #196): a tela só mostra. */
+export type DetalheDaDivergencia = { rotulo: string; valor: string };
+
 export type Explicacao = {
   /** Texto puro, sem markdown. Vem de descrição de extrato de terceiro: nunca vira HTML. */
   texto: string;
   /** Só com `true` a tela rotula como gerada por IA. */
   geradaPorIa: boolean;
   indisponibilidade: Indisponibilidade | null;
+  /** Ausente ou vazio num backend anterior ao #196. */
+  detalhes?: DetalheDaDivergencia[];
 };
 
 type ExplicacaoAPI = {
@@ -998,7 +1003,33 @@ type ExplicacaoAPI = {
   gerada_por_ia: boolean;
   em_cache: boolean;
   indisponibilidade: Indisponibilidade | null;
+  detalhes?: DetalheDaDivergencia[];
 };
+
+/** A lista é aberta: rótulos novos podem aparecer, e uma linha malformada não derruba a tela. */
+function lerDetalhes(brutos: unknown): DetalheDaDivergencia[] {
+  if (!Array.isArray(brutos)) return [];
+  return brutos.filter(
+    (d): d is DetalheDaDivergencia => typeof d?.rotulo === "string" && typeof d?.valor === "string",
+  );
+}
+
+export type DetalhesDaDivergencia = { texto: string; detalhes: DetalheDaDivergencia[] };
+
+/**
+ * Os fatos de uma divergência (`GET /explicacoes/{id}/detalhes`, backend #196): valores, datas, diferença e
+ * tolerância, calculados pelo backend. Só leitura: não chama a IA, não conta no limite diário e não grava, por
+ * isso pode rodar ao abrir a linha. Um backend anterior ao #196 responde 404 e a tela segue sem eles.
+ */
+export async function carregarDetalhesDaDivergencia(conciliacaoId: string): Promise<Resultado<DetalhesDaDivergencia>> {
+  if (!pareceUuid(conciliacaoId)) return { ok: false, status: 404, erro: "Linha não encontrada." };
+  try {
+    const resposta = await chamarBackend<{ texto?: string; detalhes?: unknown }>(`/explicacoes/${conciliacaoId}/detalhes`);
+    return { ok: true, dados: { texto: typeof resposta.texto === "string" ? resposta.texto : "", detalhes: lerDetalhes(resposta.detalhes) } };
+  } catch (erro) {
+    return traduzir(erro);
+  }
+}
 
 // O backend espera até 20 s pelo provedor de IA antes de cair no texto fixo;
 // numa chamada real de teste levou 6,6 s. 30 s dá folga sem prender a tela.
@@ -1028,6 +1059,7 @@ export async function explicarDivergencia(conciliacaoId: string): Promise<Result
         texto: resposta.explicacao,
         geradaPorIa: resposta.gerada_por_ia,
         indisponibilidade: resposta.indisponibilidade,
+        detalhes: lerDetalhes(resposta.detalhes),
       },
     };
   } catch (erro) {

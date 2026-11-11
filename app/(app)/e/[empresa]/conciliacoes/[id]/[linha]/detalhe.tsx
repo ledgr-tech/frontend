@@ -22,6 +22,7 @@ import { FalhaAoCarregar } from "../../../falha-ao-carregar";
 import { recarregarOhNavegador, useConciliacao } from "../../usar-conciliacao";
 import { IconeOrigem, type Origem } from "../../../icone-origem";
 import { ExplicacaoDaDivergencia } from "./explicacao";
+import { DetalhesDaLinha } from "./detalhes-da-divergencia";
 import { historicoDaLinha, rotuloComDecisao, situacaoDaLinha } from "../situacao";
 import { aguardaAprovacao, estaJustificada } from "@/lib/aprovacao";
 import { parDoOutroLado } from "../par";
@@ -318,6 +319,8 @@ export function DetalheDivergencia({ painel = false }: { painel?: boolean }) {
               {/* os Termos prometem o selo em todo texto escrito pela IA */}
               {linha.explicacaoPorIa && <SeloIa />}
               <p className="det-causa-texto">{linha.explicacao}</p>
+              {/* os fatos calculados pelo backend (#196), abaixo do texto da IA; só com dado do backend e divergente */}
+              {real && !estaResolvida(linha.status) && <DetalhesDaLinha key={linha.id} linhaId={linha.id} />}
             </div>
           </Reveal>
         )}

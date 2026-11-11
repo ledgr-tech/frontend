@@ -310,6 +310,17 @@ function contarDecisoes(b, bancoId, lista = []) {
   return { justificadas, aguardando_aprovacao: aguardando };
 }
 
+// os fatos de uma divergência como o backend #196 devolve: rótulo e valor já em texto
+const detalhesDaDivergencia = (item) => {
+  const lb = item.lancamento_banco;
+  const ls = item.lancamento_sistema;
+  const linhas = [];
+  if (lb) linhas.push({ rotulo: "Banco", valor: `${lb.valor} em ${lb.data}` });
+  if (ls) linhas.push({ rotulo: "Sistema", valor: `${ls.valor} em ${ls.data}` });
+  linhas.push({ rotulo: "Tolerância da conciliação", valor: "0 dias" });
+  return linhas;
+};
+
 const comDecisoes = (b, e) => ({
   ...e,
   contagens: { ...e.contagens, ...contarDecisoes(b, e.extrato_banco_id, b.itens.get(`${e.extrato_banco_id}|${e.extrato_sistema_id}`)) },
@@ -1087,6 +1098,21 @@ const servidor = createServer(async (req, res) => {
       gerada_por_ia: false,
       em_cache: false,
       indisponibilidade: "desabilitado",
+      detalhes: detalhesDaDivergencia(item),
+    });
+  }
+
+  // GET /explicacoes/{id}/detalhes (backend #196): os fatos da divergência, sem IA
+  const detalhesDaLinha = rota("GET", /^\/explicacoes\/([^/]+)\/detalhes$/);
+  if (detalhesDaLinha) {
+    const item = [...b.itens.values()].flat().find((i) => i.id === detalhesDaLinha[1]);
+    if (!item) return json(res, 404, { detail: "Conciliação não encontrada." });
+    if (item.status.startsWith("match")) return json(res, 422, { detail: "Esta linha casou: não há divergência a explicar." });
+    return json(res, 200, {
+      conciliacao_id: item.id,
+      status: item.status,
+      texto: `(backend fake) Linha classificada como ${item.status}.`,
+      detalhes: detalhesDaDivergencia(item),
     });
   }
 
