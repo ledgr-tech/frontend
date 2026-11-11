@@ -72,10 +72,9 @@ describe("PainelDeConexoes", () => {
       expect.stringContaining("https://support.claude.com/"),
     );
 
-    // com o Claude, o comando do Claude Code também tem Copiar; o primeiro é o do endereço
-    await user.click(screen.getAllByRole("button", { name: "Copiar" })[0]);
+        await user.click(screen.getByRole("button", { name: "Copiar o endereço do conector" }));
     expect(writeText).toHaveBeenCalledWith("https://api.ledgr.test/mcp");
-    expect(screen.getByRole("button", { name: "Copiado" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Endereço do conector copiado" })).toBeInTheDocument();
   });
 
   it("leva à Política e à Central em outra aba, e o Claude Code ganha o comando pronto (#362)", async () => {
@@ -98,7 +97,7 @@ describe("PainelDeConexoes", () => {
     await user.click(screen.getByText("Usa o Claude Code, no terminal?"));
     const comando = "claude mcp add --transport http ledgr https://api.ledgr.test/mcp";
     expect(screen.getByText(comando)).toBeInTheDocument();
-    await user.click(screen.getAllByRole("button", { name: "Copiar" })[1]);
+    await user.click(screen.getByRole("button", { name: "Copiar o comando" }));
     expect(writeText).toHaveBeenCalledWith(comando);
   });
 });

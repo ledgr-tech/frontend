@@ -100,7 +100,12 @@ export function PainelDeConexoes({ itens: iniciais, endereco }: { itens: Conexao
           <div className="conexao-endereco">
             <span className="conexao-endereco-rotulo">Endereço do conector</span>
             <code>{endereco}</code>
-            <button type="button" className="btn btn-secondary" onClick={() => copiar(endereco)}>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              aria-label={copiado === endereco ? "Endereço do conector copiado" : "Copiar o endereço do conector"}
+              onClick={() => copiar(endereco)}
+            >
               {copiado === endereco ? <span className="rotulo-troca">Copiado</span> : "Copiar"}
             </button>
           </div>
@@ -132,7 +137,12 @@ export function PainelDeConexoes({ itens: iniciais, endereco }: { itens: Conexao
               <div className="conexao-endereco">
                 <span className="conexao-endereco-rotulo">Comando</span>
                 <code>{comando}</code>
-                <button type="button" className="btn btn-secondary" onClick={() => copiar(comando)}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  aria-label={copiado === comando ? "Comando copiado" : "Copiar o comando"}
+                  onClick={() => copiar(comando)}
+                >
                   {copiado === comando ? <span className="rotulo-troca">Copiado</span> : "Copiar"}
                 </button>
               </div>
