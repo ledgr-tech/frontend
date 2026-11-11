@@ -72,6 +72,14 @@ describe("Consentimento", () => {
     expect(politica).toHaveAttribute("target", "_blank");
   });
 
+  it("leva ao passo a passo da Central em outra aba (#362)", async () => {
+    abrir();
+
+    const passoAPasso = await screen.findByRole("link", { name: "passo a passo na Central de ajuda" });
+    expect(passoAPasso).toHaveAttribute("href", "/ajuda/configuracoes#conexoes");
+    expect(passoAPasso).toHaveAttribute("target", "_blank");
+  });
+
   it("avisa quando o pedido vem de um programa do próprio computador", async () => {
     carregarPedidoDeConexao.mockResolvedValue({ ok: true, dados: pedido({ origem: { host: "127.0.0.1", loopback: true } }) });
     abrir();

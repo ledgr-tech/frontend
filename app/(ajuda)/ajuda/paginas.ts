@@ -691,7 +691,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
       {
         id: "abrir",
         titulo: "Abrir e procurar",
-        faz: "As configurações abrem numa janela por cima da tela em que você está, com as seções à esquerda: Conta, Aparência, Conciliação, API (para o admin e o gestor), Atalhos de teclado, Privacidade e Sobre.",
+        faz: "As configurações abrem numa janela por cima da tela em que você está, com as seções à esquerda: Conta, Aparência, Conciliação, API e Conexões (para o admin e o gestor), Atalhos de teclado, Privacidade e Sobre.",
         passos: [
           "Clique no seu nome no menu lateral e em **Configurações**, ou aperte **Ctrl** e **,**.",
           "Escolha a seção, ou digite em **Procurar** o que quer mudar, por exemplo “senha”.",
@@ -733,20 +733,41 @@ export const PAGINAS: PaginaDeAjuda[] = [
         ],
         nota: "A chave aparece uma vez só. Se perder, revogue e crie outra. A conta tem no máximo 10 chaves ativas, e os links de documentação (OpenAPI e llms.txt) ficam no alto da seção.",
       },
-      // descomentar no dia em que o backend ligar MCP_HABILITADO (#136)
-      // {
-      //   id: "conexoes",
-      //   titulo: "Conectar o ChatGPT ou o Claude",
-      //   faz: "Deixa o ChatGPT ou o Claude consultar o Ledgr numa conversa, só para ler: conciliações, divergências e fechamentos. Só o administrador e o gestor veem esta seção.",
-      //   passos: [
-      //     "Abra **Conexões** e clique em **Copiar** no **Endereço do conector**.",
-      //     "No Claude ou no ChatGPT, adicione um conector personalizado e cole o endereço. A seção **Como conectar** mostra o caminho de cada um.",
-      //     "O Ledgr abre pedindo a sua entrada. Escolha a empresa e clique em **Autorizar**, ou em **Recusar**.",
-      //     "Numa conversa, ative o Ledgr nas ferramentas e pergunte.",
-      //     "Para cortar o acesso, clique em **Revogar** na conexão.",
-      //   ],
-      //   nota: "A conexão é só de leitura: não confere, não justifica, não fecha mês e não muda nada no Ledgr. Ela lê uma empresa só; para outra, conecte de novo.",
-      // },
+      // a conexão (#136) respondia em produção em 11/11 (OAuth publicado, /mcp com 401); os menus do ChatGPT e do Claude seguem a
+      // documentação oficial daquele dia (#362), a mesma do painel de Conexões
+      {
+        id: "conexoes",
+        titulo: "Conectar o ChatGPT ou o Claude",
+        faz: "Deixa o ChatGPT ou o Claude consultar o Ledgr numa conversa, só para ler: o resumo de cada mês, as conciliações, as divergências e os fechamentos de uma empresa. Só o administrador e o gestor veem esta seção e autorizam conexões.",
+        passos: [
+          "Abra **Conexões** e clique em **Copiar** no **Endereço do conector**.",
+          "Adicione o Ledgr na sua IA com esse endereço: no ChatGPT, em **Plugins**, como servidor MCP personalizado com a autenticação **OAuth**; no Claude, em **Conectores** › **Adicionar conector personalizado**. A seção **Como conectar** traz o passo a passo de cada um e, no Claude, o comando do Claude Code.",
+          "O Ledgr abre pedindo a sua entrada. Escolha a empresa e clique em **Autorizar**, ou em **Recusar**. O pedido vale por 10 minutos.",
+          "Numa conversa, chame o Ledgr: no ChatGPT, digite **@** e escolha o Ledgr; no Claude, clique em **+**, abra **Conectores** e ligue o Ledgr.",
+          "Para cortar o acesso, clique em **Revogar** na conexão e confirme.",
+        ],
+        nota: "A conexão só lê: não confere, não justifica, não fecha mês e não muda nada no Ledgr. Cada uma lê uma empresa, e a conta tem até 10 ativas. O que a IA lê passa para a sua conta do ChatGPT ou do Claude e fica sob as regras dela, como explica a Política de privacidade. Os menus são do ChatGPT e do Claude e mudam com o plano e com o tempo; a seção Como conectar leva à documentação de cada um.",
+      },
+      {
+        id: "conexoes-perguntas",
+        titulo: "Perguntar ao ChatGPT ou ao Claude",
+        faz: "Com o Ledgr ligado na conversa, pergunte em português sobre os meses da empresa conectada. Por exemplo: “Como está a conciliação de outubro?”, “Quantas divergências ainda faltam revisar em setembro?”, “Setembro já foi fechado? Teve ressalva?” ou “Compare as divergências de setembro e outubro.”",
+        nota: "A IA nunca recebe a descrição dos lançamentos, o texto das justificativas e das ressalvas, nem o nome de quem usa o Ledgr. Por isso, perguntas como “qual é a descrição deste lançamento?” ou “quem justificou?” ficam sem resposta. As respostas são da IA e podem errar: confira os números no Ledgr antes de decidir.",
+      },
+      {
+        id: "conexoes-problemas",
+        titulo: "Quando a conexão não funciona",
+        faz: "Os problemas mais comuns ao conectar ou ao perguntar, e o que fazer em cada um.",
+        passos: [
+          "A IA respondeu sem consultar o Ledgr: a conversa mostra quando ela usa um conector. Se não mostrar, ligue o Ledgr na conversa e peça “use o Ledgr” na pergunta.",
+          "A IA diz que não tem acesso ao Ledgr: a conexão foi revogada ou caiu. Conecte de novo pela IA e autorize outra vez.",
+          "O Ledgr não mostra **Autorizar**: só o administrador e o gestor autorizam conexões. Peça a um deles.",
+          "O Ledgr recusa porque a conta já tem 10 conexões: revogue em **Conexões** uma que não usa mais e tente de novo.",
+          "Aparece “Pedido indisponível”: o pedido vale por 10 minutos e serve uma vez. Comece de novo pela IA.",
+          "Não acha onde adicionar o Ledgr: os menus mudam com o plano e com o tempo. No Claude gratuito cabe um conector personalizado só, e no Team ou no Enterprise o dono da organização adiciona o conector antes. Em contas do ChatGPT sem **Plugins**, o caminho é **Configurações** › **Apps e conectores** › **Avançado**, com o **Modo desenvolvedor** ligado.",
+        ],
+        nota: "Sair do Ledgr não desliga a conexão, e remover o Ledgr na IA pode não revogá-la: para cortar o acesso, revogue em **Conexões**. Ela também cai sozinha quando quem a criou sai da equipe, desativa a própria conta ou passa a analista.",
+      },
       {
         id: "aparencia",
         titulo: "Aparência",
