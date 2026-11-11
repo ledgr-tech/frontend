@@ -14,7 +14,7 @@ import type { ReactNode } from "react";
 
 export const VERSAO = "20 de outubro de 2026";
 
-export function DocumentoLegal({ titulo, children }: { titulo: string; children: ReactNode }) {
+export function DocumentoLegal({ titulo, versao = VERSAO, children }: { titulo: string; versao?: string; children: ReactNode }) {
   return (
     <main>
       <div className="legal-topo">
@@ -27,7 +27,7 @@ export function DocumentoLegal({ titulo, children }: { titulo: string; children:
       </div>
       <article className="legal">
         <h1>{titulo}</h1>
-        <p className="legal-data">Versão preliminar de {VERSAO}</p>
+        <p className="legal-data">Versão preliminar de {versao}</p>
         <p role="note" className="aviso-demonstracao">
           <strong>Em revisão jurídica.</strong> Este texto descreve como o Ledgr funciona hoje. Os pontos
           marcados como <em>em definição</em> dependem dessa revisão.
