@@ -1,6 +1,6 @@
 "use server";
 
-import { enderecoDoConector } from "@/lib/conexao-ia";
+import { enderecoPublicoDoConector } from "@/lib/endereco-do-conector";
 import { pareceUuid } from "@/lib/adaptadores";
 import { ErroBackend, chamarBackend, ehContaInativa, emailDaSessao } from "@/lib/backend";
 import { RECUSA_DEMONSTRACAO, ehContaDeDemonstracao } from "@/lib/demo";
@@ -149,7 +149,11 @@ export async function carregarConexoesMcp(): Promise<Resultado<{ itens: ConexaoM
   const { papel } = await contaDaSessao();
   if (!podeFecharMes(papel)) return { ok: false, status: 403, erro: SO_ADMIN_OU_GESTOR_CONECTA };
   try {
-    const lista = await chamarBackend<{ itens: ConexaoAPI[] }>("/conexoes-mcp");
+    // em paralelo: o endereço nunca lança, e a Visão geral não espera uma chamada depois da outra
+    const [lista, endereco] = await Promise.all([
+      chamarBackend<{ itens: ConexaoAPI[] }>("/conexoes-mcp"),
+      enderecoPublicoDoConector(),
+    ]);
     return {
       ok: true,
       dados: {
@@ -162,7 +166,7 @@ export async function carregarConexoesMcp(): Promise<Resultado<{ itens: ConexaoM
           ultimoUsoEm: conexao.ultimo_uso_em,
           revogadaEm: conexao.revogada_em,
         })),
-        endereco: enderecoDoConector(),
+        endereco,
       },
     };
   } catch (erro) {
