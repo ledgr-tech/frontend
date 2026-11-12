@@ -1,7 +1,7 @@
 "use client";
 
 import { LazyMotion, MotionConfig, domAnimation, m, useMotionValue, useTransform } from "motion/react";
-import { createContext, useContext, useRef, useState } from "react";
+import { createContext, useContext, useRef, useSyncExternalStore } from "react";
 import type { CSSProperties, ReactNode } from "react";
 
 // dentro do app a troca de tela já anima a chegada; os blocos entrando em cascata por cima dela faziam o
@@ -16,10 +16,10 @@ export function MotionRoot({ children, revelar = true }: { children: ReactNode; 
     <RevelarContexto.Provider value={revelar}>
       <LazyMotion features={domAnimation} strict>
         <MotionConfig reducedMotion="user">
-          {/* sem JS o initial={{opacity:0}} do SSR deixaria a página em branco, e o fio das trilhas
-              de "Por dentro" e de Preços ficaria recortado */}
+          {/* sem JS o initial={{opacity:0}} do SSR deixaria a página em branco, o fio das trilhas
+              de "Por dentro" e de Preços ficaria recortado, e a tela da vitrine, invisível */}
           <noscript>
-            <style>{`[data-reveal]{opacity:1!important;transform:none!important}.por-dentro-fio,.preco-fio{clip-path:none!important}`}</style>
+            <style>{`[data-reveal]{opacity:1!important;transform:none!important}.por-dentro-fio,.preco-fio{clip-path:none!important}.vitrine-app{visibility:visible!important;display:grid!important}.vitrine-janela::after{display:none!important}`}</style>
           </noscript>
           {children}
         </MotionConfig>
@@ -81,19 +81,62 @@ export function Reveal({
   );
 }
 
-const INK_STROKE_MIN_DISTANCE = 16;
-
-function prefersReducedMotion() {
+/**
+ * O numeral (I, II, III, IV) das trilhas de "Por dentro" e de Preços: cai de cima girando e crescendo,
+ * passa um pouco do ponto e assenta (como o back.out do GSAP), um instante depois do bloco, na altura
+ * em que a etapa se revela. Só esses dois usam.
+ */
+export function NumeralQueDesce({ children, className }: { children: ReactNode; className: string }) {
+  const revelar = useContext(RevelarContexto);
+  if (!revelar) {
+    return (
+      <span className={className} aria-hidden="true">
+        {children}
+      </span>
+    );
+  }
+  // a classe leva o tapume com o fundo da faixa, que esconde o fio: ele fica parado no lugar e só a letra
+  // cai e gira por cima; com o fundo no elemento animado, ele aparecia como uma caixa girando junto
   return (
-    typeof window !== "undefined" &&
-    typeof window.matchMedia === "function" &&
-    window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    <span className={className} aria-hidden="true">
+      <m.span
+        style={{ display: "block" }}
+        initial={{ opacity: 0, transform: "translateY(-90px) rotate(-12deg) scale(0.6)" }}
+        whileInView={{ opacity: 1, transform: "translateY(0px) rotate(0deg) scale(1)" }}
+        viewport={{ once: true, amount: 0, margin: "0px 0px -40% 0px" }}
+        // back.out(1.7) do GSAP: passa um pouco do ponto e assenta. O fade termina antes do pouso
+        transition={{
+          duration: 0.9,
+          delay: 0.12,
+          ease: [0.34, 1.56, 0.64, 1],
+          opacity: { duration: 0.35, delay: 0.12, ease: "easeOut" },
+        }}
+      >
+        {children}
+      </m.span>
+    </span>
   );
 }
 
-function useReducedMotion() {
-  const [reducedMotion] = useState(prefersReducedMotion);
-  return reducedMotion;
+const INK_STROKE_MIN_DISTANCE = 16;
+
+const CONSULTA_MOVIMENTO = "(prefers-reduced-motion: reduce)";
+
+function observarMovimento(atualizar: () => void) {
+  const consulta = window.matchMedia?.(CONSULTA_MOVIMENTO);
+  consulta?.addEventListener?.("change", atualizar);
+  return () => consulta?.removeEventListener?.("change", atualizar);
+}
+
+function lerMovimentoReduzido() {
+  return window.matchMedia?.(CONSULTA_MOVIMENTO).matches ?? false;
+}
+
+// O HTML do servidor já chega parado, inclusive na primeira pintura de quem pediu menos movimento.
+// Os players de cenas passam `noServidor = false`: nascem no primeiro quadro, como a maioria vai ver, e quem
+// pediu menos movimento troca para o quadro parado sem transição (o CSS deles não tem).
+export function useMovimentoReduzido(noServidor = true) {
+  return useSyncExternalStore(observarMovimento, lerMovimentoReduzido, () => noServidor);
 }
 
 // teto de traços ao mesmo tempo, caso o animationend não chegue (bloco escondido não anima)
@@ -118,7 +161,7 @@ export function InkHover({
   "aria-labelledby"?: string;
 }) {
   const lastPoint = useRef<{ x: number; y: number } | null>(null);
-  const reducedMotion = useReducedMotion();
+  const reducedMotion = useMovimentoReduzido();
 
   return (
     <Tag
@@ -172,7 +215,7 @@ export function SpotlightHover({
 }) {
   const mouseX = useMotionValue(-9999);
   const mouseY = useMotionValue(-9999);
-  const reducedMotion = useReducedMotion();
+  const reducedMotion = useMovimentoReduzido();
   const spotlight = useTransform(
     [mouseX, mouseY],
     ([x, y]) =>

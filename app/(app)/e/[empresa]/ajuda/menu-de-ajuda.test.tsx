@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MenuDeAjuda } from "./menu-de-ajuda";
 
@@ -43,9 +43,9 @@ describe("MenuDeAjuda", () => {
     await user.click(screen.getByRole("button", { name: "Ajuda" }));
     await user.click(screen.getByRole("button", { name: /Ajuda desta tela/ }));
     expect(ouvinte).toHaveBeenCalledTimes(1);
-    expect(
-      screen.queryByRole("button", { name: /Rever o tutorial/ }),
-    ).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: /Rever o tutorial/ })).not.toBeInTheDocument(),
+    );
     parar();
   });
 
@@ -68,9 +68,9 @@ describe("MenuDeAjuda", () => {
     const botao = screen.getByRole("button", { name: "Ajuda" });
     await user.click(botao);
     await user.keyboard("{Escape}");
-    expect(
-      screen.queryByRole("link", { name: /Central de ajuda/ }),
-    ).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.queryByRole("link", { name: /Central de ajuda/ })).not.toBeInTheDocument(),
+    );
     expect(botao).toHaveFocus();
   });
 });

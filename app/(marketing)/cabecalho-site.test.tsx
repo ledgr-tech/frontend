@@ -22,7 +22,7 @@ describe("CabecalhoSite", () => {
   it("draws the gold line that loads on hover under the section links, like the login links", () => {
     render(<CabecalhoSite />);
     const principal = within(screen.getByRole("navigation", { name: "Navegação principal" }));
-    for (const secao of ["O problema", "Como funciona", "Assinatura"]) {
+    for (const secao of ["O problema", "Como funciona", "Com a sua IA", "Assinatura"]) {
       // sem o filete cinza do login: em repouso o link fica limpo, e a linha só aparece no hover
       expect(principal.getByRole("link", { name: secao })).toHaveClass("link-animado", "sem-filete");
     }
@@ -41,7 +41,10 @@ describe("CabecalhoSite", () => {
     const opcoes = within(menu()!);
     expect(opcoes.getByRole("link", { name: /O problema/ })).toHaveAttribute("href", "#problema");
     expect(opcoes.getByRole("link", { name: /Como funciona/ })).toHaveAttribute("href", "#como");
+    expect(opcoes.getByRole("link", { name: /Com a sua IA/ })).toHaveAttribute("href", "#conexao-ia");
+    expect(opcoes.getByRole("link", { name: /Com a sua IA/ })).toHaveTextContent("Cap. IV");
     expect(opcoes.getByRole("link", { name: /Assinatura/ })).toHaveAttribute("href", "#preco");
+    expect(opcoes.getByRole("link", { name: /Assinatura/ })).toHaveTextContent("Cap. V");
     expect(opcoes.getByRole("link", { name: "Entrar" })).toHaveAttribute("href", "/login");
     expect(opcoes.getByRole("link", { name: "Começar agora" })).toHaveAttribute("href", "/cadastro");
   });

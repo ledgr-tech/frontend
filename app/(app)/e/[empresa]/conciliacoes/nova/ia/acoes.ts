@@ -2,7 +2,8 @@
 
 import { pareceUuid } from "@/lib/adaptadores";
 import { ErroBackend, chamarBackend } from "@/lib/backend";
-import type { Falha, Resultado } from "../../acoes";
+import { ARQUIVO_GRANDE_DEMAIS, TAMANHO_MAXIMO_UPLOAD_BYTES } from "@/lib/limite-de-upload";
+import { conciliar, situacaoDoExtrato, verificarNovaVersao, type Falha, type Resultado } from "../../acoes";
 
 /**
  * Importação do relatório de lançamentos via IA (backend #158/#159, PRs #172 e #173; front #224 e #225): o
@@ -71,11 +72,21 @@ function ehUuid(id: string): boolean {
   return pareceUuid(id);
 }
 
+/**
+ * O fim do prompt, posto aqui: a tela pede um arquivo, então a IA entrega um arquivo, e não o JSON na conversa
+ * (que em relatório longo ela corta, e que a pessoa teria de copiar e salvar à mão).
+ * ponytail: o texto do backend ainda diz "responda somente com o JSON", daí o "no lugar de". Se o prompt.md
+ * do backend passar a pedir o arquivo, este trecho sai.
+ */
+const ENTREGA_EM_ARQUIVO =
+  "Entrega: crie um arquivo para baixar, chamado lancamentos.json, com esse JSON dentro, e não escreva o JSON na conversa. " +
+  "Isto vale no lugar de responder com o JSON no texto. Na conversa, diga apenas quantos lançamentos o arquivo tem.";
+
 /** O prompt pronto e as versões. Um 404 é um backend antes do #172. */
 export async function carregarPromptIa(): Promise<Resultado<PromptDaIa>> {
   try {
     const r = await chamarBackend<{ versao_schema: string; versao_prompt: string; prompt: string }>("/importacoes-ia/prompt");
-    return { ok: true, dados: { versaoSchema: r.versao_schema, versaoPrompt: r.versao_prompt, prompt: r.prompt } };
+    return { ok: true, dados: { versaoSchema: r.versao_schema, versaoPrompt: r.versao_prompt, prompt: `${r.prompt.trimEnd()}\n\n${ENTREGA_EM_ARQUIVO}` } };
   } catch (erro) {
     return traduzir(erro);
   }
@@ -89,6 +100,9 @@ export async function importarViaIa(
   if (!(arquivo instanceof File)) {
     return { ok: false, status: 422, erro: "Escolha o arquivo que a IA devolveu.", erros: [], totalErros: 0 };
   }
+  if (arquivo.size > TAMANHO_MAXIMO_UPLOAD_BYTES) {
+    return { ok: false, status: 413, erro: ARQUIVO_GRANDE_DEMAIS, erros: [], totalErros: 0 };
+  }
   const corpo = new FormData();
   corpo.append("arquivo", arquivo);
   try {
@@ -101,7 +115,7 @@ export async function importarViaIa(
     return {
       ...traduzir(erro),
       erros: erro instanceof ErroBackend ? erro.erros : [],
-      totalErros: erro instanceof ErroBackend ? Math.max(erro.erros.length, 0) : 0,
+      totalErros: erro instanceof ErroBackend ? (erro.totalErros ?? erro.erros.length) : 0,
     };
   }
 }
@@ -192,4 +206,39 @@ export async function descartarImportacao(id: string): Promise<Resultado<null>> 
   } catch (erro) {
     return traduzir(erro);
   }
+}
+
+export type ContextoNovaVersaoIa = { banco: string; sistemaAnterior?: string };
+
+export async function recuperarExtratoConfirmado(id: string): Promise<Resultado<{ extratoId: string }>> {
+  const rascunho = await carregarRascunho(id);
+  if (rascunho.ok) return { ok: false, status: 409, erro: "Confirme a importação antes de conciliar." };
+  if (rascunho.status !== 409) return rascunho;
+  const extrato = await situacaoDoExtrato(id);
+  if (!extrato.ok) return extrato;
+  if (extrato.dados.origem !== "sistema" || extrato.dados.status !== "concluido") {
+    return { ok: false, status: 409, erro: "O extrato do sistema ainda não está pronto." };
+  }
+  return { ok: true, dados: { extratoId: extrato.dados.extrato_id } };
+}
+
+export async function concluirNovaVersaoIa(
+  contexto: ContextoNovaVersaoIa,
+  importacaoId: string,
+  retomar = false,
+): Promise<{ ok: true; dados: { extratoId: string } } | (Falha & { confirmada?: boolean })> {
+  const { banco, sistemaAnterior } = contexto;
+  // O backend confirma no mesmo ID do rascunho. Procure o par antes de repetir um POST.
+  const alvo = await verificarNovaVersao(banco, sistemaAnterior, importacaoId);
+  if (!alvo.ok) return alvo;
+  if (alvo.dados.jaConciliada) return { ok: true, dados: { extratoId: importacaoId } };
+
+  let confirmado = retomar ? await recuperarExtratoConfirmado(importacaoId) : await confirmarImportacao(importacaoId);
+  if (!retomar && !confirmado.ok && confirmado.status === 409) {
+    confirmado = await recuperarExtratoConfirmado(importacaoId);
+  }
+  if (!confirmado.ok) return confirmado;
+  const { extratoId } = confirmado.dados;
+  const resultado = await conciliar(banco, extratoId);
+  return resultado.ok ? { ok: true, dados: { extratoId } } : { ...resultado, confirmada: true };
 }

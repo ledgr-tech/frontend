@@ -21,9 +21,11 @@ export function aprovadaDepois(decisao: Decisao | null | undefined): boolean {
 }
 
 /**
- * Só quem aprovou desfaz a aprovação (backend #164). O backend manda o nome de quem aprovou, não o id,
- * então a tela compara com o nome de quem está logado; quem decide de verdade é o 403 do backend.
+ * Só quem aprovou desfaz a aprovação (backend #164), e o admin quando quem aprovou saiu ou foi rebaixado.
+ * O backend #174 manda a resposta pronta, calculada para quem está logado. Sem ela (o backend da `main`),
+ * a tela compara o nome de quem aprovou com o de quem está logado; quem decide de verdade é o 403.
  */
 export function podeDesfazerAprovacao(decisao: Decisao | null | undefined, nome: string): boolean {
+  if (typeof decisao?.podeDesfazerAprovacao === "boolean") return decisao.podeDesfazerAprovacao;
   return aprovadaDepois(decisao) && nome.trim() !== "" && decisao?.aprovadaPor?.trim() === nome.trim();
 }

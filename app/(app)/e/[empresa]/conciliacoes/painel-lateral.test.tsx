@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { PainelLateral } from "./painel-lateral";
 
@@ -18,13 +18,24 @@ describe("PainelLateral", () => {
 
   it("closes with Escape and with a click outside, going back in the history", async () => {
     const user = userEvent.setup();
+    const { unmount } = render(<PainelLateral rotulo="Lançamento"><p>conteúdo</p></PainelLateral>);
+
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(back).toHaveBeenCalledTimes(1));
+    unmount();
+
+    render(<PainelLateral rotulo="Lançamento"><p>conteúdo</p></PainelLateral>);
+    await user.click(screen.getByTestId("painel-fundo"));
+    await waitFor(() => expect(back).toHaveBeenCalledTimes(2));
+  });
+
+  it("fecha uma vez só, mesmo com Esc e clique no fundo em seguida", async () => {
+    const user = userEvent.setup();
     render(<PainelLateral rotulo="Lançamento"><p>conteúdo</p></PainelLateral>);
 
     await user.keyboard("{Escape}");
-    expect(back).toHaveBeenCalledTimes(1);
-
     await user.click(screen.getByTestId("painel-fundo"));
-    expect(back).toHaveBeenCalledTimes(2);
+    await waitFor(() => expect(back).toHaveBeenCalledTimes(1));
   });
 
   it("does not close on a click inside", async () => {

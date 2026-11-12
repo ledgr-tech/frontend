@@ -1,7 +1,7 @@
 import { estaJustificada } from "@/lib/aprovacao";
 import type { Conciliacao, LinhaComparacao, StatusLinha, Tom } from "@/lib/mock-data";
 
-// Rótulos e tons das 7 categorias que o motor do backend produz
+// Rótulos e tons das 8 categorias que o motor do backend produz
 // (`StatusConciliacao` em `app/api/conciliacoes.py`). O tom segue a regra que o
 // trabalho de cores fechou: verde o que está resolvido, terracota o que custa
 // dinheiro, ouro o que está incompleto, neutro o que já tem explicação.
@@ -14,6 +14,8 @@ const STATUS: Record<StatusLinha, { rotulo: string; curto: string; tom: Tom }> =
   // casou dentro da tolerância de dias da empresa (ADR-008): resolvido, com a
   // ressalva no próprio rótulo em vez de num tom mais fraco
   match_tolerancia: { rotulo: "Match por tolerância de data", curto: "Conciliado", tom: "ok" },
+  // um lançamento de um lado é a soma exata de vários do outro (backend #131): resolvido, sem conferência
+  match_agrupado: { rotulo: "Conciliado por agrupamento", curto: "Conciliado", tom: "ok" },
   // achou lançamento do outro lado na mesma data e o valor não bate: dinheiro
   divergente_valor: { rotulo: "Valor diverge na mesma data", curto: "Valor diverge", tom: "risco" },
   // achou o mesmo valor em outra data: está tudo lá, no dia errado
@@ -27,9 +29,9 @@ const STATUS: Record<StatusLinha, { rotulo: string; curto: string; tom: Tom }> =
   sem_correspondencia: { rotulo: "Sem correspondência", curto: "Falta", tom: "atencao" },
 };
 
-/** Match exato e match por tolerância; o resto ainda pede decisão de alguém. */
+/** Os três matches (exato, tolerância e agrupamento); o resto ainda pede decisão de alguém. */
 export function estaResolvida(status: StatusLinha): boolean {
-  return status === "match_exato" || status === "match_tolerancia";
+  return status === "match_exato" || status === "match_tolerancia" || status === "match_agrupado";
 }
 
 /**

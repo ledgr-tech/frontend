@@ -26,7 +26,8 @@ describe("EscolherPlano", () => {
     // começa em 180, o Padrão
     expect(medidor()).toHaveAttribute("aria-valuetext", "180 lançamentos por mês");
     expect(within(indicado()).getByRole("heading", { name: "O seu plano é o Padrão." })).toBeInTheDocument();
-    expect(within(indicado()).getByText("R$ 79,90")).toBeInTheDocument();
+    // sem preço: o que vale é o da Stripe, na Assinatura (#296)
+    expect(indicado().textContent).not.toMatch(/R\$/);
     expect(within(indicado()).getByText("Para escritórios")).toBeInTheDocument();
   });
 

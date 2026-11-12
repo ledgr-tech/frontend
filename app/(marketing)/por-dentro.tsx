@@ -1,16 +1,15 @@
 import type { ReactNode } from "react";
-import { Reveal } from "@/app/reveal";
-import type { LinhaExtrato } from "./comparacao";
+import { NumeralQueDesce, Reveal } from "@/app/reveal";
 import { FioDaTrilha } from "./fio-da-trilha";
-import { Vitrine } from "./vitrine";
+import { MockupDemo } from "./mockup-demo";
 
 /**
  * "Por dentro do Ledgr": a vida de uma linha, a #1082 da demonstração de "O
  * problema", dos dois extratos até o seu sistema de gestão, em quatro etapas
  * numa trilha vertical. Um fio em onda desce entre os numerais conforme a página
- * rola (`FioDaTrilha`) e termina na tela inteira do app numa janela (`Vitrine`),
- * com a mesma linha em destaque: cada etapa, e por último a janela, aparece
- * quando a ponta do fio chega nela. O fluxo conta, a tela mostra.
+ * rola (`FioDaTrilha`) e termina numa animação do produto numa janela (`MockupDemo`, as telas do app; a
+ * tela parada do app subiu para o hero em 03/11): cada etapa, e por último a janela,
+ * aparece quando a ponta do fio chega nela. O fluxo conta, a animação mostra.
  *
  * Termina no sistema de gestão, e não numa decisão dentro do Ledgr, porque o app
  * ainda não grava decisão nenhuma (aceitar o valor do banco, fechar o mês).
@@ -25,9 +24,7 @@ function Etapa({ num, titulo, children }: { num: string; titulo: string; childre
   return (
     <li className="por-dentro-etapa">
       <Reveal viewport={NA_PONTA_DO_FIO} className="por-dentro-etapa-corpo">
-        <span className="por-dentro-num" aria-hidden="true">
-          {num}
-        </span>
+        <NumeralQueDesce className="por-dentro-num">{num}</NumeralQueDesce>
         <h3 className="por-dentro-titulo">{titulo}</h3>
         <p className="por-dentro-texto">{children}</p>
       </Reveal>
@@ -36,15 +33,7 @@ function Etapa({ num, titulo, children }: { num: string; titulo: string; childre
 }
 
 /** `children` é o título da seção, que fica parado ao lado dos passos no desktop. */
-export function PorDentro({
-  banco,
-  sistema,
-  children,
-}: {
-  banco: LinhaExtrato[];
-  sistema: LinhaExtrato[];
-  children: ReactNode;
-}) {
+export function PorDentro({ children }: { children: ReactNode }) {
   return (
     <>
       {/* título e passos num bloco só, sem a janela: o sticky anda dentro do pai, então o título
@@ -72,7 +61,7 @@ export function PorDentro({
         </div>
       </div>
       <Reveal viewport={NA_PONTA_DO_FIO} className="por-dentro-janela">
-        <Vitrine banco={banco} sistema={sistema} destaque="Pagamento fornecedor #1082" />
+        <MockupDemo descricao="Animação do Ledgr: os dois extratos sobem, a comparação marca cada linha, uma divergência é justificada e o mês aparece em Fechamentos" />
       </Reveal>
     </>
   );

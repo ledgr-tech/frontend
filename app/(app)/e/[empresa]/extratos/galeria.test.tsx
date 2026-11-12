@@ -461,12 +461,27 @@ describe("Galeria de extratos", () => {
     it("teste acabado (402): diz o motivo e leva aos planos", async () => {
       const user = userEvent.setup();
       conciliar.mockResolvedValue({ ok: false, status: 402, erro: "O teste acabou. Escolha um plano para conciliar." });
-      render(<Galeria arquivos={ARQUIVOS} />);
+      render(
+        <ProvedorDaConta cobrancaHabilitada preferencias={null}>
+          <Galeria arquivos={ARQUIVOS} />
+        </ProvedorDaConta>,
+      );
       await user.click(cartao("erp-agosto.csv"));
       await user.click(painel().getByRole("button", { name: "Conciliar" }));
 
       expect(painel().getByRole("alert")).toHaveTextContent("O teste acabou. Escolha um plano para conciliar.");
       expect(painel().getByRole("link", { name: "Ver os planos" })).toHaveAttribute("href", "/assinatura");
+    });
+
+    it("402 com a cobrança desligada: diz o motivo, sem o caminho para os planos", async () => {
+      const user = userEvent.setup();
+      conciliar.mockResolvedValue({ ok: false, status: 402, erro: "Limite de conciliações do mês atingido." });
+      render(<Galeria arquivos={ARQUIVOS} />);
+      await user.click(cartao("erp-agosto.csv"));
+      await user.click(painel().getByRole("button", { name: "Conciliar" }));
+
+      expect(painel().getByRole("alert")).toHaveTextContent("Limite de conciliações do mês atingido.");
+      expect(painel().queryByRole("link", { name: "Ver os planos" })).not.toBeInTheDocument();
     });
 
     it("says why when the backend refuses", async () => {
@@ -497,7 +512,7 @@ describe("Galeria de extratos", () => {
 
     function comConta(arquivos: ArquivoExtrato[], { papel = "admin", guarda = true }: { papel?: Papel; guarda?: boolean } = {}) {
       return render(
-        <ProvedorDaConta preferencias={null} papel={papel} guardaArquivoOriginal={guarda}>
+        <ProvedorDaConta cobrancaHabilitada preferencias={null} papel={papel} guardaArquivoOriginal={guarda}>
           <Galeria arquivos={arquivos} />
         </ProvedorDaConta>,
       );

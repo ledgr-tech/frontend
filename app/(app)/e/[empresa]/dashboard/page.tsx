@@ -4,6 +4,7 @@ import { redirecionarNoApp } from "@/lib/rotas-servidor";
 import { carregarConciliacoes } from "../conciliacoes/acoes";
 import { InkHover, Reveal } from "@/app/reveal";
 import { Cabecalho } from "../cabecalho";
+import { FalhaAoCarregar } from "../falha-ao-carregar";
 import { formatarInteiro } from "./resumo";
 import { agruparPorMes, passaNoFiltro } from "./lista";
 import { ListaDeTrabalho } from "./lista-de-trabalho";
@@ -13,9 +14,6 @@ import { ListaDeTrabalho } from "./lista-de-trabalho";
  * pelo mês como folhas, com o que ainda falta decidir e a prévia da escolhida ao lado. O resumo do mês fica na visão geral,
  * o trabalho linha a linha na comparação e o que já aconteceu no histórico.
  */
-
-const FALHA_AO_CARREGAR =
-  "Não foi possível carregar suas conciliações. Recarregue a página e tente de novo.";
 
 function plural(quantidade: number, singular: string, plural: string): string {
   return `${formatarInteiro(quantidade)} ${quantidade === 1 ? singular : plural}`;
@@ -46,9 +44,7 @@ export default async function DashboardPage() {
       />
 
       {!resposta.ok ? (
-        <p role="alert" className="extratos-vazio">
-          {FALHA_AO_CARREGAR}
-        </p>
+        <FalhaAoCarregar oQue="suas conciliações" status={resposta.status} />
       ) : conciliacoes.length === 0 ? (
         <SemConciliacoes />
       ) : (

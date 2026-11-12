@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 
 export default function PrivacidadePage() {
   return (
-    <DocumentoLegal titulo="Política de privacidade">
+    <DocumentoLegal titulo="Política de privacidade" versao="11 de novembro de 2026">
       <h2>Quem é quem</h2>
       <p>
         O Ledgr concilia o extrato do banco com o extrato do sistema de gestão da sua empresa. Nos
@@ -23,6 +23,21 @@ export default function PrivacidadePage() {
         <li>
           <strong>Da conta:</strong> seu nome, seu e-mail, a razão social e o CNPJ da empresa. A senha é
           guardada só como hash, um resumo criptográfico que não permite ler a senha de volta.
+        </li>
+        <li>
+          <strong>Entrada pelo Google:</strong> se você entra com a sua conta Google, recebemos dela o seu
+          nome, o seu e-mail e o identificador da conta Google. O Ledgr guarda o identificador para
+          reconhecer você nos próximos acessos.
+        </li>
+        <li>
+          <strong>Convites e equipe:</strong> quando alguém da sua conta convida uma pessoa, o e-mail dela
+          fica guardado no convite. Quem é removido da equipe perde o acesso na hora, mas o nome continua no
+          histórico de decisões da empresa.
+        </li>
+        <li>
+          <strong>Cidade e estado da conta:</strong> preenchidos pela consulta do CNPJ ou informados por você
+          no cadastro, para sabermos em que regiões estão nossos clientes. Esses dois dados não são
+          compartilhados com ninguém e não aparecem na API nem nas conexões com assistentes de IA.
         </li>
         <li>
           <strong>Dos extratos:</strong> a data, o valor e a descrição de cada lançamento dos arquivos que
@@ -55,9 +70,92 @@ export default function PrivacidadePage() {
 
       <h2>Cookies</h2>
       <p>
-        O Ledgr usa um único cookie, o da sessão, que mantém você conectado por até 7 dias, ou até fechar
-        o navegador se você desmarcar “Manter sessão ativa”. A página não consegue ler esse cookie. Não há
-        cookie de publicidade nem de análise de audiência.
+        O principal cookie do Ledgr é o da sessão, que mantém você conectado por até 7 dias contados do
+        login, ou até fechar o navegador se você desmarcar “Manter sessão ativa”. Os outros servem só ao
+        funcionamento do app:
+      </p>
+      <ul>
+        <li>a última empresa que você abriu, para o app voltar a ela (fica só no seu navegador);</li>
+        <li>
+          durante uma entrada, um cadastro ou o aceite de um convite pelo Google, os dados dessa etapa, por
+          até 1 hora;
+        </li>
+        <li>o aviso de conta inativa, por até 10 minutos depois de uma ação recusada.</li>
+      </ul>
+      <p>
+        A página não consegue ler o cookie da sessão nem os do Google e do aviso. Não há cookie de
+        publicidade nem de análise de audiência.
+      </p>
+
+      <h2>Quando os dados saem da sua conta por escolha sua</h2>
+      <ul>
+        <li>
+          <strong>Link público do relatório:</strong> o administrador ou o gestor da conta pode gerar um link do
+          relatório de um mês fechado e enviá-lo a quem quiser, como o contador. Quem tiver o link vê, sem
+          login, a razão social, o CNPJ, os números do mês e as linhas justificadas e pendentes, com a
+          descrição de cada lançamento, que pode conter o nome de uma pessoa. A escolha de com quem
+          compartilhar é sua. O link vale de 1 a 90 dias, pode ser revogado a qualquer momento e deixa de
+          abrir se o mês for reaberto.
+        </li>
+        <li>
+          <strong>Chaves de API:</strong> o administrador ou o gestor da conta pode criar chaves para ferramentas que a
+          própria empresa conecta, como o sistema de gestão ou uma planilha. Elas só leem dados, sem a
+          descrição dos lançamentos nem nomes, e param de funcionar na hora em que são revogadas.
+        </li>
+        <li>
+          <strong>Conexão com o ChatGPT ou o Claude:</strong> o administrador ou o gestor da conta pode
+          conectar uma dessas IAs a uma empresa, para perguntar sobre as conciliações dela numa conversa. O
+          que ela lê e para onde os dados vão estão na seção seguinte.
+        </li>
+      </ul>
+
+      <h2 id="conexao-ia">Conexão com o ChatGPT ou o Claude</h2>
+      <p>
+        A conexão é opcional e só lê: não confere, não justifica, não fecha mês e não muda nada no Ledgr. Só
+        o administrador ou o gestor da conta pode autorizá-la, cada conexão vale para uma empresa, e a conta
+        tem no máximo 10 conexões ativas.
+      </p>
+      <ul>
+        <li>
+          <strong>O que a IA lê:</strong> a razão social e o CNPJ da empresa escolhida (numa empresa
+          individual, a razão social costuma ser o nome do dono), os meses com conciliação e se estão
+          fechados, os números de cada mês e de cada conciliação, as divergências (categoria, data, valor,
+          situação e o lado, banco ou sistema), o período de cada extrato e a data de cada conciliação, e os
+          fechamentos, com a informação de se houve ressalva.
+        </li>
+        <li>
+          <strong>O que ela nunca recebe:</strong> a descrição dos lançamentos, o texto das justificativas e
+          das ressalvas, o nome de quem usa o Ledgr, nomes de arquivos, e a cidade e o estado da conta.
+        </li>
+        <li>
+          <strong>Para onde vai:</strong> para a conta de IA de quem conectou, na OpenAI (ChatGPT) ou na
+          Anthropic (Claude). Aqui elas não são fornecedoras do Ledgr: tratam o que recebem pelas regras da
+          conta que a pessoa tem com elas, como as de guardar as conversas e de usá-las para treinar
+          modelos. Quem conecta um programa do próprio computador, como o Claude Code, manda os dados para
+          esse programa e para a IA que ele usa. O Ledgr não controla o que acontece com os dados depois que
+          chegam lá.
+        </li>
+        <li>
+          <strong>Como parar:</strong> o administrador ou o gestor revoga a conexão a qualquer momento em
+          Configurações › Conexões, e o acesso acaba na hora. Remover o Ledgr no ChatGPT ou no Claude pode
+          não revogar a conexão: para ter certeza, revogue também no Ledgr. Ela também acaba sozinha quando
+          quem a criou sai da equipe, desativa a própria conta ou passa a analista. Revogar não apaga o que a
+          IA já leu.
+        </li>
+        <li>
+          <strong>O que o Ledgr registra:</strong> qual ferramenta foi usada, por qual conexão e se deu
+          certo, sem guardar o que foi respondido. A lista de conexões mostra quem autorizou cada uma,
+          quando, a empresa e o último uso.
+        </li>
+      </ul>
+
+      <h2>O que a equipe do Ledgr vê</h2>
+      <p>
+        Para suporte e cobrança, a equipe do Ledgr tem um painel interno com os dados comerciais de cada
+        conta (plano, situação da assinatura, pagamentos, cidade e estado), o contato de quem administra a
+        conta e contagens de uso. O painel não mostra lançamentos, descrições, justificativas, nomes de
+        arquivo nem dados das empresas clientes além das contagens, e nenhum dado de cartão passa pelo
+        Ledgr. Cada acesso ao painel fica registrado, com quem acessou e qual conta foi consultada.
       </p>
 
       <h2>Explicações por IA</h2>
@@ -132,6 +230,7 @@ export default function PrivacidadePage() {
       <ul>
         <li>O arquivo enviado não é guardado.</li>
         <li>Lançamentos, conciliações, histórico e explicações ficam enquanto a conta existir.</li>
+        <li>O registro de acessos ao painel interno da equipe do Ledgr fica por 1 ano.</li>
         <li>
           O que vai para a OpenAI para gerar uma explicação fica até 30 dias nos registros de
           monitoramento de abuso dela.
@@ -161,6 +260,19 @@ export default function PrivacidadePage() {
         Esta política muda quando o Ledgr muda. A data no topo diz qual versão está valendo. Veja também
         os <Link href="/termos">Termos de uso</Link>.
       </p>
+      <ul>
+        <li>
+          11 de novembro de 2026: entrada pelo Google, convites, cidade e estado da conta, link público do
+          relatório, chaves de API, conexão com o ChatGPT ou o Claude, o que a equipe do Ledgr vê e os
+          cookies.
+        </li>
+        <li>
+          29 de outubro de 2026: as explicações por IA passaram a ser geradas ao conciliar, e entrou a
+          desativação da conta. A data no topo continuou 20 de outubro.
+        </li>
+        <li>20 de outubro de 2026: as explicações por IA, só quando pedidas, e o cadastro sem o passo do banco.</li>
+        <li>27 de setembro de 2026: primeira versão.</li>
+      </ul>
     </DocumentoLegal>
   );
 }

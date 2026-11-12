@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { Explicacao, Resultado } from "../../acoes";
+import type { DetalhesDaDivergencia, Explicacao, Resultado } from "../../acoes";
 import { ExplicacaoDaDivergencia } from "./explicacao";
 
 const push = vi.fn();
@@ -10,8 +10,10 @@ vi.mock("next/navigation", () => ({
 }));
 
 const explicarDivergencia = vi.fn<(id: string) => Promise<Resultado<Explicacao>>>();
+const carregarDetalhes = vi.fn<(id: string) => Promise<Resultado<DetalhesDaDivergencia>>>();
 vi.mock("../../acoes", () => ({
   explicarDivergencia: (id: string) => explicarDivergencia(id),
+  carregarDetalhesDaDivergencia: (id: string) => carregarDetalhes(id),
 }));
 
 const LINHA = "6f55ff77-7794-4079-8186-ba17414abbe6";
@@ -34,7 +36,42 @@ async function pedir() {
 describe("ExplicacaoDaDivergencia", () => {
   beforeEach(() => {
     explicarDivergencia.mockReset();
+    carregarDetalhes.mockReset();
+    // um backend anterior ao #196 não tem a rota: a tela segue como estava
+    carregarDetalhes.mockResolvedValue({ ok: false, status: 404, erro: "Não encontrada." });
     push.mockReset();
+  });
+
+  it("abre com os fatos do backend, sem pedir a IA, e mostra os valores como texto puro", async () => {
+    carregarDetalhes.mockResolvedValue({
+      ok: true,
+      dados: {
+        texto: "No banco: -R$ 79,61 em 01/10/2026. No sistema: -R$ 79,61 em 02/10/2026.",
+        detalhes: [
+          { rotulo: "Banco", valor: "-R$ 79,61 em 01/10/2026" },
+          { rotulo: "Sistema", valor: "<b>-R$ 79,61</b> em 02/10/2026" },
+        ],
+      },
+    });
+    render(<ExplicacaoDaDivergencia linhaId={LINHA} voltarPara={VOLTAR} />);
+
+    expect(await screen.findByText(/No banco: -R\$ 79,61 em 01\/10\/2026\./)).toBeInTheDocument();
+    expect(screen.getByLabelText("Fatos da divergência")).toBeInTheDocument();
+    expect(screen.getByText("<b>-R$ 79,61</b> em 02/10/2026")).toBeInTheDocument();
+    expect(carregarDetalhes).toHaveBeenCalledWith(LINHA);
+    // ler os fatos não gera nada: a IA continua só no clique
+    expect(explicarDivergencia).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Explicar esta divergência" })).toBeInTheDocument();
+  });
+
+  it("depois do clique, mostra os detalhes que vieram no POST", async () => {
+    explicarDivergencia.mockResolvedValue(
+      explicacao({ detalhes: [{ rotulo: "Diferença de datas", valor: "1 dia" }] }),
+    );
+    await pedir();
+
+    expect(await screen.findByText("Diferença de datas")).toBeInTheDocument();
+    expect(screen.getByText("1 dia")).toBeInTheDocument();
   });
 
   it("só pede a explicação no clique: cada geração custa e tem limite diário", () => {

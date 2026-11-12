@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { notFound } from "next/navigation";
 import { redirecionarNoApp } from "@/lib/rotas-servidor";
 import { auth } from "@/auth";
+import { contaRecusouPorInativa } from "@/lib/backend";
 import { ProvedorDaEmpresa } from "@/lib/empresa-ativa";
 import { ehUuid } from "@/lib/rotas";
 import { contaDaSessao } from "../../../(auth)/acoes";
@@ -54,8 +55,10 @@ export default async function AppLayout({
         papel={conta.papel}
         preferencias={conta.preferencias}
         assinatura={conta.assinatura}
+        cobrancaHabilitada={conta.cobrancaHabilitada}
         limites={conta.limites}
         guardaArquivoOriginal={conta.guardaArquivoOriginal}
+        contaInativa={await contaRecusouPorInativa()}
       >
         {children}
       </Shell>

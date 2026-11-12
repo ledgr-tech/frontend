@@ -1,5 +1,6 @@
 import { formatarMoeda } from "@/lib/mock-data";
 import { formatarDataHora, formatarInteiro } from "../dashboard/resumo";
+import { textoDosLotes } from "../conciliacoes/[id]/grupos";
 import type { LinhaDoRelatorio, ParDoRelatorio, RelatorioDoFechamento } from "./relatorio";
 
 /** A folha do relatório do fechamento: a da página do app (#117) e a do link público (#229). */
@@ -29,6 +30,7 @@ export function Folha({ relatorio }: { relatorio: RelatorioDoFechamento }) {
           <Numero rotulo="Linhas não lidas" valor={formatarInteiro(relatorio.linhasNaoLidas)} />
           <Numero rotulo="Valor em aberto" valor={formatarMoeda(relatorio.valorEmAberto)} />
         </dl>
+        {textoDosLotes(relatorio.agrupamentos) && <p className="rel-nota">{textoDosLotes(relatorio.agrupamentos)}.</p>}
         <table className="table rel-tabela rel-categorias" aria-label="Divergências por categoria">
           <thead>
             <tr>

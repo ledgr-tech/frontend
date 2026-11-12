@@ -33,11 +33,13 @@ import {
 } from "lucide-react";
 import { PainelAssistente } from "./assistente/painel";
 import { Configuracoes } from "./configuracoes";
+import { useCobranca } from "./conta";
 import { LogoBarras } from "./logo-barras";
 import { alternarMenu, menuRecolhido } from "./menu";
 import { aplicarTema, temaAtual, type Tema } from "./tema";
 import { ABRIR_ASSISTENTE, ABRIR_CONFIGURACOES } from "@/lib/eventos";
 import type { Papel } from "@/lib/papel";
+import { usePresenca } from "@/lib/troca-suave";
 
 type ItemMenu = {
   nome: string;
@@ -123,17 +125,21 @@ export function MenuLateral({
 }) {
   // o item ativo se acha pelo caminho da tela, sem o /e/<empresa>
   const caminho = caminhoSemEmpresa(usePathname());
+  const cobranca = useCobranca();
   // null enquanto não sabemos: o tema só é legível no cliente, e chutar "claro"
   // faria o ícone trocar sozinho depois da hidratação
   const [tema, setTema] = useState<Tema | null>(null);
   const [contaAberta, setContaAberta] = useState(false);
+  const conta = usePresenca(contaAberta);
   const [configAberta, setConfigAberta] = useState(false);
   // a seção pedida por fora (o "Definir agora" do roteiro da Visão geral)
   const [secaoPedida, setSecaoPedida] = useState<string | undefined>();
-  const [assistenteAberto, setAssistenteAberto] = useState(false);
+  const [assistente, setAssistente] = useState<"novo" | "aberto" | "fechado">("novo");
+  const assistenteAberto = assistente === "aberto";
   // no celular (até 900px) as seções ficam atrás do botão Menu, senão ocupam meia tela antes do conteúdo
   const [secoesAbertas, setSecoesAbertas] = useState(false);
   const botaoAssistente = useRef<HTMLButtonElement>(null);
+  const botaoMenuCelular = useRef<HTMLButtonElement>(null);
   const caixaConta = useRef<HTMLDivElement>(null);
   const botaoConta = useRef<HTMLButtonElement>(null);
 
@@ -147,7 +153,7 @@ export function MenuLateral({
   }, []);
   // "Pergunte sobre esta tela", na Central de ajuda
   useEffect(() => {
-    const abrir = () => setAssistenteAberto(true);
+    const abrir = () => setAssistente("aberto");
     window.addEventListener(ABRIR_ASSISTENTE, abrir);
     return () => window.removeEventListener(ABRIR_ASSISTENTE, abrir);
   }, []);
@@ -346,6 +352,7 @@ export function MenuLateral({
         <button
           type="button"
           className="app-icone-botao app-menu-celular"
+          ref={botaoMenuCelular}
           aria-label="Menu"
           aria-expanded={secoesAbertas}
           aria-controls="secoes-do-app"
@@ -366,7 +373,8 @@ export function MenuLateral({
       </Link>
 
       <nav id="secoes-do-app" className="app-nav" aria-label="Seções do app">
-        {ITENS.map((item) => {
+        {/* sem cobrança (`cobranca_habilitada` do /me), a Assinatura some do menu */}
+        {ITENS.filter((item) => cobranca || item.href !== "/assinatura").map((item) => {
           const Icone = item.icone;
           const ativo = estaAtivo(item, caminho);
           return (
@@ -395,29 +403,27 @@ export function MenuLateral({
           data-dica="Fale com o Ledgr"
           aria-expanded={assistenteAberto}
           aria-controls={assistenteAberto ? "painel-assistente" : undefined}
-          onClick={() => setAssistenteAberto((aberto) => !aberto)}
+          onClick={() => setAssistente((atual) => atual === "aberto" ? "fechado" : "aberto")}
         >
-          <Image
-            src="/mascotes/mascote-chatbot.png"
-            alt=""
-            width={1254}
-            height={1254}
-            sizes="36px"
-            className="app-assistente-mascote"
-          />
+          {/* o corpo e a luva são duas imagens: só a luva acena (ver .app-assistente-mao) */}
+          <span className="app-assistente-figura" aria-hidden="true">
+            <Image src="/mascotes/mascote-chatbot-corpo.png" alt="" width={400} height={400} sizes="64px" className="app-assistente-corpo" />
+            <Image src="/mascotes/mascote-chatbot-mao.png" alt="" width={114} height={127} sizes="20px" className="app-assistente-mao" />
+          </span>
           <span className="app-rotulo app-assistente-texto">
             <span className="app-assistente-chamada">Assistente</span>
             <span className="app-assistente-titulo">Fale com o Ledgr</span>
             <span className="app-assistente-detalhe">O mês e como usar o app</span>
           </span>
         </button>
-        {assistenteAberto && (
+        {assistente !== "novo" && (
           <PainelAssistente
             id="painel-assistente"
+            aberto={assistenteAberto}
             onFechar={() => {
-              setAssistenteAberto(false);
-              // o botão de fechar some com o painel: o foco volta ao cartão que o abriu
+              setAssistente("fechado");
               botaoAssistente.current?.focus();
+              if (document.activeElement !== botaoAssistente.current) botaoMenuCelular.current?.focus();
             }}
           />
         )}
@@ -444,8 +450,8 @@ export function MenuLateral({
             <ChevronsUpDown {...ICONE} size={15} className="app-conta-seta" />
           </button>
 
-          {contaAberta && (
-            <div id="menu-conta" className="app-painel app-conta-painel">
+          {conta.montado && (
+            <div id="menu-conta" className="app-painel app-conta-painel" data-saindo={conta.saindo || undefined}>
               <span className="app-conta-email">{email}</span>
               <button
                 type="button"

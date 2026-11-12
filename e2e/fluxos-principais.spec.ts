@@ -20,14 +20,14 @@ const lancamentos = [
   { dia: "20", valor: "-42.90", descricao: "Tarifa bancaria" },
 ];
 
-function extratoDoBanco() {
+function extratoDoBanco(anoDoExtrato = ano) {
   const transacoes = lancamentos
     .map(
       (l, i) =>
-        `<STMTTRN>\n<TRNTYPE>${l.valor.startsWith("-") ? "DEBIT" : "CREDIT"}\n<DTPOSTED>${ano}${mes}${l.dia}\n<TRNAMT>${l.valor}\n<FITID>${ano}${mes}${i}\n<MEMO>${l.descricao.toUpperCase()}\n</STMTTRN>`,
+        `<STMTTRN>\n<TRNTYPE>${l.valor.startsWith("-") ? "DEBIT" : "CREDIT"}\n<DTPOSTED>${anoDoExtrato}${mes}${l.dia}\n<TRNAMT>${l.valor}\n<FITID>${anoDoExtrato}${mes}${i}\n<MEMO>${l.descricao.toUpperCase()}\n</STMTTRN>`,
     )
     .join("\n");
-  return `OFXHEADER:100\nDATA:OFXSGML\nVERSION:102\n\n<OFX>\n<BANKMSGSRSV1>\n<STMTTRNRS>\n<STMTRS>\n<CURDEF>BRL\n<BANKTRANLIST>\n<DTSTART>${ano}${mes}01\n<DTEND>${ano}${mes}28\n${transacoes}\n</BANKTRANLIST>\n</STMTRS>\n</STMTTRNRS>\n</BANKMSGSRSV1>\n</OFX>\n`;
+  return `OFXHEADER:100\nDATA:OFXSGML\nVERSION:102\n\n<OFX>\n<BANKMSGSRSV1>\n<STMTTRNRS>\n<STMTRS>\n<CURDEF>BRL\n<BANKTRANLIST>\n<DTSTART>${anoDoExtrato}${mes}01\n<DTEND>${anoDoExtrato}${mes}28\n${transacoes}\n</BANKTRANLIST>\n</STMTRS>\n</STMTTRNRS>\n</BANKMSGSRSV1>\n</OFX>\n`;
 }
 
 // o sistema não lançou a tarifa: sobra uma linha só no banco, a única a justificar
@@ -41,13 +41,17 @@ async function pularTutorial(page: Page) {
   if (await pular.isVisible().catch(() => false)) await pular.click();
 }
 
-test("entrar, conciliar, justificar e fechar o mês", async ({ page }) => {
+async function entrar(page: Page) {
   await page.goto("/login");
   await page.getByLabel(/e-?mail/i).first().fill(EMAIL);
   await page.getByLabel(/^senha$/i).fill(SENHA);
   await page.getByRole("button", { name: /^entrar$/i }).click();
   await page.waitForURL(/\/e\/[0-9a-f-]{36}\//);
-  const empresa = page.url().match(/\/e\/([0-9a-f-]{36})\//)![1];
+  return page.url().match(/\/e\/([0-9a-f-]{36})\//)![1];
+}
+
+test("entrar, conciliar, justificar e fechar o mês", async ({ page }) => {
+  const empresa = await entrar(page);
 
   await page.goto(`/e/${empresa}/conciliacoes/nova`);
   await pularTutorial(page);
@@ -60,12 +64,77 @@ test("entrar, conciliar, justificar e fechar o mês", async ({ page }) => {
   // a tarifa que só o banco tem: a única em "Só revisão", aberta pela descrição
   await expect(page.getByRole("button", { name: "Só revisão (1)" })).toBeVisible();
   await page.getByRole("button", { name: "TARIFA BANCARIA", exact: true }).click();
-  await page.getByLabel("Justificativa").fill("Tarifa do banco, lançada no sistema no mês seguinte.");
-  await page.getByRole("button", { name: "Justificar", exact: true }).click();
-  await expect(page.getByLabel("Justificativa")).toHaveCount(0);
+  const previa = page.getByRole("complementary", { name: "Detalhe da linha e saldo do extrato" });
+  await previa.getByRole("button", { name: "Justificar", exact: true }).click();
+  await previa.getByLabel("Justificativa").fill("Tarifa do banco, lançada no sistema no mês seguinte.");
+  await previa.getByRole("button", { name: "Justificar", exact: true }).click();
+  await expect(previa.getByLabel("Justificativa")).toHaveCount(0);
 
   await page.goto(`/e/${empresa}/fechamentos?mes=${competencia}`);
   await pularTutorial(page);
   await page.getByRole("button", { name: new RegExp(`^Fechar ${nomeDoMes}`, "i") }).click();
   await expect(page.getByRole("button", { name: new RegExp(`^Reabrir ${nomeDoMes}`, "i") })).toBeVisible();
+});
+
+test("reenviar JSON na comparação mantém o banco e abre a nova rodada", async ({ page, context }) => {
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  const empresa = await entrar(page);
+  const caminho = `/e/${empresa}/conciliacoes`;
+  const jsonDoSistema = {
+    name: "sistema.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(JSON.stringify({ versao_schema: "1", lancamentos: [
+      { data: `2025-${mes}-05`, descricao: "Recebimento fictício", valor: 1250.4 },
+    ] })),
+  };
+
+  await page.goto(`${caminho}/nova/ia`);
+  await pularTutorial(page);
+  await page.getByLabel("Arquivo da IA").setInputFiles(jsonDoSistema);
+  await page.getByRole("button", { name: "Importar e conferir" }).click();
+  await page.getByRole("button", { name: /^Confirmar \d+ lançamentos/ }).click();
+  await page.waitForURL(/\/conciliacoes\/nova\?sistema=/);
+  const sistemaAnterior = new URL(page.url()).searchParams.get("sistema");
+  expect(sistemaAnterior).toMatch(/^[0-9a-f-]{36}$/);
+  await pularTutorial(page);
+  await page.getByLabel("Extrato do banco").setInputFiles({
+    name: "banco.ofx",
+    mimeType: "application/x-ofx",
+    buffer: Buffer.from(extratoDoBanco(2025)),
+  });
+  await page.getByRole("button", { name: "Conciliar extratos" }).click();
+  await page.waitForURL(/\/conciliacoes\/[0-9a-f-]{36}/);
+  await pularTutorial(page);
+
+  const primeiraRodada = new URL(page.url());
+  await page.getByRole("button", { name: "Enviar nova versão do extrato do sistema" }).click();
+  // a Nova conciliação em modo reenvio; /conciliacoes/nova não pode abrir o painel da linha "nova" (#260)
+  await page.waitForURL((url) => url.pathname === `${caminho}/nova` && url.searchParams.has("sistemaAnterior"));
+  await expect(page.getByRole("heading", { name: "Nova versão do extrato do sistema" })).toBeVisible();
+  await expect(page.getByRole("complementary", { name: "Detalhe da linha e saldo do extrato" })).toHaveCount(0);
+  await expect(page.getByText("Mantido", { exact: true })).toBeVisible();
+  await expect(page.getByText("banco.ofx")).toBeVisible();
+  await page.getByRole("button", { name: "Gerar JSON com IA" }).click();
+  await page.getByRole("button", { name: "Copiar prompt" }).click();
+  await expect(page.getByRole("button", { name: "Prompt copiado" })).toBeVisible();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toContain("versao_schema");
+  const campo = page.getByLabel("Extrato corrigido do sistema");
+  await campo.setInputFiles({ ...jsonDoSistema, buffer: Buffer.from('{"erro":true}') });
+  await page.getByRole("button", { name: "Conciliar de novo" }).click();
+  await expect(page.getByText("O arquivo não passou na conferência")).toBeVisible();
+  await expect(page.getByText(/rodada 2, com o mesmo extrato do banco/)).toBeVisible();
+
+  await campo.setInputFiles({ ...jsonDoSistema, name: "sistema-corrigido.json" });
+  await page.getByRole("button", { name: "Conciliar de novo" }).click();
+  await expect(page.getByText(/mesmo extrato do banco \(banco\.ofx\)/)).toBeVisible();
+  await page.getByRole("button", { name: /^Confirmar \d+ lançamentos/ }).click();
+  await page.waitForURL((url) => url.pathname === primeiraRodada.pathname && url.searchParams.has("sistema"));
+  const sistemaNovo = new URL(page.url()).searchParams.get("sistema");
+  expect(sistemaNovo).toMatch(/^[0-9a-f-]{36}$/);
+  expect(sistemaNovo).not.toBe(sistemaAnterior);
+
+  const anterior = page.getByRole("link", { name: /^Rodada 1 ·/ });
+  await expect(anterior).toBeVisible();
+  await anterior.click();
+  await page.waitForURL((url) => url.pathname === primeiraRodada.pathname && url.searchParams.get("sistema") === sistemaAnterior);
 });

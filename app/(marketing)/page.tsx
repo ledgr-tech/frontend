@@ -5,11 +5,15 @@ import { DIVERGENCIAS } from "@/lib/adaptadores";
 import { depoimentosDaLanding } from "@/lib/depoimentos";
 import { LogoBarras } from "@/app/(app)/e/[empresa]/logo-barras";
 import { CabecalhoSite } from "./cabecalho-site";
-import { CATEGORIAS, QUANTAS_CATEGORIAS } from "./categorias";
-import { ExtratoComparacao, type LinhaExtrato } from "./comparacao";
+import { seloDoStatus } from "@/app/(app)/e/[empresa]/dashboard/resumo";
+import { QUANTAS_CATEGORIAS } from "./categorias";
+import { Cena } from "./cena";
+import { ConexaoIa } from "./conexao-ia";
+import { JanelaDaConciliacao, type LinhaExtrato } from "./comparacao";
 import { ConferenciaAMao, type Dor } from "./conferencia-a-mao";
 import { Depoimentos } from "./depoimentos";
 import { DicaDoMouse } from "./dica-do-mouse";
+import { Hero } from "./hero";
 import { InkHover, MotionRoot, Reveal } from "../reveal";
 import { fonteDestaque } from "./fonte-destaque";
 import { PorDentro } from "./por-dentro";
@@ -27,14 +31,14 @@ const AGOSTO: ResumoDoMes = {
   paraRevisar: `157 de ${LANCAMENTOS_DE_AGOSTO.toLocaleString("pt-BR")} para revisar`,
 };
 
-// A faixa logo abaixo do hero, só com o que é quantidade, e por extenso: algarismo solto em
-// tamanho grande ficava com cara de letra. Abre com o argumento central do pitch (não trocar de
-// sistema); o zero de credenciais bancárias continua na FAQ e no rodapé. "Alto volume" e
-// "Automático" não eram número.
+// A faixa logo abaixo do hero: o título diz o assunto e a lista é a prova, só com o que é quantidade,
+// e por extenso (algarismo solto em tamanho grande ficava com cara de letra). Abre com o argumento
+// central do pitch (não trocar de sistema); o zero de credenciais bancárias continua na FAQ e no
+// rodapé. Rótulos curtos e do mesmo tamanho, para a lista ler como uma coisa só.
 const NUMEROS = [
-  { valor: "Zero", rotulo: "sistemas para trocar: o Ledgr usa o que o seu sistema de gestão já exporta" },
-  { valor: "Minutos", rotulo: "para o relatório ficar pronto depois que você sobe os arquivos" },
-  { valor: QUANTAS_CATEGORIAS, rotulo: "categorias de divergência, sempre nomeadas" },
+  { valor: "Zero", rotulo: "sistemas para trocar" },
+  { valor: "Minutos", rotulo: "para o relatório ficar pronto" },
+  { valor: QUANTAS_CATEGORIAS, rotulo: "categorias de divergência, todas com nome" },
 ];
 
 // ponytail: as `explicacao` desta demonstração são no estilo da IA, que estará
@@ -109,6 +113,19 @@ const TARIFA_BANCO: LinhaExtrato = {
 const EXTRATO_BANCO: LinhaExtrato[] = [...TRANSACOES_CASADAS, TARIFA_BANCO, ALUGUEL_BANCO];
 const EXTRATO_SISTEMA: LinhaExtrato[] = [...TRANSACOES_CASADAS, ALUGUEL_SISTEMA];
 
+// Mais um trecho do mesmo agosto, só na janela de "Na prática": linhas que bateram entre as cinco
+// de cima, para a tela parecer a do app, com as divergências no meio do que bateu
+const BATIDA = { status: "match_exato", explicacao: null } as const;
+const OUTRAS_BATIDAS: LinhaExtrato[] = [
+  { data: "01/08", desc: "Recebimento cliente Delta Engenharia", valorBanco: "R$ 5.480,00", valorSistema: "R$ 5.480,00", ...BATIDA },
+  { data: "07/08", desc: "Energia elétrica", valorBanco: "R$ 1.284,90", valorSistema: "R$ 1.284,90", ...BATIDA },
+  { data: "08/08", desc: "Recebimento cliente Beta Serviços", valorBanco: "R$ 9.150,00", valorSistema: "R$ 9.150,00", ...BATIDA },
+  { data: "10/08", desc: "Honorários contábeis", valorBanco: "R$ 2.400,00", valorSistema: "R$ 2.400,00", ...BATIDA },
+  { data: "12/08", desc: "Simples Nacional", valorBanco: "R$ 3.862,17", valorSistema: "R$ 3.862,17", ...BATIDA },
+];
+// o saldo do extrato de agosto inteiro (o painel da comparação mostra o do arquivo, não o do trecho)
+const SALDO_DE_AGOSTO = { inicial: 52380.47, final: 61904.12, data: "2026-08-31" };
+
 // As três dores do Cap. II, uma por número nas telas, com os números dos próprios lançamentos: a
 // escala do mês (a mesma de Preços), os cinco centavos do cartão e a tarifa que só o banco tem
 const CARTAO = TRANSACOES_CASADAS[2];
@@ -122,6 +139,7 @@ const DORES: Dor[] = [
   {
     rotulo: "Tempo",
     numero: LANCAMENTOS_DE_AGOSTO.toLocaleString("pt-BR"),
+    contar: LANCAMENTOS_DE_AGOSTO,
     unidade: "linhas",
     titulo: "Horas que não voltam",
     texto: "Cada linha do banco é procurada no sistema, uma por uma, e no mês seguinte começa tudo de novo.",
@@ -142,21 +160,26 @@ const DORES: Dor[] = [
   },
 ];
 
-const PASSOS = [
+// O formato de cada arquivo vai numa etiqueta; no passo III, as categorias vão nos selos do app, com o
+// rótulo e o tom do relatório (seloDoStatus), em vez de uma frase com as cinco por extenso.
+const PASSOS: { num: string; titulo: string; texto: string; formatos?: string[]; selos?: boolean }[] = [
   {
     num: "I",
     titulo: "Suba o extrato do banco",
     texto: "OFX ou CSV, direto do internet banking. Quando os dois lados discordam, vale o que está nesse extrato.",
+    formatos: ["OFX", "CSV"],
   },
   {
     num: "II",
     titulo: "Suba o extrato do sistema",
     texto: "Exporte o razão do seu ERP ou sistema de gestão no mesmo período, em CSV.",
+    formatos: ["CSV"],
   },
   {
     num: "III",
     titulo: "Receba as divergências",
-    texto: `Relatório nas ${DIVERGENCIAS.length} categorias: ${CATEGORIAS}.`,
+    texto: `Relatório nas ${DIVERGENCIAS.length} categorias:`,
+    selos: true,
   },
 ];
 
@@ -241,7 +264,7 @@ const RODAPE_COLUNAS = [
 export default function LandingPage() {
   const depoimentos = depoimentosDaLanding();
   return (
-    <main className={fonteDestaque.variable}>
+    <main className={`landing ${fonteDestaque.variable}`}>
       <MotionRoot>
       <CabecalhoSite />
 
@@ -262,133 +285,29 @@ export default function LandingPage() {
             opacity: 0.55,
           }}
         />
-        <div
-          className="hero-grid"
-          style={{
-            position: "relative",
-            maxWidth: 1600,
-            margin: "0 auto",
-            padding: "clamp(56px, 9vw, 108px) clamp(20px, 4.2vw, 56px) clamp(56px, 8vw, 96px)",
-            display: "grid",
-            gap: 56,
-            alignItems: "center",
-          }}
-        >
-          <div>
-            <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 28 }}>
-              <span
-                className="eyebrow"
-                style={{
-                  fontSize: 12,
-                  letterSpacing: "0.14em",
-                  textTransform: "uppercase",
-                  color: "var(--color-accent-700)",
-                }}
-              >
-                Cap. I · O fechamento do mês
-              </span>
-              <span style={{ flex: 1, maxWidth: 120, height: 1, background: "var(--color-divider)" }} />
-            </div>
-            <h1 className="titulo-misto" style={{ margin: "0 0 24px", fontSize: "clamp(40px, 4.4vw, 72px)" }}>
-              Pare de conciliar extrato <em>à mão.</em>
-            </h1>
-            <div style={{ width: 84, height: 1, background: "var(--color-accent)", marginBottom: 26 }} />
-            <p
-              style={{
-                margin: "0 0 34px",
-                fontSize: "clamp(16px, 1.2vw, 19px)",
-                lineHeight: 1.72,
-                maxWidth: "44ch",
-              }}
-            >
-              Continue no sistema de gestão que você já usa. Suba o extrato do banco e o do sistema:
-              em minutos o Ledgr confere linha por linha e aponta só o que não bate, com o motivo de
-              cada diferença.
-            </p>
-            <Link href="/cadastro" className="btn btn-primary" style={{ fontSize: 15.5, padding: "13px 24px" }}>
-              Começar agora
-            </Link>
-          </div>
-          <InkHover
-            clip={false}
-            className="hero-illustration"
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-            }}
-          >
-            <Image
-              src="/mascotes/mascote-apresenta.png"
-              alt="Mascote Ledgr com prancheta de conciliação e dinheiro"
-              width={824}
-              height={720}
-              sizes="(max-width: 680px) 90vw, 440px"
-              preload
-              style={{ position: "relative", zIndex: 1, width: "96%", maxWidth: 440, height: "auto" }}
-            />
-          </InkHover>
-        </div>
+        <Hero banco={EXTRATO_BANCO} sistema={EXTRATO_SISTEMA} />
       </section>
 
-      {/* em números */}
+      {/* em números: o título diz o assunto e os três números vêm como prova, em lista (modelo I, decidido em 04/11) */}
       <section
         className="onda onda-papel grao"
-        style={{
-          position: "relative",
-          overflow: "hidden",
-          backgroundColor: "var(--faixa-escura)",
-        }}
+        style={{ position: "relative", overflow: "hidden", backgroundColor: "var(--faixa-escura)" }}
       >
-        {/* marca em traço fino, cortada na borda esquerda */}
-        <svg
-          aria-hidden="true"
-          className="numeros-marca"
-          viewBox="0 0 2000 1627"
-          fill="none"
-          style={{
-            position: "absolute",
-            top: -50,
-            left: -80,
-            width: "clamp(220px, 22vw, 380px)",
-            height: "auto",
-            color: "var(--color-accent-700)",
-            opacity: 0.15,
-            pointerEvents: "none",
-          }}
-        >
-          <g stroke="currentColor" strokeWidth={3}>
-            <rect x="60" y="43" width="1162" height="463" rx="231.5" vectorEffect="non-scaling-stroke" />
-            <rect x="76" y="560" width="1896" height="463" rx="231.5" vectorEffect="non-scaling-stroke" />
-            <rect x="43" y="1060" width="1629" height="463" rx="231.5" vectorEffect="non-scaling-stroke" />
-          </g>
-        </svg>
         <div style={{ position: "relative", maxWidth: 1600, margin: "0 auto", padding: "clamp(52px, 7vw, 72px) clamp(20px, 4.2vw, 56px)" }}>
-          <div className="grade-colunas numeros-grade">
-            {NUMEROS.map((numero, i) => (
-              <Reveal
-                key={numero.rotulo}
-                delay={i * 0.08}
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 10,
-                }}
-              >
-                <span
-                  className="numero-destaque"
-                  style={{
-                    fontSize: "clamp(36px, 3.4vw, 46px)",
-                    fontWeight: 400,
-                    lineHeight: 1,
-                    color: "var(--color-neutral-100)",
-                  }}
-                >
-                  {numero.valor}
-                </span>
-                <span style={{ fontSize: 14, lineHeight: 1.6, color: "var(--color-neutral-400)" }}>{numero.rotulo}</span>
-              </Reveal>
-            ))}
+          <div className="numeros-dois">
+            <Reveal>
+              <h2 className="titulo-misto numeros-titulo">
+                <span style={{ display: "block" }}>O sistema que você já usa,</span> <em>o mês que você já fecha.</em>
+              </h2>
+            </Reveal>
+            <div className="numeros-grade">
+              {NUMEROS.map((numero, i) => (
+                <Reveal key={numero.rotulo} delay={0.1 + i * 0.08} className="numeros-item">
+                  <span className="numero-destaque">{numero.valor}</span>
+                  <span className="numeros-rotulo">{numero.rotulo}</span>
+                </Reveal>
+              ))}
+            </div>
           </div>
         </div>
       </section>
@@ -434,7 +353,7 @@ export default function LandingPage() {
           aria-hidden="true"
           width={1000}
           height={1000}
-          sizes="480px"
+          sizes="(max-width: 760px) 280px, 480px"
           className="como-marca"
           style={{ position: "absolute", bottom: -170, left: -70, width: 480, height: "auto", opacity: 0.04, pointerEvents: "none" }}
         />
@@ -463,7 +382,7 @@ export default function LandingPage() {
                 height={1000}
                 // o mesmo sizes da marca d'água desta seção: as duas pegam a mesma largura do srcset,
                 // e a imagem baixa uma vez só
-                sizes="480px"
+                sizes="(max-width: 760px) 280px, 480px"
                 className="como-mascote"
                 style={{ flex: "none", width: 240, height: "auto" }}
               />
@@ -500,6 +419,25 @@ export default function LandingPage() {
                 <div style={{ fontSize: 15, lineHeight: 1.72 }}>
                   {passo.texto}
                 </div>
+                {passo.formatos && (
+                  <ul className="passo-formato" aria-label="Formatos aceitos">
+                    {passo.formatos.map((formato) => (
+                      <li key={formato}>{formato}</li>
+                    ))}
+                  </ul>
+                )}
+                {passo.selos && (
+                  <Cena as="ul" className="passo-selos">
+                    {DIVERGENCIAS.map((status) => {
+                      const selo = seloDoStatus(status);
+                      return (
+                        <li key={status}>
+                          <span className={`selo selo-${selo.tom}`}>{selo.rotulo}</span>
+                        </li>
+                      );
+                    })}
+                  </Cena>
+                )}
               </Reveal>
             ))}
           </div>
@@ -507,17 +445,24 @@ export default function LandingPage() {
               conferidas pelo Ledgr (os selos e os motivos são dele) */}
           <Reveal className="pratica">
             <p className="rotulo-parte rotulo-parte-ledgr">Na prática</p>
-            <h3 className="pratica-titulo">As mesmas duas telas, conferidas pelo Ledgr.</h3>
+            <h3 className="pratica-titulo titulo-misto">
+              As mesmas duas telas, <em>conferidas pelo Ledgr.</em>
+            </h3>
             <p className="pratica-texto">
               Os dois extratos de agosto lado a lado, como na conferência à mão. A diferença é que cada
               linha já vem marcada, e as que não batem vêm com o motivo.
             </p>
           </Reveal>
           <Reveal delay={0.1}>
-            <ExtratoComparacao banco={EXTRATO_BANCO} sistema={EXTRATO_SISTEMA} />
+            <JanelaDaConciliacao
+              banco={[...EXTRATO_BANCO, ...OUTRAS_BATIDAS]}
+              sistema={[...EXTRATO_SISTEMA, ...OUTRAS_BATIDAS]}
+              saldo={SALDO_DE_AGOSTO}
+              destaque="Pagamento fornecedor #1082"
+            />
           </Reveal>
           <Reveal delay={0.15}>
-            {/* dica de hover: as linhas divergentes do comparativo abrem detalhes */}
+            {/* dica de hover: as linhas da janela levam o lançamento ao painel */}
             <DicaDoMouse style={{ justifyContent: "center", margin: "22px 0 0" }}>
               <span className="so-mouse">Passe o mouse sobre as linhas</span>
               <span className="so-toque">Toque nas linhas</span> para ver os detalhes
@@ -537,7 +482,7 @@ export default function LandingPage() {
       >
         <div style={{ position: "relative", maxWidth: 1600, margin: "0 auto", padding: "clamp(64px, 9vw, 96px) clamp(20px, 4.2vw, 56px)" }}>
           <div className="por-dentro">
-            <PorDentro banco={EXTRATO_BANCO} sistema={EXTRATO_SISTEMA}>
+            <PorDentro>
               <h2 className="titulo-misto por-dentro-intro">
                 Cada lançamento, do extrato <em>ao seu sistema.</em>
               </h2>
@@ -548,16 +493,16 @@ export default function LandingPage() {
 
       {/* por que o Ledgr: as saídas de hoje e o Ledgr, pergunta por pergunta, depois que o produto
           já foi explicado. O link "Por que o Ledgr" do rodapé desce até aqui */}
-      <section id="por-que" className="onda onda-faixa-clara" style={{ background: "var(--color-surface)" }}>
-        <div style={{ maxWidth: 1600, margin: "0 auto", padding: "clamp(64px, 9vw, 96px) clamp(20px, 4.2vw, 56px)" }}>
-          <PorQueOLedgr />
-        </div>
-      </section>
+      <PorQueOLedgr />
+
+      {/* a conexão com o ChatGPT e o Claude, o diferencial, numa faixa escura antes da regra de ouro */}
+      <ConexaoIa />
 
       {/* regra de ouro */}
-      <section id="regra" className="onda onda-superficie">
+      <section id="regra" className="onda onda-escura">
         <div style={{ maxWidth: 1600, margin: "0 auto", padding: "clamp(64px, 9vw, 96px) clamp(20px, 4.2vw, 56px)" }}>
           <Reveal>
+            <Cena className="regra-cena">
             <InkHover
               className="regra-card"
               style={{
@@ -584,7 +529,11 @@ export default function LandingPage() {
               </div>
               <div>
                 <h2 className="titulo-misto" style={{ margin: "0 0 12px", fontSize: "clamp(26px, 2.4vw, 42px)" }}>
-                  O extrato do banco é sempre <em>a fonte da verdade.</em>
+                    O extrato do banco é sempre{" "}
+                  <em className="kin-sublinha">
+                    a fonte da verdade.
+                    <span className="kin-traco" aria-hidden="true" />
+                  </em>
                 </h2>
                 <p
                   style={{
@@ -602,6 +551,7 @@ export default function LandingPage() {
                 §
               </div>
             </InkHover>
+            </Cena>
           </Reveal>
         </div>
       </section>
@@ -625,7 +575,7 @@ export default function LandingPage() {
           aria-hidden="true"
           width={1000}
           height={1000}
-          sizes="480px"
+          sizes="(max-width: 760px) 280px, 480px"
           className="perguntas-marca"
           style={{ position: "absolute", bottom: 20, right: 24, width: 480, height: "auto", opacity: 0.04, pointerEvents: "none" }}
         />
@@ -638,7 +588,7 @@ export default function LandingPage() {
                 width={1000}
                 height={1000}
                 // o mesmo sizes da marca d'água desta seção, para a imagem baixar uma vez só
-                sizes="480px"
+                sizes="(max-width: 760px) 280px, 480px"
                 className="perguntas-mascote"
                 style={{ width: 180, height: "auto", display: "block" }}
               />
@@ -699,12 +649,12 @@ export default function LandingPage() {
           aria-hidden="true"
           width={1000}
           height={1000}
-          sizes="480px"
+          sizes="(max-width: 760px) 300px, 480px"
           className="preco-mascote"
         />
         <div className="preco-conteudo">
           <Precos banco={EXTRATO_BANCO} destaque="Pagamento fornecedor #1082" resumo={AGOSTO}>
-            <span className="eyebrow preco-capitulo">Cap. IV · Começar</span>
+            <span className="eyebrow preco-capitulo">Cap. V · Começar</span>
             <h2 className="titulo-misto preco-titulo">
               Preço fechado, <em>por volume.</em>
             </h2>

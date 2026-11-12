@@ -1,34 +1,42 @@
 "use client";
 
 import { useId, useState, type ReactNode } from "react";
+import { DOCUMENTACAO_DA_IA, NOME_DA_IA, type IaDaConexao } from "@/lib/conexao-ia";
+import { enderecoExterno } from "@/lib/rotas";
 import { MensagemErro } from "../../../../(auth)/_compartilhado/mensagem-erro";
 import { formatarDataHora } from "../dashboard/resumo";
 import { revogarConexaoMcp, type ConexaoMcp } from "./acoes";
 
-type Assistente = "chatgpt" | "claude";
+type Assistente = IaDaConexao;
 
-// Os passos de cada assistente (29/10). Os menus são do ChatGPT e do Claude, não nossos: mudam sem
-// aviso, e a nota embaixo diz isso. O Ledgr só aparece no passo 3, na tela /autorizar-conexao.
+// Os passos de cada assistente, pela documentação oficial de 11/11: no ChatGPT, o servidor entra pelos
+// Plugins (em 29/10 era pelo Modo desenvolvedor, que a ajuda da Central guarda para contas antigas). Os
+// menus são do ChatGPT e do Claude, não nossos: mudam sem aviso, e a nota embaixo leva à documentação de
+// cada um. O Ledgr só aparece no passo 3, na tela /autorizar-conexao.
 const PASSOS: Record<Assistente, ReactNode[]> = {
   chatgpt: [
-    <>No ChatGPT, abra <strong>Configurações › Apps e conectores › Avançado</strong> e ligue o <strong>Modo desenvolvedor</strong>. Ele só existe nos planos pagos.</>,
-    <>Volte a <strong>Apps e conectores</strong> e clique em <strong>Criar</strong>. Dê o nome <strong>Ledgr</strong>, cole o endereço do conector e escolha a autenticação <strong>OAuth</strong>.</>,
-    <>O ChatGPT abre o Ledgr: entre com a sua conta, escolha a empresa e clique em <strong>Autorizar</strong>.</>,
-    <>Numa conversa, ative o Ledgr nas ferramentas e pergunte.</>,
+    <>No ChatGPT, abra os <strong>Plugins</strong> (chatgpt.com/plugins), clique em <strong>+</strong> e escolha adicionar um servidor MCP personalizado.</>,
+    <>Dê o nome <strong>Ledgr</strong>, cole o endereço do conector, escolha a autenticação <strong>OAuth</strong>, confirme o aviso e crie o plugin.</>,
+    <>Quando o ChatGPT abrir o Ledgr, entre com a sua conta, escolha a empresa e clique em <strong>Autorizar</strong>.</>,
+    <>Numa conversa, digite <strong>@</strong>, escolha o Ledgr e pergunte.</>,
   ],
   claude: [
-    <>No Claude, abra <strong>Configurações › Conectores</strong> e clique em <strong>Adicionar conector personalizado</strong>.</>,
+    <>No Claude, abra <strong>Conectores</strong> e clique em <strong>Adicionar conector personalizado</strong>.</>,
     <>Dê o nome <strong>Ledgr</strong>, cole o endereço do conector e clique em <strong>Adicionar</strong>.</>,
     <>Clique em <strong>Conectar</strong>: o Claude abre o Ledgr. Entre com a sua conta, escolha a empresa e clique em <strong>Autorizar</strong>.</>,
-    <>Numa conversa, ative o Ledgr no menu de ferramentas e pergunte.</>,
+    <>Numa conversa, clique em <strong>+</strong>, abra <strong>Conectores</strong>, ligue o Ledgr e pergunte.</>,
   ],
 };
+
+const NOME = NOME_DA_IA;
+const DOCUMENTACAO = DOCUMENTACAO_DA_IA;
 
 // as perguntas que as ferramentas do backend (#136) respondem: resumo, divergências e fechamentos de um mês
 const EXEMPLOS = [
   "Como está a conciliação de outubro?",
   "Quantas divergências ainda faltam revisar em setembro?",
   "Setembro já foi fechado? Teve ressalva?",
+  "Compare as divergências de setembro e outubro.",
 ];
 
 /**
@@ -40,15 +48,17 @@ const EXEMPLOS = [
 export function PainelDeConexoes({ itens: iniciais, endereco }: { itens: ConexaoMcp[]; endereco: string | null }) {
   const [itens, setItens] = useState(iniciais);
   const [assistente, setAssistente] = useState<Assistente>("chatgpt");
-  const [copiado, setCopiado] = useState(false);
+  // o último texto copiado: o endereço ou o comando do Claude Code
+  const [copiado, setCopiado] = useState<string | null>(null);
+  const comando = endereco ? `claude mcp add --transport http ledgr ${endereco}` : null;
 
-  async function copiar() {
-    if (!endereco) return;
+  async function copiar(texto: string | null) {
+    if (!texto) return;
     try {
-      await navigator.clipboard.writeText(endereco);
-      setCopiado(true);
+      await navigator.clipboard.writeText(texto);
+      setCopiado(texto);
     } catch {
-      // sem permissão da área de transferência, o endereço continua à vista para copiar à mão
+      // sem permissão da área de transferência, o texto continua à vista para copiar à mão
     }
   }
 
@@ -68,7 +78,15 @@ export function PainelDeConexoes({ itens: iniciais, endereco }: { itens: Conexao
         <p className="conexao-texto conexao-texto-fraco">
           Ele lê o resumo de cada mês, as divergências (categoria, data, valor e situação) e os fechamentos. Nunca vê
           a descrição dos lançamentos, o texto das justificativas nem nomes de pessoas ou de arquivos. Só lê: não
-          concilia, não justifica e não fecha mês. Cada conexão lê uma empresa, e você revoga quando quiser.
+          concilia, não justifica e não fecha mês. Cada conexão lê uma empresa, a conta tem até 10 ativas, e você
+          revoga quando quiser.
+        </p>
+        <p className="conexao-texto conexao-texto-fraco">
+          {"O que ele lê passa para a sua conta do ChatGPT ou do Claude e fica sob as regras dela, como as de guardar as conversas. Veja a "}
+          <a href="/privacidade#conexao-ia" target="_blank" rel="noopener" className="link-animado">
+            Política de privacidade
+          </a>
+          .
         </p>
       </section>
 
@@ -78,8 +96,13 @@ export function PainelDeConexoes({ itens: iniciais, endereco }: { itens: Conexao
           <div className="conexao-endereco">
             <span className="conexao-endereco-rotulo">Endereço do conector</span>
             <code>{endereco}</code>
-            <button type="button" className="btn btn-secondary" onClick={copiar}>
-              {copiado ? "Copiado" : "Copiar"}
+            <button
+              type="button"
+              className="btn btn-secondary"
+              aria-label={copiado === endereco ? "Endereço do conector copiado" : "Copiar o endereço do conector"}
+              onClick={() => copiar(endereco)}
+            >
+              {copiado === endereco ? <span className="rotulo-troca">Copiado</span> : "Copiar"}
             </button>
           </div>
         )}
@@ -91,13 +114,56 @@ export function PainelDeConexoes({ itens: iniciais, endereco }: { itens: Conexao
             Claude
           </button>
         </div>
-        <ol className="conexao-passos" aria-label={`Passos no ${assistente === "chatgpt" ? "ChatGPT" : "Claude"}`}>
+        <ol className="conexao-passos" aria-label={`Passos no ${NOME[assistente]}`}>
           {PASSOS[assistente].map((passo, i) => (
             <li key={i}>{passo}</li>
           ))}
         </ol>
+        {assistente === "claude" && comando && (
+          <details className="recolhivel">
+            <summary className="recolhivel-titulo">
+              <span className="conexao-texto">Usa o Claude Code, no terminal?</span>
+            </summary>
+            <div className="conexao-parte">
+              <p className="conexao-texto">
+                Rode o comando abaixo. Depois, no Claude Code, digite <code>/mcp</code>, escolha o Ledgr e entre pelo
+                navegador. O Ledgr avisa que o pedido vem de um programa do seu computador: autorize só se foi você
+                quem rodou o comando agora.
+              </p>
+              <div className="conexao-endereco">
+                <span className="conexao-endereco-rotulo">Comando</span>
+                <code>{comando}</code>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  aria-label={copiado === comando ? "Comando copiado" : "Copiar o comando"}
+                  onClick={() => copiar(comando)}
+                >
+                  {copiado === comando ? <span className="rotulo-troca">Copiado</span> : "Copiar"}
+                </button>
+              </div>
+            </div>
+          </details>
+        )}
         <p className="conexao-texto conexao-texto-fraco">
-          Os nomes dos menus são do ChatGPT e do Claude e podem mudar. Só o admin e o gestor autorizam conexões.
+          {`Os nomes e o lugar dos menus são do ${NOME[assistente]} e mudam com o plano e com o tempo. Se não achar, siga a `}
+          <a
+            href={enderecoExterno(DOCUMENTACAO[assistente])}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="link-animado"
+          >
+            {`documentação do ${NOME[assistente]}`}
+          </a>
+          . Só o admin e o gestor autorizam conexões.
+        </p>
+        <p className="conexao-texto conexao-texto-fraco">
+          {"Exemplos de perguntas e o que fazer quando a conexão não funciona estão na "}
+          {/* em outra aba: as Configurações ficam abertas no passo em que a pessoa parou */}
+          <a href="/ajuda/conectar-ia#passo-a-passo" target="_blank" rel="noopener" className="link-animado">
+            Central de ajuda
+          </a>
+          .
         </p>
       </section>
 

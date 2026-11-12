@@ -1,4 +1,6 @@
-import { describe, it, expect } from "vitest";
+import { afterEach, describe, it, expect, vi } from "vitest";
+
+afterEach(() => vi.unstubAllEnvs());
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { MotionRoot } from "../reveal";
 import type { LinhaExtrato } from "./comparacao";
@@ -159,13 +161,16 @@ describe("Precos", () => {
     const folha = () => screen.getByRole("region", { name: /O seu plano é o|Vamos combinar/ });
     const arrastarPara = (passo: number) => fireEvent.change(medidor(), { target: { value: String(passo) } });
 
-    it("asks how many entries a month, and starts on the Padrão with its monthly price", () => {
+    it("asks how many entries a month, and starts on the Padrão with the free trial in place of a price", () => {
+      vi.stubEnv("NEXT_PUBLIC_LEDGR_COBRANCA", "1");
       renderPrecos();
       expect(screen.getByText(/Quantos lançamentos você/)).toBeInTheDocument();
       expect(medidor()).toHaveAttribute("aria-valuetext", "180 lançamentos por mês");
       expect(within(folha()).getByRole("heading", { name: "O seu plano é o Padrão." })).toBeInTheDocument();
-      expect(within(folha()).getByText("R$ 79,90")).toBeInTheDocument();
-      expect(within(folha()).getByText("14 dias grátis, sem cartão")).toBeInTheDocument();
+      // sem preço até os definitivos estarem no catálogo live (#302)
+      expect(within(folha()).getByText("14 dias grátis")).toBeInTheDocument();
+      expect(within(folha()).getByText("sem cartão")).toBeInTheDocument();
+      expect(folha().textContent).not.toMatch(/R\$/);
     });
 
     it("lights the mark of the plan for the volume, on the same four marks as the ruler", () => {
@@ -209,7 +214,9 @@ describe("Precos", () => {
     // com movimento reduzido (ou sem JavaScript), o globals.css mostra o fio inteiro por cima do recorte
     it("starts with the line undrawn, to be drawn as the page scrolls", () => {
       renderPrecos();
-      expect(document.querySelector<HTMLElement>(".preco-fio")!.style.clipPath).toBe("inset(0 0 100% 0)");
+      expect(document.querySelector<HTMLElement>(".preco-fio")!.style.clipPath).toMatch(
+        /^inset\(0(?:px)? 0(?:px)? 100%(?: 0(?:px)?)?\)$/,
+      );
     });
 
     it("keeps the sticky title in a box that ends with the cards, so it stops before the plan ruler", () => {

@@ -2,10 +2,12 @@ import type { SaldoDoExtrato } from "./adaptadores";
 import { chaveDaLinha } from "./rodadas";
 
 /**
- * As 7 categorias que o motor de conciliação do backend produz
- * (`StatusConciliacao` em `app/api/conciliacoes.py`, ADR-006/007/009).
+ * As 8 categorias que o motor de conciliação do backend produz
+ * (`StatusConciliacao` em `app/api/conciliacoes.py`, ADR-006/007/009/027).
  *
- * Só `match_exato` e `match_tolerancia` têm os dois lados preenchidos. As
+ * Só `match_exato` e `match_tolerancia` têm os dois lados preenchidos.
+ * `match_agrupado` (backend #131) é resolvido, mas cada lançamento do grupo é uma
+ * linha com uma ponta só, ligada às outras pelo `grupoId`. As
  * outras cinco descrevem **um** lançamento que não casou, e por quê: o backend
  * sub-classifica cada sobra olhando o outro extrato, mas não forma par. Ou
  * seja, `divergente_valor` quer dizer "achei algo nesta data e o valor não
@@ -14,6 +16,7 @@ import { chaveDaLinha } from "./rodadas";
 export type StatusLinha =
   | "match_exato"
   | "match_tolerancia"
+  | "match_agrupado"
   | "divergente_valor"
   | "divergente_data"
   | "duplicado"
@@ -63,6 +66,8 @@ export type Decisao = {
   /** Quem aprovou e quando (ISO 8601); só na aprovada. */
   aprovadaPor?: string;
   aprovadaEm?: string;
+  /** Do backend #174: se quem está logado pode desfazer a aprovação agora. Sem o campo, a tela decide pelo nome. */
+  podeDesfazerAprovacao?: boolean;
 };
 
 export type EventoDecisao = {
@@ -137,6 +142,10 @@ export type LinhaComparacao = {
   cronico?: MesCronico[];
   /** A causa em uma frase, destacada acima da explicação longa no detalhe. */
   causa?: string;
+  /** O lote do `match_agrupado` (backend #131): o mesmo em todos os lançamentos do grupo. */
+  grupoId?: string;
+  /** O resumo do grupo inteiro, não da página. Um dos lados tem sempre 1: o lançamento único. */
+  grupo?: { quantidadeBanco: number; quantidadeSistema: number; valorUnico: number; maiorDesvioDias: number };
 };
 
 export type Conciliacao = {

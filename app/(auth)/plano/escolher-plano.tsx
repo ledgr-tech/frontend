@@ -127,10 +127,6 @@ export function EscolherPlano() {
             <p className="plano-para">{detalhes.para}</p>
             {plano ? (
               <>
-                <p className="plano-preco">
-                  <span>{plano.preco}</span> <small>/mês</small>
-                </p>
-                <p className="plano-limite">{plano.limite}</p>
                 <ul className="plano-itens">
                   {detalhes.itens.map(([item, emBreve]) => (
                     <li key={item} data-depois={emBreve ? "" : undefined}>

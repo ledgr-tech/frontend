@@ -44,4 +44,13 @@ describe("conteudoDaAjuda", () => {
   it("a rota publica o mesmo JSON", async () => {
     expect(await GET().json()).toEqual(conteudo);
   });
+
+  it("as abas e as colunas entram no texto do assistente como passos", () => {
+    const pagina = conteudo.paginas.find((p) => p.id === "conectar-ia")!;
+    const passos = pagina.funcoes.find((f) => f.id === "passo-a-passo")!.passos!;
+    expect(passos).toHaveLength(14);
+    expect(passos[0]).toMatch(/^ChatGPT, Copie o endereço no Ledgr: .+ Deu certo quando /);
+    expect(pagina.funcoes.find((f) => f.id === "antes")!.passos![0]).toMatch(/^Ser administrador ou gestor: /);
+    expect(JSON.stringify(conteudo)).not.toContain("/ajuda/conectar-ia");
+  });
 });

@@ -1,6 +1,6 @@
-import type { Conciliacao, EventoDecisao, EventoHistorico, LinhaComparacao, TipoEvento } from "@/lib/mock-data";
+import type { Conciliacao, EventoDecisao, EventoHistorico, LinhaComparacao, Tom, TipoEvento } from "@/lib/mock-data";
 import { aguardaAprovacao } from "@/lib/aprovacao";
-import { estaResolvida, formatarDataHora } from "../../dashboard/resumo";
+import { estaResolvida, formatarDataHora, rotuloCurto, statusDaLinha } from "../../dashboard/resumo";
 
 /**
  * Onde cada linha está, do ponto de vista de quem concilia (spec
@@ -88,4 +88,23 @@ export function historicoDaLinha(linha: LinhaComparacao, rodada: number, executa
       : []),
     ...daRodada.map(doLedgr),
   ];
+}
+
+/**
+ * A cor do veredito da linha: a da categoria do motor, menos quando alguém já cuidou dela. A que espera
+ * aprovação é atenção (o mês não fecha com ela); a justificada e a conferida nesta rodada saem da cor da
+ * categoria. Uma regra só para a tabela e para o painel da comparação.
+ */
+export function tomDaLinha(linha: LinhaComparacao, rodada: number): Tom {
+  const situacao = situacaoDaLinha(linha, rodada);
+  if (situacao === "aguardando") return "atencao";
+  if (situacao === "conferida" || situacao === "justificada") return "neutro";
+  return statusDaLinha(linha).tom;
+}
+
+/** O selo do status da linha: o tom acima e o rótulo curto, ou "Justificada" / "Aguardando" quando alguém decidiu. */
+export function seloDaLinha(linha: LinhaComparacao, rodada: number): { tom: Tom; rotulo: string } {
+  const situacao = situacaoDaLinha(linha, rodada);
+  const rotulo = situacao === "justificada" ? "Justificada" : situacao === "aguardando" ? "Aguardando" : rotuloCurto(linha);
+  return { tom: tomDaLinha(linha, rodada), rotulo };
 }

@@ -19,7 +19,23 @@ export type FuncaoDaAjuda = {
   /** Como fazer, em passos. */
   passos?: string[];
   nota?: string;
-  imagem?: ImagemDaAjuda;
+  /** A figura da seção, em HTML (FiguraDaTela): o tamanho que `gravar.mjs --figuras` mostra, para reservar o espaço. */
+  figura?: { largura: number; altura: number };
+  /** O passo a passo com uma aba por IA (a página em destaque da conexão). */
+  abas?: AbaDoPasso[];
+  /** Colunas lado a lado, cada uma com título e texto. */
+  itens?: { titulo: string; texto: string }[];
+  /** Cada passo "Pergunta: resposta" vira uma sanfona, dividido no primeiro ": ". */
+  sanfona?: true;
+  /** Um link para outra página da Central, no fim da seção. Fica fora do texto do assistente. */
+  link?: { href: string; rotulo: string };
+};
+
+export type AbaDoPasso = {
+  id: "chatgpt" | "claude" | "claude-code";
+  rotulo: string;
+  /** `comando` mostra embaixo o `claude mcp add` com o endereço do conector. */
+  passos: { titulo: string; texto: string; certo: string; comando?: true }[];
 };
 
 export type PaginaDeAjuda = {
@@ -32,8 +48,19 @@ export type PaginaDeAjuda = {
   /** A tela inteira: capa do vídeo e referência da tela. */
   capa: ImagemDaAjuda;
   funcoes: FuncaoDaAjuda[];
-  /** shortcut: o vídeo entra quando houver gravação, um arquivo em public/ajuda/; sem ele, a capa diz "em breve". */
-  video?: string;
+  /** A tela tocando em HTML (demonstracao.tsx): o arquivo de public/ajuda/ que `gravar.mjs` gera; sem ele, a capa diz "em breve". */
+  demonstracao?: string;
+  /** No grupo "Destaque" do menu, acima das telas, e fora de anterior e próxima. */
+  destaque?: true;
+  /** Um vídeo feito em componente, no lugar da demonstração gravada e da capa. */
+  video?: "conexao-ia";
+};
+
+// o primeiro passo do ChatGPT e do Claude é o mesmo
+const COPIAR_O_ENDERECO = {
+  titulo: "Copie o endereço no Ledgr",
+  texto: "Abra **Configurações** (Ctrl e vírgula), vá em **Conexões** e clique em **Copiar** no Endereço do conector.",
+  certo: "o botão mostra “Copiado”.",
 };
 
 export const PAGINAS: PaginaDeAjuda[] = [
@@ -48,7 +75,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
       largura: 1360,
       altura: 850,
     },
-    video: "/ajuda/visao-geral.webm",
+    demonstracao: "/ajuda/visao-geral.json",
     funcoes: [
       {
         id: "primeiros-passos",
@@ -70,11 +97,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
           "Leia o cartão do mês no topo.",
           "Se houver pendências, clique em **Revisar** para ir direto a elas.",
         ],
-        imagem: {
-          src: "/ajuda/visao-geral--estado-do-mes.webp",
-          largura: 1000,
-          altura: 153,
-        },
+        figura: { largura: 961, altura: 306 },
       },
       {
         id: "atalhos",
@@ -85,12 +108,20 @@ export const PAGINAS: PaginaDeAjuda[] = [
           "Clique numa conciliação recente para abrir a comparação dela.",
         ],
         nota: "Quando nada pede decisão, a tela diz “Nada pede sua atenção agora.”",
-        imagem: {
-          src: "/ajuda/visao-geral--atalhos.webp",
-          largura: 1000,
-          altura: 214,
-        },
+        figura: { largura: 485, altura: 681 },
       },
+      // descomentar no dia em que o backend ligar ASSISTENTE_HABILITADO (#137)
+      // {
+      //   id: "assistente",
+      //   titulo: "Fale com o Ledgr",
+      //   faz: "Um assistente para tirar dúvidas de uso e sobre o mês aberto. Abre ao lado, em qualquer tela, pelo cartão **Fale com o Ledgr** no menu lateral.",
+      //   passos: [
+      //     "Clique em **Fale com o Ledgr**.",
+      //     "Escolha uma pergunta sugerida, como **Como fecho o mês?**, ou escreva a sua, com até 500 caracteres.",
+      //     "Leia a resposta. Quando vem da Central de ajuda, ela traz a marca de IA e as seções que usou, com link para abri-las.",
+      //   ],
+      //   nota: "Perguntas sobre os números do mês são respondidas pelo próprio Ledgr, com os dados da sua conta. As de como usar o app vão para a IA, que lê só os textos da Central de ajuda: a descrição dos seus lançamentos não é enviada. Se o assistente estiver indisponível, ele indica a Central de ajuda. Há um limite diário de perguntas.",
+      // },
     ],
   },
   {
@@ -104,7 +135,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
       largura: 1360,
       altura: 850,
     },
-    video: "/ajuda/extratos.webm",
+    demonstracao: "/ajuda/extratos.json",
     funcoes: [
       {
         id: "arquivos",
@@ -115,11 +146,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
           "Clique num arquivo para ver os detalhes no painel ao lado.",
           "Dê um duplo clique para abrir direto a conciliação do arquivo.",
         ],
-        imagem: {
-          src: "/ajuda/extratos--arquivos.webp",
-          largura: 781,
-          altura: 900,
-        },
+        figura: { largura: 613, altura: 624 },
       },
       {
         id: "filtros",
@@ -129,11 +156,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
           "Escolha **Todos**, **Do banco**, **Do sistema** ou **Com problema** no topo da lista.",
           "Em **Com problema**, o número entre parênteses diz quantos arquivos têm linhas não lidas.",
         ],
-        imagem: {
-          src: "/ajuda/extratos--filtros.webp",
-          largura: 1000,
-          altura: 80,
-        },
+        figura: { largura: 993, altura: 82 },
       },
       {
         id: "painel",
@@ -145,11 +168,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
           "Clique em **Ver conciliação** para abrir a comparação.",
         ],
         nota: "Quando o banco não manda o saldo no arquivo, o painel diz “Saldo não informado no arquivo”, e não R$ 0,00.",
-        imagem: {
-          src: "/ajuda/extratos--painel.webp",
-          largura: 352,
-          altura: 626,
-        },
+        figura: { largura: 344, altura: 690 },
       },
     ],
   },
@@ -164,7 +183,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
       largura: 1360,
       altura: 850,
     },
-    video: "/ajuda/conciliacoes.webm",
+    demonstracao: "/ajuda/conciliacoes.json",
     funcoes: [
       {
         id: "filtros",
@@ -174,11 +193,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
           "Escolha **Pedem decisão**, **Sem pendência**, **Mês fechado** ou **Todas** no topo da lista.",
           "Para ver tudo o que já rodou, clique em **Ver o histórico**.",
         ],
-        imagem: {
-          src: "/ajuda/conciliacoes--filtros.webp",
-          largura: 1000,
-          altura: 80,
-        },
+        figura: { largura: 993, altura: 82 },
       },
       {
         id: "fila",
@@ -214,7 +229,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
       largura: 1360,
       altura: 850,
     },
-    video: "/ajuda/nova-conciliacao.webm",
+    demonstracao: "/ajuda/nova-conciliacao.json",
     funcoes: [
       {
         id: "enviar",
@@ -224,12 +239,45 @@ export const PAGINAS: PaginaDeAjuda[] = [
           "Arraste ou escolha o extrato do banco: **OFX ou CSV** exportado do internet banking, até 4 MB.",
           "Arraste ou escolha o do sistema de gestão: um **CSV** com data, descrição e valor.",
         ],
-        nota: "PDF ainda não é aceito. O mês da conciliação é o do extrato do banco.",
-        imagem: {
-          src: "/ajuda/nova-conciliacao--enviar.webp",
-          largura: 1000,
-          altura: 213,
-        },
+        nota: "O PDF não entra direto: para ele, use **Importar via IA**. O mês da conciliação é o do extrato do banco.",
+        figura: { largura: 557, altura: 302 },
+      },
+      {
+        id: "exportar-banco",
+        titulo: "Exportar o extrato do banco",
+        faz: "O arquivo que você envia na folha do banco sai do internet banking do seu banco. Cada banco tem a sua tela, mas o caminho é parecido.",
+        passos: [
+          "Entre no internet banking e abra a tela de **Extrato**.",
+          "Escolha o período do mês inteiro, do primeiro ao último dia.",
+          "Use a opção de **exportar** ou **baixar** e escolha o formato **OFX** ou **CSV**.",
+          "Confira que o arquivo tem até 4 MB e envie na folha do banco.",
+        ],
+        nota: "O período do banco precisa ser o mesmo do relatório do sistema. Se o banco só oferece PDF, peça o OFX ou o CSV ao gerente.",
+      },
+      {
+        id: "exportar-sistema",
+        titulo: "Exportar o relatório do sistema de gestão",
+        faz: "O arquivo da folha do sistema é o relatório de lançamentos do mesmo mês, com data, descrição e valor de cada lançamento.",
+        passos: [
+          "No sistema de gestão, abra o relatório de **lançamentos** (movimentação financeira) do mesmo período do extrato.",
+          "Exporte em **CSV** e envie na folha do sistema.",
+          "Se o sistema só gera **PDF**, siga **Importar o PDF via IA**, logo abaixo.",
+        ],
+        nota: "Se o CSV vier num formato que o Ledgr não reconhece, ele pede para você apontar as colunas.",
+      },
+      {
+        id: "importar-via-ia",
+        titulo: "Importar o PDF do sistema via IA",
+        faz: "Quando o relatório do sistema só existe em PDF, você usa a IA que já tem (ChatGPT, Claude ou outra) para transformá-lo no arquivo do Ledgr. O Ledgr não usa nenhuma IA: ele só recebe o arquivo que você traz.",
+        passos: [
+          "Na Nova conciliação, clique em **Importar via IA**.",
+          "Clique em **Copiar prompt**, cole na IA e anexe o PDF do relatório.",
+          "Salve o que a IA devolver como arquivo JSON ou TXT, até 4 MB, e envie na folha do sistema.",
+          "Clique em **Importar e conferir**. Se o arquivo tiver erros, a tela lista cada um para você corrigir com a IA e enviar de novo.",
+          "Confira as linhas no rascunho: corrija, remova ou acrescente o que faltar.",
+          "Clique em **Confirmar** e envie o extrato do banco: o sistema já vem pronto, só falta o banco. Depois, **Conciliar extratos**.",
+        ],
+        nota: "Nada entra no Ledgr antes de você confirmar, e a conferência final é sua: confira as linhas com o relatório original. O rascunho não confirmado expira depois de alguns dias.",
       },
       {
         id: "conciliar",
@@ -239,11 +287,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
           "Clique em **Conciliar extratos**.",
           "Espere a comparação abrir.",
         ],
-        imagem: {
-          src: "/ajuda/nova-conciliacao--conciliar.webp",
-          largura: 231,
-          altura: 76,
-        },
+        figura: { largura: 362, altura: 64 },
       },
       {
         id: "apontar-colunas",
@@ -269,7 +313,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
       largura: 1360,
       altura: 850,
     },
-    video: "/ajuda/comparacao.webm",
+    demonstracao: "/ajuda/comparacao.json",
     funcoes: [
       {
         id: "resumo",
@@ -279,18 +323,14 @@ export const PAGINAS: PaginaDeAjuda[] = [
           "Leia o resumo antes da lista.",
           "Clique numa categoria para ver só as linhas dela.",
         ],
-        imagem: {
-          src: "/ajuda/comparacao--resumo.webp",
-          largura: 1000,
-          altura: 173,
-        },
+        figura: { largura: 638, altura: 331 },
       },
       {
         id: "saldo",
         titulo: "O saldo do extrato",
-        faz: "Uma faixa acima do resumo mostra o saldo inicial e o final do extrato do banco, quando o arquivo traz.",
+        faz: "O saldo inicial e o final do extrato do banco aparecem no pé do painel da direita, quando o arquivo traz. Em telas estreitas, ficam acima do resumo.",
         passos: ["Confira o saldo final com o do internet banking."],
-        nota: "Se há linhas não lidas, a faixa avisa que o saldo inicial depende delas em vez de calcular um número errado.",
+        nota: "Se há linhas não lidas, o saldo inicial depende delas.",
       },
       {
         id: "filtros",
@@ -301,11 +341,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
           "Clique no nome de uma coluna para ordenar por ela.",
           "Em **Padrão** ou **Compacta**, deixe as linhas mais espaçadas ou mais juntas.",
         ],
-        imagem: {
-          src: "/ajuda/comparacao--filtros.webp",
-          largura: 527,
-          altura: 69,
-        },
+        figura: { largura: 498, altura: 62 },
       },
       {
         id: "conferir",
@@ -314,18 +350,53 @@ export const PAGINAS: PaginaDeAjuda[] = [
         passos: [
           "Clique no círculo da coluna **Conferida** na linha que você já olhou.",
         ],
-        imagem: {
-          src: "/ajuda/comparacao--conferir.webp",
-          largura: 136,
-          altura: 62,
-        },
+        figura: { largura: 638, altura: 160 },
+      },
+      {
+        id: "painel",
+        titulo: "Lançamento em foco",
+        faz: "O painel da direita mostra data, descrição e valor de cada lado, com a diferença entre os dois.",
+        passos: [
+          "Passe o mouse sobre uma linha. O detalhe da linha aparece no painel.",
+          "Clique numa linha para fixar. Clique nela de novo para soltar.",
+        ],
+        nota: "Em telas estreitas, passe o mouse sobre uma divergência para ver o balão ou clique na descrição para abrir a janela.",
+        figura: { largura: 331, altura: 682 },
+      },
+      {
+        id: "voltar-ao-topo",
+        titulo: "Voltar ao topo do extrato",
+        faz: "Volta ao início da comparação.",
+        passos: ["Clique em **Voltar ao topo do extrato** no pé do painel."],
+      },
+      {
+        id: "justificar",
+        titulo: "Justificar",
+        faz: "Uma divergência com explicação não precisa travar o fechamento. A decisão vai para o relatório do mês.",
+        passos: [
+          "Escolha uma divergência e clique em **Justificar** no painel. Em telas estreitas, clique na descrição da linha.",
+          "Escreva o motivo e clique em **Justificar**.",
+          "Para voltar atrás, clique em **Desfazer justificativa** no mesmo lugar.",
+        ],
+        nota: "Fica no registro com o seu nome e o horário. Desfazer depois gera um novo registro.",
+        figura: { largura: 305, altura: 508 },
+      },
+      {
+        id: "explicar",
+        titulo: "Explicar esta divergência",
+        faz: "O Ledgr explica, em linguagem simples, por que a linha não casou.",
+        passos: [
+          "Escolha uma divergência e clique em **Explicar esta divergência** quando o botão aparecer. Em telas estreitas, abra o detalhe.",
+          "Leia o provável motivo e confira no seu sistema de gestão antes de decidir.",
+        ],
+        nota: "A explicação ajuda a entender a divergência; quem decide é você.",
       },
       {
         id: "abrir-linha",
         titulo: "Abrir uma linha",
         faz: "Abre o detalhe da linha num painel ao lado, sem sair da comparação.",
         passos: [
-          "Dê um duplo clique na linha.",
+          "Clique em **Abrir detalhe** no painel ou dê um duplo clique na linha.",
           "Para ver maior, clique em **Abrir em página inteira**.",
         ],
       },
@@ -335,14 +406,11 @@ export const PAGINAS: PaginaDeAjuda[] = [
         faz: "Cada extrato do sistema conciliado com o mesmo extrato do banco vira uma rodada. A linha das rodadas mostra qual vale.",
         passos: [
           "Corrija o que divergiu no sistema de gestão e exporte um CSV novo.",
-          "Clique em **Enviar nova versão**, no topo da comparação.",
+          "Clique em **Enviar nova versão**, no topo da comparação. Abre a tela com o extrato do banco mantido e a folha do sistema vazia.",
+          "Solte o arquivo corrigido (CSV ou JSON) na folha do sistema e clique em **Conciliar de novo**. Só tem o PDF? **Gerar JSON com IA** dá o prompt.",
           "A comparação abre na rodada nova.",
         ],
-        imagem: {
-          src: "/ajuda/comparacao--rodadas-linha.webp",
-          largura: 139,
-          altura: 54,
-        },
+        figura: { largura: 251, altura: 54 },
       },
       {
         id: "mes-fechado",
@@ -352,12 +420,27 @@ export const PAGINAS: PaginaDeAjuda[] = [
           "Clique em **Ver o fechamento**.",
           "Reabra o mês em Fechamentos para mexer de novo.",
         ],
-        imagem: {
-          src: "/ajuda/comparacao--mes-fechado.webp",
-          largura: 1000,
-          altura: 67,
-        },
+        figura: { largura: 630, altura: 83 },
       },
+      // descomentar no dia em que o backend ligar AGRUPAMENTO_HABILITADO (#131)
+      // {
+      //   id: "agrupamento",
+      //   titulo: "Agrupamento por soma",
+      //   faz: "Quando um lançamento de um lado é a soma de vários do outro, como um lote pago de uma vez, os lançamentos aparecem juntos, sob uma linha que resume o lote, e já entram como conciliados.",
+      //   passos: ["Os lançamentos do lote ficam seguidos na comparação, com o lançamento único primeiro."],
+      //   nota: "O Ledgr agrupa automaticamente um lançamento de um lado com vários do outro quando a soma bate exatamente, ao centavo, e as datas estão dentro da tolerância de data da empresa. Não agrupa quando há mais de uma combinação possível, quando a soma tem diferença de um centavo que seja (tarifa, desconto, juros, retenção ou taxa de maquininha), quando os lançamentos têm sinais diferentes ou quando um pagamento individual do banco já casou com um lançamento do lote. Esses casos continuam como divergência para você justificar.",
+      // },
+      // descomentar no dia em que o backend ligar APROVACAO_JUSTIFICATIVAS_HABILITADA (#132)
+      // {
+      //   id: "aprovar-em-lote",
+      //   titulo: "Aprovar ou rejeitar várias justificativas",
+      //   faz: "O administrador e o gestor decidem várias justificativas aguardando aprovação de uma vez, sem abrir linha por linha.",
+      //   passos: [
+      //     "No filtro, escolha **Aguardando aprovação**. A última coluna vira caixas de marcar.",
+      //     "Marque as linhas, ou a caixa do topo para marcar todas, e use os botões de aprovar ou rejeitar as marcadas. Rejeitar pede um motivo, opcional.",
+      //   ],
+      //   nota: "Vale até 500 linhas por vez. Trocar de filtro limpa a seleção.",
+      // },
     ],
   },
   {
@@ -371,7 +454,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
       largura: 1360,
       altura: 850,
     },
-    video: "/ajuda/detalhe-da-linha.webm",
+    demonstracao: "/ajuda/detalhe-da-linha.json",
     funcoes: [
       {
         id: "lados",
@@ -381,39 +464,51 @@ export const PAGINAS: PaginaDeAjuda[] = [
           "Compare os dois lados.",
           "Veja em **Data no sistema** e **Descrição no sistema** o que precisa ser corrigido lá.",
         ],
-        imagem: {
-          src: "/ajuda/detalhe-da-linha--lados.webp",
-          largura: 543,
-          altura: 452,
-        },
+        figura: { largura: 535, altura: 444 },
       },
       {
         id: "motivo",
         titulo: "O provável motivo",
-        faz: "Quando a conciliação roda, o Ledgr lê os dois lados de cada divergência e explica, em linguagem simples, por que a linha não casou.",
+        // ponytail: o texto de hoje, com a IA desligada em produção (o "Explicar" devolve o texto padrão do Ledgr).
+        // No dia em que ela ligar (backend #140, depois da política revisada em #190/#197), volta este:
+        //   faz: "Quando a conciliação roda, o Ledgr lê os dois lados de cada divergência e explica, em linguagem simples, por que a linha não casou.",
+        //   passos: [
+        //     "Abra a linha e leia a explicação, marcada como “Gerada por IA”.",
+        //     "Se a explicação ainda não estiver pronta, clique em **Explicar esta divergência**.",
+        //     "Confira no seu sistema de gestão antes de decidir.",
+        //   ],
+        //   nota: "Dados resumidos de cada divergência são enviados à OpenAI ao conciliar; linhas conciliadas não são. A IA explica; quem decide é você.",
+        faz: "O Ledgr explica, em linguagem simples, por que a linha não casou.",
         passos: [
-          "Abra a linha e leia a explicação, marcada como “Gerada por IA”.",
-          "Se a explicação ainda não estiver pronta, clique em **Explicar esta divergência**.",
-          "Confira no seu sistema de gestão antes de decidir.",
+          "Abra a linha e clique em **Explicar esta divergência**.",
+          "Leia o provável motivo e confira no seu sistema de gestão antes de decidir.",
         ],
-        nota: "Dados resumidos de cada divergência são enviados à OpenAI ao conciliar; linhas conciliadas não são. A IA explica; quem decide é você.",
-        imagem: {
-          src: "/ajuda/detalhe-da-linha--motivo.webp",
-          largura: 543,
-          altura: 260,
-        },
+        nota: "A explicação ajuda a entender a divergência; quem decide é você.",
+        figura: { largura: 535, altura: 273 },
       },
       {
         id: "decidir",
-        titulo: "Conferir ou justificar",
-        faz: "Uma divergência com explicação não precisa travar o fechamento. A decisão vai para o relatório do mês.",
+        // o detalhe só mostra a decisão: conferir, justificar e desfazer ficam na comparação (#370)
+        titulo: "O que foi decidido",
+        faz: "O detalhe mostra a decisão da linha e o histórico dela. Conferir, justificar e desfazer ficam na comparação.",
         passos: [
-          "Clique em **Marcar como conferida** se você já olhou e vai corrigir no sistema.",
-          "Ou clique em **Justificar** e escreva o motivo, por exemplo “tarifa cobrada no dia seguinte”.",
-          "Para voltar atrás, use **Desfazer justificativa**.",
+          "Veja no alto da tela se a linha está justificada.",
+          "Abra o histórico do lançamento para ver cada evento, quem fez e quando.",
+          "Para decidir, volte à comparação: o círculo da coluna **Conferida** marca a linha, e **Justificar** e **Desfazer justificativa** ficam no painel dela. Em telas estreitas, clique na descrição da linha.",
         ],
-        nota: "Abaixo fica o histórico da linha: cada evento, quem fez e quando.",
       },
+      // descomentar no dia em que o backend ligar APROVACAO_JUSTIFICATIVAS_HABILITADA (#132)
+      // {
+      //   id: "aprovacao",
+      //   titulo: "Aprovar ou rejeitar uma justificativa",
+      //   faz: "Quem justifica escreve o motivo, e a linha fica **aguardando aprovação**. O administrador e o gestor leem o motivo e decidem.",
+      //   passos: [
+      //     "Abra a linha aguardando aprovação e leia o motivo.",
+      //     "Clique em **Aprovar** para aceitar, ou em **Rejeitar** para devolver a linha, com um motivo se quiser.",
+      //     "Para voltar atrás numa aprovação, clique em **Desfazer aprovação…**.",
+      //   ],
+      //   nota: "Enquanto aguarda, a linha continua pedindo decisão e não conta como justificada. O analista vê que a justificativa aguarda e ainda pode desfazê-la, mas não aprova nem rejeita. Quem pode desfazer uma aprovação é decidido pelo Ledgr conforme o papel e quem aprovou.",
+      // },
     ],
   },
   {
@@ -427,7 +522,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
       largura: 1360,
       altura: 850,
     },
-    video: "/ajuda/fechamentos.webm",
+    demonstracao: "/ajuda/fechamentos.json",
     funcoes: [
       {
         id: "meses",
@@ -437,11 +532,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
           "Filtre por **Todos**, **Prontos para fechar**, **Com pendência** ou **Fechados**.",
           "Clique no mês que quer fechar.",
         ],
-        imagem: {
-          src: "/ajuda/fechamentos--meses.webp",
-          largura: 388,
-          altura: 669,
-        },
+        figura: { largura: 327, altura: 664 },
       },
       {
         id: "o-que-falta",
@@ -451,11 +542,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
           "Veja o que ainda não está pronto no painel do mês.",
           "Clique em **Revisar pendências** para ir até elas.",
         ],
-        imagem: {
-          src: "/ajuda/fechamentos--o-que-falta.webp",
-          largura: 744,
-          altura: 543,
-        },
+        figura: { largura: 630, altura: 723 },
       },
       {
         id: "fechar",
@@ -467,6 +554,18 @@ export const PAGINAS: PaginaDeAjuda[] = [
         ],
         nota: "Só o administrador e o gestor fecham e reabrem o mês. Mês fechado trava a comparação: ninguém confere, justifica ou concilia de novo até reabrir.",
       },
+      // descomentar no dia em que o backend ligar APROVACAO_JUSTIFICATIVAS_HABILITADA (#132)
+      // {
+      //   id: "aprovar-justificativas",
+      //   titulo: "Aprovar as justificativas",
+      //   faz: "Com a aprovação ligada, uma justificativa escrita fica **aguardando aprovação** até o administrador ou o gestor decidir. O mês não fecha enquanto houver alguma aguardando, nem com ressalva.",
+      //   passos: [
+      //     "No painel do mês, veja o passo **Aprovar as N justificativas**.",
+      //     "Clique em **Aprovar as N justificativas** para aprovar todas de uma vez, ou em **Rejeitar…** para devolvê-las, com um motivo se quiser.",
+      //     "Para decidir uma a uma, abra a conciliação pelo filtro **Aguardando aprovação**.",
+      //   ],
+      //   nota: "Só o administrador e o gestor aprovam e rejeitam. Uma justificativa rejeitada volta a ser divergência, com o motivo no histórico da linha. Em **Fechar mesmo assim** a ressalva não libera justificativa aguardando: aprove ou rejeite antes.",
+      // },
       {
         id: "reabrir",
         titulo: "Reabrir o mês",
@@ -475,11 +574,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
           "Abra o mês fechado.",
           "Clique em **Reabrir** com o nome do mês, por exemplo **Reabrir agosto**.",
         ],
-        imagem: {
-          src: "/ajuda/fechamentos--reabrir.webp",
-          largura: 744,
-          altura: 609,
-        },
+        figura: { largura: 630, altura: 754 },
       },
       {
         id: "relatorio",
@@ -490,11 +585,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
           "O relatório abre numa nova aba com a impressão do navegador. Escolha **Salvar como PDF**.",
           "Para a planilha, clique em **Exportar CSV**. Ela abre no Excel com os acentos certos.",
         ],
-        imagem: {
-          src: "/ajuda/fechamentos--fechar.webp",
-          largura: 744,
-          altura: 687,
-        },
+        figura: { largura: 286, altura: 201 },
       },
     ],
   },
@@ -508,17 +599,13 @@ export const PAGINAS: PaginaDeAjuda[] = [
       largura: 1360,
       altura: 850,
     },
-    video: "/ajuda/historico.webm",
+    demonstracao: "/ajuda/historico.json",
     funcoes: [
       {
         id: "grafico",
         titulo: "Como os meses andaram",
         faz: "O gráfico mostra quanto bateu em cada mês.",
-        imagem: {
-          src: "/ajuda/historico--grafico.webp",
-          largura: 1000,
-          altura: 282,
-        },
+        figura: { largura: 961, altura: 284 },
       },
       {
         id: "lista",
@@ -553,7 +640,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
       largura: 1360,
       altura: 850,
     },
-    video: "/ajuda/empresas.webm",
+    demonstracao: "/ajuda/empresas.json",
     funcoes: [
       {
         id: "lista",
@@ -611,11 +698,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
           "Para desistir de um convite, clique nele em **Convites pendentes** e depois em **Cancelar convite**.",
         ],
         nota: "Só o administrador troca papéis e passa a administração, e remove pessoas. Quem acabou de receber a administração vê os controles na hora. O analista vê a lista, concilia e justifica, mas não fecha o mês nem convida ninguém. Os convites pendentes contam no limite de pessoas do plano.",
-        imagem: {
-          src: "/ajuda/empresas--equipe.webp",
-          largura: 1360,
-          altura: 850,
-        },
+        figura: { largura: 961, altura: 501 },
       },
     ],
   },
@@ -630,12 +713,12 @@ export const PAGINAS: PaginaDeAjuda[] = [
       largura: 1360,
       altura: 850,
     },
-    video: "/ajuda/configuracoes.webm",
+    demonstracao: "/ajuda/configuracoes.json",
     funcoes: [
       {
         id: "abrir",
         titulo: "Abrir e procurar",
-        faz: "As configurações abrem numa janela por cima da tela em que você está, com as seções à esquerda: Conta, Aparência, Conciliação, API (para o admin e o gestor), Atalhos de teclado, Privacidade e Sobre.",
+        faz: "As configurações abrem numa janela por cima da tela em que você está, com as seções à esquerda: Conta, Aparência, Conciliação, API e Conexões (para o admin e o gestor), Atalhos de teclado, Privacidade e Sobre.",
         passos: [
           "Clique no seu nome no menu lateral e em **Configurações**, ou aperte **Ctrl** e **,**.",
           "Escolha a seção, ou digite em **Procurar** o que quer mudar, por exemplo “senha”.",
@@ -651,11 +734,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
           "Abra o link que chega no e-mail novo e clique em **Confirmar e-mail novo**. Ele vale por 60 minutos.",
         ],
         nota: "O e-mail só muda quando você confirma pelo link; depois, as sessões abertas são encerradas e você entra com o e-mail novo. Quem entra só com o Google não tem senha no Ledgr, então não vê Trocar senha nem Trocar e-mail: o e-mail é o da conta Google.",
-        imagem: {
-          src: "/ajuda/configuracoes--conta.webp",
-          largura: 960,
-          altura: 640,
-        },
+        figura: { largura: 960, altura: 640 },
       },
       {
         id: "tolerancia",
@@ -667,11 +746,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
           "Clique em **Salvar**.",
         ],
         nota: "Vale a partir da próxima conciliação. Com 0, só casam lançamentos do mesmo dia.",
-        imagem: {
-          src: "/ajuda/configuracoes--tolerancia.webp",
-          largura: 960,
-          altura: 640,
-        },
+        figura: { largura: 960, altura: 640 },
       },
       {
         id: "api",
@@ -685,6 +760,19 @@ export const PAGINAS: PaginaDeAjuda[] = [
         ],
         nota: "A chave aparece uma vez só. Se perder, revogue e crie outra. A conta tem no máximo 10 chaves ativas, e os links de documentação (OpenAPI e llms.txt) ficam no alto da seção.",
       },
+      // o passo a passo completo mora na página em destaque "conectar-ia", no fim de PAGINAS
+      {
+        id: "conexoes",
+        titulo: "Conectar o ChatGPT ou o Claude",
+        faz: "Deixa o ChatGPT ou o Claude consultar o Ledgr numa conversa, só para ler: o resumo de cada mês, as conciliações, as divergências e os fechamentos de uma empresa. Só o administrador e o gestor veem esta seção e autorizam conexões.",
+        passos: [
+          "Abra **Conexões** e clique em **Copiar** no **Endereço do conector**.",
+          "Siga o passo a passo da página **Conectar o ChatGPT ou o Claude** da Central: um para o ChatGPT, um para o Claude e um para o Claude Code.",
+          "Para cortar o acesso, clique em **Revogar** na conexão e confirme.",
+        ],
+        nota: "A conexão só lê: não confere, não justifica, não fecha mês e não muda nada no Ledgr. Cada uma lê uma empresa, e a conta tem até 10 ativas. O que a IA lê passa para a sua conta do ChatGPT ou do Claude e fica sob as regras dela, como explica a Política de privacidade.",
+        link: { href: "/ajuda/conectar-ia", rotulo: "Ver o passo a passo completo" },
+      },
       {
         id: "aparencia",
         titulo: "Aparência",
@@ -694,11 +782,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
           "Em **Densidade das tabelas**, escolha **Padrão** ou **Compacta**.",
           "Em **Menu lateral**, deixe **Aberto** ou **Recolhido**. O atalho é Ctrl e B.",
         ],
-        imagem: {
-          src: "/ajuda/configuracoes--aparencia.webp",
-          largura: 960,
-          altura: 640,
-        },
+        figura: { largura: 960, altura: 640 },
       },
     ],
   },
@@ -727,7 +811,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
       //   titulo: "Assinar um plano",
       //   faz: "Assina um plano com cartão, pela página de pagamento da Stripe. Só o administrador da conta assina.",
       //   passos: [
-      //     "Escolha o período e clique em **Assinar** no plano que quer.",
+      //     "Escolha o período, clique na folha do plano que quer e em **Assinar**, no painel ao lado.",
       //     "Pague na página da Stripe. Ao voltar, a tela confirma a assinatura em alguns segundos.",
       //   ],
       //   nota: "Assinando durante o teste, a cobrança só acontece quando ele acaba. Nas últimas 48 horas do teste, ou depois dele, a cobrança é feita na hora.",
@@ -736,12 +820,12 @@ export const PAGINAS: PaginaDeAjuda[] = [
       //   id: "periodo",
       //   titulo: "Período e desconto",
       //   faz: "Os planos podem ser pagos por mês ou por ano; em **Ver outros períodos** aparecem o trimestral e o semestral. Cada cartão mostra o preço do período, quanto dá por mês e o desconto em relação ao mensal.",
-      //   passos: ["Clique no período acima dos planos para trocar os preços."],
+      //   passos: ["Clique no período acima das folhas para trocar os preços."],
       // },
       {
         id: "plano",
         titulo: "Plano atual e faturas",
-        faz: "O plano em uso, quantas contas e lançamentos ele cobre, os outros planos e a lista de faturas, com competência, vencimento, valor, situação e recibo.",
+        faz: "O plano em uso, os outros planos e a lista de faturas, com competência, vencimento, valor, situação e recibo.",
         passos: [
           "Para trocar de plano, clique em **Mudar para** no plano que quer.",
         ],
@@ -756,6 +840,95 @@ export const PAGINAS: PaginaDeAjuda[] = [
           "Leia até quando o acesso continua e confirme, ou clique em **Manter assinatura**.",
         ],
         nota: "A cobrança ainda não está no ar: nada é cancelado por aqui.",
+      },
+    ],
+  },
+  // a conexão (#136) respondia em produção em 11/11 (OAuth publicado, /mcp com 401); os menus do ChatGPT e do Claude seguem
+  // a documentação oficial daquele dia (#362), a mesma do painel de Conexões. Os textos são do canvas aprovado em 11/11
+  // (docs/superpowers/plans/anexos/2026-11-11-conexao-ia/central.dc.html)
+  {
+    id: "conectar-ia",
+    titulo: "Conectar o ChatGPT ou o Claude",
+    onde: "Configurações › Conexões · admin e gestor",
+    serve: "Ligue o Ledgr na sua IA uma vez e pergunte sobre os meses da empresa em português: quanto está conciliado, quantas divergências faltam, se o mês já fechou. A conexão só lê.",
+    capa: { src: "/mascotes/mascote-conexao.webp", largura: 1966, altura: 794 },
+    destaque: true,
+    video: "conexao-ia",
+    funcoes: [
+      {
+        id: "antes",
+        titulo: "Antes de começar",
+        faz: "Três coisas para ter à mão antes de conectar.",
+        itens: [
+          { titulo: "Ser administrador ou gestor", texto: "Só eles veem **Conexões** e autorizam. O analista pede a um deles." },
+          { titulo: "Uma conta do ChatGPT ou do Claude", texto: "No Claude gratuito cabe um conector personalizado. No Team e no Enterprise, o dono da organização adiciona antes." },
+          { titulo: "O Ledgr aberto em outra aba", texto: "Para copiar o endereço e entrar quando a IA pedir. O pedido vale 10 minutos." },
+        ],
+      },
+      {
+        id: "passo-a-passo",
+        titulo: "Passo a passo",
+        faz: "Escolha a sua IA. Cada passo diz quando deu certo.",
+        abas: [
+          {
+            id: "chatgpt",
+            rotulo: "ChatGPT",
+            passos: [
+              COPIAR_O_ENDERECO,
+              { titulo: "Abra os Plugins do ChatGPT", texto: "Em chatgpt.com/plugins, clique em **+** e escolha adicionar um servidor MCP personalizado. Sem Plugins na conta? Abra **Configurações** › **Apps e conectores** › **Avançado** e ligue o **Modo desenvolvedor**.", certo: "aparece o formulário do servidor." },
+              { titulo: "Preencha e crie", texto: "Nome: **Ledgr**. Cole o endereço, escolha a autenticação **OAuth**, confirme o aviso e crie o plugin.", certo: "o ChatGPT abre uma janela do Ledgr." },
+              { titulo: "Autorize no Ledgr", texto: "Entre com a sua conta, escolha a empresa e clique em **Autorizar**. Uma conexão lê uma empresa só.", certo: "você volta ao ChatGPT e a conexão aparece em Configurações › Conexões." },
+              { titulo: "Pergunte", texto: "Numa conversa, digite **@**, escolha o Ledgr e pergunte sobre um mês.", certo: "a conversa mostra que a IA usou o Ledgr." },
+            ],
+          },
+          {
+            id: "claude",
+            rotulo: "Claude",
+            passos: [
+              COPIAR_O_ENDERECO,
+              { titulo: "Abra os Conectores do Claude", texto: "Nas configurações do Claude, abra **Conectores** e clique em **Adicionar conector personalizado**.", certo: "aparece o formulário do conector." },
+              { titulo: "Preencha e conecte", texto: "Nome: **Ledgr**. Cole o endereço, clique em **Adicionar** e depois em **Conectar**.", certo: "o Claude abre uma janela do Ledgr." },
+              { titulo: "Autorize no Ledgr", texto: "Entre com a sua conta, escolha a empresa e clique em **Autorizar**. Uma conexão lê uma empresa só.", certo: "o Ledgr aparece conectado no Claude e em Configurações › Conexões." },
+              { titulo: "Pergunte", texto: "Numa conversa, clique em **+**, abra **Conectores**, ligue o Ledgr e pergunte sobre um mês.", certo: "a conversa mostra que a IA usou o Ledgr." },
+            ],
+          },
+          {
+            id: "claude-code",
+            rotulo: "Claude Code",
+            passos: [
+              { titulo: "Adicione o Ledgr pelo terminal", texto: "Rode o comando abaixo. Ele também está em **Configurações** › **Conexões**, pronto para copiar.", certo: "o comando termina sem erro.", comando: true },
+              { titulo: "Entre pelo navegador", texto: "No Claude Code, digite **/mcp**, escolha o Ledgr e entre. O navegador abre o Ledgr.", certo: "aparece a tela de autorização do Ledgr." },
+              { titulo: "Autorize no Ledgr", texto: "Escolha a empresa e clique em **Autorizar**. O aviso de programa no seu computador é esperado aqui.", certo: "o /mcp mostra o Ledgr conectado." },
+              { titulo: "Pergunte", texto: "Pergunte sobre um mês em português, no próprio terminal.", certo: "a resposta cita o Ledgr." },
+            ],
+          },
+        ],
+        nota: "Os menus são do ChatGPT e do Claude e mudam com o plano e com o tempo. Se um nome não bater, veja a ajuda de cada um.",
+      },
+      {
+        id: "perguntar",
+        titulo: "O que perguntar",
+        faz: "Com o Ledgr ligado na conversa, pergunte em português sobre os meses da empresa conectada. Por exemplo: “Como está a conciliação de outubro?”, “Quantas divergências ainda faltam revisar em setembro?”, “Setembro já foi fechado? Teve ressalva?” ou “Compare as divergências de setembro e outubro.”",
+        itens: [
+          { titulo: "A IA lê", texto: "O resumo de cada mês, as conciliações, as divergências (categoria, data, valor e situação) e os fechamentos." },
+          { titulo: "A IA nunca vê", texto: "A descrição dos lançamentos, o texto das justificativas e das ressalvas e o nome de quem usa o Ledgr. Por isso, “qual é a descrição deste lançamento?” ou “quem justificou?” ficam sem resposta." },
+        ],
+        nota: "As respostas são da IA e podem errar: confira os números no Ledgr antes de decidir.",
+      },
+      {
+        id: "problemas",
+        titulo: "Quando não funciona",
+        faz: "Os problemas mais comuns ao conectar ou ao perguntar, e o que fazer em cada um.",
+        sanfona: true,
+        passos: [
+          "A IA respondeu sem consultar o Ledgr: a conversa mostra quando ela usa um conector. Se não mostrar, ligue o Ledgr na conversa e peça “use o Ledgr” na pergunta.",
+          "A IA diz que não tem acesso ao Ledgr: a conexão foi revogada ou caiu. Conecte de novo pela IA e autorize outra vez.",
+          "O Ledgr não mostra **Autorizar**: só o administrador e o gestor autorizam conexões. Peça a um deles.",
+          "O Ledgr recusa porque a conta já tem 10 conexões: revogue em **Conexões** uma que não usa mais e tente de novo.",
+          "Aparece “Pedido indisponível”: o pedido vale por 10 minutos e serve uma vez. Comece de novo pela IA.",
+          "Não acha onde adicionar o Ledgr: os menus mudam com o plano e com o tempo. No Claude gratuito cabe um conector personalizado só, e no Team ou no Enterprise o dono da organização adiciona o conector antes. Em contas do ChatGPT sem **Plugins**, o caminho é **Configurações** › **Apps e conectores** › **Avançado**, com o **Modo desenvolvedor** ligado.",
+          "Para desligar: clique em **Revogar** em **Configurações** › **Conexões**. Sair do Ledgr não desliga a conexão, e remover o Ledgr na IA pode não revogá-la. Ela também cai sozinha quando quem a criou sai da equipe, desativa a própria conta ou passa a analista.",
+        ],
       },
     ],
   },

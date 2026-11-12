@@ -25,6 +25,8 @@ vi.mock("next/navigation", () => ({
 const carregarConciliacao = vi.fn();
 const registrarDecisao = vi.fn();
 vi.mock("../acoes", () => ({
+  // um backend anterior ao #196: sem a rota dos fatos, o painel segue como estava
+  carregarDetalhesDaDivergencia: async () => ({ ok: false, status: 404, erro: "Não encontrada." }),
   carregarConciliacao: (...args: unknown[]) => carregarConciliacao(...args),
   // a tela carrega pela rodada; aqui ela embrulha a carga de sempre, sem rodada
   carregarConciliacaoEmRodadas: async (...args: unknown[]) => {
@@ -35,7 +37,9 @@ vi.mock("../acoes", () => ({
   },
   registrarDecisao: (...args: unknown[]) => registrarDecisao(...args),
   decidirLinhas: (...args: unknown[]) => decidirLinhas(...args),
+  explicarDivergencia: (...args: unknown[]) => explicarDivergencia(...args),
 }));
+const explicarDivergencia = vi.fn();
 const decidirLinhas = vi.fn();
 
 const BANCO = "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20";
@@ -167,6 +171,7 @@ describe("ConciliacaoPage", () => {
     carregarConciliacao.mockReset();
     registrarDecisao.mockReset();
     registrarDecisaoNoMock.mockReset();
+    explicarDivergencia.mockReset();
     navegar.push.mockReset();
     window.localStorage.clear();
     delete document.documentElement.dataset.densidade;
@@ -248,9 +253,9 @@ describe("ConciliacaoPage", () => {
     expect(curto).toHaveAttribute("aria-hidden", "true");
     expect(within(status).getByText("Valor diverge na mesma data")).toHaveClass("sr-only");
 
-    // o que bateu fica quieto: o nome sem selo, para o olho ir direto ao que pede revisão
+    // o que bateu também leva o selo, em verde: clientes acham mais fácil de ver
     const batida = screen.getByRole("button", { name: "Pagamento batido" }).closest("tr")!;
-    expect(within(batida).getByText("Conciliado")).not.toHaveClass("selo");
+    expect(within(batida).getByText("Conciliado")).toHaveClass("selo", "selo-ok");
   });
 
   it("marks the field that diverges: the values when the value differs, the dates when the date does", async () => {
@@ -483,6 +488,29 @@ describe("ConciliacaoPage", () => {
       expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
     });
 
+    // #369: no celular o cartão abria no foco do toque, por cima da descrição, e engolia o clique
+    it("stays closed when the focus comes from a tap, so the first tap reaches the button", async () => {
+      vi.stubGlobal("matchMedia", () => ({ matches: false }));
+      buscarConciliacao.mockReturnValue(conciliacaoMista);
+      render(<ConciliacaoPage />);
+      const botao = await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" });
+
+      // o toque, na ordem do navegador: o ponteiro desce, o botão ganha o foco, e só depois vem o clique
+      fireEvent.pointerDown(botao);
+      act(() => botao.focus());
+      expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+
+      fireEvent.click(botao);
+      expect(screen.getByRole("link", { name: "Abrir detalhe" })).toBeInTheDocument();
+
+      // fechar pelo botão devolve o foco à descrição: o cartão não volta por cima dela para o próximo toque
+      const fechar = screen.getByRole("button", { name: "Fechar" });
+      fireEvent.pointerDown(fechar);
+      fireEvent.click(fechar);
+      expect(botao).toHaveFocus();
+      expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+    });
+
     it("gives way to the dialog when the line is clicked", async () => {
       buscarConciliacao.mockReturnValue(conciliacaoMista);
       const user = userEvent.setup();
@@ -621,9 +649,10 @@ describe("ConciliacaoPage", () => {
     buscarConciliacao.mockReturnValue(null);
     render(<ConciliacaoPage />);
     expect(
-      await screen.findByText("Conciliação não encontrada.")
+      await screen.findByText("Esta conciliação não foi encontrada.")
     ).toBeInTheDocument();
     expect(document.querySelector("img")?.getAttribute("src")).toContain("mascote-lupa");
+    expect(screen.getByRole("link", { name: "Ver as conciliações" })).toBeInTheDocument();
   });
 
   it("loads only the lines of the pair named in the URL, and keeps it in the link to a line", async () => {
@@ -853,6 +882,15 @@ describe("ConciliacaoPage", () => {
     expect(container.querySelector("[aria-busy=\"true\"]")).not.toBeNull();
   });
 
+  it("does not call it not found when the backend is down", async () => {
+    rota.id = "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20";
+    carregarConciliacao.mockResolvedValue({ ok: false, status: 503, erro: "x" });
+    render(<ConciliacaoPage />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Não foi possível carregar a conciliação.");
+    expect(screen.queryByText("Esta conciliação não foi encontrada.")).not.toBeInTheDocument();
+  });
+
   it("offers a reload instead of an endless skeleton when the backend call throws", async () => {
     // a Server Action lançou (rede, deploy novo no meio) em vez de devolver um Resultado
     rota.id = "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20";
@@ -860,8 +898,9 @@ describe("ConciliacaoPage", () => {
     const { container } = render(<ConciliacaoPage />);
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Não foi possível carregar a conciliação. Recarregue a página e tente de novo.",
+      "Não foi possível carregar a conciliação.",
     );
+    expect(screen.getByRole("button", { name: "Tentar de novo" })).toBeInTheDocument();
     expect(container.querySelector("[aria-busy=\"true\"]")).toBeNull();
   });
 
@@ -1749,6 +1788,191 @@ describe("ConciliacaoPage", () => {
         expect(within(janela).queryByLabelText("Justificativa")).not.toBeInTheDocument();
       });
     });
+    describe("o painel da direita (#338)", () => {
+      const SALDO = { inicial: 441555.86, final: 46147.12, data: "2026-10-29" };
+      const pendente: Decisao = { ...decisao("justificada"), situacao: "pendente" };
+      const comPendente: Conciliacao = {
+        ...comCampo,
+        saldo: SALDO,
+        linhas: comCampo.linhas.map((linha) => (linha.id === "lc-2" ? { ...linha, decisao: pendente } : linha)),
+      };
+      const comSaldo: Conciliacao = { ...comCampo, saldo: SALDO };
+      const painel = () => screen.getByRole("complementary", { name: "Detalhe da linha e saldo do extrato" });
+
+      beforeEach(() => {
+        // tela larga, com mouse: onde o painel existe
+        vi.stubGlobal("matchMedia", () => ({ matches: true }));
+      });
+      afterEach(() => {
+        vi.unstubAllGlobals();
+        podeFechar.valor = true;
+      });
+
+      it.each([1099, 1100])("a %ipx, mostra o saldo em um só lugar", async (largura) => {
+        vi.stubGlobal("matchMedia", (consulta: string) => ({
+          matches: consulta === "(hover: hover)" || largura >= Number(consulta.match(/min-width: (\d+)/)?.[1]),
+        }));
+        doBackend(comSaldo);
+        render(<ConciliacaoPage />);
+        await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" });
+        const faixa = screen.queryByRole("region", { name: "Saldo do extrato do banco" });
+        if (largura === 1100) {
+          expect(painel()).toHaveTextContent("Saldo final");
+          expect(painel()).toHaveAttribute("data-tutorial", "painel");
+          expect(faixa).not.toBeInTheDocument();
+        } else {
+          expect(screen.queryByRole("complementary", { name: "Detalhe da linha e saldo do extrato" })).not.toBeInTheDocument();
+          expect(faixa).toHaveTextContent("Saldo final");
+        }
+      });
+
+      it("o hover preenche o painel, no lugar do balão, e o último fica quando o ponteiro sai", async () => {
+        doBackend(comSaldo);
+        const user = userEvent.setup();
+        render(<ConciliacaoPage />);
+
+        const linha = (await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" })).closest("tr")!;
+        expect(painel()).toHaveTextContent("Passe o mouse sobre uma linha");
+        await user.hover(linha);
+        expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+        expect(within(painel()).getByRole("heading", { name: "Boleto Aço Norte Bobinas" })).toBeInTheDocument();
+        expect(within(painel()).getByText("Em foco")).toBeInTheDocument();
+        expect(linha).toHaveAttribute("data-foco");
+
+        await user.unhover(linha);
+        expect(within(painel()).getByRole("heading", { name: "Boleto Aço Norte Bobinas" })).toBeInTheDocument();
+      });
+
+      it("um clique na linha a fixa, o ponteiro por outra não a troca, e outro clique solta", async () => {
+        doBackend(comSaldo);
+        const user = userEvent.setup();
+        render(<ConciliacaoPage />);
+        const primeira = (await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" })).closest("tr")!;
+        const outra = screen.getByRole("button", { name: "Tarifa TED" }).closest("tr")!;
+
+        await user.click(within(primeira).getAllByRole("cell")[0]);
+        expect(within(painel()).getByText("Fixado")).toBeInTheDocument();
+        expect(primeira).toHaveAttribute("data-fixo");
+
+        await user.hover(outra);
+        expect(within(painel()).getByRole("heading", { name: "Boleto Aço Norte Bobinas" })).toBeInTheDocument();
+
+        await user.click(within(primeira).getAllByRole("cell")[0]);
+        expect(within(painel()).queryByText("Fixado")).not.toBeInTheDocument();
+        await user.hover(outra);
+        expect(within(painel()).getByRole("heading", { name: "Tarifa TED" })).toBeInTheDocument();
+      });
+
+      it("um clique na descrição só escolhe a linha: a janela da linha não abre", async () => {
+        doBackend(comSaldo);
+        const user = userEvent.setup();
+        render(<ConciliacaoPage />);
+
+        await user.click(await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" }));
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+        expect(screen.queryByRole("link", { name: "Abrir detalhe" })).not.toBeInTheDocument();
+        expect(within(painel()).getByText("Fixado")).toBeInTheDocument();
+      });
+
+      it("o teclado também preenche o painel: o foco na descrição leva a linha a ele", async () => {
+        doBackend(comSaldo);
+        render(<ConciliacaoPage />);
+        const botao = await screen.findByRole("button", { name: "Tarifa TED" });
+        act(() => botao.focus());
+        expect(within(painel()).getByRole("heading", { name: "Tarifa TED" })).toBeInTheDocument();
+      });
+
+      it("o duplo clique, na linha ou na descrição, abre o detalhe; o botão do painel também", async () => {
+        doBackend(comSaldo);
+        const user = userEvent.setup();
+        render(<ConciliacaoPage />);
+        const tr = (await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" })).closest("tr")!;
+        const rota2 = expect.stringMatching(/\/lc-2(\?|$)/);
+
+        await user.dblClick(within(tr).getAllByRole("cell")[0]);
+        expect(navegar.push).toHaveBeenCalledWith(rota2);
+        navegar.push.mockReset();
+        await user.dblClick(within(tr).getByRole("button", { name: "Boleto Aço Norte Bobinas" }));
+        expect(navegar.push).toHaveBeenCalledWith(rota2);
+        navegar.push.mockReset();
+
+        await user.click(within(tr).getAllByRole("cell")[0]);
+        await user.click(within(painel()).getByRole("button", { name: "Abrir detalhe" }));
+        expect(navegar.push).toHaveBeenCalledWith(rota2);
+      });
+
+      it("justifica pelo painel: grava a decisão, a linha vira Aguardando e o painel mostra a nota", async () => {
+        doBackend(comSaldo);
+        registrarDecisao.mockResolvedValue({ ok: true, dados: pendente });
+        const user = userEvent.setup();
+        render(<ConciliacaoPage />);
+        const tr = (await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" })).closest("tr")!;
+
+        await user.hover(tr);
+        await user.click(within(painel()).getByRole("button", { name: "Justificar" }));
+        // com o campo aberto a linha fica fixada: o ponteiro por outra não a troca
+        await user.hover(screen.getByRole("button", { name: "Tarifa TED" }).closest("tr")!);
+        expect(within(painel()).getByRole("heading", { name: "Boleto Aço Norte Bobinas" })).toBeInTheDocument();
+
+        await user.type(within(painel()).getByLabelText("Justificativa"), "Juros de dois dias de atraso.");
+        await user.click(within(painel()).getByRole("button", { name: "Justificar" }));
+
+        expect(registrarDecisao).toHaveBeenCalledWith(BANCO, "b:lc-2", "justificada", "Juros de dois dias de atraso.");
+        expect(within(tr).getAllByRole("cell")[3]).toHaveTextContent("Aguardando");
+        expect(painel()).toHaveTextContent("aguardando aprovação");
+        // solto o campo, o ponteiro volta a trocar a linha
+        await user.hover(screen.getByRole("button", { name: "Tarifa TED" }).closest("tr")!);
+        expect(within(painel()).getByRole("heading", { name: "Tarifa TED" })).toBeInTheDocument();
+      });
+
+      it("o admin e o gestor aprovam e rejeitam pelo painel", async () => {
+        doBackend(comPendente);
+        registrarDecisao.mockResolvedValue({ ok: true, dados: { ...pendente, situacao: "aprovada", aprovadaPor: "Gil Gestor", aprovadaEm: "2026-10-21T09:00:00Z" } });
+        const user = userEvent.setup();
+        render(<ConciliacaoPage />);
+        const tr = (await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" })).closest("tr")!;
+
+        await user.hover(tr);
+        await user.click(within(painel()).getByRole("button", { name: "Aprovar" }));
+        expect(registrarDecisao).toHaveBeenCalledWith(BANCO, "b:lc-2", "justificativa_aprovada", undefined);
+        expect(within(tr).getAllByRole("cell")[3]).toHaveTextContent("Justificada");
+        expect(painel()).toHaveTextContent("Aprovada por Gil Gestor em");
+      });
+
+      it("o analista vê que aguarda e não ganha botão de aprovar", async () => {
+        podeFechar.valor = false;
+        doBackend(comPendente);
+        const user = userEvent.setup();
+        render(<ConciliacaoPage />);
+
+        await user.hover((await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" })).closest("tr")!);
+        expect(painel()).toHaveTextContent("Aguarda a aprovação do admin ou do gestor da conta.");
+        expect(within(painel()).queryByRole("button", { name: "Aprovar" })).not.toBeInTheDocument();
+      });
+
+      it("o mês fechado não oferece decidir pelo painel", async () => {
+        doBackend(comSaldo, { fechamento: { competencia: "2026-09", fechadoPor: "Gil Gestor", fechadoEm: "2026-10-01T10:00:00Z" } });
+        const user = userEvent.setup();
+        render(<ConciliacaoPage />);
+
+        await user.hover((await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" })).closest("tr")!);
+        expect(within(painel()).queryByRole("button", { name: "Justificar" })).not.toBeInTheDocument();
+      });
+
+      it("pede a explicação no clique e a deixa na linha", async () => {
+        doBackend({ ...comSaldo, linhas: comSaldo.linhas.map((linha) => (linha.id === "lc-2" ? { ...linha, explicacao: null } : linha)) });
+        explicarDivergencia.mockResolvedValue({ ok: true, dados: { texto: "A folha está incompleta.", geradaPorIa: true, indisponibilidade: null } });
+        const user = userEvent.setup();
+        render(<ConciliacaoPage />);
+
+        await user.hover((await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" })).closest("tr")!);
+        await user.click(within(painel()).getByRole("button", { name: "Explicar esta divergência" }));
+        expect(explicarDivergencia).toHaveBeenCalledWith("lc-2");
+        expect(await within(painel()).findByText("A folha está incompleta.")).toBeInTheDocument();
+        expect(within(painel()).getByText("Gerada por IA · confira antes de decidir")).toBeInTheDocument();
+      });
+    });
+
   });
 
   it("sorts by a column and flips the direction on a second click", async () => {
@@ -1797,5 +2021,41 @@ describe("ConciliacaoPage", () => {
     expect((await screen.findAllByText("Lançamento 0")).length).toBeGreaterThan(0);
     expect(screen.getAllByText("Lançamento 29").length).toBeGreaterThan(0);
     expect(screen.queryByRole("button", { name: "Próxima" })).not.toBeInTheDocument();
+  });
+
+  // backend #131: o lote pago de uma vez é uma linha só, com o resumo dos membros, já aberto e que recolhe ao clicar
+  it("shows a lot conciliated by sum as one row, open by default and collapsible", async () => {
+    const user = userEvent.setup();
+    const lote = { quantidadeBanco: 1, quantidadeSistema: 2, valorUnico: -9000, maiorDesvioDias: 0 };
+    buscarConciliacao.mockReturnValue({
+      ...conciliacaoEmAndamento,
+      linhas: [
+        { id: "m-1", descricao: "Fornecedor A", data: "10/09", valorBanco: null, valorSistema: -4000, status: "match_agrupado", grupoId: "g1", grupo: lote, decisao: null, explicacao: null, historico: [] },
+        { ...conciliacaoEmAndamento.linhas[0], decisao: null },
+        { id: "m-0", descricao: "Pagamento lote", data: "10/09", valorBanco: -9000, valorSistema: null, status: "match_agrupado", grupoId: "g1", grupo: lote, decisao: null, explicacao: null, historico: [] },
+        { id: "m-2", descricao: "Fornecedor B", data: "10/09", valorBanco: null, valorSistema: -5000, status: "match_agrupado", grupoId: "g1", grupo: lote, decisao: null, explicacao: null, historico: [] },
+      ],
+    });
+    render(<ConciliacaoPage />);
+
+    const resumo = await screen.findByRole("button", { name: /2 lançamentos somados/ });
+    // sem faixa de resumo: o lote é a linha da ponta única, com o outro lado resumido e já aberto
+    expect(screen.queryByText("Conciliado por soma")).not.toBeInTheDocument();
+    expect(resumo).toHaveAttribute("aria-expanded", "true");
+    const linhaDoLote = resumo.closest("tr")!;
+    expect(within(linhaDoLote).getByRole("button", { name: "Pagamento lote" })).toBeInTheDocument();
+    expect(within(linhaDoLote).getByText("Conciliado")).toHaveClass("selo-ok");
+    expect(within(linhaDoLote).queryByRole("checkbox")).not.toBeInTheDocument();
+    // aberto desde o início: os membros já aparecem, sem clicar
+    expect(screen.getByText("Fornecedor A")).toBeInTheDocument();
+    expect(screen.getByText("Fornecedor B")).toBeInTheDocument();
+
+    await user.click(resumo);
+
+    expect(resumo).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByText("Fornecedor A")).not.toBeInTheDocument();
+    expect(screen.queryByText("Fornecedor B")).not.toBeInTheDocument();
+    await user.click(resumo);
+    expect(screen.getByText("Fornecedor A")).toBeInTheDocument();
   });
 });

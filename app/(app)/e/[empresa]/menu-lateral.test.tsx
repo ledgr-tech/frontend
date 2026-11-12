@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MenuLateral } from "./menu-lateral";
 import { ProvedorDaConta } from "./conta";
@@ -34,7 +34,7 @@ const EMAIL = "financeiro@telhacerta.com.br";
 
 function montar(props: Partial<Parameters<typeof MenuLateral>[0]> = {}) {
   return render(
-    <ProvedorDaConta preferencias={{ tutoriaisDispensados: ["configuracoes"], roteiroDispensado: false }}>
+    <ProvedorDaConta cobrancaHabilitada preferencias={{ tutoriaisDispensados: ["configuracoes"], roteiroDispensado: false }}>
       <MenuLateral email={EMAIL} empresa="Telha Certa Ltda" temSenha onSair={vi.fn()} {...props} />
     </ProvedorDaConta>,
   );
@@ -53,6 +53,17 @@ describe("MenuLateral", () => {
 
     const nav = screen.getByRole("navigation", { name: "Seções do app" });
     expect(nav.textContent).toBe("Visão geralExtratosConciliaçõesFechamentosHistóricoEmpresasAssinatura");
+  });
+
+  it("com a cobrança desligada, a Assinatura sai do menu", () => {
+    render(
+      <ProvedorDaConta preferencias={{ tutoriaisDispensados: ["configuracoes"], roteiroDispensado: false }}>
+        <MenuLateral email={EMAIL} empresa="Telha Certa Ltda" temSenha onSair={vi.fn()} />
+      </ProvedorDaConta>,
+    );
+
+    const nav = screen.getByRole("navigation", { name: "Seções do app" });
+    expect(nav.textContent).toBe("Visão geralExtratosConciliaçõesFechamentosHistóricoEmpresas");
   });
 
   it("links every destination, with none left for later", () => {
@@ -213,12 +224,19 @@ describe("MenuLateral", () => {
     expect(cartao).toHaveAttribute("aria-expanded", "true");
     expect(cartao).toHaveAttribute("aria-controls", painel.id);
     expect(await within(painel).findByText(/Ainda não há conciliação para eu olhar/)).toBeInTheDocument();
+    await user.click(within(painel).getByRole("button", { name: "Como fecho o mês?" }));
+    await within(painel).findByRole("link", { name: "Fechar o mês" });
+    const campo = within(painel).getByRole("textbox", { name: "Sua pergunta" });
+    await user.type(campo, "rascunho");
 
     // fechar devolve o foco ao cartão, e o cartão abre e fecha o mesmo painel
     await user.click(within(painel).getByRole("button", { name: "Fechar conversa" }));
     expect(screen.queryByRole("dialog", { name: "Fale com o Ledgr" })).not.toBeInTheDocument();
     expect(cartao).toHaveFocus();
     await user.click(cartao);
+    expect(within(painel).getByRole("link", { name: "Fechar o mês" })).toBeInTheDocument();
+    expect(campo).toHaveValue("rascunho");
+    expect(campo).toHaveFocus();
     await user.click(cartao);
     expect(screen.queryByRole("dialog", { name: "Fale com o Ledgr" })).not.toBeInTheDocument();
   });
@@ -263,7 +281,7 @@ describe("MenuLateral", () => {
     await user.click(screen.getByRole("button", { name: /Financeiro/ }));
     await user.keyboard("{Escape}");
 
-    expect(screen.queryByRole("button", { name: "Sair" })).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Sair" })).not.toBeInTheDocument());
   });
 
   it("opens the settings window from the account menu, closing the menu", async () => {

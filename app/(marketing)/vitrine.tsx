@@ -6,6 +6,7 @@ import {
   ArrowLeftRight,
   CalendarCheck,
   ChevronsUpDown,
+  Building2,
   CreditCard,
   Files,
   History,
@@ -38,6 +39,8 @@ import { TabelaFolhas } from "./tabela-folhas";
  */
 
 const LARGURA = 1280;
+// sem o menu lateral (a vitrine do hero), a tela do app tem a largura da área principal
+const LARGURA_COMPACTA = 1048;
 const EMPRESA = "Sua empresa";
 
 // ponytail: cópia dos nomes e ícones do menu (ITENS em app/(app)/e/[empresa]/menu-lateral.tsx).
@@ -48,6 +51,7 @@ const MENU: [string, LucideIcon][] = [
   ["Conciliações", ArrowLeftRight],
   ["Fechamentos", CalendarCheck],
   ["Histórico", History],
+  ["Empresas", Building2],
   ["Assinatura", CreditCard],
 ];
 const ICONE = { size: 18, strokeWidth: 1.5, "aria-hidden": true } as const;
@@ -90,15 +94,65 @@ const LINHAS = (Object.entries(PENDENTES) as [Divergencia, number][]).flatMap(([
   linhasDe(status, quantidade),
 );
 
+/** O menu lateral da réplica (também o do mockup do vídeo); `ativo` é o item aceso. */
+export function MenuDaVitrine({ ativo, empresa = EMPRESA, conta = "Financeiro", iniciais = "FI" }: { ativo: string; empresa?: string; conta?: string; iniciais?: string }) {
+  return (
+    <div className="vitrine-menu">
+      <span className="vitrine-marca">
+        <LogoBarras className="app-logo" />
+        Ledgr
+      </span>
+      <span className="vitrine-item vitrine-nova">
+        <Plus {...ICONE} />
+        Nova conciliação
+      </span>
+      <div className="vitrine-nav">
+        {MENU.map(([nome, Icone]) => (
+          <span key={nome} className="vitrine-item" data-ativo={nome === ativo || undefined}>
+            <Icone {...ICONE} />
+            {nome}
+          </span>
+        ))}
+      </div>
+      <div className="vitrine-assistente">
+        <Image
+          src="/mascotes/mascote-chatbot.png"
+          alt=""
+          width={1254}
+          height={1254}
+          sizes="36px"
+          className="app-assistente-mascote"
+        />
+        <span className="app-assistente-texto">
+          <span className="app-assistente-chamada">Assistente</span>
+          <span className="app-assistente-titulo">Fale com o Ledgr</span>
+          <span className="app-assistente-detalhe">O mês e como usar o app</span>
+        </span>
+      </div>
+      <div className="vitrine-conta">
+        <span className="app-conta-iniciais">{iniciais}</span>
+        <span className="vitrine-conta-texto">
+          <span className="app-conta-nome">{conta}</span>
+          <span className="app-conta-empresa">{empresa}</span>
+        </span>
+        <ChevronsUpDown {...ICONE} size={15} className="vitrine-conta-seta" />
+      </div>
+    </div>
+    );
+}
+
 export function Vitrine({
   banco,
   sistema,
   destaque,
+  compacta = false,
 }: {
   banco: LinhaExtrato[];
   sistema: LinhaExtrato[];
   /** a descrição da linha que fica acesa na tabela */
   destaque: string;
+  /** sem o menu lateral, para a tabela caber maior (o hero) */
+  compacta?: boolean;
 }) {
   const janela = useRef<HTMLDivElement>(null);
   const [escala, setEscala] = useState<number | null>(null);
@@ -106,15 +160,15 @@ export function Vitrine({
   useLayoutEffect(() => {
     const elemento = janela.current;
     if (!elemento || typeof ResizeObserver === "undefined") return;
-    const medir = (largura: number) => largura > 0 && setEscala(largura / LARGURA);
+    const medir = (largura: number) => largura > 0 && setEscala(largura / (compacta ? LARGURA_COMPACTA : LARGURA));
     medir(elemento.clientWidth);
     const observador = new ResizeObserver(([entrada]) => medir(entrada.contentRect.width));
     observador.observe(elemento);
     return () => observador.disconnect();
-  }, []);
+  }, [compacta]);
 
   return (
-    <figure className="vitrine">
+    <figure className={compacta ? "vitrine vitrine-compacta" : "vitrine"} data-medida={escala ? "" : undefined}>
       {/* vitrine: fora do foco, do clique e do leitor de tela; quem descreve é a legenda */}
       <div className="vitrine-janela" ref={janela} inert>
         <div className="vitrine-barra" aria-hidden="true">
@@ -122,48 +176,8 @@ export function Vitrine({
           <span />
           <span />
         </div>
-        <div className="vitrine-app" style={escala ? { zoom: escala } : undefined}>
-          <div className="vitrine-menu">
-            <span className="vitrine-marca">
-              <LogoBarras className="app-logo" />
-              Ledgr
-            </span>
-            <span className="vitrine-item vitrine-nova">
-              <Plus {...ICONE} />
-              Nova conciliação
-            </span>
-            <div className="vitrine-nav">
-              {MENU.map(([nome, Icone]) => (
-                <span key={nome} className="vitrine-item" data-ativo={nome === "Conciliações" || undefined}>
-                  <Icone {...ICONE} />
-                  {nome}
-                </span>
-              ))}
-            </div>
-            <div className="vitrine-assistente">
-              <Image
-                src="/mascotes/mascote-chatbot.png"
-                alt=""
-                width={1254}
-                height={1254}
-                sizes="36px"
-                className="app-assistente-mascote"
-              />
-              <span className="app-assistente-texto">
-                <span className="app-assistente-chamada">Assistente</span>
-                <span className="app-assistente-titulo">Fale com o Ledgr</span>
-                <span className="app-assistente-detalhe">O mês e como usar o app</span>
-              </span>
-            </div>
-            <div className="vitrine-conta">
-              <span className="app-conta-iniciais">FI</span>
-              <span className="vitrine-conta-texto">
-                <span className="app-conta-nome">Financeiro</span>
-                <span className="app-conta-empresa">{EMPRESA}</span>
-              </span>
-              <ChevronsUpDown {...ICONE} size={15} className="vitrine-conta-seta" />
-            </div>
-          </div>
+        <div className="vitrine-app" style={escala ? { zoom: escala, width: compacta ? LARGURA_COMPACTA : undefined } : undefined}>
+          {!compacta && <MenuDaVitrine ativo="Conciliações" />}
 
           <div className="vitrine-principal">
             <div className="vitrine-topo">

@@ -1,7 +1,7 @@
 "use server";
 
 import { pareceUuid } from "@/lib/adaptadores";
-import { ErroBackend, chamarBackend, emailDaSessao } from "@/lib/backend";
+import { ErroBackend, chamarBackend, ehContaInativa, emailDaSessao } from "@/lib/backend";
 import { RECUSA_DEMONSTRACAO, ehContaDeDemonstracao } from "@/lib/demo";
 import { podeFecharMes } from "@/lib/papel";
 import { contaDaSessao } from "../../../../(auth)/acoes";
@@ -63,7 +63,7 @@ function traduzir(erro: unknown): Falha {
   if (!(erro instanceof ErroBackend)) return { ok: false, status: 0, erro: "Não foi possível falar com o servidor." };
   const { status } = erro;
   if (status === 401) return { ok: false, status, erro: "Sua sessão expirou. Entre de novo para continuar." };
-  if (status === 403) return { ok: false, status, erro: SO_ADMIN_OU_GESTOR };
+  if (status === 403 && !ehContaInativa(erro)) return { ok: false, status, erro: SO_ADMIN_OU_GESTOR };
   if (status === 422) return { ok: false, status, erro: "O nome da chave precisa ter de 1 a 60 caracteres." };
   // 404 (empresa ou chave), 409 (10 ativas) e 402 (plano) chegam com o texto do backend, que já explica
   return { ok: false, status, erro: erro.detalhe };

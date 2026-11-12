@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
-function pediuMenosMovimento() {
+export function pediuMenosMovimento() {
   return (
     typeof window !== "undefined" &&
     typeof window.matchMedia === "function" &&

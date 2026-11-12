@@ -3,9 +3,11 @@ import { notFound, redirect } from "next/navigation";
 import { formatarCnpj } from "../../(auth)/cadastro/passos";
 import { formatarDataHora } from "../../(app)/e/[empresa]/dashboard/resumo";
 import { listarContas } from "./acoes";
-import { POR_PAGINA, ROTULO_DA_SITUACAO, SITUACOES, agoraEmMs, chaveDaSituacao, classeDoSelo, prazoDoTeste } from "./situacao";
+import { NavDoAdmin, Paginacao } from "./navegacao";
+import { UFS } from "@/lib/uf";
+import { ROTULO_DA_SITUACAO, SITUACOES, UF_NAO_INFORMADA, agoraEmMs, chaveDaSituacao, classeDoSelo, localDaConta, prazoDoTeste } from "./situacao";
 
-type Busca = { busca?: string; situacao?: string; ordem?: string; pagina?: string };
+type Busca = { busca?: string; situacao?: string; ordem?: string; uf?: string; pagina?: string };
 
 const FILTROS = [{ valor: "", rotulo: "Todas" }, ...SITUACOES.map((s) => ({ valor: s, rotulo: ROTULO_DA_SITUACAO[s] }))];
 
@@ -14,6 +16,7 @@ function endereco(base: Busca, pagina: number): string {
   if (base.busca) q.set("busca", base.busca);
   if (base.situacao) q.set("situacao", base.situacao);
   if (base.ordem) q.set("ordem", base.ordem);
+  if (base.uf) q.set("uf", base.uf);
   if (pagina > 1) q.set("pagina", String(pagina));
   const texto = q.toString();
   return texto ? `/admin?${texto}` : "/admin";
@@ -38,6 +41,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
 
   return (
     <div>
+      <NavDoAdmin atual="/admin" />
       <div className="dash-cabecalho">
         <div>
           <div className="det-kicker">Painel interno</div>
@@ -48,7 +52,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
 
       <form method="get" role="search" className="extratos-corpo" style={{ paddingTop: 20 }}>
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center", justifyContent: "space-between" }}>
-          <div style={{ display: "flex", gap: 8, order: 2 }}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, order: 2, flex: "1 1 100%" }}>
             <input
               className="input"
               type="search"
@@ -56,11 +60,20 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
               defaultValue={filtros.busca ?? ""}
               placeholder="Razão social, CNPJ ou e-mail do admin"
               aria-label="Buscar conta"
-              style={{ width: 300 }}
+              style={{ flex: "1 1 300px", maxWidth: 420 }}
             />
             <select className="input" name="ordem" defaultValue={filtros.ordem ?? ""} aria-label="Ordem">
               <option value="">Mais novas primeiro</option>
               <option value="teste_termina_em">Teste termina antes</option>
+            </select>
+            <select className="input" name="uf" defaultValue={filtros.uf ?? ""} aria-label="Estado">
+              <option value="">Todos os estados</option>
+              {UFS.map((uf) => (
+                <option key={uf} value={uf}>
+                  {uf}
+                </option>
+              ))}
+              <option value={UF_NAO_INFORMADA}>Não informado</option>
             </select>
             <button type="submit" name="situacao" value={situacaoAtual} className="btn btn-secondary">
               Buscar
@@ -85,6 +98,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
               <thead>
                 <tr>
                   <th scope="col">Conta</th>
+                  <th scope="col">Local</th>
                   <th scope="col">Plano</th>
                   <th scope="col">Situação</th>
                   <th scope="col">Teste termina</th>
@@ -103,6 +117,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
                         <strong>{c.razaoSocial}</strong>
                         <div style={{ fontSize: 12.5, opacity: 0.65 }}>{formatarCnpj(c.cnpj)}</div>
                       </td>
+                      <td>{localDaConta(c)}</td>
                       <td>{c.plano ?? "—"}</td>
                       <td>
                         <span className={classeDoSelo(chave)}>{ROTULO_DA_SITUACAO[chave] ?? c.situacao}</span>
@@ -127,32 +142,14 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
                 })}
               </tbody>
             </table>
-            <nav
-              aria-label="Páginas"
-              style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 18px", borderTop: "1px solid var(--color-divider)", fontSize: 14 }}
-            >
-              <span>{`${r.dados.offset + 1} a ${r.dados.offset + r.dados.itens.length} de ${r.dados.total} contas`}</span>
-              <span style={{ display: "flex", gap: 8 }}>
-                {pagina > 1 ? (
-                  <Link className="btn btn-ghost" href={endereco(filtros, pagina - 1)}>
-                    Anterior
-                  </Link>
-                ) : (
-                  <span className="btn btn-ghost" aria-disabled="true" style={{ opacity: 0.45 }}>
-                    Anterior
-                  </span>
-                )}
-                {pagina * POR_PAGINA < r.dados.total ? (
-                  <Link className="btn btn-secondary" href={endereco(filtros, pagina + 1)}>
-                    Próxima
-                  </Link>
-                ) : (
-                  <span className="btn btn-secondary" aria-disabled="true" style={{ opacity: 0.45 }}>
-                    Próxima
-                  </span>
-                )}
-              </span>
-            </nav>
+            <Paginacao
+              pagina={pagina}
+              offset={r.dados.offset}
+              quantos={r.dados.itens.length}
+              total={r.dados.total}
+              nome="contas"
+              endereco={(p) => endereco(filtros, p)}
+            />
           </div>
         )}
       </form>

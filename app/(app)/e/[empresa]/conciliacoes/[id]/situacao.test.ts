@@ -1,6 +1,14 @@
 import { describe, it, expect } from "vitest";
 import type { Conciliacao, Decisao, EventoDecisao, LinhaComparacao } from "@/lib/mock-data";
-import { continuaDivergindo, decisoesLigadas, historicoDaLinha, rotuloComDecisao, situacaoDaLinha } from "./situacao";
+import {
+  continuaDivergindo,
+  decisoesLigadas,
+  historicoDaLinha,
+  rotuloComDecisao,
+  seloDaLinha,
+  situacaoDaLinha,
+  tomDaLinha,
+} from "./situacao";
 
 const DIVERGENTE: LinhaComparacao = {
   id: "lc-1",
@@ -203,5 +211,28 @@ describe("historicoDaLinha", () => {
       evento: "Justificada por Eduardo Sichelero: Juros de dois dias de atraso.",
       origem: "Ledgr",
     });
+  });
+});
+
+describe("tomDaLinha e seloDaLinha", () => {
+  it("o que bate é verde e o que diverge leva o tom e o rótulo curto do status", () => {
+    expect(seloDaLinha({ ...DIVERGENTE, status: "match_exato" }, 1)).toEqual({ tom: "ok", rotulo: "Conciliado" });
+    expect(seloDaLinha(DIVERGENTE, 1)).toEqual({ tom: "risco", rotulo: "Valor diverge" });
+    expect(tomDaLinha({ ...DIVERGENTE, status: "divergente_data" }, 1)).toBe("atencao");
+  });
+
+  it("a justificada sai da cor da categoria e diz Justificada; a que espera aprovação é atenção e diz Aguardando", () => {
+    const justificada = { ...DIVERGENTE, decisao: { ...decisao("justificada", 1), situacao: "aprovada" as const } };
+    expect(seloDaLinha(justificada, 1)).toEqual({ tom: "neutro", rotulo: "Justificada" });
+    const aguardando = { ...DIVERGENTE, decisao: { ...decisao("justificada", 1), situacao: "pendente" as const } };
+    expect(seloDaLinha(aguardando, 1)).toEqual({ tom: "atencao", rotulo: "Aguardando" });
+  });
+
+  it("a conferida nesta rodada sai da cor da categoria, mas mantém o rótulo do status", () => {
+    const conferida = { ...DIVERGENTE, decisao: decisao("conferida", 1) };
+    expect(tomDaLinha(conferida, 1)).toBe("neutro");
+    expect(seloDaLinha(conferida, 1).rotulo).toBe("Valor diverge");
+    // conferida numa rodada passada: a linha volta a chamar atenção, na cor dela
+    expect(tomDaLinha(conferida, 2)).toBe("risco");
   });
 });

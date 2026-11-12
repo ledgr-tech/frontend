@@ -4,11 +4,16 @@ import { ProvedorDaConta } from "../conta";
 import { TutorialDaRota } from "./tutorial-da-rota";
 
 let caminho = "/extratos";
-vi.mock("next/navigation", () => ({ usePathname: () => caminho }));
+let consulta = "";
+vi.mock("next/navigation", () => ({
+  usePathname: () => caminho,
+  useSearchParams: () => new URLSearchParams(consulta),
+}));
 vi.mock("../../../../(auth)/acoes", () => ({ salvarPreferencias: vi.fn(async () => true) }));
 
 describe("TutorialDaRota", () => {
   beforeEach(() => {
+    consulta = "";
     window.localStorage.clear();
     window.sessionStorage.clear();
   });
@@ -35,5 +40,31 @@ describe("TutorialDaRota", () => {
     );
     await new Promise((r) => setTimeout(r, 20));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("não abre sozinho na Nova conciliação em modo reenvio", async () => {
+    caminho = "/conciliacoes/nova";
+    consulta = "banco=b&sistemaAnterior=s";
+    render(
+      <ProvedorDaConta preferencias={null}>
+        <div data-tutorial="encaixe" />
+        <div data-tutorial="conciliar" />
+        <TutorialDaRota atraso={0} espera={0} />
+      </ProvedorDaConta>,
+    );
+    await new Promise((r) => setTimeout(r, 20));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("abre na Nova conciliação sem o reenvio", async () => {
+    caminho = "/conciliacoes/nova";
+    render(
+      <ProvedorDaConta preferencias={null}>
+        <div data-tutorial="encaixe" />
+        <div data-tutorial="conciliar" />
+        <TutorialDaRota atraso={0} espera={0} />
+      </ProvedorDaConta>,
+    );
+    expect(await screen.findByText(/Nova conciliação · 1 de/)).toBeInTheDocument();
   });
 });

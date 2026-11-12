@@ -252,7 +252,6 @@ function Previa({
   /** Só a primeira da fila traz as conferidas; das outras, a linha não aparece. */
   conferidas: number | null;
 }) {
-  const router = useRoteador();
   const { extratoBancoId, arquivoBanco, arquivoSistema, execucao, competencia } = conciliacao;
   const { fechamento } = mes;
   const pendentes = pedemDecisao(conciliacao);
@@ -329,16 +328,7 @@ function Previa({
         </Link>
         {/* como na comparação: com o mês fechado, nada se concilia de novo */}
         {!fechamento && (
-          <NovaVersao
-            extratoBancoId={extratoBancoId}
-            rodadaAtual={{
-              numero: conciliacao.rodada,
-              total: conciliacao.rodadas,
-              arquivo: arquivoSistema,
-              em: execucao.executadaEm,
-            }}
-            onConcluida={() => router.push(caminhoDaConciliacao(extratoBancoId))}
-          />
+          <NovaVersao extratoBancoId={extratoBancoId} extratoSistemaId={execucao.extratoSistemaId} />
         )}
       </div>
     </aside>

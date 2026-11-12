@@ -1,23 +1,37 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Reveal } from "../../reveal";
 import { Texto } from "./blocos";
-import { PAGINAS, paginaDeAjuda, type ImagemDaAjuda } from "./paginas";
+import { Demonstracao, FiguraDaTela } from "./demonstracao";
+import { VideoDaConexao } from "./video-da-conexao";
+import { AbasDoPasso } from "./abas-do-passo";
+import { PAGINAS, paginaDeAjuda, type AbaDoPasso, type PaginaDeAjuda } from "./paginas";
+
+/** Até 420 px de altura e no máximo 1,5× o tamanho no app: uma figura pequena (um botão) não vira um cartaz. */
+const larguraDaFigura = ({ largura, altura }: { largura: number; altura: number }) =>
+  Math.round(Math.min((420 * largura) / altura, largura * 1.5));
 
 /**
  * A Central de ajuda (#171), feita para ler: as telas à esquerda, o texto no centro e, à direita,
  * "Nesta página" com as funcionalidades da tela, que acompanha a rolagem. Anterior e próxima no fim.
  */
-export function CentralDeAjuda({ id }: { id: string }) {
+// as páginas em destaque (a conexão com IA) ficam num grupo acima das telas e fora de anterior e próxima
+const DESTAQUES = PAGINAS.filter((pagina) => pagina.destaque);
+const TELAS = PAGINAS.filter((pagina) => !pagina.destaque);
+
+/** `endereco` é o do conector (lib/conexao-ia), lido no servidor; só a página da conexão o usa. */
+export function CentralDeAjuda({ id, endereco = null }: { id: string; endereco?: string | null }) {
   const pagina = paginaDeAjuda(id) ?? PAGINAS[0];
-  const indice = PAGINAS.indexOf(pagina);
-  const anterior = PAGINAS[indice - 1];
-  const proxima = PAGINAS[indice + 1];
+  const indice = pagina.destaque ? -1 : TELAS.indexOf(pagina);
+  const anterior = indice > 0 ? TELAS[indice - 1] : undefined;
+  const proxima = indice >= 0 ? TELAS[indice + 1] : undefined;
+  // a IA escolhida no passo a passo; o vídeo da página a segue
+  const [aba, setAba] = useState<AbaDoPasso["id"]>("chatgpt");
   const [atual, setAtual] = useState(pagina.funcoes[0]?.id);
-  const [ampliada, setAmpliada] = useState<{ imagem: ImagemDaAjuda; alt: string } | null>(null);
+  const [ampliada, setAmpliada] = useState<{ alt: string; conteudo: ReactNode } | null>(null);
   const titulo = useRef<HTMLHeadingElement>(null);
   const listaDoIndice = useRef<HTMLOListElement>(null);
   const marca = useRef<HTMLSpanElement>(null);
@@ -67,19 +81,14 @@ export function CentralDeAjuda({ id }: { id: string }) {
     <div className="ajd-central">
       <nav className="ajd-telas" aria-label="Telas do Ledgr">
         <p className="ajd-rotulo">Central de ajuda</p>
-        <ol>
-          {PAGINAS.map((item) => (
-            <li key={item.id}>
-              <Link
-                href={`/ajuda/${item.id}`}
-                className="ajd-tela"
-                aria-current={item.id === pagina.id ? "page" : undefined}
-              >
-                {item.titulo}
-              </Link>
-            </li>
-          ))}
-        </ol>
+        {DESTAQUES.length > 0 && (
+          <>
+            <p className="ajd-grupo">Destaque</p>
+            <ListaDeTelas paginas={DESTAQUES} atual={pagina.id} />
+            <p className="ajd-grupo">Telas</p>
+          </>
+        )}
+        <ListaDeTelas paginas={TELAS} atual={pagina.id} />
       </nav>
 
       {/* a key reinicia a entrada do artigo a cada tela; o menu e "Nesta página" ficam parados */}
@@ -94,21 +103,32 @@ export function CentralDeAjuda({ id }: { id: string }) {
         </h1>
         <p className="ajd-serve">{pagina.serve}</p>
 
+        {pagina.video ? (
+          <div className="ajd-video">
+            <VideoDaConexao ia={aba} endereco={endereco} />
+          </div>
+        ) : (
         <div className="ajd-video">
-          {pagina.video ? (
-            <video
-              src={pagina.video}
-              poster={pagina.capa.src}
-              controls
-              preload="metadata"
-            />
+          {pagina.demonstracao ? (
+            <Demonstracao src={pagina.demonstracao} titulo={pagina.titulo} capa={pagina.capa} />
           ) : (
             <button
               type="button"
               className="ajd-video-capa"
               aria-label={`Ver a tela ${pagina.titulo} maior`}
               onClick={() =>
-                setAmpliada({ imagem: pagina.capa, alt: `A tela ${pagina.titulo}` })
+                setAmpliada({
+                  alt: `A tela ${pagina.titulo}`,
+                  conteudo: (
+                    <Image
+                      src={pagina.capa.src}
+                      width={pagina.capa.largura}
+                      height={pagina.capa.altura}
+                      alt={`A tela ${pagina.titulo}`}
+                      sizes="96vw"
+                    />
+                  ),
+                })
               }
             >
               <Image
@@ -134,6 +154,7 @@ export function CentralDeAjuda({ id }: { id: string }) {
             ))}
           </ol>
         </div>
+        )}
 
         {pagina.funcoes.map((funcao) => (
           <Reveal key={funcao.id}>
@@ -146,30 +167,75 @@ export function CentralDeAjuda({ id }: { id: string }) {
               <p>
                 <Texto>{funcao.faz}</Texto>
               </p>
-              {funcao.imagem && (
+              {funcao.figura && (
                 <button
                   type="button"
                   className="ajd-figura"
-                  // a largura sai da proporção, com até 420px de altura: o espaço fica reservado antes
-                  // da imagem carregar, e a rolagem até uma âncora não para no meio do caminho
-                  style={{
-                    width: `min(100%, ${Math.round((420 * funcao.imagem.largura) / funcao.imagem.altura)}px)`,
-                  }}
+                  // a largura sai da proporção: o espaço fica reservado antes do arquivo chegar, e a rolagem
+                  // até uma âncora não para no meio do caminho
+                  style={{ width: `min(100%, ${larguraDaFigura(funcao.figura)}px)` }}
                   aria-label={`Ampliar a imagem de ${funcao.titulo}`}
                   onClick={() =>
-                    setAmpliada({ imagem: funcao.imagem!, alt: funcao.titulo })
+                    setAmpliada({
+                      alt: funcao.titulo,
+                      conteudo: (
+                        // grande, até 1,5× o app, sem passar da janela
+                        <div
+                          className="ajd-ampliada-figura"
+                          style={{
+                            width: `min(96vw, ${Math.round(funcao.figura!.largura * 1.5)}px, calc((94vh - 50px) * ${funcao.figura!.largura / funcao.figura!.altura}))`,
+                          }}
+                        >
+                          <FiguraDaTela
+                            src={`/ajuda/${pagina.id}--figuras.json`}
+                            id={funcao.id}
+                            {...funcao.figura!}
+                            rotulo={funcao.titulo}
+                          />
+                        </div>
+                      ),
+                    })
                   }
                 >
-                  <Image
-                    src={funcao.imagem.src}
-                    width={funcao.imagem.largura}
-                    height={funcao.imagem.altura}
-                    alt={`${funcao.titulo}, na tela ${pagina.titulo}`}
-                    sizes="(max-width: 820px) 100vw, 680px"
+                  <FiguraDaTela
+                    src={`/ajuda/${pagina.id}--figuras.json`}
+                    id={funcao.id}
+                    {...funcao.figura}
+                    rotulo={`${funcao.titulo}, na tela ${pagina.titulo}`}
                   />
                 </button>
               )}
-              {funcao.passos && (
+              {funcao.itens && (
+                <div className="ajd-colunas">
+                  {funcao.itens.map((item) => (
+                    <div key={item.titulo}>
+                      <strong>{item.titulo}</strong>
+                      <span>
+                        <Texto>{item.texto}</Texto>
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {funcao.abas && <AbasDoPasso abas={funcao.abas} endereco={endereco} aba={aba} onAba={setAba} />}
+              {funcao.passos && funcao.sanfona && (
+                <div className="ajd-sanfona">
+                  {funcao.passos.map((passo) => {
+                    const corte = passo.indexOf(": ");
+                    return (
+                      <details key={passo}>
+                        <summary>
+                          <Texto>{passo.slice(0, corte)}</Texto>
+                        </summary>
+                        <p>
+                          <Texto>{passo.charAt(corte + 2).toUpperCase() + passo.slice(corte + 3)}</Texto>
+                        </p>
+                      </details>
+                    );
+                  })}
+                </div>
+              )}
+              {funcao.passos && !funcao.sanfona && (
                 <>
                   <p className="ajd-como">Como fazer</p>
                   <ol className="ajd-passos">
@@ -186,6 +252,13 @@ export function CentralDeAjuda({ id }: { id: string }) {
               {funcao.nota && (
                 <p className="ajd-nota">
                   <Texto>{funcao.nota}</Texto>
+                </p>
+              )}
+              {funcao.link && (
+                <p>
+                  <Link href={funcao.link.href} className="link-animado">
+                    {funcao.link.rotulo} →
+                  </Link>
                 </p>
               )}
             </section>
@@ -230,21 +303,37 @@ export function CentralDeAjuda({ id }: { id: string }) {
       </aside>
 
       {ampliada && (
-        <ImagemAmpliada {...ampliada} onFechar={() => setAmpliada(null)} />
+        <Ampliada alt={ampliada.alt} onFechar={() => setAmpliada(null)}>
+          {ampliada.conteudo}
+        </Ampliada>
       )}
     </div>
   );
 }
 
-/** A imagem grande, numa janela que fecha com Esc, no botão ou clicando fora. */
-function ImagemAmpliada({
-  imagem,
+function ListaDeTelas({ paginas, atual }: { paginas: PaginaDeAjuda[]; atual: string }) {
+  return (
+    <ol>
+      {paginas.map((item) => (
+        <li key={item.id}>
+          <Link href={`/ajuda/${item.id}`} className="ajd-tela" aria-current={item.id === atual ? "page" : undefined}>
+            {item.titulo}
+          </Link>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+/** A imagem (ou a figura) grande, numa janela que fecha com Esc, no botão ou clicando fora. */
+function Ampliada({
   alt,
   onFechar,
+  children,
 }: {
-  imagem: ImagemDaAjuda;
   alt: string;
   onFechar: () => void;
+  children: ReactNode;
 }) {
   const janela = useRef<HTMLDialogElement>(null);
   useEffect(() => {
@@ -264,13 +353,7 @@ function ImagemAmpliada({
       <button type="button" className="btn btn-secondary" onClick={onFechar}>
         Fechar
       </button>
-      <Image
-        src={imagem.src}
-        width={imagem.largura}
-        height={imagem.altura}
-        alt={alt}
-        sizes="96vw"
-      />
+      {children}
     </dialog>
   );
 }

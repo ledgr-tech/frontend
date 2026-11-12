@@ -18,21 +18,17 @@ function plano(nome: string): Plano {
   return encontrado;
 }
 
-// O design põe a empresa no "Volume, acima de 350 lançamentos" — a faixa de
-// antes de a landing criar o Escala. Pela landing, 4.218 lançamentos em
-// setembro cabem no Escala, e o Volume começa acima de 5.000.
 const ATUAL = plano("Escala");
-const ANTERIOR = plano("Avançado");
 
 export const ASSINATURA = {
   plano: ATUAL,
   renovaEm: "12 de outubro",
-  /** O porquê desta faixa, no cartão do plano atual. */
-  faixa: "É a sua faixa: 4.218 lançamentos em setembro, quatro bancos.",
+  /** O que a conta usa, no cartão do plano atual. */
+  faixa: "Quatro bancos conciliados em setembro.",
 };
 
 export const NUMEROS = [
-  { rotulo: "Plano atual", valor: ATUAL.nome, nota: `${ATUAL.preco} · ${ATUAL.limite}` },
+  { rotulo: "Plano atual", valor: ATUAL.nome, nota: `Renova em ${ASSINATURA.renovaEm}` },
   { rotulo: "Contas conciliadas", valor: "4", nota: "Sicredi, Sicoob, Itaú e Banco do Brasil" },
   { rotulo: "Lançamentos em setembro", valor: "4.218", nota: "Conferidos contra o razão do Cigam" },
 ];
@@ -40,15 +36,14 @@ export const NUMEROS = [
 export type Fatura = {
   competencia: string;
   vencimento: string;
-  valor: string;
   situacao: "Paga" | "A vencer";
 };
 
-// Da mais nova para a mais antiga. O valor é o preço do plano de cada mês: o
-// design cobrava R$ 249,00, que não é preço de plano nenhum na landing.
+// Da mais nova para a mais antiga. Sem valor: os preços ainda não foram definidos, e a
+// demonstração é o que o piloto vê em produção (#296).
 export const FATURAS: Fatura[] = [
-  { competencia: "Outubro de 2026", vencimento: "12 de outubro", valor: ATUAL.preco, situacao: "A vencer" },
-  { competencia: "Setembro de 2026", vencimento: "12 de setembro", valor: ATUAL.preco, situacao: "Paga" },
-  { competencia: "Agosto de 2026", vencimento: "12 de agosto", valor: ATUAL.preco, situacao: "Paga" },
-  { competencia: "Julho de 2026", vencimento: "12 de julho", valor: ANTERIOR.preco, situacao: "Paga" },
+  { competencia: "Outubro de 2026", vencimento: "12 de outubro", situacao: "A vencer" },
+  { competencia: "Setembro de 2026", vencimento: "12 de setembro", situacao: "Paga" },
+  { competencia: "Agosto de 2026", vencimento: "12 de agosto", situacao: "Paga" },
+  { competencia: "Julho de 2026", vencimento: "12 de julho", situacao: "Paga" },
 ];

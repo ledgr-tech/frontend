@@ -12,7 +12,7 @@ import { comEmpresa } from "@/lib/rotas";
 import { useRoteador } from "@/lib/roteador";
 import { formatarCnpj } from "../../../../(auth)/cadastro/passos";
 import { Cabecalho } from "../cabecalho";
-import { useLimites, usePapel } from "../conta";
+import { useCobranca, useLimites, usePapel } from "../conta";
 import { formatarDataHora } from "../dashboard/resumo";
 import { FaixaFiltros } from "../faixa-filtros";
 import { SITUACAO, combina } from "../seletor-de-empresa";
@@ -69,6 +69,7 @@ export function PainelDeEmpresas({ empresas: daPagina }: { empresas: EmpresaClie
   const ativa = useEmpresaAtiva();
   const papel = usePapel();
   const limites = useLimites();
+  const cobranca = useCobranca();
   const equipe = useEquipe();
   // a aba nasce da URL do navegador, não da página renderizada no servidor: trocar de aba só troca a URL
   // (`replaceState`), e o voltar do navegador devolve a tela do cache com a URL de agora
@@ -284,7 +285,7 @@ export function PainelDeEmpresas({ empresas: daPagina }: { empresas: EmpresaClie
                     contagem={limite.maximo === null ? `${contagem(limite.usadas, null)} do plano` : contagem(limite.usadas, limite.maximo)}
                     usadas={limite.usadas}
                     maximo={limite.maximo}
-                    aviso={textoDoLimite("empresas", limite)}
+                    aviso={textoDoLimite("empresas", limite, cobranca)}
                     verPlanos={noLimite}
                   />
                 )}

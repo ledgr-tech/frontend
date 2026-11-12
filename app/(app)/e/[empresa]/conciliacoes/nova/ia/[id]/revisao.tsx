@@ -3,13 +3,19 @@
 import { Fragment, useRef, useState } from "react";
 import { ArrowRight, Pencil, Plus, ShieldCheck, Trash2 } from "lucide-react";
 import { useRoteador } from "@/lib/roteador";
+import { caminhoDaConciliacao } from "@/lib/caminhos";
+import type { Falha } from "../../../acoes";
+import { RetomarNovaVersao } from "./retomar-nova-versao";
 import { formatarMoeda } from "@/lib/mock-data";
 import { MensagemErro } from "../../../../../../../(auth)/_compartilhado/mensagem-erro";
 import { formatarDataHora } from "../../../../dashboard/resumo";
 import { IconeOrigem } from "../../../../icone-origem";
 import {
   acrescentarLinhaAoRascunho,
+  carregarRascunho,
   confirmarImportacao,
+  concluirNovaVersaoIa,
+  type ContextoNovaVersaoIa,
   corrigirLinhaDoRascunho,
   descartarImportacao,
   removerLinhaDoRascunho,
@@ -20,25 +26,38 @@ import {
 
 type Campos = { data: string; valor: string; descricao: string };
 const VAZIA: Campos = { data: "", valor: "", descricao: "" };
+const FALHA_AO_ATUALIZAR_RESUMO = "A linha foi removida, mas não foi possível atualizar o resumo. Tente atualizar o resumo antes de confirmar.";
 
 /**
  * A tela de conferência (#225), no molde da Nova conciliação (versão D, 30/10): a tabela do rascunho
- * dentro da folha do sistema, com corrigir e remover por ícone, e o painel ao lado com quantos
+ * dentro da folha do sistema, com corrigir e remover por ícone (remover pede confirmação na linha), e o painel ao lado com quantos
  * lançamentos, entradas, saídas e as ações Confirmar e Descartar (Descartar pede confirmação). Cada mudança vai ao backend na
  * hora e devolve o resumo recalculado; só "Confirmar" faz os lançamentos entrarem no sistema, e
  * "Descartar" apaga o rascunho. O rascunho vence em 7 dias.
  */
-export function Revisao({ inicial }: { inicial: Rascunho }) {
+export function Revisao({
+  inicial,
+  contexto,
+}: {
+  inicial: Rascunho;
+  contexto?: ContextoNovaVersaoIa & { arquivoBanco: string };
+}) {
   const roteador = useRoteador();
   const [linhas, setLinhas] = useState<LinhaDoRascunho[]>(inicial.itens);
   const [resumo, setResumo] = useState<ResumoDoRascunho>(inicial.resumo);
+  const [resumoDesatualizado, setResumoDesatualizado] = useState(false);
   const [editando, setEditando] = useState<string | null>(null);
   const [campos, setCampos] = useState<Campos>(VAZIA);
   const [nova, setNova] = useState(false);
   const [confirmandoDescarte, setConfirmandoDescarte] = useState(false);
+  // a linha em que "Remover" espera a confirmação: um clique no ícone ao lado do lápis não apaga nada
+  const [removendo, setRemovendo] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const [falhaAoConciliar, setFalhaAoConciliar] = useState<Falha | null>(null);
+  const [saindo, setSaindo] = useState(false);
   const trava = useRef(false);
+  const edicaoPendente = editando !== null || nova;
 
   /** Uma chamada por vez: a trava fecha antes do primeiro await, como nos outros painéis. */
   async function executar(trabalho: () => Promise<string | null>) {
@@ -76,20 +95,54 @@ export function Revisao({ inicial }: { inicial: Rascunho }) {
       return null;
     });
 
+  async function atualizarResumo(): Promise<string | null> {
+    try {
+      // O resumo vem de todas as linhas, inclusive as que não cabem na primeira página.
+      const r = await carregarRascunho(inicial.id);
+      if (!r.ok) return FALHA_AO_ATUALIZAR_RESUMO;
+      setLinhas(r.dados.itens);
+      setResumo(r.dados.resumo);
+      setResumoDesatualizado(false);
+      return null;
+    } catch {
+      return FALHA_AO_ATUALIZAR_RESUMO;
+    }
+  }
+
   const remover = (linha: LinhaDoRascunho) =>
     executar(async () => {
       const r = await removerLinhaDoRascunho(inicial.id, linha.id);
       if (!r.ok) return r.erro;
       setLinhas((atual) => atual.filter((l) => l.id !== linha.id));
-      setResumo((atual) => ({ ...atual, quantidade: atual.quantidade - 1 }));
-      return null;
+      setResumoDesatualizado(true);
+      return atualizarResumo();
     });
 
   const confirmar = () =>
     executar(async () => {
+      if (edicaoPendente || resumoDesatualizado || resumo.quantidade === 0 || saindo) return null;
+      if (contexto) {
+        const r = await concluirNovaVersaoIa(contexto, inicial.id);
+        if (r.ok) {
+          setSaindo(true);
+          roteador.replace(caminhoDaConciliacao(contexto.banco, r.dados.extratoId));
+          return null;
+        }
+        if (r.status === 401) {
+          setSaindo(true);
+          roteador.push("/login");
+          return null;
+        }
+        if (r.confirmada) {
+          setFalhaAoConciliar(r);
+          return null;
+        }
+        return r.erro;
+      }
       const r = await confirmarImportacao(inicial.id);
       if (!r.ok) return r.erro;
-      roteador.push("/extratos");
+      // segue para a Nova conciliação com o sistema já pronto: só falta enviar o extrato do banco
+      roteador.push(`/conciliacoes/nova?sistema=${r.dados.extratoId}`);
       return null;
     });
 
@@ -97,7 +150,7 @@ export function Revisao({ inicial }: { inicial: Rascunho }) {
     executar(async () => {
       const r = await descartarImportacao(inicial.id);
       if (!r.ok && r.status !== 404) return r.erro;
-      roteador.push("/conciliacoes/nova");
+      roteador.push(contexto ? caminhoDaConciliacao(contexto.banco, contexto.sistemaAnterior) : "/conciliacoes/nova");
       return null;
     });
 
@@ -121,6 +174,7 @@ export function Revisao({ inicial }: { inicial: Rascunho }) {
           <button
             type="button"
             className="btn btn-ghost"
+            disabled={ocupado}
             onClick={() => {
               setEditando(null);
               setNova(false);
@@ -133,8 +187,12 @@ export function Revisao({ inicial }: { inicial: Rascunho }) {
     );
   }
 
-  const maisLinhasQueAsMostradas = inicial.total > inicial.itens.length;
+  const maisLinhasQueAsMostradas = resumo.quantidade > linhas.length;
   const dataBr = (iso: string) => iso.slice(0, 10).split("-").reverse().join("/");
+  if (contexto && falhaAoConciliar) {
+    return <RetomarNovaVersao contexto={contexto} importacaoId={inicial.id} falhaInicial={falhaAoConciliar} />;
+  }
+
   const periodo =
     resumo.periodoInicio && resumo.periodoFim ? `${dataBr(resumo.periodoInicio)} a ${dataBr(resumo.periodoFim)}` : null;
 
@@ -147,10 +205,10 @@ export function Revisao({ inicial }: { inicial: Rascunho }) {
             <IconeOrigem origem="sistema" tamanho={13} />
             Relatório de lançamentos · rascunho
           </span>
-          <span>{`${resumo.quantidade} ${resumo.quantidade === 1 ? "lançamento" : "lançamentos"} lidos do arquivo da IA`}</span>
+          <span>{resumoDesatualizado ? "Resumo aguardando atualização" : `${resumo.quantidade} ${resumo.quantidade === 1 ? "lançamento" : "lançamentos"} lidos do arquivo da IA`}</span>
         </div>
-        {maisLinhasQueAsMostradas && (
-          <p role="note" className="ia-rev-nota">{`Mostrando as primeiras ${inicial.itens.length} de ${inicial.total} linhas. As demais entram junto na confirmação.`}</p>
+        {!resumoDesatualizado && maisLinhasQueAsMostradas && (
+          <p role="note" className="ia-rev-nota">{`Mostrando ${linhas.length} de ${resumo.quantidade} linhas. As demais entram junto na confirmação.`}</p>
         )}
         <div className="ia-rolavel">
           <table className="table" aria-label="Linhas importadas">
@@ -178,23 +236,38 @@ export function Revisao({ inicial }: { inicial: Rascunho }) {
                     <td>{linha.descricao}</td>
                     <td className="rel-num">{formatarMoeda(Number(linha.valor))}</td>
                     <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
-                      <button
-                        type="button"
-                        className="btn btn-ghost"
-                        aria-label={`Corrigir linha ${linha.numero}`}
-                        disabled={ocupado}
-                        onClick={() => {
-                          setEditando(linha.id);
-                          setNova(false);
-                          setCampos({ data: linha.data, valor: linha.valor, descricao: linha.descricao });
-                          setErro(null);
-                        }}
-                      >
-                        <Pencil size={16} aria-hidden="true" />
-                      </button>
-                      <button type="button" className="btn btn-ghost" aria-label={`Remover linha ${linha.numero}`} disabled={ocupado} onClick={() => remover(linha)}>
-                        <Trash2 size={16} aria-hidden="true" />
-                      </button>
+                      {removendo === linha.id ? (
+                        <>
+                          <button type="button" className="btn btn-perigo" aria-label={`Remover de vez a linha ${linha.numero}`} disabled={ocupado} onClick={() => remover(linha)}>
+                            Remover
+                          </button>{" "}
+                          {/* o ícone que trouxe até aqui sumiu: o foco vem para o que não apaga nada */}
+                          <button type="button" className="btn btn-ghost" aria-label={`Manter linha ${linha.numero}`} disabled={ocupado} autoFocus onClick={() => setRemovendo(null)}>
+                            Manter
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            className="btn btn-ghost"
+                            aria-label={`Corrigir linha ${linha.numero}`}
+                            disabled={ocupado || resumoDesatualizado}
+                            onClick={() => {
+                              setEditando(linha.id);
+                              setNova(false);
+                              setRemovendo(null);
+                              setCampos({ data: linha.data, valor: linha.valor, descricao: linha.descricao });
+                              setErro(null);
+                            }}
+                          >
+                            <Pencil size={16} aria-hidden="true" />
+                          </button>
+                          <button type="button" className="btn btn-ghost" aria-label={`Remover linha ${linha.numero}`} disabled={ocupado || resumoDesatualizado} onClick={() => setRemovendo(linha.id)}>
+                            <Trash2 size={16} aria-hidden="true" />
+                          </button>
+                        </>
+                      )}
                     </td>
                   </tr>
                 ),
@@ -211,8 +284,10 @@ export function Revisao({ inicial }: { inicial: Rascunho }) {
                 <button
                   type="button"
                   className="btn btn-secondary"
+                  disabled={ocupado || resumoDesatualizado}
                   onClick={() => {
                     setNova(true);
+                    setRemovendo(null);
                     setCampos(VAZIA);
                     setErro(null);
                   }}
@@ -230,27 +305,47 @@ export function Revisao({ inicial }: { inicial: Rascunho }) {
         <span className="rotulo">{`Rascunho · vale até ${formatarDataHora(resumo.expiraEm).slice(0, 10)}`}</span>
         <h2 className="conc-previa-titulo">Confira antes de confirmar</h2>
         <div className="extrato-resultado" role="status">
-          <p className="conc-previa-numero">
-            <strong>{resumo.quantidade}</strong> {resumo.quantidade === 1 ? "lançamento" : "lançamentos"}
-          </p>
-        </div>
-        <dl className="conc-previa-dados">
-          <dt>Entradas</dt>
-          <dd>{formatarMoeda(Number(resumo.totalEntradas))}</dd>
-          <dt>Saídas</dt>
-          <dd>{formatarMoeda(Number(resumo.totalSaidas))}</dd>
-          {periodo && (
-            <>
-              <dt>Período</dt>
-              <dd>{periodo}</dd>
-            </>
+          {resumoDesatualizado ? (
+            <p>{ocupado ? "Atualizando resumo…" : "Atualize o resumo para conferir os totais antes de confirmar."}</p>
+          ) : (
+            <p className="conc-previa-numero">
+              <strong>{resumo.quantidade}</strong> {resumo.quantidade === 1 ? "lançamento" : "lançamentos"}
+            </p>
           )}
-        </dl>
+        </div>
+        {!resumoDesatualizado && (
+          <dl className="conc-previa-dados">
+            <dt>Entradas</dt>
+            <dd>{formatarMoeda(Number(resumo.totalEntradas))}</dd>
+            <dt>Saídas</dt>
+            <dd>{formatarMoeda(Number(resumo.totalSaidas))}</dd>
+            {periodo && (
+              <>
+                <dt>Período</dt>
+                <dd>{periodo}</dd>
+              </>
+            )}
+          </dl>
+        )}
         <div className="conc-previa-acoes">
-          <button type="button" className="btn nova-conciliar" onClick={confirmar} disabled={ocupado || resumo.quantidade === 0}>
-            {`Confirmar ${resumo.quantidade} ${resumo.quantidade === 1 ? "lançamento" : "lançamentos"}`}
+          {resumoDesatualizado && (
+            <button type="button" className="btn btn-secondary" onClick={() => executar(atualizarResumo)} disabled={ocupado}>
+              Atualizar resumo
+            </button>
+          )}
+          <button
+            type="button"
+            className="btn nova-conciliar"
+            onClick={confirmar}
+            disabled={ocupado || saindo || edicaoPendente || resumoDesatualizado || resumo.quantidade === 0}
+            aria-describedby={edicaoPendente ? "ia-edicao-pendente" : undefined}
+          >
+            {resumoDesatualizado ? "Confirmar importação" : `Confirmar ${resumo.quantidade} ${resumo.quantidade === 1 ? "lançamento" : "lançamentos"}`}
             <ArrowRight aria-hidden="true" />
           </button>
+          {edicaoPendente && (
+            <p id="ia-edicao-pendente" className="nova-nota">Salve ou cancele a edição da linha antes de confirmar a importação.</p>
+          )}
           {confirmandoDescarte ? (
             <>
               <button type="button" className="btn btn-secondary" onClick={descartar} disabled={ocupado}>
@@ -268,7 +363,11 @@ export function Revisao({ inicial }: { inicial: Rascunho }) {
         </div>
         <p className="nova-nota">
           <ShieldCheck aria-hidden="true" />
-          <span>Ao confirmar, as linhas entram como o extrato do sistema e aparecem em Extratos, prontas para conciliar com o do banco.</span>
+          <span>
+            {contexto
+              ? `Ao confirmar, o Ledgr abre uma nova rodada com o mesmo extrato do banco (${contexto.arquivoBanco}).`
+              : "Ao confirmar, as linhas entram como o extrato do sistema e você segue para enviar o extrato do banco."}
+          </span>
         </p>
       </aside>
     </div>

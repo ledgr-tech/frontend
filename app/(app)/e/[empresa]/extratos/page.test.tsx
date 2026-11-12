@@ -100,12 +100,11 @@ describe("ExtratosPage", () => {
     expect(screen.queryByRole("group", { name: "Filtrar arquivos" })).not.toBeInTheDocument();
   });
 
-  it("asks for a reload when the backend fails", async () => {
+  it("offers a retry when the backend fails", async () => {
     listarExtratos.mockResolvedValue({ ok: false, status: 0, erro: "Não foi possível falar com o servidor." });
     await renderizar();
-    expect(screen.getByRole("alert")).toHaveTextContent(
-      "Não foi possível carregar os extratos. Recarregue a página e tente de novo.",
-    );
+    expect(screen.getByRole("alert")).toHaveTextContent("Não foi possível carregar os extratos.");
+    expect(screen.getByRole("button", { name: "Tentar de novo" })).toBeInTheDocument();
   });
 
   it("sends an expired session back to the login", async () => {

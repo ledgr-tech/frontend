@@ -68,9 +68,9 @@ const newsreader = localFont({
   src: "./fonts/newsreader/newsreader-latin.woff2",
   weight: "200 800",
   variable: "--font-titulo-family",
-  // ponytail: sem preload. São 130 KB, a maior fonte, e só o app logado (e a janela no fim da
-  // landing) usa; pré-carregada, ela disputava a banda com o CSS e o topo da landing no
-  // celular. O navegador baixa quando um título a usa, e o título troca de fonte uma vez.
+  // ponytail: sem preload. São 130 KB, a maior fonte, e só o app logado e as janelas do app na
+  // landing usam (a primeira logo abaixo do título do hero: a landing sempre a baixa); pré-carregada,
+  // ela disputava a banda com o CSS e o topo da landing no celular. O título troca de fonte uma vez.
   preload: false,
   declarations: [
     {

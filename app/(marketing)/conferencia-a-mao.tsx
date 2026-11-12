@@ -1,11 +1,24 @@
 import { IconeOrigem } from "@/app/(app)/e/[empresa]/icone-origem";
+import { Cena, Contagem } from "./cena";
 import type { LinhaExtrato } from "./comparacao";
 
 /**
  * Uma dor do fechamento à mão, aberta pelo número que a mostra (`numero`, com `unidade` menor ao
  * lado). Com `linha`, o círculo dela marca essa linha nas duas telas; sem, marca a escala do mês.
+ * Com `contar`, o número conta do zero até ele quando a cena aparece.
  */
-export type Dor = { rotulo: string; numero: string; unidade?: string; titulo: string; texto: string; linha?: string };
+export type Dor = { rotulo: string; numero: string; unidade?: string; titulo: string; texto: string; linha?: string; contar?: number };
+
+/** O número da dor; num valor em reais, o "R$" fica pequeno e o valor é o que aparece. */
+function Numero({ dor }: { dor: Dor }) {
+  if (dor.contar !== undefined) return <Contagem valor={dor.contar} />;
+  if (!dor.numero.startsWith("R$ ")) return dor.numero;
+  return (
+    <>
+      <span className="mao-moeda">R$</span> {dor.numero.slice(3)}
+    </>
+  );
+}
 
 function Marca({ numero }: { numero: number }) {
   return (
@@ -55,8 +68,9 @@ export function ConferenciaAMao({
   const resto = (total - banco.length).toLocaleString("pt-BR");
 
   return (
+    // cada parte é uma cena: as folhas, cada dor e o fecho entram quando elas mesmas chegam à tela
     <div className="mao">
-      <figure className="mao-folhas">
+      <Cena as="figure" className="mao-folhas" margem="0px 0px -18% 0px">
         <figcaption className="sr-only">As duas telas de agosto como chegam à mão, com as linhas de cada dor numeradas</figcaption>
         <div className="mao-folha" data-folha="banco">
           <p className="mao-folha-nome" id="mao-banco">
@@ -87,11 +101,11 @@ export function ConferenciaAMao({
             </li>
           </ul>
         </div>
-      </figure>
+      </Cena>
 
       <ol className="mao-dores" aria-label="O que custa conferir à mão">
         {dores.map((dor, i) => (
-          <li key={dor.titulo} className="mao-dor">
+          <Cena as="li" key={dor.titulo} className="mao-dor" margem="0px 0px -12% 0px">
             <div className="mao-dor-topo">
               <span className="mao-marca" aria-hidden="true">
                 {i + 1}
@@ -99,20 +113,25 @@ export function ConferenciaAMao({
               <p className="mao-dor-rotulo">{dor.rotulo}</p>
             </div>
             <p className="mao-dor-numero numero-destaque">
-              {dor.numero}
+              <Numero dor={dor} />
               {dor.unidade && <span className="mao-dor-unidade"> {dor.unidade}</span>}
             </p>
             <h3 className="mao-dor-titulo">{dor.titulo}</h3>
             <p className="mao-dor-texto">{dor.texto}</p>
-          </li>
+          </Cena>
         ))}
       </ol>
 
-      <div className="mao-ponte">
+      {/* o fecho ganha o gesto do hero: o traço dourado sob a frase e o grifo que estala */}
+      <Cena className="mao-ponte" margem="0px 0px -12% 0px">
         <p>
-          <em>O Ledgr confere todas as linhas</em> e aponta só as que não batem, com o motivo.
+          <em className="kin-sublinha">
+            O Ledgr confere todas as linhas
+            <span className="kin-traco" aria-hidden="true" />
+          </em>{" "}
+          e aponta <span className="kin-grifo">só as que não batem</span>, com o motivo.
         </p>
-      </div>
+      </Cena>
     </div>
   );
 }

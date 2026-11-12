@@ -42,7 +42,7 @@ function Equipe({ aberto = true }: { aberto?: boolean }) {
 
 function montar(papel: Papel = "admin", email = ADMIN.email, limites: LimitesDaConta | null = null, aberto = true, temSenha = true) {
   render(
-    <ProvedorDaConta preferencias={null} limites={limites} papel={papel} email={email} temSenha={temSenha}>
+    <ProvedorDaConta cobrancaHabilitada preferencias={null} limites={limites} papel={papel} email={email} temSenha={temSenha}>
       <Equipe aberto={aberto} />
     </ProvedorDaConta>,
   );
@@ -133,12 +133,11 @@ describe("a equipe", () => {
     expect(await screen.findByText("eva@x.com", { selector: ".equipe-nome" })).toBeInTheDocument();
   });
 
-  it("o convite abre numa janela modal que se fecha por Fechar, Esc e clique no fundo", async () => {
+  it("o convite abre numa janela modal que se fecha pelo botão Fechar", async () => {
     const user = userEvent.setup();
     montar();
-    await screen.findByText("Bia", { selector: ".equipe-nome" });
 
-    const janela = screen.getByRole("dialog", { name: "Convidar pessoa" });
+    const janela = await screen.findByRole("dialog", { name: "Convidar pessoa" });
     expect(within(janela).getByLabelText("E-mail da pessoa")).toBeInTheDocument();
     await user.click(within(janela).getByRole("button", { name: "Fechar" }));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
@@ -266,7 +265,7 @@ describe("a equipe", () => {
     carregarEquipe.mockResolvedValueOnce({ ok: false, status: 500, erro: "x" });
     montar();
 
-    expect(await screen.findByText("Não foi possível carregar agora.")).toBeInTheDocument();
+    expect(await screen.findByText("Não foi possível carregar a equipe.")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Tentar de novo" }));
 
     expect(await screen.findByText("Bia", { selector: ".equipe-nome" })).toBeInTheDocument();
@@ -324,7 +323,8 @@ describe("a faixa do plano para pessoas", () => {
     await screen.findByText("Bia", { selector: ".equipe-nome" });
     expect(screen.getByText(/chegou ao limite de 3 pessoas/)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Ver planos" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Enviar convite" })).toBeEnabled();
+    const janela = await screen.findByRole("dialog", { name: "Convidar pessoa" });
+    expect(within(janela).getByRole("button", { name: "Enviar convite" })).toBeEnabled();
   });
 
   it("sem máximo e com uma pessoa só, a contagem fala no singular", async () => {
@@ -451,7 +451,7 @@ describe("o menu de papel", () => {
     await user.click(botaoDe("Bia")!);
     await user.click(screen.getByRole("menuitemradio", { name: /^Analista/ }));
 
-    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole("menu")).not.toBeInTheDocument());
     expect(trocarPapel).not.toHaveBeenCalled();
   });
 
@@ -542,12 +542,12 @@ describe("o menu de papel", () => {
     await user.click(botaoDe("Bia")!);
     expect(screen.getByRole("menu")).toBeInTheDocument();
     await user.keyboard("{Escape}");
-    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole("menu")).not.toBeInTheDocument());
     expect(botaoDe("Bia")).toHaveFocus();
 
     await user.click(botaoDe("Bia")!);
     await user.click(document.body);
-    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole("menu")).not.toBeInTheDocument());
   });
 
   it("o foco entra no papel atual e as setas andam pelos itens", async () => {
@@ -576,7 +576,7 @@ describe("o menu de papel", () => {
     await user.keyboard("{Home}");
     expect(screen.getByRole("menuitemradio", { name: /^Gestor/ })).toHaveFocus();
     await user.keyboard("{Tab}");
-    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole("menu")).not.toBeInTheDocument());
   });
 
   it("escolher um papel devolve o foco ao botão, que não se desliga de verdade enquanto salva", async () => {
@@ -640,7 +640,7 @@ describe("a transferência da administração", () => {
     expect(
       within(janela).getByText("Bia passa a ser o administrador da conta e você passa a ser Gestor. Só o novo administrador pode desfazer isso."),
     ).toBeInTheDocument();
-    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole("menu")).not.toBeInTheDocument());
   });
 
   it("na conta com senha, a senha é obrigatória e vai ao backend", async () => {

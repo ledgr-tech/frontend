@@ -9,6 +9,7 @@ import { MenuDeAjuda } from "./ajuda/menu-de-ajuda";
 import { diasRestantes, fraseCurtaDoTeste, fraseDoTeste } from "@/lib/assinatura";
 import { useAssinatura } from "./conta";
 import { useTeclaDeAtalho } from "@/lib/plataforma";
+import { usePresenca } from "@/lib/troca-suave";
 import { formatarMoeda, type LinhaComparacao } from "@/lib/mock-data";
 import { avisosDoMes, idsLidos, marcarLidos } from "./avisos";
 import { carregarVisaoGeral, type VisaoGeral } from "./conciliacoes/acoes";
@@ -32,13 +33,14 @@ function combina(linha: LinhaComparacao, termo: string): boolean {
 type Leitura = { situacao: "lendo" } | { situacao: "falhou" } | { situacao: "pronta"; visao: VisaoGeral };
 
 // O tema e a conta (nome, empresa e Sair) moram no rodapé do menu lateral.
-export function BarraSuperior() {
+export function BarraSuperior({ contaInativa = false }: { contaInativa?: boolean }) {
   const assinatura = useAssinatura();
   const diasDeTeste =
     assinatura?.situacao === "teste" && assinatura.testeTerminaEm ? diasRestantes(assinatura.testeTerminaEm, new Date()) : null;
   const [termo, setTermo] = useState("");
   const [buscaAberta, setBuscaAberta] = useState(false);
   const [avisosAbertos, setAvisosAbertos] = useState(false);
+  const presencaDosAvisos = usePresenca(avisosAbertos);
   const [leitura, setLeitura] = useState<Leitura>({ situacao: "lendo" });
   const [lidos, setLidos] = useState<string[]>([]);
   const tecla = useTeclaDeAtalho();
@@ -212,6 +214,19 @@ export function BarraSuperior() {
       {assinatura && assinatura.situacao in SELOS_DE_RISCO && (
         <SeloDoTeste href="/assinatura" risco {...SELOS_DE_RISCO[assinatura.situacao as keyof typeof SELOS_DE_RISCO]} />
       )}
+      {/* a conta inativa (backend #156): só depois de uma escrita recusada, que é quando a tela sabe */}
+      {contaInativa && (
+        <a
+          href="mailto:ledgrtech@gmail.com?subject=Reativar%20a%20conta"
+          className="selo selo-risco app-teste"
+          aria-label="Conta inativa · falar com o Ledgr"
+        >
+          <span className="app-teste-longo">Conta inativa · falar com o Ledgr</span>
+          <span className="app-teste-curto" aria-hidden="true">
+            Conta inativa
+          </span>
+        </a>
+      )}
 
       <MenuDeAjuda />
 
@@ -236,8 +251,8 @@ export function BarraSuperior() {
           )}
         </button>
 
-        {avisosAbertos && (
-          <div className="app-painel app-avisos-painel">
+        {presencaDosAvisos.montado && (
+          <div className="app-painel app-avisos-painel" data-saindo={presencaDosAvisos.saindo || undefined}>
             <div className="app-avisos-topo">
               <span style={{ fontSize: 17, fontWeight: 600 }}>
                 Avisos

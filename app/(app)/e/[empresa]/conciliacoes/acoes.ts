@@ -22,7 +22,7 @@ import {
   type ListaExecucoesAPI,
   type ListaExtratosAPI,
 } from "@/lib/adaptadores";
-import { chamarBackend, emailDaSessao, ErroBackend } from "@/lib/backend";
+import { chamarBackend, ehContaInativa, emailDaSessao, ErroBackend } from "@/lib/backend";
 import { RECUSA_DEMONSTRACAO, ehContaDeDemonstracao } from "@/lib/demo";
 import { caminhoDaConciliacao } from "@/lib/caminhos";
 import { compararRodadas, execucoesVigentes, rodadasDoBanco, type Mudancas } from "@/lib/rodadas";
@@ -60,13 +60,16 @@ export type SituacaoExtrato = CamposDeSaldoAPI & {
   erros: { identificador: string; motivo: string }[];
 };
 
-/** O `total` é a soma das sete categorias. */
+/** O `total` é a soma das oito categorias; `agrupamentos` conta grupos e fica fora dela. */
 export type ContagensConciliacao = {
   extrato_banco_id: string;
   extrato_sistema_id: string;
   total: number;
   match_exato: number;
   match_tolerancia: number;
+  /** Backend #131: ausentes antes dele, 0 com a flag desligada. */
+  match_agrupado?: number;
+  agrupamentos?: number;
   duplicado: number;
   sem_correspondencia: number;
   tarifa_bancaria: number;
@@ -109,9 +112,11 @@ async function recusaSeNaoPodeFechar(erro: string): Promise<Falha | null> {
   return podeFecharMes(papel) ? null : { ok: false, status: 403, erro };
 }
 
-/** O 403 do backend para quem não pode fechar o mês chega com o mesmo texto da tela. */
+/** O 403 do backend para quem não pode fechar o mês chega com o mesmo texto da tela; o da conta inativa, com o dele. */
 function traduzirDoFechamento(erro: unknown, texto: string): Falha {
-  return erro instanceof ErroBackend && erro.status === 403 ? { ok: false, status: 403, erro: texto } : traduzir(erro);
+  return erro instanceof ErroBackend && erro.status === 403 && !ehContaInativa(erro)
+    ? { ok: false, status: 403, erro: texto }
+    : traduzir(erro);
 }
 
 /** O 404 de uma linha que a tela ainda mostra: o par foi conciliado de novo depois que ela abriu. */
@@ -256,7 +261,7 @@ export type ConciliacaoEmRodadas = {
 const RODADAS_POR_PAGINA = 100;
 
 /** Todas as execuções de um extrato do banco, pelo filtro `?extrato_banco_id=` (backend #82). */
-async function execucoesDoBanco(extratoBancoId: string): Promise<Resultado<Execucao[]>> {
+async function execucoesDoBanco(extratoBancoId: string, exigirHistoricoCompleto = false): Promise<Resultado<Execucao[]>> {
   const pagina = (numero: number) =>
     `/execucoes?extrato_banco_id=${extratoBancoId}&limit=${RODADAS_POR_PAGINA}&offset=${numero * RODADAS_POR_PAGINA}`;
   try {
@@ -266,6 +271,9 @@ async function execucoesDoBanco(extratoBancoId: string): Promise<Resultado<Execu
       const proxima = await chamarBackend<ListaExecucoesAPI>(pagina(numero));
       if (proxima.itens.length === 0) break;
       itens.push(...proxima.itens);
+    }
+    if (exigirHistoricoCompleto && itens.length < primeira.total) {
+      return { ok: false, status: 503, erro: "Não foi possível verificar todas as rodadas. Tente novamente." };
     }
     return { ok: true, dados: itens.map(adaptarExecucao) };
   } catch (erro) {
@@ -345,16 +353,87 @@ export async function carregarConciliacaoEmRodadas(
  * backend ainda recusa a escrita com o 409, que ela mostra.
  */
 async function fechamentoAtivo(periodoInicio: string | null): Promise<Fechamento | null> {
-  // o período vem do backend, mas vira parte da URL: só segue com cara de AAAA-MM
-  const mes = periodoInicio?.slice(0, 7);
-  if (!mes || !COMPETENCIA.test(mes)) return null;
   try {
-    const lista = await chamarBackend<{ itens: FechamentoAPI[] }>(`/fechamentos?competencia=${mes}`);
-    const [maisRecente] = lista.itens;
-    return maisRecente?.estado === "fechado" ? adaptarFechamento(maisRecente) : null;
+    return await lerFechamentoAtivo(periodoInicio);
   } catch {
     return null;
   }
+}
+
+async function lerFechamentoAtivo(periodoInicio: string | null): Promise<Fechamento | null> {
+  const mes = periodoInicio?.slice(0, 7);
+  if (!mes || !COMPETENCIA.test(mes)) return null;
+  const lista = await chamarBackend<{ itens: FechamentoAPI[] }>(`/fechamentos?competencia=${mes}`);
+  const [maisRecente] = lista.itens;
+  return maisRecente?.estado === "fechado" ? adaptarFechamento(maisRecente) : null;
+}
+
+export async function verificarNovaVersao(
+  banco: string,
+  sistemaAnterior?: string,
+  sistemaNovo?: string,
+): Promise<Resultado<{ arquivoBanco: string; jaConciliada: boolean }>> {
+  if (![banco, sistemaAnterior, sistemaNovo].every((id) => id === undefined || pareceUuid(id))) {
+    return { ok: false, status: 404, erro: "A comparação de origem não foi encontrada." };
+  }
+  const execucoes = await execucoesDoBanco(banco, true);
+  if (!execucoes.ok) return execucoes;
+  const rodadas = rodadasDoBanco(execucoes.dados, banco);
+  const vigente = rodadas.at(-1);
+  if (!vigente) return { ok: false, status: 404, erro: "A comparação de origem não foi encontrada." };
+  const { arquivoBanco, periodoInicio } = vigente.execucao;
+  if (sistemaNovo && rodadas.some((rodada) => rodada.extratoSistemaId === sistemaNovo)) {
+    return { ok: true, dados: { arquivoBanco, jaConciliada: true } };
+  }
+  if (sistemaAnterior && sistemaAnterior !== vigente.extratoSistemaId) {
+    return { ok: false, status: 409, erro: "A comparação já tem uma rodada mais recente. Volte à comparação para continuar." };
+  }
+  try {
+    if (await lerFechamentoAtivo(periodoInicio)) {
+      return { ok: false, status: 409, erro: "O mês está fechado. Reabra o mês para enviar uma nova versão." };
+    }
+  } catch (erro) {
+    return traduzir(erro);
+  }
+  return { ok: true, dados: { arquivoBanco, jaConciliada: false } };
+}
+
+/** O que a tela de reenvio mostra da conciliação de origem, lido pelos ids (nada de nome de arquivo na URL). */
+export type ContextoDoReenvio = {
+  arquivoBanco: string;
+  /** O mês da conciliação (AAAA-MM), do período do extrato do banco. */
+  competencia: string;
+  /** A rodada que o arquivo novo vai abrir. */
+  rodada: number;
+  arquivoAnterior: string;
+};
+
+/**
+ * Só lê: mês fechado ou rodada que já passou não são checados aqui. A regra é do backend, e a tela mostra o
+ * texto dele quando o conciliar recusa (409).
+ */
+export async function carregarContextoDoReenvio(
+  banco: string,
+  sistemaAnterior: string,
+): Promise<Resultado<ContextoDoReenvio>> {
+  const naoAchou = { ok: false as const, status: 404, erro: "A comparação de origem não foi encontrada." };
+  if (!pareceUuid(banco) || !pareceUuid(sistemaAnterior)) return naoAchou;
+  const execucoes = await execucoesDoBanco(banco, true);
+  if (!execucoes.ok) return execucoes;
+  const rodadas = rodadasDoBanco(execucoes.dados, banco);
+  const anterior = rodadas.find((rodada) => rodada.extratoSistemaId === sistemaAnterior);
+  const vigente = rodadas.at(-1);
+  if (!anterior || !vigente) return naoAchou;
+  const { arquivoBanco, periodoInicio, executadaEm } = vigente.execucao;
+  return {
+    ok: true,
+    dados: {
+      arquivoBanco,
+      competencia: competencia(periodoInicio, executadaEm),
+      rodada: rodadas.length + 1,
+      arquivoAnterior: anterior.arquivoSistema,
+    },
+  };
 }
 
 // 50 por página (o backend aceita até 100). As telas que resumem — visão geral,
@@ -707,10 +786,12 @@ export type VisaoGeral = {
   /**
    * O mês em foco (revisão de 15/10): o aberto mais recente, ou o mais recente se todos estão
    * fechados, com as linhas de todas as conciliações dele. O número do topo, "Pede sua atenção" e
-   * o atalho de Fechamentos olham o mês inteiro, não só a última conciliação. Ausente quando alguma
-   * conciliação do mês não carregou: a home cai para só a recente, como era.
+   * o atalho de Fechamentos olham o mês inteiro, não só a última conciliação. `conciliacoes` é null
+   * quando as linhas do mês não vieram inteiras (um par não carregou, passou do teto de páginas de
+   * `carregarConciliacao`, ou o mês pode seguir depois da primeira página de `/execucoes`): a home não
+   * soma um mês pela metade.
    */
-  mes?: { competencia: string; fechado: boolean; conciliacoes: Conciliacao[] };
+  mes?: { competencia: string; fechado: boolean; conciliacoes: Conciliacao[] | null };
 };
 
 /**
@@ -764,7 +845,16 @@ export async function carregarVisaoGeral(): Promise<Resultado<VisaoGeral>> {
       ? [{ nome, linhas: situacao.dados.erros.length }]
       : [],
   );
-  const todasCarregaram = conciliacoes.every((resultado) => resultado.ok);
+  // os números do mês saem das linhas: com um par cortado no teto de páginas, a home mostraria um
+  // mês pela metade como inteiro (100% conciliado com divergência na linha 10.001)
+  const inteiras = conciliacoes.flatMap((resultado) =>
+    resultado.ok && !resultado.dados.truncada ? [resultado.dados.conciliacao] : [],
+  );
+  // ponytail: /execucoes não filtra por mês, então a primeira página só traz o mês em foco inteiro quando
+  // chega a uma execução que rodou antes dele (nenhuma do mês roda antes de ele começar); com um filtro
+  // por competência no backend, o mês viria direto e somaria mesmo com muitas execuções
+  const ultima = execucoes[execucoes.length - 1];
+  const mesPodeSeguir = total > execucoes.length && competencia(null, ultima.executadaEm) >= foco;
 
   return {
     ok: true,
@@ -773,13 +863,11 @@ export async function carregarVisaoGeral(): Promise<Resultado<VisaoGeral>> {
       total,
       recente: { execucao: maisRecente, conciliacao: conciliacao.dados.conciliacao },
       arquivosComLinhasNaoLidas,
-      ...(todasCarregaram && {
-        mes: {
-          competencia: foco,
-          fechado: fechados.has(foco),
-          conciliacoes: conciliacoes.flatMap((resultado) => (resultado.ok ? [resultado.dados.conciliacao] : [])),
-        },
-      }),
+      mes: {
+        competencia: foco,
+        fechado: fechados.has(foco),
+        conciliacoes: !mesPodeSeguir && inteiras.length === conciliacoes.length ? inteiras : null,
+      },
     },
   };
 }
@@ -895,12 +983,17 @@ export async function reabrirMes(competencia: string): Promise<Resultado<Fechame
 /** Por que o texto é o fixo do motor, e não o da IA; null quando veio da IA. */
 export type Indisponibilidade = "desabilitado" | "erro_provedor" | "limite_diario";
 
+/** Uma linha dos fatos da divergência, já formatada em pt-BR pelo backend (backend #196): a tela só mostra. */
+export type DetalheDaDivergencia = { rotulo: string; valor: string };
+
 export type Explicacao = {
   /** Texto puro, sem markdown. Vem de descrição de extrato de terceiro: nunca vira HTML. */
   texto: string;
   /** Só com `true` a tela rotula como gerada por IA. */
   geradaPorIa: boolean;
   indisponibilidade: Indisponibilidade | null;
+  /** Ausente ou vazio num backend anterior ao #196. */
+  detalhes?: DetalheDaDivergencia[];
 };
 
 type ExplicacaoAPI = {
@@ -910,7 +1003,33 @@ type ExplicacaoAPI = {
   gerada_por_ia: boolean;
   em_cache: boolean;
   indisponibilidade: Indisponibilidade | null;
+  detalhes?: DetalheDaDivergencia[];
 };
+
+/** A lista é aberta: rótulos novos podem aparecer, e uma linha malformada não derruba a tela. */
+function lerDetalhes(brutos: unknown): DetalheDaDivergencia[] {
+  if (!Array.isArray(brutos)) return [];
+  return brutos.filter(
+    (d): d is DetalheDaDivergencia => typeof d?.rotulo === "string" && typeof d?.valor === "string",
+  );
+}
+
+export type DetalhesDaDivergencia = { texto: string; detalhes: DetalheDaDivergencia[] };
+
+/**
+ * Os fatos de uma divergência (`GET /explicacoes/{id}/detalhes`, backend #196): valores, datas, diferença e
+ * tolerância, calculados pelo backend. Só leitura: não chama a IA, não conta no limite diário e não grava, por
+ * isso pode rodar ao abrir a linha. Um backend anterior ao #196 responde 404 e a tela segue sem eles.
+ */
+export async function carregarDetalhesDaDivergencia(conciliacaoId: string): Promise<Resultado<DetalhesDaDivergencia>> {
+  if (!pareceUuid(conciliacaoId)) return { ok: false, status: 404, erro: "Linha não encontrada." };
+  try {
+    const resposta = await chamarBackend<{ texto?: string; detalhes?: unknown }>(`/explicacoes/${conciliacaoId}/detalhes`);
+    return { ok: true, dados: { texto: typeof resposta.texto === "string" ? resposta.texto : "", detalhes: lerDetalhes(resposta.detalhes) } };
+  } catch (erro) {
+    return traduzir(erro);
+  }
+}
 
 // O backend espera até 20 s pelo provedor de IA antes de cair no texto fixo;
 // numa chamada real de teste levou 6,6 s. 30 s dá folga sem prender a tela.
@@ -940,6 +1059,7 @@ export async function explicarDivergencia(conciliacaoId: string): Promise<Result
         texto: resposta.explicacao,
         geradaPorIa: resposta.gerada_por_ia,
         indisponibilidade: resposta.indisponibilidade,
+        detalhes: lerDetalhes(resposta.detalhes),
       },
     };
   } catch (erro) {

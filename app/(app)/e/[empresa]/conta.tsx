@@ -28,6 +28,8 @@ const Contexto = createContext<ValorDaConta | null>(null);
 const ContextoDoPapel = createContext<Papel>("admin");
 /** O plano e o teste de 14 dias; null sem a informação do backend (e fora do app). */
 const ContextoDaAssinatura = createContext<Assinatura | null>(null);
+/** Se a cobrança está ligada (`cobranca_habilitada` do `GET /me`); desligada, nada de plano ou assinatura aparece. */
+const ContextoDaCobranca = createContext(false);
 /** Quanto do plano a conta usa; null sem a informação do backend (e fora do app): nenhum aviso. */
 const ContextoDosLimites = createContext<LimitesDaConta | null>(null);
 /** O e-mail de quem está logado (a sessão), para marcar a própria linha na Equipe; vazio fora do app. */
@@ -47,6 +49,7 @@ const ContextoDoOriginal = createContext(false);
 export function ProvedorDaConta({
   preferencias,
   assinatura = null,
+  cobrancaHabilitada = false,
   limites = null,
   papel = "admin",
   email = "",
@@ -57,6 +60,7 @@ export function ProvedorDaConta({
 }: {
   preferencias: Preferencias | null;
   assinatura?: Assinatura | null;
+  cobrancaHabilitada?: boolean;
   /** Do `GET /me`: os limites do plano para os avisos de empresas e pessoas. */
   limites?: LimitesDaConta | null;
   /** O e-mail da sessão. */
@@ -102,17 +106,19 @@ export function ProvedorDaConta({
   return (
     <Contexto.Provider value={valor}>
       <ContextoDaAssinatura.Provider value={assinatura}>
-        <ContextoDosLimites.Provider value={limites}>
-          <ContextoDoPapel.Provider value={papel}>
-            <ContextoDoEmail.Provider value={email}>
-              <ContextoDoNome.Provider value={nome}>
-                <ContextoDaSenha.Provider value={temSenha}>
-                  <ContextoDoOriginal.Provider value={guardaArquivoOriginal}>{children}</ContextoDoOriginal.Provider>
-                </ContextoDaSenha.Provider>
-              </ContextoDoNome.Provider>
-            </ContextoDoEmail.Provider>
-          </ContextoDoPapel.Provider>
-        </ContextoDosLimites.Provider>
+        <ContextoDaCobranca.Provider value={cobrancaHabilitada}>
+          <ContextoDosLimites.Provider value={limites}>
+            <ContextoDoPapel.Provider value={papel}>
+              <ContextoDoEmail.Provider value={email}>
+                <ContextoDoNome.Provider value={nome}>
+                  <ContextoDaSenha.Provider value={temSenha}>
+                    <ContextoDoOriginal.Provider value={guardaArquivoOriginal}>{children}</ContextoDoOriginal.Provider>
+                  </ContextoDaSenha.Provider>
+                </ContextoDoNome.Provider>
+              </ContextoDoEmail.Provider>
+            </ContextoDoPapel.Provider>
+          </ContextoDosLimites.Provider>
+        </ContextoDaCobranca.Provider>
       </ContextoDaAssinatura.Provider>
     </Contexto.Provider>
   );
@@ -126,6 +132,11 @@ export function usePreferencias(): ValorDaConta {
 
 export function useAssinatura(): Assinatura | null {
   return useContext(ContextoDaAssinatura);
+}
+
+/** Se há planos e assinatura para mostrar: os atalhos "Ver planos" e a tela Assinatura dependem disto. */
+export function useCobranca(): boolean {
+  return useContext(ContextoDaCobranca);
 }
 
 export function useTemSenha(): boolean {

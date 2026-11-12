@@ -3,15 +3,24 @@ import { notFound, redirect } from "next/navigation";
 import { formatarCnpj } from "../../../(auth)/cadastro/passos";
 import { formatarDataHora, formatarInteiro } from "../../../(app)/e/[empresa]/dashboard/resumo";
 import { detalharConta } from "../acoes";
-import { ROTULO_DA_SITUACAO, chaveDaSituacao, classeDoSelo } from "../situacao";
+import { ROTULO_DA_SITUACAO, chaveDaSituacao, classeDoSelo, localDaConta } from "../situacao";
+import { ROTULO_DA_ORIGEM, ROTULO_DO_PAGAMENTO, ROTULO_DO_PERIODO, ROTULO_DO_STATUS, formatarValor } from "../cobranca";
 import { AcoesDaConta } from "./acoes-da-conta";
+import { AcoesDaAssinatura, DarCupom } from "./cobranca-da-conta";
 
 const ROTULO_DO_EVENTO: Record<string, string> = {
   inativada: "Conta inativada",
   reativada: "Conta reativada",
   piloto_ligado: "Marcada como piloto",
   piloto_desligado: "Piloto desmarcado",
+  cancelamento_agendado: "Cancelamento agendado",
+  assinatura_cancelada: "Assinatura cancelada",
+  cancelamento_desfeito: "Cancelamento desfeito",
+  cupom_enviado: "Cupom enviado",
 };
+
+/** Os status em que a Stripe ainda cobra: cancelar e dar desconto direto valem só para eles (backend `STATUS_VIVOS`). */
+const VIVOS = ["active", "trialing", "past_due"];
 
 const MESES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 
@@ -37,6 +46,9 @@ export default async function ContaPage({ params }: { params: Promise<{ conta: s
   const c = r.dados;
   const data = (iso: string | null) => (iso ? formatarDataHora(iso) : "—");
   const chave = chaveDaSituacao(c);
+  const a = c.assinatura;
+  const viva = !!a && VIVOS.includes(a.status);
+  const dia = (iso: string | null) => (iso ? formatarDataHora(iso).slice(0, 10) : "—");
   const kpis: [string, string, string?][] = [
     ["Empresas", formatarInteiro(c.uso.empresas)],
     ["Pessoas ativas", formatarInteiro(c.uso.usuariosAtivos), c.uso.convitesPendentes > 0 ? `+${c.uso.convitesPendentes} ${c.uso.convitesPendentes === 1 ? "convite" : "convites"}` : undefined],
@@ -59,6 +71,8 @@ export default async function ContaPage({ params }: { params: Promise<{ conta: s
           </span>
         </div>
         <div className="tela-acoes">
+          {viva && <AcoesDaAssinatura id={c.id} nome={c.razaoSocial} agendado={a!.cancelarNoFimDoPeriodo} fimDoPeriodo={a!.periodoAtualFim} />}
+          <DarCupom id={c.id} nome={c.razaoSocial} assinaturaViva={viva} />
           <AcoesDaConta id={c.id} nome={c.razaoSocial} inativa={c.inativa} piloto={c.piloto} />
         </div>
       </div>
@@ -108,6 +122,8 @@ export default async function ContaPage({ params }: { params: Promise<{ conta: s
           <dl style={{ margin: 0, display: "grid", gridTemplateColumns: "auto 1fr", gap: "6px 16px", fontSize: 14 }}>
             <dt style={{ opacity: 0.7 }}>Admin</dt>
             <dd style={{ margin: 0 }}>{c.admin ? `${c.admin.nome} · ${c.admin.email}` : "—"}</dd>
+            <dt style={{ opacity: 0.7 }}>Local</dt>
+            <dd style={{ margin: 0 }}>{localDaConta(c)}</dd>
             <dt style={{ opacity: 0.7 }}>Último login</dt>
             <dd style={{ margin: 0 }}>{data(c.ultimoLoginEm)}</dd>
             <dt style={{ opacity: 0.7 }}>Criada em</dt>
@@ -132,6 +148,100 @@ export default async function ContaPage({ params }: { params: Promise<{ conta: s
               ))}
             </ul>
           )}
+        </section>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 14, marginTop: 14 }}>
+        <section className="card" style={{ padding: 18, display: "grid", gap: 10, alignContent: "start" }} aria-labelledby="conta-assinatura">
+          <h2 id="conta-assinatura" className="font-titulo" style={estiloTituloDoCartao}>
+            Assinatura
+          </h2>
+          {!a ? (
+            <p style={{ margin: 0 }}>A conta nunca assinou pela Stripe.</p>
+          ) : (
+            <dl style={{ margin: 0, display: "grid", gridTemplateColumns: "auto 1fr", gap: "6px 16px", fontSize: 14 }}>
+              <dt style={{ opacity: 0.7 }}>Plano</dt>
+              <dd style={{ margin: 0 }}>{`${a.plano} · ${ROTULO_DO_PERIODO[a.periodo] ?? a.periodo}`}</dd>
+              <dt style={{ opacity: 0.7 }}>Situação</dt>
+              <dd style={{ margin: 0 }}>
+                <span className={a.status === "active" ? "selo selo-ok" : a.status === "trialing" ? "selo selo-atencao" : "selo selo-risco"}>{ROTULO_DO_STATUS[a.status] ?? a.status}</span>
+                {viva && a.cancelarNoFimDoPeriodo && " · cancelamento agendado"}
+              </dd>
+              <dt style={{ opacity: 0.7 }}>{viva && !a.cancelarNoFimDoPeriodo ? "Renova em" : "Acesso até"}</dt>
+              <dd style={{ margin: 0 }}>{dia(a.periodoAtualFim)}</dd>
+              {(a.canceladaEm || a.origemCancelamento) && (
+                <>
+                  <dt style={{ opacity: 0.7 }}>Cancelamento</dt>
+                  <dd style={{ margin: 0 }}>
+                    {[a.canceladaEm && `pedido em ${dia(a.canceladaEm)}`, a.origemCancelamento && `por ${(ROTULO_DA_ORIGEM[a.origemCancelamento] ?? a.origemCancelamento).toLowerCase()}`]
+                      .filter(Boolean)
+                      .join(", ")}
+                    {a.motivoCancelamento && <div style={{ opacity: 0.7 }}>{a.motivoCancelamento}</div>}
+                  </dd>
+                </>
+              )}
+            </dl>
+          )}
+          <h2 className="font-titulo" style={{ ...estiloTituloDoCartao, marginTop: 10 }}>
+            Cupons
+          </h2>
+          {c.cupons.length === 0 ? (
+            <p style={{ margin: 0 }}>Nenhum cupom dado.</p>
+          ) : (
+            <ul style={{ margin: 0, paddingLeft: 18, display: "grid", gap: 6, fontSize: 13.5 }}>
+              {c.cupons.map((cupom) => (
+                <li key={cupom.id}>
+                  <strong>{`${cupom.cupom} (${cupom.desconto})`}</strong>
+                  {` · ${dia(cupom.em)}${cupom.operador ? ` · ${cupom.operador}` : ""}`}
+                  <br />
+                  <span style={{ opacity: 0.7 }}>
+                    {[
+                      cupom.forma === "assinatura" ? "direto na assinatura" : `código ${cupom.codigo ?? ""}`.trim(),
+                      cupom.usadoEm ? `usado em ${dia(cupom.usadoEm)}` : cupom.expiraEm ? `vale até ${dia(cupom.expiraEm)}` : null,
+                      cupom.emailEnviado ? null : "e-mail não saiu",
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <section className="card" style={{ padding: 18, display: "grid", gap: 10, alignContent: "start" }} aria-labelledby="conta-pagamentos">
+          <h2 id="conta-pagamentos" className="font-titulo" style={estiloTituloDoCartao}>
+            Pagamentos recentes
+          </h2>
+          {c.pagamentos.length === 0 ? (
+            <p style={{ margin: 0 }}>Nenhum pagamento.</p>
+          ) : (
+            <table className="table" aria-label="Pagamentos recentes da conta">
+              <thead>
+                <tr>
+                  <th scope="col">Data</th>
+                  <th scope="col" className="rel-num">
+                    Valor
+                  </th>
+                  <th scope="col">Situação</th>
+                </tr>
+              </thead>
+              <tbody>
+                {c.pagamentos.map((p) => (
+                  <tr key={p.id}>
+                    <td>{dia(p.ocorridoEm)}</td>
+                    <td className="rel-num">{formatarValor(p.valorCentavos, p.moeda)}</td>
+                    <td>
+                      <span className={p.status === "paga" ? "selo selo-ok" : "selo selo-risco"}>{ROTULO_DO_PAGAMENTO[p.status] ?? p.status}</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+          <p style={{ margin: 0, fontSize: 12.5, opacity: 0.7 }}>Os 12 mais recentes, como o webhook da Stripe guardou. Reembolso é no painel da Stripe.</p>
+          {/* o detalhe não diz o total: com 12 pode haver mais */}
+          {c.pagamentos.length >= 12 && <Link href={`/admin/${c.id}/pagamentos`}>Ver todos os pagamentos</Link>}
         </section>
       </div>
     </div>

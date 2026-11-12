@@ -24,8 +24,10 @@ export function Shell({
   papel,
   preferencias,
   assinatura = null,
+  cobrancaHabilitada = false,
   limites = null,
   guardaArquivoOriginal = false,
+  contaInativa = false,
   children,
 }: {
   email: string;
@@ -42,10 +44,14 @@ export function Shell({
   preferencias: Preferencias | null;
   /** O plano e o teste de 14 dias, do `GET /me`; null quando ele não manda. */
   assinatura?: Assinatura | null;
+  /** `cobranca_habilitada` do `GET /me`: desligada, o menu e as telas escondem planos e assinatura. */
+  cobrancaHabilitada?: boolean;
   /** Os limites do plano, do `GET /me`; null quando ele não manda. */
   limites?: LimitesDaConta | null;
   /** Se a conta guarda o original de cada extrato, do `GET /me` (backend #139). */
   guardaArquivoOriginal?: boolean;
+  /** Uma escrita foi recusada há pouco porque a conta está inativa (backend #156): a barra de cima avisa. */
+  contaInativa?: boolean;
   children: ReactNode;
 }) {
   return (
@@ -53,6 +59,7 @@ export function Shell({
       <ProvedorDaConta
         preferencias={preferencias}
         assinatura={assinatura}
+        cobrancaHabilitada={cobrancaHabilitada}
         limites={limites}
         papel={papel}
         email={email}
@@ -74,7 +81,7 @@ export function Shell({
               onSair={() => void sair()}
             />
             <main className="app-principal">
-              <BarraSuperior />
+              <BarraSuperior contaInativa={contaInativa} />
               <div id="conteudo" className="app-conteudo" tabIndex={-1}>
                 {children}
               </div>

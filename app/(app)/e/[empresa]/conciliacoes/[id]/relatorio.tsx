@@ -1,6 +1,7 @@
 import { DIVERGENCIAS, type Divergencia } from "@/lib/adaptadores";
 import type { LinhaComparacao, Tom } from "@/lib/mock-data";
 import { formatarMoedaCurta, seloDoStatus, valorEmAberto } from "../../dashboard/resumo";
+import { textoDosLotes } from "./grupos";
 
 export type Categoria = {
   status: Divergencia;
@@ -52,6 +53,7 @@ function textoDoTotal(linhas: LinhaComparacao[], emRevisao: number, justificadas
 export function Relatorio({
   linhas,
   justificadas = 0,
+  agrupamentos = 0,
   ativa,
   onEscolher,
 }: {
@@ -59,6 +61,8 @@ export function Relatorio({
   linhas: LinhaComparacao[];
   /** Quantas divergências estão justificadas, contadas à parte. */
   justificadas?: number;
+  /** Lotes conciliados por soma (backend #131): resolvidos, só ditos ao lado do total. */
+  agrupamentos?: number;
   ativa: Divergencia | null;
   onEscolher: (status: Divergencia | null) => void;
 }) {
@@ -71,7 +75,9 @@ export function Relatorio({
         <h2 id="relatorio-titulo" className="relatorio-titulo">
           Divergências por categoria
         </h2>
-        <span className="relatorio-total">{textoDoTotal(linhas, emRevisao, justificadas)}</span>
+        <span className="relatorio-total">
+          {[textoDoTotal(linhas, emRevisao, justificadas), textoDosLotes(agrupamentos)].filter(Boolean).join(" · ")}
+        </span>
       </div>
       <ul className="relatorio-lista">
         {categorias.map((categoria) => (
