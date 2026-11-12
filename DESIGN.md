@@ -31,7 +31,8 @@ preenchimento**, filete carregando a estrutura, identidade tipográfica.
 - **Duas fontes:** títulos (`h1`–`h3` a partir de ~20px) e números em destaque em
   Newsreader (`--font-titulo`, com tamanho óptico); o resto em Inter. A Cormorant
   Garamond (`--font-display`) fica só na landing, e a itálica dela só no trecho em
-  destaque de cada título principal da landing (`.titulo-misto` + `<em>`). Desde 02/10, a fonte nunca vai em
+  destaque de cada título principal da landing (`.titulo-misto` + `<em>`). Duas telas de acesso repetem esse
+  título nas duas vozes, carregando o itálico só nelas (`fonteDestaque`): `/plano` e `/autorizar-conexao` (11/11). Desde 02/10, a fonte nunca vai em
   `style={{}}`: número ou título grande que não é `h1`–`h3` leva `.font-titulo`, e
   rótulo pequeno em caixa alta leva `.rotulo` (12px, +0,08em; o `h6` de 14px é o
   rótulo de seção). Os ícones Lucide têm traço 1,75 (`TRACO_ICONE`, que o Shell
