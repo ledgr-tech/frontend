@@ -1300,7 +1300,7 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
 /* as variáveis que o app declara no .app-shell, no tema claro: a landing não tem tema escuro. Valem
    para a réplica da janela, para a demonstração de "O problema" e para os cards de Preços, que usam
    as classes do app (e as folhas, no painel da demonstração do card aberto) */
-:is(.vitrine-app, .demonstracao-folhas, .mao, .beneficio) {
+:is(.vitrine-app, .demonstracao-folhas, .mao, .beneficio, .consent) {
   --tinta-hover: color-mix(in srgb, var(--color-text) 6%, transparent);
   --tinta-ativa: color-mix(in srgb, var(--color-text) 9%, transparent);
   --texto-apagado: color-mix(in srgb, var(--color-text) 68%, transparent);
@@ -2532,7 +2532,7 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
 /* Rótulo pequeno em caixa alta: o "lançamentos processados" em cima do número, o "atual" do plano,
    o "assistente" do menu. Uma régua só, com o espaçamento do h6 do guia (+0,08em); o h6, em 14px, é
    o rótulo de seção, e o cabeçalho de tabela fica nos 11px dele, junto com a tabela. */
-.rotulo, .dash-rotulo, .det-kicker, .app-assistente-chamada, .ass-plano-atual {
+.rotulo, .dash-rotulo, .det-kicker, .app-assistente-chamada, .ass-plano-atual, .consent-rotulo {
   font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--texto-apagado);
 }
 
@@ -3945,10 +3945,9 @@ html:not([data-menu="recolhido"]) .app-assistente-figura {
 .cfg-form-botoes { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
 /* o consentimento da conexão do ChatGPT e do Claude (#195), na proposta B do artefato de 11/11: ler à
    esquerda (quem pede, o que lê, o que nunca sai) e decidir à direita, numa folha. As folhas do app só
-   existem no .app-shell, então a daqui repete o papel do banco; as telas de acesso não têm tema escuro */
+   existem no .app-shell; a .consent entra na lista que as declara fora dele (folha, tintas, texto
+   apagado), no tema claro: as telas de acesso não têm tema escuro */
 .consent {
-  --consent-apagado: color-mix(in srgb, var(--color-text) 66%, transparent);
-  --consent-folha: #fdfcfa;
   width: 100%; max-width: 1020px;
   display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: clamp(28px, 5vw, 56px);
   align-items: start; text-align: left;
@@ -3958,7 +3957,7 @@ html:not([data-menu="recolhido"]) .app-assistente-figura {
 .consent-cabeca { display: flex; flex-direction: column; gap: 12px; }
 .consent .eyebrow { color: var(--color-accent-700); }
 .consent h1 { font-size: clamp(34px, 4.6vw, 54px); text-wrap: balance; overflow-wrap: anywhere; }
-.consent-sub { font-size: 16px; line-height: 1.6; color: var(--consent-apagado); }
+.consent-sub { font-size: 16px; line-height: 1.6; color: var(--texto-apagado); }
 .consent-host { font-family: var(--font-mono); font-size: 14.5px; font-weight: 500; color: var(--color-text); overflow-wrap: anywhere; }
 .consent-escopo { font-size: 15px; line-height: 1.6; }
 .consent-alerta {
@@ -3974,29 +3973,30 @@ html:not([data-menu="recolhido"]) .app-assistente-figura {
   display: flex; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--color-divider);
   font-size: 14px; line-height: 1.45;
 }
-.consent-num { padding-top: 2px; font-family: var(--font-mono); font-size: 12px; color: var(--consent-apagado); }
-.consent-rotulo { padding: 0; font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--consent-apagado); }
+.consent-num { padding-top: 2px; font-family: var(--font-mono); font-size: 12px; color: var(--texto-apagado); }
+.consent-rotulo { padding: 0; font-weight: 600; }
 .consent-decisao {
   display: flex; flex-direction: column; gap: 18px; min-width: 0; padding: 26px;
-  border: 1px solid var(--color-divider); border-radius: var(--radius-md); background: var(--consent-folha);
+  border: 1px solid var(--color-divider); border-radius: var(--radius-md); background: var(--folha-banco);
 }
 .consent-decisao-topo { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
-.consent-validade { font-family: var(--font-mono); font-size: 12px; color: var(--consent-apagado); }
+.consent-validade { font-family: var(--font-mono); font-size: 12px; color: var(--texto-apagado); }
 .consent-empresas { display: flex; flex-direction: column; gap: 4px; min-width: 0; margin: 0; padding: 0; border: 0; }
 .consent-pergunta { padding: 0; margin-bottom: 8px; font-size: 14px; font-weight: 500; }
 .consent-empresa {
-  display: flex; align-items: flex-start; gap: 12px; padding: 9px 12px; border-radius: 8px; cursor: pointer;
+  display: flex; align-items: flex-start; gap: 12px; padding: 9px 12px; border-radius: var(--radius-sm); cursor: pointer;
   font-size: 14.5px; line-height: 1.35;
 }
-.consent-empresa:hover { background: color-mix(in srgb, var(--color-text) 6%, transparent); }
+.consent-empresa:not(:has(input:disabled)):hover { background: var(--tinta-hover); }
+.consent-empresa:has(input:disabled) { cursor: default; }
 /* a escolha é neutra, como a linha ativa do app: tinta e um filete na cor do texto, nunca dourado */
 .consent-empresa[data-marcada] {
-  background: color-mix(in srgb, var(--color-text) 9%, transparent); box-shadow: inset 2px 0 0 var(--color-text);
+  background: var(--tinta-ativa); box-shadow: inset 2px 0 0 var(--color-text);
 }
 .consent-empresa input { margin-top: 3px; accent-color: var(--color-text); }
-.consent-cnpj { display: block; font-size: 12.5px; font-variant-numeric: tabular-nums; color: var(--consent-apagado); }
+.consent-cnpj { display: block; font-size: 12.5px; font-variant-numeric: tabular-nums; color: var(--texto-apagado); }
 .consent-empresas .consent-nota { margin-top: 4px; }
-.consent-nota { font-size: 13px; line-height: 1.55; color: var(--consent-apagado); }
+.consent-nota { font-size: 13px; line-height: 1.55; color: var(--texto-apagado); }
 .consent-botoes { display: flex; flex-direction: column; gap: 8px; }
 .consent-depois { padding-top: 16px; border-top: 1px solid var(--color-divider); }
 /* o mascote apagado ao fundo, preso à moldura (que já é relative + overflow hidden): a .consent não tem position */

@@ -143,6 +143,7 @@ export function Consentimento({
   }
 
   const { pedido: dados } = estado;
+  const sujeito = dados.origem.loopback ? "programa" : dados.cliente;
   return (
     <MolduraAuth rotulo="Conexão" larguraConteudo={1020}>
       <div className={`consent ${fonteDestaque.variable}`}>
@@ -169,10 +170,11 @@ export function Consentimento({
           )}
           <p className="consent-escopo">{dados.descricaoEscopo}</p>
 
-          {/* os textos repetem a Política (/privacidade#conexao-ia, #361) */}
+          {/* resumo fiel da Política (/privacidade#conexao-ia, #361): mudou lá, muda aqui. No loopback, o nome
+              do cliente é o que o programa disse ser, então as listas falam do programa */}
           <div className="consent-listas">
-            <Lista id={idLe} titulo={`O ${dados.cliente} lê`} itens={LE} />
-            <Lista id={idFica} titulo="Nunca sai do Ledgr" itens={NUNCA_SAI} />
+            <Lista id={idLe} titulo={`O ${sujeito} lê`} itens={LE} />
+            <Lista id={idFica} titulo={`O ${sujeito} nunca recebe`} itens={NUNCA_RECEBE} />
           </div>
 
           <p className="consent-nota">
@@ -236,7 +238,13 @@ export function Consentimento({
                 aria-busy={enviando === "autorizar" || undefined}
                 onClick={() => void decidir("autorizar")}
               >
-                {enviando === "autorizar" ? "Autorizando…" : "Autorizar a leitura →"}
+                {enviando === "autorizar" ? (
+                  "Autorizando…"
+                ) : (
+                  <>
+                    Autorizar a leitura <span aria-hidden="true">→</span>
+                  </>
+                )}
               </button>
             )}
             <button
@@ -268,14 +276,17 @@ export function Consentimento({
 }
 
 const LE = [
-  "Extratos e conciliações de cada mês",
-  "Divergências: categoria, data, valor e situação",
-  "Fechamentos dos meses",
+  "A razão social e o CNPJ da empresa escolhida (numa empresa individual, costuma ser o nome do dono)",
+  "Os meses, os números de cada conciliação, o período de cada extrato e a data de cada conciliação",
+  "As divergências: categoria, data, valor, situação e o lado, banco ou sistema",
+  "Os fechamentos, e se houve ressalva",
 ];
-const NUNCA_SAI = [
+const NUNCA_RECEBE = [
   "A descrição dos lançamentos",
   "O texto das justificativas e das ressalvas",
-  "Nomes de pessoas ou de arquivos",
+  "O nome de quem usa o Ledgr",
+  "Nomes de arquivos",
+  "A cidade e o estado da conta",
 ];
 
 function Lista({ id, titulo, itens }: { id: string; titulo: string; itens: string[] }) {

@@ -58,12 +58,14 @@ describe("Consentimento", () => {
     expect(screen.getByText(/Você está no Ledgr como ana@telhacerta.com.br/)).toBeInTheDocument();
     expect(screen.getByText(/Ler o status das conciliações/)).toBeInTheDocument();
     expect(screen.getByText(/não muda nada no Ledgr/)).toBeInTheDocument();
-    // as duas listas repetem a Política (#361): o que vai e o que nunca sai
+    // as duas listas resumem a Política (#361): o que a IA lê e o que nunca recebe
     const le = screen.getByRole("list", { name: "O Claude lê" });
-    expect(within(le).getAllByRole("listitem")).toHaveLength(3);
-    const fica = screen.getByRole("list", { name: "Nunca sai do Ledgr" });
-    expect(within(fica).getAllByRole("listitem")).toHaveLength(3);
-    expect(within(fica).getByText("A descrição dos lançamentos")).toBeInTheDocument();
+    expect(within(le).getAllByRole("listitem")).toHaveLength(4);
+    expect(within(le).getByText(/A razão social e o CNPJ da empresa escolhida/)).toBeInTheDocument();
+    const nunca = screen.getByRole("list", { name: "O Claude nunca recebe" });
+    expect(within(nunca).getAllByRole("listitem")).toHaveLength(5);
+    expect(within(nunca).getByText("O nome de quem usa o Ledgr")).toBeInTheDocument();
+    expect(within(nunca).getByText("A cidade e o estado da conta")).toBeInTheDocument();
     const decisao = screen.getByRole("region", { name: "Sua decisão" });
     expect(within(decisao).getByText(/vale até/i)).toBeInTheDocument();
     expect(screen.queryByRole("note")).not.toBeInTheDocument();
@@ -97,6 +99,9 @@ describe("Consentimento", () => {
     // e não promete que o lido vai para a conta do nome que o programa deu a si mesmo
     expect(screen.getByText(/passa para o programa que pediu e para a IA que ele usa/)).toBeInTheDocument();
     expect(screen.queryByText(/passa para a sua conta do/)).not.toBeInTheDocument();
+    // nem dá às listas o nome que ele se deu
+    expect(screen.getByRole("list", { name: "O programa lê" })).toBeInTheDocument();
+    expect(screen.getByRole("list", { name: "O programa nunca recebe" })).toBeInTheDocument();
   });
 
   it("com várias empresas, pede a escolha antes de autorizar e manda a escolhida", async () => {
@@ -104,12 +109,12 @@ describe("Consentimento", () => {
     const user = userEvent.setup();
     abrir();
 
-    await user.click(await screen.findByRole("button", { name: "Autorizar a leitura →" }));
+    await user.click(await screen.findByRole("button", { name: "Autorizar a leitura" }));
     expect(screen.getByRole("alert")).toHaveTextContent("Escolha a empresa");
     expect(autorizarConexao).not.toHaveBeenCalled();
 
     await user.click(screen.getByRole("radio", { name: /Obra Firme Ltda/ }));
-    await user.click(screen.getByRole("button", { name: "Autorizar a leitura →" }));
+    await user.click(screen.getByRole("button", { name: "Autorizar a leitura" }));
 
     expect(autorizarConexao).toHaveBeenCalledWith("Xy_9", OBRA.id);
     expect(assign).toHaveBeenCalledWith("https://claude.ai/api/mcp/auth_callback?code=c");
@@ -137,7 +142,7 @@ describe("Consentimento", () => {
     abrir({ podeAutorizar: false });
 
     expect(await screen.findByRole("button", { name: "Recusar" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Autorizar a leitura →" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Autorizar a leitura" })).not.toBeInTheDocument();
     expect(screen.queryByRole("radio")).not.toBeInTheDocument();
     expect(screen.getByRole("note")).toHaveTextContent("Só o admin ou o gestor da conta autorizam");
   });
@@ -148,7 +153,7 @@ describe("Consentimento", () => {
     const user = userEvent.setup();
     abrir();
 
-    await user.click(await screen.findByRole("button", { name: "Autorizar a leitura →" }));
+    await user.click(await screen.findByRole("button", { name: "Autorizar a leitura" }));
 
     expect(await screen.findByRole("heading", { name: "Pedido indisponível." })).toBeInTheDocument();
     expect(assign).not.toHaveBeenCalled();
@@ -160,10 +165,10 @@ describe("Consentimento", () => {
     const user = userEvent.setup();
     abrir();
 
-    await user.click(await screen.findByRole("button", { name: "Autorizar a leitura →" }));
+    await user.click(await screen.findByRole("button", { name: "Autorizar a leitura" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("10 conexões ativas");
-    expect(screen.getByRole("button", { name: "Autorizar a leitura →" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Autorizar a leitura" })).toBeEnabled();
   });
 
   it("a marca d'água do mascote fica escondida do leitor de tela", async () => {
