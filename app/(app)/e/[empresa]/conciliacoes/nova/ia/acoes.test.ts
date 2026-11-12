@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ErroBackend } from "@/lib/backend";
-import { concluirNovaVersaoIa, importarViaIa, recuperarExtratoConfirmado } from "./acoes";
+import { carregarPromptIa, concluirNovaVersaoIa, importarViaIa, recuperarExtratoConfirmado } from "./acoes";
 
 const chamarBackend = vi.fn();
 vi.mock("@/lib/backend", async (original) => ({
@@ -15,6 +15,20 @@ function dadosDoArquivo(tamanho: number): FormData {
   dados.append("arquivo", arquivo);
   return dados;
 }
+
+describe("carregarPromptIa", () => {
+  it("põe no fim do prompt do backend o pedido do arquivo lancamentos.json", async () => {
+    chamarBackend.mockReset();
+    chamarBackend.mockResolvedValue({ versao_schema: "1", versao_prompt: "1", prompt: "Responda somente com o JSON.\n" });
+
+    const resultado = await carregarPromptIa();
+
+    expect(resultado).toMatchObject({ ok: true, dados: { versaoSchema: "1", versaoPrompt: "1" } });
+    const prompt = resultado.ok ? resultado.dados.prompt : "";
+    expect(prompt.startsWith("Responda somente com o JSON.\n\nEntrega: crie um arquivo para baixar, chamado lancamentos.json")).toBe(true);
+    expect(prompt).toContain("não escreva o JSON na conversa");
+  });
+});
 
 describe("importarViaIa: limite do envio", () => {
   beforeEach(() => {

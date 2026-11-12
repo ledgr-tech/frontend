@@ -1,8 +1,9 @@
 import type { LinhaComparacao } from "@/lib/mock-data";
+import { aprovadaDepois, podeDesfazerAprovacao } from "@/lib/aprovacao";
 import { estaResolvida } from "../../dashboard/resumo";
 import { situacaoDaLinha } from "./situacao";
 
-/** O que o painel oferece para decidir a linha em foco. Desfazer (justificativa ou aprovação) é na janela do detalhe. */
+/** O que o painel oferece para decidir a linha em foco: as mesmas ações, com as mesmas regras, da janela da linha (#368). */
 export type AcoesDoPainel = {
   /** O campo "Justificativa": qualquer papel justifica a divergência que ainda pede decisão. */
   justificar: boolean;
@@ -10,6 +11,12 @@ export type AcoesDoPainel = {
   aprovar: boolean;
   /** O analista vê que a justificativa espera, e não ganha botão. */
   avisoDeAprovacao: boolean;
+  /** "Desfazer justificativa": a que espera aprovação, ou a que vale sem ter sido aprovada por alguém. */
+  desfazer: boolean;
+  /** "Desfazer aprovação…": só quem aprovou (backend #164/#174). */
+  desfazerAprovacao: boolean;
+  /** A aprovada por outra pessoa: o painel diz quem precisa desfazer a aprovação. */
+  avisoDeQuemAprovou: boolean;
 };
 
 export function acoesDoPainel({
@@ -17,19 +24,28 @@ export function acoesDoPainel({
   rodada,
   podeDecidir,
   podeAprovar,
+  nome = "",
 }: {
   linha: LinhaComparacao;
   rodada: number;
   /** Há onde gravar, a rodada é a que vale e o mês está aberto (a mesma regra da tela). */
   podeDecidir: boolean;
   podeAprovar: boolean;
+  /** O nome de quem está logado: sem a resposta do backend #174, é ele que diz quem aprovou. */
+  nome?: string;
 }): AcoesDoPainel {
   const situacao = situacaoDaLinha(linha, rodada);
   const aguardando = situacao === "aguardando";
+  // aprovada por alguém: não se retira (o backend responde 409) antes de quem aprovou desfazer a aprovação
+  const aprovada = podeDecidir && situacao === "justificada" && aprovadaDepois(linha.decisao);
+  const souQuemAprovou = podeAprovar && podeDesfazerAprovacao(linha.decisao, nome);
   return {
     justificar: podeDecidir && (situacao === "a_conferir" || situacao === "conferida"),
     aprovar: podeDecidir && podeAprovar && aguardando,
     avisoDeAprovacao: aguardando && !podeAprovar,
+    desfazer: podeDecidir && (aguardando || (situacao === "justificada" && !aprovada)),
+    desfazerAprovacao: aprovada && souQuemAprovou,
+    avisoDeQuemAprovou: aprovada && !souQuemAprovou,
   };
 }
 

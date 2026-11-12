@@ -376,6 +376,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
         passos: [
           "Escolha uma divergência e clique em **Justificar** no painel. Em telas estreitas, clique na descrição da linha.",
           "Escreva o motivo e clique em **Justificar**.",
+          "Para voltar atrás, clique em **Desfazer justificativa** no mesmo lugar.",
         ],
         nota: "Fica no registro com o seu nome e o horário. Desfazer depois gera um novo registro.",
         figura: { largura: 305, altura: 508 },
@@ -487,14 +488,14 @@ export const PAGINAS: PaginaDeAjuda[] = [
       },
       {
         id: "decidir",
-        titulo: "Conferir ou justificar",
-        faz: "Uma divergência com explicação não precisa travar o fechamento. A decisão vai para o relatório do mês.",
+        // o detalhe só mostra a decisão: conferir, justificar e desfazer ficam na comparação (#370)
+        titulo: "O que foi decidido",
+        faz: "O detalhe mostra a decisão da linha e o histórico dela. Conferir, justificar e desfazer ficam na comparação.",
         passos: [
-          "Clique em **Marcar como conferida** se você já olhou e vai corrigir no sistema.",
-          "Ou clique em **Justificar** e escreva o motivo, por exemplo “tarifa cobrada no dia seguinte”.",
-          "Para voltar atrás, use **Desfazer justificativa**.",
+          "Veja no alto da tela se a linha está justificada.",
+          "Abra o histórico do lançamento para ver cada evento, quem fez e quando.",
+          "Para decidir, volte à comparação: o círculo da coluna **Conferida** marca a linha, e **Justificar** e **Desfazer justificativa** ficam no painel dela. Em telas estreitas, clique na descrição da linha.",
         ],
-        nota: "Abaixo fica o histórico da linha: cada evento, quem fez e quando.",
       },
       // descomentar no dia em que o backend ligar APROVACAO_JUSTIFICATIVAS_HABILITADA (#132)
       // {

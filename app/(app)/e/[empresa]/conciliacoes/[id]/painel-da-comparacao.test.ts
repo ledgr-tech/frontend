@@ -19,15 +19,12 @@ function decisao(tipo: Decisao["tipo"], situacao?: "pendente" | "aprovada"): Dec
 
 const ADMIN = { podeDecidir: true, podeAprovar: true };
 const ANALISTA = { podeDecidir: true, podeAprovar: false };
+const NADA = { justificar: false, aprovar: false, avisoDeAprovacao: false, desfazer: false, desfazerAprovacao: false, avisoDeQuemAprovou: false };
 
 describe("acoesDoPainel", () => {
   it("a divergência sem decisão pode ser justificada, por qualquer papel", () => {
     for (const papel of [ADMIN, ANALISTA]) {
-      expect(acoesDoPainel({ linha: DIVERGENTE, rodada: 1, ...papel })).toEqual({
-        justificar: true,
-        aprovar: false,
-        avisoDeAprovacao: false,
-      });
+      expect(acoesDoPainel({ linha: DIVERGENTE, rodada: 1, ...papel })).toEqual({ ...NADA, justificar: true });
     }
   });
 
@@ -39,23 +36,31 @@ describe("acoesDoPainel", () => {
 
   it("a que espera aprovação oferece Aprovar e Rejeitar ao admin e ao gestor, e só o aviso ao analista", () => {
     const aguardando = { ...DIVERGENTE, decisao: decisao("justificada", "pendente") };
-    expect(acoesDoPainel({ linha: aguardando, rodada: 1, ...ADMIN })).toEqual({
-      justificar: false,
-      aprovar: true,
-      avisoDeAprovacao: false,
-    });
-    expect(acoesDoPainel({ linha: aguardando, rodada: 1, ...ANALISTA })).toEqual({
-      justificar: false,
-      aprovar: false,
-      avisoDeAprovacao: true,
-    });
+    // quem pode decidir ainda desfaz a justificativa, nos dois papéis
+    expect(acoesDoPainel({ linha: aguardando, rodada: 1, ...ADMIN })).toEqual({ ...NADA, aprovar: true, desfazer: true });
+    expect(acoesDoPainel({ linha: aguardando, rodada: 1, ...ANALISTA })).toEqual({ ...NADA, avisoDeAprovacao: true, desfazer: true });
   });
 
-  it("a justificada aprovada e a que bateu não oferecem nada: desfazer é na janela do detalhe", () => {
-    const aprovada = { ...DIVERGENTE, decisao: decisao("justificada", "aprovada") };
-    expect(acoesDoPainel({ linha: aprovada, rodada: 1, ...ADMIN })).toEqual({ justificar: false, aprovar: false, avisoDeAprovacao: false });
+  it("a justificada que não foi aprovada por alguém se desfaz; a que bateu não oferece nada", () => {
+    const justificada = { ...DIVERGENTE, decisao: decisao("justificada", "aprovada") };
+    expect(acoesDoPainel({ linha: justificada, rodada: 1, ...ANALISTA })).toEqual({ ...NADA, desfazer: true });
     const bateu = { ...DIVERGENTE, status: "match_exato" as const };
-    expect(acoesDoPainel({ linha: bateu, rodada: 1, ...ADMIN })).toEqual({ justificar: false, aprovar: false, avisoDeAprovacao: false });
+    expect(acoesDoPainel({ linha: bateu, rodada: 1, ...ADMIN })).toEqual(NADA);
+  });
+
+  it("a aprovada por alguém só sai pelo desfazer da aprovação, e só por quem aprovou", () => {
+    const aprovada = {
+      ...DIVERGENTE,
+      decisao: { ...decisao("justificada", "aprovada"), aprovadaPor: "Gabriela", aprovadaEm: "2026-09-30T15:00:00Z" },
+    };
+    // sem a resposta do backend #174, vale o nome de quem está logado
+    expect(acoesDoPainel({ linha: aprovada, rodada: 1, ...ADMIN, nome: "Gabriela" })).toEqual({ ...NADA, desfazerAprovacao: true });
+    expect(acoesDoPainel({ linha: aprovada, rodada: 1, ...ADMIN, nome: "Financeiro" })).toEqual({ ...NADA, avisoDeQuemAprovou: true });
+    // com ela, o backend decide (o admin quando quem aprovou saiu)
+    const liberada = { ...aprovada, decisao: { ...aprovada.decisao, podeDesfazerAprovacao: true } };
+    expect(acoesDoPainel({ linha: liberada, rodada: 1, ...ADMIN, nome: "Financeiro" }).desfazerAprovacao).toBe(true);
+    // o analista não desfaz aprovação
+    expect(acoesDoPainel({ linha: liberada, rodada: 1, ...ANALISTA, nome: "Gabriela" })).toEqual({ ...NADA, avisoDeQuemAprovou: true });
   });
 
   it("sem onde gravar (mês fechado, rodada passada, mock sem decisão) não há ação de decidir, nem aviso de aprovação mudando", () => {
@@ -63,6 +68,7 @@ describe("acoesDoPainel", () => {
     const travado = { podeDecidir: false, podeAprovar: true };
     expect(acoesDoPainel({ linha: DIVERGENTE, rodada: 1, ...travado }).justificar).toBe(false);
     expect(acoesDoPainel({ linha: aguardando, rodada: 1, ...travado }).aprovar).toBe(false);
+    expect(acoesDoPainel({ linha: aguardando, rodada: 1, ...travado }).desfazer).toBe(false);
   });
 });
 

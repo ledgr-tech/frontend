@@ -13,7 +13,7 @@ import { importarViaIa, type ErroDeCampo, type PromptDaIa } from "./acoes";
 const PASSOS: Passo[] = [
   { titulo: "Copie o prompt", texto: "É o texto que ensina a IA a devolver o arquivo no formato do Ledgr." },
   { titulo: "Use na IA que você já tem", texto: "Cole o prompt no ChatGPT, no Claude ou em outra, e anexe o PDF do relatório." },
-  { titulo: "Traga o arquivo e confira", texto: "Envie o JSON que ela devolveu e revise as linhas antes de confirmar." },
+  { titulo: "Traga o arquivo e confira", texto: "Baixe o arquivo lancamentos.json que ela devolveu, envie aqui e revise as linhas antes de confirmar." },
 ];
 
 function tamanho(bytes: number): string {

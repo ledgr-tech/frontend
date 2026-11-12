@@ -414,6 +414,12 @@ export function JanelaDaConciliacao({
               }}
               onAprovar={nada}
               onRejeitar={nada}
+              // na demonstração a justificativa nasce valendo, e desfazer devolve a linha à revisão
+              onDesfazer={async () => {
+                if (linhaEmFoco) decidir(linhaEmFoco.id, null);
+                return null;
+              }}
+              onDesfazerAprovacao={nada}
               onExplicada={() => {}}
               // o detalhe inteiro de uma linha é o que "Por dentro", logo abaixo, conta
               onAbrirDetalhe={() => document.getElementById("por-dentro")?.scrollIntoView({ behavior: rolar, block: "start" })}

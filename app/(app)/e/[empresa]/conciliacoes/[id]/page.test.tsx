@@ -488,6 +488,29 @@ describe("ConciliacaoPage", () => {
       expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
     });
 
+    // #369: no celular o cartão abria no foco do toque, por cima da descrição, e engolia o clique
+    it("stays closed when the focus comes from a tap, so the first tap reaches the button", async () => {
+      vi.stubGlobal("matchMedia", () => ({ matches: false }));
+      buscarConciliacao.mockReturnValue(conciliacaoMista);
+      render(<ConciliacaoPage />);
+      const botao = await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" });
+
+      // o toque, na ordem do navegador: o ponteiro desce, o botão ganha o foco, e só depois vem o clique
+      fireEvent.pointerDown(botao);
+      act(() => botao.focus());
+      expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+
+      fireEvent.click(botao);
+      expect(screen.getByRole("link", { name: "Abrir detalhe" })).toBeInTheDocument();
+
+      // fechar pelo botão devolve o foco à descrição: o cartão não volta por cima dela para o próximo toque
+      const fechar = screen.getByRole("button", { name: "Fechar" });
+      fireEvent.pointerDown(fechar);
+      fireEvent.click(fechar);
+      expect(botao).toHaveFocus();
+      expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+    });
+
     it("gives way to the dialog when the line is clicked", async () => {
       buscarConciliacao.mockReturnValue(conciliacaoMista);
       const user = userEvent.setup();

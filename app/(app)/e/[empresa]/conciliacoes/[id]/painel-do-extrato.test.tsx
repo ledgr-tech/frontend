@@ -42,6 +42,8 @@ function montar(props: Props = {}) {
     onJustificar: vi.fn(async () => null as string | null),
     onAprovar: vi.fn(async () => null as string | null),
     onRejeitar: vi.fn(async () => null as string | null),
+    onDesfazer: vi.fn(async () => null as string | null),
+    onDesfazerAprovacao: vi.fn(async () => null as string | null),
     onExplicada: vi.fn(),
     onAbrirDetalhe: vi.fn(),
     onOcupar: vi.fn(),
@@ -306,13 +308,83 @@ describe("PainelDoExtrato", () => {
       expect(screen.queryByRole("button", { name: "Rejeitar" })).not.toBeInTheDocument();
     });
 
-    it("a aprovada diz quem aprovou e não oferece nada: desfazer é no detalhe", () => {
+    it("a aprovada por outra pessoa diz quem aprovou e quem precisa desfazer, sem botão", () => {
       const aprovada = { ...DIVERGENTE, decisao: { ...justificada("aprovada"), aprovadaPor: "Gabriela", aprovadaEm: "2026-11-05T16:05:00Z" } };
       montar({ linha: aprovada });
       expect(screen.getByText("Justificada")).toBeInTheDocument();
       expect(screen.getByText(/Aprovada por Gabriela em /)).toBeInTheDocument();
+      expect(screen.getByText("Para alterar ou retirar, Gabriela precisa desfazer a aprovação.")).toBeInTheDocument();
       expect(screen.queryByRole("button", { name: "Aprovar" })).not.toBeInTheDocument();
       expect(screen.queryByRole("button", { name: "Justificar" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /Desfazer/ })).not.toBeInTheDocument();
+    });
+  });
+
+  // as mesmas ações de desfazer da janela da linha, que não abre a partir de 1100px (#368)
+  describe("desfazer", () => {
+    const APROVADA: LinhaComparacao = {
+      ...DIVERGENTE,
+      decisao: { ...justificada("aprovada"), aprovadaPor: "Gabriela", aprovadaEm: "2026-11-05T16:05:00Z", podeDesfazerAprovacao: true },
+    };
+
+    it("quem justificou desfaz a justificativa que espera aprovação, mesmo sem poder aprovar", async () => {
+      const { user, onDesfazer } = montar({ linha: { ...DIVERGENTE, decisao: justificada("pendente") }, podeAprovar: false });
+      await user.click(screen.getByRole("button", { name: "Desfazer justificativa" }));
+      expect(onDesfazer).toHaveBeenCalledTimes(1);
+    });
+
+    it("a justificada que não passou por aprovação também se desfaz", async () => {
+      const { user, onDesfazer } = montar({ linha: { ...DIVERGENTE, decisao: justificada("aprovada") }, podeAprovar: false });
+      await user.click(screen.getByRole("button", { name: "Desfazer justificativa" }));
+      expect(onDesfazer).toHaveBeenCalledTimes(1);
+    });
+
+    it("o motivo de não ter desfeito fica no painel", async () => {
+      const { user } = montar({
+        linha: { ...DIVERGENTE, decisao: justificada("pendente") },
+        onDesfazer: vi.fn(async () => "O mês foi fechado."),
+      });
+      await user.click(screen.getByRole("button", { name: "Desfazer justificativa" }));
+      expect(await screen.findByText("O mês foi fechado.")).toBeInTheDocument();
+    });
+
+    it("quem aprovou desfaz a aprovação, depois de confirmar", async () => {
+      const { user, onDesfazerAprovacao, onDesfazer } = montar({ linha: APROVADA });
+      // a aprovada não se retira direto: o backend responderia 409
+      expect(screen.queryByRole("button", { name: "Desfazer justificativa" })).not.toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: "Desfazer aprovação…" }));
+      expect(screen.getByText(/volta a aguardar aprovação/)).toBeInTheDocument();
+      expect(onDesfazerAprovacao).not.toHaveBeenCalled();
+      await user.click(screen.getByRole("button", { name: "Desfazer aprovação" }));
+      expect(onDesfazerAprovacao).toHaveBeenCalledTimes(1);
+      expect(onDesfazer).not.toHaveBeenCalled();
+      await waitFor(() => expect(screen.getByRole("button", { name: "Desfazer aprovação…" })).toBeInTheDocument());
+    });
+
+    it("a confirmação sai se a linha deixou de ser aprovada por baixo, e o motivo fica", async () => {
+      const { user } = montar({ linha: APROVADA, onDesfazerAprovacao: vi.fn(async () => "Esta aprovação já foi desfeita.") });
+      await user.click(screen.getByRole("button", { name: "Desfazer aprovação…" }));
+      await user.click(screen.getByRole("button", { name: "Desfazer aprovação" }));
+      expect(await screen.findByText("Esta aprovação já foi desfeita.")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Desfazer aprovação" })).toBeInTheDocument();
+    });
+
+    it("Voltar desiste de desfazer a aprovação", async () => {
+      const { user, onDesfazerAprovacao } = montar({ linha: APROVADA });
+      await user.click(screen.getByRole("button", { name: "Desfazer aprovação…" }));
+      await user.click(screen.getByRole("button", { name: "Voltar" }));
+      expect(onDesfazerAprovacao).not.toHaveBeenCalled();
+      expect(screen.getByRole("button", { name: "Desfazer aprovação…" })).toBeInTheDocument();
+    });
+
+    it("o analista não desfaz a aprovação, nem com o backend dizendo que quem aprovou pode", () => {
+      montar({ linha: APROVADA, podeAprovar: false });
+      expect(screen.queryByRole("button", { name: /Desfazer/ })).not.toBeInTheDocument();
+    });
+
+    it("com o mês fechado ou numa rodada passada, nada de desfazer", () => {
+      montar({ linha: { ...DIVERGENTE, decisao: justificada("pendente") }, podeDecidir: false });
+      expect(screen.queryByRole("button", { name: /Desfazer/ })).not.toBeInTheDocument();
     });
   });
 });

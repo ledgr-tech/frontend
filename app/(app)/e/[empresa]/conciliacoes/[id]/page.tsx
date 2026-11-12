@@ -80,6 +80,9 @@ function textoDoVazio(filtro: Filtro, justificadas: number): string {
 /** Do ponteiro sair da linha ao cartão fechar: o tempo de atravessar o vão até ele. */
 const ESPERA_PARA_FECHAR_MS = 150;
 
+/** Do ponteiro descer ao foco chegar: dentro disso, o foco veio do toque ou do clique, não do teclado. */
+const FOCO_DO_PONTEIRO_MS = 1000;
+
 /** Toque não tem hover: lá o toque na descrição já abre o diálogo da linha. */
 function temHover(): boolean {
   return window.matchMedia?.("(hover: hover)").matches ?? false;
@@ -165,6 +168,16 @@ export default function ConciliacaoPage() {
   const [marcadas, setMarcadas] = useState<ReadonlySet<string>>(() => new Set());
   // sair da linha só fecha o cartão depois de um instante: dá tempo de o ponteiro chegar nele
   const fechandoCartao = useRef<ReturnType<typeof setTimeout>>(undefined);
+  // quando o ponteiro desceu pela última vez, em qualquer lugar da tela: o foco que chega logo depois vem de
+  // um toque ou clique (na descrição, ou no Fechar da janela, que devolve o foco a ela), e não do teclado (#369)
+  const ponteiroEm = useRef(-Infinity);
+  useEffect(() => {
+    const marcar = () => {
+      ponteiroEm.current = performance.now();
+    };
+    window.addEventListener("pointerdown", marcar, { capture: true, passive: true });
+    return () => window.removeEventListener("pointerdown", marcar, { capture: true });
+  }, []);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -697,9 +710,16 @@ export default function ConciliacaoPage() {
                         setCartao(null);
                         setChaveAberta(chaveDaLinha(alvo));
                       }}
-                      onFocus={(evento) =>
-                        painel ? focar(alvo) : comCartao && abrirCartao(evento.currentTarget.closest("tr")!)
-                      }
+                      onFocus={(evento) => {
+                        // o cartão no foco é do teclado. No toque, o foco chega antes do clique e o cartão abria
+                        // por cima da descrição (nos cartões do celular o selo fica logo abaixo dela): o dedo
+                        // soltava em cima do cartão, o clique não chegava ao botão e a janela só abria no segundo toque
+                        // ponytail: um segundo de janela cobre o toque demorado; :focus-visible faria o mesmo sem
+                        // relógio, mas o jsdom dos testes não separa teclado de ponteiro
+                        const porPonteiro = performance.now() - ponteiroEm.current < FOCO_DO_PONTEIRO_MS;
+                        if (painel) focar(alvo);
+                        else if (comCartao && !porPonteiro) abrirCartao(evento.currentTarget.closest("tr")!);
+                      }}
                       onBlur={painel ? undefined : fecharCartao}
                       onKeyDown={(evento) => evento.key === "Escape" && fecharCartao()}
                     >
@@ -987,6 +1007,8 @@ export default function ConciliacaoPage() {
             onRejeitar={(motivo) =>
               linhaEmFoco ? gravarDecisao(linhaEmFoco, "justificativa_rejeitada", motivo || undefined) : Promise.resolve(null)
             }
+            onDesfazer={() => (linhaEmFoco ? gravarDecisao(linhaEmFoco, "justificativa_desfeita") : Promise.resolve(null))}
+            onDesfazerAprovacao={() => (linhaEmFoco ? gravarDecisao(linhaEmFoco, "aprovacao_desfeita") : Promise.resolve(null))}
             onExplicada={(linha, explicacao) =>
               trocarLinha(chaveDaLinha(linha), (atual) => ({
                 ...atual,

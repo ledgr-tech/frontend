@@ -72,11 +72,21 @@ function ehUuid(id: string): boolean {
   return pareceUuid(id);
 }
 
+/**
+ * O fim do prompt, posto aqui: a tela pede um arquivo, então a IA entrega um arquivo, e não o JSON na conversa
+ * (que em relatório longo ela corta, e que a pessoa teria de copiar e salvar à mão).
+ * ponytail: o texto do backend ainda diz "responda somente com o JSON", daí o "no lugar de". Se o prompt.md
+ * do backend passar a pedir o arquivo, este trecho sai.
+ */
+const ENTREGA_EM_ARQUIVO =
+  "Entrega: crie um arquivo para baixar, chamado lancamentos.json, com esse JSON dentro, e não escreva o JSON na conversa. " +
+  "Isto vale no lugar de responder com o JSON no texto. Na conversa, diga apenas quantos lançamentos o arquivo tem.";
+
 /** O prompt pronto e as versões. Um 404 é um backend antes do #172. */
 export async function carregarPromptIa(): Promise<Resultado<PromptDaIa>> {
   try {
     const r = await chamarBackend<{ versao_schema: string; versao_prompt: string; prompt: string }>("/importacoes-ia/prompt");
-    return { ok: true, dados: { versaoSchema: r.versao_schema, versaoPrompt: r.versao_prompt, prompt: r.prompt } };
+    return { ok: true, dados: { versaoSchema: r.versao_schema, versaoPrompt: r.versao_prompt, prompt: `${r.prompt.trimEnd()}\n\n${ENTREGA_EM_ARQUIVO}` } };
   } catch (erro) {
     return traduzir(erro);
   }

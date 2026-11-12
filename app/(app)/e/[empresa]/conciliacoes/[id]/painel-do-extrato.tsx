@@ -9,6 +9,7 @@ import { aprovadaDepois } from "@/lib/aprovacao";
 import { MensagemErro } from "@/app/(auth)/_compartilhado/mensagem-erro";
 import { estaResolvida, formatarDataHora } from "../../dashboard/resumo";
 import { SeloIa } from "../../selo-ia";
+import { useNome } from "../../conta";
 import { SEM_SALDO, data as dataDoSaldo } from "../../saldo";
 import { explicarDivergencia, type Explicacao, type Indisponibilidade } from "../acoes";
 import { dadosDoLancamento, type ValorDoLado } from "./cartao-lancamento";
@@ -31,7 +32,7 @@ const AVISO: Partial<Record<Indisponibilidade, string>> = {
   limite_diario: "O limite diário de explicações automáticas acabou (volta às 21h); este é o texto padrão do Ledgr.",
 };
 
-type Modo = "justificar" | "rejeitar" | null;
+type Modo = "justificar" | "rejeitar" | "desfazerAprovacao" | null;
 
 export type PropsDoPainel = {
   /** A linha em foco (o ponteiro, ou a que foi fixada com um clique); null enquanto não houve nenhuma. */
@@ -54,6 +55,9 @@ export type PropsDoPainel = {
   onAprovar: () => Promise<string | null>;
   /** O motivo é opcional: vazio vai sem texto. */
   onRejeitar: (motivo: string) => Promise<string | null>;
+  onDesfazer: () => Promise<string | null>;
+  /** Volta a justificativa aprovada para aguardando; só quem aprovou (backend #164). */
+  onDesfazerAprovacao: () => Promise<string | null>;
   /** A explicação nasceu: quem guarda a conciliação a põe na linha. */
   onExplicada: (linha: LinhaComparacao, explicacao: Explicacao) => void;
   onAbrirDetalhe: () => void;
@@ -85,15 +89,18 @@ function QuadroDoLancamento({
   onJustificar,
   onAprovar,
   onRejeitar,
+  onDesfazer,
+  onDesfazerAprovacao,
   onExplicada,
   onAbrirDetalhe,
   onOcupar,
 }: PropsDoPainel) {
   const router = useRoteador();
+  const nome = useNome();
   const idCampo = useId();
   const idErro = useId();
   const idForm = useId();
-  const [modo, setModo] = useState<Modo>(null);
+  const [modoEscolhido, setModo] = useState<Modo>(null);
   const [texto, setTexto] = useState("");
   const [emBranco, setEmBranco] = useState(false);
   const [enviando, setEnviando] = useState(false);
@@ -102,15 +109,17 @@ function QuadroDoLancamento({
   const [falhaDaExplicacao, setFalhaDaExplicacao] = useState<string | null>(null);
   const [avisoDaExplicacao, setAvisoDaExplicacao] = useState<string | null>(null);
 
+  const dados = linha ? dadosDoLancamento(linha, rodada, linhas) : null;
+  const selo = linha ? seloDaLinha(linha, rodada) : null;
+  const acoes = linha ? acoesDoPainel({ linha, rodada, podeDecidir, podeAprovar, nome }) : null;
+  // a linha mudou por baixo (o mês fechou, outra pessoa desfez): a confirmação sai, e fica o motivo do backend
+  const modo = modoEscolhido === "desfazerAprovacao" && !acoes?.desfazerAprovacao ? null : modoEscolhido;
+
   const ocupado = modo !== null || enviando || explicando;
   useEffect(() => {
     onOcupar(ocupado);
   }, [ocupado, onOcupar]);
   useEffect(() => () => onOcupar(false), [onOcupar]);
-
-  const dados = linha ? dadosDoLancamento(linha, rodada, linhas) : null;
-  const selo = linha ? seloDaLinha(linha, rodada) : null;
-  const acoes = linha ? acoesDoPainel({ linha, rodada, podeDecidir, podeAprovar }) : null;
   const aprovada = linha && aprovadaDepois(linha.decisao) && linha.decisao;
   const mensagem = emBranco ? "Escreva o motivo da justificativa." : erro;
 
@@ -234,7 +243,14 @@ function QuadroDoLancamento({
       <div className="comp-detalhe">
         {!linha && <p className="comp-dica">O detalhe da linha aparece aqui. Clique numa linha para fixar.</p>}
 
-        {linha && modo ? (
+        {linha && modo === "desfazerAprovacao" ? (
+          <div className="comp-form" role="group" aria-label="Desfazer a aprovação">
+            <p className="espia-aviso">
+              A justificativa volta a aguardar aprovação, e o mês só fecha depois que ela for aprovada de novo.
+            </p>
+            {erro && <MensagemErro id={idErro}>{erro}</MensagemErro>}
+          </div>
+        ) : linha && modo ? (
           <form id={idForm} className="comp-form" onSubmit={modo === "justificar" ? justificar : rejeitar} noValidate>
             <div className="field">
               <label htmlFor={idCampo}>{modo === "justificar" ? "Justificativa" : "Motivo da rejeição (opcional)"}</label>
@@ -271,6 +287,9 @@ function QuadroDoLancamento({
                   )}
                   {dados.nota.texto && <p>{dados.nota.texto}</p>}
                   {acoes?.avisoDeAprovacao && <span className="espia-aviso">Aguarda a aprovação do admin ou do gestor da conta.</span>}
+                  {acoes?.avisoDeQuemAprovou && aprovada && (
+                    <span className="espia-aviso">{`Para alterar ou retirar, ${aprovada.aprovadaPor} precisa desfazer a aprovação.`}</span>
+                  )}
                 </div>
               )}
               {dados.explicacao ? (
@@ -332,6 +351,24 @@ function QuadroDoLancamento({
             </button>
           </>
         )}
+        {modo === "desfazerAprovacao" && (
+          <>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              disabled={enviando}
+              aria-busy={enviando || undefined}
+              onClick={async () => {
+                if ((await enviar(onDesfazerAprovacao)) === null) setModo(null);
+              }}
+            >
+              Desfazer aprovação
+            </button>
+            <button type="button" className="btn btn-secondary" disabled={enviando} onClick={voltar}>
+              Voltar
+            </button>
+          </>
+        )}
         {!modo && acoes?.justificar && (
           <>
             <button type="button" className="btn btn-secondary" data-tutorial="justificar" onClick={() => abrirCampo("justificar")}>
@@ -357,9 +394,26 @@ function QuadroDoLancamento({
             {abrir(false, "Abrir")}
           </>
         )}
+        {/* desfazer, como na janela da linha (#368): a justificativa sai na hora; a aprovação pede confirmar */}
+        {!modo && acoes?.desfazer && (
+          <button
+            type="button"
+            className="btn btn-secondary"
+            disabled={enviando}
+            aria-busy={enviando || undefined}
+            onClick={() => void enviar(onDesfazer)}
+          >
+            Desfazer justificativa
+          </button>
+        )}
+        {!modo && acoes?.desfazerAprovacao && (
+          <button type="button" className="btn btn-secondary" disabled={enviando} onClick={() => abrirCampo("desfazerAprovacao")}>
+            Desfazer aprovação…
+          </button>
+        )}
         {!modo && !acoes?.justificar && !acoes?.aprovar && abrir(true)}
       </div>
-      {!modo && erro && acoes?.aprovar && <MensagemErro id={idErro}>{erro}</MensagemErro>}
+      {!modo && erro && <MensagemErro id={idErro}>{erro}</MensagemErro>}
     </div>
   );
 }
