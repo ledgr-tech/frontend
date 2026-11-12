@@ -2,8 +2,8 @@ import localFont from "next/font/local";
 import "../fonts/fontes-destaque.css";
 
 // O itálico do trecho em destaque dos títulos da landing (`.titulo-misto em` no globals.css).
-// Fica aqui, e não no layout raiz, para só a landing baixar e pré-carregar o arquivo: o login e o
-// app não usam. Local, como as do layout raiz (ver app/layout.tsx): a fatia latina aqui, as outras
+// Fica aqui, e não no layout raiz, para só quem usa baixar e pré-carregar o arquivo: a landing e,
+// fora dela, os títulos de /plano e de /autorizar-conexao. O login e o app não usam. Local, como as do layout raiz (ver app/layout.tsx): a fatia latina aqui, as outras
 // em fonts/fontes-destaque.css, e o fallback de métricas fixas em fonts/fontes.css.
 export const fonteDestaque = localFont({
   src: "../fonts/cormorant-garamond/cormorant-garamond-italic-latin.woff2",

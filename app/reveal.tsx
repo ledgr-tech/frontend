@@ -95,23 +95,26 @@ export function NumeralQueDesce({ children, className }: { children: ReactNode; 
       </span>
     );
   }
+  // a classe leva o tapume com o fundo da faixa, que esconde o fio: ele fica parado no lugar e só a letra
+  // cai e gira por cima; com o fundo no elemento animado, ele aparecia como uma caixa girando junto
   return (
-    <m.span
-      className={className}
-      aria-hidden="true"
-      initial={{ opacity: 0, transform: "translateY(-90px) rotate(-12deg) scale(0.6)" }}
-      whileInView={{ opacity: 1, transform: "translateY(0px) rotate(0deg) scale(1)" }}
-      viewport={{ once: true, amount: 0, margin: "0px 0px -40% 0px" }}
-      // back.out(1.7) do GSAP: passa um pouco do ponto e assenta. O fade termina antes do pouso
-      transition={{
-        duration: 0.9,
-        delay: 0.12,
-        ease: [0.34, 1.56, 0.64, 1],
-        opacity: { duration: 0.35, delay: 0.12, ease: "easeOut" },
-      }}
-    >
-      {children}
-    </m.span>
+    <span className={className} aria-hidden="true">
+      <m.span
+        style={{ display: "block" }}
+        initial={{ opacity: 0, transform: "translateY(-90px) rotate(-12deg) scale(0.6)" }}
+        whileInView={{ opacity: 1, transform: "translateY(0px) rotate(0deg) scale(1)" }}
+        viewport={{ once: true, amount: 0, margin: "0px 0px -40% 0px" }}
+        // back.out(1.7) do GSAP: passa um pouco do ponto e assenta. O fade termina antes do pouso
+        transition={{
+          duration: 0.9,
+          delay: 0.12,
+          ease: [0.34, 1.56, 0.64, 1],
+          opacity: { duration: 0.35, delay: 0.12, ease: "easeOut" },
+        }}
+      >
+        {children}
+      </m.span>
+    </span>
   );
 }
 
@@ -130,8 +133,10 @@ function lerMovimentoReduzido() {
 }
 
 // O HTML do servidor já chega parado, inclusive na primeira pintura de quem pediu menos movimento.
-export function useMovimentoReduzido() {
-  return useSyncExternalStore(observarMovimento, lerMovimentoReduzido, () => true);
+// Os players de cenas passam `noServidor = false`: nascem no primeiro quadro, como a maioria vai ver, e quem
+// pediu menos movimento troca para o quadro parado sem transição (o CSS deles não tem).
+export function useMovimentoReduzido(noServidor = true) {
+  return useSyncExternalStore(observarMovimento, lerMovimentoReduzido, () => noServidor);
 }
 
 // teto de traços ao mesmo tempo, caso o animationend não chegue (bloco escondido não anima)

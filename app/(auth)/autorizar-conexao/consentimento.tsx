@@ -1,7 +1,9 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useId, useRef, useState, type CSSProperties } from "react";
+import { fonteDestaque } from "../../(marketing)/fonte-destaque";
 import { MolduraAuth } from "../_compartilhado/moldura-auth";
 import { MensagemErro } from "../_compartilhado/mensagem-erro";
 import {
@@ -63,7 +65,9 @@ export function Consentimento({
   // um envio por vez: o pedido é de uso único, e o segundo clique só veria o 404
   const travado = useRef(false);
   const idErro = useId();
-  const idEmpresas = useId();
+  const idDecisao = useId();
+  const idLe = useId();
+  const idFica = useId();
 
   useEffect(() => {
     if (!pedido) return;
@@ -139,27 +143,42 @@ export function Consentimento({
   }
 
   const { pedido: dados } = estado;
+  const sujeito = dados.origem.loopback ? "programa" : dados.cliente;
   return (
-    <MolduraAuth rotulo="Conexão" larguraConteudo={480}>
-      <div className="consent" style={{ width: "100%", maxWidth: 480 }}>
-        <h1 style={estiloTitulo}>{`Conectar o ${dados.cliente} ao Ledgr`}</h1>
-        <p style={estiloTexto}>
-          {"O pedido vem de "}
-          <strong className="consent-host">{dados.origem.host || "um endereço sem nome"}</strong>
-          {`. Você está no Ledgr como ${email}.`}
-        </p>
-        {dados.origem.loopback && (
-          <p className="consent-alerta" role="note">
-            Este pedido vem de um programa no seu próprio computador. Qualquer programa instalado pode se apresentar com
-            esse nome: só autorize se foi você quem começou esta conexão agora.
-          </p>
-        )}
+    <MolduraAuth rotulo="Conexão" larguraConteudo={1020}>
+      <div className={`consent ${fonteDestaque.variable}`}>
+        {/* ler à esquerda: quem pede, o que lê e o que nunca sai */}
+        <div className="consent-ler">
+          <div className="consent-cabeca">
+            <p className="eyebrow">Pedido de conexão · só leitura</p>
+            {/* as duas vozes da landing; o itálico é carregado só nesta página, como em /plano */}
+            <h1 className="titulo-misto">
+              {`Conectar o ${dados.cliente} `}
+              <em>ao Ledgr.</em>
+            </h1>
+            <p className="consent-sub">
+              {"O pedido vem de "}
+              <strong className="consent-host">{dados.origem.host || "um endereço sem nome"}</strong>
+              {`. Você está no Ledgr como ${email}.`}
+            </p>
+          </div>
+          {dados.origem.loopback && (
+            <p className="consent-alerta" role="note">
+              Este pedido vem de um programa no seu próprio computador. Qualquer programa instalado pode se apresentar
+              com esse nome: só autorize se foi você quem começou esta conexão agora.
+            </p>
+          )}
+          <p className="consent-escopo">{dados.descricaoEscopo}</p>
 
-        <div className="consent-bloco">
-          <span className="consent-rotulo">O que poderá fazer</span>
-          <p>{dados.descricaoEscopo}</p>
-          <p>Só leitura: não confere, não justifica, não fecha mês e não muda nada no Ledgr.</p>
-          <p>
+          {/* resumo fiel da Política (/privacidade#conexao-ia, #361): mudou lá, muda aqui. No loopback, o nome
+              do cliente é o que o programa disse ser, então as listas falam do programa */}
+          <div className="consent-listas">
+            <Lista id={idLe} titulo={`O ${sujeito} lê`} itens={LE} />
+            <Lista id={idFica} titulo={`O ${sujeito} nunca recebe`} itens={NUNCA_RECEBE} />
+          </div>
+
+          <p className="consent-nota">
+            {"Não confere, não justifica, não fecha mês e não muda nada no Ledgr. "}
             {/* no loopback, o nome do cliente é o que o programa disse ser (o alerta acima avisa) */}
             {dados.origem.loopback
               ? "O que for lido passa para o programa que pediu e para a IA que ele usa, e fica sob as regras deles. Veja a "
@@ -172,63 +191,120 @@ export function Consentimento({
           </p>
         </div>
 
-        {podeAutorizar ? (
-          <fieldset className="consent-bloco consent-empresas" aria-describedby={erro ? idErro : undefined}>
-            <legend id={idEmpresas} className="consent-rotulo">
-              De qual empresa
-            </legend>
-            {dados.empresas.map((opcao) => (
-              <label key={opcao.id} className="consent-empresa">
-                <input
-                  type="radio"
-                  name="empresa"
-                  value={opcao.id}
-                  checked={empresa === opcao.id}
-                  disabled={enviando !== null}
-                  onChange={() => setEmpresa(opcao.id)}
-                />
-                <span>
-                  {opcao.razaoSocial}
-                  <span className="consent-cnpj">{cnpjFormatado(opcao.cnpj)}</span>
-                </span>
-              </label>
-            ))}
-            <p className="consent-nota">Uma conexão lê uma empresa só. Para outra, conecte de novo.</p>
-          </fieldset>
-        ) : (
-          <p className="consent-alerta" role="note">
-            Só o admin ou o gestor da conta autorizam conexões com assistentes de IA. Peça a um deles, ou recuse.
-          </p>
-        )}
+        {/* decidir à direita */}
+        <section className="consent-decisao" aria-labelledby={idDecisao}>
+          <div className="consent-decisao-topo">
+            <h2 id={idDecisao} className="consent-rotulo">
+              Sua decisão
+            </h2>
+            <span className="consent-validade">{`vale até ${hora(dados.expiraEm)}`}</span>
+          </div>
 
-        {erro && <MensagemErro id={idErro}>{erro}</MensagemErro>}
+          {podeAutorizar ? (
+            <fieldset className="consent-empresas" aria-describedby={erro ? idErro : undefined}>
+              <legend className="consent-pergunta">De qual empresa?</legend>
+              {dados.empresas.map((opcao) => (
+                <label key={opcao.id} className="consent-empresa" data-marcada={empresa === opcao.id || undefined}>
+                  <input
+                    type="radio"
+                    name="empresa"
+                    value={opcao.id}
+                    checked={empresa === opcao.id}
+                    disabled={enviando !== null}
+                    onChange={() => setEmpresa(opcao.id)}
+                  />
+                  <span>
+                    {opcao.razaoSocial}
+                    <span className="consent-cnpj">{cnpjFormatado(opcao.cnpj)}</span>
+                  </span>
+                </label>
+              ))}
+              <p className="consent-nota">Uma conexão lê uma empresa só. Para outra, conecte de novo.</p>
+            </fieldset>
+          ) : (
+            <p className="consent-alerta" role="note">
+              Só o admin ou o gestor da conta autorizam conexões com assistentes de IA. Peça a um deles, ou recuse.
+            </p>
+          )}
 
-        <div className="consent-botoes">
-          {podeAutorizar && (
+          {erro && <MensagemErro id={idErro}>{erro}</MensagemErro>}
+
+          <div className="consent-botoes">
+            {podeAutorizar && (
+              <button
+                type="button"
+                className="btn btn-primary"
+                disabled={enviando !== null}
+                aria-busy={enviando === "autorizar" || undefined}
+                onClick={() => void decidir("autorizar")}
+              >
+                {enviando === "autorizar" ? (
+                  "Autorizando…"
+                ) : (
+                  <>
+                    Autorizar a leitura <span aria-hidden="true">→</span>
+                  </>
+                )}
+              </button>
+            )}
             <button
               type="button"
-              className="btn btn-primary"
+              className="btn btn-secondary"
               disabled={enviando !== null}
-              aria-busy={enviando === "autorizar" || undefined}
-              onClick={() => void decidir("autorizar")}
+              aria-busy={enviando === "recusar" || undefined}
+              onClick={() => void decidir("recusar")}
             >
-              {enviando === "autorizar" ? "Autorizando…" : "Autorizar"}
+              {enviando === "recusar" ? "Recusando…" : "Recusar"}
             </button>
-          )}
-          <button
-            type="button"
-            className="btn btn-secondary"
-            disabled={enviando !== null}
-            aria-busy={enviando === "recusar" || undefined}
-            onClick={() => void decidir("recusar")}
-          >
-            {enviando === "recusar" ? "Recusando…" : "Recusar"}
-          </button>
+          </div>
+          <p className="consent-nota consent-depois">
+            {"Depois de autorizar, a conexão aparece em Configurações › Conexões, onde você revoga a qualquer momento. Veja o "}
+            <a href="/ajuda/conectar-ia#passo-a-passo" target="_blank" rel="noopener" className="link-animado">
+              passo a passo na Central de ajuda
+            </a>
+            .
+          </p>
+        </section>
+
+        {/* marca d'água apagada ao fundo, como no cadastro (guia v5) */}
+        <div className="consent-marca" aria-hidden="true">
+          <Image src="/mascotes/mascote-conexao.webp" alt="" width={1966} height={794} sizes="420px" />
         </div>
-        <p className="consent-nota">
-          {`Este pedido vale até ${hora(dados.expiraEm)}. Depois de autorizar, a conexão aparece em Configurações › Conexões, onde você pode revogá-la a qualquer momento.`}
-        </p>
       </div>
     </MolduraAuth>
+  );
+}
+
+const LE = [
+  "A razão social e o CNPJ da empresa escolhida (numa empresa individual, costuma ser o nome do dono)",
+  "Os meses, os números de cada conciliação, o período de cada extrato e a data de cada conciliação",
+  "As divergências: categoria, data, valor, situação e o lado, banco ou sistema",
+  "Os fechamentos, e se houve ressalva",
+];
+const NUNCA_RECEBE = [
+  "A descrição dos lançamentos",
+  "O texto das justificativas e das ressalvas",
+  "O nome de quem usa o Ledgr",
+  "Nomes de arquivos",
+  "A cidade e o estado da conta",
+];
+
+function Lista({ id, titulo, itens }: { id: string; titulo: string; itens: string[] }) {
+  return (
+    <div className="consent-lista">
+      <span id={id} className="consent-rotulo">
+        {titulo}
+      </span>
+      <ul aria-labelledby={id}>
+        {itens.map((item, i) => (
+          <li key={item}>
+            <span className="consent-num" aria-hidden="true">
+              {String(i + 1).padStart(2, "0")}
+            </span>
+            {item}
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
