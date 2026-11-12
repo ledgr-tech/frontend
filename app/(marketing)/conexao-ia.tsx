@@ -124,10 +124,12 @@ export function ConexaoIa() {
             ))}
           </ol>
           <div className="cia-acao">
-            <Link href="/ajuda/conectar-ia" className="cia-cta">
-              Ver como conectar <span className="cia-seta" aria-hidden="true">→</span>
+            {/* a Central só abre com a conta, então o visitante vai ao cadastro, com o rótulo de todo link
+                de cadastro da landing; a seta vem do CSS para o nome do link ser só "Começar agora" */}
+            <Link href="/cadastro" className="cia-cta">
+              Começar agora<span className="cia-seta" aria-hidden="true" />
             </Link>
-            <span>O passo a passo no ChatGPT, no Claude e no Claude Code, na Central de ajuda.</span>
+            <span>Com a conta criada, o passo a passo no ChatGPT, no Claude e no Claude Code fica na Central de ajuda.</span>
           </div>
         </Reveal>
         <ConversaDasIas />

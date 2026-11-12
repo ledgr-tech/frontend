@@ -65,10 +65,11 @@ describe("a linha do tempo da conversa", () => {
 });
 
 describe("ConexaoIa", () => {
-  it("o botão em destaque leva ao passo a passo da Central", () => {
+  it("o botão em destaque leva ao cadastro, porque a Central só abre com a conta", () => {
     movimentoReduzido(false);
     render(<ConexaoIa />);
-    expect(screen.getByRole("link", { name: /Ver como conectar/ })).toHaveAttribute("href", "/ajuda/conectar-ia");
+    expect(screen.getByRole("link", { name: "Começar agora" })).toHaveAttribute("href", "/cadastro");
+    expect(screen.getByText(/passo a passo .* fica na Central de ajuda/)).toBeInTheDocument();
     expect(screen.getByText("Simulação no Claude e no ChatGPT com os números do agosto da demonstração.")).toBeInTheDocument();
     expect(screen.getByRole("heading", { level: 2 })).toHaveTextContent("Pergunte à sua IA como está o seu mês.");
   });

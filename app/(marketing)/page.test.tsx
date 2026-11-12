@@ -49,10 +49,10 @@ describe("LandingPage", () => {
 
   it("uses one label for every link into the signup", () => {
     const { container } = render(<LandingPage />);
-    // cabeçalho, hero, o fim da faixa do "Por que o Ledgr" e preço; a régua de Preços nomeia o plano
-    // que leva ao cadastro, de propósito
+    // cabeçalho, hero, o fim da faixa do "Por que o Ledgr", a conexão com IA e preço; a régua de Preços
+    // nomeia o plano que leva ao cadastro, de propósito
     const rotulos = [...container.querySelectorAll('a[href="/cadastro"]:not(.regua-mede-acao)')].map((link) => link.textContent);
-    expect(rotulos).toHaveLength(4);
+    expect(rotulos).toHaveLength(5);
     expect(new Set(rotulos)).toEqual(new Set(["Começar agora"]));
     expect(container.querySelector(".regua-mede-acao")).toHaveTextContent(/^Começar com o /);
   });

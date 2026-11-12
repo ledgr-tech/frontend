@@ -6463,6 +6463,7 @@ html[data-tema="escuro"] .app-shell {
 .cia-cta:active { transform: scale(0.97); }
 .cia-cta:focus-visible { outline: 2px solid var(--color-accent-300); outline-offset: 3px; }
 .cia-seta { display: inline-block; transition: transform 0.5s var(--ease-out); }
+.cia-seta::after { content: "→"; }
 .cia-cta:hover .cia-seta { transform: translateX(4px); }
 .cia-palco { flex: 1 1 720px; min-width: 0; position: relative; padding-top: 210px; }
 .cia-mascote {
