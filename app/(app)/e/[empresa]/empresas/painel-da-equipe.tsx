@@ -9,7 +9,7 @@ import { useRoteador } from "@/lib/roteador";
 import { MensagemErro } from "../../../../(auth)/_compartilhado/mensagem-erro";
 import { EMAIL_VALIDO, MENSAGEM_EMAIL_INCOMPLETO } from "../../../../(auth)/_compartilhado/validacao";
 import type { Resultado } from "../conciliacoes/acoes";
-import { useEmail, useLimites, usePapel } from "../conta";
+import { useCobranca, useEmail, useLimites, usePapel } from "../conta";
 import { cancelarConvite, carregarEquipe, convidar, removerPessoa, trocarPapel, type Equipe } from "../equipe/acoes";
 import { FaixaDoPlano } from "./faixa-do-plano";
 import { DESCRICAO_DO_PAPEL, MenuDePapel } from "./menu-de-papel";
@@ -92,6 +92,7 @@ export function PainelDaEquipe({
   const papel = usePapel();
   const email = useEmail();
   const limites = useLimites();
+  const cobranca = useCobranca();
   const router = useRoteador();
   /** A ação em curso: o id da pessoa ou do convite. Trava os botões dela. */
   const [emCurso, setEmCurso] = useState<string | null>(null);
@@ -371,7 +372,7 @@ export function PainelDaEquipe({
               }
               usadas={limite.usadas}
               maximo={limite.maximo}
-              aviso={textoDoLimite("usuarios", limite) ?? (limite.maximo === null ? null : "Os convites pendentes contam.")}
+              aviso={textoDoLimite("usuarios", limite, cobranca) ?? (limite.maximo === null ? null : "Os convites pendentes contam.")}
               verPlanos={situacao === "no-limite" || situacao === "acima"}
             />
           )}

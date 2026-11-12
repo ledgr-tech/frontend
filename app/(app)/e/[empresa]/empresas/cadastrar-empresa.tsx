@@ -10,6 +10,7 @@ import { useRoteador } from "@/lib/roteador";
 import { MensagemErro } from "../../../../(auth)/_compartilhado/mensagem-erro";
 import { formatarCnpj, validarCnpj } from "../../../../(auth)/cadastro/passos";
 import type { Resultado } from "../conciliacoes/acoes";
+import { useCobranca } from "../conta";
 import { cadastrarEmpresa } from "./acoes";
 
 /**
@@ -28,6 +29,7 @@ export function CadastrarEmpresa({ noLimite, aoCadastrar, aoFechar }: { noLimite
   const [erroDoCnpj, setErroDoCnpj] = useState("");
   const [erroDaRazao, setErroDaRazao] = useState("");
   const [aviso, setAviso] = useState<{ texto: string; planos: boolean } | null>(null);
+  const cobranca = useCobranca();
   const cnpjId = useId();
   const razaoId = useId();
   const erroCnpjId = useId();
@@ -110,7 +112,7 @@ export function CadastrarEmpresa({ noLimite, aoCadastrar, aoFechar }: { noLimite
         <BotaoFecharJanela aoFechar={aoFechar} className="btn btn-secondary">
           Cancelar
         </BotaoFecharJanela>
-        {aviso?.planos && (
+        {aviso?.planos && cobranca && (
           <LinkDoApp href="/assinatura" className="btn btn-secondary">
             Ver planos
           </LinkDoApp>

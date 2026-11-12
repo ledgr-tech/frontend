@@ -43,8 +43,11 @@ const PALAVRAS = {
   usuarios: { um: "pessoa", varias: "pessoas", maisDe: "mais pessoas" },
 };
 
-/** A frase do aviso, ou null quando não há o que avisar (sem limite, ou com folga). */
-export function textoDoLimite(tipo: TipoDeLimite, limite: Limite): string | null {
+/**
+ * A frase do aviso, ou null quando não há o que avisar (sem limite, ou com folga). Com a cobrança
+ * desligada (`cobranca` falso) a tela Assinatura não existe, e a frase não manda trocar de plano lá.
+ */
+export function textoDoLimite(tipo: TipoDeLimite, limite: Limite, cobranca = true): string | null {
   const situacao = situacaoDoLimite(limite);
   if (tipo === "conciliacoes") return textoDaFranquia(situacao, limite);
   const { um, varias, maisDe } = PALAVRAS[tipo];
@@ -55,9 +58,10 @@ export function textoDoLimite(tipo: TipoDeLimite, limite: Limite): string | null
   }
   if (situacao === "no-limite") {
     const nome = maximo === 1 ? um : varias;
+    const trocar = cobranca ? (tipo === "empresas" ? " Para adicionar outra, troque de plano em Assinatura." : " Para convidar mais, troque de plano em Assinatura.") : "";
     return tipo === "empresas"
-      ? `O plano chegou ao limite de ${maximo} ${nome}. Para adicionar outra, troque de plano em Assinatura.`
-      : `O plano chegou ao limite de ${maximo} ${nome}, contando os convites pendentes. Para convidar mais, troque de plano em Assinatura.`;
+      ? `O plano chegou ao limite de ${maximo} ${nome}.${trocar}`
+      : `O plano chegou ao limite de ${maximo} ${nome}, contando os convites pendentes.${trocar}`;
   }
   if (situacao === "acima") {
     return tipo === "empresas"

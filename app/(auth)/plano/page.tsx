@@ -17,7 +17,9 @@ export const metadata: Metadata = { title: "Escolha o plano · Ledgr" };
 export default async function PlanoPage() {
   const sessao = await auth();
   if (!sessao?.user?.email) redirect("/login");
-  const { assinatura } = await contaDaSessao();
+  const { assinatura, cobrancaHabilitada } = await contaDaSessao();
+  // com a cobrança desligada não há plano a escolher: a Visão geral (pela URL antiga, que acha a empresa)
+  if (!cobrancaHabilitada) redirect("/visao-geral");
   if (assinatura && assinatura.situacao !== "sem_plano") redirect("/assinatura");
   return (
     <MolduraAuth rotulo="Plano" larguraConteudo={1080}>

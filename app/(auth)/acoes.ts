@@ -12,7 +12,7 @@ import type { EmpresaDaConta } from "@/lib/empresa-ativa";
 import { lerPapel, type Papel } from "@/lib/papel";
 import { destinoDepoisDoLogin } from "@/lib/rotas";
 import { ehTela, type Preferencias } from "@/lib/preferencias";
-import { adaptarAssinatura, type Assinatura, type PlanoId } from "@/lib/assinatura";
+import { adaptarAssinatura, cobrancaLigada, type Assinatura, type PlanoId } from "@/lib/assinatura";
 import { adaptarLimites, type LimitesDaConta } from "@/lib/limites";
 import { ehUf } from "@/lib/uf";
 import { adaptarConsultaConvite, type ConsultaConvite, type ConsultaConviteAPI } from "@/lib/adaptadores";
@@ -489,6 +489,14 @@ export async function sair(): Promise<void> {
   const pote = await cookies();
   pote.delete(COOKIE_CADASTRO_GOOGLE);
   pote.delete(COOKIE_CONVITE_GOOGLE);
+  // encerra a sessão também no backend (`POST /logout`, backend #200): o token deixa de valer em todos os
+  // aparelhos da pessoa. A conta de demonstração é de todo mundo: sair dela não derruba os outros visitantes.
+  // Se a chamada falhar (backend antigo, fora do ar, sessão já vencida), o cookie sai do mesmo jeito.
+  const email = await emailDaSessao().catch(() => null);
+  if (email && !ehContaDeDemonstracao(email)) {
+    // prazo curto: com o backend pendurado, o botão Sair não fica 30 s parado
+    await chamarBackend("/logout", { method: "POST", signal: AbortSignal.timeout(5_000) }).catch(() => {});
+  }
   await signOut({ redirectTo: "/login" });
 }
 
@@ -511,6 +519,8 @@ export type ContaDaSessao = {
   preferencias: Preferencias | null;
   /** O plano e o teste de 14 dias; null quando o `GET /me` ainda não manda `situacao`: nada bloqueia. */
   assinatura: Assinatura | null;
+  /** `cobranca_habilitada` do `GET /me` (backend #202). Falso (ou sem o campo): `assinatura` é null e as telas escondem planos e assinatura. */
+  cobrancaHabilitada: boolean;
   /** Quanto do plano a conta já usa (empresas e pessoas); null quando o `GET /me` ainda não manda `limites`: nada é mostrado. */
   limites: LimitesDaConta | null;
   /** A conta guarda o original de cada extrato (backend #139, plano avançado); false com a flag desligada ou sem o campo. */
@@ -564,10 +574,12 @@ export async function contaDaSessao(): Promise<ContaDaSessao> {
         situacao?: unknown;
         plano?: unknown;
         teste_termina_em?: unknown;
+        cobranca_habilitada?: unknown;
         limites?: unknown;
         guarda_arquivo_original?: unknown;
       }
     >("/me");
+    const cobrancaHabilitada = cobrancaLigada(eu);
     return {
       empresa: eu.razao_social?.trim() ?? "",
       nome: eu.nome?.trim() ?? "",
@@ -575,12 +587,14 @@ export async function contaDaSessao(): Promise<ContaDaSessao> {
       papel: lerPapel(eu),
       empresas: adaptarEmpresas(eu.empresas),
       preferencias: adaptarPreferencias(eu.preferencias),
-      assinatura: adaptarAssinatura(eu),
+      // com a cobrança desligada, a situação (sem_plano, teste_encerrado…) não vale nada na tela
+      assinatura: cobrancaHabilitada ? adaptarAssinatura(eu) : null,
+      cobrancaHabilitada,
       limites: adaptarLimites(eu.limites),
       guardaArquivoOriginal: eu.guarda_arquivo_original === true,
     };
   } catch {
-    return { empresa: "", temSenha: true, papel: "admin", empresas: [], preferencias: null, assinatura: null, limites: null, indisponivel: true };
+    return { empresa: "", temSenha: true, papel: "admin", empresas: [], preferencias: null, assinatura: null, cobrancaHabilitada: false, limites: null, indisponivel: true };
   }
 }
 

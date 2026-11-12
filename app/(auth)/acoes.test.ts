@@ -715,7 +715,7 @@ describe("contaDaSessao", () => {
   it("lê a razão social de GET /me, e que a conta tem senha para trocar", async () => {
     fetch.mockResolvedValue(Response.json(EU));
 
-    expect(await contaDaSessao()).toEqual({ empresa: "Telha Certa Ltda", nome: "Ana", temSenha: true, papel: "admin", empresas: [], preferencias: null, assinatura: null, limites: null, guardaArquivoOriginal: false });
+    expect(await contaDaSessao()).toEqual({ empresa: "Telha Certa Ltda", nome: "Ana", temSenha: true, papel: "admin", empresas: [], preferencias: null, assinatura: null, cobrancaHabilitada: false, limites: null, guardaArquivoOriginal: false });
     expect(fetch).toHaveBeenCalledTimes(1);
     expect(fetch.mock.calls[0][0]).toBe("http://localhost:8000/me");
   });
@@ -740,13 +740,13 @@ describe("contaDaSessao", () => {
     // para ela, POST /me/senha responde 409
     fetch.mockResolvedValue(Response.json({ ...EU, metodos_login: ["google"] }));
 
-    expect(await contaDaSessao()).toEqual({ empresa: "Telha Certa Ltda", nome: "Ana", temSenha: false, papel: "admin", empresas: [], preferencias: null, assinatura: null, limites: null, guardaArquivoOriginal: false });
+    expect(await contaDaSessao()).toEqual({ empresa: "Telha Certa Ltda", nome: "Ana", temSenha: false, papel: "admin", empresas: [], preferencias: null, assinatura: null, cobrancaHabilitada: false, limites: null, guardaArquivoOriginal: false });
   });
 
   it("sem resposta, esconde a empresa em vez de inventar um nome e deixa a troca de senha à mostra", async () => {
     fetch.mockResolvedValue(Response.json({ detail: "Not Found" }, { status: 404 }));
 
-    expect(await contaDaSessao()).toEqual({ empresa: "", temSenha: true, papel: "admin", empresas: [], preferencias: null, assinatura: null, limites: null, indisponivel: true });
+    expect(await contaDaSessao()).toEqual({ empresa: "", temSenha: true, papel: "admin", empresas: [], preferencias: null, assinatura: null, cobrancaHabilitada: false, limites: null, indisponivel: true });
   });
 
   it("lê as empresas da conta do /me, na ordem em que o backend manda (#133)", async () => {
@@ -799,9 +799,30 @@ describe("contaDaSessao", () => {
   });
 
   it("lê o plano e o teste de 14 dias", async () => {
-    fetch.mockResolvedValue(Response.json({ ...EU, situacao: "teste", plano: "padrao", teste_termina_em: "2026-10-29" }));
+    fetch.mockResolvedValue(Response.json({ ...EU, situacao: "teste", plano: "padrao", teste_termina_em: "2026-10-29", cobranca_habilitada: true }));
 
     expect((await contaDaSessao()).assinatura).toEqual({ situacao: "teste", plano: "padrao", testeTerminaEm: "2026-10-29", fimDoTeste: "2026-10-29T00:00:00-03:00", cobranca: null });
+  });
+
+  it("com a cobrança ligada (backend #202), a situação vale e a flag sobe", async () => {
+    fetch.mockResolvedValue(Response.json({ ...EU, situacao: "sem_plano", plano: null, teste_termina_em: null, cobranca_habilitada: true }));
+
+    const conta = await contaDaSessao();
+    expect(conta.cobrancaHabilitada).toBe(true);
+    expect(conta.assinatura?.situacao).toBe("sem_plano");
+  });
+
+  it.each([
+    ["false", { cobranca_habilitada: false }],
+    ["ausente (backend antigo)", {}],
+    ["um valor que não é true", { cobranca_habilitada: "true" }],
+  ])("com a cobrança %s, nenhuma situação chega às telas", async (_nome, campo) => {
+    for (const situacao of ["sem_plano", "teste", "teste_encerrado", "ativo", "pagamento_pendente", "assinatura_encerrada"]) {
+      fetch.mockResolvedValue(Response.json({ ...EU, situacao, plano: "padrao", teste_termina_em: "2026-10-29", ...campo }));
+      const conta = await contaDaSessao();
+      expect(conta.cobrancaHabilitada).toBe(false);
+      expect(conta.assinatura).toBeNull();
+    }
   });
 
   it("lê as preferências do primeiro uso, só com telas conhecidas", async () => {
@@ -1074,6 +1095,36 @@ describe("sair", () => {
 
     expect(cookiesApagados).toHaveBeenCalledWith("ledgr-cadastro-google");
     expect(cookiesApagados).toHaveBeenCalledWith("ledgr-convite-google");
+    expect(signOut).toHaveBeenCalledWith({ redirectTo: "/login" });
+  });
+
+  it("encerra a sessão no backend antes de apagar o cookie (backend #200)", async () => {
+    cookiesExistentes.set("authjs.session-token", "jwt-da-sessao");
+    fetch.mockResolvedValue(new Response(null, { status: 204 }));
+
+    await sair();
+
+    expect(fetch.mock.calls[0][0]).toBe("http://localhost:8000/logout");
+    expect(fetch.mock.calls[0][1].method).toBe("POST");
+    expect(signOut).toHaveBeenCalledWith({ redirectTo: "/login" });
+  });
+
+  it("sai mesmo se o backend recusar ou não tiver a rota", async () => {
+    cookiesExistentes.set("authjs.session-token", "jwt-da-sessao");
+    fetch.mockResolvedValue(Response.json({ detail: "Not Found" }, { status: 404 }));
+
+    await sair();
+
+    expect(signOut).toHaveBeenCalledWith({ redirectTo: "/login" });
+  });
+
+  it("na conta de demonstração não chama o backend: derrubaria os outros visitantes", async () => {
+    vi.stubEnv("LEDGR_CONTA_TESTE_EMAIL", "demo@ledgr.com.br");
+    emailDaSessao.mockResolvedValue("demo@ledgr.com.br");
+
+    await sair();
+
+    expect(fetch).not.toHaveBeenCalled();
     expect(signOut).toHaveBeenCalledWith({ redirectTo: "/login" });
   });
 });

@@ -64,6 +64,19 @@ export function adaptarAssinatura(bruto: {
   };
 }
 
+/**
+ * A cobrança está ligada (`cobranca_habilitada` do `GET /me`, backend #202). Só o `true` liga: sem o
+ * campo (backend antigo) ou com `false`, nada de plano, teste ou assinatura aparece no app, e a
+ * `situacao` não gera selo nem bloqueio.
+ */
+export const cobrancaLigada = (bruto: { cobranca_habilitada?: unknown }): boolean => bruto.cobranca_habilitada === true;
+
+/**
+ * O mesmo para as páginas públicas (landing, cadastro), que não têm `GET /me`: os textos do teste
+ * grátis só aparecem com `NEXT_PUBLIC_LEDGR_COBRANCA=1`. Ligar junto com a Stripe no backend.
+ */
+export const cobrancaNoSite = (): boolean => process.env.NEXT_PUBLIC_LEDGR_COBRANCA === "1";
+
 /** Sem acesso a nova conciliação: o teste acabou ou a assinatura foi encerrada. O pagamento pendente segue aberto. */
 export function bloqueiaConciliacao(situacao: SituacaoDaConta): boolean {
   return situacao === "teste_encerrado" || situacao === "assinatura_encerrada";

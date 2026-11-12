@@ -33,7 +33,7 @@ import {
 import { ImportacaoInterrompida } from "./importacao-interrompida";
 import { LinhasNaoLidas } from "../linhas-nao-lidas";
 import { PlanosBloqueados } from "./planos-bloqueados";
-import { useAssinatura } from "../../conta";
+import { useAssinatura, useCobranca } from "../../conta";
 import { bloqueiaConciliacao, type PrecoDoPlano } from "@/lib/assinatura";
 import { carregarPrecos } from "../../assinatura/acoes";
 import { Cabecalho } from "../../cabecalho";
@@ -77,6 +77,7 @@ function NovaConciliacao() {
   const [contexto, setContexto] = useState<Resultado<ContextoDoReenvio> | null>(null);
   const [tentativa, setTentativa] = useState(0);
   const assinatura = useAssinatura();
+  const cobranca = useCobranca();
   const empresaAtiva = useEmpresaAtiva();
   const empresas = useEmpresasDaConta();
   // o backend recusou a conciliação pelo plano (402): o texto dele vai no lugar do envio
@@ -284,7 +285,8 @@ function NovaConciliacao() {
   async function concluir(bancoId: string, sistemaId: string) {
     setEtapa("conciliando");
     const resultado = await conciliar(bancoId, sistemaId);
-    if (!resultado.ok && resultado.status === 402) {
+    // com a cobrança desligada não há planos a oferecer: o 402 (um limite) é um erro como os outros
+    if (!resultado.ok && resultado.status === 402 && cobranca) {
       setEtapa("ocioso");
       setRecusa(resultado.erro);
       return;

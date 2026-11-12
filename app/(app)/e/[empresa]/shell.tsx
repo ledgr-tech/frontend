@@ -24,6 +24,7 @@ export function Shell({
   papel,
   preferencias,
   assinatura = null,
+  cobrancaHabilitada = false,
   limites = null,
   guardaArquivoOriginal = false,
   contaInativa = false,
@@ -43,6 +44,8 @@ export function Shell({
   preferencias: Preferencias | null;
   /** O plano e o teste de 14 dias, do `GET /me`; null quando ele não manda. */
   assinatura?: Assinatura | null;
+  /** `cobranca_habilitada` do `GET /me`: desligada, o menu e as telas escondem planos e assinatura. */
+  cobrancaHabilitada?: boolean;
   /** Os limites do plano, do `GET /me`; null quando ele não manda. */
   limites?: LimitesDaConta | null;
   /** Se a conta guarda o original de cada extrato, do `GET /me` (backend #139). */
@@ -56,6 +59,7 @@ export function Shell({
       <ProvedorDaConta
         preferencias={preferencias}
         assinatura={assinatura}
+        cobrancaHabilitada={cobrancaHabilitada}
         limites={limites}
         papel={papel}
         email={email}

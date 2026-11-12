@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Check } from "lucide-react";
 import { NumeroAnimado, pediuMenosMovimento } from "@/app/(app)/e/[empresa]/numero-animado";
 import { formatarVolume, teclarNoMedidor, useAlturaQueDesliza } from "@/app/medidor-suave";
-import { planosDoTeste, type PlanoId } from "@/lib/assinatura";
+import { cobrancaNoSite, planosDoTeste, type PlanoId } from "@/lib/assinatura";
 import {
   CONTATO,
   DETALHES,
@@ -201,7 +201,8 @@ export function ReguaQueMede() {
               )}
             </h3>
             <p className="regua-mede-para">{detalhes.para}</p>
-            {plano && (
+            {/* o teste grátis só existe com a cobrança ligada (NEXT_PUBLIC_LEDGR_COBRANCA) */}
+            {plano && cobrancaNoSite() && (
               <p className="regua-mede-preco">
                 {/* sem preço até os definitivos estarem no catálogo live da Stripe (#302): o teste grátis no lugar */}
                 <span>14 dias grátis</span> <small>sem cartão</small>

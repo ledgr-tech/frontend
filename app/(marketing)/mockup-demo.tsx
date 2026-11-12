@@ -4,6 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProp
 import { m, useInView, useScroll, useTransform } from "motion/react";
 import { LogoBarras } from "@/app/(app)/e/[empresa]/logo-barras";
 import { useMovimentoReduzido } from "@/app/reveal";
+import { cobrancaNoSite } from "@/lib/assinatura";
 
 /**
  * O vídeo do produto refeito em HTML: a Nova conciliação, a comparação com o painel da direita, a justificativa
@@ -278,7 +279,7 @@ export function MockupDemo({ descricao }: { descricao: string }) {
                   </li>
                 ))}
               </ol>
-              <p className="mockup-intro-sub">Em minutos, o Ledgr confere linha por linha · 14 dias grátis, sem cartão</p>
+              <p className="mockup-intro-sub">Em minutos, o Ledgr confere linha por linha{cobrancaNoSite() && " · 14 dias grátis, sem cartão"}</p>
             </div>
           </div>
         </div>

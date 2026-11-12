@@ -15,6 +15,8 @@ const PORTA = Number(process.env.PORT ?? 8000);
 // as flags do backend de verdade, ligadas por padrão; =0 deixa como em produção (as capturas da Central)
 const APROVACAO = process.env.APROVACAO_JUSTIFICATIVAS_HABILITADA !== "0";
 const MCP = process.env.MCP_HABILITADO !== "0";
+// a cobrança (backend #202): COBRANCA_HABILITADA=0 é a produção de hoje, sem planos nem assinatura na tela
+const COBRANCA = process.env.COBRANCA_HABILITADA !== "0";
 const PASTA_EXEMPLOS = join(import.meta.dirname, "..", "exemplos-extratos");
 const TOLERANCIA_MAXIMA = 5;
 
@@ -668,6 +670,9 @@ const servidor = createServer(async (req, res) => {
   const b = empresas.get(pedida ?? conta.empresas[0]);
   const semCorpo = () => (res.writeHead(204), res.end());
 
+  // o fake não guarda sessão: o logout (backend #200) só responde
+  if (rota("POST", "/logout")) return semCorpo();
+
   // ----- a pessoa (/me) -----
 
   if (rota("GET", "/me")) {
@@ -682,6 +687,7 @@ const servidor = createServer(async (req, res) => {
       situacao: conta.situacao,
       plano: conta.plano,
       teste_termina_em: conta.teste_termina_em,
+      cobranca_habilitada: COBRANCA,
       limites: {
         empresas: { usadas: conta.empresas.length, maximo: plano.empresas },
         usuarios: { usados: pessoasDaConta(conta.id).length, maximo: plano.usuarios },

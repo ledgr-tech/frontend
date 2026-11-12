@@ -50,11 +50,12 @@ function montar({
   limites = null,
   aba,
   empresas = [A, B],
-}: { papel?: Papel; limites?: LimitesDaConta | null; aba?: "equipe"; empresas?: EmpresaCliente[] } = {}) {
+  cobranca = true,
+}: { papel?: Papel; limites?: LimitesDaConta | null; aba?: "equipe"; empresas?: EmpresaCliente[]; cobranca?: boolean } = {}) {
   if (aba) window.history.replaceState(null, "", "/e/x/empresas?aba=equipe");
   render(
     <ProvedorDaEmpresa ativa={{ id: A.id, razaoSocial: A.razaoSocial, cnpj: A.cnpj }} empresas={[A, B]}>
-      <ProvedorDaConta preferencias={null} limites={limites} papel={papel}>
+      <ProvedorDaConta cobrancaHabilitada={cobranca} preferencias={null} limites={limites} papel={papel}>
         <PainelDeEmpresas empresas={empresas} />
       </ProvedorDaConta>
     </ProvedorDaEmpresa>,
@@ -213,6 +214,7 @@ describe("a faixa do plano", () => {
 
     expect(screen.getByText("2 de 3 empresas")).toBeInTheDocument();
     expect(screen.getByText("Falta 1 empresa para o limite do plano.")).toBeInTheDocument();
+    expect(screen.queryByText(/Assinatura/)).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Ver planos" })).not.toBeInTheDocument();
   });
 
@@ -228,6 +230,13 @@ describe("a faixa do plano", () => {
 
     expect(screen.getByText(/chegou ao limite de 3 empresas/)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Ver planos" })).toHaveAttribute("href", `/e/${A.id}/assinatura`);
+  });
+
+  it("com a cobrança desligada, o limite aparece sem o caminho para os planos", () => {
+    montar({ limites: { empresas: { usadas: 3, maximo: 3 }, usuarios: null }, cobranca: false });
+
+    expect(screen.getByText(/chegou ao limite de 3 empresas/)).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Ver planos" })).not.toBeInTheDocument();
   });
 
   it("sem os limites do /me, não há faixa", () => {
@@ -361,7 +370,7 @@ describe("o cadastro de empresa", () => {
     const user = userEvent.setup();
     const arvore = (limites: LimitesDaConta) => (
       <ProvedorDaEmpresa ativa={{ id: A.id, razaoSocial: A.razaoSocial, cnpj: A.cnpj }} empresas={[A, B]}>
-        <ProvedorDaConta preferencias={null} limites={limites} papel="admin">
+        <ProvedorDaConta cobrancaHabilitada preferencias={null} limites={limites} papel="admin">
           <PainelDeEmpresas empresas={[A, B]} />
         </ProvedorDaConta>
       </ProvedorDaEmpresa>
