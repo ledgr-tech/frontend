@@ -810,7 +810,7 @@ const servidor = createServer(async (req, res) => {
 
   if (rota("GET", "/importacoes-ia/prompt")) {
     return json(res, 200, { versao_schema: "1", versao_prompt: "1", prompt:
-      "Você vai receber o PDF de um relatório de lançamentos de um sistema de gestão.\nLeia todas as páginas e entregue a resposta obrigatoriamente como um arquivo para baixar, chamado lancamentos.json. Não escreva o JSON na conversa: nela, diga só quantos lançamentos o arquivo tem.\nO arquivo tem SOMENTE um JSON, sem texto antes ou depois, neste formato:\n{ \"versao_schema\": \"1\", \"lancamentos\": [ { \"data\": \"AAAA-MM-DD\", \"descricao\": \"…\", \"valor\": -120.50 } ] }\nRegras: uma entrada por lançamento; saída com valor negativo; ponto nos centavos; não some nem agrupe linhas." });
+      "Você vai receber o PDF de um relatório de lançamentos de um sistema de gestão.\nLeia todas as páginas e devolva SOMENTE um JSON, sem texto antes ou depois, neste formato:\n{ \"versao_schema\": \"1\", \"lancamentos\": [ { \"data\": \"AAAA-MM-DD\", \"descricao\": \"…\", \"valor\": -120.50 } ] }\nRegras: uma entrada por lançamento; saída com valor negativo; ponto nos centavos; não some nem agrupe linhas." });
   }
   if (rota("POST", "/importacoes-ia")) {
     const pedacos = [];
