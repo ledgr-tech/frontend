@@ -160,7 +160,7 @@ export function PainelDeConexoes({ itens: iniciais, endereco }: { itens: Conexao
         <p className="conexao-texto conexao-texto-fraco">
           {"Exemplos de perguntas e o que fazer quando a conexão não funciona estão na "}
           {/* em outra aba: as Configurações ficam abertas no passo em que a pessoa parou */}
-          <a href="/ajuda/configuracoes#conexoes" target="_blank" rel="noopener" className="link-animado">
+          <a href="/ajuda/conectar-ia#passo-a-passo" target="_blank" rel="noopener" className="link-animado">
             Central de ajuda
           </a>
           .

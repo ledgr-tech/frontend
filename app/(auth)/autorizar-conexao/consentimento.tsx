@@ -227,7 +227,7 @@ export function Consentimento({
         </div>
         <p className="consent-nota">
           {`Este pedido vale até ${hora(dados.expiraEm)}. Depois de autorizar, a conexão aparece em Configurações › Conexões, onde você pode revogá-la a qualquer momento. Dúvidas? Veja o `}
-          <a href="/ajuda/configuracoes#conexoes" target="_blank" rel="noopener" className="link-animado">
+          <a href="/ajuda/conectar-ia#passo-a-passo" target="_blank" rel="noopener" className="link-animado">
             passo a passo na Central de ajuda
           </a>
           .
