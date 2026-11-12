@@ -6431,3 +6431,73 @@ html[data-tema="escuro"] .app-shell {
 @media (prefers-reduced-motion: reduce) {
   .vdc-mascote, .vdc-cena, .vdc-cena *, .vdc-cursor { animation: none !important; transition: none !important; }
 }
+
+/* --- landing, Cap. IV: a conexão com o ChatGPT e o Claude (app/(marketing)/conexao-ia.tsx), na faixa escura com grão.
+   A janela se divide 50/50 no meio da volta; no celular, uma IA por vez. --- */
+.cia-secao { position: relative; overflow: hidden; background-color: var(--faixa-escura); color: var(--color-neutral-100); }
+.cia-conteudo {
+  position: relative; max-width: 1340px; margin: 0 auto; display: flex; flex-wrap: wrap; gap: 56px; align-items: center;
+  padding: clamp(80px, 9vw, 112px) clamp(20px, 4.2vw, 32px);
+}
+.cia-texto { flex: 1 1 380px; min-width: 0; display: flex; flex-direction: column; gap: 26px; }
+.cia-capitulo { margin: 0; color: var(--color-accent); }
+.cia-titulo { margin: 0; font-size: clamp(38px, 4vw, 58px); font-weight: 500; line-height: 1.04; letter-spacing: -0.03em; text-wrap: balance; color: var(--color-neutral-100); }
+.cia-titulo em { color: var(--color-accent); }
+.cia-abertura { margin: 0; max-width: 500px; font-size: 19px; line-height: 1.6; color: var(--color-neutral-300); text-wrap: pretty; }
+.cia-promessas { margin: 0; padding: 0; list-style: none; border-top: 1px solid color-mix(in srgb, var(--color-neutral-100) 22%, transparent); }
+.cia-promessas li {
+  display: grid; grid-template-columns: 48px minmax(0, 1fr); padding: 15px 0; font-size: 16px; line-height: 1.5;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-neutral-100) 22%, transparent);
+}
+.cia-promessas strong { font-weight: 600; }
+.cia-promessas li > span > span { color: var(--color-neutral-300); }
+.cia-numeral { font-family: var(--font-destaque-family, var(--font-display)); font-style: italic; font-size: 24px; line-height: 1; color: var(--color-accent); }
+.cia-acao { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; margin-top: 6px; }
+.cia-acao > span { font-size: 14px; color: var(--color-neutral-400); }
+.cia-cta {
+  display: inline-flex; align-items: center; gap: 12px; padding: 18px 30px; border: 1.5px solid var(--color-accent); border-radius: 16px;
+  background: color-mix(in srgb, var(--color-accent) 16%, transparent); color: var(--color-accent-300); font-weight: 600; font-size: 17px; text-decoration: none;
+  transition: background 0.5s var(--ease-out), transform 0.16s var(--ease-out);
+}
+.cia-cta:hover { background: color-mix(in srgb, var(--color-accent) 30%, transparent); color: var(--color-accent-300); }
+.cia-cta:active { transform: scale(0.97); }
+.cia-cta:focus-visible { outline: 2px solid var(--color-accent-300); outline-offset: 3px; }
+.cia-seta { display: inline-block; transition: transform 0.5s var(--ease-out); }
+.cia-cta:hover .cia-seta { transform: translateX(4px); }
+.cia-palco { flex: 1 1 720px; min-width: 0; position: relative; padding-top: 210px; }
+.cia-mascote {
+  position: absolute; top: 0; left: 0; right: 0; height: 300px; display: flex; align-items: flex-start; justify-content: center; pointer-events: none;
+  animation: vdc-flutua 8s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+.cia-mascote-img { width: 440px; height: auto; margin: 0 18px; }
+.cia-ia { align-self: center; margin-top: -30px; display: flex; flex-direction: column; align-items: center; gap: 10px; font-size: 20px; font-weight: 500; letter-spacing: -0.01em; color: var(--color-neutral-100); }
+.cia-ia img { width: 76px; height: 76px; }
+.cia-janela {
+  position: relative; z-index: 1; height: 640px; display: flex; overflow: hidden; border-radius: 16px; background: #ffffff;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5);
+}
+.cia-lado { flex: none; min-width: 0; display: flex; overflow: hidden; transition: width 1.8s cubic-bezier(0.65, 0, 0.35, 1), opacity 1.6s var(--ease-out); }
+.cia-lado-claude { width: 100%; }
+.cia-lado-gpt { width: 0; opacity: 0; border-left: 1px solid transparent; }
+.cia-janela[data-dividida="true"] .cia-lado-claude { width: 50%; }
+.cia-janela[data-dividida="true"] .cia-lado-gpt { width: 50%; opacity: 1; border-left-color: #e5e5e5; transition-delay: 0s, 0.4s; }
+.cia-janela[data-some="true"] .cia-lado { opacity: 0; }
+.cia-lado .chat-ia { flex: none; width: 100%; }
+.cia-cursor { position: absolute; z-index: 3; pointer-events: none; transition: left 1.4s cubic-bezier(0.65, 0, 0.35, 1), top 1.4s cubic-bezier(0.65, 0, 0.35, 1), opacity 0.8s; }
+.cia-cursor[data-ligado="false"] { opacity: 0; }
+.cia-nota { position: relative; margin: 16px 0 0; font-size: 13px; color: var(--color-neutral-400); }
+@media (max-width: 760px) {
+  .cia-palco { padding-top: 150px; }
+  .cia-mascote { height: 200px; }
+  .cia-mascote-img { width: 220px; margin: 0 8px; }
+  .cia-ia { font-size: 15px; }
+  .cia-ia img { width: 48px; height: 48px; }
+  .cia-janela { height: 560px; }
+  /* 50/50 em 343 px não se lê: uma IA por vez, o Claude e depois o ChatGPT */
+  .cia-janela[data-dividida="true"] .cia-lado-claude { width: 0; opacity: 0; }
+  .cia-janela[data-dividida="true"] .cia-lado-gpt { width: 100%; border-left-color: transparent; }
+  .cia-cursor { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cia-mascote, .cia-lado, .cia-cursor, .cia-cta, .cia-seta { animation: none; transition: none; }
+}

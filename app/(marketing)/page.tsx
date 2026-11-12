@@ -8,6 +8,7 @@ import { CabecalhoSite } from "./cabecalho-site";
 import { seloDoStatus } from "@/app/(app)/e/[empresa]/dashboard/resumo";
 import { QUANTAS_CATEGORIAS } from "./categorias";
 import { Cena } from "./cena";
+import { ConexaoIa } from "./conexao-ia";
 import { ExtratoComparacao, type LinhaExtrato } from "./comparacao";
 import { ConferenciaAMao, type Dor } from "./conferencia-a-mao";
 import { Depoimentos } from "./depoimentos";
@@ -476,8 +477,11 @@ export default function LandingPage() {
           já foi explicado. O link "Por que o Ledgr" do rodapé desce até aqui */}
       <PorQueOLedgr />
 
+      {/* a conexão com o ChatGPT e o Claude, o diferencial, numa faixa escura antes da regra de ouro */}
+      <ConexaoIa />
+
       {/* regra de ouro */}
-      <section id="regra" className="onda onda-superficie">
+      <section id="regra" className="onda onda-escura">
         <div style={{ maxWidth: 1600, margin: "0 auto", padding: "clamp(64px, 9vw, 96px) clamp(20px, 4.2vw, 56px)" }}>
           <Reveal>
             <Cena className="regra-cena">
@@ -632,7 +636,7 @@ export default function LandingPage() {
         />
         <div className="preco-conteudo">
           <Precos banco={EXTRATO_BANCO} destaque="Pagamento fornecedor #1082" resumo={AGOSTO}>
-            <span className="eyebrow preco-capitulo">Cap. IV · Começar</span>
+            <span className="eyebrow preco-capitulo">Cap. V · Começar</span>
             <h2 className="titulo-misto preco-titulo">
               Preço fechado, <em>por volume.</em>
             </h2>

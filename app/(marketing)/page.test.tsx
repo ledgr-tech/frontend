@@ -57,14 +57,15 @@ describe("LandingPage", () => {
     expect(container.querySelector(".regua-mede-acao")).toHaveTextContent(/^Começar com o /);
   });
 
-  it("labels only the four chapters above the section titles", () => {
+  it("labels only the five chapters above the section titles", () => {
     const { container } = render(<LandingPage />);
     const rotulos = [...container.querySelectorAll(".eyebrow")].map((rotulo) => rotulo.textContent);
     expect(rotulos).toEqual([
       "Cap. I · O fechamento do mês",
       "Cap. II · O jeito de hoje",
       "Cap. III · Como funciona",
-      "Cap. IV · Começar",
+      "Cap. IV · Conexão com IA",
+      "Cap. V · Começar",
     ]);
   });
 
@@ -93,6 +94,7 @@ describe("LandingPage", () => {
       ["Três passos. A conferência linha por linha fica com o Ledgr.", ["com o Ledgr."]],
       ["Cada lançamento, do extrato ao seu sistema.", ["ao seu sistema."]],
       ["Sem trocar de sistema, e sem voltar para o manual.", ["e sem voltar para o manual."]],
+      ["Pergunte à sua IA como está o seu mês.", ["o seu mês."]],
       ["O extrato do banco é sempre a fonte da verdade.", ["a fonte da verdade."]],
       ["Perguntas que sempre aparecem", ["sempre aparecem"]],
       ["Para quem fecha o mês, sozinho ou com equipe.", ["sozinho ou com equipe."]],
@@ -165,7 +167,8 @@ describe("LandingPage", () => {
     const numeros = [
       ...[...container.querySelectorAll(".numeros-grade > *")].map((item) => item.firstElementChild!),
       // o relatório do último card de Preços, com o agosto da demonstração
-      ...screen.getAllByText("96,3%"),
+      // (fora da simulação do Claude e do ChatGPT, que segue a tipografia das próprias IAs)
+      ...screen.getAllByText("96,3%").filter((numero) => !numero.closest(".chat-ia")),
       // e, na régua de Preços, o volume do medidor e as quatro marcas
       ...container.querySelectorAll(".regua-mede-valor output, .regua-mede-marcas span"),
     ];
@@ -548,7 +551,9 @@ describe("LandingPage", () => {
       render(<LandingPage />);
       expect(porQue().tagName).toBe("SECTION");
       expect(document.getElementById("por-dentro")!.nextElementSibling).toBe(porQue());
-      expect(porQue().nextElementSibling).toBe(document.getElementById("regra"));
+      // a conexão com IA vem logo depois, e então a regra de ouro
+      expect(porQue().nextElementSibling).toBe(document.getElementById("conexao-ia"));
+      expect(document.getElementById("conexao-ia")!.nextElementSibling).toBe(document.getElementById("regra"));
       expect(document.getElementById("problema")!.querySelector(".kin-motivo")).toBeNull();
     });
 
@@ -620,11 +625,12 @@ describe("LandingPage", () => {
     it("keeps the bands alternating", () => {
       render(<LandingPage />);
       // a onda de cada seção leva a cor da seção de cima: papel (o problema), superfície (Como
-      // funciona), faixa clara (Por dentro), superfície (Por que o Ledgr)
+      // funciona), faixa clara (Por dentro), superfície (Por que o Ledgr), escura (a conexão com IA)
       expect(document.getElementById("como")).toHaveClass("onda", "onda-papel");
       expect(document.getElementById("por-dentro")).toHaveClass("onda", "onda-superficie");
       expect(porQue()).toHaveClass("onda", "onda-faixa-clara");
-      expect(document.getElementById("regra")).toHaveClass("onda", "onda-superficie");
+      expect(document.getElementById("conexao-ia")).toHaveClass("onda", "onda-superficie", "grao");
+      expect(document.getElementById("regra")).toHaveClass("onda", "onda-escura");
     });
   });
 

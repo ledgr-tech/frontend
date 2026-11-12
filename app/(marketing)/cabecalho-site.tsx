@@ -7,7 +7,8 @@ import { useEffect, useId, useRef, useState } from "react";
 const SECOES = [
   { rotulo: "O problema", href: "#problema", capitulo: "Cap. II" },
   { rotulo: "Como funciona", href: "#como", capitulo: "Cap. III" },
-  { rotulo: "Assinatura", href: "#preco", capitulo: "Cap. IV" },
+  { rotulo: "Com a sua IA", href: "#conexao-ia", capitulo: "Cap. IV" },
+  { rotulo: "Assinatura", href: "#preco", capitulo: "Cap. V" },
 ];
 
 // mesma largura do globals.css: a partir dela volta a navegação completa, então o menu de opções fecha
