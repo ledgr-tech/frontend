@@ -85,3 +85,10 @@ describe("ConexaoIa", () => {
     expect(container.querySelectorAll(".chat-ia-palavra.visivel")).toHaveLength(palavras.length);
   });
 });
+
+describe("o HTML do servidor", () => {
+  it("nasce no começo da volta, com a janela inteira do Claude", async () => {
+    const { renderToString } = await import("react-dom/server");
+    expect(renderToString(<ConexaoIa />)).toMatch(/cia-janela" data-dividida="false"/);
+  });
+});

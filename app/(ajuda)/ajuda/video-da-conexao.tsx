@@ -105,7 +105,7 @@ export function VideoDaConexao({ ia, endereco }: { ia: AbaDoPasso["id"]; enderec
   // o Claude Code não tem conector na interface: o vídeo mostra o do Claude
   const iaDoVideo: IaDaConexao = ia === "chatgpt" ? "chatgpt" : "claude";
   const nome = NOME_DA_IA[iaDoVideo];
-  const reduzido = useMovimentoReduzido();
+  const reduzido = useMovimentoReduzido(false);
   const quadro = useRef<HTMLDivElement>(null);
   const naTela = useInView(quadro, { amount: 0.4 });
   const [t, setT] = useState(0);

@@ -137,7 +137,7 @@ export function ConexaoIa() {
 }
 
 function ConversaDasIas() {
-  const reduzido = useMovimentoReduzido();
+  const reduzido = useMovimentoReduzido(false);
   const quadro = useRef<HTMLDivElement>(null);
   const naTela = useInView(quadro, { amount: 0.4 });
   const [t, setT] = useState(0);

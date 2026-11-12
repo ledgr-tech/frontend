@@ -121,3 +121,12 @@ describe("VideoDaConexao", () => {
     expect(container.querySelectorAll(".vdc-cena-3 .chat-ia-palavra.visivel").length).toBeGreaterThan(10);
   });
 });
+
+describe("o HTML do servidor", () => {
+  it("nasce na primeira cena, para a página não piscar a última ao hidratar", async () => {
+    const { renderToString } = await import("react-dom/server");
+    const html = renderToString(<VideoDaConexao ia="chatgpt" endereco="u" />);
+    expect(html).toMatch(/vdc-cena-0" data-ligado="true"/);
+    expect(html).toMatch(/vdc-cena-3" data-ligado="false"/);
+  });
+});

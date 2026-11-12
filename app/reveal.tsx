@@ -130,8 +130,10 @@ function lerMovimentoReduzido() {
 }
 
 // O HTML do servidor já chega parado, inclusive na primeira pintura de quem pediu menos movimento.
-export function useMovimentoReduzido() {
-  return useSyncExternalStore(observarMovimento, lerMovimentoReduzido, () => true);
+// Os players de cenas passam `noServidor = false`: nascem no primeiro quadro, como a maioria vai ver, e quem
+// pediu menos movimento troca para o quadro parado sem transição (o CSS deles não tem).
+export function useMovimentoReduzido(noServidor = true) {
+  return useSyncExternalStore(observarMovimento, lerMovimentoReduzido, () => noServidor);
 }
 
 // teto de traços ao mesmo tempo, caso o animationend não chegue (bloco escondido não anima)
