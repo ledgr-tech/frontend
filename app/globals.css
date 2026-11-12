@@ -6110,6 +6110,8 @@ html[data-tema="escuro"] .app-shell {
 }
 
 /* --- Por que o Ledgr: a faixa lateral, presa enquanto a rolagem empurra os motivos para o lado --- */
+/* os textos grandes crescem com a largura, mas a faixa só fica presa se os cartões couberem na altura
+   (por-que.tsx): o min(vw, vh) segura o tamanho nas telas largas e baixas, senão viram tira com barra */
 .kin-lat { position: relative; background: var(--color-surface); }
 .kin-lat-fixo { position: relative; overflow-x: auto; scroll-snap-type: x mandatory; padding: clamp(64px, 9vw, 96px) 0; }
 .kin-lat[data-presa] .kin-lat-fixo { position: sticky; top: 0; height: 100vh; overflow: hidden; scroll-snap-type: none; padding: 77px 0 16vh; display: flex; flex-direction: column; justify-content: center; }
@@ -6117,22 +6119,22 @@ html[data-tema="escuro"] .app-shell {
 .kin-lat:not([data-presa]) .kin-lat-trilho { transform: none !important; }
 .kin-motivo { flex: none; width: min(82vw, 1080px); display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 24px; padding: 8px clamp(24px, 4vw, 72px); border-left: 1px solid var(--color-divider); scroll-snap-align: start; }
 .kin-motivo-intro { display: block; width: min(78vw, 940px); border-left: 0; padding-left: clamp(4px, 1.4vw, 20px); align-self: center; }
-.kin-lat-titulo { margin: 0; font-size: clamp(42px, 6.2vw, 100px); max-width: 13ch; letter-spacing: -0.04em; }
+.kin-lat-titulo { margin: 0; font-size: clamp(42px, min(6.2vw, 10vh), 100px); max-width: 13ch; letter-spacing: -0.04em; }
 .kin-lat-dica { margin: 28px 0 0; font: 500 12px/1 var(--font-mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--color-accent-700); }
 .kin-lat-dica span { display: inline-block; margin-left: 8px; }
-.kin-motivo-num { margin: 0; font-family: var(--font-destaque-family), var(--font-display), serif; font-style: italic; font-weight: 500; font-size: clamp(64px, 7vw, 124px); line-height: 0.85; color: var(--color-accent-600); }
-.kin-motivo-pergunta { margin: 18px 0 0; font: 500 13px/1.2 var(--font-mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--color-accent-700); }
-.kin-motivo-ledgr { margin: 14px 0 0; font: 500 clamp(38px, 5.4vw, 88px)/1.02 var(--font-body); letter-spacing: -0.04em; max-width: 13ch; }
+.kin-motivo-num { margin: 0; font-family: var(--font-destaque-family), var(--font-display), serif; font-style: italic; font-weight: 500; font-size: clamp(48px, min(7vw, 9vh), 124px); line-height: 0.85; color: var(--color-accent-600); }
+.kin-motivo-pergunta { margin: clamp(10px, 2vh, 18px) 0 0; font: 500 13px/1.2 var(--font-mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--color-accent-700); }
+.kin-motivo-ledgr { margin: 14px 0 0; font: 500 clamp(32px, min(5.4vw, 7vh), 88px)/1.02 var(--font-body); letter-spacing: -0.04em; max-width: 13ch; }
 .kin-motivo-ledgr .kin-pal { display: inline-block; }
-.kin-motivo-detalhe { margin: 18px 0 0; font-size: clamp(18px, 1.45vw, 23px); line-height: 1.45; max-width: 34ch; }
-.kin-motivo-hoje { margin: clamp(26px, 3vw, 40px) 0 0; max-width: 56ch; border-top: 1px solid color-mix(in srgb, var(--color-text) 22%, transparent); padding-top: 16px; display: grid; gap: 14px; }
-.kin-motivo-hoje dl { margin: 0; display: grid; gap: 14px; }
+.kin-motivo-detalhe { margin: clamp(10px, 2vh, 18px) 0 0; font-size: clamp(16px, min(1.45vw, 2.6vh), 23px); line-height: 1.45; max-width: 34ch; }
+.kin-motivo-hoje { margin: clamp(16px, min(3vw, 4vh), 40px) 0 0; max-width: 56ch; border-top: 1px solid color-mix(in srgb, var(--color-text) 22%, transparent); padding-top: 16px; display: grid; gap: clamp(8px, 1.6vh, 14px); }
+.kin-motivo-hoje dl { margin: 0; display: grid; gap: clamp(8px, 1.6vh, 14px); }
 .kin-hoje-rotulo { justify-self: start; margin: 0; display: inline-block; padding: 0.5em 0.75em 0.45em; border-radius: 8px; background: var(--color-risco-200); border: 1px solid var(--color-risco-400); color: var(--color-risco-800); font: 600 12px/1 var(--font-mono); letter-spacing: 0.14em; text-transform: uppercase; rotate: -3deg; box-shadow: 0 10px 20px -14px rgb(45 35 20 / 0.5); }
 .kin-motivo-hoje div { position: relative; padding-left: 16px; font-size: 16px; line-height: 1.5; }
 .kin-motivo-hoje div::before { content: ""; position: absolute; left: 0; top: 0.2em; bottom: 0.2em; width: 2px; border-radius: 2px; background: var(--color-accent); transform-origin: top center; }
 .kin-motivo-hoje dt { font-size: 13px; font-weight: 600; color: color-mix(in srgb, var(--color-text) 72%, transparent); }
 .kin-motivo-hoje dd { margin: 2px 0 0; color: var(--color-text); }
-.kin-motivo-mascote { width: clamp(130px, 15vw, 250px); height: auto; align-self: end; }
+.kin-motivo-mascote { width: clamp(130px, min(15vw, 26vh), 250px); height: auto; align-self: end; }
 .kin-motivo-fim { width: min(70vw, 760px); display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 26px; }
 .kin-fim-logo { width: 84px; height: auto; }
 .kin-fim-frase { margin: 0; font: 500 clamp(36px, 4.6vw, 72px)/1.05 var(--font-body); letter-spacing: -0.04em; max-width: 14ch; }
