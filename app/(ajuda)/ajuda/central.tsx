@@ -22,7 +22,7 @@ const larguraDaFigura = ({ largura, altura }: { largura: number; altura: number 
 const DESTAQUES = PAGINAS.filter((pagina) => pagina.destaque);
 const TELAS = PAGINAS.filter((pagina) => !pagina.destaque);
 
-/** `endereco` é o do conector (lib/conexao-ia), lido no servidor; só a página da conexão o usa. */
+/** `endereco` é o do conector (lib/endereco-do-conector), lido no servidor; só a página da conexão o usa. */
 export function CentralDeAjuda({ id, endereco = null }: { id: string; endereco?: string | null }) {
   const pagina = paginaDeAjuda(id) ?? PAGINAS[0];
   const indice = pagina.destaque ? -1 : TELAS.indexOf(pagina);

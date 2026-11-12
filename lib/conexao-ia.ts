@@ -16,9 +16,9 @@ export const DOCUMENTACAO_DA_IA: Record<IaDaConexao, string> = {
 export const ENDERECO_SEM_BASE = "<endereço do conector>";
 
 /**
- * O endereço que se cola na IA. Só no servidor: lê `LEDGR_API_URL`.
- * ponytail: o conector fica em `/mcp` do mesmo backend (o `MCP_URL_PUBLICA` padrão); se o backend mudar o
- * caminho ou o host, este passa a ser uma variável própria
+ * O endereço do conector montado pelo `LEDGR_API_URL`. É só a reserva: o que as telas mostram é o que o
+ * backend publica (`enderecoPublicoDoConector` em `lib/endereco-do-conector.ts`), porque o host por onde
+ * o app fala com o backend pode não ser o público.
  */
 export function enderecoDoConector(base: string | undefined = process.env.LEDGR_API_URL): string | null {
   return base ? `${base.replace(/\/+$/, "")}/mcp` : null;

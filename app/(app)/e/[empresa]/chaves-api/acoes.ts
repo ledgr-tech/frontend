@@ -1,5 +1,6 @@
 "use server";
 
+import { enderecosPublicos } from "@/lib/endereco-do-conector";
 import { pareceUuid } from "@/lib/adaptadores";
 import { ErroBackend, chamarBackend, ehContaInativa, emailDaSessao } from "@/lib/backend";
 import { RECUSA_DEMONSTRACAO, ehContaDeDemonstracao } from "@/lib/demo";
@@ -85,10 +86,9 @@ export async function carregarChavesApi(): Promise<Resultado<ChavesDaApi>> {
   const recusada = await recusa(false);
   if (recusada) return recusada;
   try {
-    const lista = await chamarBackend<{ itens: ChaveApiAPI[] }>("/chaves-api");
-    // shortcut: o endereço público da API é o mesmo que o servidor do app usa; se um dia o app falar
-    // com o backend por rede interna, este passa a ser uma variável própria
-    return { ok: true, dados: { itens: lista.itens.map(adaptar), endereco: process.env.LEDGR_API_URL?.replace(/\/+$/, "") || null } };
+    // o endereço público da API é o que o backend publica, não o host por onde o app fala com ele
+    const [lista, { api }] = await Promise.all([chamarBackend<{ itens: ChaveApiAPI[] }>("/chaves-api"), enderecosPublicos()]);
+    return { ok: true, dados: { itens: lista.itens.map(adaptar), endereco: api } };
   } catch (erro) {
     return traduzir(erro);
   }
