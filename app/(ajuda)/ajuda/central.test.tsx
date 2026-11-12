@@ -228,7 +228,8 @@ describe("a página Conectar o ChatGPT ou o Claude", () => {
     const chatgpt = screen.getByRole("tab", { name: "ChatGPT" });
     expect(chatgpt).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("tabpanel")).toHaveAttribute("aria-labelledby", chatgpt.id);
-    chatgpt.focus();
+    // o clique dá o foco; um focus() direto perde para o foco no título, que a Central põe ao montar
+    await user.click(chatgpt);
     await user.keyboard("{ArrowRight}{ArrowRight}");
     const code = screen.getByRole("tab", { name: "Claude Code" });
     expect(code).toHaveAttribute("aria-selected", "true");

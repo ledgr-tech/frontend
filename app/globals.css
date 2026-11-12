@@ -6295,3 +6295,43 @@ html[data-tema="escuro"] .app-shell {
 @media (prefers-reduced-motion: reduce) {
   .chat-ia, .chat-ia * { animation: none !important; transition: none !important; }
 }
+
+/* --- Central: a página em destaque da conexão com IA (grupo Destaque, colunas, abas por IA, sanfona) --- */
+.ajd-grupo { margin: 18px 0 6px; padding: 0 12px; font-family: var(--font-mono); font-size: 11px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: var(--texto-apagado); }
+.ajd-colunas { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); margin-top: 20px; border-top: 1px solid var(--color-divider); }
+.ajd-colunas > div { display: flex; flex-direction: column; gap: 6px; padding: 18px 20px 4px; }
+.ajd-colunas > div:first-child { padding-left: 0; }
+.ajd-colunas > div + div { border-left: 1px solid var(--color-divider); }
+.ajd-colunas strong { font-weight: 600; font-size: 15px; }
+.ajd-colunas span { font-size: 14.5px; line-height: 1.6; color: color-mix(in srgb, var(--color-text) 78%, transparent); }
+.ajd-abas { margin-top: 20px; }
+.ajd-abas-lista { display: inline-flex; gap: 2px; padding: 3px; border: 1px solid var(--color-divider); border-radius: 16px; }
+.ajd-abas-lista button {
+  min-height: 40px; padding: 9px 14px; border: 0; border-radius: 13px; background: transparent; cursor: pointer;
+  font: 500 13.5px var(--font-body); color: var(--color-text); transition: background 0.2s var(--ease-out);
+}
+.ajd-abas-lista button:hover { background: var(--tinta-hover); }
+.ajd-abas-lista button[aria-selected="true"] { background: color-mix(in srgb, var(--color-text) 9%, transparent); }
+.ajd-abas-passos { display: flex; flex-direction: column; margin: 18px 0 0; padding: 0; list-style: none; border-top: 1px solid var(--color-divider); }
+.ajd-abas-passos li { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 8px; padding: 22px 0; border-bottom: 1px solid var(--color-divider); }
+.ajd-passo-num { font-family: var(--font-titulo); font-size: 30px; line-height: 1; font-variant-numeric: lining-nums tabular-nums; color: var(--texto-apagado); }
+.ajd-abas-passos li > div { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.ajd-abas-passos strong { font-family: var(--font-titulo); font-size: 22px; font-weight: 400; line-height: 1.2; }
+.ajd-abas-passos li > div > span { font-size: 15.5px; line-height: 1.6; color: color-mix(in srgb, var(--color-text) 78%, transparent); }
+.ajd-codigo {
+  display: block; padding: 11px 14px; border: 1px solid var(--color-divider); border-radius: 8px; background: var(--color-surface);
+  font-family: var(--font-mono); font-size: 12.5px; overflow-x: auto; white-space: nowrap;
+}
+.ajd-certo { display: flex; gap: 8px; font-size: 14px; line-height: 1.5; color: var(--color-ok-700); }
+.ajd-certo svg { flex-shrink: 0; margin-top: 2px; }
+.ajd-abas-ajuda { font-size: 14px; }
+.ajd-sanfona { margin-top: 16px; border-top: 1px solid var(--color-divider); }
+.ajd-sanfona details { padding: 15px 0; border-bottom: 1px solid var(--color-divider); font-size: 15.5px; }
+.ajd-sanfona summary { cursor: pointer; font-weight: 500; }
+.ajd-funcao .ajd-sanfona p { margin: 10px 0 0; line-height: 1.6; }
+@media (max-width: 640px) {
+  .ajd-colunas > div { padding-left: 0; }
+  .ajd-colunas > div + div { border-left: 0; border-top: 1px solid var(--color-divider); }
+  .ajd-abas-passos li { grid-template-columns: 40px minmax(0, 1fr); }
+}
+.vdc-reserva { height: 520px; border-radius: 16px; background: var(--grao) var(--faixa-escura); }

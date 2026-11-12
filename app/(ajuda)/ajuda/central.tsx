@@ -6,7 +6,8 @@ import Link from "next/link";
 import { Reveal } from "../../reveal";
 import { Texto } from "./blocos";
 import { Demonstracao, FiguraDaTela } from "./demonstracao";
-import { PAGINAS, paginaDeAjuda } from "./paginas";
+import { AbasDoPasso } from "./abas-do-passo";
+import { PAGINAS, paginaDeAjuda, type AbaDoPasso, type PaginaDeAjuda } from "./paginas";
 
 /** Até 420 px de altura e no máximo 1,5× o tamanho no app: uma figura pequena (um botão) não vira um cartaz. */
 const larguraDaFigura = ({ largura, altura }: { largura: number; altura: number }) =>
@@ -16,11 +17,18 @@ const larguraDaFigura = ({ largura, altura }: { largura: number; altura: number 
  * A Central de ajuda (#171), feita para ler: as telas à esquerda, o texto no centro e, à direita,
  * "Nesta página" com as funcionalidades da tela, que acompanha a rolagem. Anterior e próxima no fim.
  */
-export function CentralDeAjuda({ id }: { id: string }) {
+// as páginas em destaque (a conexão com IA) ficam num grupo acima das telas e fora de anterior e próxima
+const DESTAQUES = PAGINAS.filter((pagina) => pagina.destaque);
+const TELAS = PAGINAS.filter((pagina) => !pagina.destaque);
+
+/** `endereco` é o do conector (lib/conexao-ia), lido no servidor; só a página da conexão o usa. */
+export function CentralDeAjuda({ id, endereco = null }: { id: string; endereco?: string | null }) {
   const pagina = paginaDeAjuda(id) ?? PAGINAS[0];
-  const indice = PAGINAS.indexOf(pagina);
-  const anterior = PAGINAS[indice - 1];
-  const proxima = PAGINAS[indice + 1];
+  const indice = pagina.destaque ? -1 : TELAS.indexOf(pagina);
+  const anterior = indice > 0 ? TELAS[indice - 1] : undefined;
+  const proxima = indice >= 0 ? TELAS[indice + 1] : undefined;
+  // a IA escolhida no passo a passo; o vídeo da página a segue
+  const [aba, setAba] = useState<AbaDoPasso["id"]>("chatgpt");
   const [atual, setAtual] = useState(pagina.funcoes[0]?.id);
   const [ampliada, setAmpliada] = useState<{ alt: string; conteudo: ReactNode } | null>(null);
   const titulo = useRef<HTMLHeadingElement>(null);
@@ -72,19 +80,14 @@ export function CentralDeAjuda({ id }: { id: string }) {
     <div className="ajd-central">
       <nav className="ajd-telas" aria-label="Telas do Ledgr">
         <p className="ajd-rotulo">Central de ajuda</p>
-        <ol>
-          {PAGINAS.map((item) => (
-            <li key={item.id}>
-              <Link
-                href={`/ajuda/${item.id}`}
-                className="ajd-tela"
-                aria-current={item.id === pagina.id ? "page" : undefined}
-              >
-                {item.titulo}
-              </Link>
-            </li>
-          ))}
-        </ol>
+        {DESTAQUES.length > 0 && (
+          <>
+            <p className="ajd-grupo">Destaque</p>
+            <ListaDeTelas paginas={DESTAQUES} atual={pagina.id} />
+            <p className="ajd-grupo">Telas</p>
+          </>
+        )}
+        <ListaDeTelas paginas={TELAS} atual={pagina.id} />
       </nav>
 
       {/* a key reinicia a entrada do artigo a cada tela; o menu e "Nesta página" ficam parados */}
@@ -99,6 +102,10 @@ export function CentralDeAjuda({ id }: { id: string }) {
         </h1>
         <p className="ajd-serve">{pagina.serve}</p>
 
+        {pagina.video ? (
+          // ponytail: reserva a altura do palco até o player da conexão (Tarefa 5) entrar aqui
+          <div className="ajd-video vdc-reserva" />
+        ) : (
         <div className="ajd-video">
           {pagina.demonstracao ? (
             <Demonstracao src={pagina.demonstracao} titulo={pagina.titulo} capa={pagina.capa} />
@@ -145,6 +152,7 @@ export function CentralDeAjuda({ id }: { id: string }) {
             ))}
           </ol>
         </div>
+        )}
 
         {pagina.funcoes.map((funcao) => (
           <Reveal key={funcao.id}>
@@ -195,7 +203,37 @@ export function CentralDeAjuda({ id }: { id: string }) {
                   />
                 </button>
               )}
-              {funcao.passos && (
+              {funcao.itens && (
+                <div className="ajd-colunas">
+                  {funcao.itens.map((item) => (
+                    <div key={item.titulo}>
+                      <strong>{item.titulo}</strong>
+                      <span>
+                        <Texto>{item.texto}</Texto>
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {funcao.abas && <AbasDoPasso abas={funcao.abas} endereco={endereco} aba={aba} onAba={setAba} />}
+              {funcao.passos && funcao.sanfona && (
+                <div className="ajd-sanfona">
+                  {funcao.passos.map((passo) => {
+                    const corte = passo.indexOf(": ");
+                    return (
+                      <details key={passo}>
+                        <summary>
+                          <Texto>{passo.slice(0, corte)}</Texto>
+                        </summary>
+                        <p>
+                          <Texto>{passo.charAt(corte + 2).toUpperCase() + passo.slice(corte + 3)}</Texto>
+                        </p>
+                      </details>
+                    );
+                  })}
+                </div>
+              )}
+              {funcao.passos && !funcao.sanfona && (
                 <>
                   <p className="ajd-como">Como fazer</p>
                   <ol className="ajd-passos">
@@ -212,6 +250,13 @@ export function CentralDeAjuda({ id }: { id: string }) {
               {funcao.nota && (
                 <p className="ajd-nota">
                   <Texto>{funcao.nota}</Texto>
+                </p>
+              )}
+              {funcao.link && (
+                <p>
+                  <Link href={funcao.link.href} className="link-animado">
+                    {funcao.link.rotulo} →
+                  </Link>
                 </p>
               )}
             </section>
@@ -261,6 +306,20 @@ export function CentralDeAjuda({ id }: { id: string }) {
         </Ampliada>
       )}
     </div>
+  );
+}
+
+function ListaDeTelas({ paginas, atual }: { paginas: PaginaDeAjuda[]; atual: string }) {
+  return (
+    <ol>
+      {paginas.map((item) => (
+        <li key={item.id}>
+          <Link href={`/ajuda/${item.id}`} className="ajd-tela" aria-current={item.id === atual ? "page" : undefined}>
+            {item.titulo}
+          </Link>
+        </li>
+      ))}
+    </ol>
   );
 }
 
