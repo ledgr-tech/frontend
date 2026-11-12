@@ -314,13 +314,22 @@ function contarDecisoes(b, bancoId, lista = []) {
   return { justificadas, aguardando_aprovacao: aguardando };
 }
 
+// a frase de cada tipo de divergência, no tom do backend #196 (o texto dele vem do motor, sem IA)
+const TEXTO_DA_DIVERGENCIA = {
+  divergente_valor: "Os dois lados se parecem, mas o valor do sistema é diferente do valor do banco.",
+  divergente_data: "O valor bate, mas a data do sistema está fora da tolerância da conciliação.",
+};
+
 // os fatos de uma divergência como o backend #196 devolve: rótulo e valor já em texto
 const detalhesDaDivergencia = (item) => {
   const lb = item.lancamento_banco;
   const ls = item.lancamento_sistema;
+  // como o backend manda: já em pt-BR
+  const brl = (v) => Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  const dia = (d) => d.split("-").reverse().join("/");
   const linhas = [];
-  if (lb) linhas.push({ rotulo: "Banco", valor: `${lb.valor} em ${lb.data}` });
-  if (ls) linhas.push({ rotulo: "Sistema", valor: `${ls.valor} em ${ls.data}` });
+  if (lb) linhas.push({ rotulo: "Banco", valor: `${brl(lb.valor)} em ${dia(lb.data)}` });
+  if (ls) linhas.push({ rotulo: "Sistema", valor: `${brl(ls.valor)} em ${dia(ls.data)}` });
   linhas.push({ rotulo: "Tolerância da conciliação", valor: "0 dias" });
   return linhas;
 };
@@ -1119,7 +1128,7 @@ const servidor = createServer(async (req, res) => {
     return json(res, 200, {
       conciliacao_id: item.id,
       status: item.status,
-      texto: `(backend fake) Linha classificada como ${item.status}.`,
+      texto: TEXTO_DA_DIVERGENCIA[item.status] ?? "Este lançamento não achou par no outro extrato.",
       detalhes: detalhesDaDivergencia(item),
     });
   }

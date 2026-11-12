@@ -1378,7 +1378,9 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
 /* o mockup do vídeo (app/(marketing)/mockup-demo.tsx): a réplica de 1280×860 encolhida por transform
    dentro de um quadro de 1280×860, com as telas reais do app trocando por dentro, sem o menu lateral */
 .mockup-quadro { position: relative; aspect-ratio: 1280 / 860; overflow: hidden; background: var(--color-bg); }
-.mockup-app { position: absolute; top: 0; left: 0; transform-origin: 0 0; grid-template-columns: minmax(0, 1fr); }
+.mockup-app { position: absolute; top: 0; left: 0; transform-origin: 0 0; }
+/* só a landing tira o menu lateral: a Central (demonstracao.tsx) usa a mesma réplica com ele */
+.mockup-demo .mockup-app { grid-template-columns: minmax(0, 1fr); }
 /* a margem lateral do app (--recuo-lateral) vem do .app-principal, que a moldura da vitrine não usa */
 .mockup-principal { --recuo-lateral: 40px; display: flex; flex-direction: column; min-height: 0; }
 .mockup-visor { position: relative; flex: 1; min-height: 0; overflow: hidden; }
@@ -5640,6 +5642,11 @@ html[data-tema="escuro"] .app-shell {
 .ajd-figura:hover { translate: 0 -2px; box-shadow: var(--shadow-md); }
 /* a figura da seção (FiguraDaTela): a réplica parada, recortada no que a seção fala; o clique é do botão em volta */
 .ajd-fig { position: relative; overflow: hidden; background: var(--color-bg); }
+/* a captura é sem barra de rolagem: aqui a do Windows tiraria ~17 px do painel, o texto quebraria mais e
+   sairia do recorte */
+:is(.ajd-fig, .ajd-demo) .mockup-app * { scrollbar-width: none; }
+/* a figura é parada e mede no primeiro quadro: o painel lateral, que entra 24 px à direita, saía do recorte */
+.ajd-fig .mockup-app * { animation: none !important; }
 .ajd-fig .mockup-app { pointer-events: none; }
 .ajd-fig .mockup-cena { animation: none; transition: none; }
 /* numa janela ou no painel por cima da página, só ela aparece: sem o fundo escuro e sem a tela atrás */

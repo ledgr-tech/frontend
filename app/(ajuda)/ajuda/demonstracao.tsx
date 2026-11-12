@@ -380,19 +380,27 @@ export function FiguraDaTela({ src, id, largura, altura, rotulo }: { src: string
     const rs = marcados.map((e) => e.getBoundingClientRect()).filter((r) => r.width && r.height);
     if (!rs.length) return;
     const ra = a.getBoundingClientRect();
-    const x = Math.min(...rs.map((r) => r.left)) - ra.left;
-    let y = Math.min(...rs.map((r) => r.top)) - ra.top;
-    const w = Math.max(...rs.map((r) => r.right)) - ra.left - x;
+    // a escala de quem está em volta (a janela ampliada entra de 0,96 a 1): as medidas voltam a px do app
+    const e0 = ra.width / a.offsetWidth || 1;
+    const x = (Math.min(...rs.map((r) => r.left)) - ra.left) / e0;
+    let y = (Math.min(...rs.map((r) => r.top)) - ra.top) / e0;
+    const w = (Math.max(...rs.map((r) => r.right)) - ra.left) / e0 - x;
+    const h = (Math.max(...rs.map((r) => r.bottom)) - ra.top) / e0 - y;
     // na cena, ela rola até a figura ficar no alto do visor; numa janela por cima, só ela aparece
     const naCena = c.contains(marcados[0]);
     q.toggleAttribute("data-na-camada", !naCena);
     if (naCena) {
       const rv = v.getBoundingClientRect();
-      const rolagem = entre(y - figura.pad - (rv.top - ra.top), 0, c.getBoundingClientRect().height - rv.height);
+      const rolagem = entre(y - figura.pad - (rv.top - ra.top) / e0, 0, (c.getBoundingClientRect().height - rv.height) / e0);
       c.style.transform = `translateY(${-rolagem}px)`;
       y -= rolagem;
     }
-    a.style.transform = `scale(${q.clientWidth / (w + 2 * figura.pad)}) translate(${figura.pad - x}px, ${figura.pad - y}px)`;
+    // cabe na largura e, se o texto aqui sair um pouco mais alto que na gravação, na altura também (centrada);
+    // bem mais alto é uma lista comprida que a receita cortou de propósito (max)
+    const gravada = figura.altura - 2 * figura.pad;
+    const k = Math.min(q.clientWidth / (w + 2 * figura.pad), h <= gravada * 1.2 ? q.clientHeight / (h + 2 * figura.pad) : Infinity);
+    const sobra = (q.clientWidth / k - w - 2 * figura.pad) / 2;
+    a.style.transform = `scale(${k}) translate(${figura.pad + sobra - x}px, ${figura.pad - y}px)`;
   }, [figura, id]);
 
   useLayoutEffect(() => aplicar(), [aplicar]);
