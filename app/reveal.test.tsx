@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { InkHover, MotionRoot, Reveal, SpotlightHover } from "./reveal";
+import { InkHover, MotionRoot, NumeralQueDesce, Reveal, SpotlightHover } from "./reveal";
 
 describe("Reveal", () => {
   it("dentro do app (revelar desligado), o bloco já chega no lugar, sem esperar a viewport", () => {
@@ -270,5 +270,21 @@ describe("SpotlightHover", () => {
     fireEvent.mouseLeave(card);
 
     await waitFor(() => expect(card.style.background).toContain("at -9999px -9999px"));
+  });
+});
+
+describe("NumeralQueDesce", () => {
+  it("só a letra cai e gira; o tapume com o fundo da faixa fica parado no lugar", () => {
+    const { container } = render(
+      <MotionRoot>
+        <NumeralQueDesce className="preco-num">II</NumeralQueDesce>
+      </MotionRoot>,
+    );
+    const tapume = container.querySelector(".preco-num") as HTMLElement;
+    expect(tapume).toHaveTextContent("II");
+    expect(tapume.style.transform).toBe("");
+    expect(tapume.style.opacity).toBe("");
+    const letra = tapume.firstElementChild as HTMLElement;
+    expect(letra.style.transform).toContain("rotate(-12deg)");
   });
 });
