@@ -6,6 +6,7 @@ import Link from "@/lib/link-do-app";
 import { useRoteador } from "@/lib/roteador";
 import { MensagemErro } from "../../../../../../../(auth)/_compartilhado/mensagem-erro";
 import type { Falha } from "../../../acoes";
+import { useCobranca } from "../../../../conta";
 import { concluirNovaVersaoIa, type ContextoNovaVersaoIa } from "../acoes";
 
 export function RetomarNovaVersao({
@@ -19,6 +20,7 @@ export function RetomarNovaVersao({
 }) {
   const { banco, sistemaAnterior, arquivoBanco } = contexto;
   const roteador = useRoteador();
+  const cobranca = useCobranca();
   const idErro = useId();
   const [falha, setFalha] = useState(falhaInicial);
   const [ocupado, setOcupado] = useState(false);
@@ -61,7 +63,7 @@ export function RetomarNovaVersao({
           <Link href={caminhoDaConciliacao(banco, sistemaAnterior)} className="btn btn-secondary">
             Voltar à comparação
           </Link>
-          {falha?.status === 402 && <Link href="/assinatura" className="btn btn-secondary">Ver os planos</Link>}
+          {falha?.status === 402 && cobranca && <Link href="/assinatura" className="btn btn-secondary">Ver os planos</Link>}
           <button type="button" className="btn btn-primary" onClick={tentar} disabled={ocupado} aria-busy={ocupado}>
             {ocupado ? "Conciliando…" : "Tentar conciliar novamente"}
           </button>

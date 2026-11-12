@@ -33,6 +33,7 @@ import {
 } from "lucide-react";
 import { PainelAssistente } from "./assistente/painel";
 import { Configuracoes } from "./configuracoes";
+import { useCobranca } from "./conta";
 import { LogoBarras } from "./logo-barras";
 import { alternarMenu, menuRecolhido } from "./menu";
 import { aplicarTema, temaAtual, type Tema } from "./tema";
@@ -124,6 +125,7 @@ export function MenuLateral({
 }) {
   // o item ativo se acha pelo caminho da tela, sem o /e/<empresa>
   const caminho = caminhoSemEmpresa(usePathname());
+  const cobranca = useCobranca();
   // null enquanto não sabemos: o tema só é legível no cliente, e chutar "claro"
   // faria o ícone trocar sozinho depois da hidratação
   const [tema, setTema] = useState<Tema | null>(null);
@@ -371,7 +373,8 @@ export function MenuLateral({
       </Link>
 
       <nav id="secoes-do-app" className="app-nav" aria-label="Seções do app">
-        {ITENS.map((item) => {
+        {/* sem cobrança (`cobranca_habilitada` do /me), a Assinatura some do menu */}
+        {ITENS.filter((item) => cobranca || item.href !== "/assinatura").map((item) => {
           const Icone = item.icone;
           const ativo = estaAtivo(item, caminho);
           return (

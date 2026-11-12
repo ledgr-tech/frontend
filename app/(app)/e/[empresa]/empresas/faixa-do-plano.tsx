@@ -1,6 +1,7 @@
 "use client";
 
 import LinkDoApp from "@/lib/link-do-app";
+import { useCobranca } from "../conta";
 
 /**
  * A faixa do plano no alto de cada aba da tela Empresas: quanto a conta já usa, a barra de uso (só com
@@ -21,6 +22,7 @@ export function FaixaDoPlano({
   aviso: string | null;
   verPlanos: boolean;
 }) {
+  const cobranca = useCobranca();
   const noLimite = maximo !== null && usadas >= maximo;
   return (
     <div className="faixa-plano">
@@ -31,7 +33,7 @@ export function FaixaDoPlano({
         </span>
       )}
       {aviso && <span>{aviso}</span>}
-      {verPlanos && (
+      {verPlanos && cobranca && (
         <LinkDoApp href="/assinatura" className="btn btn-secondary">
           Ver planos
         </LinkDoApp>

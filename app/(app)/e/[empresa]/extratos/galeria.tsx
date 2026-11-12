@@ -5,7 +5,7 @@ import Link from "@/lib/link-do-app";
 import { useRoteador } from "@/lib/roteador";
 import { useEmpresaAtiva } from "@/lib/empresa-ativa";
 import { caminhoDaConciliacao, caminhoDoOriginal } from "@/lib/caminhos";
-import { useGuardaArquivoOriginal, usePodeFechar } from "../conta";
+import { useCobranca, useGuardaArquivoOriginal, usePodeFechar } from "../conta";
 import { salvar } from "../conciliacoes/[id]/exportar-csv";
 import type { Tom } from "@/lib/mock-data";
 import { ArrowRight } from "lucide-react";
@@ -502,6 +502,7 @@ function ConciliarArquivo({ arquivo, arquivos }: { arquivo: ArquivoExtrato; arqu
   const [erro, setErro] = useState<string | null>(null);
   // 402: o teste acabou (spec 2026-10-15-primeiro-uso); o motivo vem com o caminho para os planos
   const [semPlano, setSemPlano] = useState(false);
+  const cobranca = useCobranca();
 
   if (opcoes.length === 0) {
     return <p className="vg-nota">{`Envie um extrato do ${outroLado} para conciliar este.`}</p>;
@@ -544,7 +545,7 @@ function ConciliarArquivo({ arquivo, arquivos }: { arquivo: ArquivoExtrato; arqu
           {erro}
         </p>
       )}
-      {semPlano && (
+      {semPlano && cobranca && (
         <Link href="/assinatura" className="btn btn-secondary">
           Ver os planos
         </Link>

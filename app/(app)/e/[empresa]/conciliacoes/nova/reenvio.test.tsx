@@ -366,12 +366,13 @@ describe("Nova conciliação em modo reenvio", () => {
     expect(push).not.toHaveBeenCalled();
   });
 
-  it("402: mostra o texto do backend com o caminho para os planos", async () => {
-    conciliar.mockResolvedValue({ ok: false, status: 402, erro: "O teste acabou. Escolha um plano para conciliar." });
+  // sem o ProvedorDaConta a cobrança é a desligada (backend #202); com ela ligada, os planos: page.test.tsx
+  it("402 com a cobrança desligada: mostra o texto do backend, sem os planos", async () => {
+    conciliar.mockResolvedValue({ ok: false, status: 402, erro: "Limite de conciliações do mês atingido." });
     await enviar();
 
-    expect(await screen.findByText("O teste acabou. Escolha um plano para conciliar.")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Seu teste de 14 dias acabou." })).toBeInTheDocument();
+    expect(await screen.findByRole("alert")).toHaveTextContent("Limite de conciliações do mês atingido.");
+    expect(screen.queryByRole("heading", { name: "Seu teste de 14 dias acabou." })).not.toBeInTheDocument();
     expect(push).not.toHaveBeenCalled();
   });
 

@@ -1,4 +1,6 @@
-import { describe, it, expect } from "vitest";
+import { afterEach, describe, it, expect, vi } from "vitest";
+
+afterEach(() => vi.unstubAllEnvs());
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { MotionRoot } from "../reveal";
 import type { LinhaExtrato } from "./comparacao";
@@ -160,6 +162,7 @@ describe("Precos", () => {
     const arrastarPara = (passo: number) => fireEvent.change(medidor(), { target: { value: String(passo) } });
 
     it("asks how many entries a month, and starts on the Padrão with the free trial in place of a price", () => {
+      vi.stubEnv("NEXT_PUBLIC_LEDGR_COBRANCA", "1");
       renderPrecos();
       expect(screen.getByText(/Quantos lançamentos você/)).toBeInTheDocument();
       expect(medidor()).toHaveAttribute("aria-valuetext", "180 lançamentos por mês");

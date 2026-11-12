@@ -34,7 +34,7 @@ const EMAIL = "financeiro@telhacerta.com.br";
 
 function montar(props: Partial<Parameters<typeof MenuLateral>[0]> = {}) {
   return render(
-    <ProvedorDaConta preferencias={{ tutoriaisDispensados: ["configuracoes"], roteiroDispensado: false }}>
+    <ProvedorDaConta cobrancaHabilitada preferencias={{ tutoriaisDispensados: ["configuracoes"], roteiroDispensado: false }}>
       <MenuLateral email={EMAIL} empresa="Telha Certa Ltda" temSenha onSair={vi.fn()} {...props} />
     </ProvedorDaConta>,
   );
@@ -53,6 +53,17 @@ describe("MenuLateral", () => {
 
     const nav = screen.getByRole("navigation", { name: "Seções do app" });
     expect(nav.textContent).toBe("Visão geralExtratosConciliaçõesFechamentosHistóricoEmpresasAssinatura");
+  });
+
+  it("com a cobrança desligada, a Assinatura sai do menu", () => {
+    render(
+      <ProvedorDaConta preferencias={{ tutoriaisDispensados: ["configuracoes"], roteiroDispensado: false }}>
+        <MenuLateral email={EMAIL} empresa="Telha Certa Ltda" temSenha onSair={vi.fn()} />
+      </ProvedorDaConta>,
+    );
+
+    const nav = screen.getByRole("navigation", { name: "Seções do app" });
+    expect(nav.textContent).toBe("Visão geralExtratosConciliaçõesFechamentosHistóricoEmpresas");
   });
 
   it("links every destination, with none left for later", () => {

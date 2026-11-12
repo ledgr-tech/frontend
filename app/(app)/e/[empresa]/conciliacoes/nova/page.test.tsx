@@ -37,7 +37,7 @@ vi.mock("../../assinatura/acoes", () => ({ carregarPrecos: () => carregarPrecos(
 
 function montarComAssinatura(assinatura: Assinatura | null) {
   return render(
-    <ProvedorDaConta preferencias={{ tutoriaisDispensados: [], roteiroDispensado: false }} assinatura={assinatura}>
+    <ProvedorDaConta cobrancaHabilitada preferencias={{ tutoriaisDispensados: [], roteiroDispensado: false }} assinatura={assinatura}>
       <NovaConciliacaoPage />
     </ProvedorDaConta>,
   );
@@ -77,9 +77,10 @@ function concluido(origem: "banco" | "sistema", erros: { identificador: string; 
   };
 }
 
-async function enviarOsDois(sistema = arquivo("sistema.csv")) {
+async function enviarOsDois(sistema = arquivo("sistema.csv"), { cobranca = false } = {}) {
   const user = userEvent.setup();
-  render(<NovaConciliacaoPage />);
+  if (cobranca) montarComAssinatura(null);
+  else render(<NovaConciliacaoPage />);
   await user.upload(screen.getByLabelText("Extrato do banco"), arquivo("banco.ofx"));
   await user.upload(screen.getByLabelText("Extrato do sistema de gestão"), sistema);
   await user.click(screen.getByRole("button", { name: "Conciliar extratos" }));
@@ -767,9 +768,21 @@ describe("NovaConciliacaoPage", () => {
 
   it("o backend recusou com 402: mostra os planos com o texto dele", async () => {
     conciliar.mockResolvedValue({ ok: false, status: 402, erro: "O teste acabou. Escolha um plano para conciliar." });
-    await enviarOsDois();
+    await enviarOsDois(undefined, { cobranca: true });
     expect(await screen.findByRole("heading", { name: "Seu teste de 14 dias acabou." })).toBeInTheDocument();
     expect(screen.getByText("O teste acabou. Escolha um plano para conciliar.")).toBeInTheDocument();
+  });
+
+  it("com a cobrança desligada (backend #202), o 402 é um erro como os outros: sem planos e sem pedir os preços", async () => {
+    carregarPrecos.mockClear();
+    conciliar.mockResolvedValue({ ok: false, status: 402, erro: "Limite de conciliações do mês atingido." });
+    // sem o ProvedorDaConta a cobrança é a desligada, como no `GET /me` sem o campo
+    await enviarOsDois();
+
+    expect(await screen.findByText("Limite de conciliações do mês atingido.")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Seu teste de 14 dias acabou." })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Assinar o/ })).not.toBeInTheDocument();
+    expect(carregarPrecos).not.toHaveBeenCalled();
   });
 });
 
@@ -779,7 +792,7 @@ describe("a empresa para a qual se concilia (#169)", () => {
 
   function montarComEmpresas(empresas: (typeof A)[], ativa = empresas[0]) {
     return render(
-      <ProvedorDaConta preferencias={{ tutoriaisDispensados: [], roteiroDispensado: false }}>
+      <ProvedorDaConta cobrancaHabilitada preferencias={{ tutoriaisDispensados: [], roteiroDispensado: false }}>
         <ProvedorDaEmpresa ativa={ativa} empresas={empresas}>
           <NovaConciliacaoPage />
         </ProvedorDaEmpresa>

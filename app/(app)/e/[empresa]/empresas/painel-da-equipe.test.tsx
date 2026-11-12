@@ -42,7 +42,7 @@ function Equipe({ aberto = true }: { aberto?: boolean }) {
 
 function montar(papel: Papel = "admin", email = ADMIN.email, limites: LimitesDaConta | null = null, aberto = true, temSenha = true) {
   render(
-    <ProvedorDaConta preferencias={null} limites={limites} papel={papel} email={email} temSenha={temSenha}>
+    <ProvedorDaConta cobrancaHabilitada preferencias={null} limites={limites} papel={papel} email={email} temSenha={temSenha}>
       <Equipe aberto={aberto} />
     </ProvedorDaConta>,
   );

@@ -22,6 +22,28 @@ vi.mock("./acoes", () => ({
   iniciarCheckout: (...args: unknown[]) => iniciarCheckout(...args),
 }));
 
+// a tela só existe com a cobrança ligada (`cobranca_habilitada` do /me); os testes de baixo a ligam
+const cobranca = vi.hoisted(() => ({ ligada: true }));
+vi.mock("../../../../(auth)/acoes", () => ({ contaDaSessao: async () => ({ cobrancaHabilitada: cobranca.ligada }) }));
+const redirecionarNoApp = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/rotas-servidor", () => ({ redirecionarNoApp: (caminho: string) => redirecionarNoApp(caminho) }));
+
+describe("com a cobrança desligada (backend #202)", () => {
+  afterEach(() => {
+    cobranca.ligada = true;
+  });
+
+  it("vai para a Visão geral sem pedir os preços, que responderiam 503", async () => {
+    cobranca.ligada = false;
+    const carregar = vi.spyOn(await import("./acoes"), "carregarPrecos");
+
+    await AssinaturaPage();
+
+    expect(redirecionarNoApp).toHaveBeenCalledWith("/visao-geral");
+    expect(carregar).not.toHaveBeenCalled();
+  });
+});
+
 // o catálogo provisório do backend #180, em centavos
 const CATALOGO = adaptarPrecos(
   Object.entries({
@@ -38,7 +60,7 @@ async function montar(
   const pagina = await AssinaturaPage();
   if (!assinatura) return render(pagina);
   return render(
-    <ProvedorDaConta preferencias={null} assinatura={assinatura} papel={papel} limites={limites}>
+    <ProvedorDaConta cobrancaHabilitada preferencias={null} assinatura={assinatura} papel={papel} limites={limites}>
       {pagina}
     </ProvedorDaConta>,
   );
@@ -403,7 +425,7 @@ describe("AssinaturaPage", () => {
       const cobranca = { status: "active", plano: "padrao" as const, periodo: "anual" as const, periodoAtualFim: "2027-10-31", cancelaNoFim: false };
       const pagina = await AssinaturaPage();
       const arvore = (assinatura: Assinatura) => (
-        <ProvedorDaConta preferencias={null} assinatura={assinatura} papel="admin">
+        <ProvedorDaConta cobrancaHabilitada preferencias={null} assinatura={assinatura} papel="admin">
           {pagina}
         </ProvedorDaConta>
       );
@@ -587,7 +609,7 @@ describe("AssinaturaPage", () => {
       naUrl(busca);
       const pagina = await AssinaturaPage();
       const arvore = (assinatura: Assinatura) => (
-        <ProvedorDaConta preferencias={null} assinatura={assinatura} papel="admin">
+        <ProvedorDaConta cobrancaHabilitada preferencias={null} assinatura={assinatura} papel="admin">
           {pagina}
         </ProvedorDaConta>
       );

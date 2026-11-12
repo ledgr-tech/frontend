@@ -520,7 +520,14 @@ describe("LandingPage", () => {
     expect(screen.getByText("Receba as divergências")).toBeInTheDocument();
   });
 
+  it("with billing off (the default), shows neither a price nor the free trial", () => {
+    render(<LandingPage />);
+    expect(document.body.textContent).not.toContain("14 dias grátis");
+    expect(document.querySelector(".regua-mede")!.textContent).not.toMatch(/R\$ ?\d/);
+  });
+
   it("shows no price, only the free trial, until the final prices are in the live catalogue (#302)", () => {
+    vi.stubEnv("NEXT_PUBLIC_LEDGR_COBRANCA", "1");
     render(<LandingPage />);
     // só a régua: o resto da seção tem os exemplos da conciliação, com valores
     const regua = document.querySelector(".regua-mede")!;

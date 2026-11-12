@@ -55,6 +55,7 @@ export default async function AppLayout({
         papel={conta.papel}
         preferencias={conta.preferencias}
         assinatura={conta.assinatura}
+        cobrancaHabilitada={conta.cobrancaHabilitada}
         limites={conta.limites}
         guardaArquivoOriginal={conta.guardaArquivoOriginal}
         contaInativa={await contaRecusouPorInativa()}
