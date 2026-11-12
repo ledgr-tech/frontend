@@ -21,4 +21,15 @@ describe("Termos e Privacidade", () => {
     expect(screen.getByRole("heading", { name: "Seus direitos" })).toHaveAttribute("id", "direitos");
     expect(screen.getByRole("heading", { name: "Segurança" })).toHaveAttribute("id", "seguranca");
   });
+
+  it("gives the AI connection section the anchor the Termos and the consent screen point to (#361)", () => {
+    render(<PrivacidadePage />);
+    expect(screen.getByRole("heading", { name: "Conexão com o ChatGPT ou o Claude" })).toHaveAttribute("id", "conexao-ia");
+  });
+
+  it("sends the Termos reader to that section", () => {
+    render(<TermosPage />);
+    const destinos = screen.getAllByRole("link", { name: "Política de privacidade" }).map((link) => link.getAttribute("href"));
+    expect(destinos).toContain("/privacidade#conexao-ia");
+  });
 });

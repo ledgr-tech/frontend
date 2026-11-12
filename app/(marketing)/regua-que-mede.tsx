@@ -54,7 +54,7 @@ function quandoVisivel(no: Element | null, acao: () => void): () => void {
 }
 
 /**
- * Os planos do Cap. IV como a escolha guiada do /plano: a pergunta, o medidor sobre a régua (o traço
+ * Os planos do Cap. V como a escolha guiada do /plano: a pergunta, o medidor sobre a régua (o traço
  * é o controle, a marca do plano indicado acende) e o plano numa folha de papel, como os cards de "Em
  * todo plano" no hover. "Começar com o …" guarda o plano para o /plano abrir nele depois do cadastro.
  *

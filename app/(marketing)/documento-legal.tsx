@@ -9,12 +9,9 @@ import type { ReactNode } from "react";
  * técnicas fazem hoje (ADR-002, arquivo bruto não é guardado; IA com a descrição
  * reduzida a termos bancários, backend #87) e a pesquisa de LGPD do time. Ainda
  * não passou pelo jurídico: quando a versão revisada chegar, saem o aviso de
- * revisão e os `EmDefinicao`.
+ * revisão e os `EmDefinicao`. A `versao` não tem padrão: cada página diz a data da própria versão.
  */
-
-export const VERSAO = "20 de outubro de 2026";
-
-export function DocumentoLegal({ titulo, versao = VERSAO, children }: { titulo: string; versao?: string; children: ReactNode }) {
+export function DocumentoLegal({ titulo, versao, children }: { titulo: string; versao: string; children: ReactNode }) {
   return (
     <main>
       <div className="legal-topo">
