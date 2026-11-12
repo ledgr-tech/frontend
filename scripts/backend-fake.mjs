@@ -246,7 +246,9 @@ function contar(lista) {
   return lista.reduce((acc, item) => ({ ...acc, [item.status]: acc[item.status] + 1 }), zero);
 }
 
-function executar(b, bancoId, sistemaId, executadaEm = agora()) {
+// com os milissegundos: duas rodadas no mesmo segundo (o e2e faz o reenvio em
+// meio segundo) empatavam, e `rodadasDoBanco` numerava a mais nova como rodada 1
+function executar(b, bancoId, sistemaId, executadaEm = new Date().toISOString()) {
   const { extratos, execucoes, itens, configuracoes } = b;
   const banco = extratos.get(bancoId);
   const sistema = extratos.get(sistemaId);
