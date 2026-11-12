@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { fonteDestaque } from "./fonte-destaque";
 import LandingPage from "./page";
 
@@ -7,6 +7,8 @@ import LandingPage from "./page";
 // exemplo (que dependem do ambiente) podem mudar estes testes. A landing com depoimentos é
 // conferida em page-depoimentos.test.tsx, e a escolha entre reais e exemplo em lib/depoimentos.test.ts
 vi.mock("@/lib/depoimentos", () => ({ depoimentosDaLanding: () => [] }));
+// a janela de "Na prática" usa o painel da comparação do app, que pede o roteador
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
 describe("LandingPage", () => {
   // o hero é a primeira seção; a faixa de números vem logo abaixo dele
@@ -153,12 +155,10 @@ describe("LandingPage", () => {
     expect(container.querySelector("main")!.className).toContain(fonteDestaque.variable);
   });
 
-  it("keeps the sticky header above the hover cards of the page", () => {
+  it("keeps the sticky header above the hover card of the hero window", () => {
     const { container } = render(<LandingPage />);
-    fireEvent.mouseEnter(screen.getByRole("button", { name: "Pagamento fornecedor #1082" }));
-
     // o cartão do hover é o do app (.cartao-lancamento, z-index 20 no globals.css)
-    expect(within(document.getElementById("como")!).getByRole("tooltip")).toHaveClass("cartao-lancamento");
+    expect(container.querySelector(".kin-palco .cartao-lancamento")).not.toBeNull();
     expect(Number(container.querySelector("header")!.style.zIndex)).toBeGreaterThan(20);
   });
 
@@ -378,7 +378,7 @@ describe("LandingPage", () => {
       expect(lista("Sistema de gestão").some((item) => item.textContent!.includes("R$ 12.604,00"))).toBe(true);
       expect(within(problema()).queryByText("Valor diverge")).not.toBeInTheDocument();
       expect(within(problema()).queryByRole("tooltip")).not.toBeInTheDocument();
-      expect(problema().querySelector(".demonstracao-folhas")).toBeNull();
+      expect(problema().querySelector(".janela-conciliacao")).toBeNull();
     });
 
     it("numbers the lines behind each pain", () => {
@@ -430,16 +430,14 @@ describe("LandingPage", () => {
     const terceiro = within(como).getByText("Receba as divergências");
     const pratica = within(como).getByRole("heading", { level: 3, name: "As mesmas duas telas, conferidas pelo Ledgr." });
     expect(terceiro.compareDocumentPosition(pratica) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(pratica.compareDocumentPosition(como.querySelector(".demonstracao-folhas")!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(pratica.compareDocumentPosition(como.querySelector(".janela-conciliacao")!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
-
-  // a demonstração banco × sistema, no fim de Como funciona; "Por dentro do Ledgr" repete alguns destes valores
-  const demonstracao = () => within(document.getElementById("como")!);
 
   it("shows the bank vs. system statement comparison with a mismatch", () => {
     render(<LandingPage />);
-    expect(demonstracao().getByText("R$ 12.640,00")).toBeInTheDocument();
-    expect(demonstracao().getByText("R$ 12.604,00")).toBeInTheDocument();
+    const tabela = within(document.querySelector<HTMLElement>("#como .tabela-folhas")!);
+    expect(tabela.getByText("R$ 12.640,00")).toHaveClass("marca-diverge");
+    expect(tabela.getByText("R$ 12.604,00")).toHaveClass("marca-diverge");
   });
 
   it("names each line's status with the same labels the app uses", () => {
@@ -447,22 +445,26 @@ describe("LandingPage", () => {
     // só a tabela: os selos do terceiro passo, logo acima, usam os mesmos rótulos
     const demonstracao = () => within(document.querySelector<HTMLElement>("#como .tabela-folhas")!);
     // uma linha por par, como no app: o selo aparece uma vez, na coluna de status
-    expect(demonstracao().getAllByText("Match exato")).toHaveLength(1);
+    // a Alfa Comércio de "O problema" e as cinco que bateram no mesmo trecho de agosto
+    expect(demonstracao().getAllByText("Match exato")).toHaveLength(6);
     expect(demonstracao().getAllByText("Valor diverge na mesma data")).toHaveLength(2);
     expect(demonstracao().getAllByText("Mesmo valor em outra data")).toHaveLength(1);
     // a tarifa só do lado do banco é a categoria própria do motor, não uma sobra qualquer
     expect(demonstracao().getByText("Tarifa bancária")).toBeInTheDocument();
   });
 
-  it("draws the demo with the same two-sheet table as the app window under the hero", () => {
+  it("draws the demo as the app's comparison in a window, with the hero's August lines among the others", () => {
     render(<LandingPage />);
-    const titulos = (raiz: Element) => raiz.querySelector(".tabela-folhas .folhas-titulos")!.textContent;
-    const vitrine = document.querySelector(".kin-palco .vitrine-app")!;
-    expect(titulos(document.getElementById("como")!)).toBe(titulos(vitrine));
-    // as mesmas cinco linhas de agosto, na mesma ordem
+    const janela = document.querySelector<HTMLElement>("#como .janela-conciliacao")!;
+    expect(within(janela).getByText("Comparação direta · agosto/2026")).toBeInTheDocument();
+    // a tabela e o painel da direita, sem o menu e a barra de cima do app
+    expect(janela.querySelector(".comp-painel")).not.toBeNull();
+    expect(janela.querySelector(".vitrine-menu, .vitrine-topo")).toBeNull();
     const descricoes = (raiz: Element) =>
       [...raiz.querySelectorAll(".tabela-folhas tbody tr")].map((linha) => linha.querySelector("td:nth-child(2)")!.textContent);
-    expect(descricoes(document.getElementById("como")!)).toEqual(descricoes(vitrine));
+    const vitrine = document.querySelector(".kin-palco .vitrine-app")!;
+    expect(descricoes(janela)).toHaveLength(10);
+    expect(descricoes(janela)).toEqual(expect.arrayContaining(descricoes(vitrine)));
   });
 
   it("shows the five categories in the third step as the app's seals, with its names and tones", () => {
@@ -483,12 +485,15 @@ describe("LandingPage", () => {
     expect(screen.queryByText(/Cada divergência vem com o nome da categoria/)).not.toBeInTheDocument();
   });
 
-  it("explains the divergence when hovering a mismatched line", () => {
+  it("opens with the line of the flow in the panel and explains the line under the pointer", () => {
     render(<LandingPage />);
+    const painel = () => within(document.querySelector<HTMLElement>("#como .comp-painel")!);
+    expect(painel().getByRole("heading", { name: "Pagamento fornecedor #1082" })).toBeInTheDocument();
+    expect(painel().getByText(/juros por atraso/)).toBeInTheDocument();
 
-    fireEvent.mouseEnter(screen.getAllByRole("button", { name: /Pagamento fornecedor #1082/ })[0]);
+    fireEvent.mouseEnter(screen.getByRole("button", { name: "Crédito cartão D+30" }).closest("tr")!);
 
-    expect(demonstracao().getByText(/juros por atraso/)).toBeInTheDocument();
+    expect(painel().getByText(/taxa de arredondamento/)).toBeInTheDocument();
   });
 
   it("tells mouse users to hover and touch users to tap the comparison lines", () => {
@@ -497,21 +502,16 @@ describe("LandingPage", () => {
     expect(screen.getByText("Toque nas linhas")).toHaveClass("so-toque");
   });
 
-  it("does not treat a matched line as clickable", () => {
+  it("brings a matched line to the panel too, as the app does", () => {
     render(<LandingPage />);
 
-    expect(screen.queryByRole("button", { name: /Recebimento cliente Alfa Comércio/ })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Recebimento cliente Alfa Comércio" }));
+
+    const painel = within(document.querySelector<HTMLElement>("#como .comp-painel")!);
+    expect(painel.getByText("Fixado")).toBeInTheDocument();
+    expect(painel.getByText("Bateu: mesmo valor e mesma data nos dois extratos.")).toBeInTheDocument();
   });
 
-  it("hides the divergence details when the mouse leaves the line", async () => {
-    render(<LandingPage />);
-    const linha = screen.getAllByRole("button", { name: /Pagamento fornecedor #1082/ })[0];
-    fireEvent.mouseEnter(linha);
-
-    fireEvent.mouseLeave(linha);
-
-    await waitFor(() => expect(demonstracao().queryByText(/juros por atraso/)).not.toBeInTheDocument());
-  });
 
   it("lists the three how-it-works steps", () => {
     render(<LandingPage />);

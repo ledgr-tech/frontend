@@ -9,6 +9,8 @@
 //   node scripts/ajuda-videos/gravar.mjs comparacao extratos ...    → public/ajuda/<tela>.json (campo demonstracao)
 //   node scripts/ajuda-videos/gravar.mjs --figuras extratos ...      → public/ajuda/<tela>--figuras.json (campo figura,
 //                                                                      com o tamanho que ele mostra de cada uma)
+//   node scripts/ajuda-videos/gravar.mjs --landing                  → app/(marketing)/cenas/index.ts (o mockup de
+//                                                                      "Por dentro" da landing, sem menu nem barra)
 // Sem tela, grava todas. A Nova conciliação ENVIA os CSVs de verdade e o Detalhe da linha justifica uma linha: grave
 // cada uma com o backend-fake recém-subido, senão a conciliação repete e as outras telas mostram a justificativa.
 import { chromium } from "playwright-core";
@@ -23,6 +25,7 @@ const SENHA = process.env.SENHA ?? "ledgr2026";
 const AQUI = path.dirname(fileURLToPath(import.meta.url));
 const PUBLICO = path.join(AQUI, "..", "..", "public", "ajuda");
 const FIGURAS_ = process.argv.includes("--figuras");
+const LANDING = process.argv.includes("--landing");
 
 const pausa = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -565,6 +568,10 @@ async function fotografar(page, t, receita, tela) {
   };
 }
 
+// sem os tutoriais do mascote e sem o roteiro de primeiros passos por cima
+const semTutoriais = () =>
+  localStorage.setItem("ledgr:preferencias", JSON.stringify({ tutoriaisDispensados: ["visao-geral","conciliacoes","nova-conciliacao","comparacao","divergencia","extratos","historico","fechamentos","configuracoes"], roteiroDispensado: true }));
+
 async function gravar(browser, estado, empresa, tela) {
   const roteiro = FIGURAS_ ? FIGURAS[tela] : ROTEIROS[tela];
   const ctx = await browser.newContext({
@@ -575,8 +582,7 @@ async function gravar(browser, estado, empresa, tela) {
     colorScheme: "light",
     reducedMotion: "reduce",
   });
-  // sem os tutoriais do mascote e sem o roteiro de primeiros passos por cima
-  await ctx.addInitScript(() => localStorage.setItem("ledgr:preferencias", JSON.stringify({ tutoriaisDispensados: ["visao-geral","conciliacoes","nova-conciliacao","comparacao","divergencia","extratos","historico","fechamentos","configuracoes"], roteiroDispensado: true })));
+  await ctx.addInitScript(semTutoriais);
   const page = await ctx.newPage();
   page.setDefaultTimeout(10000);
   const t = ferramentas(page, empresa);
@@ -729,6 +735,131 @@ async function capturar(page, t, roteiro, tela) {
   return { saida, cenas: cenas.length, passos: passos.length, kb: Math.round(fs.statSync(saida).size / 1024) };
 }
 
+// --landing: as telas do mockup de "Por dentro" da landing (app/(marketing)/mockup-demo.tsx), uma constante por
+// tela em app/(marketing)/cenas/index.ts. Só o #conteudo, sem o menu e a barra do topo (a janela da landing põe o nome
+// da tela na barra dela), na largura e na altura do mockup; o que o cursor do roteiro procura vai marcado em
+// data-mockup. Como a Nova conciliação, envia os dois extratos e justifica uma linha: grave com o backend-fake recém-subido.
+const MOCKUP = { largura: 1280, altura: 860 };
+// a linha do PIX do Cliente Delta: 8.750,00 no banco, 8.570,00 no sistema. O banco vai em OFX (banco-dezembro-2025.ofx, os
+// lançamentos do CSV da Central e o saldo do fim do mês), para o painel mostrar o saldo do extrato
+const JUSTIFICATIVA_DA_LANDING = "Valor digitado com o 7 e o 5 trocados. Corrigido na NF 4415 do sistema.";
+// a explicação como o cliente a verá no lançamento, com a IA ligada (a de produção ainda está desligada, e a do
+// backend-fake é um texto de teste): o selo do app e o motivo, no lugar dos fatos e do "Explicar esta divergência"
+const EXPLICACAO_DA_LANDING = "Os dígitos 7 e 5 parecem trocados no sistema: o banco recebeu R$ 8.750,00 e a NF 4415 foi lançada como R$ 8.570,00.";
+
+async function gravarLanding(browser, estado, empresa) {
+  const ctx = await browser.newContext({ viewport: { width: 1600, height: 1000 }, storageState: estado, colorScheme: "light", reducedMotion: "reduce" });
+  await ctx.addInitScript(semTutoriais);
+  const page = await ctx.newPage();
+  // o next dev compila cada tela na primeira visita
+  page.setDefaultTimeout(60000);
+  const t = ferramentas(page, empresa);
+  // o selo da IA do app (SeloIa), da janela de "Na prática", que o mostra com as explicações da demonstração
+  await page.goto(`${BASE}/`);
+  const seloIa = await page.locator(".janela-conciliacao .explicacao-selo").first().evaluate((e) => e.outerHTML);
+  const comExplicacao = (html) => {
+    const bloco = /<div class="comp-explicar">[\s\S]*?<p class="explicacao-aviso">[^<]*<\/p><\/div>/;
+    if (!bloco.test(html)) throw new Error("o painel mudou: não achei os fatos e o Explicar esta divergência");
+    return html.replace(bloco, `<div class="comp-explicacao">${seloIa}<p>${EXPLICACAO_DA_LANDING}</p></div>`);
+  };
+  await t.abrir("conciliacoes/nova");
+  // a janela do navegador é a do mockup mais o menu e a barra do topo, que ficam de fora da captura
+  const fora = await page.evaluate(() => {
+    const r = document.querySelector("#conteudo").getBoundingClientRect();
+    return { x: Math.round(r.left), y: Math.round(r.top) };
+  });
+  await page.setViewportSize({ width: MOCKUP.largura + fora.x, height: MOCKUP.altura + fora.y });
+  await page.evaluate(() => document.fonts.ready);
+  await pausa(800);
+
+  const cenas = {};
+  const marcar = (loc, nome) => loc.evaluate((e, n) => e.setAttribute("data-mockup", n), nome);
+  const ler = async (nome, ajuste = (html) => html) => {
+    const lido = await lerTela(page);
+    if (!lido?.html) throw new Error(`a tela ${nome} não foi lida`);
+    // o <noscript> do layout (o estilo da landing sem JavaScript) não tem o que fazer numa cena; os ids e o que aponta
+    // para eles também saem: os do React (_r_5_) se repetem nos da landing, e um <label for> da cena daria nome a um
+    // campo dela. A cena é inerte, só imagem
+    const limpo = lido.html
+      .replace(/<noscript[\s\S]*?<\/noscript>/g, "")
+      .replace(/\s(?:id|for|form|aria-(?:labelledby|describedby|controls))="[^"]*"/g, "");
+    cenas[nome] = ajuste(limpo);
+  };
+
+  // a Nova conciliação: os dois extratos e "Conciliar extratos"
+  const banco = page.locator('input[aria-label="Extrato do banco"]');
+  const sistema = page.locator('input[aria-label="Extrato do sistema de gestão"]');
+  await marcar(banco.locator("xpath=.."), "banco");
+  await ler("novaVazia");
+  await banco.setInputFiles(path.join(AQUI, "banco-dezembro-2025.ofx"));
+  await pausa(1500);
+  await marcar(sistema.locator("xpath=.."), "sistema");
+  await ler("novaBanco");
+  await sistema.setInputFiles(path.join(AQUI, "erp-dezembro-2025.csv"));
+  await pausa(1500);
+  const conciliar = page.getByRole("button", { name: /conciliar extratos/i });
+  await marcar(conciliar, "conciliar");
+  await ler("novaPronta");
+  // o servidor responde em milissegundos: cada envio espera um pouco, para o palco parar na etapa da comparação
+  await page.route("**/*", async (rota) => {
+    if (rota.request().method() === "POST") await pausa(2500);
+    await rota.continue().catch(() => {});
+  });
+  await conciliar.click();
+  await page.getByText(/^Comparando banco e sistema/).first().waitFor();
+  await ler("comparando");
+  await t.esperar(/\/conciliacoes\/[0-9a-f-]{20,}/);
+  await page.unroute("**/*");
+
+  // a comparação, com o painel da direita: a primeira divergência de valor, depois a mesma justificada
+  const painel = alvo(page, "painel");
+  await painel.waitFor();
+  await pausa(1200);
+  const naoConferida = page.locator('button[aria-label*="como conferida"]:not([aria-pressed="true"])');
+  const linha = page.locator("main tbody tr").filter({ hasText: "Valor diverge" }).filter({ has: naoConferida }).first();
+  const abrir = linha.locator("button.celula-abrir").first();
+  await marcar(abrir, "linha");
+  await ler("comparacao");
+  await abrir.click();
+  await pausa(1500);
+  const justificar = painel.getByRole("button", { name: "Justificar", exact: true });
+  await marcar(justificar, "justificar");
+  await ler("comparacaoFoco", comExplicacao);
+  await justificar.click();
+  const campo = painel.getByLabel("Justificativa", { exact: true });
+  // o roteiro digita no lugar da marca
+  await campo.fill("{{TEXTO}}");
+  await marcar(justificar, "enviar");
+  await ler("justificando");
+  await campo.fill(JUSTIFICATIVA_DA_LANDING);
+  await justificar.click();
+  await painel.locator(".comp-nota").waitFor();
+  await pausa(800);
+  await ler("comparacaoJustificada", comExplicacao);
+
+  // o mês em Fechamentos, com o painel do que acabou de conciliar: o ano de 2026 da conta de teste recolhido, para o
+  // cartão de dezembro de 2025 subir para o quadro
+  await t.abrir("fechamentos");
+  await pausa(1200);
+  await page.getByRole("button", { name: "2026", exact: true }).click();
+  await cartao(page, /^Competência\s*Dezembro/).click();
+  await pausa(1200);
+  await ler("fechamentos");
+  await ctx.close();
+
+  const saida = path.join(AQUI, "..", "..", "app", "(marketing)", "cenas", "index.ts");
+  const modulo = [
+    "// GERADO por scripts/ajuda-videos/gravar.mjs --landing: as telas do app com a conta de teste do backend-fake, só o",
+    "// #conteudo, sem o menu e a barra do topo. HTML estático (ver mockup-demo.tsx); para mudar, grave de novo.",
+    "",
+    ...Object.entries(cenas).map(([nome, html]) => `export const ${nome} = ${JSON.stringify(html)};`),
+    `export const TEXTO_DA_JUSTIFICATIVA = ${JSON.stringify(JUSTIFICATIVA_DA_LANDING)};`,
+    "",
+  ];
+  fs.writeFileSync(saida, modulo.join("\n"));
+  return { saida, cenas: Object.keys(cenas).length, kb: Math.round(fs.statSync(saida).size / 1024) };
+}
+
 async function main() {
   const pedidas = process.argv.slice(2).filter((a) => !a.startsWith("--"));
   const mapa = FIGURAS_ ? FIGURAS : ROTEIROS;
@@ -748,7 +879,8 @@ async function main() {
   const estado = await login.storageState();
   await login.close();
 
-  for (const tela of telas) {
+  if (LANDING) console.log("landing", await gravarLanding(browser, estado, empresa));
+  else for (const tela of telas) {
     try {
       console.log(tela, await gravar(browser, estado, empresa, tela));
     } catch (e) {

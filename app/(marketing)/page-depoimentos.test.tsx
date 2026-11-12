@@ -9,6 +9,8 @@ const lista = vi.hoisted(() => ({ depoimentos: [] as Depoimento[] }));
 vi.mock("@/lib/depoimentos", () => ({
   depoimentosDaLanding: () => lista.depoimentos,
 }));
+// a janela de "Na prática" usa o painel da comparação do app, que pede o roteador
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
 const UM: Depoimento = {
   citacao: "O fechamento que levava a semana inteira agora cabe numa tarde.",

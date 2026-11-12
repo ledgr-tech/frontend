@@ -657,9 +657,9 @@ p.eyebrow {
   .so-mouse, .hover-hint-icone { display: none; }
   .so-toque { display: inline; }
 }
-/* quem já abriu uma linha da comparação entendeu o hover: o anel some e a rodinha para */
-section:has(.demonstracao-folhas[data-explorado]) .hover-hint-roda { animation: none; }
-section:has(.demonstracao-folhas[data-explorado]) .hover-hint-icone::after { animation: none; opacity: 0; }
+/* quem já mexeu na janela da comparação entendeu o hover: o anel some e a rodinha para */
+section:has(.janela-conciliacao[data-explorado]) .hover-hint-roda { animation: none; }
+section:has(.janela-conciliacao[data-explorado]) .hover-hint-icone::after { animation: none; opacity: 0; }
 @media (prefers-reduced-motion: reduce) {
   .hover-hint-roda, .hover-hint-icone::after { animation: none; }
 }
@@ -1293,14 +1293,17 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
   display: flex; gap: 7px; padding: 11px 14px;
   background: var(--color-surface); border-bottom: 1px solid var(--color-divider);
 }
+/* os três botões da janela do Mac (fechar, minimizar e ampliar), nas cores dele, com o filete fino de lá */
 .vitrine-barra > span {
   width: 10px; height: 10px; border-radius: 50%;
-  background: color-mix(in srgb, var(--color-text) 16%, transparent);
+  background: #ed6a5e; box-shadow: inset 0 0 0 0.5px rgb(0 0 0 / 0.14);
 }
+.vitrine-barra > span:nth-child(2) { background: #f4bf4f; }
+.vitrine-barra > span:nth-child(3) { background: #61c554; }
 /* as variáveis que o app declara no .app-shell, no tema claro: a landing não tem tema escuro. Valem
    para a réplica da janela, para a demonstração de "O problema" e para os cards de Preços, que usam
    as classes do app (e as folhas, no painel da demonstração do card aberto) */
-:is(.vitrine-app, .demonstracao-folhas, .mao, .beneficio, .consent) {
+:is(.vitrine-app, .janela-conciliacao, .mao, .beneficio, .consent) {
   --tinta-hover: color-mix(in srgb, var(--color-text) 6%, transparent);
   --tinta-ativa: color-mix(in srgb, var(--color-text) 9%, transparent);
   --texto-apagado: color-mix(in srgb, var(--color-text) 68%, transparent);
@@ -1366,28 +1369,21 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
 /* O cartão do hover do app aberto sobre o selo da linha, como no app: centrado na coluna do
    status, com a seta apontando para ele (.cartao-no-eixo). No app ele é fixo na tela porque a
    tabela rola de lado; aqui a âncora é a própria célula do status */
-:is(.vitrine-app, .demonstracao-folhas) .cartao-lancamento {
+.vitrine-app .cartao-lancamento {
   --cartao-largura: min(440px, calc(100vw - 32px));
   position: absolute; left: 50%; bottom: calc(100% - 2px);
   width: var(--cartao-largura); margin-left: calc(var(--cartao-largura) / -2); text-align: left;
+  animation: none;
 }
-.vitrine-app .cartao-lancamento { animation: none; }
-/* o mockup do vídeo (app/(marketing)/mockup-demo.tsx): a réplica de 1280×940 encolhida por transform
-   dentro de um quadro de 1280×940, com as telas reais do app trocando por dentro */
-.mockup-quadro { position: relative; aspect-ratio: 1280 / 940; overflow: hidden; background: var(--color-bg); }
-.mockup-app { position: absolute; top: 0; left: 0; transform-origin: 0 0; }
+/* o mockup do vídeo (app/(marketing)/mockup-demo.tsx): a réplica de 1280×860 encolhida por transform
+   dentro de um quadro de 1280×860, com as telas reais do app trocando por dentro, sem o menu lateral */
+.mockup-quadro { position: relative; aspect-ratio: 1280 / 860; overflow: hidden; background: var(--color-bg); }
+.mockup-app { position: absolute; top: 0; left: 0; transform-origin: 0 0; grid-template-columns: minmax(0, 1fr); }
 /* a margem lateral do app (--recuo-lateral) vem do .app-principal, que a moldura da vitrine não usa */
 .mockup-principal { --recuo-lateral: 40px; display: flex; flex-direction: column; min-height: 0; }
 .mockup-visor { position: relative; flex: 1; min-height: 0; overflow: hidden; }
 .mockup-cena { transition: transform 0.9s cubic-bezier(0.22, 1, 0.36, 1); animation: mockup-entra 0.4s ease both; }
 @keyframes mockup-entra { from { opacity: 0; } }
-/* a janela de justificar, sobre a tela escurecida e borrada, como o <dialog> do app */
-.mockup-veu {
-  position: absolute; inset: 0; z-index: 80; display: none; align-items: center; justify-content: center;
-  background: rgb(32 31 29 / 0.32); backdrop-filter: blur(3px);
-}
-.mockup-veu[data-aberto] { display: flex; animation: mockup-entra 0.25s ease both; }
-.mockup-veu dialog { position: relative; inset: auto; display: block; margin: 0; }
 .mockup-cursor {
   position: absolute; top: 0; left: 0; z-index: 90; pointer-events: none; opacity: 0; overflow: visible;
   transition: transform 1s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.3s;
@@ -1432,72 +1428,57 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
 }
 @keyframes mockup-cai { from { opacity: 0; transform: translateY(-34px) scale(0.8); } }
 @media (prefers-reduced-motion: reduce) {
-  .mockup-cena[data-cena="fechamentos"] { zoom: 0.82; }
-}
-@media (prefers-reduced-motion: reduce) {
   .mockup-intro, .mockup-cursor { display: none; }
   .mockup-cena { transition: none; }
-  .mockup-cena, .mockup-veu[data-aberto] { animation: none; }
+  .mockup-cena { animation: none; }
 }
-/* a demonstração de "O problema" (comparacao.tsx): a mesma tabela, com o cartão preso à linha
-   como na réplica. Ele sobe ao abrir, menos quando o ponteiro vem direto de outra linha */
-.demonstracao-folhas .table tbody .celula-status { position: relative; }
-.demonstracao-folhas .cartao-lancamento[data-na-hora] { animation: none; }
-/* aberta pelo teclado ou pelo toque, a linha acende como no hover do app */
-@media (min-width: 901px) {
-  .demonstracao-folhas .table tbody tr[data-aberta] { background: color-mix(in srgb, var(--tom-linha) 9%, transparent); }
-  .demonstracao-folhas .table tbody tr[data-aberta] > .folha-banco {
-    background: color-mix(in srgb, var(--tom-linha) 9%, var(--folha-banco));
-  }
-  .demonstracao-folhas .table tbody tr[data-aberta] > .folha-sistema {
-    background: color-mix(in srgb, var(--tom-linha) 9%, var(--folha-sistema));
-  }
+/* "Na prática" (comparacao.tsx): a Comparação direta do app numa janela do Mac, só a faixa da tabela, a
+   tabela e o painel da direita, com as classes do app. Onde há margem (1100px, o limite do painel no app)
+   o painel fica ao lado, da altura da tabela; abaixo disso, desce para baixo dela */
+.janela-conciliacao { margin: 0; scroll-margin-top: 96px; text-align: left; }
+/* as duas janelas do app na landing ("Na prática" e "Por dentro") têm o nome da tela no meio da barra */
+:is(.janela-conciliacao, .mockup-demo) .vitrine-barra { position: relative; align-items: center; }
+/* o nome da tela no meio da barra, como o título de uma janela do Mac: no lugar do cabeçalho do app */
+.janela-titulo {
+  position: absolute; inset: 0; display: grid; place-items: center; margin: 0; pointer-events: none;
+  font-size: 12.5px; color: var(--texto-apagado);
 }
-/* abaixo de 900px a linha vira cartão: o cartão do hover abre acima do cartão da linha inteira,
-   a 12px da ponta, não da célula do status; e sem a seta, que não teria para onde apontar */
-@media (max-width: 900px) {
-  .demonstracao-folhas .table tbody tr { position: relative; }
-  .demonstracao-folhas .table tbody .celula-status { position: static; }
-  .demonstracao-folhas .cartao-lancamento { left: auto; right: 12px; margin-left: 0; }
-  .demonstracao-folhas .cartao-no-eixo::after { content: none; }
-  /* no cartão as folhas perdem o tom, e o hover do app pintaria faixas nas células: acende o cartão */
-  .demonstracao-folhas .table tbody tr[data-tom]:hover > :is(.folha-banco, .folha-sistema) { background: transparent; }
+.janela-tela { padding: 18px 20px 20px; }
+.janela-conciliacao .comparacao-corpo { gap: 14px; padding: 0; }
+/* a tabela aperta as colunas quando estreita, como a do app ao lado do painel (@container tabela-comparacao) */
+.janela-conciliacao .dash-tabela-rolagem { container: tabela-comparacao / inline-size; }
+.janela-conciliacao .comparacao-lateral { position: static; padding-top: 0; }
+/* "Voltar ao topo do extrato" sobe a página do app; a janela tem dez linhas e já está toda à vista */
+.janela-conciliacao .comp-saldos .btn { display: none; }
+/* o painel ao lado só a partir de 1280px (LADO_A_LADO, comparacao.tsx). A largura dele deixa a tabela abaixo
+   dos 900px do @container tabela-comparacao, como a do app ao lado do menu: as colunas de data e valor apertam
+   e as descrições aparecem */
+@media (min-width: 1280px) {
+  .janela-tela.comparacao-grade {
+    display: grid; grid-template-columns: minmax(0, 1fr) clamp(320px, 27vw, 390px); grid-template-rows: minmax(640px, auto);
+    column-gap: 16px;
+  }
+  /* a altura é a da tabela (ou os 640px em que cabem a explicação e os botões): o painel não a empurra,
+     preenche. Escrevendo a justificativa, o detalhe rola dentro do quadro, como no app */
+  .janela-conciliacao .comparacao-lateral { height: 0; min-height: 100%; }
+  .janela-conciliacao .comp-painel.conc-previa { height: 100%; max-height: none; }
+  .janela-conciliacao .comp-painel > [aria-live] { flex: 1; }
+  .janela-conciliacao .comp-foco { height: 100%; }
 }
-/* no tablet a tabela do app (uns 830px) não cabe na coluna da landing. No app ela rola de lado, com
-   o cartão fixo na tela; numa página que se lê rolando, a demonstração vira cartões já aqui, com as
-   regras do .tabela-cartoes do app, que só valem até 680px (bloco "Tabela em cartões no celular").
-   Dois por linha, que a largura dá */
-@media (min-width: 681px) and (max-width: 900px) {
-  .demonstracao-folhas .table,
-  .demonstracao-folhas .table tr,
-  .demonstracao-folhas .table td { display: block; width: auto; }
-  .demonstracao-folhas .table thead { display: none; }
-  .demonstracao-folhas .table tbody { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-  .demonstracao-folhas .table tr {
-    border: 1px solid var(--color-divider); border-radius: var(--radius-md);
-    padding: 12px 14px; background: var(--color-surface);
-  }
-  .demonstracao-folhas .table td {
-    display: flex; align-items: baseline; justify-content: space-between; gap: 14px;
-    border: 0; padding: 5px 0; text-align: left !important;
-  }
-  .demonstracao-folhas .table td::before {
-    content: attr(data-rotulo); flex: none;
-    font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
-    color: color-mix(in srgb, var(--color-text) 68%, transparent);
-  }
-  .demonstracao-folhas .table td[data-destaque="true"] {
-    display: block; padding-bottom: 8px; margin-bottom: 4px;
-    border-bottom: 1px solid var(--color-divider);
-    font-family: var(--font-heading); font-size: 16px; font-weight: 600;
-  }
-  .demonstracao-folhas .table td[data-destaque="true"]::before { content: none; }
-  .demonstracao-folhas .table :is(td.folha-banco, td.folha-sistema) { background: transparent; }
-  /* como no celular do app: sem colunas, o status sai do eixo e vai ao pé do cartão */
-  .demonstracao-folhas .table colgroup { display: none; }
-  .demonstracao-folhas .folhas-com-eixo tbody tr { display: flex; flex-direction: column; }
-  .demonstracao-folhas .folhas-com-eixo .celula-status { order: 1; }
+@media (max-width: 1279px) {
+  .janela-conciliacao .comparacao-lateral { margin-top: 18px; }
+  .janela-conciliacao .comp-foco { height: auto; }
 }
+@media (max-width: 680px) {
+  .janela-tela { padding: 14px 12px 16px; }
+  /* em cartões, o filete da linha em foco cairia só no rótulo "Data", como um cursor: fica a tinta da fixada */
+  .janela-conciliacao .tabela-folhas tbody tr[data-foco] td:first-child { box-shadow: none; }
+  .janela-conciliacao .tabela-folhas tbody tr[data-foco][data-fixo] td:first-child { box-shadow: inset 0 0 0 999px var(--tinta-ativa); }
+}
+/* a densidade da janela é dela: a do app mora no <html> e no localStorage, que a landing não toca */
+.janela-conciliacao[data-densidade="compacta"] .table td { padding-block: 4px; }
+.janela-conciliacao[data-densidade="compacta"] .table th { padding-block: 6px; }
+.janela-conciliacao[data-densidade="compacta"] .selo { padding-block: 1px; }
 /* as redes no rodapé: o círculo com o filete das folhas, e o dourado do Ledgr no hover */
 .rodape-redes { display: flex; gap: 10px; margin: 8px 0 0; padding: 0; list-style: none; }
 .rodape-rede {
@@ -2520,15 +2501,15 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
    olho pequeno, não aguentava o corpo de título de tela. Só do tamanho de
    título para cima: lista, tabela e botão seguem em Inter. Algarismos
    alinhados: os de estilo antigo sobem e descem, e em valor isso atrapalha. */
-:is(.app-shell, .vitrine-app, .demonstracao-folhas) :is(h1, h2, h3),
-:is(.app-shell, .vitrine-app, .demonstracao-folhas) :is(.dash-valor, .hist-destaque, .det-valor, .det-delta-valor, .vg-estado-aberto, .folha-nome, .det-cartao-titulo, .det-causa-titulo, .dialog-title),
+:is(.app-shell, .vitrine-app, .janela-conciliacao) :is(h1, h2, h3),
+:is(.app-shell, .vitrine-app, .janela-conciliacao) :is(.dash-valor, .hist-destaque, .det-valor, .det-delta-valor, .vg-estado-aberto, .folha-nome, .det-cartao-titulo, .det-causa-titulo, .dialog-title),
 .font-titulo {
   font-family: var(--font-titulo); font-variant-numeric: lining-nums tabular-nums;
 }
 /* título de passo tem 18px: fica na Inter, como o resto do texto corrido */
 /* o rótulo de cada bloco da Visão geral é h2 para leitor de tela, mas se lê como rótulo pequeno */
 .app-shell .vg-bloco-rotulo { font-family: var(--font-body); }
-:is(.app-shell, .vitrine-app, .demonstracao-folhas) h6 { color: var(--texto-apagado); }
+:is(.app-shell, .vitrine-app, .janela-conciliacao) h6 { color: var(--texto-apagado); }
 /* Rótulo pequeno em caixa alta: o "lançamentos processados" em cima do número, o "atual" do plano,
    o "assistente" do menu. Uma régua só, com o espaçamento do h6 do guia (+0,08em); o h6, em 14px, é
    o rótulo de seção, e o cabeçalho de tabela fica nos 11px dele, junto com a tabela. */
@@ -6113,7 +6094,8 @@ html[data-tema="escuro"] .app-shell {
 .site-cabecalho[data-no-topo] { background: transparent !important; border-bottom-color: transparent !important; backdrop-filter: none !important; }
 
 /* --- botões da landing: a setinha que anda no hover --- */
-.landing :is(.btn-primary, .regua-mede-acao)::after { content: "→"; display: inline-block; margin-left: 0.45em; }
+/* a janela de "Na prática" e o mockup de "Por dentro" são o app: os botões deles já trazem o ícone deles */
+.landing :is(.btn-primary, .regua-mede-acao):not(:is(.janela-conciliacao, .mockup-demo) *)::after { content: "→"; display: inline-block; margin-left: 0.45em; }
 @media (prefers-reduced-motion: no-preference) {
   .landing :is(.btn-primary, .regua-mede-acao)::after { transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
   .landing :is(.btn-primary, .regua-mede-acao):hover::after { transform: translateX(4px); }
