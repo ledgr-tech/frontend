@@ -1,5 +1,6 @@
 "use server";
 
+import { enderecoDoConector } from "@/lib/conexao-ia";
 import { pareceUuid } from "@/lib/adaptadores";
 import { ErroBackend, chamarBackend, ehContaInativa, emailDaSessao } from "@/lib/backend";
 import { RECUSA_DEMONSTRACAO, ehContaDeDemonstracao } from "@/lib/demo";
@@ -161,9 +162,7 @@ export async function carregarConexoesMcp(): Promise<Resultado<{ itens: ConexaoM
           ultimoUsoEm: conexao.ultimo_uso_em,
           revogadaEm: conexao.revogada_em,
         })),
-        // shortcut: o conector fica em `/mcp` do mesmo backend (o `MCP_URL_PUBLICA` padrão); se o backend
-        // mudar o caminho ou o host, este passa a ser uma variável própria
-        endereco: process.env.LEDGR_API_URL ? `${process.env.LEDGR_API_URL.replace(/\/+$/, "")}/mcp` : null,
+        endereco: enderecoDoConector(),
       },
     };
   } catch (erro) {

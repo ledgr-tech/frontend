@@ -1,12 +1,13 @@
 "use client";
 
 import { useId, useState, type ReactNode } from "react";
+import { DOCUMENTACAO_DA_IA, NOME_DA_IA, type IaDaConexao } from "@/lib/conexao-ia";
 import { enderecoExterno } from "@/lib/rotas";
 import { MensagemErro } from "../../../../(auth)/_compartilhado/mensagem-erro";
 import { formatarDataHora } from "../dashboard/resumo";
 import { revogarConexaoMcp, type ConexaoMcp } from "./acoes";
 
-type Assistente = "chatgpt" | "claude";
+type Assistente = IaDaConexao;
 
 // Os passos de cada assistente, pela documentação oficial de 11/11: no ChatGPT, o servidor entra pelos
 // Plugins (em 29/10 era pelo Modo desenvolvedor, que a ajuda da Central guarda para contas antigas). Os
@@ -27,13 +28,8 @@ const PASSOS: Record<Assistente, ReactNode[]> = {
   ],
 };
 
-const NOME: Record<Assistente, string> = { chatgpt: "ChatGPT", claude: "Claude" };
-
-// a ajuda oficial de quem desenha esses menus, para quando o caminho dos passos mudar
-const DOCUMENTACAO: Record<Assistente, string> = {
-  chatgpt: "https://help.openai.com/en/articles/12584461-developer-mode-and-mcp-apps-in-chatgpt",
-  claude: "https://support.claude.com/en/articles/11175166-get-started-with-custom-connectors-using-remote-mcp",
-};
+const NOME = NOME_DA_IA;
+const DOCUMENTACAO = DOCUMENTACAO_DA_IA;
 
 // as perguntas que as ferramentas do backend (#136) respondem: resumo, divergências e fechamentos de um mês
 const EXEMPLOS = [
