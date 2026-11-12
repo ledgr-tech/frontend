@@ -85,7 +85,7 @@ describe("PainelDeConexoes", () => {
 
     expect(screen.getByRole("link", { name: "Política de privacidade" })).toHaveAttribute("href", "/privacidade#conexao-ia");
     const central = screen.getByRole("link", { name: "Central de ajuda" });
-    expect(central).toHaveAttribute("href", "/ajuda/configuracoes#conexoes");
+    expect(central).toHaveAttribute("href", "/ajuda/conectar-ia#passo-a-passo");
     expect(central).toHaveAttribute("target", "_blank");
     // a seção que o link abre existe: sem ela, o link cairia no alto da página
     const secoes = PAGINAS.find((pagina) => pagina.id === "configuracoes")?.funcoes.map((funcao) => funcao.id);

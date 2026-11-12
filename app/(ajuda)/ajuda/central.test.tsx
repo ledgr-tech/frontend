@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { CentralDeAjuda } from "./central";
-import { PAGINAS, ajudaDaTela } from "./paginas";
+import { PAGINAS, ajudaDaTela, paginaDeAjuda } from "./paginas";
 import { TELAS_DO_TUTORIAL } from "@/lib/preferencias";
 import PaginaDaAjuda from "./[pagina]/page";
 
@@ -49,16 +49,18 @@ describe("CentralDeAjuda", () => {
   });
 
   it("anterior e próxima seguem a ordem das telas", () => {
-    const { rerender } = render(<CentralDeAjuda id={PAGINAS[0].id} />);
+    // as páginas em destaque ficam fora da sequência das telas
+    const TELAS = PAGINAS.filter((pagina) => !pagina.destaque);
+    const { rerender } = render(<CentralDeAjuda id={TELAS[0].id} />);
     expect(screen.queryByRole("link", { name: /Anterior/ })).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Próxima/ })).toHaveAttribute(
       "href",
-      `/ajuda/${PAGINAS[1].id}`,
+      `/ajuda/${TELAS[1].id}`,
     );
-    rerender(<CentralDeAjuda id={PAGINAS.at(-1)!.id} />);
+    rerender(<CentralDeAjuda id={TELAS.at(-1)!.id} />);
     expect(screen.getByRole("link", { name: /Anterior/ })).toHaveAttribute(
       "href",
-      `/ajuda/${PAGINAS.at(-2)!.id}`,
+      `/ajuda/${TELAS.at(-2)!.id}`,
     );
     expect(screen.queryByRole("link", { name: /Próxima/ })).not.toBeInTheDocument();
   });
@@ -183,5 +185,86 @@ describe("a página Nova conciliação ensina a exportar e a importar via IA", (
     const via = funcoes.find((funcao) => funcao.id === "importar-via-ia")!;
     expect(via.passos!.join(" ")).toMatch(/Confirmar.*extrato do banco/);
     expect(funcoes.find((funcao) => funcao.id === "enviar")!.nota).toContain("Importar via IA");
+  });
+});
+
+describe("a página Conectar o ChatGPT ou o Claude", () => {
+  it("a conexão com IA tem a sua página em destaque, com uma aba por IA", () => {
+    const pagina = paginaDeAjuda("conectar-ia")!;
+    expect(pagina.destaque).toBe(true);
+    expect(pagina.video).toBe("conexao-ia");
+    expect(pagina.funcoes.map((f) => f.id)).toEqual(["antes", "passo-a-passo", "perguntar", "problemas"]);
+    const abas = pagina.funcoes[1].abas!;
+    expect(abas.map((a) => [a.id, a.passos.length])).toEqual([["chatgpt", 5], ["claude", 5], ["claude-code", 4]]);
+    expect(abas.flatMap((a) => a.passos).every((p) => p.certo.length > 0)).toBe(true);
+    expect(abas[2].passos[0].comando).toBe(true);
+    expect(pagina.funcoes[0].itens).toHaveLength(3);
+    expect(pagina.funcoes[3].sanfona).toBe(true);
+    // cada problema é "Pergunta: resposta", dividido no primeiro ": "
+    expect(pagina.funcoes[3].passos!.length).toBeGreaterThanOrEqual(6);
+    for (const passo of pagina.funcoes[3].passos!) expect(passo).toMatch(/^[^:]+: \S/);
+  });
+
+  it("Configurações resume a conexão e aponta para a página nova", () => {
+    const config = paginaDeAjuda("configuracoes")!;
+    const ids = config.funcoes.map((f) => f.id);
+    expect(ids).not.toContain("conexoes-problemas");
+    expect(ids).not.toContain("conexoes-perguntas");
+    expect(config.funcoes.find((f) => f.id === "conexoes")!.link!.href).toBe("/ajuda/conectar-ia");
+  });
+
+  it("a página em destaque fica num grupo próprio e sem anterior e próxima", () => {
+    render(<CentralDeAjuda id="conectar-ia" endereco="https://api.x/mcp" />);
+    const telas = screen.getByRole("navigation", { name: "Telas do Ledgr" });
+    expect(within(telas).getByText("Destaque")).toBeInTheDocument();
+    expect(within(telas).getByRole("link", { name: "Conectar o ChatGPT ou o Claude" })).toHaveAttribute("aria-current", "page");
+    expect(screen.queryByRole("link", { name: /Anterior/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Próxima/ })).not.toBeInTheDocument();
+  });
+
+  it("as abas trocam com as setas e mostram o comando com o endereço no Claude Code", async () => {
+    const user = userEvent.setup();
+    render(<CentralDeAjuda id="conectar-ia" endereco="https://api.x/mcp" />);
+    const chatgpt = screen.getByRole("tab", { name: "ChatGPT" });
+    expect(chatgpt).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tabpanel")).toHaveAttribute("aria-labelledby", chatgpt.id);
+    // o clique dá o foco; um focus() direto perde para o foco no título, que a Central põe ao montar
+    await user.click(chatgpt);
+    await user.keyboard("{ArrowRight}{ArrowRight}");
+    const code = screen.getByRole("tab", { name: "Claude Code" });
+    expect(code).toHaveAttribute("aria-selected", "true");
+    expect(code).toHaveFocus();
+    expect(screen.getByText("claude mcp add --transport http ledgr https://api.x/mcp")).toBeInTheDocument();
+    await user.keyboard("{Home}");
+    expect(chatgpt).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("sem endereço, o comando mostra onde achar o endereço", async () => {
+    const user = userEvent.setup();
+    render(<CentralDeAjuda id="conectar-ia" endereco={null} />);
+    await user.click(screen.getByRole("tab", { name: "Claude Code" }));
+    expect(screen.getByText(/ledgr <endereço do conector>$/)).toBeInTheDocument();
+    expect(screen.queryByText(/undefined|null/)).not.toBeInTheDocument();
+  });
+
+  it("cada passo diz quando deu certo e os links levam à ajuda de cada IA", () => {
+    render(<CentralDeAjuda id="conectar-ia" endereco={null} />);
+    expect(screen.getAllByText(/^Deu certo quando /)).toHaveLength(5);
+    expect(screen.getByRole("link", { name: "ajuda do ChatGPT" })).toHaveAttribute("target", "_blank");
+    expect(screen.getByRole("link", { name: "ajuda do Claude" })).toHaveAttribute("target", "_blank");
+  });
+
+  it("Quando não funciona abre cada problema numa sanfona, e as colunas mostram título e texto", () => {
+    render(<CentralDeAjuda id="conectar-ia" endereco={null} />);
+    const problemas = document.getElementById("problemas")!;
+    expect(problemas.querySelectorAll("details").length).toBeGreaterThanOrEqual(6);
+    expect(within(problemas).getByText("Aparece “Pedido indisponível”")).toBeInTheDocument();
+    const antes = document.getElementById("antes")!;
+    expect(within(antes).getByText("Ser administrador ou gestor")).toBeInTheDocument();
+  });
+
+  it("Configurações leva ao passo a passo completo", () => {
+    render(<CentralDeAjuda id="configuracoes" />);
+    expect(screen.getByRole("link", { name: /Ver o passo a passo completo/ })).toHaveAttribute("href", "/ajuda/conectar-ia");
   });
 });

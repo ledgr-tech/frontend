@@ -259,7 +259,7 @@ export function Consentimento({
           </div>
           <p className="consent-nota consent-depois">
             {"Depois de autorizar, a conexão aparece em Configurações › Conexões, onde você revoga a qualquer momento. Veja o "}
-            <a href="/ajuda/configuracoes#conexoes" target="_blank" rel="noopener" className="link-animado">
+            <a href="/ajuda/conectar-ia#passo-a-passo" target="_blank" rel="noopener" className="link-animado">
               passo a passo na Central de ajuda
             </a>
             .

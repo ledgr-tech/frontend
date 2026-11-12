@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Landing: conexão com IA</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Newsreader:opsz,wght@6..72,400&family=Cormorant+Garamond:ital,wght@0,500;1,500&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#232222}
+a{color:#b68235}
+a:hover{color:#facb8d}
+.grao{background-image:url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%27180%27 height=%27180%27%3E%3Cfilter id=%27g%27%3E%3CfeTurbulence type=%27fractalNoise%27 baseFrequency=%27.85%27 numOctaves=%273%27 stitchTiles=%27stitch%27/%3E%3CfeColorMatrix values=%270 0 0 0 1 0 0 0 0 1 0 0 0 0 1 .28 0 0 0 -.08%27/%3E%3C/filter%3E%3Crect width=%27100%25%27 height=%27100%25%27 filter=%27url(%23g)%27/%3E%3C/svg%3E")}
+@keyframes flutua{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+@keyframes pisca{0%,100%{opacity:.2}50%{opacity:.9}}
+@keyframes caret{0%,45%{opacity:1}55%,100%{opacity:0}}
+@keyframes gira{to{transform:rotate(360deg)}}
+.mascote{animation:flutua 8s cubic-bezier(0.45,0,0.55,1) infinite}
+.ponto{display:inline-block;width:4px;height:4px;border-radius:50%;background:currentColor;animation:pisca 1.5s ease-in-out infinite}
+.ponto:nth-child(2){animation-delay:.25s}.ponto:nth-child(3){animation-delay:.5s}
+.caret{display:inline-block;width:1.5px;height:1.05em;margin-left:1px;vertical-align:-2px;background:currentColor;animation:caret 1s steps(1) infinite}
+.gira{animation:gira 1s linear infinite}
+.cta{transition:background .5s cubic-bezier(0.22,1,0.36,1),transform .16s cubic-bezier(0.22,1,0.36,1)}
+.cta:hover{background:rgba(182,130,53,0.30)!important}
+.cta:active{transform:scale(.97)}
+.cta .seta{display:inline-block;transition:transform .5s cubic-bezier(0.22,1,0.36,1)}
+.cta:hover .seta{transform:translateX(4px)}
+@media (prefers-reduced-motion: reduce){.mascote,.ponto,.caret,.gira{animation:none}}
+.letra{display:inline-block;white-space:pre;animation:letra .5s cubic-bezier(0.22,1,0.36,1) both}
+@keyframes letra{from{opacity:0;transform:translateY(3px);filter:blur(2px)}}
+@media (prefers-reduced-motion: reduce){.letra{animation:none}}
+</style>
+</helmet>
+<section id="conexao-ia" class="grao" style="position: relative; overflow: hidden; min-height: 1140px; box-sizing: border-box; background-color: #232222; color: #f8f4f4; font-family: Inter, system-ui, sans-serif; padding: 112px 32px;">
+<div style="position: relative; max-width: 1340px; margin: 0 auto; display: flex; flex-wrap: wrap; gap: 56px; align-items: center;">
+
+<div style="flex: 1 1 380px; min-width: 0; display: flex; flex-direction: column; gap: 26px;">
+<span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12.5px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: #b68235;">Cap. V · Conexão com IA</span>
+<h2 style="margin: 0; font-size: 58px; font-weight: 500; line-height: 1.04; letter-spacing: -0.03em; text-wrap: balance;">Pergunte à sua IA como está <em style="font-family: 'Cormorant Garamond', Georgia, serif; font-style: italic; font-weight: 500; font-size: 1.14em; letter-spacing: -0.01em; color: #b68235;">o seu mês.</em></h2>
+<p style="margin: 0; font-size: 19px; line-height: 1.6; color: #d7d3d3; max-width: 500px; text-wrap: pretty;">Ligue o Ledgr ao ChatGPT ou ao Claude e pergunte em português: quanto está conciliado, quantas divergências faltam, se o mês já fechou. A resposta vem dos números do Ledgr.</p>
+<ol style="margin: 0; padding: 0; list-style: none; border-top: 1px solid rgba(248,244,244,0.22);">
+<li style="display: grid; grid-template-columns: 48px minmax(0, 1fr); padding: 15px 0; border-bottom: 1px solid rgba(248,244,244,0.22); font-size: 16px; line-height: 1.5;"><span style="font-family: 'Cormorant Garamond', Georgia, serif; font-style: italic; font-size: 24px; line-height: 1; color: #b68235;">I</span><span><span style="font-weight: 600;">Só leitura.</span> <span style="color: #d7d3d3;">A IA não confere, não justifica e não fecha mês.</span></span></li>
+<li style="display: grid; grid-template-columns: 48px minmax(0, 1fr); padding: 15px 0; border-bottom: 1px solid rgba(248,244,244,0.22); font-size: 16px; line-height: 1.5;"><span style="font-family: 'Cormorant Garamond', Georgia, serif; font-style: italic; font-size: 24px; line-height: 1; color: #b68235;">II</span><span><span style="font-weight: 600;">A descrição dos lançamentos nunca sai.</span> <span style="color: #d7d3d3;">Nem as justificativas, nem o nome de quem usa.</span></span></li>
+<li style="display: grid; grid-template-columns: 48px minmax(0, 1fr); padding: 15px 0; border-bottom: 1px solid rgba(248,244,244,0.22); font-size: 16px; line-height: 1.5;"><span style="font-family: 'Cormorant Garamond', Georgia, serif; font-style: italic; font-size: 24px; line-height: 1; color: #b68235;">III</span><span><span style="font-weight: 600;">Você autoriza e você revoga.</span> <span style="color: #d7d3d3;">Uma empresa por conexão, desligada num clique.</span></span></li>
+</ol>
+<div style="display: flex; flex-direction: column; align-items: flex-start; gap: 12px; margin-top: 6px;">
+<a href="#" class="cta" style="display: inline-flex; align-items: center; gap: 12px; padding: 18px 30px; border: 1.5px solid #b68235; border-radius: 16px; background: rgba(182,130,53,0.16); color: #facb8d; font-weight: 600; font-size: 17px; text-decoration: none;">Ver como conectar <span class="seta" aria-hidden="true">→</span></a>
+<span style="font-size: 14px; color: #bab6b6;">O passo a passo no ChatGPT, no Claude e no Claude Code, na Central de ajuda.</span>
+</div>
+</div>
+
+<div style="flex: 1 1 720px; min-width: 0; position: relative; padding-top: 210px;">
+<div aria-hidden="true" class="mascote" style="position: absolute; top: 0; left: 0; right: 0; height: 300px; display: flex; align-items: flex-start; justify-content: center; pointer-events: none;">
+<span style="align-self: center; margin-top: -30px; display: flex; flex-direction: column; align-items: center; gap: 10px;"><img src="/_blob/1639fc5d20af820d195cf6e7582be094" alt="" style="width: 76px; height: 76px;"><span style="font-size: 20px; font-weight: 500; letter-spacing: -0.01em; color: #f8f4f4;">ChatGPT</span></span>
+<img src="/_blob/a965ff1d6e2fc4abed416dc186aef60f" alt="" style="width: 440px; height: auto; margin: 0 18px;">
+<span style="align-self: center; margin-top: -30px; display: flex; flex-direction: column; align-items: center; gap: 10px;"><img src="/_blob/67fbe43e863cb02ae3d9884a0acd6cee" alt="" style="width: 76px; height: 76px;"><span style="font-size: 20px; font-weight: 500; letter-spacing: -0.01em; color: #f8f4f4;">Claude</span></span>
+</div>
+
+<div style="position: relative; z-index: 1; height: 640px; border-radius: 16px; box-shadow: 0 30px 80px rgba(0,0,0,0.5); overflow: hidden; display: flex; background: #ffffff;">
+<div style="{{palcoStyle}}">
+
+<div style="{{claudeStyle}}">
+<div style="{{claudeLadoStyle}}">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#73726c" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M9 4v16"/></svg>
+<span style="width: 26px; height: 26px; border-radius: 50%; background: #e9e6dc; display: flex; align-items: center; justify-content: center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3d3929" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></span>
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#73726c" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 01-11.6 7.1L4 20l1-4.6A8 8 0 1121 12z"/></svg>
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#73726c" stroke-width="1.75" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+<span style="margin-top: auto; width: 26px; height: 26px; border-radius: 50%; background: #3d3929; color: #faf9f5; font-size: 11px; font-weight: 600; display: flex; align-items: center; justify-content: center;">A</span>
+</div>
+<div style="flex: 1; min-width: 0; display: flex; flex-direction: column; position: relative;">
+<div style="height: 44px; flex: none; display: flex; align-items: center; justify-content: center; font-size: 13.5px; color: #3d3929;"><span style="{{tituloClaudeStyle}}">Conciliação de agosto <span style="color: #73726c;">⌄</span></span></div>
+<div style="{{saudacaoClaudeStyle}}"><span style="display: flex; align-items: center; gap: 12px; font-family: Newsreader, Georgia, serif; font-size: 32px; color: #3d3929; white-space: nowrap;"><img src="/_blob/67fbe43e863cb02ae3d9884a0acd6cee" alt="" style="width: 34px; height: 34px;">Boa tarde, Ana</span></div>
+<div style="flex: 1; min-height: 0; padding: 4px 26px 8px; display: flex; flex-direction: column; gap: 14px; overflow: hidden;">
+<span style="{{bolhaClaudeStyle}}">Como está a conciliação de agosto?</span>
+<span style="{{ferrClaudeStyle}}">
+<sc-if value="{{consClaude}}" hint-placeholder-val="{{ false }}"><svg class="gira" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#73726c" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M21 12a9 9 0 11-6.2-8.6"/></svg></sc-if>
+<sc-if value="{{feitoClaude}}" hint-placeholder-val="{{ true }}"><img src="/_blob/6ee2ee38a1b27f72c7aeb32c63c88641" alt="" style="height: 11px; width: auto;"></sc-if>
+<span>{{ferrClaudeTexto}}</span><span style="margin-left: auto; color: #a3a097;">›</span></span>
+<p style="margin: 0; font-family: Newsreader, Georgia, serif; font-size: 16.5px; line-height: 1.6; color: #3d3929;"><sc-for list="{{respClaude}}" as="w" hint-placeholder-count="8"><span style="{{w.s}}">{{w.t}} </span></sc-for></p>
+<div style="{{numerosStyle}}">
+<div style="padding: 10px 14px 0 0; display: flex; flex-direction: column; gap: 2px;"><span style="font-family: Newsreader, Georgia, serif; font-size: 30px; line-height: 1; font-variant-numeric: lining-nums tabular-nums; color: #3d3929;">96,3%</span><span style="font-size: 12px; color: #73726c;">conciliado</span></div>
+<div style="padding: 10px 0 0 14px; border-left: 1px solid #e3dfd3; display: flex; flex-direction: column; gap: 2px;"><span style="font-family: Newsreader, Georgia, serif; font-size: 30px; line-height: 1; font-variant-numeric: lining-nums tabular-nums; color: #3d3929;">157</span><span style="font-size: 12px; color: #73726c;">de 4.218 para revisar</span></div>
+</div>
+</div>
+<div style="position: relative; flex: none; margin: 0 20px 16px; padding: 14px 12px 10px 16px; border: 1px solid #e3dfd3; border-radius: 18px; background: #ffffff; box-shadow: 0 2px 12px rgba(61,57,41,0.06); display: flex; flex-direction: column; gap: 12px;">
+<div style="{{menuClaudeStyle}}">
+<div style="display: flex; align-items: center; gap: 10px; padding: 8px 10px; font-size: 13.5px; color: #3d3929;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#73726c" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><span style="flex: 1;">Pesquisa na web</span><span style="width: 30px; height: 18px; border-radius: 999px; background: #d6d2c6;"></span></div>
+<div style="display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 10px; background: #f5f4ed; font-size: 13.5px; color: #3d3929;"><img src="/_blob/6ee2ee38a1b27f72c7aeb32c63c88641" alt="" style="height: 13px; width: 15px; object-fit: contain;"><span style="flex: 1;">Ledgr</span><span style="{{trilhoStyle}}"><span style="{{bolinhaStyle}}"></span></span></div>
+<div style="padding: 9px 10px 4px; border-top: 1px solid #ebe8df; margin-top: 4px; font-size: 13px; color: #73726c;">Gerenciar conectores</div>
+</div>
+<span style="font-size: 15px; min-height: 22px; white-space: nowrap; overflow: hidden; color: {{campoClaudeCor}};">{{campoClaudeFixo}}<sc-for list="{{campoClaudeLetras}}" as="l" hint-placeholder-count="0"><span class="letra">{{l.c}}</span></sc-for><sc-if value="{{digClaude}}" hint-placeholder-val="{{ false }}"><span class="caret"></span></sc-if></span>
+<div style="display: flex; align-items: center; gap: 6px;">
+<span style="width: 32px; height: 32px; border-radius: 8px; border: 1px solid #e3dfd3; display: flex; align-items: center; justify-content: center;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#3d3929" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></span>
+<span style="{{ferramentasStyle}}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#3d3929" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg></span>
+<span style="{{chipClaudeStyle}}"><img src="/_blob/6ee2ee38a1b27f72c7aeb32c63c88641" alt="" style="height: 10px; width: auto;">Ledgr</span>
+<span style="margin-left: auto; font-size: 12.5px; color: #73726c; white-space: nowrap;">Sonnet 4.5 ⌄</span>
+<span style="{{enviarClaudeStyle}}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg></span>
+</div>
+</div>
+</div>
+</div>
+
+<div style="{{gptStyle}}">
+<div style="flex: 1; min-width: 0; display: flex; flex-direction: column; position: relative;">
+<div style="height: 44px; flex: none; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; font-size: 16px; color: #0d0d0d; white-space: nowrap;"><span style="display: inline-flex; align-items: center; gap: 8px; font-weight: 500;"><img src="/_blob/1639fc5d20af820d195cf6e7582be094" alt="" style="width: 22px; height: 22px;">ChatGPT <span style="color: #8f8f8f; font-size: 13px;">⌄</span></span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5d5d5d" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 8l5-5 5 5M5 14v5a2 2 0 002 2h10a2 2 0 002-2v-5"/></svg></div>
+<div style="{{saudacaoGptStyle}}"><span style="font-size: 22px; font-weight: 400; line-height: 1.25; color: #0d0d0d; text-align: center; text-wrap: balance; padding: 0 28px;">Em que você está pensando hoje?</span></div>
+<div style="flex: 1; min-height: 0; padding: 6px 20px 90px; display: flex; flex-direction: column; gap: 14px; overflow: hidden;">
+<span style="{{bolhaGptStyle}}">Agosto já foi fechado?</span>
+<span style="{{ferrGptStyle}}"><span>{{ferrGptTexto}}</span><sc-if value="{{consGpt}}" hint-placeholder-val="{{ false }}"><span style="display: inline-flex; gap: 3px; margin-left: 4px;"><span class="ponto"></span><span class="ponto"></span><span class="ponto"></span></span></sc-if><sc-if value="{{feitoGpt}}" hint-placeholder-val="{{ true }}"><span style="margin-left: 4px;">›</span></sc-if></span>
+<p style="margin: 0; font-size: 15.5px; line-height: 1.65; color: #0d0d0d;"><sc-for list="{{respGpt}}" as="w" hint-placeholder-count="8"><span style="{{w.s}}">{{w.t}} </span></sc-for></p>
+<div style="{{acoesGptStyle}}">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5d5d5d" stroke-width="1.75" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 00-2-2H6a2 2 0 00-2 2v8a2 2 0 002 2h2"/></svg>
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5d5d5d" stroke-width="1.75" stroke-linejoin="round" aria-hidden="true"><path d="M7 10v10H4V10zM7 10l4-7a2 2 0 012 2v4h6a2 2 0 012 2.3l-1.3 7A2 2 0 0117.7 20H7"/></svg>
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5d5d5d" stroke-width="1.75" stroke-linejoin="round" aria-hidden="true"><path d="M17 14V4h3v10zM17 14l-4 7a2 2 0 01-2-2v-4H5a2 2 0 01-2-2.3l1.3-7A2 2 0 016.3 4H17"/></svg>
+</div>
+</div>
+<div style="{{compositorGptStyle}}">
+<div style="{{mencaoStyle}}">
+<span style="font-size: 12px; color: #8f8f8f; padding: 4px 10px 6px;">Apps</span>
+<div style="display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 10px; background: #f4f4f4; font-size: 14px; color: #0d0d0d;"><img src="/_blob/6ee2ee38a1b27f72c7aeb32c63c88641" alt="" style="height: 13px; width: 15px; object-fit: contain;"><span>Ledgr</span></div>
+</div>
+<span style="width: 32px; height: 32px; flex: none; border-radius: 50%; display: flex; align-items: center; justify-content: center;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0d0d0d" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></span>
+<span style="flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; font-size: 15px; white-space: nowrap; overflow: hidden;"><span style="{{chipGptStyle}}">Ledgr</span><span style="color: {{campoGptCor}}; overflow: hidden;">{{campoGptFixo}}<sc-for list="{{campoGptLetras}}" as="l" hint-placeholder-count="0"><span class="letra">{{l.c}}</span></sc-for><sc-if value="{{digGpt}}" hint-placeholder-val="{{ false }}"><span class="caret"></span></sc-if></span></span>
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5d5d5d" stroke-width="1.75" stroke-linecap="round" aria-hidden="true" style="flex: none;"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v3"/></svg>
+<span style="{{enviarGptStyle}}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg></span>
+</div>
+</div>
+</div>
+
+</div>
+<svg width="22" height="26" viewBox="0 0 22 26" aria-hidden="true" style="{{cursorStyle}}"><path d="M2 2l17 11-7.5 1.4L8 23z" fill="#0d0d0d" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/></svg>
+</div>
+<p style="position: relative; margin: 16px 0 0; font-size: 13px; color: #9b9797;">Simulação no Claude e no ChatGPT com os números do agosto da demonstração.</p>
+</div>
+
+</div>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1140}}'>
+class Component extends DCLogic {
+  state = { t: 0, parado: false };
+  componentDidMount() {
+    // movimento reduzido: as duas conversas chegam paradas e inteiras, lado a lado
+    try { if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { this.setState({ parado: true }); return; } } catch (e) {}
+    this.t = setInterval(() => {
+      const t = this.state.t + 40;
+      this.setState({ t: t >= this.linha().fim ? 0 : t });
+    }, 40);
+  }
+  componentWillUnmount() { clearInterval(this.t); }
+  // a linha do tempo de uma volta, em ms: o Claude sozinho, a janela se divide, o ChatGPT ao lado
+  linha() {
+    const P1 = 'Como está a conciliação de agosto?';
+    const R1 = 'Agosto está 96,3% conciliado. Dos 4.218 lançamentos do extrato do banco, 157 ainda pedem revisão no Ledgr.'.split(' ');
+    const P2 = 'Agosto já foi fechado?';
+    const R2 = 'Sim. Agosto está fechado, com 96,3% conciliado. O relatório do fechamento fica em Fechamentos, no Ledgr.'.split(' ');
+    const TECLA = 85, PALAVRA = 160;
+    const L = { P1, R1, P2, R2, TECLA, PALAVRA, menuIn: 2400, toggle: 3900, menuOut: 5100, dig1: 6000 };
+    L.dig1Fim = L.dig1 + P1.length * TECLA;
+    L.env1 = L.dig1Fim + 900;
+    L.cons1 = L.env1 + 900;
+    L.resp1 = L.cons1 + 2300;
+    L.resp1Fim = L.resp1 + R1.length * PALAVRA;
+    L.num1 = L.resp1Fim + 500;
+    L.divide = L.num1 + 2600;
+    L.arroba = L.divide + 2600;
+    L.mencaoOk = L.arroba + 1800;
+    L.dig2 = L.mencaoOk + 600;
+    L.dig2Fim = L.dig2 + P2.length * TECLA;
+    L.env2 = L.dig2Fim + 900;
+    L.cons2 = L.env2 + 900;
+    L.resp2 = L.cons2 + 2300;
+    L.resp2Fim = L.resp2 + R2.length * PALAVRA;
+    L.some = L.resp2Fim + 4800;
+    L.fim = L.some + 2000;
+    return L;
+  }
+  renderVals() {
+    const L = this.linha();
+    const parado = this.state.parado;
+    const t = parado ? L.resp2Fim + 1200 : this.state.t;
+    const E = 'cubic-bezier(0.22, 1, 0.36, 1)';
+    const M = 'cubic-bezier(0.65, 0, 0.35, 1)';
+    const suave = (on, de) => 'transition: opacity 1s ' + E + ', transform 1s ' + E + '; opacity: ' + (on ? 1 : 0) + '; transform: ' + (on ? 'none' : (de || 'translateY(8px)')) + ';';
+    // cada palavra entra devagar, como a resposta chegando
+    const fala = (palavras, ini) => palavras.map((w, i) => ({ t: w, s: (on => 'transition: opacity 1.2s ' + E + ', filter 1.2s ' + E + '; opacity: ' + (on ? 1 : 0) + '; filter: blur(' + (on ? 0 : 4) + 'px);')(t >= ini + i * L.PALAVRA) }));
+    const digita = (txt, ini) => t < ini ? '' : txt.slice(0, Math.floor((t - ini) / L.TECLA));
+    const dividido = t >= L.divide;
+    const env1 = t >= L.env1, env2 = t >= L.env2;
+    const d1 = digita(L.P1, L.dig1), d2 = digita(L.P2, L.dig2);
+    const ligado = t >= L.toggle;
+    // o cursor: [a partir de, x em % da janela, y em px]
+    const rota = [
+      [0, 52, 230], [900, 15, 572], [3000, 34, 402], [4700, 22, 527], [L.dig1Fim, 95, 572], [L.env1 + 600, 66, 260],
+      [L.divide + 1600, 58, 308], [L.arroba + 400, 61, 258], [L.mencaoOk + 300, 60, 308], [L.dig2Fim, 95, 308], [L.env2 + 700, 82, 200],
+    ];
+    let pos = rota[0];
+    for (const r of rota) if (t >= r[0]) pos = r;
+    const bolha = (on, cor, raio) => 'align-self: flex-end; max-width: 80%; padding: 10px 15px; border-radius: ' + raio + '; background: ' + cor + '; font-size: 15px; line-height: 1.45; ' + suave(on);
+    const pane = (largura, extra) => 'flex: none; width: ' + largura + '; min-width: 0; display: flex; overflow: hidden; transition: width 1.8s ' + M + ', opacity 1.2s ' + E + '; ' + extra;
+    const ativoC = d1 && !env1, ativoG = d2 && !env2;
+    const out = {
+      palcoStyle: 'flex: 1; display: flex; min-width: 0; transition: opacity 1.6s ' + E + '; opacity: ' + (t >= L.some ? 0 : 1) + ';',
+      claudeStyle: pane(dividido ? '50%' : '100%', 'background: #faf9f5; color: #3d3929;'),
+      claudeLadoStyle: 'flex: none; width: ' + (dividido ? 0 : 48) + 'px; overflow: hidden; padding: 14px 0; display: flex; flex-direction: column; align-items: center; gap: 18px; background: #f5f4ed; border-right: 1px solid #ebe8df; transition: width 1.8s ' + M + ';',
+      tituloClaudeStyle: 'white-space: nowrap; ' + suave(env1, 'translateY(-4px)'),
+      saudacaoClaudeStyle: 'position: absolute; left: 0; right: 0; top: 38%; display: flex; justify-content: center; pointer-events: none; ' + suave(!env1, 'translateY(-14px)'),
+      bolhaClaudeStyle: bolha(env1, '#f0eee6', '14px'),
+      ferrClaudeStyle: 'align-self: stretch; max-width: 300px; display: flex; align-items: center; gap: 8px; padding: 8px 12px; border: 1px solid #e3dfd3; border-radius: 10px; font-size: 13px; color: #3d3929; white-space: nowrap; ' + suave(t >= L.cons1),
+      consClaude: t < L.resp1 - 300,
+      feitoClaude: t >= L.resp1 - 300,
+      ferrClaudeTexto: t < L.resp1 - 300 ? 'Consultando o Ledgr' : 'Ledgr · Resumo do mês',
+      respClaude: fala(L.R1, L.resp1),
+      numerosStyle: 'display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 320px; border-top: 1px solid #e3dfd3; ' + suave(t >= L.num1),
+      menuClaudeStyle: 'position: absolute; left: 44px; bottom: calc(100% + 8px); width: 250px; padding: 6px; border-radius: 14px; border: 1px solid #e3dfd3; background: #ffffff; box-shadow: 0 16px 40px rgba(61,57,41,0.14); display: flex; flex-direction: column; gap: 2px; transform-origin: bottom left; pointer-events: none; ' + suave(t >= L.menuIn && t < L.menuOut, 'translateY(8px) scale(0.97)'),
+      ferramentasStyle: 'width: 32px; height: 32px; border-radius: 8px; border: 1px solid #e3dfd3; display: flex; align-items: center; justify-content: center; transition: background 0.6s ' + E + '; background: ' + (t >= L.menuIn - 300 && t < L.menuOut ? '#f0eee6' : 'transparent') + ';',
+      trilhoStyle: 'width: 30px; height: 18px; border-radius: 999px; position: relative; flex: none; transition: background 0.8s ' + E + '; background: ' + (ligado ? '#2c84db' : '#d6d2c6') + ';',
+      bolinhaStyle: 'position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; transition: transform 0.8s ' + E + '; transform: translateX(' + (ligado ? 12 : 0) + 'px);',
+      chipClaudeStyle: 'display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 8px; border: 1px solid #e3dfd3; font-size: 12.5px; color: #3d3929; white-space: nowrap; ' + suave(t >= L.menuOut, 'scale(0.92)'),
+      campoClaude: env1 ? 'Responder ao Claude…' : (d1 || (t >= L.dig1 - 600 ? '' : 'Como posso ajudar você hoje?')),
+      campoClaudeCor: (env1 || !d1) ? '#a3a097' : '#3d3929',
+      digClaude: t >= L.dig1 - 600 && !env1,
+      enviarClaudeStyle: 'width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; transition: background 0.6s ' + E + '; background: ' + (ativoC ? '#c6613f' : '#e6c3b4') + ';',
+      gptStyle: pane(dividido ? '50%' : '0%', 'background: #ffffff; color: #0d0d0d; border-left: 1px solid ' + (dividido ? '#e5e5e5' : 'transparent') + '; opacity: ' + (t >= L.divide + 400 ? 1 : 0) + ';'),
+      saudacaoGptStyle: 'position: absolute; left: 0; right: 0; top: 36%; display: flex; justify-content: center; pointer-events: none; ' + suave(!env2, 'translateY(-14px)'),
+      bolhaGptStyle: bolha(env2, '#f4f4f4', '18px'),
+      ferrGptStyle: 'align-self: flex-start; display: inline-flex; align-items: center; font-size: 13.5px; color: #8f8f8f; white-space: nowrap; ' + suave(t >= L.cons2),
+      consGpt: t < L.resp2 - 300,
+      feitoGpt: t >= L.resp2 - 300,
+      ferrGptTexto: t < L.resp2 - 300 ? 'Chamando o Ledgr' : 'Usou o Ledgr',
+      respGpt: fala(L.R2, L.resp2),
+      acoesGptStyle: 'display: flex; gap: 14px; ' + suave(t >= L.resp2Fim + 500),
+      compositorGptStyle: 'position: absolute; left: 18px; right: 18px; top: ' + (env2 ? 'calc(100% - 74px)' : '50%') + '; display: flex; align-items: center; gap: 8px; padding: 8px 8px 8px 10px; border-radius: 28px; border: 1px solid #e5e5e5; background: #ffffff; box-shadow: 0 4px 16px rgba(0,0,0,0.06); transition: top 1.4s ' + M + ';',
+      mencaoStyle: 'position: absolute; left: 10px; bottom: calc(100% + 8px); width: 210px; padding: 6px; border-radius: 16px; border: 1px solid #e5e5e5; background: #ffffff; box-shadow: 0 16px 40px rgba(0,0,0,0.12); display: flex; flex-direction: column; transform-origin: bottom left; pointer-events: none; ' + suave(t >= L.arroba + 300 && t < L.mencaoOk, 'translateY(8px) scale(0.97)'),
+      chipGptStyle: 'flex: none; padding: 3px 9px; border-radius: 999px; background: #e8f0fe; color: #1a5fd0; font-size: 13.5px; font-weight: 500; overflow: hidden; transition: opacity 0.8s ' + E + ', max-width 0.8s ' + E + ', padding 0.8s ' + E + '; max-width: ' + (t >= L.mencaoOk && !env2 ? '90px' : '0') + '; opacity: ' + (t >= L.mencaoOk && !env2 ? 1 : 0) + ';' + (t >= L.mencaoOk && !env2 ? '' : ' padding: 3px 0;'),
+      campoGpt: env2 ? 'Pergunte alguma coisa' : t >= L.mencaoOk ? d2 : t >= L.arroba ? '@' : 'Pergunte alguma coisa',
+      campoGptCor: (env2 || t < L.arroba) ? '#8f8f8f' : '#0d0d0d',
+      digGpt: t >= L.arroba && !env2,
+      enviarGptStyle: 'width: 36px; height: 36px; flex: none; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: background 0.6s ' + E + '; background: ' + (ativoG ? '#0d0d0d' : '#d4d4d4') + ';',
+      cursorStyle: 'position: absolute; z-index: 3; left: ' + pos[1] + '%; top: ' + pos[2] + 'px; transition: left 1.4s ' + M + ', top 1.4s ' + M + ', opacity 0.8s; opacity: ' + (parado || t >= L.some - 600 ? 0 : 1) + '; pointer-events: none;',
+    };
+    // o texto digitado entra letra a letra, cada uma esmaecendo (.letra); o texto de exemplo fica parado
+    const PH = ['Responder ao Claude…', 'Como posso ajudar você hoje?', 'Pergunte alguma coisa'];
+    for (const k of ['campoClaude', 'campoGpt']) {
+      const v = out[k] || '';
+      const ph = PH.includes(v);
+      out[k + 'Fixo'] = ph ? v : '';
+      out[k + 'Letras'] = ph ? [] : v.split('').map((c) => ({ c }));
+    }
+    return out;
+  }
+}
+</script>
+</body>
+</html>

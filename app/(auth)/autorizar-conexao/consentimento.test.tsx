@@ -87,7 +87,7 @@ describe("Consentimento", () => {
     abrir();
 
     const passoAPasso = await screen.findByRole("link", { name: "passo a passo na Central de ajuda" });
-    expect(passoAPasso).toHaveAttribute("href", "/ajuda/configuracoes#conexoes");
+    expect(passoAPasso).toHaveAttribute("href", "/ajuda/conectar-ia#passo-a-passo");
     expect(passoAPasso).toHaveAttribute("target", "_blank");
   });
 

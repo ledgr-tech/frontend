@@ -21,6 +21,21 @@ export type FuncaoDaAjuda = {
   nota?: string;
   /** A figura da seção, em HTML (FiguraDaTela): o tamanho que `gravar.mjs --figuras` mostra, para reservar o espaço. */
   figura?: { largura: number; altura: number };
+  /** O passo a passo com uma aba por IA (a página em destaque da conexão). */
+  abas?: AbaDoPasso[];
+  /** Colunas lado a lado, cada uma com título e texto. */
+  itens?: { titulo: string; texto: string }[];
+  /** Cada passo "Pergunta: resposta" vira uma sanfona, dividido no primeiro ": ". */
+  sanfona?: true;
+  /** Um link para outra página da Central, no fim da seção. Fica fora do texto do assistente. */
+  link?: { href: string; rotulo: string };
+};
+
+export type AbaDoPasso = {
+  id: "chatgpt" | "claude" | "claude-code";
+  rotulo: string;
+  /** `comando` mostra embaixo o `claude mcp add` com o endereço do conector. */
+  passos: { titulo: string; texto: string; certo: string; comando?: true }[];
 };
 
 export type PaginaDeAjuda = {
@@ -35,6 +50,17 @@ export type PaginaDeAjuda = {
   funcoes: FuncaoDaAjuda[];
   /** A tela tocando em HTML (demonstracao.tsx): o arquivo de public/ajuda/ que `gravar.mjs` gera; sem ele, a capa diz "em breve". */
   demonstracao?: string;
+  /** No grupo "Destaque" do menu, acima das telas, e fora de anterior e próxima. */
+  destaque?: true;
+  /** Um vídeo feito em componente, no lugar da demonstração gravada e da capa. */
+  video?: "conexao-ia";
+};
+
+// o primeiro passo do ChatGPT e do Claude é o mesmo
+const COPIAR_O_ENDERECO = {
+  titulo: "Copie o endereço no Ledgr",
+  texto: "Abra **Configurações** (Ctrl e vírgula), vá em **Conexões** e clique em **Copiar** no Endereço do conector.",
+  certo: "o botão mostra “Copiado”.",
 };
 
 export const PAGINAS: PaginaDeAjuda[] = [
@@ -733,40 +759,18 @@ export const PAGINAS: PaginaDeAjuda[] = [
         ],
         nota: "A chave aparece uma vez só. Se perder, revogue e crie outra. A conta tem no máximo 10 chaves ativas, e os links de documentação (OpenAPI e llms.txt) ficam no alto da seção.",
       },
-      // a conexão (#136) respondia em produção em 11/11 (OAuth publicado, /mcp com 401); os menus do ChatGPT e do Claude seguem a
-      // documentação oficial daquele dia (#362), a mesma do painel de Conexões
+      // o passo a passo completo mora na página em destaque "conectar-ia", no fim de PAGINAS
       {
         id: "conexoes",
         titulo: "Conectar o ChatGPT ou o Claude",
         faz: "Deixa o ChatGPT ou o Claude consultar o Ledgr numa conversa, só para ler: o resumo de cada mês, as conciliações, as divergências e os fechamentos de uma empresa. Só o administrador e o gestor veem esta seção e autorizam conexões.",
         passos: [
           "Abra **Conexões** e clique em **Copiar** no **Endereço do conector**.",
-          "Adicione o Ledgr na sua IA com esse endereço: no ChatGPT, em **Plugins**, como servidor MCP personalizado com a autenticação **OAuth**; no Claude, em **Conectores** › **Adicionar conector personalizado**. A seção **Como conectar** traz o passo a passo de cada um e, no Claude, o comando do Claude Code.",
-          "O Ledgr abre pedindo a sua entrada. Escolha a empresa e clique em **Autorizar**, ou em **Recusar**. O pedido vale por 10 minutos.",
-          "Numa conversa, chame o Ledgr: no ChatGPT, digite **@** e escolha o Ledgr; no Claude, clique em **+**, abra **Conectores** e ligue o Ledgr.",
+          "Siga o passo a passo da página **Conectar o ChatGPT ou o Claude** da Central: um para o ChatGPT, um para o Claude e um para o Claude Code.",
           "Para cortar o acesso, clique em **Revogar** na conexão e confirme.",
         ],
-        nota: "A conexão só lê: não confere, não justifica, não fecha mês e não muda nada no Ledgr. Cada uma lê uma empresa, e a conta tem até 10 ativas. O que a IA lê passa para a sua conta do ChatGPT ou do Claude e fica sob as regras dela, como explica a Política de privacidade. Os menus são do ChatGPT e do Claude e mudam com o plano e com o tempo; a seção Como conectar leva à documentação de cada um.",
-      },
-      {
-        id: "conexoes-perguntas",
-        titulo: "Perguntar ao ChatGPT ou ao Claude",
-        faz: "Com o Ledgr ligado na conversa, pergunte em português sobre os meses da empresa conectada. Por exemplo: “Como está a conciliação de outubro?”, “Quantas divergências ainda faltam revisar em setembro?”, “Setembro já foi fechado? Teve ressalva?” ou “Compare as divergências de setembro e outubro.”",
-        nota: "A IA nunca recebe a descrição dos lançamentos, o texto das justificativas e das ressalvas, nem o nome de quem usa o Ledgr. Por isso, perguntas como “qual é a descrição deste lançamento?” ou “quem justificou?” ficam sem resposta. As respostas são da IA e podem errar: confira os números no Ledgr antes de decidir.",
-      },
-      {
-        id: "conexoes-problemas",
-        titulo: "Quando a conexão não funciona",
-        faz: "Os problemas mais comuns ao conectar ou ao perguntar, e o que fazer em cada um.",
-        passos: [
-          "A IA respondeu sem consultar o Ledgr: a conversa mostra quando ela usa um conector. Se não mostrar, ligue o Ledgr na conversa e peça “use o Ledgr” na pergunta.",
-          "A IA diz que não tem acesso ao Ledgr: a conexão foi revogada ou caiu. Conecte de novo pela IA e autorize outra vez.",
-          "O Ledgr não mostra **Autorizar**: só o administrador e o gestor autorizam conexões. Peça a um deles.",
-          "O Ledgr recusa porque a conta já tem 10 conexões: revogue em **Conexões** uma que não usa mais e tente de novo.",
-          "Aparece “Pedido indisponível”: o pedido vale por 10 minutos e serve uma vez. Comece de novo pela IA.",
-          "Não acha onde adicionar o Ledgr: os menus mudam com o plano e com o tempo. No Claude gratuito cabe um conector personalizado só, e no Team ou no Enterprise o dono da organização adiciona o conector antes. Em contas do ChatGPT sem **Plugins**, o caminho é **Configurações** › **Apps e conectores** › **Avançado**, com o **Modo desenvolvedor** ligado.",
-        ],
-        nota: "Sair do Ledgr não desliga a conexão, e remover o Ledgr na IA pode não revogá-la: para cortar o acesso, revogue em **Conexões**. Ela também cai sozinha quando quem a criou sai da equipe, desativa a própria conta ou passa a analista.",
+        nota: "A conexão só lê: não confere, não justifica, não fecha mês e não muda nada no Ledgr. Cada uma lê uma empresa, e a conta tem até 10 ativas. O que a IA lê passa para a sua conta do ChatGPT ou do Claude e fica sob as regras dela, como explica a Política de privacidade.",
+        link: { href: "/ajuda/conectar-ia", rotulo: "Ver o passo a passo completo" },
       },
       {
         id: "aparencia",
@@ -835,6 +839,95 @@ export const PAGINAS: PaginaDeAjuda[] = [
           "Leia até quando o acesso continua e confirme, ou clique em **Manter assinatura**.",
         ],
         nota: "A cobrança ainda não está no ar: nada é cancelado por aqui.",
+      },
+    ],
+  },
+  // a conexão (#136) respondia em produção em 11/11 (OAuth publicado, /mcp com 401); os menus do ChatGPT e do Claude seguem
+  // a documentação oficial daquele dia (#362), a mesma do painel de Conexões. Os textos são do canvas aprovado em 11/11
+  // (docs/superpowers/plans/anexos/2026-11-11-conexao-ia/central.dc.html)
+  {
+    id: "conectar-ia",
+    titulo: "Conectar o ChatGPT ou o Claude",
+    onde: "Configurações › Conexões · admin e gestor",
+    serve: "Ligue o Ledgr na sua IA uma vez e pergunte sobre os meses da empresa em português: quanto está conciliado, quantas divergências faltam, se o mês já fechou. A conexão só lê.",
+    capa: { src: "/mascotes/mascote-conexao.webp", largura: 1966, altura: 794 },
+    destaque: true,
+    video: "conexao-ia",
+    funcoes: [
+      {
+        id: "antes",
+        titulo: "Antes de começar",
+        faz: "Três coisas para ter à mão antes de conectar.",
+        itens: [
+          { titulo: "Ser administrador ou gestor", texto: "Só eles veem **Conexões** e autorizam. O analista pede a um deles." },
+          { titulo: "Uma conta do ChatGPT ou do Claude", texto: "No Claude gratuito cabe um conector personalizado. No Team e no Enterprise, o dono da organização adiciona antes." },
+          { titulo: "O Ledgr aberto em outra aba", texto: "Para copiar o endereço e entrar quando a IA pedir. O pedido vale 10 minutos." },
+        ],
+      },
+      {
+        id: "passo-a-passo",
+        titulo: "Passo a passo",
+        faz: "Escolha a sua IA. Cada passo diz quando deu certo.",
+        abas: [
+          {
+            id: "chatgpt",
+            rotulo: "ChatGPT",
+            passos: [
+              COPIAR_O_ENDERECO,
+              { titulo: "Abra os Plugins do ChatGPT", texto: "Em chatgpt.com/plugins, clique em **+** e escolha adicionar um servidor MCP personalizado. Sem Plugins na conta? Abra **Configurações** › **Apps e conectores** › **Avançado** e ligue o **Modo desenvolvedor**.", certo: "aparece o formulário do servidor." },
+              { titulo: "Preencha e crie", texto: "Nome: **Ledgr**. Cole o endereço, escolha a autenticação **OAuth**, confirme o aviso e crie o plugin.", certo: "o ChatGPT abre uma janela do Ledgr." },
+              { titulo: "Autorize no Ledgr", texto: "Entre com a sua conta, escolha a empresa e clique em **Autorizar**. Uma conexão lê uma empresa só.", certo: "você volta ao ChatGPT e a conexão aparece em Configurações › Conexões." },
+              { titulo: "Pergunte", texto: "Numa conversa, digite **@**, escolha o Ledgr e pergunte sobre um mês.", certo: "a conversa mostra que a IA usou o Ledgr." },
+            ],
+          },
+          {
+            id: "claude",
+            rotulo: "Claude",
+            passos: [
+              COPIAR_O_ENDERECO,
+              { titulo: "Abra os Conectores do Claude", texto: "Nas configurações do Claude, abra **Conectores** e clique em **Adicionar conector personalizado**.", certo: "aparece o formulário do conector." },
+              { titulo: "Preencha e conecte", texto: "Nome: **Ledgr**. Cole o endereço, clique em **Adicionar** e depois em **Conectar**.", certo: "o Claude abre uma janela do Ledgr." },
+              { titulo: "Autorize no Ledgr", texto: "Entre com a sua conta, escolha a empresa e clique em **Autorizar**. Uma conexão lê uma empresa só.", certo: "o Ledgr aparece conectado no Claude e em Configurações › Conexões." },
+              { titulo: "Pergunte", texto: "Numa conversa, clique em **+**, abra **Conectores**, ligue o Ledgr e pergunte sobre um mês.", certo: "a conversa mostra que a IA usou o Ledgr." },
+            ],
+          },
+          {
+            id: "claude-code",
+            rotulo: "Claude Code",
+            passos: [
+              { titulo: "Adicione o Ledgr pelo terminal", texto: "Rode o comando abaixo. Ele também está em **Configurações** › **Conexões**, pronto para copiar.", certo: "o comando termina sem erro.", comando: true },
+              { titulo: "Entre pelo navegador", texto: "No Claude Code, digite **/mcp**, escolha o Ledgr e entre. O navegador abre o Ledgr.", certo: "aparece a tela de autorização do Ledgr." },
+              { titulo: "Autorize no Ledgr", texto: "Escolha a empresa e clique em **Autorizar**. O aviso de programa no seu computador é esperado aqui.", certo: "o /mcp mostra o Ledgr conectado." },
+              { titulo: "Pergunte", texto: "Pergunte sobre um mês em português, no próprio terminal.", certo: "a resposta cita o Ledgr." },
+            ],
+          },
+        ],
+        nota: "Os menus são do ChatGPT e do Claude e mudam com o plano e com o tempo. Se um nome não bater, veja a ajuda de cada um.",
+      },
+      {
+        id: "perguntar",
+        titulo: "O que perguntar",
+        faz: "Com o Ledgr ligado na conversa, pergunte em português sobre os meses da empresa conectada. Por exemplo: “Como está a conciliação de outubro?”, “Quantas divergências ainda faltam revisar em setembro?”, “Setembro já foi fechado? Teve ressalva?” ou “Compare as divergências de setembro e outubro.”",
+        itens: [
+          { titulo: "A IA lê", texto: "O resumo de cada mês, as conciliações, as divergências (categoria, data, valor e situação) e os fechamentos." },
+          { titulo: "A IA nunca vê", texto: "A descrição dos lançamentos, o texto das justificativas e das ressalvas e o nome de quem usa o Ledgr. Por isso, “qual é a descrição deste lançamento?” ou “quem justificou?” ficam sem resposta." },
+        ],
+        nota: "As respostas são da IA e podem errar: confira os números no Ledgr antes de decidir.",
+      },
+      {
+        id: "problemas",
+        titulo: "Quando não funciona",
+        faz: "Os problemas mais comuns ao conectar ou ao perguntar, e o que fazer em cada um.",
+        sanfona: true,
+        passos: [
+          "A IA respondeu sem consultar o Ledgr: a conversa mostra quando ela usa um conector. Se não mostrar, ligue o Ledgr na conversa e peça “use o Ledgr” na pergunta.",
+          "A IA diz que não tem acesso ao Ledgr: a conexão foi revogada ou caiu. Conecte de novo pela IA e autorize outra vez.",
+          "O Ledgr não mostra **Autorizar**: só o administrador e o gestor autorizam conexões. Peça a um deles.",
+          "O Ledgr recusa porque a conta já tem 10 conexões: revogue em **Conexões** uma que não usa mais e tente de novo.",
+          "Aparece “Pedido indisponível”: o pedido vale por 10 minutos e serve uma vez. Comece de novo pela IA.",
+          "Não acha onde adicionar o Ledgr: os menus mudam com o plano e com o tempo. No Claude gratuito cabe um conector personalizado só, e no Team ou no Enterprise o dono da organização adiciona o conector antes. Em contas do ChatGPT sem **Plugins**, o caminho é **Configurações** › **Apps e conectores** › **Avançado**, com o **Modo desenvolvedor** ligado.",
+          "Para desligar: clique em **Revogar** em **Configurações** › **Conexões**. Sair do Ledgr não desliga a conexão, e remover o Ledgr na IA pode não revogá-la. Ela também cai sozinha quando quem a criou sai da equipe, desativa a própria conta ou passa a analista.",
+        ],
       },
     ],
   },
