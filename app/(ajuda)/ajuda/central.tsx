@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Reveal } from "../../reveal";
 import { Texto } from "./blocos";
 import { Demonstracao, FiguraDaTela } from "./demonstracao";
+import { VideoDaConexao } from "./video-da-conexao";
 import { AbasDoPasso } from "./abas-do-passo";
 import { PAGINAS, paginaDeAjuda, type AbaDoPasso, type PaginaDeAjuda } from "./paginas";
 
@@ -103,8 +104,9 @@ export function CentralDeAjuda({ id, endereco = null }: { id: string; endereco?:
         <p className="ajd-serve">{pagina.serve}</p>
 
         {pagina.video ? (
-          // ponytail: reserva a altura do palco até o player da conexão (Tarefa 5) entrar aqui
-          <div className="ajd-video vdc-reserva" />
+          <div className="ajd-video">
+            <VideoDaConexao ia={aba} endereco={endereco} />
+          </div>
         ) : (
         <div className="ajd-video">
           {pagina.demonstracao ? (
