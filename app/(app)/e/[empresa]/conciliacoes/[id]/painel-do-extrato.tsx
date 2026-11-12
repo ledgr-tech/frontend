@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useId, useState, type FormEvent } from "react";
-import { ArrowRight } from "lucide-react";
+import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from "react";
+import { ArrowRight, ChevronDown } from "lucide-react";
 import type { SaldoDoExtrato } from "@/lib/adaptadores";
 import { formatarMoeda, type LinhaComparacao } from "@/lib/mock-data";
 import { useRoteador } from "@/lib/roteador";
@@ -108,8 +108,18 @@ function QuadroDoLancamento({
   const [explicando, setExplicando] = useState(false);
   const [falhaDaExplicacao, setFalhaDaExplicacao] = useState<string | null>(null);
   const [avisoDaExplicacao, setAvisoDaExplicacao] = useState<string | null>(null);
+  // a explicação que a pessoa acabou de pedir sobe com destaque; a que já veio na listagem só aparece
+  const [recemExplicada, setRecemExplicada] = useState(false);
+  const { caixa: caixaDoDetalhe, conteudo: conteudoDoDetalhe, medir, descer, acima, abaixo } = useAvisoDeRolagem();
+  const cartao = useRef<HTMLDivElement>(null);
 
   const dados = linha ? dadosDoLancamento(linha, rodada, linhas) : null;
+  const explicacaoNaTela = dados?.explicacao;
+  useEffect(() => {
+    const caixa = caixaDoDetalhe.current;
+    if (!recemExplicada || !explicacaoNaTela || !cartao.current || !caixa) return;
+    caixa.scrollTo?.({ top: cartao.current.offsetTop - 4, behavior: semMovimento() ? "auto" : "smooth" });
+  }, [recemExplicada, explicacaoNaTela, caixaDoDetalhe]);
   const selo = linha ? seloDaLinha(linha, rodada) : null;
   const acoes = linha ? acoesDoPainel({ linha, rodada, podeDecidir, podeAprovar, nome }) : null;
   // a linha mudou por baixo (o mês fechou, outra pessoa desfez): a confirmação sai, e fica o motivo do backend
@@ -178,6 +188,7 @@ function QuadroDoLancamento({
       const resposta = await explicarDivergencia(linha.id);
       if (resposta.ok) {
         setAvisoDaExplicacao(resposta.dados.indisponibilidade ? (AVISO[resposta.dados.indisponibilidade] ?? null) : null);
+        setRecemExplicada(true);
         onExplicada(linha, resposta.dados);
       } else if (resposta.status === 401) {
         router.push("/login");
@@ -209,6 +220,7 @@ function QuadroDoLancamento({
       data-tom={selo?.tom}
       data-erro={linha && situacaoDaLinha(linha, rodada) === "a_conferir" ? campoErrado(linha) : undefined}
       data-vazio={linha ? undefined : ""}
+      data-explicada={recemExplicada && explicacaoNaTela ? "" : undefined}
     >
       <div className="comp-foco-topo">
         <span className="rotulo comp-ao-vivo">{!linha ? "Lançamento em foco" : fixada ? "Fixado" : "Em foco"}</span>
@@ -240,7 +252,16 @@ function QuadroDoLancamento({
         <strong className="font-titulo">{dados?.diferenca ?? "—"}</strong>
       </div>
 
-      <div className="comp-detalhe">
+      {/* sem barra de rolagem: a borda que esfuma e o "Mais abaixo" dizem que há mais */}
+      <div className="comp-detalhe-caixa">
+      <div
+        ref={caixaDoDetalhe}
+        className="comp-detalhe"
+        onScroll={medir}
+        data-acima={acima || undefined}
+        data-abaixo={abaixo || undefined}
+      >
+      <div ref={conteudoDoDetalhe} className="comp-detalhe-conteudo">
         {!linha && <p className="comp-dica">O detalhe da linha aparece aqui. Clique numa linha para fixar.</p>}
 
         {linha && modo === "desfazerAprovacao" ? (
@@ -293,7 +314,7 @@ function QuadroDoLancamento({
                 </div>
               )}
               {dados.explicacao ? (
-                <div className="comp-explicacao">
+                <div ref={cartao} className="comp-explicacao" data-nova={recemExplicada || undefined}>
                   {dados.geradaPorIa && <SeloIa />}
                   <p>{dados.explicacao}</p>
                   {/* os fatos calculados pelo backend (#196), abaixo do texto da IA; só divergência com dado do backend */}
@@ -307,6 +328,13 @@ function QuadroDoLancamento({
                       <p role="alert" className="explicacao-erro">
                         {falhaDaExplicacao}
                       </p>
+                    )}
+                    {explicando && (
+                      <span className="comp-esqueleto" aria-hidden="true">
+                        <i />
+                        <i />
+                        <i />
+                      </span>
                     )}
                     <button type="button" className="btn btn-secondary" disabled={explicando} aria-busy={explicando} onClick={() => void explicar()}>
                       {explicando ? "Explicando…" : falhaDaExplicacao ? "Tentar de novo" : "Explicar esta divergência"}
@@ -327,6 +355,19 @@ function QuadroDoLancamento({
             </>
           )
         )}
+      </div>
+      </div>
+        {/* atalho do ponteiro: o conteúdo já é lido por inteiro pelo leitor de tela e rola pelo teclado */}
+        <button
+          type="button"
+          className="comp-mais"
+          aria-hidden="true"
+          tabIndex={-1}
+          data-visivel={abaixo || undefined}
+          onClick={descer}
+        >
+          Mais abaixo <ChevronDown size={14} aria-hidden="true" />
+        </button>
       </div>
 
       {/* as ações da linha: o que decide, e o caminho do detalhe. Só um botão é o principal */}
@@ -416,6 +457,41 @@ function QuadroDoLancamento({
       {!modo && erro && <MensagemErro id={idErro}>{erro}</MensagemErro>}
     </div>
   );
+}
+
+function semMovimento(): boolean {
+  return window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+}
+
+/**
+ * Se há conteúdo acima ou abaixo do que se vê no detalhe: a borda daquele lado esfuma e, embaixo, aparece o
+ * "Mais abaixo". Mede ao rolar e quando a caixa ou o conteúdo mudam de tamanho (os fatos chegam depois).
+ */
+function useAvisoDeRolagem() {
+  const caixa = useRef<HTMLDivElement>(null);
+  const conteudo = useRef<HTMLDivElement>(null);
+  const [borda, setBorda] = useState({ acima: false, abaixo: false });
+  const medir = useCallback(() => {
+    const el = caixa.current;
+    if (!el) return;
+    // 2px de folga: zoom e frações de pixel deixam o fim um tico antes do scrollHeight
+    const acima = el.scrollTop > 2;
+    const abaixo = el.scrollTop + el.clientHeight < el.scrollHeight - 2;
+    setBorda((atual) => (atual.acima === acima && atual.abaixo === abaixo ? atual : { acima, abaixo }));
+  }, []);
+  useEffect(() => {
+    medir();
+    if (typeof ResizeObserver === "undefined") return;
+    const observador = new ResizeObserver(medir);
+    if (caixa.current) observador.observe(caixa.current);
+    if (conteudo.current) observador.observe(conteudo.current);
+    return () => observador.disconnect();
+  }, [medir]);
+  const descer = useCallback(() => {
+    const el = caixa.current;
+    el?.scrollBy?.({ top: el.clientHeight * 0.7, behavior: semMovimento() ? "auto" : "smooth" });
+  }, []);
+  return { caixa, conteudo, medir, descer, ...borda };
 }
 
 /** O campo que diverge fica na cor do risco, como na tabela: o valor, ou a data na "Data diverge". */
