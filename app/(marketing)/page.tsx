@@ -8,7 +8,7 @@ import { CabecalhoSite } from "./cabecalho-site";
 import { seloDoStatus } from "@/app/(app)/e/[empresa]/dashboard/resumo";
 import { QUANTAS_CATEGORIAS } from "./categorias";
 import { Cena } from "./cena";
-import { ExtratoComparacao, type LinhaExtrato } from "./comparacao";
+import { JanelaDaConciliacao, type LinhaExtrato } from "./comparacao";
 import { ConferenciaAMao, type Dor } from "./conferencia-a-mao";
 import { Depoimentos } from "./depoimentos";
 import { DicaDoMouse } from "./dica-do-mouse";
@@ -111,6 +111,19 @@ const TARIFA_BANCO: LinhaExtrato = {
 
 const EXTRATO_BANCO: LinhaExtrato[] = [...TRANSACOES_CASADAS, TARIFA_BANCO, ALUGUEL_BANCO];
 const EXTRATO_SISTEMA: LinhaExtrato[] = [...TRANSACOES_CASADAS, ALUGUEL_SISTEMA];
+
+// Mais um trecho do mesmo agosto, só na janela de "Na prática": linhas que bateram entre as cinco
+// de cima, para a tela parecer a do app, com as divergências no meio do que bateu
+const BATIDA = { status: "match_exato", explicacao: null } as const;
+const OUTRAS_BATIDAS: LinhaExtrato[] = [
+  { data: "01/08", desc: "Recebimento cliente Delta Engenharia", valorBanco: "R$ 5.480,00", valorSistema: "R$ 5.480,00", ...BATIDA },
+  { data: "07/08", desc: "Energia elétrica", valorBanco: "R$ 1.284,90", valorSistema: "R$ 1.284,90", ...BATIDA },
+  { data: "08/08", desc: "Recebimento cliente Beta Serviços", valorBanco: "R$ 9.150,00", valorSistema: "R$ 9.150,00", ...BATIDA },
+  { data: "10/08", desc: "Honorários contábeis", valorBanco: "R$ 2.400,00", valorSistema: "R$ 2.400,00", ...BATIDA },
+  { data: "12/08", desc: "Simples Nacional", valorBanco: "R$ 3.862,17", valorSistema: "R$ 3.862,17", ...BATIDA },
+];
+// o saldo do extrato de agosto inteiro (o painel da comparação mostra o do arquivo, não o do trecho)
+const SALDO_DE_AGOSTO = { inicial: 52380.47, final: 61904.12, data: "2026-08-31" };
 
 // As três dores do Cap. II, uma por número nas telas, com os números dos próprios lançamentos: a
 // escala do mês (a mesma de Preços), os cinco centavos do cartão e a tarifa que só o banco tem
@@ -440,10 +453,15 @@ export default function LandingPage() {
             </p>
           </Reveal>
           <Reveal delay={0.1}>
-            <ExtratoComparacao banco={EXTRATO_BANCO} sistema={EXTRATO_SISTEMA} />
+            <JanelaDaConciliacao
+              banco={[...EXTRATO_BANCO, ...OUTRAS_BATIDAS]}
+              sistema={[...EXTRATO_SISTEMA, ...OUTRAS_BATIDAS]}
+              saldo={SALDO_DE_AGOSTO}
+              destaque="Pagamento fornecedor #1082"
+            />
           </Reveal>
           <Reveal delay={0.15}>
-            {/* dica de hover: as linhas divergentes do comparativo abrem detalhes */}
+            {/* dica de hover: as linhas da janela levam o lançamento ao painel */}
             <DicaDoMouse style={{ justifyContent: "center", margin: "22px 0 0" }}>
               <span className="so-mouse">Passe o mouse sobre as linhas</span>
               <span className="so-toque">Toque nas linhas</span> para ver os detalhes

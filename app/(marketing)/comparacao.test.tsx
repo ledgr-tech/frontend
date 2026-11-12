@@ -1,231 +1,165 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { describe, expect, it, vi } from "vitest";
 
-import { seloDoStatus } from "@/app/(app)/e/[empresa]/dashboard/resumo";
-import { ExtratoComparacao, type LinhaExtrato } from "./comparacao";
+import { JanelaDaConciliacao, type LinhaExtrato } from "./comparacao";
 
-const LINHA: LinhaExtrato = {
-  data: "04/10",
+// o painel é o do app (PainelDoExtrato), que pede o roteador; a janela nunca navega
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
+
+const PAGAMENTO: LinhaExtrato = {
+  data: "04/08",
   desc: "Pagamento fornecedor #1082",
   valorBanco: "R$ 12.640,00",
   valorSistema: "R$ 12.604,00",
   status: "divergente_valor",
-  explicacao: "O banco descontou juros por atraso.",
+  explicacao: "O banco descontou R$ 36,00 de juros por atraso no boleto.",
 };
-
-const BATIDA: LinhaExtrato = {
-  data: "03/10",
+const ALFA: LinhaExtrato = {
+  data: "03/08",
   desc: "Recebimento cliente Alfa Comércio",
   valorBanco: "R$ 3.250,00",
   valorSistema: "R$ 3.250,00",
   status: "match_exato",
   explicacao: null,
 };
+const TARIFA: LinhaExtrato = {
+  data: "06/08",
+  desc: "Tarifa de manutenção da conta",
+  valorBanco: "R$ 45,00",
+  valorSistema: null,
+  status: "tarifa_bancaria",
+  explicacao: "O banco cobrou essa tarifa em 06/08.",
+};
+const ALUGUEL_BANCO: LinhaExtrato = {
+  data: "11/08",
+  desc: "Aluguel sede agosto",
+  valorBanco: "R$ 9.800,00",
+  valorSistema: "R$ 9.800,00",
+  status: "divergente_data",
+  explicacao: "Mesmo valor, datas diferentes.",
+};
+const ALUGUEL_SISTEMA: LinhaExtrato = { ...ALUGUEL_BANCO, data: "12/08" };
 
-const linhaDoBanco = () => screen.getByRole("button", { name: "Pagamento fornecedor #1082" });
-const linhaDaTabela = (desc: string) =>
-  [...document.querySelectorAll<HTMLElement>("tbody tr")].find((linha) => linha.textContent?.includes(desc))!;
+const SALDO = { inicial: 52380.47, final: 61904.12, data: "2026-08-31" };
 
-describe("ExtratoComparacao", () => {
-  describe("drawn as the app's comparison table", () => {
-    it("puts the bank statement and the management system in two sheets, with the app's columns", () => {
-      render(<ExtratoComparacao banco={[LINHA]} sistema={[LINHA]} />);
-      const tabela = screen.getByRole("table");
-      expect(tabela).toHaveClass("table", "tabela-folhas");
-      expect(within(tabela).getByText("Extrato do banco")).toHaveClass("folha-nome");
-      expect(within(tabela).getByText("Sistema de gestão")).toHaveClass("folha-nome");
-      expect(within(tabela).getByText("Fonte da verdade")).toHaveClass("folha-etiqueta");
-      expect([...tabela.querySelectorAll("thead tr:last-child th")].map((coluna) => coluna.textContent)).toEqual([
-        "Data",
-        "Descrição",
-        "Banco",
-        "Status",
-        "Data",
-        "Descrição",
-        "Sistema",
-      ]);
-    });
+function montar() {
+  render(
+    <JanelaDaConciliacao
+      banco={[TARIFA, PAGAMENTO, ALUGUEL_BANCO, ALFA]}
+      sistema={[PAGAMENTO, ALUGUEL_SISTEMA, ALFA]}
+      saldo={SALDO}
+      destaque="Pagamento fornecedor #1082"
+    />,
+  );
+}
 
-    it("shows each pair in one line, with the verdict in the axis between the two sheets, as the app does", () => {
-      render(<ExtratoComparacao banco={[LINHA, BATIDA]} sistema={[LINHA, BATIDA]} />);
-      expect(document.querySelectorAll("tbody tr")).toHaveLength(2);
-      const tr = linhaDaTabela("Pagamento fornecedor #1082");
-      const linha = within(tr);
-      expect(linha.getByText("R$ 12.640,00").closest("td")).toHaveClass("folha-banco");
-      expect(linha.getByText("R$ 12.604,00").closest("td")).toHaveClass("folha-sistema");
-      // o nome curto no selo, o inteiro para o leitor de tela
-      const status = tr.querySelector("td.celula-status")!;
-      expect(status.previousElementSibling).toHaveClass("folha-banco");
-      expect(status.nextElementSibling).toHaveClass("folha-sistema");
-      expect(within(status as HTMLElement).getByText("Valor diverge")).toHaveClass("selo", `selo-${seloDoStatus("divergente_valor").tom}`);
-      expect(within(status as HTMLElement).getByText("Valor diverge na mesma data")).toHaveClass("sr-only");
-    });
+const painel = () => within(screen.getByRole("complementary", { name: "Detalhe da linha e saldo do extrato" }));
+const linha = (desc: string) =>
+  [...document.querySelectorAll<HTMLElement>("tbody tr")].find((tr) => tr.textContent?.includes(desc))!;
+const descricoes = () => [...document.querySelectorAll("tbody tr")].map((tr) => tr.querySelector("td:nth-child(2)")!.textContent);
 
-    it("gives a matched line the green seal, as the app does", () => {
-      render(<ExtratoComparacao banco={[BATIDA]} sistema={[BATIDA]} />);
-      expect(screen.getByText("Conciliado")).toHaveClass("selo", "selo-ok");
-      expect(screen.getByText("Match exato")).toHaveClass("sr-only");
-    });
-
-    it("marks the diverging field on both sides", () => {
-      render(<ExtratoComparacao banco={[LINHA]} sistema={[LINHA]} />);
-      const linha = within(linhaDaTabela("Pagamento fornecedor #1082"));
-      expect(linha.getByText("R$ 12.640,00")).toHaveClass("marca-diverge");
-      expect(linha.getByText("R$ 12.604,00")).toHaveClass("marca-diverge");
-      expect(linha.getAllByText("04/10")[0]).not.toHaveClass("marca-diverge");
-    });
-
-    it("shows the missing side as one empty slot, not three dashes", () => {
-      const tarifa: LinhaExtrato = { ...LINHA, desc: "Tarifa", valorSistema: null, status: "tarifa_bancaria" };
-      render(<ExtratoComparacao banco={[tarifa]} sistema={[]} />);
-      expect(screen.getByText("sem lançamento no sistema").closest("td")).toHaveAttribute("colspan", "3");
-    });
-
-    it("joins the two sides of a line booked on different days, each with its own date", () => {
-      const banco = { ...LINHA, data: "11/08", status: "divergente_data" as const };
-      const sistema = { ...LINHA, data: "12/08", status: "divergente_data" as const };
-      render(<ExtratoComparacao banco={[banco]} sistema={[sistema]} />);
-      const linha = within(linhaDaTabela("Pagamento fornecedor #1082"));
-      expect(linha.getByText("11/08").closest("td")).toHaveClass("folha-banco");
-      expect(linha.getByText("12/08").closest("td")).toHaveClass("folha-sistema");
-    });
-
-    it("lays the lines out as cards on the phone, with the app's field labels", () => {
-      const { container } = render(<ExtratoComparacao banco={[LINHA]} sistema={[LINHA]} />);
-      expect(container.firstElementChild).toHaveClass("tabela-cartoes");
-      const celulas = [...linhaDaTabela("Pagamento fornecedor #1082").querySelectorAll("td[data-rotulo]")];
-      expect(celulas.map((celula) => celula.getAttribute("data-rotulo"))).toEqual([
-        "Data",
-        "Descrição",
-        "Banco",
-        "Status",
-        "Data no sistema",
-        "Descrição no sistema",
-        "Sistema",
-      ]);
-      // a descrição do banco é o título do cartão
-      expect(linhaDaTabela("Pagamento fornecedor #1082").querySelector('td[data-destaque="true"]')).toHaveTextContent(
-        "Pagamento fornecedor #1082",
-      );
-    });
+describe("JanelaDaConciliacao", () => {
+  it("draws the app's comparison in a Mac window: the filters, the two sheets with Conferida and the panel", () => {
+    montar();
+    expect(document.querySelectorAll(".vitrine-barra > span")).toHaveLength(3);
+    expect(screen.getByText("Comparação direta · agosto/2026")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Todos (4)" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Só revisão (3)" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Justificadas (0)" })).toBeInTheDocument();
+    expect(screen.getByText("0 de 3 conferidas")).toBeInTheDocument();
+    expect([...document.querySelectorAll("thead tr:last-child th")].map((th) => th.textContent?.replace(/[▲▼↕]/g, ""))).toEqual([
+      "Data",
+      "Descrição",
+      "Banco",
+      "Status",
+      "Data",
+      "Descrição",
+      "Sistema",
+      "Conferida",
+    ]);
+    // ordenada pela data, como a comparação abre
+    expect(descricoes()).toEqual(["Recebimento cliente Alfa Comércio", "Pagamento fornecedor #1082", "Tarifa de manutenção da conta", "Aluguel sede agosto"]);
+    // o saldo do arquivo, embaixo do painel
+    expect(painel().getByText("R$ 61.904,12")).toBeInTheDocument();
   });
 
-  describe("the app's hover card", () => {
-    it("shows the divergence details when hovering a mismatched line", () => {
-      render(<ExtratoComparacao banco={[LINHA]} sistema={[LINHA]} />);
+  it("marks the diverging field, the missing side and the other day as the app does", () => {
+    montar();
+    expect(within(linha("Pagamento fornecedor #1082")).getByText("R$ 12.604,00")).toHaveClass("marca-diverge");
+    expect(within(linha("Tarifa de manutenção da conta")).getByText("sem lançamento no sistema")).toBeInTheDocument();
+    expect(within(linha("Aluguel sede agosto")).getByText("12/08")).toHaveClass("marca-diverge");
+    expect(within(linha("Recebimento cliente Alfa Comércio")).getByText("Conciliado")).toHaveClass("selo", "selo-ok");
+  });
 
-      fireEvent.mouseEnter(linhaDoBanco());
+  it("opens with the highlighted line in the panel, follows the pointer and keeps the clicked one", () => {
+    montar();
+    expect(painel().getByText("Em foco")).toBeInTheDocument();
+    expect(painel().getByRole("heading", { name: "Pagamento fornecedor #1082" })).toBeInTheDocument();
+    expect(painel().getByText(/juros por atraso/)).toBeInTheDocument();
+    expect(painel().getByText("R$ 36,00")).toBeInTheDocument();
 
-      const cartao = screen.getByRole("tooltip");
-      expect(cartao).toHaveClass("cartao-lancamento");
-      expect(cartao).toHaveTextContent("Lançamento · Valor diverge na mesma data");
-      // no formato do cartão do app: a data de cada lado junto do valor
-      expect(cartao).toHaveTextContent("04/10 · R$ 12.604,00");
-      expect(cartao).toHaveTextContent("juros por atraso");
-      expect(linhaDoBanco()).toHaveAttribute("aria-describedby", cartao.id);
-    });
+    fireEvent.mouseEnter(linha("Aluguel sede agosto"));
+    expect(painel().getByRole("heading", { name: "Aluguel sede agosto" })).toBeInTheDocument();
 
-    it("marks the explanation as written by the AI, like the product does", () => {
-      render(<ExtratoComparacao banco={[LINHA]} sistema={[LINHA]} />);
+    fireEvent.click(linha("Tarifa de manutenção da conta"));
+    expect(painel().getByText("Fixado")).toBeInTheDocument();
+    fireEvent.mouseEnter(linha("Recebimento cliente Alfa Comércio"));
+    expect(painel().getByRole("heading", { name: "Tarifa de manutenção da conta" })).toBeInTheDocument();
+    expect(linha("Tarifa de manutenção da conta")).toHaveAttribute("data-fixo");
+  });
 
-      fireEvent.mouseEnter(linhaDoBanco());
+  it("counts a checked divergence and takes the color off its line", () => {
+    montar();
+    fireEvent.click(screen.getByRole("button", { name: "Marcar Pagamento fornecedor #1082 como conferida" }));
+    expect(screen.getByText("1 de 3 conferidas")).toBeInTheDocument();
+    expect(linha("Pagamento fornecedor #1082")).toHaveAttribute("data-tom", "neutro");
+    expect(screen.getByRole("button", { name: "Marcar Pagamento fornecedor #1082 como conferida" })).toHaveAttribute("aria-pressed", "true");
+  });
 
-      expect(screen.getByRole("tooltip")).toHaveTextContent("Gerada por IA · confira antes de decidir");
-    });
+  it("justifies the line in the panel, which leaves the review for Justificadas", async () => {
+    const usuario = userEvent.setup();
+    montar();
+    await usuario.click(painel().getByRole("button", { name: "Justificar" }));
+    await usuario.type(painel().getByLabelText("Justificativa"), "Juros do boleto pago com atraso.");
+    await usuario.click(painel().getByRole("button", { name: "Justificar" }));
 
-    it("lights the open line, as the app's hover does", () => {
-      render(<ExtratoComparacao banco={[LINHA]} sistema={[LINHA]} />);
-      expect(linhaDaTabela("Pagamento fornecedor #1082")).not.toHaveAttribute("data-aberta");
+    expect(within(linha("Pagamento fornecedor #1082")).getByText("Justificada")).toBeInTheDocument();
+    expect(painel().getByText(/^Justificada por você em/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Só revisão (2)" })).toBeInTheDocument();
+    await usuario.click(screen.getByRole("button", { name: "Justificadas (1)" }));
+    expect(descricoes()).toEqual(["Pagamento fornecedor #1082"]);
+  });
 
-      fireEvent.focus(linhaDoBanco());
+  it("filters the review, sorts by a column and switches the density", async () => {
+    const usuario = userEvent.setup();
+    montar();
+    await usuario.click(screen.getByRole("button", { name: "Só revisão (3)" }));
+    expect(descricoes()).not.toContain("Recebimento cliente Alfa Comércio");
 
-      expect(linhaDaTabela("Pagamento fornecedor #1082")).toHaveAttribute("data-aberta");
-    });
+    await usuario.click(screen.getByRole("button", { name: "Todos (4)" }));
+    await usuario.click(screen.getByRole("button", { name: /^Banco/ }));
+    expect(descricoes()[0]).toBe("Tarifa de manutenção da conta");
+    await usuario.click(screen.getByRole("button", { name: /^Banco/ }));
+    expect(descricoes()[0]).toBe("Pagamento fornecedor #1082");
 
-    it("hides the details when the mouse leaves", async () => {
-      render(<ExtratoComparacao banco={[LINHA]} sistema={[LINHA]} />);
-      fireEvent.mouseEnter(linhaDoBanco());
+    await usuario.click(screen.getByRole("button", { name: "Compacta" }));
+    expect(document.querySelector(".janela-conciliacao")).toHaveAttribute("data-densidade", "compacta");
+  });
 
-      fireEvent.mouseLeave(linhaDoBanco());
-
-      await waitFor(() => expect(screen.queryByRole("tooltip")).not.toBeInTheDocument());
-    });
-
-    it("opens on a tap, since touch has no hover", () => {
-      render(<ExtratoComparacao banco={[LINHA]} sistema={[LINHA]} />);
-
-      fireEvent.click(linhaDoBanco());
-
-      expect(screen.getByRole("tooltip")).toBeInTheDocument();
-    });
-
-    it("opens on keyboard focus and closes on Escape", async () => {
-      render(<ExtratoComparacao banco={[LINHA]} sistema={[LINHA]} />);
-
-      fireEvent.focus(linhaDoBanco());
-      expect(screen.getByRole("tooltip")).toBeInTheDocument();
-
-      fireEvent.keyDown(linhaDoBanco(), { key: "Escape" });
-
-      await waitFor(() => expect(screen.queryByRole("tooltip")).not.toBeInTheDocument());
-    });
-
-    it("leaves a matched line alone: no card, nothing to click", () => {
-      render(<ExtratoComparacao banco={[BATIDA]} sistema={[BATIDA]} />);
-
-      fireEvent.mouseEnter(linhaDaTabela("Recebimento cliente Alfa Comércio"));
-
-      expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
-      expect(screen.queryByRole("button")).not.toBeInTheDocument();
-    });
-
-    it("marks itself as explored once a line is opened, so the hover hint can stop", () => {
-      const { container } = render(<ExtratoComparacao banco={[LINHA]} sistema={[LINHA]} />);
-      const comparacao = container.firstElementChild!;
-      expect(comparacao).not.toHaveAttribute("data-explorado");
-
-      fireEvent.mouseEnter(linhaDoBanco());
-      fireEvent.mouseLeave(linhaDoBanco());
-
-      expect(comparacao).toHaveAttribute("data-explorado");
-    });
-
-    describe("moving from one line to the next", () => {
-      const OUTRA: LinhaExtrato = { ...LINHA, desc: "Crédito cartão D+30", explicacao: "Taxa de arredondamento." };
-      const linhaDe = (desc: string) => screen.getByRole("button", { name: new RegExp(desc) });
-
-      afterEach(() => vi.restoreAllMocks());
-
-      it("lets the first card rise in", () => {
-        render(<ExtratoComparacao banco={[LINHA, OUTRA]} sistema={[LINHA, OUTRA]} />);
-
-        fireEvent.mouseEnter(linhaDe("Pagamento fornecedor"));
-
-        expect(screen.getByRole("tooltip")).not.toHaveAttribute("data-na-hora");
-      });
-
-      it("opens the next card at once when the pointer goes straight to another line", () => {
-        render(<ExtratoComparacao banco={[LINHA, OUTRA]} sistema={[LINHA, OUTRA]} />);
-        fireEvent.mouseEnter(linhaDe("Pagamento fornecedor"));
-
-        fireEvent.mouseLeave(linhaDe("Pagamento fornecedor"));
-        fireEvent.mouseEnter(linhaDe("Crédito cartão"));
-
-        expect(screen.getByRole("tooltip")).toHaveTextContent("Crédito cartão D+30");
-        expect(screen.getByRole("tooltip")).toHaveAttribute("data-na-hora");
-      });
-
-      it("rises in again when the pointer comes back after a pause", () => {
-        const agora = vi.spyOn(performance, "now").mockReturnValue(1000);
-        render(<ExtratoComparacao banco={[LINHA, OUTRA]} sistema={[LINHA, OUTRA]} />);
-        fireEvent.mouseEnter(linhaDe("Pagamento fornecedor"));
-        fireEvent.mouseLeave(linhaDe("Pagamento fornecedor"));
-
-        agora.mockReturnValue(1600);
-        fireEvent.mouseEnter(linhaDe("Crédito cartão"));
-
-        expect(screen.getByRole("tooltip")).not.toHaveAttribute("data-na-hora");
-      });
-    });
+  it("opens on the review on a phone, where the table turns into cards, until a filter is chosen", async () => {
+    const usuario = userEvent.setup();
+    const original = window.matchMedia;
+    window.matchMedia = ((consulta: string) =>
+      ({ matches: consulta === "(max-width: 680px)", addEventListener() {}, removeEventListener() {} }) as unknown as MediaQueryList) as typeof window.matchMedia;
+    try {
+      montar();
+      expect(screen.getByRole("button", { name: "Só revisão (3)" })).toHaveAttribute("aria-pressed", "true");
+      expect(descricoes()).not.toContain("Recebimento cliente Alfa Comércio");
+      await usuario.click(screen.getByRole("button", { name: "Todos (4)" }));
+      expect(descricoes()).toContain("Recebimento cliente Alfa Comércio");
+    } finally {
+      window.matchMedia = original;
+    }
   });
 });

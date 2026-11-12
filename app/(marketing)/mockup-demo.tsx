@@ -4,27 +4,49 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProp
 import { m, useInView, useScroll, useTransform } from "motion/react";
 import { LogoBarras } from "@/app/(app)/e/[empresa]/logo-barras";
 import { useMovimentoReduzido } from "@/app/reveal";
-import { MenuDaVitrine } from "./vitrine";
 
 /**
- * O vídeo do produto refeito em HTML: as mesmas telas da gravação (Nova conciliação, a comparação, a
- * justificativa, Fechamentos), só que como as telas de verdade do app, nítidas em qualquer tamanho,
- * com o cursor, a digitação e uma abertura. As telas vêm de `./cenas` (capturadas do app com a conta
- * de teste; HTML estático, sem script) e entram na moldura da vitrine (`vitrine-*`).
+ * O vídeo do produto refeito em HTML: a Nova conciliação, a comparação com o painel da direita, a justificativa
+ * escrita no painel e Fechamentos, como as telas de verdade do app, nítidas em qualquer tamanho, com o cursor, a
+ * digitação e uma abertura. Só as telas, numa janela do Mac, sem o menu lateral e a barra de cima do app: o nome
+ * da tela vai na barra da janela, como em "Na prática". As telas vêm de `./cenas`, gravadas do app por
+ * `scripts/ajuda-videos/gravar.mjs --landing` (HTML estático, sem script), com o que o cursor procura marcado
+ * em data-mockup.
  *
  * O roteiro (`rodar`) só anda enquanto a janela está na tela. Com movimento reduzido não anda: fica a
- * comparação com o cartão da linha aberto.
+ * comparação com a linha aberta no painel.
  *
- * shortcut: as telas são cópias do app de 04/11/2026; se o desenho do app mudar, capturar de novo.
+ * ponytail: as telas são cópias do app; se o desenho dele mudar, grave de novo (gravar.mjs --landing).
  */
 
 const LARGURA = 1280;
-// a Nova conciliação é a tela mais alta (857 px de conteúdo + 78 da barra de cima): cabe inteira sem cortar o painel "Antes de conciliar"
-const ALTURA = 940;
-const MENU_ATIVO = { conciliacoes: "Conciliações", fechamentos: "Fechamentos" } as const;
+// a altura das telas gravadas (MOCKUP em gravar.mjs): a Nova conciliação cabe inteira
+const ALTURA = 860;
 
 type Cenas = typeof import("./cenas");
-type Cena = "novaVazia" | "novaBanco" | "novaPronta" | "comparando" | "comparacao" | "comparacaoJustificada" | "fechamentos";
+type Cena =
+  | "novaVazia"
+  | "novaBanco"
+  | "novaPronta"
+  | "comparando"
+  | "comparacao"
+  | "comparacaoFoco"
+  | "justificando"
+  | "comparacaoJustificada"
+  | "fechamentos";
+
+// o nome da tela na barra da janela, no lugar do menu e da barra de cima do app
+const TITULO: Record<Cena, string> = {
+  novaVazia: "Nova conciliação",
+  novaBanco: "Nova conciliação",
+  novaPronta: "Nova conciliação",
+  comparando: "Nova conciliação",
+  comparacao: "Comparação direta",
+  comparacaoFoco: "Comparação direta",
+  justificando: "Comparação direta",
+  comparacaoJustificada: "Comparação direta",
+  fechamentos: "Fechamentos",
+};
 
 class Interrompido extends Error {}
 
@@ -36,17 +58,11 @@ function dorme(ms: number, sinal: AbortSignal) {
   });
 }
 
-const achaPorTexto = (raiz: ParentNode | null, seletor: string, texto: RegExp) =>
-  [...(raiz?.querySelectorAll<HTMLElement>(seletor) ?? [])].find((e) => texto.test(e.textContent ?? "")) ?? null;
-const achaLinha = (raiz: ParentNode | null, data: string, inicio: string) =>
-  [...(raiz?.querySelectorAll<HTMLElement>("tbody tr") ?? [])].find((tr) => (tr.textContent ?? "").includes(data) && (tr.textContent ?? "").includes(inicio)) ?? null;
-
 export function MockupDemo({ descricao }: { descricao: string }) {
   const palco = useRef<HTMLElement>(null);
   const quadro = useRef<HTMLDivElement>(null);
   const app = useRef<HTMLDivElement>(null);
   const cenaRef = useRef<HTMLDivElement>(null);
-  const veuRef = useRef<HTMLDivElement>(null);
   const reduzido = useMovimentoReduzido();
   const perto = useInView(palco, { margin: "600px 0px", once: true });
   const naTela = useInView(quadro, { amount: 0.4 });
@@ -55,17 +71,12 @@ export function MockupDemo({ descricao }: { descricao: string }) {
   const [escala, setEscala] = useState<number | null>(null);
   const escalaRef = useRef(1);
 
-  const [cena, setCena] = useState<Cena>("comparacao");
-  const [menu, setMenu] = useState<string>(MENU_ATIVO.conciliacoes);
+  const [cena, setCena] = useState<Cena>("comparacaoFoco");
   const [intro, setIntro] = useState(false);
   const [fim, setFim] = useState(false);
-  const [rolagem, setRolagem] = useState(0);
-  const [hover, setHover] = useState(true);
-  const [janela, setJanela] = useState(false);
   const [digitado, setDigitado] = useState("");
   const [cursor, setCursor] = useState<{ x: number; y: number; visivel: boolean; clique: number }>({ x: 640, y: 420, visivel: false, clique: 0 });
-  const cenaVisivel = reduzido ? "comparacao" : cena;
-  const mostrarCartao = reduzido || hover;
+  const cenaVisivel = reduzido ? "comparacaoFoco" : cena;
 
   // as cenas pesam ~140 KB: só baixam quando a janela chega perto da tela
   useEffect(() => {
@@ -87,120 +98,92 @@ export function MockupDemo({ descricao }: { descricao: string }) {
     return () => observador.disconnect();
   }, []);
 
-  // o cartão do hover, aberto sobre a linha como no app
-  useEffect(() => {
-    const raiz = cenaRef.current;
-    if (!raiz || !cenas || cenaVisivel !== "comparacao" || !mostrarCartao) return;
-    const linha = achaLinha(raiz, "09/07", "PIX ENVIA");
-    const celula = linha?.querySelector<HTMLElement>(".celula-status");
-    if (!linha || !celula) return;
-    linha.setAttribute("data-destacada", "");
-    celula.insertAdjacentHTML("beforeend", cenas.cartaoDoHover);
-    return () => {
-      linha.removeAttribute("data-destacada");
-      celula.querySelector(".cartao-lancamento")?.remove();
+  const rodar = useCallback(async (c: Cenas, sinal: AbortSignal) => {
+    const posicao = (alvo: HTMLElement | null, dx = 0.35) => {
+      const o = app.current?.getBoundingClientRect();
+      if (!alvo || !o) return null;
+      const r = alvo.getBoundingClientRect();
+      const s = escalaRef.current;
+      return { x: (r.left - o.left + r.width * dx) / s, y: (r.top - o.top + r.height / 2) / s };
     };
-  }, [cenas, cenaVisivel, mostrarCartao]);
+    // o que o cursor procura vem marcado na gravação (data-mockup)
+    const alvo = (nome: string) => cenaRef.current?.querySelector<HTMLElement>(`[data-mockup="${nome}"]`) ?? null;
+    const mover = async (nome: string) => {
+      const p = posicao(alvo(nome));
+      if (p) setCursor((a) => ({ ...a, ...p, visivel: true }));
+      await dorme(1000, sinal);
+    };
+    const clicar = async () => {
+      setCursor((a) => ({ ...a, clique: a.clique + 1 }));
+      await dorme(380, sinal);
+    };
+    const esconder = () => setCursor((a) => ({ ...a, visivel: false }));
 
-  const rodar = useCallback(
-    async (c: Cenas, sinal: AbortSignal) => {
-      const posicao = (alvo: HTMLElement | null, dx = 0.35) => {
-        const o = app.current?.getBoundingClientRect();
-        if (!alvo || !o) return null;
-        const r = alvo.getBoundingClientRect();
-        const s = escalaRef.current;
-        return { x: (r.left - o.left + r.width * dx) / s, y: (r.top - o.top + r.height / 2) / s };
-      };
-      const mover = async (alvo: HTMLElement | null, dx?: number) => {
-        const p = posicao(alvo, dx);
-        if (p) setCursor((a) => ({ ...a, ...p, visivel: true }));
-        await dorme(1000, sinal);
-      };
-      const clicar = async () => {
-        setCursor((a) => ({ ...a, clique: a.clique + 1 }));
-        await dorme(380, sinal);
-      };
-      const cenaAtual = () => cenaRef.current;
+    try {
+      for (;;) {
+        // abertura
+        esconder();
+        setDigitado("");
+        setCena("novaVazia");
+        setFim(false);
+        setIntro(true);
+        await dorme(3600, sinal);
+        setIntro(false);
+        await dorme(900, sinal);
 
-      try {
-        for (;;) {
-          // abertura
-          setCursor((a) => ({ ...a, visivel: false }));
-          setJanela(false);
-          setHover(false);
-          setRolagem(0);
-          setDigitado("");
-          setMenu(MENU_ATIVO.conciliacoes);
-          setCena("novaVazia");
-          setFim(false);
-          setIntro(true);
-          await dorme(3600, sinal);
-          setIntro(false);
-          await dorme(900, sinal);
+        // Nova conciliação: os dois extratos e "Conciliar extratos"
+        await mover("banco");
+        await clicar();
+        setCena("novaBanco");
+        await dorme(1100, sinal);
+        await mover("sistema");
+        await clicar();
+        setCena("novaPronta");
+        await dorme(1300, sinal);
+        await mover("conciliar");
+        await clicar();
+        setCena("comparando");
+        esconder();
+        await dorme(2800, sinal);
 
-          // Nova conciliação: os dois extratos e "Conciliar extratos"
-          await mover(cenaAtual()?.querySelector<HTMLElement>(".nova-folha-banco") ?? null);
-          await clicar();
-          setCena("novaBanco");
-          await dorme(1100, sinal);
-          await mover(cenaAtual()?.querySelector<HTMLElement>(".nova-folha-sistema") ?? null);
-          await clicar();
-          setCena("novaPronta");
-          await dorme(1300, sinal);
-          await mover(achaPorTexto(cenaAtual(), "button", /Conciliar extratos/));
-          await clicar();
-          setCena("comparando");
-          setCursor((a) => ({ ...a, visivel: false }));
-          await dorme(2800, sinal);
+        // a comparação: o clique numa linha que diverge leva o detalhe e o motivo ao painel da direita
+        setCena("comparacao");
+        await dorme(2000, sinal);
+        await mover("linha");
+        await clicar();
+        setCena("comparacaoFoco");
+        await dorme(3600, sinal);
 
-          // a comparação: o resumo, depois a tabela, e o cartão de uma linha
-          setCena("comparacao");
-          await dorme(2200, sinal);
-          // a tabela sobe até a linha do hover ficar a meia altura: o cartão abre para baixo dela e tem de caber na janela
-          setRolagem(480);
-          await dorme(1400, sinal);
-          await mover(achaLinha(cenaAtual(), "09/07", "PIX ENVIA")?.querySelector<HTMLElement>(".celula-status") ?? null);
-          setHover(true);
-          await dorme(2800, sinal);
-          setHover(false);
-
-          // justificar uma divergência
-          await mover(achaLinha(cenaAtual(), "06/07", "BOLETO F"));
-          await clicar();
-          setJanela(true);
-          await dorme(900, sinal);
-          for (let i = 1; i <= c.TEXTO_DA_JUSTIFICATIVA.length; i++) {
-            setDigitado(c.TEXTO_DA_JUSTIFICATIVA.slice(0, i));
-            await dorme(38, sinal);
-          }
-          await dorme(700, sinal);
-          await mover(achaPorTexto(veuRef.current, "button", /^Justificar$/));
-          await clicar();
-          setJanela(false);
-          setCena("comparacaoJustificada");
-          setRolagem(0);
-          await dorme(2600, sinal);
-
-          // o mês em Fechamentos
-          await mover(achaPorTexto(app.current, ".vitrine-item", /Fechamentos/), 0.4);
-          await clicar();
-          setMenu(MENU_ATIVO.fechamentos);
-          setCena("fechamentos");
-          setCursor((a) => ({ ...a, visivel: false }));
-          await dorme(4400, sinal);
-
-          // o encerramento: rápido, simples e prático
-          setFim(true);
-          await dorme(6200, sinal);
-          setFim(false);
-          await dorme(900, sinal);
+        // justificar no próprio painel
+        await mover("justificar");
+        await clicar();
+        setCena("justificando");
+        await dorme(700, sinal);
+        for (let i = 1; i <= c.TEXTO_DA_JUSTIFICATIVA.length; i++) {
+          setDigitado(c.TEXTO_DA_JUSTIFICATIVA.slice(0, i));
+          await dorme(38, sinal);
         }
-      } catch (erro) {
-        if (!(erro instanceof Interrompido)) throw erro;
+        await dorme(700, sinal);
+        await mover("enviar");
+        await clicar();
+        setCena("comparacaoJustificada");
+        await dorme(2800, sinal);
+
+        // o mês em Fechamentos
+        esconder();
+        setCena("fechamentos");
+        await dorme(4400, sinal);
+
+        // o encerramento: rápido, simples e prático
+        setFim(true);
+        await dorme(6200, sinal);
+        setFim(false);
+        await dorme(900, sinal);
       }
-    },
-    [],
-  );
+    } catch (erro) {
+      if (!(erro instanceof Interrompido)) throw erro;
+    }
+  }, []);
 
   useEffect(() => {
     if (!cenas || !naTela || reduzido || !escala) return;
@@ -219,8 +202,13 @@ export function MockupDemo({ descricao }: { descricao: string }) {
     v >= 1 ? "none" : `perspective(1600px) translateY(${70 * (1 - v)}px) rotateX(${20 * (1 - v)}deg) scale(${0.86 + 0.14 * v})`,
   );
 
-  const html = cenas?.[cenaVisivel];
-  const modal = cenas?.janelaDeJustificativa.replace("{{TEXTO}}", digitado);
+  // a justificativa aparece letra a letra no campo que a gravação marcou: só o valor muda. Trocar o HTML a cada letra
+  // refaria a tela, e a entrada do painel (comp-foco-entra) recomeçaria a cada uma, deixando-o apagado
+  const html = cenaVisivel === "justificando" ? cenas?.justificando.replace("{{TEXTO}}", "") : cenas?.[cenaVisivel];
+  useLayoutEffect(() => {
+    const campo = cenaRef.current?.querySelector("textarea");
+    if (campo) campo.value = digitado;
+  }, [digitado]);
 
   return (
     <figure className="vitrine video-demo mockup-demo" ref={palco} data-medida={escala ? "" : undefined}>
@@ -230,6 +218,7 @@ export function MockupDemo({ descricao }: { descricao: string }) {
             <span />
             <span />
             <span />
+            <p className="janela-titulo">{TITULO[cenaVisivel]}</p>
           </div>
           <div className="mockup-quadro" ref={quadro} role="img" aria-label={descricao}>
             <div
@@ -238,25 +227,20 @@ export function MockupDemo({ descricao }: { descricao: string }) {
               inert
               style={{ transform: `scale(${escala ?? 1})`, height: ALTURA }}
             >
-              <MenuDaVitrine ativo={reduzido ? MENU_ATIVO.conciliacoes : menu} empresa="Empresa de Teste Ltda" conta="Teste" iniciais="TE" />
               <div className="vitrine-principal mockup-principal">
-                {cenas && <div dangerouslySetInnerHTML={{ __html: cenas.barraDeCima }} />}
                 <div className="mockup-visor">
                   {html && (
+                    // a chave é a tela, não a cena: trocar de tela entra com o fade; dentro da mesma tela só muda o
+                    // que mudou (o painel, a linha), como no app
                     <div
-                      key={cenaVisivel}
+                      key={TITULO[cenaVisivel]}
                       data-cena={cenaVisivel}
                       ref={cenaRef}
                       className="mockup-cena"
-                      style={reduzido ? undefined : { transform: `translateY(${-rolagem}px)` }}
                       dangerouslySetInnerHTML={{ __html: html }}
                     />
                   )}
                 </div>
-              </div>
-
-              <div className="mockup-veu" data-aberto={janela && !reduzido ? "" : undefined} ref={veuRef}>
-                {modal && <div dangerouslySetInnerHTML={{ __html: modal }} />}
               </div>
 
               <svg
