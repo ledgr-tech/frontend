@@ -370,7 +370,8 @@ export function FiguraDaTela({ src, id, largura, altura, rotulo }: { src: string
 
   const aplicar = useCallback(() => {
     const [q, a, v, c] = [quadro.current, app.current, visor.current, cena.current];
-    if (!figura || !q || !a || !v || !c) return;
+    // sem tamanho ainda (seção escondida): o ResizeObserver chama de novo quando ganhar
+    if (!figura || !q || !a || !v || !c || !q.clientWidth || !q.clientHeight) return;
     for (const raiz of [c, camada.current])
       for (const e of raiz?.querySelectorAll<HTMLElement>("[data-rolagem]") ?? []) e.scrollTop = Number(e.dataset.rolagem);
     // mede com a réplica em 1:1, em px do app
@@ -395,7 +396,7 @@ export function FiguraDaTela({ src, id, largura, altura, rotulo }: { src: string
       c.style.transform = `translateY(${-rolagem}px)`;
       y -= rolagem;
     }
-    // cabe na largura e, se o texto aqui sair um pouco mais alto que na gravação, na altura também (centrada);
+    // cabe na largura e, se o texto aqui sair um pouco mais alto que na gravação, na altura também (centrada na largura);
     // bem mais alto é uma lista comprida que a receita cortou de propósito (max)
     const gravada = figura.altura - 2 * figura.pad;
     const k = Math.min(q.clientWidth / (w + 2 * figura.pad), h <= gravada * 1.2 ? q.clientHeight / (h + 2 * figura.pad) : Infinity);

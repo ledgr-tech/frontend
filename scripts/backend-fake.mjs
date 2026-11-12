@@ -1111,7 +1111,7 @@ const servidor = createServer(async (req, res) => {
     return json(res, 200, {
       conciliacao_id,
       status: item.status,
-      explicacao: `(backend fake) Linha classificada como ${item.status}: banco ${lb?.valor ?? "—"} em ${lb?.data ?? "—"}, sistema ${ls?.valor ?? "—"} em ${ls?.data ?? "—"}.`,
+      explicacao: `Linha classificada como ${item.status}: banco ${lb?.valor ?? "—"} em ${lb?.data ?? "—"}, sistema ${ls?.valor ?? "—"} em ${ls?.data ?? "—"}.`,
       gerada_por_ia: false,
       em_cache: false,
       indisponibilidade: "desabilitado",
