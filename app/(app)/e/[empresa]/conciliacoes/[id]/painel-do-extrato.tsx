@@ -113,7 +113,8 @@ function QuadroDoLancamento({
   const [avisoDaExplicacao, setAvisoDaExplicacao] = useState<string | null>(null);
   // a explicação que a pessoa acabou de pedir sobe com destaque; a que já veio na listagem só aparece
   const [recemExplicada, setRecemExplicada] = useState(false);
-  const [digitada, setDigitada] = useState(false);
+  // o texto que já terminou de ser digitado: outra explicação na mesma linha volta a esperar a digitação
+  const [digitado, setDigitado] = useState<string | null>(null);
   const { caixa: caixaDoDetalhe, conteudo: conteudoDoDetalhe, medir, descer, acima, abaixo } = useAvisoDeRolagem();
   const cartao = useRef<HTMLDivElement>(null);
 
@@ -321,10 +322,10 @@ function QuadroDoLancamento({
                 <div ref={cartao} className="comp-explicacao" data-nova={recemExplicada || undefined}>
                   {dados.geradaPorIa && <SeloIa />}
                   {/* a que a pessoa acabou de pedir é digitada na tela; a que já veio na listagem só aparece */}
-                  <p>{recemExplicada ? <TextoDigitado key={dados.explicacao} texto={dados.explicacao} aoTerminar={() => setDigitada(true)} /> : dados.explicacao}</p>
+                  <p>{recemExplicada ? <TextoDigitado key={dados.explicacao} texto={dados.explicacao} aoTerminar={() => setDigitado(dados.explicacao)} /> : dados.explicacao}</p>
                   {/* os fatos calculados pelo backend (#196), abaixo do texto da IA; só divergência com dado do backend */}
                   {real && !estaResolvida(linha.status) && (
-                    <div className="explicacao-depois" data-esperando={recemExplicada && !digitada ? "" : undefined}>
+                    <div className="explicacao-depois" data-esperando={recemExplicada && digitado !== dados.explicacao ? "" : undefined}>
                       <DetalhesDaLinha key={linha.id} linhaId={linha.id} />
                     </div>
                   )}
