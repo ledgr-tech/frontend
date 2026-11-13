@@ -2153,6 +2153,12 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
   display: flex; flex-wrap: wrap; gap: 24px 30px; align-items: center;
   border-block: 1px solid var(--color-divider); padding: 26px 0;
 }
+.det-causa-mascote { width: 130px; height: auto; display: block; }
+.det-causa-corpo { flex: 1 1 340px; min-width: 0; }
+/* no painel lateral o mascote fica pequeno ao lado do texto, em vez de ocupar uma linha sozinho */
+.painel-lateral .det-causa { flex-wrap: nowrap; align-items: flex-start; gap: 18px; padding: 22px 0; }
+.painel-lateral .det-causa-mascote { width: 72px; margin-top: 2px; }
+.painel-lateral .det-causa-corpo { flex-basis: 0; }
 .det-causa-titulo {
   font-family: var(--font-heading); font-size: 21px; font-weight: 600;
   line-height: 1.24; margin-bottom: 8px;
@@ -2172,6 +2178,35 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
 .explicacao-acoes .explicacao-aviso { margin: 0; }
 .explicacao-aviso a { text-decoration: underline; text-underline-offset: 2px; }
 .explicacao-erro { margin: 12px 0 0; font-size: 13.5px; color: var(--color-risco-700); }
+/* o pedido da explicação: no tom do cartão que ele vira (neutro como o selo da IA, nunca o dourado cheio da ação) */
+.btn-explicar {
+  gap: 8px; color: var(--color-text);
+  border-color: color-mix(in srgb, var(--color-accent) 45%, var(--color-divider));
+  background: color-mix(in srgb, var(--color-accent) 6%, transparent);
+}
+.btn-explicar:hover:not(:disabled) { background: color-mix(in srgb, var(--color-accent) 13%, transparent); }
+.btn-explicar svg { color: var(--color-accent-700); transition: transform 200ms var(--ease-out); }
+.btn-explicar:hover:not(:disabled) svg { transform: rotate(-12deg) scale(1.08); }
+/* lendo: o botão segue legível (não some no "disabled") e o ícone pulsa */
+.btn-explicar[aria-busy="true"] { opacity: 1; cursor: progress; }
+.btn-explicar[aria-busy="true"] svg { animation: btn-explicar-pulso 1.1s ease-in-out infinite; }
+.explicacao-esqueleto { margin-top: 14px; max-width: 74ch; }
+/* a explicação que acabou de chegar: só esmaece; o texto é digitado (TextoDigitado) e o resto aparece quando ele termina */
+.explicacao-nova { animation: explicacao-esmaece 320ms ease-out both; }
+@keyframes explicacao-esmaece { from { opacity: 0; } }
+.explicacao-depois { transition: opacity 400ms ease-out; }
+.explicacao-depois[data-esperando] { opacity: 0; }
+/* o que falta digitar já ocupa o lugar, invisível: nada abaixo pula enquanto o texto cresce */
+.digitando-resto { color: transparent; }
+.digitando-cursor {
+  display: inline-block; width: 1.5px; height: 1.05em; margin: 0 1px -0.15em; border-radius: 1px;
+  background: color-mix(in srgb, var(--color-accent) 70%, var(--color-text));
+  animation: digitando-pisca 900ms steps(1) infinite;
+}
+@keyframes digitando-pisca { 50% { opacity: 0; } }
+.explicacao-mascote-novo { animation: explicacao-esmaece 500ms ease-out both; }
+@keyframes btn-explicar-pulso { 50% { opacity: 0.35; transform: scale(0.88); } }
+@media (prefers-reduced-motion: reduce) { .btn-explicar svg { transition: none; } .btn-explicar[aria-busy="true"] svg, .explicacao-nova, .explicacao-mascote-novo { animation: none; } .explicacao-depois { transition: none; } }
 .det-cronico {
   border: 1px solid var(--color-accent-300); border-radius: var(--radius-md);
   background: color-mix(in srgb, var(--color-accent-300) 14%, var(--color-surface));
@@ -2217,12 +2252,19 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
 @keyframes painel-fundo-entrar { from { opacity: 0; } }
 .painel-lateral {
   position: fixed; top: 0; right: 0; bottom: 0; z-index: 91;
-  width: min(560px, 100vw); overflow-y: auto; overscroll-behavior: contain;
-  padding: 0 24px; background: var(--color-bg);
+  width: min(560px, 100vw); display: flex; flex-direction: column; overflow: hidden;
+  background: var(--color-bg);
   border-left: 1px solid var(--color-divider); box-shadow: var(--shadow-lg);
   animation: painel-entrar 0.24s var(--ease-out);
 }
-.painel-lateral:focus { outline: none; }
+/* a rolagem fica numa caixa interna sem barra, com a mesma borda esfumada e o "Mais abaixo" do painel da comparação */
+.painel-rolagem { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0 24px; }
+.painel-rolagem:focus { outline: none; }
+/* com o painel aberto a página de trás não rola, e sem a calha reservada do app (scrollbar-gutter)
+   não sobra barra nem faixa vazia à direita do painel */
+html:has(.app-shell):has(.painel-lateral) { overflow: hidden; scrollbar-gutter: auto; }
+.painel-rolagem[data-abaixo] { --esfuma-baixo: 72px; }
+.painel-lateral .comp-mais { bottom: 18px; font-size: 13px; padding: 6px 14px 6px 15px; box-shadow: var(--shadow-sm); }
 @keyframes painel-entrar { from { transform: translateX(24px); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .painel-lateral, .painel-fundo { animation: none; } }
 .painel-nav { display: flex; align-items: center; gap: 4px; }
@@ -2777,14 +2819,14 @@ html[data-tema="escuro"] .app-shell {
 /* a decisão da linha e a explicação, num lugar de altura fixa; passou disso, rola dentro do quadro */
 .comp-detalhe-caixa { position: relative; flex: 1; min-height: 0; display: flex; }
 /* sem barra: o lado com mais conteúdo esfuma, e embaixo o "Mais abaixo" convida a rolar */
-.comp-detalhe {
-  --esfuma-cima: 0px; --esfuma-baixo: 0px;
-  position: relative; flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; scrollbar-width: none;
+.comp-detalhe { position: relative; flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; }
+.comp-detalhe, .painel-rolagem {
+  --esfuma-cima: 0px; --esfuma-baixo: 0px; scrollbar-width: none;
   -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 var(--esfuma-cima), #000 calc(100% - var(--esfuma-baixo)), transparent 100%);
   mask-image: linear-gradient(to bottom, transparent 0, #000 var(--esfuma-cima), #000 calc(100% - var(--esfuma-baixo)), transparent 100%);
 }
-.comp-detalhe::-webkit-scrollbar { display: none; }
-.comp-detalhe[data-acima] { --esfuma-cima: 22px; }
+.comp-detalhe::-webkit-scrollbar, .painel-rolagem::-webkit-scrollbar { display: none; }
+.comp-detalhe[data-acima], .painel-rolagem[data-acima] { --esfuma-cima: 22px; }
 .comp-detalhe[data-abaixo] { --esfuma-baixo: 44px; }
 /* 4px de folga nas laterais para o halo da explicação não ser cortado pela rolagem */
 .comp-detalhe { margin-inline: -4px; }
@@ -2811,18 +2853,13 @@ html[data-tema="escuro"] .app-shell {
 .comp-nota .espia-aviso { display: block; }
 .comp-explicacao, .comp-explicar { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
 .comp-explicacao .explicacao-selo { max-width: 100%; white-space: normal; margin-bottom: 0; }
-/* a explicação é um cartão; a que a pessoa acabou de pedir sobe e acende um halo que se apaga */
+/* a explicação é um cartão; a que a pessoa acabou de pedir esmaece e o texto é digitado */
 .comp-explicacao {
   padding: 12px 14px; border-radius: 12px;
   border: 1px solid color-mix(in srgb, var(--color-accent) 45%, var(--color-divider));
   background: color-mix(in srgb, var(--color-accent) 5%, transparent);
 }
-.comp-explicacao[data-nova] { animation: comp-explicacao-sobe 460ms var(--ease-out) both, comp-explicacao-realce 1800ms ease-out 200ms both; }
-@keyframes comp-explicacao-sobe { from { opacity: 0; transform: translateY(22px) scale(0.985); } }
-@keyframes comp-explicacao-realce {
-  from { box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-accent) 22%, transparent), 0 8px 22px -12px color-mix(in srgb, var(--color-accent) 60%, transparent); }
-  to { box-shadow: 0 0 0 0 transparent, 0 0 0 0 transparent; }
-}
+.comp-explicacao[data-nova] { animation: explicacao-esmaece 320ms ease-out both; }
 .comp-lados, .comp-diferenca { transition: opacity 300ms var(--ease-out); }
 .comp-foco[data-explicada] :is(.comp-lados, .comp-diferenca) { opacity: 0.7; }
 /* enquanto o Ledgr lê os extratos */
