@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CredentialsSignin } from "next-auth";
 import { ErroBackend } from "./backend";
 import {
+  esquecerGoogleIncompleto,
   MuitasEntradas,
   aceitarConviteNoBackendComGoogle,
   aoVoltarDoGoogle,
@@ -294,5 +295,14 @@ describe("aceite do convite pelo Google (backend #69/#73)", () => {
     fetch.mockRejectedValue(new TypeError("fetch failed"));
 
     expect(await aceitarConviteNoBackendComGoogle("tok", "id-tok")).toEqual({ ok: false, erro: "falha" });
+  });
+});
+
+describe("esquecerGoogleIncompleto (S1-15)", () => {
+  beforeEach(() => cookiesApagados.mockReset());
+
+  it("apaga o id_token do cadastro e o convite que ficaram de uma tentativa pela metade", async () => {
+    await esquecerGoogleIncompleto();
+    expect(cookiesApagados.mock.calls.map(([nome]) => nome).sort()).toEqual(["ledgr-cadastro-google", "ledgr-convite-google"]);
   });
 });

@@ -37,6 +37,7 @@ import type { DadosDoRoteiro } from "../visao-geral/roteiro";
 import { contaDaSessao } from "../../../../(auth)/acoes";
 import { SO_O_GESTOR_APROVA, SO_O_GESTOR_FECHA, SO_QUEM_APROVOU } from "@/lib/gestor";
 import { podeFecharMes } from "@/lib/papel";
+import { TAMANHO_MAXIMO_UPLOAD_BYTES, extratoGrandeDemais } from "@/lib/limite-de-upload";
 
 /**
  * O fluxo real de conciliação, ponta a ponta, contra a API do backend:
@@ -133,6 +134,7 @@ export async function enviarExtrato(dados: FormData): Promise<Resultado<{ extrat
   if (!(arquivo instanceof File) || (origem !== "banco" && origem !== "sistema")) {
     return { ok: false, status: 422, erro: "Envie o arquivo do extrato do banco ou do sistema." };
   }
+  if (arquivo.size > TAMANHO_MAXIMO_UPLOAD_BYTES) return { ok: false, status: 413, erro: extratoGrandeDemais(arquivo.name) };
   const corpo = new FormData();
   corpo.append("arquivo", arquivo);
   corpo.append("origem", origem);
@@ -1084,6 +1086,16 @@ export async function explicarDivergencia(conciliacaoId: string): Promise<Result
  * gestor, como fechar o mês.
  */
 const TIPOS_DA_APROVACAO: readonly TipoEvento[] = ["justificativa_aprovada", "justificativa_rejeitada", "aprovacao_desfeita"];
+// o `satisfies` com o Record obriga a lista a acompanhar o tipo: um TipoEvento novo não compila sem entrar aqui
+const TIPOS_DE_EVENTO = Object.keys({
+  conferida: 1,
+  conferencia_desfeita: 1,
+  justificada: 1,
+  justificativa_desfeita: 1,
+  justificativa_aprovada: 1,
+  justificativa_rejeitada: 1,
+  aprovacao_desfeita: 1,
+} satisfies Record<TipoEvento, 1>);
 
 /**
  * Conferir, justificar ou desfazer numa linha (spec 2026-10-02-conciliacao-em-rodadas), e aprovar,
@@ -1098,6 +1110,14 @@ export async function registrarDecisao(
   texto?: string,
 ): Promise<Resultado<Decisao | null>> {
   if (!pareceUuid(extratoBancoId)) return { ok: false, status: 404, erro: "Conciliação não encontrada." };
+  // Server Action é endpoint público: um `tipo` em lista daria falso no includes abaixo e pularia a
+  // recusa do analista (S1-04)
+  const formatoValido =
+    typeof chave === "string" &&
+    typeof tipo === "string" &&
+    TIPOS_DE_EVENTO.includes(tipo) &&
+    (texto === undefined || typeof texto === "string");
+  if (!formatoValido) return { ok: false, status: 422, erro: "Ação inválida." };
   // conferir e justificar são de todos os papéis (decisão de 21/10); aprovar e rejeitar, do admin e do gestor
   const aprovacao = TIPOS_DA_APROVACAO.includes(tipo);
   if (aprovacao) {

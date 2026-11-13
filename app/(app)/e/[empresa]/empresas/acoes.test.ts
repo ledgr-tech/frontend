@@ -83,6 +83,12 @@ describe("carregarEmpresas", () => {
 });
 
 describe("cadastrarEmpresa", () => {
+  it("argumento que não é texto (ação chamada à mão) responde 422 em vez de lançar (S1-04)", async () => {
+    expect(await cadastrarEmpresa("11.444.777/0001-61", ["x"] as unknown as string)).toMatchObject({ ok: false, status: 422 });
+    expect(await cadastrarEmpresa({} as unknown as string, "Cliente")).toMatchObject({ ok: false, status: 422 });
+    expect(chamarBackend).not.toHaveBeenCalled();
+  });
+
   it("manda o CNPJ só com letras e números e a razão social aparada, e devolve a empresa criada", async () => {
     chamarBackend.mockResolvedValue(empresaApi);
 
@@ -176,6 +182,13 @@ describe("marcarFavorita", () => {
     chamarBackend.mockRejectedValue(new ErroBackend(404, "Empresa não encontrada."));
 
     expect(await marcarFavorita(empresaApi.id, true)).toEqual({ ok: false, status: 404, erro: "Empresa não encontrada." });
+  });
+
+  it("um id que não é UUID (\"..\" viraria PUT /favorita) responde 404 sem chamar o backend (S1-03)", async () => {
+    for (const id of ["..", "x/../../me", "", 42 as unknown as string]) {
+      expect(await marcarFavorita(id, true)).toEqual({ ok: false, status: 404, erro: "Empresa não encontrada." });
+    }
+    expect(chamarBackend).not.toHaveBeenCalled();
   });
 
   it("recusa a conta de demonstração sem chamar o backend", async () => {

@@ -3,6 +3,7 @@
 import { adaptarEmpresaCliente, type EmpresaCliente, type EmpresaClienteAPI } from "@/lib/adaptadores";
 import { ErroBackend, chamarBackend, ehContaInativa, emailDaSessao } from "@/lib/backend";
 import { RECUSA_DEMONSTRACAO, ehContaDeDemonstracao } from "@/lib/demo";
+import { ehUuid } from "@/lib/rotas";
 import { caracteresCnpj, validarCnpj } from "../../../../(auth)/cadastro/passos";
 import type { Falha, Resultado } from "../conciliacoes/acoes";
 
@@ -69,6 +70,8 @@ export async function carregarEmpresas(): Promise<Resultado<EmpresaCliente[]>> {
 /** Favoritar ou não uma empresa (`PUT`/`DELETE /empresas/{id}/favorita`, 204, qualquer papel; backend #157). */
 export async function marcarFavorita(empresaId: string, favorita: boolean): Promise<Resultado<null>> {
   // a conta de demonstração é uma só para todos os visitantes: um mudaria as favoritas do outro
+  // ".." passaria pelo encodeURIComponent e viraria PUT /favorita no backend (S1-03)
+  if (!ehUuid(empresaId)) return { ok: false, status: 404, erro: "Empresa não encontrada." };
   const recusa = await recusaNaDemonstracao();
   if (recusa) return recusa;
   try {
@@ -85,6 +88,7 @@ export async function marcarFavorita(empresaId: string, favorita: boolean): Prom
  * é endpoint público: o que o formulário já recusaria também se recusa aqui, sem chamar o backend.
  */
 export async function cadastrarEmpresa(cnpj: string, razaoSocial: string): Promise<Resultado<EmpresaCliente>> {
+  if (typeof cnpj !== "string" || typeof razaoSocial !== "string") return { ok: false, status: 422, erro: "Informe a razão social." };
   const razao = razaoSocial.trim();
   if (!razao) return { ok: false, status: 422, erro: "Informe a razão social." };
   const recusaDoCnpj = validarCnpj(cnpj);
