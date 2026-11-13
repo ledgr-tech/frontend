@@ -350,7 +350,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
         passos: [
           "Clique no círculo da coluna **Conferida** na linha que você já olhou.",
         ],
-        figura: { largura: 638, altura: 160 },
+        figura: { largura: 638, altura: 158 },
       },
       {
         id: "painel",
@@ -484,7 +484,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
           "Leia o provável motivo e confira no seu sistema de gestão antes de decidir.",
         ],
         nota: "A explicação ajuda a entender a divergência; quem decide é você.",
-        figura: { largura: 535, altura: 273 },
+        figura: { largura: 535, altura: 377 },
       },
       {
         id: "decidir",

@@ -128,6 +128,14 @@ describe("recusarConexao", () => {
 });
 
 describe("carregarConexoesMcp", () => {
+  it("mostra o endereço do conector que o backend publica, e não o host por onde o app fala com ele", async () => {
+    chamarBackend.mockImplementation(async (caminho: string) =>
+      caminho === "/conexoes-mcp" ? { itens: [] } : { resource: "https://api.ledgrfinance.com.br/mcp", authorization_servers: ["https://api.ledgrfinance.com.br"] },
+    );
+
+    expect(await carregarConexoesMcp()).toEqual({ ok: true, dados: { itens: [], endereco: "https://api.ledgrfinance.com.br/mcp" } });
+  });
+
   it("adapta as conexões e diz o endereço do conector", async () => {
     chamarBackend.mockResolvedValueOnce({
       itens: [
