@@ -135,6 +135,15 @@ export async function carregarRascunho(id: string): Promise<Resultado<Rascunho>>
 
 type CamposDaLinha = { data: string; valor: string; descricao: string };
 
+/** Server Action é endpoint público: ao backend vão só os três campos, e só se forem texto (S1-04). */
+function soOsCampos(campos: CamposDaLinha): CamposDaLinha | null {
+  const { data, valor, descricao } = campos ?? {};
+  if (typeof data !== "string" || typeof valor !== "string" || typeof descricao !== "string") return null;
+  return { data, valor, descricao };
+}
+
+const CAMPOS_INVALIDOS: Falha = { ok: false, status: 422, erro: "Preencha a data, o valor e a descrição." };
+
 /** Falha de uma linha: o backend manda cada campo em `erros`; aqui vira uma frase só. */
 function falhaDeLinha(erro: unknown): Falha {
   if (erro instanceof ErroBackend && erro.status === 422 && erro.erros.length > 0) {
@@ -149,10 +158,12 @@ export async function corrigirLinhaDoRascunho(
   campos: CamposDaLinha,
 ): Promise<Resultado<{ linha: LinhaDoRascunho; resumo: ResumoDoRascunho }>> {
   if (!ehUuid(id) || !ehUuid(linhaId)) return { ok: false, status: 404, erro: "Lançamento não encontrado." };
+  const corpo = soOsCampos(campos);
+  if (!corpo) return CAMPOS_INVALIDOS;
   try {
     const r = await chamarBackend<{ lancamento: LinhaAPI; resumo: ResumoAPI }>(`/importacoes-ia/${id}/lancamentos/${linhaId}`, {
       method: "PATCH",
-      corpo: campos,
+      corpo,
     });
     return { ok: true, dados: { linha: linha(r.lancamento), resumo: resumo(r.resumo) } };
   } catch (erro) {
@@ -175,10 +186,12 @@ export async function acrescentarLinhaAoRascunho(
   campos: CamposDaLinha,
 ): Promise<Resultado<{ linha: LinhaDoRascunho; resumo: ResumoDoRascunho }>> {
   if (!ehUuid(id)) return { ok: false, status: 404, erro: "Importação não encontrada." };
+  const corpo = soOsCampos(campos);
+  if (!corpo) return CAMPOS_INVALIDOS;
   try {
     const r = await chamarBackend<{ lancamento: LinhaAPI; resumo: ResumoAPI }>(`/importacoes-ia/${id}/lancamentos`, {
       method: "POST",
-      corpo: campos,
+      corpo,
     });
     return { ok: true, dados: { linha: linha(r.lancamento), resumo: resumo(r.resumo) } };
   } catch (erro) {

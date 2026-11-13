@@ -1,6 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ErroBackend } from "@/lib/backend";
-import { carregarPromptIa, concluirNovaVersaoIa, importarViaIa, recuperarExtratoConfirmado } from "./acoes";
+import {
+  acrescentarLinhaAoRascunho,
+  carregarPromptIa,
+  concluirNovaVersaoIa,
+  corrigirLinhaDoRascunho,
+  importarViaIa,
+  recuperarExtratoConfirmado,
+} from "./acoes";
 
 const chamarBackend = vi.fn();
 vi.mock("@/lib/backend", async (original) => ({
@@ -184,5 +191,34 @@ describe("nova versão da importação por IA", () => {
 
     expect(await concluirNovaVersaoIa(contexto, novo, true)).toMatchObject({ ok: false, status: 503 });
     expect(chamarBackend.mock.calls.map(([rota]) => rota)).toEqual([listar, listar.replace("offset=0", "offset=100")]);
+  });
+});
+
+describe("linhas do rascunho: só os três campos chegam ao backend (S1-04)", () => {
+  const id = "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20";
+  const linhaId = "ea0a9f44-d4d2-4d65-93bf-8494eb235a94";
+  const lancamento = { id: linhaId, data: "2026-10-01", valor: "10.00", descricao: "x", valido: true, erros: [] };
+  const resumoApi = { total: 1, validos: 1, invalidos: 0 };
+
+  beforeEach(() => chamarBackend.mockReset());
+
+  it("campo a mais não vai junto, ao corrigir nem ao acrescentar", async () => {
+    chamarBackend.mockResolvedValue({ lancamento, resumo: resumoApi });
+    const campos = { data: "2026-10-01", valor: "10.00", descricao: "x", extrato_id: "outro" };
+
+    await corrigirLinhaDoRascunho(id, linhaId, campos);
+    await acrescentarLinhaAoRascunho(id, campos);
+
+    for (const [, opcoes] of chamarBackend.mock.calls) {
+      expect(opcoes.corpo).toEqual({ data: "2026-10-01", valor: "10.00", descricao: "x" });
+    }
+  });
+
+  it("campo que não é texto responde 422 sem chamar o backend", async () => {
+    const campos = { data: "2026-10-01", valor: 10, descricao: "x" } as unknown as { data: string; valor: string; descricao: string };
+
+    expect(await corrigirLinhaDoRascunho(id, linhaId, campos)).toMatchObject({ ok: false, status: 422 });
+    expect(await acrescentarLinhaAoRascunho(id, campos)).toMatchObject({ ok: false, status: 422 });
+    expect(chamarBackend).not.toHaveBeenCalled();
   });
 });

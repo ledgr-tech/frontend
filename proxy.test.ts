@@ -75,3 +75,47 @@ describe("proxy: a empresa da URL (#169)", () => {
     expect(resposta.headers.get("Content-Security-Policy")).toBeTruthy();
   });
 });
+
+describe("proxy: onde ele roda (S1-09)", async () => {
+  const { unstable_doesMiddlewareMatch } = await import("next/experimental/testing/server");
+  const { readdirSync } = await import("node:fs");
+  const { join, relative } = await import("node:path");
+  const roda = (url: string) => unstable_doesMiddlewareMatch({ config, url });
+  const A = "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20";
+
+  it("roda em tela com ponto no caminho: sem ele a tela sairia sem CSP e com o x-ledgr-empresa de fora", () => {
+    for (const url of [`/e/${A}/conciliacoes/a.b`, `/e/${A}/conciliacoes/a.png`, "/login/a.b", "/ajuda/a.b", "/admin/a.b", "/visao-geral"]) {
+      expect(roda(url), url).toBe(true);
+    }
+  });
+
+  it("não roda no que é arquivo estático", () => {
+    const estaticos = [
+      "/mascotes/x.png",
+      "/email/logo.png",
+      "/email/fontes/x.woff2",
+      "/ajuda/empresas.webp",
+      "/ajuda/comparacao--figuras.json",
+      "/ajuda/conteudo.json",
+      "/favicon.ico",
+      "/icon.png",
+      "/apple-icon.png",
+      "/robots.txt",
+      "/sitemap.xml",
+      "/_next/static/x.js",
+      "/_next/image",
+      "/_vercel/insights/script.js",
+      "/api/auth/session",
+    ];
+    for (const url of estaticos) expect(roda(url), url).toBe(false);
+  });
+
+  it("cada arquivo de public/ está fora do proxy: uma pasta ou extensão nova obriga a decidir", () => {
+    // cada arquivo de verdade, até o fim da árvore
+    for (const arquivo of readdirSync("public", { recursive: true, withFileTypes: true })) {
+      if (!arquivo.isFile()) continue;
+      const url = `/${relative("public", join(arquivo.parentPath, arquivo.name)).replaceAll("\\", "/")}`;
+      expect(roda(url), url).toBe(false);
+    }
+  });
+});
