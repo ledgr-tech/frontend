@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from "react";
+import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { ArrowRight, ChevronDown } from "lucide-react";
 import type { SaldoDoExtrato } from "@/lib/adaptadores";
 import { formatarMoeda, type LinhaComparacao } from "@/lib/mock-data";
@@ -16,6 +16,9 @@ import { dadosDoLancamento, type ValorDoLado } from "./cartao-lancamento";
 import { acoesDoPainel, ofereceExplicacao } from "./painel-da-comparacao";
 import { DetalhesDaLinha, ListaDeDetalhes, useDetalhesDaDivergencia } from "./[linha]/detalhes-da-divergencia";
 import { seloDaLinha, situacaoDaLinha } from "./situacao";
+import { semMovimento, useAvisoDeRolagem } from "../aviso-de-rolagem";
+import { BotaoDeExplicar } from "./botao-de-explicar";
+import { TextoDigitado } from "./texto-digitado";
 
 /**
  * O painel da direita da comparação (issue #338): o lançamento em que o mouse está, grande, e embaixo os
@@ -110,6 +113,7 @@ function QuadroDoLancamento({
   const [avisoDaExplicacao, setAvisoDaExplicacao] = useState<string | null>(null);
   // a explicação que a pessoa acabou de pedir sobe com destaque; a que já veio na listagem só aparece
   const [recemExplicada, setRecemExplicada] = useState(false);
+  const [digitada, setDigitada] = useState(false);
   const { caixa: caixaDoDetalhe, conteudo: conteudoDoDetalhe, medir, descer, acima, abaixo } = useAvisoDeRolagem();
   const cartao = useRef<HTMLDivElement>(null);
 
@@ -316,9 +320,14 @@ function QuadroDoLancamento({
               {dados.explicacao ? (
                 <div ref={cartao} className="comp-explicacao" data-nova={recemExplicada || undefined}>
                   {dados.geradaPorIa && <SeloIa />}
-                  <p>{dados.explicacao}</p>
+                  {/* a que a pessoa acabou de pedir é digitada na tela; a que já veio na listagem só aparece */}
+                  <p>{recemExplicada ? <TextoDigitado key={dados.explicacao} texto={dados.explicacao} aoTerminar={() => setDigitada(true)} /> : dados.explicacao}</p>
                   {/* os fatos calculados pelo backend (#196), abaixo do texto da IA; só divergência com dado do backend */}
-                  {real && !estaResolvida(linha.status) && <DetalhesDaLinha key={linha.id} linhaId={linha.id} />}
+                  {real && !estaResolvida(linha.status) && (
+                    <div className="explicacao-depois" data-esperando={recemExplicada && !digitada ? "" : undefined}>
+                      <DetalhesDaLinha key={linha.id} linhaId={linha.id} />
+                    </div>
+                  )}
                 </div>
               ) : (
                 ofereceExplicacao(linha, real) && (
@@ -336,9 +345,7 @@ function QuadroDoLancamento({
                         <i />
                       </span>
                     )}
-                    <button type="button" className="btn btn-secondary" disabled={explicando} aria-busy={explicando} onClick={() => void explicar()}>
-                      {explicando ? "Explicando…" : falhaDaExplicacao ? "Tentar de novo" : "Explicar esta divergência"}
-                    </button>
+                    <BotaoDeExplicar explicando={explicando} falhou={!!falhaDaExplicacao} onClick={() => void explicar()} />
                     {explicando && (
                       <span role="status" className="explicacao-aviso">
                         Lendo os dois extratos. Pode levar alguns segundos.
@@ -457,41 +464,6 @@ function QuadroDoLancamento({
       {!modo && erro && <MensagemErro id={idErro}>{erro}</MensagemErro>}
     </div>
   );
-}
-
-function semMovimento(): boolean {
-  return window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
-}
-
-/**
- * Se há conteúdo acima ou abaixo do que se vê no detalhe: a borda daquele lado esfuma e, embaixo, aparece o
- * "Mais abaixo". Mede ao rolar e quando a caixa ou o conteúdo mudam de tamanho (os fatos chegam depois).
- */
-function useAvisoDeRolagem() {
-  const caixa = useRef<HTMLDivElement>(null);
-  const conteudo = useRef<HTMLDivElement>(null);
-  const [borda, setBorda] = useState({ acima: false, abaixo: false });
-  const medir = useCallback(() => {
-    const el = caixa.current;
-    if (!el) return;
-    // 2px de folga: zoom e frações de pixel deixam o fim um tico antes do scrollHeight
-    const acima = el.scrollTop > 2;
-    const abaixo = el.scrollTop + el.clientHeight < el.scrollHeight - 2;
-    setBorda((atual) => (atual.acima === acima && atual.abaixo === abaixo ? atual : { acima, abaixo }));
-  }, []);
-  useEffect(() => {
-    medir();
-    if (typeof ResizeObserver === "undefined") return;
-    const observador = new ResizeObserver(medir);
-    if (caixa.current) observador.observe(caixa.current);
-    if (conteudo.current) observador.observe(conteudo.current);
-    return () => observador.disconnect();
-  }, [medir]);
-  const descer = useCallback(() => {
-    const el = caixa.current;
-    el?.scrollBy?.({ top: el.clientHeight * 0.7, behavior: semMovimento() ? "auto" : "smooth" });
-  }, []);
-  return { caixa, conteudo, medir, descer, ...borda };
 }
 
 /** O campo que diverge fica na cor do risco, como na tabela: o valor, ou a data na "Data diverge". */

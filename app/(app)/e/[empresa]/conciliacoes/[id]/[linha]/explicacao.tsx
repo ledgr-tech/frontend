@@ -8,6 +8,8 @@ import { InkHover } from "@/app/reveal";
 import { SeloIa } from "../../../selo-ia";
 import { explicarDivergencia, type Explicacao, type Indisponibilidade } from "../../acoes";
 import { ListaDeDetalhes, useDetalhesDaDivergencia } from "./detalhes-da-divergencia";
+import { BotaoDeExplicar } from "../botao-de-explicar";
+import { TextoDigitado } from "../texto-digitado";
 
 const FALHA = "Não foi possível pedir a explicação agora. Tente de novo em instantes.";
 
@@ -44,6 +46,7 @@ export function ExplicacaoDaDivergencia({
 }) {
   const router = useRoteador();
   const [estado, setEstado] = useState<Estado>({ etapa: "ocioso" });
+  const [digitada, setDigitada] = useState(false);
   // os fatos calculados pelo backend (#196) abrem junto com a linha, sem custo; sem eles, é o texto de antes
   const fatos = useDetalhesDaDivergencia(linhaId);
 
@@ -72,26 +75,33 @@ export function ExplicacaoDaDivergencia({
     <div className="det-causa">
       <InkHover style={{ flex: "none" }}>
         <Image
+          // a key troca a imagem com um esmaecer, em vez de pular de um mascote para o outro
+          key={pronta ? "explicando" : "lupa"}
+          className={pronta ? "det-causa-mascote explicacao-mascote-novo" : "det-causa-mascote"}
           // antes da explicação, o mascote investiga de lupa; com ela pronta, explica
           src={pronta ? "/mascotes/mascote-explicando.png" : "/mascotes/mascote-lupa.png"}
           alt={pronta ? "Mascote Ledgr explicando" : "Mascote Ledgr com a lupa"}
           width={pronta ? 1000 : 977}
           height={pronta ? 1000 : 1122}
           sizes="130px"
-          style={{ width: 130, height: "auto", display: "block" }}
         />
       </InkHover>
-      <div style={{ flex: "1 1 340px", minWidth: 0 }}>
+      <div className="det-causa-corpo">
         <h6 style={{ margin: "0 0 8px" }}>O que provavelmente aconteceu</h6>
 
         {pronta ? (
-          <>
+          // a explicação pedida é digitada na tela; o resto esmaece depois que o texto termina
+          <div className="explicacao-nova">
             {pronta.geradaPorIa && <SeloIa />}
-            <p className="det-causa-texto">{pronta.texto}</p>
-            {/* os fatos do POST, ou os que já estavam na tela */}
-            <ListaDeDetalhes detalhes={pronta.detalhes?.length ? pronta.detalhes : (fatos?.detalhes ?? [])} />
-            {aviso && <p className="explicacao-aviso">{aviso}</p>}
-          </>
+            <p className="det-causa-texto">
+              <TextoDigitado key={pronta.texto} texto={pronta.texto} aoTerminar={() => setDigitada(true)} />
+            </p>
+            <div className="explicacao-depois" data-esperando={digitada ? undefined : ""}>
+              {/* os fatos do POST, ou os que já estavam na tela */}
+              <ListaDeDetalhes detalhes={pronta.detalhes?.length ? pronta.detalhes : (fatos?.detalhes ?? [])} />
+              {aviso && <p className="explicacao-aviso">{aviso}</p>}
+            </div>
+          </div>
         ) : (
           <>
             {fatos?.texto ? (
@@ -105,6 +115,14 @@ export function ExplicacaoDaDivergencia({
                 casou.
               </p>
             )}
+            {/* onde o texto vai chegar, enquanto o Ledgr lê os extratos */}
+            {estado.etapa === "explicando" && (
+              <span className="comp-esqueleto explicacao-esqueleto" aria-hidden="true">
+                <i />
+                <i />
+                <i />
+              </span>
+            )}
             {estado.etapa === "falhou" && (
               <p role="alert" className="explicacao-erro">
                 {estado.erro}
@@ -116,19 +134,11 @@ export function ExplicacaoDaDivergencia({
                   Voltar para a conciliação
                 </Link>
               ) : (
-                <button
-                  type="button"
-                  className="btn btn-secondary"
+                <BotaoDeExplicar
+                  explicando={estado.etapa === "explicando"}
+                  falhou={estado.etapa === "falhou"}
                   onClick={() => void explicar()}
-                  disabled={estado.etapa === "explicando"}
-                  aria-busy={estado.etapa === "explicando"}
-                >
-                  {estado.etapa === "explicando"
-                    ? "Explicando…"
-                    : estado.etapa === "falhou"
-                      ? "Tentar de novo"
-                      : "Explicar esta divergência"}
-                </button>
+                />
               )}
               {estado.etapa === "explicando" && (
                 <span role="status" className="explicacao-aviso">

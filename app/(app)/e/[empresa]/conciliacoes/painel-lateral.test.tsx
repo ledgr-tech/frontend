@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { PainelLateral } from "./painel-lateral";
 
@@ -44,5 +44,22 @@ describe("PainelLateral", () => {
 
     await user.click(screen.getByText("conteúdo"));
     expect(back).not.toHaveBeenCalled();
+  });
+
+  it("rola sem barra: o \"Mais abaixo\" aparece enquanto há conteúdo fora da vista", () => {
+    render(<PainelLateral rotulo="Lançamento"><p>conteúdo</p></PainelLateral>);
+    const caixa = document.querySelector<HTMLElement>(".painel-rolagem")!;
+    const mais = document.querySelector(".comp-mais")!;
+    expect(caixa).toHaveFocus();
+    Object.defineProperty(caixa, "scrollHeight", { configurable: true, value: 900 });
+    Object.defineProperty(caixa, "clientHeight", { configurable: true, value: 500 });
+
+    fireEvent.scroll(caixa);
+    expect(mais).toHaveAttribute("data-visivel");
+
+    caixa.scrollTop = 400;
+    fireEvent.scroll(caixa);
+    expect(mais).not.toHaveAttribute("data-visivel");
+    expect(caixa).toHaveAttribute("data-acima");
   });
 });
