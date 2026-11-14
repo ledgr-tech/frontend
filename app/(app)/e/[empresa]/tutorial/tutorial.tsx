@@ -155,6 +155,7 @@ export function Tutorial({
 
   function fechar() {
     if (naoMostrar) dispensarTutorial(tela);
+    setNaoMostrar(false); // a desmontagem chama fechar() de novo: não grava duas vezes
     setAberto(false);
   }
 
@@ -163,6 +164,10 @@ export function Tutorial({
   useEffect(() => {
     acoes.current = { abrir, fechar };
   });
+
+  // a caixa marcada vale mesmo se o cartão sai sem Pular ou Entendi: trocar de tela ou fechar o
+  // painel do detalhe da linha desmonta o tutorial
+  useEffect(() => () => acoes.current.fechar(), []);
 
   // primeira visita na sessão: abre quando a tela mostra o que o tutorial explica. Numa tela vazia
   // (a conta nova, sem extratos) não abre nem conta como vista: espera uma visita com conteúdo
