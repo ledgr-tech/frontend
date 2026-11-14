@@ -743,10 +743,10 @@ describe("contaDaSessao", () => {
     expect(await contaDaSessao()).toEqual({ empresa: "Telha Certa Ltda", nome: "Ana", temSenha: false, papel: "admin", empresas: [], preferencias: null, assinatura: null, cobrancaHabilitada: false, limites: null, guardaArquivoOriginal: false });
   });
 
-  it("sem resposta, esconde a empresa em vez de inventar um nome e deixa a troca de senha à mostra", async () => {
+  it("sem resposta, esconde a empresa, deixa a troca de senha à mostra e dá o papel menor (D2)", async () => {
     fetch.mockResolvedValue(Response.json({ detail: "Not Found" }, { status: 404 }));
 
-    expect(await contaDaSessao()).toEqual({ empresa: "", temSenha: true, papel: "admin", empresas: [], preferencias: null, assinatura: null, cobrancaHabilitada: false, limites: null, indisponivel: true });
+    expect(await contaDaSessao()).toEqual({ empresa: "", temSenha: true, papel: "analista", empresas: [], preferencias: null, assinatura: null, cobrancaHabilitada: false, limites: null, indisponivel: true });
   });
 
   it("lê as empresas da conta do /me, na ordem em que o backend manda (#133)", async () => {

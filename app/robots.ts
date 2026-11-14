@@ -15,7 +15,6 @@ const FORA_DA_BUSCA = [
   "/fechamentos",
   "/historico",
   "/plano",
-  "/regras",
   "/visao-geral",
   "/aceitar-convite",
   "/relatorio",

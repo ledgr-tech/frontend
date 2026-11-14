@@ -3,7 +3,6 @@ import {
   aceitarValorDoBanco,
   criarConciliacao,
   listarConciliacoes,
-  listarRegras,
   buscarConciliacao,
   fecharConciliacao,
   formatarMoeda,
@@ -161,22 +160,5 @@ describe("registrarDecisaoNoMock", () => {
     expect(registrarDecisaoNoMock("nao-existe", "lc-2", "conferida", null)).toBeNull();
     const criada = criarConciliacao();
     expect(registrarDecisaoNoMock(criada.id, "lc-nao-existe", "conferida", null)).toBeNull();
-  });
-});
-
-describe("regras", () => {
-  beforeEach(() => {
-    window.localStorage.clear();
-  });
-
-  it("starts with the two default rules active and the rest suggested", () => {
-    const { ativas, sugeridas } = listarRegras();
-    expect(ativas).toHaveLength(2);
-    expect(sugeridas).toHaveLength(3);
-  });
-
-  it("falls back to the defaults when localStorage is malformed", () => {
-    window.localStorage.setItem("ledgr_regras_ativas", "not valid json {]");
-    expect(listarRegras().ativas).toHaveLength(2);
   });
 });

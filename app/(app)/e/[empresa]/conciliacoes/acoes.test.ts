@@ -805,6 +805,19 @@ describe("explicarDivergencia", () => {
     chamarBackend.mockReset();
   });
 
+  it("na conta de demonstração não pede a IA: devolve o texto fixo do motor, que não gasta o limite diário (D5)", async () => {
+    vi.stubEnv("LEDGR_CONTA_TESTE_EMAIL", "ana@x.com");
+    chamarBackend.mockResolvedValue({ texto: "O valor difere em R$ 2,00.", detalhes: [{ rotulo: "Diferença", valor: "R$ 2,00" }] });
+
+    expect(await explicarDivergencia(LINHA)).toEqual({
+      ok: true,
+      dados: { texto: "O valor difere em R$ 2,00.", geradaPorIa: false, indisponibilidade: "desabilitado", detalhes: [{ rotulo: "Diferença", valor: "R$ 2,00" }] },
+    });
+    expect(chamarBackend).toHaveBeenCalledTimes(1);
+    expect(chamarBackend).toHaveBeenCalledWith(`/explicacoes/${LINHA}/detalhes`);
+    vi.unstubAllEnvs();
+  });
+
   it("recusa linha com id fora do formato sem chamar o backend (a explicação custa)", async () => {
     expect(await explicarDivergencia("qualquer")).toMatchObject({ ok: false, status: 404 });
     expect(chamarBackend).not.toHaveBeenCalled();
@@ -1081,6 +1094,17 @@ describe("prazo do upload e da conciliação", () => {
     ["com origem desconhecida", { arquivo: new File(["x"], "a.csv"), origem: "outro" }],
   ])("recusa o upload %s sem chamar o backend", async (_, campos) => {
     expect(await enviarExtrato(formulario(campos))).toMatchObject({ ok: false, status: 422 });
+    expect(chamarBackend).not.toHaveBeenCalled();
+  });
+
+  it("recusa o extrato acima de 4 MB sem chamar o backend, como a tela (S2-04)", async () => {
+    const arquivo = new File(["x"], "grande.ofx");
+    Object.defineProperty(arquivo, "size", { value: 4.2 * 1024 * 1024 });
+    expect(await enviarExtrato(formulario({ arquivo, origem: "banco" }))).toEqual({
+      ok: false,
+      status: 413,
+      erro: 'O arquivo "grande.ofx" passa de 4 MB. Exporte um período menor.',
+    });
     expect(chamarBackend).not.toHaveBeenCalled();
   });
 
@@ -1674,6 +1698,21 @@ describe("aprovar e rejeitar justificativas (backend #132)", () => {
   });
   afterEach(() => {
     conta.papel = "admin";
+  });
+
+  it("argumentos fora do formato (ação chamada à mão) respondem 422 antes de tudo, e um tipo em lista não pula a recusa do analista (S1-04)", async () => {
+    conta.papel = "analista";
+    const errados: [unknown, unknown, unknown][] = [
+      ["lb-1", ["justificativa_aprovada"], undefined],
+      ["lb-1", "tipo_inventado", undefined],
+      [{ chave: "lb-1" }, "conferida", undefined],
+      ["lb-1", "justificada", { texto: "x" }],
+    ];
+    for (const [chave, tipo, texto] of errados) {
+      const resposta = await registrarDecisao(BANCO_RECENTE, chave as string, tipo as "conferida", texto as string);
+      expect(resposta).toMatchObject({ ok: false, status: 422 });
+    }
+    expect(chamarBackend).not.toHaveBeenCalled();
   });
 
   it("aprova uma justificativa e devolve a decisão com quem aprovou", async () => {

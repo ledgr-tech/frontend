@@ -4,7 +4,7 @@ import { enderecosPublicos } from "@/lib/endereco-do-conector";
 import { pareceUuid } from "@/lib/adaptadores";
 import { ErroBackend, chamarBackend, ehContaInativa, emailDaSessao } from "@/lib/backend";
 import { RECUSA_DEMONSTRACAO, ehContaDeDemonstracao } from "@/lib/demo";
-import { podeFecharMes } from "@/lib/papel";
+import { podeFecharMes, recusaPorPapel } from "@/lib/papel";
 import { contaDaSessao } from "../../../../(auth)/acoes";
 import type { Falha, Resultado } from "../conciliacoes/acoes";
 
@@ -75,8 +75,8 @@ function traduzir(erro: unknown): Falha {
  * revoga: uma chave dela daria acesso de fora a uma conta que qualquer visitante usa.
  */
 async function recusa(altera: boolean): Promise<Falha | null> {
-  const { papel } = await contaDaSessao();
-  if (!podeFecharMes(papel)) return { ok: false, status: 403, erro: SO_ADMIN_OU_GESTOR };
+  const porPapel = recusaPorPapel(await contaDaSessao(), podeFecharMes, SO_ADMIN_OU_GESTOR);
+  if (porPapel) return porPapel;
   if (altera && ehContaDeDemonstracao(await emailDaSessao())) return { ok: false, status: 403, erro: RECUSA_DEMONSTRACAO };
   return null;
 }
