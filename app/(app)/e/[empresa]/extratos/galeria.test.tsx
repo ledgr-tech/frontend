@@ -239,7 +239,7 @@ describe("Galeria de extratos", () => {
       />,
     );
     expect(painel().getByText("85,4%")).toBeInTheDocument();
-    expect(painel().getByText(/2 divergências pedem sua decisão · 1 justificada/)).toBeInTheDocument();
+    expect(painel().getByText(/2 pendências · 1 justificada/)).toBeInTheDocument();
     expect(painel().getByText("Período").nextSibling).toHaveTextContent("01/09/2026 a 30/09/2026");
     expect(painel().getByText("Conciliado com").nextSibling).toHaveTextContent("erp-setembro.csv");
     expect(painel().getByText("Tolerância usada").nextSibling).toHaveTextContent("± 2 dias");
@@ -257,7 +257,7 @@ describe("Galeria de extratos", () => {
         ]}
       />,
     );
-    expect(painel().getByText(/Nada pendente · 2 justificadas/)).toBeInTheDocument();
+    expect(painel().getByText(/Nenhuma pendência · 2 justificadas/)).toBeInTheDocument();
     expect(painel().getByText("Tolerância usada").nextSibling).toHaveTextContent("Mesmo dia");
   });
 

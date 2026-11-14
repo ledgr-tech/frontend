@@ -509,7 +509,7 @@ export type ContaDaSessao = {
   /** Falso na conta que só entra pelo Google: para ela, `POST /me/senha` responde 409. */
   temSenha: boolean;
   /**
-   * As empresas da conta, para o seletor e para conferir a empresa da URL (backend #133), na ordem do
+   * As empresas do escritório, para o seletor e para conferir a empresa da URL (backend #133), na ordem do
    * backend (razão social). Vazia quando o `GET /me` não manda o campo (backend anterior) ou falhou.
    */
   empresas: EmpresaDaConta[];

@@ -94,7 +94,7 @@ export const PASSOS: PassoCadastro[] = [
   {
     id: "acesso",
     rotuloEtapa: "Acesso",
-    eyebrow: "Antes de começar",
+    eyebrow: "Passo 1 de 3",
     titulo: "Crie seu acesso.",
     texto: "Use seu e-mail de trabalho. É com ele e com esta senha que você entra no Ledgr para acompanhar as conciliações.",
     campos: [
@@ -122,7 +122,7 @@ export const PASSOS: PassoCadastro[] = [
   {
     id: "empresa",
     rotuloEtapa: "Empresa",
-    eyebrow: "Passo I de II",
+    eyebrow: "Passo 2 de 3",
     titulo: "Vamos cadastrar a empresa.",
     texto:
       "Cada empresa tem sua própria conciliação, seu histórico e seu fechamento. Você pode adicionar outras depois, sem custo de setup.",
@@ -177,9 +177,9 @@ export const PASSOS: PassoCadastro[] = [
   {
     id: "sistema",
     rotuloEtapa: "Sistema de gestão",
-    eyebrow: "Passo II de II",
+    eyebrow: "Passo 3 de 3",
     titulo: "E o sistema de gestão?",
-    texto: "Diga de qual sistema sai o segundo extrato. Se o seu ERP não for um dos compatíveis, o CSV exportado dele também funciona.",
+    texto: "Diga de qual sistema sai o segundo extrato. Se o seu sistema não for um dos compatíveis, o CSV exportado dele também funciona.",
     campos: [
       {
         id: "sistema",
@@ -210,6 +210,6 @@ export const PASSOS: PassoCadastro[] = [
 // senha. O nome, que o Google já traz, vai para o passo da empresa, para a pessoa conferir.
 const [acesso, empresa, sistema] = PASSOS;
 export const PASSOS_GOOGLE: PassoCadastro[] = [
-  { ...empresa, campos: [acesso.campos.find((campo) => campo.id === "nome")!, ...empresa.campos] },
-  sistema,
+  { ...empresa, eyebrow: "Passo 1 de 2", campos: [acesso.campos.find((campo) => campo.id === "nome")!, ...empresa.campos] },
+  { ...sistema, eyebrow: "Passo 2 de 2" },
 ];

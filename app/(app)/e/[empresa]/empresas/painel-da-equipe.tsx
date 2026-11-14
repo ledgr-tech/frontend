@@ -16,6 +16,7 @@ import { DESCRICAO_DO_PAPEL, MenuDePapel } from "./menu-de-papel";
 import { BotaoFecharJanela, ModalDaTela } from "./modal-da-tela";
 import { TransferirAdmin } from "./transferir-admin";
 import { useTrocaSuave } from "@/lib/troca-suave";
+import { SEM_SERVIDOR } from "@/lib/sem-servidor";
 
 /**
  * A aba Equipe da tela Empresas (spec 2026-10-22-empresas-na-configuracao, revisão de 23/10; as regras de
@@ -117,7 +118,7 @@ export function PainelDaEquipe({
     setEmCurso(id);
     setErroDeAcao("");
     const resposta = await acao().catch(
-      (): Resultado<null> => ({ ok: false, status: 0, erro: "Não foi possível falar com o servidor." }),
+      (): Resultado<null> => ({ ok: false, status: 0, erro: SEM_SERVIDOR }),
     );
     setEmCurso(null);
     setConfirmando(null);
@@ -145,7 +146,7 @@ export function PainelDaEquipe({
     setEmCurso(pessoa.id);
     setErroDaPessoa(null);
     const resposta = await trocarPapel(pessoa.id, novo).catch(
-      (): Resultado<Pessoa> => ({ ok: false, status: 0, erro: "Não foi possível falar com o servidor." }),
+      (): Resultado<Pessoa> => ({ ok: false, status: 0, erro: SEM_SERVIDOR }),
     );
     setEmCurso(null);
     if (resposta.ok) {
@@ -228,7 +229,7 @@ export function PainelDaEquipe({
             pessoa={paraTransferir}
             aoConcluir={(pessoas) => {
               aplicar((equipe) => ({ ...equipe, pessoas }));
-              setAvisoDaTransferencia(`${paraTransferir.nome} agora é o administrador da conta. Você é Gestor.`);
+              setAvisoDaTransferencia(`${paraTransferir.nome} agora é o administrador do escritório. Você é Gestor.`);
               setParaTransferir(null);
               router.refresh();
             }}
@@ -570,7 +571,7 @@ function ConvidarPessoa({
     setEnviando(true);
     setRetorno(null);
     const resposta = await convidar(email, escolhido).catch(
-      (): Resultado<Convite> => ({ ok: false, status: 0, erro: "Não foi possível falar com o servidor." }),
+      (): Resultado<Convite> => ({ ok: false, status: 0, erro: SEM_SERVIDOR }),
     );
     setEnviando(false);
     if (resposta.ok) {

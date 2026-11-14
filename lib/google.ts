@@ -32,6 +32,15 @@ export const MENSAGEM_GOOGLE: Record<ErroGoogle, string> = {
 };
 
 /**
+ * O `?error=` que o NextAuth manda ao login vem do Google quando é do OAuth (`OAuthCallbackError`…) ou
+ * a recusa do callback `signIn` (`AccessDenied`). Uma exceção dentro do `signIn` (`aoVoltarDoGoogle`)
+ * chega como `Configuration` e mostra o texto genérico: o Auth.js não diz que veio do Google.
+ */
+export function erroEhDoGoogle(erro: string | null): boolean {
+  return erro !== null && (erro.startsWith("OAuth") || erro === "AccessDenied");
+}
+
+/**
  * Quem aceita um convite pelo Google (backend #69/#73) vai ao Google com o token do
  * convite neste cookie httpOnly, pelo mesmo tempo do `id_token`. Na volta, o
  * `aoVoltarDoGoogle` vê o cookie e aceita o convite em vez de entrar.

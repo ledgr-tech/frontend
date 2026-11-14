@@ -488,7 +488,7 @@ describe("AssinaturaPage", () => {
       await montar(conta({ situacao: "teste" }), { papel: "gestor" });
       const assinar = within(painel()).getByRole("button", { name: "Assinar o Padrão" });
       expect(assinar).toBeDisabled();
-      expect(assinar).toHaveAccessibleDescription("Só o administrador da conta assina.");
+      expect(assinar).toHaveAccessibleDescription("Só o administrador do escritório assina.");
     });
 
     it("mostra a franquia de conciliações do mês", async () => {

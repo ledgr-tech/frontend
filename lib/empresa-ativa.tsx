@@ -31,7 +31,7 @@ export function useEmpresaAtiva(): EmpresaDaConta | null {
   return useContext(Contexto)?.ativa ?? null;
 }
 
-/** Todas as empresas da conta, para o seletor; vazio fora do provedor. */
+/** Todas as empresas do escritório, para o seletor; vazio fora do provedor. */
 export function useEmpresasDaConta(): EmpresaDaConta[] {
   return useContext(Contexto)?.empresas ?? [];
 }

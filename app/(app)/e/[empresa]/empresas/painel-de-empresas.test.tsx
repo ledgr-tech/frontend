@@ -339,7 +339,7 @@ describe("o cadastro de empresa", () => {
   });
 
   it.each([
-    [409, "Esta empresa já está cadastrada na conta."],
+    [409, "Esta empresa já está cadastrada no escritório."],
     [422, "CNPJ não encontrado na Receita."],
   ])("o %s aparece sob o campo CNPJ", async (status, erro) => {
     cadastrarEmpresa.mockResolvedValue({ ok: false, status, erro });
@@ -398,9 +398,9 @@ describe("o cadastro de empresa", () => {
     await screen.findByText("Muitos cadastros seguidos. Tente de novo em 3 minutos.");
     expect(router.refresh).not.toHaveBeenCalled();
 
-    cadastrarEmpresa.mockResolvedValueOnce({ ok: false, status: 403, erro: "Seu papel na conta não permite fazer isso." });
+    cadastrarEmpresa.mockResolvedValueOnce({ ok: false, status: 403, erro: "Seu papel no escritório não permite fazer isso." });
     await user.click(screen.getByRole("button", { name: "Cadastrar empresa" }));
-    await screen.findByText("Seu papel na conta não permite fazer isso.");
+    await screen.findByText("Seu papel no escritório não permite fazer isso.");
     expect(router.refresh).toHaveBeenCalledTimes(1);
   });
 
@@ -533,7 +533,7 @@ describe("os modais de cadastrar e de convidar", () => {
 
     const janela = screen.getByRole("dialog", { name: "Adicionar empresa" });
     expect(janela).toHaveClass("espia", "modal-suave");
-    expect(within(janela).getByText("Cadastre uma empresa cliente pelo CNPJ. Ela entra na conta e você passa a trabalhar nela.")).toBeInTheDocument();
+    expect(within(janela).getByText("Cadastre uma empresa cliente pelo CNPJ. Ela entra no escritório e você passa a trabalhar nela.")).toBeInTheDocument();
     expect(within(janela).getByLabelText("CNPJ")).toBeInTheDocument();
   });
 

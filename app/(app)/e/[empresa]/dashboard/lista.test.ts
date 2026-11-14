@@ -79,11 +79,11 @@ describe("ordemDeTrabalho", () => {
 describe("seloDaConciliacao", () => {
   it("terracota quando o que falta custa dinheiro, dourado quando é só incompleto, verde sem pendência", () => {
     expect(seloDaConciliacao(conciliacao("a", "2026-09", "2026-09-24T12:00:00Z", { divergente_valor: 1, divergente_data: 2 }))).toEqual({
-      rotulo: "3 pedem decisão",
+      rotulo: "3 pendências",
       tom: "risco",
     });
     expect(seloDaConciliacao(conciliacao("b", "2026-09", "2026-09-24T12:00:00Z", { divergente_data: 1 }))).toEqual({
-      rotulo: "1 pede decisão",
+      rotulo: "1 pendência",
       tom: "atencao",
     });
     expect(seloDaConciliacao(conciliacao("c", "2026-09", "2026-09-24T12:00:00Z", { tarifa_bancaria: 1 }, 1))).toEqual({

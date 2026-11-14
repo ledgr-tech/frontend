@@ -5,6 +5,7 @@ import { ErroBackend, chamarBackend, ehContaInativa, emailDaSessao } from "@/lib
 import { RECUSA_DEMONSTRACAO, ehContaDeDemonstracao } from "@/lib/demo";
 import { caracteresCnpj, validarCnpj } from "../../../../(auth)/cadastro/passos";
 import type { Falha, Resultado } from "../conciliacoes/acoes";
+import { SEM_SERVIDOR } from "@/lib/sem-servidor";
 
 /**
  * As empresas clientes da conta (backend #133, parte 2; spec 2026-10-22-empresas-na-configuracao): todo
@@ -23,12 +24,12 @@ function limiteDeCadastros(segundos: number | undefined): string {
 /** Os textos que o backend não dá prontos; o resto vai com o `detail` dele, que já explica bem. */
 function traduzir(erro: unknown, aoCadastrar = false): Falha {
   if (!(erro instanceof ErroBackend)) {
-    return { ok: false, status: 0, erro: "Não foi possível falar com o servidor." };
+    return { ok: false, status: 0, erro: SEM_SERVIDOR };
   }
   const { status } = erro;
   if (status === 401) return { ok: false, status, erro: SESSAO_EXPIRADA };
-  if (status === 403 && !ehContaInativa(erro)) return { ok: false, status, erro: "Seu papel na conta não permite fazer isso." };
-  if (aoCadastrar && status === 409) return { ok: false, status, erro: "Esta empresa já está cadastrada na conta." };
+  if (status === 403 && !ehContaInativa(erro)) return { ok: false, status, erro: "Seu papel no escritório não permite fazer isso." };
+  if (aoCadastrar && status === 409) return { ok: false, status, erro: "Esta empresa já está cadastrada no escritório." };
   if (aoCadastrar && status === 429) return { ok: false, status, erro: limiteDeCadastros(erro.segundosParaTentar) };
   if (aoCadastrar && status === 422 && erro.mensagens.cnpj) {
     // a recusa de formato vem como "Value error, CNPJ inválido"; a da Receita já vem sem o prefixo
@@ -46,7 +47,7 @@ async function recusaNaDemonstracao(): Promise<Falha | null> {
 const POR_PAGINA = 100;
 
 /**
- * Todas as empresas da conta, favoritas da pessoa primeiro (backend #157). A rota devolve páginas; uma conta
+ * Todas as empresas do escritório, favoritas da pessoa primeiro (backend #157). A rota devolve páginas; uma conta
  * tem poucas empresas (o plano limita), então junta todas aqui e as telas buscam, ordenam e paginam no cliente.
  * Sem `total` na resposta é o backend anterior ao #157, que manda todas de uma vez e ignora os parâmetros.
  */

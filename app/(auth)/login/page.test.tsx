@@ -257,6 +257,15 @@ describe("LoginPage", () => {
     );
   });
 
+  it("shows a generic sign-in failure for a NextAuth error that is not Google's (A-05)", async () => {
+    window.history.replaceState(null, "", "/login?error=Configuration");
+    render(<LoginPage />);
+
+    const alerta = await screen.findByRole("alert");
+    expect(alerta).toHaveTextContent("Não foi possível entrar agora. Tente de novo em instantes.");
+    expect(alerta).not.toHaveTextContent("Google");
+  });
+
   it("only keeps the session in this tab when 'Manter sessão ativa' is unchecked", async () => {
     const user = userEvent.setup();
     render(<LoginPage />);

@@ -172,7 +172,7 @@ const PASSOS: { num: string; titulo: string; texto: string; formatos?: string[];
   {
     num: "II",
     titulo: "Suba o extrato do sistema",
-    texto: "Exporte o razão do seu ERP ou sistema de gestão no mesmo período, em CSV.",
+    texto: "Exporte os lançamentos do seu sistema de gestão no mesmo período, em CSV.",
     formatos: ["CSV"],
   },
   {

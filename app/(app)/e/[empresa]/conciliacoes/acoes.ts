@@ -37,6 +37,7 @@ import type { DadosDoRoteiro } from "../visao-geral/roteiro";
 import { contaDaSessao } from "../../../../(auth)/acoes";
 import { SO_O_GESTOR_APROVA, SO_O_GESTOR_FECHA, SO_QUEM_APROVOU } from "@/lib/gestor";
 import { podeFecharMes } from "@/lib/papel";
+import { SEM_SERVIDOR } from "@/lib/sem-servidor";
 
 /**
  * O fluxo real de conciliação, ponta a ponta, contra a API do backend:
@@ -99,7 +100,7 @@ function traduzir(erro: unknown): Falha {
     return { ok: false, status: 504, erro: "O servidor demorou para responder. Tente de novo em instantes." };
   }
   // fetch que nem chegou a sair (backend fora do ar, DNS, CORS de rede)
-  return { ok: false, status: 0, erro: "Não foi possível falar com o servidor." };
+  return { ok: false, status: 0, erro: SEM_SERVIDOR };
 }
 
 /**
@@ -273,7 +274,7 @@ async function execucoesDoBanco(extratoBancoId: string, exigirHistoricoCompleto 
       itens.push(...proxima.itens);
     }
     if (exigirHistoricoCompleto && itens.length < primeira.total) {
-      return { ok: false, status: 503, erro: "Não foi possível verificar todas as rodadas. Tente novamente." };
+      return { ok: false, status: 503, erro: "Não foi possível verificar todas as rodadas. Tente de novo em instantes." };
     }
     return { ok: true, dados: itens.map(adaptarExecucao) };
   } catch (erro) {

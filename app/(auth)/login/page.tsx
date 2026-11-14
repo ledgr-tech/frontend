@@ -6,7 +6,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "re
 import { useRouter } from "next/navigation";
 import { demoAberta } from "@/lib/demo";
 import { destinoDepoisDoLogin } from "@/lib/rotas";
-import { MENSAGEM_GOOGLE, ehErroGoogle, googleLigado } from "@/lib/google";
+import { MENSAGEM_GOOGLE, ehErroGoogle, erroEhDoGoogle, googleLigado } from "@/lib/google";
 import { estaBloqueado, limparTentativas, registrarSenhaErrada } from "@/lib/tentativas";
 import {
   entrar as abrirSessao,
@@ -130,10 +130,16 @@ export default function LoginPage() {
   useEffect(() => {
     const parametros = new URLSearchParams(window.location.search);
     const motivo = parametros.get("google");
-    if (!motivo && !parametros.has("error")) return;
+    const erroDoNextAuth = parametros.get("error");
+    if (!motivo && erroDoNextAuth === null) return;
     // a URL só existe no navegador: ler no render daria uma tela no servidor e outra no cliente
+    // só os erros do OAuth são do Google (A-05, #386); Configuration e os outros do NextAuth, não
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setErroGoogle(MENSAGEM_GOOGLE[ehErroGoogle(motivo) ? motivo : "falha"]);
+    setErroGoogle(
+      motivo || erroEhDoGoogle(erroDoNextAuth)
+        ? MENSAGEM_GOOGLE[ehErroGoogle(motivo) ? motivo : "falha"]
+        : "Não foi possível entrar agora. Tente de novo em instantes.",
+    );
     // o motivo vale para esta volta do Google: recarregar a página não mostra de novo
     window.history.replaceState(null, "", window.location.pathname);
   }, []);

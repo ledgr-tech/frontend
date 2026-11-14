@@ -16,7 +16,7 @@ function Mostra() {
 }
 
 describe("empresa ativa", () => {
-  it("dentro do provedor, devolve a ativa e as empresas da conta", () => {
+  it("dentro do provedor, devolve a ativa e as empresas do escritório", () => {
     render(
       <ProvedorDaEmpresa ativa={A} empresas={[A, B]}>
         <Mostra />

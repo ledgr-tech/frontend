@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ErroBackend } from "@/lib/backend";
 import { cadastrarEmpresa, carregarEmpresas, marcarFavorita } from "./acoes";
+import { SEM_SERVIDOR } from "@/lib/sem-servidor";
 
 // a rede é a fronteira; ErroBackend e a tradução dos erros rodam de verdade
 const chamarBackend = vi.fn();
@@ -32,7 +33,7 @@ afterEach(() => {
 });
 
 describe("carregarEmpresas", () => {
-  it("devolve as empresas da conta; o CNPJ só conta como verificado com a data da Receita", async () => {
+  it("devolve as empresas do escritório; o CNPJ só conta como verificado com a data da Receita", async () => {
     chamarBackend.mockResolvedValue({
       itens: [empresaApi, { ...empresaApi, id: "e6b87048-0f9e-4ee1-839d-2390220cdfb4", cnpj_verificado_em: "2026-10-22T10:00:00Z" }],
     });
@@ -127,12 +128,12 @@ describe("cadastrarEmpresa", () => {
   });
 
   it.each([
-    [new ErroBackend(409, "Empresa já cadastrada nesta conta."), 409, "Esta empresa já está cadastrada na conta."],
+    [new ErroBackend(409, "Empresa já cadastrada nesta conta."), 409, "Esta empresa já está cadastrada no escritório."],
     [new ErroBackend(402, "O plano permite até 3 empresas."), 402, "O plano permite até 3 empresas."],
     [new ErroBackend(429, "Limite", [], {}, 180), 429, "Muitos cadastros seguidos. Tente de novo em 3 minutos."],
     [new ErroBackend(429, "Limite", [], {}, 60), 429, "Muitos cadastros seguidos. Tente de novo em 1 minuto."],
     [new ErroBackend(429, "Limite"), 429, "Muitos cadastros seguidos. Tente de novo mais tarde."],
-    [new ErroBackend(403, "Só o admin."), 403, "Seu papel na conta não permite fazer isso."],
+    [new ErroBackend(403, "Só o admin."), 403, "Seu papel no escritório não permite fazer isso."],
     [new ErroBackend(401, "x"), 401, "Sua sessão expirou. Entre de novo para continuar."],
     [
       new ErroBackend(422, "O servidor respondeu 422.", ["cnpj"], { cnpj: "CNPJ não encontrado na Receita." }),
@@ -156,7 +157,7 @@ describe("cadastrarEmpresa", () => {
     expect(await cadastrarEmpresa(CNPJ, "Cliente")).toEqual({
       ok: false,
       status: 0,
-      erro: "Não foi possível falar com o servidor.",
+      erro: SEM_SERVIDOR,
     });
   });
 });

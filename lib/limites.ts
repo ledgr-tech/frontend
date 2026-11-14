@@ -24,7 +24,7 @@ export function adaptarLimites(bruto: unknown): LimitesDaConta | null {
   const limites = {
     empresas: lerLimite(empresas, "usadas"),
     usuarios: lerLimite(usuarios, "usados"),
-    // a franquia do mês civil de São Paulo, de todas as empresas da conta (backend #180)
+    // a franquia do mês civil de São Paulo, de todas as empresas do escritório (backend #180)
     conciliacoes: lerLimite(conciliacoes, "usadas"),
   };
   return limites.empresas || limites.usuarios || limites.conciliacoes ? limites : null;

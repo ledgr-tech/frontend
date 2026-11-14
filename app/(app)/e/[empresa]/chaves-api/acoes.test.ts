@@ -167,7 +167,7 @@ describe("quem não pode", () => {
     expect(await revogarChaveApi(CHAVE)).toEqual({
       ok: false,
       status: 403,
-      erro: "Só o admin ou o gestor da conta criam e revogam chaves da API.",
+      erro: "Só o admin ou o gestor do escritório criam e revogam chaves da API.",
     });
   });
 });

@@ -8,6 +8,7 @@ import { podeFecharMes } from "@/lib/papel";
 import { ehPedidoDeConexao } from "@/lib/rotas";
 import { contaDaSessao } from "../../../../(auth)/acoes";
 import type { Falha, Resultado } from "../conciliacoes/acoes";
+import { SEM_SERVIDOR } from "@/lib/sem-servidor";
 
 /**
  * A conexão do ChatGPT e do Claude com o Ledgr (backend #136, front #195): o Ledgr é o servidor de
@@ -54,12 +55,12 @@ type ConexaoAPI = {
   revogada_em: string | null;
 };
 
-const SO_ADMIN_OU_GESTOR_CONECTA = "Só o admin ou o gestor da conta autorizam conexões com assistentes de IA.";
+const SO_ADMIN_OU_GESTOR_CONECTA = "Só o admin ou o gestor do escritório autorizam conexões com assistentes de IA.";
 const PEDIDO_VENCIDO = "Este pedido de conexão não vale mais. Volte ao ChatGPT ou ao Claude e conecte de novo.";
 const PEDIDO_INVALIDO: Falha = { ok: false, status: 404, erro: PEDIDO_VENCIDO };
 
 function traduzir(erro: unknown, aoPedir = false): Falha {
-  if (!(erro instanceof ErroBackend)) return { ok: false, status: 0, erro: "Não foi possível falar com o servidor." };
+  if (!(erro instanceof ErroBackend)) return { ok: false, status: 0, erro: SEM_SERVIDOR };
   const { status } = erro;
   if (status === 401) return { ok: false, status, erro: "Sua sessão expirou. Entre de novo para continuar." };
   if (status === 403 && !ehContaInativa(erro)) return { ok: false, status, erro: SO_ADMIN_OU_GESTOR_CONECTA };

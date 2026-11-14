@@ -414,7 +414,7 @@ function PedeAtencao({
     <section className="vg-bloco vg-atencao">
       <EtiquetaDoPasso passos={passos} id="divergencias" />
       <h2 id="vg-atencao-titulo" className="vg-bloco-rotulo">
-        Pede sua atenção
+        Pendências
       </h2>
       {grupos.length === 0 && arquivos.length === 0 ? (
         <div className="vg-tudo-certo">
@@ -426,7 +426,7 @@ function PedeAtencao({
             sizes="72px"
             style={{ width: 72, height: "auto", flex: "none" }}
           />
-          <p style={{ margin: 0 }}>Nada pede sua atenção agora.</p>
+          <p style={{ margin: 0 }}>Nenhuma pendência agora.</p>
         </div>
       ) : (
         <ul className="vg-lista" aria-labelledby="vg-atencao-titulo">
@@ -575,7 +575,7 @@ function ContaNova({ roteiro, passos }: { roteiro: DadosDoRoteiro | null; passos
 
       <Reveal delay={0.08} className="vg-blocos-par">
         <section className="vg-bloco vg-atencao">
-          <h2 className="vg-bloco-rotulo">Pede sua atenção</h2>
+          <h2 className="vg-bloco-rotulo">Pendências</h2>
           <p className="vg-nota pp-vazio">
             Os lançamentos que não bateram e pedem decisão aparecem aqui, depois da primeira conciliação.
           </p>

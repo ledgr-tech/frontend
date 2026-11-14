@@ -20,6 +20,7 @@ import {
   type Indicado,
 } from "@/lib/medidor-de-planos";
 import { escolherPlano } from "../acoes";
+import { SEM_SERVIDOR } from "@/lib/sem-servidor";
 
 /**
  * A escolha do plano que começa o teste de 14 dias (spec 2026-10-15-primeiro-uso), guiada: a pessoa
@@ -54,7 +55,7 @@ export function EscolherPlano() {
   async function escolher(escolhido: PlanoId) {
     setErro(null);
     setEscolhendo(escolhido);
-    const resposta = await escolherPlano(escolhido).catch(() => ({ ok: false as const, erro: "Não foi possível falar com o servidor." }));
+    const resposta = await escolherPlano(escolhido).catch(() => ({ ok: false as const, erro: SEM_SERVIDOR }));
     if (resposta.ok) {
       router.push("/visao-geral");
       return;

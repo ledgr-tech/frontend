@@ -13,6 +13,7 @@ import { ErroBackend, chamarBackend, ehContaInativa, emailDaSessao } from "@/lib
 import { RECUSA_DEMONSTRACAO, ehContaDeDemonstracao } from "@/lib/demo";
 import { ehPapel, podeConvidar, type Papel } from "@/lib/papel";
 import type { Falha, Resultado } from "../conciliacoes/acoes";
+import { SEM_SERVIDOR } from "@/lib/sem-servidor";
 
 /**
  * A equipe da empresa (backend #69, ADR-015; papéis no #133): o admin convida gestor ou analista,
@@ -44,18 +45,18 @@ function limiteDeTentativas(segundos: number | undefined): string {
  */
 function traduzir(erro: unknown, contexto: "geral" | "convite" | "papel" = "geral"): Falha {
   if (!(erro instanceof ErroBackend)) {
-    return { ok: false, status: 0, erro: "Não foi possível falar com o servidor." };
+    return { ok: false, status: 0, erro: SEM_SERVIDOR };
   }
   const { status } = erro;
   if (status === 401) return { ok: false, status, erro: SESSAO_EXPIRADA };
-  if (status === 403 && !ehContaInativa(erro)) return { ok: false, status, erro: "Seu papel na conta não permite fazer isso." };
+  if (status === 403 && !ehContaInativa(erro)) return { ok: false, status, erro: "Seu papel no escritório não permite fazer isso." };
   const aoConvidar = contexto === "convite";
   if (aoConvidar && status === 409) return { ok: false, status, erro: "Este e-mail já tem conta no Ledgr." };
   if (aoConvidar && status === 429) return { ok: false, status, erro: limiteDeConvites(erro.segundosParaTentar) };
   if (aoConvidar && status === 503) {
     return { ok: false, status, erro: "O envio de convites está indisponível no momento." };
   }
-  if (contexto === "papel" && status === 404) return { ok: false, status, erro: "Essa pessoa não está mais na conta." };
+  if (contexto === "papel" && status === 404) return { ok: false, status, erro: "Essa pessoa não está mais no escritório." };
   if (contexto === "papel" && status === 429) return { ok: false, status, erro: limiteDeTentativas(erro.segundosParaTentar) };
   return { ok: false, status, erro: erro.detalhe };
 }

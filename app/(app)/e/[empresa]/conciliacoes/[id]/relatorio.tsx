@@ -34,15 +34,15 @@ function plural(quantidade: number, um: string, varios: string): string {
 }
 
 /**
- * "2 linhas pedem revisão · R$ 3.186 em aberto · 1 justificada". As justificadas
+ * "2 pendências · R$ 3.186 em aberto · 1 justificada". As justificadas
  * vêm à parte: liberam o fechamento, mas não bateram nem pedem mais revisão.
  */
 function textoDoTotal(linhas: LinhaComparacao[], emRevisao: number, justificadas: number): string {
-  if (emRevisao === 0 && justificadas === 0) return "Nenhuma linha pede revisão.";
+  if (emRevisao === 0 && justificadas === 0) return "Nenhuma pendência.";
   const revisao =
     emRevisao === 0
-      ? "Nenhuma linha pede revisão"
-      : `${plural(emRevisao, "linha pede", "linhas pedem")} revisão · ${formatarMoedaCurta(valorEmAberto(linhas))} em aberto`;
+      ? "Nenhuma pendência"
+      : `${plural(emRevisao, "pendência", "pendências")} · ${formatarMoedaCurta(valorEmAberto(linhas))} em aberto`;
   return justificadas === 0 ? revisao : `${revisao} · ${plural(justificadas, "justificada", "justificadas")}`;
 }
 

@@ -50,6 +50,7 @@ import { useNome, usePodeFechar } from "../../conta";
 import { aprovadaDepois, podeDesfazerAprovacao } from "@/lib/aprovacao";
 import { decidirLinhas } from "../acoes";
 import { DecisaoEmLote } from "../decisao-em-lote";
+import { SEM_SERVIDOR } from "@/lib/sem-servidor";
 
 /**
  * "Desde a rodada 1: 4 passaram a bater · 2 continuam divergindo · 1 nova divergência".
@@ -332,7 +333,7 @@ export default function ConciliacaoPage() {
       resposta = await decidir({ conciliacao, real, linha, tipo, texto });
     } catch {
       // a Server Action lançou (rede caída, deploy novo no meio) em vez de devolver um Resultado
-      return "Não foi possível falar com o servidor.";
+      return SEM_SERVIDOR;
     }
     if (resposta.ok) {
       const gravada = resposta.conciliacao.linhas.find((atual) => chaveDaLinha(atual) === chave);
@@ -1246,7 +1247,7 @@ function EspiaDaLinha({
                 </div>
               </form>
             )}
-            {!podeAprovar && <p className="espia-aviso">Aguarda a aprovação do admin ou do gestor da conta.</p>}
+            {!podeAprovar && <p className="espia-aviso">Aguarda a aprovação do admin ou do gestor do escritório.</p>}
             {podeDecidir && !rejeitando && (
               <button
                 type="button"

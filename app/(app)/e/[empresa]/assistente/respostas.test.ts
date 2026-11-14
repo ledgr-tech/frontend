@@ -82,7 +82,7 @@ describe("montarContexto", () => {
 describe("saudacao e sugestoes", () => {
   it("abrem com o mês em uma frase e os atalhos do design com os números de agora", () => {
     expect(saudacao(contexto())).toBe(
-      "Setembro está 50,0% conciliado. Sobraram 3 linhas para revisar, a maior parte em “Valor diverge na mesma data”.",
+      "Setembro está 50,0% conciliado. Sobraram 3 pendências, a maior parte em “Valor diverge na mesma data”.",
     );
     expect(sugestoes(contexto()).map((item) => item.replaceAll("\u00a0", " "))).toEqual([
       "Por que sobrou R$ 4.261?",
@@ -94,7 +94,7 @@ describe("saudacao e sugestoes", () => {
 
   it("não sugerem explicar nem perguntar o que sobrou quando nada sobrou", () => {
     const tudoCasado = contexto([linha("l1", "match_exato", 100, 100)]);
-    expect(saudacao(tudoCasado)).toBe("Setembro está 100,0% conciliado. Nada sobrou para revisar.");
+    expect(saudacao(tudoCasado)).toBe("Setembro está 100,0% conciliado. Nenhuma pendência.");
     expect(sugestoes(tudoCasado)).toEqual(["Resumo de setembro", "O que falta para fechar?"]);
   });
 });
@@ -157,7 +157,7 @@ describe("responder", () => {
     };
     const ctx = contexto([linha("l1", "match_exato", 100, 100), justificada]);
 
-    expect(saudacao(ctx)).toBe("Setembro está 50,0% conciliado. Nada sobrou para revisar.");
+    expect(saudacao(ctx)).toBe("Setembro está 50,0% conciliado. Nenhuma pendência.");
     expect(responder("O que falta para fechar?", ctx)!.texto).toBe("Nada: setembro está pronto para fechar.");
     // e não há o que explicar: a justificada já tem o porquê
     expect(responder("Explique a maior divergência", ctx)!.texto).toBe(

@@ -8,6 +8,7 @@ import { MensagemErro } from "../../../../../../../(auth)/_compartilhado/mensage
 import type { Falha } from "../../../acoes";
 import { useCobranca } from "../../../../conta";
 import { concluirNovaVersaoIa, type ContextoNovaVersaoIa } from "../acoes";
+import { SEM_SERVIDOR } from "@/lib/sem-servidor";
 
 export function RetomarNovaVersao({
   contexto,
@@ -44,7 +45,7 @@ export function RetomarNovaVersao({
         setFalha(r);
       }
     } catch {
-      setFalha({ ok: false, status: 0, erro: "Não foi possível falar com o servidor." });
+      setFalha({ ok: false, status: 0, erro: SEM_SERVIDOR });
     } finally {
       if (!navegando) {
         trava.current = false;

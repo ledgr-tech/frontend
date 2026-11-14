@@ -4,6 +4,7 @@ import { pareceUuid } from "@/lib/adaptadores";
 import { ErroBackend, chamarBackend } from "@/lib/backend";
 import { ARQUIVO_GRANDE_DEMAIS, TAMANHO_MAXIMO_UPLOAD_BYTES } from "@/lib/limite-de-upload";
 import { conciliar, situacaoDoExtrato, verificarNovaVersao, type Falha, type Resultado } from "../../acoes";
+import { SEM_SERVIDOR } from "@/lib/sem-servidor";
 
 /**
  * Importação do relatório de lançamentos via IA (backend #158/#159, PRs #172 e #173; front #224 e #225): o
@@ -60,7 +61,7 @@ function linha(l: LinhaAPI): LinhaDoRascunho {
 }
 
 function traduzir(erro: unknown): Falha {
-  if (!(erro instanceof ErroBackend)) return { ok: false, status: 0, erro: "Não foi possível falar com o servidor." };
+  if (!(erro instanceof ErroBackend)) return { ok: false, status: 0, erro: SEM_SERVIDOR };
   const { status } = erro;
   if (status === 401) return { ok: false, status, erro: "Sua sessão expirou. Entre de novo para continuar." };
   if (status === 429) return { ok: false, status, erro: "Muitas tentativas seguidas. Espere um minuto e tente de novo." };

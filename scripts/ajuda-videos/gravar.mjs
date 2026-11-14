@@ -80,7 +80,7 @@ const ROTEIROS = {
   extratos: {
     inicio: "extratos",
     async cena(t, { page }) {
-      await t.passo(null, "", "Todos os arquivos que você enviou", "Do banco e do sistema de gestão, conciliados ou não.", 3600);
+      await t.passo(null, "", "Todos os arquivos que você enviou", "Do banco e do sistema, conciliados ou não.", 3600);
       const todos = botao(page, /^Todos \(/);
       await t.passo(grupoDe(todos), "1", "Filtre por tipo", "**Todos**, **Do banco**, **Do sistema** ou **Com problema**.", 2600);
       await t.clicar(botao(page, /^Do banco/));
@@ -108,8 +108,8 @@ const ROTEIROS = {
     inicio: "dashboard",
     async cena(t, { page }) {
       await t.passo(null, "", "A sua fila de trabalho", "Um par de folhas por extrato do banco, com as abertas primeiro.", 3600);
-      const pedem = botao(page, /^Pedem decisão/);
-      await t.passo(grupoDe(pedem), "1", "Filtre a fila", "**Pedem decisão**, **Sem pendência**, **Mês fechado** ou **Todas**.", 2600);
+      const pedem = botao(page, /^Com pendência/);
+      await t.passo(grupoDe(pedem), "1", "Filtre a fila", "**Com pendência**, **Sem pendência**, **Mês fechado** ou **Todas**.", 2600);
       await t.clicar(botao(page, /^Todas \(/));
       await pausa(1800);
       await t.clicar(pedem);
@@ -272,7 +272,7 @@ const ROTEIROS = {
       await page.keyboard.press("Escape");
       await pausa(800);
       const equipe = botao(page, /^Equipe \(/);
-      await t.passo(equipe, "4", "Em **Equipe**, as pessoas da conta", "E o papel de cada uma: administrador, gestor ou analista.", 2400);
+      await t.passo(equipe, "4", "Em **Equipe**, as pessoas do escritório", "E o papel de cada uma: administrador, gestor ou analista.", 2400);
       await t.clicar(equipe);
       await pausa(1200);
       await t.clicar(botao(page, /^Gabriela Gestora/));
@@ -320,16 +320,16 @@ const ROTEIROS = {
       await t.clicar(menu);
       await t.focar(null);
       await t.esperar(/conciliacoes\/nova/);
-      await t.passo(alvo(page, "encaixe"), "", "Você envia o extrato do banco e o do sistema de gestão, do mesmo período", "O Ledgr compara os dois linha por linha.", 4200);
+      await t.passo(alvo(page, "encaixe"), "", "Você envia o extrato do banco e o extrato do sistema, do mesmo período", "O Ledgr compara os dois linha por linha.", 4200);
       const banco = page.locator('input[aria-label="Extrato do banco"]');
       const cartaoBanco = banco.locator("xpath=..");
       await t.passo(cartaoBanco, "1", "Envie o extrato do banco", "**OFX ou CSV** exportado do internet banking, até 4 MB.", 1800);
       await t.clicar(cartaoBanco).catch(() => {});
       await banco.setInputFiles(path.join(AQUI, "banco-dezembro-2025.csv"));
       await pausa(2600);
-      const sistema = page.locator('input[aria-label="Extrato do sistema de gestão"]');
+      const sistema = page.locator('input[aria-label="Extrato do sistema"]');
       const cartaoSistema = sistema.locator("xpath=..");
-      await t.passo(cartaoSistema, "2", "Envie o extrato do sistema de gestão", "Um **CSV** com data, descrição e valor, do mesmo mês.", 1800);
+      await t.passo(cartaoSistema, "2", "Envie o extrato do sistema", "Um **CSV** com data, descrição e valor, do mesmo mês.", 1800);
       await t.clicar(cartaoSistema).catch(() => {});
       await sistema.setInputFiles(path.join(AQUI, "erp-dezembro-2025.csv"));
       await pausa(2600);
@@ -388,7 +388,7 @@ const FIGURAS = {
       {
         antes: async ({ page }) => {
           await page.locator('input[aria-label="Extrato do banco"]').setInputFiles(path.join(AQUI, "banco-dezembro-2025.csv"));
-          await page.locator('input[aria-label="Extrato do sistema de gestão"]').setInputFiles(path.join(AQUI, "erp-dezembro-2025.csv"));
+          await page.locator('input[aria-label="Extrato do sistema"]').setInputFiles(path.join(AQUI, "erp-dezembro-2025.csv"));
           await pausa(1500);
         },
         figuras: [{ id: "conciliar", alvo: (p) => alvo(p, "conciliar") }],
@@ -788,7 +788,7 @@ async function gravarLanding(browser, estado, empresa) {
 
   // a Nova conciliação: os dois extratos e "Conciliar extratos"
   const banco = page.locator('input[aria-label="Extrato do banco"]');
-  const sistema = page.locator('input[aria-label="Extrato do sistema de gestão"]');
+  const sistema = page.locator('input[aria-label="Extrato do sistema"]');
   await marcar(banco.locator("xpath=.."), "banco");
   await ler("novaVazia");
   await banco.setInputFiles(path.join(AQUI, "banco-dezembro-2025.ofx"));

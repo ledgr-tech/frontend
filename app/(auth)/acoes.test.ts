@@ -749,7 +749,7 @@ describe("contaDaSessao", () => {
     expect(await contaDaSessao()).toEqual({ empresa: "", temSenha: true, papel: "admin", empresas: [], preferencias: null, assinatura: null, cobrancaHabilitada: false, limites: null, indisponivel: true });
   });
 
-  it("lê as empresas da conta do /me, na ordem em que o backend manda (#133)", async () => {
+  it("lê as empresas do escritório do /me, na ordem em que o backend manda (#133)", async () => {
     fetch.mockResolvedValue(
       Response.json({
         ...EU,

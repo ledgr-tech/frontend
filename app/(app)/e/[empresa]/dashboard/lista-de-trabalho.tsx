@@ -34,8 +34,8 @@ import {
  */
 
 const FILTROS: { id: FiltroDaLista; rotulo: string; vazio: string }[] = [
-  { id: "pendentes", rotulo: "Pedem decisão", vazio: "Nenhuma conciliação pede decisão." },
-  { id: "prontas", rotulo: "Sem pendência", vazio: "Toda conciliação de mês aberto ainda pede alguma decisão." },
+  { id: "pendentes", rotulo: "Com pendência", vazio: "Nenhuma conciliação com pendência." },
+  { id: "prontas", rotulo: "Sem pendência", vazio: "Toda conciliação de mês aberto ainda tem alguma pendência." },
   { id: "fechadas", rotulo: "Mês fechado", vazio: "Nenhum mês fechado ainda." },
   { id: "todas", rotulo: "Todas", vazio: "Nenhuma conciliação." },
 ];
@@ -159,7 +159,7 @@ function CabecalhoDoMes({ mes }: { mes: MesNaLista }) {
     : [
         "Aberto",
         quantas,
-        mes.pedemDecisao > 0 && `${plural(mes.pedemDecisao, "linha pede", "linhas pedem")} decisão`,
+        mes.pedemDecisao > 0 && plural(mes.pedemDecisao, "pendência", "pendências"),
       ]
         .filter(Boolean)
         .join(" · ");
@@ -259,7 +259,7 @@ function Previa({
   const titulo = fechamento
     ? "Mês fechado"
     : pendentes > 0
-      ? `${plural(pendentes, "linha pede", "linhas pedem")} decisão`
+      ? plural(pendentes, "pendência", "pendências")
       : "Sem pendência";
   return (
     <aside ref={ref} className="conc-previa" aria-label="Conciliação escolhida" aria-live="polite" data-tutorial="previa">

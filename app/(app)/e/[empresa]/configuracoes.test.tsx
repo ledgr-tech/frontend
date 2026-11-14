@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { Configuracoes } from "./configuracoes";
 import { ProvedorDaConta } from "./conta";
 import type { RegrasDaEmpresa, Resultado } from "./conciliacoes/acoes";
+import { SEM_SERVIDOR } from "@/lib/sem-servidor";
 
 // a tolerância é do backend; aqui as actions devolvem o que ele responderia
 const toleranciaDaUltimaConciliacao = vi.fn<() => Promise<number | null>>();
@@ -251,7 +252,7 @@ describe("Configuracoes", () => {
     });
 
     it("offers to try again when the settings could not be loaded", async () => {
-      carregarRegras.mockResolvedValueOnce({ ok: false, status: 0, erro: "Não foi possível falar com o servidor." });
+      carregarRegras.mockResolvedValueOnce({ ok: false, status: 0, erro: SEM_SERVIDOR });
       const user = userEvent.setup();
       abrir();
       await user.click(secao("Conciliação"));

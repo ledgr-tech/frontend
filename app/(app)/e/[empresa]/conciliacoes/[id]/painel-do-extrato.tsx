@@ -307,7 +307,7 @@ function QuadroDoLancamento({
                     </span>
                   )}
                   {dados.nota.texto && <p>{dados.nota.texto}</p>}
-                  {acoes?.avisoDeAprovacao && <span className="espia-aviso">Aguarda a aprovação do admin ou do gestor da conta.</span>}
+                  {acoes?.avisoDeAprovacao && <span className="espia-aviso">Aguarda a aprovação do admin ou do gestor do escritório.</span>}
                   {acoes?.avisoDeQuemAprovou && aprovada && (
                     <span className="espia-aviso">{`Para alterar ou retirar, ${aprovada.aprovadaPor} precisa desfazer a aprovação.`}</span>
                   )}

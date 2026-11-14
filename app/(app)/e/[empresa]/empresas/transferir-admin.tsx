@@ -7,6 +7,7 @@ import { MensagemErro } from "../../../../(auth)/_compartilhado/mensagem-erro";
 import type { Resultado } from "../conciliacoes/acoes";
 import { useTemSenha } from "../conta";
 import { transferirAdmin } from "../equipe/acoes";
+import { SEM_SERVIDOR } from "@/lib/sem-servidor";
 
 /**
  * A confirmação da transferência da administração (spec 2026-10-23-papel-e-transferencia), dentro da
@@ -54,7 +55,7 @@ export function TransferirAdmin({
     emCurso.current = true;
     setEnviando(true);
     const resposta = await transferirAdmin(pessoa.id, temSenha ? senha : null).catch(
-      (): Resultado<Pessoa[]> => ({ ok: false, status: 0, erro: "Não foi possível falar com o servidor." }),
+      (): Resultado<Pessoa[]> => ({ ok: false, status: 0, erro: SEM_SERVIDOR }),
     );
     emCurso.current = false;
     setEnviando(false);
@@ -74,7 +75,7 @@ export function TransferirAdmin({
   return (
     <form className="empresas-form" onSubmit={enviar} noValidate aria-label="Transferir administração">
       <p className="dialog-body">
-        {pessoa.nome} passa a ser o administrador da conta e você passa a ser Gestor. Só o novo administrador pode desfazer isso.
+        {pessoa.nome} passa a ser o administrador do escritório e você passa a ser Gestor. Só o novo administrador pode desfazer isso.
       </p>
       {temSenha && (
         <div className="field">

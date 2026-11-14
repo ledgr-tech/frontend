@@ -4,6 +4,7 @@ import { useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { BotaoFecharJanela, ModalDaTela } from "../../../(app)/e/[empresa]/empresas/modal-da-tela";
 import { agirNaConta, type AcaoDaConta } from "../acoes";
+import { SEM_SERVIDOR } from "@/lib/sem-servidor";
 
 type Acao = { acao: AcaoDaConta; botao: string; titulo: (nome: string) => string; aviso: string };
 
@@ -65,7 +66,7 @@ export function AcoesDaConta({ id, nome, inativa, piloto }: { id: string; nome: 
       fechar();
       roteador.refresh();
     } catch {
-      setErro("Não foi possível falar com o servidor.");
+      setErro(SEM_SERVIDOR);
     } finally {
       trava.current = false;
       setEnviando(false);

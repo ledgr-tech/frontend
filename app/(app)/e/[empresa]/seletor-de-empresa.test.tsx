@@ -63,7 +63,7 @@ describe("SeletorDeEmpresa (no topo, #223)", () => {
     expect(botao).toHaveAttribute("aria-expanded", "false");
   });
 
-  it("abre a tabela das empresas da conta, com o CNPJ formatado e a aberta marcada", async () => {
+  it("abre a tabela das empresas do escritório, com o CNPJ formatado e a aberta marcada", async () => {
     const user = userEvent.setup();
     montar();
     await user.click(screen.getByRole("button", { name: /Padaria Ltda/ }));
