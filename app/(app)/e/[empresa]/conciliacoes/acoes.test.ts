@@ -1084,6 +1084,17 @@ describe("prazo do upload e da conciliação", () => {
     expect(chamarBackend).not.toHaveBeenCalled();
   });
 
+  it("recusa o extrato acima de 4 MB sem chamar o backend, como a tela (S2-04)", async () => {
+    const arquivo = new File(["x"], "grande.ofx");
+    Object.defineProperty(arquivo, "size", { value: 4.2 * 1024 * 1024 });
+    expect(await enviarExtrato(formulario({ arquivo, origem: "banco" }))).toEqual({
+      ok: false,
+      status: 413,
+      erro: 'O arquivo "grande.ofx" passa de 4 MB. Exporte um período menor.',
+    });
+    expect(chamarBackend).not.toHaveBeenCalled();
+  });
+
   it("recusa conciliar ids fora do formato sem chamar o backend", async () => {
     expect(await conciliar(BANCO_RECENTE, "../execucoes")).toMatchObject({ ok: false, status: 404 });
     expect(await conciliar("nao-e-id", SISTEMA)).toMatchObject({ ok: false, status: 404 });
@@ -1674,6 +1685,21 @@ describe("aprovar e rejeitar justificativas (backend #132)", () => {
   });
   afterEach(() => {
     conta.papel = "admin";
+  });
+
+  it("argumentos fora do formato (ação chamada à mão) respondem 422 antes de tudo, e um tipo em lista não pula a recusa do analista (S1-04)", async () => {
+    conta.papel = "analista";
+    const errados: [unknown, unknown, unknown][] = [
+      ["lb-1", ["justificativa_aprovada"], undefined],
+      ["lb-1", "tipo_inventado", undefined],
+      [{ chave: "lb-1" }, "conferida", undefined],
+      ["lb-1", "justificada", { texto: "x" }],
+    ];
+    for (const [chave, tipo, texto] of errados) {
+      const resposta = await registrarDecisao(BANCO_RECENTE, chave as string, tipo as "conferida", texto as string);
+      expect(resposta).toMatchObject({ ok: false, status: 422 });
+    }
+    expect(chamarBackend).not.toHaveBeenCalled();
   });
 
   it("aprova uma justificativa e devolve a decisão com quem aprovou", async () => {

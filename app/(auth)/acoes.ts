@@ -7,7 +7,7 @@ import { signIn, signOut } from "@/auth";
 import { ErroBackend, chamarBackend, ehContaInativa, emailDaSessao } from "@/lib/backend";
 import { RECUSA_DEMONSTRACAO, demoAberta, ehContaDeDemonstracao } from "@/lib/demo";
 import { COOKIE_CADASTRO_GOOGLE, COOKIE_CONVITE_GOOGLE, VALIDADE_ID_TOKEN_SEGUNDOS } from "@/lib/google";
-import { MuitasEntradas, type UsuarioAPI } from "@/lib/login";
+import { MuitasEntradas, esquecerGoogleIncompleto, type UsuarioAPI } from "@/lib/login";
 import type { EmpresaDaConta } from "@/lib/empresa-ativa";
 import { lerPapel, type Papel } from "@/lib/papel";
 import { destinoDepoisDoLogin } from "@/lib/rotas";
@@ -469,8 +469,8 @@ export async function aceitarConviteComGoogle(token: string): Promise<false> {
 /**
  * O convite do cookie, na volta do Google com recusa: o servidor consulta, para o token
  * nunca chegar ao navegador. Roda no render da página, onde o Next não deixa apagar cookie:
- * um convite que não vale mais fica no cookie até a 1 hora dele, e o próximo login pelo
- * Google (`entrarComGoogle`) o apaga antes de sair.
+ * um convite que não vale mais fica no cookie até a 1 hora dele, ou até o próximo login que der
+ * certo, por qualquer caminho (`esquecerGoogleIncompleto` no `events.signIn` do auth.ts).
  */
 export async function conviteDoCookie(): Promise<ConsultaConvite | null> {
   const token = (await cookies()).get(COOKIE_CONVITE_GOOGLE)?.value;
@@ -486,9 +486,7 @@ export async function sairParaAceitarConvite(): Promise<void> {
 
 export async function sair(): Promise<void> {
   // o id_token do cadastro pelo Google e o convite pela metade não ficam para quem usar o navegador depois
-  const pote = await cookies();
-  pote.delete(COOKIE_CADASTRO_GOOGLE);
-  pote.delete(COOKIE_CONVITE_GOOGLE);
+  await esquecerGoogleIncompleto();
   // encerra a sessão também no backend (`POST /logout`, backend #200): o token deixa de valer em todos os
   // aparelhos da pessoa. A conta de demonstração é de todo mundo: sair dela não derruba os outros visitantes.
   // Se a chamada falhar (backend antigo, fora do ar, sessão já vencida), o cookie sai do mesmo jeito.
