@@ -19,6 +19,7 @@ import { fonteDestaque } from "./fonte-destaque";
 import { PorDentro } from "./por-dentro";
 import { PorQueOLedgr } from "./por-que";
 import { ParaQuem } from "./para-quem";
+import { PausaForaDaTela } from "./pausa-fora-da-tela";
 import { Precos, type ResumoDoMes } from "./precos";
 import { RedesSociais } from "./redes-sociais";
 
@@ -266,6 +267,7 @@ export default function LandingPage() {
   return (
     <main className={`landing ${fonteDestaque.variable}`}>
       <MotionRoot>
+        <PausaForaDaTela />
       <CabecalhoSite />
 
       {/* hero */}

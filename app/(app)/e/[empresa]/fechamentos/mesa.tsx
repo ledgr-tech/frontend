@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useState, type ReactNode, type CSSProperties } from "react";
 import Image from "next/image";
 import Link from "@/lib/link-do-app";
 import { useRoteador } from "@/lib/roteador";
@@ -13,7 +13,7 @@ import { ExportarCsv } from "../conciliacoes/[id]/exportar-csv";
 import { formatarDataHora, formatarInteiro, formatarPercentual } from "../dashboard/resumo";
 import { LinkPublico } from "./link-publico";
 import { FaixaFiltros } from "../faixa-filtros";
-import { Grupo, alternarNoConjunto } from "../grupo";
+import { Grupo, alternarNoConjunto, mostrarPainelDoEscolhido } from "../grupo";
 import { fraseDoSaldoFinal } from "../saldo";
 import type { MesDeFechamento } from "./fechamento";
 import { usePodeFechar } from "../conta";
@@ -179,7 +179,10 @@ export function MesaDeFechamento({
                           // hover e seleção na cor do selo, como na galeria de extratos
                           data-tom={selo.tom}
                           aria-pressed={mes.chave === aberto.chave}
-                          onClick={() => setSelecionado(mes.chave)}
+                          onClick={() => {
+                            setSelecionado(mes.chave);
+                            mostrarPainelDoEscolhido();
+                          }}
                         >
                           <FolhaDoMes mes={mes} />
                           <span className="extrato-nome">{mes.titulo}</span>
@@ -245,7 +248,7 @@ function FolhaDoMes({ mes }: { mes: MesDeFechamento }) {
       <span className="mes-folha-taxa">{formatarPercentual(taxa(mes))}</span>
       <span className="mes-folha-rotulo">conciliado</span>
       <span className="vg-progresso">
-        <span className="vg-progresso-feito" style={{ width: `${taxa(mes)}%` }} />
+        <span className="vg-progresso-feito" style={{ "--feito": `${taxa(mes)}%` } as CSSProperties} />
       </span>
     </span>
   );
@@ -330,7 +333,7 @@ function Painel({ mes, podeFechar }: { mes: MesDeFechamento; podeFechar: boolean
           aria-valuenow={Math.round(taxa(mes))}
           aria-valuetext={`${formatarPercentual(taxa(mes))} conciliado`}
         >
-          <span className="vg-progresso-feito" style={{ width: `${taxa(mes)}%` }} />
+          <span className="vg-progresso-feito" style={{ "--feito": `${taxa(mes)}%` } as CSSProperties} />
         </div>
         <span className="vg-nota">
           {`${formatarInteiro(mes.conciliados)} de ${plural(mes.lancamentos, "lançamento conciliado", "lançamentos conciliados")}`}

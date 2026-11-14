@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { ArrowRight } from "lucide-react";
-import { useRef, useState, useSyncExternalStore } from "react";
+import { useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
 import { PLANOS } from "@/lib/planos";
 import {
   cobrancaImediata,
@@ -263,7 +263,7 @@ function MeioDaFolha({ franquia, uso }: { franquia: string | null; uso: Limite |
         </span>
         {uso.maximo !== null && (
           <span className="vg-progresso">
-            <span className="vg-progresso-feito" style={{ width: `${uso.maximo === 0 ? 100 : Math.min(100, Math.max(3, Math.round((uso.usadas / uso.maximo) * 100)))}%` }} />
+            <span className="vg-progresso-feito" style={{ "--feito": `${uso.maximo === 0 ? 100 : Math.min(100, Math.max(3, Math.round((uso.usadas / uso.maximo) * 100)))}%` } as CSSProperties} />
           </span>
         )}
       </>

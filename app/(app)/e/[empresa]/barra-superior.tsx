@@ -50,6 +50,7 @@ export function BarraSuperior({ contaInativa = false }: { contaInativa?: boolean
   const buscaRef = useRef<HTMLInputElement>(null);
   const caixaBusca = useRef<HTMLDivElement>(null);
   const caixaAvisos = useRef<HTMLDivElement>(null);
+  const botaoAvisos = useRef<HTMLButtonElement>(null);
 
   // A busca e os avisos leem a conciliação mais recente, a mesma da visão geral.
   // ponytail: uma leitura por carga da página — a barra vive no layout e não
@@ -90,6 +91,8 @@ export function BarraSuperior({ contaInativa = false }: { contaInativa?: boolean
       if (evento.key === "Escape") {
         setBuscaAberta(false);
         setAvisosAbertos(false);
+        // fechado de dentro, o foco volta ao botão em vez de cair no <body> (AC-02)
+        if (caixaAvisos.current?.contains(document.activeElement)) botaoAvisos.current?.focus();
       }
     }
     window.addEventListener("keydown", aoTeclar);
@@ -233,14 +236,17 @@ export function BarraSuperior({ contaInativa = false }: { contaInativa?: boolean
       {/* a empresa da aba, ao lado de Avisos (#223): na barra lateral o nome cortava */}
       <SeletorDeEmpresa />
 
-      <div style={{ position: "relative", flex: "none" }} ref={caixaAvisos}>
+      <div className="app-avisos-envelope" ref={caixaAvisos}>
         <button
+          ref={botaoAvisos}
           type="button"
           className="app-avisos-botao"
+          aria-haspopup="dialog"
           aria-expanded={avisosAbertos}
+          aria-controls={avisosAbertos ? "painel-avisos" : undefined}
           onClick={() => setAvisosAbertos((aberto) => !aberto)}
         >
-          <span style={{ fontSize: 15 }}>Avisos</span>
+          <span>Avisos</span>
           {/* o espaço separa "Avisos" da conta no nome que o leitor de tela lê */}
           {" "}
           {/* a conta só depois da leitura: um zero antes dela seria chute */}
@@ -252,13 +258,11 @@ export function BarraSuperior({ contaInativa = false }: { contaInativa?: boolean
         </button>
 
         {presencaDosAvisos.montado && (
-          <div className="app-painel app-avisos-painel" data-saindo={presencaDosAvisos.saindo || undefined}>
+          <div id="painel-avisos" role="dialog" aria-label="Avisos" className="app-painel app-avisos-painel" data-saindo={presencaDosAvisos.saindo || undefined}>
             <div className="app-avisos-topo">
-              <span style={{ fontSize: 17, fontWeight: 600 }}>
-                Avisos
-              </span>
+              <span className="app-avisos-titulo">Avisos</span>
               {naoLidos > 0 && (
-                <button type="button" className="btn btn-ghost" style={{ fontSize: 12.5 }} onClick={lerTodos}>
+                <button type="button" className="btn btn-ghost app-avisos-ler" onClick={lerTodos}>
                   Marcar como lidos
                 </button>
               )}

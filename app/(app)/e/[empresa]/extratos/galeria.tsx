@@ -13,7 +13,7 @@ import { conciliar, type ArquivoExtrato, type ResumoDaRodada } from "../concilia
 import { formatarDataHora, formatarInteiro, formatarPercentual } from "../dashboard/resumo";
 import { tituloDaCompetencia } from "../fechamentos/fechamento";
 import { FaixaFiltros } from "../faixa-filtros";
-import { Grupo, alternarNoConjunto } from "../grupo";
+import { Grupo, alternarNoConjunto, mostrarPainelDoEscolhido } from "../grupo";
 import { IconeOrigem } from "../icone-origem";
 import { formatarMoeda } from "@/lib/mock-data";
 import { data } from "../saldo";
@@ -194,7 +194,10 @@ export function Galeria({ arquivos }: { arquivos: ArquivoExtrato[] }) {
             // hover e seleção na cor da situação do arquivo, como o selo
             data-tom={selo.tom}
             aria-pressed={arquivo.id === selecionadoId}
-            onClick={() => setSelecionado(arquivo.id)}
+            onClick={() => {
+              setSelecionado(arquivo.id);
+              mostrarPainelDoEscolhido();
+            }}
             // atalho de quem já conhece a tela; o botão do painel faz o mesmo para teclado e toque
             onDoubleClick={() => arquivo.resultado && router.push(arquivo.resultado)}
           >

@@ -1,5 +1,6 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import LinkDoApp from "@/lib/link-do-app";
 import { useCobranca } from "../conta";
 
@@ -29,7 +30,7 @@ export function FaixaDoPlano({
       <strong>{contagem}</strong>
       {maximo !== null && (
         <span className="faixa-plano-barra" data-no-limite={noLimite ? "true" : undefined} aria-hidden="true">
-          <i style={{ width: `${maximo === 0 ? 100 : Math.min(100, Math.round((usadas / maximo) * 100))}%` }} />
+          <i style={{ "--feito": `${maximo === 0 ? 100 : Math.min(100, Math.round((usadas / maximo) * 100))}%` } as CSSProperties} />
         </span>
       )}
       {aviso && <span>{aviso}</span>}

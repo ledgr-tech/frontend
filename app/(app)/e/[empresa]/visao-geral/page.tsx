@@ -487,32 +487,35 @@ function AtividadeRecente({ execucoes, total }: { execucoes: Execucao[]; total: 
           Ver histórico
         </Link>
       </div>
-      <div className="dash-tabela-rolagem">
-        <table className="table" aria-labelledby="vg-atividade-titulo">
+      {/* no celular, cartões (M-05): a tabela de 680px rolava de lado sem nenhum sinal de que havia mais */}
+      <div className="dash-tabela-rolagem tabela-cartoes">
+        <table className="table" role="table" aria-labelledby="vg-atividade-titulo">
           <thead>
-            <tr>
-              <th style={{ width: 160 }}>Executada em</th>
-              <th>Arquivos</th>
-              <th style={{ width: 120, textAlign: "right" }}>Lançamentos</th>
-              <th style={{ width: 100, textAlign: "right" }}>Match</th>
-              <th style={{ width: 90 }}></th>
+            <tr role="row">
+              <th role="columnheader" style={{ width: 160 }}>Executada em</th>
+              <th role="columnheader">Arquivos</th>
+              <th role="columnheader" style={{ width: 120, textAlign: "right" }}>Lançamentos</th>
+              <th role="columnheader" style={{ width: 100, textAlign: "right" }}>Match</th>
+              <th role="columnheader" style={{ width: 90 }}>
+                <span className="sr-only">Abrir</span>
+              </th>
             </tr>
           </thead>
           <tbody>
             {recentes.map(({ extratoBancoId, arquivoBanco, rodadas, principal: { execucao, rodada } }) => (
-              <tr key={extratoBancoId}>
-                <td style={{ fontVariantNumeric: "tabular-nums" }}>
+              <tr key={extratoBancoId} role="row">
+                <td role="cell" data-rotulo="Executada em" style={{ fontVariantNumeric: "tabular-nums" }}>
                   {formatarDataHora(execucao.executadaEm)}
                 </td>
-                <td style={{ overflowWrap: "anywhere" }}>
+                <td role="cell" data-destaque="true" style={{ overflowWrap: "anywhere" }}>
                   {`${arquivoBanco} × ${execucao.arquivoSistema}`}
                   {rodadas > 1 && <span className="vg-rodada">{` · rodada ${rodada}`}</span>}
                 </td>
-                <td style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
+                <td role="cell" data-rotulo="Lançamentos" style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
                   {formatarInteiro(execucao.lancamentos)}
                 </td>
-                <td className="dash-valor-celula">{matchNaTela(execucao)}</td>
-                <td style={{ textAlign: "right" }}>
+                <td role="cell" data-rotulo="Match" className="dash-valor-celula">{matchNaTela(execucao)}</td>
+                <td role="cell" style={{ textAlign: "right" }}>
                   <Link href={caminhoDaConciliacao(extratoBancoId)} className="btn btn-secondary" style={{ whiteSpace: "nowrap" }}>
                     Ver{" "}<span className="sr-only">{arquivoBanco}</span>
                   </Link>

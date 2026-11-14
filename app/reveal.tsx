@@ -3,6 +3,7 @@
 import { LazyMotion, MotionConfig, domAnimation, m, useMotionValue, useTransform } from "motion/react";
 import { createContext, useContext, useRef, useSyncExternalStore } from "react";
 import type { CSSProperties, ReactNode } from "react";
+import { PONTOS_DA_CURVA } from "@/lib/troca-suave";
 
 // dentro do app a troca de tela já anima a chegada; os blocos entrando em cascata por cima dela faziam o
 // conteúdo levar quase um segundo para assentar (revisão de animações de 29/10)
@@ -74,7 +75,7 @@ export function Reveal({
       initial={{ opacity: 0, transform: "translateY(16px)" }}
       whileInView={{ opacity: 1, transform: "translateY(0px)" }}
       viewport={{ once: true, amount: 0, margin: "0px 0px -60px 0px", ...viewport }}
-      transition={{ duration: 0.55, delay, ease: [0.22, 1, 0.36, 1] }}
+      transition={{ duration: 0.45, delay, ease: PONTOS_DA_CURVA }}
     >
       {children}
     </m.div>

@@ -31,8 +31,6 @@ function nomeDoMes(mes: string): string {
   return nome ? `${nome} de ${ano}` : mes;
 }
 
-const estiloTituloDoCartao = { margin: 0, fontSize: 18, fontWeight: 600 } as const;
-
 /**
  * Uma conta (#222), na opção B do 28/10: ações no topo (cada uma abre uma janela que pede o motivo), cartões de
  * uso (só contagens, nunca dado do cliente), os extratos conciliados por mês, os dados da conta e o histórico.
@@ -64,7 +62,7 @@ export default async function ContaPage({ params }: { params: Promise<{ conta: s
             <Link href="/admin">← Contas</Link> · Painel interno
           </div>
           <h1 className="tela-titulo">
-            {c.razaoSocial} <span className={classeDoSelo(chave)} style={{ verticalAlign: "middle" }}>{ROTULO_DA_SITUACAO[chave] ?? c.situacao}</span>
+            {c.razaoSocial} <span className={`${classeDoSelo(chave)} adm-meio`}>{ROTULO_DA_SITUACAO[chave] ?? c.situacao}</span>
           </h1>
           <span className="vg-subtitulo tela-contexto">
             {`CNPJ ${formatarCnpj(c.cnpj)}${c.plano ? ` · plano ${c.plano}` : ""}${c.piloto ? " · piloto" : ""}`}
@@ -78,20 +76,20 @@ export default async function ContaPage({ params }: { params: Promise<{ conta: s
       </div>
       {c.inativacao && <p role="status">{`Inativa desde ${data(c.inativacao.em)}: ${c.inativacao.motivo}`}</p>}
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 12, margin: "20px 0" }}>
+      <div className="adm-quatro-colunas">
         {kpis.map(([rotulo, valor, nota]) => (
-          <div key={rotulo} className="card" style={{ padding: "14px 16px" }}>
-            <div style={{ fontSize: 13, opacity: 0.7 }}>{rotulo}</div>
-            <div className="font-titulo" style={{ fontSize: 26, fontWeight: 600 }}>
-              {valor} {nota && <span style={{ fontSize: 13, opacity: 0.65, fontFamily: "var(--font-body)" }}>{nota}</span>}
+          <div key={rotulo} className="card adm-cartao-folga">
+            <div className="adm-nota">{rotulo}</div>
+            <div className="font-titulo adm-numero">
+              {valor} {nota && <span className="adm-numero-nota">{nota}</span>}
             </div>
           </div>
         ))}
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 14 }}>
-        <section className="card" style={{ padding: 18, display: "grid", gap: 10, alignContent: "start" }} aria-labelledby="conta-extratos">
-          <h2 id="conta-extratos" className="font-titulo" style={estiloTituloDoCartao}>
+      <div className="adm-duas-colunas">
+        <section className="card adm-cartao-corpo" aria-labelledby="conta-extratos">
+          <h2 id="conta-extratos" className="font-titulo adm-titulo-cartao">
             Extratos do banco conciliados
           </h2>
           <table className="table" aria-label="Extratos do banco conciliados por mês">
@@ -112,38 +110,38 @@ export default async function ContaPage({ params }: { params: Promise<{ conta: s
               ))}
             </tbody>
           </table>
-          <p style={{ margin: 0, fontSize: 12.5, opacity: 0.7 }}>A unidade de cobrança: o extrato do banco conciliado pela primeira vez no mês.</p>
+          <p className="adm-nota">A unidade de cobrança: o extrato do banco conciliado pela primeira vez no mês.</p>
         </section>
 
-        <section className="card" style={{ padding: 18, display: "grid", gap: 10, alignContent: "start" }} aria-labelledby="conta-dados">
-          <h2 id="conta-dados" className="font-titulo" style={estiloTituloDoCartao}>
+        <section className="card adm-cartao-corpo" aria-labelledby="conta-dados">
+          <h2 id="conta-dados" className="font-titulo adm-titulo-cartao">
             Conta
           </h2>
-          <dl style={{ margin: 0, display: "grid", gridTemplateColumns: "auto 1fr", gap: "6px 16px", fontSize: 14 }}>
-            <dt style={{ opacity: 0.7 }}>Admin</dt>
-            <dd style={{ margin: 0 }}>{c.admin ? `${c.admin.nome} · ${c.admin.email}` : "—"}</dd>
-            <dt style={{ opacity: 0.7 }}>Local</dt>
-            <dd style={{ margin: 0 }}>{localDaConta(c)}</dd>
-            <dt style={{ opacity: 0.7 }}>Último login</dt>
-            <dd style={{ margin: 0 }}>{data(c.ultimoLoginEm)}</dd>
-            <dt style={{ opacity: 0.7 }}>Criada em</dt>
-            <dd style={{ margin: 0 }}>{formatarDataHora(c.criadaEm).slice(0, 10)}</dd>
-            <dt style={{ opacity: 0.7 }}>Teste termina</dt>
-            <dd style={{ margin: 0 }}>{c.testeTerminaEm ? formatarDataHora(c.testeTerminaEm).slice(0, 10) : "—"}</dd>
+          <dl className="adm-dados">
+            <dt className="adm-apagado">Admin</dt>
+            <dd className="adm-sem-margem">{c.admin ? `${c.admin.nome} · ${c.admin.email}` : "—"}</dd>
+            <dt className="adm-apagado">Local</dt>
+            <dd className="adm-sem-margem">{localDaConta(c)}</dd>
+            <dt className="adm-apagado">Último login</dt>
+            <dd className="adm-sem-margem">{data(c.ultimoLoginEm)}</dd>
+            <dt className="adm-apagado">Criada em</dt>
+            <dd className="adm-sem-margem">{formatarDataHora(c.criadaEm).slice(0, 10)}</dd>
+            <dt className="adm-apagado">Teste termina</dt>
+            <dd className="adm-sem-margem">{c.testeTerminaEm ? formatarDataHora(c.testeTerminaEm).slice(0, 10) : "—"}</dd>
           </dl>
-          <h2 className="font-titulo" style={{ ...estiloTituloDoCartao, marginTop: 10 }}>
+          <h2 className="font-titulo adm-titulo-cartao adm-folga-10">
             Histórico
           </h2>
           {c.eventos.length === 0 ? (
-            <p style={{ margin: 0 }}>Nenhum evento ainda.</p>
+            <p className="adm-sem-margem">Nenhum evento ainda.</p>
           ) : (
-            <ul style={{ margin: 0, paddingLeft: 18, display: "grid", gap: 6, fontSize: 13.5 }}>
+            <ul className="adm-lista">
               {c.eventos.map((e, i) => (
                 <li key={i}>
                   <strong>{ROTULO_DO_EVENTO[e.tipo] ?? e.tipo}</strong>
                   {` · ${formatarDataHora(e.em).slice(0, 10)} · ${e.operador ?? e.origem}`}
                   <br />
-                  <span style={{ opacity: 0.7 }}>{e.motivo}</span>
+                  <span className="adm-apagado">{e.motivo}</span>
                 </li>
               ))}
             </ul>
@@ -151,50 +149,50 @@ export default async function ContaPage({ params }: { params: Promise<{ conta: s
         </section>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 14, marginTop: 14 }}>
-        <section className="card" style={{ padding: 18, display: "grid", gap: 10, alignContent: "start" }} aria-labelledby="conta-assinatura">
-          <h2 id="conta-assinatura" className="font-titulo" style={estiloTituloDoCartao}>
+      <div className="adm-duas-colunas adm-folga-14">
+        <section className="card adm-cartao-corpo" aria-labelledby="conta-assinatura">
+          <h2 id="conta-assinatura" className="font-titulo adm-titulo-cartao">
             Assinatura
           </h2>
           {!a ? (
-            <p style={{ margin: 0 }}>A conta nunca assinou pela Stripe.</p>
+            <p className="adm-sem-margem">A conta nunca assinou pela Stripe.</p>
           ) : (
-            <dl style={{ margin: 0, display: "grid", gridTemplateColumns: "auto 1fr", gap: "6px 16px", fontSize: 14 }}>
-              <dt style={{ opacity: 0.7 }}>Plano</dt>
-              <dd style={{ margin: 0 }}>{`${a.plano} · ${ROTULO_DO_PERIODO[a.periodo] ?? a.periodo}`}</dd>
-              <dt style={{ opacity: 0.7 }}>Situação</dt>
-              <dd style={{ margin: 0 }}>
+            <dl className="adm-dados">
+              <dt className="adm-apagado">Plano</dt>
+              <dd className="adm-sem-margem">{`${a.plano} · ${ROTULO_DO_PERIODO[a.periodo] ?? a.periodo}`}</dd>
+              <dt className="adm-apagado">Situação</dt>
+              <dd className="adm-sem-margem">
                 <span className={a.status === "active" ? "selo selo-ok" : a.status === "trialing" ? "selo selo-atencao" : "selo selo-risco"}>{ROTULO_DO_STATUS[a.status] ?? a.status}</span>
                 {viva && a.cancelarNoFimDoPeriodo && " · cancelamento agendado"}
               </dd>
-              <dt style={{ opacity: 0.7 }}>{viva && !a.cancelarNoFimDoPeriodo ? "Renova em" : "Acesso até"}</dt>
-              <dd style={{ margin: 0 }}>{dia(a.periodoAtualFim)}</dd>
+              <dt className="adm-apagado">{viva && !a.cancelarNoFimDoPeriodo ? "Renova em" : "Acesso até"}</dt>
+              <dd className="adm-sem-margem">{dia(a.periodoAtualFim)}</dd>
               {(a.canceladaEm || a.origemCancelamento) && (
                 <>
-                  <dt style={{ opacity: 0.7 }}>Cancelamento</dt>
-                  <dd style={{ margin: 0 }}>
+                  <dt className="adm-apagado">Cancelamento</dt>
+                  <dd className="adm-sem-margem">
                     {[a.canceladaEm && `pedido em ${dia(a.canceladaEm)}`, a.origemCancelamento && `por ${(ROTULO_DA_ORIGEM[a.origemCancelamento] ?? a.origemCancelamento).toLowerCase()}`]
                       .filter(Boolean)
                       .join(", ")}
-                    {a.motivoCancelamento && <div style={{ opacity: 0.7 }}>{a.motivoCancelamento}</div>}
+                    {a.motivoCancelamento && <div className="adm-apagado">{a.motivoCancelamento}</div>}
                   </dd>
                 </>
               )}
             </dl>
           )}
-          <h2 className="font-titulo" style={{ ...estiloTituloDoCartao, marginTop: 10 }}>
+          <h2 className="font-titulo adm-titulo-cartao adm-folga-10">
             Cupons
           </h2>
           {c.cupons.length === 0 ? (
-            <p style={{ margin: 0 }}>Nenhum cupom dado.</p>
+            <p className="adm-sem-margem">Nenhum cupom dado.</p>
           ) : (
-            <ul style={{ margin: 0, paddingLeft: 18, display: "grid", gap: 6, fontSize: 13.5 }}>
+            <ul className="adm-lista">
               {c.cupons.map((cupom) => (
                 <li key={cupom.id}>
                   <strong>{`${cupom.cupom} (${cupom.desconto})`}</strong>
                   {` · ${dia(cupom.em)}${cupom.operador ? ` · ${cupom.operador}` : ""}`}
                   <br />
-                  <span style={{ opacity: 0.7 }}>
+                  <span className="adm-apagado">
                     {[
                       cupom.forma === "assinatura" ? "direto na assinatura" : `código ${cupom.codigo ?? ""}`.trim(),
                       cupom.usadoEm ? `usado em ${dia(cupom.usadoEm)}` : cupom.expiraEm ? `vale até ${dia(cupom.expiraEm)}` : null,
@@ -209,12 +207,12 @@ export default async function ContaPage({ params }: { params: Promise<{ conta: s
           )}
         </section>
 
-        <section className="card" style={{ padding: 18, display: "grid", gap: 10, alignContent: "start" }} aria-labelledby="conta-pagamentos">
-          <h2 id="conta-pagamentos" className="font-titulo" style={estiloTituloDoCartao}>
+        <section className="card adm-cartao-corpo" aria-labelledby="conta-pagamentos">
+          <h2 id="conta-pagamentos" className="font-titulo adm-titulo-cartao">
             Pagamentos recentes
           </h2>
           {c.pagamentos.length === 0 ? (
-            <p style={{ margin: 0 }}>Nenhum pagamento.</p>
+            <p className="adm-sem-margem">Nenhum pagamento.</p>
           ) : (
             <table className="table" aria-label="Pagamentos recentes da conta">
               <thead>
@@ -239,7 +237,7 @@ export default async function ContaPage({ params }: { params: Promise<{ conta: s
               </tbody>
             </table>
           )}
-          <p style={{ margin: 0, fontSize: 12.5, opacity: 0.7 }}>Os 12 mais recentes, como o webhook da Stripe guardou. Reembolso é no painel da Stripe.</p>
+          <p className="adm-nota">Os 12 mais recentes, como o webhook da Stripe guardou. Reembolso é no painel da Stripe.</p>
           {/* o detalhe não diz o total: com 12 pode haver mais */}
           {c.pagamentos.length >= 12 && <Link href={`/admin/${c.id}/pagamentos`}>Ver todos os pagamentos</Link>}
         </section>
