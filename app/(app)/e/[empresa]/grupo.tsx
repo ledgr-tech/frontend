@@ -53,3 +53,12 @@ export const alternarNoConjunto = (chave: string) => (conjunto: ReadonlySet<stri
   else novo.add(chave);
   return novo;
 };
+
+/**
+ * Abaixo de 1001px o painel do item escolhido vem antes da lista, como em Conciliações, Histórico e
+ * Empresas (M-02): escolher sem ver o painel mudar não diria nada, então a tela sobe até ele.
+ */
+export function mostrarPainelDoEscolhido() {
+  if (window.matchMedia?.("(min-width: 1001px)").matches) return;
+  document.querySelector(".extratos-area > .extrato-painel")?.scrollIntoView?.({ block: "start" });
+}

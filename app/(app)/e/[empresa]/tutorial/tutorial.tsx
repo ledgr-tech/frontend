@@ -104,7 +104,10 @@ function furo(x: number, y: number, largura: number, altura: number): string {
  */
 function trazerParaAVista(alvo: HTMLElement, cartao: HTMLElement | null, mascote: HTMLElement | null) {
   const naJanela = alvo.closest("dialog") !== null;
-  const topo = naJanela ? 0 : (document.querySelector(".app-topo")?.getBoundingClientRect().bottom ?? 0);
+  // no celular a barra que gruda é a do menu (.app-aside-topo), e a .app-topo some com o menu fechado
+  const topo = naJanela
+    ? 0
+    : Math.max(0, ...[".app-topo", ".app-aside-topo"].map((s) => document.querySelector(s)?.getBoundingClientRect().bottom ?? 0));
   const caixa = cartao?.getBoundingClientRect();
   // offsetTop, não o retângulo: o mascote pode estar no meio da subida da animação
   const acima = Math.max(0, -(mascote?.offsetTop ?? 0));
