@@ -38,14 +38,14 @@ export default async function PagamentosPage({ searchParams }: { searchParams: P
         </div>
       </div>
 
-      <form method="get" className="extratos-corpo" style={{ paddingTop: 20 }}>
-        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center", justifyContent: "space-between" }}>
-          <div style={{ display: "flex", gap: 8, order: 2, alignItems: "center", flexWrap: "wrap" }}>
-            <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 13.5 }}>
+      <form method="get" className="extratos-corpo adm-folga-topo">
+        <div className="adm-barra">
+          <div className="adm-linha adm-filtros-busca">
+            <label className="adm-linha-pequena">
               De
               <input className="input" type="date" name="desde" defaultValue={filtros.desde ?? ""} />
             </label>
-            <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 13.5 }}>
+            <label className="adm-linha-pequena">
               até
               <input className="input" type="date" name="ate" defaultValue={filtros.ate ?? ""} />
             </label>
@@ -53,7 +53,7 @@ export default async function PagamentosPage({ searchParams }: { searchParams: P
               Filtrar
             </button>
           </div>
-          <div className="pills segmentado" role="group" aria-label="Situação do pagamento" style={{ order: 1 }}>
+          <div className="pills segmentado" role="group" aria-label="Situação do pagamento">
             {FILTROS.map((f) => (
               <button key={f.valor} type="submit" name="status" value={f.valor} className="pill" aria-pressed={statusAtual === f.valor}>
                 {f.rotulo}
@@ -67,7 +67,7 @@ export default async function PagamentosPage({ searchParams }: { searchParams: P
         ) : r.dados.itens.length === 0 ? (
           <p>Nenhum pagamento encontrado.</p>
         ) : (
-          <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+          <div className="card adm-cartao-tabela">
             <table className="table" aria-label="Pagamentos">
               <thead>
                 <tr>

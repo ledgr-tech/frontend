@@ -142,7 +142,7 @@ describe("guia de estilo nas telas do app", () => {
   it("rótulo em caixa alta segue uma régua só: +0,08em, em 11px (tabela), 12px ou 14px (h6)", () => {
     const foraDaRegua = regrasDoApp
       .filter((r) => r.decl["text-transform"] === "uppercase")
-      .filter((r) => r.decl["letter-spacing"] !== "0.08em" || !["11px", "12px", "14px"].includes(r.decl["font-size"] ?? "12px"))
+      .filter((r) => r.decl["letter-spacing"] !== "0.08em" || !["var(--texto-micro)", "var(--texto-legenda)", "var(--texto-corpo)"].includes(r.decl["font-size"] ?? "var(--texto-legenda)"))
       .map((r) => `${r.onde} ${r.seletor} (${r.decl["font-size"]}, ${r.decl["letter-spacing"]})`);
     const inline = elementos.filter((e) => e.estilo.has("textTransform")).map((e) => `${e.onde} <${e.tag}>`);
     expect([...foraDaRegua, ...inline]).toEqual([]);

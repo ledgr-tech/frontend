@@ -3,6 +3,7 @@
 import { AnimatePresence, LazyMotion, MotionConfig, domAnimation, m } from "motion/react";
 import Image from "next/image";
 import { useEffect, useId, useRef, useState, type CSSProperties, type FormEvent } from "react";
+import { PONTOS_DA_CURVA } from "@/lib/troca-suave";
 import { pedirRecuperacaoSenha, type ResultadoRecuperacao } from "../acoes";
 import { CampoTexto } from "../_compartilhado/campo-texto";
 import { EMAIL_VALIDO, MENSAGEM_EMAIL_INCOMPLETO, VALIDADE_LINK_MINUTOS } from "../_compartilhado/validacao";
@@ -18,8 +19,9 @@ const ERROS_PEDIDO: Record<Extract<ResultadoRecuperacao, { ok: false }>["erro"],
   falha: "Não foi possível enviar agora. Tente de novo em instantes.",
 };
 
-// mesma curva das animações da landing (Reveal, detalhe do comparativo)
-const CURVA = [0.22, 1, 0.36, 1] as const;
+// a curva da casa (--ease-out) e o --dur-padrao de 200ms (MV-01, MV-02)
+const CURVA = PONTOS_DA_CURVA;
+const DURACAO = 0.2;
 
 type Etapa = "formulario" | "enviando" | "enviado";
 
@@ -152,7 +154,7 @@ function Cartao({ emailInicial, onFechar }: { emailInicial: string; onFechar: ()
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      transition={{ duration: 0.2, ease: CURVA }}
+      transition={{ duration: DURACAO, ease: CURVA }}
       onClick={(evento) => {
         if (evento.target === evento.currentTarget) onFechar();
       }}
@@ -167,7 +169,7 @@ function Cartao({ emailInicial, onFechar }: { emailInicial: string; onFechar: ()
         initial={{ opacity: 0, y: 10, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: 6, scale: 0.98 }}
-        transition={{ duration: 0.24, ease: CURVA }}
+        transition={{ duration: DURACAO, ease: CURVA }}
       >
         {etapa === "enviando" && (
           <m.div
@@ -188,7 +190,7 @@ function Cartao({ emailInicial, onFechar }: { emailInicial: string; onFechar: ()
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -6 }}
-              transition={{ duration: 0.18, ease: CURVA }}
+              transition={{ duration: DURACAO, ease: CURVA }}
             >
               <p style={estiloEyebrow}>Recuperar acesso</p>
               <h2 id={tituloId} style={estiloTitulo}>
@@ -261,7 +263,7 @@ function Confirmacao({
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0 }}
-      transition={{ duration: 0.22, ease: CURVA }}
+      transition={{ duration: DURACAO, ease: CURVA }}
     >
       <Image
         src="/mascotes/mascote-envelope.png"

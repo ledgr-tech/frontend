@@ -33,7 +33,7 @@ function useEnvio() {
 
 function Erro({ texto }: { texto: string | null }) {
   return texto ? (
-    <p role="alert" style={{ margin: "10px 0 0" }}>
+    <p role="alert" className="adm-folga-10">
       {texto}
     </p>
   ) : null;
@@ -41,7 +41,7 @@ function Erro({ texto }: { texto: string | null }) {
 
 function CampoDoMotivo({ valor, mudar }: { valor: string; mudar: (v: string) => void }) {
   return (
-    <label style={{ display: "grid", gap: 4, fontSize: 13.5 }}>
+    <label className="adm-campo">
       Motivo (fica só no Ledgr, no histórico da conta)
       <textarea className="input" value={valor} onChange={(e) => mudar(e.target.value)} maxLength={500} required rows={3} />
     </label>
@@ -87,32 +87,32 @@ export function AcoesDaAssinatura({ id, nome, agendado, fimDoPeriodo }: { id: st
         <ModalDaTela titulo={agendado ? `Manter a assinatura de ${nome}?` : `Cancelar a assinatura de ${nome}?`} aoFechar={fechar}>
           <form onSubmit={confirmar}>
             {agendado ? (
-              <p style={{ margin: "0 0 12px" }}>{`Desfaz o cancelamento agendado: a assinatura renova${fim ? ` em ${fim}` : ""} e a cobrança segue normal.`}</p>
+              <p className="adm-folga-baixo">{`Desfaz o cancelamento agendado: a assinatura renova${fim ? ` em ${fim}` : ""} e a cobrança segue normal.`}</p>
             ) : (
-              <fieldset style={{ border: 0, padding: 0, margin: "0 0 12px", display: "grid", gap: 8 }}>
-                <legend style={{ marginBottom: 8 }}>Quando cancelar</legend>
-                <label style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
+              <fieldset className="adm-grupo">
+                <legend className="adm-folga-baixo-8">Quando cancelar</legend>
+                <label className="adm-linha-base">
                   <input type="radio" name="quando" checked={quando === "fim_do_periodo"} onChange={() => setQuando("fim_do_periodo")} />
                   <span>
                     <strong>No fim do período</strong>
                     <br />
-                    <span style={{ fontSize: 13.5, opacity: 0.75 }}>{`O cliente usa${fim ? ` até ${fim}` : " até o fim do período pago"} e não é cobrado de novo. Dá para desfazer até lá.`}</span>
+                    <span className="adm-texto-apagado">{`O cliente usa${fim ? ` até ${fim}` : " até o fim do período pago"} e não é cobrado de novo. Dá para desfazer até lá.`}</span>
                   </span>
                 </label>
-                <label style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
+                <label className="adm-linha-base">
                   <input type="radio" name="quando" checked={quando === "agora"} onChange={() => setQuando("agora")} />
                   <span>
                     <strong>Agora</strong>
                     <br />
-                    <span style={{ fontSize: 13.5, opacity: 0.75 }}>O acesso pago acaba já, sem devolver o que falta do período. Não dá para desfazer.</span>
+                    <span className="adm-texto-apagado">O acesso pago acaba já, sem devolver o que falta do período. Não dá para desfazer.</span>
                   </span>
                 </label>
-                <p style={{ margin: 0, fontSize: 13, opacity: 0.75 }}>Reembolso não sai daqui: devolva pelo painel da Stripe, se for o caso.</p>
+                <p className="adm-nota">Reembolso não sai daqui: devolva pelo painel da Stripe, se for o caso.</p>
               </fieldset>
             )}
             <CampoDoMotivo valor={motivo} mudar={setMotivo} />
             <Erro texto={erro} />
-            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 14 }}>
+            <div className="adm-botoes">
               <BotaoFecharJanela aoFechar={fechar} className="btn btn-ghost">
                 Voltar
               </BotaoFecharJanela>
@@ -189,42 +189,42 @@ export function DarCupom({ id, nome, assinaturaViva }: { id: string; nome: strin
       {aberta && (
         <ModalDaTela titulo={`Dar um cupom a ${nome}`} aoFechar={fechar}>
           {dado ? (
-            <div style={{ display: "grid", gap: 10 }}>
-              <p role="status" style={{ margin: 0 }}>
+            <div className="adm-pilha">
+              <p role="status" className="adm-sem-margem">
                 <strong>{`${dado.cupom} (${dado.desconto})`}</strong>
                 {dado.forma === "assinatura" ? " entrou direto na assinatura: a próxima fatura já sai com o desconto." : " virou um código de uso único."}
               </p>
               {dado.codigo && (
-                <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                  <code style={{ fontSize: 18, padding: "6px 10px", border: "1px solid var(--color-divider)", borderRadius: "var(--radius-sm)" }}>{dado.codigo}</code>
+                <div className="adm-linha">
+                  <code className="adm-codigo">{dado.codigo}</code>
                   <button type="button" className="btn btn-ghost" onClick={() => copiar(dado.codigo!)}>
                     {copiado ? "Copiado" : "Copiar código"}
                   </button>
                 </div>
               )}
-              {dado.expiraEm && <p style={{ margin: 0, fontSize: 13.5 }}>{`Vale até ${formatarDataHora(dado.expiraEm).slice(0, 10)}.`}</p>}
-              <p style={{ margin: 0, fontSize: 13.5 }}>
+              {dado.expiraEm && <p className="adm-texto">{`Vale até ${formatarDataHora(dado.expiraEm).slice(0, 10)}.`}</p>}
+              <p className="adm-texto">
                 {dado.emailEnviado ? "O admin da conta recebeu um e-mail com o desconto." : "O e-mail não saiu: mande o código ao cliente por fora."}
               </p>
-              <div style={{ display: "flex", justifyContent: "flex-end" }}>
+              <div className="adm-botoes-direita">
                 <button type="button" className="btn btn-primary" onClick={fechar}>
                   Fechar
                 </button>
               </div>
             </div>
           ) : (
-            <form onSubmit={confirmar} style={{ display: "grid", gap: 12 }}>
-              <p style={{ margin: 0 }}>
+            <form onSubmit={confirmar} className="adm-pilha">
+              <p className="adm-sem-margem">
                 {assinaturaViva
                   ? "A conta tem assinatura: o desconto entra direto nela, sem código."
                   : "A conta não tem assinatura: o cupom vira um código de uso único para o checkout, mandado ao admin da conta por e-mail."}
               </p>
               {cupons === null && !erro ? (
-                <p style={{ margin: 0 }}>Carregando os cupons da Stripe…</p>
+                <p className="adm-sem-margem">Carregando os cupons da Stripe…</p>
               ) : cupons && cupons.length === 0 ? (
-                <p style={{ margin: 0 }}>Nenhum cupom válido na Stripe. Crie um no painel da Stripe (Catálogo de produtos › Cupons).</p>
+                <p className="adm-sem-margem">Nenhum cupom válido na Stripe. Crie um no painel da Stripe (Catálogo de produtos › Cupons).</p>
               ) : cupons ? (
-                <label style={{ display: "grid", gap: 4, fontSize: 13.5 }}>
+                <label className="adm-campo">
                   Cupom
                   <select className="input" value={cupomId} onChange={(e) => setCupomId(e.target.value)} required>
                     {cupons.map((c) => (
@@ -236,13 +236,13 @@ export function DarCupom({ id, nome, assinaturaViva }: { id: string; nome: strin
                 </label>
               ) : null}
               {!assinaturaViva && (
-                <label style={{ display: "grid", gap: 4, fontSize: 13.5, maxWidth: 220 }}>
+                <label className="adm-campo adm-campo-estreito">
                   Validade do código (dias)
                   <input className="input" type="number" min={1} max={90} value={validade} onChange={(e) => setValidade(Number(e.target.value))} required />
                 </label>
               )}
               <Erro texto={erro} />
-              <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <div className="adm-botoes-direita">
                 <BotaoFecharJanela aoFechar={fechar} className="btn btn-ghost">
                   Cancelar
                 </BotaoFecharJanela>

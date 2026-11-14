@@ -32,7 +32,7 @@ export default async function VencimentosPage({ searchParams }: { searchParams: 
         </div>
       </div>
 
-      <form method="get" className="extratos-corpo" style={{ paddingTop: 20 }}>
+      <form method="get" className="extratos-corpo adm-folga-topo">
         <div className="pills segmentado" role="group" aria-label="Prazo">
           {PRAZOS_DE_VENCIMENTO.map((n) => (
             <button key={n} type="submit" name="dias" value={n} className="pill" aria-pressed={dias === n}>
@@ -46,7 +46,7 @@ export default async function VencimentosPage({ searchParams }: { searchParams: 
         ) : r.dados.itens.length === 0 ? (
           <p>Nada vence nesse prazo.</p>
         ) : (
-          <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+          <div className="card adm-cartao-tabela">
             <table className="table" aria-label="Vencimentos">
               <thead>
                 <tr>
@@ -79,7 +79,7 @@ export default async function VencimentosPage({ searchParams }: { searchParams: 
                     </td>
                     <td>{v.plano ? `${v.plano}${v.periodo ? ` · ${ROTULO_DO_PERIODO[v.periodo] ?? v.periodo}` : ""}` : "—"}</td>
                     <td>
-                      {formatarDataHora(v.venceEm).slice(0, 10)} <span style={{ opacity: 0.65 }}>{`· ${prazoDoTeste(v.venceEm, agora)}`}</span>
+                      {formatarDataHora(v.venceEm).slice(0, 10)} <span className="adm-apagado">{`· ${prazoDoTeste(v.venceEm, agora)}`}</span>
                     </td>
                   </tr>
                 ))}
