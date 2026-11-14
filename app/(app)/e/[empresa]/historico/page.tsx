@@ -9,6 +9,7 @@ import { GraficoDeMatch } from "./grafico";
 import { ExportarHistorico, HistoricoPorConciliacao } from "./por-conciliacao";
 import { Cabecalho } from "../cabecalho";
 import { FalhaAoCarregar } from "../falha-ao-carregar";
+import { SemNada } from "../sem-nada";
 
 /**
  * O histórico lê `GET /execucoes` no servidor, uma página por vez, e junta as
@@ -80,16 +81,10 @@ function SemExecucoes({ pagina }: { pagina: number }) {
     );
   }
   return (
-    <div className="vg-inicio">
-      <h2 style={{ margin: 0, fontSize: 32, fontWeight: 400 }}>Nenhuma conciliação ainda.</h2>
-      <p className="vg-inicio-texto">
-        O histórico começa na primeira vez que você concilia o extrato do banco com o do sistema de
-        gestão.
-      </p>
-      <Link href="/conciliacoes/nova" className="btn btn-primary">
-        Nova conciliação
-      </Link>
-    </div>
+    <SemNada
+      titulo="Nenhuma conciliação ainda."
+      texto="O histórico começa na primeira vez que você concilia o extrato do banco com o extrato do sistema."
+    />
   );
 }
 

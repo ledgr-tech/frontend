@@ -93,8 +93,8 @@ describe("ExtratosPage", () => {
     listarExtratos.mockResolvedValue({ ok: true, dados: { arquivos: [], total: 0 } });
     await renderizar();
 
-    expect(screen.getByText("Nenhum extrato carregado ainda.")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Fazer o primeiro upload" })).toHaveAttribute(
+    expect(screen.getByRole("heading", { name: "Nenhum extrato enviado ainda." })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Nova conciliação" })).toHaveAttribute(
       "href",
       "/conciliacoes/nova",
     );

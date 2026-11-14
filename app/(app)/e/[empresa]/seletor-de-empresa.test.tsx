@@ -63,6 +63,18 @@ describe("SeletorDeEmpresa (no topo, #223)", () => {
     expect(botao).toHaveAttribute("aria-expanded", "false");
   });
 
+  it("sem o GET /me (empresa sem nome), o botão ainda diz o que faz (#388)", () => {
+    montar([{ ...A, razaoSocial: "", cnpj: "" }]);
+    expect(screen.getByRole("button", { name: "Trocar de empresa" })).toBeInTheDocument();
+  });
+
+  it("sem a situação do mês do backend, a janela não mostra a coluna vazia (#388)", async () => {
+    const user = userEvent.setup();
+    montar();
+    await user.click(screen.getByRole("button", { name: /Padaria Ltda/ }));
+    expect(janela().queryByRole("columnheader", { name: /Situação/ })).not.toBeInTheDocument();
+  });
+
   it("abre a tabela das empresas do escritório, com o CNPJ formatado e a aberta marcada", async () => {
     const user = userEvent.setup();
     montar();

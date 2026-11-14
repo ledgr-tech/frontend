@@ -21,7 +21,7 @@ const B = "9b8a7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d";
 describe("constantes", () => {
   it("as seções são as telas da empresa, e o cookie tem o nome combinado", () => {
     expect([...SECOES].sort()).toEqual(
-      ["assinatura", "conciliacoes", "dashboard", "empresas", "extratos", "fechamentos", "historico", "regras", "visao-geral"].sort(),
+      ["assinatura", "conciliacoes", "dashboard", "empresas", "extratos", "fechamentos", "historico", "visao-geral"].sort(),
     );
     expect(COOKIE_DA_EMPRESA_RECENTE).toBe("ledgr-empresa-recente");
   });

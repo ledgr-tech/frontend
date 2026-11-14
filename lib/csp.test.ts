@@ -16,6 +16,10 @@ function diretivas(politica: string): Map<string, string> {
 }
 
 describe("politicaDeConteudo", () => {
+  it("manda as violações para /api/csp (S1-19c)", () => {
+    expect(diretivas(politicaDeConteudo("n", false)).get("report-uri")).toBe("/api/csp");
+  });
+
   it("só roda script com o nonce da página, e nada inline sem ele", () => {
     const csp = diretivas(politicaDeConteudo("abc123", false));
     expect(csp.get("script-src")).toBe("'self' 'nonce-abc123' 'strict-dynamic'");

@@ -14,14 +14,10 @@ describe("LandingPage", () => {
   // o hero é a primeira seção; a faixa de números vem logo abaixo dele
   const secoes = (container: HTMLElement) => [...container.querySelectorAll<HTMLElement>("main > section")];
 
-  it("leaves the social networks in the footer, each link named for the screen reader", () => {
+  it("leaves out of the footer the social networks without a profile yet (#388)", () => {
     const { container } = render(<LandingPage />);
-    const redes = within(container.querySelector("footer")!).getByRole("list", { name: "Ledgr nas redes sociais" });
-    expect(within(redes).getAllByRole("link").map((link) => link.getAttribute("aria-label"))).toEqual([
-      "LinkedIn",
-      "Instagram",
-      "X (Twitter)",
-    ]);
+    expect(within(container.querySelector("footer")!).queryByRole("list", { name: "Ledgr nas redes sociais" })).toBeNull();
+    expect(container.querySelector('footer a[href="#"]')).toBeNull();
   });
 
   it("shows the hero headline and a link into the product", () => {

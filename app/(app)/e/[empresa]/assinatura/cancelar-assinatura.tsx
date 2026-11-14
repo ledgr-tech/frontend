@@ -4,8 +4,9 @@ import { useRef, useState } from "react";
 import { BotaoFecharJanela, ModalDaTela } from "../empresas/modal-da-tela";
 
 /** O que muda ao cancelar (#232): o período pago vale até o fim; depois, só consulta. */
-export function textoDoCancelamento(fimDoPeriodo: string): string {
-  return `Você continua com acesso a tudo até ${fimDoPeriodo}, o fim do período já pago. Depois disso, o histórico continua disponível para consulta, mas nenhum extrato novo poderá ser conciliado.`;
+export function textoDoCancelamento(fimDoPeriodo?: string): string {
+  const ate = fimDoPeriodo ? `até ${fimDoPeriodo}, o fim do período já pago` : "até o fim do período já pago";
+  return `Você continua com acesso a tudo ${ate}. Depois disso, o histórico continua disponível para consulta, mas nenhum extrato novo poderá ser conciliado.`;
 }
 
 export const NOTA_DO_CANCELAMENTO = "A cobrança ainda não está no ar: nada é cancelado por aqui.";
@@ -16,7 +17,7 @@ export const NOTA_DO_CANCELAMENTO = "A cobrança ainda não está no ar: nada é
  * o "Cancelar mesmo assim" nasce desligado porque não há cobrança no backend para cancelar, e fechar
  * a janela como se tivesse cancelado seria mentira.
  */
-export function CancelarAssinatura({ fimDoPeriodo }: { fimDoPeriodo: string }) {
+export function CancelarAssinatura({ fimDoPeriodo }: { fimDoPeriodo?: string }) {
   const [aberto, setAberto] = useState(false);
   const botao = useRef<HTMLButtonElement>(null);
 

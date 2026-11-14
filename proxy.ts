@@ -33,7 +33,11 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // fora: rotas de API (o CSV e o NextAuth), os arquivos do build, a otimização de imagem e o
-  // que tem extensão (mascotes, favicon, fontes); nada disso é página com script
-  matcher: ["/((?!api|_next/static|_next/image|.*\\..*).*)"],
+  // fora: rotas de API (o CSV e o NextAuth), os arquivos do build, a otimização de imagem, o script
+  // da Vercel e o que está em public/ ou é metadado na raiz. Pelo NOME, nunca "tem ponto": um ponto
+  // no caminho de uma tela (/e/<uuid>/conciliacoes/a.png) a tiraria do proxy, sem CSP e com o
+  // x-ledgr-empresa de fora (S1-09). Pasta nova em public/ faz o proxy.test.ts falhar até entrar aqui.
+  matcher: [
+    "/((?!api|_next/static|_next/image|_vercel/|mascotes/|email/|ajuda/[^/]+\\.(?:webp|json)$|[^/]+\\.(?:ico|png|txt|xml)$).*)",
+  ],
 };

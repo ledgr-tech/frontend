@@ -20,7 +20,6 @@ export const PLANOS: Plano[] = [
   { nome: "Essencial", volume: "100", destaque: false, contato: false },
   { nome: "Padrão", volume: "200", destaque: true, contato: false },
   { nome: "Avançado", volume: "350", destaque: false, contato: false },
-  { nome: "Escala", volume: "5.000", destaque: false, contato: false },
   {
     nome: "Volume",
     descricao: "para indústria e multi-banco",

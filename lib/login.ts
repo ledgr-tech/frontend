@@ -174,3 +174,14 @@ export async function autorizarDepoisDoCadastroGoogle(): Promise<User | null> {
   pote.delete(COOKIE_CADASTRO_GOOGLE);
   return resultado.usuario;
 }
+
+/**
+ * Um login que deu certo apaga o que ficou de um Google pela metade (o id_token de um cadastro
+ * abandonado, um convite não aceito): os dois valem 1 hora, e o próximo a usar o navegador os herdaria
+ * (S1-15). Roda no `events.signIn` do auth.ts, depois que os fluxos que leem esses cookies já os leram.
+ */
+export async function esquecerGoogleIncompleto(): Promise<void> {
+  const pote = await cookies();
+  pote.delete(COOKIE_CADASTRO_GOOGLE);
+  pote.delete(COOKIE_CONVITE_GOOGLE);
+}
