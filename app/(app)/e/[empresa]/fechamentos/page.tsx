@@ -1,13 +1,12 @@
-import Image from "next/image";
-import Link from "@/lib/link-do-app";
 import { redirecionarNoApp } from "@/lib/rotas-servidor";
 import { carregarFechamentos } from "../conciliacoes/acoes";
 import { formatarInteiro } from "../dashboard/resumo";
 import { agruparPorMes } from "./fechamento";
-import { InkHover, Reveal } from "@/app/reveal";
+import { Reveal } from "@/app/reveal";
 import { MesaDeFechamento } from "./mesa";
 import { Cabecalho } from "../cabecalho";
 import { FalhaAoCarregar } from "../falha-ao-carregar";
+import { SemNada } from "../sem-nada";
 
 /**
  * Os fechamentos, mês a mês: cada competência com o que ainda segura o
@@ -64,26 +63,5 @@ export default async function FechamentosPage({
 }
 
 function SemConciliacao() {
-  return (
-    <div className="vg-inicio">
-      <InkHover style={{ flex: "none" }}>
-        <Image
-          src="/mascotes/mascote-explicando.png"
-          alt="Mascote Ledgr apontando para você"
-          width={1000}
-          height={1000}
-          sizes="200px"
-          style={{ width: 200, height: "auto", display: "block" }}
-        />
-      </InkHover>
-      <h2 style={{ margin: 0, fontSize: 32, fontWeight: 400 }}>Nenhum mês para fechar ainda.</h2>
-      <p className="vg-inicio-texto">
-        Suba o extrato do banco e o extrato do sistema de gestão. A primeira conciliação fica
-        pronta em poucos minutos.
-      </p>
-      <Link href="/conciliacoes/nova" className="btn btn-primary">
-        Nova conciliação
-      </Link>
-    </div>
-  );
+  return <SemNada titulo="Nenhum mês para fechar ainda." texto="Envie o extrato do banco e o extrato do sistema. A primeira conciliação fica pronta em poucos minutos." />;
 }

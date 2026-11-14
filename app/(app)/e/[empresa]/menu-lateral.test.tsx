@@ -144,7 +144,7 @@ describe("MenuLateral", () => {
   });
 
   it("marks nothing as current on a route outside the menu", () => {
-    caminho.mockReturnValue("/regras");
+    caminho.mockReturnValue("/plano");
     montar();
     expect(screen.queryByRole("link", { current: "page" })).not.toBeInTheDocument();
   });

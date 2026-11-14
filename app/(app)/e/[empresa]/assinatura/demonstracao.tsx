@@ -1,58 +1,76 @@
 "use client";
 
 import { Reveal } from "@/app/reveal";
+import { NOME_DO_PLANO, planosDoTeste } from "@/lib/assinatura";
+import type { Limite } from "@/lib/limites";
 import { PLANOS } from "@/lib/planos";
+import { useAssinatura, useLimites } from "../conta";
+import { formatarInteiro } from "../dashboard/resumo";
 import { CancelarAssinatura } from "./cancelar-assinatura";
-import { ASSINATURA, FATURAS, NUMEROS } from "./dados";
 import { Cabecalho } from "../cabecalho";
 
 /**
- * A assinatura de demonstração: o plano, os planos da landing e as faturas. Tudo
- * mock (ver `dados.ts`), e nada aqui finge que mudou: toda ação que mexeria na
- * cobrança aparece desligada e aponta para o aviso que diz por quê. Aparece sem a
- * situação no `GET /me` (backend antigo) e para o piloto ativado à mão, sem
- * assinatura na Stripe; o resto vê `PainelDaAssinatura`.
+ * A assinatura sem cobrança na Stripe: aparece sem a situação no `GET /me` (backend antigo) e para o
+ * piloto ativado à mão; o resto vê `PainelDaAssinatura`. Só mostra o que é da conta (o plano e os
+ * limites do `/me`) e os planos que existem; o que a conta não tem (renovação, faturas) não aparece
+ * (#388). Toda ação que mexeria na cobrança nasce desligada e aponta para o aviso que diz por quê.
  *
- * ponytail: cancelar, trocar de plano ou de cartão e as faturas esperam o PR 2 do
- * backend #166; aí esta tela vira a leitura da cobrança real.
+ * ponytail: cancelar, trocar de plano ou de cartão e as faturas esperam o PR 2 do backend #166; aí
+ * esta tela vira a leitura da cobrança real.
  */
 
 const AVISO_ID = "assinatura-aviso";
 
+function uso(rotulo: string, limite: Limite | null | undefined) {
+  if (!limite) return null;
+  const nota = limite.maximo === null ? "Sem limite no plano" : `De ${formatarInteiro(limite.maximo)} no plano`;
+  return { rotulo, valor: formatarInteiro(limite.usadas), nota };
+}
+
 export function AssinaturaDeDemonstracao() {
-  const { plano, renovaEm, faixa } = ASSINATURA;
+  const assinatura = useAssinatura();
+  const limites = useLimites();
+  const planoAtual = assinatura?.plano ?? null;
+  const nomeAtual = planoAtual ? NOME_DO_PLANO[planoAtual] : null;
+  const planos = [...planosDoTeste(), PLANOS.find((p) => p.contato)!];
+  const numeros = [
+    nomeAtual && { rotulo: "Plano atual", valor: nomeAtual, nota: "Da sua conta" },
+    uso("Empresas", limites?.empresas),
+    uso("Pessoas", limites?.usuarios),
+    uso("Conciliações neste mês", limites?.conciliacoes),
+  ].filter((n) => !!n);
 
   return (
     <div>
       <Cabecalho
         titulo="Assinatura"
-        // sem contexto o cabeçalho também perdia a empresa, que toda tela mostra
-        contexto={[`plano ${plano.nome}`, `renova em ${renovaEm}`]}
+        contexto={[nomeAtual && `plano ${nomeAtual}`]}
         acoes={
           <>
             <button type="button" className="btn btn-secondary" disabled aria-describedby={AVISO_ID}>
               Trocar forma de pagamento
             </button>
-            <CancelarAssinatura fimDoPeriodo={renovaEm} />
+            <CancelarAssinatura />
           </>
         }
       />
 
       <div className="ass-corpo">
         <p id={AVISO_ID} role="note" className="aviso-demonstracao">
-          <strong>A cobrança ainda não está no ar.</strong> Plano e faturas desta tela são de
-          demonstração, e nada é alterado por aqui.
+          <strong>A cobrança ainda não está no ar.</strong> Nada da assinatura é alterado por aqui.
         </p>
 
-        <Reveal className="grade-colunas dash-resumo">
-          {NUMEROS.map((numero) => (
-            <div key={numero.rotulo}>
-              <span className="dash-rotulo">{numero.rotulo}</span>
-              <span className="dash-valor">{numero.valor}</span>
-              <span className="dash-nota">{numero.nota}</span>
-            </div>
-          ))}
-        </Reveal>
+        {numeros.length > 0 && (
+          <Reveal className="grade-colunas dash-resumo">
+            {numeros.map((numero) => (
+              <div key={numero.rotulo}>
+                <span className="dash-rotulo">{numero.rotulo}</span>
+                <span className="dash-valor">{numero.valor}</span>
+                <span className="dash-nota">{numero.nota}</span>
+              </div>
+            ))}
+          </Reveal>
+        )}
 
         <Reveal delay={0.08}>
           <section className="ass-planos-caixa">
@@ -60,8 +78,8 @@ export function AssinaturaDeDemonstracao() {
               Planos
             </h3>
             <ul className="ass-planos" aria-labelledby="assinatura-planos">
-              {PLANOS.map((opcao) => {
-                const atual = opcao.nome === plano.nome;
+              {planos.map((opcao) => {
+                const atual = opcao.nome === nomeAtual;
                 return (
                   <li key={opcao.nome} className="ass-plano" data-atual={atual ? "true" : undefined}>
                     <div className="ass-plano-topo">
@@ -76,7 +94,6 @@ export function AssinaturaDeDemonstracao() {
                     )}
                     <span className="ass-plano-filete" aria-hidden="true" />
                     {opcao.descricao && <p className="ass-plano-texto">{opcao.descricao}</p>}
-                    {atual && <p className="ass-plano-texto">{faixa}</p>}
                     {/* o plano atual não é ação, é estado; os outros seriam troca de plano */}
                     <button
                       type="button"
@@ -90,53 +107,6 @@ export function AssinaturaDeDemonstracao() {
                 );
               })}
             </ul>
-          </section>
-        </Reveal>
-
-        <Reveal delay={0.16}>
-          <section className="ass-faturas">
-            <h3 className="ass-titulo">Faturas</h3>
-            <div className="dash-tabela-rolagem">
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Competência</th>
-                    <th style={{ width: 170 }}>Vencimento</th>
-                    <th style={{ width: 130, textAlign: "right" }}>Situação</th>
-                    <th style={{ width: 110, textAlign: "right" }}>Recibo</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {FATURAS.map((fatura) => (
-                    <tr key={fatura.competencia}>
-                      <td style={{ fontSize: 15 }}>{fatura.competencia}</td>
-                      <td className="dash-celula-fraca">{fatura.vencimento}</td>
-                      <td style={{ textAlign: "right" }}>
-                        <span className={fatura.situacao === "Paga" ? "selo selo-ok" : "selo"}>
-                          {fatura.situacao}
-                        </span>
-                      </td>
-                      <td style={{ textAlign: "right" }}>
-                        {/* fatura a vencer ainda não tem recibo */}
-                        {fatura.situacao === "Paga" ? (
-                          <button
-                            type="button"
-                            className="ass-recibo"
-                            disabled
-                            aria-label={`Recibo de ${fatura.competencia.toLowerCase()} em PDF`}
-                            aria-describedby={AVISO_ID}
-                          >
-                            PDF
-                          </button>
-                        ) : (
-                          "—"
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
           </section>
         </Reveal>
       </div>

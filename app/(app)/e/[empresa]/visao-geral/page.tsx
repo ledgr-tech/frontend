@@ -543,17 +543,15 @@ function ContaNova({ roteiro, passos }: { roteiro: DadosDoRoteiro | null; passos
     <div className="vg-corpo">
       <Reveal className="vg-blocos-topo">
         <section className="vg-bloco vg-estado" aria-labelledby="vg-estado-titulo" data-tutorial="estado-do-mes">
-          <div
-            className="vg-anel"
-            role="img"
-            aria-label="Nada conciliado ainda"
-            style={{ "--feito": "0%" } as React.CSSProperties}
-          >
-            <span className="vg-anel-centro" aria-hidden="true">
-              <span className="vg-anel-numero">—</span>
-              conciliado
-            </span>
-          </div>
+          {/* sem conciliação, o anel não tem o que medir: no lugar dele, o mascote das telas vazias (#388) */}
+          <Image
+            src="/mascotes/mascote-explicando.png"
+            alt=""
+            width={1000}
+            height={1000}
+            sizes="200px"
+            style={{ flex: "none", width: 200, height: "auto", display: "block" }}
+          />
           <div className="vg-estado-corpo">
             <EtiquetaDoPasso passos={passos} id={enviouBanco ? "conciliar" : "banco"} />
             <h2 id="vg-estado-titulo" className="vg-estado-titulo">
@@ -562,10 +560,10 @@ function ContaNova({ roteiro, passos }: { roteiro: DadosDoRoteiro | null; passos
             <span className="vg-nota">
               {enviouBanco
                 ? "O extrato do banco chegou. Agora o CSV do seu sistema de gestão: o Ledgr compara os dois e mostra aqui o quanto bateu."
-                : "Envie o extrato do banco e o do seu sistema de gestão: o Ledgr compara os dois e mostra aqui o quanto bateu e o que ficou em aberto."}
+                : "Envie o extrato do banco e o extrato do sistema: o Ledgr compara os dois e mostra aqui o quanto bateu e o que ficou em aberto."}
             </span>
             <Link href="/conciliacoes/nova" className="btn btn-primary">
-              {enviouBanco ? "Enviar o extrato do sistema" : "Enviar o extrato do banco"}
+              Nova conciliação
               <ArrowRight size={15} aria-hidden="true" />
             </Link>
           </div>
@@ -577,7 +575,7 @@ function ContaNova({ roteiro, passos }: { roteiro: DadosDoRoteiro | null; passos
         <section className="vg-bloco vg-atencao">
           <h2 className="vg-bloco-rotulo">Pede sua atenção</h2>
           <p className="vg-nota pp-vazio">
-            Os lançamentos que não bateram e pedem decisão aparecem aqui, depois da primeira conciliação.
+            As pendências aparecem aqui, depois da primeira conciliação.
           </p>
         </section>
         <nav className="vg-bloco" aria-labelledby="vg-atalhos-titulo" data-tutorial="atalhos">

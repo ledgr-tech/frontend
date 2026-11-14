@@ -77,6 +77,6 @@ describe("as telas da empresa navegam pelos auxiliares da empresa ativa", () => 
     expect(REGRAS[3].acha("<a href={enderecoExterno(`${api}/llms.txt`)}>")).toBe(false);
     expect(REGRAS[3].acha('<a href="mailto:x@y.com">')).toBe(false);
     expect(REGRAS[4].acha('window.open("/historico")')).toBe(true);
-    expect(REGRAS[4].acha("location.href = `/regras`")).toBe(true);
+    expect(REGRAS[4].acha("location.href = `/extratos`")).toBe(true);
   });
 });
