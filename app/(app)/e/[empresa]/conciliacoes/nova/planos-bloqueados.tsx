@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "@/lib/link-do-app";
 import { planosDoTeste, textoDaFranquia, type PrecoDoPlano, type SituacaoDaConta } from "@/lib/assinatura";
 
-const FRANQUIA = "Sua conta chegou ao limite de conciliações deste mês.";
+const FRANQUIA = "Seu escritório chegou ao limite de conciliações deste mês.";
 
 // em teste ou assinando, o 402 é a franquia de conciliações do mês (#295); sem situação, o backend antigo, é o teste
 const TITULOS: Partial<Record<SituacaoDaConta, string>> = {

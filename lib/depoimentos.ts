@@ -48,7 +48,7 @@ export const DEPOIMENTOS_DE_EXEMPLO: Depoimento[] = [
     nota: 4,
   },
   {
-    citacao: "Não troquei de sistema nem de banco. Subo os dois extratos e em dez minutos sei o que corrigir no ERP.",
+    citacao: "Não troquei de sistema nem de banco. Subo os dois extratos e em dez minutos sei o que corrigir no sistema.",
     nome: "Rafael Antunes",
     cargo: "Sócio-administrador",
     empresa: "Oficina Antunes",

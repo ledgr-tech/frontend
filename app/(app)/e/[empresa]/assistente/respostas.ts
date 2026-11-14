@@ -125,10 +125,10 @@ export function assuntoDoMes(pergunta: string, mes?: string) {
 /** A primeira mensagem, como a do design: o mês em uma frase. */
 export function saudacao(contexto: Contexto): string {
   if (contexto.divergentes === 0) {
-    return `${contexto.Mes} está ${formatarPercentual(contexto.taxa)} conciliado. Nada sobrou para revisar.`;
+    return `${contexto.Mes} está ${formatarPercentual(contexto.taxa)} conciliado. Nenhuma pendência.`;
   }
   const maisComum = [...contexto.grupos].sort((a, b) => b.quantidade - a.quantidade)[0];
-  return `${contexto.Mes} está ${formatarPercentual(contexto.taxa)} conciliado. Sobraram ${plural(contexto.divergentes, "linha", "linhas")} para revisar, a maior parte em “${maisComum.rotulo}”.`;
+  return `${contexto.Mes} está ${formatarPercentual(contexto.taxa)} conciliado. Sobraram ${plural(contexto.divergentes, "pendência", "pendências")}, a maior parte em “${maisComum.rotulo}”.`;
 }
 
 /** Os atalhos embaixo da conversa, os do design com os números de agora. */
@@ -174,7 +174,7 @@ export function responder(pergunta: string, contexto: Contexto, assunto = assunt
       return { texto: `Nada: ${mes} está pronto para fechar.`, link: { href: "/fechamentos", rotulo: "Ir aos fechamentos" } };
     }
     if (contexto.divergentes === 0) {
-      return { texto: `Nenhuma divergência pede decisão.${naoLidas(contexto)}`, link: { href: "/extratos", rotulo: "Ver os extratos" } };
+      return { texto: `Nenhuma pendência.${naoLidas(contexto)}`, link: { href: "/extratos", rotulo: "Ver os extratos" } };
     }
     const maisCaro = [...contexto.grupos].sort((a, b) => b.valor - a.valor || b.quantidade - a.quantidade)[0];
     const peso =
@@ -188,7 +188,7 @@ export function responder(pergunta: string, contexto: Contexto, assunto = assunt
   }
 
   if (assunto === "pendencias") {
-    if (contexto.divergentes === 0) return { texto: "Nada sobrou para revisar." };
+    if (contexto.divergentes === 0) return { texto: "Nenhuma pendência." };
     const partes = contexto.grupos.map(
       (item) =>
         `${item.rotulo}: ${formatarInteiro(item.quantidade)}${item.valor > 0 ? ` (${formatarMoedaCurta(item.valor)})` : ""}`,

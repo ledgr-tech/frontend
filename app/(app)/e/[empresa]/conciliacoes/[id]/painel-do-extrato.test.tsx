@@ -323,7 +323,7 @@ describe("PainelDoExtrato", () => {
 
     it("o analista só vê que aguarda, sem botão de decidir", () => {
       montar({ linha: AGUARDANDO, podeAprovar: false });
-      expect(screen.getByText("Aguarda a aprovação do admin ou do gestor da conta.")).toBeInTheDocument();
+      expect(screen.getByText("Aguarda a aprovação do admin ou do gestor do escritório.")).toBeInTheDocument();
       expect(screen.queryByRole("button", { name: "Aprovar" })).not.toBeInTheDocument();
       expect(screen.queryByRole("button", { name: "Rejeitar" })).not.toBeInTheDocument();
     });

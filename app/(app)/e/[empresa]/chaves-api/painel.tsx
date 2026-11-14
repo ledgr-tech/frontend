@@ -6,6 +6,7 @@ import { enderecoExterno } from "@/lib/rotas";
 import { MensagemErro } from "../../../../(auth)/_compartilhado/mensagem-erro";
 import { formatarDataHora } from "../dashboard/resumo";
 import { carregarChavesApi, criarChaveApi, revogarChaveApi, type ChaveApi, type ChavesDaApi } from "./acoes";
+import { SEM_SERVIDOR } from "@/lib/sem-servidor";
 
 type Estado =
   | { situacao: "carregando" }
@@ -13,7 +14,7 @@ type Estado =
   | { situacao: "sem-rota" }
   | { situacao: "pronto"; dados: ChavesDaApi };
 
-const FALHA_DE_REDE = "Não foi possível falar com o servidor.";
+const FALHA_DE_REDE = SEM_SERVIDOR;
 
 /**
  * Configurações › API (front #194): as chaves da API pública, só de leitura. Criar mostra o token uma
@@ -229,7 +230,7 @@ function CriarChave({
               {empresa.razaoSocial}
             </option>
           ))}
-          <option value="conta">Todas as empresas da conta</option>
+          <option value="conta">Todas as empresas do escritório</option>
         </select>
       </div>
       <p className="cfg-linha-descricao">Só leitura: a chave consulta conciliações, divergências e fechamentos, sem descrição de lançamento nem justificativas.</p>
@@ -279,7 +280,7 @@ function LinhaDaChave({ chave, onRevogada }: { chave: ChaveApi; onRevogada: (rev
         </span>
         <span className="cfg-linha-descricao">
           <code>{`ledgr_${chave.prefixo}…`}</code>
-          {` · ${chave.empresa ? chave.empresa.razaoSocial : "Todas as empresas da conta"}`}
+          {` · ${chave.empresa ? chave.empresa.razaoSocial : "Todas as empresas do escritório"}`}
         </span>
         <span className="cfg-linha-descricao">
           {[

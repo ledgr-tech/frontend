@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { BotaoFecharJanela, ModalDaTela } from "../../../(app)/e/[empresa]/empresas/modal-da-tela";
 import { formatarDataHora } from "../../../(app)/e/[empresa]/dashboard/resumo";
 import { cancelarAssinatura, darCupom, listarCupons, manterAssinatura, type CupomDado, type CupomDaStripe } from "../acoes";
+import { SEM_SERVIDOR } from "@/lib/sem-servidor";
 
 /** Uma chamada por vez (a trava é um `ref`, antes do primeiro `await`), com o erro e o "enviando" da janela. */
 function useEnvio() {
@@ -21,7 +22,7 @@ function useEnvio() {
       if (!r.ok) setErro(r.erro);
       return r.ok;
     } catch {
-      setErro("Não foi possível falar com o servidor.");
+      setErro(SEM_SERVIDOR);
       return false;
     } finally {
       trava.current = false;
@@ -146,7 +147,7 @@ export function DarCupom({ id, nome, assinaturaViva }: { id: string; nome: strin
     setAberta(true);
     setCupons(null);
     setErro(null);
-    const r = await listarCupons().catch(() => ({ ok: false as const, erro: "Não foi possível falar com o servidor." }));
+    const r = await listarCupons().catch(() => ({ ok: false as const, erro: SEM_SERVIDOR }));
     if (!r.ok) return setErro(r.erro);
     setCupons(r.dados);
     setCupomId(r.dados[0]?.id ?? "");

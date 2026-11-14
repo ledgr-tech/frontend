@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import type { ArquivoExtrato, ListaDeExtratos, Resultado } from "../conciliacoes/acoes";
 import ExtratosPage from "./page";
+import { SEM_SERVIDOR } from "@/lib/sem-servidor";
 
 // quem fala com o backend é a action; aqui ela só devolve o que ele responderia
 const listarExtratos = vi.fn<() => Promise<Resultado<ListaDeExtratos>>>();
@@ -101,7 +102,7 @@ describe("ExtratosPage", () => {
   });
 
   it("offers a retry when the backend fails", async () => {
-    listarExtratos.mockResolvedValue({ ok: false, status: 0, erro: "Não foi possível falar com o servidor." });
+    listarExtratos.mockResolvedValue({ ok: false, status: 0, erro: SEM_SERVIDOR });
     await renderizar();
     expect(screen.getByRole("alert")).toHaveTextContent("Não foi possível carregar os extratos.");
     expect(screen.getByRole("button", { name: "Tentar de novo" })).toBeInTheDocument();

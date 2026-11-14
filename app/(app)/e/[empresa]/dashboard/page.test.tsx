@@ -6,6 +6,7 @@ import type { StatusLinha } from "@/lib/mock-data";
 import type { ListaDeConciliacoes, Resultado } from "../conciliacoes/acoes";
 import type { ConciliacaoNaLista } from "./lista";
 import DashboardPage from "./page";
+import { SEM_SERVIDOR } from "@/lib/sem-servidor";
 
 // quem fala com o backend é a action; aqui ela só devolve o que ele responderia
 const carregarConciliacoes = vi.fn<() => Promise<Resultado<ListaDeConciliacoes>>>();
@@ -109,7 +110,7 @@ describe("DashboardPage", () => {
     com();
     await renderizar();
     expect(screen.getByRole("heading", { level: 1, name: "Conciliações" })).toBeInTheDocument();
-    expect(screen.getByText("2 conciliações · 1 pede decisão")).toBeInTheDocument();
+    expect(screen.getByText("2 conciliações · 1 pendência")).toBeInTheDocument();
   });
 
   it("leaves a closed month out of what asks for a decision, like the filter below", async () => {
@@ -128,7 +129,7 @@ describe("DashboardPage", () => {
     });
     await renderizar();
     expect(screen.getByText("2 conciliações")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Pedem decisão (0)" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Com pendência (0)" })).toBeInTheDocument();
   });
 
   it("opens the first in the queue in the preview, in place of the old continue strip", async () => {
@@ -138,7 +139,7 @@ describe("DashboardPage", () => {
     expect(screen.queryByRole("region", { name: "Continue de onde parou" })).not.toBeInTheDocument();
     const lado = previa();
     expect(lado).toHaveTextContent("Setembro de 2026");
-    expect(within(lado).getByRole("heading", { level: 2, name: "9 linhas pedem decisão" })).toBeInTheDocument();
+    expect(within(lado).getByRole("heading", { level: 2, name: "9 pendências" })).toBeInTheDocument();
     expect(lado).toHaveTextContent("sicredi-set.ofx");
     expect(lado).toHaveTextContent("× erp-set.csv");
     expect(lado.querySelector(".conc-previa-numero")).toHaveTextContent("12de 22 lançamentos batem");
@@ -146,7 +147,8 @@ describe("DashboardPage", () => {
     expect(within(lado).getByRole("list", { name: "O que a barra mostra" })).toHaveTextContent(
       "12 · Conciliado6 · Valor diverge, Duplicidade4 · Data diverge, Falta",
     );
-    expect(within(lado).getByText("9 pedem decisão")).toHaveClass("selo", "selo-risco");
+    expect(lado.querySelector(".selo")).toHaveTextContent("9 pendências");
+    expect(lado.querySelector(".selo")).toHaveClass("selo-risco");
     // as conferidas só a primeira da fila traz
     expect(lado).toHaveTextContent("Conferidas3 de 9");
     expect(lado).toHaveTextContent("Justificadas1");
@@ -169,19 +171,19 @@ describe("DashboardPage", () => {
     await renderizar();
 
     // abre no que pede trabalho
-    expect(screen.getByRole("button", { name: "Pedem decisão (1)" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Com pendência (1)" })).toHaveAttribute("aria-pressed", "true");
     expect(folhas()).toHaveLength(1);
     const [setembro] = folhas();
     expect(setembro).toHaveAccessibleName(expect.stringContaining("sicredi-set.ofx × erp-set.csv"));
     expect(setembro).toHaveAttribute("aria-pressed", "true");
     expect(setembro).toHaveTextContent("12 de 22 batem");
-    expect(within(setembro).getByText("9 pedem decisão")).toHaveClass("selo", "selo-risco");
+    expect(within(setembro).getByText("9 pendências")).toHaveClass("selo", "selo-risco");
     expect(setembro).toHaveTextContent("Rodada 2 de 2");
 
     await user.click(screen.getByRole("button", { name: "Todas (2)" }));
     const meses = screen.getAllByRole("heading", { level: 2 }).filter((titulo) => titulo.classList.contains("conc-mes-titulo"));
     expect(meses.map((titulo) => titulo.textContent)).toEqual(["Setembro de 2026", "Agosto de 2026"]);
-    expect(meses[0].parentElement).toHaveTextContent("Aberto · 1 conciliação · 9 linhas pedem decisão");
+    expect(meses[0].parentElement).toHaveTextContent("Aberto · 1 conciliação · 9 pendências");
     expect(within(folhas()[1]).getByText("Sem pendência")).toHaveClass("selo", "selo-ok");
   });
 
@@ -270,7 +272,7 @@ describe("DashboardPage", () => {
   });
 
   it("offers a retry when the backend fails", async () => {
-    carregarConciliacoes.mockResolvedValue({ ok: false, status: 0, erro: "Não foi possível falar com o servidor." });
+    carregarConciliacoes.mockResolvedValue({ ok: false, status: 0, erro: SEM_SERVIDOR });
     await renderizar();
     expect(screen.getByRole("alert")).toHaveTextContent("Não foi possível carregar suas conciliações.");
     expect(screen.getByRole("button", { name: "Tentar de novo" })).toBeInTheDocument();

@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ConviteAPI, PessoaAPI } from "@/lib/adaptadores";
 import { ErroBackend } from "@/lib/backend";
 import { cancelarConvite, carregarEquipe, convidar, removerPessoa, transferirAdmin, trocarPapel } from "./acoes";
+import { SEM_SERVIDOR } from "@/lib/sem-servidor";
 
 // a rede é a fronteira; ErroBackend e a tradução dos erros rodam de verdade
 const chamarBackend = vi.fn();
@@ -114,7 +115,7 @@ describe("convidar", () => {
     [429, 30, "Limite de convites por hora atingido. Tente de novo em 1 minuto."],
     [429, undefined, "Limite de convites por hora atingido. Tente de novo mais tarde."],
     [503, undefined, "O envio de convites está indisponível no momento."],
-    [403, undefined, "Seu papel na conta não permite fazer isso."],
+    [403, undefined, "Seu papel no escritório não permite fazer isso."],
     [401, undefined, "Sua sessão expirou. Entre de novo para continuar."],
   ])("com %i (Retry-After %s) vira o texto certo", async (status, segundos, texto) => {
     chamarBackend.mockRejectedValueOnce(new ErroBackend(status, "x", [], {}, segundos));
@@ -142,7 +143,7 @@ describe("convidar", () => {
   it("sem conseguir falar com o servidor, diz isso", async () => {
     chamarBackend.mockRejectedValueOnce(new TypeError("fetch failed"));
 
-    expect(await convidar("ana@x.com", "analista")).toEqual({ ok: false, status: 0, erro: "Não foi possível falar com o servidor." });
+    expect(await convidar("ana@x.com", "analista")).toEqual({ ok: false, status: 0, erro: SEM_SERVIDOR });
   });
 });
 
@@ -252,8 +253,8 @@ describe.each([
 ])("os erros do backend em %s", (_, acao) => {
   it.each([
     [new ErroBackend(400, "Senha atual incorreta."), 400, "Senha atual incorreta."],
-    [new ErroBackend(403, "Só o admin."), 403, "Seu papel na conta não permite fazer isso."],
-    [new ErroBackend(404, "Usuário não encontrado."), 404, "Essa pessoa não está mais na conta."],
+    [new ErroBackend(403, "Só o admin."), 403, "Seu papel no escritório não permite fazer isso."],
+    [new ErroBackend(404, "Usuário não encontrado."), 404, "Essa pessoa não está mais no escritório."],
     [new ErroBackend(409, "O admin só muda de papel pela transferência."), 409, "O admin só muda de papel pela transferência."],
     [new ErroBackend(409, "Entre de novo com o Google para confirmar."), 409, "Entre de novo com o Google para confirmar."],
     [new ErroBackend(429, "Limite", [], {}, 180), 429, "Muitas tentativas. Tente de novo em 3 minutos."],
@@ -269,6 +270,6 @@ describe.each([
   it("rede fora do ar vira status 0", async () => {
     chamarBackend.mockRejectedValue(new TypeError("fetch failed"));
 
-    expect(await acao()).toEqual({ ok: false, status: 0, erro: "Não foi possível falar com o servidor." });
+    expect(await acao()).toEqual({ ok: false, status: 0, erro: SEM_SERVIDOR });
   });
 });

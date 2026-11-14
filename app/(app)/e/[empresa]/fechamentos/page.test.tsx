@@ -5,6 +5,7 @@ import type { Execucao, Fechamento } from "@/lib/adaptadores";
 import type { DadosDoFechamento, ParDoFechamento, Resultado } from "../conciliacoes/acoes";
 import { SO_O_GESTOR_APROVA } from "@/lib/gestor";
 import FechamentosPage from "./page";
+import { SEM_SERVIDOR } from "@/lib/sem-servidor";
 
 // quem fala com o backend é a action; aqui ela só devolve o que ele responderia
 const carregarFechamentos = vi.fn<() => Promise<Resultado<DadosDoFechamento>>>();
@@ -164,7 +165,7 @@ describe("FechamentosPage", () => {
 
     const pronto = painel();
     expect(within(pronto).getByText("Fechamento · pronto para fechar")).toBeInTheDocument();
-    expect(within(pronto).getByText("Nenhuma divergência pede decisão.")).toBeInTheDocument();
+    expect(within(pronto).getByText("Nenhuma pendência.")).toBeInTheDocument();
     expect(within(pronto).getByRole("button", { name: "Fechar agosto" })).toBeInTheDocument();
     // pronto para fechar é um joinha; o cadeado fica para depois de fechado
     expect(pronto.querySelector("img")?.getAttribute("src")).toContain("mao-joinha");
@@ -203,7 +204,7 @@ describe("FechamentosPage", () => {
       try {
         await renderizar(undefined, { mes: "2026-08" });
         expect(within(painel()).queryByRole("button", { name: "Fechar agosto" })).not.toBeInTheDocument();
-        expect(within(painel()).getByText("Só o admin ou o gestor da conta fecham e reabrem o mês.")).toBeInTheDocument();
+        expect(within(painel()).getByText("Só o admin ou o gestor do escritório fecham e reabrem o mês.")).toBeInTheDocument();
 
         cleanup();
         await renderizar();
@@ -322,6 +323,9 @@ describe("FechamentosPage", () => {
       expect(within(passos).getByText(/Divergências decididas/)).toHaveTextContent("(pendente)");
       expect(within(passos).getByText("1 divergência justificada")).toBeInTheDocument();
       expect(within(aberto).getByRole("link", { name: "Revisar pendências" })).toBeInTheDocument();
+      // F-01 (#386): a lista do passo desconta as justificadas e soma o mesmo número do selo
+      const ja = within(passos).getByText("Já justificadas").closest("li")!;
+      expect(ja).toHaveTextContent("−1");
     });
   });
 
@@ -486,7 +490,7 @@ describe("FechamentosPage", () => {
   });
 
   it("says so when the backend fails", async () => {
-    carregarFechamentos.mockResolvedValue({ ok: false, status: 0, erro: "Não foi possível falar com o servidor." });
+    carregarFechamentos.mockResolvedValue({ ok: false, status: 0, erro: SEM_SERVIDOR });
     render(await FechamentosPage({ searchParams: Promise.resolve({}) }));
     expect(screen.getByRole("alert")).toHaveTextContent("Não foi possível carregar os fechamentos.");
   });

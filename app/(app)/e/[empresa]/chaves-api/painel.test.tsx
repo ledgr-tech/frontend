@@ -98,14 +98,14 @@ describe("PainelDeChavesApi", () => {
     expect(window.getSelection()?.toString()).toBe("ledgr_t");
   });
 
-  it("todas as empresas da conta vai sem empresa", async () => {
+  it("todas as empresas do escritório vai sem empresa", async () => {
     criarChaveApi.mockResolvedValue({ ok: true, dados: { chave: { ...chave, empresa: null }, token: "ledgr_t" } });
     const user = userEvent.setup();
     abrir();
 
     await user.click(await screen.findByRole("button", { name: "Criar chave" }));
     await user.type(screen.getByLabelText("Nome"), "Integração");
-    await user.selectOptions(screen.getByLabelText("Empresas que a chave lê"), "Todas as empresas da conta");
+    await user.selectOptions(screen.getByLabelText("Empresas que a chave lê"), "Todas as empresas do escritório");
     await user.click(screen.getByRole("button", { name: "Criar chave" }));
 
     expect(criarChaveApi).toHaveBeenCalledWith("Integração", null);

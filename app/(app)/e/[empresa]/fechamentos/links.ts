@@ -6,6 +6,7 @@ import { RECUSA_DEMONSTRACAO, ehContaDeDemonstracao } from "@/lib/demo";
 import { podeFecharMes, recusaPorPapel } from "@/lib/papel";
 import { contaDaSessao } from "../../../../(auth)/acoes";
 import type { Falha, Resultado } from "../conciliacoes/acoes";
+import { SEM_SERVIDOR } from "@/lib/sem-servidor";
 
 /**
  * O link público do relatório do fechamento (backend #165/PR #175, front #229): o escritório gera o
@@ -53,7 +54,7 @@ function adaptar(link: LinkAPI): LinkDoRelatorio {
 }
 
 function traduzir(erro: unknown): Falha {
-  if (!(erro instanceof ErroBackend)) return { ok: false, status: 0, erro: "Não foi possível falar com o servidor." };
+  if (!(erro instanceof ErroBackend)) return { ok: false, status: 0, erro: SEM_SERVIDOR };
   const { status } = erro;
   if (status === 401) return { ok: false, status, erro: "Sua sessão expirou. Entre de novo para continuar." };
   if (status === 403 && !ehContaInativa(erro)) return { ok: false, status, erro: SO_ADMIN_OU_GESTOR };

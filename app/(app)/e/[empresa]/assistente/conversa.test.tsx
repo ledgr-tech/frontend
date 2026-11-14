@@ -65,7 +65,7 @@ describe("Conversa", () => {
   it("opens with the month in one sentence, from the real numbers", () => {
     render(<Conversa contexto={CONTEXTO} onFechar={vi.fn()} />);
     expect(conversa()).toHaveTextContent(
-      "Setembro está 70,0% conciliado. Sobraram 42 linhas para revisar, a maior parte em “Sem correspondência no banco”.",
+      "Setembro está 70,0% conciliado. Sobraram 42 pendências, a maior parte em “Sem correspondência no banco”.",
     );
     expect(screen.getByRole("heading", { level: 6 })).toHaveTextContent("Assistente · olhando setembro");
     // em 28px, ao lado de cada mensagem, vai só o rosto; o mascote acenando com o balão fica no topo

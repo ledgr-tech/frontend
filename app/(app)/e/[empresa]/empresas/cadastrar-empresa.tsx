@@ -12,6 +12,7 @@ import { formatarCnpj, validarCnpj } from "../../../../(auth)/cadastro/passos";
 import type { Resultado } from "../conciliacoes/acoes";
 import { useCobranca } from "../conta";
 import { cadastrarEmpresa } from "./acoes";
+import { SEM_SERVIDOR } from "@/lib/sem-servidor";
 
 /**
  * CNPJ e razão social, e o retorno do backend, na janela de cadastro da tela Empresas. Cadastrou, abre a empresa nova
@@ -48,7 +49,7 @@ export function CadastrarEmpresa({ noLimite, aoCadastrar, aoFechar }: { noLimite
     emCurso.current = true;
     setEnviando(true);
     const resposta = await cadastrarEmpresa(cnpj, razaoSocial).catch(
-      (): Resultado<EmpresaCliente> => ({ ok: false, status: 0, erro: "Não foi possível falar com o servidor." }),
+      (): Resultado<EmpresaCliente> => ({ ok: false, status: 0, erro: SEM_SERVIDOR }),
     );
     emCurso.current = false;
     setEnviando(false);

@@ -38,7 +38,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   } catch (falha) {
     if (!(falha instanceof ErroBackend)) return erro(502, INDISPONIVEL);
     if (falha.status === 401) return erro(401, "Sua sessão expirou. Entre de novo para continuar.");
-    if (falha.status === 403) return erro(403, "Só o admin ou o gestor da conta baixam o arquivo original.");
+    if (falha.status === 403) return erro(403, "Só o admin ou o gestor do escritório baixam o arquivo original.");
     if (falha.status === 404) return erro(404, "O arquivo original deste extrato não está disponível.");
     if (falha.status === 429) return erro(429, "Muitos downloads seguidos. Espere um minuto e tente de novo.");
     return erro(502, INDISPONIVEL);

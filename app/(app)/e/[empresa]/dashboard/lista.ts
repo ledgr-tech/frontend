@@ -54,7 +54,7 @@ export function seloDaConciliacao(conciliacao: ConciliacaoNaLista): { rotulo: st
     ([status, quantidade]) => quantidade > 0 && seloDoStatus(status).tom === "risco",
   );
   return {
-    rotulo: `${formatarInteiro(pendentes)} ${pendentes === 1 ? "pede" : "pedem"} decisão`,
+    rotulo: `${formatarInteiro(pendentes)} ${pendentes === 1 ? "pendência" : "pendências"}`,
     tom: custaDinheiro ? "risco" : "atencao",
   };
 }

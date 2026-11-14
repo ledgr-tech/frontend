@@ -7,6 +7,7 @@ import { RECUSA_DEMONSTRACAO, ehContaDeDemonstracao } from "@/lib/demo";
 import { podeFecharMes, recusaPorPapel } from "@/lib/papel";
 import { contaDaSessao } from "../../../../(auth)/acoes";
 import type { Falha, Resultado } from "../conciliacoes/acoes";
+import { SEM_SERVIDOR } from "@/lib/sem-servidor";
 
 /**
  * As chaves da API pública (backend #135, front #194): só de leitura, criadas e revogadas pelo admin
@@ -19,7 +20,7 @@ export type ChaveApi = {
   nome: string;
   /** O começo do token, para reconhecer a chave sem mostrar o resto. */
   prefixo: string;
-  /** null quando a chave enxerga todas as empresas da conta. */
+  /** null quando a chave enxerga todas as empresas do escritório. */
   empresa: { id: string; razaoSocial: string } | null;
   criadaPor: string | null;
   criadoEm: string;
@@ -44,7 +45,7 @@ export type ChavesDaApi = {
   endereco: string | null;
 };
 
-const SO_ADMIN_OU_GESTOR = "Só o admin ou o gestor da conta criam e revogam chaves da API.";
+const SO_ADMIN_OU_GESTOR = "Só o admin ou o gestor do escritório criam e revogam chaves da API.";
 
 function adaptar(chave: ChaveApiAPI): ChaveApi {
   return {
@@ -61,7 +62,7 @@ function adaptar(chave: ChaveApiAPI): ChaveApi {
 }
 
 function traduzir(erro: unknown): Falha {
-  if (!(erro instanceof ErroBackend)) return { ok: false, status: 0, erro: "Não foi possível falar com o servidor." };
+  if (!(erro instanceof ErroBackend)) return { ok: false, status: 0, erro: SEM_SERVIDOR };
   const { status } = erro;
   if (status === 401) return { ok: false, status, erro: "Sua sessão expirou. Entre de novo para continuar." };
   if (status === 403 && !ehContaInativa(erro)) return { ok: false, status, erro: SO_ADMIN_OU_GESTOR };

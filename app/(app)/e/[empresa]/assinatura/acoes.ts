@@ -6,6 +6,7 @@ import { RECUSA_DEMONSTRACAO, ehContaDeDemonstracao } from "@/lib/demo";
 import { contaDaSessao } from "../../../../(auth)/acoes";
 import { ehAdmin, recusaPorPapel } from "@/lib/papel";
 import type { Falha, Resultado } from "../conciliacoes/acoes";
+import { SEM_SERVIDOR } from "@/lib/sem-servidor";
 
 /**
  * A assinatura pela Stripe (backend #180, spec 2026-10-31-assinatura-pela-stripe). Os preços são
@@ -14,7 +15,7 @@ import type { Falha, Resultado } from "../conciliacoes/acoes";
  */
 
 const PLANOS: PlanoId[] = ["essencial", "padrao", "avancado"];
-const SO_ADMIN = "Só o administrador da conta assina.";
+const SO_ADMIN = "Só o administrador do escritório assina.";
 const INDISPONIVEL = "A assinatura não está disponível agora. Tente de novo mais tarde.";
 const PLANO_INDISPONIVEL = "Esse plano não está disponível.";
 
@@ -28,7 +29,7 @@ export async function carregarPrecos(): Promise<PrecoDoPlano[] | null> {
 }
 
 function traduzir(erro: unknown): Falha {
-  if (!(erro instanceof ErroBackend)) return { ok: false, status: 0, erro: "Não foi possível falar com o servidor." };
+  if (!(erro instanceof ErroBackend)) return { ok: false, status: 0, erro: SEM_SERVIDOR };
   const { status } = erro;
   if (status === 401) return { ok: false, status, erro: "Sua sessão expirou. Entre de novo para continuar." };
   if (status === 403) return { ok: false, status, erro: SO_ADMIN };

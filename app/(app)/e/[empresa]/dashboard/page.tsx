@@ -23,7 +23,7 @@ export default async function DashboardPage() {
   if (!resposta.ok && resposta.status === 401) await redirecionarNoApp("/login");
 
   const conciliacoes = resposta.ok ? resposta.dados.conciliacoes : [];
-  // a mesma conta do filtro "Pedem decisão": num mês fechado nada mais se decide
+  // a mesma conta do filtro "Com pendência": num mês fechado nada mais se decide
   const pendentes = agruparPorMes(conciliacoes, resposta.ok ? resposta.dados.fechamentos : null).reduce(
     (soma, mes) => soma + mes.conciliacoes.filter((item) => passaNoFiltro(item, mes.fechamento !== null, "pendentes")).length,
     0,
@@ -38,7 +38,7 @@ export default async function DashboardPage() {
         titulo="Conciliações"
         contexto={[
           conciliacoes.length > 0 && plural(conciliacoes.length, "conciliação", "conciliações"),
-          pendentes > 0 && `${formatarInteiro(pendentes)} ${pendentes === 1 ? "pede" : "pedem"} decisão`,
+          pendentes > 0 && `${formatarInteiro(pendentes)} ${pendentes === 1 ? "pendência" : "pendências"}`,
         ]}
       />
 

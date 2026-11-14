@@ -82,7 +82,7 @@ async function enviarOsDois(sistema = arquivo("sistema.csv"), { cobranca = false
   if (cobranca) montarComAssinatura(null);
   else render(<NovaConciliacaoPage />);
   await user.upload(screen.getByLabelText("Extrato do banco"), arquivo("banco.ofx"));
-  await user.upload(screen.getByLabelText("Extrato do sistema de gestão"), sistema);
+  await user.upload(screen.getByLabelText("Extrato do sistema"), sistema);
   await user.click(screen.getByRole("button", { name: "Conciliar extratos" }));
   return user;
 }
@@ -114,7 +114,7 @@ describe("NovaConciliacaoPage", () => {
   it("aceita só CSV do sistema de gestão, porque o backend ainda não lê o PDF do ERP", () => {
     render(<NovaConciliacaoPage />);
 
-    expect(screen.getByLabelText("Extrato do sistema de gestão")).toHaveAttribute("accept", ".csv");
+    expect(screen.getByLabelText("Extrato do sistema")).toHaveAttribute("accept", ".csv");
     expect(screen.getByText("Arquivo CSV exportado do seu sistema de gestão")).toBeInTheDocument();
     expect(screen.getByLabelText("Extrato do banco")).toHaveAttribute("accept", ".ofx,.csv");
   });
@@ -168,9 +168,9 @@ describe("NovaConciliacaoPage", () => {
     expect(titulo()).toHaveTextContent("Envie os dois extratos");
     expect(within(painel).getByText("0 de 2")).toBeInTheDocument();
 
-    await user.upload(screen.getByLabelText("Extrato do sistema de gestão"), arquivo("sistema.csv"));
+    await user.upload(screen.getByLabelText("Extrato do sistema"), arquivo("sistema.csv"));
     expect(titulo()).toHaveTextContent("Falta um extrato");
-    expect(within(painel).getByText("Sistema de gestão: enviado")).toBeInTheDocument();
+    expect(within(painel).getByText("Extrato do sistema: enviado")).toBeInTheDocument();
     expect(within(painel).getByText("Banco: falta")).toBeInTheDocument();
 
     await user.upload(screen.getByLabelText("Extrato do banco"), arquivo("banco.ofx"));
@@ -215,7 +215,7 @@ describe("NovaConciliacaoPage", () => {
     await user.upload(screen.getByLabelText("Extrato do banco"), arquivo("banco.ofx"));
     expect(botao).toBeDisabled();
 
-    await user.upload(screen.getByLabelText("Extrato do sistema de gestão"), arquivo("sistema.csv"));
+    await user.upload(screen.getByLabelText("Extrato do sistema"), arquivo("sistema.csv"));
     expect(botao).toBeEnabled();
     expect(botao).not.toHaveAccessibleDescription();
   });
@@ -325,7 +325,7 @@ describe("NovaConciliacaoPage", () => {
 
       expect(conciliar).not.toHaveBeenCalled();
       expect(screen.getByLabelText("Extrato do banco").closest("label")).not.toHaveAttribute("data-pronto");
-      expect(screen.getByLabelText("Extrato do sistema de gestão").closest("label")).toHaveAttribute("data-pronto");
+      expect(screen.getByLabelText("Extrato do sistema").closest("label")).toHaveAttribute("data-pronto");
       expect(screen.getByRole("button", { name: "Conciliar extratos" })).toHaveAccessibleDescription(
         "Falta o extrato do banco.",
       );
@@ -355,7 +355,7 @@ describe("NovaConciliacaoPage", () => {
       screen.getByLabelText("Extrato do banco"),
       arquivo("gigante.ofx", 4 * 1024 * 1024 + 1),
     );
-    await user.upload(screen.getByLabelText("Extrato do sistema de gestão"), arquivo("sistema.csv"));
+    await user.upload(screen.getByLabelText("Extrato do sistema"), arquivo("sistema.csv"));
     await user.click(screen.getByRole("button", { name: "Conciliar extratos" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("passa de 4 MB");
@@ -366,7 +366,7 @@ describe("NovaConciliacaoPage", () => {
     const user = userEvent.setup();
     render(<NovaConciliacaoPage />);
     await user.upload(screen.getByLabelText("Extrato do banco"), arquivo("limite.ofx", 4 * 1024 * 1024));
-    await user.upload(screen.getByLabelText("Extrato do sistema de gestão"), arquivo("sistema.csv"));
+    await user.upload(screen.getByLabelText("Extrato do sistema"), arquivo("sistema.csv"));
     await user.click(screen.getByRole("button", { name: "Conciliar extratos" }));
 
     await waitFor(() => expect(enviarExtrato).toHaveBeenCalledTimes(2));
@@ -462,10 +462,10 @@ describe("NovaConciliacaoPage", () => {
       const user = userEvent.setup();
       render(<NovaConciliacaoPage />);
       expect(folha("Extrato do banco")).not.toHaveAttribute("data-pronto");
-      expect(folha("Extrato do sistema de gestão")).not.toHaveAttribute("data-pronto");
+      expect(folha("Extrato do sistema")).not.toHaveAttribute("data-pronto");
 
-      await user.upload(screen.getByLabelText("Extrato do sistema de gestão"), arquivo("sistema.csv"));
-      expect(folha("Extrato do sistema de gestão")).toHaveAttribute("data-pronto");
+      await user.upload(screen.getByLabelText("Extrato do sistema"), arquivo("sistema.csv"));
+      expect(folha("Extrato do sistema")).toHaveAttribute("data-pronto");
       expect(folha("Extrato do banco")).not.toHaveAttribute("data-pronto");
       // o elo só acende com as duas
       expect(encaixe()).not.toHaveAttribute("data-ligado");
@@ -481,14 +481,14 @@ describe("NovaConciliacaoPage", () => {
       await user.upload(screen.getByLabelText("Extrato do banco"), arquivo("banco.ofx"));
 
       expect(screen.getByRole("button", { name: "Conciliar extratos" })).toHaveAccessibleDescription(
-        "Falta o extrato do sistema de gestão.",
+        "Falta o extrato do sistema.",
       );
     });
 
     it("diz qual extrato falta enquanto só o do sistema entrou", async () => {
       const user = userEvent.setup();
       render(<NovaConciliacaoPage />);
-      await user.upload(screen.getByLabelText("Extrato do sistema de gestão"), arquivo("sistema.csv"));
+      await user.upload(screen.getByLabelText("Extrato do sistema"), arquivo("sistema.csv"));
 
       expect(screen.getByRole("button", { name: "Conciliar extratos" })).toHaveAccessibleDescription(
         "Falta o extrato do banco.",
@@ -505,7 +505,7 @@ describe("NovaConciliacaoPage", () => {
       expect(within(banco).getByText("2 KB")).toBeInTheDocument();
       expect(within(banco).getByText("Trocar arquivo")).toBeInTheDocument();
       // a outra folha continua pedindo o arquivo
-      const sistema = screen.getByLabelText("Extrato do sistema de gestão").closest("label") as HTMLElement;
+      const sistema = screen.getByLabelText("Extrato do sistema").closest("label") as HTMLElement;
       expect(within(sistema).queryByText("Trocar arquivo")).not.toBeInTheDocument();
     });
 
@@ -521,13 +521,13 @@ describe("NovaConciliacaoPage", () => {
 
     it("recusa o arquivo solto que não é do formato daquele lado", () => {
       render(<NovaConciliacaoPage />);
-      const sistema = screen.getByLabelText("Extrato do sistema de gestão").closest("label") as HTMLElement;
+      const sistema = screen.getByLabelText("Extrato do sistema").closest("label") as HTMLElement;
 
       // o accept do input só vale para a janela de escolher; o que é solto chega sem filtro
       fireEvent.drop(sistema, { dataTransfer: { files: [arquivo("lancamentos.pdf")] } });
 
       const alerta = screen.getByRole("alert");
-      expect(alerta).toHaveTextContent("O extrato do sistema de gestão precisa ser um arquivo CSV.");
+      expect(alerta).toHaveTextContent("O extrato do sistema precisa ser um arquivo CSV.");
       expect(sistema).not.toHaveAttribute("data-pronto");
       // o erro fica em cima das folhas, à vista de quem acabou de soltar
       expect(alerta.compareDocumentPosition(encaixe() as Element) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -561,7 +561,7 @@ describe("NovaConciliacaoPage", () => {
       await screen.findByRole("alert");
       expect(document.querySelector(".nova-palco")).not.toBeInTheDocument();
       expect(folha("Extrato do banco")).toHaveAttribute("data-pronto");
-      expect(folha("Extrato do sistema de gestão")).toHaveAttribute("data-pronto");
+      expect(folha("Extrato do sistema")).toHaveAttribute("data-pronto");
     });
   });
 
@@ -759,9 +759,9 @@ describe("NovaConciliacaoPage", () => {
     const user = userEvent.setup();
     montarComAssinatura({ situacao, plano: "padrao", testeTerminaEm: null, fimDoTeste: null, cobranca: null });
     await user.upload(screen.getByLabelText("Extrato do banco"), arquivo("banco.ofx"));
-    await user.upload(screen.getByLabelText("Extrato do sistema de gestão"), arquivo("sistema.csv"));
+    await user.upload(screen.getByLabelText("Extrato do sistema"), arquivo("sistema.csv"));
     await user.click(screen.getByRole("button", { name: "Conciliar extratos" }));
-    expect(await screen.findByRole("heading", { name: "Sua conta chegou ao limite de conciliações deste mês." })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Seu escritório chegou ao limite de conciliações deste mês." })).toBeInTheDocument();
     expect(screen.getByText("Sua conta chegou ao limite de conciliações do mês no plano Padrão.")).toBeInTheDocument();
     expect(screen.getByText("A franquia recomeça no dia 1º. Para conciliar antes, escolha um plano maior.")).toBeInTheDocument();
   });
@@ -852,7 +852,7 @@ describe("depois da importação via IA, só falta o banco", () => {
     render(<NovaConciliacaoPage />);
 
     expect(screen.getByText("Importação via IA")).toBeInTheDocument();
-    expect(screen.queryByLabelText("Extrato do sistema de gestão")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Extrato do sistema")).not.toBeInTheDocument();
     expect(screen.queryByText("Só tem o PDF do relatório?")).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Falta um extrato" })).toBeInTheDocument();
     const botao = screen.getByRole("button", { name: "Conciliar extratos" });
@@ -882,6 +882,6 @@ describe("depois da importação via IA, só falta o banco", () => {
     consulta = "sistema=qualquer-coisa";
     render(<NovaConciliacaoPage />);
 
-    expect(screen.getByLabelText("Extrato do sistema de gestão")).toBeInTheDocument();
+    expect(screen.getByLabelText("Extrato do sistema")).toBeInTheDocument();
   });
 });

@@ -65,7 +65,7 @@ const BENEFICIOS: Beneficio[] = [
     texto: "O Ledgr usa o que o seu sistema de gestão já exporta. Você sobe dois arquivos: o extrato do banco e o do sistema.",
     itens: [
       "Extrato do banco em OFX ou CSV, direto do internet banking",
-      "Razão do ERP ou do sistema de gestão em CSV",
+      "Extrato do sistema em CSV, exportado do seu sistema de gestão",
       "Nenhuma credencial bancária",
       "CSV em outro formato: você aponta as colunas na importação",
     ],

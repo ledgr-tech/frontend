@@ -336,7 +336,7 @@ function NovaConciliacao() {
       ? "Envie os dois extratos para conciliar."
       : !bancoPronto
         ? "Falta o extrato do banco."
-        : "Falta o extrato do sistema de gestão.";
+        : "Falta o extrato do sistema.";
 
   // teste acabado ou assinatura encerrada (backend #180), ou o 402 do backend: os planos no lugar do envio
   const bloqueada = (assinatura !== null && bloqueiaConciliacao(assinatura.situacao)) || recusa !== null;
@@ -525,7 +525,7 @@ function NovaConciliacao() {
                     <span className="nova-folha-icone">
                       <Check aria-hidden="true" />
                     </span>
-                    Sistema de gestão
+                    Extrato do sistema
                   </span>
                   <strong className="nova-folha-titulo">Importação via IA</strong>
                   <span className="nova-folha-dica">Já confirmado</span>
@@ -533,7 +533,7 @@ function NovaConciliacao() {
               ) : (
                 <FolhaDeExtrato
                   origem="sistema"
-                  titulo="Extrato do sistema de gestão"
+                  titulo="Extrato do sistema"
                   dica="Arquivo CSV exportado do seu sistema de gestão"
                   accept=".csv"
                   formatos="CSV"
@@ -602,7 +602,7 @@ function NovaConciliacao() {
                   <span className="nova-checklist-marca" aria-hidden="true">
                     <Check />
                   </span>
-                  Sistema de gestão{sistemaPronto ? ": enviado" : ": falta"}
+                  Extrato do sistema{sistemaPronto ? ": enviado" : ": falta"}
                 </li>
               </ul>
             </div>
@@ -675,7 +675,7 @@ function NovaConciliacao() {
 }
 
 const PASSOS: Passo[] = [
-  { titulo: "Envie os dois extratos", texto: "O do banco e o do seu sistema de gestão, do mesmo período." },
+  { titulo: "Envie os dois extratos", texto: "O do banco e o do sistema, do mesmo período." },
   { titulo: "Confira e aponte", texto: "Marque o que conferiu e justifique o que fica como está." },
   { titulo: "Corrija no seu sistema e envie de novo", texto: "Cada nova versão do extrato do sistema vira uma rodada." },
 ];

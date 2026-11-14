@@ -6,6 +6,7 @@ import { ehUf } from "@/lib/uf";
 import type { Falha, Resultado } from "../../(app)/e/[empresa]/conciliacoes/acoes";
 import { ROTULO_DA_ORIGEM, dataDoFiltro } from "./cobranca";
 import { POR_PAGINA, SITUACOES, UF_NAO_INFORMADA } from "./situacao";
+import { SEM_SERVIDOR } from "@/lib/sem-servidor";
 
 /**
  * O painel interno do Ledgr (backend #156/PR #176, front #222, parte 1): quem opera o produto vê as contas
@@ -248,7 +249,7 @@ function detalhe(d: DetalheAPI): DetalheDaConta {
 }
 
 function traduzir(erro: unknown): Falha {
-  if (!(erro instanceof ErroBackend)) return { ok: false, status: 0, erro: "Não foi possível falar com o servidor." };
+  if (!(erro instanceof ErroBackend)) return { ok: false, status: 0, erro: SEM_SERVIDOR };
   const { status } = erro;
   if (status === 429) return { ok: false, status, erro: "Muitas chamadas seguidas. Espere um minuto e tente de novo." };
   // um 422 de validação de campo é o motivo; o de texto (período invertido) chega como o backend escreveu

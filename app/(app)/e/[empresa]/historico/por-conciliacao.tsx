@@ -164,7 +164,7 @@ export function HistoricoPorConciliacao({ execucoes }: { execucoes: Execucao[] }
 function SeloDaPendencia({ conciliacao }: { conciliacao: ConciliacaoNoHistorico }) {
   const revisar = paraRevisar(conciliacao.principal.execucao);
   return revisar > 0 ? (
-    <span className="selo selo-risco">{`${formatarInteiro(revisar)} para revisar`}</span>
+    <span className="selo selo-risco">{plural(revisar, "pendência", "pendências")}</span>
   ) : (
     <span className="selo selo-ok">Sem pendência</span>
   );
@@ -281,9 +281,9 @@ function Previa({
         )}
       </div>
       <dl className="conc-previa-dados">
-        <dt>Para revisar</dt>
+        <dt>Pendências</dt>
         <dd>
-          {revisar > 0 ? plural(revisar, "linha", "linhas") : "Nada"}
+          {revisar > 0 ? plural(revisar, "linha", "linhas") : "Nenhuma"}
           {execucao.justificadas > 0 && ` · ${plural(execucao.justificadas, "justificada", "justificadas")}`}
         </dd>
         <dt>Tolerância</dt>
@@ -303,7 +303,7 @@ function Previa({
                   <span className={selo.classe}>{selo.rotulo}</span>
                   <span className="hist-previa-execucao-numeros">
                     <time dateTime={item.executadaEm}>{quandoRodou(item.executadaEm, ano)}</time>
-                    {` · ${matchNaTela(item)} · ${plural(paraRevisar(item), "para revisar", "para revisar")}`}
+                    {` · ${matchNaTela(item)} · ${plural(paraRevisar(item), "pendência", "pendências")}`}
                   </span>
                   {/* a rodada anterior ainda abre, com o aviso de que há uma mais recente; a refeita não:
                       o backend só guarda o resultado mais novo de cada par */}

@@ -5,7 +5,7 @@ import LinkDoApp from "@/lib/link-do-app";
 import { useCobranca } from "../conta";
 
 /**
- * A faixa do plano no alto de cada aba da tela Empresas: quanto a conta já usa, a barra de uso (só com
+ * A faixa do plano no alto de cada aba da tela Empresas: quanto o escritório já usa, a barra de uso (só com
  * máximo) e o aviso do limite. No limite, e acima dele, a barra fica na cor de risco e há o caminho
  * para os planos.
  */

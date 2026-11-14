@@ -18,6 +18,7 @@ import { fraseDoSaldoFinal } from "../saldo";
 import type { MesDeFechamento } from "./fechamento";
 import { usePodeFechar } from "../conta";
 import { SO_O_GESTOR_APROVA, SO_O_GESTOR_FECHA } from "@/lib/gestor";
+import { SEM_SERVIDOR } from "@/lib/sem-servidor";
 
 /**
  * A mesa de fechamento: cada mês é uma folha, e o selecionado abre ao lado o
@@ -357,7 +358,7 @@ function Painel({ mes, podeFechar }: { mes: MesDeFechamento; podeFechar: boolean
 
         <Passo feito={pendentes(mes) === 0} titulo="Divergências decididas">
           {pendentes(mes) === 0 ? (
-            <span className="fech-passo-texto">Nenhuma divergência pede decisão.</span>
+            <span className="fech-passo-texto">Nenhuma pendência.</span>
           ) : (
             <>
               <ul className="fech-passo-lista">
@@ -368,6 +369,15 @@ function Painel({ mes, podeFechar }: { mes: MesDeFechamento; podeFechar: boolean
                     <span className="fech-pendencia-quantidade">{formatarInteiro(pendencia.quantidade)}</span>
                   </li>
                 ))}
+                {/* F-01 (#386): o backend conta cada categoria com as justificadas, sem dizer de qual
+                    saíram; descontá-las aqui faz a lista somar o mesmo número do selo do mês */}
+                {mes.justificadas > 0 && (
+                  <li className="fech-pendencia">
+                    <span className="vg-ponto vg-ponto-ok" aria-hidden="true" />
+                    <span>Já justificadas</span>
+                    <span className="fech-pendencia-quantidade">{`−${formatarInteiro(mes.justificadas)}`}</span>
+                  </li>
+                )}
               </ul>
               <Link href={comPendencia.caminho} className="fech-link">
                 Revisar na conciliação
@@ -523,7 +533,7 @@ function AcoesDoFechamento({ mes, revisar }: { mes: MesDeFechamento; revisar: st
       resposta = await acao();
     } catch {
       // a Server Action lançou (rede caída, deploy novo no meio) em vez de devolver um Resultado
-      resposta = { ok: false, status: 0, erro: "Não foi possível falar com o servidor." };
+      resposta = { ok: false, status: 0, erro: SEM_SERVIDOR };
     }
     setEnviando(false);
     if (resposta.ok) {

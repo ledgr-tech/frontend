@@ -6,6 +6,7 @@ import type { Papel } from "@/lib/papel";
 import type { LimitesDaConta } from "@/lib/limites";
 import { ProvedorDaConta } from "../conta";
 import { PainelDaEquipe, useEquipe } from "./painel-da-equipe";
+import { SEM_SERVIDOR } from "@/lib/sem-servidor";
 
 // as ações são a fronteira com o backend; aqui devolvem o que ele responderia
 const carregarEquipe = vi.fn();
@@ -493,7 +494,7 @@ describe("o menu de papel", () => {
 
   it("o 403 relê a equipe e o papel de quem está logado (router.refresh), para os controles sumirem", async () => {
     const user = userEvent.setup();
-    trocarPapel.mockResolvedValue({ ok: false, status: 403, erro: "Seu papel na conta não permite fazer isso." });
+    trocarPapel.mockResolvedValue({ ok: false, status: 403, erro: "Seu papel no escritório não permite fazer isso." });
     montar("admin", ADMIN.email, null, false);
     await screen.findByText("Bia", { selector: ".equipe-nome" });
 
@@ -506,7 +507,7 @@ describe("o menu de papel", () => {
 
   it("o 404 relê a equipe e a mensagem continua visível no topo, mesmo sem a linha da pessoa", async () => {
     const user = userEvent.setup();
-    trocarPapel.mockResolvedValue({ ok: false, status: 404, erro: "Essa pessoa não está mais na conta." });
+    trocarPapel.mockResolvedValue({ ok: false, status: 404, erro: "Essa pessoa não está mais no escritório." });
     carregarEquipe
       .mockResolvedValueOnce({ ok: true, dados: { pessoas: [ADMIN, BIA], convites: [CONVITE] } })
       .mockResolvedValueOnce({ ok: true, dados: { pessoas: [ADMIN], convites: [CONVITE] } });
@@ -518,7 +519,7 @@ describe("o menu de papel", () => {
 
     await waitFor(() => expect(carregarEquipe).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(screen.queryByText("Bia", { selector: ".equipe-nome" })).not.toBeInTheDocument());
-    expect(screen.getByText("Essa pessoa não está mais na conta.")).toBeInTheDocument();
+    expect(screen.getByText("Essa pessoa não está mais no escritório.")).toBeInTheDocument();
   });
 
   it("sessão vencida leva ao login, sem erro preso na linha", async () => {
@@ -638,7 +639,7 @@ describe("a transferência da administração", () => {
 
     expect(janela).toHaveClass("espia", "modal-suave");
     expect(
-      within(janela).getByText("Bia passa a ser o administrador da conta e você passa a ser Gestor. Só o novo administrador pode desfazer isso."),
+      within(janela).getByText("Bia passa a ser o administrador do escritório e você passa a ser Gestor. Só o novo administrador pode desfazer isso."),
     ).toBeInTheDocument();
     await waitFor(() => expect(screen.queryByRole("menu")).not.toBeInTheDocument());
   });
@@ -683,7 +684,7 @@ describe("a transferência da administração", () => {
     [409, "Entre de novo com o Google para confirmar."],
     [409, "O papel de admin já foi transferido."],
     [429, "Muitas tentativas. Tente de novo em 1 minuto."],
-    [0, "Não foi possível falar com o servidor."],
+    [0, SEM_SERVIDOR],
   ])("o erro %s (%s) aparece na janela, que continua aberta", async (status, erro) => {
     transferirAdmin.mockResolvedValue({ ok: false, status, erro });
     const { user, janela } = await abrirJanela(false);
@@ -728,7 +729,7 @@ describe("a transferência da administração", () => {
     await user.click(within(janela).getByRole("button", { name: "Transferir administração" }));
 
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
-    expect(await screen.findByRole("status")).toHaveTextContent("Bia agora é o administrador da conta. Você é Gestor.");
+    expect(await screen.findByRole("status")).toHaveTextContent("Bia agora é o administrador do escritório. Você é Gestor.");
     expect(within(painelDe("Bia")).getByText("Administrador")).toBeInTheDocument();
     expect(within(painelDe("Ana")).getByText("Gestor")).toBeInTheDocument();
     expect(refresh).toHaveBeenCalledTimes(1);
@@ -764,8 +765,8 @@ describe("a transferência da administração", () => {
   });
 
   it.each([
-    [403, "Seu papel na conta não permite fazer isso."],
-    [404, "Essa pessoa não está mais na conta."],
+    [403, "Seu papel no escritório não permite fazer isso."],
+    [404, "Essa pessoa não está mais no escritório."],
   ])("o %s fecha a janela, mostra o erro na aba e relê a equipe", async (status, erro) => {
     transferirAdmin.mockResolvedValue({ ok: false, status, erro });
     const { user, janela } = await abrirJanela(false);

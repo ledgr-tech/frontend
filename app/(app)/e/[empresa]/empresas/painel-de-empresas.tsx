@@ -215,7 +215,7 @@ export function PainelDeEmpresas({ empresas: daPagina }: { empresas: EmpresaClie
           {/* sem `!noLimite`: o 402 de uma aba com contador velho relê a página e leva a conta ao limite; o formulário aberto fica, com a mensagem e o foco, e só o envio se desliga */}
           {cadastroAberto && gerencia && (
             <ModalDaTela titulo="Adicionar empresa" aoFechar={() => setCadastroAberto(false)}>
-              <p className="dialog-body">Cadastre uma empresa cliente pelo CNPJ. Ela entra na conta e você passa a trabalhar nela.</p>
+              <p className="dialog-body">Cadastre uma empresa cliente pelo CNPJ. Ela entra no escritório e você passa a trabalhar nela.</p>
               <CadastrarEmpresa noLimite={noLimite} aoCadastrar={() => setCadastroAberto(false)} aoFechar={() => setCadastroAberto(false)} />
             </ModalDaTela>
           )}

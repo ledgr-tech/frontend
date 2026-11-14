@@ -123,7 +123,7 @@ export function MenuDePapel({
             }}
           >
             <b>Tornar administrador…</b>
-            <span>Passa a administração da conta para {nome}. Você vira Gestor.</span>
+            <span>Passa a administração do escritório para {nome}. Você vira Gestor.</span>
           </button>
         </div>
       )}

@@ -45,7 +45,7 @@ beforeEach(() => {
 });
 
 describe("a tela Empresas", () => {
-  it("mostra as empresas da conta em tabela, sob o mesmo título do menu", async () => {
+  it("mostra as empresas do escritório em tabela, sob o mesmo título do menu", async () => {
     await abrir();
 
     expect(screen.getByRole("heading", { level: 1, name: "Empresas" })).toBeInTheDocument();
