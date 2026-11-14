@@ -525,7 +525,7 @@ describe("VisaoGeralPage", () => {
     await renderizar();
 
     expect(screen.getByRole("heading", { name: "Nenhuma conciliação ainda" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Enviar o extrato do banco" })).toHaveAttribute("href", "/conciliacoes/nova");
+    expect(screen.getByRole("link", { name: "Nova conciliação" })).toHaveAttribute("href", "/conciliacoes/nova");
     // sem a situação da conta no /me, o plano fica de fora: 5 passos
     expect(await screen.findByText("Primeiros passos 0 de 5")).toBeInTheDocument();
     const tolerancia = screen.getByRole("heading", { name: "Quantos dias de diferença ainda contam como bateu?" }).closest("section")!;
@@ -542,7 +542,7 @@ describe("VisaoGeralPage", () => {
 
     const estado = screen.getByRole("heading", { name: "Falta o extrato do sistema" }).closest("section")!;
     expect(await within(estado).findByText("Próximo passo · 3 de 5")).toBeInTheDocument();
-    expect(within(estado).getByRole("link", { name: "Enviar o extrato do sistema" })).toBeInTheDocument();
+    expect(within(estado).getByRole("link", { name: "Nova conciliação" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Usar 2 dias" })).not.toBeInTheDocument();
   });
 
@@ -562,8 +562,8 @@ describe("VisaoGeralPage", () => {
     com({ execucoes: [], total: 0, recente: null });
     await renderizar();
 
-    expect(screen.getByRole("link", { name: "Enviar o extrato do banco" })).toBeInTheDocument();
-    expect(screen.getByText(/pedem decisão aparecem aqui/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Nova conciliação" })).toBeInTheDocument();
+    expect(screen.getByText(/pendências aparecem aqui/)).toBeInTheDocument();
     expect(screen.queryByText(/Próximo passo/)).not.toBeInTheDocument();
   });
 

@@ -263,8 +263,8 @@ describe("DashboardPage", () => {
   it("shows the empty state when there are no conciliações", async () => {
     com({ conciliacoes: [], emAndamento: null });
     await renderizar();
-    expect(screen.getByText("Nenhum extrato por aqui ainda.")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Fazer o primeiro upload" })).toHaveAttribute("href", "/conciliacoes/nova");
+    expect(screen.getByRole("heading", { name: "Nenhuma conciliação ainda." })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Nova conciliação" })).toHaveAttribute("href", "/conciliacoes/nova");
     // vazio é um convite: o mascote aponta para quem vai agir
     expect(document.querySelector("img")?.getAttribute("src")).toContain("mascote-explicando");
   });
