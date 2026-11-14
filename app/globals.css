@@ -5781,7 +5781,7 @@ html[data-tema="escuro"] .app-shell {
   .ajd-botao { padding: 7px 9px; }
   .ajd-botao-rotulo { display: none; }
   .ajd-menu { width: min(290px, calc(100vw - 32px)); }
-  /* acima da barra do topo (z 45), que no celular é alta, e abaixo do tutorial (z 60) */
+  /* acima da barra do topo (z 45), que no celular é alta, e abaixo do tutorial (z 93) */
   .ajd-painel {
     z-index: 55; top: auto; left: 0; height: 82vh; width: 100%; border-left: 0; border-top: 1px solid var(--color-divider);
     border-radius: 22px 22px 0 0;

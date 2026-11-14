@@ -155,6 +155,7 @@ export function Tutorial({
 
   function fechar() {
     if (naoMostrar) dispensarTutorial(tela);
+    setNaoMostrar(false); // a desmontagem chama fechar() de novo: não grava duas vezes
     setAberto(false);
   }
 
