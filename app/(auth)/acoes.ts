@@ -594,7 +594,8 @@ export async function contaDaSessao(): Promise<ContaDaSessao> {
       guardaArquivoOriginal: eu.guarda_arquivo_original === true,
     };
   } catch {
-    return { empresa: "", temSenha: true, papel: "admin", empresas: [], preferencias: null, assinatura: null, cobrancaHabilitada: false, limites: null, indisponivel: true };
+    // o papel menor (D2): as telas escondem o que o analista não faz, e as ações respondem 503 (recusaPorPapel)
+    return { empresa: "", temSenha: true, papel: "analista", empresas: [], preferencias: null, assinatura: null, cobrancaHabilitada: false, limites: null, indisponivel: true };
   }
 }
 

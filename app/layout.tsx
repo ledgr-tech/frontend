@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
-import { Analytics } from "@vercel/analytics/next";
 import localFont from "next/font/local";
 import "./fonts/fontes.css";
+import { Visitas } from "./visitas";
 import "./globals.css";
 
 // As fontes ficam no repositório (app/fonts, com a licença OFL de cada família) em vez de virem do
@@ -151,8 +151,9 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full flex flex-col">
         {children}
         {/* as visitas, pelo Web Analytics da Vercel: sem cookie, então sem aviso de cookies (LGPD). O
-            script vem do próprio domínio (/_vercel/insights), e a CSP já o aceita pelo strict-dynamic */}
-        <Analytics />
+            script vem do próprio domínio (/_vercel/insights), e a CSP já o aceita pelo strict-dynamic; o endereço
+            vai sem UUID nem token (app/visitas.tsx) */}
+        <Visitas />
       </body>
     </html>
   );

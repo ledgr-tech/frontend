@@ -36,7 +36,7 @@ import type { ConciliacaoDoPar } from "../fechamentos/relatorio";
 import type { DadosDoRoteiro } from "../visao-geral/roteiro";
 import { contaDaSessao } from "../../../../(auth)/acoes";
 import { SO_O_GESTOR_APROVA, SO_O_GESTOR_FECHA, SO_QUEM_APROVOU } from "@/lib/gestor";
-import { podeFecharMes } from "@/lib/papel";
+import { podeFecharMes, recusaPorPapel } from "@/lib/papel";
 
 /**
  * O fluxo real de conciliação, ponta a ponta, contra a API do backend:
@@ -105,11 +105,10 @@ function traduzir(erro: unknown): Falha {
 /**
  * Fechar ou reabrir o mês é do admin e do gestor (#168, #133); o analista concilia e justifica. A
  * Server Action é endpoint público, então recusa aqui também, e não só esconde o botão; a trava que
- * vale é a do backend, que responde 403. Sem o `/me`, `contaDaSessao` diz admin e o backend decide.
+ * vale é a do backend, que responde 403. Sem o `/me`, responde 503 (`recusaPorPapel`).
  */
 async function recusaSeNaoPodeFechar(erro: string): Promise<Falha | null> {
-  const { papel } = await contaDaSessao();
-  return podeFecharMes(papel) ? null : { ok: false, status: 403, erro };
+  return recusaPorPapel(await contaDaSessao(), podeFecharMes, erro);
 }
 
 /** O 403 do backend para quem não pode fechar o mês chega com o mesmo texto da tela; o da conta inativa, com o dele. */
@@ -1047,6 +1046,12 @@ const PRAZO_DA_EXPLICACAO_MS = 30_000;
 export async function explicarDivergencia(conciliacaoId: string): Promise<Resultado<Explicacao>> {
   // cada explicação custa: id que nem tem formato de linha não chega ao backend
   if (!pareceUuid(conciliacaoId)) return { ok: false, status: 404, erro: "Linha não encontrada." };
+  // a demonstração é de qualquer visitante: um curioso esgotaria o limite diário de IA dos clientes (D5).
+  // Ela recebe o texto fixo do motor, que não chama a IA, como o backend responde com a IA desligada
+  if (ehContaDeDemonstracao(await emailDaSessao())) {
+    const fatos = await carregarDetalhesDaDivergencia(conciliacaoId);
+    return fatos.ok ? { ok: true, dados: { ...fatos.dados, geradaPorIa: false, indisponibilidade: "desabilitado" } } : fatos;
+  }
   try {
     const resposta = await chamarBackend<ExplicacaoAPI>("/explicacoes", {
       method: "POST",
