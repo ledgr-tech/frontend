@@ -21,9 +21,10 @@ import { Cabecalho } from "../cabecalho";
 
 const AVISO_ID = "assinatura-aviso";
 
-function uso(rotulo: string, limite: Limite | null | undefined) {
+/** `semMaximo`: o que dizer quando o máximo vem null. Na franquia de conciliações null é "ainda não definido", nunca ilimitado (#297). */
+function uso(rotulo: string, limite: Limite | null | undefined, semMaximo = "Sem limite no plano") {
   if (!limite) return null;
-  const nota = limite.maximo === null ? "Sem limite no plano" : `De ${formatarInteiro(limite.maximo)} no plano`;
+  const nota = limite.maximo === null ? semMaximo : `De ${formatarInteiro(limite.maximo)} no plano`;
   return { rotulo, valor: formatarInteiro(limite.usadas), nota };
 }
 
@@ -37,7 +38,7 @@ export function AssinaturaDeDemonstracao() {
     nomeAtual && { rotulo: "Plano atual", valor: nomeAtual, nota: "Da sua conta" },
     uso("Empresas", limites?.empresas),
     uso("Pessoas", limites?.usuarios),
-    uso("Conciliações neste mês", limites?.conciliacoes),
+    uso("Conciliações neste mês", limites?.conciliacoes, ""),
   ].filter((n) => !!n);
 
   return (

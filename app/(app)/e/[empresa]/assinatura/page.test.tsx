@@ -130,8 +130,10 @@ describe("AssinaturaPage", () => {
 
   it("o piloto vê o próprio plano e os limites da conta", async () => {
     await montar(conta({ situacao: "ativo", plano: "padrao" }), {
-      limites: { empresas: { usadas: 3, maximo: 5 }, usuarios: { usadas: 2, maximo: null } },
+      limites: { empresas: { usadas: 3, maximo: 5 }, usuarios: { usadas: 2, maximo: null }, conciliacoes: { usadas: 7, maximo: null } },
     });
+    // a franquia sem número ainda não é "sem limite" (#297)
+    expect(screen.getAllByText("Sem limite no plano")).toHaveLength(1);
     expect(screen.getByText("plano Padrão")).toBeInTheDocument();
     expect(screen.getByText("Plano atual", { selector: ".dash-rotulo" })).toBeInTheDocument();
     expect(screen.getByText("De 5 no plano")).toBeInTheDocument();

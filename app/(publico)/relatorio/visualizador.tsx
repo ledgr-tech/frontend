@@ -60,24 +60,27 @@ export function Visualizador() {
   if (!resultado.ok) {
     const aviso = AVISOS[resultado.motivo];
     return (
-      <main className="aviso-pagina" role="alert">
-        <TelaDeAviso titulo={aviso.titulo} texto={aviso.texto} mascote={aviso.mascote}>
-          {resultado.motivo !== "invalido" && (
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={() => {
-                setResultado(null);
-                setTentativa((t) => t + 1);
-              }}
-            >
-              Tentar de novo
-            </button>
-          )}
-          <Link href="/" className={resultado.motivo === "invalido" ? "btn btn-primary" : "btn btn-secondary"}>
-            Conhecer o Ledgr
-          </Link>
-        </TelaDeAviso>
+      <main className="aviso-pagina">
+        {/* o alerta fica dentro do main, que segue sendo o marco da página */}
+        <div role="alert">
+          <TelaDeAviso titulo={aviso.titulo} texto={aviso.texto} mascote={aviso.mascote}>
+            {resultado.motivo !== "invalido" && (
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => {
+                  setResultado(null);
+                  setTentativa((t) => t + 1);
+                }}
+              >
+                Tentar de novo
+              </button>
+            )}
+            <Link href="/" className={resultado.motivo === "invalido" ? "btn btn-primary" : "btn btn-secondary"}>
+              Conhecer o Ledgr
+            </Link>
+          </TelaDeAviso>
+        </div>
       </main>
     );
   }
