@@ -5367,7 +5367,7 @@ html[data-tema="escuro"] .app-shell {
   position: fixed;
   right: max(24px, env(safe-area-inset-right, 0px));
   bottom: max(24px, env(safe-area-inset-bottom, 0px));
-  z-index: 60;
+  z-index: 93; /* acima do painel lateral (90-91): o detalhe da linha abre nele */
   width: min(440px, calc(100vw - 32px));
 }
 /* quando cobriria o alvo à direita, vai para o outro canto. 64px em vez de 48px: o 100vw conta a
@@ -5493,7 +5493,7 @@ html[data-tema="escuro"] .app-shell {
 .tutorial-destaque {
   position: fixed;
   inset: 0;
-  z-index: 59;
+  z-index: 92;
   pointer-events: none;
   background: rgb(12 11 10 / 0.55);
   backdrop-filter: blur(3px);

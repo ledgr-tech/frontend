@@ -201,6 +201,25 @@ describe("Tutorial", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
+  it("com a caixa marcada, sair da tela sem fechar o cartão também dispensa", async () => {
+    const user = userEvent.setup();
+    const { unmount } = montar();
+    await screen.findByRole("dialog");
+    await user.click(screen.getByLabelText("Não mostrar de novo"));
+    unmount();
+    window.sessionStorage.clear();
+    montar();
+    await esperar();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("o cartão fica acima do painel do detalhe da linha, senão o clique cai no fundo dele", () => {
+    const css = readFileSync("app/globals.css", "utf8");
+    const z = (seletor: string) => Number(css.split(`\n${seletor} {`)[1].match(/z-index: (\d+)/)![1]);
+    expect(z(".tutorial-envelope")).toBeGreaterThan(z(".painel-lateral"));
+    expect(z(".tutorial-destaque")).toBeGreaterThan(z(".painel-lateral"));
+  });
+
   it("o botão ? reabre mesmo dispensado", async () => {
     window.localStorage.setItem(
       "ledgr:preferencias",
