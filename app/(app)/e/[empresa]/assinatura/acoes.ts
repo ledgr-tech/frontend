@@ -4,6 +4,7 @@ import { adaptarPrecos, PERIODOS, urlDeCheckoutValida, type Periodo, type PlanoI
 import { ErroBackend, chamarBackend, emailDaSessao } from "@/lib/backend";
 import { RECUSA_DEMONSTRACAO, ehContaDeDemonstracao } from "@/lib/demo";
 import { contaDaSessao } from "../../../../(auth)/acoes";
+import { ehAdmin, recusaPorPapel } from "@/lib/papel";
 import type { Falha, Resultado } from "../conciliacoes/acoes";
 
 /**
@@ -44,8 +45,8 @@ function traduzir(erro: unknown): Falha {
 export async function iniciarCheckout(plano: PlanoId, periodo: Periodo): Promise<Resultado<{ url: string }>> {
   // Server Action é endpoint público: o que chega pode ser qualquer coisa
   if (!PLANOS.includes(plano) || !PERIODOS.includes(periodo)) return { ok: false, status: 422, erro: PLANO_INDISPONIVEL };
-  const { papel } = await contaDaSessao();
-  if (papel !== "admin") return { ok: false, status: 403, erro: SO_ADMIN };
+  const porPapel = recusaPorPapel(await contaDaSessao(), ehAdmin, SO_ADMIN);
+  if (porPapel) return porPapel;
   if (ehContaDeDemonstracao(await emailDaSessao())) return { ok: false, status: 403, erro: RECUSA_DEMONSTRACAO };
   try {
     const { url } = await chamarBackend<{ url: string }>("/assinatura/checkout", { method: "POST", corpo: { plano, periodo } });
