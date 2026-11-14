@@ -1968,7 +1968,8 @@ describe("ConciliacaoPage", () => {
         await user.hover((await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" })).closest("tr")!);
         await user.click(within(painel()).getByRole("button", { name: "Explicar esta divergência" }));
         expect(explicarDivergencia).toHaveBeenCalledWith("lc-2");
-        expect(await within(painel()).findByText("A folha está incompleta.")).toBeInTheDocument();
+        // o texto é digitado: a busca e a conferência no mesmo instante, até ele estar inteiro
+        await waitFor(() => expect(within(painel()).getByText("A folha está incompleta.")).toBeInTheDocument());
         expect(within(painel()).getByText("Gerada por IA · confira antes de decidir")).toBeInTheDocument();
       });
     });

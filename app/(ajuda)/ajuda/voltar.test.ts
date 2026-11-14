@@ -18,7 +18,7 @@ describe("a volta da Central de ajuda", () => {
   });
 
   it("nunca sai do site nem volta para a própria ajuda", () => {
-    for (const caminho of ["//outro.site/x", "https://outro.site", "/ajuda/extratos", "javascript:alert(1)"]) {
+    for (const caminho of ["//outro.site/x", "/\\outro.site", "/\t/outro.site", "/\n/outro.site", "https://outro.site", "/ajuda/extratos", "javascript:alert(1)"]) {
       sessionStorage.setItem("ledgr:voltar-da-ajuda", caminho);
       expect(paraOndeVoltar(), caminho).toBe("/visao-geral");
     }

@@ -16,8 +16,9 @@ export function lembrarDeOndeVeio() {
 export function paraOndeVoltar(): string {
   try {
     const caminho = sessionStorage.getItem(CHAVE);
-    // só um caminho deste site: "//outro.site" ou uma URL inteira levariam para fora
-    if (caminho?.startsWith("/") && !caminho.startsWith("//") && !caminho.startsWith("/ajuda")) {
+    // só um caminho deste site: "//outro.site", "/\outro.site" ou "/<tab>/outro.site" (o navegador lê os dois
+    // como "//") ou uma URL inteira levariam para fora
+    if (caminho?.startsWith("/") && !caminho.startsWith("//") && !/[\\\u0000-\u001f]/.test(caminho) && !caminho.startsWith("/ajuda")) {
       return caminho;
     }
   } catch {
