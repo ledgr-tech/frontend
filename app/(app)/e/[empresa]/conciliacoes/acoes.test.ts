@@ -805,6 +805,19 @@ describe("explicarDivergencia", () => {
     chamarBackend.mockReset();
   });
 
+  it("na conta de demonstração não pede a IA: devolve o texto fixo do motor, que não gasta o limite diário (D5)", async () => {
+    vi.stubEnv("LEDGR_CONTA_TESTE_EMAIL", "ana@x.com");
+    chamarBackend.mockResolvedValue({ texto: "O valor difere em R$ 2,00.", detalhes: [{ rotulo: "Diferença", valor: "R$ 2,00" }] });
+
+    expect(await explicarDivergencia(LINHA)).toEqual({
+      ok: true,
+      dados: { texto: "O valor difere em R$ 2,00.", geradaPorIa: false, indisponibilidade: "desabilitado", detalhes: [{ rotulo: "Diferença", valor: "R$ 2,00" }] },
+    });
+    expect(chamarBackend).toHaveBeenCalledTimes(1);
+    expect(chamarBackend).toHaveBeenCalledWith(`/explicacoes/${LINHA}/detalhes`);
+    vi.unstubAllEnvs();
+  });
+
   it("recusa linha com id fora do formato sem chamar o backend (a explicação custa)", async () => {
     expect(await explicarDivergencia("qualquer")).toMatchObject({ ok: false, status: 404 });
     expect(chamarBackend).not.toHaveBeenCalled();

@@ -42,3 +42,24 @@ export function papeisQueConvida(papel: Papel): Papel[] {
   if (papel === "admin") return ["gestor", "analista"];
   return papel === "gestor" ? ["analista"] : [];
 }
+
+export const PAPEL_INDISPONIVEL = "Não deu para confirmar o seu papel agora. Tente de novo em instantes.";
+
+/**
+ * A recusa que a Server Action dá antes do backend (a trava que vale é a dele, 403). Sem o `/me`,
+ * `contaDaSessao` dá o papel menor (decisão D2 de 14/11) e marca `indisponivel`: aí a recusa é 503 com
+ * o texto de quem não conseguiu confirmar, porque o de papel seria mentira para um admin de verdade.
+ */
+export function recusaPorPapel(
+  conta: { papel: Papel; indisponivel?: true },
+  permitido: (papel: Papel) => boolean,
+  erro: string,
+): { ok: false; status: 403 | 503; erro: string } | null {
+  if (permitido(conta.papel)) return null;
+  if (conta.indisponivel) return { ok: false, status: 503, erro: PAPEL_INDISPONIVEL };
+  return { ok: false, status: 403, erro };
+}
+
+export function ehAdmin(papel: Papel): boolean {
+  return papel === "admin";
+}

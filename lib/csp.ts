@@ -24,6 +24,8 @@ export function politicaDeConteudo(nonce: string, desenvolvimento: boolean): str
     "base-uri 'self'",
     "form-action 'self' https://accounts.google.com",
     "frame-ancestors 'none'",
+    // as violações vão ao log (app/api/csp/route.ts)
+    "report-uri /api/csp",
   ].join("; ");
 }
 

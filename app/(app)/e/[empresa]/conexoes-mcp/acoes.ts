@@ -4,7 +4,7 @@ import { enderecoPublicoDoConector } from "@/lib/endereco-do-conector";
 import { pareceUuid } from "@/lib/adaptadores";
 import { ErroBackend, chamarBackend, ehContaInativa, emailDaSessao } from "@/lib/backend";
 import { RECUSA_DEMONSTRACAO, ehContaDeDemonstracao } from "@/lib/demo";
-import { podeFecharMes } from "@/lib/papel";
+import { podeFecharMes, recusaPorPapel } from "@/lib/papel";
 import { ehPedidoDeConexao } from "@/lib/rotas";
 import { contaDaSessao } from "../../../../(auth)/acoes";
 import type { Falha, Resultado } from "../conciliacoes/acoes";
@@ -85,8 +85,8 @@ function destinoSeguro(destino: unknown): string | null {
 }
 
 async function recusaQuemNaoConecta(): Promise<Falha | null> {
-  const { papel } = await contaDaSessao();
-  if (!podeFecharMes(papel)) return { ok: false, status: 403, erro: SO_ADMIN_OU_GESTOR_CONECTA };
+  const porPapel = recusaPorPapel(await contaDaSessao(), podeFecharMes, SO_ADMIN_OU_GESTOR_CONECTA);
+  if (porPapel) return porPapel;
   if (ehContaDeDemonstracao(await emailDaSessao())) return { ok: false, status: 403, erro: RECUSA_DEMONSTRACAO };
   return null;
 }
@@ -146,8 +146,8 @@ export async function recusarConexao(pedido: string): Promise<Resultado<{ destin
 
 /** As conexões da conta, ativas e revogadas. Um 404 é a conexão desligada no backend (ou um backend antes do #136). */
 export async function carregarConexoesMcp(): Promise<Resultado<{ itens: ConexaoMcp[]; endereco: string | null }>> {
-  const { papel } = await contaDaSessao();
-  if (!podeFecharMes(papel)) return { ok: false, status: 403, erro: SO_ADMIN_OU_GESTOR_CONECTA };
+  const porPapel = recusaPorPapel(await contaDaSessao(), podeFecharMes, SO_ADMIN_OU_GESTOR_CONECTA);
+  if (porPapel) return porPapel;
   try {
     // em paralelo: o endereço nunca lança, e a Visão geral não espera uma chamada depois da outra
     const [lista, endereco] = await Promise.all([
