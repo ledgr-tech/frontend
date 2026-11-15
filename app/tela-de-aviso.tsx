@@ -19,6 +19,10 @@ const MASCOTES = {
   lupa: { src: "/mascotes/mascote-lupa.png", largura: 977, altura: 1122, exibida: 150 },
   // sem conexão, o mascote com as tomadas desligadas; é mais largo, por isso maior para pesar igual
   tomadas: { src: "/mascotes/mascote-tomadas.webp", largura: 690, altura: 434, exibida: 230 },
+  // muitos pedidos seguidos (429): o mascote espera com a ampulheta; a imagem tem folga em volta, por isso maior
+  ampulheta: { src: "/mascotes/mascote-ampulheta.webp", largura: 1254, altura: 1254, exibida: 170 },
+  // sem acesso (403): o mascote diante da porta fechada
+  porta: { src: "/mascotes/mascote-porta-fechada.webp", largura: 1254, altura: 1254, exibida: 170 },
 };
 
 export function TelaDeAviso({

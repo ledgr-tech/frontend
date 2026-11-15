@@ -14,8 +14,9 @@ describe("FalhaAoCarregar", () => {
     [0, "não conseguiu falar com o servidor", "mascote-tomadas"],
     [undefined, "não conseguiu falar com o servidor", "mascote-tomadas"],
     [503, "não conseguiu falar com o servidor", "mascote-tomadas"],
-    [429, "muitos pedidos seguidos", "mascote-neutro"],
-    [403, "não deu certo desta vez", "mascote-neutro"],
+    [429, "muitos pedidos seguidos", "mascote-ampulheta"],
+    [403, "não abre esta tela", "mascote-porta-fechada"],
+    [400, "não deu certo desta vez", "mascote-neutro"],
   ])("com status %s diz a causa certa", (status, texto, mascote) => {
     render(<FalhaAoCarregar oQue="os fechamentos" status={status} />);
     const alerta = screen.getByRole("alert");
