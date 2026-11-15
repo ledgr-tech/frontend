@@ -3151,6 +3151,11 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
 .vg-saldo-dados dt { color: color-mix(in srgb, var(--color-text) 68%, transparent); }
 .vg-saldo-dados dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
 .vg-saldo > .vg-nota { padding-top: 9px; border-top: 1px solid var(--color-divider); }
+/* o de aprovação, ao lado do saldo, no mesmo desenho: o caminho no pé, sobre o filete */
+.vg-aprovacao-pe {
+  margin-top: auto; padding-top: 9px; border-top: 1px solid var(--color-divider);
+  display: inline-flex; align-items: center; gap: 6px; font-size: var(--texto-corpo); font-weight: 500;
+}
 .vg-blocos-topo { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 16px; }
 .vg-blocos-lado { display: flex; flex-direction: column; gap: 16px; }
 .vg-blocos-lado > .vg-bloco { flex: 1; }
@@ -3547,8 +3552,9 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
 }
 .extrato-campos dt { flex: none; color: color-mix(in srgb, var(--color-text) 68%, transparent); }
 .extrato-campos dd { margin: 0; min-width: 0; text-align: right; font-variant-numeric: tabular-nums; }
-.extrato-par { display: inline-flex; align-items: center; gap: 6px; overflow-wrap: anywhere; }
-.extrato-par .icone-origem { flex: none; color: color-mix(in srgb, var(--color-text) 68%, transparent); }
+/* o ícone fica na primeira linha do nome, não solto no meio quando ele quebra */
+.extrato-par { display: inline-flex; align-items: flex-start; gap: 6px; overflow-wrap: anywhere; }
+.extrato-par .icone-origem { flex: none; margin-top: 0.3em; color: color-mix(in srgb, var(--color-text) 68%, transparent); }
 /* o que a conciliação do arquivo deu: o número grande e a barra no verde de "bateu", como a Visão geral */
 .extrato-resultado { display: flex; flex-direction: column; gap: 8px; padding: 14px 16px; border-radius: var(--radius-md); background: var(--color-surface); }
 .extrato-resultado-numero { margin: 0; font-family: var(--font-titulo); font-size: 26px; font-weight: 600; line-height: 1.1; font-variant-numeric: tabular-nums; }
@@ -5106,6 +5112,8 @@ html[data-tema="escuro"] .app-shell {
 .fech-painel { container-type: inline-size; position: static; z-index: auto; max-height: none; overflow-y: visible; }
 /* o de Fechamentos volta a ficar preso (15/11), agora sem cobrir a faixa nem esconder o pé: cabe na
    janela abaixo dos filtros e o que passar rola por dentro, sem barra, como o de Extratos */
+/* o "Baixar PDF" do mês aberto: desligado, mas legível (o .btn:disabled a 45% sumia no tema claro) */
+.fech-painel .btn:disabled { opacity: 0.7; color: var(--texto-apagado); }
 @media (min-width: 1001px) {
   /* abaixo da faixa (z 10) e longe do degradê dela (28px): no fim da lista o painel sobe com a
      coluna e passa por baixo da faixa, em vez de cobrir os filtros */

@@ -265,10 +265,6 @@ function BlocoDoSaldo({ saldo, arquivo }: { saldo: SaldoDoExtrato | null; arquiv
               <dt>Saldo inicial</dt>
               <dd>{saldo.inicial === null ? "depende das linhas não lidas" : formatarMoeda(saldo.inicial)}</dd>
             </div>
-            <div>
-              <dt>Saldo final</dt>
-              <dd>{formatarMoeda(saldo.final)}</dd>
-            </div>
           </dl>
           {/* o do extrato mais recente: com duas contas no mês, cada uma tem o seu */}
           <span className="vg-nota">{`Em ${data(saldo.data)} · ${arquivo}`}</span>
@@ -281,13 +277,17 @@ function BlocoDoSaldo({ saldo, arquivo }: { saldo: SaldoDoExtrato | null; arquiv
 /** Só chega alguma com `APROVACAO_JUSTIFICATIVAS_HABILITADA` ligado no backend; aprovar fica em Fechamentos. */
 function BlocoDeAprovacao({ quantidade }: { quantidade: number }) {
   return (
-    <Link href="/fechamentos" className="vg-bloco vg-bloco-link">
+    // o mesmo desenho do saldo ao lado: o número grande em cima, o caminho no pé, sem vão no meio
+    <Link href="/fechamentos" className="vg-bloco vg-bloco-link vg-aprovacao">
       <span className="vg-bloco-rotulo">Aguardam aprovação</span>
-      <span className="vg-bloco-numero" data-tom="atencao">
+      <span className="vg-bloco-numero vg-saldo-numero" data-tom="atencao">
         {formatarInteiro(quantidade)}
       </span>
       <span className="vg-nota">
-        {`${plural(quantidade, "justificativa", "justificativas")} · Aprovar em Fechamentos`}
+        {`${plural(quantidade, "justificativa", "justificativas")} esperando o admin ou o gestor. O mês só fecha depois.`}
+      </span>
+      <span className="vg-aprovacao-pe">
+        Aprovar em Fechamentos <ArrowRight size={16} aria-hidden="true" />
       </span>
     </Link>
   );
