@@ -233,7 +233,8 @@ p.eyebrow {
 }
 /* o aperto responde ao clique na hora, antes de a página reagir */
 .btn:active:not(:disabled) { transform: scale(0.97); }
-.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+/* desligado, mas legível: a 45% o rótulo sumia no tema claro ("Baixar PDF", os planos da Assinatura) */
+.btn:disabled { opacity: 0.6; cursor: not-allowed; }
 @media (prefers-reduced-motion: reduce) {
   .btn { transition: none; }
   .faq-item::details-content { transition: none; }
@@ -2148,7 +2149,9 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
    em vez de espremer a descrição até quebrar letra por letra. O relative faz da caixa o bloco
    de contenção do que é absoluto lá dentro (o .sr-only das células): sem ele, o overflow não
    o cortava, e a página inteira rolava para o lado no celular e no tablet */
-.dash-tabela-rolagem { overflow-x: auto; position: relative; }
+/* o vertical fica cortado, nunca auto: com o x em auto, o y "visible" vira auto, e qualquer pixel a
+   mais (o .sr-only absoluto, um arredondamento) punha uma segunda barra de rolagem ao lado da tabela */
+.dash-tabela-rolagem { overflow-x: auto; overflow-y: hidden; position: relative; }
 .dash-tabela-rolagem .table { min-width: 680px; }
 .dash-valor-celula {
   text-align: right; font-family: var(--font-heading); font-size: 17px; font-weight: 600;
@@ -3132,6 +3135,28 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
   font-variant-numeric: lining-nums tabular-nums;
 }
 .vg-bloco-numero[data-tom="atencao"] { color: var(--color-accent-700); }
+/* o saldo do banco ocupa o cartão inteiro: o final grande, a variação, e o inicial e o final no pé */
+.vg-saldo-numero { font-size: clamp(36px, 3.6vw, 48px); }
+.vg-saldo-variacao {
+  align-self: flex-start; padding: 4px 10px; border-radius: 999px;
+  font-size: var(--texto-nota); font-weight: 500; font-variant-numeric: tabular-nums;
+  color: var(--color-ok-700); background: color-mix(in srgb, var(--color-ok) 14%, transparent);
+}
+.vg-saldo-variacao[data-tom="igual"] { color: var(--texto-apagado); background: color-mix(in srgb, var(--color-text) 8%, transparent); }
+.vg-saldo-variacao[data-tom="queda"] { color: var(--color-risco-700); background: color-mix(in srgb, var(--color-risco-700) 12%, transparent); }
+.vg-saldo-dados { margin: auto 0 0; padding-top: 8px; display: flex; flex-direction: column; }
+.vg-saldo-dados > div {
+  display: flex; justify-content: space-between; gap: 16px; padding: 9px 0;
+  border-top: 1px solid var(--color-divider); font-size: var(--texto-corpo);
+}
+.vg-saldo-dados dt { color: color-mix(in srgb, var(--color-text) 68%, transparent); }
+.vg-saldo-dados dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+.vg-saldo > .vg-nota { padding-top: 9px; border-top: 1px solid var(--color-divider); }
+/* o de aprovação, ao lado do saldo, no mesmo desenho: o caminho no pé, sobre o filete */
+.vg-aprovacao-pe {
+  margin-top: auto; padding-top: 9px; border-top: 1px solid var(--color-divider);
+  display: inline-flex; align-items: center; gap: 6px; font-size: var(--texto-corpo); font-weight: 500;
+}
 .vg-blocos-topo { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 16px; }
 .vg-blocos-lado { display: flex; flex-direction: column; gap: 16px; }
 .vg-blocos-lado > .vg-bloco { flex: 1; }
@@ -3158,6 +3183,7 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
 .vg-conexao {
   position: relative; overflow: hidden;
   background: var(--color-text); border-color: var(--color-text); color: var(--color-bg);
+  box-shadow: var(--shadow-md);
 }
 .vg-conexao-rotulo {
   font-size: var(--texto-legenda); font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase;
@@ -3171,8 +3197,25 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
   display: inline-flex; justify-content: center; padding: 11px 18px; border-radius: 999px; cursor: pointer;
   border: 1px solid var(--color-accent); background: var(--color-accent); color: var(--color-text);
   font: 600 15px/1.2 var(--font-heading);
+  box-shadow: 0 6px 18px -6px color-mix(in srgb, var(--color-accent) 70%, transparent);
+  transition: transform var(--dur-rapida) ease, box-shadow var(--dur-rapida) ease, background var(--dur-rapida) ease;
 }
-.vg-conexao-botao-contorno { background: transparent; color: var(--color-accent); }
+.vg-conexao-botao:hover {
+  transform: translateY(-1px);
+  background: color-mix(in srgb, var(--color-accent) 88%, var(--color-bg));
+  box-shadow: 0 10px 24px -8px color-mix(in srgb, var(--color-accent) 85%, transparent);
+}
+/* o contorno sobre a tinta: o dourado puxado para o tom do fundo da página (escuro no tema escuro,
+   claro no claro), para o texto ler bem nos dois; sem fundo, nada ofusca o rótulo */
+.vg-conexao-botao-contorno {
+  background: transparent; box-shadow: none; border-width: 1.5px;
+  color: color-mix(in srgb, var(--color-accent) 55%, var(--color-bg));
+  border-color: color-mix(in srgb, var(--color-accent) 70%, var(--color-bg));
+}
+.vg-conexao-botao-contorno:hover {
+  background: color-mix(in srgb, var(--color-accent) 12%, transparent); box-shadow: none;
+}
+@media (prefers-reduced-motion: reduce) { .vg-conexao-botao, .vg-conexao-botao:hover { transition: none; transform: none; } }
 .vg-conexao-botao:focus-visible { outline: 2px solid var(--color-bg); outline-offset: 2px; }
 /* o livro ligando o ChatGPT e o Claude: no pé do cartão, longe do texto, e quase transparente */
 .vg-conexao-mascote {
@@ -3510,8 +3553,9 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
 }
 .extrato-campos dt { flex: none; color: color-mix(in srgb, var(--color-text) 68%, transparent); }
 .extrato-campos dd { margin: 0; min-width: 0; text-align: right; font-variant-numeric: tabular-nums; }
-.extrato-par { display: inline-flex; align-items: center; gap: 6px; overflow-wrap: anywhere; }
-.extrato-par .icone-origem { flex: none; color: color-mix(in srgb, var(--color-text) 68%, transparent); }
+/* o ícone fica na primeira linha do nome, não solto no meio quando ele quebra */
+.extrato-par { display: inline-flex; align-items: flex-start; gap: 6px; overflow-wrap: anywhere; }
+.extrato-par .icone-origem { flex: none; margin-top: 0.3em; color: color-mix(in srgb, var(--color-text) 68%, transparent); }
 /* o que a conciliação do arquivo deu: o número grande e a barra no verde de "bateu", como a Visão geral */
 .extrato-resultado { display: flex; flex-direction: column; gap: 8px; padding: 14px 16px; border-radius: var(--radius-md); background: var(--color-surface); }
 .extrato-resultado-numero { margin: 0; font-family: var(--font-titulo); font-size: 26px; font-weight: 600; line-height: 1.1; font-variant-numeric: tabular-nums; }
@@ -3520,14 +3564,34 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
 .extrato-resultado-barra i { display: block; height: 100%; background: var(--color-ok-700); }
 .extrato-resultado-pendencias { margin: 0; font-size: var(--texto-corpo); color: color-mix(in srgb, var(--color-text) 66%, transparent); }
 .extrato-resultado-pendencias[data-pendente] { color: var(--color-accent-700); font-weight: 500; }
+/* os painéis que rolam por dentro (Extratos e Fechamentos; o de Assinatura não rola): sem barra, a
+   sombra no topo e no pé diz que há mais e some quando a rolagem chega ao fim */
+.extratos-area > .extrato-painel:not(.ass-painel) {
+  scrollbar-width: none;
+  background:
+    linear-gradient(var(--color-bg) 30%, transparent) top / 100% 40px no-repeat local,
+    linear-gradient(transparent, var(--color-bg) 70%) bottom / 100% 40px no-repeat local,
+    radial-gradient(farthest-side at 50% 0, color-mix(in srgb, var(--color-text) 16%, transparent), transparent) top / 100% 12px no-repeat scroll,
+    radial-gradient(farthest-side at 50% 100%, color-mix(in srgb, var(--color-text) 16%, transparent), transparent) bottom / 100% 12px no-repeat scroll,
+    var(--color-bg);
+}
+.extratos-area > .extrato-painel:not(.ass-painel)::-webkit-scrollbar { display: none; }
+/* janela baixa: o painel aperta antes de precisar rolar (depois das regras de base, para vencer) */
+@media (min-width: 1001px) and (max-height: 860px) {
+  .extratos-area > .extrato-painel:not(.fech-painel) { gap: 10px; padding: 16px 18px; }
+  .extratos-area > .extrato-painel:not(.fech-painel) .extrato-painel-nome { font-size: 21px; }
+  .extratos-area > .extrato-painel:not(.fech-painel) .extrato-resultado { padding: 10px 14px; gap: 6px; }
+  .extratos-area > .extrato-painel:not(.fech-painel) .extrato-campos > div { padding: 6px 0; }
+}
 /* a ação do painel: o botão principal do app, na largura toda, e o atalho do duplo clique embaixo */
 .extrato-abrir { display: flex; flex-direction: column; gap: 6px; padding-top: 4px; }
 .extrato-abrir .btn { justify-content: center; width: 100%; }
 .extrato-abrir-dica { font-size: var(--texto-nota); text-align: center; color: var(--texto-apagado); }
 .extrato-nao-lidas h4 { margin: 0 0 8px; font-size: var(--texto-destaque); font-weight: 600; color: var(--color-accent-700); }
 .extrato-nao-lidas ul {
+  /* sem rolagem própria: o painel já rola, e uma barra dentro da outra prendia a roda do mouse */
   margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px;
-  max-height: 240px; overflow-y: auto; font-size: var(--texto-corpo);
+  font-size: var(--texto-corpo);
 }
 .extrato-nao-lidas li { display: flex; gap: 10px; }
 .extrato-nao-lida-onde {
@@ -5047,6 +5111,17 @@ html[data-tema="escuro"] .app-shell {
 /* o card do mês cresce com o conteúdo e rola com a página, por baixo da faixa dos filtros: grudado e
    mais alto que a janela, ele cobria a faixa e escondia o pé (ressalva, link do cliente) */
 .fech-painel { container-type: inline-size; position: static; z-index: auto; max-height: none; overflow-y: visible; }
+/* o de Fechamentos volta a ficar preso (15/11), agora sem cobrir a faixa nem esconder o pé: cabe na
+   janela abaixo dos filtros e o que passar rola por dentro, sem barra, como o de Extratos */
+@media (min-width: 1001px) {
+  /* abaixo da faixa (z 10) e longe do degradê dela (28px): no fim da lista o painel sobe com a
+     coluna e passa por baixo da faixa, em vez de cobrir os filtros */
+  .fech-area > .fech-painel {
+    position: sticky; z-index: 9; overflow-y: auto; overscroll-behavior: contain;
+    top: calc(var(--app-topo-altura, 0px) + var(--extratos-filtros-altura, 0px) + 28px);
+    max-height: calc(100vh - var(--app-topo-altura, 0px) - var(--extratos-filtros-altura, 0px) - 46px);
+  }
+}
 @media (max-width: 1000px) {
   .fech-area { grid-template-columns: 1fr; }
 }
