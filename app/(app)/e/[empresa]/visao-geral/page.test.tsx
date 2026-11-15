@@ -213,6 +213,11 @@ describe("VisaoGeralPage", () => {
     expect(saldo).toHaveTextContent("Em 28/09/2026 · sicredi-e7.ofx");
     // final − inicial, os dois do backend: a soma das linhas do extrato
     expect(saldo).toHaveTextContent("+ R$ 283.310,55 de movimento no extrato");
+    // as barras: o maior saldo enche a linha, o outro fica proporcional (com 2% de piso para se ver)
+    const [inicial, final] = saldo.querySelectorAll<HTMLElement>(".vg-saldo-barras > div");
+    expect(final.style.getPropertyValue("--parte")).toBe("100%");
+    expect(inicial.style.getPropertyValue("--parte")).toBe("2%");
+    expect(final).toHaveAttribute("data-tom", "alta");
     const aprovacao = screen.getByRole("link", { name: /Aguardam aprovação/ });
     expect(aprovacao).toHaveAttribute("href", "/fechamentos");
     expect(aprovacao).toHaveTextContent("5 justificativas");

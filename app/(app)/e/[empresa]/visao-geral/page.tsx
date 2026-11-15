@@ -260,17 +260,46 @@ function BlocoDoSaldo({ saldo, arquivo }: { saldo: SaldoDoExtrato | null; arquiv
                 : `${saldo.final < saldo.inicial ? "−" : "+"} ${formatarMoeda(Math.abs(saldo.final - saldo.inicial))} de movimento no extrato`}
             </span>
           )}
-          <dl className="vg-saldo-dados">
-            <div>
-              <dt>Saldo inicial</dt>
-              <dd>{saldo.inicial === null ? "depende das linhas não lidas" : formatarMoeda(saldo.inicial)}</dd>
-            </div>
-          </dl>
+          {saldo.inicial === null ? (
+            <dl className="vg-saldo-dados">
+              <div>
+                <dt>Saldo inicial</dt>
+                <dd>depende das linhas não lidas</dd>
+              </div>
+            </dl>
+          ) : (
+            <BarrasDoSaldo inicial={saldo.inicial} final={saldo.final} />
+          )}
           {/* o do extrato mais recente: com duas contas no mês, cada uma tem o seu */}
           <span className="vg-nota">{`Em ${data(saldo.data)} · ${arquivo}`}</span>
         </>
       )}
     </section>
+  );
+}
+
+/**
+ * O inicial e o final lado a lado, cada barra do tamanho do saldo (o maior enche a linha): a queda ou a
+ * alta do mês se vê antes de se ler, e o cartão usa a altura que o vizinho dá. Saldo negativo fica em
+ * vermelho, com a barra pelo valor absoluto.
+ */
+function BarrasDoSaldo({ inicial, final }: { inicial: number; final: number }) {
+  const maior = Math.max(Math.abs(inicial), Math.abs(final)) || 1;
+  const parte = (valor: number) => `${Math.max(2, (Math.abs(valor) / maior) * 100)}%`;
+  const linhas = [
+    { rotulo: "Saldo inicial", valor: inicial, tom: "neutro" },
+    { rotulo: "Saldo final", valor: final, tom: final < inicial ? "queda" : "alta" },
+  ];
+  return (
+    <dl className="vg-saldo-barras">
+      {linhas.map((linha) => (
+        // a barra é o ::after da linha (um dl só aceita dt e dd), com a largura em --parte
+        <div key={linha.rotulo} data-tom={linha.tom} style={{ "--parte": parte(linha.valor) } as React.CSSProperties}>
+          <dt>{linha.rotulo}</dt>
+          <dd data-negativo={linha.valor < 0 || undefined}>{formatarMoeda(linha.valor)}</dd>
+        </div>
+      ))}
+    </dl>
   );
 }
 
