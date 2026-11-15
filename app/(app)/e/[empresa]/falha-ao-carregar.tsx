@@ -12,9 +12,18 @@ const SUPORTE = (
 );
 
 /** Sem status, a Server Action nem respondeu: para a pessoa, é o mesmo que o servidor fora. */
-export function causaDaFalha(status?: number): { texto: ReactNode; mascote: "neutro" | "tomadas" } {
+export function causaDaFalha(status?: number): {
+  texto: ReactNode;
+  mascote: "neutro" | "tomadas" | "ampulheta" | "porta";
+} {
   if (status === 429) {
-    return { texto: "Foram muitos pedidos seguidos. Espere um minuto e tente de novo. Nenhum dado foi alterado.", mascote: "neutro" };
+    return { texto: "Foram muitos pedidos seguidos. Espere um minuto e tente de novo. Nenhum dado foi alterado.", mascote: "ampulheta" };
+  }
+  if (status === 403) {
+    return {
+      texto: <>O seu acesso nesta empresa não abre esta tela. Nenhum dado foi alterado. Se precisar dela, peça a um administrador.</>,
+      mascote: "porta",
+    };
   }
   if (status === undefined || status === 0 || status >= 500) {
     return { texto: <>O Ledgr não conseguiu falar com o servidor agora. Nenhum dado foi alterado. {SUPORTE}</>, mascote: "tomadas" };

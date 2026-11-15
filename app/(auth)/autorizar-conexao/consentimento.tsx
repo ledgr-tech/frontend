@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useId, useRef, useState, type CSSProperties } from "react";
 import { fonteDestaque } from "../../(marketing)/fonte-destaque";
 import { MolduraAuth } from "../_compartilhado/moldura-auth";
+import { MascoteDoRelogio } from "../_compartilhado/mascote-do-relogio";
 import { MensagemErro } from "../_compartilhado/mensagem-erro";
 import {
   autorizarConexao,
@@ -32,7 +33,7 @@ const estiloTexto: CSSProperties = {
 
 type Estado =
   | { situacao: "carregando" }
-  | { situacao: "invalido"; erro: string }
+  | { situacao: "invalido"; erro: string; vencido?: boolean }
   | { situacao: "pronto"; pedido: PedidoDeConexao };
 
 function hora(iso: string): string {
@@ -77,7 +78,7 @@ export function Consentimento({
       .then((resposta) => {
         if (!vivo) return;
         if (!resposta.ok) {
-          setEstado({ situacao: "invalido", erro: resposta.erro });
+          setEstado({ situacao: "invalido", erro: resposta.erro, vencido: resposta.status === 404 });
           return;
         }
         setEstado({ situacao: "pronto", pedido: resposta.dados });
@@ -113,7 +114,7 @@ export function Consentimento({
     travado.current = false;
     setEnviando(null);
     if (resposta.status === 404) {
-      setEstado({ situacao: "invalido", erro: resposta.erro });
+      setEstado({ situacao: "invalido", erro: resposta.erro, vencido: true });
       return;
     }
     setErro(resposta.erro);
@@ -133,6 +134,8 @@ export function Consentimento({
     return (
       <MolduraAuth rotulo="Conexão">
         <div style={{ width: "100%", maxWidth: 424 }}>
+          {/* o 404 é o pedido vencido ou já usado; sessão, papel, flag desligada ou servidor fora não ganham o relógio */}
+          {estado.vencido && <MascoteDoRelogio />}
           <h1 style={estiloTitulo}>Pedido indisponível.</h1>
           <p style={estiloTexto}>{estado.erro}</p>
           <Link href="/visao-geral" className="btn btn-secondary btn-block">

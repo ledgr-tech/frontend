@@ -16,6 +16,7 @@ import {
 import { CampoTexto } from "../_compartilhado/campo-texto";
 import { MensagemErro } from "../_compartilhado/mensagem-erro";
 import { MolduraAuth } from "../_compartilhado/moldura-auth";
+import { MascoteDoRelogio } from "../_compartilhado/mascote-do-relogio";
 import { SENHA_MINIMA, validarSenhaNova } from "../_compartilhado/validacao";
 
 /**
@@ -180,6 +181,8 @@ export function AceitarConvite({ conectadoComo, google }: { conectadoComo: strin
     return (
       <MolduraAuth rotulo="Convite">
         <div style={{ width: "100%", maxWidth: 424 }}>
+          {/* outras recusas (conta inativa, servidor fora) também caem aqui: o relógio é só do convite vencido */}
+          {(erros.geral ?? INVALIDO) === INVALIDO && <MascoteDoRelogio />}
           <h1 style={estiloTitulo}>Convite indisponível.</h1>
           <p style={estiloTexto}>{erros.geral ?? INVALIDO}</p>
           <Link href="/login" className="btn btn-primary btn-block" style={estiloBotao}>

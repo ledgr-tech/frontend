@@ -157,6 +157,15 @@ describe("Consentimento", () => {
 
     expect(await screen.findByRole("heading", { name: "Pedido indisponível." })).toBeInTheDocument();
     expect(assign).not.toHaveBeenCalled();
+    expect(document.querySelector('img[src*="mascote-relogio"]')).not.toBeNull();
+  });
+
+  it("a conexão desligada (503) ao abrir não mostra o relógio de pedido vencido", async () => {
+    carregarPedidoDeConexao.mockResolvedValue({ ok: false, status: 503, erro: "A conexão com assistentes de IA está indisponível." });
+    abrir();
+
+    expect(await screen.findByRole("heading", { name: "Pedido indisponível." })).toBeInTheDocument();
+    expect(document.querySelector('img[src*="mascote-relogio"]')).toBeNull();
   });
 
   it("o limite de conexões (409) fica na tela, com os botões de volta", async () => {
@@ -185,5 +194,6 @@ describe("Consentimento", () => {
 
     expect(screen.getByRole("heading", { name: "Pedido indisponível." })).toBeInTheDocument();
     expect(carregarPedidoDeConexao).not.toHaveBeenCalled();
+    expect(document.querySelector('img[src*="mascote-relogio"]')).toBeNull();
   });
 });
