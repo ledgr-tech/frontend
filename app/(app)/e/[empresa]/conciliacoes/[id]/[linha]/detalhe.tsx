@@ -308,10 +308,10 @@ export function DetalheDivergencia({ painel = false }: { painel?: boolean }) {
                 width={977}
                 height={1122}
                 sizes="130px"
-                style={{ width: 130, height: "auto", display: "block" }}
+                className="det-causa-mascote"
               />
             </InkHover>
-            <div style={{ flex: "1 1 340px", minWidth: 0 }}>
+            <div className="det-causa-corpo">
               <h6 style={{ margin: "0 0 8px" }}>
                 O que provavelmente aconteceu
               </h6>

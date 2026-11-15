@@ -1,10 +1,9 @@
-import Image from "next/image";
-import Link from "@/lib/link-do-app";
 import { redirecionarNoApp } from "@/lib/rotas-servidor";
 import { carregarConciliacoes } from "../conciliacoes/acoes";
-import { InkHover, Reveal } from "@/app/reveal";
+import { Reveal } from "@/app/reveal";
 import { Cabecalho } from "../cabecalho";
 import { FalhaAoCarregar } from "../falha-ao-carregar";
+import { SemNada } from "../sem-nada";
 import { formatarInteiro } from "./resumo";
 import { agruparPorMes, passaNoFiltro } from "./lista";
 import { ListaDeTrabalho } from "./lista-de-trabalho";
@@ -24,7 +23,7 @@ export default async function DashboardPage() {
   if (!resposta.ok && resposta.status === 401) await redirecionarNoApp("/login");
 
   const conciliacoes = resposta.ok ? resposta.dados.conciliacoes : [];
-  // a mesma conta do filtro "Pedem decisão": num mês fechado nada mais se decide
+  // a mesma conta do filtro "Com pendência": num mês fechado nada mais se decide
   const pendentes = agruparPorMes(conciliacoes, resposta.ok ? resposta.dados.fechamentos : null).reduce(
     (soma, mes) => soma + mes.conciliacoes.filter((item) => passaNoFiltro(item, mes.fechamento !== null, "pendentes")).length,
     0,
@@ -39,7 +38,7 @@ export default async function DashboardPage() {
         titulo="Conciliações"
         contexto={[
           conciliacoes.length > 0 && plural(conciliacoes.length, "conciliação", "conciliações"),
-          pendentes > 0 && `${formatarInteiro(pendentes)} ${pendentes === 1 ? "pede" : "pedem"} decisão`,
+          pendentes > 0 && `${formatarInteiro(pendentes)} ${pendentes === 1 ? "pendência" : "pendências"}`,
         ]}
       />
 
@@ -64,45 +63,5 @@ export default async function DashboardPage() {
 }
 
 function SemConciliacoes() {
-  return (
-    <div
-      style={{
-        padding: "76px 0",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        textAlign: "center",
-        gap: 18,
-      }}
-    >
-      <InkHover style={{ flex: "none" }}>
-        <Image
-          src="/mascotes/mascote-explicando.png"
-          alt="Mascote Ledgr apontando para você"
-          width={1000}
-          height={1000}
-          sizes="250px"
-          style={{ width: 250, height: "auto", display: "block" }}
-        />
-      </InkHover>
-      <h2 style={{ margin: 0, fontSize: 32, fontWeight: 400, maxWidth: "24ch", textWrap: "balance" }}>
-        Nenhum extrato por aqui ainda.
-      </h2>
-      <p
-        style={{
-          margin: 0,
-          fontSize: 15,
-          lineHeight: 1.75,
-          maxWidth: "48ch",
-          color: "color-mix(in srgb, var(--color-text) 78%, transparent)",
-        }}
-      >
-        Suba o extrato do banco e o extrato do sistema de gestão. A primeira conciliação fica pronta em
-        poucos minutos.
-      </p>
-      <Link href="/conciliacoes/nova" className="btn btn-primary" style={{ fontSize: 15, padding: "12px 22px" }}>
-        Fazer o primeiro upload
-      </Link>
-    </div>
-  );
+  return <SemNada titulo="Nenhuma conciliação ainda." texto="Envie o extrato do banco e o extrato do sistema. A primeira conciliação fica pronta em poucos minutos." />;
 }

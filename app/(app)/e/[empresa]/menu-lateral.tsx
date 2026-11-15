@@ -32,6 +32,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { PainelAssistente } from "./assistente/painel";
+import { SeletorDeEmpresa } from "./seletor-de-empresa";
 import { Configuracoes } from "./configuracoes";
 import { useCobranca } from "./conta";
 import { LogoBarras } from "./logo-barras";
@@ -39,7 +40,7 @@ import { alternarMenu, menuRecolhido } from "./menu";
 import { aplicarTema, temaAtual, type Tema } from "./tema";
 import { ABRIR_ASSISTENTE, ABRIR_CONFIGURACOES } from "@/lib/eventos";
 import type { Papel } from "@/lib/papel";
-import { usePresenca } from "@/lib/troca-suave";
+import { CURVA_DE_SAIDA, usePresenca } from "@/lib/troca-suave";
 
 type ItemMenu = {
   nome: string;
@@ -82,12 +83,11 @@ const ATRASO_FECHAR_MS = 300;
 // shadcn/ui). Só o menu refaz o layout a cada quadro; ele passa por cima, e a página não se mexe.
 const LARGURA_RECOLHIDO = "64px";
 const LARGURA_ABERTO = "248px";
-// A curva de gaveta do iOS (Ionic): sai menos de supetão que a curva forte do app, que punha ~85%
-// do caminho no primeiro quarto do tempo e parecia um corte. 250 ms abrindo e 200 ms fechando, o
-// par do Material (225/195 ms para o que entra e sai da tela), um pouco acima dos 200 ms do
-// sidebar do shadcn/ui.
-const CURVA = "cubic-bezier(0.32, 0.72, 0, 1)";
-const DURACAO_ABRIR_MS = 250;
+// A curva da casa (--ease-out) e as durações do guia (MV-01, MV-02): o menu é um painel e abre em
+// 300 ms (--dur-painel); fecha em 200 ms (--dur-padrao), o par assimétrico do Material para o que
+// entra e sai da tela.
+const CURVA = CURVA_DE_SAIDA;
+const DURACAO_ABRIR_MS = 300;
 const DURACAO_FECHAR_MS = 200;
 
 /** Anima só onde dá e onde a pessoa não pediu menos movimento (o jsdom não tem element.animate). */
@@ -138,6 +138,13 @@ export function MenuLateral({
   const assistenteAberto = assistente === "aberto";
   // no celular (até 900px) as seções ficam atrás do botão Menu, senão ocupam meia tela antes do conteúdo
   const [secoesAbertas, setSecoesAbertas] = useState(false);
+  // no celular, ir para outra tela fecha o menu: vale também para a busca, os avisos e a ajuda, que
+  // moram nele (M-01) e navegam por conta própria
+  const [caminhoDoMenu, setCaminhoDoMenu] = useState(caminho);
+  if (caminhoDoMenu !== caminho) {
+    setCaminhoDoMenu(caminho);
+    setSecoesAbertas(false);
+  }
   const botaoAssistente = useRef<HTMLButtonElement>(null);
   const botaoMenuCelular = useRef<HTMLButtonElement>(null);
   const caixaConta = useRef<HTMLDivElement>(null);
@@ -251,7 +258,11 @@ export function MenuLateral({
         setContaAberta(false);
         setConfigAberta(true);
       }
-      if (evento.key === "Escape") setContaAberta(false);
+      if (evento.key === "Escape") {
+        setContaAberta(false);
+        // fechado de dentro, o foco volta ao nome da conta em vez de cair no <body> (AC-02)
+        if (caixaConta.current?.contains(document.activeElement)) botaoConta.current?.focus();
+      }
     }
     window.addEventListener("keydown", aoTeclar);
     return () => window.removeEventListener("keydown", aoTeclar);
@@ -349,6 +360,11 @@ export function MenuLateral({
           <LogoBarras className="app-logo" />
           <PanelLeftOpen {...ICONE} className="app-menu-abrir-icone" />
         </button>
+        {/* no celular a barra é uma só (M-01): a marca, a empresa da aba e o Menu; no desktop o seletor
+            fica na barra de cima, ao lado de Avisos, e este some pelo CSS */}
+        <span className="app-aside-empresa">
+          <SeletorDeEmpresa />
+        </span>
         <button
           type="button"
           className="app-icone-botao app-menu-celular"
@@ -356,7 +372,11 @@ export function MenuLateral({
           aria-label="Menu"
           aria-expanded={secoesAbertas}
           aria-controls="secoes-do-app"
-          onClick={() => setSecoesAbertas((abertas) => !abertas)}
+          onClick={() => {
+            // aberto, o menu entra no fluxo da página, no topo dela: de uma tela rolada ele abriria fora da vista
+            if (!secoesAbertas) window.scrollTo({ top: 0 });
+            setSecoesAbertas((abertas) => !abertas);
+          }}
         >
           <Menu {...ICONE} />
         </button>
@@ -401,6 +421,7 @@ export function MenuLateral({
           type="button"
           className="app-assistente app-dica"
           data-dica="Fale com o Ledgr"
+          aria-haspopup="dialog"
           aria-expanded={assistenteAberto}
           aria-controls={assistenteAberto ? "painel-assistente" : undefined}
           onClick={() => setAssistente((atual) => atual === "aberto" ? "fechado" : "aberto")}
@@ -436,6 +457,7 @@ export function MenuLateral({
             type="button"
             className="app-conta app-dica"
             data-dica={[nome, empresa].filter(Boolean).join(" · ")}
+            aria-haspopup="dialog"
             aria-expanded={contaAberta}
             aria-controls={contaAberta ? "menu-conta" : undefined}
             onClick={() => setContaAberta((aberta) => !aberta)}
@@ -451,7 +473,7 @@ export function MenuLateral({
           </button>
 
           {conta.montado && (
-            <div id="menu-conta" className="app-painel app-conta-painel" data-saindo={conta.saindo || undefined}>
+            <div id="menu-conta" role="dialog" aria-label="Conta" className="app-painel app-conta-painel" data-saindo={conta.saindo || undefined}>
               <span className="app-conta-email">{email}</span>
               <button
                 type="button"

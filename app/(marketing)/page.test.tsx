@@ -14,14 +14,10 @@ describe("LandingPage", () => {
   // o hero é a primeira seção; a faixa de números vem logo abaixo dele
   const secoes = (container: HTMLElement) => [...container.querySelectorAll<HTMLElement>("main > section")];
 
-  it("leaves the social networks in the footer, each link named for the screen reader", () => {
+  it("leaves out of the footer the social networks without a profile yet (#388)", () => {
     const { container } = render(<LandingPage />);
-    const redes = within(container.querySelector("footer")!).getByRole("list", { name: "Ledgr nas redes sociais" });
-    expect(within(redes).getAllByRole("link").map((link) => link.getAttribute("aria-label"))).toEqual([
-      "LinkedIn",
-      "Instagram",
-      "X (Twitter)",
-    ]);
+    expect(within(container.querySelector("footer")!).queryByRole("list", { name: "Ledgr nas redes sociais" })).toBeNull();
+    expect(container.querySelector('footer a[href="#"]')).toBeNull();
   });
 
   it("shows the hero headline and a link into the product", () => {
@@ -209,7 +205,7 @@ describe("LandingPage", () => {
       screen.getByText("Não. O Ledgr lê o arquivo que o internet banking já exporta, em OFX ou CSV, e não pede nenhuma credencial bancária."),
     ).toBeInTheDocument();
     expect(
-      screen.getByText("Exporte o razão do seu ERP ou sistema de gestão no mesmo período, em CSV."),
+      screen.getByText("Exporte os lançamentos do seu sistema de gestão no mesmo período, em CSV."),
     ).toBeInTheDocument();
   });
 
@@ -330,7 +326,7 @@ describe("LandingPage", () => {
     expect(dentro.getByText("Sua empresa · competência agosto/2026 · 4.218 lançamentos")).toBeInTheDocument();
     // o relatório é o componente do app, com o mesmo agosto do topo da página
     expect(dentro.getByRole("heading", { name: "Divergências por categoria" })).toBeInTheDocument();
-    expect(dentro.getByText(/^157 linhas pedem revisão/)).toBeInTheDocument();
+    expect(dentro.getByText(/^157 pendências/)).toBeInTheDocument();
     // a linha do fluxo, em destaque na tabela das duas folhas (e no título do cartão aberto sobre ela)
     const linha = within(tela.querySelector<HTMLElement>("tr[data-destacada]")!);
     expect(linha.getAllByText("Pagamento fornecedor #1082")).toHaveLength(3);

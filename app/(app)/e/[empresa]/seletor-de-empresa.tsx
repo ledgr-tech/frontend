@@ -79,12 +79,19 @@ export function SeletorDeEmpresa() {
         className="seletor-topo-botao"
         aria-haspopup="dialog"
         aria-expanded={aberto}
-        title={ativa.razaoSocial}
+        title={ativa.razaoSocial || undefined}
         onClick={() => setAberto(true)}
       >
         <Building2 size={16} aria-hidden="true" className="seletor-topo-icone" />
         <span className="seletor-topo-nome">
-          <span className="sr-only">Empresa:</span> {ativa.razaoSocial}
+          {/* sem o GET /me não há nome: o botão diz o que faz, em vez de ficar só com o ícone (#388) */}
+          {ativa.razaoSocial ? (
+            <>
+              <span className="sr-only">Empresa:</span> {ativa.razaoSocial}
+            </>
+          ) : (
+            "Trocar de empresa"
+          )}
         </span>
         <ChevronsUpDown size={15} aria-hidden="true" className="seletor-topo-seta" />
       </button>
@@ -99,6 +106,8 @@ function JanelaDeEmpresas({ ativa, aoFechar }: { ativa: EmpresaDaConta; aoFechar
   const [erroDaFavorita, setErroDaFavorita] = useState<string | null>(null);
   const empresas: Linha[] = carregadas ?? daConta;
   const temFavoritas = empresas.some((empresa) => empresa.favorita !== undefined);
+  // sem a situação do mês (backend antes do #157, ou o GET /empresas falhou) a coluna ficaria vazia (#388)
+  const temSituacao = empresas.some((empresa) => empresa.situacao !== undefined);
   const roteador = useRoteador();
   const caminho = usePathname();
   const [busca, setBusca] = useState("");
@@ -189,9 +198,11 @@ function JanelaDeEmpresas({ ativa, aoFechar }: { ativa: EmpresaDaConta; aoFechar
                   <Cabeca coluna="cnpj" ordem={ordem} onOrdenar={ordenar}>
                     CNPJ
                   </Cabeca>
-                  <Cabeca coluna="situacao" ordem={ordem} onOrdenar={ordenar}>
-                    Situação
-                  </Cabeca>
+                  {temSituacao && (
+                    <Cabeca coluna="situacao" ordem={ordem} onOrdenar={ordenar}>
+                      Situação
+                    </Cabeca>
+                  )}
                   {temFavoritas && (
                     <th scope="col" className="seletor-janela-favorita">
                       <span className="sr-only">Favorita</span>
@@ -206,16 +217,24 @@ function JanelaDeEmpresas({ ativa, aoFechar }: { ativa: EmpresaDaConta; aoFechar
                       <button type="button" className="seletor-janela-escolher" onClick={() => escolher(empresa)}>
                         {empresa.razaoSocial}
                       </button>
+                      {!temSituacao && empresa.id === ativa.id && (
+                        <>
+                          {" "}
+                          <span className="tag tag-accent">Aberta agora</span>
+                        </>
+                      )}
                       {/* no celular a tabela fica numa coluna só, com o CNPJ embaixo do nome */}
                       {empresa.cnpj && <span className="seletor-janela-cnpj-celular">{formatarCnpj(empresa.cnpj)}</span>}
                     </td>
                     <td className="seletor-janela-cnpj">{empresa.cnpj ? formatarCnpj(empresa.cnpj) : "—"}</td>
-                    <td>
-                      <span className="seletor-janela-situacao">
-                        {empresa.situacao && SITUACAO[empresa.situacao]}
-                        {empresa.id === ativa.id && <span className="tag tag-accent">Aberta agora</span>}
-                      </span>
-                    </td>
+                    {temSituacao && (
+                      <td>
+                        <span className="seletor-janela-situacao">
+                          {empresa.situacao && SITUACAO[empresa.situacao]}
+                          {empresa.id === ativa.id && <span className="tag tag-accent">Aberta agora</span>}
+                        </span>
+                      </td>
+                    )}
                     {temFavoritas && (
                       <td className="seletor-janela-favorita">
                         <button

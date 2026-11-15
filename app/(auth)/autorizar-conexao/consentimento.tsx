@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useId, useRef, useState, type CSSProperties } from "react";
 import { fonteDestaque } from "../../(marketing)/fonte-destaque";
 import { MolduraAuth } from "../_compartilhado/moldura-auth";
+import { MascoteDoRelogio } from "../_compartilhado/mascote-do-relogio";
 import { MensagemErro } from "../_compartilhado/mensagem-erro";
 import {
   autorizarConexao,
@@ -12,6 +13,7 @@ import {
   recusarConexao,
   type PedidoDeConexao,
 } from "../../(app)/e/[empresa]/conexoes-mcp/acoes";
+import { SEM_SERVIDOR } from "@/lib/sem-servidor";
 
 const estiloTitulo: CSSProperties = {
   margin: "0 0 clamp(8px, 1.5vh, 14px)",
@@ -31,7 +33,7 @@ const estiloTexto: CSSProperties = {
 
 type Estado =
   | { situacao: "carregando" }
-  | { situacao: "invalido"; erro: string }
+  | { situacao: "invalido"; erro: string; vencido?: boolean }
   | { situacao: "pronto"; pedido: PedidoDeConexao };
 
 function hora(iso: string): string {
@@ -76,14 +78,14 @@ export function Consentimento({
       .then((resposta) => {
         if (!vivo) return;
         if (!resposta.ok) {
-          setEstado({ situacao: "invalido", erro: resposta.erro });
+          setEstado({ situacao: "invalido", erro: resposta.erro, vencido: resposta.status === 404 });
           return;
         }
         setEstado({ situacao: "pronto", pedido: resposta.dados });
         // com uma empresa só, ela já vem marcada; com mais, a pessoa escolhe
         if (resposta.dados.empresas.length === 1) setEmpresa(resposta.dados.empresas[0].id);
       })
-      .catch(() => vivo && setEstado({ situacao: "invalido", erro: "Não foi possível falar com o servidor." }));
+      .catch(() => vivo && setEstado({ situacao: "invalido", erro: SEM_SERVIDOR }));
     return () => {
       vivo = false;
     };
@@ -102,7 +104,7 @@ export function Consentimento({
     try {
       resposta = acao === "autorizar" ? await autorizarConexao(pedido, empresa!) : await recusarConexao(pedido);
     } catch {
-      resposta = { ok: false, status: 0, erro: "Não foi possível falar com o servidor." };
+      resposta = { ok: false, status: 0, erro: SEM_SERVIDOR };
     }
     if (resposta.ok) {
       // volta ao ChatGPT ou ao Claude, com o código ou com a recusa; a tela fica travada até sair
@@ -112,7 +114,7 @@ export function Consentimento({
     travado.current = false;
     setEnviando(null);
     if (resposta.status === 404) {
-      setEstado({ situacao: "invalido", erro: resposta.erro });
+      setEstado({ situacao: "invalido", erro: resposta.erro, vencido: true });
       return;
     }
     setErro(resposta.erro);
@@ -132,6 +134,8 @@ export function Consentimento({
     return (
       <MolduraAuth rotulo="Conexão">
         <div style={{ width: "100%", maxWidth: 424 }}>
+          {/* o 404 é o pedido vencido ou já usado; sessão, papel, flag desligada ou servidor fora não ganham o relógio */}
+          {estado.vencido && <MascoteDoRelogio />}
           <h1 style={estiloTitulo}>Pedido indisponível.</h1>
           <p style={estiloTexto}>{estado.erro}</p>
           <Link href="/visao-geral" className="btn btn-secondary btn-block">
@@ -143,7 +147,8 @@ export function Consentimento({
   }
 
   const { pedido: dados } = estado;
-  const sujeito = dados.origem.loopback ? "programa" : dados.cliente;
+  // o nome do cliente é livre ("Ferramenta local"): sem artigo na frente dele (A-06, #386)
+  const sujeito = dados.origem.loopback ? "O programa" : dados.cliente;
   return (
     <MolduraAuth rotulo="Conexão" larguraConteudo={1020}>
       <div className={`consent ${fonteDestaque.variable}`}>
@@ -153,7 +158,7 @@ export function Consentimento({
             <p className="eyebrow">Pedido de conexão · só leitura</p>
             {/* as duas vozes da landing; o itálico é carregado só nesta página, como em /plano */}
             <h1 className="titulo-misto">
-              {`Conectar o ${dados.cliente} `}
+              {`Conectar ${dados.cliente} `}
               <em>ao Ledgr.</em>
             </h1>
             <p className="consent-sub">
@@ -173,8 +178,8 @@ export function Consentimento({
           {/* resumo fiel da Política (/privacidade#conexao-ia, #361): mudou lá, muda aqui. No loopback, o nome
               do cliente é o que o programa disse ser, então as listas falam do programa */}
           <div className="consent-listas">
-            <Lista id={idLe} titulo={`O ${sujeito} lê`} itens={LE} />
-            <Lista id={idFica} titulo={`O ${sujeito} nunca recebe`} itens={NUNCA_RECEBE} />
+            <Lista id={idLe} titulo={`${sujeito} lê`} itens={LE} />
+            <Lista id={idFica} titulo={`${sujeito} nunca recebe`} itens={NUNCA_RECEBE} />
           </div>
 
           <p className="consent-nota">
@@ -182,7 +187,7 @@ export function Consentimento({
             {/* no loopback, o nome do cliente é o que o programa disse ser (o alerta acima avisa) */}
             {dados.origem.loopback
               ? "O que for lido passa para o programa que pediu e para a IA que ele usa, e fica sob as regras deles. Veja a "
-              : `O que for lido passa para a sua conta do ${dados.cliente} e fica sob as regras dela. Veja a `}
+              : `O que for lido passa para a conta que você usa em ${dados.cliente} e fica sob as regras dela. Veja a `}
             {/* em outra aba: o pedido vale minutos, e sair desta tela não pode custar a conexão */}
             <a href="/privacidade#conexao-ia" target="_blank" rel="noopener" className="link-animado">
               Política de privacidade
@@ -223,7 +228,7 @@ export function Consentimento({
             </fieldset>
           ) : (
             <p className="consent-alerta" role="note">
-              Só o admin ou o gestor da conta autorizam conexões com assistentes de IA. Peça a um deles, ou recuse.
+              Só o admin ou o gestor do escritório autorizam conexões com assistentes de IA. Peça a um deles, ou recuse.
             </p>
           )}
 
@@ -286,7 +291,7 @@ const NUNCA_RECEBE = [
   "O texto das justificativas e das ressalvas",
   "O nome de quem usa o Ledgr",
   "Nomes de arquivos",
-  "A cidade e o estado da conta",
+  "A cidade e o estado do escritório",
 ];
 
 function Lista({ id, titulo, itens }: { id: string; titulo: string; itens: string[] }) {

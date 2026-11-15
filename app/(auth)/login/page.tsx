@@ -1,12 +1,11 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { demoAberta } from "@/lib/demo";
 import { destinoDepoisDoLogin } from "@/lib/rotas";
-import { MENSAGEM_GOOGLE, ehErroGoogle, googleLigado } from "@/lib/google";
+import { MENSAGEM_GOOGLE, ehErroGoogle, erroEhDoGoogle, googleLigado } from "@/lib/google";
 import { estaBloqueado, limparTentativas, registrarSenhaErrada } from "@/lib/tentativas";
 import {
   entrar as abrirSessao,
@@ -17,6 +16,7 @@ import {
 } from "../acoes";
 import dynamic from "next/dynamic";
 import { CampoTexto } from "../_compartilhado/campo-texto";
+import { MolduraAuth } from "../_compartilhado/moldura-auth";
 import { MensagemErro } from "../_compartilhado/mensagem-erro";
 import { EMAIL_VALIDO, MENSAGEM_EMAIL_INCOMPLETO } from "../_compartilhado/validacao";
 import { CHAVE_SAUDACAO, SAUDACOES, escolherSaudacao } from "./saudacoes";
@@ -65,19 +65,6 @@ const ERROS_LOGIN: Record<ErroEntrada, { campo: Campo; mensagem: string }> = {
   // Não é erro de quem digitou: ambiente mal configurado (NEXTAUTH_SECRET) ou
   // backend fora do ar. Mensagem separada pra não acusar o usuário.
   falha_sessao: { campo: "senha", mensagem: "Não foi possível abrir a sessão. Tente de novo em instantes." },
-};
-
-// linhas verticais sutis da landing, só nas laterais: sempre por fora do formulário (424px)
-// e, no celular, empurradas para fora da tela para não cruzar os campos
-const linhaLateral = {
-  position: "absolute" as const,
-  top: 0,
-  bottom: 0,
-  width: 1,
-  zIndex: -1,
-  pointerEvents: "none" as const,
-  background: "var(--color-divider)",
-  opacity: 0.55,
 };
 
 function lerSaudacaoAnterior(): number | null {
@@ -130,10 +117,16 @@ export default function LoginPage() {
   useEffect(() => {
     const parametros = new URLSearchParams(window.location.search);
     const motivo = parametros.get("google");
-    if (!motivo && !parametros.has("error")) return;
+    const erroDoNextAuth = parametros.get("error");
+    if (!motivo && erroDoNextAuth === null) return;
     // a URL só existe no navegador: ler no render daria uma tela no servidor e outra no cliente
+    // só os erros do OAuth são do Google (A-05, #386); Configuration e os outros do NextAuth, não
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setErroGoogle(MENSAGEM_GOOGLE[ehErroGoogle(motivo) ? motivo : "falha"]);
+    setErroGoogle(
+      motivo || erroEhDoGoogle(erroDoNextAuth)
+        ? MENSAGEM_GOOGLE[ehErroGoogle(motivo) ? motivo : "falha"]
+        : "Não foi possível entrar agora. Tente de novo em instantes.",
+    );
     // o motivo vale para esta volta do Google: recarregar a página não mostra de novo
     window.history.replaceState(null, "", window.location.pathname);
   }, []);
@@ -309,273 +302,169 @@ export default function LoginPage() {
   }
 
   return (
-    <div
-      style={{
-        position: "relative",
-        isolation: "isolate",
-        overflow: "hidden",
-        // cabe na altura da tela: os espaçamentos abaixo encolhem com a altura (vh) para não gerar rolagem
-        minHeight: "100dvh",
-        display: "flex",
-        flexDirection: "column",
-        padding: "clamp(14px, 3vh, 36px) clamp(20px, 5vw, 56px)",
-      }}
+    <MolduraAuth
+      rotulo="Acesso"
+      depois={
+        recuperarCarregado && (
+          <RecuperarSenha
+            aberto={recuperarAberto}
+            emailInicial={email.trim()}
+            onFechar={() => {
+              setRecuperarAberto(false);
+              gatilhoRecuperar.current?.focus();
+            }}
+          />
+        )
+      }
     >
-      {/* deslocadas: a da esquerda sobe da base até o meio, a da direita desce do topo até o meio */}
-      <div aria-hidden="true" style={{ ...linhaLateral, top: "50%", left: "min(25%, calc(50% - 260px))" }} />
-      <div aria-hidden="true" style={{ ...linhaLateral, bottom: "50%", left: "max(75%, calc(50% + 260px))" }} />
-
-      <header
-        style={{
-          width: "100%",
-          maxWidth: 1180,
-          margin: "0 auto",
-          display: "flex",
-          flexWrap: "wrap",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 16,
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
-          <Image
-            src="/mascotes/logo-barras.png"
-            alt="Ledgr"
-            width={1237}
-            height={998}
-            sizes="30px"
-            loading="eager"
-            style={{ height: 24, width: "auto" }}
-          />
-          <span style={{ fontFamily: "var(--font-heading)", fontSize: 20, fontWeight: 600 }}>Ledgr</span>
-          <span
-            style={{
-              paddingLeft: 11,
-              borderLeft: "1px solid var(--color-divider)",
-              fontSize: 12,
-              letterSpacing: "0.12em",
-              textTransform: "uppercase",
-              color: "color-mix(in srgb, var(--color-text) 66%, transparent)",
-            }}
-          >
-            Acesso
+      <form className="login-form" onSubmit={enviar} noValidate>
+        <div className="login-eyebrow">
+          <span className="eyebrow login-eyebrow-texto">
+            Entrar na conta
           </span>
+          <span className="login-eyebrow-fio" />
         </div>
-        <Link href="/" className="login-voltar">
-          ← Voltar ao site
-        </Link>
-      </header>
+        <h1
+          ref={titulo}
+          aria-label={textoCompleto}
+          data-digitando={digitando ? "true" : "false"}
+          className="login-titulo"
+          // só aparece depois do sorteio, para não piscar a saudação padrão do HTML estático
+          style={{ opacity: saudacao ? 1 : 0 }}
+        >
+          <span ref={trechoDigitado}>{textoDigitado}</span>
+          {digitando && <span className="login-cursor" aria-hidden="true" />}
+          {/* o resto invisível segura a largura final, então o ajuste de fonte mede a frase inteira */}
+          <span aria-hidden="true" className="login-titulo-resto">
+            {textoRestante}
+          </span>
+        </h1>
+        <div
+          ref={linha}
+          data-testid="linha-saudacao"
+          data-estado={linhaVoltou ? "repouso" : digitacaoCompleta ? "cheia" : "digitando"}
+          className="login-saudacao-linha"
+        />
 
-      {/* o <main> da página, como na MolduraAuth: leitor de tela pula direto para o formulário */}
-      <main style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "clamp(12px, 3vh, 40px) 0" }}>
-        <form className="login-form" onSubmit={enviar} noValidate style={{ width: "100%", maxWidth: 424 }}>
-          <div className="login-eyebrow" style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: "clamp(10px, 2vh, 20px)" }}>
-            <span className="eyebrow" style={{ fontSize: 12, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--color-accent-700)" }}>
-              Entrar na conta
-            </span>
-            <span style={{ flex: 1, maxWidth: 110, height: 1, background: "var(--color-divider)" }} />
-          </div>
-          <h1
-            ref={titulo}
-            aria-label={textoCompleto}
-            data-digitando={digitando ? "true" : "false"}
-            style={{
-              margin: "0 0 clamp(8px, 1.5vh, 14px)",
-              fontWeight: 400,
-              lineHeight: 1.1,
-              letterSpacing: "-0.016em",
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              // só aparece depois do sorteio, para não piscar a saudação padrão do HTML estático
-              opacity: saudacao ? 1 : 0,
-              transition: "opacity 0.45s ease",
-            }}
-          >
-            <span ref={trechoDigitado}>{textoDigitado}</span>
-            {digitando && <span className="login-cursor" aria-hidden="true" />}
-            {/* o resto invisível segura a largura final, então o ajuste de fonte mede a frase inteira */}
-            <span aria-hidden="true" style={{ visibility: "hidden" }}>
-              {textoRestante}
-            </span>
-          </h1>
-          <div
-            ref={linha}
-            data-testid="linha-saudacao"
-            data-estado={linhaVoltou ? "repouso" : digitacaoCompleta ? "cheia" : "digitando"}
-            style={{
-              height: 1,
-              background: "var(--color-accent)",
-              marginBottom: "clamp(16px, 3vh, 32px)",
-              transition: linhaVoltou ? "width 0.7s cubic-bezier(0.22, 1, 0.36, 1)" : "width 90ms linear",
+        <div className="login-campos">
+          {/* rótulos flutuantes: começam dentro do campo e sobem para a borda ao focar ou preencher */}
+          <CampoTexto
+            ref={campoEmail}
+            id="login-email"
+            rotulo="E-mail"
+            tipo="email"
+            exemplo="nome@empresa.com.br"
+            autoComplete="email"
+            erro={erros.email}
+            tremor={tremorDe("email")}
+            valor={email}
+            onValor={(valor) => {
+              setEmail(valor);
+              limparErro("email");
             }}
           />
+          <CampoTexto
+            ref={campoSenha}
+            id="login-senha"
+            rotulo="Senha"
+            tipo="password"
+            alternarSenha
+            autoComplete="current-password"
+            erro={erros.senha}
+            tremor={tremorDe("senha")}
+            valor={senha}
+            onValor={(valor) => {
+              setSenha(valor);
+              limparErro("senha");
+            }}
+          />
+        </div>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: "clamp(10px, 1.8vh, 16px)", marginBottom: 8 }}>
-            {/* rótulos flutuantes: começam dentro do campo e sobem para a borda ao focar ou preencher */}
-            <CampoTexto
-              ref={campoEmail}
-              id="login-email"
-              rotulo="E-mail"
-              tipo="email"
-              exemplo="nome@empresa.com.br"
-              autoComplete="email"
-              erro={erros.email}
-              tremor={tremorDe("email")}
-              valor={email}
-              onValor={(valor) => {
-                setEmail(valor);
-                limparErro("email");
-              }}
+        <div className="login-opcoes">
+          <label className="login-manter">
+            <input
+              type="checkbox"
+              checked={manterSessao}
+              onChange={(event) => setManterSessao(event.target.checked)}
             />
-            <CampoTexto
-              ref={campoSenha}
-              id="login-senha"
-              rotulo="Senha"
-              tipo="password"
-              alternarSenha
-              autoComplete="current-password"
-              erro={erros.senha}
-              tremor={tremorDe("senha")}
-              valor={senha}
-              onValor={(valor) => {
-                setSenha(valor);
-                limparErro("senha");
-              }}
-            />
-          </div>
-
-          <div
-            style={{
-              display: "flex",
-              flexWrap: "wrap",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: "10px 20px",
-              margin: "clamp(12px, 2vh, 18px) 0 clamp(14px, 2.6vh, 26px)",
+            Manter sessão ativa
+          </label>
+          {/* abre o card de recuperação, que pede o link por e-mail ao backend (#66) */}
+          <button
+            ref={gatilhoRecuperar}
+            type="button"
+            className="link-animado"
+            aria-haspopup="dialog"
+            onPointerEnter={precarregarRecuperarSenha}
+            onFocus={precarregarRecuperarSenha}
+            onClick={() => {
+              setRecuperarCarregado(true);
+              setRecuperarAberto(true);
             }}
           >
-            <label style={{ display: "flex", alignItems: "center", gap: 9, fontSize: 14.5, cursor: "pointer" }}>
-              <input
-                type="checkbox"
-                checked={manterSessao}
-                onChange={(event) => setManterSessao(event.target.checked)}
-                style={{ width: 15, height: 15, accentColor: "var(--color-accent)", cursor: "pointer" }}
-              />
-              Manter sessão ativa
-            </label>
-            {/* abre o card de recuperação, que pede o link por e-mail ao backend (#66) */}
-            <button
-              ref={gatilhoRecuperar}
-              type="button"
-              className="link-animado"
-              aria-haspopup="dialog"
-              style={{ fontSize: 14.5 }}
-              onPointerEnter={precarregarRecuperarSenha}
-              onFocus={precarregarRecuperarSenha}
-              onClick={() => {
-                setRecuperarCarregado(true);
-                setRecuperarAberto(true);
-              }}
-            >
-              Esqueci a senha
-            </button>
+            Esqueci a senha
+          </button>
+        </div>
+
+        <button
+          type="submit"
+          className="btn btn-primary btn-block login-entrar"
+          disabled={entrando}
+        >
+          {entrando ? "Entrando…" : "Entrar"}
+        </button>
+
+        {/* o Google de verdade onde NEXT_PUBLIC_LEDGR_GOOGLE=1 (lib/google.ts); sem ele, o atalho de demonstração,
+            onde NEXT_PUBLIC_LEDGR_DEMO_ABERTA=1 (lib/demo.ts) */}
+        {(googleLigado() || demoAberta()) && (
+          <>
+          <div className="login-divisor">
+            <span className="login-divisor-fio" />
+            <span className="login-divisor-texto">ou</span>
+            <span className="login-divisor-fio" />
           </div>
 
+          {/* só o símbolo do Google aparece; no hover, faixas inclinadas com as cores da marca ocupam metade do botão */}
           <button
-            type="submit"
-            className="btn btn-primary btn-block"
+            type="button"
+            className="btn btn-secondary login-google"
+            aria-label="Entrar com Google"
             disabled={entrando}
-            style={{ fontSize: 15.5, padding: "clamp(10px, 1.6vh, 13px) 22px", marginTop: 0 }}
+            onClick={entrarComGoogle}
           >
-            {entrando ? "Entrando…" : "Entrar"}
+            {/* quatro faixas de largura igual, inclinadas no mesmo ângulo */}
+            <span className="login-google-painel" aria-hidden="true">
+              <span className="login-google-faixa g-azul" />
+              <span className="login-google-faixa g-vermelho" />
+              <span className="login-google-faixa g-amarelo" />
+              <span className="login-google-faixa g-verde" />
+            </span>
+            {/* o "G" com as cores do Google (cores no globals.css) */}
+            <span className="login-google-simbolo" aria-hidden="true">
+              <svg viewBox="0 0 48 48">
+                <path className="g-amarelo" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z" />
+                <path className="g-vermelho" d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 16.318 4 9.656 8.337 6.306 14.691z" />
+                <path className="g-verde" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238C29.211 35.091 26.715 36 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z" />
+                <path className="g-azul" d="M43.611 20.083H42V20H24v8h11.303c-.792 2.237-2.231 4.166-4.087 5.571l.003-.002 6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917z" />
+              </svg>
+            </span>
           </button>
+          </>
+        )}
 
-          {/* o Google de verdade onde NEXT_PUBLIC_LEDGR_GOOGLE=1 (lib/google.ts); sem ele, o atalho de demonstração,
-              onde NEXT_PUBLIC_LEDGR_DEMO_ABERTA=1 (lib/demo.ts) */}
-          {(googleLigado() || demoAberta()) && (
-            <>
-            <div className="login-divisor" style={{ display: "flex", alignItems: "center", gap: 14, margin: "clamp(14px, 2.6vh, 26px) 0" }}>
-              <span style={{ flex: 1, height: 1, background: "var(--color-divider)" }} />
-              <span style={{ fontSize: 12, letterSpacing: "0.12em", textTransform: "uppercase", color: "color-mix(in srgb, var(--color-text) 66%, transparent)" }}>
-                ou
-              </span>
-              <span style={{ flex: 1, height: 1, background: "var(--color-divider)" }} />
-            </div>
+        {erroGoogle && (
+          <div className="login-erro-google">
+            <MensagemErro id="login-erro-google">{erroGoogle}</MensagemErro>
+          </div>
+        )}
 
-            {/* só o símbolo do Google aparece; no hover, faixas inclinadas com as cores da marca ocupam metade do botão */}
-            <button
-              type="button"
-              className="btn btn-secondary login-google"
-              aria-label="Entrar com Google"
-              disabled={entrando}
-              onClick={entrarComGoogle}
-            >
-              {/* quatro faixas de largura igual, inclinadas no mesmo ângulo */}
-              <span className="login-google-painel" aria-hidden="true">
-                <span className="login-google-faixa g-azul" />
-                <span className="login-google-faixa g-vermelho" />
-                <span className="login-google-faixa g-amarelo" />
-                <span className="login-google-faixa g-verde" />
-              </span>
-              {/* o "G" com as cores do Google (cores no globals.css) */}
-              <span className="login-google-simbolo" aria-hidden="true">
-                <svg viewBox="0 0 48 48">
-                  <path className="g-amarelo" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z" />
-                  <path className="g-vermelho" d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 16.318 4 9.656 8.337 6.306 14.691z" />
-                  <path className="g-verde" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238C29.211 35.091 26.715 36 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z" />
-                  <path className="g-azul" d="M43.611 20.083H42V20H24v8h11.303c-.792 2.237-2.231 4.166-4.087 5.571l.003-.002 6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917z" />
-                </svg>
-              </span>
-            </button>
-            </>
-          )}
-
-          {erroGoogle && (
-            <div style={{ marginTop: "clamp(10px, 1.8vh, 14px)" }}>
-              <MensagemErro id="login-erro-google">{erroGoogle}</MensagemErro>
-            </div>
-          )}
-
-          <p className="login-criar" style={{ margin: "clamp(14px, 2.8vh, 28px) 0 0", fontSize: 14.5, lineHeight: 1.6, color: "color-mix(in srgb, var(--color-text) 66%, transparent)" }}>
-            Ainda não tem conta?{" "}
-            <Link href="/cadastro" className="link-animado">
-              Criar conta
-            </Link>
-          </p>
-        </form>
-      </main>
-
-      <footer
-        style={{
-          display: "flex",
-          flexWrap: "wrap",
-          justifyContent: "center",
-          textAlign: "center",
-          gap: "4px 22px",
-          fontSize: 12.5,
-          color: "color-mix(in srgb, var(--color-text) 66%, transparent)",
-        }}
-      >
-        {/* em outra aba: o que já foi digitado no login não se perde */}
-        <a href="/termos" target="_blank" rel="noopener" className="login-link" style={{ color: "inherit", textDecoration: "none", borderBottom: "1px solid transparent", paddingBottom: 1 }}>
-          Termos de uso
-        </a>
-        <span aria-hidden="true">·</span>
-        <a href="/privacidade" target="_blank" rel="noopener" className="login-link" style={{ color: "inherit", textDecoration: "none", borderBottom: "1px solid transparent", paddingBottom: 1 }}>
-          Política de privacidade
-        </a>
-      </footer>
-
-      {recuperarCarregado && (
-        <RecuperarSenha
-          aberto={recuperarAberto}
-          emailInicial={email.trim()}
-          onFechar={() => {
-            setRecuperarAberto(false);
-            gatilhoRecuperar.current?.focus();
-          }}
-        />
-      )}
-    </div>
+        <p className="login-criar">
+          Ainda não tem conta?{" "}
+          <Link href="/cadastro" className="link-animado">
+            Criar conta
+          </Link>
+        </p>
+      </form>
+    </MolduraAuth>
   );
 }

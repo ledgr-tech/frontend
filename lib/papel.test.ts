@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { lerPapel, papeisQueConvida, podeConvidar, podeFecharMes } from "./papel";
+import { PAPEL_INDISPONIVEL, lerPapel, papeisQueConvida, podeConvidar, podeFecharMes, recusaPorPapel } from "./papel";
 
 describe("lerPapel", () => {
   it("usa o papel que o backend manda", () => {
@@ -38,5 +38,18 @@ describe("o que cada papel pode", () => {
     expect(papeisQueConvida("admin")).toEqual(["gestor", "analista"]);
     expect(papeisQueConvida("gestor")).toEqual(["analista"]);
     expect(papeisQueConvida("analista")).toEqual([]);
+  });
+});
+
+describe("recusaPorPapel (D2)", () => {
+  it("deixa passar quem pode, recusa com 403 quem não pode e com 503 quando o /me não respondeu", () => {
+    expect(recusaPorPapel({ papel: "gestor" }, podeFecharMes, "Só o gestor.")).toBeNull();
+    expect(recusaPorPapel({ papel: "analista" }, podeFecharMes, "Só o gestor.")).toEqual({ ok: false, status: 403, erro: "Só o gestor." });
+    // sem o /me o papel é o menor, mas o texto de papel seria mentira para um admin de verdade
+    expect(recusaPorPapel({ papel: "analista", indisponivel: true }, podeFecharMes, "Só o gestor.")).toEqual({
+      ok: false,
+      status: 503,
+      erro: PAPEL_INDISPONIVEL,
+    });
   });
 });

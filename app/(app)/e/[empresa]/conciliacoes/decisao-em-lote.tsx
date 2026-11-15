@@ -1,6 +1,7 @@
 "use client";
 
 import { useId, useRef, useState } from "react";
+import { SEM_SERVIDOR } from "@/lib/sem-servidor";
 
 /**
  * Aprovar ou rejeitar várias justificativas de uma vez (backend #132, front #208): na mesa de
@@ -36,7 +37,7 @@ export function DecisaoEmLote({
       falha = await onDecidir(acao, acao === "rejeitar" ? motivo.trim() || undefined : undefined);
     } catch {
       // a Server Action lançou (rede caída, deploy novo no meio) em vez de devolver um Resultado
-      falha = "Não foi possível falar com o servidor.";
+      falha = SEM_SERVIDOR;
     }
     travado.current = false;
     setEnviando(false);

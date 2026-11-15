@@ -35,13 +35,13 @@ export default async function PagamentosDaContaPage({
         </div>
       </div>
 
-      <div className="extratos-corpo" style={{ paddingTop: 20 }}>
+      <div className="extratos-corpo adm-folga-topo">
         {!r.ok ? (
           <p role="alert">{r.erro}</p>
         ) : r.dados.itens.length === 0 ? (
           <p>Nenhum pagamento.</p>
         ) : (
-          <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+          <div className="card adm-cartao-tabela">
             <table className="table" aria-label="Pagamentos da conta">
               <thead>
                 <tr>

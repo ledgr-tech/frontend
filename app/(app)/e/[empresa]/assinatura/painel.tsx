@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { ArrowRight } from "lucide-react";
-import { useRef, useState, useSyncExternalStore } from "react";
+import { useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
 import { PLANOS } from "@/lib/planos";
 import {
   cobrancaImediata,
@@ -81,7 +81,7 @@ export function PainelDaAssinatura({ precos }: { precos: PrecoDoPlano[] | null }
   const assinando = situacao === "ativo" || situacao === "pagamento_pendente";
   const planoAtual = assinando ? (cobranca?.plano ?? planoDaConta) : null;
   const planoAberto = aberto ?? planoDoLink ?? planoAtual ?? planoDaConta ?? "padrao";
-  const motivo = !precos ? "A assinatura pelo cartão ainda não está no ar." : papel !== "admin" ? "Só o administrador da conta assina." : null;
+  const motivo = !precos ? "A assinatura pelo cartão ainda não está no ar." : papel !== "admin" ? "Só o administrador do escritório assina." : null;
   const doPeriodo = (plano: PlanoId) => precos?.find((p) => p.plano === plano && p.periodo === periodo);
   const volume = PLANOS.find((p) => p.contato)!;
   // "Grátis até": só no teste que ainda não cobra na hora (a Stripe exige 48 horas de antecedência)
@@ -263,7 +263,7 @@ function MeioDaFolha({ franquia, uso }: { franquia: string | null; uso: Limite |
         </span>
         {uso.maximo !== null && (
           <span className="vg-progresso">
-            <span className="vg-progresso-feito" style={{ width: `${uso.maximo === 0 ? 100 : Math.min(100, Math.max(3, Math.round((uso.usadas / uso.maximo) * 100)))}%` }} />
+            <span className="vg-progresso-feito" style={{ "--feito": `${uso.maximo === 0 ? 100 : Math.min(100, Math.max(3, Math.round((uso.usadas / uso.maximo) * 100)))}%` } as CSSProperties} />
           </span>
         )}
       </>

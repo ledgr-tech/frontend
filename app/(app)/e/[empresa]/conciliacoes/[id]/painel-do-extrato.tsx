@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useId, useState, type FormEvent } from "react";
-import { ArrowRight } from "lucide-react";
+import { useEffect, useId, useRef, useState, type FormEvent } from "react";
+import { ArrowRight, ChevronDown } from "lucide-react";
 import type { SaldoDoExtrato } from "@/lib/adaptadores";
 import { formatarMoeda, type LinhaComparacao } from "@/lib/mock-data";
 import { useRoteador } from "@/lib/roteador";
@@ -16,6 +16,9 @@ import { dadosDoLancamento, type ValorDoLado } from "./cartao-lancamento";
 import { acoesDoPainel, ofereceExplicacao } from "./painel-da-comparacao";
 import { DetalhesDaLinha, ListaDeDetalhes, useDetalhesDaDivergencia } from "./[linha]/detalhes-da-divergencia";
 import { seloDaLinha, situacaoDaLinha } from "./situacao";
+import { semMovimento, useAvisoDeRolagem } from "../aviso-de-rolagem";
+import { BotaoDeExplicar } from "./botao-de-explicar";
+import { TextoDigitado } from "./texto-digitado";
 
 /**
  * O painel da direita da comparação (issue #338): o lançamento em que o mouse está, grande, e embaixo os
@@ -108,8 +111,20 @@ function QuadroDoLancamento({
   const [explicando, setExplicando] = useState(false);
   const [falhaDaExplicacao, setFalhaDaExplicacao] = useState<string | null>(null);
   const [avisoDaExplicacao, setAvisoDaExplicacao] = useState<string | null>(null);
+  // a explicação que a pessoa acabou de pedir sobe com destaque; a que já veio na listagem só aparece
+  const [recemExplicada, setRecemExplicada] = useState(false);
+  // o texto que já terminou de ser digitado: outra explicação na mesma linha volta a esperar a digitação
+  const [digitado, setDigitado] = useState<string | null>(null);
+  const { caixa: caixaDoDetalhe, conteudo: conteudoDoDetalhe, medir, descer, acima, abaixo } = useAvisoDeRolagem();
+  const cartao = useRef<HTMLDivElement>(null);
 
   const dados = linha ? dadosDoLancamento(linha, rodada, linhas) : null;
+  const explicacaoNaTela = dados?.explicacao;
+  useEffect(() => {
+    const caixa = caixaDoDetalhe.current;
+    if (!recemExplicada || !explicacaoNaTela || !cartao.current || !caixa) return;
+    caixa.scrollTo?.({ top: cartao.current.offsetTop - 4, behavior: semMovimento() ? "auto" : "smooth" });
+  }, [recemExplicada, explicacaoNaTela, caixaDoDetalhe]);
   const selo = linha ? seloDaLinha(linha, rodada) : null;
   const acoes = linha ? acoesDoPainel({ linha, rodada, podeDecidir, podeAprovar, nome }) : null;
   // a linha mudou por baixo (o mês fechou, outra pessoa desfez): a confirmação sai, e fica o motivo do backend
@@ -178,6 +193,7 @@ function QuadroDoLancamento({
       const resposta = await explicarDivergencia(linha.id);
       if (resposta.ok) {
         setAvisoDaExplicacao(resposta.dados.indisponibilidade ? (AVISO[resposta.dados.indisponibilidade] ?? null) : null);
+        setRecemExplicada(true);
         onExplicada(linha, resposta.dados);
       } else if (resposta.status === 401) {
         router.push("/login");
@@ -209,6 +225,7 @@ function QuadroDoLancamento({
       data-tom={selo?.tom}
       data-erro={linha && situacaoDaLinha(linha, rodada) === "a_conferir" ? campoErrado(linha) : undefined}
       data-vazio={linha ? undefined : ""}
+      data-explicada={recemExplicada && explicacaoNaTela ? "" : undefined}
     >
       <div className="comp-foco-topo">
         <span className="rotulo comp-ao-vivo">{!linha ? "Lançamento em foco" : fixada ? "Fixado" : "Em foco"}</span>
@@ -240,7 +257,16 @@ function QuadroDoLancamento({
         <strong className="font-titulo">{dados?.diferenca ?? "—"}</strong>
       </div>
 
-      <div className="comp-detalhe">
+      {/* sem barra de rolagem: a borda que esfuma e o "Mais abaixo" dizem que há mais */}
+      <div className="comp-detalhe-caixa">
+      <div
+        ref={caixaDoDetalhe}
+        className="comp-detalhe"
+        onScroll={medir}
+        data-acima={acima || undefined}
+        data-abaixo={abaixo || undefined}
+      >
+      <div ref={conteudoDoDetalhe} className="comp-detalhe-conteudo">
         {!linha && <p className="comp-dica">O detalhe da linha aparece aqui. Clique numa linha para fixar.</p>}
 
         {linha && modo === "desfazerAprovacao" ? (
@@ -286,18 +312,23 @@ function QuadroDoLancamento({
                     </span>
                   )}
                   {dados.nota.texto && <p>{dados.nota.texto}</p>}
-                  {acoes?.avisoDeAprovacao && <span className="espia-aviso">Aguarda a aprovação do admin ou do gestor da conta.</span>}
+                  {acoes?.avisoDeAprovacao && <span className="espia-aviso">Aguarda a aprovação do admin ou do gestor do escritório.</span>}
                   {acoes?.avisoDeQuemAprovou && aprovada && (
                     <span className="espia-aviso">{`Para alterar ou retirar, ${aprovada.aprovadaPor} precisa desfazer a aprovação.`}</span>
                   )}
                 </div>
               )}
               {dados.explicacao ? (
-                <div className="comp-explicacao">
+                <div ref={cartao} className="comp-explicacao" data-nova={recemExplicada || undefined}>
                   {dados.geradaPorIa && <SeloIa />}
-                  <p>{dados.explicacao}</p>
+                  {/* a que a pessoa acabou de pedir é digitada na tela; a que já veio na listagem só aparece */}
+                  <p>{recemExplicada ? <TextoDigitado key={dados.explicacao} texto={dados.explicacao} aoTerminar={() => setDigitado(dados.explicacao)} /> : dados.explicacao}</p>
                   {/* os fatos calculados pelo backend (#196), abaixo do texto da IA; só divergência com dado do backend */}
-                  {real && !estaResolvida(linha.status) && <DetalhesDaLinha key={linha.id} linhaId={linha.id} />}
+                  {real && !estaResolvida(linha.status) && (
+                    <div className="explicacao-depois" data-esperando={recemExplicada && digitado !== dados.explicacao ? "" : undefined}>
+                      <DetalhesDaLinha key={linha.id} linhaId={linha.id} />
+                    </div>
+                  )}
                 </div>
               ) : (
                 ofereceExplicacao(linha, real) && (
@@ -308,9 +339,14 @@ function QuadroDoLancamento({
                         {falhaDaExplicacao}
                       </p>
                     )}
-                    <button type="button" className="btn btn-secondary" disabled={explicando} aria-busy={explicando} onClick={() => void explicar()}>
-                      {explicando ? "Explicando…" : falhaDaExplicacao ? "Tentar de novo" : "Explicar esta divergência"}
-                    </button>
+                    {explicando && (
+                      <span className="comp-esqueleto" aria-hidden="true">
+                        <i />
+                        <i />
+                        <i />
+                      </span>
+                    )}
+                    <BotaoDeExplicar explicando={explicando} falhou={!!falhaDaExplicacao} onClick={() => void explicar()} />
                     {explicando && (
                       <span role="status" className="explicacao-aviso">
                         Lendo os dois extratos. Pode levar alguns segundos.
@@ -327,6 +363,19 @@ function QuadroDoLancamento({
             </>
           )
         )}
+      </div>
+      </div>
+        {/* atalho do ponteiro: o conteúdo já é lido por inteiro pelo leitor de tela e rola pelo teclado */}
+        <button
+          type="button"
+          className="comp-mais"
+          aria-hidden="true"
+          tabIndex={-1}
+          data-visivel={abaixo || undefined}
+          onClick={descer}
+        >
+          Mais abaixo <ChevronDown size={14} aria-hidden="true" />
+        </button>
       </div>
 
       {/* as ações da linha: o que decide, e o caminho do detalhe. Só um botão é o principal */}

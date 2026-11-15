@@ -3,6 +3,7 @@
 import { ErroBackend, chamarBackend, ehContaInativa, emailDaSessao } from "@/lib/backend";
 import { ehContaDeDemonstracao } from "@/lib/demo";
 import type { Falha, Resultado } from "../conciliacoes/acoes";
+import { SEM_SERVIDOR } from "@/lib/sem-servidor";
 
 /**
  * O assistente da Central de ajuda (backend #137, front #172): responde "como faço tal coisa no Ledgr"
@@ -27,7 +28,7 @@ const TELA = /^[a-z0-9][a-z0-9-]{0,63}$/;
 const CAMINHO_DA_AJUDA = /^\/ajuda\/[a-z0-9][a-z0-9-]*(#[a-z0-9][a-z0-9-]*)?$/;
 
 function traduzir(erro: unknown): Falha {
-  if (!(erro instanceof ErroBackend)) return { ok: false, status: 0, erro: "Não foi possível falar com o servidor." };
+  if (!(erro instanceof ErroBackend)) return { ok: false, status: 0, erro: SEM_SERVIDOR };
   const { status } = erro;
   if (status === 401) return { ok: false, status, erro: "Sua sessão expirou. Entre de novo para continuar." };
   // 429: o limite do dia ("Tente amanhã") ou o por minuto, com o texto do backend

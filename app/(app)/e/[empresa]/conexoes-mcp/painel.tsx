@@ -6,6 +6,7 @@ import { enderecoExterno } from "@/lib/rotas";
 import { MensagemErro } from "../../../../(auth)/_compartilhado/mensagem-erro";
 import { formatarDataHora } from "../dashboard/resumo";
 import { revogarConexaoMcp, type ConexaoMcp } from "./acoes";
+import { SEM_SERVIDOR } from "@/lib/sem-servidor";
 
 type Assistente = IaDaConexao;
 
@@ -78,7 +79,7 @@ export function PainelDeConexoes({ itens: iniciais, endereco }: { itens: Conexao
         <p className="conexao-texto conexao-texto-fraco">
           Ele lê o resumo de cada mês, as divergências (categoria, data, valor e situação) e os fechamentos. Nunca vê
           a descrição dos lançamentos, o texto das justificativas nem nomes de pessoas ou de arquivos. Só lê: não
-          concilia, não justifica e não fecha mês. Cada conexão lê uma empresa, a conta tem até 10 ativas, e você
+          concilia, não justifica e não fecha mês. Cada conexão lê uma empresa, o escritório tem até 10 ativas, e você
           revoga quando quiser.
         </p>
         <p className="conexao-texto conexao-texto-fraco">
@@ -202,7 +203,7 @@ function LinhaDaConexao({ conexao, onRevogada }: { conexao: ConexaoMcp; onRevoga
     try {
       resposta = await revogarConexaoMcp(conexao.id);
     } catch {
-      resposta = { ok: false, status: 0, erro: "Não foi possível falar com o servidor." };
+      resposta = { ok: false, status: 0, erro: SEM_SERVIDOR };
     }
     setEnviando(false);
     if (!resposta.ok) {

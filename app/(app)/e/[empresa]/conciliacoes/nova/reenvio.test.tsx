@@ -101,7 +101,7 @@ describe("Nova conciliação em modo reenvio", () => {
     expect(screen.queryByLabelText("Extrato do banco")).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Falta o extrato do sistema" })).toBeInTheDocument();
     expect(screen.getByText("Banco: mantido")).toBeInTheDocument();
-    expect(screen.getByText("Sistema de gestão: falta")).toBeInTheDocument();
+    expect(screen.getByText("Extrato do sistema: falta")).toBeInTheDocument();
     expect(screen.getByText("3, no lugar de erp-setembro-v2.csv")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Conciliar de novo" })).toBeDisabled();
     expect(screen.getByRole("link", { name: "Voltar à comparação" })).toHaveAttribute(

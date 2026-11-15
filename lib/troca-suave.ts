@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState, type RefObject } from "react";
 
 /** A curva de saída da casa (`--ease-out` em globals.css), para as animações feitas em JS. */
-export const CURVA_DE_SAIDA = "cubic-bezier(0.22, 1, 0.36, 1)";
+export const PONTOS_DA_CURVA = [0.22, 1, 0.36, 1] as const;
+export const CURVA_DE_SAIDA = `cubic-bezier(${PONTOS_DA_CURVA.join(", ")})`;
 
 /**
  * Quando `chave` muda (outra folha, pessoa ou empresa escolhida na lista), o painel ao lado chega em

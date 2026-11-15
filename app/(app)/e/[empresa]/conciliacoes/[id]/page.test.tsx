@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen, waitFor, within } from "@testing-librar
 import userEvent from "@testing-library/user-event";
 import type { Conciliacao, Decisao } from "@/lib/mock-data";
 import ConciliacaoPage from "./page";
+import { SEM_SERVIDOR } from "@/lib/sem-servidor";
 
 // hoisted porque a fábrica do vi.mock roda antes das declarações do módulo
 const rota = vi.hoisted(() => ({ id: "conc-1", busca: "" }));
@@ -954,7 +955,7 @@ describe("ConciliacaoPage", () => {
       const categorias = within(relatorio).getAllByRole("button");
       expect(categorias).toHaveLength(5);
       expect(categorias[0]).toHaveTextContent(/^Valor diverge na mesma data\s*1\s*R\$\s36 em aberto$/);
-      expect(relatorio).toHaveTextContent(/1 linha pede revisão · R\$\s36 em aberto/);
+      expect(relatorio).toHaveTextContent(/1 pendência · R\$\s36 em aberto/);
       // sem linha, não há o que abrir; o zero fica, apagado
       expect(within(relatorio).getByRole("button", { name: /Possível duplicidade/ })).toBeDisabled();
     });
@@ -1052,7 +1053,7 @@ describe("ConciliacaoPage", () => {
       render(<ConciliacaoPage />);
 
       const relatorio = await screen.findByRole("region", { name: "Divergências por categoria" });
-      expect(relatorio).toHaveTextContent(/2 linhas pedem revisão · R\$\s102 em aberto · 1 justificada/);
+      expect(relatorio).toHaveTextContent(/2 pendências · R\$\s102 em aberto · 1 justificada/);
       // a justificada sai da categoria dela: o contador anda junto com o filtro
       expect(within(relatorio).getByRole("button", { name: /Valor diverge na mesma data/ })).toHaveTextContent(
         /^Valor diverge na mesma data\s*0\s*Sem valor em aberto$/,
@@ -1240,7 +1241,7 @@ describe("ConciliacaoPage", () => {
       const caixa = await screen.findByRole("button", { name: "Marcar Tarifa TED como conferida" });
       await user.click(caixa);
       expect(caixa).toHaveAttribute("aria-pressed", "false");
-      expect(screen.getByRole("alert")).toHaveTextContent("Não foi possível falar com o servidor.");
+      expect(screen.getByRole("alert")).toHaveTextContent(SEM_SERVIDOR);
 
       // e a linha não fica presa como se ainda estivesse gravando
       registrarDecisao.mockResolvedValue({ ok: true, dados: decisao("conferida") });
@@ -1544,7 +1545,7 @@ describe("ConciliacaoPage", () => {
 
       it("mostra o motivo de a aprovação não ter gravado, e a janela segue como estava", async () => {
         doBackend(comPendente);
-        registrarDecisao.mockResolvedValue({ ok: false, status: 403, erro: "Só o admin ou o gestor da conta aprovam ou rejeitam justificativas." });
+        registrarDecisao.mockResolvedValue({ ok: false, status: 403, erro: "Só o admin ou o gestor do escritório aprovam ou rejeitam justificativas." });
         const user = userEvent.setup();
         render(<ConciliacaoPage />);
 
@@ -1552,7 +1553,7 @@ describe("ConciliacaoPage", () => {
         const janela = screen.getByRole("dialog", { name: "Boleto Aço Norte Bobinas" });
         await user.click(within(janela).getByRole("button", { name: "Aprovar" }));
 
-        expect(await within(janela).findByRole("alert")).toHaveTextContent("Só o admin ou o gestor da conta aprovam");
+        expect(await within(janela).findByRole("alert")).toHaveTextContent("Só o admin ou o gestor do escritório aprovam");
         expect(within(janela).getByRole("button", { name: "Aprovar" })).toBeInTheDocument();
       });
 
@@ -1564,7 +1565,7 @@ describe("ConciliacaoPage", () => {
 
         await user.click(await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" }));
         const janela = screen.getByRole("dialog", { name: "Boleto Aço Norte Bobinas" });
-        expect(janela).toHaveTextContent("Aguarda a aprovação do admin ou do gestor da conta.");
+        expect(janela).toHaveTextContent("Aguarda a aprovação do admin ou do gestor do escritório.");
         expect(within(janela).queryByRole("button", { name: "Aprovar" })).not.toBeInTheDocument();
         expect(within(janela).queryByRole("button", { name: "Rejeitar" })).not.toBeInTheDocument();
         expect(within(janela).getByRole("button", { name: "Desfazer justificativa" })).toBeInTheDocument();
@@ -1629,7 +1630,7 @@ describe("ConciliacaoPage", () => {
 
         it("mostra o motivo de o lote não ter gravado", async () => {
           doBackend(comDuas);
-          decidirLinhas.mockResolvedValue({ ok: false, status: 403, erro: "Só o admin ou o gestor da conta podem fazer isso." });
+          decidirLinhas.mockResolvedValue({ ok: false, status: 403, erro: "Só o admin ou o gestor do escritório podem fazer isso." });
           const user = userEvent.setup();
           render(<ConciliacaoPage />);
 
@@ -1637,7 +1638,7 @@ describe("ConciliacaoPage", () => {
           await user.click(screen.getByRole("checkbox", { name: "Marcar Boleto Aço Norte Bobinas" }));
           await user.click(screen.getByRole("button", { name: "Aprovar a marcada" }));
 
-          expect(await screen.findByRole("alert")).toHaveTextContent("Só o admin ou o gestor da conta podem fazer isso.");
+          expect(await screen.findByRole("alert")).toHaveTextContent("Só o admin ou o gestor do escritório podem fazer isso.");
         });
 
         it("o analista filtra as aguardando, mas sem marcar", async () => {
@@ -1725,7 +1726,7 @@ describe("ConciliacaoPage", () => {
 
         await act(async () => falhar(new Error("Failed to fetch")));
         expect(campo).toHaveValue("Tarifa do pacote, contratada; não entra no sistema.");
-        expect(within(janela).getByRole("alert")).toHaveTextContent("Não foi possível falar com o servidor.");
+        expect(within(janela).getByRole("alert")).toHaveTextContent(SEM_SERVIDOR);
         expect(botao).toBeEnabled();
       });
 
@@ -1946,7 +1947,7 @@ describe("ConciliacaoPage", () => {
         render(<ConciliacaoPage />);
 
         await user.hover((await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" })).closest("tr")!);
-        expect(painel()).toHaveTextContent("Aguarda a aprovação do admin ou do gestor da conta.");
+        expect(painel()).toHaveTextContent("Aguarda a aprovação do admin ou do gestor do escritório.");
         expect(within(painel()).queryByRole("button", { name: "Aprovar" })).not.toBeInTheDocument();
       });
 
@@ -1968,7 +1969,8 @@ describe("ConciliacaoPage", () => {
         await user.hover((await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" })).closest("tr")!);
         await user.click(within(painel()).getByRole("button", { name: "Explicar esta divergência" }));
         expect(explicarDivergencia).toHaveBeenCalledWith("lc-2");
-        expect(await within(painel()).findByText("A folha está incompleta.")).toBeInTheDocument();
+        // o texto é digitado: a busca e a conferência no mesmo instante, até ele estar inteiro
+        await waitFor(() => expect(within(painel()).getByText("A folha está incompleta.")).toBeInTheDocument());
         expect(within(painel()).getByText("Gerada por IA · confira antes de decidir")).toBeInTheDocument();
       });
     });

@@ -35,16 +35,16 @@ export const TUTORIAIS: Record<TelaDoTutorial, TutorialDaTela> = {
     nome: "Conciliações",
     mascote: "/mascotes/mascote-caminhando.png",
     passos: [
-      { alvo: "filtros", titulo: "Filtre a fila.", texto: "Veja só o que pede decisão, o que já está sem pendência ou os meses fechados.", mascote: "/mascotes/mascote-caminhando.png" },
+      { alvo: "filtros", titulo: "Filtre a fila.", texto: "Veja só o que tem pendência, o que já está sem pendência ou os meses fechados.", mascote: "/mascotes/mascote-caminhando.png" },
       { alvo: "lista", titulo: "Sua fila de conciliações.", texto: "Cada par de folhas é um extrato do banco com o do sistema, na rodada que vale, agrupado pelo mês. Um clique mostra o resumo ao lado; dois abrem a comparação.", mascote: "/mascotes/mascote-lupa.png" },
-      { alvo: "previa", titulo: "A conciliação escolhida.", texto: "A primeira que ainda pede decisão já vem aberta aqui: quanto bate, o que falta, a rodada e o mês. Clique em Abrir a comparação para continuar de onde parou.", mascote: "/mascotes/mascote-explicando.png" },
+      { alvo: "previa", titulo: "A conciliação escolhida.", texto: "A primeira que ainda tem pendência já vem aberta aqui: quanto bate, o que falta, a rodada e o mês. Clique em Abrir a comparação para continuar de onde parou.", mascote: "/mascotes/mascote-explicando.png" },
     ],
   },
   "nova-conciliacao": {
     nome: "Nova conciliação",
     mascote: "/mascotes/mascote-joinha.png",
     passos: [
-      { alvo: "encaixe", titulo: "Encaixe os dois extratos.", texto: "Solte o do banco na folha da frente e o do sistema de gestão na de trás, do mesmo período.", mascote: "/mascotes/mascote-arquivo.png" },
+      { alvo: "encaixe", titulo: "Encaixe os dois extratos.", texto: "Solte o do banco na folha da frente e o do sistema na de trás, do mesmo período.", mascote: "/mascotes/mascote-arquivo.png" },
       { alvo: "conciliar", titulo: "Concilie.", texto: "Com os dois arquivos, o botão libera. A comparação abre sozinha quando terminar.", mascote: "/mascotes/mascote-joinha.png" },
     ],
   },
@@ -54,7 +54,7 @@ export const TUTORIAIS: Record<TelaDoTutorial, TutorialDaTela> = {
     passos: [
       { alvo: "rodadas", titulo: "As rodadas até o fechamento.", texto: "Cada número é um extrato do sistema conciliado com este do banco; o escuro é o que está na tela. Clique num para abrir aquela rodada. A bandeira leva ao fechamento e diz quanto falta.", mascote: "/mascotes/mascote-apresenta.png" },
       { alvo: "resumo", titulo: "O resumo antes da lista.", texto: "Cada categoria diz quantos lançamentos caíram nela e quanto valem. Clique numa para ver só essas linhas.", mascote: "/mascotes/mascote-explicando.png" },
-      { alvo: "filtros", titulo: "Escolha o que ver.", texto: "Os filtros mostram tudo, só o que pede decisão ou só o que já bateu.", mascote: "/mascotes/mascote-lupa.png" },
+      { alvo: "filtros", titulo: "Escolha o que ver.", texto: "Os filtros mostram tudo, só as pendências ou só o que já foi justificado.", mascote: "/mascotes/mascote-lupa.png" },
       { alvo: "conferida", titulo: "Marque o que você já olhou.", texto: "A coluna Conferida é sua: marque as divergências que já conferiu. As que bateram não precisam.", mascote: "/mascotes/mascote-joinha.png" },
       { alvo: "painel", titulo: "Lançamento em foco", texto: "Passe o mouse sobre uma linha. O detalhe da linha aparece aqui.", mascote: "/mascotes/mascote-lupa.png" },
       { alvo: "painel", titulo: "Fixado", texto: "Clique numa linha para fixar.", mascote: "/mascotes/mascote-lupa.png" },

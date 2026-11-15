@@ -4,6 +4,7 @@ import { RECUSA_DEMONSTRACAO } from "@/lib/demo";
 import type { Papel } from "@/lib/papel";
 import { urlDeCheckoutValida } from "@/lib/assinatura";
 import { carregarPrecos, iniciarCheckout } from "./acoes";
+import { SEM_SERVIDOR } from "@/lib/sem-servidor";
 
 // a rede é a fronteira; ErroBackend e a tradução dos erros rodam de verdade
 const chamarBackend = vi.fn();
@@ -61,7 +62,7 @@ describe("iniciarCheckout", () => {
 
   it("só o administrador assina, e a demonstração não assina", async () => {
     conta.papel = "gestor";
-    expect(await iniciarCheckout("padrao", "mensal")).toEqual({ ok: false, status: 403, erro: "Só o administrador da conta assina." });
+    expect(await iniciarCheckout("padrao", "mensal")).toEqual({ ok: false, status: 403, erro: "Só o administrador do escritório assina." });
     conta.papel = "admin";
     vi.stubEnv("LEDGR_CONTA_TESTE_EMAIL", "demo@ledgr.app");
     emailDaSessao.mockResolvedValue("demo@ledgr.app");
@@ -77,9 +78,9 @@ describe("iniciarCheckout", () => {
     [new ErroBackend(429, "Limite.", [], {}, 120), 429, "Muitas tentativas. Tente de novo em 2 minutos."],
     [new ErroBackend(429, "Limite.", [], {}, 30), 429, "Muitas tentativas. Tente de novo em 1 minuto."],
     [new ErroBackend(401, "Sessão expirada."), 401, "Sua sessão expirou. Entre de novo para continuar."],
-    [new ErroBackend(403, "Proibido."), 403, "Só o administrador da conta assina."],
+    [new ErroBackend(403, "Proibido."), 403, "Só o administrador do escritório assina."],
     [new ErroBackend(422, "Inválido."), 422, "Esse plano não está disponível."],
-    [new TypeError("fetch failed"), 0, "Não foi possível falar com o servidor."],
+    [new TypeError("fetch failed"), 0, SEM_SERVIDOR],
   ])("traduz o erro %#", async (erro, status, texto) => {
     chamarBackend.mockRejectedValueOnce(erro);
     expect(await iniciarCheckout("padrao", "mensal")).toEqual({ ok: false, status, erro: texto });

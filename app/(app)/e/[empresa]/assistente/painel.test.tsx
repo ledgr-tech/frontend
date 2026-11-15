@@ -65,7 +65,7 @@ describe("PainelAssistente", () => {
 
     expect(painel).toHaveTextContent("Lendo a última conciliação…");
     expect(await screen.findByRole("log", { name: "Conversa com o Ledgr" })).toHaveTextContent(
-      "Setembro está 100,0% conciliado. Nada sobrou para revisar.",
+      "Setembro está 100,0% conciliado. Nenhuma pendência.",
     );
     expect(carregarVisaoGeral).toHaveBeenCalledOnce();
   });

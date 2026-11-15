@@ -5,18 +5,24 @@ import type { ReactNode } from "react";
 /**
  * A tela do mascote para quando a tela pedida não pode aparecer: o 404
  * (`app/not-found.tsx`), o erro inesperado (`app/error.tsx` e
- * `app/(app)/e/[empresa]/error.tsx`) e a falha ao carregar (`FalhaAoCarregar`).
- * Mesmo desenho das telas vazias do app (`.vg-inicio`).
+ * `app/(app)/e/[empresa]/error.tsx`), a falha ao carregar (`FalhaAoCarregar`)
+ * e as telas vazias do app (`SemNada`).
  *
  * Sem "use client" de propósito: o 404 é Server Component e as páginas de erro
  * são Client Components, e as duas usam esta.
  */
 const MASCOTES = {
   neutro: { src: "/mascotes/mascote-neutro.png", largura: 881, altura: 900, exibida: 150 },
+  // a tela vazia do app (`SemNada`): o mascote aponta para o que fazer
+  explicando: { src: "/mascotes/mascote-explicando.png", largura: 1000, altura: 1000, exibida: 200 },
   // o que não foi achado, o mascote procura de lupa
   lupa: { src: "/mascotes/mascote-lupa.png", largura: 977, altura: 1122, exibida: 150 },
   // sem conexão, o mascote com as tomadas desligadas; é mais largo, por isso maior para pesar igual
   tomadas: { src: "/mascotes/mascote-tomadas.webp", largura: 690, altura: 434, exibida: 230 },
+  // muitos pedidos seguidos (429): o mascote espera com a ampulheta; a imagem tem folga em volta, por isso maior
+  ampulheta: { src: "/mascotes/mascote-ampulheta.webp", largura: 1254, altura: 1254, exibida: 170 },
+  // sem acesso (403): o mascote diante da porta fechada
+  porta: { src: "/mascotes/mascote-porta-fechada.webp", largura: 1254, altura: 1254, exibida: 170 },
 };
 
 export function TelaDeAviso({

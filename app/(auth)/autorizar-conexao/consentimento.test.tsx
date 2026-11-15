@@ -52,20 +52,20 @@ describe("Consentimento", () => {
   it("diz quem pede, de onde, o que poderá ler e com qual conta", async () => {
     abrir();
 
-    expect(await screen.findByRole("heading", { level: 1, name: "Conectar o Claude ao Ledgr." })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { level: 1, name: "Conectar Claude ao Ledgr." })).toBeInTheDocument();
     expect(screen.getByText("Pedido de conexão · só leitura")).toBeInTheDocument();
     expect(screen.getByText("claude.ai")).toBeInTheDocument();
     expect(screen.getByText(/Você está no Ledgr como ana@telhacerta.com.br/)).toBeInTheDocument();
     expect(screen.getByText(/Ler o status das conciliações/)).toBeInTheDocument();
     expect(screen.getByText(/não muda nada no Ledgr/)).toBeInTheDocument();
     // as duas listas resumem a Política (#361): o que a IA lê e o que nunca recebe
-    const le = screen.getByRole("list", { name: "O Claude lê" });
+    const le = screen.getByRole("list", { name: "Claude lê" });
     expect(within(le).getAllByRole("listitem")).toHaveLength(4);
     expect(within(le).getByText(/A razão social e o CNPJ da empresa escolhida/)).toBeInTheDocument();
-    const nunca = screen.getByRole("list", { name: "O Claude nunca recebe" });
+    const nunca = screen.getByRole("list", { name: "Claude nunca recebe" });
     expect(within(nunca).getAllByRole("listitem")).toHaveLength(5);
     expect(within(nunca).getByText("O nome de quem usa o Ledgr")).toBeInTheDocument();
-    expect(within(nunca).getByText("A cidade e o estado da conta")).toBeInTheDocument();
+    expect(within(nunca).getByText("A cidade e o estado do escritório")).toBeInTheDocument();
     const decisao = screen.getByRole("region", { name: "Sua decisão" });
     expect(within(decisao).getByText(/vale até/i)).toBeInTheDocument();
     expect(screen.queryByRole("note")).not.toBeInTheDocument();
@@ -75,7 +75,7 @@ describe("Consentimento", () => {
   it("diz que o lido vai para a conta da IA e abre a Política em outra aba, sem perder o pedido (#361)", async () => {
     abrir();
 
-    expect(await screen.findByText(/passa para a sua conta do Claude/)).toBeInTheDocument();
+    expect(await screen.findByText(/passa para a conta que você usa em Claude/)).toBeInTheDocument();
     // o rodapé da moldura já leva à Política inteira; este leva à seção da conexão
     const politica = screen
       .getAllByRole("link", { name: "Política de privacidade" })
@@ -144,7 +144,7 @@ describe("Consentimento", () => {
     expect(await screen.findByRole("button", { name: "Recusar" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Autorizar a leitura" })).not.toBeInTheDocument();
     expect(screen.queryByRole("radio")).not.toBeInTheDocument();
-    expect(screen.getByRole("note")).toHaveTextContent("Só o admin ou o gestor da conta autorizam");
+    expect(screen.getByRole("note")).toHaveTextContent("Só o admin ou o gestor do escritório autorizam");
   });
 
   it("o pedido vencido no meio (404) troca a tela pela de pedido indisponível", async () => {
@@ -157,6 +157,15 @@ describe("Consentimento", () => {
 
     expect(await screen.findByRole("heading", { name: "Pedido indisponível." })).toBeInTheDocument();
     expect(assign).not.toHaveBeenCalled();
+    expect(document.querySelector('img[src*="mascote-relogio"]')).not.toBeNull();
+  });
+
+  it("a conexão desligada (503) ao abrir não mostra o relógio de pedido vencido", async () => {
+    carregarPedidoDeConexao.mockResolvedValue({ ok: false, status: 503, erro: "A conexão com assistentes de IA está indisponível." });
+    abrir();
+
+    expect(await screen.findByRole("heading", { name: "Pedido indisponível." })).toBeInTheDocument();
+    expect(document.querySelector('img[src*="mascote-relogio"]')).toBeNull();
   });
 
   it("o limite de conexões (409) fica na tela, com os botões de volta", async () => {
@@ -185,5 +194,6 @@ describe("Consentimento", () => {
 
     expect(screen.getByRole("heading", { name: "Pedido indisponível." })).toBeInTheDocument();
     expect(carregarPedidoDeConexao).not.toHaveBeenCalled();
+    expect(document.querySelector('img[src*="mascote-relogio"]')).toBeNull();
   });
 });

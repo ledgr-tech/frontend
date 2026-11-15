@@ -54,6 +54,7 @@ export function MenuDeAjuda() {
         ref={botao}
         type="button"
         className="app-avisos-botao ajd-botao"
+        aria-haspopup="dialog"
         aria-expanded={aberto}
         aria-controls={aberto ? "menu-de-ajuda" : undefined}
         aria-label="Ajuda"
@@ -64,7 +65,7 @@ export function MenuDeAjuda() {
       </button>
 
       {presenca.montado && (
-        <div id="menu-de-ajuda" className="app-painel ajd-menu" data-saindo={presenca.saindo || undefined}>
+        <div id="menu-de-ajuda" role="dialog" aria-label="Ajuda" className="app-painel ajd-menu" data-saindo={presenca.saindo || undefined}>
           {pagina && (
             <button
               type="button"

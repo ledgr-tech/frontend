@@ -4,7 +4,9 @@ import { adaptarPrecos, PERIODOS, urlDeCheckoutValida, type Periodo, type PlanoI
 import { ErroBackend, chamarBackend, emailDaSessao } from "@/lib/backend";
 import { RECUSA_DEMONSTRACAO, ehContaDeDemonstracao } from "@/lib/demo";
 import { contaDaSessao } from "../../../../(auth)/acoes";
+import { ehAdmin, recusaPorPapel } from "@/lib/papel";
 import type { Falha, Resultado } from "../conciliacoes/acoes";
+import { SEM_SERVIDOR } from "@/lib/sem-servidor";
 
 /**
  * A assinatura pela Stripe (backend #180, spec 2026-10-31-assinatura-pela-stripe). Os preços são
@@ -13,7 +15,7 @@ import type { Falha, Resultado } from "../conciliacoes/acoes";
  */
 
 const PLANOS: PlanoId[] = ["essencial", "padrao", "avancado"];
-const SO_ADMIN = "Só o administrador da conta assina.";
+const SO_ADMIN = "Só o administrador do escritório assina.";
 const INDISPONIVEL = "A assinatura não está disponível agora. Tente de novo mais tarde.";
 const PLANO_INDISPONIVEL = "Esse plano não está disponível.";
 
@@ -27,7 +29,7 @@ export async function carregarPrecos(): Promise<PrecoDoPlano[] | null> {
 }
 
 function traduzir(erro: unknown): Falha {
-  if (!(erro instanceof ErroBackend)) return { ok: false, status: 0, erro: "Não foi possível falar com o servidor." };
+  if (!(erro instanceof ErroBackend)) return { ok: false, status: 0, erro: SEM_SERVIDOR };
   const { status } = erro;
   if (status === 401) return { ok: false, status, erro: "Sua sessão expirou. Entre de novo para continuar." };
   if (status === 403) return { ok: false, status, erro: SO_ADMIN };
@@ -44,8 +46,8 @@ function traduzir(erro: unknown): Falha {
 export async function iniciarCheckout(plano: PlanoId, periodo: Periodo): Promise<Resultado<{ url: string }>> {
   // Server Action é endpoint público: o que chega pode ser qualquer coisa
   if (!PLANOS.includes(plano) || !PERIODOS.includes(periodo)) return { ok: false, status: 422, erro: PLANO_INDISPONIVEL };
-  const { papel } = await contaDaSessao();
-  if (papel !== "admin") return { ok: false, status: 403, erro: SO_ADMIN };
+  const porPapel = recusaPorPapel(await contaDaSessao(), ehAdmin, SO_ADMIN);
+  if (porPapel) return porPapel;
   if (ehContaDeDemonstracao(await emailDaSessao())) return { ok: false, status: 403, erro: RECUSA_DEMONSTRACAO };
   try {
     const { url } = await chamarBackend<{ url: string }>("/assinatura/checkout", { method: "POST", corpo: { plano, periodo } });

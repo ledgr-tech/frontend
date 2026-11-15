@@ -104,7 +104,10 @@ function furo(x: number, y: number, largura: number, altura: number): string {
  */
 function trazerParaAVista(alvo: HTMLElement, cartao: HTMLElement | null, mascote: HTMLElement | null) {
   const naJanela = alvo.closest("dialog") !== null;
-  const topo = naJanela ? 0 : (document.querySelector(".app-topo")?.getBoundingClientRect().bottom ?? 0);
+  // no celular a barra que gruda é a do menu (.app-aside-topo), e a .app-topo some com o menu fechado
+  const topo = naJanela
+    ? 0
+    : Math.max(0, ...[".app-topo", ".app-aside-topo"].map((s) => document.querySelector(s)?.getBoundingClientRect().bottom ?? 0));
   const caixa = cartao?.getBoundingClientRect();
   // offsetTop, não o retângulo: o mascote pode estar no meio da subida da animação
   const acima = Math.max(0, -(mascote?.offsetTop ?? 0));
@@ -155,6 +158,7 @@ export function Tutorial({
 
   function fechar() {
     if (naoMostrar) dispensarTutorial(tela);
+    setNaoMostrar(false); // a desmontagem chama fechar() de novo: não grava duas vezes
     setAberto(false);
   }
 
@@ -163,6 +167,10 @@ export function Tutorial({
   useEffect(() => {
     acoes.current = { abrir, fechar };
   });
+
+  // a caixa marcada vale mesmo se o cartão sai sem Pular ou Entendi: trocar de tela ou fechar o
+  // painel do detalhe da linha desmonta o tutorial
+  useEffect(() => () => acoes.current.fechar(), []);
 
   // primeira visita na sessão: abre quando a tela mostra o que o tutorial explica. Numa tela vazia
   // (a conta nova, sem extratos) não abre nem conta como vista: espera uma visita com conteúdo

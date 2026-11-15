@@ -238,7 +238,7 @@ function EstadoDoMes({
 
 function BlocoDoSaldo({ saldo, arquivo }: { saldo: SaldoDoExtrato | null; arquivo: string }) {
   return (
-    <section className="vg-bloco" aria-labelledby="vg-saldo-titulo">
+    <section className="vg-bloco vg-saldo" aria-labelledby="vg-saldo-titulo">
       <h2 id="vg-saldo-titulo" className="vg-bloco-rotulo">
         Saldo do banco
       </h2>
@@ -248,7 +248,24 @@ function BlocoDoSaldo({ saldo, arquivo }: { saldo: SaldoDoExtrato | null; arquiv
         </p>
       ) : (
         <>
-          <span className="vg-bloco-numero">{formatarMoeda(saldo.final)}</span>
+          <span className="vg-bloco-numero vg-saldo-numero">{formatarMoeda(saldo.final)}</span>
+          {/* sem o inicial (linhas não lidas) a variação não sai: o front não calcula o que o backend não deu */}
+          {saldo.inicial !== null && (
+            <span
+              className="vg-saldo-variacao"
+              data-tom={saldo.final < saldo.inicial ? "queda" : saldo.final > saldo.inicial ? "alta" : "igual"}
+            >
+              {saldo.final === saldo.inicial
+                ? "Sem movimento no extrato"
+                : `${saldo.final < saldo.inicial ? "−" : "+"} ${formatarMoeda(Math.abs(saldo.final - saldo.inicial))} de movimento no extrato`}
+            </span>
+          )}
+          <dl className="vg-saldo-dados">
+            <div>
+              <dt>Saldo inicial</dt>
+              <dd>{saldo.inicial === null ? "depende das linhas não lidas" : formatarMoeda(saldo.inicial)}</dd>
+            </div>
+          </dl>
           {/* o do extrato mais recente: com duas contas no mês, cada uma tem o seu */}
           <span className="vg-nota">{`Em ${data(saldo.data)} · ${arquivo}`}</span>
         </>
@@ -260,13 +277,17 @@ function BlocoDoSaldo({ saldo, arquivo }: { saldo: SaldoDoExtrato | null; arquiv
 /** Só chega alguma com `APROVACAO_JUSTIFICATIVAS_HABILITADA` ligado no backend; aprovar fica em Fechamentos. */
 function BlocoDeAprovacao({ quantidade }: { quantidade: number }) {
   return (
-    <Link href="/fechamentos" className="vg-bloco vg-bloco-link">
+    // o mesmo desenho do saldo ao lado: o número grande em cima, o caminho no pé, sem vão no meio
+    <Link href="/fechamentos" className="vg-bloco vg-bloco-link vg-aprovacao">
       <span className="vg-bloco-rotulo">Aguardam aprovação</span>
-      <span className="vg-bloco-numero" data-tom="atencao">
+      <span className="vg-bloco-numero vg-saldo-numero" data-tom="atencao">
         {formatarInteiro(quantidade)}
       </span>
       <span className="vg-nota">
-        {`${plural(quantidade, "justificativa", "justificativas")} · Aprovar em Fechamentos`}
+        {`${plural(quantidade, "justificativa", "justificativas")} esperando o admin ou o gestor. O mês só fecha depois.`}
+      </span>
+      <span className="vg-aprovacao-pe">
+        Aprovar em Fechamentos <ArrowRight size={16} aria-hidden="true" />
       </span>
     </Link>
   );
@@ -414,7 +435,7 @@ function PedeAtencao({
     <section className="vg-bloco vg-atencao">
       <EtiquetaDoPasso passos={passos} id="divergencias" />
       <h2 id="vg-atencao-titulo" className="vg-bloco-rotulo">
-        Pede sua atenção
+        Pendências
       </h2>
       {grupos.length === 0 && arquivos.length === 0 ? (
         <div className="vg-tudo-certo">
@@ -426,7 +447,7 @@ function PedeAtencao({
             sizes="72px"
             style={{ width: 72, height: "auto", flex: "none" }}
           />
-          <p style={{ margin: 0 }}>Nada pede sua atenção agora.</p>
+          <p style={{ margin: 0 }}>Nenhuma pendência agora.</p>
         </div>
       ) : (
         <ul className="vg-lista" aria-labelledby="vg-atencao-titulo">
@@ -487,32 +508,35 @@ function AtividadeRecente({ execucoes, total }: { execucoes: Execucao[]; total: 
           Ver histórico
         </Link>
       </div>
-      <div className="dash-tabela-rolagem">
-        <table className="table" aria-labelledby="vg-atividade-titulo">
+      {/* no celular, cartões (M-05): a tabela de 680px rolava de lado sem nenhum sinal de que havia mais */}
+      <div className="dash-tabela-rolagem tabela-cartoes">
+        <table className="table" role="table" aria-labelledby="vg-atividade-titulo">
           <thead>
-            <tr>
-              <th style={{ width: 160 }}>Executada em</th>
-              <th>Arquivos</th>
-              <th style={{ width: 120, textAlign: "right" }}>Lançamentos</th>
-              <th style={{ width: 100, textAlign: "right" }}>Match</th>
-              <th style={{ width: 90 }}></th>
+            <tr role="row">
+              <th role="columnheader" style={{ width: 160 }}>Executada em</th>
+              <th role="columnheader">Arquivos</th>
+              <th role="columnheader" style={{ width: 120, textAlign: "right" }}>Lançamentos</th>
+              <th role="columnheader" style={{ width: 100, textAlign: "right" }}>Match</th>
+              <th role="columnheader" style={{ width: 90 }}>
+                <span className="sr-only">Abrir</span>
+              </th>
             </tr>
           </thead>
           <tbody>
             {recentes.map(({ extratoBancoId, arquivoBanco, rodadas, principal: { execucao, rodada } }) => (
-              <tr key={extratoBancoId}>
-                <td style={{ fontVariantNumeric: "tabular-nums" }}>
+              <tr key={extratoBancoId} role="row">
+                <td role="cell" data-rotulo="Executada em" style={{ fontVariantNumeric: "tabular-nums" }}>
                   {formatarDataHora(execucao.executadaEm)}
                 </td>
-                <td style={{ overflowWrap: "anywhere" }}>
+                <td role="cell" data-destaque="true" style={{ overflowWrap: "anywhere" }}>
                   {`${arquivoBanco} × ${execucao.arquivoSistema}`}
                   {rodadas > 1 && <span className="vg-rodada">{` · rodada ${rodada}`}</span>}
                 </td>
-                <td style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
+                <td role="cell" data-rotulo="Lançamentos" style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
                   {formatarInteiro(execucao.lancamentos)}
                 </td>
-                <td className="dash-valor-celula">{matchNaTela(execucao)}</td>
-                <td style={{ textAlign: "right" }}>
+                <td role="cell" data-rotulo="Match" className="dash-valor-celula">{matchNaTela(execucao)}</td>
+                <td role="cell" style={{ textAlign: "right" }}>
                   <Link href={caminhoDaConciliacao(extratoBancoId)} className="btn btn-secondary" style={{ whiteSpace: "nowrap" }}>
                     Ver{" "}<span className="sr-only">{arquivoBanco}</span>
                   </Link>
@@ -543,17 +567,15 @@ function ContaNova({ roteiro, passos }: { roteiro: DadosDoRoteiro | null; passos
     <div className="vg-corpo">
       <Reveal className="vg-blocos-topo">
         <section className="vg-bloco vg-estado" aria-labelledby="vg-estado-titulo" data-tutorial="estado-do-mes">
-          <div
-            className="vg-anel"
-            role="img"
-            aria-label="Nada conciliado ainda"
-            style={{ "--feito": "0%" } as React.CSSProperties}
-          >
-            <span className="vg-anel-centro" aria-hidden="true">
-              <span className="vg-anel-numero">—</span>
-              conciliado
-            </span>
-          </div>
+          {/* sem conciliação, o anel não tem o que medir: no lugar dele, o mascote das telas vazias (#388) */}
+          <Image
+            src="/mascotes/mascote-explicando.png"
+            alt=""
+            width={1000}
+            height={1000}
+            sizes="200px"
+            style={{ flex: "none", width: 200, height: "auto", display: "block" }}
+          />
           <div className="vg-estado-corpo">
             <EtiquetaDoPasso passos={passos} id={enviouBanco ? "conciliar" : "banco"} />
             <h2 id="vg-estado-titulo" className="vg-estado-titulo">
@@ -562,10 +584,10 @@ function ContaNova({ roteiro, passos }: { roteiro: DadosDoRoteiro | null; passos
             <span className="vg-nota">
               {enviouBanco
                 ? "O extrato do banco chegou. Agora o CSV do seu sistema de gestão: o Ledgr compara os dois e mostra aqui o quanto bateu."
-                : "Envie o extrato do banco e o do seu sistema de gestão: o Ledgr compara os dois e mostra aqui o quanto bateu e o que ficou em aberto."}
+                : "Envie o extrato do banco e o extrato do sistema: o Ledgr compara os dois e mostra aqui o quanto bateu e o que ficou em aberto."}
             </span>
             <Link href="/conciliacoes/nova" className="btn btn-primary">
-              {enviouBanco ? "Enviar o extrato do sistema" : "Enviar o extrato do banco"}
+              Nova conciliação
               <ArrowRight size={15} aria-hidden="true" />
             </Link>
           </div>
@@ -575,9 +597,9 @@ function ContaNova({ roteiro, passos }: { roteiro: DadosDoRoteiro | null; passos
 
       <Reveal delay={0.08} className="vg-blocos-par">
         <section className="vg-bloco vg-atencao">
-          <h2 className="vg-bloco-rotulo">Pede sua atenção</h2>
+          <h2 className="vg-bloco-rotulo">Pendências</h2>
           <p className="vg-nota pp-vazio">
-            Os lançamentos que não bateram e pedem decisão aparecem aqui, depois da primeira conciliação.
+            As pendências aparecem aqui, depois da primeira conciliação.
           </p>
         </section>
         <nav className="vg-bloco" aria-labelledby="vg-atalhos-titulo" data-tutorial="atalhos">

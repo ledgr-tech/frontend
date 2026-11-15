@@ -1,11 +1,11 @@
 import type { ReactNode } from "react";
 
-// ponytail: os perfis ainda não existem, então os links apontam para "#". Quando existirem, é só
-// trocar o href aqui: o link de fora abre em outra aba sozinho.
-const REDES: { nome: string; href: string; icone: ReactNode }[] = [
+// ponytail: os perfis ainda não existem (href null), e rede sem endereço não aparece (#388). Quando
+// existirem, é só pôr o href aqui: o link de fora abre em outra aba sozinho.
+const REDES: { nome: string; href: string | null; icone: ReactNode }[] = [
   {
     nome: "LinkedIn",
-    href: "#",
+    href: null,
     icone: (
       <path
         fill="currentColor"
@@ -15,7 +15,7 @@ const REDES: { nome: string; href: string; icone: ReactNode }[] = [
   },
   {
     nome: "Instagram",
-    href: "#",
+    href: null,
     // no traço dos ícones do app (lucide), e não a marca cheia: no círculo pequeno ela vira um borrão
     icone: (
       <g fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
@@ -27,7 +27,7 @@ const REDES: { nome: string; href: string; icone: ReactNode }[] = [
   },
   {
     nome: "X (Twitter)",
-    href: "#",
+    href: null,
     icone: (
       <path
         fill="currentColor"
@@ -39,9 +39,11 @@ const REDES: { nome: string; href: string; icone: ReactNode }[] = [
 
 /** Os perfis do Ledgr, no rodapé: círculos com o filete das folhas, que acendem no dourado. */
 export function RedesSociais() {
+  const comEndereco = REDES.filter((rede): rede is (typeof REDES)[number] & { href: string } => !!rede.href);
+  if (comEndereco.length === 0) return null;
   return (
     <ul className="rodape-redes" aria-label="Ledgr nas redes sociais">
-      {REDES.map((rede) => {
+      {comEndereco.map((rede) => {
         const externo = rede.href.startsWith("http");
         return (
           <li key={rede.nome}>

@@ -14,6 +14,7 @@ import { ajudaDaTela } from "../../../../(ajuda)/ajuda/paginas";
 import { lembrarDeOndeVeio } from "../../../../(ajuda)/ajuda/voltar";
 import { perguntarAoAssistente, type TurnoDaConversa } from "./acoes";
 import { assuntoDoMes, foraDoRoteiro, pedePassosParaFechar, responder, saudacao, sugestoes, type Contexto } from "./respostas";
+import { SEM_SERVIDOR } from "@/lib/sem-servidor";
 
 /**
  * A conversa com o Ledgr ("chatbot" do APP em Ledgr.dc.html), dentro do painel
@@ -45,7 +46,7 @@ export type SemDados = "vazio" | "falhou";
 
 const CENTRAL: LinkDaMensagem = { href: "/ajuda", rotulo: "Abrir a Central de ajuda" };
 const FECHAR_O_MES = ajudaDaTela("fechamentos")?.funcoes.find((funcao) => funcao.id === "fechar");
-const FALHA_DE_REDE = "Não foi possível falar com o servidor. Tente de novo em instantes.";
+const FALHA_DE_REDE = SEM_SERVIDOR;
 const MAXIMO_TURNOS = 6;
 const INTERVALO_DA_RESPOSTA = 420;
 const agora = () => performance.now();

@@ -6,6 +6,7 @@ import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { confirmarEmail, type ResultadoConfirmacaoEmail } from "../acoes";
 import { MensagemErro } from "../_compartilhado/mensagem-erro";
 import { MolduraAuth } from "../_compartilhado/moldura-auth";
+import { MascoteDoRelogio } from "../_compartilhado/mascote-do-relogio";
 
 /**
  * Onde cai o link da troca de e-mail (backend #149, ADR-012 com o adendo de 22/10):
@@ -125,7 +126,7 @@ export default function ConfirmarEmailPage() {
     return (
       <MolduraAuth rotulo="Novo e-mail">
         <div style={{ width: "100%", maxWidth: 424 }}>
-          {mascote}
+          {etapa === "link_invalido" ? <MascoteDoRelogio /> : mascote}
           <h1 style={estiloTitulo}>{aviso.titulo}</h1>
           <p style={estiloTexto}>{aviso.texto}</p>
           <Link href="/login" className="btn btn-primary btn-block" style={estiloBotao}>

@@ -4,6 +4,7 @@ import { pareceUuid } from "@/lib/adaptadores";
 import { ErroBackend, chamarBackend } from "@/lib/backend";
 import { ARQUIVO_GRANDE_DEMAIS, TAMANHO_MAXIMO_UPLOAD_BYTES } from "@/lib/limite-de-upload";
 import { conciliar, situacaoDoExtrato, verificarNovaVersao, type Falha, type Resultado } from "../../acoes";
+import { SEM_SERVIDOR } from "@/lib/sem-servidor";
 
 /**
  * Importação do relatório de lançamentos via IA (backend #158/#159, PRs #172 e #173; front #224 e #225): o
@@ -60,7 +61,7 @@ function linha(l: LinhaAPI): LinhaDoRascunho {
 }
 
 function traduzir(erro: unknown): Falha {
-  if (!(erro instanceof ErroBackend)) return { ok: false, status: 0, erro: "Não foi possível falar com o servidor." };
+  if (!(erro instanceof ErroBackend)) return { ok: false, status: 0, erro: SEM_SERVIDOR };
   const { status } = erro;
   if (status === 401) return { ok: false, status, erro: "Sua sessão expirou. Entre de novo para continuar." };
   if (status === 429) return { ok: false, status, erro: "Muitas tentativas seguidas. Espere um minuto e tente de novo." };
@@ -135,6 +136,15 @@ export async function carregarRascunho(id: string): Promise<Resultado<Rascunho>>
 
 type CamposDaLinha = { data: string; valor: string; descricao: string };
 
+/** Server Action é endpoint público: ao backend vão só os três campos, e só se forem texto (S1-04). */
+function soOsCampos(campos: CamposDaLinha): CamposDaLinha | null {
+  const { data, valor, descricao } = campos ?? {};
+  if (typeof data !== "string" || typeof valor !== "string" || typeof descricao !== "string") return null;
+  return { data, valor, descricao };
+}
+
+const CAMPOS_INVALIDOS: Falha = { ok: false, status: 422, erro: "Preencha a data, o valor e a descrição." };
+
 /** Falha de uma linha: o backend manda cada campo em `erros`; aqui vira uma frase só. */
 function falhaDeLinha(erro: unknown): Falha {
   if (erro instanceof ErroBackend && erro.status === 422 && erro.erros.length > 0) {
@@ -149,10 +159,12 @@ export async function corrigirLinhaDoRascunho(
   campos: CamposDaLinha,
 ): Promise<Resultado<{ linha: LinhaDoRascunho; resumo: ResumoDoRascunho }>> {
   if (!ehUuid(id) || !ehUuid(linhaId)) return { ok: false, status: 404, erro: "Lançamento não encontrado." };
+  const corpo = soOsCampos(campos);
+  if (!corpo) return CAMPOS_INVALIDOS;
   try {
     const r = await chamarBackend<{ lancamento: LinhaAPI; resumo: ResumoAPI }>(`/importacoes-ia/${id}/lancamentos/${linhaId}`, {
       method: "PATCH",
-      corpo: campos,
+      corpo,
     });
     return { ok: true, dados: { linha: linha(r.lancamento), resumo: resumo(r.resumo) } };
   } catch (erro) {
@@ -175,10 +187,12 @@ export async function acrescentarLinhaAoRascunho(
   campos: CamposDaLinha,
 ): Promise<Resultado<{ linha: LinhaDoRascunho; resumo: ResumoDoRascunho }>> {
   if (!ehUuid(id)) return { ok: false, status: 404, erro: "Importação não encontrada." };
+  const corpo = soOsCampos(campos);
+  if (!corpo) return CAMPOS_INVALIDOS;
   try {
     const r = await chamarBackend<{ lancamento: LinhaAPI; resumo: ResumoAPI }>(`/importacoes-ia/${id}/lancamentos`, {
       method: "POST",
-      corpo: campos,
+      corpo,
     });
     return { ok: true, dados: { linha: linha(r.lancamento), resumo: resumo(r.resumo) } };
   } catch (erro) {

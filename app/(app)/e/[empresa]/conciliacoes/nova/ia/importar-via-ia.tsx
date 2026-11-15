@@ -9,6 +9,7 @@ import { ErrosImportacaoIa } from "./erros-importacao-ia";
 import { PromptIa } from "./prompt-ia";
 import { Guia, type Passo } from "../guia";
 import { importarViaIa, type ErroDeCampo, type PromptDaIa } from "./acoes";
+import { SEM_SERVIDOR } from "@/lib/sem-servidor";
 
 const PASSOS: Passo[] = [
   { titulo: "Copie o prompt", texto: "É o texto que ensina a IA a devolver o arquivo no formato do Ledgr." },
@@ -66,7 +67,7 @@ export function ImportarViaIa({ prompt }: { prompt: PromptDaIa }) {
       }
       roteador.push(`/conciliacoes/nova/ia/${r.dados.importacaoId}`);
     } catch {
-      setErro("Não foi possível falar com o servidor.");
+      setErro(SEM_SERVIDOR);
     } finally {
       trava.current = false;
       setEnviando(false);

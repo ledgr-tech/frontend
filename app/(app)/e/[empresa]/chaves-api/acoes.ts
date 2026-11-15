@@ -1,11 +1,13 @@
 "use server";
 
+import { enderecosPublicos } from "@/lib/endereco-do-conector";
 import { pareceUuid } from "@/lib/adaptadores";
 import { ErroBackend, chamarBackend, ehContaInativa, emailDaSessao } from "@/lib/backend";
 import { RECUSA_DEMONSTRACAO, ehContaDeDemonstracao } from "@/lib/demo";
-import { podeFecharMes } from "@/lib/papel";
+import { podeFecharMes, recusaPorPapel } from "@/lib/papel";
 import { contaDaSessao } from "../../../../(auth)/acoes";
 import type { Falha, Resultado } from "../conciliacoes/acoes";
+import { SEM_SERVIDOR } from "@/lib/sem-servidor";
 
 /**
  * As chaves da API pública (backend #135, front #194): só de leitura, criadas e revogadas pelo admin
@@ -18,7 +20,7 @@ export type ChaveApi = {
   nome: string;
   /** O começo do token, para reconhecer a chave sem mostrar o resto. */
   prefixo: string;
-  /** null quando a chave enxerga todas as empresas da conta. */
+  /** null quando a chave enxerga todas as empresas do escritório. */
   empresa: { id: string; razaoSocial: string } | null;
   criadaPor: string | null;
   criadoEm: string;
@@ -43,7 +45,7 @@ export type ChavesDaApi = {
   endereco: string | null;
 };
 
-const SO_ADMIN_OU_GESTOR = "Só o admin ou o gestor da conta criam e revogam chaves da API.";
+const SO_ADMIN_OU_GESTOR = "Só o admin ou o gestor do escritório criam e revogam chaves da API.";
 
 function adaptar(chave: ChaveApiAPI): ChaveApi {
   return {
@@ -60,7 +62,7 @@ function adaptar(chave: ChaveApiAPI): ChaveApi {
 }
 
 function traduzir(erro: unknown): Falha {
-  if (!(erro instanceof ErroBackend)) return { ok: false, status: 0, erro: "Não foi possível falar com o servidor." };
+  if (!(erro instanceof ErroBackend)) return { ok: false, status: 0, erro: SEM_SERVIDOR };
   const { status } = erro;
   if (status === 401) return { ok: false, status, erro: "Sua sessão expirou. Entre de novo para continuar." };
   if (status === 403 && !ehContaInativa(erro)) return { ok: false, status, erro: SO_ADMIN_OU_GESTOR };
@@ -74,8 +76,8 @@ function traduzir(erro: unknown): Falha {
  * revoga: uma chave dela daria acesso de fora a uma conta que qualquer visitante usa.
  */
 async function recusa(altera: boolean): Promise<Falha | null> {
-  const { papel } = await contaDaSessao();
-  if (!podeFecharMes(papel)) return { ok: false, status: 403, erro: SO_ADMIN_OU_GESTOR };
+  const porPapel = recusaPorPapel(await contaDaSessao(), podeFecharMes, SO_ADMIN_OU_GESTOR);
+  if (porPapel) return porPapel;
   if (altera && ehContaDeDemonstracao(await emailDaSessao())) return { ok: false, status: 403, erro: RECUSA_DEMONSTRACAO };
   return null;
 }
@@ -85,10 +87,9 @@ export async function carregarChavesApi(): Promise<Resultado<ChavesDaApi>> {
   const recusada = await recusa(false);
   if (recusada) return recusada;
   try {
-    const lista = await chamarBackend<{ itens: ChaveApiAPI[] }>("/chaves-api");
-    // shortcut: o endereço público da API é o mesmo que o servidor do app usa; se um dia o app falar
-    // com o backend por rede interna, este passa a ser uma variável própria
-    return { ok: true, dados: { itens: lista.itens.map(adaptar), endereco: process.env.LEDGR_API_URL?.replace(/\/+$/, "") || null } };
+    // o endereço público da API é o que o backend publica, não o host por onde o app fala com ele
+    const [lista, { api }] = await Promise.all([chamarBackend<{ itens: ChaveApiAPI[] }>("/chaves-api"), enderecosPublicos()]);
+    return { ok: true, dados: { itens: lista.itens.map(adaptar), endereco: api } };
   } catch (erro) {
     return traduzir(erro);
   }

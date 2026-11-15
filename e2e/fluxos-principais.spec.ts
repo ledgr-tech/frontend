@@ -56,7 +56,7 @@ test("entrar, conciliar, justificar e fechar o mês", async ({ page }) => {
   await page.goto(`/e/${empresa}/conciliacoes/nova`);
   await pularTutorial(page);
   await page.getByLabel("Extrato do banco").setInputFiles({ name: "banco.ofx", mimeType: "application/x-ofx", buffer: Buffer.from(extratoDoBanco()) });
-  await page.getByLabel("Extrato do sistema de gestão").setInputFiles({ name: "sistema.csv", mimeType: "text/csv", buffer: Buffer.from(extratoDoSistema()) });
+  await page.getByLabel("Extrato do sistema").setInputFiles({ name: "sistema.csv", mimeType: "text/csv", buffer: Buffer.from(extratoDoSistema()) });
   await page.getByRole("button", { name: "Conciliar extratos" }).click();
   await page.waitForURL(/\/conciliacoes\/[0-9a-f-]{36}/);
   await pularTutorial(page);

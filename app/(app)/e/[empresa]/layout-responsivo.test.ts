@@ -33,6 +33,12 @@ describe("layout responsivo", () => {
     expect(declaracoes(".dash-tabela-rolagem")).toMatchObject({ "overflow-x": "auto", position: "relative" });
   });
 
+  // a comparação ganhava uma barra de rolagem vertical ao lado da lista (15/11): a caixa só rola
+  // para o lado, nunca para baixo
+  it("a caixa de rolagem das tabelas nunca rola na vertical", () => {
+    expect(declaracoes(".dash-tabela-rolagem")["overflow-y"]).toBe("hidden");
+  });
+
   // até 900px a grade do app é uma coluna com min-height de 100vh; com linhas automáticas, a
   // altura que sobra numa tela curta ia meio a meio, e o menu ganhava um vão de até 180px embaixo
   it("no celular, a altura que sobra vai para o conteúdo, não para o menu", () => {

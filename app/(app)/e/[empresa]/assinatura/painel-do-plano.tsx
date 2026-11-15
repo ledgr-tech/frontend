@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { Circle, CircleCheck } from "lucide-react";
-import { useLayoutEffect, useRef, useState, type ReactNode, type Ref, type RefObject } from "react";
+import { useLayoutEffect, useRef, useState, type ReactNode, type Ref, type RefObject, type CSSProperties } from "react";
 import {
   cobrancaImediata,
   diasRestantes,
@@ -58,7 +58,7 @@ function LinhaDeUso({ rotulo, limite }: { rotulo: string; limite: Limite }) {
       </span>
       {maximo !== null && (
         <span className="vg-progresso">
-          <span className="vg-progresso-feito" style={{ width: `${maximo === 0 ? 100 : Math.min(100, Math.round((usadas / maximo) * 100))}%` }} />
+          <span className="vg-progresso-feito" style={{ "--feito": `${maximo === 0 ? 100 : Math.min(100, Math.round((usadas / maximo) * 100))}%` } as CSSProperties} />
         </span>
       )}
     </div>

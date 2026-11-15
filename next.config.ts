@@ -41,6 +41,12 @@ const nextConfig: NextConfig = {
           // a Content-Security-Policy sai do proxy.ts, com um nonce por página (lib/csp.ts)
         ],
       },
+      {
+        // os e-mails carregam as fontes daqui, e o WebKit do Apple Mail só usa fonte de
+        // outro endereço com CORS; são os arquivos públicos de licença OFL, nada mais
+        source: "/email/fontes/:arquivo*",
+        headers: [{ key: "Access-Control-Allow-Origin", value: "*" }],
+      },
     ];
   },
 };

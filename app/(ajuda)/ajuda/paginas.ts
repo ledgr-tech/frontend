@@ -69,7 +69,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
     titulo: "Visão geral",
     onde: "Menu lateral › Visão geral",
     serve:
-      "A primeira tela depois do login. Mostra como está o mês aberto e o que pede sua atenção agora.",
+      "A primeira tela depois do login. Mostra como está o mês aberto e as pendências de agora.",
     capa: {
       src: "/ajuda/visao-geral.webp",
       largura: 1360,
@@ -83,7 +83,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
         faz: "Um roteiro com o caminho até o primeiro mês fechado. Cada passo se marca sozinho quando você o faz.",
         passos: [
           "Revise a **tolerância de dias**: quantos dias de diferença entre o banco e o sistema ainda contam como bateu.",
-          "**Suba o extrato do banco** e depois **o do sistema de gestão**.",
+          "**Suba o extrato do banco** e depois **o extrato do sistema**.",
           "**Revise o que não bateu** na comparação.",
           "Quando o mês estiver **pronto para fechar**, feche em Fechamentos.",
         ],
@@ -107,7 +107,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
           "Clique num atalho para abrir a tela.",
           "Clique numa conciliação recente para abrir a comparação dela.",
         ],
-        nota: "Quando nada pede decisão, a tela diz “Nada pede sua atenção agora.”",
+        nota: "Quando não há pendência, a tela diz “Nenhuma pendência agora.”",
         figura: { largura: 485, altura: 681 },
       },
       // descomentar no dia em que o backend ligar ASSISTENTE_HABILITADO (#137)
@@ -129,7 +129,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
     titulo: "Extratos",
     onde: "Menu lateral › Extratos",
     serve:
-      "Todos os arquivos que você enviou, do banco e do sistema de gestão, conciliados ou não.",
+      "Todos os extratos que você enviou, do banco e do sistema, conciliados ou não.",
     capa: {
       src: "/ajuda/extratos.webp",
       largura: 1360,
@@ -188,9 +188,9 @@ export const PAGINAS: PaginaDeAjuda[] = [
       {
         id: "filtros",
         titulo: "Filtrar a fila",
-        faz: "Mostra só o que pede decisão, só o que já está sem pendência, só os meses fechados ou todas.",
+        faz: "Mostra só o que tem pendência, só o que já está sem pendência, só os meses fechados ou todas.",
         passos: [
-          "Escolha **Pedem decisão**, **Sem pendência**, **Mês fechado** ou **Todas** no topo da lista.",
+          "Escolha **Com pendência**, **Sem pendência**, **Mês fechado** ou **Todas** no topo da lista.",
           "Para ver tudo o que já rodou, clique em **Ver o histórico**.",
         ],
         figura: { largura: 993, altura: 82 },
@@ -198,7 +198,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
       {
         id: "fila",
         titulo: "A fila",
-        faz: "Cada par de folhas é um extrato do banco com a rodada que vale: o último extrato do sistema conciliado com ele. A barra mostra o que bateu e o que diverge, e o selo diz quantas linhas ainda pedem decisão.",
+        faz: "Cada par de folhas é um extrato do banco com a rodada que vale: o último extrato do sistema conciliado com ele. A barra mostra o que bateu e o que diverge, e o selo diz quantas pendências ainda há.",
         passos: [
           "Clique numa folha para ver o resumo dela ao lado.",
           "Clique duas vezes para abrir direto a comparação.",
@@ -208,7 +208,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
       {
         id: "previa",
         titulo: "O resumo da escolhida",
-        faz: "Ao lado das folhas, o resumo da conciliação escolhida: quantos lançamentos batem, a barra com a legenda, a situação, as conferidas, a rodada e o mês. A primeira que ainda pede decisão já vem escolhida, para você continuar de onde parou.",
+        faz: "Ao lado das folhas, o resumo da conciliação escolhida: quantos lançamentos batem, a barra com a legenda, a situação, as conferidas, a rodada e o mês. A primeira que ainda tem pendência já vem escolhida, para você continuar de onde parou.",
         passos: [
           "Clique em **Abrir a comparação** para decidir as linhas.",
           "Corrigiu o sistema de gestão? Clique em **Enviar nova versão** para conciliar de novo com o mesmo extrato do banco.",
@@ -223,7 +223,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
     titulo: "Nova conciliação",
     onde: "Menu lateral › Nova conciliação",
     serve:
-      "Você envia o extrato do banco e o do sistema de gestão do mesmo período, e o Ledgr compara linha por linha.",
+      "Você envia o extrato do banco e o extrato do sistema do mesmo período, e o Ledgr compara linha por linha.",
     capa: {
       src: "/ajuda/nova-conciliacao.webp",
       largura: 1360,
@@ -234,10 +234,10 @@ export const PAGINAS: PaginaDeAjuda[] = [
       {
         id: "enviar",
         titulo: "Enviar os dois extratos",
-        faz: "O extrato do banco vai na folha da frente e o do sistema de gestão na de trás. Os dois precisam ser do mesmo período.",
+        faz: "O extrato do banco vai na folha da frente e o extrato do sistema na de trás. Os dois precisam ser do mesmo período.",
         passos: [
           "Arraste ou escolha o extrato do banco: **OFX ou CSV** exportado do internet banking, até 4 MB.",
-          "Arraste ou escolha o do sistema de gestão: um **CSV** com data, descrição e valor.",
+          "Arraste ou escolha o extrato do sistema: um **CSV** com data, descrição e valor.",
         ],
         nota: "O PDF não entra direto: para ele, use **Importar via IA**. O mês da conciliação é o do extrato do banco.",
         figura: { largura: 557, altura: 302 },
@@ -335,7 +335,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
       {
         id: "filtros",
         titulo: "Filtrar e procurar",
-        faz: "Os filtros mostram todas as linhas, só as que pedem revisão ou só as justificadas, com quantas há em cada um.",
+        faz: "Os filtros mostram todas as linhas, só as pendências ou só as justificadas, com quantas há em cada um.",
         passos: [
           "Escolha **Todos**, **Só revisão** ou **Justificadas** acima da tabela.",
           "Clique no nome de uma coluna para ordenar por ela.",
@@ -350,7 +350,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
         passos: [
           "Clique no círculo da coluna **Conferida** na linha que você já olhou.",
         ],
-        figura: { largura: 638, altura: 160 },
+        figura: { largura: 638, altura: 158 },
       },
       {
         id: "painel",
@@ -484,7 +484,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
           "Leia o provável motivo e confira no seu sistema de gestão antes de decidir.",
         ],
         nota: "A explicação ajuda a entender a divergência; quem decide é você.",
-        figura: { largura: 535, altura: 273 },
+        figura: { largura: 535, altura: 377 },
       },
       {
         id: "decidir",
@@ -610,7 +610,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
       {
         id: "lista",
         titulo: "As conciliações",
-        faz: "Cada conciliação é um par de folhas, a do banco e a do sistema, agrupadas pelo mês do extrato do banco. Cada folha mostra quanto bateu na rodada que vale, quantas linhas pedem revisão, quando rodou e as rodadas que teve.",
+        faz: "Cada conciliação é um par de folhas, a do banco e a do sistema, agrupadas pelo mês do extrato do banco. Cada folha mostra quanto bateu na rodada que vale, quantas pendências sobraram, quando rodou e as rodadas que teve.",
         passos: [
           "Filtre por **Todas** ou **Com pendência**.",
           "Clique numa folha para ver os detalhes ao lado; dois cliques abrem a comparação.",
@@ -621,7 +621,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
       {
         id: "rodadas",
         titulo: "As rodadas de uma conciliação",
-        faz: "Ao lado das folhas fica a conciliação escolhida: quanto bateu na rodada que vale, o que ainda pede revisão, a tolerância usada e cada execução que ela teve.",
+        faz: "Ao lado das folhas fica a conciliação escolhida: quanto bateu na rodada que vale, as pendências, a tolerância usada e cada execução que ela teve.",
         passos: [
           "Clique em **Abrir a comparação** para ver a rodada que vale.",
           "Numa rodada **Anterior**, clique em **Ver** para abrir aquela rodada.",
@@ -634,7 +634,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
     id: "empresas",
     titulo: "Empresas",
     onde: "Menu lateral › Empresas",
-    serve: "As empresas clientes da sua conta, o quanto do plano elas usam e o cadastro de novas.",
+    serve: "As empresas clientes do seu escritório, o quanto do plano elas usam e o cadastro de novas.",
     capa: {
       src: "/ajuda/empresas.webp",
       largura: 1360,
@@ -645,7 +645,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
       {
         id: "lista",
         titulo: "A lista das empresas",
-        faz: "Todas as empresas da conta, com o CNPJ, a situação do mês e a marca **Ativa** na que você está usando. As favoritas vêm primeiro. Todas as pessoas da conta veem todas elas.",
+        faz: "Todas as empresas do escritório, com o CNPJ, a situação do mês e a marca **Ativa** na que você está usando. As favoritas vêm primeiro. Todas as pessoas do escritório veem todas elas.",
         passos: [
           "Abra **Empresas** no menu lateral.",
           "Procure a empresa pela busca, pela razão social ou pelo CNPJ, ou filtre pela situação do mês.",
@@ -672,12 +672,12 @@ export const PAGINAS: PaginaDeAjuda[] = [
           "Digite o CNPJ e a razão social.",
           "Clique em **Cadastrar empresa**. A empresa nova abre na Visão geral.",
         ],
-        nota: "Se o CNPJ já está na conta, o Ledgr avisa. Com a consulta à Receita ligada, ele também recusa CNPJ que não existe ou não está ativo.",
+        nota: "Se o CNPJ já está no escritório, o Ledgr avisa. Com a consulta à Receita ligada, ele também recusa CNPJ que não existe ou não está ativo.",
       },
       {
         id: "limite",
         titulo: "O limite do plano",
-        faz: "Cada plano tem um número máximo de empresas, e a faixa embaixo da lista mostra quanto a conta já usa.",
+        faz: "Cada plano tem um número máximo de empresas, e a faixa embaixo da lista mostra quanto o escritório já usa.",
         passos: [
           "Veja a faixa, por exemplo **3 de 5 empresas**. Perto do limite, a tela avisa.",
           "No limite, o botão **Adicionar empresa** fica desligado.",
@@ -687,7 +687,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
       {
         id: "equipe",
         titulo: "A equipe",
-        faz: "As pessoas com acesso à conta e o papel de cada uma: **Administrador**, **Gestor** ou **Analista**. O administrador e o gestor convidam e cancelam convites; só o administrador remove pessoas.",
+        faz: "As pessoas com acesso ao escritório e o papel de cada uma: **Administrador**, **Gestor** ou **Analista**. O administrador e o gestor convidam e cancelam convites; só o administrador remove pessoas.",
         passos: [
           "Abra **Empresas** no menu lateral e clique em **Equipe**, ao lado de **Empresas**, no alto da lista.",
           "Clique em **Convidar pessoa**, digite o e-mail e escolha o papel: cada cartão diz o que a pessoa poderá fazer. O administrador convida gestor ou analista; o gestor convida só analista. A pessoa recebe um link para criar o acesso.",
@@ -754,7 +754,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
         faz: "Uma chave deixa outro sistema, como uma planilha, o Power BI ou o sistema do escritório, ler as conciliações, as divergências e os fechamentos pela API do Ledgr. Só leitura, e sem a descrição dos lançamentos nem as justificativas. Só o admin e o gestor veem esta seção.",
         passos: [
           "Abra **API** e clique em **Criar chave**.",
-          "Dê um nome que diga quem vai usar a chave e escolha a empresa que ela lê, ou **Todas as empresas da conta**.",
+          "Dê um nome que diga quem vai usar a chave e escolha a empresa que ela lê, ou **Todas as empresas do escritório**.",
           "Clique em **Criar chave**, depois em **Copiar chave**, e guarde a chave no sistema que vai usá-la.",
           "Para cortar o acesso, clique em **Revogar** na chave e confirme.",
         ],
@@ -770,7 +770,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
           "Siga o passo a passo da página **Conectar o ChatGPT ou o Claude** da Central: um para o ChatGPT, um para o Claude e um para o Claude Code.",
           "Para cortar o acesso, clique em **Revogar** na conexão e confirme.",
         ],
-        nota: "A conexão só lê: não confere, não justifica, não fecha mês e não muda nada no Ledgr. Cada uma lê uma empresa, e a conta tem até 10 ativas. O que a IA lê passa para a sua conta do ChatGPT ou do Claude e fica sob as regras dela, como explica a Política de privacidade.",
+        nota: "A conexão só lê: não confere, não justifica, não fecha mês e não muda nada no Ledgr. Cada uma lê uma empresa, e o escritório tem até 10 ativas. O que a IA lê passa para a conta que você usa no ChatGPT ou no Claude e fica sob as regras dela, como explica a Política de privacidade.",
         link: { href: "/ajuda/conectar-ia", rotulo: "Ver o passo a passo completo" },
       },
       {
@@ -809,7 +809,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
       // {
       //   id: "assinar",
       //   titulo: "Assinar um plano",
-      //   faz: "Assina um plano com cartão, pela página de pagamento da Stripe. Só o administrador da conta assina.",
+      //   faz: "Assina um plano com cartão, pela página de pagamento da Stripe. Só o administrador do escritório assina.",
       //   passos: [
       //     "Escolha o período, clique na folha do plano que quer e em **Assinar**, no painel ao lado.",
       //     "Pague na página da Stripe. Ao voltar, a tela confirma a assinatura em alguns segundos.",
@@ -924,7 +924,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
           "A IA respondeu sem consultar o Ledgr: a conversa mostra quando ela usa um conector. Se não mostrar, ligue o Ledgr na conversa e peça “use o Ledgr” na pergunta.",
           "A IA diz que não tem acesso ao Ledgr: a conexão foi revogada ou caiu. Conecte de novo pela IA e autorize outra vez.",
           "O Ledgr não mostra **Autorizar**: só o administrador e o gestor autorizam conexões. Peça a um deles.",
-          "O Ledgr recusa porque a conta já tem 10 conexões: revogue em **Conexões** uma que não usa mais e tente de novo.",
+          "O Ledgr recusa porque o escritório já tem 10 conexões: revogue em **Conexões** uma que não usa mais e tente de novo.",
           "Aparece “Pedido indisponível”: o pedido vale por 10 minutos e serve uma vez. Comece de novo pela IA.",
           "Não acha onde adicionar o Ledgr: os menus mudam com o plano e com o tempo. No Claude gratuito cabe um conector personalizado só, e no Team ou no Enterprise o dono da organização adiciona o conector antes. Em contas do ChatGPT sem **Plugins**, o caminho é **Configurações** › **Apps e conectores** › **Avançado**, com o **Modo desenvolvedor** ligado.",
           "Para desligar: clique em **Revogar** em **Configurações** › **Conexões**. Sair do Ledgr não desliga a conexão, e remover o Ledgr na IA pode não revogá-la. Ela também cai sozinha quando quem a criou sai da equipe, desativa a própria conta ou passa a analista.",

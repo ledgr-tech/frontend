@@ -23,6 +23,7 @@ import {
   type Rascunho,
   type ResumoDoRascunho,
 } from "../acoes";
+import { SEM_SERVIDOR } from "@/lib/sem-servidor";
 
 type Campos = { data: string; valor: string; descricao: string };
 const VAZIA: Campos = { data: "", valor: "", descricao: "" };
@@ -69,7 +70,7 @@ export function Revisao({
       const falha = await trabalho();
       if (falha) setErro(falha);
     } catch {
-      setErro("Não foi possível falar com o servidor.");
+      setErro(SEM_SERVIDOR);
     } finally {
       trava.current = false;
       setOcupado(false);

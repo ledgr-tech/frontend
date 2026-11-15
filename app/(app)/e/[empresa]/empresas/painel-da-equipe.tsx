@@ -16,6 +16,7 @@ import { DESCRICAO_DO_PAPEL, MenuDePapel } from "./menu-de-papel";
 import { BotaoFecharJanela, ModalDaTela } from "./modal-da-tela";
 import { TransferirAdmin } from "./transferir-admin";
 import { useTrocaSuave } from "@/lib/troca-suave";
+import { SEM_SERVIDOR } from "@/lib/sem-servidor";
 
 /**
  * A aba Equipe da tela Empresas (spec 2026-10-22-empresas-na-configuracao, revisão de 23/10; as regras de
@@ -117,7 +118,7 @@ export function PainelDaEquipe({
     setEmCurso(id);
     setErroDeAcao("");
     const resposta = await acao().catch(
-      (): Resultado<null> => ({ ok: false, status: 0, erro: "Não foi possível falar com o servidor." }),
+      (): Resultado<null> => ({ ok: false, status: 0, erro: SEM_SERVIDOR }),
     );
     setEmCurso(null);
     setConfirmando(null);
@@ -145,7 +146,7 @@ export function PainelDaEquipe({
     setEmCurso(pessoa.id);
     setErroDaPessoa(null);
     const resposta = await trocarPapel(pessoa.id, novo).catch(
-      (): Resultado<Pessoa> => ({ ok: false, status: 0, erro: "Não foi possível falar com o servidor." }),
+      (): Resultado<Pessoa> => ({ ok: false, status: 0, erro: SEM_SERVIDOR }),
     );
     setEmCurso(null);
     if (resposta.ok) {
@@ -228,7 +229,7 @@ export function PainelDaEquipe({
             pessoa={paraTransferir}
             aoConcluir={(pessoas) => {
               aplicar((equipe) => ({ ...equipe, pessoas }));
-              setAvisoDaTransferencia(`${paraTransferir.nome} agora é o administrador da conta. Você é Gestor.`);
+              setAvisoDaTransferencia(`${paraTransferir.nome} agora é o administrador do escritório. Você é Gestor.`);
               setParaTransferir(null);
               router.refresh();
             }}
@@ -295,7 +296,9 @@ export function PainelDaEquipe({
                                 </button>
                                 {eu && <span className="tag tag-outline">você</span>}
                               </span>
-                              <span>{pessoa.email}</span>
+                              <span>
+                                <EmailQuebravel email={pessoa.email} />
+                              </span>
                             </span>
                           </span>
                         </td>
@@ -344,7 +347,7 @@ export function PainelDaEquipe({
                                     escolher(convite.id);
                                   }}
                                 >
-                                  {convite.email}
+                                  <EmailQuebravel email={convite.email} />
                                 </button>
                               </span>
                               <span>{`${convite.papel ? `${ROTULO_DO_PAPEL[convite.papel]} · ` : ""}Enviado em ${convite.enviadoEm} · vale até ${convite.valeAte}`}</span>
@@ -413,7 +416,9 @@ export function PainelDaEquipe({
         ) : atual ? (
           <aside ref={painel} className="conc-previa" aria-label="Convite escolhido" aria-live="polite">
             <span className="rotulo">Convite pendente</span>
-            <h2 className="conc-previa-titulo">{atual.email}</h2>
+            <h2 className="conc-previa-titulo">
+              <EmailQuebravel email={atual.email} />
+            </h2>
             {atual.papel && DESCRICAO_DO_PAPEL[atual.papel] && (
               <div className="extrato-resultado">
                 <p className="equipe-papel-texto">
@@ -501,7 +506,9 @@ function PainelDaPessoa({
       )}
       <dl className="conc-previa-dados">
         <dt>E-mail</dt>
-        <dd>{pessoa.email}</dd>
+        <dd>
+          <EmailQuebravel email={pessoa.email} />
+        </dd>
       </dl>
       {gerenciavel && confirmando ? (
         <div className="equipe-confirma">
@@ -570,7 +577,7 @@ function ConvidarPessoa({
     setEnviando(true);
     setRetorno(null);
     const resposta = await convidar(email, escolhido).catch(
-      (): Resultado<Convite> => ({ ok: false, status: 0, erro: "Não foi possível falar com o servidor." }),
+      (): Resultado<Convite> => ({ ok: false, status: 0, erro: SEM_SERVIDOR }),
     );
     setEnviando(false);
     if (resposta.ok) {
@@ -634,5 +641,18 @@ function ConvidarPessoa({
         <span className="equipe-nota">O link vale por 7 dias.</span>
       </div>
     </form>
+  );
+}
+
+/** O e-mail quebra antes do "@" numa coluna estreita, em vez de no meio do domínio (M-03). */
+function EmailQuebravel({ email }: { email: string }) {
+  const arroba = email.indexOf("@");
+  if (arroba <= 0) return email;
+  return (
+    <>
+      {email.slice(0, arroba)}
+      <wbr />
+      {email.slice(arroba)}
+    </>
   );
 }

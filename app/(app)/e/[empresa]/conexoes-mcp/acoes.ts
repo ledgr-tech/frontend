@@ -1,13 +1,14 @@
 "use server";
 
-import { enderecoDoConector } from "@/lib/conexao-ia";
+import { enderecoPublicoDoConector } from "@/lib/endereco-do-conector";
 import { pareceUuid } from "@/lib/adaptadores";
 import { ErroBackend, chamarBackend, ehContaInativa, emailDaSessao } from "@/lib/backend";
 import { RECUSA_DEMONSTRACAO, ehContaDeDemonstracao } from "@/lib/demo";
-import { podeFecharMes } from "@/lib/papel";
+import { podeFecharMes, recusaPorPapel } from "@/lib/papel";
 import { ehPedidoDeConexao } from "@/lib/rotas";
 import { contaDaSessao } from "../../../../(auth)/acoes";
 import type { Falha, Resultado } from "../conciliacoes/acoes";
+import { SEM_SERVIDOR } from "@/lib/sem-servidor";
 
 /**
  * A conexão do ChatGPT e do Claude com o Ledgr (backend #136, front #195): o Ledgr é o servidor de
@@ -54,12 +55,12 @@ type ConexaoAPI = {
   revogada_em: string | null;
 };
 
-const SO_ADMIN_OU_GESTOR_CONECTA = "Só o admin ou o gestor da conta autorizam conexões com assistentes de IA.";
+const SO_ADMIN_OU_GESTOR_CONECTA = "Só o admin ou o gestor do escritório autorizam conexões com assistentes de IA.";
 const PEDIDO_VENCIDO = "Este pedido de conexão não vale mais. Volte ao ChatGPT ou ao Claude e conecte de novo.";
 const PEDIDO_INVALIDO: Falha = { ok: false, status: 404, erro: PEDIDO_VENCIDO };
 
 function traduzir(erro: unknown, aoPedir = false): Falha {
-  if (!(erro instanceof ErroBackend)) return { ok: false, status: 0, erro: "Não foi possível falar com o servidor." };
+  if (!(erro instanceof ErroBackend)) return { ok: false, status: 0, erro: SEM_SERVIDOR };
   const { status } = erro;
   if (status === 401) return { ok: false, status, erro: "Sua sessão expirou. Entre de novo para continuar." };
   if (status === 403 && !ehContaInativa(erro)) return { ok: false, status, erro: SO_ADMIN_OU_GESTOR_CONECTA };
@@ -85,8 +86,8 @@ function destinoSeguro(destino: unknown): string | null {
 }
 
 async function recusaQuemNaoConecta(): Promise<Falha | null> {
-  const { papel } = await contaDaSessao();
-  if (!podeFecharMes(papel)) return { ok: false, status: 403, erro: SO_ADMIN_OU_GESTOR_CONECTA };
+  const porPapel = recusaPorPapel(await contaDaSessao(), podeFecharMes, SO_ADMIN_OU_GESTOR_CONECTA);
+  if (porPapel) return porPapel;
   if (ehContaDeDemonstracao(await emailDaSessao())) return { ok: false, status: 403, erro: RECUSA_DEMONSTRACAO };
   return null;
 }
@@ -146,10 +147,14 @@ export async function recusarConexao(pedido: string): Promise<Resultado<{ destin
 
 /** As conexões da conta, ativas e revogadas. Um 404 é a conexão desligada no backend (ou um backend antes do #136). */
 export async function carregarConexoesMcp(): Promise<Resultado<{ itens: ConexaoMcp[]; endereco: string | null }>> {
-  const { papel } = await contaDaSessao();
-  if (!podeFecharMes(papel)) return { ok: false, status: 403, erro: SO_ADMIN_OU_GESTOR_CONECTA };
+  const porPapel = recusaPorPapel(await contaDaSessao(), podeFecharMes, SO_ADMIN_OU_GESTOR_CONECTA);
+  if (porPapel) return porPapel;
   try {
-    const lista = await chamarBackend<{ itens: ConexaoAPI[] }>("/conexoes-mcp");
+    // em paralelo: o endereço nunca lança, e a Visão geral não espera uma chamada depois da outra
+    const [lista, endereco] = await Promise.all([
+      chamarBackend<{ itens: ConexaoAPI[] }>("/conexoes-mcp"),
+      enderecoPublicoDoConector(),
+    ]);
     return {
       ok: true,
       dados: {
@@ -162,7 +167,7 @@ export async function carregarConexoesMcp(): Promise<Resultado<{ itens: ConexaoM
           ultimoUsoEm: conexao.ultimo_uso_em,
           revogadaEm: conexao.revogada_em,
         })),
-        endereco: enderecoDoConector(),
+        endereco,
       },
     };
   } catch (erro) {

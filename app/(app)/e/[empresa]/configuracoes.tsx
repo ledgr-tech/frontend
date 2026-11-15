@@ -38,6 +38,7 @@ import { PainelDeChavesApi } from "./chaves-api/painel";
 import { carregarConexoesMcp, type ConexaoMcp } from "./conexoes-mcp/acoes";
 import { PainelDeConexoes } from "./conexoes-mcp/painel";
 import { Tutorial } from "./tutorial/tutorial";
+import { SEM_SERVIDOR } from "@/lib/sem-servidor";
 
 /**
  * As configurações, numa janela no meio da tela (como a do Claude): seções à
@@ -301,7 +302,7 @@ export function ToleranciaEditavel({
       resposta = await salvarToleranciaDias(dias);
     } catch {
       // a Server Action lançou (rede caída, deploy novo no meio) em vez de devolver um Resultado
-      resposta = { ok: false, status: 0, erro: "Não foi possível falar com o servidor." };
+      resposta = { ok: false, status: 0, erro: SEM_SERVIDOR };
     }
     setSalvando(false);
     if (resposta.ok) {
@@ -800,7 +801,7 @@ export function Configuracoes({
       icone: Info,
       grupo: "Ledgr",
       linhas: [
-        { titulo: "Ledgr", descricao: "Conciliação do extrato do banco com o do sistema de gestão." },
+        { titulo: "Ledgr", descricao: "Conciliação do extrato do banco com o extrato do sistema." },
         {
           titulo: "Site",
           controle: (

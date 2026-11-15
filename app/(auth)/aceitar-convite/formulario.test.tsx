@@ -77,6 +77,7 @@ describe("AceitarConvite", () => {
 
     expect(await screen.findByText(INVALIDO)).toBeInTheDocument();
     expect(screen.queryByLabelText("Senha")).not.toBeInTheDocument();
+    expect(document.querySelector('img[src*="mascote-relogio"]')).not.toBeNull();
   });
 
   it("um novo render depois de apagar o fragmento não perde o convite", async () => {
@@ -159,6 +160,8 @@ describe("AceitarConvite", () => {
     abrirLink("/aceitar-convite?google=conta_inativa");
     render(<AceitarConvite conectadoComo={null} google={{ ligado: true, erro: "conta_inativa", convite: CONVITE }} />);
     expect(await screen.findByText(INATIVA)).toBeInTheDocument();
+    // a conta inativa não é convite vencido: sem o relógio
+    expect(document.querySelector('img[src*="mascote-relogio"]')).toBeNull();
   });
 
   it("muitas tentativas pede para esperar", async () => {

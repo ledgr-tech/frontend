@@ -50,17 +50,16 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
         </div>
       </div>
 
-      <form method="get" role="search" className="extratos-corpo" style={{ paddingTop: 20 }}>
-        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center", justifyContent: "space-between" }}>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, order: 2, flex: "1 1 100%" }}>
+      <form method="get" role="search" className="extratos-corpo adm-folga-topo">
+        <div className="adm-barra">
+          <div className="adm-linha adm-filtros-busca adm-filtros-largos">
             <input
-              className="input"
+              className="input adm-busca"
               type="search"
               name="busca"
               defaultValue={filtros.busca ?? ""}
               placeholder="Razão social, CNPJ ou e-mail do admin"
               aria-label="Buscar conta"
-              style={{ flex: "1 1 300px", maxWidth: 420 }}
             />
             <select className="input" name="ordem" defaultValue={filtros.ordem ?? ""} aria-label="Ordem">
               <option value="">Mais novas primeiro</option>
@@ -79,7 +78,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
               Buscar
             </button>
           </div>
-          <div className="pills segmentado" role="group" aria-label="Situação" style={{ order: 1 }}>
+          <div className="pills segmentado" role="group" aria-label="Situação">
             {FILTROS.map((f) => (
               <button key={f.valor} type="submit" name="situacao" value={f.valor} className="pill" aria-pressed={situacaoAtual === f.valor}>
                 {f.rotulo}
@@ -93,7 +92,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
         ) : r.dados.itens.length === 0 ? (
           <p>Nenhuma conta encontrada.</p>
         ) : (
-          <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+          <div className="card adm-cartao-tabela">
             <table className="table" aria-label="Contas clientes">
               <thead>
                 <tr>
@@ -115,7 +114,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
                     <tr key={c.id}>
                       <td>
                         <strong>{c.razaoSocial}</strong>
-                        <div style={{ fontSize: 12.5, opacity: 0.65 }}>{formatarCnpj(c.cnpj)}</div>
+                        <div className="adm-nota">{formatarCnpj(c.cnpj)}</div>
                       </td>
                       <td>{localDaConta(c)}</td>
                       <td>{c.plano ?? "—"}</td>
@@ -125,14 +124,14 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
                       <td>
                         {c.testeTerminaEm ? (
                           <>
-                            {dia(c.testeTerminaEm)} <span style={{ opacity: 0.65 }}>{`· ${prazoDoTeste(c.testeTerminaEm, agora)}`}</span>
+                            {dia(c.testeTerminaEm)} <span className="adm-apagado">{`· ${prazoDoTeste(c.testeTerminaEm, agora)}`}</span>
                           </>
                         ) : (
                           "—"
                         )}
                       </td>
                       <td>{dia(c.criadaEm)}</td>
-                      <td style={{ textAlign: "right" }}>
+                      <td className="adm-direita">
                         <Link className="btn btn-ghost" href={`/admin/${c.id}`} aria-label={`Abrir ${c.razaoSocial}`}>
                           Abrir
                         </Link>

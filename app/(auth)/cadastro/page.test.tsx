@@ -134,13 +134,13 @@ describe("CadastroPage", () => {
     await preencher(user, ACESSO);
     await continuar(user);
     expect(titulo()).toHaveTextContent("Vamos cadastrar a empresa.");
-    expect(screen.getByText("Passo I de II")).toBeInTheDocument();
+    expect(screen.getByText("Passo 2 de 3")).toBeInTheDocument();
     expect(screen.getByText(PASSOS[1].dicaTitulo ?? "")).toBeInTheDocument();
 
     await preencher(user, EMPRESA);
     await continuar(user);
     expect(titulo()).toHaveTextContent("E o sistema de gestão?");
-    expect(screen.getByText("Passo II de II")).toBeInTheDocument();
+    expect(screen.getByText("Passo 3 de 3")).toBeInTheDocument();
     expect(screen.queryByText("Qual banco você vai conciliar?")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Conta corrente")).not.toBeInTheDocument();
     expect(

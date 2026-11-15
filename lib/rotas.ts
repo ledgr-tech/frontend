@@ -14,7 +14,6 @@ export const SECOES: readonly string[] = [
   "extratos",
   "fechamentos",
   "historico",
-  "regras",
   "visao-geral",
 ];
 

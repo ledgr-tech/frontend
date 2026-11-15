@@ -7,6 +7,7 @@ import VisaoGeralPage from "./page";
 import { ProvedorDaConta } from "../conta";
 import type { DadosDoRoteiro } from "./roteiro";
 import type { ConexaoMcp } from "../conexoes-mcp/acoes";
+import { SEM_SERVIDOR } from "@/lib/sem-servidor";
 
 // quem fala com o backend é a action; aqui ela só devolve o que ele responderia
 const carregarVisaoGeral = vi.fn<() => Promise<Resultado<VisaoGeral>>>();
@@ -210,6 +211,8 @@ describe("VisaoGeralPage", () => {
     const saldo = screen.getByRole("region", { name: "Saldo do banco" });
     expect(saldo).toHaveTextContent("R$ 284.310,55");
     expect(saldo).toHaveTextContent("Em 28/09/2026 · sicredi-e7.ofx");
+    // final − inicial, os dois do backend: a soma das linhas do extrato
+    expect(saldo).toHaveTextContent("+ R$ 283.310,55 de movimento no extrato");
     const aprovacao = screen.getByRole("link", { name: /Aguardam aprovação/ });
     expect(aprovacao).toHaveAttribute("href", "/fechamentos");
     expect(aprovacao).toHaveTextContent("5 justificativas");
@@ -321,8 +324,8 @@ describe("VisaoGeralPage", () => {
     await renderizar();
 
     expect(screen.getByText("4 de 7 lançamentos conciliados")).toBeInTheDocument();
-    expect(screen.queryByText("Nada pede sua atenção agora.")).not.toBeInTheDocument();
-    const lista = screen.getByRole("list", { name: "Pede sua atenção" });
+    expect(screen.queryByText("Nenhuma pendência agora.")).not.toBeInTheDocument();
+    const lista = screen.getByRole("list", { name: "Pendências" });
     expect(within(lista).getAllByRole("link")[0]).toHaveAttribute(
       "href",
       "/conciliacoes/banco-x?sistema=sistema-x&status=divergente_valor",
@@ -372,7 +375,7 @@ describe("VisaoGeralPage", () => {
     com();
     await renderizar();
 
-    const lista = screen.getByRole("list", { name: "Pede sua atenção" });
+    const lista = screen.getByRole("list", { name: "Pendências" });
     const itens = within(lista).getAllByRole("link");
     expect(itens.map((item) => item.getAttribute("href"))).toEqual([
       "/conciliacoes/banco-e7?sistema=sistema-e7&status=divergente_valor",
@@ -389,7 +392,7 @@ describe("VisaoGeralPage", () => {
     com({ arquivosComLinhasNaoLidas: [{ nome: "erp-e7.csv", linhas: 2 }] });
     await renderizar();
 
-    const lista = screen.getByRole("list", { name: "Pede sua atenção" });
+    const lista = screen.getByRole("list", { name: "Pendências" });
     const arquivo = within(lista).getByRole("link", { name: /Linhas não lidas/ });
     expect(arquivo).toHaveTextContent("2 linhas em erp-e7.csv");
     expect(arquivo).toHaveAttribute("href", "/extratos");
@@ -409,8 +412,8 @@ describe("VisaoGeralPage", () => {
     });
     await renderizar();
 
-    expect(screen.getByText("Nada pede sua atenção agora.")).toBeInTheDocument();
-    expect(screen.queryByRole("list", { name: "Pede sua atenção" })).not.toBeInTheDocument();
+    expect(screen.getByText("Nenhuma pendência agora.")).toBeInTheDocument();
+    expect(screen.queryByRole("list", { name: "Pendências" })).not.toBeInTheDocument();
     expect(screen.getByText("Nenhum valor em aberto")).toBeInTheDocument();
     // tudo certo é um joinha; a festa fica para os momentos grandes
     const imagens = [...document.querySelectorAll("img")].map((img) => img.getAttribute("src")).join(" ");
@@ -433,7 +436,7 @@ describe("VisaoGeralPage", () => {
     });
     await renderizar();
 
-    const item = within(screen.getByRole("list", { name: "Pede sua atenção" })).getByRole("link");
+    const item = within(screen.getByRole("list", { name: "Pendências" })).getByRole("link");
     expect(item).toHaveTextContent("Mesmo valor em outra data");
     expect(item).toHaveTextContent("1 lançamento");
     expect(item.textContent).not.toContain("R$");
@@ -525,7 +528,7 @@ describe("VisaoGeralPage", () => {
     await renderizar();
 
     expect(screen.getByRole("heading", { name: "Nenhuma conciliação ainda" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Enviar o extrato do banco" })).toHaveAttribute("href", "/conciliacoes/nova");
+    expect(screen.getByRole("link", { name: "Nova conciliação" })).toHaveAttribute("href", "/conciliacoes/nova");
     // sem a situação da conta no /me, o plano fica de fora: 5 passos
     expect(await screen.findByText("Primeiros passos 0 de 5")).toBeInTheDocument();
     const tolerancia = screen.getByRole("heading", { name: "Quantos dias de diferença ainda contam como bateu?" }).closest("section")!;
@@ -542,7 +545,7 @@ describe("VisaoGeralPage", () => {
 
     const estado = screen.getByRole("heading", { name: "Falta o extrato do sistema" }).closest("section")!;
     expect(await within(estado).findByText("Próximo passo · 3 de 5")).toBeInTheDocument();
-    expect(within(estado).getByRole("link", { name: "Enviar o extrato do sistema" })).toBeInTheDocument();
+    expect(within(estado).getByRole("link", { name: "Nova conciliação" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Usar 2 dias" })).not.toBeInTheDocument();
   });
 
@@ -562,8 +565,8 @@ describe("VisaoGeralPage", () => {
     com({ execucoes: [], total: 0, recente: null });
     await renderizar();
 
-    expect(screen.getByRole("link", { name: "Enviar o extrato do banco" })).toBeInTheDocument();
-    expect(screen.getByText(/pedem decisão aparecem aqui/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Nova conciliação" })).toBeInTheDocument();
+    expect(screen.getByText(/pendências aparecem aqui/)).toBeInTheDocument();
     expect(screen.queryByText(/Próximo passo/)).not.toBeInTheDocument();
   });
 
@@ -578,7 +581,7 @@ describe("VisaoGeralPage", () => {
     com();
     await renderizar();
 
-    const atencao = screen.getByRole("heading", { name: "Pede sua atenção" }).closest("section")!;
+    const atencao = screen.getByRole("heading", { name: "Pendências" }).closest("section")!;
     expect(await within(atencao).findByText("Próximo passo · 4 de 5")).toBeInTheDocument();
     expect(within(atencao).getByRole("link", { name: "Resolver as divergências" })).toHaveAttribute("href", "/conciliacoes/banco-e7");
     expect(screen.getByText("Primeiros passos 3 de 5")).toBeInTheDocument();
@@ -627,7 +630,7 @@ describe("VisaoGeralPage", () => {
     carregarVisaoGeral.mockResolvedValue({
       ok: false,
       status: 0,
-      erro: "Não foi possível falar com o servidor.",
+      erro: SEM_SERVIDOR,
     });
     await renderizar();
     expect(screen.getByRole("alert")).toHaveTextContent("Não foi possível carregar a visão geral.");
@@ -642,7 +645,7 @@ describe("VisaoGeralPage", () => {
     expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
     expect(screen.queryByText(/lançamentos conciliados/)).not.toBeInTheDocument();
     expect(screen.queryByText(/em aberto/)).not.toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "Pede sua atenção" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Pendências" })).not.toBeInTheDocument();
     expect(
       within(screen.getByRole("navigation", { name: "Atalhos" })).getByRole("link", { name: /Fechamentos/ }),
     ).toHaveTextContent("Confira as conciliações do mês");

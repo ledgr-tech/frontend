@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { SaldoDoExtrato } from "@/lib/adaptadores";
 import type { Decisao, LinhaComparacao } from "@/lib/mock-data";
@@ -156,6 +156,26 @@ describe("PainelDoExtrato", () => {
     });
   });
 
+  describe("a rolagem do detalhe", () => {
+    it("mostra o \"Mais abaixo\" enquanto há conteúdo fora da vista, e some no fim", () => {
+      montar();
+      const detalhe = document.querySelector<HTMLElement>(".comp-detalhe")!;
+      const mais = document.querySelector(".comp-mais")!;
+      Object.defineProperty(detalhe, "scrollHeight", { configurable: true, value: 600 });
+      Object.defineProperty(detalhe, "clientHeight", { configurable: true, value: 200 });
+
+      fireEvent.scroll(detalhe);
+      expect(mais).toHaveAttribute("data-visivel");
+      expect(detalhe).toHaveAttribute("data-abaixo");
+      expect(detalhe).not.toHaveAttribute("data-acima");
+
+      detalhe.scrollTop = 400;
+      fireEvent.scroll(detalhe);
+      expect(mais).not.toHaveAttribute("data-visivel");
+      expect(detalhe).toHaveAttribute("data-acima");
+    });
+  });
+
   describe("Explicar esta divergência", () => {
     it("sem explicação, com dado do backend, oferece o botão e o aviso de envio, e não pede sozinho", () => {
       montar();
@@ -303,7 +323,7 @@ describe("PainelDoExtrato", () => {
 
     it("o analista só vê que aguarda, sem botão de decidir", () => {
       montar({ linha: AGUARDANDO, podeAprovar: false });
-      expect(screen.getByText("Aguarda a aprovação do admin ou do gestor da conta.")).toBeInTheDocument();
+      expect(screen.getByText("Aguarda a aprovação do admin ou do gestor do escritório.")).toBeInTheDocument();
       expect(screen.queryByRole("button", { name: "Aprovar" })).not.toBeInTheDocument();
       expect(screen.queryByRole("button", { name: "Rejeitar" })).not.toBeInTheDocument();
     });

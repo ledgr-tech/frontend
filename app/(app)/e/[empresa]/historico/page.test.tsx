@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import type { Execucao } from "@/lib/adaptadores";
 import type { ListaExecucoes, Resultado } from "../conciliacoes/acoes";
 import HistoricoPage from "./page";
+import { SEM_SERVIDOR } from "@/lib/sem-servidor";
 
 // quem fala com o backend é a action; aqui ela só devolve o que ele responderia
 const listarExecucoes = vi.fn<(pagina?: number) => Promise<Resultado<ListaExecucoes>>>();
@@ -332,8 +333,8 @@ describe("HistoricoPage", () => {
     await renderizar();
 
     const [folha] = conciliacoes();
-    expect(within(folha).getByText("8 para revisar")).toBeInTheDocument();
-    expect(within(previa()).getByText("Para revisar").nextSibling).toHaveTextContent("8 linhas · 2 justificadas");
+    expect(within(folha).getByText("8 pendências")).toBeInTheDocument();
+    expect(within(previa()).getByText("Pendências").nextSibling).toHaveTextContent("8 linhas · 2 justificadas");
     const barra = folha.querySelector(".hist-resultado-barra")!;
     expect([...barra.children].map((parte) => parte.getAttribute("title"))).toEqual([
       "Conciliado: 12",
@@ -421,7 +422,7 @@ describe("HistoricoPage", () => {
   });
 
   it("offers a retry when the backend fails", async () => {
-    listarExecucoes.mockResolvedValue({ ok: false, status: 0, erro: "Não foi possível falar com o servidor." });
+    listarExecucoes.mockResolvedValue({ ok: false, status: 0, erro: SEM_SERVIDOR });
     await renderizar();
     expect(screen.getByRole("alert")).toHaveTextContent("Não foi possível carregar o histórico.");
     expect(screen.getByRole("button", { name: "Tentar de novo" })).toBeInTheDocument();

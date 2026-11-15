@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { MensagemErro } from "../../../../(auth)/_compartilhado/mensagem-erro";
 import { formatarDataHora } from "../dashboard/resumo";
 import { criarLinkDoRelatorio, listarLinksDoRelatorio, revogarLinkDoRelatorio, type LinkDoRelatorio } from "./links";
+import { SEM_SERVIDOR } from "@/lib/sem-servidor";
 
 type Estado = { situacao: "carregando" } | { situacao: "sem-rota" } | { situacao: "pronto"; links: LinkDoRelatorio[] };
 
@@ -53,7 +54,7 @@ export function LinkPublico({ competencia }: { competencia: string }) {
       const falha = await trabalho();
       if (falha) setErro(falha);
     } catch {
-      setErro("Não foi possível falar com o servidor.");
+      setErro(SEM_SERVIDOR);
     } finally {
       trava.current = false;
       setOcupado(false);

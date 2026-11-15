@@ -4,6 +4,7 @@ import { useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { BotaoFecharJanela, ModalDaTela } from "../../../(app)/e/[empresa]/empresas/modal-da-tela";
 import { agirNaConta, type AcaoDaConta } from "../acoes";
+import { SEM_SERVIDOR } from "@/lib/sem-servidor";
 
 type Acao = { acao: AcaoDaConta; botao: string; titulo: (nome: string) => string; aviso: string };
 
@@ -65,7 +66,7 @@ export function AcoesDaConta({ id, nome, inativa, piloto }: { id: string; nome: 
       fechar();
       roteador.refresh();
     } catch {
-      setErro("Não foi possível falar com o servidor.");
+      setErro(SEM_SERVIDOR);
     } finally {
       trava.current = false;
       setEnviando(false);
@@ -93,17 +94,17 @@ export function AcoesDaConta({ id, nome, inativa, piloto }: { id: string; nome: 
       {escolhida && (
         <ModalDaTela titulo={escolhida.titulo(nome)} aoFechar={fechar}>
           <form onSubmit={confirmar}>
-            <p style={{ margin: "0 0 12px" }}>{escolhida.aviso}</p>
-            <label style={{ display: "grid", gap: 4, fontSize: 13.5 }}>
+            <p className="adm-folga-baixo">{escolhida.aviso}</p>
+            <label className="adm-campo">
               Motivo (fica no histórico da conta)
               <textarea className="input" value={motivo} onChange={(e) => setMotivo(e.target.value)} maxLength={500} required rows={3} />
             </label>
             {erro && (
-              <p role="alert" style={{ margin: "10px 0 0" }}>
+              <p role="alert" className="adm-folga-10">
                 {erro}
               </p>
             )}
-            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 14 }}>
+            <div className="adm-botoes">
               <BotaoFecharJanela aoFechar={fechar} className="btn btn-ghost">
                 Cancelar
               </BotaoFecharJanela>
