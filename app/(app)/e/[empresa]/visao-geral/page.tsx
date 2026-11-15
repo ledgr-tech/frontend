@@ -238,7 +238,7 @@ function EstadoDoMes({
 
 function BlocoDoSaldo({ saldo, arquivo }: { saldo: SaldoDoExtrato | null; arquivo: string }) {
   return (
-    <section className="vg-bloco" aria-labelledby="vg-saldo-titulo">
+    <section className="vg-bloco vg-saldo" aria-labelledby="vg-saldo-titulo">
       <h2 id="vg-saldo-titulo" className="vg-bloco-rotulo">
         Saldo do banco
       </h2>
@@ -248,7 +248,28 @@ function BlocoDoSaldo({ saldo, arquivo }: { saldo: SaldoDoExtrato | null; arquiv
         </p>
       ) : (
         <>
-          <span className="vg-bloco-numero">{formatarMoeda(saldo.final)}</span>
+          <span className="vg-bloco-numero vg-saldo-numero">{formatarMoeda(saldo.final)}</span>
+          {/* sem o inicial (linhas não lidas) a variação não sai: o front não calcula o que o backend não deu */}
+          {saldo.inicial !== null && (
+            <span
+              className="vg-saldo-variacao"
+              data-tom={saldo.final < saldo.inicial ? "queda" : saldo.final > saldo.inicial ? "alta" : "igual"}
+            >
+              {saldo.final === saldo.inicial
+                ? "Sem movimento no extrato"
+                : `${saldo.final < saldo.inicial ? "−" : "+"} ${formatarMoeda(Math.abs(saldo.final - saldo.inicial))} de movimento no extrato`}
+            </span>
+          )}
+          <dl className="vg-saldo-dados">
+            <div>
+              <dt>Saldo inicial</dt>
+              <dd>{saldo.inicial === null ? "depende das linhas não lidas" : formatarMoeda(saldo.inicial)}</dd>
+            </div>
+            <div>
+              <dt>Saldo final</dt>
+              <dd>{formatarMoeda(saldo.final)}</dd>
+            </div>
+          </dl>
           {/* o do extrato mais recente: com duas contas no mês, cada uma tem o seu */}
           <span className="vg-nota">{`Em ${data(saldo.data)} · ${arquivo}`}</span>
         </>

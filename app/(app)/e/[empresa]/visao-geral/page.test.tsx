@@ -211,6 +211,8 @@ describe("VisaoGeralPage", () => {
     const saldo = screen.getByRole("region", { name: "Saldo do banco" });
     expect(saldo).toHaveTextContent("R$ 284.310,55");
     expect(saldo).toHaveTextContent("Em 28/09/2026 · sicredi-e7.ofx");
+    // final − inicial, os dois do backend: a soma das linhas do extrato
+    expect(saldo).toHaveTextContent("+ R$ 283.310,55 de movimento no extrato");
     const aprovacao = screen.getByRole("link", { name: /Aguardam aprovação/ });
     expect(aprovacao).toHaveAttribute("href", "/fechamentos");
     expect(aprovacao).toHaveTextContent("5 justificativas");
