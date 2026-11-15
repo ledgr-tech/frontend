@@ -233,7 +233,8 @@ p.eyebrow {
 }
 /* o aperto responde ao clique na hora, antes de a página reagir */
 .btn:active:not(:disabled) { transform: scale(0.97); }
-.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+/* desligado, mas legível: a 45% o rótulo sumia no tema claro ("Baixar PDF", os planos da Assinatura) */
+.btn:disabled { opacity: 0.6; cursor: not-allowed; }
 @media (prefers-reduced-motion: reduce) {
   .btn { transition: none; }
   .faq-item::details-content { transition: none; }
@@ -5112,8 +5113,6 @@ html[data-tema="escuro"] .app-shell {
 .fech-painel { container-type: inline-size; position: static; z-index: auto; max-height: none; overflow-y: visible; }
 /* o de Fechamentos volta a ficar preso (15/11), agora sem cobrir a faixa nem esconder o pé: cabe na
    janela abaixo dos filtros e o que passar rola por dentro, sem barra, como o de Extratos */
-/* o "Baixar PDF" do mês aberto: desligado, mas legível (o .btn:disabled a 45% sumia no tema claro) */
-.fech-painel .btn:disabled { opacity: 0.7; color: var(--texto-apagado); }
 @media (min-width: 1001px) {
   /* abaixo da faixa (z 10) e longe do degradê dela (28px): no fim da lista o painel sobe com a
      coluna e passa por baixo da faixa, em vez de cobrir os filtros */
