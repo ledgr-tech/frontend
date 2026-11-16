@@ -925,8 +925,12 @@ describe("ConciliacaoPage", () => {
     const user = userEvent.setup();
     render(<ConciliacaoPage />);
 
-    await user.click(await screen.findByRole("button", { name: "Só revisão (0)" }));
+    const filtro = await screen.findByRole("button", { name: "Só revisão (0)" });
+    expect(screen.getByRole("combobox", { name: "Ordenar lançamentos por" })).toBeInTheDocument();
+
+    await user.click(filtro);
     expect(screen.getByText(/todos os lançamentos bateram/)).toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: "Ordenar lançamentos por" })).not.toBeInTheDocument();
   });
 
   it("ends the comparison with the bank's final balance, whatever the filter shows (#239)", async () => {

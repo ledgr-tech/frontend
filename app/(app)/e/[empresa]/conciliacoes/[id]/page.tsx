@@ -533,25 +533,27 @@ export default function ConciliacaoPage() {
           )}
         </Reveal>
 
-        <div className="comparacao-controles-cartoes">
-          <label className="field">
-            <span>Ordenar lançamentos por</span>
-            <select
-              className="input"
-              value={ordem.coluna}
-              onChange={(evento) => alternarOrdem(evento.currentTarget.value as Coluna)}
-            >
-              <option value="data">Data</option>
-              <option value="descricao">Descrição</option>
-              <option value="valorBanco">Valor no banco</option>
-              <option value="valorSistema">Valor no sistema</option>
-              <option value="status">Status</option>
-            </select>
-          </label>
-          <button type="button" className="btn btn-secondary" onClick={() => alternarOrdem(ordem.coluna)}>
-            {ordem.crescente ? "Ordem crescente" : "Ordem decrescente"}
-          </button>
-        </div>
+        {ordenadas.length > 0 && (
+          <div className="comparacao-controles-cartoes">
+            <label className="field">
+              <span>Ordenar lançamentos por</span>
+              <select
+                className="input"
+                value={ordem.coluna}
+                onChange={(evento) => alternarOrdem(evento.currentTarget.value as Coluna)}
+              >
+                <option value="data">Data</option>
+                <option value="descricao">Descrição</option>
+                <option value="valorBanco">Valor no banco</option>
+                <option value="valorSistema">Valor no sistema</option>
+                <option value="status">Status</option>
+              </select>
+            </label>
+            <button type="button" className="btn btn-secondary" onClick={() => alternarOrdem(ordem.coluna)}>
+              {ordem.crescente ? "Ordem crescente" : "Ordem decrescente"}
+            </button>
+          </div>
+        )}
 
         {marcando && ordenadas.length > 0 && (
           <div className="lote-faixa" role="region" aria-label="Decidir as marcadas">
