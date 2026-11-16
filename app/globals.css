@@ -3195,14 +3195,14 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
 .vg-conexao-acoes { margin-top: auto; padding-top: 12px; display: flex; flex-direction: column; gap: 10px; position: relative; z-index: 1; }
 .vg-conexao-botao {
   display: inline-flex; justify-content: center; padding: 11px 18px; border-radius: 999px; cursor: pointer;
-  border: 1px solid var(--color-accent); background: var(--color-accent); color: var(--color-text);
+  border: 1px solid var(--color-accent); background: var(--color-accent); color: var(--vg-conexao-botao-texto, var(--color-text));
   font: 600 15px/1.2 var(--font-heading);
   box-shadow: 0 6px 18px -6px color-mix(in srgb, var(--color-accent) 70%, transparent);
   transition: transform var(--dur-rapida) ease, box-shadow var(--dur-rapida) ease, background var(--dur-rapida) ease;
 }
 .vg-conexao-botao:hover {
   transform: translateY(-1px);
-  background: color-mix(in srgb, var(--color-accent) 88%, var(--color-bg));
+  background: color-mix(in srgb, var(--color-accent) 88%, var(--vg-conexao-botao-mistura, var(--color-bg)));
   box-shadow: 0 10px 24px -8px color-mix(in srgb, var(--color-accent) 85%, transparent);
 }
 /* o contorno sobre a tinta: o dourado puxado para o tom do fundo da página (escuro no tema escuro,
@@ -4993,6 +4993,8 @@ th:is([aria-sort="ascending"], [aria-sort="descending"]) .th-ordena-seta { opaci
     --color-divider: color-mix(in srgb, #e9e8e5 18%, transparent);
 
     --color-accent: #a67a3c;
+    --vg-conexao-botao-texto: var(--color-bg);
+    --vg-conexao-botao-mistura: var(--color-text);
     --color-ok: #56905f;
     --color-risco: #b6705a;
 
@@ -5045,6 +5047,8 @@ html[data-tema="escuro"] .app-shell {
   --color-divider: color-mix(in srgb, #e9e8e5 18%, transparent);
 
   --color-accent: #a67a3c;
+  --vg-conexao-botao-texto: var(--color-bg);
+  --vg-conexao-botao-mistura: var(--color-text);
   --color-ok: #56905f;
   --color-risco: #b6705a;
 
