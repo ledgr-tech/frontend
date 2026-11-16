@@ -114,6 +114,17 @@ describe("FechamentosPage", () => {
     refresh.mockReset();
   });
 
+  it("avisa sobre o histórico incompleto e mostra os meses carregados", async () => {
+    carregarFechamentos.mockResolvedValue({
+      ok: true,
+      dados: { pares: [SETEMBRO_EM_ABERTO], fechamentos: [], historicoIncompleto: true },
+    });
+    render(await FechamentosPage({ searchParams: Promise.resolve({}) }));
+
+    expect(screen.getByText("Esta tela mostra os meses mais recentes. Fale com o Ledgr se precisar de um mês mais antigo.")).toBeInTheDocument();
+    expect(within(painel()).getByRole("heading", { name: "Setembro de 2026" })).toBeInTheDocument();
+  });
+
   it("shows one sheet per month, the most recent first and open in the panel", async () => {
     await renderizar();
 

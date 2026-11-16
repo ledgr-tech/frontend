@@ -46,12 +46,13 @@ export default async function FechamentosPage({
 
       {!resposta.ok ? (
         <FalhaAoCarregar oQue="os fechamentos" status={resposta.status} />
-      ) : meses.length === 0 ? (
+      ) : meses.length === 0 && !resposta.dados.historicoIncompleto ? (
         <SemConciliacao />
       ) : (
         <Reveal style={{ padding: "28px 0 56px" }}>
           <MesaDeFechamento
             meses={meses}
+            historicoIncompleto={resposta.dados.historicoIncompleto}
             inicial={typeof mes === "string" ? mes : undefined}
             // sem a lista de fechamentos não dá para saber o que já está fechado: a mesa só mostra
             podeFechar={resposta.dados.fechamentos !== null}

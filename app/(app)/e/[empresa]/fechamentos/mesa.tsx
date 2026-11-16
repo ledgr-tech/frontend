@@ -106,11 +106,13 @@ function resumoDoAno(meses: MesDeFechamento[]): string {
 export function MesaDeFechamento({
   meses,
   inicial,
+  historicoIncompleto = false,
   podeFechar,
 }: {
   meses: MesDeFechamento[];
   /** A competência (AAAA-MM) que abre no painel; sem ela, ou sem esse mês, a mais recente. */
   inicial?: string;
+  historicoIncompleto?: boolean;
   /** Falso quando os fechamentos não carregaram: sem saber o que está fechado, a mesa só mostra. */
   podeFechar: boolean;
 }) {
@@ -137,6 +139,9 @@ export function MesaDeFechamento({
 
   return (
     <div className="extratos-corpo">
+      {historicoIncompleto && (
+        <p className="vg-nota">Esta tela mostra os meses mais recentes. Fale com o Ledgr se precisar de um mês mais antigo.</p>
+      )}
       {/* a faixa dos filtros fica presa sob a barra do topo enquanto os meses rolam */}
       <FaixaFiltros>
         <div className="pills segmentado" role="group" aria-label="Filtrar meses">

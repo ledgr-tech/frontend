@@ -697,6 +697,18 @@ export type ListaDeExtratos = {
 
 const EXTRATOS_POR_PAGINA = 100;
 
+async function listarExtratosDoBackend(): Promise<ListaExtratosAPI> {
+  const pagina = (numero: number) => `/extratos?limit=${EXTRATOS_POR_PAGINA}&offset=${numero * EXTRATOS_POR_PAGINA}`;
+  const primeira = await chamarBackend<ListaExtratosAPI>(pagina(0));
+  const itens = [...primeira.itens];
+  for (let numero = 1; itens.length < primeira.total && numero < MAXIMO_DE_PAGINAS; numero += 1) {
+    const proxima = await chamarBackend<ListaExtratosAPI>(pagina(numero));
+    if (proxima.itens.length === 0) break;
+    itens.push(...proxima.itens);
+  }
+  return { ...primeira, itens };
+}
+
 /**
  * Os arquivos enviados, para a tela de extratos, de `GET /extratos` (backend #70): todos, do envio
  * mais recente ao mais antigo, inclusive os que ainda não entraram em conciliação.
@@ -706,16 +718,10 @@ const EXTRATOS_POR_PAGINA = 100;
  * cada linha não lida, de `GET /extratos/{id}`, só dos arquivos que têm alguma.
  */
 export async function listarExtratos(): Promise<Resultado<ListaDeExtratos>> {
-  const pagina = (numero: number) => `/extratos?limit=${EXTRATOS_POR_PAGINA}&offset=${numero * EXTRATOS_POR_PAGINA}`;
   let lista: ListaExtratosAPI;
   let execucoes: Resultado<ListaExecucoes>;
   try {
-    [lista, execucoes] = await Promise.all([chamarBackend<ListaExtratosAPI>(pagina(0)), listarExecucoes()]);
-    for (let numero = 1; lista.itens.length < lista.total && numero < MAXIMO_DE_PAGINAS; numero += 1) {
-      const proxima = await chamarBackend<ListaExtratosAPI>(pagina(numero));
-      if (proxima.itens.length === 0) break;
-      lista = { ...lista, itens: [...lista.itens, ...proxima.itens] };
-    }
+    [lista, execucoes] = await Promise.all([listarExtratosDoBackend(), listarExecucoes()]);
   } catch (erro) {
     return traduzir(erro);
   }
@@ -879,12 +885,13 @@ export type ParDoFechamento = {
   execucao: Execucao;
   /** Os arquivos do par com linhas que o parser não conseguiu ler. */
   naoLidas: { nome: string; linhas: number }[];
-  /** O saldo do extrato do banco (backend #118); ausente sem o detalhe dele ou sem a #118. */
+  /** O saldo do extrato do banco (backend #118); ausente sem o item na lista ou sem os campos da #118. */
   saldo?: SaldoDoExtrato | null;
 };
 
 export type DadosDoFechamento = {
   pares: ParDoFechamento[];
+  historicoIncompleto?: true;
   /**
    * Os fechamentos da empresa (`GET /fechamentos`), do mais recente para o mais antigo, os
    * reabertos inclusive. Null quando a rota não respondeu: a mesa mostra os meses sem fechar nada.
@@ -892,7 +899,7 @@ export type DadosDoFechamento = {
   fechamentos: Fechamento[] | null;
 };
 
-async function listarExecucoesDosFechamentos(): Promise<Resultado<Execucao[]>> {
+async function listarExecucoesDosFechamentos(): Promise<Resultado<{ execucoes: Execucao[]; historicoIncompleto: boolean }>> {
   const porPagina = 100;
   const pagina = (numero: number) => `/execucoes?limit=${porPagina}&offset=${numero * porPagina}`;
   try {
@@ -903,10 +910,10 @@ async function listarExecucoesDosFechamentos(): Promise<Resultado<Execucao[]>> {
       if (proxima.itens.length === 0) break;
       itens.push(...proxima.itens);
     }
-    if (itens.length < primeira.total) {
-      return { ok: false, status: 503, erro: "Não foi possível carregar todas as execuções para os fechamentos." };
-    }
-    return { ok: true, dados: itens.map(adaptarExecucao) };
+    return {
+      ok: true,
+      dados: { execucoes: itens.map(adaptarExecucao), historicoIncompleto: itens.length < primeira.total },
+    };
   } catch (erro) {
     return traduzir(erro);
   }
@@ -918,36 +925,33 @@ async function listarExecucoesDosFechamentos(): Promise<Resultado<Execucao[]>> {
  * vem na execução). Só as rodadas atuais: a refeita depois substitui a anterior.
  * E os fechamentos, que dizem quais meses já estão fechados.
  *
- * ponytail: duas chamadas por par (os dois arquivos), em paralelo. `GET /extratos`
- * (backend #70) traz as linhas não lidas de todos numa lista.
+ * A lista de extratos traz a contagem de linhas não lidas e o saldo em lote.
  */
 export async function carregarFechamentos(): Promise<Resultado<DadosDoFechamento>> {
-  const [lista, fechamentos] = await Promise.all([listarExecucoesDosFechamentos(), listarFechamentos()]);
+  const [lista, fechamentos, extratos] = await Promise.all([
+    listarExecucoesDosFechamentos(),
+    listarFechamentos(),
+    listarExtratosDoBackend().catch(() => null),
+  ]);
   if (!lista.ok) return lista;
 
+  const porId = new Map(extratos?.itens.map((item) => [item.extrato_id, item]));
   // a versão nova do extrato do sistema substitui a antiga: um par por extrato do banco
-  const atuais = execucoesVigentes(lista.dados);
-  const pares = await Promise.all(
-    atuais.map(async (execucao) => {
-      const [banco, sistema] = await Promise.all([
-        situacaoDoExtrato(execucao.extratoBancoId),
-        situacaoDoExtrato(execucao.extratoSistemaId),
-      ]);
-      const arquivos = [
-        { nome: execucao.arquivoBanco, situacao: banco },
-        { nome: execucao.arquivoSistema, situacao: sistema },
-      ];
-      const naoLidas = arquivos.flatMap(({ nome, situacao }) =>
-        situacao.ok && situacao.dados.erros.length > 0
-          ? [{ nome, linhas: situacao.dados.erros.length }]
-          : [],
-      );
-      // o saldo vem no mesmo detalhe do extrato do banco que já diz as linhas não lidas
-      const saldo = banco.ok ? adaptarSaldo(banco.dados) : undefined;
-      return { execucao, naoLidas, ...(saldo !== undefined && { saldo }) };
-    }),
-  );
-  return { ok: true, dados: { pares, fechamentos } };
+  const pares = execucoesVigentes(lista.dados.execucoes).map((execucao) => {
+    const banco = porId.get(execucao.extratoBancoId);
+    const sistema = porId.get(execucao.extratoSistemaId);
+    const naoLidas = [banco, sistema].flatMap((arquivo) =>
+      arquivo && arquivo.linhas_nao_lidas > 0
+        ? [{ nome: arquivo.nome_arquivo, linhas: arquivo.linhas_nao_lidas }]
+        : [],
+    );
+    const saldo = banco ? adaptarSaldo(banco) : undefined;
+    return { execucao, naoLidas, ...(saldo !== undefined && { saldo }) };
+  });
+  return {
+    ok: true,
+    dados: { pares, fechamentos, ...(lista.dados.historicoIncompleto && { historicoIncompleto: true }) },
+  };
 }
 
 async function listarFechamentos(): Promise<Fechamento[] | null> {
