@@ -4550,12 +4550,14 @@ html:not([data-densidade="padrao"]) .app-shell .table td { padding-block: 4px; }
 html:not([data-densidade="padrao"]) .app-shell .table th { padding-block: 6px; }
 html:not([data-densidade="padrao"]) .app-shell .selo { padding-block: 1px; }
 
+/* Os controles da comparação em cartões só aparecem no celular. */
+.comparacao-controles-cartoes { display: none; }
+
 /* Tabela em cartões no celular.
    `display: block` apaga o papel implícito de tabela, então as linhas e células
    declaram `role` no HTML — sem isso o leitor de tela perde a grade inteira e
    passa a ler uma pilha de textos soltos. O rótulo de cada campo vem do
    data-rotulo, que só aparece nesta largura. */
-.comparacao-controles-cartoes { display: none; }
 
 @media (max-width: 680px) {
   .tabela-cartoes .table,
