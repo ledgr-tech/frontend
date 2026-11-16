@@ -48,6 +48,14 @@ describe("aprovadaDepois e podeDesfazerAprovacao (backend #164)", () => {
     expect(podeDesfazerAprovacao(aprovadaPorGil, "")).toBe(false);
   });
 
+  it("reconhece aprovação em 500 ms quando o backend permite desfazer", () => {
+    expect(aprovadaDepois({
+      ...aprovadaPorGil,
+      aprovadaEm: "2026-10-20T10:00:00.500Z",
+      podeDesfazerAprovacao: true,
+    })).toBe(true);
+  });
+
   it("a que nasce aprovada com a aprovação desligada não conta: mesmo autor, um microssegundo depois", () => {
     const nascidaAprovada: Decisao = {
       ...JUSTIFICADA,
