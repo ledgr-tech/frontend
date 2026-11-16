@@ -4555,6 +4555,8 @@ html:not([data-densidade="padrao"]) .app-shell .selo { padding-block: 1px; }
    declaram `role` no HTML — sem isso o leitor de tela perde a grade inteira e
    passa a ler uma pilha de textos soltos. O rótulo de cada campo vem do
    data-rotulo, que só aparece nesta largura. */
+.comparacao-controles-cartoes { display: none; }
+
 @media (max-width: 680px) {
   .tabela-cartoes .table,
   .tabela-cartoes .table tbody,
@@ -4562,6 +4564,12 @@ html:not([data-densidade="padrao"]) .app-shell .selo { padding-block: 1px; }
   .tabela-cartoes .table td { display: block; width: auto; }
 
   .tabela-cartoes .table thead { display: none; }
+
+  .comparacao-controles-cartoes {
+    display: flex; flex-wrap: wrap; align-items: end; gap: var(--space-2);
+  }
+  .comparacao-controles-cartoes .field { display: grid; gap: var(--space-1); }
+  .lote-faixa .comparacao-controles-cartoes { align-items: center; }
 
   .tabela-cartoes .table tr {
     border: 1px solid var(--color-divider); border-radius: var(--radius-md);

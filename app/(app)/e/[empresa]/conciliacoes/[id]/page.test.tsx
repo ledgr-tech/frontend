@@ -1597,6 +1597,22 @@ describe("ConciliacaoPage", () => {
           expect(screen.getByText("Marque as justificativas para aprovar ou rejeitar de uma vez.")).toBeInTheDocument();
         });
 
+        it("ordena e marca todas pelos controles dos cartões", async () => {
+          doBackend(comDuas);
+          const user = userEvent.setup();
+          render(<ConciliacaoPage />);
+
+          await user.click(await screen.findByRole("button", { name: "Aguardando aprovação (2)" }));
+          await user.selectOptions(screen.getByRole("combobox", { name: "Ordenar lançamentos por" }), "descricao");
+          await user.click(screen.getByRole("button", { name: "Ordem crescente" }));
+          expect(screen.getAllByRole("columnheader", { name: "Descrição" })[0]).toHaveAttribute("aria-sort", "descending");
+
+          await user.click(screen.getByRole("checkbox", { name: "Marcar todas" }));
+          expect(screen.getByText("2 de 2 marcadas")).toBeInTheDocument();
+          await user.click(screen.getByRole("checkbox", { name: "Marcar todas" }));
+          expect(screen.getByRole("checkbox", { name: "Marcar Boleto Aço Norte Bobinas" })).not.toBeChecked();
+        });
+
         it("aprova as marcadas pelas chaves do backend, e a tela é lida de novo", async () => {
           doBackend(comDuas);
           decidirLinhas.mockResolvedValue({ ok: true, dados: { processadas: 1, ignoradas: 0 } });
