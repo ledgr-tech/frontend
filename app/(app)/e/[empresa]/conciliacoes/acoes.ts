@@ -892,6 +892,26 @@ export type DadosDoFechamento = {
   fechamentos: Fechamento[] | null;
 };
 
+async function listarExecucoesDosFechamentos(): Promise<Resultado<Execucao[]>> {
+  const porPagina = 100;
+  const pagina = (numero: number) => `/execucoes?limit=${porPagina}&offset=${numero * porPagina}`;
+  try {
+    const primeira = await chamarBackend<ListaExecucoesAPI>(pagina(0));
+    const itens = [...primeira.itens];
+    for (let numero = 1; itens.length < primeira.total && numero < MAXIMO_DE_PAGINAS; numero += 1) {
+      const proxima = await chamarBackend<ListaExecucoesAPI>(pagina(numero));
+      if (proxima.itens.length === 0) break;
+      itens.push(...proxima.itens);
+    }
+    if (itens.length < primeira.total) {
+      return { ok: false, status: 503, erro: "Não foi possível carregar todas as execuções para os fechamentos." };
+    }
+    return { ok: true, dados: itens.map(adaptarExecucao) };
+  } catch (erro) {
+    return traduzir(erro);
+  }
+}
+
 /**
  * Cada par de extratos conciliado, com as linhas não lidas dos dois arquivos: é o
  * que a mesa de fechamento agrupa por mês (o do período do extrato do banco, que
@@ -902,11 +922,11 @@ export type DadosDoFechamento = {
  * (backend #70) traz as linhas não lidas de todos numa lista.
  */
 export async function carregarFechamentos(): Promise<Resultado<DadosDoFechamento>> {
-  const [lista, fechamentos] = await Promise.all([listarExecucoes(), listarFechamentos()]);
+  const [lista, fechamentos] = await Promise.all([listarExecucoesDosFechamentos(), listarFechamentos()]);
   if (!lista.ok) return lista;
 
   // a versão nova do extrato do sistema substitui a antiga: um par por extrato do banco
-  const atuais = execucoesVigentes(lista.dados.execucoes);
+  const atuais = execucoesVigentes(lista.dados);
   const pares = await Promise.all(
     atuais.map(async (execucao) => {
       const [banco, sistema] = await Promise.all([

@@ -1131,6 +1131,76 @@ describe("carregarFechamentos", () => {
     return { extrato_id: id, status: "concluido", origem: "banco", quantidade_lancamentos: 2, erros };
   }
 
+  function execucoesPaginadas(execucoes: ExecucaoAPI[], fechamentos: ReturnType<typeof fechamento>[] = []) {
+    chamarBackend.mockImplementation(async (caminho: string) => {
+      if (caminho === "/fechamentos") return { itens: fechamentos };
+      if (caminho.startsWith("/execucoes?")) {
+        const busca = new URLSearchParams(caminho.split("?")[1]);
+        const limit = Number(busca.get("limit"));
+        const offset = Number(busca.get("offset"));
+        return { total: execucoes.length, limit, offset, itens: execucoes.slice(offset, offset + limit) };
+      }
+      return situacao(caminho.replace("/extratos/", ""));
+    });
+  }
+
+  it("inclui o mês fechado cuja execução é a 51ª mais recente", async () => {
+    const recentes = Array.from({ length: 50 }, (_, i) => execucao(`recente-${i}`, BANCO_RECENTE));
+    const anterior = {
+      ...execucao("fechada", BANCO_ANTERIOR),
+      periodo_inicio: "2026-08-01",
+      executada_em: "2026-08-31T12:00:00Z",
+    };
+    execucoesPaginadas([...recentes, anterior], [fechamento("2026-08")]);
+
+    const resultado = await carregarFechamentos();
+
+    expect(resultado).toMatchObject({
+      ok: true,
+      dados: {
+        pares: [
+          { execucao: { extratoBancoId: BANCO_RECENTE } },
+          { execucao: { id: "fechada", periodoInicio: "2026-08-01" } },
+        ],
+        fechamentos: [{ competencia: "2026-08", estado: "fechado" }],
+      },
+    });
+  });
+
+  it("mantém a v2 vigente quando a v1 foi refeita e começou em outra página", async () => {
+    const v1 = {
+      ...execucao("v1", BANCO_RECENTE, false),
+      extrato_sistema_id: SISTEMA_V1,
+      executada_em: "2026-10-01T12:00:00Z",
+    };
+    const v2 = {
+      ...execucao("v2", BANCO_RECENTE),
+      extrato_sistema_id: SISTEMA_V2,
+      executada_em: "2026-10-05T12:00:00Z",
+    };
+    const refeita = { ...v1, id: "v1-refeita", atual: true, executada_em: "2026-10-10T12:00:00Z" };
+    const outras = Array.from({ length: 98 }, (_, i) => ({
+      ...execucao(`outra-${i}`, BANCO_ANTERIOR, false),
+      executada_em: "2026-10-03T12:00:00Z",
+    }));
+    execucoesPaginadas([refeita, v2, ...outras, v1]);
+
+    const resultado = await carregarFechamentos();
+
+    expect(resultado).toMatchObject({ ok: true, dados: { pares: [{ execucao: { id: "v2" } }] } });
+    expect(chamarBackend).toHaveBeenCalledWith("/execucoes?limit=100&offset=100");
+  });
+
+  it("devolve falha quando o histórico passa do limite de páginas", async () => {
+    execucoesPaginadas(Array.from({ length: 1001 }, (_, i) => execucao(`e-${i}`, BANCO_RECENTE)));
+
+    const resultado = await carregarFechamentos();
+
+    expect(resultado).toMatchObject({ ok: false, status: 503 });
+    expect(chamarBackend.mock.calls.filter(([caminho]) => caminho.startsWith("/execucoes?"))).toHaveLength(10);
+    expect(chamarBackend).not.toHaveBeenCalledWith("/execucoes?limit=100&offset=1000");
+  });
+
   it("dá a cada par atual as linhas não lidas dos dois arquivos, sem abrir a conciliação", async () => {
     chamarBackend.mockImplementation(async (caminho: string) => {
       if (caminho === "/fechamentos") return { itens: [] };
