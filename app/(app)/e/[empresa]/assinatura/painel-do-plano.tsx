@@ -447,12 +447,11 @@ function AssinarPlano({
     setAvisado(false);
     setErro(null);
   }
-  const imediata = cobrancaImediata(assinatura, new Date());
   const nome = NOME_DO_PLANO[plano];
 
   async function assinar() {
     if (travado.current) return;
-    if (imediata && !avisado) return setAvisado(true);
+    if (!avisado && cobrancaImediata(assinatura, new Date())) return setAvisado(true);
     travado.current = true;
     setAbrindo(true);
     setErro(null);
