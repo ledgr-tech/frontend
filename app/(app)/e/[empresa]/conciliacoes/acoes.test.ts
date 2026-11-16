@@ -1289,6 +1289,7 @@ describe("carregarFechamentos", () => {
 
     if (!resultado.ok) throw new Error(resultado.erro);
     expect(resultado.dados.pares).toHaveLength(300);
+    expect(resultado.dados).not.toHaveProperty("naoLidasIndisponivel");
     expect(chamarBackend).toHaveBeenCalledTimes(10);
     expect(chamarBackend.mock.calls.map(([caminho]) => caminho).sort()).toEqual([
       "/fechamentos",
@@ -1337,7 +1338,25 @@ describe("carregarFechamentos", () => {
     expect(resultado.dados.pares).toHaveLength(1);
     expect(resultado.dados.pares[0].naoLidas).toEqual([]);
     expect(resultado.dados.pares[0]).not.toHaveProperty("saldo");
+    expect(resultado.dados.naoLidasIndisponivel).toBe(true);
     expect(chamarBackend).toHaveBeenCalledWith("/extratos?limit=100&offset=0");
+  });
+
+  it.each([true, false])("só sinaliza extratos cortados se faltar um arquivo do par vigente (ausente: %s)", async (ausente) => {
+    const primeiros = [arquivo(BANCO_RECENTE, { origem: "banco" })];
+    if (!ausente) primeiros.push(arquivo(SISTEMA));
+    const extratos = [
+      ...primeiros,
+      ...Array.from({ length: 1000 - primeiros.length }, (_, i) => arquivo("outro-" + i)),
+      arquivo(ausente ? SISTEMA : "mais-antigo"),
+    ];
+    execucoesPaginadas([execucao("e-1", BANCO_RECENTE)], [], extratos);
+
+    const resultado = await carregarFechamentos();
+
+    if (!resultado.ok) throw new Error(resultado.erro);
+    expect(resultado.dados.naoLidasIndisponivel).toBe(ausente ? true : undefined);
+    expect(chamarBackend).not.toHaveBeenCalledWith("/extratos?limit=100&offset=1000");
   });
 
   it("traz os fechamentos da empresa, os ativos e os reabertos, como o backend os ordena", async () => {

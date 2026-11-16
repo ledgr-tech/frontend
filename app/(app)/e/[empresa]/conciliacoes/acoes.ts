@@ -902,6 +902,7 @@ export type ParDoFechamento = {
 export type DadosDoFechamento = {
   pares: ParDoFechamento[];
   historicoIncompleto?: true;
+  naoLidasIndisponivel?: true;
   /**
    * Os fechamentos da empresa (`GET /fechamentos`), do mais recente para o mais antigo, os
    * reabertos inclusive. Null quando a rota não respondeu: a mesa mostra os meses sem fechar nada.
@@ -947,7 +948,12 @@ export async function carregarFechamentos(): Promise<Resultado<DadosDoFechamento
 
   const porId = new Map(extratos?.itens.map((item) => [item.extrato_id, item]));
   // a versão nova do extrato do sistema substitui a antiga: um par por extrato do banco
-  const pares = execucoesVigentes(lista.dados.execucoes).map((execucao) => {
+  const vigentes = execucoesVigentes(lista.dados.execucoes);
+  const naoLidasIndisponivel = extratos === null || (
+    extratos.itens.length < extratos.total &&
+    vigentes.some(({ extratoBancoId, extratoSistemaId }) => !porId.has(extratoBancoId) || !porId.has(extratoSistemaId))
+  );
+  const pares = vigentes.map((execucao) => {
     const banco = porId.get(execucao.extratoBancoId);
     const sistema = porId.get(execucao.extratoSistemaId);
     const naoLidas = [banco, sistema].flatMap((arquivo) =>
@@ -960,7 +966,12 @@ export async function carregarFechamentos(): Promise<Resultado<DadosDoFechamento
   });
   return {
     ok: true,
-    dados: { pares, fechamentos, ...(lista.dados.historicoIncompleto && { historicoIncompleto: true }) },
+    dados: {
+      pares,
+      fechamentos,
+      ...(lista.dados.historicoIncompleto && { historicoIncompleto: true }),
+      ...(naoLidasIndisponivel && { naoLidasIndisponivel: true }),
+    },
   };
 }
 

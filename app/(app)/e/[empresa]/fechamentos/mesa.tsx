@@ -66,7 +66,7 @@ function pendentes(mes: MesDeFechamento): number {
   return mes.divergentes - mes.justificadas;
 }
 
-function seloDoMes(mes: MesDeFechamento): { rotulo: string; tom: Tom } {
+function seloDoMes(mes: MesDeFechamento, naoLidasIndisponivel: boolean): { rotulo: string; tom: Tom } {
   if (estaFechado(mes)) {
     return mes.fechamento?.ressalva ? { rotulo: "Fechado com ressalva", tom: "atencao" } : { rotulo: "Fechado", tom: "ok" };
   }
@@ -74,6 +74,9 @@ function seloDoMes(mes: MesDeFechamento): { rotulo: string; tom: Tom } {
   // só falta aprovar o que já foi justificado: não é decisão de quem concilia, é do admin e do gestor
   if (mes.aguardandoAprovacao > 0 && pendentes(mes) === mes.aguardandoAprovacao) {
     return { rotulo: "Aguardando aprovação", tom: "atencao" };
+  }
+  if (naoLidasIndisponivel && mes.naoLidas.length === 0 && pendentes(mes) === 0) {
+    return { rotulo: "Leitura não conferida", tom: "atencao" };
   }
   // sem divergência por decidir, o que segura o mês são as linhas que o parser não leu
   if (pendentes(mes) === 0) return { rotulo: "Linhas não lidas", tom: "atencao" };
@@ -107,12 +110,14 @@ export function MesaDeFechamento({
   meses,
   inicial,
   historicoIncompleto = false,
+  naoLidasIndisponivel = false,
   podeFechar,
 }: {
   meses: MesDeFechamento[];
   /** A competência (AAAA-MM) que abre no painel; sem ela, ou sem esse mês, a mais recente. */
   inicial?: string;
   historicoIncompleto?: boolean;
+  naoLidasIndisponivel?: boolean;
   /** Falso quando os fechamentos não carregaram: sem saber o que está fechado, a mesa só mostra. */
   podeFechar: boolean;
 }) {
@@ -141,6 +146,9 @@ export function MesaDeFechamento({
     <div className="extratos-corpo">
       {historicoIncompleto && (
         <p className="vg-nota">Esta tela mostra os meses mais recentes. Fale com o Ledgr se precisar de um mês mais antigo.</p>
+      )}
+      {naoLidasIndisponivel && (
+        <p className="vg-nota">Não foi possível conferir as linhas não lidas dos extratos. Tente de novo antes de fechar o mês.</p>
       )}
       {/* a faixa dos filtros fica presa sob a barra do topo enquanto os meses rolam */}
       <FaixaFiltros>
@@ -176,7 +184,7 @@ export function MesaDeFechamento({
                 <>
                   <div id={`${id}-meses`} className="extratos-grade" hidden={mostrados.length === 0}>
                     {mostrados.map((mes) => {
-                      const selo = seloDoMes(mes);
+                      const selo = seloDoMes(mes, naoLidasIndisponivel);
                       return (
                         <button
                           key={mes.chave}
@@ -237,7 +245,7 @@ export function MesaDeFechamento({
               );
             })}
           </div>
-          <Painel mes={aberto} podeFechar={podeFechar} />
+          <Painel mes={aberto} podeFechar={podeFechar} naoLidasIndisponivel={naoLidasIndisponivel} />
         </div>
       )}
     </div>
@@ -277,7 +285,11 @@ function Passo({ feito, icone, titulo, children }: { feito?: boolean; icone?: Re
   );
 }
 
-function Painel({ mes, podeFechar }: { mes: MesDeFechamento; podeFechar: boolean }) {
+function Painel({ mes, podeFechar, naoLidasIndisponivel }: {
+  mes: MesDeFechamento;
+  podeFechar: boolean;
+  naoLidasIndisponivel: boolean;
+}) {
   const conciliadas = mes.pares.map((par) => ({
     ...par,
     caminho: caminhoDaConciliacao(par.execucao.extratoBancoId, par.execucao.extratoSistemaId),
@@ -409,9 +421,11 @@ function Painel({ mes, podeFechar }: { mes: MesDeFechamento; podeFechar: boolean
           </Passo>
         )}
 
-        <Passo feito={mes.naoLidas.length === 0} titulo="Arquivos lidos por inteiro">
+        <Passo feito={!naoLidasIndisponivel && mes.naoLidas.length === 0} titulo="Arquivos lidos por inteiro">
           {mes.naoLidas.length === 0 ? (
-            <span className="fech-passo-texto">O Ledgr leu todas as linhas dos arquivos.</span>
+            <span className="fech-passo-texto">
+              {naoLidasIndisponivel ? "A conferência das linhas ficou incompleta." : "O Ledgr leu todas as linhas dos arquivos."}
+            </span>
           ) : (
             <>
               <ul className="fech-passo-lista">

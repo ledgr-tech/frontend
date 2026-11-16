@@ -125,6 +125,27 @@ describe("FechamentosPage", () => {
     expect(within(painel()).getByRole("heading", { name: "Setembro de 2026" })).toBeInTheDocument();
   });
 
+  it.each([true as const, undefined])("avisa e impede que o mês apareça pronto se faltou conferir os extratos (%s)", async (naoLidasIndisponivel) => {
+    carregarFechamentos.mockResolvedValue({
+      ok: true,
+      dados: { pares: [AGOSTO_PRONTO], fechamentos: [], naoLidasIndisponivel },
+    });
+    render(await FechamentosPage({ searchParams: Promise.resolve({}) }));
+
+    const aviso = screen.queryByText("Não foi possível conferir as linhas não lidas dos extratos. Tente de novo antes de fechar o mês.");
+    const leituraCompleta = within(painel()).queryByText("O Ledgr leu todas as linhas dos arquivos.");
+    if (naoLidasIndisponivel) {
+      expect(aviso).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Prontos para fechar (0)" })).toBeInTheDocument();
+      expect(within(painel()).getByText("Fechamento · em aberto")).toBeInTheDocument();
+      expect(leituraCompleta).not.toBeInTheDocument();
+    } else {
+      expect(aviso).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Prontos para fechar (1)" })).toBeInTheDocument();
+      expect(leituraCompleta).toBeInTheDocument();
+    }
+  });
+
   it("shows one sheet per month, the most recent first and open in the panel", async () => {
     await renderizar();
 

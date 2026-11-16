@@ -30,7 +30,9 @@ export default async function FechamentosPage({
   const resposta = await carregarFechamentos();
   if (!resposta.ok && resposta.status === 401) await redirecionarNoApp("/login");
 
-  const meses = resposta.ok ? agruparPorMes(resposta.dados.pares, resposta.dados.fechamentos ?? []) : [];
+  const meses = resposta.ok
+    ? agruparPorMes(resposta.dados.pares, resposta.dados.fechamentos ?? [], resposta.dados.naoLidasIndisponivel)
+    : [];
   // ?mes=AAAA-MM: a linha das rodadas de uma conciliação chega aqui no mês dela
   const { mes } = await searchParams;
 
@@ -46,13 +48,14 @@ export default async function FechamentosPage({
 
       {!resposta.ok ? (
         <FalhaAoCarregar oQue="os fechamentos" status={resposta.status} />
-      ) : meses.length === 0 && !resposta.dados.historicoIncompleto ? (
+      ) : meses.length === 0 && !resposta.dados.historicoIncompleto && !resposta.dados.naoLidasIndisponivel ? (
         <SemConciliacao />
       ) : (
         <Reveal style={{ padding: "28px 0 56px" }}>
           <MesaDeFechamento
             meses={meses}
             historicoIncompleto={resposta.dados.historicoIncompleto}
+            naoLidasIndisponivel={resposta.dados.naoLidasIndisponivel}
             inicial={typeof mes === "string" ? mes : undefined}
             // sem a lista de fechamentos não dá para saber o que já está fechado: a mesa só mostra
             podeFechar={resposta.dados.fechamentos !== null}
