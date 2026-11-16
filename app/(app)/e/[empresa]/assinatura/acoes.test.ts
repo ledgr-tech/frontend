@@ -79,6 +79,7 @@ describe("iniciarCheckout", () => {
     [new ErroBackend(429, "Limite.", [], {}, 30), 429, "Muitas tentativas. Tente de novo em 1 minuto."],
     [new ErroBackend(401, "Sessão expirada."), 401, "Sua sessão expirou. Entre de novo para continuar."],
     [new ErroBackend(403, "Proibido."), 403, "Só o administrador do escritório assina."],
+    [new ErroBackend(403, "Sua conta está inativa.", [], {}, undefined, [], "conta_inativa"), 403, "Sua conta está inativa."],
     [new ErroBackend(422, "Inválido."), 422, "Esse plano não está disponível."],
     [new TypeError("fetch failed"), 0, SEM_SERVIDOR],
   ])("traduz o erro %#", async (erro, status, texto) => {

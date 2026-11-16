@@ -57,4 +57,14 @@ describe("GET /api/extratos/[id]/arquivo-original", () => {
     expect(resposta.status).toBe(daRota);
     expect((await resposta.json()).erro).toEqual(expect.any(String));
   });
+
+  it("preserva o detalhe quando a conta está inativa", async () => {
+    const detalhe = "Sua conta está inativa.";
+    baixarDoBackend.mockRejectedValue(new ErroBackend(403, detalhe, [], {}, undefined, [], "conta_inativa"));
+
+    const resposta = await pedir(EXTRATO);
+
+    expect(resposta.status).toBe(403);
+    expect(await resposta.json()).toEqual({ erro: detalhe });
+  });
 });
