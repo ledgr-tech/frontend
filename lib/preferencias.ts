@@ -29,9 +29,13 @@ export function ehTela(valor: unknown): valor is TelaDoTutorial {
   return typeof valor === "string" && (TELAS_DO_TUTORIAL as readonly string[]).includes(valor);
 }
 
-export function preferenciasLocais(): Preferencias {
+export function preferenciasLocais(dono: string): Preferencias {
+  if (!dono) return PREFERENCIAS_VAZIAS;
   try {
-    const bruto = JSON.parse(window.localStorage.getItem(CHAVE) ?? "null") as Record<string, unknown> | null;
+    const armazenamento = window.localStorage;
+    // A chave antiga era compartilhada: não dá para atribuir as escolhas a uma pessoa.
+    armazenamento.removeItem(CHAVE);
+    const bruto = JSON.parse(armazenamento.getItem(`${CHAVE}:${dono.toLowerCase()}`) ?? "null") as Record<string, unknown> | null;
     if (!bruto || typeof bruto !== "object") return PREFERENCIAS_VAZIAS;
     const telas = Array.isArray(bruto.tutoriaisDispensados) ? bruto.tutoriaisDispensados.filter(ehTela) : [];
     return { tutoriaisDispensados: telas, roteiroDispensado: bruto.roteiroDispensado === true };
@@ -41,9 +45,10 @@ export function preferenciasLocais(): Preferencias {
   }
 }
 
-export function guardarLocal(preferencias: Preferencias): void {
+export function guardarLocal(dono: string, preferencias: Preferencias): void {
+  if (!dono) return;
   try {
-    window.localStorage.setItem(CHAVE, JSON.stringify(preferencias));
+    window.localStorage.setItem(`${CHAVE}:${dono.toLowerCase()}`, JSON.stringify(preferencias));
   } catch {
     // sem armazenamento: a escolha vale até recarregar
   }

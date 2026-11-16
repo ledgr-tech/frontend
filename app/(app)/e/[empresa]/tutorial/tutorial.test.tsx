@@ -11,6 +11,7 @@ vi.mock("../../../../(auth)/acoes", () => ({ salvarPreferencias: vi.fn(async () 
 
 const esperar = () => new Promise((r) => setTimeout(r, 20));
 const mascoteAtras = () => document.querySelector(".tutorial-mascote-atras")?.getAttribute("src");
+const EMAIL = "ana@example.com";
 
 // a tela de Extratos sem o painel do arquivo: o terceiro passo do tutorial não tem alvo
 const TELA = (
@@ -22,7 +23,7 @@ const TELA = (
 
 function montar(conteudo = TELA, espera?: number) {
   return render(
-    <ProvedorDaConta preferencias={null}>
+    <ProvedorDaConta email={EMAIL} preferencias={null}>
       {conteudo}
       <button>fora</button>
       <Tutorial tela="extratos" atraso={0} espera={espera} />
@@ -120,6 +121,60 @@ describe("Tutorial", () => {
     expect(await screen.findByRole("dialog")).toBeInTheDocument();
   });
 
+  it.each([false, true])("outra pessoa vê o tutorial da Visão geral na mesma aba (dispensado: %s)", async (dispensar) => {
+    const user = userEvent.setup();
+    const montarVisaoGeral = (email: string) => render(
+      <ProvedorDaConta email={email} preferencias={null}>
+        <div data-tutorial="estado-do-mes">Estado do mês</div>
+        <Tutorial tela="visao-geral" atraso={0} />
+      </ProvedorDaConta>,
+    );
+
+    const primeira = montarVisaoGeral(EMAIL.toUpperCase());
+    await screen.findByRole("dialog");
+    if (dispensar) await user.click(screen.getByLabelText("Não mostrar de novo"));
+    await user.click(screen.getByRole("button", { name: "Pular" }));
+    primeira.unmount();
+
+    const segunda = montarVisaoGeral(EMAIL);
+    await esperar();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    segunda.unmount();
+
+    montarVisaoGeral("bia@example.com");
+    expect(await screen.findByRole("dialog", { name: "O mês em um número." })).toBeInTheDocument();
+  });
+
+  it("sem e-mail, abrir o tutorial não grava na sessão", async () => {
+    render(
+      <ProvedorDaConta preferencias={null}>
+        {TELA}
+        <Tutorial tela="extratos" atraso={0} />
+      </ProvedorDaConta>,
+    );
+    await screen.findByRole("dialog");
+    expect(window.sessionStorage.length).toBe(0);
+  });
+
+  it("ao trocar de e-mail com o cartão aberto, a caixa marcada fica com quem o abriu", async () => {
+    const user = userEvent.setup();
+    const tela = (email: string) => (
+      <ProvedorDaConta email={email} preferencias={null}>
+        {TELA}
+        <Tutorial tela="extratos" atraso={0} />
+      </ProvedorDaConta>
+    );
+    const { rerender, unmount } = render(tela(EMAIL));
+    await screen.findByRole("dialog");
+    await user.click(screen.getByLabelText("Não mostrar de novo"));
+
+    window.sessionStorage.setItem("ledgr:tutoriais-vistos:bia@example.com", '["extratos"]');
+    rerender(tela("bia@example.com"));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    unmount();
+    expect(window.localStorage.getItem("ledgr:preferencias:bia@example.com")).toBeNull();
+  });
+
   it("espera a tela carregar: abre quando o alvo aparece, já com o destaque", async () => {
     montar(<div id="vazio" />);
     await esperar();
@@ -196,6 +251,7 @@ describe("Tutorial", () => {
     await user.click(screen.getByLabelText("Não mostrar de novo"));
     await user.click(screen.getByRole("button", { name: "Pular" }));
     unmount();
+    window.sessionStorage.clear();
     montar();
     await esperar();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
@@ -222,7 +278,7 @@ describe("Tutorial", () => {
 
   it("o botão ? reabre mesmo dispensado", async () => {
     window.localStorage.setItem(
-      "ledgr:preferencias",
+      `ledgr:preferencias:${EMAIL}`,
       JSON.stringify({ tutoriaisDispensados: ["extratos"], roteiroDispensado: false }),
     );
     montar();
