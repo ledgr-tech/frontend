@@ -14,6 +14,7 @@ import {
   type DecisaoAPI,
   type SaldoDoExtrato,
   type Execucao,
+  type ExecucaoAPI,
   type Fechamento,
   type FechamentoAPI,
   type ItemExtratoAPI,
@@ -187,8 +188,23 @@ const POR_REQUISICAO = 1000;
 // cliente, então ela precisa estar inteira aqui — mas uma conciliação de 100 mil
 // linhas não deve virar 100 requisições em sequência. Quando houver extrato
 // desse tamanho, a ordenação passa pro servidor (o endpoint já aceita
-// limit/offset/status) e este laço some.
+// limit/offset/status) e a tela deixa de carregar todas as páginas.
 const MAXIMO_DE_PAGINAS = 10;
+
+async function todasAsPaginas<T>(
+  caminho: (numero: number) => string,
+  primeira?: { itens: T[]; total: number },
+): Promise<{ itens: T[]; total: number }> {
+  const inicial = primeira ?? await chamarBackend<{ itens: T[]; total: number }>(caminho(0));
+  const itens = [...inicial.itens];
+  const { total } = inicial;
+  for (let numero = 1; itens.length < total && numero < MAXIMO_DE_PAGINAS; numero += 1) {
+    const proxima = await chamarBackend<{ itens: T[] }>(caminho(numero));
+    if (proxima.itens.length === 0) break;
+    itens.push(...proxima.itens);
+  }
+  return { itens, total };
+}
 
 /**
  * As linhas de uma conciliação. Com `extratoSistemaId`, só as do par; sem ele,
@@ -210,20 +226,13 @@ export async function carregarConciliacao(
 
   try {
     const primeira = await chamarBackend<ListaConciliacaoAPI>(pagina(0));
-    const itens = [...primeira.itens];
-    let paginas = 1;
-    while (itens.length < primeira.total && paginas < MAXIMO_DE_PAGINAS) {
-      const proxima = await chamarBackend<ListaConciliacaoAPI>(pagina(paginas));
-      if (proxima.itens.length === 0) break;
-      itens.push(...proxima.itens);
-      paginas += 1;
-    }
+    const { itens, total } = await todasAsPaginas(pagina, primeira);
 
     return {
       ok: true,
       dados: {
         conciliacao: adaptarConciliacao({ ...primeira, itens }, extratoSistemaId),
-        truncada: itens.length < primeira.total,
+        truncada: itens.length < total,
       },
     };
   } catch (erro) {
@@ -267,14 +276,8 @@ async function execucoesDoBanco(extratoBancoId: string, exigirHistoricoCompleto 
   const pagina = (numero: number) =>
     `/execucoes?extrato_banco_id=${extratoBancoId}&limit=${RODADAS_POR_PAGINA}&offset=${numero * RODADAS_POR_PAGINA}`;
   try {
-    const primeira = await chamarBackend<ListaExecucoesAPI>(pagina(0));
-    const itens = [...primeira.itens];
-    for (let numero = 1; itens.length < primeira.total && numero < MAXIMO_DE_PAGINAS; numero += 1) {
-      const proxima = await chamarBackend<ListaExecucoesAPI>(pagina(numero));
-      if (proxima.itens.length === 0) break;
-      itens.push(...proxima.itens);
-    }
-    if (exigirHistoricoCompleto && itens.length < primeira.total) {
+    const { itens, total } = await todasAsPaginas<ExecucaoAPI>(pagina);
+    if (exigirHistoricoCompleto && itens.length < total) {
       return { ok: false, status: 503, erro: "Não foi possível verificar todas as rodadas. Tente de novo em instantes." };
     }
     return { ok: true, dados: itens.map(adaptarExecucao) };
@@ -700,13 +703,7 @@ const EXTRATOS_POR_PAGINA = 100;
 async function listarExtratosDoBackend(): Promise<ListaExtratosAPI> {
   const pagina = (numero: number) => `/extratos?limit=${EXTRATOS_POR_PAGINA}&offset=${numero * EXTRATOS_POR_PAGINA}`;
   const primeira = await chamarBackend<ListaExtratosAPI>(pagina(0));
-  const itens = [...primeira.itens];
-  for (let numero = 1; itens.length < primeira.total && numero < MAXIMO_DE_PAGINAS; numero += 1) {
-    const proxima = await chamarBackend<ListaExtratosAPI>(pagina(numero));
-    if (proxima.itens.length === 0) break;
-    itens.push(...proxima.itens);
-  }
-  return { ...primeira, itens };
+  return { ...primeira, ...await todasAsPaginas(pagina, primeira) };
 }
 
 /**
@@ -805,8 +802,8 @@ export type VisaoGeral = {
 /**
  * O que a visão geral precisa: a lista de execuções (tendência e atividade), as
  * linhas da mais recente (o estado do mês e o que está em aberto) e a situação
- * dos dois arquivos dela. Só dos dois: varrer todos os arquivos, como a tela de
- * extratos faz, custaria uma chamada por arquivo para abrir a home.
+ * dos dois arquivos dela. Se a primeira página de execuções vier cortada,
+ * também lê o histórico de cada extrato do banco do mês em foco.
  */
 export async function carregarVisaoGeral(): Promise<Resultado<VisaoGeral>> {
   const [lista, fechamentos] = await Promise.all([listarExecucoes(), listarFechamentos()]);
@@ -914,16 +911,10 @@ async function listarExecucoesDosFechamentos(): Promise<Resultado<{ execucoes: E
   const porPagina = 100;
   const pagina = (numero: number) => `/execucoes?limit=${porPagina}&offset=${numero * porPagina}`;
   try {
-    const primeira = await chamarBackend<ListaExecucoesAPI>(pagina(0));
-    const itens = [...primeira.itens];
-    for (let numero = 1; itens.length < primeira.total && numero < MAXIMO_DE_PAGINAS; numero += 1) {
-      const proxima = await chamarBackend<ListaExecucoesAPI>(pagina(numero));
-      if (proxima.itens.length === 0) break;
-      itens.push(...proxima.itens);
-    }
+    const { itens, total } = await todasAsPaginas<ExecucaoAPI>(pagina);
     return {
       ok: true,
-      dados: { execucoes: itens.map(adaptarExecucao), historicoIncompleto: itens.length < primeira.total },
+      dados: { execucoes: itens.map(adaptarExecucao), historicoIncompleto: itens.length < total },
     };
   } catch (erro) {
     return traduzir(erro);
