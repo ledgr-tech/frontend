@@ -180,9 +180,9 @@ export function MesaDeFechamento({
                           // hover e seleção na cor do selo, como na galeria de extratos
                           data-tom={selo.tom}
                           aria-pressed={mes.chave === aberto.chave}
-                          onClick={() => {
+                          onClick={(evento) => {
                             setSelecionado(mes.chave);
-                            mostrarPainelDoEscolhido();
+                            mostrarPainelDoEscolhido(evento.detail === 0);
                           }}
                         >
                           <FolhaDoMes mes={mes} />
@@ -287,7 +287,7 @@ function Painel({ mes, podeFechar }: { mes: MesDeFechamento; podeFechar: boolean
     <section className="extrato-painel fech-painel" aria-label="Mês selecionado" data-tutorial="painel">
       <h6 style={{ margin: 0 }}>Fechamento · {fechado ? "fechado" : mes.pronto ? "pronto para fechar" : "em aberto"}</h6>
       <div className="extrato-painel-topo">
-        <h3 className="extrato-painel-nome">{mes.titulo}</h3>
+        <h3 className="extrato-painel-nome" tabIndex={-1}>{mes.titulo}</h3>
         {/* fechado, o mês tem cadeado; pronto para fechar, um joinha */}
         {resolvido(mes) && (
           <Image

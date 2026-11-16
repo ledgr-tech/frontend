@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { Execucao, Fechamento } from "@/lib/adaptadores";
 import type { DadosDoFechamento, ParDoFechamento, Resultado } from "../conciliacoes/acoes";
@@ -124,6 +124,16 @@ describe("FechamentosPage", () => {
     expect(setembro.compareDocumentPosition(agosto) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(setembro).toHaveAttribute("aria-pressed", "true");
     expect(within(painel()).getByRole("heading", { name: "Setembro de 2026" })).toBeInTheDocument();
+  });
+
+  it("leva o foco ao título da competência escolhida pelo teclado no layout empilhado", async () => {
+    const user = userEvent.setup();
+    await renderizar();
+
+    screen.getByRole("button", { name: /Agosto de 2026/ }).focus();
+    await user.keyboard("{Enter}");
+
+    await waitFor(() => expect(within(painel()).getByRole("heading", { name: "Agosto de 2026" })).toHaveFocus());
   });
 
   it("opens on the month named in the URL, where the line of rounds of a conciliação leads", async () => {

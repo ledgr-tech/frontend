@@ -9,6 +9,7 @@ import type { ListaDeConciliacoes } from "../conciliacoes/acoes";
 import { NovaVersao } from "../conciliacoes/[id]/nova-versao";
 import { tituloDaCompetencia } from "../fechamentos/fechamento";
 import { FaixaFiltros } from "../faixa-filtros";
+import { mostrarPreviaDoEscolhido } from "../grupo";
 import { IconeOrigem } from "../icone-origem";
 import { conciliados, segmentos } from "../historico/execucoes";
 import { BarraDoResultado } from "../historico/por-conciliacao";
@@ -83,10 +84,10 @@ export function ListaDeTrabalho({
   const atual = emVista.find((item) => item.conciliacao.extratoBancoId === escolhida) ?? emVista[0] ?? null;
   useTrocaSuave(previa, atual?.conciliacao.extratoBancoId);
 
-  function escolher(id: string) {
+  function escolher(id: string, peloTeclado: boolean) {
     setEscolhida(id);
     // com a prévia acima das folhas, escolher sem ver o que mudou não diria nada
-    if (!window.matchMedia?.(PREVIA_AO_LADO).matches) previa.current?.scrollIntoView?.({ block: "start" });
+    if (!window.matchMedia?.(PREVIA_AO_LADO).matches) mostrarPreviaDoEscolhido(previa.current, peloTeclado);
   }
 
   return (
@@ -126,7 +127,7 @@ export function ListaDeTrabalho({
                         conciliacao={conciliacao}
                         mesFechado={mes.fechamento !== null}
                         escolhida={conciliacao.extratoBancoId === atual.conciliacao.extratoBancoId}
-                        onEscolher={() => escolher(conciliacao.extratoBancoId)}
+                        onEscolher={(peloTeclado) => escolher(conciliacao.extratoBancoId, peloTeclado)}
                       />
                     </li>
                   ))}
@@ -191,7 +192,7 @@ function Folha({
   conciliacao: ConciliacaoNaLista;
   mesFechado: boolean;
   escolhida: boolean;
-  onEscolher: () => void;
+  onEscolher: (peloTeclado: boolean) => void;
 }) {
   const router = useRoteador();
   const { extratoBancoId, arquivoBanco, arquivoSistema, execucao } = conciliacao;
@@ -200,7 +201,7 @@ function Folha({
       type="button"
       className="conc-folha"
       aria-pressed={escolhida}
-      onClick={onEscolher}
+      onClick={(evento) => onEscolher(evento.detail === 0)}
       // atalho para a comparação, como o duplo clique na linha dela; o clique simples só escolhe
       onDoubleClick={() => router.push(caminhoDaConciliacao(extratoBancoId))}
     >
@@ -264,7 +265,7 @@ function Previa({
   return (
     <aside ref={ref} className="conc-previa" aria-label="Conciliação escolhida" aria-live="polite" data-tutorial="previa">
       <span className="rotulo">{tituloDaCompetencia(competencia)}</span>
-      <h2 className="conc-previa-titulo">{titulo}</h2>
+      <h2 className="conc-previa-titulo" tabIndex={-1}>{titulo}</h2>
       <div className="conc-previa-arquivos">
         <span className="hist-arquivo">
           <IconeOrigem origem="banco" tamanho={14} />
