@@ -600,6 +600,7 @@ describe("carregarVisaoGeral", () => {
     const resultado = await carregarVisaoGeral();
     if (!resultado.ok) throw new Error(resultado.erro);
     expect(resultado.dados.recente?.execucao.extratoSistemaId).toBe(SISTEMA_V2);
+    expect(chamarBackend.mock.calls.some(([caminho]) => caminho.startsWith("/execucoes?extrato_banco_id="))).toBe(false);
   });
 
   function situacao(id: string, erros: { identificador: string; motivo: string }[] = []) {
@@ -725,10 +726,18 @@ describe("carregarVisaoGeral", () => {
   function backendDoMes(
     linhas: (banco: string) => { total: number; itens: ItemConciliacaoAPI[] },
     lista = { total: 2, itens: [execucao("e-2", BANCO_RECENTE), execucao("e-1", BANCO_ANTERIOR)] },
+    historicoDoBanco?: (id: string) => typeof lista,
   ) {
     chamarBackend.mockImplementation(async (caminho: string) => {
       const [rota, query] = caminho.split("?");
-      if (rota === "/execucoes") return { limit: 50, offset: 0, ...lista };
+      if (rota === "/execucoes") {
+        const banco = new URLSearchParams(query).get("extrato_banco_id");
+        if (banco) {
+          if (!historicoDoBanco) throw new ErroBackend(503, "Histórico indisponível.");
+          return { limit: 100, offset: 0, ...historicoDoBanco(banco) };
+        }
+        return { limit: 50, offset: 0, ...lista };
+      }
       if (rota === "/fechamentos") return { itens: [] };
       if (rota.startsWith("/conciliacoes/")) {
         const banco = rota.split("/")[2];
@@ -738,6 +747,46 @@ describe("carregarVisaoGeral", () => {
       throw new Error(`caminho inesperado: ${caminho}`);
     });
   }
+
+  it.each([
+    { historicoFalha: false, sistemaVigente: SISTEMA_V2 },
+    { historicoFalha: true, sistemaVigente: SISTEMA_V1 },
+  ])("recalcula a rodada com a página cortada (falha do histórico: $historicoFalha)", async ({ historicoFalha, sistemaVigente }) => {
+    const v1 = {
+      ...execucao("v1", BANCO_RECENTE, false),
+      extrato_sistema_id: SISTEMA_V1,
+      periodo_inicio: "2026-10-01",
+      executada_em: "2026-10-01T12:00:00Z",
+    };
+    const v2 = { ...v1, id: "v2", atual: true, extrato_sistema_id: SISTEMA_V2, executada_em: "2026-10-05T12:00:00Z" };
+    const refeita = { ...v1, id: "v1-refeita", atual: true, executada_em: "2026-10-10T12:00:00Z" };
+    const outras = Array.from({ length: 48 }, (_, i) => ({
+      ...execucao("outra-" + i, BANCO_ANTERIOR, false),
+      executada_em: "2026-10-03T12:00:00Z",
+    }));
+    const historico = `/execucoes?extrato_banco_id=${BANCO_RECENTE}&limit=100&offset=0`;
+    backendDoMes(
+      () => ({ total: 1, itens: [itemConciliacao] }),
+      { total: 51, itens: [refeita, v2, ...outras] },
+      () => {
+        if (historicoFalha) throw new ErroBackend(503, "Serviço indisponível.");
+        return { total: 3, itens: [refeita, v2, v1] };
+      },
+    );
+
+    const resultado = await carregarVisaoGeral();
+
+    expect(resultado).toMatchObject({
+      ok: true,
+      dados: { recente: { execucao: { extratoSistemaId: sistemaVigente } }, mes: { competencia: "2026-10" } },
+    });
+    expect(chamarBackend.mock.calls.map(([caminho]) => caminho).filter((caminho) => caminho.startsWith("/execucoes?extrato_banco_id=")))
+      .toEqual([historico]);
+    expect(chamarBackend).toHaveBeenCalledWith(
+      `/conciliacoes/${BANCO_RECENTE}?limit=1000&offset=0&extrato_sistema_id=${sistemaVigente}`,
+    );
+    expect(chamarBackend).toHaveBeenCalledWith(`/extratos/${sistemaVigente}`);
+  });
 
   it.each([BANCO_RECENTE, BANCO_ANTERIOR])(
     "não soma o mês quando as linhas de %s passam do teto de páginas, e a home segue",

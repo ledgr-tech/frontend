@@ -831,7 +831,17 @@ export async function carregarVisaoGeral(): Promise<Resultado<VisaoGeral>> {
   }
   const meses = [...new Set(vigentes.map(mesDe))].sort((a, b) => b.localeCompare(a));
   const foco = meses.find((mes) => !fechados.has(mes)) ?? meses[0];
-  const doMes = vigentes.filter((execucao) => mesDe(execucao) === foco);
+  const doMesNaPagina = vigentes.filter((execucao) => mesDe(execucao) === foco);
+  const paginaCortada = total > execucoes.length;
+  // A primeira execução de uma versão pode ter ficado fora da página.
+  const doMes = paginaCortada
+    ? await Promise.all(doMesNaPagina.map(async (execucao) => {
+        const historico = await execucoesDoBanco(execucao.extratoBancoId, true);
+        if (!historico.ok) return execucao;
+        const vigente = rodadasDoBanco(historico.dados, execucao.extratoBancoId).at(-1)?.execucao;
+        return vigente?.atual ? vigente : execucao;
+      }))
+    : doMesNaPagina;
   const [maisRecente] = doMes;
 
   const [conciliacoes, banco, sistema] = await Promise.all([
@@ -862,7 +872,7 @@ export async function carregarVisaoGeral(): Promise<Resultado<VisaoGeral>> {
   // chega a uma execução que rodou antes dele (nenhuma do mês roda antes de ele começar); com um filtro
   // por competência no backend, o mês viria direto e somaria mesmo com muitas execuções
   const ultima = execucoes[execucoes.length - 1];
-  const mesPodeSeguir = total > execucoes.length && competencia(null, ultima.executadaEm) >= foco;
+  const mesPodeSeguir = paginaCortada && competencia(null, ultima.executadaEm) >= foco;
 
   return {
     ok: true,
