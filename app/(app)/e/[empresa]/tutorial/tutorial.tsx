@@ -77,6 +77,11 @@ function marcarVisto(chave: string | null, tela: TelaDoTutorial) {
   }
 }
 
+/** As boas-vindas da Visão geral fecham sem o tutorial abrir sozinho: quem quis, abriu por elas. */
+export function marcarTutorialVisto(email: string, tela: TelaDoTutorial) {
+  if (email) marcarVisto(`${VISTOS}:${email.toLowerCase()}`, tela);
+}
+
 /** O elemento do passo, se está desenhado: no celular, a coluna Conferida da comparação some. */
 function alvoDe(passo: PassoDoTutorial): HTMLElement | null {
   const alvo = document.querySelector<HTMLElement>(`[data-tutorial="${passo.alvo}"]`);
@@ -135,7 +140,7 @@ export function Tutorial({
   /** Quanto o cartão espera a tela mostrar algum alvo antes de abrir assim mesmo, sem destaque. */
   espera?: number;
 }) {
-  const { carregado, tutorialDispensado, dispensarTutorial } = usePreferencias();
+  const { carregado, tutorialDispensado, dispensarTutorial, boasVindasVista } = usePreferencias();
   const dono = useEmail().toLowerCase();
   const chaveDosVistos = dono ? `${VISTOS}:${dono}` : null;
   const { nome, mascote, passos: todos } = TUTORIAIS[tela];
@@ -183,8 +188,10 @@ export function Tutorial({
   // primeira visita na sessão: abre quando a tela mostra o que o tutorial explica. Numa tela vazia
   // (a conta nova, sem extratos) não abre nem conta como vista: espera uma visita com conteúdo
   const dispensado = tutorialDispensado(tela);
+  // a janela de boas-vindas da Visão geral vem antes: enquanto ela está pendente, o cartão espera
+  const esperaBoasVindas = tela === "visao-geral" && !boasVindasVista;
   useEffect(() => {
-    if (!carregado || dispensado || vistosNestaSessao(chaveDosVistos).includes(tela)) return;
+    if (!carregado || dispensado || esperaBoasVindas || vistosNestaSessao(chaveDosVistos).includes(tela)) return;
     const inicio = Date.now();
     let timer: ReturnType<typeof setTimeout>;
     const tentar = () => {
@@ -197,7 +204,7 @@ export function Tutorial({
     };
     timer = setTimeout(tentar, atraso);
     return () => clearTimeout(timer);
-  }, [atraso, carregado, chaveDosVistos, dispensado, espera, tela, todos]);
+  }, [atraso, carregado, chaveDosVistos, dispensado, esperaBoasVindas, espera, tela, todos]);
 
   // o "?" da barra do topo
   useEffect(() => {

@@ -21,6 +21,8 @@ type ValorDaConta = {
   dispensarTutorial: (tela: TelaDoTutorial) => void;
   roteiroDispensado: boolean;
   dispensarRoteiro: () => void;
+  boasVindasVista: boolean;
+  marcarBoasVindasVista: () => void;
 };
 
 const Contexto = createContext<ValorDaConta | null>(null);
@@ -103,6 +105,8 @@ export function ProvedorDaConta({
         guardar({ ...atuais, tutoriaisDispensados: [...new Set([...atuais.tutoriaisDispensados, tela])] }),
       roteiroDispensado: atuais.roteiroDispensado,
       dispensarRoteiro: () => guardar({ ...atuais, roteiroDispensado: true }),
+      boasVindasVista: atuais.boasVindasVista === true,
+      marcarBoasVindasVista: () => guardar({ ...atuais, boasVindasVista: true }),
     }),
     [atuais, carregado, guardar],
   );
