@@ -5555,6 +5555,8 @@ html[data-tema="escuro"] .app-shell {
   font-size: var(--texto-legenda); color: var(--texto-apagado); white-space: nowrap;
 }
 .comemoracao .dialog-actions { margin-top: 0; flex-wrap: wrap; }
+/* na linha, a principal vai para a direita; empilhadas (até 560px) fica a ordem do HTML, principal em cima */
+.comemoracao .dialog-actions .btn-primary { order: 1; }
 /* o confete de papel da medalha: tiras na folha do banco e na do sistema com contorno de tinta, um
    quadradinho de tinta e, poucas, as de contorno dourado. Sem movimento, fica parado onde está */
 .comemoracao-chuva { position: fixed; inset: 0; overflow: hidden; pointer-events: none; }
@@ -5583,6 +5585,7 @@ html[data-tema="escuro"] .app-shell {
   .comemoracao-topo { grid-template-columns: minmax(0, 1fr); }
   .comemoracao-medalha { order: -1; width: 104px; justify-self: center; }
   .comemoracao .dialog-actions .btn { flex: 1 1 100%; }
+  .comemoracao .dialog-actions .btn-primary { order: 0; }
 }
 
 /* o porquê do "Cancelar mesmo assim" desligado, logo abaixo dele */
@@ -6040,9 +6043,14 @@ html[data-tema="escuro"] .app-shell {
 .pp-bloco-titulo { margin: 0; font-family: var(--font-titulo); font-size: 21px; font-weight: 600; line-height: 1.25; }
 .pp-bloco .vg-nota { margin: 0; }
 .pp-vazio { margin: 0; padding-top: 12px; }
-.vg-vazio { flex: 1; display: flex; align-items: center; gap: 16px; padding-top: 12px; }
-.vg-vazio-mascote { flex: none; width: 96px; height: auto; display: block; }
-.vg-vazio-corpo { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+/* o vazio das Pendências: mascote em cima e texto centrado, ocupando a altura que o cartão ganha do vizinho
+   (lado a lado, o bloco flutuava no meio do cartão com um vão em cima) */
+.vg-vazio {
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 12px; padding-top: 12px; text-align: center;
+}
+.vg-vazio-mascote { flex: none; width: 128px; height: auto; display: block; }
+.vg-vazio-corpo { display: flex; flex-direction: column; gap: 6px; min-width: 0; max-width: 44ch; }
 .vg-atencao > .btn { align-self: flex-start; margin-top: 14px; }
 .vg-blocos-topo:not(:has(> .vg-blocos-lado)) { grid-template-columns: minmax(0, 1fr); }
 
