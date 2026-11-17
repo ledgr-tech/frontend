@@ -122,7 +122,11 @@ html[data-tema="escuro"]:has(.app-shell) { color-scheme: dark; }
   html { scroll-behavior: auto; }
 }
 
+/* "tela": a largura que as regras de celular das telas do app medem (@container tela). Fora da réplica é o body,
+   da largura da janela; nas réplicas (.vitrine-app, 1280px encolhida por transform) é a réplica, que fica
+   sempre a do computador mesmo no celular. Com @media elas mediam o celular e quebravam a réplica no meio */
 body {
+  container: tela / inline-size;
   margin: 0;
   background: var(--color-bg);
   color: var(--color-text);
@@ -352,7 +356,7 @@ p.eyebrow {
 }
 /* estreita, o painel fica depois das folhas: aqui a primeira ação é soltar os arquivos, e o Conciliar
    vem logo abaixo delas (nas listas, a prévia sobe porque mostra a escolhida) */
-@media (max-width: 1099px) { .nova-corpo > .conc-previa { order: 0; } }
+@container tela (max-width: 1099px) { .nova-corpo > .conc-previa { order: 0; } }
 .nova-apagado { color: var(--texto-apagado); }
 .nova-erro { margin: 24px 0 0; }
 /* num escritório com várias empresas: para qual delas o envio vai (#169) */
@@ -1400,6 +1404,7 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
   --folha-banco: #fdfcfa; --folha-sistema: #ebe8e3; --superficie-elevada: var(--folha-banco);
 }
 .vitrine-app {
+  container: tela / inline-size;
   width: 1280px; display: grid; grid-template-columns: 232px minmax(0, 1fr);
   background: var(--color-bg); color: var(--color-text); text-align: left;
 }
@@ -1460,7 +1465,7 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
    status, com a seta apontando para ele (.cartao-no-eixo). No app ele é fixo na tela porque a
    tabela rola de lado; aqui a âncora é a própria célula do status */
 .vitrine-app .cartao-lancamento {
-  --cartao-largura: min(440px, calc(100vw - 32px));
+  --cartao-largura: 440px;
   position: absolute; left: 50%; bottom: calc(100% - 2px);
   width: var(--cartao-largura); margin-left: calc(var(--cartao-largura) / -2); text-align: left;
   animation: none;
@@ -2163,7 +2168,7 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
   color: color-mix(in srgb, var(--color-text) 68%, transparent);
 }
 
-@media (max-width: 760px) {
+@container tela (max-width: 760px) {
   .dash-resumo > :first-child { padding-top: 0; }
   .dash-resumo > :last-child { padding-bottom: 0; }
   .dash-valor { font-size: 36px; }
@@ -2301,7 +2306,7 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
 }
 
 /* até 760px os dois extratos empilham e o delta vira uma linha horizontal */
-@media (max-width: 760px) {
+@container tela (max-width: 760px) {
   .det-comparacao { grid-template-columns: minmax(0, 1fr); gap: 16px; }
   .det-delta { flex-direction: row; gap: 14px; }
   .det-delta-linha { width: auto; height: 1px; flex: 1; }
@@ -2504,7 +2509,7 @@ html:has(.app-shell):has(.painel-lateral) { overflow: hidden; scrollbar-gutter: 
 
 .paginacao-botoes { display: flex; align-items: center; gap: 8px; }
 
-@media (max-width: 680px) {
+@container tela (max-width: 680px) {
   .hist-nota { text-align: left; }
   .grafico-fio-valor { font-size: var(--texto-legenda); }
 }
@@ -2520,7 +2525,7 @@ html:has(.app-shell):has(.painel-lateral) { overflow: hidden; scrollbar-gutter: 
    Abaixo de 1100px a prévia sobe para antes das folhas (PREVIA_AO_LADO em lista-de-trabalho.tsx). */
 .conc-mesa { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; align-items: start; }
 /* estreita, a prévia vem antes das folhas: a primeira da fila fica onde ficava o "Continue de onde parou" */
-@media (max-width: 1099px) { .conc-previa { order: -1; } }
+@container tela (max-width: 1099px) { .conc-previa { order: -1; } }
 @media (min-width: 1100px) {
   .conc-mesa { grid-template-columns: minmax(0, 7fr) minmax(320px, 5fr); }
   .conc-previa { position: sticky; z-index: 11; top: calc(var(--app-topo-altura, 0px) + var(--extratos-filtros-altura, 58px) + 12px); }
@@ -3151,6 +3156,24 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
 .vg-saldo-dados dt { color: color-mix(in srgb, var(--color-text) 68%, transparent); }
 .vg-saldo-dados dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
 .vg-saldo > .vg-nota { padding-top: 9px; border-top: 1px solid var(--color-divider); }
+/* o inicial e o final em barras: ocupam a altura que sobra (o cartão estica até o vizinho) e ficam no meio
+   dela; cada barra é o ::after da linha, com a largura em --parte */
+.vg-saldo-barras {
+  flex: 1; margin: 0; padding: 12px 0; display: flex; flex-direction: column; justify-content: center; gap: 16px;
+}
+.vg-saldo-barras > div {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; gap: 6px 16px;
+  font-size: var(--texto-corpo);
+}
+.vg-saldo-barras dt { color: color-mix(in srgb, var(--color-text) 68%, transparent); }
+.vg-saldo-barras dd { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; }
+.vg-saldo-barras dd[data-negativo] { color: var(--color-risco-700); }
+.vg-saldo-barras > div::after {
+  content: ""; grid-column: 1 / -1; height: 10px; width: var(--parte); border-radius: 999px;
+  background: color-mix(in srgb, var(--color-text) 22%, transparent);
+}
+.vg-saldo-barras > div[data-tom="queda"]::after { background: var(--color-risco-700); }
+.vg-saldo-barras > div[data-tom="alta"]::after { background: var(--color-ok-700); }
 /* o de aprovação, ao lado do saldo, no mesmo desenho: o caminho no pé, sobre o filete */
 .vg-aprovacao-pe {
   margin-top: auto; padding-top: 9px; border-top: 1px solid var(--color-divider);
@@ -3348,10 +3371,10 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
 .aviso-acoes { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
 .aviso-codigo { font-family: var(--font-mono); font-size: var(--texto-nota); overflow-wrap: anywhere; }
 
-@media (max-width: 1100px) {
+@container tela (max-width: 1100px) {
   .vg-grade, .vg-blocos-topo, .vg-blocos-par { grid-template-columns: minmax(0, 1fr); }
 }
-@media (max-width: 640px) {
+@container tela (max-width: 640px) {
   .vg-estado-titulo { font-size: 28px; }
   .vg-estado { flex-direction: column; align-items: flex-start; gap: 24px; padding: 24px; }
   .vg-anel { width: 160px; }
@@ -3397,7 +3420,7 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
 /* o extrato lido em parte: quantas linhas ficaram de fora e, logo embaixo, as primeiras */
 .linhas-nao-lidas { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
 .linhas-nao-lidas > p { margin: 0; }
-@media (max-width: 1200px) {
+@container tela (max-width: 1200px) {
   .importacao-mapa { grid-template-columns: 1fr; }
 }
 
@@ -3597,7 +3620,7 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
   flex: none; font-variant-numeric: tabular-nums;
   color: color-mix(in srgb, var(--color-text) 68%, transparent);
 }
-@media (max-width: 1000px) {
+@container tela (max-width: 1000px) {
   .extratos-area { grid-template-columns: 1fr; }
   .extratos-filtros { position: static; }
   .extrato-painel { position: static; max-height: none; overflow: visible; }
@@ -3809,7 +3832,7 @@ html:not([data-menu="recolhido"]) .app-assistente-figura {
 }
 .seletor-janela-estrela:hover { color: var(--color-text); background: color-mix(in srgb, var(--color-text) 6%, transparent); }
 .seletor-janela-estrela[aria-pressed="true"] { color: var(--color-text); }
-@media (max-width: 600px) {
+@container tela (max-width: 600px) {
   .seletor-topo-botao { max-width: 150px; }
   .seletor-janela-tabela td:first-child { white-space: normal; }
   .seletor-janela-cnpj-celular {
@@ -4284,7 +4307,7 @@ html:not([data-menu="recolhido"]) .app-assistente-figura {
 .cfg-vazio { margin: 40px 0 0; color: color-mix(in srgb, var(--color-text) 66%, transparent); }
 
 /* no celular: a lista de seções vira uma faixa rolável em cima do conteúdo */
-@media (max-width: 720px) {
+@container tela (max-width: 720px) {
   .cfg { height: calc(100dvh - 32px); }
   .cfg-janela { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
   .cfg-lado { flex-direction: column; gap: 10px; padding: 14px; border-right: none; border-bottom: 1px solid var(--color-divider); }
@@ -4557,8 +4580,7 @@ html:not([data-densidade="padrao"]) .app-shell .selo { padding-block: 1px; }
    declaram `role` no HTML — sem isso o leitor de tela perde a grade inteira e
    passa a ler uma pilha de textos soltos. O rótulo de cada campo vem do
    data-rotulo, que só aparece nesta largura. */
-
-@media (max-width: 680px) {
+@container tela (max-width: 680px) {
   .tabela-cartoes .table,
   .tabela-cartoes .table tbody,
   .tabela-cartoes .table tr,
@@ -5135,7 +5157,7 @@ html[data-tema="escuro"] .app-shell {
     max-height: calc(100vh - var(--app-topo-altura, 0px) - var(--extratos-filtros-altura, 0px) - 46px);
   }
 }
-@media (max-width: 1000px) {
+@container tela (max-width: 1000px) {
   .fech-area { grid-template-columns: 1fr; }
 }
 
