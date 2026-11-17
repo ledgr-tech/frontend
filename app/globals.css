@@ -1164,15 +1164,14 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
 .campo-flutuante[data-tremor="b"] { animation: campo-tremor-b var(--dur-painel) cubic-bezier(0.36, 0.07, 0.19, 0.97); }
 @keyframes campo-tremor-a { 20%, 60% { transform: translateX(-4px); } 40%, 80% { transform: translateX(4px); } }
 @keyframes campo-tremor-b { 20%, 60% { transform: translateX(-4px); } 40%, 80% { transform: translateX(4px); } }
+/* a mensagem é uma nota na margem do livro: traço terracota à esquerda e o texto em Newsreader itálico.
+   Única exceção à regra de Newsreader só em títulos (decisão de 16/11): o itálico é o que a faz parecer anotação */
 .campo-erro {
-  display: flex; align-items: flex-start; gap: 6px;
-  margin: 6px 0 0 4px;
-  font-size: var(--texto-corpo); line-height: 1.4; color: var(--color-erro);
+  margin: 6px 0 0 6px; padding: 1px 0 1px 10px;
+  border-left: 2px solid color-mix(in srgb, var(--color-erro) 55%, transparent);
+  font-family: var(--font-titulo); font-style: italic;
+  font-size: var(--texto-destaque); line-height: 1.4; color: var(--color-erro);
   animation: campo-erro-surgir var(--dur-padrao) var(--ease-out);
-}
-.campo-erro svg {
-  flex: none; width: 15px; height: 15px; margin-top: 1.5px;
-  fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round;
 }
 @keyframes campo-erro-surgir {
   from { opacity: 0; transform: translateY(-4px); }
