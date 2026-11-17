@@ -601,7 +601,7 @@ function ContaNova({ roteiro, passos }: { roteiro: DadosDoRoteiro | null; passos
           <div className="vg-vazio">
             <Image src="/mascotes/mascote-checklist.webp" alt="" width={1000} height={1000} sizes="96px" className="vg-vazio-mascote" />
             <div className="vg-vazio-corpo">
-              <h3 className="vg-vazio-titulo">Nada pendente por enquanto</h3>
+              <h3 className="pp-bloco-titulo">Nada pendente por enquanto</h3>
               <p className="vg-nota">
                 Lançamentos que não bateram e justificativas esperando aprovação aparecem aqui depois da primeira conciliação.
               </p>
