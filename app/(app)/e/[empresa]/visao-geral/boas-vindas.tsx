@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import Image from "next/image";
+import { X } from "lucide-react";
 import { abrirTutorial } from "@/lib/eventos";
 import { ModalDaTela, BotaoFecharJanela } from "../empresas/modal-da-tela";
 import { useEmail, useNome, usePreferencias } from "../conta";
@@ -37,18 +38,35 @@ export function BoasVindas({ demonstracao = false }: { demonstracao?: boolean })
   }
 
   return (
-    <ModalDaTela titulo={primeiroNome ? `Boas-vindas, ${primeiroNome}` : "Boas-vindas ao Ledgr"} aoFechar={() => fechar(false)} classe="bv">
-      <div className="bv-corpo">
-        <Image src="/mascotes/mascote-bandeira.webp" alt="" width={1000} height={1000} className="bv-mascote" priority />
-        <p>Em poucos passos o seu mês fica conciliado:</p>
+    // o molde da comemoração da assinatura (#300), sem o confete: rótulo com filete até o X, título e mascote
+    <ModalDaTela titulo="Boas-vindas" aoFechar={() => fechar(false)} classe="comemoracao">
+      <BotaoFecharJanela aoFechar={() => fechar(false)} className="comemoracao-fechar" aria-label="Fechar">
+        <X size={18} aria-hidden="true" />
+      </BotaoFecharJanela>
+      <div className="comemoracao-topo">
+        <div className="comemoracao-chamada">
+          <h2 className="comemoracao-titulo">{primeiroNome ? `Boas-vindas, ${primeiroNome}` : "Boas-vindas ao Ledgr"}</h2>
+          <p className="comemoracao-texto">Em poucos passos o seu mês fica conciliado.</p>
+        </div>
+        <Image src="/mascotes/mascote-bandeira.webp" alt="" width={1000} height={1000} sizes="132px" className="comemoracao-medalha bv-mascote" priority />
+      </div>
+      <section className="comemoracao-libera" aria-labelledby="bv-passos">
+        <h3 id="bv-passos" className="comemoracao-libera-titulo">
+          Seus primeiros passos
+        </h3>
         <ol className="bv-passos">
-          {PASSOS.map((passo) => (
-            <li key={passo}>{passo}</li>
+          {PASSOS.map((passo, i) => (
+            <li key={passo}>
+              <span className="bv-numero font-titulo" aria-hidden="true">
+                {i + 1}
+              </span>
+              <span>{passo}</span>
+            </li>
           ))}
         </ol>
-      </div>
-      <div className="adm-botoes">
-        <BotaoFecharJanela className="btn btn-ghost" aoFechar={() => fechar(false)}>
+      </section>
+      <div className="dialog-actions">
+        <BotaoFecharJanela className="btn btn-secondary" aoFechar={() => fechar(false)}>
           Agora não
         </BotaoFecharJanela>
         <button type="button" className="btn btn-primary" onClick={() => fechar(true)}>
