@@ -549,7 +549,9 @@ p.eyebrow {
 /* o prompt rola sem barra (pedido de 17/11): a máscara esfuma a borda e o "Mais abaixo" fica no pé do quadro */
 .ia-prompt-texto { position: relative; border-radius: var(--radius-sm); background: color-mix(in srgb, var(--color-text) 5%, transparent); }
 .ia-prompt-rolagem { max-height: 150px; overflow-y: auto; overscroll-behavior: contain; border-radius: inherit; }
-.ia-prompt-rolagem:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+/* o foco vai na caixa de fora: a máscara do esfumado recortaria o contorno desenhado na que rola */
+.ia-prompt-rolagem:focus-visible { outline: none; }
+.ia-prompt-texto:has(.ia-prompt-rolagem:focus-visible) { outline: 2px solid var(--color-accent); outline-offset: 2px; }
 .ia-prompt-rolagem[data-abaixo] { --esfuma-baixo: 48px; }
 .ia-prompt pre { margin: 0; padding: 14px 14px 18px; font: 12.5px/1.6 ui-monospace, Consolas, monospace; white-space: pre-wrap; }
 /* a folha usa a altura que sobra embaixo do prompt (~480px do topo, 28px de respiro): a página não rola */
