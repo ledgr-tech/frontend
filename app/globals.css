@@ -4074,6 +4074,9 @@ html:not([data-menu="recolhido"]) .app-assistente-figura {
   text-decoration-color: color-mix(in srgb, var(--color-text) 30%, transparent);
 }
 .asst-link:hover { text-decoration-color: var(--color-text); }
+/* a digitação (TextoDigitado): o que falta já ocupa o lugar, invisível; os links vêm no fim */
+.asst-por-digitar { color: transparent; }
+.asst-bolha p[data-digitando] ~ .asst-link { visibility: hidden; }
 .asst-digitando { display: flex; align-items: center; gap: 5px; border: 1px solid var(--color-divider); }
 .asst-digitando span {
   width: 5px; height: 5px; border-radius: 50%;

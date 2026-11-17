@@ -87,6 +87,38 @@ describe("Conversa", () => {
     expect(onFechar).toHaveBeenCalledOnce();
   });
 
+  it("fecha o painel ao seguir um link da conversa, e digita a resposta antes de mostrar o link", async () => {
+    vi.useFakeTimers();
+    try {
+      const onFechar = vi.fn();
+      render(<Conversa contexto={CONTEXTO} onFechar={onFechar} />);
+      fireEvent.click(screen.getByRole("button", { name: "O que falta para fechar?" }));
+      await act(async () => {});
+      act(() => vi.advanceTimersByTime(430));
+
+      // no meio da digitação o texto inteiro já está lá (para o leitor de tela), o resto transparente
+      expect(conversa()).toHaveTextContent("Faltam 42 decisões suas.");
+      expect(conversa().querySelector("p[data-digitando] .asst-por-digitar")).not.toBeNull();
+      for (let i = 0; i < 200; i++) act(() => vi.advanceTimersByTime(20));
+      expect(conversa().querySelector("[data-digitando]")).toBeNull();
+
+      fireEvent.click(within(conversa()).getByRole("link", { name: "Revisar" }));
+      expect(onFechar).toHaveBeenCalledOnce();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("diz que só lê o mês mais recente quando a pergunta cita outro", async () => {
+    const user = userEvent.setup();
+    render(<Conversa contexto={CONTEXTO} onFechar={vi.fn()} />);
+    await user.type(screen.getByRole("textbox", { name: "Sua pergunta" }), "e agosto?{Enter}");
+
+    expect(await within(conversa()).findByText(/Eu leio só a conciliação mais recente, a de setembro/)).toBeInTheDocument();
+    expect(within(conversa()).getByRole("link", { name: "Abrir o Histórico" })).toHaveAttribute("href", "/historico");
+    expect(perguntarAoAssistente).not.toHaveBeenCalled();
+  });
+
   it("mostra a pergunta e a espera antes de publicar a resposta local", async () => {
     vi.useFakeTimers();
     try {

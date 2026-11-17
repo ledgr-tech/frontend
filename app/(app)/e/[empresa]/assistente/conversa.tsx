@@ -13,7 +13,7 @@ import { telaDoCaminho } from "../tutorial/roteiros";
 import { ajudaDaTela } from "../../../../(ajuda)/ajuda/paginas";
 import { lembrarDeOndeVeio } from "../../../../(ajuda)/ajuda/voltar";
 import { perguntarAoAssistente, type TurnoDaConversa } from "./acoes";
-import { assuntoDoMes, foraDoRoteiro, pedePassosParaFechar, responder, saudacao, sugestoes, type Contexto } from "./respostas";
+import { assuntoDoMes, foraDoRoteiro, pedePassosParaFechar, respostaDeOutroMes, responder, saudacao, sugestoes, type Contexto } from "./respostas";
 import { SEM_SERVIDOR } from "@/lib/sem-servidor";
 
 /**
@@ -73,6 +73,32 @@ function Mascote({ tamanho, rosto = false }: { tamanho: number; rosto?: boolean 
       sizes={`${tamanho}px`}
       style={{ width: tamanho, height: tamanho, flex: "none" }}
     />
+  );
+}
+
+/**
+ * A resposta aparece letra a letra, como se o Ledgr digitasse. O resto do texto já está no balão, só
+ * transparente: o balão nasce no tamanho final (a rolagem não pula) e o leitor de tela lê tudo de uma vez.
+ * Respostas longas digitam mais rápido, para nenhuma passar de ~2 s.
+ */
+function TextoDigitado({ texto, digitar }: { texto: string; digitar: boolean }) {
+  const [mostrados, setMostrados] = useState(() =>
+    digitar && !window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? 0 : texto.length,
+  );
+  const digitando = mostrados < texto.length;
+
+  useEffect(() => {
+    if (!digitando) return;
+    const porVez = Math.max(2, Math.ceil(texto.length / 100));
+    const espera = window.setTimeout(() => setMostrados((atual) => Math.min(texto.length, atual + porVez)), 18);
+    return () => window.clearTimeout(espera);
+  }, [digitando, mostrados, texto.length]);
+
+  return (
+    <p data-digitando={digitando || undefined}>
+      {texto.slice(0, mostrados)}
+      {digitando && <span className="asst-por-digitar">{texto.slice(mostrados)}</span>}
+    </p>
   );
 }
 
@@ -268,12 +294,15 @@ export function Conversa({
     const limpa = pergunta.trim();
     if (!limpa || lendo) return;
     const passos = pedePassosParaFechar(limpa) ? FECHAR_O_MES : undefined;
+    const outroMes = !passos && contexto ? respostaDeOutroMes(limpa, contexto) : null;
     const assunto = assuntoDoMes(limpa, contexto?.mes);
     const inicio = agora();
     acompanhar.current = true;
-    acrescentar({ de: "voce", texto: limpa, daCentral: !passos && assunto === null });
+    acrescentar({ de: "voce", texto: limpa, daCentral: !passos && !outroMes && assunto === null });
     setTexto("");
-    if (passos) {
+    if (outroMes) {
+      mostrarResposta({ de: "ledgr", texto: outroMes.texto, links: outroMes.link && [outroMes.link] }, inicio);
+    } else if (passos) {
       mostrarResposta({
         de: "ledgr",
         texto: [...(passos.passos ?? []), passos.nota].filter(Boolean).join("\n").replaceAll("**", ""),
@@ -330,14 +359,18 @@ export function Conversa({
                   </span>
                 )}
                 {/* texto puro: pode vir de descrição de extrato de terceiro, nunca vira HTML */}
-                <p>{mensagem.texto}</p>
+                <TextoDigitado texto={mensagem.texto} digitar={mensagem.id > 0} />
                 {mensagem.links?.map((link) => (
                   <Link
                     key={link.href}
                     href={link.href}
                     className="asst-link"
-                    // a Central abre em tela cheia; o "Voltar ao Ledgr" de lá traz de volta a esta tela
-                    onClick={link.href.startsWith("/ajuda") ? lembrarDeOndeVeio : undefined}
+                    onClick={() => {
+                      // a Central abre em tela cheia; o "Voltar ao Ledgr" de lá traz de volta a esta tela
+                      if (link.href.startsWith("/ajuda")) lembrarDeOndeVeio();
+                      // quem segue um link quer ver a tela: a conversa fica guardada para quando reabrir
+                      onFechar();
+                    }}
                   >
                     {link.rotulo}
                   </Link>

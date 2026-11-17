@@ -122,6 +122,23 @@ export function assuntoDoMes(pergunta: string, mes?: string) {
   return null;
 }
 
+const MESES = ["janeiro", "fevereiro", "marco", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+
+/**
+ * A pergunta cita um mês que não é o da conciliação lida ("e setembro?"): o roteiro só tem os números
+ * da mais recente, então diz isso e aponta onde está o outro mês, em vez de responder sobre o errado.
+ */
+export function respostaDeOutroMes(pergunta: string, contexto: Contexto): Resposta | null {
+  const texto = normalizar(pergunta);
+  const citado = MESES.find((mes) => new RegExp(`\\b${mes}\\b`).test(texto));
+  if (!citado || citado === normalizar(contexto.mes)) return null;
+  const nome = citado === "marco" ? "março" : citado;
+  return {
+    texto: `Eu leio só a conciliação mais recente, a de ${contexto.mes}. Os números de ${nome} estão no Histórico, e o fechamento dele em Fechamentos.`,
+    link: { href: "/historico", rotulo: "Abrir o Histórico" },
+  };
+}
+
 /** A primeira mensagem, como a do design: o mês em uma frase. */
 export function saudacao(contexto: Contexto): string {
   if (contexto.divergentes === 0) {
