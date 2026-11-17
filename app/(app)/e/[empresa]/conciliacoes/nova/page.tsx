@@ -102,10 +102,13 @@ function NovaConciliacao() {
   // quando a etapa do palco começou: cada uma fica um mínimo na tela (segurarEtapa)
   const inicioDaEtapa = useRef(0);
 
+  /** Devolve false se a pessoa saiu da tela durante a espera: aí nada mais sobe nem concilia. */
   async function passarPara(proxima: Etapa) {
     await segurarEtapa(inicioDaEtapa);
+    if (!vivo.current) return false;
     marcarEtapa(inicioDaEtapa);
     setEtapa(proxima);
+    return true;
   }
 
   useEffect(() => {
@@ -203,7 +206,7 @@ function NovaConciliacao() {
         setEtapa("ocioso");
         return;
       }
-      await passarPara("enviando");
+      if (!(await passarPara("enviando"))) return;
       await enviarEConciliar(banco, sistema);
     } catch {
       setEtapa("ocioso");
@@ -214,7 +217,7 @@ function NovaConciliacao() {
   }
 
   async function revisarJson(escolhido: File, origem: { banco: string; sistemaAnterior: string }) {
-    await passarPara("enviando");
+    if (!(await passarPara("enviando"))) return;
     const dados = new FormData();
     dados.append("arquivo", escolhido);
     const resultado = await importarViaIa(dados);
@@ -264,7 +267,7 @@ function NovaConciliacao() {
       : { ok: true as const, dados: { extratoId: sistemaDaIa ?? "" } };
     if (!sistema.ok) return falhar(sistema);
 
-    await passarPara("processando");
+    if (!(await passarPara("processando"))) return;
     const situacoes = await Promise.all([
       ...(arquivoBanco ? [aguardarProcessamento(banco.dados.extratoId, () => vivo.current)] : []),
       ...(arquivoSistema ? [aguardarProcessamento(sistema.dados.extratoId, () => vivo.current)] : []),
@@ -296,7 +299,7 @@ function NovaConciliacao() {
   }
 
   async function concluir(bancoId: string, sistemaId: string) {
-    await passarPara("conciliando");
+    if (!(await passarPara("conciliando"))) return;
     const resultado = await conciliar(bancoId, sistemaId);
     // com a cobrança desligada não há planos a oferecer: o 402 (um limite) é um erro como os outros
     if (!resultado.ok && resultado.status === 402 && cobranca) {
