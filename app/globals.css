@@ -546,12 +546,15 @@ p.eyebrow {
 .ia-prompt { display: flex; flex-direction: column; gap: 12px; padding: 18px 20px; border: 1px solid var(--color-divider); border-radius: var(--radius-md); }
 .ia-prompt-topo { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
 .ia-prompt h2, .ia-erros h2 { margin: 0; font-size: 20px; font-weight: 600; }
-.ia-prompt pre {
-  margin: 0; max-height: 150px; overflow: auto; padding: 14px; border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--color-text) 5%, transparent); font: 12.5px/1.6 ui-monospace, Consolas, monospace; white-space: pre-wrap;
-}
+/* o prompt rola sem barra (pedido de 17/11): a máscara esfuma a borda e o "Mais abaixo" fica no pé do quadro */
+.ia-prompt-texto { position: relative; border-radius: var(--radius-sm); background: color-mix(in srgb, var(--color-text) 5%, transparent); }
+.ia-prompt-rolagem { max-height: 150px; overflow-y: auto; overscroll-behavior: contain; border-radius: inherit; }
+.ia-prompt-rolagem:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+.ia-prompt-rolagem[data-abaixo] { --esfuma-baixo: 48px; }
+.ia-prompt pre { margin: 0; padding: 14px 14px 18px; font: 12.5px/1.6 ui-monospace, Consolas, monospace; white-space: pre-wrap; }
+/* a folha usa a altura que sobra embaixo do prompt (~480px do topo, 28px de respiro): a página não rola */
 .ia-folha {
-  position: relative; display: flex; flex-direction: column; gap: 10px; width: min(100% - 12px, 460px); min-height: 420px; padding: 28px 30px; cursor: pointer;
+  position: relative; display: flex; flex-direction: column; gap: 10px; width: min(100% - 12px, 460px); min-height: clamp(220px, 100dvh - 520px, 420px); padding: 28px 30px; cursor: pointer;
   border: 1.5px dashed var(--nova-tracejado); border-radius: var(--radius-sm); background: var(--folha-sistema);
   box-shadow: 10px 10px 0 -1px var(--folha-banco), 10px 10px 0 0 var(--color-divider);
   transition: border-color var(--dur-rapida) ease;
@@ -2881,13 +2884,13 @@ html[data-tema="escuro"] .app-shell {
 .comp-detalhe-caixa { position: relative; flex: 1; min-height: 0; display: flex; }
 /* sem barra: o lado com mais conteúdo esfuma, e embaixo o "Mais abaixo" convida a rolar */
 .comp-detalhe { position: relative; flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; }
-.comp-detalhe, .painel-rolagem {
+.comp-detalhe, .painel-rolagem, .ia-prompt-rolagem {
   --esfuma-cima: 0px; --esfuma-baixo: 0px; scrollbar-width: none;
   -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 var(--esfuma-cima), #000 calc(100% - var(--esfuma-baixo)), transparent 100%);
   mask-image: linear-gradient(to bottom, transparent 0, #000 var(--esfuma-cima), #000 calc(100% - var(--esfuma-baixo)), transparent 100%);
 }
-.comp-detalhe::-webkit-scrollbar, .painel-rolagem::-webkit-scrollbar { display: none; }
-.comp-detalhe[data-acima], .painel-rolagem[data-acima] { --esfuma-cima: 22px; }
+.comp-detalhe::-webkit-scrollbar, .painel-rolagem::-webkit-scrollbar, .ia-prompt-rolagem::-webkit-scrollbar { display: none; }
+.comp-detalhe[data-acima], .painel-rolagem[data-acima], .ia-prompt-rolagem[data-acima] { --esfuma-cima: 22px; }
 .comp-detalhe[data-abaixo] { --esfuma-baixo: 44px; }
 /* 4px de folga nas laterais para o halo da explicação não ser cortado pela rolagem */
 .comp-detalhe { margin-inline: -4px; }
