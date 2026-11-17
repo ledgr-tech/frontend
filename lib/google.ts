@@ -24,7 +24,8 @@ export const VALIDADE_ID_TOKEN_SEGUNDOS = 60 * 60;
 export type ErroGoogle = "email_com_senha" | "nao_confirmado" | "indisponivel" | "muitas_tentativas" | "falha";
 
 export const MENSAGEM_GOOGLE: Record<ErroGoogle, string> = {
-  email_com_senha: "Já existe uma conta com este e-mail. Entre com e-mail e senha.",
+  // o backend não liga o Google sozinho a uma conta com senha (ADR-004, 13/10); a rota de ligar é a backend #218
+  email_com_senha: "Este e-mail já tem conta com senha. Entre com a senha acima, ou use “Esqueci a senha”.",
   nao_confirmado: "Não foi possível confirmar a conta Google. Tente de novo.",
   indisponivel: "O login pelo Google está indisponível agora. Entre com e-mail e senha.",
   muitas_tentativas: "Muitas tentativas seguidas agora. Espere um minuto e tente de novo.",

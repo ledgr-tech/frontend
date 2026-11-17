@@ -242,9 +242,10 @@ describe("LoginPage", () => {
     render(<LoginPage />);
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Já existe uma conta com este e-mail. Entre com e-mail e senha.",
+      "Este e-mail já tem conta com senha. Entre com a senha acima, ou use “Esqueci a senha”.",
     );
     expect(window.location.search).toBe("");
+    expect(document.getElementById("login-senha")).toHaveFocus();
   });
 
   // a pessoa cancelou no Google, ou o NextAuth recusou a volta: ele manda ?error=
