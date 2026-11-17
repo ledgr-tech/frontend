@@ -2,7 +2,18 @@ import { describe, expect, it } from "vitest";
 import type { Execucao } from "@/lib/adaptadores";
 import type { LinhaComparacao, StatusLinha } from "@/lib/mock-data";
 import type { VisaoGeral } from "../conciliacoes/acoes";
-import { foraDoRoteiro, montarContexto, responder, saudacao, sugestoes, type Contexto } from "./respostas";
+import { foraDoRoteiro, montarContexto, perguntaSoDoMes, responder, saudacao, sugestoes, type Contexto } from "./respostas";
+
+describe("perguntaSoDoMes", () => {
+  it("reconhece o mês sozinho, e não a pergunta de uso nem o nome de uma pessoa", () => {
+    expect(perguntaSoDoMes("setembro")).toBe(true);
+    expect(perguntaSoDoMes("E março?")).toBe(true);
+    expect(perguntaSoDoMes("como foi agosto")).toBe(true);
+    expect(perguntaSoDoMes("Como envio o extrato de agosto?")).toBe(false);
+    expect(perguntaSoDoMes("Como convido o Marco para a equipe?")).toBe(false);
+    expect(perguntaSoDoMes("Como fecho o mês?")).toBe(false);
+  });
+});
 
 function linha(id: string, status: StatusLinha, valorBanco: number | null, valorSistema: number | null): LinhaComparacao {
   return {

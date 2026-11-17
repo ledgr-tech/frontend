@@ -124,17 +124,32 @@ export function assuntoDoMes(pergunta: string, mes?: string) {
 
 const MESES = ["janeiro", "fevereiro", "marco", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
 
+function mesCitado(pergunta: string): string | undefined {
+  const texto = normalizar(pergunta);
+  return MESES.find((mes) => new RegExp(`\\b${mes}\\b`).test(texto));
+}
+
 /**
- * A pergunta cita um mês que não é o da conciliação lida ("e setembro?"): o roteiro só tem os números
- * da mais recente, então diz isso e aponta onde está o outro mês, em vez de responder sobre o errado.
+ * "setembro", "e agosto?": o nome de um mês com no máximo duas palavras em volta. Uma pergunta de uso
+ * que cita um mês ("como envio o extrato de agosto?") ou uma pessoa ("convidar o Marco") vai à Central.
+ */
+export function perguntaSoDoMes(pergunta: string): boolean {
+  const citado = mesCitado(pergunta);
+  if (!citado) return false;
+  const resto = normalizar(pergunta).replace(new RegExp(`\\b${citado}\\b`), " ").match(/[a-z0-9]+/g) ?? [];
+  return resto.length <= 2;
+}
+
+/**
+ * A pergunta sobre os números cita um mês que não é o da conciliação lida: o roteiro só tem a mais
+ * recente, então diz isso e aponta onde procurar, em vez de responder sobre o mês errado.
  */
 export function respostaDeOutroMes(pergunta: string, contexto: Contexto): Resposta | null {
-  const texto = normalizar(pergunta);
-  const citado = MESES.find((mes) => new RegExp(`\\b${mes}\\b`).test(texto));
+  const citado = mesCitado(pergunta);
   if (!citado || citado === normalizar(contexto.mes)) return null;
   const nome = citado === "marco" ? "março" : citado;
   return {
-    texto: `Eu leio só a conciliação mais recente, a de ${contexto.mes}. Os números de ${nome} estão no Histórico, e o fechamento dele em Fechamentos.`,
+    texto: `Por enquanto eu leio só a conciliação mais recente, a de ${contexto.mes}. Se ${nome} foi conciliado, ele está no Histórico.`,
     link: { href: "/historico", rotulo: "Abrir o Histórico" },
   };
 }

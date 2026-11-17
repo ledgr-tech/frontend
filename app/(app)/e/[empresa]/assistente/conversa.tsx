@@ -13,7 +13,7 @@ import { telaDoCaminho } from "../tutorial/roteiros";
 import { ajudaDaTela } from "../../../../(ajuda)/ajuda/paginas";
 import { lembrarDeOndeVeio } from "../../../../(ajuda)/ajuda/voltar";
 import { perguntarAoAssistente, type TurnoDaConversa } from "./acoes";
-import { assuntoDoMes, foraDoRoteiro, pedePassosParaFechar, respostaDeOutroMes, responder, saudacao, sugestoes, type Contexto } from "./respostas";
+import { assuntoDoMes, foraDoRoteiro, pedePassosParaFechar, perguntaSoDoMes, respostaDeOutroMes, responder, saudacao, sugestoes, type Contexto } from "./respostas";
 import { SEM_SERVIDOR } from "@/lib/sem-servidor";
 
 /**
@@ -77,14 +77,14 @@ function Mascote({ tamanho, rosto = false }: { tamanho: number; rosto?: boolean 
 }
 
 /**
- * A resposta aparece letra a letra, como se o Ledgr digitasse. O resto do texto já está no balão, só
- * transparente: o balão nasce no tamanho final (a rolagem não pula) e o leitor de tela lê tudo de uma vez.
- * Respostas longas digitam mais rápido, para nenhuma passar de ~2 s.
+ * A resposta aparece letra a letra, como se o Ledgr digitasse. O texto inteiro entra no parágrafo de uma
+ * vez, transparente: o balão nasce no tamanho final (a rolagem não pula) e a região `log` anuncia a
+ * resposta uma vez só. Por cima, uma camada `aria-hidden` mostra o que já foi digitado e guarda o resto
+ * num `::after` transparente, para quebrar as linhas igual. Respostas longas digitam mais rápido (~2 s).
  */
 function TextoDigitado({ texto, digitar }: { texto: string; digitar: boolean }) {
-  const [mostrados, setMostrados] = useState(() =>
-    digitar && !window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? 0 : texto.length,
-  );
+  const [animar] = useState(() => digitar && !window.matchMedia?.("(prefers-reduced-motion: reduce)").matches);
+  const [mostrados, setMostrados] = useState(animar ? 0 : texto.length);
   const digitando = mostrados < texto.length;
 
   useEffect(() => {
@@ -94,10 +94,15 @@ function TextoDigitado({ texto, digitar }: { texto: string; digitar: boolean }) 
     return () => window.clearTimeout(espera);
   }, [digitando, mostrados, texto.length]);
 
+  if (!animar) return <p>{texto}</p>;
   return (
-    <p data-digitando={digitando || undefined}>
-      {texto.slice(0, mostrados)}
-      {digitando && <span className="asst-por-digitar">{texto.slice(mostrados)}</span>}
+    <p className="asst-digitavel" data-digitando={digitando || undefined}>
+      {texto}
+      {digitando && (
+        <span className="asst-digitado" aria-hidden="true" data-resto={texto.slice(mostrados)}>
+          {texto.slice(0, mostrados)}
+        </span>
+      )}
     </p>
   );
 }
@@ -275,7 +280,8 @@ export function Conversa({
         mostrarResposta({ de: "ledgr", texto: saudacaoSemDados("vazio"), links: [{ href: "/conciliacoes/nova", rotulo: "Nova conciliação" }] }, inicio);
         return;
       }
-      const resposta = responder(pergunta, atual.dados, assunto);
+      // comparado com o mês recém-lido: outro mês pode ter sido conciliado com o painel aberto
+      const resposta = respostaDeOutroMes(pergunta, atual.dados) ?? responder(pergunta, atual.dados, assunto);
       if (resposta?.explicar && atual.dados.maior) {
         await explicar(atual.dados.maior);
       } else {
@@ -294,15 +300,13 @@ export function Conversa({
     const limpa = pergunta.trim();
     if (!limpa || lendo) return;
     const passos = pedePassosParaFechar(limpa) ? FECHAR_O_MES : undefined;
-    const outroMes = !passos && contexto ? respostaDeOutroMes(limpa, contexto) : null;
-    const assunto = assuntoDoMes(limpa, contexto?.mes);
+    // "e setembro?": só o nome de um mês também é pergunta sobre os números, que o roteiro confere
+    const assunto = assuntoDoMes(limpa, contexto?.mes) ?? (contexto && perguntaSoDoMes(limpa) ? "resumo" : null);
     const inicio = agora();
     acompanhar.current = true;
-    acrescentar({ de: "voce", texto: limpa, daCentral: !passos && !outroMes && assunto === null });
+    acrescentar({ de: "voce", texto: limpa, daCentral: !passos && assunto === null });
     setTexto("");
-    if (outroMes) {
-      mostrarResposta({ de: "ledgr", texto: outroMes.texto, links: outroMes.link && [outroMes.link] }, inicio);
-    } else if (passos) {
+    if (passos) {
       mostrarResposta({
         de: "ledgr",
         texto: [...(passos.passos ?? []), passos.nota].filter(Boolean).join("\n").replaceAll("**", ""),
@@ -365,7 +369,9 @@ export function Conversa({
                     key={link.href}
                     href={link.href}
                     className="asst-link"
-                    onClick={() => {
+                    onClick={(evento) => {
+                      // aberto em outra aba, a pessoa fica nesta tela: o painel continua
+                      if (evento.ctrlKey || evento.metaKey || evento.shiftKey) return;
                       // a Central abre em tela cheia; o "Voltar ao Ledgr" de lá traz de volta a esta tela
                       if (link.href.startsWith("/ajuda")) lembrarDeOndeVeio();
                       // quem segue um link quer ver a tela: a conversa fica guardada para quando reabrir
