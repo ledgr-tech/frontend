@@ -24,10 +24,10 @@ export function passosDaAbertura(passos: PassoDoTutorial[], temAlvo: (passo: Pas
 export const TUTORIAIS: Record<TelaDoTutorial, TutorialDaTela> = {
   "visao-geral": {
     nome: "Visão geral",
-    mascote: "/mascotes/mascote-apresenta.png",
+    mascote: "/mascotes/mascote-bandeira.webp",
     passos: [
-      { alvo: "primeiros-passos", titulo: "Seus primeiros passos.", texto: "Cada bloco desta tela diz o que fazer para enchê-lo, e o passo de agora leva a etiqueta Próximo passo. Os traços aqui marcam o que já foi feito.", mascote: "/mascotes/mascote-apresenta.png" },
-      { alvo: "estado-do-mes", titulo: "O mês em um número.", texto: "Quantos lançamentos do mês aberto já bateram e quanto ainda está em aberto.", mascote: "/mascotes/mascote-explicando.png" },
+      { alvo: "primeiros-passos", titulo: "Seus primeiros passos.", texto: "Cada bloco desta tela diz o que fazer para enchê-lo, e o passo de agora leva a etiqueta Próximo passo. Os traços aqui marcam o que já foi feito.", mascote: "/mascotes/mascote-bandeira.webp" },
+      { alvo: "estado-do-mes", titulo: "O mês em um número.", texto: "Quantos lançamentos do mês aberto já bateram e quanto ainda está em aberto.", mascote: "/mascotes/mascote-comparando.webp" },
       { alvo: "atalhos", titulo: "Atalhos para o resto.", texto: "Extratos, conciliações, fechamentos e histórico, com o que mudou desde a última vez.", mascote: "/mascotes/mascote-caminhando.png" },
     ],
   },
