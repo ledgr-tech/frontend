@@ -569,8 +569,8 @@ async function fotografar(page, t, receita, tela) {
 }
 
 // sem os tutoriais do mascote e sem o roteiro de primeiros passos por cima
-const semTutoriais = () =>
-  localStorage.setItem("ledgr:preferencias", JSON.stringify({ tutoriaisDispensados: ["visao-geral","conciliacoes","nova-conciliacao","comparacao","divergencia","extratos","historico","fechamentos","configuracoes"], roteiroDispensado: true }));
+const semTutoriais = (email) =>
+  localStorage.setItem(`ledgr:preferencias:${email.trim().toLowerCase()}`, JSON.stringify({ tutoriaisDispensados: ["visao-geral","conciliacoes","nova-conciliacao","comparacao","divergencia","extratos","historico","fechamentos","configuracoes"], roteiroDispensado: true }));
 
 async function gravar(browser, estado, empresa, tela) {
   const roteiro = FIGURAS_ ? FIGURAS[tela] : ROTEIROS[tela];
@@ -582,7 +582,7 @@ async function gravar(browser, estado, empresa, tela) {
     colorScheme: "light",
     reducedMotion: "reduce",
   });
-  await ctx.addInitScript(semTutoriais);
+  await ctx.addInitScript(semTutoriais, EMAIL);
   const page = await ctx.newPage();
   page.setDefaultTimeout(10000);
   const t = ferramentas(page, empresa);
@@ -749,7 +749,7 @@ const EXPLICACAO_DA_LANDING = "Os dígitos 7 e 5 parecem trocados no sistema: o 
 
 async function gravarLanding(browser, estado, empresa) {
   const ctx = await browser.newContext({ viewport: { width: 1600, height: 1000 }, storageState: estado, colorScheme: "light", reducedMotion: "reduce" });
-  await ctx.addInitScript(semTutoriais);
+  await ctx.addInitScript(semTutoriais, EMAIL);
   const page = await ctx.newPage();
   // o next dev compila cada tela na primeira visita
   page.setDefaultTimeout(60000);

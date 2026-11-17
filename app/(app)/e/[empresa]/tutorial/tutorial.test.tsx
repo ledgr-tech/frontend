@@ -6,11 +6,16 @@ import { cartaoVaiParaEsquerda, Tutorial } from "./tutorial";
 import { ProvedorDaConta } from "../conta";
 import { abrirTutorial } from "@/lib/eventos";
 import { TUTORIAIS } from "./roteiros";
+import { BoasVindas } from "../visao-geral/boas-vindas";
+import { PREFERENCIAS_VAZIAS, TELAS_DO_TUTORIAL } from "@/lib/preferencias";
 
 vi.mock("../../../../(auth)/acoes", () => ({ salvarPreferencias: vi.fn(async () => true) }));
 
 const esperar = () => new Promise((r) => setTimeout(r, 20));
 const mascoteAtras = () => document.querySelector(".tutorial-mascote-atras")?.getAttribute("src");
+const EMAIL = "ana@example.com";
+const dispensadosNoNavegador = (email = EMAIL) =>
+  JSON.parse(window.localStorage.getItem(`ledgr:preferencias:${email}`) ?? "null")?.tutoriaisDispensados;
 
 // a tela de Extratos sem o painel do arquivo: o terceiro passo do tutorial não tem alvo
 const TELA = (
@@ -22,7 +27,7 @@ const TELA = (
 
 function montar(conteudo = TELA, espera?: number) {
   return render(
-    <ProvedorDaConta preferencias={null}>
+    <ProvedorDaConta email={EMAIL} preferencias={null}>
       {conteudo}
       <button>fora</button>
       <Tutorial tela="extratos" atraso={0} espera={espera} />
@@ -93,7 +98,7 @@ describe("Tutorial", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
-  it("Esc fecha, devolve o foco e só volta numa próxima sessão", async () => {
+  it("Esc fecha, devolve o foco e o tutorial não abre mais sozinho, nem numa sessão nova", async () => {
     const user = userEvent.setup();
     const { unmount } = montar();
     const origem = screen.getByRole("button", { name: "fora" });
@@ -108,16 +113,58 @@ describe("Tutorial", () => {
     expect(document.querySelector("[data-tutorial-ativo]")).toBeNull();
     unmount();
 
-    // voltar à tela na mesma sessão (abrir uma linha e voltar) não reabre o cartão
-    const segunda = montar();
+    // abrir já conta como visto: só esta tela, sem a caixa marcada
+    expect(dispensadosNoNavegador()).toEqual(["extratos"]);
+    window.sessionStorage.clear();
+    montar();
+    await esperar();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it.each([false, true])("outra pessoa vê o tutorial da Visão geral na mesma aba (dispensado: %s)", async (dispensar) => {
+    const user = userEvent.setup();
+    const montarVisaoGeral = (email: string) => render(
+      <ProvedorDaConta email={email} preferencias={{ ...PREFERENCIAS_VAZIAS, boasVindasVista: true }}>
+        <div data-tutorial="estado-do-mes">Estado do mês</div>
+        <Tutorial tela="visao-geral" atraso={0} />
+      </ProvedorDaConta>,
+    );
+
+    const primeira = montarVisaoGeral(EMAIL.toUpperCase());
+    await screen.findByRole("dialog");
+    if (dispensar) await user.click(screen.getByLabelText("Não mostrar mais tutoriais"));
+    await user.click(screen.getByRole("button", { name: "Pular" }));
+    primeira.unmount();
+
+    const segunda = montarVisaoGeral(EMAIL);
     await esperar();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     segunda.unmount();
 
-    // numa sessão nova, sem a caixa marcada, ele volta
-    window.sessionStorage.clear();
-    montar();
-    expect(await screen.findByRole("dialog")).toBeInTheDocument();
+    montarVisaoGeral("bia@example.com");
+    expect(await screen.findByRole("dialog", { name: "O mês em um número." })).toBeInTheDocument();
+  });
+
+  it("ao trocar de e-mail com o cartão aberto, a caixa marcada fica com quem o abriu", async () => {
+    const user = userEvent.setup();
+    const tela = (email: string) => (
+      <ProvedorDaConta email={email} preferencias={null}>
+        {TELA}
+        <Tutorial tela="extratos" atraso={0} />
+      </ProvedorDaConta>
+    );
+    const { rerender, unmount } = render(tela(EMAIL));
+    await screen.findByRole("dialog");
+    await user.click(screen.getByLabelText("Não mostrar mais tutoriais"));
+
+    window.localStorage.setItem(
+      "ledgr:preferencias:bia@example.com",
+      JSON.stringify({ tutoriaisDispensados: ["extratos"], roteiroDispensado: false }),
+    );
+    rerender(tela("bia@example.com"));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    unmount();
+    expect(dispensadosNoNavegador("bia@example.com")).toEqual(["extratos"]);
   });
 
   it("espera a tela carregar: abre quando o alvo aparece, já com o destaque", async () => {
@@ -189,14 +236,20 @@ describe("Tutorial", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
-  it("com a caixa marcada, não volta mais", async () => {
+  it("com a caixa marcada, nenhum tutorial abre mais sozinho, em tela nenhuma", async () => {
     const user = userEvent.setup();
     const { unmount } = montar();
     await screen.findByRole("dialog");
-    await user.click(screen.getByLabelText("Não mostrar de novo"));
+    await user.click(screen.getByLabelText("Não mostrar mais tutoriais"));
     await user.click(screen.getByRole("button", { name: "Pular" }));
     unmount();
-    montar();
+    expect(dispensadosNoNavegador()).toEqual([...TELAS_DO_TUTORIAL]);
+    render(
+      <ProvedorDaConta email={EMAIL} preferencias={null}>
+        <div data-tutorial="filtros" />
+        <Tutorial tela="comparacao" atraso={0} />
+      </ProvedorDaConta>,
+    );
     await esperar();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
@@ -205,12 +258,9 @@ describe("Tutorial", () => {
     const user = userEvent.setup();
     const { unmount } = montar();
     await screen.findByRole("dialog");
-    await user.click(screen.getByLabelText("Não mostrar de novo"));
+    await user.click(screen.getByLabelText("Não mostrar mais tutoriais"));
     unmount();
-    window.sessionStorage.clear();
-    montar();
-    await esperar();
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(dispensadosNoNavegador()).toEqual([...TELAS_DO_TUTORIAL]);
   });
 
   it("o cartão fica acima do painel do detalhe da linha, senão o clique cai no fundo dele", () => {
@@ -222,7 +272,7 @@ describe("Tutorial", () => {
 
   it("o botão ? reabre mesmo dispensado", async () => {
     window.localStorage.setItem(
-      "ledgr:preferencias",
+      `ledgr:preferencias:${EMAIL}`,
       JSON.stringify({ tutoriaisDispensados: ["extratos"], roteiroDispensado: false }),
     );
     montar();
@@ -318,6 +368,37 @@ describe("Tutorial", () => {
     const antes = css.slice(0, css.indexOf("animation: tutorial-mascote-sobe"));
     expect(antes.slice(antes.lastIndexOf("@media"))).toContain("prefers-reduced-motion: no-preference");
     expect(css.match(/animation: tutorial-mascote-sobe/g)).toHaveLength(1);
+  });
+
+  describe("com as boas-vindas pendentes na Visão geral", () => {
+    const tela = (
+      <ProvedorDaConta email={EMAIL} nome="Ana" preferencias={null}>
+        <div data-tutorial="estado-do-mes">Estado do mês</div>
+        <BoasVindas />
+        <Tutorial tela="visao-geral" atraso={0} />
+      </ProvedorDaConta>
+    );
+
+    it("o tutorial não abre sozinho, nem depois de Agora não", async () => {
+      const user = userEvent.setup();
+      render(tela);
+      await screen.findByText("Boas-vindas, Ana");
+      await esperar();
+      expect(document.querySelector(".tutorial")).toBeNull();
+      await user.click(screen.getByRole("button", { name: "Agora não" }));
+      await waitFor(() => expect(screen.queryByText("Boas-vindas, Ana")).not.toBeInTheDocument());
+      await esperar();
+      expect(document.querySelector(".tutorial")).toBeNull();
+    });
+
+    it("Começar abre o tutorial uma vez só", async () => {
+      const user = userEvent.setup();
+      render(tela);
+      await user.click(await screen.findByRole("button", { name: "Começar" }));
+      await waitFor(() => expect(document.querySelectorAll(".tutorial")).toHaveLength(1));
+      await esperar();
+      expect(document.querySelectorAll(".tutorial")).toHaveLength(1);
+    });
   });
 
   it("desmontar com o tutorial aberto tira o destaque", async () => {

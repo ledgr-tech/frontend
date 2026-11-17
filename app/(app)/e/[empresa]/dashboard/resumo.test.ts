@@ -100,6 +100,17 @@ describe("statusDaLinha", () => {
 });
 
 describe("rotuloCurto", () => {
+  it("usa as datas completas para calcular a tolerância de fevereiro a março", () => {
+    const conciliada = {
+      ...linha("match_tolerancia", 100, 100),
+      data: "28/02",
+      dataSistema: "01/03",
+      dataISO: "2026-02-28",
+      dataSistemaISO: "2026-03-01",
+    };
+    expect(rotuloCurto(conciliada)).toBe("Conciliado ±1d");
+  });
+
   it("dá a cada categoria um nome curto, que cabe entre as duas folhas da comparação", () => {
     expect(rotuloCurto(linha("match_exato", 100, 100))).toBe("Conciliado");
     expect(rotuloCurto(linha("match_tolerancia", 100, 100))).toBe("Conciliado");

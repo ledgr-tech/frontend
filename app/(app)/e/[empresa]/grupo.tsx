@@ -58,7 +58,17 @@ export const alternarNoConjunto = (chave: string) => (conjunto: ReadonlySet<stri
  * Abaixo de 1001px o painel do item escolhido vem antes da lista, como em Conciliações, Histórico e
  * Empresas (M-02): escolher sem ver o painel mudar não diria nada, então a tela sobe até ele.
  */
-export function mostrarPainelDoEscolhido() {
+export function mostrarPainelDoEscolhido(peloTeclado = false) {
   if (window.matchMedia?.("(min-width: 1001px)").matches) return;
-  document.querySelector(".extratos-area > .extrato-painel")?.scrollIntoView?.({ block: "start" });
+  mostrarPreviaDoEscolhido(document.querySelector(".extratos-area > .extrato-painel"), peloTeclado);
+}
+
+export function mostrarPreviaDoEscolhido(previa: Element | null, peloTeclado: boolean) {
+  previa?.scrollIntoView?.({ block: "start" });
+  if (!peloTeclado) return;
+
+  // O próximo quadro já contém o título da seleção que acabou de mudar.
+  requestAnimationFrame(() => {
+    previa?.querySelector<HTMLElement>(':is(h2, h3)[tabindex="-1"]')?.focus({ preventScroll: true });
+  });
 }

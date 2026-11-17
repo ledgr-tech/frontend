@@ -119,6 +119,7 @@ describe("adaptarLinha", () => {
     expect(linha.data).toBe("04/09");
     expect(linha.descricao).toBe("Boleto Aço Norte");
     expect(linha.dataSistema).toBe("05/09");
+    expect(linha.dataSistemaISO).toBe("2026-09-05");
     expect(linha.descricaoSistema).toBe("Pagamento fornecedor Aço Norte");
   });
 

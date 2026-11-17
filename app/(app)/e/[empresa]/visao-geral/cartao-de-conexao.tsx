@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useState } from "react";
+import { LOGO } from "@/app/chat-de-ia";
 import { InkHover } from "@/app/reveal";
 import { abrirConfiguracoes } from "@/lib/eventos";
 import { formatarDataHora } from "../dashboard/resumo";
@@ -27,16 +28,31 @@ export function CartaoDeConexao({ itens, endereco }: { itens: ConexaoMcp[]; ende
   }
 
   const clientes = [...new Set(ativas.map((conexao) => conexao.cliente))];
-  const ultimoUso = ativas
-    .map((conexao) => conexao.ultimoUsoEm)
-    .filter((uso): uso is string => uso !== null)
-    .sort()
+  const ultima = ativas
+    .filter((conexao): conexao is ConexaoMcp & { ultimoUsoEm: string } => conexao.ultimoUsoEm !== null)
+    .sort((a, b) => a.ultimoUsoEm.localeCompare(b.ultimoUsoEm))
     .at(-1);
+  // com mais de um cliente, a data diz de qual veio
+  const deQuem = ultima && clientes.length > 1 ? `, no ${ultima.cliente}` : "";
 
   // o traço da caneta da landing (InkHover), claro sobre a tinta do cartão
   return (
     <InkHover as="section" tone="light" className="vg-bloco vg-conexao" aria-labelledby="vg-conexao-titulo">
       <span className="vg-conexao-rotulo">Conexões</span>
+      <div className="vg-conexao-selo">
+        {ativas.length === 0 ? (
+          <>
+            <Logo src={LOGO.chatgpt} apagado />
+            <Logo src={LOGO.claude} apagado />
+          </>
+        ) : (
+          <>
+            {/* um logo por marca: "Claude" e "Claude Code" são dois clientes e um logo só */}
+            {[...new Set(clientes.map(logoDe))].map((src) => src && <Logo key={src} src={src} />)}
+            <span className="vg-conexao-ativas">{ativas.length === 1 ? "Ativa" : `${ativas.length} ativas`}</span>
+          </>
+        )}
+      </div>
       {ativas.length === 0 ? (
         <>
           <h2 id="vg-conexao-titulo" className="vg-conexao-titulo">
@@ -61,14 +77,14 @@ export function CartaoDeConexao({ itens, endereco }: { itens: ConexaoMcp[]; ende
       ) : (
         <>
           <h2 id="vg-conexao-titulo" className="vg-conexao-titulo">
-            {`Conectado ao ${clientes.join(" e ")}.`}
+            {`Conectado ${LISTA.format(clientes.map((cliente) => `ao ${cliente}`))}.`}
           </h2>
           <p className="vg-conexao-texto">
-            {ultimoUso ? `Última consulta em ${formatarDataHora(ultimoUso)}.` : "Nenhuma consulta ainda."} Pergunte
-            sobre o mês por lá, com os números do Ledgr.
+            {ultima ? `Última consulta em ${formatarDataHora(ultima.ultimoUsoEm)}${deQuem}.` : "Nenhuma consulta ainda."}{" "}
+            {clientes.length > 1 ? "Pergunte sobre o mês em qualquer um." : "Pergunte sobre o mês por lá, com os números do Ledgr."}
           </p>
           <div className="vg-conexao-acoes">
-            <button type="button" className="vg-conexao-botao vg-conexao-botao-contorno" onClick={() => abrirConfiguracoes("conexoes")}>
+            <button type="button" className="vg-conexao-botao" onClick={() => abrirConfiguracoes("conexoes")}>
               Ver conexões
             </button>
           </div>
@@ -84,5 +100,20 @@ export function CartaoDeConexao({ itens, endereco }: { itens: ConexaoMcp[]; ende
         aria-hidden="true"
       />
     </InkHover>
+  );
+}
+
+const LISTA = new Intl.ListFormat("pt-BR");
+
+// ponytail: só os dois clientes que o Ledgr documenta têm logo; outro nome fica só no título
+function logoDe(cliente: string): string | null {
+  if (/chatgpt|openai/i.test(cliente)) return LOGO.chatgpt;
+  if (/claude/i.test(cliente)) return LOGO.claude;
+  return null;
+}
+
+function Logo({ src, apagado = false }: { src: string; apagado?: boolean }) {
+  return (
+    <Image src={src} alt="" width={40} height={40} className="vg-conexao-logo" data-apagado={apagado || undefined} aria-hidden="true" />
   );
 }

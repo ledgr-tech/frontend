@@ -12,8 +12,11 @@ function Sonda() {
       <span>{p.carregado ? "carregado" : "carregando"}</span>
       <span>{p.tutorialDispensado("extratos") ? "extratos dispensado" : "extratos ativo"}</span>
       <span>{p.roteiroDispensado ? "roteiro dispensado" : "roteiro ativo"}</span>
+      <span>{p.boasVindasVista ? "boas-vindas vistas" : "boas-vindas pendentes"}</span>
+      <button onClick={() => p.dispensarTutorial("visao-geral")}>ver a visão geral</button>
       <button onClick={() => p.dispensarTutorial("extratos")}>dispensar tutorial</button>
       <button onClick={() => p.dispensarRoteiro()}>dispensar roteiro</button>
+      <button onClick={() => { p.dispensarTutorial("extratos"); p.dispensarRoteiro(); }}>dispensar os dois</button>
     </div>
   );
 }
@@ -92,11 +95,11 @@ describe("ProvedorDaConta", () => {
 
   it("junta o que veio da conta com o navegador", async () => {
     window.localStorage.setItem(
-      "ledgr:preferencias",
+      "ledgr:preferencias:ana@example.com",
       JSON.stringify({ tutoriaisDispensados: ["extratos"], roteiroDispensado: false }),
     );
     render(
-      <ProvedorDaConta preferencias={{ tutoriaisDispensados: [], roteiroDispensado: true }}>
+      <ProvedorDaConta email="ana@example.com" preferencias={{ tutoriaisDispensados: [], roteiroDispensado: true }}>
         <Sonda />
       </ProvedorDaConta>,
     );
@@ -107,19 +110,64 @@ describe("ProvedorDaConta", () => {
 
   it("dispensar guarda no navegador e manda para a conta, uma vez", async () => {
     render(
-      <ProvedorDaConta preferencias={null}>
+      <ProvedorDaConta email="ana@example.com" preferencias={null}>
         <Sonda />
       </ProvedorDaConta>,
     );
     await waitFor(() => expect(screen.getByText("carregado")).toBeInTheDocument());
     await act(async () => screen.getByText("dispensar tutorial").click());
     expect(screen.getByText("extratos dispensado")).toBeInTheDocument();
-    expect(JSON.parse(window.localStorage.getItem("ledgr:preferencias")!).tutoriaisDispensados).toEqual(["extratos"]);
+    expect(JSON.parse(window.localStorage.getItem("ledgr:preferencias:ana@example.com")!).tutoriaisDispensados).toEqual(["extratos"]);
     expect(salvarPreferencias).toHaveBeenCalledTimes(1);
-    expect(salvarPreferencias).toHaveBeenCalledWith({ tutoriaisDispensados: ["extratos"], roteiroDispensado: false });
+    expect(salvarPreferencias).toHaveBeenCalledWith({ tutoriaisDispensados: ["extratos"], roteiroDispensado: false, boasVindasVista: false });
 
     await act(async () => screen.getByText("dispensar roteiro").click());
     expect(screen.getByText("roteiro dispensado")).toBeInTheDocument();
-    expect(salvarPreferencias).toHaveBeenLastCalledWith({ tutoriaisDispensados: ["extratos"], roteiroDispensado: true });
+    expect(salvarPreferencias).toHaveBeenLastCalledWith({ tutoriaisDispensados: ["extratos"], roteiroDispensado: true, boasVindasVista: false });
+  });
+
+  it("duas gravações seguidas, antes do próximo render, somam: a segunda não apaga a primeira", async () => {
+    render(
+      <ProvedorDaConta email="ana@example.com" preferencias={null}>
+        <Sonda />
+      </ProvedorDaConta>,
+    );
+    await waitFor(() => expect(screen.getByText("carregado")).toBeInTheDocument());
+    await act(async () => screen.getByText("dispensar os dois").click());
+    expect(screen.getByText("extratos dispensado")).toBeInTheDocument();
+    expect(screen.getByText("roteiro dispensado")).toBeInTheDocument();
+    expect(salvarPreferencias).toHaveBeenLastCalledWith({ tutoriaisDispensados: ["extratos"], roteiroDispensado: true, boasVindasVista: false });
+  });
+
+  it("o tutorial de outra tela não esconde as boas-vindas; o da Visão geral, sim", async () => {
+    render(
+      <ProvedorDaConta email="ana@example.com" preferencias={null}>
+        <Sonda />
+      </ProvedorDaConta>,
+    );
+    await waitFor(() => expect(screen.getByText("carregado")).toBeInTheDocument());
+    await act(async () => screen.getByText("dispensar tutorial").click());
+    expect(screen.getByText("boas-vindas pendentes")).toBeInTheDocument();
+    await act(async () => screen.getByText("ver a visão geral").click());
+    expect(screen.getByText("boas-vindas vistas")).toBeInTheDocument();
+  });
+
+  it("ao trocar o e-mail, carrega somente as preferências da pessoa que entrou", async () => {
+    const sonda = (email: string) => (
+      <ProvedorDaConta email={email} preferencias={null}>
+        <Sonda />
+      </ProvedorDaConta>
+    );
+    const { rerender } = render(sonda("ana@example.com"));
+    await act(async () => screen.getByText("dispensar tutorial").click());
+    await act(async () => screen.getByText("dispensar roteiro").click());
+
+    rerender(sonda("bia@example.com"));
+    expect(screen.getByText("extratos ativo")).toBeInTheDocument();
+    expect(screen.getByText("roteiro ativo")).toBeInTheDocument();
+
+    rerender(sonda("ana@example.com"));
+    expect(screen.getByText("extratos dispensado")).toBeInTheDocument();
+    expect(screen.getByText("roteiro dispensado")).toBeInTheDocument();
   });
 });

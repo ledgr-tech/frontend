@@ -55,7 +55,7 @@ describe("token do backend", () => {
   });
 
   it("ainda lê o empresa_id legado como id da conta, para sessões emitidas antes da troca", async () => {
-    const token = await new SignJWT({ empresa_id: CLAIMS.contaId })
+    const token = await new SignJWT({ empresa_id: CLAIMS.contaId, auth_time: Math.floor(Date.now() / 1000) })
       .setProtectedHeader({ alg: "HS256" })
       .setSubject(CLAIMS.usuarioId)
       .setExpirationTime("1h")
@@ -69,7 +69,8 @@ describe("token do backend", () => {
   });
 
   it("volta a ler o que assinou", async () => {
-    expect(await lerToken(await assinarToken(CLAIMS))).toEqual(CLAIMS);
+    const claims = { ...CLAIMS, authTime: Math.floor(Date.now() / 1000) };
+    expect(await lerToken(await assinarToken(claims))).toEqual(claims);
   });
 
   it("leva o auth_time do login quando ele existe (#75)", async () => {
@@ -78,8 +79,9 @@ describe("token do backend", () => {
   });
 
   it("sem auth_time, não inventa um: o backend recusa e a pessoa entra de novo", async () => {
-    const payload = decodeJwt(await assinarToken(CLAIMS));
-    expect(payload).not.toHaveProperty("auth_time");
+    const token = await assinarToken(CLAIMS);
+    expect(decodeJwt(token)).not.toHaveProperty("auth_time");
+    expect(await lerToken(token)).toBeNull();
   });
 
   it("volta a ler o auth_time que assinou", async () => {
@@ -111,7 +113,7 @@ describe("token do backend", () => {
   });
 
   it("recusa token vencido em vez de estourar", async () => {
-    const vencido = await new SignJWT({ conta_id: CLAIMS.contaId })
+    const vencido = await new SignJWT({ conta_id: CLAIMS.contaId, auth_time: Math.floor(Date.now() / 1000) })
       .setProtectedHeader({ alg: "HS256" })
       .setSubject(CLAIMS.usuarioId)
       .setExpirationTime("-1s")
@@ -123,7 +125,7 @@ describe("token do backend", () => {
     ["sem sub", (jwt: SignJWT) => jwt.setExpirationTime("1h")],
     ["sem exp", (jwt: SignJWT) => jwt.setSubject(CLAIMS.usuarioId)],
   ])("recusa token %s, que o backend também recusaria", async (_, montar) => {
-    const token = await montar(new SignJWT({ conta_id: CLAIMS.contaId }).setProtectedHeader({ alg: "HS256" })).sign(
+    const token = await montar(new SignJWT({ conta_id: CLAIMS.contaId, auth_time: Math.floor(Date.now() / 1000) }).setProtectedHeader({ alg: "HS256" })).sign(
       new TextEncoder().encode(SEGREDO),
     );
     expect(await lerToken(token)).toBeNull();

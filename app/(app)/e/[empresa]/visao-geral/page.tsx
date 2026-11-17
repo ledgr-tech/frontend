@@ -27,6 +27,9 @@ import type { SaldoDoExtrato } from "@/lib/adaptadores";
 import { carregarConexoesMcp, type ConexaoMcp } from "../conexoes-mcp/acoes";
 import { SEM_SALDO, data } from "../saldo";
 import { CartaoDeConexao } from "./cartao-de-conexao";
+import { BoasVindas } from "./boas-vindas";
+import { emailDaSessao } from "@/lib/backend";
+import { ehContaDeDemonstracao } from "@/lib/demo";
 
 /**
  * A home do app: onde o mês está, os atalhos para as outras telas (cada um com o
@@ -45,11 +48,12 @@ function plural(quantidade: number, singular: string, plural: string): string {
 }
 
 export default async function VisaoGeralPage() {
-  const [resposta, roteiro, conexoes] = await Promise.all([
+  const [resposta, roteiro, conexoes, email] = await Promise.all([
     carregarVisaoGeral(),
     carregarRoteiro(),
     // 403 para o analista e 404 com a conexão desligada no backend: em ambos, sem o bloco
     carregarConexoesMcp(),
+    emailDaSessao().catch(() => null),
   ]);
   if (!resposta.ok && resposta.status === 401) await redirecionarNoApp("/login");
 
@@ -60,6 +64,7 @@ export default async function VisaoGeralPage() {
 
   return (
     <div>
+      <BoasVindas demonstracao={ehContaDeDemonstracao(email)} />
       <Cabecalho
         titulo="Visão geral"
         contexto={[recente && `competência ${recente.conciliacao.mes.toLowerCase()}`]}
@@ -260,17 +265,46 @@ function BlocoDoSaldo({ saldo, arquivo }: { saldo: SaldoDoExtrato | null; arquiv
                 : `${saldo.final < saldo.inicial ? "−" : "+"} ${formatarMoeda(Math.abs(saldo.final - saldo.inicial))} de movimento no extrato`}
             </span>
           )}
-          <dl className="vg-saldo-dados">
-            <div>
-              <dt>Saldo inicial</dt>
-              <dd>{saldo.inicial === null ? "depende das linhas não lidas" : formatarMoeda(saldo.inicial)}</dd>
-            </div>
-          </dl>
+          {saldo.inicial === null ? (
+            <dl className="vg-saldo-dados">
+              <div>
+                <dt>Saldo inicial</dt>
+                <dd>depende das linhas não lidas</dd>
+              </div>
+            </dl>
+          ) : (
+            <BarrasDoSaldo inicial={saldo.inicial} final={saldo.final} />
+          )}
           {/* o do extrato mais recente: com duas contas no mês, cada uma tem o seu */}
           <span className="vg-nota">{`Em ${data(saldo.data)} · ${arquivo}`}</span>
         </>
       )}
     </section>
+  );
+}
+
+/**
+ * O inicial e o final lado a lado, cada barra do tamanho do saldo (o maior enche a linha): a queda ou a
+ * alta do mês se vê antes de se ler, e o cartão usa a altura que o vizinho dá. Saldo negativo fica em
+ * vermelho, com a barra pelo valor absoluto.
+ */
+function BarrasDoSaldo({ inicial, final }: { inicial: number; final: number }) {
+  const maior = Math.max(Math.abs(inicial), Math.abs(final)) || 1;
+  const parte = (valor: number) => `${Math.max(2, (Math.abs(valor) / maior) * 100)}%`;
+  const linhas = [
+    { rotulo: "Saldo inicial", valor: inicial, tom: "neutro" },
+    { rotulo: "Saldo final", valor: final, tom: final < inicial ? "queda" : "alta" },
+  ];
+  return (
+    <dl className="vg-saldo-barras">
+      {linhas.map((linha) => (
+        // a barra é o ::after da linha (um dl só aceita dt e dd), com a largura em --parte
+        <div key={linha.rotulo} data-tom={linha.tom} style={{ "--parte": parte(linha.valor) } as React.CSSProperties}>
+          <dt>{linha.rotulo}</dt>
+          <dd data-negativo={linha.valor < 0 || undefined}>{formatarMoeda(linha.valor)}</dd>
+        </div>
+      ))}
+    </dl>
   );
 }
 
@@ -569,7 +603,7 @@ function ContaNova({ roteiro, passos }: { roteiro: DadosDoRoteiro | null; passos
         <section className="vg-bloco vg-estado" aria-labelledby="vg-estado-titulo" data-tutorial="estado-do-mes">
           {/* sem conciliação, o anel não tem o que medir: no lugar dele, o mascote das telas vazias (#388) */}
           <Image
-            src="/mascotes/mascote-explicando.png"
+            src="/mascotes/mascote-espiando-mesa.webp"
             alt=""
             width={1000}
             height={1000}
@@ -598,9 +632,15 @@ function ContaNova({ roteiro, passos }: { roteiro: DadosDoRoteiro | null; passos
       <Reveal delay={0.08} className="vg-blocos-par">
         <section className="vg-bloco vg-atencao">
           <h2 className="vg-bloco-rotulo">Pendências</h2>
-          <p className="vg-nota pp-vazio">
-            As pendências aparecem aqui, depois da primeira conciliação.
-          </p>
+          <div className="vg-vazio">
+            <Image src="/mascotes/mascote-checklist.webp" alt="" width={1000} height={1000} sizes="128px" className="vg-vazio-mascote" />
+            <div className="vg-vazio-corpo">
+              <h3 className="pp-bloco-titulo">Nada pendente por enquanto</h3>
+              <p className="vg-nota">
+                Lançamentos que não bateram e justificativas esperando aprovação aparecem aqui depois da primeira conciliação.
+              </p>
+            </div>
+          </div>
         </section>
         <nav className="vg-bloco" aria-labelledby="vg-atalhos-titulo" data-tutorial="atalhos">
           <h2 id="vg-atalhos-titulo" className="vg-bloco-rotulo">

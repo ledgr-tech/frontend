@@ -1,12 +1,13 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { salvarPreferencias } from "../../../(auth)/acoes";
 import {
   guardarLocal,
   juntar,
   PREFERENCIAS_VAZIAS,
   preferenciasLocais,
+  TELAS_DO_TUTORIAL,
   type Preferencias,
   type TelaDoTutorial,
 } from "@/lib/preferencias";
@@ -17,10 +18,15 @@ import { podeFecharMes, type Papel } from "@/lib/papel";
 type ValorDaConta = {
   /** Falso até ler o navegador: antes disso, ninguém abre tutorial nem roteiro. */
   carregado: boolean;
+  /** O tutorial da tela já abriu uma vez (ou foi dispensado): não abre mais sozinho. */
   tutorialDispensado: (tela: TelaDoTutorial) => boolean;
   dispensarTutorial: (tela: TelaDoTutorial) => void;
+  /** "Não mostrar mais tutoriais": nenhum abre sozinho, em tela nenhuma. */
+  dispensarTodosOsTutoriais: () => void;
   roteiroDispensado: boolean;
   dispensarRoteiro: () => void;
+  boasVindasVista: boolean;
+  marcarBoasVindasVista: () => void;
 };
 
 const Contexto = createContext<ValorDaConta | null>(null);
@@ -32,7 +38,7 @@ const ContextoDaAssinatura = createContext<Assinatura | null>(null);
 const ContextoDaCobranca = createContext(false);
 /** Quanto do plano a conta usa; null sem a informação do backend (e fora do app): nenhum aviso. */
 const ContextoDosLimites = createContext<LimitesDaConta | null>(null);
-/** O e-mail de quem está logado (a sessão), para marcar a própria linha na Equipe; vazio fora do app. */
+/** O e-mail de quem está logado (a sessão), para a Equipe e o primeiro uso; vazio fora do app. */
 const ContextoDoEmail = createContext("");
 /** O nome de quem está logado, do `GET /me`: só quem aprovou desfaz a aprovação (backend #164); vazio fora do app. */
 const ContextoDoNome = createContext("");
@@ -43,8 +49,8 @@ const ContextoDoOriginal = createContext(false);
 
 /**
  * As preferências do primeiro uso (spec 2026-10-15-primeiro-uso): as da conta, do `GET /me`,
- * somadas às do navegador. Dispensar guarda nos dois; se o backend ainda não tem a rota, o
- * navegador basta.
+ * somadas às do mesmo e-mail no navegador. Dispensar guarda nos dois; se o backend ainda não
+ * tem a rota, o navegador basta.
  */
 export function ProvedorDaConta({
   preferencias,
@@ -75,30 +81,46 @@ export function ProvedorDaConta({
   guardaArquivoOriginal?: boolean;
   children: ReactNode;
 }) {
-  const [atuais, setAtuais] = useState<Preferencias>(preferencias ?? PREFERENCIAS_VAZIAS);
-  const [carregado, setCarregado] = useState(false);
+  const dono = email.toLowerCase();
+  const [locais, setLocais] = useState<{ dono: string; preferencias: Preferencias } | null>(null);
+  const carregado = locais?.dono === dono;
+  const atuais = useMemo(() => {
+    const daConta = preferencias ?? PREFERENCIAS_VAZIAS;
+    return carregado ? juntar(daConta, locais.preferencias) : daConta;
+  }, [preferencias, carregado, locais]);
 
   useEffect(() => {
-    // localStorage só existe no cliente; ler fora do render é o padrão do projeto
+    // Ao trocar de pessoa, espera a leitura do novo e-mail antes de liberar o primeiro uso.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setAtuais((anteriores) => juntar(anteriores, preferenciasLocais()));
-    setCarregado(true);
-  }, []);
+    setLocais({ dono, preferencias: preferenciasLocais(dono) });
+  }, [dono]);
 
-  const guardar = useCallback((novas: Preferencias) => {
-    setAtuais(novas);
-    guardarLocal(novas);
+  // duas gravações antes do próximo render (as boas-vindas marcam o tutorial e a janela) somam,
+  // em vez de a segunda partir do `atuais` antigo e apagar a primeira
+  const pendente = useRef<{ base: Preferencias; novas: Preferencias } | null>(null);
+  const guardar = useCallback((mudar: (anteriores: Preferencias) => Preferencias) => {
+    const anteriores = pendente.current?.base === atuais ? pendente.current.novas : atuais;
+    const novas = mudar(anteriores);
+    pendente.current = { base: atuais, novas };
+    setLocais({ dono, preferencias: novas });
+    guardarLocal(dono, novas);
     void salvarPreferencias(novas).catch(() => false);
-  }, []);
+  }, [dono, atuais]);
 
   const valor = useMemo<ValorDaConta>(
     () => ({
       carregado,
       tutorialDispensado: (tela) => atuais.tutoriaisDispensados.includes(tela),
       dispensarTutorial: (tela) =>
-        guardar({ ...atuais, tutoriaisDispensados: [...new Set([...atuais.tutoriaisDispensados, tela])] }),
+        guardar((p) => ({ ...p, tutoriaisDispensados: [...new Set([...p.tutoriaisDispensados, tela])] })),
+      dispensarTodosOsTutoriais: () => guardar((p) => ({ ...p, tutoriaisDispensados: [...TELAS_DO_TUTORIAL] })),
       roteiroDispensado: atuais.roteiroDispensado,
-      dispensarRoteiro: () => guardar({ ...atuais, roteiroDispensado: true }),
+      dispensarRoteiro: () => guardar((p) => ({ ...p, roteiroDispensado: true })),
+      // quem já passou pela Visão geral não está na primeira entrada: não ganha a janela. Só ela conta:
+      // abrir o tutorial de outra tela (quem chega por convite ou link) já a põe na lista
+      boasVindasVista:
+        atuais.boasVindasVista === true || atuais.roteiroDispensado || atuais.tutoriaisDispensados.includes("visao-geral"),
+      marcarBoasVindasVista: () => guardar((p) => ({ ...p, boasVindasVista: true })),
     }),
     [atuais, carregado, guardar],
   );

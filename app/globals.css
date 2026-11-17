@@ -122,7 +122,11 @@ html[data-tema="escuro"]:has(.app-shell) { color-scheme: dark; }
   html { scroll-behavior: auto; }
 }
 
+/* "tela": a largura que as regras de celular das telas do app medem (@container tela). Fora da réplica é o body,
+   da largura da janela; nas réplicas (.vitrine-app, 1280px encolhida por transform) é a réplica, que fica
+   sempre a do computador mesmo no celular. Com @media elas mediam o celular e quebravam a réplica no meio */
 body {
+  container: tela / inline-size;
   margin: 0;
   background: var(--color-bg);
   color: var(--color-text);
@@ -352,7 +356,7 @@ p.eyebrow {
 }
 /* estreita, o painel fica depois das folhas: aqui a primeira ação é soltar os arquivos, e o Conciliar
    vem logo abaixo delas (nas listas, a prévia sobe porque mostra a escolhida) */
-@media (max-width: 1099px) { .nova-corpo > .conc-previa { order: 0; } }
+@container tela (max-width: 1099px) { .nova-corpo > .conc-previa { order: 0; } }
 .nova-apagado { color: var(--texto-apagado); }
 .nova-erro { margin: 24px 0 0; }
 /* num escritório com várias empresas: para qual delas o envio vai (#169) */
@@ -542,12 +546,17 @@ p.eyebrow {
 .ia-prompt { display: flex; flex-direction: column; gap: 12px; padding: 18px 20px; border: 1px solid var(--color-divider); border-radius: var(--radius-md); }
 .ia-prompt-topo { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
 .ia-prompt h2, .ia-erros h2 { margin: 0; font-size: 20px; font-weight: 600; }
-.ia-prompt pre {
-  margin: 0; max-height: 150px; overflow: auto; padding: 14px; border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--color-text) 5%, transparent); font: 12.5px/1.6 ui-monospace, Consolas, monospace; white-space: pre-wrap;
-}
+/* o prompt rola sem barra (pedido de 17/11): a máscara esfuma a borda e o "Mais abaixo" fica no pé do quadro */
+.ia-prompt-texto { position: relative; border-radius: var(--radius-sm); background: color-mix(in srgb, var(--color-text) 5%, transparent); }
+.ia-prompt-rolagem { max-height: 150px; overflow-y: auto; overscroll-behavior: contain; border-radius: inherit; }
+/* o foco vai na caixa de fora: a máscara do esfumado recortaria o contorno desenhado na que rola */
+.ia-prompt-rolagem:focus-visible { outline: none; }
+.ia-prompt-texto:has(.ia-prompt-rolagem:focus-visible) { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+.ia-prompt-rolagem[data-abaixo] { --esfuma-baixo: 48px; }
+.ia-prompt pre { margin: 0; padding: 14px 14px 18px; font: 12.5px/1.6 ui-monospace, Consolas, monospace; white-space: pre-wrap; }
+/* a folha usa a altura que sobra embaixo do prompt (~480px do topo, 28px de respiro): a página não rola */
 .ia-folha {
-  position: relative; display: flex; flex-direction: column; gap: 10px; width: min(100% - 12px, 460px); min-height: 420px; padding: 28px 30px; cursor: pointer;
+  position: relative; display: flex; flex-direction: column; gap: 10px; width: min(100% - 12px, 460px); min-height: clamp(220px, 100dvh - 520px, 420px); padding: 28px 30px; cursor: pointer;
   border: 1.5px dashed var(--nova-tracejado); border-radius: var(--radius-sm); background: var(--folha-sistema);
   box-shadow: 10px 10px 0 -1px var(--folha-banco), 10px 10px 0 0 var(--color-divider);
   transition: border-color var(--dur-rapida) ease;
@@ -1164,15 +1173,14 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
 .campo-flutuante[data-tremor="b"] { animation: campo-tremor-b var(--dur-painel) cubic-bezier(0.36, 0.07, 0.19, 0.97); }
 @keyframes campo-tremor-a { 20%, 60% { transform: translateX(-4px); } 40%, 80% { transform: translateX(4px); } }
 @keyframes campo-tremor-b { 20%, 60% { transform: translateX(-4px); } 40%, 80% { transform: translateX(4px); } }
+/* a mensagem é uma nota na margem do livro: traço terracota à esquerda e o texto em Newsreader itálico.
+   Única exceção à regra de Newsreader só em títulos (decisão de 16/11): o itálico é o que a faz parecer anotação */
 .campo-erro {
-  display: flex; align-items: flex-start; gap: 6px;
-  margin: 6px 0 0 4px;
-  font-size: var(--texto-corpo); line-height: 1.4; color: var(--color-erro);
+  margin: 6px 0 0 6px; padding: 1px 0 1px 10px;
+  border-left: 2px solid color-mix(in srgb, var(--color-erro) 55%, transparent);
+  font-family: var(--font-titulo); font-style: italic;
+  font-size: var(--texto-destaque); line-height: 1.4; color: var(--color-erro);
   animation: campo-erro-surgir var(--dur-padrao) var(--ease-out);
-}
-.campo-erro svg {
-  flex: none; width: 15px; height: 15px; margin-top: 1.5px;
-  fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round;
 }
 @keyframes campo-erro-surgir {
   from { opacity: 0; transform: translateY(-4px); }
@@ -1401,6 +1409,7 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
   --folha-banco: #fdfcfa; --folha-sistema: #ebe8e3; --superficie-elevada: var(--folha-banco);
 }
 .vitrine-app {
+  container: tela / inline-size;
   width: 1280px; display: grid; grid-template-columns: 232px minmax(0, 1fr);
   background: var(--color-bg); color: var(--color-text); text-align: left;
 }
@@ -1461,7 +1470,7 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
    status, com a seta apontando para ele (.cartao-no-eixo). No app ele é fixo na tela porque a
    tabela rola de lado; aqui a âncora é a própria célula do status */
 .vitrine-app .cartao-lancamento {
-  --cartao-largura: min(440px, calc(100vw - 32px));
+  --cartao-largura: 440px;
   position: absolute; left: 50%; bottom: calc(100% - 2px);
   width: var(--cartao-largura); margin-left: calc(var(--cartao-largura) / -2); text-align: left;
   animation: none;
@@ -2164,7 +2173,7 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
   color: color-mix(in srgb, var(--color-text) 68%, transparent);
 }
 
-@media (max-width: 760px) {
+@container tela (max-width: 760px) {
   .dash-resumo > :first-child { padding-top: 0; }
   .dash-resumo > :last-child { padding-bottom: 0; }
   .dash-valor { font-size: 36px; }
@@ -2302,7 +2311,7 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
 }
 
 /* até 760px os dois extratos empilham e o delta vira uma linha horizontal */
-@media (max-width: 760px) {
+@container tela (max-width: 760px) {
   .det-comparacao { grid-template-columns: minmax(0, 1fr); gap: 16px; }
   .det-delta { flex-direction: row; gap: 14px; }
   .det-delta-linha { width: auto; height: 1px; flex: 1; }
@@ -2505,7 +2514,7 @@ html:has(.app-shell):has(.painel-lateral) { overflow: hidden; scrollbar-gutter: 
 
 .paginacao-botoes { display: flex; align-items: center; gap: 8px; }
 
-@media (max-width: 680px) {
+@container tela (max-width: 680px) {
   .hist-nota { text-align: left; }
   .grafico-fio-valor { font-size: var(--texto-legenda); }
 }
@@ -2521,7 +2530,7 @@ html:has(.app-shell):has(.painel-lateral) { overflow: hidden; scrollbar-gutter: 
    Abaixo de 1100px a prévia sobe para antes das folhas (PREVIA_AO_LADO em lista-de-trabalho.tsx). */
 .conc-mesa { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; align-items: start; }
 /* estreita, a prévia vem antes das folhas: a primeira da fila fica onde ficava o "Continue de onde parou" */
-@media (max-width: 1099px) { .conc-previa { order: -1; } }
+@container tela (max-width: 1099px) { .conc-previa { order: -1; } }
 @media (min-width: 1100px) {
   .conc-mesa { grid-template-columns: minmax(0, 7fr) minmax(320px, 5fr); }
   .conc-previa { position: sticky; z-index: 11; top: calc(var(--app-topo-altura, 0px) + var(--extratos-filtros-altura, 58px) + 12px); }
@@ -2877,13 +2886,13 @@ html[data-tema="escuro"] .app-shell {
 .comp-detalhe-caixa { position: relative; flex: 1; min-height: 0; display: flex; }
 /* sem barra: o lado com mais conteúdo esfuma, e embaixo o "Mais abaixo" convida a rolar */
 .comp-detalhe { position: relative; flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; }
-.comp-detalhe, .painel-rolagem {
+.comp-detalhe, .painel-rolagem, .ia-prompt-rolagem {
   --esfuma-cima: 0px; --esfuma-baixo: 0px; scrollbar-width: none;
   -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 var(--esfuma-cima), #000 calc(100% - var(--esfuma-baixo)), transparent 100%);
   mask-image: linear-gradient(to bottom, transparent 0, #000 var(--esfuma-cima), #000 calc(100% - var(--esfuma-baixo)), transparent 100%);
 }
-.comp-detalhe::-webkit-scrollbar, .painel-rolagem::-webkit-scrollbar { display: none; }
-.comp-detalhe[data-acima], .painel-rolagem[data-acima] { --esfuma-cima: 22px; }
+.comp-detalhe::-webkit-scrollbar, .painel-rolagem::-webkit-scrollbar, .ia-prompt-rolagem::-webkit-scrollbar { display: none; }
+.comp-detalhe[data-acima], .painel-rolagem[data-acima], .ia-prompt-rolagem[data-acima] { --esfuma-cima: 22px; }
 .comp-detalhe[data-abaixo] { --esfuma-baixo: 44px; }
 /* 4px de folga nas laterais para o halo da explicação não ser cortado pela rolagem */
 .comp-detalhe { margin-inline: -4px; }
@@ -3152,6 +3161,24 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
 .vg-saldo-dados dt { color: color-mix(in srgb, var(--color-text) 68%, transparent); }
 .vg-saldo-dados dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
 .vg-saldo > .vg-nota { padding-top: 9px; border-top: 1px solid var(--color-divider); }
+/* o inicial e o final em barras: ocupam a altura que sobra (o cartão estica até o vizinho) e ficam no meio
+   dela; cada barra é o ::after da linha, com a largura em --parte */
+.vg-saldo-barras {
+  flex: 1; margin: 0; padding: 12px 0; display: flex; flex-direction: column; justify-content: center; gap: 16px;
+}
+.vg-saldo-barras > div {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; gap: 6px 16px;
+  font-size: var(--texto-corpo);
+}
+.vg-saldo-barras dt { color: color-mix(in srgb, var(--color-text) 68%, transparent); }
+.vg-saldo-barras dd { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; }
+.vg-saldo-barras dd[data-negativo] { color: var(--color-risco-700); }
+.vg-saldo-barras > div::after {
+  content: ""; grid-column: 1 / -1; height: 10px; width: var(--parte); border-radius: 999px;
+  background: color-mix(in srgb, var(--color-text) 22%, transparent);
+}
+.vg-saldo-barras > div[data-tom="queda"]::after { background: var(--color-risco-700); }
+.vg-saldo-barras > div[data-tom="alta"]::after { background: var(--color-ok-700); }
 /* o de aprovação, ao lado do saldo, no mesmo desenho: o caminho no pé, sobre o filete */
 .vg-aprovacao-pe {
   margin-top: auto; padding-top: 9px; border-top: 1px solid var(--color-divider);
@@ -3193,27 +3220,35 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
 /* quase o branco do título: o texto miúdo e apagado sobre a tinta não se lia */
 .vg-conexao-texto { margin: 0; font-size: var(--texto-destaque); line-height: 1.6; color: color-mix(in srgb, var(--color-bg) 92%, transparent); text-wrap: pretty; }
 .vg-conexao-acoes { margin-top: auto; padding-top: 12px; display: flex; flex-direction: column; gap: 10px; position: relative; z-index: 1; }
+/* o botão inverte o cartão (modelo A1 de 17/11): cheio na cor do texto da tinta, com o texto na cor da
+   tinta. O dourado misturado ao fundo de antes ficava marrom e apagado sobre o cartão claro do tema escuro */
 .vg-conexao-botao {
   display: inline-flex; justify-content: center; padding: 11px 18px; border-radius: 999px; cursor: pointer;
-  border: 1px solid var(--color-accent); background: var(--color-accent); color: var(--color-text);
+  border: 1.5px solid var(--color-bg); background: var(--color-bg); color: var(--color-text);
   font: 600 15px/1.2 var(--font-heading);
-  box-shadow: 0 6px 18px -6px color-mix(in srgb, var(--color-accent) 70%, transparent);
-  transition: transform var(--dur-rapida) ease, box-shadow var(--dur-rapida) ease, background var(--dur-rapida) ease;
+  transition: transform var(--dur-rapida) ease, background var(--dur-rapida) ease;
 }
-.vg-conexao-botao:hover {
-  transform: translateY(-1px);
-  background: color-mix(in srgb, var(--color-accent) 88%, var(--color-bg));
-  box-shadow: 0 10px 24px -8px color-mix(in srgb, var(--color-accent) 85%, transparent);
-}
-/* o contorno sobre a tinta: o dourado puxado para o tom do fundo da página (escuro no tema escuro,
-   claro no claro), para o texto ler bem nos dois; sem fundo, nada ofusca o rótulo */
+.vg-conexao-botao:hover { transform: translateY(-1px); background: color-mix(in srgb, var(--color-bg) 88%, var(--color-text)); }
+/* o secundário (copiar o endereço): só o contorno, na mesma cor, para não pesar como o principal */
 .vg-conexao-botao-contorno {
-  background: transparent; box-shadow: none; border-width: 1.5px;
-  color: color-mix(in srgb, var(--color-accent) 55%, var(--color-bg));
-  border-color: color-mix(in srgb, var(--color-accent) 70%, var(--color-bg));
+  background: transparent; color: var(--color-bg);
+  border-color: color-mix(in srgb, var(--color-bg) 40%, transparent);
 }
-.vg-conexao-botao-contorno:hover {
-  background: color-mix(in srgb, var(--color-accent) 12%, transparent); box-shadow: none;
+.vg-conexao-botao-contorno:hover { background: color-mix(in srgb, var(--color-bg) 10%, transparent); }
+/* o selo: o logo de cada cliente conectado e a pílula das ativas; sem conexão, os dois logos apagados */
+.vg-conexao-selo { display: flex; align-items: center; gap: 8px; }
+.vg-conexao-logo {
+  width: 40px; height: 40px; padding: 6px; border-radius: 12px; background: #fff; object-fit: contain;
+}
+.vg-conexao-logo[data-apagado] { opacity: 0.45; filter: grayscale(1); }
+.vg-conexao-ativas {
+  margin-left: 2px; display: inline-flex; align-items: center; gap: 7px; padding: 4px 10px; border-radius: 999px;
+  font-size: var(--texto-nota); font-weight: 500;
+  background: color-mix(in srgb, var(--color-ok) 22%, transparent); color: color-mix(in srgb, var(--color-ok) 45%, var(--color-bg));
+}
+.vg-conexao-ativas::before {
+  content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--color-ok);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-ok) 30%, transparent);
 }
 @media (prefers-reduced-motion: reduce) { .vg-conexao-botao, .vg-conexao-botao:hover { transition: none; transform: none; } }
 .vg-conexao-botao:focus-visible { outline: 2px solid var(--color-bg); outline-offset: 2px; }
@@ -3349,10 +3384,10 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
 .aviso-acoes { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
 .aviso-codigo { font-family: var(--font-mono); font-size: var(--texto-nota); overflow-wrap: anywhere; }
 
-@media (max-width: 1100px) {
+@container tela (max-width: 1100px) {
   .vg-grade, .vg-blocos-topo, .vg-blocos-par { grid-template-columns: minmax(0, 1fr); }
 }
-@media (max-width: 640px) {
+@container tela (max-width: 640px) {
   .vg-estado-titulo { font-size: 28px; }
   .vg-estado { flex-direction: column; align-items: flex-start; gap: 24px; padding: 24px; }
   .vg-anel { width: 160px; }
@@ -3398,7 +3433,7 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
 /* o extrato lido em parte: quantas linhas ficaram de fora e, logo embaixo, as primeiras */
 .linhas-nao-lidas { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
 .linhas-nao-lidas > p { margin: 0; }
-@media (max-width: 1200px) {
+@container tela (max-width: 1200px) {
   .importacao-mapa { grid-template-columns: 1fr; }
 }
 
@@ -3598,7 +3633,7 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
   flex: none; font-variant-numeric: tabular-nums;
   color: color-mix(in srgb, var(--color-text) 68%, transparent);
 }
-@media (max-width: 1000px) {
+@container tela (max-width: 1000px) {
   .extratos-area { grid-template-columns: 1fr; }
   .extratos-filtros { position: static; }
   .extrato-painel { position: static; max-height: none; overflow: visible; }
@@ -3810,7 +3845,7 @@ html:not([data-menu="recolhido"]) .app-assistente-figura {
 }
 .seletor-janela-estrela:hover { color: var(--color-text); background: color-mix(in srgb, var(--color-text) 6%, transparent); }
 .seletor-janela-estrela[aria-pressed="true"] { color: var(--color-text); }
-@media (max-width: 600px) {
+@container tela (max-width: 600px) {
   .seletor-topo-botao { max-width: 150px; }
   .seletor-janela-tabela td:first-child { white-space: normal; }
   .seletor-janela-cnpj-celular {
@@ -4285,7 +4320,7 @@ html:not([data-menu="recolhido"]) .app-assistente-figura {
 .cfg-vazio { margin: 40px 0 0; color: color-mix(in srgb, var(--color-text) 66%, transparent); }
 
 /* no celular: a lista de seções vira uma faixa rolável em cima do conteúdo */
-@media (max-width: 720px) {
+@container tela (max-width: 720px) {
   .cfg { height: calc(100dvh - 32px); }
   .cfg-janela { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
   .cfg-lado { flex-direction: column; gap: 10px; padding: 14px; border-right: none; border-bottom: 1px solid var(--color-divider); }
@@ -4550,18 +4585,27 @@ html:not([data-densidade="padrao"]) .app-shell .table td { padding-block: 4px; }
 html:not([data-densidade="padrao"]) .app-shell .table th { padding-block: 6px; }
 html:not([data-densidade="padrao"]) .app-shell .selo { padding-block: 1px; }
 
+/* Os controles da comparação em cartões só aparecem no celular. */
+.comparacao-controles-cartoes { display: none; }
+
 /* Tabela em cartões no celular.
    `display: block` apaga o papel implícito de tabela, então as linhas e células
    declaram `role` no HTML — sem isso o leitor de tela perde a grade inteira e
    passa a ler uma pilha de textos soltos. O rótulo de cada campo vem do
    data-rotulo, que só aparece nesta largura. */
-@media (max-width: 680px) {
+@container tela (max-width: 680px) {
   .tabela-cartoes .table,
   .tabela-cartoes .table tbody,
   .tabela-cartoes .table tr,
   .tabela-cartoes .table td { display: block; width: auto; }
 
   .tabela-cartoes .table thead { display: none; }
+
+  .comparacao-controles-cartoes {
+    display: flex; flex-wrap: wrap; align-items: end; gap: var(--space-2);
+  }
+  .comparacao-controles-cartoes .field { display: grid; gap: var(--space-1); }
+  .lote-faixa .comparacao-controles-cartoes { align-items: center; }
 
   .tabela-cartoes .table tr {
     border: 1px solid var(--color-divider); border-radius: var(--radius-md);
@@ -5122,7 +5166,7 @@ html[data-tema="escuro"] .app-shell {
     max-height: calc(100vh - var(--app-topo-altura, 0px) - var(--extratos-filtros-altura, 0px) - 46px);
   }
 }
-@media (max-width: 1000px) {
+@container tela (max-width: 1000px) {
   .fech-area { grid-template-columns: 1fr; }
 }
 
@@ -5516,6 +5560,8 @@ html[data-tema="escuro"] .app-shell {
   font-size: var(--texto-legenda); color: var(--texto-apagado); white-space: nowrap;
 }
 .comemoracao .dialog-actions { margin-top: 0; flex-wrap: wrap; }
+/* na linha, a principal vai para a direita; empilhadas (até 560px) fica a ordem do HTML, principal em cima */
+.comemoracao .dialog-actions .btn-primary { order: 1; }
 /* o confete de papel da medalha: tiras na folha do banco e na do sistema com contorno de tinta, um
    quadradinho de tinta e, poucas, as de contorno dourado. Sem movimento, fica parado onde está */
 .comemoracao-chuva { position: fixed; inset: 0; overflow: hidden; pointer-events: none; }
@@ -5544,6 +5590,7 @@ html[data-tema="escuro"] .app-shell {
   .comemoracao-topo { grid-template-columns: minmax(0, 1fr); }
   .comemoracao-medalha { order: -1; width: 104px; justify-self: center; }
   .comemoracao .dialog-actions .btn { flex: 1 1 100%; }
+  .comemoracao .dialog-actions .btn-primary { order: 0; }
 }
 
 /* o porquê do "Cancelar mesmo assim" desligado, logo abaixo dele */
@@ -6001,6 +6048,14 @@ html[data-tema="escuro"] .app-shell {
 .pp-bloco-titulo { margin: 0; font-family: var(--font-titulo); font-size: 21px; font-weight: 600; line-height: 1.25; }
 .pp-bloco .vg-nota { margin: 0; }
 .pp-vazio { margin: 0; padding-top: 12px; }
+/* o vazio das Pendências: mascote em cima e texto centrado, ocupando a altura que o cartão ganha do vizinho
+   (lado a lado, o bloco flutuava no meio do cartão com um vão em cima) */
+.vg-vazio {
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 12px; padding-top: 12px; text-align: center;
+}
+.vg-vazio-mascote { flex: none; width: 128px; height: auto; display: block; }
+.vg-vazio-corpo { display: flex; flex-direction: column; gap: 6px; min-width: 0; max-width: 44ch; }
 .vg-atencao > .btn { align-self: flex-start; margin-top: 14px; }
 .vg-blocos-topo:not(:has(> .vg-blocos-lado)) { grid-template-columns: minmax(0, 1fr); }
 
@@ -6852,4 +6907,18 @@ html[data-tema="escuro"] .app-shell {
 @media (max-width: 640px) {
   .adm-duas-colunas { grid-template-columns: minmax(0, 1fr); }
   .adm-quatro-colunas { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* Boas-vindas da primeira entrada (Visão geral): o molde da comemoração (.comemoracao-*), com os passos
+   numerados no lugar do que o plano libera e o mascote subindo com salto no lugar da medalha */
+.bv-passos { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 10px; font-size: var(--texto-corpo); line-height: 1.45; }
+.bv-passos li { display: flex; align-items: baseline; gap: 12px; }
+.bv-numero { flex: none; width: 1.2em; font-size: 19px; color: var(--color-accent-700); }
+@media (prefers-reduced-motion: no-preference) {
+  .bv-mascote { animation: bv-sobe 600ms var(--ease-out) both; }
+  @keyframes bv-sobe {
+    0% { opacity: 0; transform: translateY(32px); }
+    65% { opacity: 1; transform: translateY(-8px); }
+    100% { opacity: 1; transform: translateY(0); }
+  }
 }

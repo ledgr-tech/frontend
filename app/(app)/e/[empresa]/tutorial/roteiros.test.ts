@@ -49,4 +49,14 @@ describe("tutoriais", () => {
     expect(telaDoCaminho("/fechamentos/2026-09/relatorio")).toBeNull();
     expect(telaDoCaminho("/assinatura")).toBeNull();
   });
+
+  it("na Visão geral, passos seguidos não repetem o mascote e as poses apontando ficam de fora", () => {
+    const { mascote, passos } = TUTORIAIS["visao-geral"];
+    const usados = passos.map((passo) => passo.mascote ?? mascote);
+    usados.forEach((atual, i) => {
+      if (i > 0) expect(atual).not.toBe(usados[i - 1]);
+      expect(atual).not.toMatch(/mascote-(apresenta|explicando)\.png$/);
+    });
+    expect(mascote).not.toMatch(/mascote-(apresenta|explicando)\.png$/);
+  });
 });

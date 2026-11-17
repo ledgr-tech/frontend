@@ -34,6 +34,8 @@ vi.mock("./ia/acoes", () => ({
   importarViaIa: (dados: FormData) => importarViaIa(dados),
 }));
 
+// o mínimo de cada etapa do palco é para gente, não para o teste
+vi.mock("../envio", async (original) => ({ ...(await original<typeof import("../envio")>()), segurarEtapa: async () => {} }));
 vi.mock("../../../../../(auth)/acoes", () => ({ salvarPreferencias: async () => true }));
 vi.mock("../../assinatura/acoes", () => ({ carregarPrecos: async () => null }));
 

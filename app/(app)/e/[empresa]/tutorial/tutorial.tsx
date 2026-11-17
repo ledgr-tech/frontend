@@ -5,12 +5,10 @@ import Image from "next/image";
 import { X } from "lucide-react";
 import { ABRIR_TUTORIAL } from "@/lib/eventos";
 import type { TelaDoTutorial } from "@/lib/preferencias";
-import { usePreferencias } from "../conta";
+import { useEmail, usePreferencias } from "../conta";
 import { passosDaAbertura, TUTORIAIS, type PassoDoTutorial } from "./roteiros";
 
 const ATIVO = "data-tutorial-ativo";
-/** As telas cujo tutorial já abriu sozinho nesta sessão: voltar a uma tela não o reabre. */
-const VISTOS = "ledgr:tutoriais-vistos";
 /** De quanto em quanto tempo o cartão olha se a tela já mostrou o que ele vai destacar. */
 const INTERVALO_MS = 100;
 /** A folga entre o alvo e a borda do buraco no véu, para o desfoque não encostar no conteúdo. */
@@ -55,24 +53,6 @@ export function cartaoVaiParaEsquerda(
   };
   const direita = cobertoCom(window.innerWidth - MARGEM - cartao.width);
   return direita > 0 && cobertoCom(MARGEM) < direita / 2;
-}
-
-function vistosNestaSessao(): string[] {
-  try {
-    const lista = JSON.parse(window.sessionStorage.getItem(VISTOS) ?? "[]");
-    return Array.isArray(lista) ? lista : [];
-  } catch {
-    return [];
-  }
-}
-
-function marcarVisto(tela: TelaDoTutorial) {
-  try {
-    const lista = vistosNestaSessao();
-    if (!lista.includes(tela)) window.sessionStorage.setItem(VISTOS, JSON.stringify([...lista, tela]));
-  } catch {
-    // sem armazenamento: o cartão pode reabrir ao voltar à tela, nada mais
-  }
 }
 
 /** O elemento do passo, se está desenhado: no celular, a coluna Conferida da comparação some. */
@@ -120,8 +100,8 @@ function trazerParaAVista(alvo: HTMLElement, cartao: HTMLElement | null, mascote
 
 /**
  * O tutorial de uma tela (spec 2026-10-15-primeiro-uso, parte 3): um cartão de vidro no canto, com
- * o mascote do passo atrás dele, que destaca a parte da tela de cada passo. Abre sozinho na primeira visita; "Não mostrar de
- * novo" guarda na conta; o "?" da barra do topo reabre. Não é modal: dá para clicar fora.
+ * o mascote do passo atrás dele, que destaca a parte da tela de cada passo. Abre sozinho só na primeira visita
+ * à tela (abrir já guarda na conta); "Não mostrar mais tutoriais" dispensa todas; o "?" da barra do topo reabre. Não é modal: dá para clicar fora.
  */
 export function Tutorial({
   tela,
@@ -133,11 +113,13 @@ export function Tutorial({
   /** Quanto o cartão espera a tela mostrar algum alvo antes de abrir assim mesmo, sem destaque. */
   espera?: number;
 }) {
-  const { carregado, tutorialDispensado, dispensarTutorial } = usePreferencias();
+  const { carregado, tutorialDispensado, dispensarTutorial, dispensarTodosOsTutoriais, boasVindasVista } = usePreferencias();
+  const dono = useEmail().toLowerCase();
   const { nome, mascote, passos: todos } = TUTORIAIS[tela];
   // os passos desta abertura: só os do que está na tela
   const [passos, setPassos] = useState<PassoDoTutorial[]>(todos);
-  const [aberto, setAberto] = useState(false);
+  const [donoDaAbertura, setDonoDaAbertura] = useState<string | null>(null);
+  const aberto = donoDaAbertura === dono;
   const [indice, setIndice] = useState(0);
   const [naoMostrar, setNaoMostrar] = useState(false);
   const [naEsquerda, setNaEsquerda] = useState(false);
@@ -147,19 +129,24 @@ export function Tutorial({
   const focoAnterior = useRef<HTMLElement | null>(null);
   const titulo = useId();
 
+  // A caixa marcada pertence à pessoa que abriu o cartão.
+  if (donoDaAbertura !== null && !aberto) setDonoDaAbertura(null);
+
   function abrir() {
     focoAnterior.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     setPassos(passosDaAbertura(todos, (passo) => alvoDe(passo) !== null));
     setIndice(0);
     setNaoMostrar(false);
     setNaEsquerda(false);
-    setAberto(true);
+    setDonoDaAbertura(dono);
+    // abriu uma vez, não abre mais sozinho: rever é pelo menu Ajuda
+    if (!tutorialDispensado(tela)) dispensarTutorial(tela);
   }
 
   function fechar() {
-    if (naoMostrar) dispensarTutorial(tela);
+    if (aberto && naoMostrar) dispensarTodosOsTutoriais();
     setNaoMostrar(false); // a desmontagem chama fechar() de novo: não grava duas vezes
-    setAberto(false);
+    setDonoDaAbertura(null);
   }
 
   // o Esc da janela e o "?" chamam sempre a versão atual (com a caixa como está agora)
@@ -172,16 +159,17 @@ export function Tutorial({
   // painel do detalhe da linha desmonta o tutorial
   useEffect(() => () => acoes.current.fechar(), []);
 
-  // primeira visita na sessão: abre quando a tela mostra o que o tutorial explica. Numa tela vazia
+  // primeira visita à tela: abre quando a tela mostra o que o tutorial explica. Numa tela vazia
   // (a conta nova, sem extratos) não abre nem conta como vista: espera uma visita com conteúdo
   const dispensado = tutorialDispensado(tela);
+  // a janela de boas-vindas da Visão geral vem antes: enquanto ela está pendente, o cartão espera
+  const esperaBoasVindas = tela === "visao-geral" && !boasVindasVista;
   useEffect(() => {
-    if (!carregado || dispensado || vistosNestaSessao().includes(tela)) return;
+    if (!carregado || dispensado || esperaBoasVindas) return;
     const inicio = Date.now();
     let timer: ReturnType<typeof setTimeout>;
     const tentar = () => {
       if (todos.some((passo) => alvoDe(passo))) {
-        marcarVisto(tela);
         acoes.current.abrir();
       } else if (Date.now() - inicio < espera) {
         timer = setTimeout(tentar, INTERVALO_MS);
@@ -189,9 +177,7 @@ export function Tutorial({
     };
     timer = setTimeout(tentar, atraso);
     return () => clearTimeout(timer);
-    // só quando as preferências chegam: dispensar no meio não reabre nada
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [carregado]);
+  }, [atraso, carregado, dispensado, esperaBoasVindas, espera, tela, todos]);
 
   // o "?" da barra do topo
   useEffect(() => {
@@ -326,7 +312,7 @@ export function Tutorial({
           <p className="tutorial-texto">{passo.texto}</p>
           <label className="tutorial-caixa">
             <input type="checkbox" checked={naoMostrar} onChange={(evento) => setNaoMostrar(evento.target.checked)} />
-            Não mostrar de novo
+            Não mostrar mais tutoriais
           </label>
           <div className="tutorial-acoes">
             <span className="tutorial-pontos" aria-hidden="true">

@@ -108,13 +108,14 @@ export function ComemoracaoDaAssinatura({ cobranca, aoFechar }: { cobranca: Cobr
           )}
         </ul>
       </section>
+      {/* a principal primeiro no HTML: empilhadas no celular, a ordem do foco é a da tela (o CSS a leva à direita na linha) */}
       <div className="dialog-actions">
-        <BotaoFecharJanela aoFechar={aoFechar} className="btn btn-secondary">
-          Ver a assinatura
-        </BotaoFecharJanela>
         <Link href="/conciliacoes/nova" className="btn btn-primary">
           Começar uma conciliação
         </Link>
+        <BotaoFecharJanela aoFechar={aoFechar} className="btn btn-secondary">
+          Ver a assinatura
+        </BotaoFecharJanela>
       </div>
     </ModalDaTela>
   );

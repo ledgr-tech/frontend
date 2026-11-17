@@ -15,6 +15,7 @@ import { Cabecalho } from "../cabecalho";
 import { useCobranca, useLimites, usePapel } from "../conta";
 import { formatarDataHora } from "../dashboard/resumo";
 import { FaixaFiltros } from "../faixa-filtros";
+import { mostrarPreviaDoEscolhido } from "../grupo";
 import { SITUACAO, combina } from "../seletor-de-empresa";
 import { marcarFavorita } from "./acoes";
 import { CadastrarEmpresa } from "./cadastrar-empresa";
@@ -107,10 +108,10 @@ export function PainelDeEmpresas({ empresas: daPagina }: { empresas: EmpresaClie
     window.history.replaceState(window.history.state, "", nova === "equipe" ? "?aba=equipe" : window.location.pathname);
   }
 
-  function escolher(id: string) {
+  function escolher(id: string, peloTeclado = false) {
     setEscolhida(id);
     // com a prévia acima da lista, escolher sem ver o que mudou não diria nada
-    if (!window.matchMedia?.(PREVIA_AO_LADO).matches) previa.current?.scrollIntoView?.({ block: "start" });
+    if (!window.matchMedia?.(PREVIA_AO_LADO).matches) mostrarPreviaDoEscolhido(previa.current, peloTeclado);
   }
 
   function abrir(empresa: EmpresaCliente) {
@@ -261,7 +262,7 @@ export function PainelDeEmpresas({ empresas: daPagina }: { empresas: EmpresaClie
                                 aria-pressed={empresa.id === atual.id}
                                 onClick={(evento) => {
                                   evento.stopPropagation();
-                                  escolher(empresa.id);
+                                  escolher(empresa.id, evento.detail === 0);
                                 }}
                               >
                                 {empresa.razaoSocial}
@@ -350,7 +351,7 @@ function PreviaDaEmpresa({
   return (
     <aside ref={ref} className="conc-previa" aria-label="Empresa escolhida" aria-live="polite" data-tutorial="previa">
       <span className="rotulo">{ativa ? "Empresa cliente · aberta agora" : "Empresa cliente"}</span>
-      <h2 className="conc-previa-titulo">{empresa.razaoSocial}</h2>
+      <h2 className="conc-previa-titulo" tabIndex={-1}>{empresa.razaoSocial}</h2>
       <dl className="conc-previa-dados">
         <dt>CNPJ</dt>
         <dd>{formatarCnpj(empresa.cnpj)}</dd>

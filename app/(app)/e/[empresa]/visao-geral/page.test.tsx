@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import type { Execucao } from "@/lib/adaptadores";
 import type { LinhaComparacao, StatusLinha } from "@/lib/mock-data";
+import type { Preferencias } from "@/lib/preferencias";
 import type { Resultado, VisaoGeral } from "../conciliacoes/acoes";
 import VisaoGeralPage from "./page";
 import { ProvedorDaConta } from "../conta";
@@ -132,8 +133,8 @@ function com(visao: Partial<VisaoGeral> = {}) {
   carregarVisaoGeral.mockResolvedValue({ ok: true, dados });
 }
 
-async function renderizar() {
-  render(<ProvedorDaConta preferencias={null}>{await VisaoGeralPage()}</ProvedorDaConta>);
+async function renderizar(preferencias: Preferencias | null = null) {
+  render(<ProvedorDaConta preferencias={preferencias}>{await VisaoGeralPage()}</ProvedorDaConta>);
 }
 
 describe("VisaoGeralPage", () => {
@@ -177,6 +178,7 @@ describe("VisaoGeralPage", () => {
         itens: [
           conexao("ChatGPT", "2026-10-28T19:12:00Z"),
           conexao("Claude", null),
+          conexao("Claude Code", null),
           conexao("Outro", "2026-10-29T10:00:00Z", "2026-10-29T11:00:00Z"),
         ],
         endereco: null,
@@ -184,8 +186,12 @@ describe("VisaoGeralPage", () => {
     });
     await renderizar();
 
-    const bloco = screen.getByRole("region", { name: "Conectado ao ChatGPT e Claude." });
-    expect(bloco).toHaveTextContent("Última consulta em 28/10/2026 16:12.");
+    const bloco = screen.getByRole("region", { name: "Conectado ao ChatGPT, ao Claude e ao Claude Code." });
+    // com dois clientes, a data diz de qual veio; a pílula conta só as ativas
+    expect(bloco).toHaveTextContent("Última consulta em 28/10/2026 16:12, no ChatGPT.");
+    expect(within(bloco).getByText("3 ativas")).toBeInTheDocument();
+    // um logo por marca: o Claude e o Claude Code dividem o mesmo
+    expect(bloco.querySelectorAll(".vg-conexao-logo")).toHaveLength(2);
   });
 
   it("shows no connection block to whoever cannot see the connections", async () => {
@@ -213,6 +219,11 @@ describe("VisaoGeralPage", () => {
     expect(saldo).toHaveTextContent("Em 28/09/2026 · sicredi-e7.ofx");
     // final − inicial, os dois do backend: a soma das linhas do extrato
     expect(saldo).toHaveTextContent("+ R$ 283.310,55 de movimento no extrato");
+    // as barras: o maior saldo enche a linha, o outro fica proporcional (com 2% de piso para se ver)
+    const [inicial, final] = saldo.querySelectorAll<HTMLElement>(".vg-saldo-barras > div");
+    expect(final.style.getPropertyValue("--parte")).toBe("100%");
+    expect(inicial.style.getPropertyValue("--parte")).toBe("2%");
+    expect(final).toHaveAttribute("data-tom", "alta");
     const aprovacao = screen.getByRole("link", { name: /Aguardam aprovação/ });
     expect(aprovacao).toHaveAttribute("href", "/fechamentos");
     expect(aprovacao).toHaveTextContent("5 justificativas");
@@ -550,10 +561,9 @@ describe("VisaoGeralPage", () => {
   });
 
   it("dispensado com Já sei usar, ficam só os blocos vazios", async () => {
-    window.localStorage.setItem("ledgr:preferencias", JSON.stringify({ tutoriaisDispensados: [], roteiroDispensado: true }));
     carregarRoteiro.mockResolvedValue(CONTA_NOVA);
     com({ execucoes: [], total: 0, recente: null });
-    await renderizar();
+    await renderizar({ tutoriaisDispensados: [], roteiroDispensado: true });
 
     expect(screen.getByRole("heading", { name: "Nenhuma conciliação ainda" })).toBeInTheDocument();
     expect(screen.queryByText(/Primeiros passos d/)).not.toBeInTheDocument();
@@ -566,8 +576,27 @@ describe("VisaoGeralPage", () => {
     await renderizar();
 
     expect(screen.getByRole("link", { name: "Nova conciliação" })).toBeInTheDocument();
-    expect(screen.getByText(/pendências aparecem aqui/)).toBeInTheDocument();
+    expect(screen.getByText(/aparecem aqui depois da primeira conciliação/)).toBeInTheDocument();
     expect(screen.queryByText(/Próximo passo/)).not.toBeInTheDocument();
+  });
+
+  it("conta nova: Pendências vazio tem título, frase e o mascote do checklist; o estado usa o mascote espiando", async () => {
+    com({ execucoes: [], total: 0, recente: null });
+    await renderizar();
+
+    const pendencias = screen.getByRole("heading", { name: "Pendências" }).closest("section")!;
+    expect(within(pendencias).getByRole("heading", { name: "Nada pendente por enquanto" })).toBeInTheDocument();
+    expect(
+      within(pendencias).getByText(
+        "Lançamentos que não bateram e justificativas esperando aprovação aparecem aqui depois da primeira conciliação.",
+      ),
+    ).toBeInTheDocument();
+    expect(pendencias.querySelector("img")?.getAttribute("src")).toContain("mascote-checklist");
+    expect(pendencias.querySelector("img")).toHaveAttribute("alt", "");
+
+    const estado = screen.getByRole("heading", { name: "Nenhuma conciliação ainda" }).closest("section")!;
+    expect(estado.querySelector("img")?.getAttribute("src")).toContain("mascote-espiando-mesa");
+    for (const img of document.querySelectorAll("img")) expect(img.getAttribute("src")).not.toContain("mascote-explicando");
   });
 
   it("depois da primeira conciliação, o passo de agora vai para o bloco onde ele acontece", async () => {
@@ -597,7 +626,6 @@ describe("VisaoGeralPage", () => {
   });
 
   it("sem a pergunta (dispensada), saldo e aprovação sobem para a coluna ao lado", async () => {
-    window.localStorage.setItem("ledgr:preferencias", JSON.stringify({ tutoriaisDispensados: [], roteiroDispensado: true }));
     carregarRoteiro.mockResolvedValue({ ...CONTA_NOVA, temExtratoDoBanco: true, conciliou: true });
     carregarConexoesMcp.mockResolvedValue({ ok: false, status: 403, erro: "Só o admin ou o gestor" });
     const conciliacao = {
@@ -609,7 +637,7 @@ describe("VisaoGeralPage", () => {
       aguardandoAprovacao: 5,
     };
     com({ recente: { execucao: RECENTE, conciliacao } });
-    await renderizar();
+    await renderizar({ tutoriaisDispensados: [], roteiroDispensado: true });
 
     const lado = document.querySelector(".vg-blocos-lado")!;
     expect(within(lado as HTMLElement).getByRole("region", { name: "Saldo do banco" })).toBeInTheDocument();
