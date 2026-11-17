@@ -91,7 +91,7 @@ export function tituloDaCompetencia(chave: string): string {
   return `${nomeDoMes(chave)} de ${chave.split("-")[0]}`;
 }
 
-function montarMes(chave: string, pares: ParDoFechamento[]): Omit<MesDeFechamento, "fechamento"> {
+function montarMes(chave: string, pares: ParDoFechamento[], naoLidasIndisponivel: boolean): Omit<MesDeFechamento, "fechamento"> {
   const [ano, mes] = chave.split("-");
   const indice = Number(mes) - 1;
   const nome = nomeDoMes(chave);
@@ -127,12 +127,16 @@ function montarMes(chave: string, pares: ParDoFechamento[]): Omit<MesDeFechament
     aguardandoAprovacao,
     pendencias,
     naoLidas,
-    pronto: divergentes - justificadas === 0 && naoLidas.length === 0,
+    pronto: !naoLidasIndisponivel && divergentes - justificadas === 0 && naoLidas.length === 0,
   };
 }
 
 /** Os pares agrupados por mês, do mais recente para o mais antigo. */
-export function agruparPorMes(pares: ParDoFechamento[], fechamentos: Fechamento[] = []): MesDeFechamento[] {
+export function agruparPorMes(
+  pares: ParDoFechamento[],
+  fechamentos: Fechamento[] = [],
+  naoLidasIndisponivel = false,
+): MesDeFechamento[] {
   const porMes = new Map<string, ParDoFechamento[]>();
   for (const par of pares) {
     const chave = chaveDoPar(par);
@@ -145,5 +149,5 @@ export function agruparPorMes(pares: ParDoFechamento[], fechamentos: Fechamento[
   }
   return [...porMes]
     .sort(([a], [b]) => b.localeCompare(a))
-    .map(([chave, doMes]) => ({ ...montarMes(chave, doMes), fechamento: atual.get(chave) ?? null }));
+    .map(([chave, doMes]) => ({ ...montarMes(chave, doMes, naoLidasIndisponivel), fechamento: atual.get(chave) ?? null }));
 }

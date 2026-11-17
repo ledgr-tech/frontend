@@ -51,7 +51,7 @@ export function seloDoStatus(status: StatusLinha): { rotulo: string; tom: Tom } 
 }
 
 /** O mínimo para dizer o lado que falta: serve à linha do app e à da demonstração da landing. */
-type ComLado = { status: StatusLinha; valorBanco: number | string | null; data?: string; dataSistema?: string };
+type ComLado = { status: StatusLinha; valorBanco: number | string | null; data?: string; dataSistema?: string; dataISO?: string; dataSistemaISO?: string };
 
 /** Dias entre duas datas "dd/mm", pelo caminho mais curto (31/12 e 02/01 dão 2); null sem as duas. */
 function diasEntre(a?: string, b?: string): number | null {
@@ -82,7 +82,10 @@ export function rotuloCurto(linha: ComLado): string {
   const { curto } = STATUS[linha.status];
   if (linha.status === "sem_correspondencia") return `${curto} no ${ladoQueFalta(linha)}`;
   // na tolerância, os dias de diferença no lugar do "na tolerância", que não cabia no eixo
-  const dias = linha.status === "match_tolerancia" ? diasEntre(linha.data, linha.dataSistema) : null;
+  if (linha.status !== "match_tolerancia") return curto;
+  const dias = linha.dataISO && linha.dataSistemaISO
+    ? Math.abs(Date.parse(linha.dataISO) - Date.parse(linha.dataSistemaISO)) / 86_400_000
+    : diasEntre(linha.data, linha.dataSistema);
   return dias ? `${curto} ±${dias}d` : curto;
 }
 

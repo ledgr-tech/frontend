@@ -228,6 +228,7 @@ export function adaptarLinha(item: ItemConciliacaoAPI): LinhaComparacao {
     descricao: semVazio(referencia?.descricao),
     data: referencia ? paraDiaMes(referencia.data) : "",
     dataISO: referencia?.data,
+    dataSistemaISO: item.lancamento_sistema?.data,
     dataSistema: item.lancamento_sistema ? paraDiaMes(item.lancamento_sistema.data) : undefined,
     descricaoSistema: item.lancamento_sistema ? semVazio(item.lancamento_sistema.descricao) : undefined,
     valorBanco: paraNumero(item.lancamento_banco?.valor),

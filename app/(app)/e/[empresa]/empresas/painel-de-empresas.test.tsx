@@ -105,6 +105,20 @@ describe("a lista das empresas e o painel", () => {
     expect(within(painel()).getByText("08/10/2026")).toBeInTheDocument();
   });
 
+  it("leva o foco à prévia empilhada só quando a empresa é escolhida pelo teclado", async () => {
+    const user = userEvent.setup();
+    montar();
+
+    const padaria = screen.getByRole("button", { name: "Padaria Ltda" });
+    padaria.focus();
+    await user.keyboard(" ");
+    await waitFor(() => expect(within(painel()).getByRole("heading", { name: "Padaria Ltda" })).toHaveFocus());
+
+    const mercado = screen.getByRole("button", { name: "Mercado Ltda" });
+    await user.click(mercado);
+    expect(mercado).toHaveFocus();
+  });
+
   it("Abrir esta empresa leva à Visão geral dela, lembrando a escolha; a ativa vai à própria Visão geral", async () => {
     const user = userEvent.setup();
     montar();

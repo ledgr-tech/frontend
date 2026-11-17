@@ -26,6 +26,20 @@ describe("POST /api/csp (S1-19c)", () => {
     );
   });
 
+  it("retira parâmetros e fragmentos das URLs antes de registrar", async () => {
+    const aviso = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const relatorio = { "csp-report": {
+      "blocked-uri": "https://example.com/script.js?email=a@b.com#token=x",
+      "document-uri": "https://ledgr.app/login?email=a@b.com#token=x",
+    } };
+
+    expect((await POST(pedido(JSON.stringify(relatorio)))).status).toBe(204);
+    expect(aviso).toHaveBeenCalledWith(
+      "[csp] violação",
+      JSON.stringify({ diretiva: "", bloqueado: "https://example.com/script.js", pagina: "https://ledgr.app/login" }),
+    );
+  });
+
   it("aceita o formato novo do navegador (reports+json)", async () => {
     const aviso = vi.spyOn(console, "warn").mockImplementation(() => {});
     const relatorio = [{ type: "csp-violation", body: { effectiveDirective: "img-src", blockedURL: "https://x.example/a.png", documentURL: "https://ledgr.app/" } }];

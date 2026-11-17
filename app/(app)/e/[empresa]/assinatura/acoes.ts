@@ -1,7 +1,7 @@
 "use server";
 
 import { adaptarPrecos, PERIODOS, urlDeCheckoutValida, type Periodo, type PlanoId, type PrecoDoPlano } from "@/lib/assinatura";
-import { ErroBackend, chamarBackend, emailDaSessao } from "@/lib/backend";
+import { ErroBackend, chamarBackend, ehContaInativa, emailDaSessao } from "@/lib/backend";
 import { RECUSA_DEMONSTRACAO, ehContaDeDemonstracao } from "@/lib/demo";
 import { contaDaSessao } from "../../../../(auth)/acoes";
 import { ehAdmin, recusaPorPapel } from "@/lib/papel";
@@ -32,7 +32,7 @@ function traduzir(erro: unknown): Falha {
   if (!(erro instanceof ErroBackend)) return { ok: false, status: 0, erro: SEM_SERVIDOR };
   const { status } = erro;
   if (status === 401) return { ok: false, status, erro: "Sua sessão expirou. Entre de novo para continuar." };
-  if (status === 403) return { ok: false, status, erro: SO_ADMIN };
+  if (status === 403 && !ehContaInativa(erro)) return { ok: false, status, erro: SO_ADMIN };
   if (status === 422) return { ok: false, status, erro: PLANO_INDISPONIVEL };
   if (status === 503) return { ok: false, status, erro: INDISPONIVEL };
   if (status === 429) {

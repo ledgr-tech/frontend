@@ -11,6 +11,17 @@ function campo(valor: unknown): string {
   return typeof valor === "string" ? valor.slice(0, CAMPO_MAXIMO) : "";
 }
 
+function enderecoSemParametros(valor: unknown): string {
+  if (typeof valor !== "string") return "";
+  try {
+    const url = new URL(valor);
+    const origem = url.origin === "null" ? url.protocol : url.origin;
+    return campo(origem + url.pathname);
+  } catch {
+    return campo(valor);
+  }
+}
+
 export async function POST(request: Request): Promise<Response> {
   const tipo = (request.headers.get("content-type") ?? "").split(";")[0].trim().toLowerCase();
   if (!TIPOS.includes(tipo)) return new Response(null, { status: 415 });
@@ -30,8 +41,8 @@ export async function POST(request: Request): Promise<Response> {
     "[csp] violação",
     JSON.stringify({
       diretiva: campo(relatorio["violated-directive"] ?? relatorio.effectiveDirective),
-      bloqueado: campo(relatorio["blocked-uri"] ?? relatorio.blockedURL),
-      pagina: campo(relatorio["document-uri"] ?? relatorio.documentURL),
+      bloqueado: enderecoSemParametros(relatorio["blocked-uri"] ?? relatorio.blockedURL),
+      pagina: enderecoSemParametros(relatorio["document-uri"] ?? relatorio.documentURL),
     }),
   );
   return new Response(null, { status: 204 });

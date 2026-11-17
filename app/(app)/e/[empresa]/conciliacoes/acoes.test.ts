@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi, afterEach } from "vitest";
 import { SO_O_GESTOR_APROVA, SO_O_GESTOR_FECHA, SO_QUEM_APROVOU } from "@/lib/gestor";
 import type { Papel } from "@/lib/papel";
-import type { ExecucaoAPI, ItemConciliacaoAPI } from "@/lib/adaptadores";
+import type { ExecucaoAPI, ItemConciliacaoAPI, ItemExtratoAPI } from "@/lib/adaptadores";
 import { ErroBackend } from "@/lib/backend";
 import {
   aprovarPendentes,
@@ -600,6 +600,7 @@ describe("carregarVisaoGeral", () => {
     const resultado = await carregarVisaoGeral();
     if (!resultado.ok) throw new Error(resultado.erro);
     expect(resultado.dados.recente?.execucao.extratoSistemaId).toBe(SISTEMA_V2);
+    expect(chamarBackend.mock.calls.some(([caminho]) => caminho.startsWith("/execucoes?extrato_banco_id="))).toBe(false);
   });
 
   function situacao(id: string, erros: { identificador: string; motivo: string }[] = []) {
@@ -725,10 +726,18 @@ describe("carregarVisaoGeral", () => {
   function backendDoMes(
     linhas: (banco: string) => { total: number; itens: ItemConciliacaoAPI[] },
     lista = { total: 2, itens: [execucao("e-2", BANCO_RECENTE), execucao("e-1", BANCO_ANTERIOR)] },
+    historicoDoBanco?: (id: string) => typeof lista,
   ) {
     chamarBackend.mockImplementation(async (caminho: string) => {
       const [rota, query] = caminho.split("?");
-      if (rota === "/execucoes") return { limit: 50, offset: 0, ...lista };
+      if (rota === "/execucoes") {
+        const banco = new URLSearchParams(query).get("extrato_banco_id");
+        if (banco) {
+          if (!historicoDoBanco) throw new ErroBackend(503, "Histórico indisponível.");
+          return { limit: 100, offset: 0, ...historicoDoBanco(banco) };
+        }
+        return { limit: 50, offset: 0, ...lista };
+      }
       if (rota === "/fechamentos") return { itens: [] };
       if (rota.startsWith("/conciliacoes/")) {
         const banco = rota.split("/")[2];
@@ -738,6 +747,46 @@ describe("carregarVisaoGeral", () => {
       throw new Error(`caminho inesperado: ${caminho}`);
     });
   }
+
+  it.each([
+    { historicoFalha: false, sistemaVigente: SISTEMA_V2 },
+    { historicoFalha: true, sistemaVigente: SISTEMA_V1 },
+  ])("recalcula a rodada com a página cortada (falha do histórico: $historicoFalha)", async ({ historicoFalha, sistemaVigente }) => {
+    const v1 = {
+      ...execucao("v1", BANCO_RECENTE, false),
+      extrato_sistema_id: SISTEMA_V1,
+      periodo_inicio: "2026-10-01",
+      executada_em: "2026-10-01T12:00:00Z",
+    };
+    const v2 = { ...v1, id: "v2", atual: true, extrato_sistema_id: SISTEMA_V2, executada_em: "2026-10-05T12:00:00Z" };
+    const refeita = { ...v1, id: "v1-refeita", atual: true, executada_em: "2026-10-10T12:00:00Z" };
+    const outras = Array.from({ length: 48 }, (_, i) => ({
+      ...execucao("outra-" + i, BANCO_ANTERIOR, false),
+      executada_em: "2026-10-03T12:00:00Z",
+    }));
+    const historico = `/execucoes?extrato_banco_id=${BANCO_RECENTE}&limit=100&offset=0`;
+    backendDoMes(
+      () => ({ total: 1, itens: [itemConciliacao] }),
+      { total: 51, itens: [refeita, v2, ...outras] },
+      () => {
+        if (historicoFalha) throw new ErroBackend(503, "Serviço indisponível.");
+        return { total: 3, itens: [refeita, v2, v1] };
+      },
+    );
+
+    const resultado = await carregarVisaoGeral();
+
+    expect(resultado).toMatchObject({
+      ok: true,
+      dados: { recente: { execucao: { extratoSistemaId: sistemaVigente } }, mes: { competencia: "2026-10" } },
+    });
+    expect(chamarBackend.mock.calls.map(([caminho]) => caminho).filter((caminho) => caminho.startsWith("/execucoes?extrato_banco_id=")))
+      .toEqual([historico]);
+    expect(chamarBackend).toHaveBeenCalledWith(
+      `/conciliacoes/${BANCO_RECENTE}?limit=1000&offset=0&extrato_sistema_id=${sistemaVigente}`,
+    );
+    expect(chamarBackend).toHaveBeenCalledWith(`/extratos/${sistemaVigente}`);
+  });
 
   it.each([BANCO_RECENTE, BANCO_ANTERIOR])(
     "não soma o mês quando as linhas de %s passam do teto de páginas, e a home segue",
@@ -1127,61 +1176,187 @@ describe("carregarFechamentos", () => {
     chamarBackend.mockReset();
   });
 
-  function situacao(id: string, erros: { identificador: string; motivo: string }[] = []) {
-    return { extrato_id: id, status: "concluido", origem: "banco", quantidade_lancamentos: 2, erros };
+  function arquivo(id: string, parcial: Partial<ItemExtratoAPI> = {}): ItemExtratoAPI {
+    return {
+      extrato_id: id,
+      nome_arquivo: id + ".csv",
+      origem: "sistema",
+      formato: "csv",
+      status: "concluido",
+      quantidade_lancamentos: 2,
+      linhas_nao_lidas: 0,
+      periodo_inicio: null,
+      periodo_fim: null,
+      enviado_em: "2026-09-24T17:00:00Z",
+      conciliado: true,
+      ...parcial,
+    };
   }
 
-  it("dá a cada par atual as linhas não lidas dos dois arquivos, sem abrir a conciliação", async () => {
+  function execucoesPaginadas(
+    execucoes: ExecucaoAPI[],
+    fechamentos: ReturnType<typeof fechamento>[] = [],
+    extratos: ItemExtratoAPI[] | Error = [],
+  ) {
     chamarBackend.mockImplementation(async (caminho: string) => {
-      if (caminho === "/fechamentos") return { itens: [] };
-      if (caminho.startsWith("/execucoes")) {
-        return {
-          total: 2,
-          limit: 50,
-          offset: 0,
-          itens: [execucao("e-2", BANCO_RECENTE), execucao("e-1", BANCO_ANTERIOR, false)],
-        };
+      if (caminho === "/fechamentos") return { itens: fechamentos };
+      const [rota, query] = caminho.split("?");
+      const busca = new URLSearchParams(query);
+      const limit = Number(busca.get("limit"));
+      const offset = Number(busca.get("offset"));
+      if (rota === "/execucoes") return { total: execucoes.length, limit, offset, itens: execucoes.slice(offset, offset + limit) };
+      if (rota === "/extratos") {
+        if (extratos instanceof Error) throw extratos;
+        return { total: extratos.length, limit, offset, itens: extratos.slice(offset, offset + limit) };
       }
-      if (caminho === `/extratos/${BANCO_RECENTE}`) return situacao(BANCO_RECENTE);
-      if (caminho === `/extratos/${SISTEMA}`) {
-        return situacao(SISTEMA, [{ identificador: "linha 14", motivo: "valor ilegível" }]);
-      }
-      throw new Error(`caminho inesperado: ${caminho}`);
+      throw new Error("caminho inesperado: " + caminho);
     });
+  }
+
+  it("inclui o mês fechado cuja execução é a 51ª mais recente", async () => {
+    const recentes = Array.from({ length: 50 }, (_, i) => execucao(`recente-${i}`, BANCO_RECENTE));
+    const anterior = {
+      ...execucao("fechada", BANCO_ANTERIOR),
+      periodo_inicio: "2026-08-01",
+      executada_em: "2026-08-31T12:00:00Z",
+    };
+    execucoesPaginadas([...recentes, anterior], [fechamento("2026-08")]);
 
     const resultado = await carregarFechamentos();
 
-    // a rodada substituída (e-1, atual: false) não entra
     expect(resultado).toMatchObject({
       ok: true,
       dados: {
         pares: [
-          {
-            // o mês do par é o do período do extrato do banco, que vem na execução
-            execucao: { id: "e-2", periodoInicio: "2026-09-01" },
-            naoLidas: [{ nome: "e-2-sistema.csv", linhas: 1 }],
-          },
+          { execucao: { extratoBancoId: BANCO_RECENTE } },
+          { execucao: { id: "fechada", periodoInicio: "2026-08-01" } },
         ],
-        fechamentos: [],
+        fechamentos: [{ competencia: "2026-08", estado: "fechado" }],
       },
     });
   });
 
-  it("dá a cada par o saldo do extrato do banco, do mesmo detalhe das linhas não lidas (#118)", async () => {
-    chamarBackend.mockImplementation(async (caminho: string) => {
-      if (caminho === "/fechamentos") return { itens: [] };
-      if (caminho.startsWith("/execucoes")) return { total: 1, limit: 50, offset: 0, itens: [execucao("e-2", BANCO_RECENTE)] };
-      if (caminho === `/extratos/${BANCO_RECENTE}`) {
-        // com linha não lida o backend manda o saldo final, mas não o inicial
-        return { ...situacao(BANCO_RECENTE), saldo_inicial: null, saldo_final: "-120.50", saldo_data: "2026-09-30" };
-      }
-      return situacao(caminho.replace("/extratos/", ""));
+  it("mantém a v2 vigente quando a v1 foi refeita e começou em outra página", async () => {
+    const v1 = {
+      ...execucao("v1", BANCO_RECENTE, false),
+      extrato_sistema_id: SISTEMA_V1,
+      executada_em: "2026-10-01T12:00:00Z",
+    };
+    const v2 = {
+      ...execucao("v2", BANCO_RECENTE),
+      extrato_sistema_id: SISTEMA_V2,
+      executada_em: "2026-10-05T12:00:00Z",
+    };
+    const refeita = { ...v1, id: "v1-refeita", atual: true, executada_em: "2026-10-10T12:00:00Z" };
+    const outras = Array.from({ length: 98 }, (_, i) => ({
+      ...execucao(`outra-${i}`, BANCO_ANTERIOR, false),
+      executada_em: "2026-10-03T12:00:00Z",
+    }));
+    execucoesPaginadas([refeita, v2, ...outras, v1]);
+
+    const resultado = await carregarFechamentos();
+
+    expect(resultado).toMatchObject({ ok: true, dados: { pares: [{ execucao: { id: "v2" } }] } });
+    expect(chamarBackend).toHaveBeenCalledWith("/execucoes?limit=100&offset=100");
+  });
+
+  it("devolve os pares disponíveis com aviso quando o histórico passa do limite de páginas", async () => {
+    execucoesPaginadas(Array.from({ length: 1001 }, (_, i) => execucao(`e-${i}`, BANCO_RECENTE)));
+
+    const resultado = await carregarFechamentos();
+
+    expect(resultado).toMatchObject({
+      ok: true,
+      dados: { historicoIncompleto: true, pares: [{ execucao: { id: "e-0" } }] },
     });
+    expect(chamarBackend.mock.calls.filter(([caminho]) => caminho.startsWith("/execucoes?"))).toHaveLength(10);
+    expect(chamarBackend).not.toHaveBeenCalledWith("/execucoes?limit=100&offset=1000");
+  });
+
+  it("carrega 300 pares em dez chamadas de lista, sem consultar detalhes", async () => {
+    const idDoExtrato = (prefixo: string, i: number) => prefixo + "0000000-0000-4000-8000-" + String(i).padStart(12, "0");
+    const execucoes = Array.from({ length: 300 }, (_, i) => ({
+      ...execucao("e-" + i, idDoExtrato("b", i)),
+      extrato_sistema_id: idDoExtrato("a", i),
+    }));
+    const extratos = execucoes.flatMap((item) => [
+      arquivo(item.extrato_banco_id, { origem: "banco", linhas_nao_lidas: 1 }),
+      arquivo(item.extrato_sistema_id),
+    ]);
+    execucoesPaginadas(execucoes, [], extratos);
 
     const resultado = await carregarFechamentos();
 
     if (!resultado.ok) throw new Error(resultado.erro);
-    expect(resultado.dados.pares[0].saldo).toEqual({ inicial: null, final: -120.5, data: "2026-09-30" });
+    expect(resultado.dados.pares).toHaveLength(300);
+    expect(resultado.dados).not.toHaveProperty("naoLidasIndisponivel");
+    expect(chamarBackend).toHaveBeenCalledTimes(10);
+    expect(chamarBackend.mock.calls.map(([caminho]) => caminho).sort()).toEqual([
+      "/fechamentos",
+      ...[0, 100, 200].map((offset) => "/execucoes?limit=100&offset=" + offset),
+      ...[0, 100, 200, 300, 400, 500].map((offset) => "/extratos?limit=100&offset=" + offset),
+    ].sort());
+    expect(resultado.dados.pares[299].naoLidas).toEqual([{ nome: idDoExtrato("b", 299) + ".csv", linhas: 1 }]);
+  });
+
+  it("lê as linhas não lidas dos dois arquivos e os três estados de saldo na lista", async () => {
+    execucoesPaginadas([
+      execucao("com-saldo", BANCO_RECENTE),
+      execucao("saldo-nulo", BANCO_ANTERIOR),
+      execucao("saldo-ausente", "b-antigo"),
+      execucao("extrato-ausente", "b-ausente"),
+    ], [], [
+      arquivo(BANCO_RECENTE, {
+        origem: "banco", linhas_nao_lidas: 2, saldo_inicial: null, saldo_final: "-120.50", saldo_data: "2026-09-30",
+      }),
+      arquivo(BANCO_ANTERIOR, { origem: "banco", saldo_inicial: null, saldo_final: null, saldo_data: null }),
+      arquivo("b-antigo", { origem: "banco" }),
+      arquivo(SISTEMA, { linhas_nao_lidas: 1, saldo_final: "999.00", saldo_data: "2026-09-30" }),
+    ]);
+
+    const resultado = await carregarFechamentos();
+
+    if (!resultado.ok) throw new Error(resultado.erro);
+    const [comSaldo, nulo, antigo, ausente] = resultado.dados.pares;
+    expect(comSaldo.naoLidas).toEqual([
+      { nome: BANCO_RECENTE + ".csv", linhas: 2 },
+      { nome: SISTEMA + ".csv", linhas: 1 },
+    ]);
+    expect(comSaldo.saldo).toEqual({ inicial: null, final: -120.5, data: "2026-09-30" });
+    expect(nulo.saldo).toBeNull();
+    expect(antigo).not.toHaveProperty("saldo");
+    expect(ausente).not.toHaveProperty("saldo");
+    expect(ausente.naoLidas).toEqual([{ nome: SISTEMA + ".csv", linhas: 1 }]);
+  });
+
+  it("mantém os pares sem linhas não lidas nem saldo quando a lista de extratos falha", async () => {
+    execucoesPaginadas([execucao("e-1", BANCO_RECENTE)], [], new ErroBackend(503, "Indisponível"));
+
+    const resultado = await carregarFechamentos();
+
+    if (!resultado.ok) throw new Error(resultado.erro);
+    expect(resultado.dados.pares).toHaveLength(1);
+    expect(resultado.dados.pares[0].naoLidas).toEqual([]);
+    expect(resultado.dados.pares[0]).not.toHaveProperty("saldo");
+    expect(resultado.dados.naoLidasIndisponivel).toBe(true);
+    expect(chamarBackend).toHaveBeenCalledWith("/extratos?limit=100&offset=0");
+  });
+
+  it.each([true, false])("só sinaliza extratos cortados se faltar um arquivo do par vigente (ausente: %s)", async (ausente) => {
+    const primeiros = [arquivo(BANCO_RECENTE, { origem: "banco" })];
+    if (!ausente) primeiros.push(arquivo(SISTEMA));
+    const extratos = [
+      ...primeiros,
+      ...Array.from({ length: 1000 - primeiros.length }, (_, i) => arquivo("outro-" + i)),
+      arquivo(ausente ? SISTEMA : "mais-antigo"),
+    ];
+    execucoesPaginadas([execucao("e-1", BANCO_RECENTE)], [], extratos);
+
+    const resultado = await carregarFechamentos();
+
+    if (!resultado.ok) throw new Error(resultado.erro);
+    expect(resultado.dados.naoLidasIndisponivel).toBe(ausente ? true : undefined);
+    expect(chamarBackend).not.toHaveBeenCalledWith("/extratos?limit=100&offset=1000");
   });
 
   it("traz os fechamentos da empresa, os ativos e os reabertos, como o backend os ordena", async () => {
@@ -1225,7 +1400,7 @@ describe("carregarFechamentos", () => {
     chamarBackend.mockImplementation(async (caminho: string) => {
       if (caminho === "/fechamentos") throw new ErroBackend(404, "Not Found");
       if (caminho.startsWith("/execucoes")) return { total: 1, limit: 50, offset: 0, itens: [execucao("e-1", BANCO_RECENTE)] };
-      return situacao(caminho.replace("/extratos/", ""));
+      return { itens: [], total: 0, limit: 100, offset: 0 };
     });
 
     const resultado = await carregarFechamentos();
