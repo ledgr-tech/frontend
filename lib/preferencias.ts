@@ -39,7 +39,9 @@ export function preferenciasLocais(dono: string): Preferencias {
     const bruto = JSON.parse(armazenamento.getItem(`${CHAVE}:${dono.toLowerCase()}`) ?? "null") as Record<string, unknown> | null;
     if (!bruto || typeof bruto !== "object") return PREFERENCIAS_VAZIAS;
     const telas = Array.isArray(bruto.tutoriaisDispensados) ? bruto.tutoriaisDispensados.filter(ehTela) : [];
-    return { tutoriaisDispensados: telas, roteiroDispensado: bruto.roteiroDispensado === true,
+    return {
+      tutoriaisDispensados: telas,
+      roteiroDispensado: bruto.roteiroDispensado === true,
       boasVindasVista: bruto.boasVindasVista === true,
     };
   } catch {

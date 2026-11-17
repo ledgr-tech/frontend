@@ -76,6 +76,16 @@ describe("BoasVindas", () => {
     expect(screen.queryByText("Boas-vindas, Ana")).not.toBeInTheDocument();
   });
 
+  it("quem já dispensou o roteiro não a vê", async () => {
+    render(
+      <ProvedorDaConta email={EMAIL} nome="Ana" preferencias={{ tutoriaisDispensados: [], roteiroDispensado: true }}>
+        <BoasVindas />
+      </ProvedorDaConta>,
+    );
+    await new Promise((r) => setTimeout(r, 20));
+    expect(screen.queryByText("Boas-vindas, Ana")).not.toBeInTheDocument();
+  });
+
   it("na conta de demonstração não aparece", async () => {
     montar({ demonstracao: true });
     await new Promise((r) => setTimeout(r, 20));

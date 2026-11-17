@@ -6865,7 +6865,7 @@ html[data-tema="escuro"] .app-shell {
 .bv-passos li { counter-increment: bv; display: flex; align-items: center; gap: 10px; }
 .bv-passos li::before {
   content: counter(bv); flex: none; display: grid; place-items: center; width: 24px; height: 24px;
-  border-radius: 50%; background: var(--color-bg-subtle, rgba(0, 0, 0, 0.06)); font-weight: 600; font-size: 13px;
+  border-radius: 50%; background: var(--color-surface); font-weight: 600; font-size: 13px;
 }
 @media (prefers-reduced-motion: no-preference) {
   .bv-mascote { animation: bv-sobe 600ms var(--ease-out) both; }
