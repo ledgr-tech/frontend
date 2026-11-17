@@ -633,7 +633,7 @@ function ContaNova({ roteiro, passos }: { roteiro: DadosDoRoteiro | null; passos
         <section className="vg-bloco vg-atencao">
           <h2 className="vg-bloco-rotulo">Pendências</h2>
           <div className="vg-vazio">
-            <Image src="/mascotes/mascote-checklist.webp" alt="" width={1000} height={1000} sizes="96px" className="vg-vazio-mascote" />
+            <Image src="/mascotes/mascote-checklist.webp" alt="" width={1000} height={1000} sizes="128px" className="vg-vazio-mascote" />
             <div className="vg-vazio-corpo">
               <h3 className="pp-bloco-titulo">Nada pendente por enquanto</h3>
               <p className="vg-nota">
