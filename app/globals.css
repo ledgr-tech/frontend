@@ -6892,16 +6892,11 @@ html[data-tema="escuro"] .app-shell {
   .adm-quatro-colunas { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
-/* Boas-vindas da primeira entrada (Visão geral) */
-.bv-corpo { display: grid; justify-items: center; gap: 12px; text-align: center; padding: 8px 0 4px; }
-.bv-corpo p { margin: 0; }
-.bv-mascote { width: 160px; height: 160px; object-fit: contain; }
-.bv-passos { margin: 0; padding: 0; list-style: none; counter-reset: bv; display: grid; gap: 8px; text-align: left; font-size: var(--texto-corpo); }
-.bv-passos li { counter-increment: bv; display: flex; align-items: center; gap: 10px; }
-.bv-passos li::before {
-  content: counter(bv); flex: none; display: grid; place-items: center; width: 24px; height: 24px;
-  border-radius: 50%; background: var(--color-surface); font-weight: 600; font-size: 13px;
-}
+/* Boas-vindas da primeira entrada (Visão geral): o molde da comemoração (.comemoracao-*), com os passos
+   numerados no lugar do que o plano libera e o mascote subindo com salto no lugar da medalha */
+.bv-passos { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 10px; font-size: var(--texto-corpo); line-height: 1.45; }
+.bv-passos li { display: flex; align-items: baseline; gap: 12px; }
+.bv-numero { flex: none; width: 1.2em; font-size: 19px; color: var(--color-accent-700); }
 @media (prefers-reduced-motion: no-preference) {
   .bv-mascote { animation: bv-sobe 600ms var(--ease-out) both; }
   @keyframes bv-sobe {
