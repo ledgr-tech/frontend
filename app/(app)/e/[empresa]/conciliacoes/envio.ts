@@ -46,6 +46,20 @@ function esperar(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+// o backend responde rápido e o palco piscava: cada etapa fica pelo menos isto na tela, então as
+// quatro dão ~9 s, o bastante para a onda de ✓ cruzar as 14 linhas (palco.tsx, globals.css)
+const MINIMO_POR_ETAPA_MS = 2200;
+
+/** Marca agora como o início da etapa na tela. */
+export function marcarEtapa(inicio: { current: number }) {
+  inicio.current = Date.now();
+}
+
+/** Espera o que falta para a etapa que começou em `inicio` ter ficado o mínimo na tela. */
+export function segurarEtapa(inicio: { current: number }) {
+  return esperar(Math.max(0, MINIMO_POR_ETAPA_MS - (Date.now() - inicio.current)));
+}
+
 export type Origem = "banco" | "sistema";
 
 /** Um CSV que o backend não lê como está, esperando a pessoa apontar as colunas. */

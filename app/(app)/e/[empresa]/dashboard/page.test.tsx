@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { Execucao } from "@/lib/adaptadores";
 import type { StatusLinha } from "@/lib/mock-data";
@@ -130,6 +130,18 @@ describe("DashboardPage", () => {
     await renderizar();
     expect(screen.getByText("2 conciliações")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Com pendência (0)" })).toBeInTheDocument();
+  });
+
+  it("leva o foco ao título da prévia ao escolher pelo teclado no layout empilhado", async () => {
+    const user = userEvent.setup();
+    com();
+    await renderizar();
+
+    await user.click(screen.getByRole("button", { name: "Todas (2)" }));
+    folhas()[1].focus();
+    await user.keyboard("{Enter}");
+
+    await waitFor(() => expect(within(previa()).getByRole("heading", { name: "Sem pendência" })).toHaveFocus());
   });
 
   it("opens the first in the queue in the preview, in place of the old continue strip", async () => {

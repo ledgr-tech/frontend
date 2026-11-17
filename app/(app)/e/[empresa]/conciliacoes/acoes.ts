@@ -14,6 +14,7 @@ import {
   type DecisaoAPI,
   type SaldoDoExtrato,
   type Execucao,
+  type ExecucaoAPI,
   type Fechamento,
   type FechamentoAPI,
   type ItemExtratoAPI,
@@ -187,8 +188,23 @@ const POR_REQUISICAO = 1000;
 // cliente, então ela precisa estar inteira aqui — mas uma conciliação de 100 mil
 // linhas não deve virar 100 requisições em sequência. Quando houver extrato
 // desse tamanho, a ordenação passa pro servidor (o endpoint já aceita
-// limit/offset/status) e este laço some.
+// limit/offset/status) e a tela deixa de carregar todas as páginas.
 const MAXIMO_DE_PAGINAS = 10;
+
+async function todasAsPaginas<T>(
+  caminho: (numero: number) => string,
+  primeira?: { itens: T[]; total: number },
+): Promise<{ itens: T[]; total: number }> {
+  const inicial = primeira ?? await chamarBackend<{ itens: T[]; total: number }>(caminho(0));
+  const itens = [...inicial.itens];
+  const { total } = inicial;
+  for (let numero = 1; itens.length < total && numero < MAXIMO_DE_PAGINAS; numero += 1) {
+    const proxima = await chamarBackend<{ itens: T[] }>(caminho(numero));
+    if (proxima.itens.length === 0) break;
+    itens.push(...proxima.itens);
+  }
+  return { itens, total };
+}
 
 /**
  * As linhas de uma conciliação. Com `extratoSistemaId`, só as do par; sem ele,
@@ -210,20 +226,13 @@ export async function carregarConciliacao(
 
   try {
     const primeira = await chamarBackend<ListaConciliacaoAPI>(pagina(0));
-    const itens = [...primeira.itens];
-    let paginas = 1;
-    while (itens.length < primeira.total && paginas < MAXIMO_DE_PAGINAS) {
-      const proxima = await chamarBackend<ListaConciliacaoAPI>(pagina(paginas));
-      if (proxima.itens.length === 0) break;
-      itens.push(...proxima.itens);
-      paginas += 1;
-    }
+    const { itens, total } = await todasAsPaginas(pagina, primeira);
 
     return {
       ok: true,
       dados: {
         conciliacao: adaptarConciliacao({ ...primeira, itens }, extratoSistemaId),
-        truncada: itens.length < primeira.total,
+        truncada: itens.length < total,
       },
     };
   } catch (erro) {
@@ -267,14 +276,8 @@ async function execucoesDoBanco(extratoBancoId: string, exigirHistoricoCompleto 
   const pagina = (numero: number) =>
     `/execucoes?extrato_banco_id=${extratoBancoId}&limit=${RODADAS_POR_PAGINA}&offset=${numero * RODADAS_POR_PAGINA}`;
   try {
-    const primeira = await chamarBackend<ListaExecucoesAPI>(pagina(0));
-    const itens = [...primeira.itens];
-    for (let numero = 1; itens.length < primeira.total && numero < MAXIMO_DE_PAGINAS; numero += 1) {
-      const proxima = await chamarBackend<ListaExecucoesAPI>(pagina(numero));
-      if (proxima.itens.length === 0) break;
-      itens.push(...proxima.itens);
-    }
-    if (exigirHistoricoCompleto && itens.length < primeira.total) {
+    const { itens, total } = await todasAsPaginas<ExecucaoAPI>(pagina);
+    if (exigirHistoricoCompleto && itens.length < total) {
       return { ok: false, status: 503, erro: "Não foi possível verificar todas as rodadas. Tente de novo em instantes." };
     }
     return { ok: true, dados: itens.map(adaptarExecucao) };
@@ -697,6 +700,12 @@ export type ListaDeExtratos = {
 
 const EXTRATOS_POR_PAGINA = 100;
 
+async function listarExtratosDoBackend(): Promise<ListaExtratosAPI> {
+  const pagina = (numero: number) => `/extratos?limit=${EXTRATOS_POR_PAGINA}&offset=${numero * EXTRATOS_POR_PAGINA}`;
+  const primeira = await chamarBackend<ListaExtratosAPI>(pagina(0));
+  return { ...primeira, ...await todasAsPaginas(pagina, primeira) };
+}
+
 /**
  * Os arquivos enviados, para a tela de extratos, de `GET /extratos` (backend #70): todos, do envio
  * mais recente ao mais antigo, inclusive os que ainda não entraram em conciliação.
@@ -706,16 +715,10 @@ const EXTRATOS_POR_PAGINA = 100;
  * cada linha não lida, de `GET /extratos/{id}`, só dos arquivos que têm alguma.
  */
 export async function listarExtratos(): Promise<Resultado<ListaDeExtratos>> {
-  const pagina = (numero: number) => `/extratos?limit=${EXTRATOS_POR_PAGINA}&offset=${numero * EXTRATOS_POR_PAGINA}`;
   let lista: ListaExtratosAPI;
   let execucoes: Resultado<ListaExecucoes>;
   try {
-    [lista, execucoes] = await Promise.all([chamarBackend<ListaExtratosAPI>(pagina(0)), listarExecucoes()]);
-    for (let numero = 1; lista.itens.length < lista.total && numero < MAXIMO_DE_PAGINAS; numero += 1) {
-      const proxima = await chamarBackend<ListaExtratosAPI>(pagina(numero));
-      if (proxima.itens.length === 0) break;
-      lista = { ...lista, itens: [...lista.itens, ...proxima.itens] };
-    }
+    [lista, execucoes] = await Promise.all([listarExtratosDoBackend(), listarExecucoes()]);
   } catch (erro) {
     return traduzir(erro);
   }
@@ -799,8 +802,8 @@ export type VisaoGeral = {
 /**
  * O que a visão geral precisa: a lista de execuções (tendência e atividade), as
  * linhas da mais recente (o estado do mês e o que está em aberto) e a situação
- * dos dois arquivos dela. Só dos dois: varrer todos os arquivos, como a tela de
- * extratos faz, custaria uma chamada por arquivo para abrir a home.
+ * dos dois arquivos dela. Se a primeira página de execuções vier cortada,
+ * também lê o histórico de cada extrato do banco do mês em foco.
  */
 export async function carregarVisaoGeral(): Promise<Resultado<VisaoGeral>> {
   const [lista, fechamentos] = await Promise.all([listarExecucoes(), listarFechamentos()]);
@@ -825,7 +828,17 @@ export async function carregarVisaoGeral(): Promise<Resultado<VisaoGeral>> {
   }
   const meses = [...new Set(vigentes.map(mesDe))].sort((a, b) => b.localeCompare(a));
   const foco = meses.find((mes) => !fechados.has(mes)) ?? meses[0];
-  const doMes = vigentes.filter((execucao) => mesDe(execucao) === foco);
+  const doMesNaPagina = vigentes.filter((execucao) => mesDe(execucao) === foco);
+  const paginaCortada = total > execucoes.length;
+  // A primeira execução de uma versão pode ter ficado fora da página.
+  const doMes = paginaCortada
+    ? await Promise.all(doMesNaPagina.map(async (execucao) => {
+        const historico = await execucoesDoBanco(execucao.extratoBancoId, true);
+        if (!historico.ok) return execucao;
+        const vigente = rodadasDoBanco(historico.dados, execucao.extratoBancoId).at(-1)?.execucao;
+        return vigente?.atual ? vigente : execucao;
+      }))
+    : doMesNaPagina;
   const [maisRecente] = doMes;
 
   const [conciliacoes, banco, sistema] = await Promise.all([
@@ -856,7 +869,7 @@ export async function carregarVisaoGeral(): Promise<Resultado<VisaoGeral>> {
   // chega a uma execução que rodou antes dele (nenhuma do mês roda antes de ele começar); com um filtro
   // por competência no backend, o mês viria direto e somaria mesmo com muitas execuções
   const ultima = execucoes[execucoes.length - 1];
-  const mesPodeSeguir = total > execucoes.length && competencia(null, ultima.executadaEm) >= foco;
+  const mesPodeSeguir = paginaCortada && competencia(null, ultima.executadaEm) >= foco;
 
   return {
     ok: true,
@@ -879,12 +892,14 @@ export type ParDoFechamento = {
   execucao: Execucao;
   /** Os arquivos do par com linhas que o parser não conseguiu ler. */
   naoLidas: { nome: string; linhas: number }[];
-  /** O saldo do extrato do banco (backend #118); ausente sem o detalhe dele ou sem a #118. */
+  /** O saldo do extrato do banco (backend #118); ausente sem o item na lista ou sem os campos da #118. */
   saldo?: SaldoDoExtrato | null;
 };
 
 export type DadosDoFechamento = {
   pares: ParDoFechamento[];
+  historicoIncompleto?: true;
+  naoLidasIndisponivel?: true;
   /**
    * Os fechamentos da empresa (`GET /fechamentos`), do mais recente para o mais antigo, os
    * reabertos inclusive. Null quando a rota não respondeu: a mesa mostra os meses sem fechar nada.
@@ -892,42 +907,63 @@ export type DadosDoFechamento = {
   fechamentos: Fechamento[] | null;
 };
 
+async function listarExecucoesDosFechamentos(): Promise<Resultado<{ execucoes: Execucao[]; historicoIncompleto: boolean }>> {
+  const porPagina = 100;
+  const pagina = (numero: number) => `/execucoes?limit=${porPagina}&offset=${numero * porPagina}`;
+  try {
+    const { itens, total } = await todasAsPaginas<ExecucaoAPI>(pagina);
+    return {
+      ok: true,
+      dados: { execucoes: itens.map(adaptarExecucao), historicoIncompleto: itens.length < total },
+    };
+  } catch (erro) {
+    return traduzir(erro);
+  }
+}
+
 /**
  * Cada par de extratos conciliado, com as linhas não lidas dos dois arquivos: é o
  * que a mesa de fechamento agrupa por mês (o do período do extrato do banco, que
  * vem na execução). Só as rodadas atuais: a refeita depois substitui a anterior.
  * E os fechamentos, que dizem quais meses já estão fechados.
  *
- * ponytail: duas chamadas por par (os dois arquivos), em paralelo. `GET /extratos`
- * (backend #70) traz as linhas não lidas de todos numa lista.
+ * A lista de extratos traz a contagem de linhas não lidas e o saldo em lote.
  */
 export async function carregarFechamentos(): Promise<Resultado<DadosDoFechamento>> {
-  const [lista, fechamentos] = await Promise.all([listarExecucoes(), listarFechamentos()]);
+  const [lista, fechamentos, extratos] = await Promise.all([
+    listarExecucoesDosFechamentos(),
+    listarFechamentos(),
+    listarExtratosDoBackend().catch(() => null),
+  ]);
   if (!lista.ok) return lista;
 
+  const porId = new Map(extratos?.itens.map((item) => [item.extrato_id, item]));
   // a versão nova do extrato do sistema substitui a antiga: um par por extrato do banco
-  const atuais = execucoesVigentes(lista.dados.execucoes);
-  const pares = await Promise.all(
-    atuais.map(async (execucao) => {
-      const [banco, sistema] = await Promise.all([
-        situacaoDoExtrato(execucao.extratoBancoId),
-        situacaoDoExtrato(execucao.extratoSistemaId),
-      ]);
-      const arquivos = [
-        { nome: execucao.arquivoBanco, situacao: banco },
-        { nome: execucao.arquivoSistema, situacao: sistema },
-      ];
-      const naoLidas = arquivos.flatMap(({ nome, situacao }) =>
-        situacao.ok && situacao.dados.erros.length > 0
-          ? [{ nome, linhas: situacao.dados.erros.length }]
-          : [],
-      );
-      // o saldo vem no mesmo detalhe do extrato do banco que já diz as linhas não lidas
-      const saldo = banco.ok ? adaptarSaldo(banco.dados) : undefined;
-      return { execucao, naoLidas, ...(saldo !== undefined && { saldo }) };
-    }),
+  const vigentes = execucoesVigentes(lista.dados.execucoes);
+  const naoLidasIndisponivel = extratos === null || (
+    extratos.itens.length < extratos.total &&
+    vigentes.some(({ extratoBancoId, extratoSistemaId }) => !porId.has(extratoBancoId) || !porId.has(extratoSistemaId))
   );
-  return { ok: true, dados: { pares, fechamentos } };
+  const pares = vigentes.map((execucao) => {
+    const banco = porId.get(execucao.extratoBancoId);
+    const sistema = porId.get(execucao.extratoSistemaId);
+    const naoLidas = [banco, sistema].flatMap((arquivo) =>
+      arquivo && arquivo.linhas_nao_lidas > 0
+        ? [{ nome: arquivo.nome_arquivo, linhas: arquivo.linhas_nao_lidas }]
+        : [],
+    );
+    const saldo = banco ? adaptarSaldo(banco) : undefined;
+    return { execucao, naoLidas, ...(saldo !== undefined && { saldo }) };
+  });
+  return {
+    ok: true,
+    dados: {
+      pares,
+      fechamentos,
+      ...(lista.dados.historicoIncompleto && { historicoIncompleto: true }),
+      ...(naoLidasIndisponivel && { naoLidasIndisponivel: true }),
+    },
+  };
 }
 
 async function listarFechamentos(): Promise<Fechamento[] | null> {

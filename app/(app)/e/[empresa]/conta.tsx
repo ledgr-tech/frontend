@@ -32,7 +32,7 @@ const ContextoDaAssinatura = createContext<Assinatura | null>(null);
 const ContextoDaCobranca = createContext(false);
 /** Quanto do plano a conta usa; null sem a informação do backend (e fora do app): nenhum aviso. */
 const ContextoDosLimites = createContext<LimitesDaConta | null>(null);
-/** O e-mail de quem está logado (a sessão), para marcar a própria linha na Equipe; vazio fora do app. */
+/** O e-mail de quem está logado (a sessão), para a Equipe e o primeiro uso; vazio fora do app. */
 const ContextoDoEmail = createContext("");
 /** O nome de quem está logado, do `GET /me`: só quem aprovou desfaz a aprovação (backend #164); vazio fora do app. */
 const ContextoDoNome = createContext("");
@@ -43,8 +43,8 @@ const ContextoDoOriginal = createContext(false);
 
 /**
  * As preferências do primeiro uso (spec 2026-10-15-primeiro-uso): as da conta, do `GET /me`,
- * somadas às do navegador. Dispensar guarda nos dois; se o backend ainda não tem a rota, o
- * navegador basta.
+ * somadas às do mesmo e-mail no navegador. Dispensar guarda nos dois; se o backend ainda não
+ * tem a rota, o navegador basta.
  */
 export function ProvedorDaConta({
   preferencias,
@@ -75,21 +75,25 @@ export function ProvedorDaConta({
   guardaArquivoOriginal?: boolean;
   children: ReactNode;
 }) {
-  const [atuais, setAtuais] = useState<Preferencias>(preferencias ?? PREFERENCIAS_VAZIAS);
-  const [carregado, setCarregado] = useState(false);
+  const dono = email.toLowerCase();
+  const [locais, setLocais] = useState<{ dono: string; preferencias: Preferencias } | null>(null);
+  const carregado = locais?.dono === dono;
+  const atuais = useMemo(() => {
+    const daConta = preferencias ?? PREFERENCIAS_VAZIAS;
+    return carregado ? juntar(daConta, locais.preferencias) : daConta;
+  }, [preferencias, carregado, locais]);
 
   useEffect(() => {
-    // localStorage só existe no cliente; ler fora do render é o padrão do projeto
+    // Ao trocar de pessoa, espera a leitura do novo e-mail antes de liberar o primeiro uso.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setAtuais((anteriores) => juntar(anteriores, preferenciasLocais()));
-    setCarregado(true);
-  }, []);
+    setLocais({ dono, preferencias: preferenciasLocais(dono) });
+  }, [dono]);
 
   const guardar = useCallback((novas: Preferencias) => {
-    setAtuais(novas);
-    guardarLocal(novas);
+    setLocais({ dono, preferencias: novas });
+    guardarLocal(dono, novas);
     void salvarPreferencias(novas).catch(() => false);
-  }, []);
+  }, [dono]);
 
   const valor = useMemo<ValorDaConta>(
     () => ({

@@ -500,6 +500,20 @@ describe("AssinaturaPage", () => {
     });
 
     const SEM_TESTE = "A cobrança é feita agora.";
+    it("reavalia o aviso quando o teste cruza 48 horas entre abrir a tela e clicar", async () => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date("2026-11-16T12:00:00-03:00"));
+      const user = userEvent.setup();
+      iniciarCheckout.mockResolvedValue({ ok: true, dados: { url: "https://checkout.stripe.com/x" } });
+      await montar(conta({ ...fimEm(49) }));
+
+      vi.setSystemTime(new Date("2026-11-16T14:00:00-03:00"));
+      await user.click(within(painel()).getByRole("button", { name: "Assinar o Padrão" }));
+
+      expect(iniciarCheckout).not.toHaveBeenCalled();
+      expect(within(painel()).getByRole("button", { name: "Assinar e pagar agora" })).toBeEnabled();
+    });
+
     it.each([
       ["com menos de 48 horas de teste", () => conta({ situacao: "teste", ...fimEm(47) }), `${SEM_TESTE} Os dias de teste que sobraram não ficam para depois.`],
       // sem teste em andamento, não há dias que sobraram

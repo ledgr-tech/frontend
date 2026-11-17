@@ -16,7 +16,9 @@ export function estaJustificada(decisao: Decisao | null | undefined): boolean {
  * shortcut: o segundo de folga separa a dos dois casos sem um campo do backend; troque por ele se vier.
  */
 export function aprovadaDepois(decisao: Decisao | null | undefined): boolean {
-  if (!estaJustificada(decisao) || !decisao?.aprovadaPor || !decisao.aprovadaEm) return false;
+  if (!estaJustificada(decisao) || !decisao) return false;
+  if (decisao.podeDesfazerAprovacao === true) return true;
+  if (!decisao.aprovadaPor || !decisao.aprovadaEm) return false;
   return Date.parse(decisao.aprovadaEm) - Date.parse(decisao.em) >= 1000;
 }
 

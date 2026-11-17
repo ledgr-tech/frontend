@@ -5,11 +5,11 @@ import Image from "next/image";
 import { X } from "lucide-react";
 import { ABRIR_TUTORIAL } from "@/lib/eventos";
 import type { TelaDoTutorial } from "@/lib/preferencias";
-import { usePreferencias } from "../conta";
+import { useEmail, usePreferencias } from "../conta";
 import { passosDaAbertura, TUTORIAIS, type PassoDoTutorial } from "./roteiros";
 
 const ATIVO = "data-tutorial-ativo";
-/** As telas cujo tutorial já abriu sozinho nesta sessão: voltar a uma tela não o reabre. */
+/** As telas cujo tutorial já abriu sozinho nesta sessão para cada pessoa. */
 const VISTOS = "ledgr:tutoriais-vistos";
 /** De quanto em quanto tempo o cartão olha se a tela já mostrou o que ele vai destacar. */
 const INTERVALO_MS = 100;
@@ -57,19 +57,21 @@ export function cartaoVaiParaEsquerda(
   return direita > 0 && cobertoCom(MARGEM) < direita / 2;
 }
 
-function vistosNestaSessao(): string[] {
+function vistosNestaSessao(chave: string | null): string[] {
+  if (!chave) return [];
   try {
-    const lista = JSON.parse(window.sessionStorage.getItem(VISTOS) ?? "[]");
+    const lista = JSON.parse(window.sessionStorage.getItem(chave) ?? "[]");
     return Array.isArray(lista) ? lista : [];
   } catch {
     return [];
   }
 }
 
-function marcarVisto(tela: TelaDoTutorial) {
+function marcarVisto(chave: string | null, tela: TelaDoTutorial) {
+  if (!chave) return;
   try {
-    const lista = vistosNestaSessao();
-    if (!lista.includes(tela)) window.sessionStorage.setItem(VISTOS, JSON.stringify([...lista, tela]));
+    const lista = vistosNestaSessao(chave);
+    if (!lista.includes(tela)) window.sessionStorage.setItem(chave, JSON.stringify([...lista, tela]));
   } catch {
     // sem armazenamento: o cartão pode reabrir ao voltar à tela, nada mais
   }
@@ -134,10 +136,13 @@ export function Tutorial({
   espera?: number;
 }) {
   const { carregado, tutorialDispensado, dispensarTutorial } = usePreferencias();
+  const dono = useEmail().toLowerCase();
+  const chaveDosVistos = dono ? `${VISTOS}:${dono}` : null;
   const { nome, mascote, passos: todos } = TUTORIAIS[tela];
   // os passos desta abertura: só os do que está na tela
   const [passos, setPassos] = useState<PassoDoTutorial[]>(todos);
-  const [aberto, setAberto] = useState(false);
+  const [donoDaAbertura, setDonoDaAbertura] = useState<string | null>(null);
+  const aberto = donoDaAbertura === dono;
   const [indice, setIndice] = useState(0);
   const [naoMostrar, setNaoMostrar] = useState(false);
   const [naEsquerda, setNaEsquerda] = useState(false);
@@ -147,19 +152,22 @@ export function Tutorial({
   const focoAnterior = useRef<HTMLElement | null>(null);
   const titulo = useId();
 
+  // A caixa marcada pertence à pessoa que abriu o cartão.
+  if (donoDaAbertura !== null && !aberto) setDonoDaAbertura(null);
+
   function abrir() {
     focoAnterior.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     setPassos(passosDaAbertura(todos, (passo) => alvoDe(passo) !== null));
     setIndice(0);
     setNaoMostrar(false);
     setNaEsquerda(false);
-    setAberto(true);
+    setDonoDaAbertura(dono);
   }
 
   function fechar() {
-    if (naoMostrar) dispensarTutorial(tela);
+    if (aberto && naoMostrar) dispensarTutorial(tela);
     setNaoMostrar(false); // a desmontagem chama fechar() de novo: não grava duas vezes
-    setAberto(false);
+    setDonoDaAbertura(null);
   }
 
   // o Esc da janela e o "?" chamam sempre a versão atual (com a caixa como está agora)
@@ -176,12 +184,12 @@ export function Tutorial({
   // (a conta nova, sem extratos) não abre nem conta como vista: espera uma visita com conteúdo
   const dispensado = tutorialDispensado(tela);
   useEffect(() => {
-    if (!carregado || dispensado || vistosNestaSessao().includes(tela)) return;
+    if (!carregado || dispensado || vistosNestaSessao(chaveDosVistos).includes(tela)) return;
     const inicio = Date.now();
     let timer: ReturnType<typeof setTimeout>;
     const tentar = () => {
       if (todos.some((passo) => alvoDe(passo))) {
-        marcarVisto(tela);
+        marcarVisto(chaveDosVistos, tela);
         acoes.current.abrir();
       } else if (Date.now() - inicio < espera) {
         timer = setTimeout(tentar, INTERVALO_MS);
@@ -189,9 +197,7 @@ export function Tutorial({
     };
     timer = setTimeout(tentar, atraso);
     return () => clearTimeout(timer);
-    // só quando as preferências chegam: dispensar no meio não reabre nada
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [carregado]);
+  }, [atraso, carregado, chaveDosVistos, dispensado, espera, tela, todos]);
 
   // o "?" da barra do topo
   useEffect(() => {

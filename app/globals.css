@@ -1168,15 +1168,14 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
 .campo-flutuante[data-tremor="b"] { animation: campo-tremor-b var(--dur-painel) cubic-bezier(0.36, 0.07, 0.19, 0.97); }
 @keyframes campo-tremor-a { 20%, 60% { transform: translateX(-4px); } 40%, 80% { transform: translateX(4px); } }
 @keyframes campo-tremor-b { 20%, 60% { transform: translateX(-4px); } 40%, 80% { transform: translateX(4px); } }
+/* a mensagem é uma nota na margem do livro: traço terracota à esquerda e o texto em Newsreader itálico.
+   Única exceção à regra de Newsreader só em títulos (decisão de 16/11): o itálico é o que a faz parecer anotação */
 .campo-erro {
-  display: flex; align-items: flex-start; gap: 6px;
-  margin: 6px 0 0 4px;
-  font-size: var(--texto-corpo); line-height: 1.4; color: var(--color-erro);
+  margin: 6px 0 0 6px; padding: 1px 0 1px 10px;
+  border-left: 2px solid color-mix(in srgb, var(--color-erro) 55%, transparent);
+  font-family: var(--font-titulo); font-style: italic;
+  font-size: var(--texto-destaque); line-height: 1.4; color: var(--color-erro);
   animation: campo-erro-surgir var(--dur-padrao) var(--ease-out);
-}
-.campo-erro svg {
-  flex: none; width: 15px; height: 15px; margin-top: 1.5px;
-  fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round;
 }
 @keyframes campo-erro-surgir {
   from { opacity: 0; transform: translateY(-4px); }
@@ -3218,14 +3217,14 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
 .vg-conexao-acoes { margin-top: auto; padding-top: 12px; display: flex; flex-direction: column; gap: 10px; position: relative; z-index: 1; }
 .vg-conexao-botao {
   display: inline-flex; justify-content: center; padding: 11px 18px; border-radius: 999px; cursor: pointer;
-  border: 1px solid var(--color-accent); background: var(--color-accent); color: var(--color-text);
+  border: 1px solid var(--color-accent); background: var(--color-accent); color: var(--vg-conexao-botao-texto, var(--color-text));
   font: 600 15px/1.2 var(--font-heading);
   box-shadow: 0 6px 18px -6px color-mix(in srgb, var(--color-accent) 70%, transparent);
   transition: transform var(--dur-rapida) ease, box-shadow var(--dur-rapida) ease, background var(--dur-rapida) ease;
 }
 .vg-conexao-botao:hover {
   transform: translateY(-1px);
-  background: color-mix(in srgb, var(--color-accent) 88%, var(--color-bg));
+  background: color-mix(in srgb, var(--color-accent) 88%, var(--vg-conexao-botao-mistura, var(--color-bg)));
   box-shadow: 0 10px 24px -8px color-mix(in srgb, var(--color-accent) 85%, transparent);
 }
 /* o contorno sobre a tinta: o dourado puxado para o tom do fundo da página (escuro no tema escuro,
@@ -4573,6 +4572,9 @@ html:not([data-densidade="padrao"]) .app-shell .table td { padding-block: 4px; }
 html:not([data-densidade="padrao"]) .app-shell .table th { padding-block: 6px; }
 html:not([data-densidade="padrao"]) .app-shell .selo { padding-block: 1px; }
 
+/* Os controles da comparação em cartões só aparecem no celular. */
+.comparacao-controles-cartoes { display: none; }
+
 /* Tabela em cartões no celular.
    `display: block` apaga o papel implícito de tabela, então as linhas e células
    declaram `role` no HTML — sem isso o leitor de tela perde a grade inteira e
@@ -4585,6 +4587,12 @@ html:not([data-densidade="padrao"]) .app-shell .selo { padding-block: 1px; }
   .tabela-cartoes .table td { display: block; width: auto; }
 
   .tabela-cartoes .table thead { display: none; }
+
+  .comparacao-controles-cartoes {
+    display: flex; flex-wrap: wrap; align-items: end; gap: var(--space-2);
+  }
+  .comparacao-controles-cartoes .field { display: grid; gap: var(--space-1); }
+  .lote-faixa .comparacao-controles-cartoes { align-items: center; }
 
   .tabela-cartoes .table tr {
     border: 1px solid var(--color-divider); border-radius: var(--radius-md);
@@ -5008,6 +5016,8 @@ th:is([aria-sort="ascending"], [aria-sort="descending"]) .th-ordena-seta { opaci
     --color-divider: color-mix(in srgb, #e9e8e5 18%, transparent);
 
     --color-accent: #a67a3c;
+    --vg-conexao-botao-texto: var(--color-bg);
+    --vg-conexao-botao-mistura: var(--color-text);
     --color-ok: #56905f;
     --color-risco: #b6705a;
 
@@ -5060,6 +5070,8 @@ html[data-tema="escuro"] .app-shell {
   --color-divider: color-mix(in srgb, #e9e8e5 18%, transparent);
 
   --color-accent: #a67a3c;
+  --vg-conexao-botao-texto: var(--color-bg);
+  --vg-conexao-botao-mistura: var(--color-text);
   --color-ok: #56905f;
   --color-risco: #b6705a;
 
@@ -6024,6 +6036,9 @@ html[data-tema="escuro"] .app-shell {
 .pp-bloco-titulo { margin: 0; font-family: var(--font-titulo); font-size: 21px; font-weight: 600; line-height: 1.25; }
 .pp-bloco .vg-nota { margin: 0; }
 .pp-vazio { margin: 0; padding-top: 12px; }
+.vg-vazio { flex: 1; display: flex; align-items: center; gap: 16px; padding-top: 12px; }
+.vg-vazio-mascote { flex: none; width: 96px; height: auto; display: block; }
+.vg-vazio-corpo { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .vg-atencao > .btn { align-self: flex-start; margin-top: 14px; }
 .vg-blocos-topo:not(:has(> .vg-blocos-lado)) { grid-template-columns: minmax(0, 1fr); }
 
