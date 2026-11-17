@@ -57,6 +57,9 @@ describe("BoasVindas", () => {
     await user.click(await screen.findByRole("button", { name: "Agora não" }));
     await waitFor(() => expect(screen.queryByText("Boas-vindas, Ana")).not.toBeInTheDocument());
     expect(abriu).not.toHaveBeenCalled();
+    // a janela e o tutorial da Visão geral ficam vistos juntos, de vez (não só nesta sessão)
+    const guardadas = JSON.parse(window.localStorage.getItem(`ledgr:preferencias:${EMAIL.toLowerCase()}`)!);
+    expect(guardadas).toMatchObject({ tutoriaisDispensados: ["visao-geral"], boasVindasVista: true });
     window.removeEventListener(ABRIR_TUTORIAL, abriu);
     unmount();
     montar();

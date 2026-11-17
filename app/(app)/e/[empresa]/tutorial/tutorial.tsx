@@ -9,8 +9,6 @@ import { useEmail, usePreferencias } from "../conta";
 import { passosDaAbertura, TUTORIAIS, type PassoDoTutorial } from "./roteiros";
 
 const ATIVO = "data-tutorial-ativo";
-/** As telas cujo tutorial já abriu sozinho nesta sessão para cada pessoa. */
-const VISTOS = "ledgr:tutoriais-vistos";
 /** De quanto em quanto tempo o cartão olha se a tela já mostrou o que ele vai destacar. */
 const INTERVALO_MS = 100;
 /** A folga entre o alvo e a borda do buraco no véu, para o desfoque não encostar no conteúdo. */
@@ -55,31 +53,6 @@ export function cartaoVaiParaEsquerda(
   };
   const direita = cobertoCom(window.innerWidth - MARGEM - cartao.width);
   return direita > 0 && cobertoCom(MARGEM) < direita / 2;
-}
-
-function vistosNestaSessao(chave: string | null): string[] {
-  if (!chave) return [];
-  try {
-    const lista = JSON.parse(window.sessionStorage.getItem(chave) ?? "[]");
-    return Array.isArray(lista) ? lista : [];
-  } catch {
-    return [];
-  }
-}
-
-function marcarVisto(chave: string | null, tela: TelaDoTutorial) {
-  if (!chave) return;
-  try {
-    const lista = vistosNestaSessao(chave);
-    if (!lista.includes(tela)) window.sessionStorage.setItem(chave, JSON.stringify([...lista, tela]));
-  } catch {
-    // sem armazenamento: o cartão pode reabrir ao voltar à tela, nada mais
-  }
-}
-
-/** As boas-vindas da Visão geral fecham sem o tutorial abrir sozinho: quem quis, abriu por elas. */
-export function marcarTutorialVisto(email: string, tela: TelaDoTutorial) {
-  if (email) marcarVisto(`${VISTOS}:${email.toLowerCase()}`, tela);
 }
 
 /** O elemento do passo, se está desenhado: no celular, a coluna Conferida da comparação some. */
@@ -140,9 +113,8 @@ export function Tutorial({
   /** Quanto o cartão espera a tela mostrar algum alvo antes de abrir assim mesmo, sem destaque. */
   espera?: number;
 }) {
-  const { carregado, tutorialDispensado, dispensarTutorial, boasVindasVista } = usePreferencias();
+  const { carregado, tutorialDispensado, dispensarTutorial, dispensarTodosOsTutoriais, boasVindasVista } = usePreferencias();
   const dono = useEmail().toLowerCase();
-  const chaveDosVistos = dono ? `${VISTOS}:${dono}` : null;
   const { nome, mascote, passos: todos } = TUTORIAIS[tela];
   // os passos desta abertura: só os do que está na tela
   const [passos, setPassos] = useState<PassoDoTutorial[]>(todos);
@@ -167,10 +139,12 @@ export function Tutorial({
     setNaoMostrar(false);
     setNaEsquerda(false);
     setDonoDaAbertura(dono);
+    // abriu uma vez, não abre mais sozinho: rever é pelo menu Ajuda
+    if (!tutorialDispensado(tela)) dispensarTutorial(tela);
   }
 
   function fechar() {
-    if (aberto && naoMostrar) dispensarTutorial(tela);
+    if (aberto && naoMostrar) dispensarTodosOsTutoriais();
     setNaoMostrar(false); // a desmontagem chama fechar() de novo: não grava duas vezes
     setDonoDaAbertura(null);
   }
@@ -185,18 +159,17 @@ export function Tutorial({
   // painel do detalhe da linha desmonta o tutorial
   useEffect(() => () => acoes.current.fechar(), []);
 
-  // primeira visita na sessão: abre quando a tela mostra o que o tutorial explica. Numa tela vazia
+  // primeira visita à tela: abre quando a tela mostra o que o tutorial explica. Numa tela vazia
   // (a conta nova, sem extratos) não abre nem conta como vista: espera uma visita com conteúdo
   const dispensado = tutorialDispensado(tela);
   // a janela de boas-vindas da Visão geral vem antes: enquanto ela está pendente, o cartão espera
   const esperaBoasVindas = tela === "visao-geral" && !boasVindasVista;
   useEffect(() => {
-    if (!carregado || dispensado || esperaBoasVindas || vistosNestaSessao(chaveDosVistos).includes(tela)) return;
+    if (!carregado || dispensado || esperaBoasVindas) return;
     const inicio = Date.now();
     let timer: ReturnType<typeof setTimeout>;
     const tentar = () => {
       if (todos.some((passo) => alvoDe(passo))) {
-        marcarVisto(chaveDosVistos, tela);
         acoes.current.abrir();
       } else if (Date.now() - inicio < espera) {
         timer = setTimeout(tentar, INTERVALO_MS);
@@ -204,7 +177,7 @@ export function Tutorial({
     };
     timer = setTimeout(tentar, atraso);
     return () => clearTimeout(timer);
-  }, [atraso, carregado, chaveDosVistos, dispensado, esperaBoasVindas, espera, tela, todos]);
+  }, [atraso, carregado, dispensado, esperaBoasVindas, espera, tela, todos]);
 
   // o "?" da barra do topo
   useEffect(() => {
@@ -339,7 +312,7 @@ export function Tutorial({
           <p className="tutorial-texto">{passo.texto}</p>
           <label className="tutorial-caixa">
             <input type="checkbox" checked={naoMostrar} onChange={(evento) => setNaoMostrar(evento.target.checked)} />
-            Não mostrar de novo
+            Não mostrar mais tutoriais
           </label>
           <div className="tutorial-acoes">
             <span className="tutorial-pontos" aria-hidden="true">
