@@ -5555,6 +5555,8 @@ html[data-tema="escuro"] .app-shell {
   font-size: var(--texto-legenda); color: var(--texto-apagado); white-space: nowrap;
 }
 .comemoracao .dialog-actions { margin-top: 0; flex-wrap: wrap; }
+/* na linha, a principal vai para a direita; empilhadas (até 560px) fica a ordem do HTML, principal em cima */
+.comemoracao .dialog-actions .btn-primary { order: 1; }
 /* o confete de papel da medalha: tiras na folha do banco e na do sistema com contorno de tinta, um
    quadradinho de tinta e, poucas, as de contorno dourado. Sem movimento, fica parado onde está */
 .comemoracao-chuva { position: fixed; inset: 0; overflow: hidden; pointer-events: none; }
@@ -5583,8 +5585,7 @@ html[data-tema="escuro"] .app-shell {
   .comemoracao-topo { grid-template-columns: minmax(0, 1fr); }
   .comemoracao-medalha { order: -1; width: 104px; justify-self: center; }
   .comemoracao .dialog-actions .btn { flex: 1 1 100%; }
-  /* empilhados, a ação principal vem em cima, onde o polegar e o olho chegam primeiro */
-  .comemoracao .dialog-actions .btn-primary { order: -1; }
+  .comemoracao .dialog-actions .btn-primary { order: 0; }
 }
 
 /* o porquê do "Cancelar mesmo assim" desligado, logo abaixo dele */

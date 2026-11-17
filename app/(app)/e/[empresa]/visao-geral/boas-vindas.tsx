@@ -65,13 +65,14 @@ export function BoasVindas({ demonstracao = false }: { demonstracao?: boolean })
           ))}
         </ol>
       </section>
+      {/* a principal primeiro no HTML: empilhadas no celular, a ordem do foco é a da tela (o CSS a leva à direita na linha) */}
       <div className="dialog-actions">
-        <BotaoFecharJanela className="btn btn-secondary" aoFechar={() => fechar(false)}>
-          Agora não
-        </BotaoFecharJanela>
         <button type="button" className="btn btn-primary" onClick={() => fechar(true)}>
           Começar
         </button>
+        <BotaoFecharJanela className="btn btn-secondary" aoFechar={() => fechar(false)}>
+          Agora não
+        </BotaoFecharJanela>
       </div>
     </ModalDaTela>
   );
