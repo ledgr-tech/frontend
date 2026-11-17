@@ -127,6 +127,8 @@ export default function LoginPage() {
         ? MENSAGEM_GOOGLE[ehErroGoogle(motivo) ? motivo : "falha"]
         : "Não foi possível entrar agora. Tente de novo em instantes.",
     );
+    // a conta é de senha: o próximo passo é a senha, então o cursor já espera nela
+    if (motivo === "email_com_senha") campoSenha.current?.focus();
     // o motivo vale para esta volta do Google: recarregar a página não mostra de novo
     window.history.replaceState(null, "", window.location.pathname);
   }, []);
