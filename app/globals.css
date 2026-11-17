@@ -3215,27 +3215,35 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
 /* quase o branco do título: o texto miúdo e apagado sobre a tinta não se lia */
 .vg-conexao-texto { margin: 0; font-size: var(--texto-destaque); line-height: 1.6; color: color-mix(in srgb, var(--color-bg) 92%, transparent); text-wrap: pretty; }
 .vg-conexao-acoes { margin-top: auto; padding-top: 12px; display: flex; flex-direction: column; gap: 10px; position: relative; z-index: 1; }
+/* o botão inverte o cartão (modelo A1 de 17/11): cheio na cor do texto da tinta, com o texto na cor da
+   tinta. O dourado misturado ao fundo de antes ficava marrom e apagado sobre o cartão claro do tema escuro */
 .vg-conexao-botao {
   display: inline-flex; justify-content: center; padding: 11px 18px; border-radius: 999px; cursor: pointer;
-  border: 1px solid var(--color-accent); background: var(--color-accent); color: var(--vg-conexao-botao-texto, var(--color-text));
+  border: 1.5px solid var(--color-bg); background: var(--color-bg); color: var(--color-text);
   font: 600 15px/1.2 var(--font-heading);
-  box-shadow: 0 6px 18px -6px color-mix(in srgb, var(--color-accent) 70%, transparent);
-  transition: transform var(--dur-rapida) ease, box-shadow var(--dur-rapida) ease, background var(--dur-rapida) ease;
+  transition: transform var(--dur-rapida) ease, background var(--dur-rapida) ease;
 }
-.vg-conexao-botao:hover {
-  transform: translateY(-1px);
-  background: color-mix(in srgb, var(--color-accent) 88%, var(--vg-conexao-botao-mistura, var(--color-bg)));
-  box-shadow: 0 10px 24px -8px color-mix(in srgb, var(--color-accent) 85%, transparent);
-}
-/* o contorno sobre a tinta: o dourado puxado para o tom do fundo da página (escuro no tema escuro,
-   claro no claro), para o texto ler bem nos dois; sem fundo, nada ofusca o rótulo */
+.vg-conexao-botao:hover { transform: translateY(-1px); background: color-mix(in srgb, var(--color-bg) 88%, var(--color-text)); }
+/* o secundário (copiar o endereço): só o contorno, na mesma cor, para não pesar como o principal */
 .vg-conexao-botao-contorno {
-  background: transparent; box-shadow: none; border-width: 1.5px;
-  color: color-mix(in srgb, var(--color-accent) 55%, var(--color-bg));
-  border-color: color-mix(in srgb, var(--color-accent) 70%, var(--color-bg));
+  background: transparent; color: var(--color-bg);
+  border-color: color-mix(in srgb, var(--color-bg) 40%, transparent);
 }
-.vg-conexao-botao-contorno:hover {
-  background: color-mix(in srgb, var(--color-accent) 12%, transparent); box-shadow: none;
+.vg-conexao-botao-contorno:hover { background: color-mix(in srgb, var(--color-bg) 10%, transparent); }
+/* o selo: o logo de cada cliente conectado e a pílula das ativas; sem conexão, os dois logos apagados */
+.vg-conexao-selo { display: flex; align-items: center; gap: 8px; }
+.vg-conexao-logo {
+  width: 40px; height: 40px; padding: 6px; border-radius: 12px; background: #fff; object-fit: contain;
+}
+.vg-conexao-logo[data-apagado] { opacity: 0.45; filter: grayscale(1); }
+.vg-conexao-ativas {
+  margin-left: 2px; display: inline-flex; align-items: center; gap: 7px; padding: 4px 10px; border-radius: 999px;
+  font-size: var(--texto-nota); font-weight: 500;
+  background: color-mix(in srgb, var(--color-ok) 22%, transparent); color: color-mix(in srgb, var(--color-ok) 45%, var(--color-bg));
+}
+.vg-conexao-ativas::before {
+  content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--color-ok);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-ok) 30%, transparent);
 }
 @media (prefers-reduced-motion: reduce) { .vg-conexao-botao, .vg-conexao-botao:hover { transition: none; transform: none; } }
 .vg-conexao-botao:focus-visible { outline: 2px solid var(--color-bg); outline-offset: 2px; }
@@ -5016,8 +5024,6 @@ th:is([aria-sort="ascending"], [aria-sort="descending"]) .th-ordena-seta { opaci
     --color-divider: color-mix(in srgb, #e9e8e5 18%, transparent);
 
     --color-accent: #a67a3c;
-    --vg-conexao-botao-texto: var(--color-bg);
-    --vg-conexao-botao-mistura: var(--color-text);
     --color-ok: #56905f;
     --color-risco: #b6705a;
 
@@ -5070,8 +5076,6 @@ html[data-tema="escuro"] .app-shell {
   --color-divider: color-mix(in srgb, #e9e8e5 18%, transparent);
 
   --color-accent: #a67a3c;
-  --vg-conexao-botao-texto: var(--color-bg);
-  --vg-conexao-botao-mistura: var(--color-text);
   --color-ok: #56905f;
   --color-risco: #b6705a;
 

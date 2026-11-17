@@ -185,8 +185,10 @@ describe("VisaoGeralPage", () => {
     });
     await renderizar();
 
-    const bloco = screen.getByRole("region", { name: "Conectado ao ChatGPT e Claude." });
-    expect(bloco).toHaveTextContent("Última consulta em 28/10/2026 16:12.");
+    const bloco = screen.getByRole("region", { name: "Conectado ao ChatGPT e ao Claude." });
+    // com dois clientes, a data diz de qual veio; a pílula conta só as ativas
+    expect(bloco).toHaveTextContent("Última consulta em 28/10/2026 16:12, no ChatGPT.");
+    expect(within(bloco).getByText("2 ativas")).toBeInTheDocument();
   });
 
   it("shows no connection block to whoever cannot see the connections", async () => {
