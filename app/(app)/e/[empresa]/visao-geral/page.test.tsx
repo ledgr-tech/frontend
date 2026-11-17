@@ -566,8 +566,27 @@ describe("VisaoGeralPage", () => {
     await renderizar();
 
     expect(screen.getByRole("link", { name: "Nova conciliação" })).toBeInTheDocument();
-    expect(screen.getByText(/pendências aparecem aqui/)).toBeInTheDocument();
+    expect(screen.getByText(/aparecem aqui depois da primeira conciliação/)).toBeInTheDocument();
     expect(screen.queryByText(/Próximo passo/)).not.toBeInTheDocument();
+  });
+
+  it("conta nova: Pendências vazio tem título, frase e o mascote do checklist; o estado usa o mascote espiando", async () => {
+    com({ execucoes: [], total: 0, recente: null });
+    await renderizar();
+
+    const pendencias = screen.getByRole("heading", { name: "Pendências" }).closest("section")!;
+    expect(within(pendencias).getByRole("heading", { name: "Nada pendente por enquanto" })).toBeInTheDocument();
+    expect(
+      within(pendencias).getByText(
+        "Lançamentos que não bateram e justificativas esperando aprovação aparecem aqui depois da primeira conciliação.",
+      ),
+    ).toBeInTheDocument();
+    expect(pendencias.querySelector("img")?.getAttribute("src")).toContain("mascote-checklist");
+    expect(pendencias.querySelector("img")).toHaveAttribute("alt", "");
+
+    const estado = screen.getByRole("heading", { name: "Nenhuma conciliação ainda" }).closest("section")!;
+    expect(estado.querySelector("img")?.getAttribute("src")).toContain("mascote-espiando-mesa");
+    for (const img of document.querySelectorAll("img")) expect(img.getAttribute("src")).not.toContain("mascote-explicando");
   });
 
   it("depois da primeira conciliação, o passo de agora vai para o bloco onde ele acontece", async () => {

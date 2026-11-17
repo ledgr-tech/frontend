@@ -569,7 +569,7 @@ function ContaNova({ roteiro, passos }: { roteiro: DadosDoRoteiro | null; passos
         <section className="vg-bloco vg-estado" aria-labelledby="vg-estado-titulo" data-tutorial="estado-do-mes">
           {/* sem conciliação, o anel não tem o que medir: no lugar dele, o mascote das telas vazias (#388) */}
           <Image
-            src="/mascotes/mascote-explicando.png"
+            src="/mascotes/mascote-espiando-mesa.webp"
             alt=""
             width={1000}
             height={1000}
@@ -598,9 +598,15 @@ function ContaNova({ roteiro, passos }: { roteiro: DadosDoRoteiro | null; passos
       <Reveal delay={0.08} className="vg-blocos-par">
         <section className="vg-bloco vg-atencao">
           <h2 className="vg-bloco-rotulo">Pendências</h2>
-          <p className="vg-nota pp-vazio">
-            As pendências aparecem aqui, depois da primeira conciliação.
-          </p>
+          <div className="vg-vazio">
+            <Image src="/mascotes/mascote-checklist.webp" alt="" width={1000} height={1000} sizes="96px" className="vg-vazio-mascote" />
+            <div className="vg-vazio-corpo">
+              <h3 className="pp-bloco-titulo">Nada pendente por enquanto</h3>
+              <p className="vg-nota">
+                Lançamentos que não bateram e justificativas esperando aprovação aparecem aqui depois da primeira conciliação.
+              </p>
+            </div>
+          </div>
         </section>
         <nav className="vg-bloco" aria-labelledby="vg-atalhos-titulo" data-tutorial="atalhos">
           <h2 id="vg-atalhos-titulo" className="vg-bloco-rotulo">
