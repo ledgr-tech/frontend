@@ -100,8 +100,8 @@ function trazerParaAVista(alvo: HTMLElement, cartao: HTMLElement | null, mascote
 
 /**
  * O tutorial de uma tela (spec 2026-10-15-primeiro-uso, parte 3): um cartão de vidro no canto, com
- * o mascote do passo atrás dele, que destaca a parte da tela de cada passo. Abre sozinho na primeira visita; "Não mostrar de
- * novo" guarda na conta; o "?" da barra do topo reabre. Não é modal: dá para clicar fora.
+ * o mascote do passo atrás dele, que destaca a parte da tela de cada passo. Abre sozinho só na primeira visita
+ * à tela (abrir já guarda na conta); "Não mostrar mais tutoriais" dispensa todas; o "?" da barra do topo reabre. Não é modal: dá para clicar fora.
  */
 export function Tutorial({
   tela,

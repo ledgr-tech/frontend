@@ -116,9 +116,10 @@ export function ProvedorDaConta({
       dispensarTodosOsTutoriais: () => guardar((p) => ({ ...p, tutoriaisDispensados: [...TELAS_DO_TUTORIAL] })),
       roteiroDispensado: atuais.roteiroDispensado,
       dispensarRoteiro: () => guardar((p) => ({ ...p, roteiroDispensado: true })),
-      // quem já dispensou algo do primeiro uso não está na primeira entrada: não ganha a janela
+      // quem já passou pela Visão geral não está na primeira entrada: não ganha a janela. Só ela conta:
+      // abrir o tutorial de outra tela (quem chega por convite ou link) já a põe na lista
       boasVindasVista:
-        atuais.boasVindasVista === true || atuais.roteiroDispensado || atuais.tutoriaisDispensados.length > 0,
+        atuais.boasVindasVista === true || atuais.roteiroDispensado || atuais.tutoriaisDispensados.includes("visao-geral"),
       marcarBoasVindasVista: () => guardar((p) => ({ ...p, boasVindasVista: true })),
     }),
     [atuais, carregado, guardar],

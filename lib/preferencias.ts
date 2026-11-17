@@ -1,5 +1,5 @@
 /**
- * O que a pessoa dispensou no primeiro uso: os tutoriais marcados com "Não mostrar de novo" e o
+ * O que a pessoa dispensou no primeiro uso: os tutoriais que já abriram (ou todos, com "Não mostrar mais tutoriais") e o
  * roteiro fechado com "Já sei usar" (spec 2026-10-15-primeiro-uso). A fonte certa é a conta
  * (`preferencias` do `GET /me`); o navegador é a reserva enquanto o backend não tem a rota, e
  * continua valendo depois, somado a ela.
