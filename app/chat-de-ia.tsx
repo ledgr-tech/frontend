@@ -24,7 +24,7 @@ export type EstadoDoChat = {
   ledgrLigado: boolean;
 };
 
-const LOGO = { chatgpt: "/mascotes/logo-chatgpt.png", claude: "/mascotes/logo-claude.png" };
+export const LOGO = { chatgpt: "/mascotes/logo-chatgpt.png", claude: "/mascotes/logo-claude.png" };
 
 function Logo({ ia, tamanho }: { ia: IaDaConexao; tamanho: number }) {
   return <Image src={LOGO[ia]} width={tamanho} height={tamanho} alt="" />;

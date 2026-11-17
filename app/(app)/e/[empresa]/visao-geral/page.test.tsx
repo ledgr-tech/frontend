@@ -178,6 +178,7 @@ describe("VisaoGeralPage", () => {
         itens: [
           conexao("ChatGPT", "2026-10-28T19:12:00Z"),
           conexao("Claude", null),
+          conexao("Claude Code", null),
           conexao("Outro", "2026-10-29T10:00:00Z", "2026-10-29T11:00:00Z"),
         ],
         endereco: null,
@@ -185,10 +186,12 @@ describe("VisaoGeralPage", () => {
     });
     await renderizar();
 
-    const bloco = screen.getByRole("region", { name: "Conectado ao ChatGPT e ao Claude." });
+    const bloco = screen.getByRole("region", { name: "Conectado ao ChatGPT, ao Claude e ao Claude Code." });
     // com dois clientes, a data diz de qual veio; a pílula conta só as ativas
     expect(bloco).toHaveTextContent("Última consulta em 28/10/2026 16:12, no ChatGPT.");
-    expect(within(bloco).getByText("2 ativas")).toBeInTheDocument();
+    expect(within(bloco).getByText("3 ativas")).toBeInTheDocument();
+    // um logo por marca: o Claude e o Claude Code dividem o mesmo
+    expect(bloco.querySelectorAll(".vg-conexao-logo")).toHaveLength(2);
   });
 
   it("shows no connection block to whoever cannot see the connections", async () => {

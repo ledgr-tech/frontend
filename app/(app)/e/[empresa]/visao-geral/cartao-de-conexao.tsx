@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useState } from "react";
+import { LOGO } from "@/app/chat-de-ia";
 import { InkHover } from "@/app/reveal";
 import { abrirConfiguracoes } from "@/lib/eventos";
 import { formatarDataHora } from "../dashboard/resumo";
@@ -41,14 +42,13 @@ export function CartaoDeConexao({ itens, endereco }: { itens: ConexaoMcp[]; ende
       <div className="vg-conexao-selo">
         {ativas.length === 0 ? (
           <>
-            <Logo cliente="ChatGPT" apagado />
-            <Logo cliente="Claude" apagado />
+            <Logo src={LOGO.chatgpt} apagado />
+            <Logo src={LOGO.claude} apagado />
           </>
         ) : (
           <>
-            {clientes.map((cliente) => (
-              <Logo key={cliente} cliente={cliente} />
-            ))}
+            {/* um logo por marca: "Claude" e "Claude Code" são dois clientes e um logo só */}
+            {[...new Set(clientes.map(logoDe))].map((src) => src && <Logo key={src} src={src} />)}
             <span className="vg-conexao-ativas">{ativas.length === 1 ? "Ativa" : `${ativas.length} ativas`}</span>
           </>
         )}
@@ -107,14 +107,12 @@ const LISTA = new Intl.ListFormat("pt-BR");
 
 // ponytail: só os dois clientes que o Ledgr documenta têm logo; outro nome fica só no título
 function logoDe(cliente: string): string | null {
-  if (/chatgpt|openai/i.test(cliente)) return "/mascotes/logo-chatgpt.png";
-  if (/claude/i.test(cliente)) return "/mascotes/logo-claude.png";
+  if (/chatgpt|openai/i.test(cliente)) return LOGO.chatgpt;
+  if (/claude/i.test(cliente)) return LOGO.claude;
   return null;
 }
 
-function Logo({ cliente, apagado = false }: { cliente: string; apagado?: boolean }) {
-  const src = logoDe(cliente);
-  if (!src) return null;
+function Logo({ src, apagado = false }: { src: string; apagado?: boolean }) {
   return (
     <Image src={src} alt="" width={40} height={40} className="vg-conexao-logo" data-apagado={apagado || undefined} aria-hidden="true" />
   );
