@@ -12,8 +12,11 @@ function Sonda() {
       <span>{p.carregado ? "carregado" : "carregando"}</span>
       <span>{p.tutorialDispensado("extratos") ? "extratos dispensado" : "extratos ativo"}</span>
       <span>{p.roteiroDispensado ? "roteiro dispensado" : "roteiro ativo"}</span>
+      <span>{p.boasVindasVista ? "boas-vindas vistas" : "boas-vindas pendentes"}</span>
+      <button onClick={() => p.dispensarTutorial("visao-geral")}>ver a visão geral</button>
       <button onClick={() => p.dispensarTutorial("extratos")}>dispensar tutorial</button>
       <button onClick={() => p.dispensarRoteiro()}>dispensar roteiro</button>
+      <button onClick={() => { p.dispensarTutorial("extratos"); p.dispensarRoteiro(); }}>dispensar os dois</button>
     </div>
   );
 }
@@ -121,6 +124,32 @@ describe("ProvedorDaConta", () => {
     await act(async () => screen.getByText("dispensar roteiro").click());
     expect(screen.getByText("roteiro dispensado")).toBeInTheDocument();
     expect(salvarPreferencias).toHaveBeenLastCalledWith({ tutoriaisDispensados: ["extratos"], roteiroDispensado: true, boasVindasVista: false });
+  });
+
+  it("duas gravações seguidas, antes do próximo render, somam: a segunda não apaga a primeira", async () => {
+    render(
+      <ProvedorDaConta email="ana@example.com" preferencias={null}>
+        <Sonda />
+      </ProvedorDaConta>,
+    );
+    await waitFor(() => expect(screen.getByText("carregado")).toBeInTheDocument());
+    await act(async () => screen.getByText("dispensar os dois").click());
+    expect(screen.getByText("extratos dispensado")).toBeInTheDocument();
+    expect(screen.getByText("roteiro dispensado")).toBeInTheDocument();
+    expect(salvarPreferencias).toHaveBeenLastCalledWith({ tutoriaisDispensados: ["extratos"], roteiroDispensado: true, boasVindasVista: false });
+  });
+
+  it("o tutorial de outra tela não esconde as boas-vindas; o da Visão geral, sim", async () => {
+    render(
+      <ProvedorDaConta email="ana@example.com" preferencias={null}>
+        <Sonda />
+      </ProvedorDaConta>,
+    );
+    await waitFor(() => expect(screen.getByText("carregado")).toBeInTheDocument());
+    await act(async () => screen.getByText("dispensar tutorial").click());
+    expect(screen.getByText("boas-vindas pendentes")).toBeInTheDocument();
+    await act(async () => screen.getByText("ver a visão geral").click());
+    expect(screen.getByText("boas-vindas vistas")).toBeInTheDocument();
   });
 
   it("ao trocar o e-mail, carrega somente as preferências da pessoa que entrou", async () => {

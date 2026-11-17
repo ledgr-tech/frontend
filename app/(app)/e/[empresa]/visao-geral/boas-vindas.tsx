@@ -5,8 +5,7 @@ import Image from "next/image";
 import { X } from "lucide-react";
 import { abrirTutorial } from "@/lib/eventos";
 import { ModalDaTela, BotaoFecharJanela } from "../empresas/modal-da-tela";
-import { useEmail, useNome, usePreferencias } from "../conta";
-import { marcarTutorialVisto } from "../tutorial/tutorial";
+import { useNome, usePreferencias } from "../conta";
 
 const PASSOS = [
   "Envie o extrato do banco.",
@@ -20,8 +19,7 @@ const PASSOS = [
  * sabe) não a vê: só marca como vista, para o tutorial não esperar por ela.
  */
 export function BoasVindas({ demonstracao = false }: { demonstracao?: boolean }) {
-  const { carregado, boasVindasVista, marcarBoasVindasVista } = usePreferencias();
-  const email = useEmail();
+  const { carregado, boasVindasVista, marcarBoasVindasVista, dispensarTutorial } = usePreferencias();
   const primeiroNome = useNome().trim().split(/\s+/)[0];
 
   useEffect(() => {
@@ -32,7 +30,7 @@ export function BoasVindas({ demonstracao = false }: { demonstracao?: boolean })
 
   function fechar(comecar: boolean) {
     // antes de marcar: o tutorial acorda ao marcar e não pode abrir sozinho por cima
-    marcarTutorialVisto(email, "visao-geral");
+    dispensarTutorial("visao-geral");
     marcarBoasVindasVista();
     if (comecar) abrirTutorial();
   }

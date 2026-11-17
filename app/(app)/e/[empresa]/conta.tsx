@@ -1,12 +1,13 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { salvarPreferencias } from "../../../(auth)/acoes";
 import {
   guardarLocal,
   juntar,
   PREFERENCIAS_VAZIAS,
   preferenciasLocais,
+  TELAS_DO_TUTORIAL,
   type Preferencias,
   type TelaDoTutorial,
 } from "@/lib/preferencias";
@@ -17,8 +18,11 @@ import { podeFecharMes, type Papel } from "@/lib/papel";
 type ValorDaConta = {
   /** Falso até ler o navegador: antes disso, ninguém abre tutorial nem roteiro. */
   carregado: boolean;
+  /** O tutorial da tela já abriu uma vez (ou foi dispensado): não abre mais sozinho. */
   tutorialDispensado: (tela: TelaDoTutorial) => boolean;
   dispensarTutorial: (tela: TelaDoTutorial) => void;
+  /** "Não mostrar mais tutoriais": nenhum abre sozinho, em tela nenhuma. */
+  dispensarTodosOsTutoriais: () => void;
   roteiroDispensado: boolean;
   dispensarRoteiro: () => void;
   boasVindasVista: boolean;
@@ -91,24 +95,32 @@ export function ProvedorDaConta({
     setLocais({ dono, preferencias: preferenciasLocais(dono) });
   }, [dono]);
 
-  const guardar = useCallback((novas: Preferencias) => {
+  // duas gravações antes do próximo render (as boas-vindas marcam o tutorial e a janela) somam,
+  // em vez de a segunda partir do `atuais` antigo e apagar a primeira
+  const pendente = useRef<{ base: Preferencias; novas: Preferencias } | null>(null);
+  const guardar = useCallback((mudar: (anteriores: Preferencias) => Preferencias) => {
+    const anteriores = pendente.current?.base === atuais ? pendente.current.novas : atuais;
+    const novas = mudar(anteriores);
+    pendente.current = { base: atuais, novas };
     setLocais({ dono, preferencias: novas });
     guardarLocal(dono, novas);
     void salvarPreferencias(novas).catch(() => false);
-  }, [dono]);
+  }, [dono, atuais]);
 
   const valor = useMemo<ValorDaConta>(
     () => ({
       carregado,
       tutorialDispensado: (tela) => atuais.tutoriaisDispensados.includes(tela),
       dispensarTutorial: (tela) =>
-        guardar({ ...atuais, tutoriaisDispensados: [...new Set([...atuais.tutoriaisDispensados, tela])] }),
+        guardar((p) => ({ ...p, tutoriaisDispensados: [...new Set([...p.tutoriaisDispensados, tela])] })),
+      dispensarTodosOsTutoriais: () => guardar((p) => ({ ...p, tutoriaisDispensados: [...TELAS_DO_TUTORIAL] })),
       roteiroDispensado: atuais.roteiroDispensado,
-      dispensarRoteiro: () => guardar({ ...atuais, roteiroDispensado: true }),
-      // quem já dispensou algo do primeiro uso não está na primeira entrada: não ganha a janela
+      dispensarRoteiro: () => guardar((p) => ({ ...p, roteiroDispensado: true })),
+      // quem já passou pela Visão geral não está na primeira entrada: não ganha a janela. Só ela conta:
+      // abrir o tutorial de outra tela (quem chega por convite ou link) já a põe na lista
       boasVindasVista:
-        atuais.boasVindasVista === true || atuais.roteiroDispensado || atuais.tutoriaisDispensados.length > 0,
-      marcarBoasVindasVista: () => guardar({ ...atuais, boasVindasVista: true }),
+        atuais.boasVindasVista === true || atuais.roteiroDispensado || atuais.tutoriaisDispensados.includes("visao-geral"),
+      marcarBoasVindasVista: () => guardar((p) => ({ ...p, boasVindasVista: true })),
     }),
     [atuais, carregado, guardar],
   );
