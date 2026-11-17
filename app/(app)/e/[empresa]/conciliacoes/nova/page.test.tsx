@@ -30,6 +30,8 @@ vi.mock("../acoes", () => ({
   carregarRegras: () => carregarRegras(),
 }));
 
+// o mínimo de cada etapa do palco é para gente, não para o teste
+vi.mock("../envio", async (original) => ({ ...(await original<typeof import("../envio")>()), segurarEtapa: async () => {} }));
 vi.mock("../../../../../(auth)/acoes", () => ({ salvarPreferencias: async () => true }));
 // os preços da Stripe que a tela de bloqueio mostra; null é a cobrança desligada
 const carregarPrecos = vi.fn(async (): Promise<PrecoDoPlano[] | null> => null);
