@@ -19,9 +19,10 @@ export const TELAS_DO_TUTORIAL = [
 
 export type TelaDoTutorial = (typeof TELAS_DO_TUTORIAL)[number];
 
-export type Preferencias = { tutoriaisDispensados: TelaDoTutorial[]; roteiroDispensado: boolean };
+/** `boasVindasVista` é opcional só porque a conta (`GET /me`) ainda não a manda: ausente vale falso. */
+export type Preferencias = { tutoriaisDispensados: TelaDoTutorial[]; roteiroDispensado: boolean; boasVindasVista?: boolean };
 
-export const PREFERENCIAS_VAZIAS: Preferencias = { tutoriaisDispensados: [], roteiroDispensado: false };
+export const PREFERENCIAS_VAZIAS: Preferencias = { tutoriaisDispensados: [], roteiroDispensado: false, boasVindasVista: false };
 
 const CHAVE = "ledgr:preferencias";
 
@@ -38,7 +39,11 @@ export function preferenciasLocais(dono: string): Preferencias {
     const bruto = JSON.parse(armazenamento.getItem(`${CHAVE}:${dono.toLowerCase()}`) ?? "null") as Record<string, unknown> | null;
     if (!bruto || typeof bruto !== "object") return PREFERENCIAS_VAZIAS;
     const telas = Array.isArray(bruto.tutoriaisDispensados) ? bruto.tutoriaisDispensados.filter(ehTela) : [];
-    return { tutoriaisDispensados: telas, roteiroDispensado: bruto.roteiroDispensado === true };
+    return {
+      tutoriaisDispensados: telas,
+      roteiroDispensado: bruto.roteiroDispensado === true,
+      boasVindasVista: bruto.boasVindasVista === true,
+    };
   } catch {
     // aba privada, armazenamento bloqueado ou JSON quebrado: só não lembra
     return PREFERENCIAS_VAZIAS;
@@ -58,5 +63,6 @@ export function juntar(a: Preferencias, b: Preferencias): Preferencias {
   return {
     tutoriaisDispensados: [...new Set([...a.tutoriaisDispensados, ...b.tutoriaisDispensados])],
     roteiroDispensado: a.roteiroDispensado || b.roteiroDispensado,
+    boasVindasVista: !!(a.boasVindasVista || b.boasVindasVista),
   };
 }

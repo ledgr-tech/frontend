@@ -6,6 +6,8 @@ import { cartaoVaiParaEsquerda, Tutorial } from "./tutorial";
 import { ProvedorDaConta } from "../conta";
 import { abrirTutorial } from "@/lib/eventos";
 import { TUTORIAIS } from "./roteiros";
+import { BoasVindas } from "../visao-geral/boas-vindas";
+import { PREFERENCIAS_VAZIAS } from "@/lib/preferencias";
 
 vi.mock("../../../../(auth)/acoes", () => ({ salvarPreferencias: vi.fn(async () => true) }));
 
@@ -124,7 +126,7 @@ describe("Tutorial", () => {
   it.each([false, true])("outra pessoa vê o tutorial da Visão geral na mesma aba (dispensado: %s)", async (dispensar) => {
     const user = userEvent.setup();
     const montarVisaoGeral = (email: string) => render(
-      <ProvedorDaConta email={email} preferencias={null}>
+      <ProvedorDaConta email={email} preferencias={{ ...PREFERENCIAS_VAZIAS, boasVindasVista: true }}>
         <div data-tutorial="estado-do-mes">Estado do mês</div>
         <Tutorial tela="visao-geral" atraso={0} />
       </ProvedorDaConta>,
@@ -374,6 +376,37 @@ describe("Tutorial", () => {
     const antes = css.slice(0, css.indexOf("animation: tutorial-mascote-sobe"));
     expect(antes.slice(antes.lastIndexOf("@media"))).toContain("prefers-reduced-motion: no-preference");
     expect(css.match(/animation: tutorial-mascote-sobe/g)).toHaveLength(1);
+  });
+
+  describe("com as boas-vindas pendentes na Visão geral", () => {
+    const tela = (
+      <ProvedorDaConta email={EMAIL} nome="Ana" preferencias={null}>
+        <div data-tutorial="estado-do-mes">Estado do mês</div>
+        <BoasVindas />
+        <Tutorial tela="visao-geral" atraso={0} />
+      </ProvedorDaConta>
+    );
+
+    it("o tutorial não abre sozinho, nem depois de Agora não", async () => {
+      const user = userEvent.setup();
+      render(tela);
+      await screen.findByText("Boas-vindas, Ana");
+      await esperar();
+      expect(document.querySelector(".tutorial")).toBeNull();
+      await user.click(screen.getByRole("button", { name: "Agora não" }));
+      await waitFor(() => expect(screen.queryByText("Boas-vindas, Ana")).not.toBeInTheDocument());
+      await esperar();
+      expect(document.querySelector(".tutorial")).toBeNull();
+    });
+
+    it("Começar abre o tutorial uma vez só", async () => {
+      const user = userEvent.setup();
+      render(tela);
+      await user.click(await screen.findByRole("button", { name: "Começar" }));
+      await waitFor(() => expect(document.querySelectorAll(".tutorial")).toHaveLength(1));
+      await esperar();
+      expect(document.querySelectorAll(".tutorial")).toHaveLength(1);
+    });
   });
 
   it("desmontar com o tutorial aberto tira o destaque", async () => {

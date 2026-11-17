@@ -21,6 +21,8 @@ type ValorDaConta = {
   dispensarTutorial: (tela: TelaDoTutorial) => void;
   roteiroDispensado: boolean;
   dispensarRoteiro: () => void;
+  boasVindasVista: boolean;
+  marcarBoasVindasVista: () => void;
 };
 
 const Contexto = createContext<ValorDaConta | null>(null);
@@ -103,6 +105,10 @@ export function ProvedorDaConta({
         guardar({ ...atuais, tutoriaisDispensados: [...new Set([...atuais.tutoriaisDispensados, tela])] }),
       roteiroDispensado: atuais.roteiroDispensado,
       dispensarRoteiro: () => guardar({ ...atuais, roteiroDispensado: true }),
+      // quem já dispensou algo do primeiro uso não está na primeira entrada: não ganha a janela
+      boasVindasVista:
+        atuais.boasVindasVista === true || atuais.roteiroDispensado || atuais.tutoriaisDispensados.length > 0,
+      marcarBoasVindasVista: () => guardar({ ...atuais, boasVindasVista: true }),
     }),
     [atuais, carregado, guardar],
   );

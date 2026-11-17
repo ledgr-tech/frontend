@@ -27,6 +27,9 @@ import type { SaldoDoExtrato } from "@/lib/adaptadores";
 import { carregarConexoesMcp, type ConexaoMcp } from "../conexoes-mcp/acoes";
 import { SEM_SALDO, data } from "../saldo";
 import { CartaoDeConexao } from "./cartao-de-conexao";
+import { BoasVindas } from "./boas-vindas";
+import { emailDaSessao } from "@/lib/backend";
+import { ehContaDeDemonstracao } from "@/lib/demo";
 
 /**
  * A home do app: onde o mês está, os atalhos para as outras telas (cada um com o
@@ -45,11 +48,12 @@ function plural(quantidade: number, singular: string, plural: string): string {
 }
 
 export default async function VisaoGeralPage() {
-  const [resposta, roteiro, conexoes] = await Promise.all([
+  const [resposta, roteiro, conexoes, email] = await Promise.all([
     carregarVisaoGeral(),
     carregarRoteiro(),
     // 403 para o analista e 404 com a conexão desligada no backend: em ambos, sem o bloco
     carregarConexoesMcp(),
+    emailDaSessao().catch(() => null),
   ]);
   if (!resposta.ok && resposta.status === 401) await redirecionarNoApp("/login");
 
@@ -60,6 +64,7 @@ export default async function VisaoGeralPage() {
 
   return (
     <div>
+      <BoasVindas demonstracao={ehContaDeDemonstracao(email)} />
       <Cabecalho
         titulo="Visão geral"
         contexto={[recente && `competência ${recente.conciliacao.mes.toLowerCase()}`]}
