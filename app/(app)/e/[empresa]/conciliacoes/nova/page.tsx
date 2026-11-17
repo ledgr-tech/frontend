@@ -5,6 +5,7 @@ import Image from "next/image";
 import LinkDoApp from "@/lib/link-do-app";
 import { useSearchParams } from "next/navigation";
 import { useRoteador } from "@/lib/roteador";
+import { TransicaoEntrePaginas } from "../../../../../transicao-de-tela";
 import { useEmpresaAtiva, useEmpresasDaConta } from "@/lib/empresa-ativa";
 import { ArrowRight, Check, Link2, Scale, ShieldCheck } from "lucide-react";
 import { caminhoDaConciliacao } from "@/lib/caminhos";
@@ -574,6 +575,7 @@ function NovaConciliacao() {
               {/* página inteira de propósito: na navegação do cliente, o painel do detalhe da linha
                   (conciliacoes/[id]/@painel/(.)[linha]) intercepta /conciliacoes/nova/ia como a linha "ia"
                   da conciliação "nova" (#260). shortcut: sai quando a importação deixar /conciliacoes/ */}
+              <TransicaoEntrePaginas />
               <a className="btn btn-secondary" href={comEmpresa(empresaAtiva?.id ?? "", "/conciliacoes/nova/ia")}>
                 Importar via IA <ArrowRight aria-hidden="true" />
               </a>

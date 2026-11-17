@@ -23,3 +23,11 @@ export function TransicaoDeTela({ children }: { children: ReactNode }) {
     </ViewTransition>
   );
 }
+
+/**
+ * Transição do navegador entre páginas inteiras (`@view-transition`), para os links que não podem ser
+ * navegação do Next. As duas pontas precisam pedir: renderize na página de onde sai e na que chega.
+ */
+export function TransicaoEntrePaginas() {
+  return <style>{"@view-transition { navigation: auto; }"}</style>;
+}

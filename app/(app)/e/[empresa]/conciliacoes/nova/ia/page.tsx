@@ -1,4 +1,5 @@
 import LinkDoApp from "@/lib/link-do-app";
+import { TransicaoEntrePaginas } from "../../../../../../transicao-de-tela";
 import { Cabecalho } from "../../../cabecalho";
 import { carregarPromptIa } from "./acoes";
 import { ImportarViaIa } from "./importar-via-ia";
@@ -12,6 +13,8 @@ export default async function ImportarViaIaPage() {
   const prompt = await carregarPromptIa();
   return (
     <div className="nova-tela">
+      {/* chega aqui por página inteira (#260): a transição do navegador também precisa ser pedida deste lado */}
+      <TransicaoEntrePaginas />
       <Cabecalho
         titulo="Importar via IA"
         contexto={["relatório de lançamentos"]}
