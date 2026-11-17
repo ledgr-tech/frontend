@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import type { Execucao } from "@/lib/adaptadores";
 import type { LinhaComparacao, StatusLinha } from "@/lib/mock-data";
+import type { Preferencias } from "@/lib/preferencias";
 import type { Resultado, VisaoGeral } from "../conciliacoes/acoes";
 import VisaoGeralPage from "./page";
 import { ProvedorDaConta } from "../conta";
@@ -132,8 +133,8 @@ function com(visao: Partial<VisaoGeral> = {}) {
   carregarVisaoGeral.mockResolvedValue({ ok: true, dados });
 }
 
-async function renderizar() {
-  render(<ProvedorDaConta preferencias={null}>{await VisaoGeralPage()}</ProvedorDaConta>);
+async function renderizar(preferencias: Preferencias | null = null) {
+  render(<ProvedorDaConta preferencias={preferencias}>{await VisaoGeralPage()}</ProvedorDaConta>);
 }
 
 describe("VisaoGeralPage", () => {
@@ -550,10 +551,9 @@ describe("VisaoGeralPage", () => {
   });
 
   it("dispensado com Já sei usar, ficam só os blocos vazios", async () => {
-    window.localStorage.setItem("ledgr:preferencias", JSON.stringify({ tutoriaisDispensados: [], roteiroDispensado: true }));
     carregarRoteiro.mockResolvedValue(CONTA_NOVA);
     com({ execucoes: [], total: 0, recente: null });
-    await renderizar();
+    await renderizar({ tutoriaisDispensados: [], roteiroDispensado: true });
 
     expect(screen.getByRole("heading", { name: "Nenhuma conciliação ainda" })).toBeInTheDocument();
     expect(screen.queryByText(/Primeiros passos d/)).not.toBeInTheDocument();
@@ -597,7 +597,6 @@ describe("VisaoGeralPage", () => {
   });
 
   it("sem a pergunta (dispensada), saldo e aprovação sobem para a coluna ao lado", async () => {
-    window.localStorage.setItem("ledgr:preferencias", JSON.stringify({ tutoriaisDispensados: [], roteiroDispensado: true }));
     carregarRoteiro.mockResolvedValue({ ...CONTA_NOVA, temExtratoDoBanco: true, conciliou: true });
     carregarConexoesMcp.mockResolvedValue({ ok: false, status: 403, erro: "Só o admin ou o gestor" });
     const conciliacao = {
@@ -609,7 +608,7 @@ describe("VisaoGeralPage", () => {
       aguardandoAprovacao: 5,
     };
     com({ recente: { execucao: RECENTE, conciliacao } });
-    await renderizar();
+    await renderizar({ tutoriaisDispensados: [], roteiroDispensado: true });
 
     const lado = document.querySelector(".vg-blocos-lado")!;
     expect(within(lado as HTMLElement).getByRole("region", { name: "Saldo do banco" })).toBeInTheDocument();
