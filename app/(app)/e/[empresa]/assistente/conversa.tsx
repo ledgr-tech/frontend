@@ -268,7 +268,8 @@ export function Conversa({
     const limpa = pergunta.trim();
     if (!limpa || lendo) return;
     const passos = pedePassosParaFechar(limpa) ? FECHAR_O_MES : undefined;
-    const assunto = assuntoDoMes(limpa, contexto?.mes);
+    // sem conciliação não há mês para responder: "diverg" ou "fech" na pergunta repetiam a saudação em vez de ir à Central
+    const assunto = !passos && contexto ? assuntoDoMes(limpa, contexto.mes) : null;
     const inicio = agora();
     acompanhar.current = true;
     acrescentar({ de: "voce", texto: limpa, daCentral: !passos && assunto === null });

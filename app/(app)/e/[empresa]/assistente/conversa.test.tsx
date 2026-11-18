@@ -286,6 +286,32 @@ describe("Conversa", () => {
       expect(perguntarAoAssistente).not.toHaveBeenCalled();
     });
 
+    it.each(["Como justifico uma divergência?", "Posso fechar o mês com pendências?"])(
+      "sem conciliação, %s vai à Central, mesmo citando termos do mês",
+      async (pergunta) => {
+        perguntarAoAssistente.mockResolvedValue(RESPOSTA);
+        const user = userEvent.setup();
+        render(<Conversa contexto={null} onFechar={vi.fn()} />);
+
+        await user.type(screen.getByLabelText("Sua pergunta"), `${pergunta}{Enter}`);
+
+        expect(perguntarAoAssistente).toHaveBeenCalledWith(pergunta, "fechamentos", expect.any(Array));
+      },
+    );
+
+    it.each(["Como ficou o mês?", "Posso fechar o mês?", "O que ficou em aberto?"])(
+      "com conciliação, %s segue no roteiro do mês, sem ir à Central",
+      async (pergunta) => {
+        const user = userEvent.setup();
+        render(<Conversa contexto={CONTEXTO} onFechar={vi.fn()} />);
+
+        await user.type(screen.getByLabelText("Sua pergunta"), `${pergunta}{Enter}`);
+
+        await vi.waitFor(() => expect(atualizarContexto).toHaveBeenCalled());
+        expect(perguntarAoAssistente).not.toHaveBeenCalled();
+      },
+    );
+
     it("sem resposta na Central, oferece a Central inteira", async () => {
       perguntarAoAssistente.mockResolvedValue({
         ok: true,

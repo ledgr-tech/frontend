@@ -133,6 +133,7 @@ export function ImportarViaIa({ prompt }: { prompt: PromptDaIa }) {
             onChange={(e) => {
               // cancelar a janela de escolha não apaga o arquivo que já estava
               const escolhido = e.target.files?.[0];
+              e.target.value = "";
               if (escolhido) escolher(escolhido);
             }}
           />

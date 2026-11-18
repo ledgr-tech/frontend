@@ -1,10 +1,11 @@
 import { beforeEach, describe, it, expect, vi } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ArquivoExtrato } from "../conciliacoes/acoes";
 import { Galeria } from "./galeria";
 import { ProvedorDaConta } from "../conta";
 import type { Papel } from "@/lib/papel";
+import { SEM_SERVIDOR } from "@/lib/sem-servidor";
 
 // conciliar um arquivo já enviado chama a action; aqui ela só responde como o backend
 const conciliar = vi.fn();
@@ -498,6 +499,38 @@ describe("Galeria de extratos", () => {
     it("has nothing to offer on a file already conciliated", () => {
       render(<Galeria arquivos={ARQUIVOS} />);
       expect(painel().queryByRole("button", { name: "Conciliar" })).not.toBeInTheDocument();
+    });
+
+    it("solta o botão e avisa quando a Server Action lança por queda de rede", async () => {
+      const user = userEvent.setup();
+      conciliar.mockRejectedValueOnce(new Error("Failed to fetch")).mockResolvedValueOnce({ ok: true, dados: {} });
+      render(<Galeria arquivos={ARQUIVOS} />);
+      await user.click(cartao("erp-agosto.csv"));
+
+      await user.click(painel().getByRole("button", { name: "Conciliar" }));
+
+      expect(await painel().findByRole("alert")).toHaveTextContent(SEM_SERVIDOR);
+      const botao = painel().getByRole("button", { name: "Conciliar" });
+      expect(botao).toBeEnabled();
+
+      await user.click(botao);
+      expect(conciliar).toHaveBeenCalledTimes(2);
+      expect(push).toHaveBeenCalledWith("/conciliacoes/b-ago?sistema=s-ago");
+    });
+
+    it("trava um segundo clique síncrono antes do próximo render", async () => {
+      const user = userEvent.setup();
+      conciliar.mockReturnValue(new Promise(() => {}));
+      render(<Galeria arquivos={ARQUIVOS} />);
+      await user.click(cartao("erp-agosto.csv"));
+
+      const botao = painel().getByRole("button", { name: "Conciliar" });
+      act(() => {
+        botao.click();
+        botao.click();
+      });
+
+      expect(conciliar).toHaveBeenCalledTimes(1);
     });
   });
 

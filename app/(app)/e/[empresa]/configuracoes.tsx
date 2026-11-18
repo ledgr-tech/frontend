@@ -913,6 +913,7 @@ export function Configuracoes({
                     {item.nome}
                   </h2>
                   <Linhas linhas={item.linhas} />
+                  {item.conteudo}
                 </section>
               ))
             )}

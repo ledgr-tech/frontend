@@ -220,7 +220,7 @@ export function AceitarConvite({ conectadoComo, google }: { conectadoComo: strin
           width={979}
           height={720}
           sizes="128px"
-          priority
+          loading="eager"
           style={{ width: 128, height: "auto", display: "block", marginBottom: "clamp(10px, 2vh, 18px)" }}
         />
         <h1 style={estiloTitulo}>Entrar na {convite?.razaoSocial}</h1>

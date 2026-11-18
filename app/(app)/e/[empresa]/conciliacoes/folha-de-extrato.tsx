@@ -96,6 +96,7 @@ export function FolhaDeExtrato({
         onChange={(event) => {
           // cancelar a janela de escolha não apaga o arquivo que já estava
           const escolhido = event.target.files?.[0];
+          event.target.value = "";
           if (escolhido) onArquivo(escolhido);
         }}
       />

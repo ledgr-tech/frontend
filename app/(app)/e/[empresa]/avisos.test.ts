@@ -101,4 +101,12 @@ describe("avisos lidos", () => {
     window.localStorage.setItem("ledgr_avisos_lidos", "{quebrado");
     expect(idsLidos()).toEqual([]);
   });
+
+  it("separa os avisos lidos por empresa sem apagar os das outras", () => {
+    marcarLidos(["divergencias-e7"], "emp-a");
+    marcarLidos(["divergencias-e8"], "emp-b");
+
+    expect(idsLidos("emp-a")).toEqual(["divergencias-e7"]);
+    expect(idsLidos("emp-b")).toEqual(["divergencias-e8"]);
+  });
 });

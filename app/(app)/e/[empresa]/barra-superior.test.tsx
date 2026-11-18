@@ -5,6 +5,7 @@ import type { Execucao } from "@/lib/adaptadores";
 import type { Resultado, VisaoGeral } from "./conciliacoes/acoes";
 import { BarraSuperior } from "./barra-superior";
 import { ProvedorDaConta } from "./conta";
+import { ProvedorDaEmpresa } from "@/lib/empresa-ativa";
 import type { Assinatura } from "@/lib/assinatura";
 
 const push = vi.fn();
@@ -314,6 +315,47 @@ describe("BarraSuperior", () => {
     unmount();
 
     render(<BarraSuperior />);
+    expect(await screen.findByRole("button", { name: "Avisos 0" })).toBeInTheDocument();
+  });
+
+  it("guarda os avisos lidos de cada empresa sem apagar os das outras", async () => {
+    const A = { id: "emp-a", razaoSocial: "Alfa Ltda", cnpj: "11222333000181" };
+    const B = { id: "emp-b", razaoSocial: "Beta Ltda", cnpj: "11444777000161" };
+    const visaoDe = (idExecucao: string): VisaoGeral => ({
+      ...VISAO,
+      execucoes: [{ ...EXECUCAO, id: idExecucao }],
+      recente: { ...VISAO.recente!, execucao: { ...EXECUCAO, id: idExecucao } },
+    });
+    const user = userEvent.setup();
+
+    carregarVisaoGeral.mockResolvedValueOnce({ ok: true, dados: visaoDe("e-alfa") });
+    const primeira = render(
+      <ProvedorDaEmpresa ativa={A} empresas={[A, B]}>
+        <BarraSuperior />
+      </ProvedorDaEmpresa>,
+    );
+    await user.click(await screen.findByRole("button", { name: "Avisos 1" }));
+    await user.click(screen.getByRole("button", { name: "Marcar como lidos" }));
+    expect(screen.getByRole("button", { name: "Avisos 0" })).toBeInTheDocument();
+    primeira.unmount();
+
+    carregarVisaoGeral.mockResolvedValueOnce({ ok: true, dados: visaoDe("e-beta") });
+    const segunda = render(
+      <ProvedorDaEmpresa ativa={B} empresas={[A, B]}>
+        <BarraSuperior />
+      </ProvedorDaEmpresa>,
+    );
+    await user.click(await screen.findByRole("button", { name: "Avisos 1" }));
+    await user.click(screen.getByRole("button", { name: "Marcar como lidos" }));
+    expect(screen.getByRole("button", { name: "Avisos 0" })).toBeInTheDocument();
+    segunda.unmount();
+
+    carregarVisaoGeral.mockResolvedValueOnce({ ok: true, dados: visaoDe("e-alfa") });
+    render(
+      <ProvedorDaEmpresa ativa={A} empresas={[A, B]}>
+        <BarraSuperior />
+      </ProvedorDaEmpresa>,
+    );
     expect(await screen.findByRole("button", { name: "Avisos 0" })).toBeInTheDocument();
   });
 

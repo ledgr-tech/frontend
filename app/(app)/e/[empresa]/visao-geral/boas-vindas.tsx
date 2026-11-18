@@ -46,7 +46,7 @@ export function BoasVindas({ demonstracao = false }: { demonstracao?: boolean })
           <h2 className="comemoracao-titulo">{primeiroNome ? `Boas-vindas, ${primeiroNome}` : "Boas-vindas ao Ledgr"}</h2>
           <p className="comemoracao-texto">Em poucos passos o seu mês fica conciliado.</p>
         </div>
-        <Image src="/mascotes/mascote-bandeira.webp" alt="" width={1000} height={1000} sizes="132px" className="comemoracao-medalha bv-mascote" priority />
+        <Image src="/mascotes/mascote-bandeira.webp" alt="" width={1000} height={1000} sizes="132px" className="comemoracao-medalha bv-mascote" loading="eager" />
       </div>
       <section className="comemoracao-libera" aria-labelledby="bv-passos">
         <h3 id="bv-passos" className="comemoracao-libera-titulo">

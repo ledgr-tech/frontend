@@ -535,6 +535,22 @@ describe("NovaConciliacaoPage", () => {
       expect(alerta.compareDocumentPosition(encaixe() as Element) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
 
+    it("aceita escolher o mesmo arquivo de novo na folha", async () => {
+      const user = userEvent.setup();
+      render(<NovaConciliacaoPage />);
+      const input = screen.getByLabelText("Extrato do sistema") as HTMLInputElement;
+      const folhaSistema = input.closest("label") as HTMLElement;
+      const mesmo = arquivo("sistema.csv");
+
+      await user.upload(input, mesmo);
+      fireEvent.drop(folhaSistema, { dataTransfer: { files: [arquivo("lancamentos.pdf")] } });
+      expect(screen.getByRole("alert")).toHaveTextContent("O extrato do sistema precisa ser um arquivo CSV.");
+
+      await user.upload(input, mesmo);
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+      expect(input.value).toBe("");
+    });
+
     it("troca as folhas pelo palco enquanto concilia, com a etapa em curso", async () => {
       // a comparação nunca responde: a tela fica parada na última etapa
       conciliar.mockReturnValue(new Promise(() => {}));

@@ -137,7 +137,7 @@ export function CentralDeAjuda({ id, endereco = null }: { id: string; endereco?:
                 height={pagina.capa.altura}
                 alt={`A tela ${pagina.titulo} do Ledgr, com dados de exemplo`}
                 sizes="(max-width: 820px) 100vw, 680px"
-                priority
+                preload
               />
               <span className="ajd-video-selo">
                 <i aria-hidden="true">▶</i>

@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "@/lib/link-do-app";
 import { useRoteador } from "@/lib/roteador";
 import { useEmpresaAtiva } from "@/lib/empresa-ativa";
 import { caminhoDaConciliacao, caminhoDoOriginal } from "@/lib/caminhos";
+import { SEM_SERVIDOR } from "@/lib/sem-servidor";
 import { useCobranca, useGuardaArquivoOriginal, usePodeFechar } from "../conta";
 import { salvar } from "../conciliacoes/[id]/exportar-csv";
 import type { Tom } from "@/lib/mock-data";
@@ -506,21 +507,30 @@ function ConciliarArquivo({ arquivo, arquivos }: { arquivo: ArquivoExtrato; arqu
   // 402: o teste acabou (spec 2026-10-15-primeiro-uso); o motivo vem com o caminho para os planos
   const [semPlano, setSemPlano] = useState(false);
   const cobranca = useCobranca();
+  const emCurso = useRef(false);
 
   if (opcoes.length === 0) {
     return <p className="vg-nota">{`Envie um extrato do ${outroLado} para conciliar este.`}</p>;
   }
 
   async function enviar() {
+    if (emCurso.current) return;
+    emCurso.current = true;
     const banco = arquivo.origem === "banco" ? arquivo.id : escolhido;
     const sistema = arquivo.origem === "banco" ? escolhido : arquivo.id;
     setEnviando(true);
     setErro(null);
-    const resposta = await conciliar(banco, sistema);
+    let resposta: Awaited<ReturnType<typeof conciliar>>;
+    try {
+      resposta = await conciliar(banco, sistema);
+    } catch {
+      resposta = { ok: false, status: 0, erro: SEM_SERVIDOR };
+    }
     if (resposta.ok) {
       router.push(caminhoDaConciliacao(banco, sistema));
       return;
     }
+    emCurso.current = false;
     setEnviando(false);
     if (resposta.status === 401) router.push("/login");
     else setErro(resposta.erro);
