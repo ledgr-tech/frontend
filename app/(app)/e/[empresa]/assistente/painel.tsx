@@ -19,8 +19,8 @@ async function lerContexto(): Promise<Resultado<Contexto | null>> {
 
 /**
  * "Fale com o Ledgr" como no design: um painel que abre ao lado do cartão do
- * menu, não uma tela. Vive no menu, que é do layout, então continua aberto
- * quando um link da conversa leva a outra tela. Lê o mesmo que a visão geral (a
+ * menu, não uma tela. Vive no menu, que é do layout: um link da conversa fecha o
+ * painel, mas a conversa continua montada para quando reabrir. Lê o mesmo que a visão geral (a
  * última conciliação) ao abrir pela primeira vez e antes de responder sobre o mês.
  */
 export function PainelAssistente({ id, aberto = true, onFechar }: { id: string; aberto?: boolean; onFechar: () => void }) {

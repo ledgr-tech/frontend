@@ -4074,6 +4074,13 @@ html:not([data-menu="recolhido"]) .app-assistente-figura {
   text-decoration-color: color-mix(in srgb, var(--color-text) 30%, transparent);
 }
 .asst-link:hover { text-decoration-color: var(--color-text); }
+/* a digitação (TextoDigitado): o texto real fica transparente embaixo; a camada mostra o digitado e o
+   resto (::after) ocupa o lugar, invisível, para as linhas quebrarem igual; os links vêm no fim */
+.asst-digitavel { position: relative; }
+.asst-digitavel[data-digitando] { color: transparent; }
+.asst-digitado { position: absolute; inset: 0; color: var(--color-text); }
+.asst-digitado::after { content: attr(data-resto); color: transparent; }
+.asst-bolha p[data-digitando] ~ .asst-link { visibility: hidden; }
 .asst-digitando { display: flex; align-items: center; gap: 5px; border: 1px solid var(--color-divider); }
 .asst-digitando span {
   width: 5px; height: 5px; border-radius: 50%;

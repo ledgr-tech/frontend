@@ -76,6 +76,37 @@ function Mascote({ tamanho, rosto = false }: { tamanho: number; rosto?: boolean 
   );
 }
 
+/**
+ * A resposta aparece letra a letra, como se o Ledgr digitasse. O texto inteiro entra no parágrafo de uma
+ * vez, transparente: o balão nasce no tamanho final (a rolagem não pula) e a região `log` anuncia a
+ * resposta uma vez só. Por cima, uma camada `aria-hidden` mostra o que já foi digitado e guarda o resto
+ * num `::after` transparente, para quebrar as linhas igual. Respostas longas digitam mais rápido (~2 s).
+ */
+function TextoDigitado({ texto, digitar }: { texto: string; digitar: boolean }) {
+  const [animar] = useState(() => digitar && !window.matchMedia?.("(prefers-reduced-motion: reduce)").matches);
+  const [mostrados, setMostrados] = useState(animar ? 0 : texto.length);
+  const digitando = mostrados < texto.length;
+
+  useEffect(() => {
+    if (!digitando) return;
+    const porVez = Math.max(2, Math.ceil(texto.length / 100));
+    const espera = window.setTimeout(() => setMostrados((atual) => Math.min(texto.length, atual + porVez)), 18);
+    return () => window.clearTimeout(espera);
+  }, [digitando, mostrados, texto.length]);
+
+  if (!animar) return <p>{texto}</p>;
+  return (
+    <p className="asst-digitavel" data-digitando={digitando || undefined}>
+      {texto}
+      {digitando && (
+        <span className="asst-digitado" aria-hidden="true" data-resto={texto.slice(mostrados)}>
+          {texto.slice(0, mostrados)}
+        </span>
+      )}
+    </p>
+  );
+}
+
 /** O topo do painel, no tom do cartão de lançamento: a chamada em ouro, o nome, fechar. */
 export function TopoDoLedgr({ status, onFechar }: { status?: string; onFechar: () => void }) {
   return (
@@ -249,6 +280,7 @@ export function Conversa({
         mostrarResposta({ de: "ledgr", texto: saudacaoSemDados("vazio"), links: [{ href: "/conciliacoes/nova", rotulo: "Nova conciliação" }] }, inicio);
         return;
       }
+      // com o mês recém-lido: outro mês pode ter sido conciliado com o painel aberto
       const resposta = responder(pergunta, atual.dados, assunto);
       if (resposta?.explicar && atual.dados.maior) {
         await explicar(atual.dados.maior);
@@ -331,14 +363,20 @@ export function Conversa({
                   </span>
                 )}
                 {/* texto puro: pode vir de descrição de extrato de terceiro, nunca vira HTML */}
-                <p>{mensagem.texto}</p>
+                <TextoDigitado texto={mensagem.texto} digitar={mensagem.id > 0} />
                 {mensagem.links?.map((link) => (
                   <Link
                     key={link.href}
                     href={link.href}
                     className="asst-link"
-                    // a Central abre em tela cheia; o "Voltar ao Ledgr" de lá traz de volta a esta tela
-                    onClick={link.href.startsWith("/ajuda") ? lembrarDeOndeVeio : undefined}
+                    onClick={(evento) => {
+                      // aberto em outra aba, a pessoa fica nesta tela: o painel continua
+                      if (evento.ctrlKey || evento.metaKey || evento.shiftKey) return;
+                      // a Central abre em tela cheia; o "Voltar ao Ledgr" de lá traz de volta a esta tela
+                      if (link.href.startsWith("/ajuda")) lembrarDeOndeVeio();
+                      // quem segue um link quer ver a tela: a conversa fica guardada para quando reabrir
+                      onFechar();
+                    }}
                   >
                     {link.rotulo}
                   </Link>
