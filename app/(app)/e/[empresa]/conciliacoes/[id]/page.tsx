@@ -29,6 +29,7 @@ import { TelaDeAviso } from "@/app/tela-de-aviso";
 import { filtrarLinhas, ordenarLinhas, type Coluna, type Filtro, type Ordem } from "./ordenar";
 import { continuaDivergindo, decisoesLigadas, seloDaLinha, situacaoDaLinha, tomDaLinha } from "./situacao";
 import { contarGrupos, juntarGrupos, montarLotes } from "./grupos";
+import { parDoOutroLado } from "./par";
 import { decidir, type ResultadoDaDecisao } from "./decidir";
 import { aplicarDensidade, densidadeAtual, type Densidade } from "../../densidade";
 import { IconeOrigem, type Origem } from "../../icone-origem";
@@ -1006,6 +1007,7 @@ export default function ConciliacaoPage() {
             key={linhaAberta.id}
             linha={linhaAberta}
             rodada={rodadaDasLinhas}
+            linhas={conciliacao.linhas}
             podeDecidir={podeDecidir}
             podeAprovar={podeAprovar}
             detalhe={caminhoDaConciliacao(conciliacao.id, conciliacao.extratoSistemaId, linhaAberta.id)}
@@ -1084,6 +1086,7 @@ function EspiaDaLinha({
   onDesfazerAprovacao,
   onFechar,
   onAbrirDetalhe,
+  linhas,
 }: {
   linha: LinhaComparacao;
   /** A rodada das linhas na tela: diz se uma conferência ainda vale. */
@@ -1104,8 +1107,14 @@ function EspiaDaLinha({
   onFechar: () => void;
   /** O duplo clique na descrição: o primeiro clique abriu esta janela, o segundo cai nela. */
   onAbrirDetalhe: () => void;
+  /** As linhas da conciliação: uma divergência de valor ou de data tem o outro lado numa delas. */
+  linhas: LinhaComparacao[];
 }) {
   const dialogo = useRef<HTMLDialogElement>(null);
+  // o mesmo par que o painel lateral mostra (dadosDoLancamento): sem ele, um dos lados ficava "—"
+  const par = parDoOutroLado(linha, linhas);
+  const valorBanco = par?.lado === "banco" ? par.valor : linha.valorBanco;
+  const valorSistema = par?.lado === "sistema" ? par.valor : linha.valorSistema;
   // quando a janela abriu, para reconhecer o segundo clique do duplo clique que a abriu
   const abertaEm = useRef(0);
   // quem estava com o foco antes de a janela abrir, lido uma vez só: o React de
@@ -1205,7 +1214,7 @@ function EspiaDaLinha({
               Extrato do banco
             </div>
             <div className="font-titulo" style={{ fontSize: 24, fontWeight: 600 }}>
-              {linha.valorBanco !== null ? formatarMoeda(linha.valorBanco) : "—"}
+              {valorBanco !== null ? formatarMoeda(valorBanco) : "—"}
             </div>
           </div>
           <div>
@@ -1214,7 +1223,7 @@ function EspiaDaLinha({
               Extrato do sistema
             </div>
             <div className="font-titulo" style={{ fontSize: 24, fontWeight: 600 }}>
-              {linha.valorSistema !== null ? formatarMoeda(linha.valorSistema) : "—"}
+              {valorSistema !== null ? formatarMoeda(valorSistema) : "—"}
             </div>
           </div>
         </div>
@@ -1296,7 +1305,8 @@ function EspiaDaLinha({
         {situacao === "justificada" && linha.decisao && (
           <div className="espia-decisao">
             <strong>{`Justificada por ${linha.decisao.autor} em ${formatarDataHora(linha.decisao.em)}`}</strong>
-            {linha.decisao.aprovadaPor && (
+            {/* a que nasce aprovada (aprovação desligada) também traz aprovada_por: só a aprovada depois diz quem */}
+            {aprovada && linha.decisao.aprovadaPor && (
               <p className="espia-aviso">
                 {`Aprovada por ${linha.decisao.aprovadaPor}${linha.decisao.aprovadaEm ? ` em ${formatarDataHora(linha.decisao.aprovadaEm)}` : ""}`}
               </p>
