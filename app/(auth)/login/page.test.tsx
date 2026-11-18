@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from "vitest";
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import LoginPage from "./page";
@@ -34,6 +34,13 @@ async function preencherEEntrar(email: string, senha: string) {
 }
 
 describe("LoginPage", () => {
+  // o card "Esqueceu a senha?" é carregado sob demanda (next/dynamic); com a suíte inteira rodando,
+  // a primeira compilação dele passava de 1 s e o findByRole desistia antes
+  // 15 s como o testTimeout do vitest.config.ts: sob disputa de CPU esse import já passou de 5 s
+  beforeAll(async () => {
+    await import("./recuperar-senha");
+  }, 15_000);
+
   beforeEach(() => {
     push.mockClear();
     abrirSessao.mockReset();
