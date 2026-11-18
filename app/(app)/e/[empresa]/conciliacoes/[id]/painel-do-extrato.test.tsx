@@ -204,7 +204,8 @@ describe("PainelDoExtrato", () => {
       const dados = { texto: "A folha está incompleta.", geradaPorIa: true, indisponibilidade: null };
       resolver({ ok: true, dados });
       await waitFor(() => expect(onExplicada).toHaveBeenCalledWith(DIVERGENTE, dados));
-      expect(onOcupar).toHaveBeenLastCalledWith(false);
+      // onExplicada vem antes de o painel sair de "Explicando…": o false só chega no efeito da próxima renderização
+      await waitFor(() => expect(onOcupar).toHaveBeenLastCalledWith(false));
     });
 
     it("com os fatos do backend, mostra o texto e os detalhes no lugar do convite, sem pedir a IA", async () => {
@@ -259,7 +260,7 @@ describe("PainelDoExtrato", () => {
       await user.click(screen.getByRole("button", { name: "Justificar" }));
       expect(onJustificar).toHaveBeenCalledWith("Folha lançada em duas partes.");
       await waitFor(() => expect(screen.queryByLabelText("Justificativa")).not.toBeInTheDocument());
-      expect(onOcupar).toHaveBeenLastCalledWith(false);
+      await waitFor(() => expect(onOcupar).toHaveBeenLastCalledWith(false));
     });
 
     it("o motivo de não ter gravado fica no lugar e o texto continua no campo", async () => {
