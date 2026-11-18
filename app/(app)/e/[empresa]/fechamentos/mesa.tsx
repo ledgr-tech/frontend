@@ -11,6 +11,7 @@ import { aprovarPendentes, fecharMes, reabrirMes, rejeitarPendentes, type Result
 import { DecisaoEmLote } from "../conciliacoes/decisao-em-lote";
 import { ExportarCsv } from "../conciliacoes/[id]/exportar-csv";
 import { formatarDataHora, formatarInteiro, formatarPercentual } from "../dashboard/resumo";
+import { paraRevisar } from "../historico/execucoes";
 import { LinkPublico } from "./link-publico";
 import { FaixaFiltros } from "../faixa-filtros";
 import { Grupo, alternarNoConjunto, mostrarPainelDoEscolhido } from "../grupo";
@@ -63,7 +64,7 @@ function taxa(mes: MesDeFechamento): number {
 
 /** As divergências que ainda pedem decisão: as justificadas já foram decididas. */
 function pendentes(mes: MesDeFechamento): number {
-  return mes.divergentes - mes.justificadas;
+  return Math.max(0, mes.divergentes - mes.justificadas);
 }
 
 function seloDoMes(mes: MesDeFechamento, naoLidasIndisponivel: boolean): { rotulo: string; tom: Tom } {
@@ -82,7 +83,7 @@ function seloDoMes(mes: MesDeFechamento, naoLidasIndisponivel: boolean): { rotul
   if (pendentes(mes) === 0) return { rotulo: "Linhas não lidas", tom: "atencao" };
   return {
     rotulo: plural(pendentes(mes), "pendência", "pendências"),
-    tom: mes.pendencias[0].tom === "risco" ? "risco" : "atencao",
+    tom: mes.pendencias[0]?.tom === "risco" ? "risco" : "atencao",
   };
 }
 
@@ -294,9 +295,8 @@ function Painel({ mes, podeFechar, naoLidasIndisponivel }: {
     ...par,
     caminho: caminhoDaConciliacao(par.execucao.extratoBancoId, par.execucao.extratoSistemaId),
   }));
-  // "Revisar" abre a primeira conciliação do mês que ainda tem divergência
-  const comPendencia =
-    conciliadas.find((par) => Object.keys(par.execucao.divergencias).length > 0) ?? conciliadas[0];
+  // "Revisar" abre a primeira conciliação do mês que ainda pede decisão: a já toda justificada, não
+  const comPendencia = conciliadas.find((par) => paraRevisar(par.execucao) > 0) ?? conciliadas[0];
   const ultima = mes.pares[0].execucao.executadaEm;
   const fechado = estaFechado(mes) ? mes.fechamento : null;
 
@@ -465,7 +465,8 @@ function Painel({ mes, podeFechar, naoLidasIndisponivel }: {
               </button>
             )}
           </div>
-          {fechado && podeFechar && <LinkPublico competencia={mes.chave} />}
+          {/* a chave zera o link ao trocar de mês: o endereço com o token só vale para o mês em que foi gerado */}
+          {fechado && podeFechar && <LinkPublico key={mes.chave} competencia={mes.chave} />}
           {conciliadas.map((par) => (
             <div key={par.execucao.id} className="fech-relatorio">
               {conciliadas.length > 1 && <span className="fech-passo-texto">{par.execucao.arquivoBanco}</span>}
@@ -481,7 +482,8 @@ function Painel({ mes, podeFechar, naoLidasIndisponivel }: {
       </ol>
 
       {podeFechar ? (
-        <AcoesDoFechamento mes={mes} revisar={comPendencia.caminho} />
+        // a chave: a ressalva e o erro do 409 são do mês em que aconteceram
+        <AcoesDoFechamento key={mes.chave} mes={mes} revisar={comPendencia.caminho} />
       ) : (
         // sem a lista de fechamentos, o caminho de antes: começar o próximo, revisar ou ver os extratos
         <div className="fech-acoes">
