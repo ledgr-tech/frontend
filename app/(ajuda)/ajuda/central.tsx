@@ -205,6 +205,22 @@ export function CentralDeAjuda({ id, endereco = null }: { id: string; endereco?:
                   />
                 </button>
               )}
+              {funcao.grupos && (
+                <div className="ajd-colunas ajd-grupos">
+                  {funcao.grupos.map((grupo) => (
+                    <div key={grupo.titulo}>
+                      <strong>{grupo.titulo}</strong>
+                      <ul>
+                        {grupo.frases.map((frase) => (
+                          <li key={frase}>
+                            <span>{frase}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              )}
               {funcao.itens && (
                 <div className="ajd-colunas">
                   {funcao.itens.map((item) => (

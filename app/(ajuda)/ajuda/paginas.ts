@@ -1,3 +1,4 @@
+import { perguntasDisponiveis } from "@/lib/perguntas-para-a-ia";
 import type { TelaDoTutorial } from "@/lib/preferencias";
 
 /**
@@ -25,6 +26,8 @@ export type FuncaoDaAjuda = {
   abas?: AbaDoPasso[];
   /** Colunas lado a lado, cada uma com título e texto. */
   itens?: { titulo: string; texto: string }[];
+  /** Listas lado a lado, cada uma com título e frases (as perguntas para a IA, por tema). */
+  grupos?: { titulo: string; frases: string[] }[];
   /** Cada passo "Pergunta: resposta" vira uma sanfona, dividido no primeiro ": ". */
   sanfona?: true;
   /** Um link para outra página da Central, no fim da seção. Fica fora do texto do assistente. */
@@ -908,10 +911,12 @@ export const PAGINAS: PaginaDeAjuda[] = [
       {
         id: "perguntar",
         titulo: "O que perguntar",
-        faz: "Com o Ledgr ligado na conversa, pergunte em português sobre os meses da empresa conectada. Por exemplo: “Como está a conciliação de outubro?”, “Quantas divergências ainda faltam revisar em setembro?”, “Setembro já foi fechado? Teve ressalva?” ou “Compare as divergências de setembro e outubro.”",
+        faz: "Com o Ledgr ligado na conversa, pergunte em português sobre os meses da empresa conectada. Diga sempre o mês e, para achar um lançamento, o dia ou o valor: “lançamentos do banco do dia 12 de outubro sem correspondência” acha mais rápido que “os lançamentos que sobraram”. Depois de conectar, estas mesmas perguntas aparecem em **Configurações** › **Conexões**, para copiar com um clique.",
+        // o mesmo catálogo da tela de Conexões (#429): só as perguntas que as ferramentas de hoje respondem
+        grupos: perguntasDisponiveis().map((grupo) => ({ titulo: grupo.titulo, frases: grupo.perguntas.map((pergunta) => pergunta.texto) })),
         itens: [
           { titulo: "A IA lê", texto: "O resumo de cada mês, as conciliações, as divergências (categoria, data, valor e situação) e os fechamentos." },
-          { titulo: "A IA nunca vê", texto: "A descrição dos lançamentos, o texto das justificativas e das ressalvas e o nome de quem usa o Ledgr. Por isso, “qual é a descrição deste lançamento?” ou “quem justificou?” ficam sem resposta." },
+          { titulo: "A IA nunca vê", texto: "A descrição dos lançamentos, o texto das justificativas e das ressalvas, o nome de quem usa o Ledgr e o nome dos arquivos enviados. Por isso, “qual é a descrição deste lançamento?” ou “quem justificou?” ficam sem resposta." },
         ],
         nota: "As respostas são da IA e podem errar: confira os números no Ledgr antes de decidir.",
       },
