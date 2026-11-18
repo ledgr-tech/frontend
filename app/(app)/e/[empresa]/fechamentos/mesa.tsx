@@ -4,11 +4,12 @@ import { useState, type ReactNode, type CSSProperties } from "react";
 import Image from "next/image";
 import Link from "@/lib/link-do-app";
 import { useRoteador } from "@/lib/roteador";
-import { Circle, CircleCheck, FileDown } from "lucide-react";
+import { ChevronDown, Circle, CircleCheck, FileDown } from "lucide-react";
 import { caminhoDaConciliacao } from "@/lib/caminhos";
 import type { Tom } from "@/lib/mock-data";
 import { aprovarPendentes, fecharMes, reabrirMes, rejeitarPendentes, type Resultado } from "../conciliacoes/acoes";
 import { DecisaoEmLote } from "../conciliacoes/decisao-em-lote";
+import { useAvisoDeRolagem } from "../conciliacoes/aviso-de-rolagem";
 import { ExportarCsv } from "../conciliacoes/[id]/exportar-csv";
 import { formatarDataHora, formatarInteiro, formatarPercentual } from "../dashboard/resumo";
 import { paraRevisar } from "../historico/execucoes";
@@ -299,9 +300,20 @@ function Painel({ mes, podeFechar, naoLidasIndisponivel }: {
   const comPendencia = conciliadas.find((par) => paraRevisar(par.execucao) > 0) ?? conciliadas[0];
   const ultima = mes.pares[0].execucao.executadaEm;
   const fechado = estaFechado(mes) ? mes.fechamento : null;
+  const { caixa, conteudo, medir, descer, acima, abaixo } = useAvisoDeRolagem();
 
   return (
     <section className="extrato-painel fech-painel" aria-label="Mês selecionado" data-tutorial="painel">
+      {/* a partir de 1001px o card cabe na janela e rola por dentro, sem barra: a borda esfuma e o
+          "Mais abaixo" diz que há mais, como no painel da comparação */}
+      <div
+        ref={caixa}
+        className="fech-rolagem"
+        onScroll={medir}
+        data-acima={acima || undefined}
+        data-abaixo={abaixo || undefined}
+      >
+      <div ref={conteudo} className="fech-conteudo">
       <h6 style={{ margin: 0 }}>Fechamento · {fechado ? "fechado" : mes.pronto ? "pronto para fechar" : "em aberto"}</h6>
       <div className="extrato-painel-topo">
         <h3 className="extrato-painel-nome" tabIndex={-1}>{mes.titulo}</h3>
@@ -502,6 +514,19 @@ function Painel({ mes, podeFechar, naoLidasIndisponivel }: {
       <p className="vg-nota" style={{ margin: 0, fontSize: 13 }}>
         {`Última conciliação em ${formatarDataHora(ultima)}.`}
       </p>
+      </div>
+      </div>
+      {/* atalho do ponteiro: o teclado e o leitor de tela já percorrem o card */}
+      <button
+        type="button"
+        className="comp-mais"
+        aria-hidden="true"
+        tabIndex={-1}
+        data-visivel={abaixo || undefined}
+        onClick={descer}
+      >
+        Mais abaixo <ChevronDown size={14} aria-hidden="true" />
+      </button>
     </section>
   );
 }
