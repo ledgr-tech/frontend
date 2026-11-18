@@ -214,7 +214,14 @@ export function PainelDaEquipe({
           <ConvidarPessoa
             papeis={papeisQueConvida(papel)}
             aoConvidar={(convite) => {
-              aplicar((atual) => ({ ...atual, convites: [convite, ...(atual.convites ?? []).filter((c) => c.id !== convite.id)] }));
+              const emailNovo = convite.email.toLowerCase();
+              aplicar((atual) => ({
+                ...atual,
+                convites: [
+                  convite,
+                  ...(atual.convites ?? []).filter((c) => c.id !== convite.id && c.email.toLowerCase() !== emailNovo),
+                ],
+              }));
               router.refresh();
             }}
             aoFechar={aoFecharConvite}

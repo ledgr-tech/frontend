@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from "vitest";
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import LoginPage from "./page";
@@ -15,10 +15,12 @@ vi.mock("next/navigation", () => ({
 const abrirSessao = vi.fn();
 const entrarNaDemonstracao = vi.fn();
 const entrarComGoogle = vi.fn();
+const voltarDaIdaAoGoogle = vi.fn(async (): Promise<string | null> => null);
 vi.mock("../acoes", () => ({
   entrar: (...args: unknown[]) => abrirSessao(...args),
   entrarComGoogle: (...args: unknown[]) => entrarComGoogle(...args),
   entrarNaDemonstracao: (...args: unknown[]) => entrarNaDemonstracao(...args),
+  voltarDaIdaAoGoogle: () => voltarDaIdaAoGoogle(),
 }));
 
 const FALHA_DE_SESSAO = "Não foi possível abrir a sessão. Tente de novo em instantes.";
@@ -32,6 +34,13 @@ async function preencherEEntrar(email: string, senha: string) {
 }
 
 describe("LoginPage", () => {
+  // o card "Esqueceu a senha?" é carregado sob demanda (next/dynamic); com a suíte inteira rodando,
+  // a primeira compilação dele passava de 1 s e o findByRole desistia antes
+  // 15 s como o testTimeout do vitest.config.ts: sob disputa de CPU esse import já passou de 5 s
+  beforeAll(async () => {
+    await import("./recuperar-senha");
+  }, 15_000);
+
   beforeEach(() => {
     push.mockClear();
     abrirSessao.mockReset();
@@ -246,6 +255,36 @@ describe("LoginPage", () => {
     );
     expect(window.location.search).toBe("");
     expect(document.getElementById("login-senha")).toHaveFocus();
+  });
+
+  it("o Cancelar do Google (NextAuth, ?error=) recupera o voltar que esperou no cookie", async () => {
+    vi.stubEnv("NEXT_PUBLIC_LEDGR_GOOGLE", "1");
+    voltarDaIdaAoGoogle.mockResolvedValueOnce("/autorizar-conexao?pedido=Ab_12");
+    window.history.replaceState(null, "", "/login?error=AccessDenied");
+    try {
+      render(<LoginPage />);
+      await waitFor(() => expect(window.location.search).toBe("?voltar=%2Fautorizar-conexao%3Fpedido%3DAb_12"));
+
+      await preencherEEntrar("financeiro@telhacerta.com.br", "ledgr2026");
+      await waitFor(() => expect(push).toHaveBeenCalledWith("/autorizar-conexao?pedido=Ab_12"));
+    } finally {
+      window.history.replaceState(null, "", "/");
+    }
+  });
+
+  it("apaga o motivo do Google mas guarda o voltar da conexão: entrar com a senha ainda volta ao pedido", async () => {
+    vi.stubEnv("NEXT_PUBLIC_LEDGR_GOOGLE", "1");
+    window.history.replaceState(null, "", "/login?google=email_com_senha&voltar=%2Fautorizar-conexao%3Fpedido%3DAb_12");
+    try {
+      render(<LoginPage />);
+      await screen.findByRole("alert");
+      expect(window.location.search).toBe("?voltar=%2Fautorizar-conexao%3Fpedido%3DAb_12");
+
+      await preencherEEntrar("financeiro@telhacerta.com.br", "ledgr2026");
+      await waitFor(() => expect(push).toHaveBeenCalledWith("/autorizar-conexao?pedido=Ab_12"));
+    } finally {
+      window.history.replaceState(null, "", "/");
+    }
   });
 
   // a pessoa cancelou no Google, ou o NextAuth recusou a volta: ele manda ?error=

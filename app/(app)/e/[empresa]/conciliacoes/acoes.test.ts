@@ -50,6 +50,13 @@ vi.mock("../../../../(auth)/acoes", () => ({
   }),
 }));
 
+// a empresa da aba, que o proxy deixa no pedido; fora de uma requisição é null
+const rotas = vi.hoisted(() => ({ empresa: null as string | null }));
+vi.mock("@/lib/rotas-servidor", async (original) => ({
+  ...(await original<typeof import("@/lib/rotas-servidor")>()),
+  empresaDaRequisicao: async () => rotas.empresa,
+}));
+
 const BANCO_RECENTE = "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20";
 const BANCO_ANTERIOR = "9b8a7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d";
 const SISTEMA = "7a2b9c4d-1e3f-4a5b-8c6d-9e0f1a2b3c4d";
@@ -664,7 +671,7 @@ describe("carregarVisaoGeral", () => {
     expect(chamarBackend.mock.calls.map(([caminho]) => String(caminho).split("?")[0]).sort()).toEqual(["/execucoes", "/fechamentos"]);
   });
 
-  it("abre as linhas da mais recente e a situação só dos dois arquivos dela", async () => {
+  it("abre as linhas da mais recente e a situação dos arquivos de todos os pares do mês", async () => {
     backendComVisao(
       [
         execucao("e-3", BANCO_RECENTE),
@@ -673,6 +680,7 @@ describe("carregarVisaoGeral", () => {
       ],
       {
         [BANCO_RECENTE]: situacao(BANCO_RECENTE),
+        [BANCO_ANTERIOR]: situacao(BANCO_ANTERIOR, [{ identificador: "linha 3", motivo: "data ilegível" }]),
         [SISTEMA]: situacao(SISTEMA, [
           { identificador: "linha 14", motivo: "valor ilegível" },
           { identificador: "linha 15", motivo: "data ilegível" },
@@ -690,11 +698,13 @@ describe("carregarVisaoGeral", () => {
     expect(chamarBackend).toHaveBeenCalledWith(
       `/conciliacoes/${BANCO_RECENTE}?limit=1000&offset=0&extrato_sistema_id=${SISTEMA}`,
     );
+    // o outro banco do mês também segura o fechamento: as linhas não lidas dele contam
     expect(resultado.dados.arquivosComLinhasNaoLidas).toEqual([
       { nome: "e-3-sistema.csv", linhas: 2 },
+      { nome: "e-1-banco.ofx", linhas: 1 },
     ]);
-    // os arquivos das rodadas antigas não entram: a visão geral fala do mês corrente
-    expect(chamarBackend).not.toHaveBeenCalledWith(`/extratos/${BANCO_ANTERIOR}`);
+    // o arquivo pedido uma vez só, mesmo sendo de dois pares
+    expect(chamarBackend.mock.calls.filter(([caminho]) => caminho === `/extratos/${SISTEMA}`)).toHaveLength(1);
   });
 
   it("segue sem o aviso do arquivo quando o detalhe dele não carrega", async () => {
@@ -1700,6 +1710,28 @@ describe("carregarRelatorioDoFechamento", () => {
     expect(chamarBackend.mock.calls.map(([caminho]) => caminho)).toContainEqual(
       expect.stringMatching(new RegExp(`^/conciliacoes/${BANCO_RECENTE}\\?.*extrato_sistema_id=${SISTEMA}`)),
     );
+  });
+
+  it("timbra com a empresa da URL, não com o escritório da raiz do /me", async () => {
+    rotas.empresa = "c1a2b3c4-0000-4000-8000-000000000001";
+    chamarBackend.mockImplementation(async (caminho: string) => {
+      if (caminho === "/fechamentos?competencia=2026-09") return { itens: [fechamento("2026-09", { resumo: RESUMO })] };
+      if (caminho === "/me") {
+        return {
+          ...EU,
+          empresas: [
+            { id: "c1a2b3c4-0000-4000-8000-000000000002", razao_social: "Outra Cliente", cnpj: "11111111000111" },
+            { id: rotas.empresa, razao_social: "Padaria Pão Quente", cnpj: "22222222000122" },
+          ],
+        };
+      }
+      return { extrato_id: BANCO_RECENTE, total: 0, limit: 500, offset: 0, itens: [] };
+    });
+
+    const resultado = await carregarRelatorioDoFechamento("2026-09");
+
+    rotas.empresa = null;
+    expect(resultado).toMatchObject({ ok: true, dados: { empresa: { razaoSocial: "Padaria Pão Quente", cnpj: "22222222000122" } } });
   });
 
   it("mês reaberto não tem relatório: o último registro é o que vale", async () => {

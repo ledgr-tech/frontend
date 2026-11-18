@@ -66,10 +66,17 @@ export function avisosDoMes(visao: VisaoGeral): Aviso[] {
 
 const LIDOS = "ledgr_avisos_lidos";
 
-/** Os ids já lidos neste navegador. Guardado vazio, estragado ou sem acesso: nenhum. */
-export function idsLidos(): string[] {
+function chaveLidos(empresaId?: string | null): string {
+  return empresaId ? `${LIDOS}:${empresaId}` : LIDOS;
+}
+
+/** Os ids já lidos neste navegador para a empresa. Guardado vazio, estragado ou sem acesso: nenhum. */
+export function idsLidos(empresaId?: string | null): string[] {
   try {
-    const guardado: unknown = JSON.parse(window.localStorage.getItem(LIDOS) ?? "[]");
+    const proprio = window.localStorage.getItem(chaveLidos(empresaId));
+    // antes de separar por empresa, tudo ficava na chave sem empresa: ela vale até a empresa gravar a sua.
+    // Ler a lista inteira é seguro, porque o id de cada aviso leva o id da conciliação, que é de uma empresa só
+    const guardado: unknown = JSON.parse(proprio ?? (empresaId ? window.localStorage.getItem(LIDOS) : null) ?? "[]");
     return Array.isArray(guardado) ? guardado.filter((id): id is string => typeof id === "string") : [];
   } catch {
     return [];
@@ -77,12 +84,12 @@ export function idsLidos(): string[] {
 }
 
 /**
- * Guarda só os avisos que existem agora: o id de uma conciliação refeita não
- * volta, então a lista não cresce para sempre.
+ * Guarda só os avisos que existem agora na empresa: o id de uma conciliação refeita não
+ * volta, então a lista não cresce para sempre, e os lidos das outras empresas ficam intactos.
  */
-export function marcarLidos(ids: string[]): void {
+export function marcarLidos(ids: string[], empresaId?: string | null): void {
   try {
-    window.localStorage.setItem(LIDOS, JSON.stringify(ids));
+    window.localStorage.setItem(chaveLidos(empresaId), JSON.stringify(ids));
   } catch {
     // aba anônima ou armazenamento bloqueado: o aviso só volta a contar como novo
   }

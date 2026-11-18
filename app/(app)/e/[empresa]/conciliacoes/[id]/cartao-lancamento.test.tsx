@@ -173,6 +173,21 @@ describe("dadosDoLancamento", () => {
     expect(dados.nota?.texto).toBe("Juros de dois dias.");
   });
 
+  it("a divergência de um lado só (o backend real) mostra a descrição do lançamento do sistema que está no par", () => {
+    const doBanco: LinhaComparacao = { ...LINHA, id: "b", descricao: "PAGTO BOLETO 1082", dataISO: "2026-09-04", valorSistema: null };
+    const doSistema: LinhaComparacao = {
+      ...LINHA,
+      id: "s",
+      descricao: "Fornecedor Alfa NF 99",
+      dataISO: "2026-09-04",
+      valorBanco: null,
+      camposSistema: [{ rotulo: "Data do lançamento", valor: "04/09/2026" }],
+    };
+    const dados = dadosDoLancamento(doBanco, 1, [doBanco, doSistema]);
+    expect(dados.sistema?.valor).toMatch(/12\.604,00$/);
+    expect(dados.descricaoSistema).toBe("Fornecedor Alfa NF 99");
+  });
+
   it("marca a explicação que veio da IA", () => {
     expect(dadosDoLancamento({ ...LINHA, explicacaoPorIa: true }, 1, [LINHA]).geradaPorIa).toBe(true);
   });

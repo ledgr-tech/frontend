@@ -199,6 +199,18 @@ describe("login pelo Google (backend #73)", () => {
     expect(cookiesGravados).not.toHaveBeenCalled();
   });
 
+  it("a recusa volta ao login com o consentimento da conexão que levou ao Google, e só com ele", async () => {
+    respostaDoBackend(409, { detail: "Já existe uma conta com este e-mail. Entre com e-mail e senha." });
+    cookiesExistentes.set("ledgr-voltar-google", "/autorizar-conexao?pedido=Ab_12");
+    expect(await aoVoltarDoGoogle({ contaId: "" }, "t")).toBe(
+      "/login?google=email_com_senha&voltar=%2Fautorizar-conexao%3Fpedido%3DAb_12",
+    );
+    expect(cookiesApagados).toHaveBeenCalledWith("ledgr-voltar-google");
+
+    cookiesExistentes.set("ledgr-voltar-google", "https://outro.site");
+    expect(await aoVoltarDoGoogle({ contaId: "" }, "t")).toBe("/login?google=email_com_senha");
+  });
+
   it("depois do cadastro, abre a sessão com o id_token do cookie e o apaga", async () => {
     cookiesExistentes.set("ledgr-cadastro-google", "id-token-do-google");
     respostaDoBackend(200, USUARIO);

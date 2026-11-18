@@ -487,6 +487,21 @@ describe("Configuracoes", () => {
     expect(screen.getByText("painel das conexões")).toBeInTheDocument();
   });
 
+  it("mostra o conteúdo de API e de Conexões também nos resultados da busca", async () => {
+    carregarConexoesMcp.mockResolvedValue({ ok: true, dados: { itens: [], endereco: "https://api.ledgr.test/mcp" } });
+    const user = userEvent.setup();
+    abrir({ papel: "admin" });
+    await screen.findByRole("button", { name: "Conexões" });
+
+    const busca = screen.getByRole("searchbox", { name: "Procurar nas configurações" });
+    await user.type(busca, "chaves");
+    expect(screen.getByText("painel das chaves")).toBeInTheDocument();
+
+    await user.clear(busca);
+    await user.type(busca, "chatgpt");
+    expect(screen.getByText("painel das conexões")).toBeInTheDocument();
+  });
+
   it("com a conexão desligada (404), não há seção Conexões", async () => {
     abrir({ papel: "admin" });
 

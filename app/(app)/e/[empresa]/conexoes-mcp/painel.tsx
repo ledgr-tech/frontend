@@ -7,6 +7,8 @@ import { MensagemErro } from "../../../../(auth)/_compartilhado/mensagem-erro";
 import { formatarDataHora } from "../dashboard/resumo";
 import { revogarConexaoMcp, type ConexaoMcp } from "./acoes";
 import { SEM_SERVIDOR } from "@/lib/sem-servidor";
+import { PERGUNTAS } from "@/lib/perguntas-para-a-ia";
+import { PerguntasSugeridas } from "./perguntas-sugeridas";
 
 type Assistente = IaDaConexao;
 
@@ -32,13 +34,8 @@ const PASSOS: Record<Assistente, ReactNode[]> = {
 const NOME = NOME_DA_IA;
 const DOCUMENTACAO = DOCUMENTACAO_DA_IA;
 
-// as perguntas que as ferramentas do backend (#136) respondem: resumo, divergências e fechamentos de um mês
-const EXEMPLOS = [
-  "Como está a conciliação de outubro?",
-  "Quantas divergências ainda faltam revisar em setembro?",
-  "Setembro já foi fechado? Teve ressalva?",
-  "Compare as divergências de setembro e outubro.",
-];
+// quatro perguntas do catálogo (#429), que as ferramentas de hoje respondem; a lista inteira vem com a conexão ativa
+const EXEMPLOS = ["1", "8", "16", "4"].map((id) => PERGUNTAS.find((pergunta) => pergunta.id === id)!.texto);
 
 /**
  * Configurações › Conexões (front #195): ensina o que a conexão faz e como ligar no ChatGPT e no Claude, com o
@@ -167,6 +164,8 @@ export function PainelDeConexoes({ itens: iniciais, endereco }: { itens: Conexao
           .
         </p>
       </section>
+
+      {itens.some((conexao) => !conexao.revogadaEm) && <PerguntasSugeridas />}
 
       <section className="conexao-parte" aria-labelledby="conexao-suas">
         <h4 id="conexao-suas" className="conexao-parte-titulo">Suas conexões</h4>

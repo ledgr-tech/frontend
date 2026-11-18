@@ -108,7 +108,7 @@ export function EscolherPlano() {
       </div>
 
       <section className="plano-resposta" aria-live="polite" aria-labelledby="plano-indicado">
-        <Image src="/mascotes/mascote-joinha.png" alt="" width={1073} height={1173} sizes="104px" className="plano-mascote" priority />
+        <Image src="/mascotes/mascote-joinha.png" alt="" width={1073} height={1173} sizes="104px" className="plano-mascote" loading="eager" />
         <p className="eyebrow plano-rotulo">{plano ? "O plano para o seu volume" : "Mais de 350 por mês"}</p>
         {/* a key reinicia a entrada a cada plano indicado; o resto do cartão fica parado */}
         <div ref={caixa} className="plano-corpo">

@@ -38,9 +38,10 @@ export function conteudoDaAjuda(paginas: PaginaDeAjuda[]): ConteudoDaAjuda {
   return { versao, paginas: texto };
 }
 
-/** As colunas, os passos e as abas viram passos de texto: o formato que o backend valida não muda. O `link` fica de fora. */
+/** Os grupos, as colunas, os passos e as abas viram passos de texto: o formato que o backend valida não muda. O `link` fica de fora. */
 function passosEmTexto(funcao: FuncaoDaAjuda): string[] {
   return [
+    ...(funcao.grupos ?? []).map((grupo) => `${grupo.titulo}: ${grupo.frases.join(" ")}`),
     ...(funcao.itens ?? []).map((item) => `${item.titulo}: ${item.texto}`),
     ...(funcao.passos ?? []),
     ...(funcao.abas ?? []).flatMap((aba) =>

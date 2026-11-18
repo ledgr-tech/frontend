@@ -217,6 +217,21 @@ describe("a equipe", () => {
     expect(titulos.filter((t) => t === "dani@x.com" || t === "caio@x.com")).toEqual(["dani@x.com", "caio@x.com"]);
   });
 
+  it("reenviar para o mesmo e-mail, mesmo mudando maiúsculas, substitui o convite antigo", async () => {
+    const user = userEvent.setup();
+    convidar.mockResolvedValue({ ok: true, dados: { id: "c9", email: "CAIO@x.com", papel: "gestor", enviadoEm: "17/10/2026", valeAte: "24/10/2026" } });
+    montar();
+
+    await user.type(await screen.findByLabelText("E-mail da pessoa"), "CAIO@x.com");
+    await user.click(screen.getByRole("button", { name: "Enviar convite" }));
+
+    await screen.findByRole("status");
+    const pendentes = screen.getByRole("table", { name: "Convites pendentes" });
+    expect(within(pendentes).getAllByRole("row")).toHaveLength(2);
+    expect(screen.getByText("1 convite")).toBeInTheDocument();
+    expect(within(pendentes).getByText(/vale até 24\/10\/2026/)).toBeInTheDocument();
+  });
+
   it("mostra o erro do convite e mantém o e-mail digitado", async () => {
     const user = userEvent.setup();
     convidar.mockResolvedValue({ ok: false, status: 409, erro: "Este e-mail já tem conta no Ledgr." });

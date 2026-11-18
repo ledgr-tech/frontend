@@ -1478,6 +1478,8 @@ describe("ConciliacaoPage", () => {
           expect(within(janela).getByRole("button", { name: "Desfazer justificativa" })).toBeInTheDocument();
           expect(within(janela).queryByRole("button", { name: /Desfazer aprovação/ })).not.toBeInTheDocument();
           expect(janela).not.toHaveTextContent("precisa desfazer a aprovação");
+          // ninguém aprovou: com a aprovação desligada, a janela não diz "Aprovada por" (o painel lateral também não)
+          expect(janela).not.toHaveTextContent("Aprovada por");
         });
       });
 

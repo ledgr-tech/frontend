@@ -9,7 +9,7 @@ export function MascoteDoRelogio() {
       width={1254}
       height={1254}
       sizes="104px"
-      priority
+      loading="eager"
       style={{ width: 104, height: "auto", display: "block", marginBottom: "clamp(10px, 2vh, 18px)" }}
     />
   );

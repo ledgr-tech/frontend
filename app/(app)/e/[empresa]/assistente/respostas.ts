@@ -119,7 +119,44 @@ export function assuntoDoMes(pergunta: string, mes?: string) {
   // No começo da palavra: "previsão" não é pergunta sobre revisão.
   if (/\b(sobr|abert|diverg|pendenc|revis)/.test(texto)) return "pendencias";
   if (/\b(resum|como esta|mes\b)/.test(texto) || (mes && texto.includes(mes))) return "resumo";
+  // "e agosto?": só o nome de um mês também é pergunta sobre os números, quando há um mês para conferir
+  if (mes && perguntaSoDoMes(pergunta)) return "resumo";
   return null;
+}
+
+const MESES = ["janeiro", "fevereiro", "marco", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+
+function mesCitado(pergunta: string): string | undefined {
+  // "o Marco", "do Marco": com artigo é gente, não o mês, que vem sem ("em março", "e março?").
+  // ponytail: sem artigo ("Marco pode fechar?") ainda vira março; conferir os nomes da equipe resolveria
+  const texto = normalizar(pergunta).replace(/\b(?:o|do|ao|pelo|pro)\s+marco\b/g, " ");
+  return MESES.find((mes) => new RegExp(`\\b${mes}\\b`).test(texto));
+}
+
+/**
+ * "setembro", "e agosto?": o nome de um mês com no máximo duas palavras em volta. Uma pergunta de uso
+ * que cita um mês ("como envio o extrato de agosto?") ou uma pessoa ("convidar o Marco", "e o Marco?")
+ * vai à Central.
+ */
+export function perguntaSoDoMes(pergunta: string): boolean {
+  const citado = mesCitado(pergunta);
+  if (!citado) return false;
+  const resto = normalizar(pergunta).replace(new RegExp(`\\b${citado}\\b`), " ").match(/[a-z0-9]+/g) ?? [];
+  return resto.length <= 2;
+}
+
+/**
+ * A pergunta sobre os números cita um mês que não é o da conciliação lida: o roteiro só tem a mais
+ * recente, então diz isso e aponta onde procurar, em vez de responder sobre o mês errado.
+ */
+function respostaDeOutroMes(pergunta: string, contexto: Contexto): Resposta | null {
+  const citado = mesCitado(pergunta);
+  if (!citado || citado === normalizar(contexto.mes)) return null;
+  const nome = citado === "marco" ? "março" : citado;
+  return {
+    texto: `Por enquanto eu leio só a conciliação mais recente, a de ${contexto.mes}. Se ${nome} foi conciliado, ele está no Histórico.`,
+    link: { href: "/historico", rotulo: "Abrir o Histórico" },
+  };
 }
 
 /** A primeira mensagem, como a do design: o mês em uma frase. */
@@ -141,8 +178,14 @@ export function sugestoes(contexto: Contexto): string[] {
   ].filter((item): item is string => item !== null);
 }
 
-/** A resposta do roteiro sobre o mês, ou null quando a pergunta não é dele (vai ao assistente da Central). */
+/**
+ * A resposta do roteiro sobre o mês, ou null quando a pergunta não é dele (vai ao assistente da Central).
+ * Sobre um mês que não é o do contexto, diz que só lê a conciliação mais recente.
+ */
 export function responder(pergunta: string, contexto: Contexto, assunto = assuntoDoMes(pergunta, contexto.mes)): Resposta | null {
+  if (assunto === null) return null;
+  const outroMes = respostaDeOutroMes(pergunta, contexto);
+  if (outroMes) return outroMes;
   const { Mes, mes } = contexto;
 
   if (assunto === "explicar") {

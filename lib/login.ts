@@ -2,7 +2,8 @@ import "server-only";
 import { cookies } from "next/headers";
 import { CredentialsSignin, type User } from "next-auth";
 import { ErroBackend, chamarBackend, ehContaInativa } from "./backend";
-import { COOKIE_CADASTRO_GOOGLE, COOKIE_CONVITE_GOOGLE, type ErroConviteGoogle, VALIDADE_ID_TOKEN_SEGUNDOS, type ErroGoogle } from "./google";
+import { COOKIE_CADASTRO_GOOGLE, COOKIE_CONVITE_GOOGLE, COOKIE_VOLTAR_GOOGLE, type ErroConviteGoogle, VALIDADE_ID_TOKEN_SEGUNDOS, type ErroGoogle } from "./google";
+import { destinoDepoisDoLogin } from "./rotas";
 
 /**
  * A conferência da senha, que é do backend (`POST /login`, issue #57 dele).
@@ -140,15 +141,23 @@ async function aceitarConviteNaVolta(usuario: User, token: string, idToken: stri
  * motivo, nunca para a página de erro do NextAuth.
  */
 export async function aoVoltarDoGoogle(usuario: User, idToken: string | undefined): Promise<true | string> {
-  const convite = (await cookies()).get(COOKIE_CONVITE_GOOGLE)?.value;
+  const pote = await cookies();
+  const convite = pote.get(COOKIE_CONVITE_GOOGLE)?.value;
   if (convite) return aceitarConviteNaVolta(usuario, convite, idToken);
-  if (!idToken) return "/login?google=falha";
+  // o consentimento de uma conexão que levou ao Google: a recusa volta ao login com ele
+  const voltar = pote.get(COOKIE_VOLTAR_GOOGLE)?.value;
+  pote.delete(COOKIE_VOLTAR_GOOGLE);
+  const aoLogin = (motivo: string) =>
+    voltar && destinoDepoisDoLogin(voltar) === voltar
+      ? `/login?google=${motivo}&voltar=${encodeURIComponent(voltar)}`
+      : `/login?google=${motivo}`;
+  if (!idToken) return aoLogin("falha");
   const resultado = await entrarNoBackendComGoogle(idToken);
   if (resultado.ok) {
     Object.assign(usuario, resultado.usuario);
     return true;
   }
-  if (resultado.erro !== "sem_conta") return `/login?google=${resultado.erro}`;
+  if (resultado.erro !== "sem_conta") return aoLogin(resultado.erro);
   (await cookies()).set(COOKIE_CADASTRO_GOOGLE, idToken, {
     httpOnly: true,
     sameSite: "lax",

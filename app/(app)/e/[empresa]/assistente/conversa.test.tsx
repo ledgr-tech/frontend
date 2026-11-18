@@ -87,6 +87,58 @@ describe("Conversa", () => {
     expect(onFechar).toHaveBeenCalledOnce();
   });
 
+  it("fecha o painel ao seguir um link da conversa, e digita a resposta antes de mostrar o link", async () => {
+    vi.useFakeTimers();
+    try {
+      const onFechar = vi.fn();
+      render(<Conversa contexto={CONTEXTO} onFechar={onFechar} />);
+      fireEvent.click(screen.getByRole("button", { name: "O que falta para fechar?" }));
+      await act(async () => {});
+      act(() => vi.advanceTimersByTime(430));
+
+      // no meio da digitação o texto inteiro já está lá (para o leitor de tela), o resto transparente
+      expect(conversa()).toHaveTextContent("Faltam 42 decisões suas.");
+      expect(conversa().querySelector("p[data-digitando] .asst-digitado[aria-hidden='true']")).not.toBeNull();
+      for (let i = 0; i < 200; i++) act(() => vi.advanceTimersByTime(20));
+      expect(conversa().querySelector("[data-digitando]")).toBeNull();
+
+      fireEvent.click(within(conversa()).getByRole("link", { name: "Revisar" }));
+      expect(onFechar).toHaveBeenCalledOnce();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("diz que só lê o mês mais recente quando a pergunta cita outro", async () => {
+    const user = userEvent.setup();
+    render(<Conversa contexto={CONTEXTO} onFechar={vi.fn()} />);
+    await user.type(screen.getByRole("textbox", { name: "Sua pergunta" }), "e agosto?{Enter}");
+
+    expect(await within(conversa()).findByRole("link", { name: "Abrir o Histórico" })).toHaveAttribute("href", "/historico");
+    expect(conversa()).toHaveTextContent("Por enquanto eu leio só a conciliação mais recente, a de setembro.");
+    expect(perguntarAoAssistente).not.toHaveBeenCalled();
+  });
+
+  it("compara o mês citado com o mês recém-lido, não com o da abertura", async () => {
+    atualizarContexto.mockResolvedValue({ ok: true, dados: { ...CONTEXTO, mes: "outubro", Mes: "Outubro" } });
+    const user = userEvent.setup();
+    render(<Conversa contexto={CONTEXTO} onFechar={vi.fn()} />);
+    await user.type(screen.getByRole("textbox", { name: "Sua pergunta" }), "e outubro?{Enter}");
+
+    expect(await within(conversa()).findByRole("link", { name: "Abrir a conciliação" })).toBeInTheDocument();
+    expect(conversa()).toHaveTextContent("Outubro: 140 lançamentos.");
+  });
+
+  it("manda à Central a pergunta de uso que só cita um mês", async () => {
+    perguntarAoAssistente.mockResolvedValue({ ok: true, dados: { resposta: "Em Extratos.", respondida: true, links: [] } });
+    const user = userEvent.setup();
+    render(<Conversa contexto={CONTEXTO} onFechar={vi.fn()} />);
+    await user.type(screen.getByRole("textbox", { name: "Sua pergunta" }), "Como envio o extrato de agosto?{Enter}");
+
+    expect(await within(conversa()).findByText("Em Extratos.")).toBeInTheDocument();
+    expect(perguntarAoAssistente).toHaveBeenCalledOnce();
+  });
+
   it("mostra a pergunta e a espera antes de publicar a resposta local", async () => {
     vi.useFakeTimers();
     try {
@@ -285,6 +337,32 @@ describe("Conversa", () => {
       expect(await within(conversa()).findByText(/^Os R\$.*em aberto/)).toBeInTheDocument();
       expect(perguntarAoAssistente).not.toHaveBeenCalled();
     });
+
+    it.each(["Como justifico uma divergência?", "Posso fechar o mês com pendências?"])(
+      "sem conciliação, %s vai à Central, mesmo citando termos do mês",
+      async (pergunta) => {
+        perguntarAoAssistente.mockResolvedValue(RESPOSTA);
+        const user = userEvent.setup();
+        render(<Conversa contexto={null} onFechar={vi.fn()} />);
+
+        await user.type(screen.getByLabelText("Sua pergunta"), `${pergunta}{Enter}`);
+
+        expect(perguntarAoAssistente).toHaveBeenCalledWith(pergunta, "fechamentos", expect.any(Array));
+      },
+    );
+
+    it.each(["Como ficou o mês?", "Posso fechar o mês?", "O que ficou em aberto?"])(
+      "com conciliação, %s segue no roteiro do mês, sem ir à Central",
+      async (pergunta) => {
+        const user = userEvent.setup();
+        render(<Conversa contexto={CONTEXTO} onFechar={vi.fn()} />);
+
+        await user.type(screen.getByLabelText("Sua pergunta"), `${pergunta}{Enter}`);
+
+        await vi.waitFor(() => expect(atualizarContexto).toHaveBeenCalled());
+        expect(perguntarAoAssistente).not.toHaveBeenCalled();
+      },
+    );
 
     it("sem resposta na Central, oferece a Central inteira", async () => {
       perguntarAoAssistente.mockResolvedValue({

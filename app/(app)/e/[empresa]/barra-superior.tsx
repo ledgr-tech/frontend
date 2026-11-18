@@ -8,6 +8,7 @@ import { SeletorDeEmpresa } from "./seletor-de-empresa";
 import { MenuDeAjuda } from "./ajuda/menu-de-ajuda";
 import { diasRestantes, fraseCurtaDoTeste, fraseDoTeste } from "@/lib/assinatura";
 import { useAssinatura } from "./conta";
+import { useEmpresaAtiva } from "@/lib/empresa-ativa";
 import { useTeclaDeAtalho } from "@/lib/plataforma";
 import { usePresenca } from "@/lib/troca-suave";
 import { formatarMoeda, type LinhaComparacao } from "@/lib/mock-data";
@@ -35,6 +36,7 @@ type Leitura = { situacao: "lendo" } | { situacao: "falhou" } | { situacao: "pro
 // O tema e a conta (nome, empresa e Sair) moram no rodapé do menu lateral.
 export function BarraSuperior({ contaInativa = false }: { contaInativa?: boolean }) {
   const assinatura = useAssinatura();
+  const empresaId = useEmpresaAtiva()?.id;
   const diasDeTeste =
     assinatura?.situacao === "teste" && assinatura.testeTerminaEm ? diasRestantes(assinatura.testeTerminaEm, new Date()) : null;
   const [termo, setTermo] = useState("");
@@ -61,14 +63,14 @@ export function BarraSuperior({ contaInativa = false }: { contaInativa?: boolean
     carregarVisaoGeral()
       .then((resposta) => {
         if (!vivo) return;
-        setLidos(idsLidos());
+        setLidos(idsLidos(empresaId));
         setLeitura(resposta.ok ? { situacao: "pronta", visao: resposta.dados } : { situacao: "falhou" });
       })
       .catch(() => vivo && setLeitura({ situacao: "falhou" }));
     return () => {
       vivo = false;
     };
-  }, []);
+  }, [empresaId]);
 
   const visao = leitura.situacao === "pronta" ? leitura.visao : null;
   const avisos = useMemo(() => (visao ? avisosDoMes(visao) : []), [visao]);
@@ -119,7 +121,7 @@ export function BarraSuperior({ contaInativa = false }: { contaInativa?: boolean
 
   function lerTodos() {
     const ids = avisos.map((aviso) => aviso.id);
-    marcarLidos(ids);
+    marcarLidos(ids, empresaId);
     setLidos(ids);
   }
 

@@ -1,8 +1,15 @@
-import type { LinhaComparacao } from "@/lib/mock-data";
+import type { CampoLancamento, LinhaComparacao } from "@/lib/mock-data";
 import { estaResolvida } from "../../dashboard/resumo";
 
 /** O lançamento do outro lado que o motor quase casou com a linha, para o cartão mostrar os dois. */
-export type ParDoOutroLado = { lado: "banco" | "sistema"; data: string; descricao: string; valor: number };
+export type ParDoOutroLado = {
+  lado: "banco" | "sistema";
+  data: string;
+  descricao: string;
+  valor: number;
+  /** Os campos do cartão (data, tipo) do lançamento do outro lado, para o detalhe não mostrar o valor sozinho. */
+  campos?: CampoLancamento[];
+};
 
 /**
  * Uma divergência de valor ou de data chega do backend com um lado só: o outro lançamento é outra
@@ -45,6 +52,12 @@ export function parDoOutroLado(linha: LinhaComparacao, linhas: LinhaComparacao[]
       a.descricao.localeCompare(b.descricao),
   );
   return doBanco
-    ? { lado: "sistema", data: melhor.dataSistema ?? melhor.data, descricao: melhor.descricaoSistema ?? melhor.descricao, valor: melhor.valorSistema as number }
-    : { lado: "banco", data: melhor.data, descricao: melhor.descricao, valor: melhor.valorBanco as number };
+    ? {
+        lado: "sistema",
+        data: melhor.dataSistema ?? melhor.data,
+        descricao: melhor.descricaoSistema ?? melhor.descricao,
+        valor: melhor.valorSistema as number,
+        campos: melhor.camposSistema,
+      }
+    : { lado: "banco", data: melhor.data, descricao: melhor.descricao, valor: melhor.valorBanco as number, campos: melhor.camposBanco };
 }
