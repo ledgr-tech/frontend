@@ -13,7 +13,7 @@ import { telaDoCaminho } from "../tutorial/roteiros";
 import { ajudaDaTela } from "../../../../(ajuda)/ajuda/paginas";
 import { lembrarDeOndeVeio } from "../../../../(ajuda)/ajuda/voltar";
 import { perguntarAoAssistente, type TurnoDaConversa } from "./acoes";
-import { assuntoDoMes, foraDoRoteiro, pedePassosParaFechar, perguntaSoDoMes, respostaDeOutroMes, responder, saudacao, sugestoes, type Contexto } from "./respostas";
+import { assuntoDoMes, foraDoRoteiro, pedePassosParaFechar, responder, saudacao, sugestoes, type Contexto } from "./respostas";
 import { SEM_SERVIDOR } from "@/lib/sem-servidor";
 
 /**
@@ -280,8 +280,8 @@ export function Conversa({
         mostrarResposta({ de: "ledgr", texto: saudacaoSemDados("vazio"), links: [{ href: "/conciliacoes/nova", rotulo: "Nova conciliação" }] }, inicio);
         return;
       }
-      // comparado com o mês recém-lido: outro mês pode ter sido conciliado com o painel aberto
-      const resposta = respostaDeOutroMes(pergunta, atual.dados) ?? responder(pergunta, atual.dados, assunto);
+      // com o mês recém-lido: outro mês pode ter sido conciliado com o painel aberto
+      const resposta = responder(pergunta, atual.dados, assunto);
       if (resposta?.explicar && atual.dados.maior) {
         await explicar(atual.dados.maior);
       } else {
@@ -300,8 +300,7 @@ export function Conversa({
     const limpa = pergunta.trim();
     if (!limpa || lendo) return;
     const passos = pedePassosParaFechar(limpa) ? FECHAR_O_MES : undefined;
-    // "e setembro?": só o nome de um mês também é pergunta sobre os números, que o roteiro confere
-    const assunto = assuntoDoMes(limpa, contexto?.mes) ?? (contexto && perguntaSoDoMes(limpa) ? "resumo" : null);
+    const assunto = assuntoDoMes(limpa, contexto?.mes);
     const inicio = agora();
     acompanhar.current = true;
     acrescentar({ de: "voce", texto: limpa, daCentral: !passos && assunto === null });

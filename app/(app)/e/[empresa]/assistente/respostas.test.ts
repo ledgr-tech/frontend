@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Execucao } from "@/lib/adaptadores";
 import type { LinhaComparacao, StatusLinha } from "@/lib/mock-data";
 import type { VisaoGeral } from "../conciliacoes/acoes";
-import { foraDoRoteiro, montarContexto, perguntaSoDoMes, responder, saudacao, sugestoes, type Contexto } from "./respostas";
+import { assuntoDoMes, foraDoRoteiro, montarContexto, perguntaSoDoMes, responder, saudacao, sugestoes, type Contexto } from "./respostas";
 
 describe("perguntaSoDoMes", () => {
   it("reconhece o mês sozinho, e não a pergunta de uso nem o nome de uma pessoa", () => {
@@ -11,7 +11,13 @@ describe("perguntaSoDoMes", () => {
     expect(perguntaSoDoMes("como foi agosto")).toBe(true);
     expect(perguntaSoDoMes("Como envio o extrato de agosto?")).toBe(false);
     expect(perguntaSoDoMes("Como convido o Marco para a equipe?")).toBe(false);
+    expect(perguntaSoDoMes("E o Marco?")).toBe(false);
     expect(perguntaSoDoMes("Como fecho o mês?")).toBe(false);
+  });
+
+  it("vira pergunta sobre os números só quando há um mês para conferir", () => {
+    expect(assuntoDoMes("e agosto?", "setembro")).toBe("resumo");
+    expect(assuntoDoMes("e agosto?")).toBeNull();
   });
 });
 
@@ -194,6 +200,21 @@ describe("responder", () => {
     expect(responder("explica", contexto([linha("l1", "match_exato", 100, 100)]))!.texto).toBe(
       "Nenhuma divergência em aberto em setembro: não há o que explicar.",
     );
+  });
+
+  it("sobre outro mês, diz que só lê a conciliação mais recente, e a pergunta de uso segue para a Central", () => {
+    expect(responder("e agosto?", contexto())).toEqual({
+      texto: "Por enquanto eu leio só a conciliação mais recente, a de setembro. Se agosto foi conciliado, ele está no Histórico.",
+      link: { href: "/historico", rotulo: "Abrir o Histórico" },
+    });
+    expect(responder("E março?", contexto())!.texto).toContain("Se março foi conciliado");
+    expect(responder("Como envio o extrato de agosto?", contexto())).toBeNull();
+  });
+
+  it("não confunde o Marco da equipe com março", () => {
+    expect(texto("O Marco pode fechar o mês?", contexto())).toMatch(/^Faltam 3 decisões suas/);
+    expect(texto("O que o Marco deixou em aberto?", contexto())).toMatch(/^Os R\$ 4\.261 em aberto/);
+    expect(responder("E o Marco?", contexto())).toBeNull();
   });
 
   it("o que não é do roteiro fica para o assistente da Central (null), em vez de inventar", () => {
