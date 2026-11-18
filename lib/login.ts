@@ -2,7 +2,16 @@ import "server-only";
 import { cookies } from "next/headers";
 import { CredentialsSignin, type User } from "next-auth";
 import { ErroBackend, chamarBackend, ehContaInativa } from "./backend";
-import { COOKIE_CADASTRO_GOOGLE, COOKIE_CONVITE_GOOGLE, COOKIE_VOLTAR_GOOGLE, type ErroConviteGoogle, VALIDADE_ID_TOKEN_SEGUNDOS, type ErroGoogle } from "./google";
+import {
+  COOKIE_CADASTRO_GOOGLE,
+  COOKIE_CONVITE_GOOGLE,
+  COOKIE_VINCULO_GOOGLE,
+  COOKIE_VOLTAR_GOOGLE,
+  type ErroConviteGoogle,
+  VALIDADE_ID_TOKEN_SEGUNDOS,
+  type ErroGoogle,
+  identidadeDoIdToken,
+} from "./google";
 import { destinoDepoisDoLogin } from "./rotas";
 
 /**
@@ -78,7 +87,8 @@ export async function entrarNoBackendComGoogle(idToken: string): Promise<Resulta
   } catch (erro) {
     if (!(erro instanceof ErroBackend)) return { ok: false, erro: "falha" };
     if (erro.status === 404) return { ok: false, erro: "sem_conta" };
-    if (erro.status === 409) return { ok: false, erro: "email_com_senha" };
+    // o `codigo` separa a conta que a senha liga da que já tem outro Google (backend #218)
+    if (erro.status === 409) return { ok: false, erro: erro.codigo === "email_com_outro_google" ? "email_com_outro_google" : "email_com_senha" };
     if (erro.status === 401) return { ok: false, erro: "nao_confirmado" };
     if (erro.status === 429) return { ok: false, erro: "muitas_tentativas" };
     if (erro.status === 503) return { ok: false, erro: "indisponivel" };
@@ -157,15 +167,58 @@ export async function aoVoltarDoGoogle(usuario: User, idToken: string | undefine
     Object.assign(usuario, resultado.usuario);
     return true;
   }
+  const guardar = (nome: string) =>
+    pote.set(nome, idToken, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: VALIDADE_ID_TOKEN_SEGUNDOS,
+    });
+  // o e-mail tem senha: o login pede a senha e liga os dois pelo /login/google/vincular
+  if (resultado.erro === "email_com_senha") guardar(COOKIE_VINCULO_GOOGLE);
   if (resultado.erro !== "sem_conta") return aoLogin(resultado.erro);
-  (await cookies()).set(COOKIE_CADASTRO_GOOGLE, idToken, {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
-    maxAge: VALIDADE_ID_TOKEN_SEGUNDOS,
-  });
+  guardar(COOKIE_CADASTRO_GOOGLE);
   return "/cadastro/google";
+}
+
+/** O 409 do vínculo (backend #218): a conta tem outro Google, ou este Google é de outra conta. */
+export class GoogleEmOutraConta extends CredentialsSignin {
+  code = "google_em_outra_conta";
+}
+
+/**
+ * O `authorize` do vínculo (backend #218): o `id_token` do cookie e a senha atual vão ao
+ * `POST /login/google/vincular`, que liga o Google e já responde como o login. Senha errada (ou
+ * o `id_token` vencido) é o mesmo 401 do `/login`: `null`.
+ */
+export async function vincularGoogle(senha: string): Promise<User | null> {
+  const pote = await cookies();
+  const idToken = pote.get(COOKIE_VINCULO_GOOGLE)?.value;
+  if (!idToken) return null;
+  try {
+    const usuario = await chamarBackend<UsuarioAPI>("/login/google/vincular", {
+      method: "POST",
+      corpo: { id_token: idToken, senha },
+      publica: true,
+    });
+    pote.delete(COOKIE_VINCULO_GOOGLE);
+    return usuarioDaSessao(usuario);
+  } catch (erro) {
+    if (erro instanceof ErroBackend && erro.status === 401) return null;
+    if (erro instanceof ErroBackend && erro.status === 429) throw new MuitasEntradas();
+    if (erro instanceof ErroBackend && erro.status === 409) {
+      pote.delete(COOKIE_VINCULO_GOOGLE);
+      throw new GoogleEmOutraConta();
+    }
+    throw erro;
+  }
+}
+
+/** O e-mail do Google que espera o vínculo, para o login mostrar no campo. Sem cookie, `null`. */
+export async function emailDoVinculoGoogle(): Promise<string | null> {
+  const idToken = (await cookies()).get(COOKIE_VINCULO_GOOGLE)?.value;
+  return idToken ? (identidadeDoIdToken(idToken)?.email ?? null) : null;
 }
 
 /**
@@ -193,4 +246,5 @@ export async function esquecerGoogleIncompleto(): Promise<void> {
   const pote = await cookies();
   pote.delete(COOKIE_CADASTRO_GOOGLE);
   pote.delete(COOKIE_CONVITE_GOOGLE);
+  pote.delete(COOKIE_VINCULO_GOOGLE);
 }

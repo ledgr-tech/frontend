@@ -2,7 +2,7 @@ import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
 import { esquecerContaInativa } from "@/lib/backend";
-import { aoVoltarDoGoogle, autorizar, autorizarDepoisDoCadastroGoogle, esquecerGoogleIncompleto } from "@/lib/login";
+import { aoVoltarDoGoogle, autorizar, autorizarDepoisDoCadastroGoogle, esquecerGoogleIncompleto, vincularGoogle } from "@/lib/login";
 import { DURACAO_SESSAO_SEGUNDOS, assinarToken, lerToken } from "@/lib/token";
 
 /**
@@ -36,6 +36,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       credentials: {},
       authorize() {
         return autorizarDepoisDoCadastroGoogle();
+      },
+    }),
+    // a senha que liga o Google a uma conta que já tinha senha (backend #218): o id_token vem do cookie httpOnly
+    Credentials({
+      id: "google-vinculo",
+      credentials: { senha: {} },
+      authorize(credenciais) {
+        return vincularGoogle(String(credenciais?.senha ?? ""));
       },
     }),
     // Login pelo Google (backend #73): só com AUTH_GOOGLE_ID e AUTH_GOOGLE_SECRET no servidor (ver lib/google.ts)
