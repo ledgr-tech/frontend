@@ -27,6 +27,7 @@ describe("PainelDeConexoes", () => {
     expect(lista).toHaveTextContent("ChatGPT");
     expect(lista).toHaveTextContent("Lê Telha Certa Ltda · só leitura");
     expect(lista).toHaveTextContent(/Autorizada por Ana em .* · ainda não usada/);
+    expect(screen.getByRole("heading", { name: "Perguntas que você pode fazer" })).toBeInTheDocument();
   });
 
   it("revoga depois de confirmar", async () => {
@@ -40,12 +41,20 @@ describe("PainelDeConexoes", () => {
 
     expect(revogarConexaoMcp).toHaveBeenCalledWith("c1");
     expect(await screen.findByText("Revogada")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Perguntas que você pode fazer" })).not.toBeInTheDocument();
   });
 
   it("sem conexões, diz que não há e aponta os passos", () => {
     render(<PainelDeConexoes itens={[]} endereco={null} />);
 
     expect(screen.getByText("Nenhuma conexão ainda. Siga os passos acima e ela aparece aqui.")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Perguntas que você pode fazer" })).not.toBeInTheDocument();
+  });
+
+  it("não sugere perguntas quando todas as conexões já foram revogadas", () => {
+    render(<PainelDeConexoes itens={[{ ...conexao, revogadaEm: "2026-11-18T12:00:00Z" }]} endereco={null} />);
+
+    expect(screen.queryByRole("heading", { name: "Perguntas que você pode fazer" })).not.toBeInTheDocument();
   });
 
   it("ensina a conectar, um assistente de cada vez, com o endereço para copiar", async () => {

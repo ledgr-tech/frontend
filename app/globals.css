@@ -4267,6 +4267,9 @@ html:not([data-menu="recolhido"]) .app-assistente-figura {
 .conexao-parte { display: flex; flex-direction: column; gap: 12px; }
 .conexao-parte + .conexao-parte { padding-top: 22px; border-top: 1px solid var(--color-divider); }
 .conexao-parte-titulo { margin: 0; font-size: var(--texto-grande); font-weight: 600; }
+/* as perguntas para a IA por tema (#429): um degrau abaixo do título da parte */
+.conexao-grupo { display: flex; flex-direction: column; gap: 6px; }
+.conexao-grupo-titulo { margin: 0; font-size: var(--texto-corpo); font-weight: 600; color: var(--texto-apagado); }
 .conexao-texto { margin: 0; font-size: var(--texto-destaque); line-height: 1.65; text-wrap: pretty; }
 .conexao-texto-fraco { font-size: var(--texto-corpo); color: var(--texto-apagado); }
 .conexao-exemplos {
@@ -6654,6 +6657,13 @@ html[data-tema="escuro"] .app-shell {
 .ajd-colunas > div + div { border-left: 1px solid var(--color-divider); }
 .ajd-colunas strong { font-weight: 600; font-size: var(--texto-destaque); }
 .ajd-colunas span { font-size: var(--texto-destaque); line-height: 1.6; color: color-mix(in srgb, var(--color-text) 78%, transparent); }
+/* as perguntas para a IA, uma lista por tema (#429) */
+/* cinco temas quebram linha: sem a borda e o recuo de .ajd-colunas, que contam com uma linha só */
+.ajd-grupos { column-gap: 28px; }
+.ajd-grupos > div, .ajd-grupos > div:first-child { padding-left: 0; padding-right: 0; }
+.ajd-grupos > div + div { border-left: 0; }
+.ajd-grupos ul { list-style: disc; display: flex; flex-direction: column; gap: 8px; margin: 4px 0 0; padding-left: 18px; }
+.ajd-grupos li::marker { color: var(--color-accent); }
 .ajd-abas { margin-top: 20px; }
 .ajd-abas-lista { display: inline-flex; gap: 2px; padding: 3px; border: 1px solid var(--color-divider); border-radius: var(--radius-md); }
 .ajd-abas-lista button {
