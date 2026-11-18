@@ -15,10 +15,12 @@ vi.mock("next/navigation", () => ({
 const abrirSessao = vi.fn();
 const entrarNaDemonstracao = vi.fn();
 const entrarComGoogle = vi.fn();
+const voltarDaIdaAoGoogle = vi.fn(async (): Promise<string | null> => null);
 vi.mock("../acoes", () => ({
   entrar: (...args: unknown[]) => abrirSessao(...args),
   entrarComGoogle: (...args: unknown[]) => entrarComGoogle(...args),
   entrarNaDemonstracao: (...args: unknown[]) => entrarNaDemonstracao(...args),
+  voltarDaIdaAoGoogle: () => voltarDaIdaAoGoogle(),
 }));
 
 const FALHA_DE_SESSAO = "Não foi possível abrir a sessão. Tente de novo em instantes.";
@@ -246,6 +248,21 @@ describe("LoginPage", () => {
     );
     expect(window.location.search).toBe("");
     expect(document.getElementById("login-senha")).toHaveFocus();
+  });
+
+  it("o Cancelar do Google (NextAuth, ?error=) recupera o voltar que esperou no cookie", async () => {
+    vi.stubEnv("NEXT_PUBLIC_LEDGR_GOOGLE", "1");
+    voltarDaIdaAoGoogle.mockResolvedValueOnce("/autorizar-conexao?pedido=Ab_12");
+    window.history.replaceState(null, "", "/login?error=AccessDenied");
+    try {
+      render(<LoginPage />);
+      await waitFor(() => expect(window.location.search).toBe("?voltar=%2Fautorizar-conexao%3Fpedido%3DAb_12"));
+
+      await preencherEEntrar("financeiro@telhacerta.com.br", "ledgr2026");
+      await waitFor(() => expect(push).toHaveBeenCalledWith("/autorizar-conexao?pedido=Ab_12"));
+    } finally {
+      window.history.replaceState(null, "", "/");
+    }
   });
 
   it("apaga o motivo do Google mas guarda o voltar da conexão: entrar com a senha ainda volta ao pedido", async () => {

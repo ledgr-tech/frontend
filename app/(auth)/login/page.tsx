@@ -11,6 +11,7 @@ import {
   entrar as abrirSessao,
   entrarComGoogle as irAoGoogle,
   entrarNaDemonstracao,
+  voltarDaIdaAoGoogle,
   type ErroEntrada,
   type ResultadoEntrada,
 } from "../acoes";
@@ -135,6 +136,16 @@ export default function LoginPage() {
     parametros.delete("error");
     const resto = parametros.toString();
     window.history.replaceState(window.history.state, "", `${window.location.pathname}${resto ? `?${resto}` : ""}`);
+    // o Cancelar na tela do Google volta pelo NextAuth, sem o voltar: ele esperou num cookie
+    if (erroDoNextAuth !== null && !parametros.has("voltar")) {
+      void voltarDaIdaAoGoogle()
+        .then((voltar) => {
+          if (!voltar) return;
+          parametros.set("voltar", voltar);
+          window.history.replaceState(window.history.state, "", `${window.location.pathname}?${parametros}`);
+        })
+        .catch(() => {});
+    }
   }, []);
 
   useEffect(() => {

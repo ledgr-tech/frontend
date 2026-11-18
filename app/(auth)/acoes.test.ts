@@ -8,6 +8,7 @@ import {
   cadastrarComGoogle,
   entrar,
   entrarComGoogle,
+  voltarDaIdaAoGoogle,
   entrarNaDemonstracao,
   escolherPlano,
   desativarConta,
@@ -341,6 +342,25 @@ describe("entrarComGoogle", () => {
 
     await entrarComGoogle("https://outro.site");
     expect(signIn).toHaveBeenLastCalledWith("google", { redirectTo: "/visao-geral" });
+  });
+
+  it("guarda o consentimento num cookie para a volta sem sucesso, e o devolve uma vez só", async () => {
+    vi.stubEnv("AUTH_GOOGLE_ID", "client-id");
+    await entrarComGoogle("/autorizar-conexao?pedido=Ab_12");
+    expect(cookiesGravados).toHaveBeenCalledWith(
+      "ledgr-voltar-google",
+      "/autorizar-conexao?pedido=Ab_12",
+      expect.objectContaining({ httpOnly: true, maxAge: 600 }),
+    );
+
+    cookiesExistentes.set("ledgr-voltar-google", "/autorizar-conexao?pedido=Ab_12");
+    expect(await voltarDaIdaAoGoogle()).toBe("/autorizar-conexao?pedido=Ab_12");
+    expect(cookiesApagados).toHaveBeenCalledWith("ledgr-voltar-google");
+
+    cookiesExistentes.set("ledgr-voltar-google", "https://outro.site");
+    expect(await voltarDaIdaAoGoogle()).toBeNull();
+    cookiesExistentes.delete("ledgr-voltar-google");
+    expect(await voltarDaIdaAoGoogle()).toBeNull();
   });
 
   it("não chama o NextAuth quando o servidor não tem o provider", async () => {

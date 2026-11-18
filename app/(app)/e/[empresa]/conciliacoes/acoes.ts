@@ -1301,8 +1301,9 @@ export async function carregarRelatorioDoFechamento(competencia: string): Promis
       empresaDaRequisicao(),
     ]).then(
       ([eu, ativa]) => {
-        // sem a lista (backend anterior ao #133), a conta tem uma empresa só, e é a da raiz
-        const empresa = Array.isArray(eu.empresas) ? eu.empresas.find((item) => item.id === ativa) : eu;
+        // sem a lista, ou com ela vazia (backend anterior ao #133), a conta tem uma empresa só, e é a da
+        // raiz: a mesma regra do layout de e/[empresa]
+        const empresa = eu.empresas?.length ? eu.empresas.find((item) => item.id === ativa) : eu;
         return { razaoSocial: empresa?.razao_social?.trim() ?? "", cnpj: empresa?.cnpj ?? "" };
       },
       () => ({ razaoSocial: "", cnpj: "" }),

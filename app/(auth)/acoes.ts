@@ -113,6 +113,19 @@ export async function entrarComGoogle(voltar?: string | null): Promise<false> {
   return false;
 }
 
+/**
+ * O consentimento de conexão que levou ao Google, quando ele voltou sem passar pelo `signIn` (a pessoa
+ * clicou em Cancelar, ou o OAuth falhou: o NextAuth manda a `/login?error=` sem o `voltar`). Lido uma
+ * vez; só um caminho que `destinoDepoisDoLogin` refaz igual sai daqui.
+ */
+export async function voltarDaIdaAoGoogle(): Promise<string | null> {
+  const pote = await cookies();
+  const voltar = pote.get(COOKIE_VOLTAR_GOOGLE)?.value;
+  if (!voltar) return null;
+  pote.delete(COOKIE_VOLTAR_GOOGLE);
+  return destinoDepoisDoLogin(voltar) === voltar ? voltar : null;
+}
+
 /** Os campos do formulário que o `POST /register` recebe. */
 export type DadosCadastro = {
   nome: string;
