@@ -248,6 +248,21 @@ describe("LoginPage", () => {
     expect(document.getElementById("login-senha")).toHaveFocus();
   });
 
+  it("apaga o motivo do Google mas guarda o voltar da conexão: entrar com a senha ainda volta ao pedido", async () => {
+    vi.stubEnv("NEXT_PUBLIC_LEDGR_GOOGLE", "1");
+    window.history.replaceState(null, "", "/login?google=email_com_senha&voltar=%2Fautorizar-conexao%3Fpedido%3DAb_12");
+    try {
+      render(<LoginPage />);
+      await screen.findByRole("alert");
+      expect(window.location.search).toBe("?voltar=%2Fautorizar-conexao%3Fpedido%3DAb_12");
+
+      await preencherEEntrar("financeiro@telhacerta.com.br", "ledgr2026");
+      await waitFor(() => expect(push).toHaveBeenCalledWith("/autorizar-conexao?pedido=Ab_12"));
+    } finally {
+      window.history.replaceState(null, "", "/");
+    }
+  });
+
   // a pessoa cancelou no Google, ou o NextAuth recusou a volta: ele manda ?error=
   it("shows a generic Google failure for an unknown reason or a NextAuth error", async () => {
     window.history.replaceState(null, "", "/login?error=AccessDenied");

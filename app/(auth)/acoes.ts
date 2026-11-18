@@ -6,7 +6,7 @@ import { CredentialsSignin } from "next-auth";
 import { signIn, signOut } from "@/auth";
 import { ErroBackend, chamarBackend, ehContaInativa, emailDaSessao } from "@/lib/backend";
 import { RECUSA_DEMONSTRACAO, demoAberta, ehContaDeDemonstracao } from "@/lib/demo";
-import { COOKIE_CADASTRO_GOOGLE, COOKIE_CONVITE_GOOGLE, VALIDADE_ID_TOKEN_SEGUNDOS } from "@/lib/google";
+import { COOKIE_CADASTRO_GOOGLE, COOKIE_CONVITE_GOOGLE, COOKIE_VOLTAR_GOOGLE, VALIDADE_ID_TOKEN_SEGUNDOS } from "@/lib/google";
 import { MuitasEntradas, esquecerGoogleIncompleto, type UsuarioAPI } from "@/lib/login";
 import type { EmpresaDaConta } from "@/lib/empresa-ativa";
 import { lerPapel, type Papel } from "@/lib/papel";
@@ -98,7 +98,18 @@ export async function entrarComGoogle(voltar?: string | null): Promise<false> {
   // um aceite de convite pelo Google que ficou pela metade não pode virar este login
   (await cookies()).delete(COOKIE_CONVITE_GOOGLE);
   // o destino vem do navegador: só o consentimento de um pedido de conexão, refeito do id, ou a Visão geral
-  await signIn("google", { redirectTo: destinoDepoisDoLogin(voltar) });
+  const destino = destinoDepoisDoLogin(voltar);
+  if (destino === "/visao-geral") (await cookies()).delete(COOKIE_VOLTAR_GOOGLE);
+  else {
+    (await cookies()).set(COOKIE_VOLTAR_GOOGLE, destino, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: 10 * 60,
+    });
+  }
+  await signIn("google", { redirectTo: destino });
   return false;
 }
 
