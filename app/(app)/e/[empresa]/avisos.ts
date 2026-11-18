@@ -73,7 +73,10 @@ function chaveLidos(empresaId?: string | null): string {
 /** Os ids já lidos neste navegador para a empresa. Guardado vazio, estragado ou sem acesso: nenhum. */
 export function idsLidos(empresaId?: string | null): string[] {
   try {
-    const guardado: unknown = JSON.parse(window.localStorage.getItem(chaveLidos(empresaId)) ?? "[]");
+    const proprio = window.localStorage.getItem(chaveLidos(empresaId));
+    // antes de separar por empresa, tudo ficava na chave sem empresa: ela vale até a empresa gravar a sua.
+    // Ler a lista inteira é seguro, porque o id de cada aviso leva o id da conciliação, que é de uma empresa só
+    const guardado: unknown = JSON.parse(proprio ?? (empresaId ? window.localStorage.getItem(LIDOS) : null) ?? "[]");
     return Array.isArray(guardado) ? guardado.filter((id): id is string => typeof id === "string") : [];
   } catch {
     return [];
