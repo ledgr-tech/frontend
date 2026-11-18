@@ -5255,6 +5255,8 @@ html[data-tema="escuro"] .app-shell {
    (de onde sai o PDF), só a folha, em A4, sempre em preto no branco, mesmo com
    o tema escuro ligado. */
 .rel-pagina { padding: 24px 0 56px; display: flex; flex-direction: column; gap: 20px; }
+/* o link público, fora do app: o app-shell só pelos tokens, sem a grade do menu */
+.app-shell.rel-publico { display: block; padding-inline: clamp(16px, 4vw, 32px); }
 .rel-barra { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .rel-aviso { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; padding: 32px 0; max-width: 560px; }
 .rel-aviso h1 { margin: 0; font-size: 28px; font-weight: 400; }
@@ -5306,6 +5308,7 @@ html[data-tema="escuro"] .app-shell {
   .app-shell:has(.rel-folha), .app-shell:has(.rel-folha) :is(.app-principal, .app-conteudo) { background: #fff !important; }
   /* só a folha: sem menu, sem barra de busca, sem o botão de imprimir */
   .app-shell:has(.rel-folha) { display: block; }
+  .app-shell.rel-publico { padding-inline: 0; }
   .app-shell:has(.rel-folha) .app-aside,
   .app-shell:has(.rel-folha) .app-principal > :not(.app-conteudo),
   .rel-barra { display: none !important; }

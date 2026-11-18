@@ -6,7 +6,7 @@ import { CredentialsSignin } from "next-auth";
 import { signIn, signOut } from "@/auth";
 import { ErroBackend, chamarBackend, ehContaInativa, emailDaSessao } from "@/lib/backend";
 import { RECUSA_DEMONSTRACAO, demoAberta, ehContaDeDemonstracao } from "@/lib/demo";
-import { COOKIE_CADASTRO_GOOGLE, COOKIE_CONVITE_GOOGLE, VALIDADE_ID_TOKEN_SEGUNDOS } from "@/lib/google";
+import { COOKIE_CADASTRO_GOOGLE, COOKIE_CONVITE_GOOGLE, COOKIE_VOLTAR_GOOGLE, VALIDADE_ID_TOKEN_SEGUNDOS } from "@/lib/google";
 import { MuitasEntradas, esquecerGoogleIncompleto, type UsuarioAPI } from "@/lib/login";
 import type { EmpresaDaConta } from "@/lib/empresa-ativa";
 import { lerPapel, type Papel } from "@/lib/papel";
@@ -98,8 +98,32 @@ export async function entrarComGoogle(voltar?: string | null): Promise<false> {
   // um aceite de convite pelo Google que ficou pela metade não pode virar este login
   (await cookies()).delete(COOKIE_CONVITE_GOOGLE);
   // o destino vem do navegador: só o consentimento de um pedido de conexão, refeito do id, ou a Visão geral
-  await signIn("google", { redirectTo: destinoDepoisDoLogin(voltar) });
+  const destino = destinoDepoisDoLogin(voltar);
+  if (destino === "/visao-geral") (await cookies()).delete(COOKIE_VOLTAR_GOOGLE);
+  else {
+    (await cookies()).set(COOKIE_VOLTAR_GOOGLE, destino, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: 10 * 60,
+    });
+  }
+  await signIn("google", { redirectTo: destino });
   return false;
+}
+
+/**
+ * O consentimento de conexão que levou ao Google, quando ele voltou sem passar pelo `signIn` (a pessoa
+ * clicou em Cancelar, ou o OAuth falhou: o NextAuth manda a `/login?error=` sem o `voltar`). Lido uma
+ * vez; só um caminho que `destinoDepoisDoLogin` refaz igual sai daqui.
+ */
+export async function voltarDaIdaAoGoogle(): Promise<string | null> {
+  const pote = await cookies();
+  const voltar = pote.get(COOKIE_VOLTAR_GOOGLE)?.value;
+  if (!voltar) return null;
+  pote.delete(COOKIE_VOLTAR_GOOGLE);
+  return destinoDepoisDoLogin(voltar) === voltar ? voltar : null;
 }
 
 /** Os campos do formulário que o `POST /register` recebe. */
@@ -558,8 +582,10 @@ function adaptarEmpresas(bruto: { id?: unknown; razao_social?: unknown; cnpj?: u
  *
  * Se a rota falhar, a empresa fica vazia e as telas a escondem, melhor que mostrar o
  * nome de outra; a troca de senha fica à mostra, e o backend diz o motivo se recusar.
+ * O 401 não é falha: a sessão acabou no backend (Sair em outro aparelho, senha ou e-mail trocados,
+ * pessoa removida) com o cookie ainda válido aqui, e vai ao login (`aoExpirar`, para quem precisa voltar).
  */
-export async function contaDaSessao(): Promise<ContaDaSessao> {
+export async function contaDaSessao(aoExpirar = "/login"): Promise<ContaDaSessao> {
   try {
     const eu = await chamarBackend<
       UsuarioAPI & {
@@ -591,7 +617,11 @@ export async function contaDaSessao(): Promise<ContaDaSessao> {
       limites: adaptarLimites(eu.limites),
       guardaArquivoOriginal: eu.guarda_arquivo_original === true,
     };
-  } catch {
+  } catch (erro) {
+    // Server Action é endpoint público: só o próprio login, nunca um endereço vindo de fora
+    if (erro instanceof ErroBackend && erro.status === 401) {
+      redirect(typeof aoExpirar === "string" && /^\/login(\?|$)/.test(aoExpirar) ? aoExpirar : "/login");
+    }
     // o papel menor (D2): as telas escondem o que o analista não faz, e as ações respondem 503 (recusaPorPapel)
     return { empresa: "", temSenha: true, papel: "analista", empresas: [], preferencias: null, assinatura: null, cobrancaHabilitada: false, limites: null, indisponivel: true };
   }

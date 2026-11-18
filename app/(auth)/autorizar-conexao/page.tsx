@@ -21,8 +21,10 @@ export default async function AutorizarConexaoPage({
   const { pedido } = await searchParams;
   const id = ehPedidoDeConexao(pedido) ? pedido : null;
   const sessao = await auth();
-  if (!sessao?.user?.email) redirect(id ? `/login?voltar=${encodeURIComponent(caminhoDoConsentimento(id))}` : "/login");
-  const { papel, indisponivel } = await contaDaSessao();
+  const login = id ? `/login?voltar=${encodeURIComponent(caminhoDoConsentimento(id))}` : "/login";
+  if (!sessao?.user?.email) redirect(login);
+  // a sessão que o backend já encerrou também vai ao login, e volta com o mesmo pedido
+  const { papel, indisponivel } = await contaDaSessao(login);
   // sem o /me o papel é o menor (D2): a tela diria a um admin que ele não autoriza, e um "Recusar" gastaria o
   // pedido. Melhor a tela de erro com "Tentar de novo", como em (sem-empresa)
   if (indisponivel) throw new Error("Conta indisponível: tente de novo.");

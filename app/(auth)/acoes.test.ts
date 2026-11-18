@@ -8,6 +8,7 @@ import {
   cadastrarComGoogle,
   entrar,
   entrarComGoogle,
+  voltarDaIdaAoGoogle,
   entrarNaDemonstracao,
   escolherPlano,
   desativarConta,
@@ -341,6 +342,25 @@ describe("entrarComGoogle", () => {
 
     await entrarComGoogle("https://outro.site");
     expect(signIn).toHaveBeenLastCalledWith("google", { redirectTo: "/visao-geral" });
+  });
+
+  it("guarda o consentimento num cookie para a volta sem sucesso, e o devolve uma vez só", async () => {
+    vi.stubEnv("AUTH_GOOGLE_ID", "client-id");
+    await entrarComGoogle("/autorizar-conexao?pedido=Ab_12");
+    expect(cookiesGravados).toHaveBeenCalledWith(
+      "ledgr-voltar-google",
+      "/autorizar-conexao?pedido=Ab_12",
+      expect.objectContaining({ httpOnly: true, maxAge: 600 }),
+    );
+
+    cookiesExistentes.set("ledgr-voltar-google", "/autorizar-conexao?pedido=Ab_12");
+    expect(await voltarDaIdaAoGoogle()).toBe("/autorizar-conexao?pedido=Ab_12");
+    expect(cookiesApagados).toHaveBeenCalledWith("ledgr-voltar-google");
+
+    cookiesExistentes.set("ledgr-voltar-google", "https://outro.site");
+    expect(await voltarDaIdaAoGoogle()).toBeNull();
+    cookiesExistentes.delete("ledgr-voltar-google");
+    expect(await voltarDaIdaAoGoogle()).toBeNull();
   });
 
   it("não chama o NextAuth quando o servidor não tem o provider", async () => {
@@ -718,6 +738,26 @@ describe("contaDaSessao", () => {
     expect(await contaDaSessao()).toEqual({ empresa: "Telha Certa Ltda", nome: "Ana", temSenha: true, papel: "admin", empresas: [], preferencias: null, assinatura: null, cobrancaHabilitada: false, limites: null, guardaArquivoOriginal: false });
     expect(fetch).toHaveBeenCalledTimes(1);
     expect(fetch.mock.calls[0][0]).toBe("http://localhost:8000/me");
+  });
+
+  it("sessão encerrada no backend (401 no /me) vai ao login, não a 'conta indisponível'", async () => {
+    fetch.mockResolvedValue(Response.json({ detail: "Sessão encerrada." }, { status: 401 }));
+
+    await expect(contaDaSessao()).rejects.toThrow();
+    expect(redirect).toHaveBeenCalledWith("/login");
+
+    // quem precisa voltar (a autorização de conexão) passa o próprio login; um endereço de fora, não
+    await expect(contaDaSessao("/login?voltar=%2Fautorizar-conexao%3Fpedido%3DAb_12")).rejects.toThrow();
+    expect(redirect).toHaveBeenLastCalledWith("/login?voltar=%2Fautorizar-conexao%3Fpedido%3DAb_12");
+    await expect(contaDaSessao("https://fora.example/login")).rejects.toThrow();
+    expect(redirect).toHaveBeenLastCalledWith("/login");
+  });
+
+  it("outra falha do /me segue como conta indisponível", async () => {
+    fetch.mockResolvedValue(Response.json({ detail: "fora do ar" }, { status: 503 }));
+
+    expect(await contaDaSessao()).toMatchObject({ indisponivel: true, papel: "analista" });
+    expect(redirect).not.toHaveBeenCalled();
   });
 
   it("lê se a conta guarda o original de cada extrato (backend #139)", async () => {

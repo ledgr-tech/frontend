@@ -20,6 +20,12 @@ export function googleLigado(): boolean {
 export const COOKIE_CADASTRO_GOOGLE = "ledgr-cadastro-google";
 export const VALIDADE_ID_TOKEN_SEGUNDOS = 60 * 60;
 
+/**
+ * O consentimento de uma conexão (o `voltar` do login) enquanto a pessoa está no Google: se ele recusar,
+ * o `/login?google=<erro>` volta com ele, e entrar com a senha em seguida ainda leva ao pedido.
+ */
+export const COOKIE_VOLTAR_GOOGLE = "ledgr-voltar-google";
+
 /** O que volta ao login quando o Google não abre a sessão: vai em `/login?google=<erro>`. */
 export type ErroGoogle = "email_com_senha" | "nao_confirmado" | "indisponivel" | "muitas_tentativas" | "falha";
 

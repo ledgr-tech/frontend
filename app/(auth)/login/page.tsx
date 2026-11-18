@@ -11,6 +11,7 @@ import {
   entrar as abrirSessao,
   entrarComGoogle as irAoGoogle,
   entrarNaDemonstracao,
+  voltarDaIdaAoGoogle,
   type ErroEntrada,
   type ResultadoEntrada,
 } from "../acoes";
@@ -129,8 +130,22 @@ export default function LoginPage() {
     );
     // a conta é de senha: o próximo passo é a senha, então o cursor já espera nela
     if (motivo === "email_com_senha") campoSenha.current?.focus();
-    // o motivo vale para esta volta do Google: recarregar a página não mostra de novo
-    window.history.replaceState(null, "", window.location.pathname);
+    // o motivo vale para esta volta do Google: recarregar a página não mostra de novo. O `voltar` fica: é
+    // ele que leva de volta ao consentimento de uma conexão depois de entrar com a senha
+    parametros.delete("google");
+    parametros.delete("error");
+    const resto = parametros.toString();
+    window.history.replaceState(window.history.state, "", `${window.location.pathname}${resto ? `?${resto}` : ""}`);
+    // o Cancelar na tela do Google volta pelo NextAuth, sem o voltar: ele esperou num cookie
+    if (erroDoNextAuth !== null && !parametros.has("voltar")) {
+      void voltarDaIdaAoGoogle()
+        .then((voltar) => {
+          if (!voltar) return;
+          parametros.set("voltar", voltar);
+          window.history.replaceState(window.history.state, "", `${window.location.pathname}?${parametros}`);
+        })
+        .catch(() => {});
+    }
   }, []);
 
   useEffect(() => {

@@ -100,7 +100,11 @@ export function dadosDoLancamento(linha: LinhaComparacao, rodada: number, linhas
     titulo: linha.descricao,
     banco: par?.lado === "banco" ? doPar : comValor(banco, linha.valorBanco),
     sistema: par?.lado === "sistema" ? doPar : comValor(sistema, linha.valorSistema),
-    descricaoSistema: sistema && sistema.descricao !== linha.descricao ? sistema.descricao : null,
+    // a linha do banco tem o lançamento do sistema no par: a descrição dele vem de lá
+    descricaoSistema:
+      par?.lado === "sistema"
+        ? par.descricao !== linha.descricao ? par.descricao : null
+        : sistema && sistema.descricao !== linha.descricao ? sistema.descricao : null,
     // "R$ 15,32 × R$ 15,31" se lê mal; "Diferença: R$ 0,01" diz o tamanho do problema
     diferenca:
       linha.status === "divergente_valor" && valorBanco !== null && valorSistema !== null

@@ -199,6 +199,24 @@ describe("FechamentosPage", () => {
     expect(screen.getByRole("button", { name: /Setembro de 2026/ })).toHaveTextContent("42 pendências");
   });
 
+  it("Revisar pendências skips a bank whose divergences are all justified", async () => {
+    const outroBanco = "5c6d7e8f-9a0b-4c1d-8e2f-3a4b5c6d7e8f";
+    const justificado = par("set-a", { lancamentos: 100, acerto: 97, divergencias: { divergente_valor: 3 }, justificadas: 3 });
+    const comPendencia = par("set-b", {
+      extratoBancoId: outroBanco,
+      executadaEm: "2026-09-20T10:00:00Z",
+      lancamentos: 100,
+      acerto: 96,
+      divergencias: { divergente_valor: 4 },
+    });
+    await renderizar([justificado, comPendencia]);
+
+    expect(within(painel()).getByRole("link", { name: "Revisar pendências" })).toHaveAttribute(
+      "href",
+      `/conciliacoes/${outroBanco}?sistema=${SISTEMA}`,
+    );
+  });
+
   it("opens another month when its sheet is picked, and offers to close it when it is ready", async () => {
     const user = userEvent.setup();
     await renderizar();

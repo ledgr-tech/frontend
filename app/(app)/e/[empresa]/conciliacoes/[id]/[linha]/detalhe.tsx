@@ -240,7 +240,7 @@ export function DetalheDivergencia({ painel = false }: { painel?: boolean }) {
             marca="Fonte da verdade"
             marcaClasse="folha-etiqueta"
             valor={valorBanco}
-            campos={linha.camposBanco}
+            campos={linha.camposBanco ?? (par?.lado === "banco" ? par.campos : undefined)}
             origem="banco"
             diverge={!estaResolvida(linha.status)}
           />
@@ -279,7 +279,7 @@ export function DetalheDivergencia({ painel = false }: { painel?: boolean }) {
                     : "selo selo-risco"
             }
             valor={valorSistema}
-            campos={linha.camposSistema}
+            campos={linha.camposSistema ?? (par?.lado === "sistema" ? par.campos : undefined)}
             origem="sistema"
             diverge={!estaResolvida(linha.status)}
           />
