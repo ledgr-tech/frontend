@@ -148,6 +148,28 @@ describe("ImportarViaIa", () => {
     expect(within(painel()).getByRole("button", { name: /Importar e conferir/ })).toBeDisabled();
   });
 
+  it("aceita escolher o mesmo arquivo de novo depois de corrigir", async () => {
+    importarViaIa.mockResolvedValueOnce({
+      ok: false,
+      status: 422,
+      erro: "O arquivo não passou na conferência",
+      erros: [{ lancamento: 4, caminho: "lancamentos[3].valor", mensagem: "O valor precisa ser um número." }],
+      totalErros: 1,
+    });
+    const mesmo = new File(["{}"], "resposta.json", { type: "application/json" });
+    const user = userEvent.setup();
+    render(<ImportarViaIa prompt={PROMPT} />);
+    const input = screen.getByLabelText("Arquivo da IA") as HTMLInputElement;
+
+    await user.upload(input, mesmo);
+    await user.click(within(painel()).getByRole("button", { name: /Importar e conferir/ }));
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+
+    await user.upload(input, mesmo);
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(input.value).toBe("");
+  });
+
   it("avisa embaixo do botão de copiar quando não consegue copiar o prompt", async () => {
     render(<ImportarViaIa prompt={PROMPT} />);
     // sem o userEvent, que troca a área de transferência por um dublê que nunca falha
