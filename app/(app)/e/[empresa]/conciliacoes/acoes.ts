@@ -26,6 +26,7 @@ import {
 import { chamarBackend, ehContaInativa, emailDaSessao, ErroBackend } from "@/lib/backend";
 import { RECUSA_DEMONSTRACAO, ehContaDeDemonstracao } from "@/lib/demo";
 import { caminhoDaConciliacao } from "@/lib/caminhos";
+import { empresaDaRequisicao } from "@/lib/rotas-servidor";
 import { compararRodadas, execucoesVigentes, rodadasDoBanco, type Mudancas } from "@/lib/rodadas";
 import type { Conciliacao, Decisao, TipoEvento } from "@/lib/mock-data";
 import { conciliados, paraRevisar, porConciliacao } from "../historico/execucoes";
@@ -841,20 +842,23 @@ export async function carregarVisaoGeral(): Promise<Resultado<VisaoGeral>> {
     : doMesNaPagina;
   const [maisRecente] = doMes;
 
-  const [conciliacoes, banco, sistema] = await Promise.all([
+  // os arquivos de todos os pares do mês: uma linha não lida em qualquer um segura o fechamento
+  const doMesPorArquivo = new Map<string, string>();
+  for (const execucao of doMes) {
+    // o mesmo arquivo em dois pares fica com o nome do par mais recente, o primeiro da lista
+    if (!doMesPorArquivo.has(execucao.extratoBancoId)) doMesPorArquivo.set(execucao.extratoBancoId, execucao.arquivoBanco);
+    if (!doMesPorArquivo.has(execucao.extratoSistemaId)) doMesPorArquivo.set(execucao.extratoSistemaId, execucao.arquivoSistema);
+  }
+  const [conciliacoes, situacoes] = await Promise.all([
     Promise.all(doMes.map((execucao) => carregarConciliacao(execucao.extratoBancoId, execucao.extratoSistemaId))),
-    situacaoDoExtrato(maisRecente.extratoBancoId),
-    situacaoDoExtrato(maisRecente.extratoSistemaId),
+    Promise.all([...doMesPorArquivo.keys()].map((id) => situacaoDoExtrato(id))),
   ]);
   const [conciliacao] = conciliacoes;
   if (!conciliacao.ok) return conciliacao;
 
   // o detalhe do arquivo é aviso a mais, não o dado principal: se não carregar,
   // a home abre sem ele
-  const arquivos = [
-    { nome: maisRecente.arquivoBanco, situacao: banco },
-    { nome: maisRecente.arquivoSistema, situacao: sistema },
-  ];
+  const arquivos = [...doMesPorArquivo.values()].map((nome, indice) => ({ nome, situacao: situacoes[indice] }));
   const arquivosComLinhasNaoLidas = arquivos.flatMap(({ nome, situacao }) =>
     situacao.ok && situacao.dados.erros.length > 0
       ? [{ nome, linhas: situacao.dados.erros.length }]
@@ -1291,8 +1295,16 @@ export async function carregarRelatorioDoFechamento(competencia: string): Promis
 
   const resumo = adaptarResumoDoFechamento(maisRecente.resumo);
   const [empresa, conciliacoes] = await Promise.all([
-    chamarBackend<{ razao_social: string; cnpj: string }>("/me").then(
-      (eu) => ({ razaoSocial: eu.razao_social?.trim() ?? "", cnpj: eu.cnpj ?? "" }),
+    // `/me` é da conta e ignora o X-Ledgr-Empresa: a raiz é o escritório, a cliente está em `empresas`
+    Promise.all([
+      chamarBackend<{ razao_social?: string; cnpj?: string; empresas?: { id?: string; razao_social?: string; cnpj?: string }[] }>("/me"),
+      empresaDaRequisicao(),
+    ]).then(
+      ([eu, ativa]) => {
+        // sem a lista (backend anterior ao #133), a conta tem uma empresa só, e é a da raiz
+        const empresa = Array.isArray(eu.empresas) ? eu.empresas.find((item) => item.id === ativa) : eu;
+        return { razaoSocial: empresa?.razao_social?.trim() ?? "", cnpj: empresa?.cnpj ?? "" };
+      },
       () => ({ razaoSocial: "", cnpj: "" }),
     ),
     Promise.all(
