@@ -257,7 +257,7 @@ export function Demonstracao({ src, titulo, capa }: { src: string; titulo: strin
               alt=""
               className="ajd-demo-capa"
               sizes="(max-width: 820px) 100vw, 680px"
-              priority
+              preload
             />
           )}
         </div>

@@ -54,7 +54,7 @@ const mascote = (
     width={555}
     height={720}
     sizes="88px"
-    priority
+    loading="eager"
     style={{ width: 88, height: "auto", display: "block", marginBottom: "clamp(10px, 2vh, 18px)" }}
   />
 );
