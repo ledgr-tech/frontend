@@ -26,7 +26,9 @@ export function formatarVolume(passo: number) {
 
 /**
  * A caixa do plano muda de altura quando o plano muda (o Volume não tem preço, cada plano tem seus
- * itens): ela acompanha a altura do conteúdo com uma transição de CSS, em vez de pular.
+ * itens): ela acompanha a altura do conteúdo com uma transição de CSS, em vez de pular. A caixa é
+ * border-box e tem uma folga embaixo para o anel de foco; sem somar o padding, o arredondamento do
+ * offsetHeight cortava a borda de baixo do botão.
  */
 export function useAlturaQueDesliza(plano: string) {
   const caixa = useRef<HTMLDivElement>(null);
@@ -36,7 +38,10 @@ export function useAlturaQueDesliza(plano: string) {
     const no = conteudo.current;
     if (!no || typeof ResizeObserver === "undefined") return;
     const observador = new ResizeObserver(() => {
-      if (caixa.current) caixa.current.style.height = `${no.offsetHeight}px`;
+      if (caixa.current) {
+        const estilo = getComputedStyle(caixa.current);
+        caixa.current.style.height = `${no.offsetHeight + parseFloat(estilo.paddingTop) + parseFloat(estilo.paddingBottom)}px`;
+      }
     });
     observador.observe(no);
     return () => observador.disconnect();
