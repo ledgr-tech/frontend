@@ -109,4 +109,15 @@ describe("avisos lidos", () => {
     expect(idsLidos("emp-a")).toEqual(["divergencias-e7"]);
     expect(idsLidos("emp-b")).toEqual(["divergencias-e8"]);
   });
+
+  it("lê a lista antiga, sem empresa, até a empresa gravar a sua", () => {
+    window.localStorage.setItem("ledgr_avisos_lidos", JSON.stringify(["divergencias-e7"]));
+    expect(idsLidos("emp-a")).toEqual(["divergencias-e7"]);
+
+    marcarLidos(["divergencias-e9"], "emp-a");
+    expect(idsLidos("emp-a")).toEqual(["divergencias-e9"]);
+    // a lista guardada da empresa vale mesmo vazia: não volta para a antiga
+    marcarLidos([], "emp-a");
+    expect(idsLidos("emp-a")).toEqual([]);
+  });
 });
