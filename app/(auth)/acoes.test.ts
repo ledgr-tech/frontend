@@ -720,6 +720,26 @@ describe("contaDaSessao", () => {
     expect(fetch.mock.calls[0][0]).toBe("http://localhost:8000/me");
   });
 
+  it("sessão encerrada no backend (401 no /me) vai ao login, não a 'conta indisponível'", async () => {
+    fetch.mockResolvedValue(Response.json({ detail: "Sessão encerrada." }, { status: 401 }));
+
+    await expect(contaDaSessao()).rejects.toThrow();
+    expect(redirect).toHaveBeenCalledWith("/login");
+
+    // quem precisa voltar (a autorização de conexão) passa o próprio login; um endereço de fora, não
+    await expect(contaDaSessao("/login?voltar=%2Fautorizar-conexao%3Fpedido%3DAb_12")).rejects.toThrow();
+    expect(redirect).toHaveBeenLastCalledWith("/login?voltar=%2Fautorizar-conexao%3Fpedido%3DAb_12");
+    await expect(contaDaSessao("https://fora.example/login")).rejects.toThrow();
+    expect(redirect).toHaveBeenLastCalledWith("/login");
+  });
+
+  it("outra falha do /me segue como conta indisponível", async () => {
+    fetch.mockResolvedValue(Response.json({ detail: "fora do ar" }, { status: 503 }));
+
+    expect(await contaDaSessao()).toMatchObject({ indisponivel: true, papel: "analista" });
+    expect(redirect).not.toHaveBeenCalled();
+  });
+
   it("lê se a conta guarda o original de cada extrato (backend #139)", async () => {
     fetch.mockResolvedValue(Response.json({ ...EU, guarda_arquivo_original: true }));
     expect((await contaDaSessao()).guardaArquivoOriginal).toBe(true);

@@ -558,8 +558,10 @@ function adaptarEmpresas(bruto: { id?: unknown; razao_social?: unknown; cnpj?: u
  *
  * Se a rota falhar, a empresa fica vazia e as telas a escondem, melhor que mostrar o
  * nome de outra; a troca de senha fica à mostra, e o backend diz o motivo se recusar.
+ * O 401 não é falha: a sessão acabou no backend (Sair em outro aparelho, senha ou e-mail trocados,
+ * pessoa removida) com o cookie ainda válido aqui, e vai ao login (`aoExpirar`, para quem precisa voltar).
  */
-export async function contaDaSessao(): Promise<ContaDaSessao> {
+export async function contaDaSessao(aoExpirar = "/login"): Promise<ContaDaSessao> {
   try {
     const eu = await chamarBackend<
       UsuarioAPI & {
@@ -591,7 +593,11 @@ export async function contaDaSessao(): Promise<ContaDaSessao> {
       limites: adaptarLimites(eu.limites),
       guardaArquivoOriginal: eu.guarda_arquivo_original === true,
     };
-  } catch {
+  } catch (erro) {
+    // Server Action é endpoint público: só o próprio login, nunca um endereço vindo de fora
+    if (erro instanceof ErroBackend && erro.status === 401) {
+      redirect(typeof aoExpirar === "string" && /^\/login(\?|$)/.test(aoExpirar) ? aoExpirar : "/login");
+    }
     // o papel menor (D2): as telas escondem o que o analista não faz, e as ações respondem 503 (recusaPorPapel)
     return { empresa: "", temSenha: true, papel: "analista", empresas: [], preferencias: null, assinatura: null, cobrancaHabilitada: false, limites: null, indisponivel: true };
   }
