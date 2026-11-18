@@ -53,6 +53,15 @@ const agora = () => performance.now();
 
 const SUGESTOES_DE_USO = ["Como envio o extrato do banco?", "Como convido alguém da equipe?", "Como fecho o mês?"];
 
+function perguntaDeUso(pergunta: string): boolean {
+  const texto = pergunta
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+  // "como está/estão…" e "o que falta/sobrou…" perguntam pelo mês; o resto é dúvida de uso.
+  return /^(?:como\b(?!\s+est(?:a|ao)\b)|onde\b|posso\b|o\s+que\b(?!\s+(?:falta\b|sobr)))/.test(texto);
+}
+
 function saudacaoSemDados(semDados: SemDados): string {
   return semDados === "vazio"
     ? "Ainda não há conciliação para eu olhar, mas posso explicar como usar o Ledgr: pergunte como fazer o que precisar."
@@ -268,7 +277,7 @@ export function Conversa({
     const limpa = pergunta.trim();
     if (!limpa || lendo) return;
     const passos = pedePassosParaFechar(limpa) ? FECHAR_O_MES : undefined;
-    const assunto = assuntoDoMes(limpa, contexto?.mes);
+    const assunto = !passos && !perguntaDeUso(limpa) ? assuntoDoMes(limpa, contexto?.mes) : null;
     const inicio = agora();
     acompanhar.current = true;
     acrescentar({ de: "voce", texto: limpa, daCentral: !passos && assunto === null });
