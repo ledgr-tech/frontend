@@ -17,6 +17,9 @@ const APROVACAO = process.env.APROVACAO_JUSTIFICATIVAS_HABILITADA !== "0";
 const MCP = process.env.MCP_HABILITADO !== "0";
 // a cobrança (backend #202): COBRANCA_HABILITADA=0 é a produção de hoje, sem planos nem assinatura na tela
 const COBRANCA = process.env.COBRANCA_HABILITADA !== "0";
+// o painel interno (#333): ninguém é operador, como na conta de qualquer cliente; OPERADORES=<e-mail>[,<e-mail>]
+// torna essas pessoas operadoras, para testar a busca e a paginação do /admin
+const OPERADORES = new Set((process.env.OPERADORES ?? "").split(",").map((e) => e.trim().toLowerCase()).filter(Boolean));
 const PASTA_EXEMPLOS = join(import.meta.dirname, "..", "exemplos-extratos");
 const TOLERANCIA_MAXIMA = 5;
 
@@ -549,6 +552,25 @@ async function responderPergunta(pergunta) {
   };
 }
 
+/** As contas clientes que o operador vê no /admin: 25 falsas (domínio .example), para a busca e as duas páginas. */
+const CONTAS_DO_PAINEL = Array.from({ length: 25 }, (_, i) => {
+  const n = String(i + 1).padStart(2, "0");
+  return {
+    id: `a0000000-0000-4000-8000-0000000000${n}`,
+    razao_social: `Cliente Exemplo ${n} Ltda`,
+    cnpj: `112223330001${n}`,
+    plano: i % 3 === 0 ? null : "padrao",
+    situacao: ["teste", "ativo", "teste_encerrado", "sem_plano", "ativo"][i % 5],
+    teste_termina_em: i % 5 === 0 ? new Date(Date.now() + (i + 1) * 86_400_000).toISOString() : null,
+    assinatura_ativa: i % 5 === 1,
+    inativa: i === 24,
+    criada_em: new Date(Date.UTC(2026, 9, 1 + i)).toISOString(),
+    cidade: i % 4 === 0 ? null : "Porto Alegre",
+    uf: i % 4 === 0 ? null : "RS",
+    email_do_admin: `admin${n}@cliente${n}.example`,
+  };
+});
+
 // ---------- http ----------
 
 const servidor = createServer(async (req, res) => {
@@ -654,6 +676,24 @@ const servidor = createServer(async (req, res) => {
   if (!req.headers.authorization?.startsWith("Bearer ")) return json(res, 401, { detail: "Token ausente." });
   const eu = usuarioDoToken(req);
   if (!eu) return json(res, 401, { detail: "Usuário não encontrado. Entre de novo." });
+
+  // o painel interno (app/api/admin.py): quem não é operador leva 403, antes da empresa ativa e da conta
+  // inativa, que o /admin ignora. Ao operador, só a lista de contas; o resto do painel dá 404 aqui.
+  if (caminho.startsWith("/admin/")) {
+    if (!OPERADORES.has(eu.email)) return json(res, 403, { detail: "Acesso restrito à equipe do Ledgr." });
+    if (!rota("GET", "/admin/contas")) return json(res, 404, { detail: "Conta não encontrada." });
+    const busca = (q.get("busca") ?? "").toLowerCase();
+    const situacao = q.get("situacao");
+    const uf = q.get("uf");
+    const lista = CONTAS_DO_PAINEL.filter(
+      (c) =>
+        (!busca || c.razao_social.toLowerCase().includes(busca) || c.email_do_admin.includes(busca) || c.cnpj.includes(busca.replace(/[.\-/\s]/g, ""))) &&
+        (!situacao || (situacao === "inativa" ? c.inativa : !c.inativa && c.situacao === situacao)) &&
+        (!uf || c.uf === (uf === "nao_informada" ? null : uf)),
+    );
+    return json(res, 200, pagina(lista.map((c) => ({ ...c, email_do_admin: undefined }))));
+  }
+
   const conta = contas.get(eu.conta_id);
   const gestao = eu.papel !== "analista";
   const proibido = (detail = "Seu papel na conta não permite fazer isso.") => json(res, 403, { detail });

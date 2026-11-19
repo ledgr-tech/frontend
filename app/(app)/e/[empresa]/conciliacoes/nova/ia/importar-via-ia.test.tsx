@@ -164,6 +164,7 @@ describe("ImportarViaIa", () => {
     await user.upload(input, mesmo);
     await user.click(within(painel()).getByRole("button", { name: /Importar e conferir/ }));
     expect(await screen.findByRole("alert")).toBeInTheDocument();
+    expect(input.value).toBe("");
 
     await user.upload(input, mesmo);
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();

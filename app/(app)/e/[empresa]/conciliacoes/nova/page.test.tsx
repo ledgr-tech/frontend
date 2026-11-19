@@ -543,6 +543,7 @@ describe("NovaConciliacaoPage", () => {
       const mesmo = arquivo("sistema.csv");
 
       await user.upload(input, mesmo);
+      expect(input.value).toBe("");
       fireEvent.drop(folhaSistema, { dataTransfer: { files: [arquivo("lancamentos.pdf")] } });
       expect(screen.getByRole("alert")).toHaveTextContent("O extrato do sistema precisa ser um arquivo CSV.");
 

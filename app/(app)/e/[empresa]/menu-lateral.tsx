@@ -468,7 +468,15 @@ export function MenuLateral({
 
           {conta.montado && (
             <div id="menu-conta" role="dialog" aria-label="Conta" className="app-painel app-conta-painel" data-saindo={conta.saindo || undefined}>
-              <span className="app-conta-email">{email}</span>
+              {/* quebra só no "@": o nome numa linha e o domínio na outra, nunca uma letra solta */}
+              <span className="app-conta-email" title={email}>
+                {email.split("@")[0]}
+                {email.includes("@") && (
+                  <>
+                    <wbr />@{email.slice(email.indexOf("@") + 1)}
+                  </>
+                )}
+              </span>
               <button
                 type="button"
                 className="app-conta-sair"

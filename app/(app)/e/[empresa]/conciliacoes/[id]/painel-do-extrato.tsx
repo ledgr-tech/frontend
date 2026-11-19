@@ -232,32 +232,8 @@ function QuadroDoLancamento({
         {selo && <span className={`selo selo-${selo.tom}`} title={dados?.rotulo}>{selo.rotulo}</span>}
       </div>
 
-      <h3 className="comp-foco-titulo" title={dados?.titulo}>
-        {dados ? dados.titulo : "Passe o mouse sobre uma linha"}
-      </h3>
-
-      <div className="comp-lados">
-        <Lado
-          rotulo="Extrato do banco"
-          lado={dados?.banco ?? null}
-          vazio={!linha}
-          falta={linha && !dados?.banco ? "sem lançamento no banco" : undefined}
-        />
-        <Lado
-          rotulo="Extrato do sistema"
-          lado={dados?.sistema ?? null}
-          vazio={!linha}
-          falta={linha && !dados?.sistema ? "sem lançamento no sistema" : undefined}
-          descricao={dados?.descricaoSistema}
-        />
-      </div>
-
-      <div className="comp-diferenca" data-zero={dados?.diferenca ? undefined : ""}>
-        <span>Diferença</span>
-        <strong className="font-titulo">{dados?.diferenca ?? "—"}</strong>
-      </div>
-
-      {/* sem barra de rolagem: a borda que esfuma e o "Mais abaixo" dizem que há mais */}
+      {/* o quadro rola inteiro, sem barra, e as ações ficam no pé: com uma justificativa longa, os dois lados
+          sobem e o texto ganha a altura toda. A borda esfuma e o "Mais abaixo" dizem que há mais */}
       <div className="comp-detalhe-caixa">
       <div
         ref={caixaDoDetalhe}
@@ -267,6 +243,31 @@ function QuadroDoLancamento({
         data-abaixo={abaixo || undefined}
       >
       <div ref={conteudoDoDetalhe} className="comp-detalhe-conteudo">
+        <h3 className="comp-foco-titulo" title={dados?.titulo}>
+          {dados ? dados.titulo : "Passe o mouse sobre uma linha"}
+        </h3>
+
+        <div className="comp-lados">
+          <Lado
+            rotulo="Extrato do banco"
+            lado={dados?.banco ?? null}
+            vazio={!linha}
+            falta={linha && !dados?.banco ? "sem lançamento no banco" : undefined}
+          />
+          <Lado
+            rotulo="Extrato do sistema"
+            lado={dados?.sistema ?? null}
+            vazio={!linha}
+            falta={linha && !dados?.sistema ? "sem lançamento no sistema" : undefined}
+            descricao={dados?.descricaoSistema}
+          />
+        </div>
+
+        <div className="comp-diferenca" data-zero={dados?.diferenca ? undefined : ""}>
+          <span>Diferença</span>
+          <strong className="font-titulo">{dados?.diferenca ?? "—"}</strong>
+        </div>
+
         {!linha && <p className="comp-dica">O detalhe da linha aparece aqui. Clique numa linha para fixar.</p>}
 
         {linha && modo === "desfazerAprovacao" ? (

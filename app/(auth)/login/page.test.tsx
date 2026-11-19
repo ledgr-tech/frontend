@@ -16,8 +16,12 @@ const abrirSessao = vi.fn();
 const entrarNaDemonstracao = vi.fn();
 const entrarComGoogle = vi.fn();
 const voltarDaIdaAoGoogle = vi.fn(async (): Promise<string | null> => null);
+const entrarLigandoGoogle = vi.fn();
+const emailParaLigarGoogle = vi.fn(async (): Promise<string | null> => null);
 vi.mock("../acoes", () => ({
   entrar: (...args: unknown[]) => abrirSessao(...args),
+  entrarLigandoGoogle: (...args: unknown[]) => entrarLigandoGoogle(...args),
+  emailParaLigarGoogle: () => emailParaLigarGoogle(),
   entrarComGoogle: (...args: unknown[]) => entrarComGoogle(...args),
   entrarNaDemonstracao: (...args: unknown[]) => entrarNaDemonstracao(...args),
   voltarDaIdaAoGoogle: () => voltarDaIdaAoGoogle(),
@@ -251,10 +255,35 @@ describe("LoginPage", () => {
     render(<LoginPage />);
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Este e-mail já tem conta com senha. Entre com a senha acima, ou use “Esqueci a senha”.",
+      "Este e-mail já tem conta com senha. Digite a senha para conectar o Google a ela e entrar.",
     );
     expect(window.location.search).toBe("");
     expect(document.getElementById("login-senha")).toHaveFocus();
+  });
+
+  it("com o e-mail do Google que espera o vínculo, a senha liga o Google e entra (backend #218)", async () => {
+    vi.stubEnv("NEXT_PUBLIC_LEDGR_GOOGLE", "1");
+    emailParaLigarGoogle.mockResolvedValueOnce("ana@telhacerta.com.br");
+    entrarLigandoGoogle.mockResolvedValueOnce({ ok: false, erro: "google_em_outra_conta" });
+    window.history.replaceState(null, "", "/login?google=email_com_senha");
+    render(<LoginPage />);
+
+    await waitFor(() => expect(screen.getByLabelText("E-mail")).toHaveValue("ana@telhacerta.com.br"));
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText("Senha"), "ledgr2026");
+    await user.click(screen.getByRole("button", { name: "Conectar o Google e entrar" }));
+
+    await waitFor(() => expect(entrarLigandoGoogle).toHaveBeenCalledWith("ana@telhacerta.com.br", "ledgr2026", true));
+    expect(abrirSessao).not.toHaveBeenCalled();
+    expect(await screen.findByText(/Não deu para conectar este Google/)).toBeInTheDocument();
+    // recusado o vínculo, o botão não promete mais conectar o Google
+    expect(screen.getByRole("button", { name: "Entrar" })).toBeInTheDocument();
+
+    // outro e-mail no campo é o login comum, sem ligar nada
+    await user.clear(screen.getByLabelText("E-mail"));
+    await user.type(screen.getByLabelText("E-mail"), "outra@telhacerta.com.br");
+    await user.click(screen.getByRole("button", { name: "Entrar" }));
+    await waitFor(() => expect(abrirSessao).toHaveBeenCalledWith("outra@telhacerta.com.br", "ledgr2026", true));
   });
 
   it("o Cancelar do Google (NextAuth, ?error=) recupera o voltar que esperou no cookie", async () => {

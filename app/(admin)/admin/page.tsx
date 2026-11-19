@@ -1,38 +1,33 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { formatarCnpj } from "../../(auth)/cadastro/passos";
 import { formatarDataHora } from "../../(app)/e/[empresa]/dashboard/resumo";
-import { listarContas } from "./acoes";
+import { buscarContas, listarContas } from "./acoes";
 import { NavDoAdmin, Paginacao } from "./navegacao";
+import { enderecoDaLista } from "./cobranca";
 import { UFS } from "@/lib/uf";
-import { ROTULO_DA_SITUACAO, SITUACOES, UF_NAO_INFORMADA, agoraEmMs, chaveDaSituacao, classeDoSelo, localDaConta, prazoDoTeste } from "./situacao";
+import { COOKIE_DA_BUSCA, ROTULO_DA_SITUACAO, SITUACOES, UF_NAO_INFORMADA, agoraEmMs, chaveDaSituacao, classeDoSelo, localDaConta, prazoDoTeste } from "./situacao";
 
-type Busca = { busca?: string; situacao?: string; ordem?: string; uf?: string; pagina?: string };
+type Busca = { situacao?: string; ordem?: string; uf?: string; pagina?: string; com_busca?: string };
 
 const FILTROS = [{ valor: "", rotulo: "Todas" }, ...SITUACOES.map((s) => ({ valor: s, rotulo: ROTULO_DA_SITUACAO[s] }))];
-
-function endereco(base: Busca, pagina: number): string {
-  const q = new URLSearchParams();
-  if (base.busca) q.set("busca", base.busca);
-  if (base.situacao) q.set("situacao", base.situacao);
-  if (base.ordem) q.set("ordem", base.ordem);
-  if (base.uf) q.set("uf", base.uf);
-  if (pagina > 1) q.set("pagina", String(pagina));
-  const texto = q.toString();
-  return texto ? `/admin?${texto}` : "/admin";
-}
 
 const dia = (iso: string) => formatarDataHora(iso).slice(0, 10);
 
 /**
  * As contas clientes (#222), no padrão da tela Empresas (opção B do 28/10): filtros de situação em abas,
  * busca por razão social, CNPJ ou e-mail do admin, e a tabela num cartão com a paginação no rodapé, 20 por
- * página. É um formulário GET, sem JS: o botão Buscar vem primeiro no DOM para ser o que o Enter aciona.
+ * página. O formulário usa uma Server Action e funciona sem JS; a busca fica num cookie httpOnly de 15
+ * minutos, só do /admin, e só vale com com_busca=1 na URL: links sem o marcador abrem a lista sem a busca
+ * guardada, e o Voltar desfaz a busca. O botão Buscar vem primeiro no DOM para ser o que o Enter aciona.
  */
 export default async function AdminPage({ searchParams }: { searchParams: Promise<Busca> }) {
   const filtros = await searchParams;
+  const busca = filtros.com_busca === "1" ? (await cookies()).get(COOKIE_DA_BUSCA)?.value ?? "" : "";
+  const { situacao, ordem, uf } = filtros;
   const pagina = Number(filtros.pagina) || 1;
-  const r = await listarContas({ ...filtros, pagina });
+  const r = await listarContas({ busca, situacao: filtros.situacao, ordem: filtros.ordem, uf: filtros.uf, pagina });
   if (!r.ok && r.status === 401) redirect("/login");
   // não é da equipe do Ledgr: a rota não existe para a pessoa
   if (!r.ok && (r.status === 403 || r.status === 404)) notFound();
@@ -50,14 +45,15 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
         </div>
       </div>
 
-      <form method="get" role="search" className="extratos-corpo adm-folga-topo">
+      <form action={buscarContas} role="search" className="extratos-corpo adm-folga-topo">
         <div className="adm-barra">
           <div className="adm-linha adm-filtros-busca adm-filtros-largos">
             <input
               className="input adm-busca"
               type="search"
               name="busca"
-              defaultValue={filtros.busca ?? ""}
+              autoComplete="off"
+              defaultValue={busca}
               placeholder="Razão social, CNPJ ou e-mail do admin"
               aria-label="Buscar conta"
             />
@@ -147,7 +143,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
               quantos={r.dados.itens.length}
               total={r.dados.total}
               nome="contas"
-              endereco={(p) => endereco(filtros, p)}
+              endereco={(p) => enderecoDaLista("/admin", { situacao, ordem, uf, com_busca: busca ? "1" : undefined }, p)}
             />
           </div>
         )}

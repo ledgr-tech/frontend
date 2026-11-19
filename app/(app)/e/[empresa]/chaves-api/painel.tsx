@@ -23,7 +23,8 @@ const FALHA_DE_REDE = SEM_SERVIDOR;
  */
 export function PainelDeChavesApi() {
   const [estado, setEstado] = useState<Estado>({ situacao: "carregando" });
-  // o token da chave recém-criada: some ao sair da seção, e o backend não o devolve de novo
+  // o token da chave recém-criada: some ao fechar a janela das Configurações ou em "Já guardei", e o
+  // backend não o devolve de novo
   const [tokenNovo, setTokenNovo] = useState<{ nome: string; token: string } | null>(null);
   const idFalha = useId();
 

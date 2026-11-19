@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { Execucao, Fechamento } from "@/lib/adaptadores";
 import type { DadosDoFechamento, ParDoFechamento, Resultado } from "../conciliacoes/acoes";
@@ -497,6 +497,23 @@ describe("FechamentosPage", () => {
     expect(regiao.getByText("Saldo não informado no arquivo")).toBeInTheDocument();
     // sem os campos no backend, a conciliação aparece sem linha de saldo
     expect(regiao.getAllByText(/Saldo/)).toHaveLength(2);
+  });
+
+  it("diz que há mais no card com o \"Mais abaixo\", que some no fim da rolagem", async () => {
+    await renderizar();
+    const caixa = painel().querySelector<HTMLElement>(".fech-rolagem")!;
+    const mais = painel().querySelector(".comp-mais")!;
+    Object.defineProperty(caixa, "scrollHeight", { configurable: true, value: 1200 });
+    Object.defineProperty(caixa, "clientHeight", { configurable: true, value: 700 });
+
+    fireEvent.scroll(caixa);
+    expect(mais).toHaveAttribute("data-visivel");
+    expect(caixa).toHaveAttribute("data-abaixo");
+
+    caixa.scrollTop = 500;
+    fireEvent.scroll(caixa);
+    expect(mais).not.toHaveAttribute("data-visivel");
+    expect(caixa).toHaveAttribute("data-acima");
   });
 
   it("filters the months that are ready", async () => {

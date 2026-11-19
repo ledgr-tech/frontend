@@ -54,3 +54,16 @@ describe("cabeçalhos de segurança", () => {
     expect(config.poweredByHeader).toBe(false);
   });
 });
+
+describe("o painel interno (#333)", () => {
+  it("sai sem cache em toda tela do /admin, e só nelas", async () => {
+    const { unstable_getResponseFromNextConfig } = await import("next/experimental/testing/server");
+    const { default: nextConfig } = await import("./next.config");
+    const cache = async (caminho: string) =>
+      (await unstable_getResponseFromNextConfig({ url: `http://localhost${caminho}`, nextConfig })).headers.get("Cache-Control");
+    for (const caminho of ["/admin", "/admin/estados", "/admin/3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20/pagamentos"]) {
+      expect(await cache(caminho), caminho).toBe("no-store");
+    }
+    for (const caminho of ["/", "/visao-geral", "/administracao"]) expect(await cache(caminho), caminho).toBeNull();
+  });
+});

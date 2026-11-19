@@ -8,7 +8,10 @@ import {
   aoVoltarDoGoogle,
   autorizar,
   autorizarDepoisDoCadastroGoogle,
+  emailDoVinculoGoogle,
   entrarNoBackendComGoogle,
+  GoogleEmOutraConta,
+  vincularGoogle,
 } from "./login";
 
 // o /login não usa sessão, mas o lib/backend importa cookies(); o Google guarda o id_token num cookie
@@ -132,7 +135,8 @@ describe("login pelo Google (backend #73)", () => {
   });
 
   function respostaDoBackend(status: number, corpo: object) {
-    fetch.mockResolvedValue(Response.json(corpo, { status }));
+    // uma resposta nova por chamada: o corpo de um Response só se lê uma vez
+    fetch.mockImplementation(async () => Response.json(corpo, { status }));
   }
 
   it("manda o id_token ao /login/google, sem Bearer, e usa o id e o conta_id do backend", async () => {
@@ -171,6 +175,13 @@ describe("login pelo Google (backend #73)", () => {
     expect(await entrarNoBackendComGoogle("t")).toEqual({ ok: false, erro: "falha" });
   });
 
+  it("o 409 de conta com outro Google não vira o caso que a senha resolve (backend #218)", async () => {
+    respostaDoBackend(409, { detail: "Esta conta já está conectada a outra conta Google.", codigo: "email_com_outro_google" });
+    expect(await entrarNoBackendComGoogle("t")).toEqual({ ok: false, erro: "email_com_outro_google" });
+    expect(await aoVoltarDoGoogle({ contaId: "" }, "t")).toBe("/login?google=email_com_outro_google");
+    expect(cookiesGravados).not.toHaveBeenCalled();
+  });
+
   it("na volta do Google com conta, troca o perfil do Google pelo usuário do backend", async () => {
     respostaDoBackend(200, USUARIO);
     const usuario = { id: "sub-do-google", email: "ana@gmail.com", name: "Ana", contaId: "" };
@@ -191,9 +202,19 @@ describe("login pelo Google (backend #73)", () => {
     );
   });
 
+  it("e-mail com senha: guarda o id_token para o vínculo e volta ao login pedindo a senha", async () => {
+    respostaDoBackend(409, { detail: "Já existe uma conta com este e-mail. Entre com e-mail e senha.", codigo: "email_com_senha" });
+    expect(await aoVoltarDoGoogle({ contaId: "" }, "id-token-do-google")).toBe("/login?google=email_com_senha");
+    expect(cookiesGravados).toHaveBeenCalledWith(
+      "ledgr-vinculo-google",
+      "id-token-do-google",
+      expect.objectContaining({ httpOnly: true, sameSite: "lax", path: "/", maxAge: 3600 }),
+    );
+  });
+
   it("volta ao login com o motivo nas outras recusas, ou sem id_token", async () => {
-    respostaDoBackend(409, { detail: "Já existe uma conta com este e-mail. Entre com e-mail e senha." });
-    expect(await aoVoltarDoGoogle({ contaId: "" }, "t")).toBe("/login?google=email_com_senha");
+    respostaDoBackend(429, { detail: "x" });
+    expect(await aoVoltarDoGoogle({ contaId: "" }, "t")).toBe("/login?google=muitas_tentativas");
 
     expect(await aoVoltarDoGoogle({ contaId: "" }, undefined)).toBe("/login?google=falha");
     expect(cookiesGravados).not.toHaveBeenCalled();
@@ -310,11 +331,69 @@ describe("aceite do convite pelo Google (backend #69/#73)", () => {
   });
 });
 
+describe("vínculo do Google pela senha (backend #218)", () => {
+  // um id_token só com o payload que interessa: quem confere a assinatura é o backend
+  const ID_TOKEN = `x.${btoa(JSON.stringify({ email: "ana@telhacerta.com.br", name: "Ana" }))}.y`;
+  const USUARIO = { id: "u1", conta_id: "c1", nome: "Ana", email: "ana@telhacerta.com.br", auth_time: 1791374400 };
+
+  beforeEach(() => {
+    fetch.mockReset();
+    vi.stubGlobal("fetch", fetch);
+    cookiesExistentes.clear();
+    cookiesApagados.mockReset();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("manda o id_token do cookie e a senha ao /login/google/vincular, entra e apaga o cookie", async () => {
+    cookiesExistentes.set("ledgr-vinculo-google", ID_TOKEN);
+    fetch.mockResolvedValue(Response.json(USUARIO));
+
+    expect(await vincularGoogle("s3nha")).toMatchObject({ id: "u1", contaId: "c1", authTime: 1791374400 });
+    const [url, init] = fetch.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe("http://localhost:8000/login/google/vincular");
+    expect(JSON.parse(String(init.body))).toEqual({ id_token: ID_TOKEN, senha: "s3nha" });
+    expect(new Headers(init.headers).has("Authorization")).toBe(false);
+    expect(cookiesApagados).toHaveBeenCalledWith("ledgr-vinculo-google");
+  });
+
+  it("senha errada é null e o cookie fica para tentar de novo; 409 recusa e apaga; sem cookie, null", async () => {
+    cookiesExistentes.set("ledgr-vinculo-google", ID_TOKEN);
+    fetch.mockResolvedValue(Response.json({ detail: "x" }, { status: 401 }));
+    expect(await vincularGoogle("errada")).toBeNull();
+    expect(cookiesApagados).not.toHaveBeenCalled();
+
+    fetch.mockResolvedValue(Response.json({ detail: "x" }, { status: 409 }));
+    await expect(vincularGoogle("s3nha")).rejects.toBeInstanceOf(GoogleEmOutraConta);
+    expect(cookiesApagados).toHaveBeenCalledWith("ledgr-vinculo-google");
+
+    fetch.mockResolvedValue(Response.json({ detail: "x" }, { status: 429 }));
+    await expect(vincularGoogle("s3nha")).rejects.toBeInstanceOf(MuitasEntradas);
+
+    cookiesExistentes.clear();
+    fetch.mockReset();
+    expect(await vincularGoogle("s3nha")).toBeNull();
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("lê do cookie o e-mail do Google que espera o vínculo", async () => {
+    expect(await emailDoVinculoGoogle()).toBeNull();
+    cookiesExistentes.set("ledgr-vinculo-google", ID_TOKEN);
+    expect(await emailDoVinculoGoogle()).toBe("ana@telhacerta.com.br");
+  });
+});
+
 describe("esquecerGoogleIncompleto (S1-15)", () => {
   beforeEach(() => cookiesApagados.mockReset());
 
   it("apaga o id_token do cadastro e o convite que ficaram de uma tentativa pela metade", async () => {
     await esquecerGoogleIncompleto();
-    expect(cookiesApagados.mock.calls.map(([nome]) => nome).sort()).toEqual(["ledgr-cadastro-google", "ledgr-convite-google"]);
+    expect(cookiesApagados.mock.calls.map(([nome]) => nome).sort()).toEqual([
+      "ledgr-cadastro-google",
+      "ledgr-convite-google",
+      "ledgr-vinculo-google",
+    ]);
   });
 });

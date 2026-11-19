@@ -17,7 +17,8 @@ const dia = (iso: string) => formatarDataHora(iso).slice(0, 10);
 
 /**
  * Os pagamentos de todas as contas (#236, backend #182): o que o webhook da Stripe guardou, sem chamar a
- * Stripe. "Falharam" é a inadimplência. Formulário GET como a lista de contas; o período é no fuso de São Paulo.
+ * Stripe. "Falharam" é a inadimplência. Formulário GET: os filtros (status e período) não têm dado pessoal;
+ * o período é no fuso de São Paulo.
  */
 export default async function PagamentosPage({ searchParams }: { searchParams: Promise<Busca> }) {
   const filtros = await searchParams;

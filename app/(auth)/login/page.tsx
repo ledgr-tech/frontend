@@ -10,6 +10,8 @@ import { estaBloqueado, limparTentativas, registrarSenhaErrada } from "@/lib/ten
 import {
   entrar as abrirSessao,
   entrarComGoogle as irAoGoogle,
+  entrarLigandoGoogle,
+  emailParaLigarGoogle,
   entrarNaDemonstracao,
   voltarDaIdaAoGoogle,
   type ErroEntrada,
@@ -63,6 +65,11 @@ const ERROS_LOGIN: Record<ErroEntrada, { campo: Campo; mensagem: string }> = {
   // a pausa do navegador depois de erros seguidos e o limite do backend (10 entradas por minuto).
   // "alguns minutos" e não um tempo exato: quem tenta de novo durante o bloqueio pega só o que falta dele
   muitas_tentativas: { campo: "senha", mensagem: "Acesso pausado por segurança. Tente de novo em alguns minutos." },
+  // o vínculo do Google (backend #218) recusou: esta conta tem outro Google, ou este Google é de outra conta
+  google_em_outra_conta: {
+    campo: "senha",
+    mensagem: "Não deu para conectar este Google: ele ou esta conta já estão ligados a outro. Entre só com a senha.",
+  },
   // Não é erro de quem digitou: ambiente mal configurado (NEXTAUTH_SECRET) ou
   // backend fora do ar. Mensagem separada pra não acusar o usuário.
   falha_sessao: { campo: "senha", mensagem: "Não foi possível abrir a sessão. Tente de novo em instantes." },
@@ -95,6 +102,8 @@ export default function LoginPage() {
   const [saudacao, setSaudacao] = useState<string | null>(null);
   // o motivo de o Google não ter aberto a sessão, que o callback manda em ?google= (ou o NextAuth em ?error=)
   const [erroGoogle, setErroGoogle] = useState<string>();
+  // o e-mail do Google que voltou com "já tem senha": entrar com esse e-mail e a senha liga os dois (backend #218)
+  const [emailDoVinculo, setEmailDoVinculo] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const titulo = useRef<HTMLHeadingElement>(null);
   // o StrictMode roda o efeito duas vezes em dev — sem isso o segundo sorteio podia repetir a visita anterior
@@ -129,7 +138,17 @@ export default function LoginPage() {
         : "Não foi possível entrar agora. Tente de novo em instantes.",
     );
     // a conta é de senha: o próximo passo é a senha, então o cursor já espera nela
-    if (motivo === "email_com_senha") campoSenha.current?.focus();
+    if (motivo === "email_com_senha") {
+      campoSenha.current?.focus();
+      void emailParaLigarGoogle()
+        .then((emailDoGoogle) => {
+          if (!emailDoGoogle) return;
+          setEmailDoVinculo(emailDoGoogle);
+          // o e-mail do Google ganha do que o gerenciador de senhas preencheu: é com ele que a senha liga os dois
+          setEmail(emailDoGoogle);
+        })
+        .catch(() => {});
+    }
     // o motivo vale para esta volta do Google: recarregar a página não mostra de novo. O `voltar` fica: é
     // ele que leva de volta ao consentimento de uma conexão depois de entrar com a senha
     parametros.delete("google");
@@ -254,7 +273,10 @@ export default function LoginPage() {
       if (estaBloqueado()) return falhar("muitas_tentativas");
       let resultado: ResultadoEntrada;
       try {
-        resultado = await abrirSessao(emailLimpo, senha, manterSessao);
+        // com o e-mail do Google que espera o vínculo, a senha também liga o Google à conta
+        resultado = ligandoGoogle
+          ? await entrarLigandoGoogle(emailLimpo, senha, manterSessao)
+          : await abrirSessao(emailLimpo, senha, manterSessao);
       } catch {
         // a action nem respondeu (rede, deploy novo no meio): para quem digitou, é a mesma falha
         return falhar("falha_sessao");
@@ -280,6 +302,8 @@ export default function LoginPage() {
 
   function falhar(erro: ErroEntrada) {
     setEntrando(false);
+    // o servidor apagou o vínculo: o botão volta a ser o Entrar comum
+    if (erro === "google_em_outra_conta") setEmailDoVinculo(null);
     const { campo, mensagem } = ERROS_LOGIN[erro];
     mostrarErros({ [campo]: mensagem });
   }
@@ -312,6 +336,8 @@ export default function LoginPage() {
       falhar("falha_sessao");
     }, ATRASO_ENTRADA_MS);
   }
+
+  const ligandoGoogle = emailDoVinculo !== null && email.trim().toLowerCase() === emailDoVinculo.toLowerCase();
 
   function enviar(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -428,7 +454,7 @@ export default function LoginPage() {
           className="btn btn-primary btn-block login-entrar"
           disabled={entrando}
         >
-          {entrando ? "Entrando…" : "Entrar"}
+          {entrando ? "Entrando…" : ligandoGoogle ? "Conectar o Google e entrar" : "Entrar"}
         </button>
 
         {/* o Google de verdade onde NEXT_PUBLIC_LEDGR_GOOGLE=1 (lib/google.ts); sem ele, o atalho de demonstração,
