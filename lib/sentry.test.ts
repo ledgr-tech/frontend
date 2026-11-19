@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { semTokenNaTrilha, semTokenNoEvento } from "./sentry";
+import { semSessao, semTokenNaTrilha, semTokenNoEvento } from "./sentry";
 
 describe("semTokenNaTrilha", () => {
   it("tira o token do fragmento da navegação e das chamadas", () => {
@@ -19,6 +19,12 @@ describe("semTokenNaTrilha", () => {
 
   it("deixa o resto como está", () => {
     expect(semTokenNaTrilha({ category: "ui.click" })).toEqual({ category: "ui.click" });
+  });
+});
+
+describe("semSessao", () => {
+  it("tira só o aviso de sessão", () => {
+    expect(semSessao([{ name: "BrowserSession" }, { name: "Breadcrumbs" }])).toEqual([{ name: "Breadcrumbs" }]);
   });
 });
 

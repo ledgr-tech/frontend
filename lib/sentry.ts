@@ -23,9 +23,18 @@ export function opcoesDoSentry(ambiente: string | undefined) {
       genAI: { inputs: false, outputs: false },
       mcp: { inputs: false, outputs: false },
     },
+    integrations: semSessao,
     beforeBreadcrumb: semTokenNaTrilha,
     beforeSend: semTokenNoEvento,
   };
+}
+
+/**
+ * Sem o aviso de sessão que o SDK do navegador manda a cada página aberta, mesmo sem erro:
+ * a política promete que, sem erro, nada vai.
+ */
+export function semSessao<T extends { name: string }>(integracoes: T[]): T[] {
+  return integracoes.filter((integracao) => integracao.name !== "BrowserSession");
 }
 
 /** O endereço sem o `#...`: redefinir-senha, aceitar-convite e confirmar-email levam o token ali. */

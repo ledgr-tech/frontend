@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 
 export default function PrivacidadePage() {
   return (
-    <DocumentoLegal titulo="Política de privacidade" versao="11 de novembro de 2026">
+    <DocumentoLegal titulo="Política de privacidade" versao="19 de novembro de 2026">
       <h2>Quem é quem</h2>
       <p>
         O Ledgr concilia o extrato do banco com o extrato do sistema de gestão da sua empresa. Nos
@@ -53,6 +53,13 @@ export default function PrivacidadePage() {
           O que foi enviado ao provedor para gerar a explicação não é guardado.
         </li>
         <li>
+          <strong>Relatórios de erro:</strong> quando algo falha no site ou no app, vai para o Sentry um
+          relatório com a falha técnica, o navegador, o endereço da tela e os passos logo antes dela
+          (telas abertas, cliques e chamadas ao servidor). Não vão o que você digita ou envia, os
+          cookies, o seu nome, o seu e-mail, o seu endereço IP nem os links de acesso que chegam por
+          e-mail. Sem erro, nada é enviado.
+        </li>
+        <li>
           <strong>O que fica só no seu navegador:</strong> as preferências de tela (tema, densidade das
           tabelas, menu recolhido), a saudação do login e a contagem de tentativas de entrada. O cadastro
           também pergunta o sistema de gestão e o e-mail do responsável; hoje essas respostas não são
@@ -64,7 +71,7 @@ export default function PrivacidadePage() {
       <p>
         Para prestar o serviço: ler os extratos, conciliar, mostrar as divergências, gerar as explicações
         por IA que você pedir, exportar o relatório, enviar os e-mails do serviço (como o de recuperação de
-        senha) e manter você conectado. A base legal é a execução do contrato com a sua empresa (art. 7º, V, da
+        senha), manter você conectado e descobrir e corrigir as falhas do site e do app. A base legal é a execução do contrato com a sua empresa (art. 7º, V, da
         LGPD). O Ledgr não vende dados e não os usa para publicidade.
       </p>
 
@@ -201,9 +208,7 @@ export default function PrivacidadePage() {
         O Ledgr usa cinco fornecedores: a Vercel, que hospeda o site e o app; a Railway, que hospeda o
         servidor e o banco de dados; a OpenAI, para as explicações por IA; o Resend, que envia os
         e-mails do serviço, como o de recuperação de senha; e o Sentry, que recebe os relatórios de erro
-        do site e do app para que a gente corrija: a falha técnica, o navegador, o endereço da tela e os
-        passos logo antes dela (telas abertas, cliques e chamadas ao servidor), sem o que você digita ou
-        envia, sem cookies e sem os links de acesso que chegam por e-mail.
+        do site e do app (o que vai neles está em “Que dados tratamos”).
         Os cinco processam dados fora do Brasil,
         principalmente nos Estados Unidos. Nos extratos, em que o Ledgr é o operador, esses fornecedores
         atuam como suboperadores, com a autorização prevista nos{" "}
@@ -234,6 +239,7 @@ export default function PrivacidadePage() {
       <ul>
         <li>O arquivo enviado não é guardado.</li>
         <li>Lançamentos, conciliações, histórico e explicações ficam enquanto a conta existir.</li>
+        <li>Os relatórios de erro ficam 30 dias no Sentry e são apagados em seguida.</li>
         <li>O registro de acessos ao painel interno da equipe do Ledgr fica por 1 ano.</li>
         <li>
           O que vai para a OpenAI para gerar uma explicação fica até 30 dias nos registros de
@@ -265,6 +271,7 @@ export default function PrivacidadePage() {
         os <Link href="/termos">Termos de uso</Link>.
       </p>
       <ul>
+        <li>19 de novembro de 2026: os relatórios de erro e o Sentry como fornecedor.</li>
         <li>
           11 de novembro de 2026: entrada pelo Google, convites, cidade e estado da conta, link público do
           relatório, chaves de API, conexão com o ChatGPT ou o Claude, o que a equipe do Ledgr vê e os
