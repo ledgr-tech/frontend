@@ -266,7 +266,12 @@ export type ConciliacaoEmRodadas = {
    * conciliar e decidir (409) até reabrir. Null com o mês aberto, sem período ou sem resposta.
    */
   fechamento: Fechamento | null;
+  /** True só quando GET /fechamentos?competencia= falhou; uma lista vazia é mês aberto. */
+  fechamentoIndisponivel: boolean;
 };
+
+export const FECHAMENTO_NAO_CARREGOU =
+  "Não deu para saber se este mês está fechado. Conferir, justificar e enviar nova versão voltam quando carregar.";
 
 // O teto do backend por página de /execucoes. Um extrato do banco com mais de 100 rodadas
 // vira outra página, até o mesmo teto de páginas das linhas.
@@ -311,11 +316,21 @@ export async function carregarConciliacaoEmRodadas(
   if (!alvo) {
     const simples = await carregarConciliacao(extratoBancoId, extratoSistemaId);
     return simples.ok
-      ? { ok: true, dados: { ...simples.dados, rodada: null, rodadas: [], mudancas: null, fechamento: null } }
+      ? {
+          ok: true,
+          dados: {
+            ...simples.dados,
+            rodada: null,
+            rodadas: [],
+            mudancas: null,
+            fechamento: null,
+            fechamentoIndisponivel: false,
+          },
+        }
       : simples;
   }
 
-  const [atual, fechamento] = await Promise.all([
+  const [atual, estadoDoFechamento] = await Promise.all([
     carregarConciliacao(extratoBancoId, alvo.extratoSistemaId),
     fechamentoAtivo(alvo.execucao.periodoInicio),
   ]);
@@ -348,21 +363,30 @@ export async function carregarConciliacaoEmRodadas(
       rodada,
       rodadas: vistas,
       mudancas,
-      fechamento,
+      fechamento: estadoDoFechamento.fechamento,
+      fechamentoIndisponivel: estadoDoFechamento.indisponivel,
     },
   };
 }
 
 /**
  * O fechamento em vigor no mês que começa em `periodoInicio`: o mais recente da competência, se
- * ainda está fechado. Sem período não há competência; sem resposta, a tela abre como aberta e o
- * backend ainda recusa a escrita com o 409, que ela mostra.
+ * ainda está fechado. Sem período não há competência. Sem resposta, `indisponivel` deixa a tela só
+ * leitura, em vez de supor o mês aberto.
  */
-async function fechamentoAtivo(periodoInicio: string | null): Promise<Fechamento | null> {
+async function fechamentoAtivo(
+  periodoInicio: string | null,
+): Promise<{ fechamento: Fechamento | null; indisponivel: boolean }> {
   try {
-    return await lerFechamentoAtivo(periodoInicio);
+    return {
+      fechamento: await lerFechamentoAtivo(periodoInicio),
+      indisponivel: false,
+    };
   } catch {
-    return null;
+    return {
+      fechamento: null,
+      indisponivel: periodoInicio !== null && COMPETENCIA.test(periodoInicio.slice(0, 7)),
+    };
   }
 }
 

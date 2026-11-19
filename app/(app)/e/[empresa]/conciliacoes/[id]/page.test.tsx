@@ -26,6 +26,8 @@ vi.mock("next/navigation", () => ({
 const carregarConciliacao = vi.fn();
 const registrarDecisao = vi.fn();
 vi.mock("../acoes", () => ({
+  FECHAMENTO_NAO_CARREGOU:
+    "Não deu para saber se este mês está fechado. Conferir, justificar e enviar nova versão voltam quando carregar.",
   // um backend anterior ao #196: sem a rota dos fatos, o painel segue como estava
   carregarDetalhesDaDivergencia: async () => ({ ok: false, status: 404, erro: "Não encontrada." }),
   carregarConciliacao: (...args: unknown[]) => carregarConciliacao(...args),
@@ -1126,6 +1128,25 @@ describe("ConciliacaoPage", () => {
       // o que já foi decidido continua à vista; o que gravaria, não
       expect(screen.getByRole("button", { name: "Justificadas (0)" })).toBeInTheDocument();
       expect(screen.queryByRole("button", { name: /como conferida$/ })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Enviar nova versão do extrato do sistema" })).not.toBeInTheDocument();
+    });
+
+    it("sem o fechamento, a comparação esconde conferir, justificar e nova versão e mostra o aviso", async () => {
+      doBackend(comCampo, {
+        fechamento: null,
+        fechamentoIndisponivel: true,
+      });
+      render(<ConciliacaoPage />);
+
+      const aviso = await screen.findByRole("status", {
+        name: "Não deu para saber se este mês está fechado",
+      });
+      expect(aviso).toHaveTextContent(
+        "Não deu para saber se este mês está fechado. Conferir, justificar e enviar nova versão voltam quando carregar.",
+      );
+      expect(within(aviso).getByRole("button", { name: "Tentar de novo" })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /como conferida$/ })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Justificar" })).not.toBeInTheDocument();
       expect(screen.queryByRole("button", { name: "Enviar nova versão do extrato do sistema" })).not.toBeInTheDocument();
     });
 

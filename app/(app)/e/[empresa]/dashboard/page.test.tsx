@@ -144,6 +144,17 @@ describe("DashboardPage", () => {
     await waitFor(() => expect(within(previa()).getByRole("heading", { name: "Sem pendência" })).toHaveFocus());
   });
 
+  it("sem /fechamentos, Conciliações não oferece nova versão e avisa", async () => {
+    com({ fechamentos: null });
+    await renderizar();
+
+    expect(screen.getByRole("status", { name: "Não deu para saber quais meses estão fechados" })).toHaveTextContent(
+      "Não deu para saber quais meses estão fechados.",
+    );
+    expect(screen.getByRole("button", { name: "Tentar de novo" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Enviar nova versão do extrato do sistema" })).not.toBeInTheDocument();
+  });
+
   it("opens the first in the queue in the preview, in place of the old continue strip", async () => {
     com();
     await renderizar();

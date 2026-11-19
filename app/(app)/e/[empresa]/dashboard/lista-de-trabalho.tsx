@@ -66,6 +66,7 @@ export function ListaDeTrabalho({
   /** A primeira da fila que pede decisão, com as conferidas (que só ela traz). */
   emAndamento: Contagem | null;
 }) {
+  const router = useRoteador();
   const meses = agruparPorMes(conciliacoes, fechamentos);
   const contar = (filtro: FiltroDaLista) =>
     meses.reduce(
@@ -112,6 +113,19 @@ export function ListaDeTrabalho({
         </Link>
       </FaixaFiltros>
 
+      {fechamentos === null && (
+        <p
+          role="status"
+          aria-label="Não deu para saber quais meses estão fechados"
+          className="vg-nota"
+        >
+          Não deu para saber quais meses estão fechados.{" "}
+          <button type="button" className="btn btn-secondary" onClick={() => router.refresh()}>
+            Tentar de novo
+          </button>
+        </p>
+      )}
+
       {!atual ? (
         <p className="extratos-vazio">{FILTROS.find((item) => item.id === filtro)?.vazio}</p>
       ) : (
@@ -140,6 +154,7 @@ export function ListaDeTrabalho({
             conciliacao={atual.conciliacao}
             mes={atual.mes}
             conferidas={emAndamento?.extratoBancoId === atual.conciliacao.extratoBancoId ? emAndamento.conferidas : null}
+            fechamentosIndisponiveis={fechamentos === null}
           />
         </div>
       )}
@@ -246,12 +261,14 @@ function Previa({
   conciliacao,
   mes,
   conferidas,
+  fechamentosIndisponiveis,
 }: {
   ref: React.Ref<HTMLElement>;
   conciliacao: ConciliacaoNaLista;
   mes: MesNaLista;
   /** Só a primeira da fila traz as conferidas; das outras, a linha não aparece. */
   conferidas: number | null;
+  fechamentosIndisponiveis: boolean;
 }) {
   const { extratoBancoId, arquivoBanco, arquivoSistema, execucao, competencia } = conciliacao;
   const { fechamento } = mes;
@@ -328,7 +345,7 @@ function Previa({
           Abrir a comparação
         </Link>
         {/* como na comparação: com o mês fechado, nada se concilia de novo */}
-        {!fechamento && (
+        {!fechamento && !fechamentosIndisponiveis && (
           <NovaVersao extratoBancoId={extratoBancoId} extratoSistemaId={execucao.extratoSistemaId} />
         )}
       </div>

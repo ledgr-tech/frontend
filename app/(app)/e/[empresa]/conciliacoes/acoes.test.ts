@@ -1649,6 +1649,17 @@ describe("carregarConciliacaoEmRodadas", () => {
 
     if (!resultado.ok) throw new Error(resultado.erro);
     expect(resultado.dados.fechamento).toBeNull();
+    expect(resultado.dados.fechamentoIndisponivel).toBe(true);
+  });
+
+  it("marca o fechamento disponível quando /fechamentos responde uma lista vazia", async () => {
+    backendComRodadas(duasRodadas(), []);
+
+    const resultado = await carregarConciliacaoEmRodadas(BANCO_RECENTE);
+
+    if (!resultado.ok) throw new Error(resultado.erro);
+    expect(resultado.dados.fechamento).toBeNull();
+    expect(resultado.dados.fechamentoIndisponivel).toBe(false);
   });
 
   it("recusa um id que não é de extrato sem chamar o backend", async () => {

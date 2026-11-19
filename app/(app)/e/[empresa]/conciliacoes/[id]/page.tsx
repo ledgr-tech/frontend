@@ -49,7 +49,7 @@ import { FaixaDoSaldo, SaldoNoFim } from "../../saldo";
 import { SeloIa } from "../../selo-ia";
 import { useNome, usePodeFechar } from "../../conta";
 import { aprovadaDepois, podeDesfazerAprovacao } from "@/lib/aprovacao";
-import { decidirLinhas } from "../acoes";
+import { decidirLinhas, FECHAMENTO_NAO_CARREGOU } from "../acoes";
 import { DecisaoEmLote } from "../decisao-em-lote";
 import { SEM_SERVIDOR } from "@/lib/sem-servidor";
 
@@ -228,7 +228,16 @@ export default function ConciliacaoPage() {
     );
   }
 
-  const { conciliacao, real, truncada, rodada, rodadas, mudancas, fechamento } = estado;
+  const {
+    conciliacao,
+    real,
+    truncada,
+    rodada,
+    rodadas,
+    mudancas,
+    fechamento,
+    fechamentoIndisponivel,
+  } = estado;
 
   function fechar() {
     const atualizada = fecharConciliacao(conciliacao.id);
@@ -283,7 +292,11 @@ export default function ConciliacaoPage() {
 
   // decidir só onde há onde gravar, só na rodada que vale (a passada é para ler) e só com o mês
   // aberto: no fechado, o backend recusa (409) até reabrir
-  const podeDecidir = ligadas && (!rodada || rodada.numero === rodada.total) && !fechamento;
+  const podeDecidir =
+    ligadas &&
+    (!rodada || rodada.numero === rodada.total) &&
+    !fechamento &&
+    !fechamentoIndisponivel;
   // marcar várias para decidir de uma vez: só quem aprova, só com o backend (o lote não tem mock) e só
   // no filtro delas, onde a última coluna fica livre da conferência
   const marcando = podeDecidir && podeAprovar && real && filtro === "aguardando";
@@ -388,6 +401,7 @@ export default function ConciliacaoPage() {
           // só conciliação de verdade, só na rodada que vale (a passada é para ler) e com o mês aberto
           real &&
           !fechamento &&
+          !fechamentoIndisponivel &&
           (!rodada || rodada.numero === rodada.total) && (
             <NovaVersao
               extratoBancoId={conciliacao.id}
@@ -414,6 +428,18 @@ export default function ConciliacaoPage() {
           <p role="status" aria-label="Mês fechado" className="mes-fechado-aviso">
             {`${tituloDaCompetencia(fechamento.competencia)} está fechado. Para conferir, justificar ou conciliar de novo, reabra o fechamento. `}
             <Link href={`/fechamentos?mes=${fechamento.competencia}`}>Ver o fechamento</Link>
+          </p>
+        )}
+        {fechamentoIndisponivel && (
+          <p
+            role="status"
+            aria-label="Não deu para saber se este mês está fechado"
+            className="mes-fechado-aviso"
+          >
+            {FECHAMENTO_NAO_CARREGOU}{" "}
+            <button type="button" className="btn btn-secondary" onClick={recarregar}>
+              Tentar de novo
+            </button>
           </p>
         )}
         {/* a faixa da rodada: o aviso da rodada passada (só para ler, leva à que vale) ou o que
