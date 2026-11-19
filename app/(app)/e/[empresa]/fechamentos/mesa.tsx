@@ -292,6 +292,8 @@ function Painel({ mes, podeFechar, naoLidasIndisponivel }: {
   podeFechar: boolean;
   naoLidasIndisponivel: boolean;
 }) {
+  // o podeFechar daqui diz só que os fechamentos carregaram; o papel vem da conta
+  const gestor = usePodeFechar();
   const conciliadas = mes.pares.map((par) => ({
     ...par,
     caminho: caminhoDaConciliacao(par.execucao.extratoBancoId, par.execucao.extratoSistemaId),
@@ -478,7 +480,7 @@ function Painel({ mes, podeFechar, naoLidasIndisponivel }: {
             )}
           </div>
           {/* a chave zera o link ao trocar de mês: o endereço com o token só vale para o mês em que foi gerado */}
-          {fechado && podeFechar && <LinkPublico key={mes.chave} competencia={mes.chave} />}
+          {fechado && podeFechar && gestor && <LinkPublico key={mes.chave} competencia={mes.chave} />}
           {conciliadas.map((par) => (
             <div key={par.execucao.id} className="fech-relatorio">
               {conciliadas.length > 1 && <span className="fech-passo-texto">{par.execucao.arquivoBanco}</span>}
@@ -494,8 +496,9 @@ function Painel({ mes, podeFechar, naoLidasIndisponivel }: {
       </ol>
 
       {podeFechar ? (
-        // a chave: a ressalva e o erro do 409 são do mês em que aconteceram
-        <AcoesDoFechamento key={mes.chave} mes={mes} revisar={comPendencia.caminho} />
+        // a chave: a ressalva e o erro do 409 são do mês em que aconteceram, e com a contagem de
+        // aguardando que havia: aprovar zera o estado, para a ressalva não voltar com o erro vencido
+        <AcoesDoFechamento key={`${mes.chave}-${mes.aguardandoAprovacao}`} mes={mes} revisar={comPendencia.caminho} />
       ) : (
         // sem a lista de fechamentos, o caminho de antes: começar o próximo, revisar ou ver os extratos
         <div className="fech-acoes">

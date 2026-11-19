@@ -21,6 +21,14 @@ vi.mock("../conciliacoes/acoes", () => ({
   reabrirMes: (competencia: string) => reabrirMes(competencia),
 }));
 
+// o cartão do link público lê a lista ao montar; aqui só importa se monta
+const listarLinksDoRelatorio = vi.fn(async () => ({ ok: false as const, status: 404, erro: "" }));
+vi.mock("./links", () => ({
+  listarLinksDoRelatorio: () => listarLinksDoRelatorio(),
+  criarLinkDoRelatorio: vi.fn(),
+  revogarLinkDoRelatorio: vi.fn(),
+}));
+
 const redirect = vi.fn();
 vi.mock("next/navigation", () => ({
   // o redirect do Next interrompe a renderização lançando; o mock imita isso
@@ -106,6 +114,7 @@ function painel() {
 describe("FechamentosPage", () => {
   beforeEach(() => {
     carregarFechamentos.mockReset();
+    listarLinksDoRelatorio.mockClear();
     redirect.mockReset();
     fecharMes.mockReset();
     reabrirMes.mockReset();
@@ -257,6 +266,22 @@ describe("FechamentosPage", () => {
       expect(within(fechado).getByRole("link", { name: "Começar setembro" })).toHaveAttribute("href", "/conciliacoes/nova");
       expect(within(fechado).getByRole("button", { name: "Reabrir agosto" })).toBeInTheDocument();
       expect(within(fechado).queryByRole("button", { name: "Fechar agosto" })).not.toBeInTheDocument();
+    });
+
+    it("o analista não monta o link público de um mês fechado", async () => {
+      gestor.valor = false;
+      try {
+        await renderizar(undefined, { mes: "2026-08" }, [fechamento("2026-08")]);
+        expect(within(painel()).getByText("Fechamento · fechado")).toBeInTheDocument();
+        expect(listarLinksDoRelatorio).not.toHaveBeenCalled();
+      } finally {
+        gestor.valor = true;
+      }
+    });
+
+    it("o admin monta o link público de um mês fechado", async () => {
+      await renderizar(undefined, { mes: "2026-08" }, [fechamento("2026-08")]);
+      await waitFor(() => expect(listarLinksDoRelatorio).toHaveBeenCalled());
     });
 
     it("only the manager closes and reopens: the others see who can, and keep the way to review", async () => {
