@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CredentialsSignin } from "next-auth";
-import { MuitasEntradas } from "@/lib/login";
+import { GoogleEmOutraConta, MuitasEntradas } from "@/lib/login";
 import {
   aceitarConvite,
   aceitarConviteComGoogle,
@@ -8,6 +8,7 @@ import {
   cadastrarComGoogle,
   entrar,
   entrarComGoogle,
+  entrarLigandoGoogle,
   voltarDaIdaAoGoogle,
   entrarNaDemonstracao,
   escolherPlano,
@@ -86,6 +87,29 @@ beforeEach(() => {
 afterEach(() => {
   vi.unstubAllEnvs();
   vi.unstubAllGlobals();
+});
+
+describe("entrarLigandoGoogle (backend #218)", () => {
+  const ID_TOKEN = `x.${btoa(JSON.stringify({ email: "ana@telhacerta.com.br" }))}.y`;
+
+  it("com o e-mail do Google guardado, a senha vai pelo provider do vínculo", async () => {
+    cookiesExistentes.set("ledgr-vinculo-google", ID_TOKEN);
+    expect(await entrarLigandoGoogle("Ana@TelhaCerta.com.br", "s3nha", true)).toEqual({ ok: true });
+    expect(signIn).toHaveBeenCalledWith("google-vinculo", { senha: "s3nha", redirect: false });
+
+    signIn.mockRejectedValue(new GoogleEmOutraConta());
+    expect(await entrarLigandoGoogle("ana@telhacerta.com.br", "s3nha", true)).toEqual({
+      ok: false,
+      erro: "google_em_outra_conta",
+    });
+  });
+
+  it("sem o cookie, ou com outro e-mail no campo, é o login comum", async () => {
+    expect(await entrarLigandoGoogle("ana@telhacerta.com.br", "s3nha", true)).toEqual({ ok: true });
+    cookiesExistentes.set("ledgr-vinculo-google", ID_TOKEN);
+    expect(await entrarLigandoGoogle("outra@telhacerta.com.br", "s3nha", true)).toEqual({ ok: true });
+    expect(signIn.mock.calls.map(([provider]) => provider)).toEqual(["credentials", "credentials"]);
+  });
 });
 
 describe("entrar", () => {

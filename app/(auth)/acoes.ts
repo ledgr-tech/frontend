@@ -7,7 +7,7 @@ import { signIn, signOut } from "@/auth";
 import { ErroBackend, chamarBackend, ehContaInativa, emailDaSessao } from "@/lib/backend";
 import { RECUSA_DEMONSTRACAO, demoAberta, ehContaDeDemonstracao } from "@/lib/demo";
 import { COOKIE_CADASTRO_GOOGLE, COOKIE_CONVITE_GOOGLE, COOKIE_VOLTAR_GOOGLE, VALIDADE_ID_TOKEN_SEGUNDOS } from "@/lib/google";
-import { MuitasEntradas, esquecerGoogleIncompleto, type UsuarioAPI } from "@/lib/login";
+import { GoogleEmOutraConta, MuitasEntradas, emailDoVinculoGoogle, esquecerGoogleIncompleto, type UsuarioAPI } from "@/lib/login";
 import type { EmpresaDaConta } from "@/lib/empresa-ativa";
 import { lerPapel, type Papel } from "@/lib/papel";
 import { destinoDepoisDoLogin } from "@/lib/rotas";
@@ -29,7 +29,7 @@ import { adaptarConsultaConvite, type ConsultaConvite, type ConsultaConviteAPI }
 
 const COOKIES_SESSAO = ["__Secure-authjs.session-token", "authjs.session-token"];
 
-export type ErroEntrada = "credenciais_invalidas" | "muitas_tentativas" | "falha_sessao";
+export type ErroEntrada = "credenciais_invalidas" | "muitas_tentativas" | "google_em_outra_conta" | "falha_sessao";
 
 export type ResultadoEntrada = { ok: true } | { ok: false; erro: ErroEntrada };
 
@@ -60,13 +60,38 @@ export async function entrar(
   senha: string,
   manterSessao: boolean,
 ): Promise<ResultadoEntrada> {
+  return abrirSessao("credentials", { email, senha }, manterSessao);
+}
+
+/**
+ * O login de quem voltou do Google com um e-mail que já tem senha: a senha liga o Google à conta e
+ * entra (backend #218, provider `google-vinculo`). Sem o cookie do vínculo (venceu), ou com outro e-mail
+ * no campo, é o login comum.
+ */
+export async function entrarLigandoGoogle(email: string, senha: string, manterSessao: boolean): Promise<ResultadoEntrada> {
+  const doGoogle = await emailDoVinculoGoogle();
+  if (doGoogle?.toLowerCase() !== email.trim().toLowerCase()) return entrar(email, senha, manterSessao);
+  return abrirSessao("google-vinculo", { senha }, manterSessao);
+}
+
+/** O e-mail do Google que espera o vínculo, para o login preencher o campo. */
+export async function emailParaLigarGoogle(): Promise<string | null> {
+  return emailDoVinculoGoogle();
+}
+
+async function abrirSessao(
+  provider: "credentials" | "google-vinculo",
+  credenciais: Record<string, string>,
+  manterSessao: boolean,
+): Promise<ResultadoEntrada> {
   try {
-    await signIn("credentials", { email, senha, redirect: false });
+    await signIn(provider, { ...credenciais, redirect: false });
   } catch (erro) {
     // O `authorize` só recusa com `CredentialsSignin`: 429 é `MuitasEntradas`,
     // 401 é o próprio. O resto — backend fora do ar, NEXTAUTH_SECRET faltando —
     // não é culpa de quem digitou.
     if (erro instanceof MuitasEntradas) return { ok: false, erro: "muitas_tentativas" };
+    if (erro instanceof GoogleEmOutraConta) return { ok: false, erro: "google_em_outra_conta" };
     if (erro instanceof CredentialsSignin) return { ok: false, erro: "credenciais_invalidas" };
     return { ok: false, erro: "falha_sessao" };
   }
