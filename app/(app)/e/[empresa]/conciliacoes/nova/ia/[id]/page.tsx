@@ -61,7 +61,7 @@ export default async function RevisaoPage({
       await redirecionarNoApp(`/conciliacoes/nova?sistema=${confirmado.dados.extratoId}`);
     } else {
       if (confirmado.status === 401) await redirecionarNoApp("/login");
-      conteudo = <FalhaAoCarregar oQue="o rascunho" status={r.status} texto={r.erro} voltar={voltar} />;
+      conteudo = <FalhaAoCarregar oQue="o extrato confirmado" status={confirmado.status} texto={confirmado.erro} voltar={voltar} />;
     }
   } else {
     conteudo = r.ok

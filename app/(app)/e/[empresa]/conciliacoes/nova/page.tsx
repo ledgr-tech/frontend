@@ -198,13 +198,10 @@ function NovaConciliacao() {
     setEtapa("conferindo");
 
     try {
-      // o JSON do sistema vira rascunho para conferir antes de entrar (#347); só o reenvio o aceita
-      if (reenvio && sistema && /\.json$/i.test(sistema.name)) {
-        await revisarJson(sistema, reenvio);
-        return;
-      }
+      // rodada que já passou ou mês fechado: recusa antes de subir qualquer arquivo, CSV ou JSON
       if (reenvio && sistema) {
         const alvo = await verificarNovaVersao(reenvio.banco, reenvio.sistemaAnterior);
+        if (!vivo.current) return;
         if (!alvo.ok) {
           setEtapa("ocioso");
           if (alvo.status === 401) {
@@ -214,6 +211,11 @@ function NovaConciliacao() {
           }
           return;
         }
+      }
+      // o JSON do sistema vira rascunho para conferir antes de entrar (#347); só o reenvio o aceita
+      if (reenvio && sistema && /\.json$/i.test(sistema.name)) {
+        await revisarJson(sistema, reenvio);
+        return;
       }
       // nada sobe antes de os dois estarem prontos: extrato órfão no backend não tem volta
       if ((banco && !(await conferir(banco, "banco"))) || (sistema && !(await conferir(sistema, "sistema")))) {

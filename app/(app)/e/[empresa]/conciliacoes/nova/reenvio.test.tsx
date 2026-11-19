@@ -94,14 +94,17 @@ describe("Nova conciliação em modo reenvio", () => {
     verificarNovaVersao.mockResolvedValue({ ok: true, dados: { arquivoBanco: "banco-setembro.ofx", jaConciliada: false } });
   });
 
-  it("CSV com sistemaAnterior antigo mostra o 409 e não sobe o arquivo", async () => {
+  it.each([
+    ["CSV", () => csv()],
+    ["JSON", () => new File(["{}"], "corrigido.json", { type: "application/json" })],
+  ])("%s com sistemaAnterior antigo mostra o 409 e não sobe o arquivo", async (_tipo, arquivo) => {
     verificarNovaVersao.mockResolvedValue({
       ok: false,
       status: 409,
       erro: "A comparação já tem uma rodada mais recente. Volte à comparação para continuar.",
     });
     const user = await abrir();
-    await user.upload(screen.getByLabelText(CAMPO), csv());
+    await user.upload(screen.getByLabelText(CAMPO), arquivo());
     await user.click(screen.getByRole("button", { name: "Conciliar de novo" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
@@ -109,6 +112,7 @@ describe("Nova conciliação em modo reenvio", () => {
     );
     expect(verificarNovaVersao).toHaveBeenCalledWith(BANCO, ANTERIOR);
     expect(enviarExtrato).not.toHaveBeenCalled();
+    expect(importarViaIa).not.toHaveBeenCalled();
   });
 
   it("lê o contexto pelos ids e mostra o banco travado, a rodada e o caminho de volta", async () => {

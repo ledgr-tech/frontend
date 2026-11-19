@@ -150,6 +150,7 @@ export function Revisao({
       if (!r.ok && (r.status === 409 || r.status === 0)) {
         const confirmado = await recuperarExtratoConfirmado(inicial.id);
         if (confirmado.ok) {
+          setSaindo(true);
           roteador.push(`/conciliacoes/nova?sistema=${confirmado.dados.extratoId}`);
           return null;
         }
@@ -158,10 +159,11 @@ export function Revisao({
           roteador.push("/login");
           return null;
         }
-        return r.erro;
+        return confirmado.erro;
       }
       if (!r.ok) return r.erro;
       // segue para a Nova conciliação com o sistema já pronto: só falta enviar o extrato do banco
+      setSaindo(true);
       roteador.push(`/conciliacoes/nova?sistema=${r.dados.extratoId}`);
       return null;
     });
