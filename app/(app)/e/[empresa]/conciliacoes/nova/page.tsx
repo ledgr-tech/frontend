@@ -20,6 +20,7 @@ import {
   type Falha,
   type Resultado,
   type SituacaoExtrato,
+  verificarNovaVersao,
 } from "../acoes";
 import {
   aguardarProcessamento,
@@ -197,6 +198,20 @@ function NovaConciliacao() {
     setEtapa("conferindo");
 
     try {
+      // rodada que já passou ou mês fechado: recusa antes de subir qualquer arquivo, CSV ou JSON
+      if (reenvio && sistema) {
+        const alvo = await verificarNovaVersao(reenvio.banco, reenvio.sistemaAnterior);
+        if (!vivo.current) return;
+        if (!alvo.ok) {
+          setEtapa("ocioso");
+          if (alvo.status === 401) {
+            router.push("/login");
+          } else {
+            setErro(alvo.erro);
+          }
+          return;
+        }
+      }
       // o JSON do sistema vira rascunho para conferir antes de entrar (#347); só o reenvio o aceita
       if (reenvio && sistema && /\.json$/i.test(sistema.name)) {
         await revisarJson(sistema, reenvio);

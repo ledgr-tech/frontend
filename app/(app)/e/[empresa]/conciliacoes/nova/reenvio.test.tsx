@@ -19,12 +19,14 @@ const situacaoDoExtrato = vi.fn();
 const conciliar = vi.fn();
 const carregarRegras = vi.fn();
 const carregarContextoDoReenvio = vi.fn();
+const verificarNovaVersao = vi.fn();
 vi.mock("../acoes", () => ({
   enviarExtrato: (dados: FormData) => enviarExtrato(dados),
   situacaoDoExtrato: (id: string) => situacaoDoExtrato(id),
   conciliar: (banco: string, sistema: string) => conciliar(banco, sistema),
   carregarRegras: () => carregarRegras(),
   carregarContextoDoReenvio: (banco: string, anterior: string) => carregarContextoDoReenvio(banco, anterior),
+  verificarNovaVersao: (banco: string, anterior: string) => verificarNovaVersao(banco, anterior),
 }));
 
 const carregarPromptIa = vi.fn();
@@ -75,7 +77,7 @@ describe("Nova conciliação em modo reenvio", () => {
   beforeEach(() => {
     consulta = `banco=${BANCO}&sistemaAnterior=${ANTERIOR}`;
     push.mockClear();
-    for (const mock of [enviarExtrato, situacaoDoExtrato, conciliar, carregarRegras, carregarContextoDoReenvio, carregarPromptIa, importarViaIa]) {
+    for (const mock of [enviarExtrato, situacaoDoExtrato, conciliar, carregarRegras, carregarContextoDoReenvio, verificarNovaVersao, carregarPromptIa, importarViaIa]) {
       mock.mockReset();
     }
     carregarRegras.mockResolvedValue({
@@ -89,6 +91,28 @@ describe("Nova conciliação em modo reenvio", () => {
     enviarExtrato.mockResolvedValue({ ok: true, dados: { extratoId: "extrato-novo" } });
     situacaoDoExtrato.mockResolvedValue(situacao("concluido"));
     conciliar.mockResolvedValue({ ok: true, dados: { total: 3 } });
+    verificarNovaVersao.mockResolvedValue({ ok: true, dados: { arquivoBanco: "banco-setembro.ofx", jaConciliada: false } });
+  });
+
+  it.each([
+    ["CSV", () => csv()],
+    ["JSON", () => new File(["{}"], "corrigido.json", { type: "application/json" })],
+  ])("%s com sistemaAnterior antigo mostra o 409 e não sobe o arquivo", async (_tipo, arquivo) => {
+    verificarNovaVersao.mockResolvedValue({
+      ok: false,
+      status: 409,
+      erro: "A comparação já tem uma rodada mais recente. Volte à comparação para continuar.",
+    });
+    const user = await abrir();
+    await user.upload(screen.getByLabelText(CAMPO), arquivo());
+    await user.click(screen.getByRole("button", { name: "Conciliar de novo" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "A comparação já tem uma rodada mais recente. Volte à comparação para continuar.",
+    );
+    expect(verificarNovaVersao).toHaveBeenCalledWith(BANCO, ANTERIOR);
+    expect(enviarExtrato).not.toHaveBeenCalled();
+    expect(importarViaIa).not.toHaveBeenCalled();
   });
 
   it("lê o contexto pelos ids e mostra o banco travado, a rodada e o caminho de volta", async () => {
