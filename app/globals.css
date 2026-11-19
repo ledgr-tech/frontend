@@ -4168,13 +4168,15 @@ html:not([data-menu="recolhido"]) .app-assistente-figura {
 }
 .cfg-fechar:hover { background: var(--tinta-hover); color: var(--color-text); }
 .cfg-titulo { margin: 0 0 14px; font-size: 22px; font-weight: 600; }
-.cfg-achado + .cfg-achado { margin-top: 30px; }
+/* a seção aberta fica montada e escondida entre os achados (#442): o espaço vale entre os que aparecem */
+.cfg-achado:not([hidden]) ~ .cfg-achado:not([hidden]) { margin-top: 30px; }
 .cfg-linhas { list-style: none; margin: 0; padding: 0; }
 .cfg-linha {
   display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 18px 28px;
   padding: 16px 0; border-bottom: 1px solid var(--color-divider);
 }
-.cfg-linha:last-child { border-bottom: none; }
+/* a última linha visível: a busca deixa as outras linhas da seção montadas e escondidas (#442) */
+.cfg-linha:not(:has(~ .cfg-linha:not([hidden]))) { border-bottom: none; }
 /* base de 16rem: é com ela que o flex decide se o controle cabe ao lado, e não com o
    tamanho da descrição, que muda com a opção escolhida (o tema, por exemplo); cabendo,
    o texto cresce até 58ch */

@@ -36,13 +36,23 @@ vi.mock("../../../(auth)/acoes", () => ({
 
 const refresh = vi.fn();
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), refresh }) }));
-// o painel das chaves tem teste próprio (chaves-api/painel.test.tsx); aqui só importa onde ele aparece
-vi.mock("./chaves-api/painel", () => ({ PainelDeChavesApi: () => <p>painel das chaves</p> }));
+// o painel das chaves tem teste próprio; aqui também conferimos que a busca preserva sua montagem
+let montagensDasChaves = 0;
+vi.mock("./chaves-api/painel", async () => {
+  const { useEffect } = await import("react");
+  return {
+    PainelDeChavesApi: () => {
+      useEffect(() => { montagensDasChaves += 1; }, []);
+      return <p>painel das chaves</p>;
+    },
+  };
+});
 // a seção Conexões só aparece quando o backend devolve a lista; o padrão é a conexão desligada (404)
 const carregarConexoesMcp = vi.fn();
 vi.mock("./conexoes-mcp/acoes", () => ({ carregarConexoesMcp: () => carregarConexoesMcp() }));
 vi.mock("./conexoes-mcp/painel", () => ({ PainelDeConexoes: () => <p>painel das conexões</p> }));
 beforeEach(() => {
+  montagensDasChaves = 0;
   carregarConexoesMcp.mockReset();
   carregarConexoesMcp.mockResolvedValue({ ok: false, status: 404, erro: "Not Found" });
 });
@@ -149,6 +159,25 @@ describe("Configuracoes", () => {
         expect(await screen.findByText("Configurações · 1 de 2", {}, { timeout: 2000 })).toBeInTheDocument();
         // o destaque entra num efeito depois do cartão: numa máquina lenta, um instante depois
         await waitFor(() => expect(linhaDe("Tolerância de data")).toHaveAttribute("data-tutorial-ativo"));
+      } finally {
+        TUTORIAL_JA_VISTO = { tutoriaisDispensados: ["configuracoes"], roteiroDispensado: false };
+      }
+    });
+
+    it("digitar na busca fecha o tutorial e limpar não o reabre", async () => {
+      TUTORIAL_JA_VISTO = null;
+      try {
+        const user = userEvent.setup();
+        abrir();
+        await user.click(secao("Conciliação"));
+        expect(await screen.findByText("Configurações · 1 de 2", {}, { timeout: 2000 })).toBeVisible();
+
+        const busca = screen.getByRole("searchbox", { name: "Procurar nas configurações" });
+        await user.type(busca, "tolerancia");
+        expect(screen.queryByText("Configurações · 1 de 2")).not.toBeInTheDocument();
+        await user.clear(busca);
+        // o cartão abre 600 ms depois de montar: espera mais que isso para afirmar que ele não volta
+        await expect(screen.findByText("Configurações · 1 de 2", {}, { timeout: 1000 })).rejects.toThrow();
       } finally {
         TUTORIAL_JA_VISTO = { tutoriaisDispensados: ["configuracoes"], roteiroDispensado: false };
       }
@@ -423,11 +452,87 @@ describe("Configuracoes", () => {
     await user.type(screen.getByRole("searchbox", { name: "Procurar nas configurações" }), "tolerancia");
     expect(screen.getByRole("heading", { name: "Conciliação" })).toBeInTheDocument();
     expect(screen.getByText("Tolerância de data")).toBeInTheDocument();
-    expect(screen.queryByText("Densidade das tabelas")).not.toBeInTheDocument();
+    expect(screen.getByText("Densidade das tabelas")).not.toBeVisible();
 
     await user.clear(screen.getByRole("searchbox"));
     await user.type(screen.getByRole("searchbox"), "xyz");
     expect(screen.getByText("Nada encontrado para “xyz”.")).toBeInTheDocument();
+  });
+
+  it("procurar e limpar a busca não remonta a seção aberta", async () => {
+    const user = userEvent.setup();
+    abrir({ papel: "admin" });
+    await user.click(secao("API"));
+    expect(montagensDasChaves).toBe(1);
+
+    const busca = screen.getByRole("searchbox", { name: "Procurar nas configurações" });
+    await user.type(busca, "zzz");
+    expect(screen.getByText("Nada encontrado para “zzz”.")).toBeInTheDocument();
+
+    await user.clear(busca);
+    expect(screen.getByText("painel das chaves")).toBeVisible();
+    expect(montagensDasChaves).toBe(1);
+
+    await user.type(busca, "chaves");
+    expect(screen.getByText("painel das chaves")).toBeVisible();
+    expect(montagensDasChaves).toBe(1);
+  });
+
+  it("o painel aberto num resultado da busca não desmonta ao mudar ou limpar a busca", async () => {
+    const user = userEvent.setup();
+    abrir({ papel: "admin" });
+    const busca = screen.getByRole("searchbox", { name: "Procurar nas configurações" });
+
+    await user.type(busca, "chave");
+    expect(montagensDasChaves).toBe(1);
+    await user.type(busca, "z");
+    expect(montagensDasChaves).toBe(1);
+    await user.clear(busca);
+    expect(montagensDasChaves).toBe(1);
+    await user.click(secao("API"));
+    expect(screen.getByText("painel das chaves")).toBeVisible();
+    expect(montagensDasChaves).toBe(1);
+  });
+
+  it("as linhas que a busca esconde não perdem o que foi digitado", async () => {
+    const user = userEvent.setup();
+    abrir();
+    await user.click(secao("Conta"));
+    await user.click(screen.getByRole("button", { name: "Trocar senha" }));
+    const formulario = screen.getByRole("form", { name: "Trocar senha" });
+    const campo = within(formulario).getByLabelText("Senha nova");
+    await user.type(campo, "rascunho-de-teste");
+
+    const busca = screen.getByRole("searchbox", { name: "Procurar nas configurações" });
+    await user.type(busca, "sessao");
+    expect(campo).not.toBeVisible();
+    await user.clear(busca);
+
+    const formularioPreservado = screen.getByRole("form", { name: "Trocar senha" });
+    expect(formularioPreservado).toBeVisible();
+    expect(within(formularioPreservado).getByLabelText("Senha nova")).toHaveValue("rascunho-de-teste");
+  });
+
+  it("fechar a janela zera a busca", async () => {
+    const user = userEvent.setup();
+    const props = { email: EMAIL, temSenha: true, onFechar: vi.fn(), onSair: vi.fn(), onTema: vi.fn() };
+    function janela(aberta: boolean, secao?: string) {
+      return (
+        <ProvedorDaConta preferencias={TUTORIAL_JA_VISTO}>
+          <Configuracoes {...props} aberta={aberta} secao={secao} />
+        </ProvedorDaConta>
+      );
+    }
+    const { rerender } = render(janela(true));
+    await user.type(screen.getByRole("searchbox", { name: "Procurar nas configurações" }), "zzz");
+    expect(screen.getByText("Nada encontrado para “zzz”.")).toBeVisible();
+
+    rerender(janela(false));
+    rerender(janela(true, "conciliacao"));
+
+    expect(screen.getByRole("heading", { name: "Conciliação" })).toBeVisible();
+    expect(screen.queryByText(/Nada encontrado/)).not.toBeInTheDocument();
+    expect(screen.getByRole("searchbox", { name: "Procurar nas configurações" })).toHaveValue("");
   });
 
   it("lists Conta, Aparência and the rest: the team moved to the Empresas screen", () => {
