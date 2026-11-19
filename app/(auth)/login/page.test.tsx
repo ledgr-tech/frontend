@@ -286,6 +286,22 @@ describe("LoginPage", () => {
     await waitFor(() => expect(abrirSessao).toHaveBeenCalledWith("outra@telhacerta.com.br", "ledgr2026", true));
   });
 
+  it("se o vínculo falha por um erro do servidor, o botão volta a ser o Entrar comum", async () => {
+    vi.stubEnv("NEXT_PUBLIC_LEDGR_GOOGLE", "1");
+    emailParaLigarGoogle.mockResolvedValueOnce("ana@telhacerta.com.br");
+    entrarLigandoGoogle.mockResolvedValueOnce({ ok: false, erro: "falha_sessao" });
+    window.history.replaceState(null, "", "/login?google=email_com_senha");
+    render(<LoginPage />);
+
+    await waitFor(() => expect(screen.getByLabelText("E-mail")).toHaveValue("ana@telhacerta.com.br"));
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText("Senha"), "ledgr2026");
+    await user.click(screen.getByRole("button", { name: "Conectar o Google e entrar" }));
+
+    expect(await screen.findByText(/Não foi possível abrir a sessão/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Entrar" })).toBeInTheDocument();
+  });
+
   it("o Cancelar do Google (NextAuth, ?error=) recupera o voltar que esperou no cookie", async () => {
     vi.stubEnv("NEXT_PUBLIC_LEDGR_GOOGLE", "1");
     voltarDaIdaAoGoogle.mockResolvedValueOnce("/autorizar-conexao?pedido=Ab_12");
