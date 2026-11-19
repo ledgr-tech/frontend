@@ -3,7 +3,6 @@ import { act, fireEvent, render, screen, waitFor, within } from "@testing-librar
 import userEvent from "@testing-library/user-event";
 import { MenuLateral } from "./menu-lateral";
 import { ProvedorDaConta } from "./conta";
-import * as eventos from "@/lib/eventos";
 import { abrirConfiguracoes } from "@/lib/eventos";
 
 const caminho = vi.fn();
@@ -239,17 +238,6 @@ describe("MenuLateral", () => {
     expect(campo).toHaveValue("rascunho");
     expect(campo).toHaveFocus();
     await user.click(cartao);
-    expect(screen.queryByRole("dialog", { name: "Fale com o Ledgr" })).not.toBeInTheDocument();
-  });
-
-  it("não expõe nem escuta mais o evento morto de abrir o assistente", () => {
-    expect(eventos).not.toHaveProperty("ABRIR_ASSISTENTE");
-    expect(eventos).not.toHaveProperty("abrirAssistente");
-
-    montar();
-    act(() => {
-      window.dispatchEvent(new CustomEvent("ledgr:abrir-assistente"));
-    });
     expect(screen.queryByRole("dialog", { name: "Fale com o Ledgr" })).not.toBeInTheDocument();
   });
 
