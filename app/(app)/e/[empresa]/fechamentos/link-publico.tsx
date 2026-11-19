@@ -5,6 +5,7 @@ import { MensagemErro } from "../../../../(auth)/_compartilhado/mensagem-erro";
 import { formatarDataHora } from "../dashboard/resumo";
 import { criarLinkDoRelatorio, listarLinksDoRelatorio, revogarLinkDoRelatorio, type LinkDoRelatorio } from "./links";
 import { SEM_SERVIDOR } from "@/lib/sem-servidor";
+import { useRoteador } from "@/lib/roteador";
 
 type Estado = { situacao: "carregando" } | { situacao: "sem-rota" } | { situacao: "pronto"; links: LinkDoRelatorio[] };
 
@@ -21,9 +22,10 @@ const dia = (iso: string) => formatarDataHora(iso).slice(0, 10);
  * o mês, e some se o backend ainda não tem a rota (ou a flag está desligada).
  */
 export function LinkPublico({ competencia }: { competencia: string }) {
+  const router = useRoteador();
   const [estado, setEstado] = useState<Estado>({ situacao: "carregando" });
   const [validade, setValidade] = useState(30);
-  const [endereco, setEndereco] = useState<string | null>(null);
+  const [endereco, setEndereco] = useState<{ id: string; url: string } | null>(null);
   const [copiado, setCopiado] = useState(false);
   const [ocupado, setOcupado] = useState(false);
   const [confirmando, setConfirmando] = useState<string | null>(null);
@@ -65,11 +67,16 @@ export function LinkPublico({ competencia }: { competencia: string }) {
     executar(async () => {
       const r = await criarLinkDoRelatorio(competencia, validade, window.location.origin);
       if (!r.ok) {
-        // 404 na criação: a flag do backend está desligada, a ação ainda não existe
-        if (r.status === 404) setEstado({ situacao: "sem-rota" });
+        if (r.status === 404) {
+          if (r.motivo === "mes-reaberto") {
+            router.refresh();
+            return r.erro;
+          }
+          setEstado({ situacao: "sem-rota" });
+        }
         return r.status === 404 ? null : r.erro;
       }
-      setEndereco(r.dados.endereco);
+      setEndereco({ id: r.dados.link.id, url: r.dados.endereco });
       setCopiado(false);
       setEstado((atual) => (atual.situacao === "pronto" ? { situacao: "pronto", links: [r.dados.link, ...atual.links] } : atual));
       return null;
@@ -78,7 +85,7 @@ export function LinkPublico({ competencia }: { competencia: string }) {
   async function copiar() {
     if (!endereco) return;
     try {
-      await navigator.clipboard.writeText(endereco);
+      await navigator.clipboard.writeText(endereco.url);
       setCopiado(true);
     } catch {
       setErro("Não foi possível copiar. Selecione o endereço e copie à mão.");
@@ -90,7 +97,7 @@ export function LinkPublico({ competencia }: { competencia: string }) {
       const r = await revogarLinkDoRelatorio(competencia, id);
       if (!r.ok) return r.erro;
       setConfirmando(null);
-      setEndereco(null);
+      setEndereco((atual) => (atual?.id === id ? null : atual));
       setEstado((atual) =>
         atual.situacao === "pronto"
           ? { situacao: "pronto", links: atual.links.map((link) => (link.id === id ? { ...link, ativo: false } : link)) }
@@ -124,7 +131,7 @@ export function LinkPublico({ competencia }: { competencia: string }) {
       {endereco && (
         <div role="status" style={{ display: "grid", gap: 6, padding: 12, borderRadius: 10, background: "color-mix(in srgb, var(--color-accent) 10%, transparent)" }}>
           <div style={{ display: "flex", gap: 8 }}>
-            <input className="input" readOnly value={endereco} aria-label="Link público do relatório" style={{ flex: 1 }} onFocus={(e) => e.currentTarget.select()} />
+            <input className="input" readOnly value={endereco.url} aria-label="Link público do relatório" style={{ flex: 1 }} onFocus={(e) => e.currentTarget.select()} />
             <button type="button" className="btn btn-primary" onClick={copiar}>
               {copiado ? "Link copiado" : "Copiar link"}
             </button>
