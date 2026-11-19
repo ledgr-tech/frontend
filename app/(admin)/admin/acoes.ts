@@ -293,7 +293,7 @@ export async function buscarContas(dados: FormData): Promise<void> {
       sameSite: "strict",
       secure: process.env.NODE_ENV === "production",
       path: "/admin",
-      maxAge: 3600,
+      maxAge: 900,
     });
   } else {
     pote.delete({ name: COOKIE_DA_BUSCA, path: "/admin" });

@@ -99,7 +99,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   },
 });
 
-/** A busca do /admin (e-mail ou CNPJ) fica num cookie de uma hora; quem entra ou sai não herda a da sessão anterior. */
+/** A busca do /admin (e-mail ou CNPJ) fica num cookie de 15 minutos; quem entra ou sai não herda a da sessão anterior. */
 async function esquecerBuscaDoPainel(): Promise<void> {
   try {
     (await cookies()).delete({ name: COOKIE_DA_BUSCA, path: "/admin" });

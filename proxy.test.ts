@@ -47,7 +47,7 @@ describe("proxy: a empresa da URL (#169)", () => {
 
   it("o x-nonce e a CSP que vierem no pedido caem, também no prefetch (#333)", () => {
     const deFora = { "x-nonce": "de-fora", "content-security-policy": "script-src 'nonce-de-fora'", "content-security-policy-report-only": "script-src *" };
-    const prefetch = proxy(new NextRequest("http://localhost/admin", { headers: { ...deFora, "next-router-prefetch": "1" } }));
+    const prefetch = proxy(new NextRequest("http://localhost/admin", { headers: { ...deFora, rsc: "1", "next-router-prefetch": "1" } }));
     expect(cabecalhosDoPedido(prefetch)).not.toContain("x-nonce");
     expect(cabecalhosDoPedido(prefetch)).not.toContain("content-security-policy");
     expect(cabecalhosDoPedido(prefetch)).not.toContain("content-security-policy-report-only");
@@ -75,7 +75,7 @@ describe("proxy: a empresa da URL (#169)", () => {
     // o matcher não pode pular o prefetch: sem o proxy, o x-ledgr-empresa de fora chegaria ao backend
     expect(JSON.stringify(config)).not.toMatch(/prefetch/);
     const outra = "9b8a7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d";
-    const pedidosDePrefetch: Record<string, string>[] = [{ "next-router-prefetch": "1" }, { purpose: "prefetch" }];
+    const pedidosDePrefetch: Record<string, string>[] = [{ rsc: "1", "next-router-prefetch": "1" }, { rsc: "1", purpose: "prefetch" }];
     for (const prefetch of pedidosDePrefetch) {
       const comEmpresa = proxy(
         new NextRequest(`http://localhost/e/${A}/dashboard`, { headers: { ...prefetch, "x-ledgr-empresa": outra } }),
@@ -86,6 +86,13 @@ describe("proxy: a empresa da URL (#169)", () => {
       const semEmpresa = proxy(new NextRequest("http://localhost/visao-geral", { headers: { ...prefetch, "x-ledgr-empresa": outra } }));
       expect(empresaNoPedido(semEmpresa)).toBeNull();
       expect(cabecalhosDoPedido(semEmpresa)).not.toContain("x-ledgr-empresa");
+    }
+  });
+
+  it("um prefetch sem RSC recebe a página HTML inteira, então leva a CSP (#333)", () => {
+    for (const prefetch of [{ purpose: "prefetch" }, { "next-router-prefetch": "1" }] as Record<string, string>[]) {
+      const resposta = proxy(new NextRequest("http://localhost/admin", { headers: prefetch }));
+      expect(resposta.headers.get("Content-Security-Policy")).toContain("frame-ancestors 'none'");
     }
   });
 

@@ -20,7 +20,10 @@ export function proxy(request: NextRequest) {
   const empresa = empresaDoCaminho(request.nextUrl.pathname);
   if (empresa) cabecalhos.set("x-ledgr-empresa", empresa);
 
-  const prefetch = request.headers.has("next-router-prefetch") || request.headers.get("purpose") === "prefetch";
+  // só o prefetch do roteador (RSC) fica sem CSP: com Purpose: prefetch e sem RSC o Next devolve a página HTML
+  // inteira, que precisa da política (#333, achado do auditor)
+  const prefetch =
+    request.headers.has("rsc") && (request.headers.has("next-router-prefetch") || request.headers.get("purpose") === "prefetch");
   if (prefetch) return NextResponse.next({ request: { headers: cabecalhos } });
 
   const nonce = novoNonce();

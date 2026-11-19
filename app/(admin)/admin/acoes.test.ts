@@ -126,7 +126,7 @@ describe("buscarContas", () => {
     const dados = formulario({ busca: "  financeiro@cliente.test  ", situacao: "ativo", ordem: "teste_termina_em", uf: "RS", pagina: "3", outro: "ignorar", com_busca: "valor-de-fora" });
     await expect(buscarContas(dados)).rejects.toThrow("NEXT_REDIRECT");
     expect(gravarCookie).toHaveBeenCalledExactlyOnceWith(COOKIE_DA_BUSCA, "financeiro@cliente.test", {
-      httpOnly: true, sameSite: "strict", secure: ambiente === "production", path: "/admin", maxAge: 3600,
+      httpOnly: true, sameSite: "strict", secure: ambiente === "production", path: "/admin", maxAge: 900,
     });
     expect(apagarCookie).not.toHaveBeenCalled();
     expect(redirecionar).toHaveBeenCalledExactlyOnceWith("/admin?situacao=ativo&ordem=teste_termina_em&uf=RS&com_busca=1");
@@ -143,7 +143,7 @@ describe("buscarContas", () => {
 
   it("corta a busca em 100 caracteres depois de tirar os espaços", async () => {
     await expect(buscarContas(formulario({ busca: `  ${"x".repeat(120)}  ` }))).rejects.toThrow("NEXT_REDIRECT");
-    expect(gravarCookie).toHaveBeenCalledWith(COOKIE_DA_BUSCA, "x".repeat(100), expect.objectContaining({ path: "/admin", maxAge: 3600 }));
+    expect(gravarCookie).toHaveBeenCalledWith(COOKIE_DA_BUSCA, "x".repeat(100), expect.objectContaining({ path: "/admin", maxAge: 900 }));
     expect(redirecionar).toHaveBeenCalledExactlyOnceWith("/admin?com_busca=1");
     expect(chamarBackend).not.toHaveBeenCalled();
   });

@@ -18,8 +18,8 @@ const dia = (iso: string) => formatarDataHora(iso).slice(0, 10);
 /**
  * As contas clientes (#222), no padrão da tela Empresas (opção B do 28/10): filtros de situação em abas,
  * busca por razão social, CNPJ ou e-mail do admin, e a tabela num cartão com a paginação no rodapé, 20 por
- * página. O formulário usa uma Server Action e funciona sem JS; a busca fica num cookie httpOnly de uma
- * hora, só do /admin, e só vale com com_busca=1 na URL: links sem o marcador abrem a lista sem a busca
+ * página. O formulário usa uma Server Action e funciona sem JS; a busca fica num cookie httpOnly de 15
+ * minutos, só do /admin, e só vale com com_busca=1 na URL: links sem o marcador abrem a lista sem a busca
  * guardada, e o Voltar desfaz a busca. O botão Buscar vem primeiro no DOM para ser o que o Enter aciona.
  */
 export default async function AdminPage({ searchParams }: { searchParams: Promise<Busca> }) {
