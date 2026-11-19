@@ -114,7 +114,7 @@ function ColunaOrdenavel({
 /**
  * "Na prática": a Comparação direta do app numa janela do Mac, só a tabela e o painel, sem o menu e a
  * barra de cima. É a tela de verdade com o agosto da landing: os filtros, a ordenação, a densidade, a
- * coluna Conferida e o painel da direita (`PainelDoExtrato`, o mesmo componente do app) funcionam como
+ * coluna Visto e o painel da direita (`PainelDoExtrato`, o mesmo componente do app) funcionam como
  * lá, só que em memória. O ponteiro leva a linha ao painel, o clique a fixa, e justificar tira a linha
  * da revisão. Abaixo de 1280px o painel desce para baixo da tabela; no celular a tabela vira cartões,
  * como no app (.tabela-cartoes), e a janela abre em "Só revisão" enquanto a pessoa não escolhe outro filtro.
@@ -286,7 +286,7 @@ export function JanelaDaConciliacao({
                       Sistema
                     </ColunaOrdenavel>
                     <th className="th-conferir" title="Marque as divergências que você já olhou. As que bateram não precisam.">
-                      Conferida
+                      Visto
                     </th>
                   </tr>
                 </thead>
@@ -372,7 +372,7 @@ export function JanelaDaConciliacao({
                             <span className="folha-vazia-marca">sem lançamento no sistema</span>
                           </td>
                         )}
-                        <td role="cell" data-rotulo="Conferida" className="celula-conferir">
+                        <td role="cell" data-rotulo="Visto" className="celula-conferir">
                           {(situacao === "a_conferir" || situacao === "conferida") && (
                             <CirculoDeConferir
                               linha={linha}

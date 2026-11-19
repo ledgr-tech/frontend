@@ -76,7 +76,7 @@ describe("JanelaDaConciliacao", () => {
       "Data",
       "Descrição",
       "Sistema",
-      "Conferida",
+      "Visto",
     ]);
     // ordenada pela data, como a comparação abre
     expect(descricoes()).toEqual(["Recebimento cliente Alfa Comércio", "Pagamento fornecedor #1082", "Tarifa de manutenção da conta", "Aluguel sede agosto"]);

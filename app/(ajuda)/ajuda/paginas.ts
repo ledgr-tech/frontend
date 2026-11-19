@@ -349,9 +349,9 @@ export const PAGINAS: PaginaDeAjuda[] = [
       {
         id: "conferir",
         titulo: "Marcar como conferida",
-        faz: "A coluna Conferida é sua: marque as divergências que já olhou. As que bateram não precisam.",
+        faz: "A coluna Visto é sua: marque as divergências que já olhou. As que bateram não precisam.",
         passos: [
-          "Clique no círculo da coluna **Conferida** na linha que você já olhou.",
+          "Clique no círculo da coluna **Visto** na linha que você já olhou.",
         ],
         figura: { largura: 638, altura: 158 },
       },
@@ -497,7 +497,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
         passos: [
           "Veja no alto da tela se a linha está justificada.",
           "Abra o histórico do lançamento para ver cada evento, quem fez e quando.",
-          "Para decidir, volte à comparação: o círculo da coluna **Conferida** marca a linha, e **Justificar** e **Desfazer justificativa** ficam no painel dela. Em telas estreitas, clique na descrição da linha.",
+          "Para decidir, volte à comparação: o círculo da coluna **Visto** marca a linha, e **Justificar** e **Desfazer justificativa** ficam no painel dela. Em telas estreitas, clique na descrição da linha.",
         ],
       },
       // descomentar no dia em que o backend ligar APROVACAO_JUSTIFICATIVAS_HABILITADA (#132)

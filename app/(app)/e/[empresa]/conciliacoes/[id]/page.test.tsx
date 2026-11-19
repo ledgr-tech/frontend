@@ -238,7 +238,7 @@ describe("ConciliacaoPage", () => {
       "Descrição",
       "Sistema↕",
       // a conferência, no fim da linha
-      "Conferida",
+      "Visto",
     ]);
     expect(within(linha).getAllByRole("cell")[3]).toHaveAttribute("data-rotulo", "Status");
   });
@@ -1136,16 +1136,16 @@ describe("ConciliacaoPage", () => {
       const caixa = await screen.findByRole("button", { name: "Marcar Boleto Aço Norte Bobinas como conferida" });
       const celula = caixa.closest("td")!;
       // a última célula da linha, com o nome da coluna para o cartão do celular
-      expect(celula).toHaveAttribute("data-rotulo", "Conferida");
+      expect(celula).toHaveAttribute("data-rotulo", "Visto");
       expect(celula).toBe(celula.parentElement!.lastElementChild);
       expect(caixa).toHaveAttribute("title", "Marcar como conferida");
       // o status fica sozinho no eixo
       const status = celula.parentElement!.querySelector(".celula-status") as HTMLElement;
       expect(within(status).queryByRole("button")).not.toBeInTheDocument();
       // a coluna tem nome: não é "selecionar a linha"
-      // e o nome está escrito, com a dica do que marcar (antes era só um ícone)
-      const cabecalho = screen.getByRole("columnheader", { name: "Conferida" });
-      expect(cabecalho).toHaveTextContent("Conferida");
+      // e o nome está escrito, curto ("Visto"), com a dica do que marcar (antes era só um ícone)
+      const cabecalho = screen.getByRole("columnheader", { name: "Visto" });
+      expect(cabecalho).toHaveTextContent("Visto");
       expect(cabecalho).toHaveAttribute("title", "Marque as divergências que você já olhou. As que bateram não precisam.");
     });
 
@@ -1153,7 +1153,7 @@ describe("ConciliacaoPage", () => {
       doBackend(conciliacaoMista);
       render(<ConciliacaoPage />);
       expect(await screen.findByRole("button", { name: "Só revisão (1)" })).toBeInTheDocument();
-      expect(screen.queryByRole("columnheader", { name: "Conferida" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("columnheader", { name: "Visto" })).not.toBeInTheDocument();
     });
 
     it("does not count a check from an earlier round when the line still diverges", async () => {
