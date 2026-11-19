@@ -53,7 +53,7 @@ preenchimento**, filete carregando a estrutura, identidade tipográfica.
   clique, porque custa e tem limite diário (`ExplicacaoDaDivergencia`).
 - **A comparação também decide, desde 02/10** (ver
   `docs/superpowers/specs/2026-10-02-conciliacao-em-rodadas-design.md`). Desde 03/10 a
-  conferência tem coluna própria, "Conferida", no fim da linha, depois da folha do sistema: um
+  conferência tem coluna própria, "Visto" (até 19/11, "Conferida"), no fim da linha, depois da folha do sistema: um
   círculo (`aria-pressed`, alcançável por teclado), não uma caixa ao lado do selo, que parecia
   "selecionar a linha" e entortava o eixo. Vazio a conferir, cheio com ✓ conferida; a linha
   conferida e a justificada saem da cor da categoria (selo neutro, `data-tom="neutro"`), e a

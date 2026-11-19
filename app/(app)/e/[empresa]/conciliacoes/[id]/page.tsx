@@ -667,7 +667,7 @@ export default function ConciliacaoPage() {
                       </th>
                     ) : (
                       <th className="th-conferir" data-tutorial="conferida" title="Marque as divergências que você já olhou. As que bateram não precisam.">
-                        Conferida
+                        Visto
                       </th>
                     ))}
                 </tr>
@@ -942,7 +942,7 @@ export default function ConciliacaoPage() {
                         </td>
                       )}
                       {podeDecidir && (
-                        <td role="cell" data-rotulo={marcando ? "Marcar" : "Conferida"} className="celula-conferir">
+                        <td role="cell" data-rotulo={marcando ? "Marcar" : "Visto"} className="celula-conferir">
                           {marcando && situacao === "aguardando" && (
                             <input
                               type="checkbox"

@@ -55,7 +55,7 @@ export const TUTORIAIS: Record<TelaDoTutorial, TutorialDaTela> = {
       { alvo: "rodadas", titulo: "As rodadas até o fechamento.", texto: "Cada número é um extrato do sistema conciliado com este do banco; o escuro é o que está na tela. Clique num para abrir aquela rodada. A bandeira leva ao fechamento e diz quanto falta.", mascote: "/mascotes/mascote-apresenta.png" },
       { alvo: "resumo", titulo: "O resumo antes da lista.", texto: "Cada categoria diz quantos lançamentos caíram nela e quanto valem. Clique numa para ver só essas linhas.", mascote: "/mascotes/mascote-explicando.png" },
       { alvo: "filtros", titulo: "Escolha o que ver.", texto: "Os filtros mostram tudo, só as pendências ou só o que já foi justificado.", mascote: "/mascotes/mascote-lupa.png" },
-      { alvo: "conferida", titulo: "Marque o que você já olhou.", texto: "A coluna Conferida é sua: marque as divergências que já conferiu. As que bateram não precisam.", mascote: "/mascotes/mascote-joinha.png" },
+      { alvo: "conferida", titulo: "Marque o que você já olhou.", texto: "A coluna Visto é sua: marque as divergências que já conferiu. As que bateram não precisam.", mascote: "/mascotes/mascote-joinha.png" },
       { alvo: "painel", titulo: "Lançamento em foco", texto: "Passe o mouse sobre uma linha. O detalhe da linha aparece aqui.", mascote: "/mascotes/mascote-lupa.png" },
       { alvo: "painel", titulo: "Fixado", texto: "Clique numa linha para fixar.", mascote: "/mascotes/mascote-lupa.png" },
       { alvo: "justificar", requerAlvo: true, titulo: "Justificar", texto: "Clique em Justificar e escreva o motivo. A decisão vai para o fechamento.", mascote: "/mascotes/mascote-explicando.png" },

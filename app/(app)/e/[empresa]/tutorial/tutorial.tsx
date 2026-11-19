@@ -55,7 +55,7 @@ export function cartaoVaiParaEsquerda(
   return direita > 0 && cobertoCom(MARGEM) < direita / 2;
 }
 
-/** O elemento do passo, se está desenhado: no celular, a coluna Conferida da comparação some. */
+/** O elemento do passo, se está desenhado: no celular, a coluna Visto da comparação some. */
 function alvoDe(passo: PassoDoTutorial): HTMLElement | null {
   const alvo = document.querySelector<HTMLElement>(`[data-tutorial="${passo.alvo}"]`);
   return alvo && (alvo.checkVisibility?.() ?? true) ? alvo : null;

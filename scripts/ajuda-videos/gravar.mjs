@@ -142,7 +142,7 @@ const ROTEIROS = {
       await t.clicar(botao(page, /^Só revisão/));
       await pausa(1800);
       const circulo = botao(page, /como conferida/i);
-      await t.passo(circulo, "3", "Marque o que já conferiu", "O círculo da coluna **Conferida** é seu. As linhas que bateram não precisam.", 4200);
+      await t.passo(circulo, "3", "Marque o que já conferiu", "O círculo da coluna **Visto** é seu. As linhas que bateram não precisam.", 4200);
       const rodadas = page.getByRole("link", { name: /^Rodada / }).first();
       await t.passo(grupoDe(grupoDe(rodadas)), "4", "Cada versão do sistema vira uma rodada", "A linha das rodadas mostra qual vale.", 3200);
       await t.passo(botao(page, /enviar nova versão/i), "5", "Corrigiu o sistema? **Enviar nova versão**", "A comparação abre na rodada nova.", 3000);
@@ -410,7 +410,7 @@ const FIGURAS = {
           await botao(page, /^Só revisão/).click();
           await pausa(800);
         },
-        // a coluna Conferida nas linhas que pedem revisão: uma já conferida, a outra não
+        // a coluna Visto nas linhas que pedem revisão: uma já conferida, a outra não
         figuras: [{ id: "conferir", alvo: (p) => [p.locator("main table thead").first(), p.locator("main tbody tr")] }],
       },
       {

@@ -2682,8 +2682,8 @@ html[data-tema="escuro"] .app-shell {
 .folhas-com-eixo col.col-valor { width: var(--valor-largura, 10rem); }
 .folhas-com-eixo col.col-eixo { width: 9rem; }
 /* a conferência fica numa coluna dela, depois da folha do sistema: o eixo leva só o veredito */
-/* com o nome escrito no cabeçalho, e não só um ícone, a coluna precisa caber "CONFERIDA" */
-.folhas-com-eixo col.col-conferir { width: 6.5rem; }
+/* nome curto no cabeçalho ("Visto", não "Conferida"): a coluna estreita devolve espaço à descrição */
+.folhas-com-eixo col.col-conferir { width: 4rem; }
 .dash-tabela-rolagem .folhas-com-eixo { min-width: 900px; }
 /* com a largura fixa, uma palavra mais longa que a coluna (um código de PIX) vazaria da folha */
 .folhas-com-eixo td { overflow-wrap: break-word; }
@@ -2704,7 +2704,7 @@ html[data-tema="escuro"] .app-shell {
 /* A conferência, na coluna dela no fim da linha: um botão (aria-pressed) desenhado como círculo,
    e não como caixa, para não parecer "selecionar a linha", como o "conferido" do QuickBooks. O
    desenho tem 20px; o alvo, 44px, para o dedo e o ponteiro (AC-01: com 30px ficava abaixo do mínimo no celular). */
-.th-conferir { width: 6.5rem; white-space: nowrap; cursor: help; text-align: center; color: color-mix(in srgb, var(--color-text) 68%, transparent); }
+.th-conferir { width: 4rem; white-space: nowrap; cursor: help; text-align: center; color: color-mix(in srgb, var(--color-text) 68%, transparent); }
 .th-conferir svg { vertical-align: middle; }
 .celula-conferir { text-align: center; }
 .conferir-circulo {
@@ -2804,12 +2804,12 @@ html[data-tema="escuro"] .app-shell {
 .comparacao-grade > .comparacao-corpo { min-width: 0; }
 .comparacao-grade[data-painel] .dash-tabela-rolagem { container: tabela-comparacao / inline-size; }
 @container tabela-comparacao (width < 900px) {
-  /* Data, valor, veredito e Conferida têm espaço próprio; as descrições repartem o restante. */
-  .dash-tabela-rolagem .folhas-com-eixo { min-width: calc(21.75rem + 2 * var(--valor-largura, 8rem)); }
+  /* Data, valor, veredito e Visto têm espaço próprio; as descrições repartem o restante. */
+  .dash-tabela-rolagem .folhas-com-eixo { min-width: calc(20.25rem + 2 * var(--valor-largura, 8rem)); }
   .folhas-com-eixo col.col-data { width: 3.5rem; }
   .folhas-com-eixo col.col-valor { width: var(--valor-largura, 8rem); }
   .folhas-com-eixo col.col-eixo { width: 6.75rem; }
-  .folhas-com-eixo :is(col.col-conferir, .th-conferir) { width: 5rem; }
+  .folhas-com-eixo :is(col.col-conferir, .th-conferir) { width: 3.5rem; }
   .folhas-com-eixo :is(th, td) { padding-inline: 5px; }
   .folhas-com-eixo :is(.dash-celula-fraca, .dash-valor-celula) { white-space: nowrap; }
   .folhas-com-eixo .dash-celula-fraca { font-size: var(--texto-legenda); }
@@ -3096,7 +3096,9 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
   text-transform: none; letter-spacing: 0; font-size: var(--texto-corpo); color: var(--color-text);
 }
 .folha-titulo-conteudo { display: flex; align-items: center; gap: 8px; }
-.folha-titulo-conteudo .icone-origem { flex: none; color: var(--texto-apagado); }
+/* a Newsreader assenta as maiúsculas acima do meio da linha: centrado na caixa, o ícone
+   ficava 3px abaixo do centro das letras */
+.folha-titulo-conteudo .icone-origem { flex: none; color: var(--texto-apagado); translate: 0 -3px; }
 /* sem quebra: "Sistema de gestão" em duas linhas desalinhava o topo das folhas */
 .folha-nome { font-size: 19px; font-weight: 600; line-height: 1.1; white-space: nowrap; }
 .folha-etiqueta {
@@ -3986,7 +3988,9 @@ html:not([data-menu="recolhido"]) .app-assistente-figura {
   display: flex; flex-direction: column;
 }
 .app-conta-email {
-  padding: 11px 14px; border-bottom: 1px solid var(--color-divider); overflow-wrap: anywhere;
+  /* parte maior que o menu ganha reticências; o e-mail inteiro fica no title */
+  padding: 11px 14px; border-bottom: 1px solid var(--color-divider);
+  overflow: hidden; text-overflow: ellipsis;
   font-size: var(--texto-nota); color: color-mix(in srgb, var(--color-text) 68%, transparent);
 }
 .app-conta-sair {
