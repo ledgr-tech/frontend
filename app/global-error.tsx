@@ -1,16 +1,12 @@
 "use client";
 
-import * as Sentry from "@sentry/nextjs";
-import { useEffect } from "react";
+import { useAvisarErro } from "@/lib/avisar-erro";
 import "./globals.css";
 import { ErroInesperado } from "./tela-de-aviso";
 
 /** Erro no layout raiz: substitui a página inteira, por isso traz o próprio html e os estilos. */
 export default function ErroGlobal({ error, retry }: { error: Error & { digest?: string }; retry: () => void }) {
-  // o error boundary engole o erro: sem isto o Sentry do navegador não o vê
-  useEffect(() => {
-    Sentry.captureException(error);
-  }, [error]);
+  useAvisarErro(error);
   return (
     <html lang="pt-BR">
       <body>
