@@ -4,6 +4,8 @@ export const SITUACOES = ["sem_plano", "teste", "teste_encerrado", "ativo", "ina
 
 export const POR_PAGINA = 20;
 
+export const COOKIE_DA_BUSCA = "ledgr-admin-busca";
+
 /** O valor de `?uf=` para as contas sem estado (backend #184). */
 export const UF_NAO_INFORMADA = "nao_informada";
 

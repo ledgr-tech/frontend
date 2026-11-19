@@ -1,4 +1,6 @@
 import NextAuth from "next-auth";
+import { cookies } from "next/headers";
+import { COOKIE_DA_BUSCA } from "@/app/(admin)/admin/situacao";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
 import { esquecerContaInativa } from "@/lib/backend";
@@ -49,12 +51,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     // Login pelo Google (backend #73): só com AUTH_GOOGLE_ID e AUTH_GOOGLE_SECRET no servidor (ver lib/google.ts)
     ...(process.env.AUTH_GOOGLE_ID ? [Google] : []),
   ],
-  // o aviso de conta inativa e o Google pela metade são do navegador: não passam de uma sessão para outra
+  // o aviso de conta inativa, o Google pela metade e a busca do /admin (#333) são do navegador: não passam
+  // de uma sessão para outra
   events: {
     async signIn() {
-      await Promise.all([esquecerContaInativa(), esquecerGoogleIncompleto()]);
+      await Promise.all([esquecerContaInativa(), esquecerGoogleIncompleto(), esquecerBuscaDoPainel()]);
     },
-    signOut: esquecerContaInativa,
+    async signOut() {
+      await Promise.all([esquecerContaInativa(), esquecerBuscaDoPainel()]);
+    },
   },
   callbacks: {
     signIn({ user, account }) {
@@ -93,3 +98,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     },
   },
 });
+
+/** A busca do /admin (e-mail ou CNPJ) fica num cookie de 15 minutos; quem entra ou sai não herda a da sessão anterior. */
+async function esquecerBuscaDoPainel(): Promise<void> {
+  try {
+    (await cookies()).delete({ name: COOKIE_DA_BUSCA, path: "/admin" });
+  } catch {
+    // fora de uma Server Action ou Route Handler não há cookie a apagar
+  }
+}

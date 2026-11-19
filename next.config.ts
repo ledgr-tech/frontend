@@ -42,6 +42,13 @@ const nextConfig: NextConfig = {
         ],
       },
       {
+        // o painel interno (#333) não fica em cache nenhum. As páginas dele já saem com o no-store do Next
+        // por serem dinâmicas; isto vale mesmo se uma ficar estática, porque o Next só escreve o
+        // Cache-Control dele quando a resposta ainda não tem um (server/send-payload.js)
+        source: "/admin/:path*",
+        headers: [{ key: "Cache-Control", value: "no-store" }],
+      },
+      {
         // os e-mails carregam as fontes daqui, e o WebKit do Apple Mail só usa fonte de
         // outro endereço com CORS; são os arquivos públicos de licença OFL, nada mais
         source: "/email/fontes/:arquivo*",

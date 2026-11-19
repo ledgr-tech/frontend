@@ -44,6 +44,7 @@ export function AcoesDaConta({ id, nome, inativa, piloto }: { id: string; nome: 
   const roteador = useRouter();
   const [aberta, setAberta] = useState<AcaoDaConta | null>(null);
   const [motivo, setMotivo] = useState("");
+  const [confirmada, setConfirmada] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
   const trava = useRef(false);
@@ -51,12 +52,13 @@ export function AcoesDaConta({ id, nome, inativa, piloto }: { id: string; nome: 
   function fechar() {
     setAberta(null);
     setMotivo("");
+    setConfirmada(false);
     setErro(null);
   }
 
   async function confirmar(e: FormEvent) {
     e.preventDefault();
-    if (!aberta || trava.current) return;
+    if (!aberta || trava.current || (aberta === "inativar" && !confirmada)) return;
     trava.current = true;
     setEnviando(true);
     setErro(null);
@@ -104,11 +106,17 @@ export function AcoesDaConta({ id, nome, inativa, piloto }: { id: string; nome: 
                 {erro}
               </p>
             )}
+            {aberta === "inativar" && (
+              <label className="adm-linha-base adm-folga-10">
+                <input type="checkbox" checked={confirmada} onChange={(e) => setConfirmada(e.target.checked)} required />
+                <span>{`Confirmo a inativação de ${nome}.`}</span>
+              </label>
+            )}
             <div className="adm-botoes">
               <BotaoFecharJanela aoFechar={fechar} className="btn btn-ghost">
                 Cancelar
               </BotaoFecharJanela>
-              <button type="submit" className="btn btn-primary" disabled={enviando || !motivo.trim()}>
+              <button type="submit" className="btn btn-primary" disabled={enviando || !motivo.trim() || (aberta === "inativar" && !confirmada)}>
                 {escolhida.botao}
               </button>
             </div>
