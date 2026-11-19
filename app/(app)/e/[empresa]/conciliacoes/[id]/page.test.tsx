@@ -26,8 +26,6 @@ vi.mock("next/navigation", () => ({
 const carregarConciliacao = vi.fn();
 const registrarDecisao = vi.fn();
 vi.mock("../acoes", () => ({
-  FECHAMENTO_NAO_CARREGOU:
-    "Não deu para saber se este mês está fechado. Conferir, justificar e enviar nova versão voltam quando carregar.",
   // um backend anterior ao #196: sem a rota dos fatos, o painel segue como estava
   carregarDetalhesDaDivergencia: async () => ({ ok: false, status: 404, erro: "Não encontrada." }),
   carregarConciliacao: (...args: unknown[]) => carregarConciliacao(...args),
@@ -1138,9 +1136,9 @@ describe("ConciliacaoPage", () => {
       });
       render(<ConciliacaoPage />);
 
-      const aviso = await screen.findByRole("status", {
-        name: "Não deu para saber se este mês está fechado",
-      });
+      const aviso = (await screen.findByText(/^Não deu para saber se este mês está fechado/)).closest<HTMLElement>("[role=status]");
+      expect(aviso).not.toBeNull();
+      if (!aviso) return;
       expect(aviso).toHaveTextContent(
         "Não deu para saber se este mês está fechado. Conferir, justificar e enviar nova versão voltam quando carregar.",
       );

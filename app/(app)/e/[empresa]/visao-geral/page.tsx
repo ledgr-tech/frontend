@@ -143,11 +143,6 @@ function Conteudo({
 
       <Reveal delay={0.08} className="vg-blocos-meio">
         {!sobem ? menores : perguntaTolerancia && <EnquantoPergunta passos={passos}>{menores}</EnquantoPergunta>}
-        {visao.fechamentosIndisponiveis && (
-          <p role="status" className="vg-nota">
-            Não deu para saber se o mês está fechado.
-          </p>
-        )}
         {doMes && (
           <PedeAtencao
             conciliacoes={doMes}
@@ -363,7 +358,9 @@ function Atalhos({
   // uma versão nova do extrato do sistema é outra rodada da mesma conciliação
   const pares = execucoesVigentes(visao.execucoes).length;
   const naoLidas = visao.arquivosComLinhasNaoLidas.reduce((soma, arquivo) => soma + arquivo.linhas, 0);
-  const pronto = !visao.leituraIncompleta && divergentes === 0 && naoLidas === 0;
+  // sem /fechamentos o mês pode já estar fechado: nem "fechado" nem "pronto" (#457)
+  const semFechamentos = visao.fechamentosIndisponiveis === true;
+  const pronto = !semFechamentos && !visao.leituraIncompleta && divergentes === 0 && naoLidas === 0;
 
   return (
     <nav className="vg-bloco" aria-labelledby="vg-atalhos-titulo" data-tutorial="atalhos">
@@ -409,8 +406,10 @@ function Atalhos({
         >
           {/* o mês em foco inteiro, como Fechamentos o fecharia */}
           <span className="vg-atalho-aviso">
-            <span className={`vg-ponto vg-ponto-${mesFechado || pronto ? "ok" : "atencao"}`} aria-hidden="true" />
-            {mesFechado
+            <span className={`vg-ponto vg-ponto-${!semFechamentos && (mesFechado || pronto) ? "ok" : "atencao"}`} aria-hidden="true" />
+            {semFechamentos
+              ? "Não deu para saber se o mês está fechado"
+              : mesFechado
               ? "Mês fechado"
               : visao.leituraIncompleta
                 ? "Leitura não conferida"

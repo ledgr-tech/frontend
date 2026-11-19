@@ -270,9 +270,6 @@ export type ConciliacaoEmRodadas = {
   fechamentoIndisponivel: boolean;
 };
 
-export const FECHAMENTO_NAO_CARREGOU =
-  "Não deu para saber se este mês está fechado. Conferir, justificar e enviar nova versão voltam quando carregar.";
-
 // O teto do backend por página de /execucoes. Um extrato do banco com mais de 100 rodadas
 // vira outra página, até o mesmo teto de páginas das linhas.
 const RODADAS_POR_PAGINA = 100;

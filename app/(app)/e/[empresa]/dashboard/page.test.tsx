@@ -148,9 +148,7 @@ describe("DashboardPage", () => {
     com({ fechamentos: null });
     await renderizar();
 
-    expect(screen.getByRole("status", { name: "Não deu para saber quais meses estão fechados" })).toHaveTextContent(
-      "Não deu para saber quais meses estão fechados.",
-    );
+    expect(screen.getByText(/^Não deu para saber quais meses estão fechados\./).closest("[role=status]")).not.toBeNull();
     expect(screen.getByRole("button", { name: "Tentar de novo" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Enviar nova versão do extrato do sistema" })).not.toBeInTheDocument();
   });

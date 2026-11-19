@@ -337,10 +337,15 @@ describe("VisaoGeralPage", () => {
   });
 
   it("com fechamentosIndisponiveis, a Visão geral avisa que o estado do mês não carregou", async () => {
+    // um mês sem pendências: sem /fechamentos ele pode já estar fechado, então nada de "Pronto"
     com({ fechamentosIndisponiveis: true });
     await renderizar();
 
-    expect(screen.getByRole("status")).toHaveTextContent("Não deu para saber se o mês está fechado.");
+    const fechamentos = within(screen.getByRole("navigation", { name: "Atalhos" })).getByRole("link", {
+      name: /Fechamentos/,
+    });
+    expect(fechamentos).toHaveTextContent("Não deu para saber se o mês está fechado");
+    expect(fechamentos).not.toHaveTextContent("Pronto para fechar");
   });
 
   it("looks at the whole open month, not only the latest conciliação", async () => {

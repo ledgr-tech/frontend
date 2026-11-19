@@ -49,7 +49,7 @@ import { FaixaDoSaldo, SaldoNoFim } from "../../saldo";
 import { SeloIa } from "../../selo-ia";
 import { useNome, usePodeFechar } from "../../conta";
 import { aprovadaDepois, podeDesfazerAprovacao } from "@/lib/aprovacao";
-import { decidirLinhas, FECHAMENTO_NAO_CARREGOU } from "../acoes";
+import { decidirLinhas } from "../acoes";
 import { DecisaoEmLote } from "../decisao-em-lote";
 import { SEM_SERVIDOR } from "@/lib/sem-servidor";
 
@@ -80,6 +80,10 @@ function textoDoVazio(filtro: Filtro, justificadas: number): string {
 
 /** Quantas linhas por página. 4.218 lançamentos não cabem numa tela. */
 /** Do ponteiro sair da linha ao cartão fechar: o tempo de atravessar o vão até ele. */
+// aqui e não em ../acoes: um arquivo "use server" só exporta funções async, e o build recusa o resto
+const FECHAMENTO_NAO_CARREGOU =
+  "Não deu para saber se este mês está fechado. Conferir, justificar e enviar nova versão voltam quando carregar.";
+
 const ESPERA_PARA_FECHAR_MS = 150;
 
 /** Do ponteiro descer ao foco chegar: dentro disso, o foco veio do toque ou do clique, não do teclado. */
@@ -431,11 +435,7 @@ export default function ConciliacaoPage() {
           </p>
         )}
         {fechamentoIndisponivel && (
-          <p
-            role="status"
-            aria-label="Não deu para saber se este mês está fechado"
-            className="mes-fechado-aviso"
-          >
+          <p role="status" className="mes-fechado-aviso">
             {FECHAMENTO_NAO_CARREGOU}{" "}
             <button type="button" className="btn btn-secondary" onClick={recarregar}>
               Tentar de novo

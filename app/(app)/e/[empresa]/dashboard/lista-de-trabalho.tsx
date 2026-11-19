@@ -114,11 +114,7 @@ export function ListaDeTrabalho({
       </FaixaFiltros>
 
       {fechamentos === null && (
-        <p
-          role="status"
-          aria-label="Não deu para saber quais meses estão fechados"
-          className="vg-nota"
-        >
+        <p role="status" className="vg-nota">
           Não deu para saber quais meses estão fechados.{" "}
           <button type="button" className="btn btn-secondary" onClick={() => router.refresh()}>
             Tentar de novo
