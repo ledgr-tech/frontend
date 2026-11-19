@@ -302,8 +302,10 @@ export default function LoginPage() {
 
   function falhar(erro: ErroEntrada) {
     setEntrando(false);
-    // o servidor apagou o vínculo: o botão volta a ser o Entrar comum
-    if (erro === "google_em_outra_conta") setEmailDoVinculo(null);
+    // recusado ou falhado, o vínculo não sai desta vez: o botão volta a ser o Entrar comum. O servidor
+    // apaga o cookie nesses casos, salvo quando a action nem respondeu; aí o cookie sobra até 1 hora, e o
+    // próximo "Entrar com Google" cai de novo no 409 email_com_senha e refaz o vínculo
+    if (erro === "google_em_outra_conta" || erro === "falha_sessao") setEmailDoVinculo(null);
     const { campo, mensagem } = ERROS_LOGIN[erro];
     mostrarErros({ [campo]: mensagem });
   }

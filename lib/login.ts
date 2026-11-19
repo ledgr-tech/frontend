@@ -207,10 +207,11 @@ export async function vincularGoogle(senha: string): Promise<User | null> {
   } catch (erro) {
     if (erro instanceof ErroBackend && erro.status === 401) return null;
     if (erro instanceof ErroBackend && erro.status === 429) throw new MuitasEntradas();
-    if (erro instanceof ErroBackend && erro.status === 409) {
-      pote.delete(COOKIE_VINCULO_GOOGLE);
-      throw new GoogleEmOutraConta();
-    }
+    // 409 (outro Google) ou um erro que a tela não sabe tratar (404 de um backend antes do #218, 422,
+    // 5xx, rede): o vínculo não sai por aqui, então o cookie sai e a próxima tentativa é o login comum.
+    // Com o cookie, cada tentativa voltava ao vínculo e falhava por até 1 hora, mesmo com a senha certa.
+    pote.delete(COOKIE_VINCULO_GOOGLE);
+    if (erro instanceof ErroBackend && erro.status === 409) throw new GoogleEmOutraConta();
     throw erro;
   }
 }
