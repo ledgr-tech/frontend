@@ -18,6 +18,7 @@ import {
   type ContextoNovaVersaoIa,
   corrigirLinhaDoRascunho,
   descartarImportacao,
+  recuperarExtratoConfirmado,
   removerLinhaDoRascunho,
   type LinhaDoRascunho,
   type Rascunho,
@@ -140,7 +141,25 @@ export function Revisao({
         }
         return r.erro;
       }
-      const r = await confirmarImportacao(inicial.id);
+      let r;
+      try {
+        r = await confirmarImportacao(inicial.id);
+      } catch {
+        r = { ok: false, status: 0, erro: SEM_SERVIDOR } as const;
+      }
+      if (!r.ok && (r.status === 409 || r.status === 0)) {
+        const confirmado = await recuperarExtratoConfirmado(inicial.id);
+        if (confirmado.ok) {
+          roteador.push(`/conciliacoes/nova?sistema=${confirmado.dados.extratoId}`);
+          return null;
+        }
+        if (confirmado.status === 401) {
+          setSaindo(true);
+          roteador.push("/login");
+          return null;
+        }
+        return r.erro;
+      }
       if (!r.ok) return r.erro;
       // segue para a Nova conciliação com o sistema já pronto: só falta enviar o extrato do banco
       roteador.push(`/conciliacoes/nova?sistema=${r.dados.extratoId}`);
