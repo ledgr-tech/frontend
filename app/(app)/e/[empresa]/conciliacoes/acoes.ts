@@ -813,6 +813,10 @@ export type VisaoGeral = {
   recente: { execucao: Execucao; conciliacao: Conciliacao } | null;
   /** Os arquivos da mais recente com linhas que o parser não conseguiu ler. */
   arquivosComLinhasNaoLidas: { nome: string; linhas: number }[];
+  /** Alguma situação de extrato falhou ao carregar em /extratos/{id}. */
+  leituraIncompleta?: true;
+  /** listarFechamentos não conseguiu carregar o estado dos meses. */
+  fechamentosIndisponiveis?: true;
   /**
    * O mês em foco (revisão de 15/10): o aberto mais recente, ou o mais recente se todos estão
    * fechados, com as linhas de todas as conciliações dele. O número do topo, "Pede sua atenção" e
@@ -839,7 +843,16 @@ export async function carregarVisaoGeral(): Promise<Resultado<VisaoGeral>> {
   // nova, mas não a rodada de agora
   const vigentes = execucoesVigentes(execucoes);
   if (vigentes.length === 0) {
-    return { ok: true, dados: { execucoes, total, recente: null, arquivosComLinhasNaoLidas: [] } };
+    return {
+      ok: true,
+      dados: {
+        execucoes,
+        total,
+        recente: null,
+        arquivosComLinhasNaoLidas: [],
+        ...(fechamentos === null && { fechamentosIndisponiveis: true }),
+      },
+    };
   }
 
   // o mês em foco: o aberto mais recente (é onde está o trabalho); todos fechados, o mais recente
@@ -883,6 +896,7 @@ export async function carregarVisaoGeral(): Promise<Resultado<VisaoGeral>> {
   // o detalhe do arquivo é aviso a mais, não o dado principal: se não carregar,
   // a home abre sem ele
   const arquivos = [...doMesPorArquivo.values()].map((nome, indice) => ({ nome, situacao: situacoes[indice] }));
+  const leituraIncompleta = situacoes.some((situacao) => !situacao.ok);
   const arquivosComLinhasNaoLidas = arquivos.flatMap(({ nome, situacao }) =>
     situacao.ok && situacao.dados.erros.length > 0
       ? [{ nome, linhas: situacao.dados.erros.length }]
@@ -906,6 +920,8 @@ export async function carregarVisaoGeral(): Promise<Resultado<VisaoGeral>> {
       total,
       recente: { execucao: maisRecente, conciliacao: conciliacao.dados.conciliacao },
       arquivosComLinhasNaoLidas,
+      ...(leituraIncompleta && { leituraIncompleta: true }),
+      ...(fechamentos === null && { fechamentosIndisponiveis: true }),
       mes: {
         competencia: foco,
         fechado: fechados.has(foco),

@@ -143,7 +143,19 @@ function Conteudo({
 
       <Reveal delay={0.08} className="vg-blocos-meio">
         {!sobem ? menores : perguntaTolerancia && <EnquantoPergunta passos={passos}>{menores}</EnquantoPergunta>}
-        {doMes && <PedeAtencao conciliacoes={doMes} arquivos={visao.arquivosComLinhasNaoLidas} passos={passos} />}
+        {visao.fechamentosIndisponiveis && (
+          <p role="status" className="vg-nota">
+            Não deu para saber se o mês está fechado.
+          </p>
+        )}
+        {doMes && (
+          <PedeAtencao
+            conciliacoes={doMes}
+            arquivos={visao.arquivosComLinhasNaoLidas}
+            leituraIncompleta={visao.leituraIncompleta}
+            passos={passos}
+          />
+        )}
       </Reveal>
 
       <Reveal delay={0.16} className="vg-blocos-par">
@@ -351,7 +363,7 @@ function Atalhos({
   // uma versão nova do extrato do sistema é outra rodada da mesma conciliação
   const pares = execucoesVigentes(visao.execucoes).length;
   const naoLidas = visao.arquivosComLinhasNaoLidas.reduce((soma, arquivo) => soma + arquivo.linhas, 0);
-  const pronto = divergentes === 0 && naoLidas === 0;
+  const pronto = !visao.leituraIncompleta && divergentes === 0 && naoLidas === 0;
 
   return (
     <nav className="vg-bloco" aria-labelledby="vg-atalhos-titulo" data-tutorial="atalhos">
@@ -400,6 +412,8 @@ function Atalhos({
             <span className={`vg-ponto vg-ponto-${mesFechado || pronto ? "ok" : "atencao"}`} aria-hidden="true" />
             {mesFechado
               ? "Mês fechado"
+              : visao.leituraIncompleta
+                ? "Leitura não conferida"
               : divergentes === null
                 ? "Confira as conciliações do mês"
                 : pronto
@@ -456,11 +470,13 @@ function Atalho({
 function PedeAtencao({
   conciliacoes,
   arquivos,
+  leituraIncompleta,
   passos,
 }: {
   /** As conciliações do mês em foco. */
   conciliacoes: Conciliacao[];
   arquivos: VisaoGeral["arquivosComLinhasNaoLidas"];
+  leituraIncompleta?: true;
   passos: PassoDoRoteiro[] | null;
 }) {
   const grupos = pendenciasDoMes(conciliacoes);
@@ -471,7 +487,7 @@ function PedeAtencao({
       <h2 id="vg-atencao-titulo" className="vg-bloco-rotulo">
         Pendências
       </h2>
-      {grupos.length === 0 && arquivos.length === 0 ? (
+      {grupos.length === 0 && arquivos.length === 0 && !leituraIncompleta ? (
         <div className="vg-tudo-certo">
           <Image
             src="/mascotes/mao-joinha.webp"
@@ -517,6 +533,19 @@ function PedeAtencao({
               </Link>
             </li>
           ))}
+          {/* um GET /extratos/{id} falhou: pode haver linhas não lidas que a lista acima não mostra */}
+          {leituraIncompleta && (
+            <li>
+              <Link href="/extratos" className="vg-item">
+                <span className="vg-ponto vg-ponto-atencao" aria-hidden="true" />
+                <span className="vg-item-corpo">
+                  <span className="vg-item-titulo">Leitura não conferida</span>
+                  <span className="vg-item-detalhe">Não deu para conferir as linhas lidas de um arquivo do mês</span>
+                </span>
+                <span className="vg-item-acao">Ver extratos</span>
+              </Link>
+            </li>
+          )}
         </ul>
       )}
       <AcaoDoPasso passos={passos} id="divergencias" />

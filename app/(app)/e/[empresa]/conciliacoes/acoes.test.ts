@@ -661,7 +661,13 @@ describe("carregarVisaoGeral", () => {
   });
 
   it("sem execução nenhuma, não tem o que abrir", async () => {
-    backendCom([]);
+    chamarBackend.mockImplementation(async (caminho: string) => {
+      if (caminho.startsWith("/fechamentos")) return { itens: [] };
+      if (caminho.startsWith("/execucoes")) {
+        return { total: 0, limit: 50, offset: 0, itens: [] };
+      }
+      throw new Error(`caminho inesperado: ${caminho}`);
+    });
 
     expect(await carregarVisaoGeral()).toEqual({
       ok: true,
@@ -718,6 +724,37 @@ describe("carregarVisaoGeral", () => {
     if (!resultado.ok) throw new Error(resultado.erro);
     expect(resultado.dados.recente?.execucao.id).toBe("e-1");
     expect(resultado.dados.arquivosComLinhasNaoLidas).toEqual([]);
+  });
+
+  it("carregarVisaoGeral marca leituraIncompleta quando GET /extratos/{id} falha", async () => {
+    backendComVisao([execucao("e-1", BANCO_RECENTE)], {
+      [BANCO_RECENTE]: new ErroBackend(503, "Serviço indisponível."),
+      [SISTEMA]: situacao(SISTEMA),
+    });
+
+    const resultado = await carregarVisaoGeral();
+
+    if (!resultado.ok) throw new Error(resultado.erro);
+    expect(resultado.dados.leituraIncompleta).toBe(true);
+  });
+
+  it("carregarVisaoGeral marca fechamentosIndisponiveis quando listarFechamentos falha", async () => {
+    chamarBackend.mockImplementation(async (caminho: string) => {
+      if (caminho === "/fechamentos") throw new ErroBackend(503, "Serviço indisponível.");
+      if (caminho.startsWith("/execucoes")) {
+        return { total: 1, limit: 50, offset: 0, itens: [execucao("e-1", BANCO_RECENTE)] };
+      }
+      if (caminho.startsWith("/conciliacoes/")) {
+        return { extrato_id: BANCO_RECENTE, total: 1, limit: 1000, offset: 0, itens: [itemConciliacao] };
+      }
+      if (caminho.startsWith("/extratos/")) return situacao(BANCO_RECENTE);
+      throw new Error(`caminho inesperado: ${caminho}`);
+    });
+
+    const resultado = await carregarVisaoGeral();
+
+    if (!resultado.ok) throw new Error(resultado.erro);
+    expect(resultado.dados.fechamentosIndisponiveis).toBe(true);
   });
 
   it("devolve a falha quando as linhas da mais recente não carregam", async () => {
