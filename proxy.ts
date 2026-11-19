@@ -11,11 +11,12 @@ import { empresaDoCaminho } from "@/lib/rotas";
  * se nasceu aqui, de um UUID válido no caminho.
  *
  * O prefetch também passa por aqui: ele renderiza Server Components, e sem o proxy um `x-ledgr-empresa`
- * de fora chegaria inteiro ao backend. Só a CSP fica de fora dele, que não é página que o navegador monte.
+ * de fora chegaria inteiro ao backend. Só a CSP fica de fora dele, que não é página que o navegador monte;
+ * mesmo assim o `x-nonce` e a CSP que vierem no pedido caem (#333), porque o Next e o layout os leem.
  */
 export function proxy(request: NextRequest) {
   const cabecalhos = new Headers(request.headers);
-  cabecalhos.delete("x-ledgr-empresa");
+  for (const deFora of ["x-ledgr-empresa", "x-nonce", "content-security-policy", "content-security-policy-report-only"]) cabecalhos.delete(deFora);
   const empresa = empresaDoCaminho(request.nextUrl.pathname);
   if (empresa) cabecalhos.set("x-ledgr-empresa", empresa);
 

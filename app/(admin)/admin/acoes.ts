@@ -1,11 +1,13 @@
 "use server";
 
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { pareceUuid } from "@/lib/adaptadores";
 import { ErroBackend, chamarBackend } from "@/lib/backend";
 import { ehUf } from "@/lib/uf";
 import type { Falha, Resultado } from "../../(app)/e/[empresa]/conciliacoes/acoes";
-import { ROTULO_DA_ORIGEM, dataDoFiltro } from "./cobranca";
-import { POR_PAGINA, SITUACOES, UF_NAO_INFORMADA } from "./situacao";
+import { ROTULO_DA_ORIGEM, dataDoFiltro, enderecoDaLista } from "./cobranca";
+import { COOKIE_DA_BUSCA, POR_PAGINA, SITUACOES, UF_NAO_INFORMADA } from "./situacao";
 import { SEM_SERVIDOR } from "@/lib/sem-servidor";
 
 /**
@@ -248,14 +250,62 @@ function detalhe(d: DetalheAPI): DetalheDaConta {
   };
 }
 
+/**
+ * Os textos que o backend escreve para o painel (app/api/admin.py, admin_assinaturas.py e services/assinatura,
+ * no main f3bbcba): só eles chegam à tela (#333). Um texto novo do backend aparece como o genérico até entrar aqui.
+ */
+const ERROS_DO_PAINEL = new Set([
+  "Acesso restrito à equipe do Ledgr.",
+  "Conta não encontrada.",
+  "A conta já está inativa.",
+  "A conta não está inativa.",
+  "O piloto já está ligado nesta conta.",
+  "O piloto já está desligado nesta conta.",
+  "A conta não tem uma assinatura ativa.",
+  "O cancelamento já está agendado para o fim do período.",
+  "A assinatura não tem cancelamento agendado.",
+  "Cupom não encontrado ou não está mais válido.",
+  "A conta não tem um administrador ativo para receber o cupom.",
+  "A data inicial é depois da final.",
+  "A cobrança não está disponível no momento.",
+  "Não foi possível falar com a Stripe agora. Tente de novo em instantes.",
+]);
+
 function traduzir(erro: unknown): Falha {
   if (!(erro instanceof ErroBackend)) return { ok: false, status: 0, erro: SEM_SERVIDOR };
   const { status } = erro;
+  if (status === 401) return { ok: false, status, erro: "Entre de novo para usar o painel." };
   if (status === 429) return { ok: false, status, erro: "Muitas chamadas seguidas. Espere um minuto e tente de novo." };
   // um 422 de validação de campo é o motivo; o de texto (período invertido) chega como o backend escreveu
   if (status === 422 && erro.campos.length > 0) return { ok: false, status, erro: "O motivo precisa ter de 1 a 500 caracteres." };
-  // 401 (login com mais de 2 horas), 403 (não é operador), 404, 409, 502 (Stripe fora) e 503 (cobrança desligada) chegam com o texto do backend
-  return { ok: false, status, erro: erro.detalhe };
+  // Só os textos conhecidos do painel podem chegar à tela; detalhes internos ficam fora, sem mudar o status.
+  return { ok: false, status, erro: ERROS_DO_PAINEL.has(erro.detalhe) ? erro.detalhe : "Não foi possível concluir agora. Tente de novo em instantes." };
+}
+
+/** A busca fica só no cookie do painel; a URL guarda apenas os filtros sem dados pessoais. */
+export async function buscarContas(dados: FormData): Promise<void> {
+  const valor = dados.get("busca");
+  const busca = typeof valor === "string" ? Array.from(valor.trim()).slice(0, 100).join("") : "";
+  const pote = await cookies();
+  if (busca) {
+    pote.set(COOKIE_DA_BUSCA, busca, {
+      httpOnly: true,
+      sameSite: "strict",
+      secure: process.env.NODE_ENV === "production",
+      path: "/admin",
+      maxAge: 3600,
+    });
+  } else {
+    pote.delete({ name: COOKIE_DA_BUSCA, path: "/admin" });
+  }
+  function filtro(nome: string): string | undefined {
+    const valor = dados.get(nome);
+    return typeof valor === "string" ? valor.trim() || undefined : undefined;
+  }
+  const situacao = filtro("situacao");
+  const ordem = filtro("ordem");
+  const uf = filtro("uf");
+  redirect(enderecoDaLista("/admin", { situacao, ordem, uf, com_busca: busca ? "1" : undefined }, 1));
 }
 
 function motivoValido(motivo: string): string | null {
@@ -498,7 +548,7 @@ export async function listarContas(filtros: {
   pagina?: number;
 }): Promise<Resultado<ListaDeContas>> {
   const consulta = new URLSearchParams();
-  const busca = filtros.busca?.trim().slice(0, 100);
+  const busca = filtros.busca ? Array.from(filtros.busca.trim()).slice(0, 100).join("") : "";
   if (busca) consulta.set("busca", busca);
   if (filtros.situacao && (SITUACOES as readonly string[]).includes(filtros.situacao)) consulta.set("situacao", filtros.situacao);
   if (filtros.ordem === "teste_termina_em") consulta.set("ordem", "teste_termina_em");

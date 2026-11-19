@@ -59,17 +59,20 @@ export function AcoesDaAssinatura({ id, nome, agendado, fimDoPeriodo }: { id: st
   const [aberta, setAberta] = useState(false);
   const [motivo, setMotivo] = useState("");
   const [quando, setQuando] = useState<"fim_do_periodo" | "agora">("fim_do_periodo");
+  const [confirmado, setConfirmado] = useState(false);
   const { erro, setErro, enviando, enviar } = useEnvio();
 
   function fechar() {
     setAberta(false);
     setMotivo("");
     setQuando("fim_do_periodo");
+    setConfirmado(false);
     setErro(null);
   }
 
   async function confirmar(e: FormEvent) {
     e.preventDefault();
+    if (!agendado && quando === "agora" && !confirmado) return;
     const ok = await enviar(() => (agendado ? manterAssinatura(id, motivo) : cancelarAssinatura(id, quando, motivo)));
     if (!ok) return;
     fechar();
@@ -77,7 +80,7 @@ export function AcoesDaAssinatura({ id, nome, agendado, fimDoPeriodo }: { id: st
   }
 
   const fim = fimDoPeriodo ? formatarDataHora(fimDoPeriodo).slice(0, 10) : null;
-  const botao = agendado ? "Manter assinatura" : "Cancelar assinatura";
+  const botao = agendado ? "Manter assinatura" : quando === "agora" ? "Cancelar agora" : "Cancelar no fim do período";
 
   return (
     <>
@@ -93,7 +96,7 @@ export function AcoesDaAssinatura({ id, nome, agendado, fimDoPeriodo }: { id: st
               <fieldset className="adm-grupo">
                 <legend className="adm-folga-baixo-8">Quando cancelar</legend>
                 <label className="adm-linha-base">
-                  <input type="radio" name="quando" checked={quando === "fim_do_periodo"} onChange={() => setQuando("fim_do_periodo")} />
+                  <input type="radio" name="quando" checked={quando === "fim_do_periodo"} onChange={() => { setQuando("fim_do_periodo"); setConfirmado(false); }} />
                   <span>
                     <strong>No fim do período</strong>
                     <br />
@@ -101,7 +104,7 @@ export function AcoesDaAssinatura({ id, nome, agendado, fimDoPeriodo }: { id: st
                   </span>
                 </label>
                 <label className="adm-linha-base">
-                  <input type="radio" name="quando" checked={quando === "agora"} onChange={() => setQuando("agora")} />
+                  <input type="radio" name="quando" checked={quando === "agora"} onChange={() => { setQuando("agora"); setConfirmado(false); }} />
                   <span>
                     <strong>Agora</strong>
                     <br />
@@ -113,11 +116,17 @@ export function AcoesDaAssinatura({ id, nome, agendado, fimDoPeriodo }: { id: st
             )}
             <CampoDoMotivo valor={motivo} mudar={setMotivo} />
             <Erro texto={erro} />
+            {!agendado && quando === "agora" && (
+              <label className="adm-linha-base adm-folga-10">
+                <input type="checkbox" checked={confirmado} onChange={(e) => setConfirmado(e.target.checked)} required />
+                <span>{`Confirmo o cancelamento imediato de ${nome}.`}</span>
+              </label>
+            )}
             <div className="adm-botoes">
               <BotaoFecharJanela aoFechar={fechar} className="btn btn-ghost">
                 Voltar
               </BotaoFecharJanela>
-              <button type="submit" className="btn btn-primary" disabled={enviando || !motivo.trim()}>
+              <button type="submit" className="btn btn-primary" disabled={enviando || !motivo.trim() || (!agendado && quando === "agora" && !confirmado)}>
                 {enviando ? "Enviando…" : botao}
               </button>
             </div>
