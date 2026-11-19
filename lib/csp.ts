@@ -11,15 +11,19 @@
  *   o form-action também no redirecionamento.
  * - Sem vercel.live: o toolbar dos previews da Vercel fica bloqueado, de propósito.
  */
-export function politicaDeConteudo(nonce: string, desenvolvimento: boolean): string {
+export function politicaDeConteudo(
+  nonce: string,
+  desenvolvimento: boolean,
+  sentry = origemDoSentry(process.env.NEXT_PUBLIC_SENTRY_DSN),
+): string {
   return [
     "default-src 'self'",
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${desenvolvimento ? " 'unsafe-eval'" : ""}`,
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' blob: data:",
     "font-src 'self'",
-    // Server Actions, a rota do CSV e o HMR do next dev: tudo na mesma origem
-    "connect-src 'self'",
+    // Server Actions, a rota do CSV e o HMR do next dev: tudo na mesma origem; mais o Sentry, se ligado
+    `connect-src 'self'${sentry ? ` ${sentry}` : ""}`,
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self' https://accounts.google.com",
@@ -27,6 +31,17 @@ export function politicaDeConteudo(nonce: string, desenvolvimento: boolean): str
     // as violações vão ao log (app/api/csp/route.ts)
     "report-uri /api/csp",
   ].join("; ");
+}
+
+/** A origem para onde o navegador manda os erros (#290): a do DSN do Sentry; sem DSN, ou inválido, nenhuma. */
+export function origemDoSentry(dsn: string | undefined): string | null {
+  if (!dsn) return null;
+  try {
+    const url = new URL(dsn);
+    return url.protocol === "https:" ? url.origin : null;
+  } catch {
+    return null;
+  }
 }
 
 /** 128 bits do gerador do sistema, em base64: imprevisível e novo a cada página. */

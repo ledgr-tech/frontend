@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { novoNonce, politicaDeConteudo } from "./csp";
+import { novoNonce, origemDoSentry, politicaDeConteudo } from "./csp";
 
 /** Diretiva → valor, de uma política CSP. */
 function diretivas(politica: string): Map<string, string> {
@@ -36,7 +36,7 @@ describe("politicaDeConteudo", () => {
   });
 
   it("fecha o resto na própria origem", () => {
-    const csp = diretivas(politicaDeConteudo("n", false));
+    const csp = diretivas(politicaDeConteudo("n", false, null));
     expect(csp.get("default-src")).toBe("'self'");
     expect(csp.get("connect-src")).toBe("'self'");
     expect(csp.get("object-src")).toBe("'none'");
@@ -44,6 +44,23 @@ describe("politicaDeConteudo", () => {
     expect(csp.get("frame-ancestors")).toBe("'none'");
     // o login com Google sai de um formulário para o Google
     expect(csp.get("form-action")).toBe("'self' https://accounts.google.com");
+  });
+});
+
+describe("origemDoSentry", () => {
+  it("abre o connect-src só para a origem do DSN", () => {
+    const origem = origemDoSentry("https://chave@o1.ingest.us.sentry.io/42");
+    expect(origem).toBe("https://o1.ingest.us.sentry.io");
+    expect(diretivas(politicaDeConteudo("n", false, origem)).get("connect-src")).toBe(
+      "'self' https://o1.ingest.us.sentry.io",
+    );
+  });
+
+  it("sem DSN, inválido ou sem https, não abre nada", () => {
+    expect(origemDoSentry(undefined)).toBeNull();
+    expect(origemDoSentry("")).toBeNull();
+    expect(origemDoSentry("não é url")).toBeNull();
+    expect(origemDoSentry("http://chave@o1.ingest.sentry.io/42")).toBeNull();
   });
 });
 

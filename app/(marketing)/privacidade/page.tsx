@@ -198,9 +198,11 @@ export default function PrivacidadePage() {
 
       <h2>Onde os dados ficam</h2>
       <p>
-        O Ledgr usa quatro fornecedores: a Vercel, que hospeda o site e o app; a Railway, que hospeda o
-        servidor e o banco de dados; a OpenAI, para as explicações por IA; e o Resend, que envia os
-        e-mails do serviço, como o de recuperação de senha. Os quatro processam dados fora do Brasil,
+        O Ledgr usa cinco fornecedores: a Vercel, que hospeda o site e o app; a Railway, que hospeda o
+        servidor e o banco de dados; a OpenAI, para as explicações por IA; o Resend, que envia os
+        e-mails do serviço, como o de recuperação de senha; e o Sentry, que recebe os relatórios de erro
+        do site e do app (o endereço da tela, o navegador e a falha técnica, para que a gente corrija).
+        Os cinco processam dados fora do Brasil,
         principalmente nos Estados Unidos. Nos extratos, em que o Ledgr é o operador, esses fornecedores
         atuam como suboperadores, com a autorização prevista nos{" "}
         <Link href="/termos">Termos de uso</Link>.
