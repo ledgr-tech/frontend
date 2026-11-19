@@ -291,6 +291,16 @@ describe("FechamentosPage", () => {
       expect(refresh).toHaveBeenCalled();
     });
 
+    it("404 do Reabrir relê a tela", async () => {
+      const user = userEvent.setup();
+      reabrirMes.mockResolvedValue({ ok: false, status: 404, erro: "Não há fechamento ativo nesta competência." });
+      await renderizar(undefined, { mes: "2026-08" }, [fechamento("2026-08")]);
+
+      await user.click(within(painel()).getByRole("button", { name: "Reabrir agosto" }));
+
+      expect(refresh).toHaveBeenCalledTimes(1);
+    });
+
     it("asks for a ressalva when the backend says what still holds the month, and closes with it", async () => {
       const user = userEvent.setup();
       const falta = "Há 42 divergências sem justificativa nesta competência. Justifique, corrija ou feche com ressalva.";
@@ -320,6 +330,23 @@ describe("FechamentosPage", () => {
       await user.click(within(painel()).getByRole("button", { name: "Fechar mesmo assim" }));
 
       expect(within(painel()).getByRole("button", { name: "Fechar com ressalva" })).toBeDisabled();
+    });
+
+    it("409 com justificativa aguardando não abre a ressalva", async () => {
+      const user = userEvent.setup();
+      fecharMes.mockResolvedValue({ ok: false, status: 409, erro: "Há justificativas aguardando aprovação." });
+      carregarFechamentos.mockResolvedValue({ ok: true, dados: { pares: [SETEMBRO_EM_ABERTO], fechamentos: [] } });
+      const renderizado = render(await FechamentosPage({ searchParams: Promise.resolve({}) }));
+
+      await user.click(within(painel()).getByRole("button", { name: "Fechar mesmo assim" }));
+      expect(within(painel()).getByLabelText("Ressalva")).toBeInTheDocument();
+
+      const aguardando = par("set", { acerto: 98.6, divergencias: { divergente_valor: 2 }, justificadas: 0, aguardandoAprovacao: 2 });
+      carregarFechamentos.mockResolvedValue({ ok: true, dados: { pares: [aguardando], fechamentos: [] } });
+      renderizado.rerender(await FechamentosPage({ searchParams: Promise.resolve({}) }));
+
+      expect(within(painel()).queryByLabelText("Ressalva")).not.toBeInTheDocument();
+      expect(within(painel()).queryByRole("button", { name: "Fechar mesmo assim" })).not.toBeInTheDocument();
     });
 
     it("shows the ressalva of a month closed with one", async () => {
@@ -457,7 +484,7 @@ describe("FechamentosPage", () => {
       await user.click(within(painel()).getByRole("button", { name: "Aprovar as 2 justificativas" }));
 
       expect(await within(painel()).findByRole("alert")).toHaveTextContent("O mês 2026-09 está fechado.");
-      expect(refresh).not.toHaveBeenCalled();
+      expect(refresh).toHaveBeenCalledTimes(1);
     });
 
     it("a ressalva não libera o mês: sem Fechar mesmo assim enquanto houver justificativa esperando", async () => {
