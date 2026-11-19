@@ -20,6 +20,7 @@ import {
   type Falha,
   type Resultado,
   type SituacaoExtrato,
+  verificarNovaVersao,
 } from "../acoes";
 import {
   aguardarProcessamento,
@@ -201,6 +202,18 @@ function NovaConciliacao() {
       if (reenvio && sistema && /\.json$/i.test(sistema.name)) {
         await revisarJson(sistema, reenvio);
         return;
+      }
+      if (reenvio && sistema) {
+        const alvo = await verificarNovaVersao(reenvio.banco, reenvio.sistemaAnterior);
+        if (!alvo.ok) {
+          setEtapa("ocioso");
+          if (alvo.status === 401) {
+            router.push("/login");
+          } else {
+            setErro(alvo.erro);
+          }
+          return;
+        }
       }
       // nada sobe antes de os dois estarem prontos: extrato órfão no backend não tem volta
       if ((banco && !(await conferir(banco, "banco"))) || (sistema && !(await conferir(sistema, "sistema")))) {
