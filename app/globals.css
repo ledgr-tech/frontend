@@ -4170,7 +4170,8 @@ html:not([data-menu="recolhido"]) .app-assistente-figura {
   display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 18px 28px;
   padding: 16px 0; border-bottom: 1px solid var(--color-divider);
 }
-.cfg-linha:last-child { border-bottom: none; }
+/* a última linha visível: a busca deixa as outras linhas da seção montadas e escondidas (#442) */
+.cfg-linha:not(:has(~ .cfg-linha:not([hidden]))) { border-bottom: none; }
 /* base de 16rem: é com ela que o flex decide se o controle cabe ao lado, e não com o
    tamanho da descrição, que muda com a opção escolhida (o tema, por exemplo); cabendo,
    o texto cresce até 58ch */

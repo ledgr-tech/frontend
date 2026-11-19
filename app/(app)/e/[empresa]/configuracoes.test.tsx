@@ -164,6 +164,25 @@ describe("Configuracoes", () => {
       }
     });
 
+    it("digitar na busca fecha o tutorial e limpar não o reabre", async () => {
+      TUTORIAL_JA_VISTO = null;
+      try {
+        const user = userEvent.setup();
+        abrir();
+        await user.click(secao("Conciliação"));
+        expect(await screen.findByText("Configurações · 1 de 2", {}, { timeout: 2000 })).toBeVisible();
+
+        const busca = screen.getByRole("searchbox", { name: "Procurar nas configurações" });
+        await user.type(busca, "tolerancia");
+        expect(screen.queryByText("Configurações · 1 de 2")).not.toBeInTheDocument();
+        await user.clear(busca);
+        // o cartão abre 600 ms depois de montar: espera mais que isso para afirmar que ele não volta
+        await expect(screen.findByText("Configurações · 1 de 2", {}, { timeout: 1000 })).rejects.toThrow();
+      } finally {
+        TUTORIAL_JA_VISTO = { tutoriaisDispensados: ["configuracoes"], roteiroDispensado: false };
+      }
+    });
+
     it("shows the tolerance the next conciliation will use, its limit and who changed it last", async () => {
       const user = userEvent.setup();
       abrir();
@@ -457,6 +476,63 @@ describe("Configuracoes", () => {
     await user.type(busca, "chaves");
     expect(screen.getByText("painel das chaves")).toBeVisible();
     expect(montagensDasChaves).toBe(1);
+  });
+
+  it("o painel aberto num resultado da busca não desmonta ao mudar ou limpar a busca", async () => {
+    const user = userEvent.setup();
+    abrir({ papel: "admin" });
+    const busca = screen.getByRole("searchbox", { name: "Procurar nas configurações" });
+
+    await user.type(busca, "chave");
+    expect(montagensDasChaves).toBe(1);
+    await user.type(busca, "z");
+    expect(montagensDasChaves).toBe(1);
+    await user.clear(busca);
+    expect(montagensDasChaves).toBe(1);
+    await user.click(secao("API"));
+    expect(screen.getByText("painel das chaves")).toBeVisible();
+    expect(montagensDasChaves).toBe(1);
+  });
+
+  it("as linhas que a busca esconde não perdem o que foi digitado", async () => {
+    const user = userEvent.setup();
+    abrir();
+    await user.click(secao("Conta"));
+    await user.click(screen.getByRole("button", { name: "Trocar senha" }));
+    const formulario = screen.getByRole("form", { name: "Trocar senha" });
+    const campo = within(formulario).getByLabelText("Senha nova");
+    await user.type(campo, "rascunho-de-teste");
+
+    const busca = screen.getByRole("searchbox", { name: "Procurar nas configurações" });
+    await user.type(busca, "sessao");
+    expect(campo).not.toBeVisible();
+    await user.clear(busca);
+
+    const formularioPreservado = screen.getByRole("form", { name: "Trocar senha" });
+    expect(formularioPreservado).toBeVisible();
+    expect(within(formularioPreservado).getByLabelText("Senha nova")).toHaveValue("rascunho-de-teste");
+  });
+
+  it("fechar a janela zera a busca", async () => {
+    const user = userEvent.setup();
+    const props = { email: EMAIL, temSenha: true, onFechar: vi.fn(), onSair: vi.fn(), onTema: vi.fn() };
+    function janela(aberta: boolean, secao?: string) {
+      return (
+        <ProvedorDaConta preferencias={TUTORIAL_JA_VISTO}>
+          <Configuracoes {...props} aberta={aberta} secao={secao} />
+        </ProvedorDaConta>
+      );
+    }
+    const { rerender } = render(janela(true));
+    await user.type(screen.getByRole("searchbox", { name: "Procurar nas configurações" }), "zzz");
+    expect(screen.getByText("Nada encontrado para “zzz”.")).toBeVisible();
+
+    rerender(janela(false));
+    rerender(janela(true, "conciliacao"));
+
+    expect(screen.getByRole("heading", { name: "Conciliação" })).toBeVisible();
+    expect(screen.queryByText(/Nada encontrado/)).not.toBeInTheDocument();
+    expect(screen.getByRole("searchbox", { name: "Procurar nas configurações" })).toHaveValue("");
   });
 
   it("lists Conta, Aparência and the rest: the team moved to the Empresas screen", () => {

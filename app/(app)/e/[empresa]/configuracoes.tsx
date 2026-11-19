@@ -440,6 +440,7 @@ export function Configuracoes({
   const dialogo = useRef<HTMLDialogElement>(null);
   const [secaoId, setSecaoId] = useState("aparencia");
   const [busca, setBusca] = useState("");
+  const [montadas, setMontadas] = useState<string[]>([]);
   const [tema, setTema] = useState<EscolhaDeTema>("sistema");
   const [densidade, setDensidade] = useState<Densidade>("compacta");
   const [recolhido, setRecolhido] = useState(false);
@@ -834,6 +835,18 @@ export function Configuracoes({
         .filter((secao) => secao.linhas.length > 0)
     : null;
   const secao = secoes.find((item) => item.id === secaoId) ?? secoes[0];
+  const visiveis = achados ? achados.map((item) => item.id) : [secao.id];
+
+  // as seções que já apareceram nesta abertura da janela ficam montadas, só escondidas: assim a busca e a
+  // troca de seção não apagam um formulário nem a chave mostrada uma vez só (#442). Fechada, a janela não
+  // monta seção nenhuma; aqui só se zeram a lista e a busca para a próxima abertura
+  if (aberta) {
+    const novas = visiveis.filter((id) => !montadas.includes(id));
+    if (novas.length > 0) setMontadas([...montadas, ...novas]);
+  } else if (montadas.length > 0 || busca !== "") {
+    setMontadas([]);
+    setBusca("");
+  }
 
   return (
     <dialog
@@ -896,18 +909,19 @@ export function Configuracoes({
               {secoes.map((item) => {
                 const abertaNestaSecao = item.id === secao.id;
                 const achado = achados?.find((resultado) => resultado.id === item.id);
-                if (!abertaNestaSecao && !achado) return null;
+                const visivel = visiveis.includes(item.id);
+                if (!montadas.includes(item.id) && !visivel) return null;
                 return (
                   <section
                     key={item.id}
                     aria-labelledby={`cfg-secao-${item.id}`}
                     className={achados === null ? undefined : "cfg-achado"}
-                    hidden={achados === null ? !abertaNestaSecao : !achado}
+                    hidden={!visivel}
                   >
                     <h2 id={`cfg-secao-${item.id}`} className="cfg-titulo">
                       {item.nome}
                     </h2>
-                    <Linhas linhas={achado?.linhas ?? item.linhas} />
+                    <Linhas linhas={item.linhas} visiveis={achado?.linhas} />
                     {item.conteudo}
                     {/* dentro da janela, para ficar na camada de cima com ela; só com ela aberta, ou o "?"
                         da barra do topo abriria este também, escondido na janela fechada */}
@@ -927,11 +941,16 @@ export function Configuracoes({
 /** As linhas que o tutorial do mascote destaca nas Configurações (tutorial/roteiros.ts). */
 const ALVO_DA_LINHA: Record<string, string> = { "Tolerância de data": "tolerancia", "Fonte da verdade": "fonte-da-verdade" };
 
-function Linhas({ linhas }: { linhas: Linha[] }) {
+function Linhas({ linhas, visiveis }: { linhas: Linha[]; visiveis?: readonly Linha[] }) {
   return (
     <ul className="cfg-linhas">
       {linhas.map((linha) => (
-        <li key={linha.chave ?? linha.titulo} className="cfg-linha" data-tutorial={ALVO_DA_LINHA[linha.titulo]}>
+        <li
+          key={linha.chave ?? linha.titulo}
+          className="cfg-linha"
+          data-tutorial={ALVO_DA_LINHA[linha.titulo]}
+          hidden={visiveis !== undefined && !visiveis.includes(linha)}
+        >
           <div className="cfg-linha-texto">
             <span className="cfg-linha-titulo">{linha.titulo}</span>
             {linha.descricao && <span className="cfg-linha-descricao">{linha.descricao}</span>}
