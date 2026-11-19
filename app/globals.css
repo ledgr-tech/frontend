@@ -4163,7 +4163,8 @@ html:not([data-menu="recolhido"]) .app-assistente-figura {
 }
 .cfg-fechar:hover { background: var(--tinta-hover); color: var(--color-text); }
 .cfg-titulo { margin: 0 0 14px; font-size: 22px; font-weight: 600; }
-.cfg-achado + .cfg-achado { margin-top: 30px; }
+/* a seção aberta fica montada e escondida entre os achados (#442): o espaço vale entre os que aparecem */
+.cfg-achado:not([hidden]) ~ .cfg-achado:not([hidden]) { margin-top: 30px; }
 .cfg-linhas { list-style: none; margin: 0; padding: 0; }
 .cfg-linha {
   display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 18px 28px;

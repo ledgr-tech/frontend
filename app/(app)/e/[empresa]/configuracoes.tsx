@@ -893,30 +893,29 @@ export function Configuracoes({
             </button>
 
             <div className="cfg-rolagem">
-            {achados === null ? (
-              <section aria-labelledby="cfg-secao">
-                <h2 id="cfg-secao" className="cfg-titulo">
-                  {secao.nome}
-                </h2>
-                <Linhas linhas={secao.linhas} />
-                {secao.conteudo}
-                {/* dentro da janela, para ficar na camada de cima com ela; só com ela aberta, ou o "?"
-                    da barra do topo abriria este também, escondido na janela fechada */}
-                {aberta && secao.id === "conciliacao" && <Tutorial tela="configuracoes" />}
-              </section>
-            ) : achados.length === 0 ? (
-              <p className="cfg-vazio">{`Nada encontrado para “${busca.trim()}”.`}</p>
-            ) : (
-              achados.map((item) => (
-                <section key={item.id} aria-labelledby={`cfg-achado-${item.id}`} className="cfg-achado">
-                  <h2 id={`cfg-achado-${item.id}`} className="cfg-titulo">
-                    {item.nome}
-                  </h2>
-                  <Linhas linhas={item.linhas} />
-                  {item.conteudo}
-                </section>
-              ))
-            )}
+              {secoes.map((item) => {
+                const abertaNestaSecao = item.id === secao.id;
+                const achado = achados?.find((resultado) => resultado.id === item.id);
+                if (!abertaNestaSecao && !achado) return null;
+                return (
+                  <section
+                    key={item.id}
+                    aria-labelledby={`cfg-secao-${item.id}`}
+                    className={achados === null ? undefined : "cfg-achado"}
+                    hidden={achados === null ? !abertaNestaSecao : !achado}
+                  >
+                    <h2 id={`cfg-secao-${item.id}`} className="cfg-titulo">
+                      {item.nome}
+                    </h2>
+                    <Linhas linhas={achado?.linhas ?? item.linhas} />
+                    {item.conteudo}
+                    {/* dentro da janela, para ficar na camada de cima com ela; só com ela aberta, ou o "?"
+                        da barra do topo abriria este também, escondido na janela fechada */}
+                    {achados === null && aberta && abertaNestaSecao && item.id === "conciliacao" && <Tutorial tela="configuracoes" />}
+                  </section>
+                );
+              })}
+              {achados?.length === 0 && <p className="cfg-vazio">{`Nada encontrado para “${busca.trim()}”.`}</p>}
             </div>
           </div>
         </div>

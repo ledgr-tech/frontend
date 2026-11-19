@@ -36,13 +36,23 @@ vi.mock("../../../(auth)/acoes", () => ({
 
 const refresh = vi.fn();
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), refresh }) }));
-// o painel das chaves tem teste próprio (chaves-api/painel.test.tsx); aqui só importa onde ele aparece
-vi.mock("./chaves-api/painel", () => ({ PainelDeChavesApi: () => <p>painel das chaves</p> }));
+// o painel das chaves tem teste próprio; aqui também conferimos que a busca preserva sua montagem
+let montagensDasChaves = 0;
+vi.mock("./chaves-api/painel", async () => {
+  const { useEffect } = await import("react");
+  return {
+    PainelDeChavesApi: () => {
+      useEffect(() => { montagensDasChaves += 1; }, []);
+      return <p>painel das chaves</p>;
+    },
+  };
+});
 // a seção Conexões só aparece quando o backend devolve a lista; o padrão é a conexão desligada (404)
 const carregarConexoesMcp = vi.fn();
 vi.mock("./conexoes-mcp/acoes", () => ({ carregarConexoesMcp: () => carregarConexoesMcp() }));
 vi.mock("./conexoes-mcp/painel", () => ({ PainelDeConexoes: () => <p>painel das conexões</p> }));
 beforeEach(() => {
+  montagensDasChaves = 0;
   carregarConexoesMcp.mockReset();
   carregarConexoesMcp.mockResolvedValue({ ok: false, status: 404, erro: "Not Found" });
 });
@@ -423,11 +433,30 @@ describe("Configuracoes", () => {
     await user.type(screen.getByRole("searchbox", { name: "Procurar nas configurações" }), "tolerancia");
     expect(screen.getByRole("heading", { name: "Conciliação" })).toBeInTheDocument();
     expect(screen.getByText("Tolerância de data")).toBeInTheDocument();
-    expect(screen.queryByText("Densidade das tabelas")).not.toBeInTheDocument();
+    expect(screen.getByText("Densidade das tabelas")).not.toBeVisible();
 
     await user.clear(screen.getByRole("searchbox"));
     await user.type(screen.getByRole("searchbox"), "xyz");
     expect(screen.getByText("Nada encontrado para “xyz”.")).toBeInTheDocument();
+  });
+
+  it("procurar e limpar a busca não remonta a seção aberta", async () => {
+    const user = userEvent.setup();
+    abrir({ papel: "admin" });
+    await user.click(secao("API"));
+    expect(montagensDasChaves).toBe(1);
+
+    const busca = screen.getByRole("searchbox", { name: "Procurar nas configurações" });
+    await user.type(busca, "zzz");
+    expect(screen.getByText("Nada encontrado para “zzz”.")).toBeInTheDocument();
+
+    await user.clear(busca);
+    expect(screen.getByText("painel das chaves")).toBeVisible();
+    expect(montagensDasChaves).toBe(1);
+
+    await user.type(busca, "chaves");
+    expect(screen.getByText("painel das chaves")).toBeVisible();
+    expect(montagensDasChaves).toBe(1);
   });
 
   it("lists Conta, Aparência and the rest: the team moved to the Empresas screen", () => {
