@@ -347,6 +347,18 @@ export const PAGINAS: PaginaDeAjuda[] = [
         figura: { largura: 498, altura: 62 },
       },
       {
+        id: "selecionar",
+        titulo: "Selecionar linhas e somar",
+        faz: "Selecione linhas que pedem revisão para ver a soma do banco, a do sistema e a diferença entre elas. Serve, por exemplo, para ver se várias tarifas do banco fecham com um lançamento só do sistema.",
+        passos: [
+          "Marque a caixa à esquerda de cada linha. A caixa do topo seleciona todas as que estão à vista.",
+          "Veja a soma no painel da direita. Em telas estreitas, ela aparece na faixa acima da tabela.",
+          "Quando os dois lados batem, aparece **Fecha: a diferença zera**.",
+          "Clique em **Limpar seleção** para recomeçar.",
+        ],
+        nota: "Só as linhas que pedem revisão aceitam seleção. Ela continua ao trocar de filtro, some ao trocar de rodada e não grava nada.",
+      },
+      {
         id: "conferir",
         titulo: "Marcar como conferida",
         faz: "A coluna Visto é sua: marque as divergências que já olhou. As que bateram não precisam.",
@@ -363,7 +375,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
           "Passe o mouse sobre uma linha. O detalhe da linha aparece no painel.",
           "Clique numa linha para fixar. Clique nela de novo para soltar.",
         ],
-        nota: "Em telas estreitas, passe o mouse sobre uma divergência para ver o balão ou clique na descrição para abrir a janela.",
+        nota: "Em telas estreitas, passe o mouse sobre uma divergência para ver o balão ou clique na descrição para abrir a janela. Quando a tabela vira cartões, use o clique.",
         figura: { largura: 331, altura: 682 },
       },
       {
@@ -439,10 +451,10 @@ export const PAGINAS: PaginaDeAjuda[] = [
       //   titulo: "Aprovar ou rejeitar várias justificativas",
       //   faz: "O administrador e o gestor decidem várias justificativas aguardando aprovação de uma vez, sem abrir linha por linha.",
       //   passos: [
-      //     "No filtro, escolha **Aguardando aprovação**. A última coluna vira caixas de marcar.",
-      //     "Marque as linhas, ou a caixa do topo para marcar todas, e use os botões de aprovar ou rejeitar as marcadas. Rejeitar pede um motivo, opcional.",
+      //     "Selecione as linhas na caixa à esquerda, em qualquer filtro. **Aguardando aprovação** junta as que esperam, e a caixa do topo seleciona todas à vista.",
+      //     "Na faixa da seleção, use os botões de aprovar ou rejeitar as selecionadas. Só vão as que aguardam aprovação. Rejeitar pede um motivo, opcional.",
       //   ],
-      //   nota: "Vale até 500 linhas por vez. Trocar de filtro limpa a seleção.",
+      //   nota: "Vale até 500 linhas por vez.",
       // },
     ],
   },

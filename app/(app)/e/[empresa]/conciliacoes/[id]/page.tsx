@@ -93,6 +93,15 @@ function temHover(): boolean {
 }
 
 /**
+ * A linha virou cartão (o modo cartão do CSS, até 680px, quem decide é o @container). O cartão já mostra
+ * as duas folhas inteiras, e o balão aberto pelo mouse subia do selo por cima da caixa de seleção (#475),
+ * da descrição e do Visto do próprio cartão, e o clique ia para ele: com o mouse, o balão não abre ali.
+ */
+function emCartao(linha: Element): boolean {
+  return getComputedStyle(linha).display !== "table-row";
+}
+
+/**
  * Cabeçalho ordenável. Vive no escopo do módulo de propósito: definido dentro do
  * componente da página, cada render criava um tipo novo e o <thead> inteiro
  * remontava — perdendo foco de teclado no meio de uma ordenação.
@@ -883,7 +892,7 @@ export default function ConciliacaoPage() {
                         painel
                           ? () => focar(linha)
                           : comCartao
-                            ? (evento) => temHover() && abrirCartao(evento.currentTarget)
+                            ? (evento) => temHover() && !emCartao(evento.currentTarget) && abrirCartao(evento.currentTarget)
                             : undefined
                       }
                       onMouseLeave={painel ? undefined : comCartao ? fecharCartaoDepois : undefined}

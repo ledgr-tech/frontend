@@ -431,6 +431,27 @@ describe("ConciliacaoPage", () => {
       await waitFor(() => expect(screen.queryByRole("tooltip")).not.toBeInTheDocument());
     });
 
+    it("não abre com o mouse quando a linha vira cartão: cobriria a caixa de seleção, a descrição e o Visto", async () => {
+      // o modo cartão é do CSS (@container tela, até 680px): a linha deixa de ser table-row
+      const cartoes = document.createElement("style");
+      cartoes.textContent = "tbody tr { display: flex; }";
+      document.head.append(cartoes);
+      try {
+        buscarConciliacao.mockReturnValue(conciliacaoMista);
+        const user = userEvent.setup();
+        render(<ConciliacaoPage />);
+
+        const linha = (await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" })).closest("tr")!;
+        await user.hover(linha);
+        expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+
+        await user.click(within(linha).getByRole("checkbox", { name: /^Selecionar: .*Boleto Aço Norte Bobinas/ }));
+        expect(within(linha).getByRole("checkbox", { name: /^Selecionar: .*Boleto Aço Norte Bobinas/ })).toBeChecked();
+      } finally {
+        cartoes.remove();
+      }
+    });
+
     it("stays open while the pointer travels from the line to the card, and closes when it leaves the card", async () => {
       buscarConciliacao.mockReturnValue(conciliacaoMista);
       render(<ConciliacaoPage />);
