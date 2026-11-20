@@ -266,6 +266,8 @@ export type ConciliacaoEmRodadas = {
    * conciliar e decidir (409) até reabrir. Null com o mês aberto, sem período ou sem resposta.
    */
   fechamento: Fechamento | null;
+  /** True só quando GET /fechamentos?competencia= falhou; uma lista vazia é mês aberto. */
+  fechamentoIndisponivel: boolean;
 };
 
 // O teto do backend por página de /execucoes. Um extrato do banco com mais de 100 rodadas
@@ -311,11 +313,21 @@ export async function carregarConciliacaoEmRodadas(
   if (!alvo) {
     const simples = await carregarConciliacao(extratoBancoId, extratoSistemaId);
     return simples.ok
-      ? { ok: true, dados: { ...simples.dados, rodada: null, rodadas: [], mudancas: null, fechamento: null } }
+      ? {
+          ok: true,
+          dados: {
+            ...simples.dados,
+            rodada: null,
+            rodadas: [],
+            mudancas: null,
+            fechamento: null,
+            fechamentoIndisponivel: false,
+          },
+        }
       : simples;
   }
 
-  const [atual, fechamento] = await Promise.all([
+  const [atual, estadoDoFechamento] = await Promise.all([
     carregarConciliacao(extratoBancoId, alvo.extratoSistemaId),
     fechamentoAtivo(alvo.execucao.periodoInicio),
   ]);
@@ -348,21 +360,30 @@ export async function carregarConciliacaoEmRodadas(
       rodada,
       rodadas: vistas,
       mudancas,
-      fechamento,
+      fechamento: estadoDoFechamento.fechamento,
+      fechamentoIndisponivel: estadoDoFechamento.indisponivel,
     },
   };
 }
 
 /**
  * O fechamento em vigor no mês que começa em `periodoInicio`: o mais recente da competência, se
- * ainda está fechado. Sem período não há competência; sem resposta, a tela abre como aberta e o
- * backend ainda recusa a escrita com o 409, que ela mostra.
+ * ainda está fechado. Sem período não há competência. Sem resposta, `indisponivel` deixa a tela só
+ * leitura, em vez de supor o mês aberto.
  */
-async function fechamentoAtivo(periodoInicio: string | null): Promise<Fechamento | null> {
+async function fechamentoAtivo(
+  periodoInicio: string | null,
+): Promise<{ fechamento: Fechamento | null; indisponivel: boolean }> {
   try {
-    return await lerFechamentoAtivo(periodoInicio);
+    return {
+      fechamento: await lerFechamentoAtivo(periodoInicio),
+      indisponivel: false,
+    };
   } catch {
-    return null;
+    return {
+      fechamento: null,
+      indisponivel: periodoInicio !== null && COMPETENCIA.test(periodoInicio.slice(0, 7)),
+    };
   }
 }
 
@@ -789,6 +810,10 @@ export type VisaoGeral = {
   recente: { execucao: Execucao; conciliacao: Conciliacao } | null;
   /** Os arquivos da mais recente com linhas que o parser não conseguiu ler. */
   arquivosComLinhasNaoLidas: { nome: string; linhas: number }[];
+  /** Alguma situação de extrato falhou ao carregar em /extratos/{id}. */
+  leituraIncompleta?: true;
+  /** listarFechamentos não conseguiu carregar o estado dos meses. */
+  fechamentosIndisponiveis?: true;
   /**
    * O mês em foco (revisão de 15/10): o aberto mais recente, ou o mais recente se todos estão
    * fechados, com as linhas de todas as conciliações dele. O número do topo, "Pede sua atenção" e
@@ -815,7 +840,16 @@ export async function carregarVisaoGeral(): Promise<Resultado<VisaoGeral>> {
   // nova, mas não a rodada de agora
   const vigentes = execucoesVigentes(execucoes);
   if (vigentes.length === 0) {
-    return { ok: true, dados: { execucoes, total, recente: null, arquivosComLinhasNaoLidas: [] } };
+    return {
+      ok: true,
+      dados: {
+        execucoes,
+        total,
+        recente: null,
+        arquivosComLinhasNaoLidas: [],
+        ...(fechamentos === null && { fechamentosIndisponiveis: true }),
+      },
+    };
   }
 
   // o mês em foco: o aberto mais recente (é onde está o trabalho); todos fechados, o mais recente
@@ -859,6 +893,7 @@ export async function carregarVisaoGeral(): Promise<Resultado<VisaoGeral>> {
   // o detalhe do arquivo é aviso a mais, não o dado principal: se não carregar,
   // a home abre sem ele
   const arquivos = [...doMesPorArquivo.values()].map((nome, indice) => ({ nome, situacao: situacoes[indice] }));
+  const leituraIncompleta = situacoes.some((situacao) => !situacao.ok);
   const arquivosComLinhasNaoLidas = arquivos.flatMap(({ nome, situacao }) =>
     situacao.ok && situacao.dados.erros.length > 0
       ? [{ nome, linhas: situacao.dados.erros.length }]
@@ -882,6 +917,8 @@ export async function carregarVisaoGeral(): Promise<Resultado<VisaoGeral>> {
       total,
       recente: { execucao: maisRecente, conciliacao: conciliacao.dados.conciliacao },
       arquivosComLinhasNaoLidas,
+      ...(leituraIncompleta && { leituraIncompleta: true }),
+      ...(fechamentos === null && { fechamentosIndisponiveis: true }),
       mes: {
         competencia: foco,
         fechado: fechados.has(foco),
