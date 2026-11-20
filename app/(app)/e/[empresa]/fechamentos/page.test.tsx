@@ -359,12 +359,18 @@ describe("FechamentosPage", () => {
 
     it("409 com justificativa aguardando não abre a ressalva", async () => {
       const user = userEvent.setup();
-      fecharMes.mockResolvedValue({ ok: false, status: 409, erro: "Há justificativas aguardando aprovação." });
+      // o texto do backend (_aguardando_aprovacao em api/fechamentos.py), com a tela ainda contando zero
+      fecharMes.mockResolvedValue({
+        ok: false,
+        status: 409,
+        erro: "Há 2 justificativas aguardando aprovação nesta competência. Aprove ou rejeite antes de fechar.",
+      });
       carregarFechamentos.mockResolvedValue({ ok: true, dados: { pares: [SETEMBRO_EM_ABERTO], fechamentos: [] } });
       const renderizado = render(await FechamentosPage({ searchParams: Promise.resolve({}) }));
 
       await user.click(within(painel()).getByRole("button", { name: "Fechar mesmo assim" }));
-      expect(within(painel()).getByLabelText("Ressalva")).toBeInTheDocument();
+      // a contagem da tela está vencida (outra aba justificou), mas o texto do 409 já diz: nem por um instante
+      expect(within(painel()).queryByLabelText("Ressalva")).not.toBeInTheDocument();
 
       const aguardando = par("set", { acerto: 98.6, divergencias: { divergente_valor: 2 }, justificadas: 0, aguardandoAprovacao: 2 });
       carregarFechamentos.mockResolvedValue({ ok: true, dados: { pares: [aguardando], fechamentos: [] } });

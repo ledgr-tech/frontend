@@ -600,8 +600,10 @@ function AcoesDoFechamento({ mes, revisar }: { mes: MesDeFechamento; revisar: st
     setErro(resposta.erro);
     if (resposta.status === 404) router.refresh();
     if (resposta.status === 409) {
-      // com justificativa aguardando, nem a ressalva libera (backend #132): o passo de aprovar é o caminho
-      setPedeRessalva(mes.aguardandoAprovacao === 0);
+      // com justificativa aguardando, nem a ressalva libera (backend #132): o passo de aprovar é o caminho. A
+      // contagem da tela pode estar vencida (outra aba justificou), então vale também o texto do 409, que só
+      // traz o número na frase (_aguardando_aprovacao em api/fechamentos.py)
+      setPedeRessalva(mes.aguardandoAprovacao === 0 && !/aguardando aprovação/.test(resposta.erro));
       // se o 409 for de um mês que outra aba já fechou, a tela relida o mostra fechado
       router.refresh();
     }
