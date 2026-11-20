@@ -39,10 +39,10 @@
 
 ## Foco de revisão
 - Selecionar no filtro "Só revisão", trocar para "Todas": a seleção e a soma continuam iguais (Task 3).
-- Linha selecionada que foi conciliada ou justificada por outra pessoa e voltou num recarregar: some da seleção e da soma (Task 3).
+- Linha selecionada que sumiu ou virou conciliada num recarregar: some da seleção e da soma. Uma linha justificada continua selecionável, porque a Task 4 aprova as que aguardam (Task 3).
 - Admin com 3 selecionadas, das quais só 1 aguarda aprovação: "Aprovar" manda só essa chave (Task 4).
 - Analista e mês fechado: seleciona e soma, mas sem botões de decidir (Task 3 e 4).
-- Leitor de tela: o contador e a diferença são anunciados ao marcar e desmarcar (Task 2).
+- Leitor de tela: o contador e a diferença são anunciados ao marcar e desmarcar, inclusive a primeira marcação (Task 2 e 3: `anuncioDaSoma` num `role="status"` sempre montado).
 
 ---
 
@@ -104,7 +104,7 @@
   - Com `diferenca: 200`, mostra "Diferença" com "R$ 2,00" e o texto "Falta R$ 2,00 para zerar". Com `diferenca: -200`, mostra "−R$ 2,00" com o sinal.
   - Uma linha: "1 linha selecionada".
   - `quantidade: 0` não renderiza nada.
-  - A região tem `aria-live="polite"` e `aria-label="Soma das selecionadas"`.
+  - A região tem `aria-label="Soma das selecionadas"`, sem `aria-live`. O texto do anúncio vem de `anuncioDaSoma(soma)`, que a Task 3 põe num `role="status"` sempre montado: uma região `aria-live` que já nasce com o texto não é lida, e a primeira marcação passaria em silêncio (decisão da revisão de 20/11).
 - [ ] **Passo 2:** rodar. Esperado: FAIL.
 - [ ] **Passo 3:** implementar.
   - Um `<section>` com `<dl>` (Banco, Sistema, Diferença), no mesmo padrão do `<dl>` de `Saldos` em `painel-do-extrato.tsx`.
@@ -122,7 +122,7 @@
 - Testar: `page.test.tsx` e `painel-do-extrato.test.tsx`.
 
 **Interfaces:**
-- Consome: `podeSelecionar`, `somarLinhas` e `limparSelecao` (Task 1), e `SomaDasSelecionadas` (Task 2).
+- Consome: `podeSelecionar`, `somarLinhas` e `limparSelecao` (Task 1), e `SomaDasSelecionadas` e `anuncioDaSoma(soma: SomaDasLinhas): string` (Task 2).
 - Produz para a Task 4:
   - `selecionadas: ReadonlySet<string>`;
   - `chavesSelecionadas: string[]`, de `limparSelecao(selecionadas, conciliacao.linhas)`, ou seja todas as linhas e não só as do filtro (F3);
@@ -136,16 +136,18 @@
   - Nas outras linhas, a célula fica vazia.
 - **Visto:** volta a ser sempre o círculo de conferir. Sai a troca de papel por filtro (`marcando`) e o checkbox da #208 na última coluna.
 - **Faixa da seleção:** aparece com 1 ou mais selecionadas, em qualquer filtro, e tem:
-  - o contador em `aria-live` ("3 selecionadas");
+  - o contador ("3 selecionadas"), sem `aria-live`: quem anuncia é o `role="status"` abaixo;
   - o botão "Limpar seleção";
-  - sem o painel (<1100px), o `<SomaDasSelecionadas>`;
+  - sem o painel (<1100px), o `<SomaDasSelecionadas>` no lugar do contador, que ele já traz ("3 linhas selecionadas"), para o número não aparecer duas vezes;
   - com o painel, a soma vai para o `PainelDoExtrato`, pela prop `soma`.
+- **Anúncio:** `<p role="status" className="sr-only">{anuncioDaSoma(soma)}</p>`, sempre montado na tela, fora da faixa (que só aparece com seleção) e fora do painel. Vazio sem seleção.
 - **Ao trocar de rodada:** limpar a seleção. Use um `useEffect` no `conciliacao.id` e na rodada exibida, ou guarde a seleção com a chave da conciliação; o que for mais simples sem violar as regras de hooks do lint.
 - **O clique na caixa** não aciona o clique da linha. A guarda da linha 852 já exclui `input`.
 
 - [ ] **Passo 1: testes que falham** em `page.test.tsx`. Use o mock da demo que os testes atuais da comparação já montam.
   - Uma linha divergente tem a caixa "Selecionar: …" e uma conciliada não tem.
-  - Marcar duas linhas mostra "2 selecionadas" e a soma; "Limpar seleção" tira as duas.
+  - Marcar duas linhas mostra a soma com "2 linhas selecionadas"; "Limpar seleção" tira as duas.
+  - O `role="status"` existe vazio antes de marcar e diz "2 linhas selecionadas. …" depois de marcar duas.
   - Selecionar em "Só revisão", trocar para "Todas" e para "Justificadas": o contador continua igual.
   - Analista e mês fechado: a coluna de seleção e a soma aparecem.
   - O cabeçalho "Visto" está lá também no filtro "Aguardando aprovação". Os testes atuais da #208 que procuram "Marcar todas as justificativas aguardando aprovação" serão reescritos na Task 4.
