@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ProvedorDaEmpresa, type EmpresaDaConta } from "@/lib/empresa-ativa";
-import { SeletorDeEmpresa } from "./seletor-de-empresa";
+import { combina, SeletorDeEmpresa } from "./seletor-de-empresa";
 
 const caminho = vi.hoisted(() => ({ atual: "/e/x/fechamentos" }));
 const roteador = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn(), back: vi.fn(), prefetch: vi.fn() }));
@@ -53,6 +53,28 @@ beforeEach(() => {
 
 afterEach(() => {
   document.cookie = "ledgr-empresa-recente=; Path=/; Max-Age=0";
+});
+
+describe("combina", () => {
+  it("acha CNPJ alfanumérico pelas letras e números", () => {
+    expect(combina({ razaoSocial: "X", cnpj: "AB12CD34000155" }, "ab12")).toBe(true);
+  });
+
+  it("um termo só de letras procura no nome, não nas letras do CNPJ", () => {
+    expect(combina({ razaoSocial: "Mercado", cnpj: "AB12CD34000155" }, "cd")).toBe(false);
+  });
+
+  it("não considera letras de um termo como dígitos do CNPJ numérico", () => {
+    expect(combina({ razaoSocial: "X", cnpj: "11222333000144" }, "AB12")).toBe(false);
+  });
+
+  it("acha CNPJ numérico com máscara", () => {
+    expect(combina({ razaoSocial: "X", cnpj: "11222333000144" }, "11.222.333")).toBe(true);
+  });
+
+  it("continua achando razão social com dígitos", () => {
+    expect(combina({ razaoSocial: "Loja 12", cnpj: "99888777000166" }, "loja 12")).toBe(true);
+  });
 });
 
 describe("SeletorDeEmpresa (no topo, #223)", () => {
@@ -163,10 +185,10 @@ describe("SeletorDeEmpresa (no topo, #223)", () => {
     await user.click(janela().getByRole("button", { name: "Próxima" }));
     await user.click(janela().getByRole("button", { name: "Próxima" }));
     expect(nomesNaTabela()).toEqual(["Empresa 41", "Empresa 42", "Empresa 43", "Empresa 44", "Empresa 45"]);
-    // "4" casa com a razão social e com o CNPJ que tem o dígito: 04, 14, 24, 34 e 40 a 45
+    // com letras no termo, a busca não transforma os dígitos em busca de CNPJ
     await user.type(janela().getByRole("searchbox"), "Empresa 4");
     expect(janela().queryByRole("button", { name: "Próxima" })).not.toBeInTheDocument();
-    expect(nomesNaTabela()).toHaveLength(10);
+    expect(nomesNaTabela()).toHaveLength(6);
   });
 
   it("leva à tela Empresas pelo botão de gerenciar, e a janela fecha", async () => {

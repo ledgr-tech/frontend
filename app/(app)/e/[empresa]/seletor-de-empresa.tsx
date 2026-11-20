@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Building2, ChevronsUpDown, Star } from "lucide-react";
 import LinkDoApp from "@/lib/link-do-app";
@@ -9,7 +9,8 @@ import { gravarEmpresaRecente } from "@/lib/empresa-recente";
 import { useRoteador } from "@/lib/roteador";
 import { destinoDaTroca } from "@/lib/rotas";
 import type { SituacaoDaEmpresa } from "@/lib/adaptadores";
-import { formatarCnpj } from "../../../(auth)/cadastro/passos";
+import { SEM_SERVIDOR } from "@/lib/sem-servidor";
+import { caracteresCnpj, formatarCnpj } from "../../../(auth)/cadastro/passos";
 import { carregarEmpresas, marcarFavorita } from "./empresas/acoes";
 import { ModalDaTela } from "./empresas/modal-da-tela";
 
@@ -50,12 +51,28 @@ function Cabeca({ coluna, ordem, onOrdenar, children }: { coluna: Coluna; ordem:
 export function combina(empresa: { razaoSocial: string; cnpj: string }, termo: string): boolean {
   const procurado = termo.trim().toLowerCase();
   if (!procurado) return true;
-  const digitos = procurado.replace(/\D/g, "");
+  // o CNPJ pode ter letras (o alfanumérico), mas só um termo com dígito procura nele: "Ana" é nome
+  const cnpjProcurado = caracteresCnpj(termo);
   return (
     empresa.razaoSocial.toLowerCase().includes(procurado) ||
-    formatarCnpj(empresa.cnpj).includes(procurado) ||
-    (digitos !== "" && empresa.cnpj.replace(/\D/g, "").includes(digitos))
+    (/\d/.test(cnpjProcurado) && caracteresCnpj(empresa.cnpj).includes(cnpjProcurado))
   );
+}
+
+export function useFavoritaOtimista() {
+  const versoes = useRef(new Map<string, number>());
+
+  function comecar(id: string): number {
+    const versao = (versoes.current.get(id) ?? 0) + 1;
+    versoes.current.set(id, versao);
+    return versao;
+  }
+
+  function estaAtual(id: string, versao: number): boolean {
+    return versoes.current.get(id) === versao;
+  }
+
+  return { comecar, estaAtual };
 }
 
 /**
@@ -104,6 +121,7 @@ function JanelaDeEmpresas({ ativa, aoFechar }: { ativa: EmpresaDaConta; aoFechar
   const daConta = useEmpresasDaConta();
   const [carregadas, setCarregadas] = useState<Linha[] | null>(null);
   const [erroDaFavorita, setErroDaFavorita] = useState<string | null>(null);
+  const favoritaOtimista = useFavoritaOtimista();
   const empresas: Linha[] = carregadas ?? daConta;
   const temFavoritas = empresas.some((empresa) => empresa.favorita !== undefined);
   // sem a situação do mês (backend antes do #157, ou o GET /empresas falhou) a coluna ficaria vazia (#388)
@@ -148,14 +166,17 @@ function JanelaDeEmpresas({ ativa, aoFechar }: { ativa: EmpresaDaConta; aoFechar
 
   async function alternarFavorita(empresa: Linha) {
     const favorita = !empresa.favorita;
+    const versao = favoritaOtimista.comecar(empresa.id);
     const marcar = (valor: boolean) =>
       setCarregadas((atuais) => atuais && atuais.map((outra) => (outra.id === empresa.id ? { ...outra, favorita: valor } : outra)));
     // muda na hora e desfaz se o backend recusar, para a estrela responder ao clique
     marcar(favorita);
     setErroDaFavorita(null);
-    const resposta = await marcarFavorita(empresa.id, favorita);
+    const resposta = await marcarFavorita(empresa.id, favorita).catch(
+      (): Awaited<ReturnType<typeof marcarFavorita>> => ({ ok: false, status: 0, erro: SEM_SERVIDOR }),
+    );
     if (!resposta.ok) {
-      marcar(!favorita);
+      if (favoritaOtimista.estaAtual(empresa.id, versao)) marcar(!favorita);
       setErroDaFavorita(resposta.erro);
     }
   }

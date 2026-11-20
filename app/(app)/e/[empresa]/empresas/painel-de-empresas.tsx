@@ -9,6 +9,7 @@ import { gravarEmpresaRecente } from "@/lib/empresa-recente";
 import { situacaoDoLimite, textoDoLimite } from "@/lib/limites";
 import { podeConvidar } from "@/lib/papel";
 import { comEmpresa } from "@/lib/rotas";
+import { SEM_SERVIDOR } from "@/lib/sem-servidor";
 import { useRoteador } from "@/lib/roteador";
 import { formatarCnpj } from "../../../../(auth)/cadastro/passos";
 import { Cabecalho } from "../cabecalho";
@@ -16,7 +17,7 @@ import { useCobranca, useLimites, usePapel } from "../conta";
 import { formatarDataHora } from "../dashboard/resumo";
 import { FaixaFiltros } from "../faixa-filtros";
 import { mostrarPreviaDoEscolhido } from "../grupo";
-import { SITUACAO, combina } from "../seletor-de-empresa";
+import { SITUACAO, combina, useFavoritaOtimista } from "../seletor-de-empresa";
 import { marcarFavorita } from "./acoes";
 import { CadastrarEmpresa } from "./cadastrar-empresa";
 import { ModalDaTela } from "./modal-da-tela";
@@ -81,6 +82,7 @@ export function PainelDeEmpresas({ empresas: daPagina }: { empresas: EmpresaClie
   // as favoritas mudam na hora e desfazem se o backend recusar, como no seletor
   const [empresas, setEmpresas] = useState(daPagina);
   const [erroDaFavorita, setErroDaFavorita] = useState<string | null>(null);
+  const favoritaOtimista = useFavoritaOtimista();
   const [filtro, setFiltro] = useState<FiltroDeSituacao>("todas");
   const [termo, setTermo] = useState("");
   const [escolhida, setEscolhida] = useState<string | null>(null);
@@ -122,13 +124,16 @@ export function PainelDeEmpresas({ empresas: daPagina }: { empresas: EmpresaClie
 
   async function alternarFavorita(empresa: EmpresaCliente) {
     const favorita = !empresa.favorita;
+    const versao = favoritaOtimista.comecar(empresa.id);
     const marcar = (valor: boolean) =>
       setEmpresas((atuais) => atuais.map((outra) => (outra.id === empresa.id ? { ...outra, favorita: valor } : outra)));
     marcar(favorita);
     setErroDaFavorita(null);
-    const resposta = await marcarFavorita(empresa.id, favorita);
+    const resposta = await marcarFavorita(empresa.id, favorita).catch(
+      (): Awaited<ReturnType<typeof marcarFavorita>> => ({ ok: false, status: 0, erro: SEM_SERVIDOR }),
+    );
     if (!resposta.ok) {
-      marcar(!favorita);
+      if (favoritaOtimista.estaAtual(empresa.id, versao)) marcar(!favorita);
       setErroDaFavorita(resposta.erro);
     }
   }
