@@ -226,10 +226,8 @@ export function PainelDaEquipe({
             }}
             aoFechar={aoFecharConvite}
             aoSairDaSessao={() => router.push("/login")}
-            aoRecusar={() => {
-              recarregar();
-              router.refresh();
-            }}
+            // só o /me: recarregar a equipe desmontaria o modal, e o texto do 403 sumiria com ele
+            aoRecusar={() => router.refresh()}
           />
         </ModalDaTela>
       )}

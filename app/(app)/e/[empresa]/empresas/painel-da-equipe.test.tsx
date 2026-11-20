@@ -309,7 +309,7 @@ describe("a equipe", () => {
     await waitFor(() => expect(carregarEquipe).toHaveBeenCalledTimes(2));
   });
 
-  it("403 no convite relê a equipe e o /me", async () => {
+  it("403 no convite relê o /me e mantém o texto e o e-mail no modal", async () => {
     const user = userEvent.setup();
     convidar.mockResolvedValue({ ok: false, status: 403, erro: "Seu papel no escritório não permite convidar." });
     montar("gestor", GESTOR.email);
@@ -317,8 +317,9 @@ describe("a equipe", () => {
     await user.type(await screen.findByLabelText("E-mail da pessoa"), "eva@x.com");
     await user.click(screen.getByRole("button", { name: "Enviar convite" }));
 
-    await waitFor(() => expect(carregarEquipe).toHaveBeenCalledTimes(2));
-    expect(refresh).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(refresh).toHaveBeenCalledTimes(1));
+    expect(screen.getByText("Seu papel no escritório não permite convidar.")).toBeInTheDocument();
+    expect(screen.getByLabelText("E-mail da pessoa")).toHaveValue("eva@x.com");
   });
 
   it("401 em qualquer ação vai para o login, sem erro preso na tela", async () => {

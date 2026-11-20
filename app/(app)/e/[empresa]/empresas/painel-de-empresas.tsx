@@ -124,7 +124,7 @@ export function PainelDeEmpresas({ empresas: daPagina }: { empresas: EmpresaClie
 
   async function alternarFavorita(empresa: EmpresaCliente) {
     const favorita = !empresa.favorita;
-    const versao = favoritaOtimista.comecar(empresa.id);
+    const versao = favoritaOtimista.comecar(empresa.id, !favorita);
     const marcar = (valor: boolean) =>
       setEmpresas((atuais) => atuais.map((outra) => (outra.id === empresa.id ? { ...outra, favorita: valor } : outra)));
     marcar(favorita);
@@ -132,8 +132,10 @@ export function PainelDeEmpresas({ empresas: daPagina }: { empresas: EmpresaClie
     const resposta = await marcarFavorita(empresa.id, favorita).catch(
       (): Awaited<ReturnType<typeof marcarFavorita>> => ({ ok: false, status: 0, erro: SEM_SERVIDOR }),
     );
-    if (!resposta.ok) {
-      if (favoritaOtimista.estaAtual(empresa.id, versao)) marcar(!favorita);
+    // um clique mais novo já decidiu a estrela: a resposta deste não desfaz nem avisa
+    const volta = favoritaOtimista.terminar(empresa.id, versao, favorita, resposta.ok);
+    if (volta !== null && !resposta.ok) {
+      marcar(volta);
       setErroDaFavorita(resposta.erro);
     }
   }

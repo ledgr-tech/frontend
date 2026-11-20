@@ -59,20 +59,31 @@ export function combina(empresa: { razaoSocial: string; cnpj: string }, termo: s
   );
 }
 
+/**
+ * A estrela muda na hora e só a resposta do último clique decide. Uma falha volta ao último valor que o
+ * backend confirmou, não ao contrário do clique: com dois cliques que falham, isso seria um valor que
+ * nunca foi gravado.
+ */
 export function useFavoritaOtimista() {
   const versoes = useRef(new Map<string, number>());
+  const confirmadas = useRef(new Map<string, boolean>());
 
-  function comecar(id: string): number {
+  /** Antes de mudar a estrela: `antes` é o que ela mostrava, confirmado se nada estava a caminho. */
+  function comecar(id: string, antes: boolean): number {
+    if (!confirmadas.current.has(id)) confirmadas.current.set(id, antes);
     const versao = (versoes.current.get(id) ?? 0) + 1;
     versoes.current.set(id, versao);
     return versao;
   }
 
-  function estaAtual(id: string, versao: number): boolean {
-    return versoes.current.get(id) === versao;
+  /** Depois da resposta. Devolve o valor para onde a estrela volta, ou null quando não volta. */
+  function terminar(id: string, versao: number, favorita: boolean, ok: boolean): boolean | null {
+    if (ok) confirmadas.current.set(id, favorita);
+    if (ok || versoes.current.get(id) !== versao) return null;
+    return confirmadas.current.get(id) ?? !favorita;
   }
 
-  return { comecar, estaAtual };
+  return { comecar, terminar };
 }
 
 /**
@@ -166,7 +177,7 @@ function JanelaDeEmpresas({ ativa, aoFechar }: { ativa: EmpresaDaConta; aoFechar
 
   async function alternarFavorita(empresa: Linha) {
     const favorita = !empresa.favorita;
-    const versao = favoritaOtimista.comecar(empresa.id);
+    const versao = favoritaOtimista.comecar(empresa.id, !favorita);
     const marcar = (valor: boolean) =>
       setCarregadas((atuais) => atuais && atuais.map((outra) => (outra.id === empresa.id ? { ...outra, favorita: valor } : outra)));
     // muda na hora e desfaz se o backend recusar, para a estrela responder ao clique
@@ -175,8 +186,10 @@ function JanelaDeEmpresas({ ativa, aoFechar }: { ativa: EmpresaDaConta; aoFechar
     const resposta = await marcarFavorita(empresa.id, favorita).catch(
       (): Awaited<ReturnType<typeof marcarFavorita>> => ({ ok: false, status: 0, erro: SEM_SERVIDOR }),
     );
-    if (!resposta.ok) {
-      if (favoritaOtimista.estaAtual(empresa.id, versao)) marcar(!favorita);
+    // um clique mais novo já decidiu a estrela: a resposta deste não desfaz nem avisa
+    const volta = favoritaOtimista.terminar(empresa.id, versao, favorita, resposta.ok);
+    if (volta !== null && !resposta.ok) {
+      marcar(volta);
       setErroDaFavorita(resposta.erro);
     }
   }

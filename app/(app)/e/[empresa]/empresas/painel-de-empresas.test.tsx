@@ -237,9 +237,25 @@ describe("a situação do mês e as favoritas", () => {
     await user.click(screen.getByRole("button", { name: "Tirar Padaria Ltda das favoritas" }));
     await user.click(screen.getByRole("button", { name: "Marcar Padaria Ltda como favorita" }));
 
-    resolverPrimeira({ ok: false, status: 403, erro: "Falha antiga" });
-    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("Falha antiga"));
+    await act(async () => resolverPrimeira({ ok: false, status: 403, erro: "Falha antiga" }));
     expect(screen.getByRole("button", { name: "Tirar Padaria Ltda das favoritas" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.queryByText("Falha antiga")).not.toBeInTheDocument();
+  });
+
+  it("dois cliques que falham voltam a estrela ao que o backend tinha", async () => {
+    let resolverPrimeira!: (valor: { ok: boolean; status: number; erro: string }) => void;
+    marcarFavorita
+      .mockReturnValueOnce(new Promise((resolve) => (resolverPrimeira = resolve)))
+      .mockResolvedValueOnce({ ok: false, status: 503, erro: "Falha nova" });
+    const user = userEvent.setup();
+    montar({ empresas: COM_157 });
+
+    await user.click(screen.getByRole("button", { name: "Marcar Padaria Ltda como favorita" }));
+    await user.click(screen.getByRole("button", { name: "Tirar Padaria Ltda das favoritas" }));
+    await act(async () => resolverPrimeira({ ok: false, status: 503, erro: "Falha antiga" }));
+
+    expect(screen.getByRole("button", { name: "Marcar Padaria Ltda como favorita" })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("alert")).toHaveTextContent("Falha nova");
   });
 });
 
