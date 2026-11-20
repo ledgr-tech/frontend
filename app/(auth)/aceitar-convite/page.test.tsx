@@ -23,4 +23,9 @@ describe("a página do convite", () => {
     expect(await abrir("email_diferente")).toMatchObject({ erro: "email_diferente", convite: { email: "ana@x.com" } });
     expect(await abrir("volta")).toMatchObject({ erro: null, convite: { email: "ana@x.com" } });
   });
+
+  it("um ?google= que não é motivo conhecido nem 'volta' não lê o cookie", async () => {
+    expect((await abrir("qualquer-coisa")).convite).toBeNull();
+    expect(conviteDoCookie).not.toHaveBeenCalled();
+  });
 });

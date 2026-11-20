@@ -23,9 +23,9 @@ export default async function AceitarConvitePage({
   return (
     <AceitarConvite
       conectadoComo={erro ? null : (sessao?.user?.email ?? null)}
-      // o cookie só se lê na volta do Google (?google=, com o motivo ou "volta" depois de mostrá-lo): numa
-      // visita sem ele, o convite guardado pode ser de outra pessoa que usou este navegador
-      google={{ ligado: googleLigado(), erro, convite: motivo ? await conviteDoCookie() : null }}
+      // o cookie só se lê na volta do Google (?google= com um motivo conhecido, ou "volta" depois de mostrá-lo):
+      // em outra visita, o convite guardado pode ser de outra pessoa que usou este navegador
+      google={{ ligado: googleLigado(), erro, convite: erro || motivo === "volta" ? await conviteDoCookie() : null }}
     />
   );
 }
