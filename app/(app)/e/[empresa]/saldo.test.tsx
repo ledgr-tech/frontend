@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
-import { FaixaDoSaldo, SaldoNoFim, fraseDoSaldoFinal } from "./saldo";
+import { FaixaDoSaldo, SaldoDaFolha, SaldoNoFim, fraseDoSaldoFinal } from "./saldo";
 
 // o Intl separa o "R$" do número com um espaço que não quebra
 const semEspacoFixo = (texto: string | null) => texto?.replace(/ /g, " ");
@@ -58,6 +58,46 @@ describe("SaldoNoFim", () => {
 
   it("sem os campos no backend, não mostra nada", () => {
     const { container } = render(<SaldoNoFim saldo={undefined} />);
+    expect(container).toBeEmptyDOMElement();
+  });
+});
+
+describe("SaldoDaFolha", () => {
+  it("mostra o saldo inicial e o valor", () => {
+    const { container } = render(
+      <SaldoDaFolha saldo={{ inicial: 1000, final: -250.75, data: "2026-09-30" }} momento="inicial" />,
+    );
+    expect(container).toHaveTextContent("Saldo inicial");
+    expect(container.querySelector("strong")).toHaveTextContent("R$ 1.000,00");
+  });
+
+  it("mostra o saldo final com a data e o sinal", () => {
+    const { container } = render(
+      <SaldoDaFolha saldo={{ inicial: 1000, final: -250.75, data: "2026-09-30" }} momento="final" />,
+    );
+    expect(container).toHaveTextContent("Saldo final em 30/09/2026");
+    expect(container.querySelector("strong")).toHaveTextContent("-R$ 250,75");
+  });
+
+  it("avisa que o saldo inicial depende das linhas não lidas", () => {
+    const { container } = render(
+      <SaldoDaFolha saldo={{ inicial: null, final: 1249.25, data: "2026-09-10" }} momento="inicial" />,
+    );
+    expect(container).toHaveTextContent("depende das linhas não lidas");
+  });
+
+  it("sem saldo no arquivo, avisa nos dois momentos", () => {
+    const inicial = render(<SaldoDaFolha saldo={null} momento="inicial" />);
+    expect(inicial.container).toHaveTextContent("Saldo não informado no arquivo");
+    expect(inicial.container.textContent).not.toMatch(/R\$/);
+
+    const final = render(<SaldoDaFolha saldo={null} momento="final" />);
+    expect(final.container).toHaveTextContent("Saldo não informado no arquivo");
+    expect(final.container.textContent).not.toMatch(/R\$/);
+  });
+
+  it("sem os campos no backend, não mostra nada", () => {
+    const { container } = render(<SaldoDaFolha saldo={undefined} momento="inicial" />);
     expect(container).toBeEmptyDOMElement();
   });
 });

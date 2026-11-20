@@ -39,6 +39,38 @@ export function SaldoNoFim({ saldo }: { saldo: SaldoDoExtrato | null | undefined
   );
 }
 
+/** O saldo inicial (no topo) ou o final (no pé) da folha de um extrato na comparação (#474). */
+export function SaldoDaFolha({
+  saldo,
+  momento,
+}: {
+  saldo: SaldoDoExtrato | null | undefined;
+  momento: "inicial" | "final";
+}) {
+  if (saldo === undefined) return null;
+  if (saldo === null) return <span className="saldo-folha">{SEM_SALDO}</span>;
+
+  if (momento === "inicial") {
+    return (
+      <span className="saldo-folha">
+        <span>Saldo inicial</span>{" "}
+        {/* com linhas não lidas a soma sairia incompleta: o backend não calcula, e o front também não */}
+        {saldo.inicial === null ? (
+          <span data-sem-inicial="">depende das linhas não lidas</span>
+        ) : (
+          <strong>{formatarMoeda(saldo.inicial)}</strong>
+        )}
+      </span>
+    );
+  }
+
+  return (
+    <span className="saldo-folha">
+      <span>{`Saldo final em ${data(saldo.data)}`}</span> <strong>{formatarMoeda(saldo.final)}</strong>
+    </span>
+  );
+}
+
 /** A faixa do saldo no topo da comparação: inicial, final e a data, do extrato do banco. */
 export function FaixaDoSaldo({ saldo }: { saldo: SaldoDoExtrato | null | undefined }) {
   if (saldo === undefined) return null;
