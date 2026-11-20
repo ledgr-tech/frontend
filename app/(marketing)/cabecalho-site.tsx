@@ -16,11 +16,33 @@ const TELA_LARGA = "(min-width: 961px)";
 
 const linkNavegacao = { fontSize: 15, color: "var(--color-text)", textDecoration: "none" } as const;
 
-/** As três barras do logo em SVG: no menu aberto a do meio some e as outras cruzam em X (globals.css). */
+/**
+ * As três barras do logo em SVG: no menu aberto a do meio some e as outras cruzam em X (globals.css).
+ * O filtro é o grão das faixas escuras (--grao no globals.css), o mesmo ruído e a mesma matriz, só
+ * dentro das barras. O ruído conta em unidades do viewBox: 2000 delas cabem nos 30px do botão, então a
+ * frequência de lá (0,85 por pixel) vira 0,85 / 66,7.
+ */
 function BarrasLedgr() {
   return (
     <svg className="site-menu-barras" viewBox="0 0 2000 1627" aria-hidden="true">
-      <g fill="currentColor">
+      <filter id="ledgr-grao" x="0" y="0" width="100%" height="100%">
+        <feTurbulence type="fractalNoise" baseFrequency="0.0128" numOctaves={3} result="ruido" />
+        {/* a matriz do --grao com ~45% da força: no botão pequeno o grão cheio pesava */}
+        <feColorMatrix in="ruido" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  .125 0 0 0 -.035" result="grao" />
+        <feComposite in="grao" in2="SourceGraphic" operator="in" result="graoNaBarra" />
+        <feMerge>
+          <feMergeNode in="SourceGraphic" />
+          <feMergeNode in="graoNaBarra" />
+        </feMerge>
+      </filter>
+      {/* o contorno branco do adesivo (logo-barras.png): as mesmas barras com um traço largo, que se
+          fundem no vão entre elas como o recorte do adesivo; as classes fazem o contorno virar X junto */}
+      <g fill="#fff" stroke="#fff" strokeWidth={220} strokeLinejoin="round">
+        <rect className="barra-1" x="60" y="43" width="1162" height="463" rx="231.5" />
+        <rect className="barra-2" x="76" y="560" width="1896" height="463" rx="231.5" />
+        <rect className="barra-3" x="43" y="1060" width="1629" height="463" rx="231.5" />
+      </g>
+      <g fill="currentColor" filter="url(#ledgr-grao)">
         <rect className="barra-1" x="60" y="43" width="1162" height="463" rx="231.5" />
         <rect className="barra-2" x="76" y="560" width="1896" height="463" rx="231.5" />
         <rect className="barra-3" x="43" y="1060" width="1629" height="463" rx="231.5" />
