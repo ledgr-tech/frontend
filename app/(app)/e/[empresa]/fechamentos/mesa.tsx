@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode, type CSSProperties } from "react";
+import { useRef, useState, type ReactNode, type CSSProperties } from "react";
 import Image from "next/image";
 import Link from "@/lib/link-do-app";
 import { useRoteador } from "@/lib/roteador";
@@ -292,6 +292,8 @@ function Painel({ mes, podeFechar, naoLidasIndisponivel }: {
   podeFechar: boolean;
   naoLidasIndisponivel: boolean;
 }) {
+  // o podeFechar daqui diz só que os fechamentos carregaram; o papel vem da conta
+  const gestor = usePodeFechar();
   const conciliadas = mes.pares.map((par) => ({
     ...par,
     caminho: caminhoDaConciliacao(par.execucao.extratoBancoId, par.execucao.extratoSistemaId),
@@ -478,7 +480,7 @@ function Painel({ mes, podeFechar, naoLidasIndisponivel }: {
             )}
           </div>
           {/* a chave zera o link ao trocar de mês: o endereço com o token só vale para o mês em que foi gerado */}
-          {fechado && podeFechar && <LinkPublico key={mes.chave} competencia={mes.chave} />}
+          {fechado && podeFechar && gestor && <LinkPublico key={mes.chave} competencia={mes.chave} />}
           {conciliadas.map((par) => (
             <div key={par.execucao.id} className="fech-relatorio">
               {conciliadas.length > 1 && <span className="fech-passo-texto">{par.execucao.arquivoBanco}</span>}
@@ -494,8 +496,9 @@ function Painel({ mes, podeFechar, naoLidasIndisponivel }: {
       </ol>
 
       {podeFechar ? (
-        // a chave: a ressalva e o erro do 409 são do mês em que aconteceram
-        <AcoesDoFechamento key={mes.chave} mes={mes} revisar={comPendencia.caminho} />
+        // a chave: a ressalva e o erro do 409 são do mês em que aconteceram, e com a contagem de
+        // aguardando que havia: aprovar zera o estado, para a ressalva não voltar com o erro vencido
+        <AcoesDoFechamento key={`${mes.chave}-${mes.aguardandoAprovacao}`} mes={mes} revisar={comPendencia.caminho} />
       ) : (
         // sem a lista de fechamentos, o caminho de antes: começar o próximo, revisar ou ver os extratos
         <div className="fech-acoes">
@@ -547,6 +550,7 @@ function AprovarPendentes({ mes }: { mes: MesDeFechamento }) {
       return null;
     }
     if (resposta.status === 401) router.push("/login");
+    if (resposta.status === 404 || resposta.status === 409) router.refresh();
     return resposta.erro;
   }
 
@@ -562,6 +566,7 @@ function AprovarPendentes({ mes }: { mes: MesDeFechamento }) {
 function AcoesDoFechamento({ mes, revisar }: { mes: MesDeFechamento; revisar: string }) {
   const router = useRoteador();
   const [enviando, setEnviando] = useState(false);
+  const trava = useRef(false);
   const [erro, setErro] = useState<string | null>(null);
   // o backend recusou por pendência (409): a ressalva é o que falta para fechar
   const [pedeRessalva, setPedeRessalva] = useState(false);
@@ -572,6 +577,8 @@ function AcoesDoFechamento({ mes, revisar }: { mes: MesDeFechamento; revisar: st
   const avisoDoGestor = !gestor && <p className="vg-nota">{SO_O_GESTOR_FECHA}</p>;
 
   async function executar(acao: () => Promise<Resultado<unknown>>) {
+    if (trava.current) return;
+    trava.current = true;
     setEnviando(true);
     setErro(null);
     let resposta: Resultado<unknown>;
@@ -581,6 +588,7 @@ function AcoesDoFechamento({ mes, revisar }: { mes: MesDeFechamento; revisar: st
       // a Server Action lançou (rede caída, deploy novo no meio) em vez de devolver um Resultado
       resposta = { ok: false, status: 0, erro: SEM_SERVIDOR };
     }
+    trava.current = false;
     setEnviando(false);
     if (resposta.ok) {
       setPedeRessalva(false);
@@ -590,8 +598,12 @@ function AcoesDoFechamento({ mes, revisar }: { mes: MesDeFechamento; revisar: st
     }
     if (resposta.status === 401) router.push("/login");
     setErro(resposta.erro);
+    if (resposta.status === 404) router.refresh();
     if (resposta.status === 409) {
-      setPedeRessalva(true);
+      // com justificativa aguardando, nem a ressalva libera (backend #132): o passo de aprovar é o caminho. A
+      // contagem da tela pode estar vencida (outra aba justificou), então vale também o texto do 409, que só
+      // traz o número na frase (_aguardando_aprovacao em api/fechamentos.py)
+      setPedeRessalva(mes.aguardandoAprovacao === 0 && !/aguardando aprovação/.test(resposta.erro));
       // se o 409 for de um mês que outra aba já fechou, a tela relida o mostra fechado
       router.refresh();
     }
@@ -645,7 +657,7 @@ function AcoesDoFechamento({ mes, revisar }: { mes: MesDeFechamento; revisar: st
           {erro}
         </p>
       )}
-      {pedeRessalva && (
+      {pedeRessalva && mes.aguardandoAprovacao === 0 && (
         <form
           className="fech-ressalva-form"
           onSubmit={(evento) => {
