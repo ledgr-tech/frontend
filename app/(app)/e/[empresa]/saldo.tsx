@@ -20,25 +20,6 @@ export function fraseDoSaldoFinal(saldo: SaldoDoExtrato | null): string {
   return saldo ? `Saldo final de ${formatarMoeda(saldo.final)} em ${data(saldo.data)}` : SEM_SALDO;
 }
 
-/**
- * A linha que fecha a comparação, onde o extrato do banco traz o saldo final (#239): o mesmo saldo
- * da faixa do topo, em qualquer página e filtro, porque é do extrato, não das linhas à vista.
- */
-export function SaldoNoFim({ saldo }: { saldo: SaldoDoExtrato | null | undefined }) {
-  if (saldo === undefined) return null;
-  return (
-    <p className="saldo-fim">
-      {saldo === null ? (
-        SEM_SALDO
-      ) : (
-        <>
-          <span>{`Saldo final em ${data(saldo.data)}:`}</span> <strong>{formatarMoeda(saldo.final)}</strong>
-        </>
-      )}
-    </p>
-  );
-}
-
 /** O saldo inicial (no topo) ou o final (no pé) da folha de um extrato na comparação (#474). */
 export function SaldoDaFolha({
   saldo,
@@ -75,7 +56,7 @@ export function SaldoDaFolha({
 export function FaixaDoSaldo({ saldo }: { saldo: SaldoDoExtrato | null | undefined }) {
   if (saldo === undefined) return null;
   return (
-    <section className="saldo-faixa" aria-label="Saldo do extrato do banco">
+    <section className="saldo-faixa saldo-faixa-celular" aria-label="Saldo do extrato do banco">
       {saldo === null ? (
         <p>{SEM_SALDO}</p>
       ) : (
