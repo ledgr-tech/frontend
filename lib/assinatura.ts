@@ -82,10 +82,11 @@ export function bloqueiaConciliacao(situacao: SituacaoDaConta): boolean {
   return situacao === "teste_encerrado" || situacao === "assinatura_encerrada";
 }
 
-// a Stripe só aceita o fim do teste no checkout com 48 horas de antecedência (backend #180)
-const ANTECEDENCIA_DO_TESTE_MS = 48 * 60 * 60 * 1000;
+// A Stripe só aceita o fim do teste no checkout com antecedência mínima de 48 h 1 min.
+// É a ANTECEDENCIA_MINIMA_DO_TRIAL de api/assinatura.py no backend (#180).
+const ANTECEDENCIA_DO_TESTE_MS = (48 * 60 + 1) * 60 * 1000;
 
-/** Assinar agora cobra na hora: fora do teste, ou com menos de 48 horas dele (o resto do teste se perde). */
+/** Assinar agora cobra na hora: fora do teste, ou com menos de 48 h 1 min dele (o resto do teste se perde). */
 export function cobrancaImediata(assinatura: Assinatura, agora: Date): boolean {
   if (assinatura.situacao !== "teste" || assinatura.fimDoTeste === null) return true;
   return new Date(assinatura.fimDoTeste).getTime() - agora.getTime() < ANTECEDENCIA_DO_TESTE_MS;
