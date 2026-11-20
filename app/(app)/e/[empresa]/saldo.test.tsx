@@ -58,6 +58,15 @@ describe("SaldoDaFolha", () => {
     expect(container).toHaveTextContent("depende das linhas não lidas");
   });
 
+  it("com linhas não lidas, o saldo final aparece normalmente no pé", () => {
+    const { container } = render(
+      <SaldoDaFolha saldo={{ inicial: null, final: 1249.25, data: "2026-09-10" }} momento="final" />,
+    );
+    expect(container).toHaveTextContent("Saldo final em 10/09/2026");
+    expect(container.querySelector("strong")).toHaveTextContent("R$ 1.249,25");
+    expect(container).not.toHaveTextContent("depende das linhas não lidas");
+  });
+
   it("sem saldo no arquivo, avisa nos dois momentos", () => {
     const inicial = render(<SaldoDaFolha saldo={null} momento="inicial" />);
     expect(inicial.container).toHaveTextContent("Saldo não informado no arquivo");

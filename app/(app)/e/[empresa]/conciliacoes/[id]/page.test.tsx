@@ -960,6 +960,8 @@ describe("ConciliacaoPage", () => {
 
     await user.click(screen.getByRole("button", { name: "Justificadas (0)" }));
     // um filtro sem nenhuma linha não tira o saldo: ele é do extrato, não das linhas à vista
+    // (o tbody fica vazio de verdade: o CSS tira o filete duplo do pé por tbody:empty)
+    expect(tabela.querySelector("tbody")).toBeEmptyDOMElement();
     expect(within(tabela.querySelector("tfoot[role='rowgroup']")!).getByText(/Saldo final em/)).toBeInTheDocument();
     expect(within(screen.getByRole("columnheader", { name: /Extrato do banco/ })).getByText("Saldo inicial")).toBeInTheDocument();
   });
@@ -1158,6 +1160,24 @@ describe("ConciliacaoPage", () => {
       expect(screen.getByRole("button", { name: "Justificadas (0)" })).toBeInTheDocument();
       expect(screen.queryByRole("button", { name: /como conferida$/ })).not.toBeInTheDocument();
       expect(screen.queryByRole("button", { name: "Enviar nova versão do extrato do sistema" })).not.toBeInTheDocument();
+    });
+
+    // o pé do saldo (#474) segue a coluna Visto, que some no mês fechado: uma célula a mais ou a menos
+    // empurraria a folha do sistema para fora do lugar
+    it.each([
+      ["aberto", {}],
+      ["fechado", { fechamento: { competencia: "2026-09", estado: "fechado", ressalva: null, fechadoPor: "Maria Financeiro", fechadoEm: "2026-10-06T15:20:00Z", reabertoPor: null, reabertoEm: null } }],
+    ])("com o mês %s, o pé do saldo ocupa as mesmas colunas da tabela", async (_mes, extra) => {
+      doBackend({ ...comCampo, saldo: { inicial: 100, final: 7467.15, data: "2026-10-01" } }, extra);
+      render(<ConciliacaoPage />);
+
+      await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" });
+      const tabela = screen.getByRole("table");
+      const colunas = (tr: Element) =>
+        [...tr.children].reduce((total, celula) => total + ((celula as HTMLTableCellElement).colSpan || 1), 0);
+      const doCabecalho = colunas(tabela.querySelector("thead tr:last-child")!);
+      expect(colunas(tabela.querySelector("tfoot tr")!)).toBe(doCabecalho);
+      for (const tr of tabela.querySelectorAll("tbody tr")) expect(colunas(tr)).toBe(doCabecalho);
     });
 
     it("keeps the check in its own column at the end of the row, so the axis holds only the verdict", async () => {
@@ -1870,6 +1890,8 @@ describe("ConciliacaoPage", () => {
         render(<ConciliacaoPage />);
         await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" });
         const faixa = screen.queryByRole("region", { name: "Saldo do extrato do banco" });
+        expect(within(screen.getByRole("columnheader", { name: /Extrato do banco/ })).getByText("Saldo inicial")).toBeInTheDocument();
+        expect(within(screen.getByRole("table").querySelector("tfoot")!).getByText(/Saldo final em/)).toBeInTheDocument();
         if (largura === 1100) {
           expect(painel()).not.toHaveTextContent("Saldo final");
           expect(painel()).toHaveAttribute("data-tutorial", "painel");

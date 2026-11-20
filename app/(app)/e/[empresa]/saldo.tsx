@@ -37,7 +37,7 @@ export function SaldoDaFolha({
         <span>Saldo inicial</span>{" "}
         {/* com linhas não lidas a soma sairia incompleta: o backend não calcula, e o front também não */}
         {saldo.inicial === null ? (
-          <span data-sem-inicial="">depende das linhas não lidas</span>
+          <span>depende das linhas não lidas</span>
         ) : (
           <strong>{formatarMoeda(saldo.inicial)}</strong>
         )}

@@ -446,8 +446,8 @@ export default function ConciliacaoPage() {
             )}
           </div>
         )}
-        {/* o saldo do extrato do banco (#118), o primeiro número que o contador procura: o mesmo em
-            todas as rodadas, junto do resumo do par */}
+        {/* o saldo do extrato do banco (#118), o mesmo em todas as rodadas: esta faixa só aparece nos
+            cartões (até 680px), onde o thead e o tfoot somem; nas outras larguras ele fica na coluna do banco (#474) */}
         <FaixaDoSaldo saldo={conciliacao.saldo} />
         {/* desligar uma categoria volta ao "Só revisão": as cinco são o que ele junta.
             As justificadas saem das categorias e são contadas à parte. */}

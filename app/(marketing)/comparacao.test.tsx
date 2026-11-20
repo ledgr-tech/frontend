@@ -88,6 +88,11 @@ describe("JanelaDaConciliacao", () => {
     const celulaBanco = pe.querySelector<HTMLElement>(".folha-banco")!;
     expect(within(celulaBanco).getByText("R$ 61.904,12")).toBeInTheDocument();
     expect(painel().queryByText("R$ 61.904,12")).not.toBeInTheDocument();
+    // nos cartões o thead e o tfoot somem: a faixa (que o CSS só mostra ali) leva o saldo, como no app
+    const faixa = screen.getByRole("region", { name: "Saldo do extrato do banco" });
+    expect(faixa).toHaveClass("saldo-faixa-celular");
+    expect(faixa).toHaveTextContent("R$ 52.380,47");
+    expect(faixa).toHaveTextContent("R$ 61.904,12");
   });
 
   it("marks the diverging field, the missing side and the other day as the app does", () => {

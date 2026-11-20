@@ -2673,6 +2673,8 @@ html[data-tema="escuro"] .app-shell {
   border-top: 1px solid var(--color-divider); border-bottom: none;
   border-radius: 0 0 var(--radius-md) var(--radius-md); text-align: right;
 }
+/* sem nenhuma linha no filtro, o cabeçalho já traz o filete de baixo: o pé não repete */
+.tabela-folhas tbody:empty + tfoot td { border-top: none; }
 /* a estrutura é das folhas; o que fica fora delas (o status, o vão) não tem filete próprio */
 .tabela-folhas :is(th, td):not(.folha-banco, .folha-sistema) { border-bottom: none; }
 

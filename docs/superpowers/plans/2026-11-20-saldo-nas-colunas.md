@@ -5,7 +5,7 @@
 **Objetivo:** O saldo inicial do extrato do banco aparece no cabeçalho da coluna "Extrato do banco" e o saldo final no pé dessa coluna, para ninguém achar que é o saldo do sistema. O painel lateral e a faixa do topo deixam de repetir o saldo (issue ledgr-tech/frontend#474, parte do banco). O saldo do sistema e a diferença entram no PR 3, quando chegar o backend #238.
 
 **Arquitetura:**
-- **`saldo.tsx`:** ganha um componente `SaldoDaFolha` que mostra o saldo inicial ou o final de um extrato. Ele já recebe o lado ("banco" ou "sistema"), para o PR 3 só passar o saldo do sistema.
+- **`saldo.tsx`:** ganha um componente `SaldoDaFolha` que mostra o saldo inicial ou o final de um extrato. Ele não precisa saber o lado: o texto é o mesmo nas duas folhas, e o PR 3 só passa o saldo do sistema na célula do sistema.
 - **Tabela da comparação:** mostra o inicial na linha `folhas-titulos` do `thead` e o final num `tfoot` novo, cada um sob a sua folha.
 - **No celular (≤680px):** o `thead` some no modo cartão, então a `FaixaDoSaldo` fica, mas só nessa largura.
 
@@ -30,7 +30,7 @@ Mais a decisão do Eduardo de 20/11: 4 PRs por dependência, e este é o PR 2.
 ## Contrato do backend #238, confirmado em 20/11 (para o PR 3, não para este)
 - **`saldo_sistema`**: objeto **sempre presente** em `GET /conciliacoes/{extrato_id}`, com `saldo_inicial`, `saldo_final` e `saldo_data`, nulos quando o arquivo não traz saldo e seguindo a mesma regra do banco.
   - **Consequência:** com o #238 no ar, a coluna do sistema nunca fica sem nada. Ela mostra o saldo ou "Saldo não informado no arquivo".
-  - **O que este PR já deixa pronto:** o `SaldoDaFolha` aceita o lado ("banco" ou "sistema"), e a célula do sistema no `thead` e no `tfoot` existe, vazia.
+  - **O que este PR já deixa pronto:** o `SaldoDaFolha` serve às duas folhas sem saber o lado, e a célula do sistema existe no `thead` (com o título) e no `tfoot` (vazia).
 - **`diferenca_saldo_final`**: texto decimal, ou null.
 - **`diferenca_saldo_motivo`**: um código, quando a diferença vem null. Os valores são `datas_diferentes`, `sem_saldo_banco` e `sem_saldo_sistema`; o texto da tela é nosso.
 - **Os campos do banco na raiz não mudam.** Este PR continua lendo `conciliacao.saldo` como hoje.

@@ -8,7 +8,7 @@ import { PainelDoExtrato } from "@/app/(app)/e/[empresa]/conciliacoes/[id]/paine
 import { rotuloComDecisao, seloDaLinha, situacaoDaLinha, tomDaLinha } from "@/app/(app)/e/[empresa]/conciliacoes/[id]/situacao";
 import { formatarInteiro, statusDaLinha } from "@/app/(app)/e/[empresa]/dashboard/resumo";
 import { IconeOrigem } from "@/app/(app)/e/[empresa]/icone-origem";
-import { SaldoDaFolha } from "@/app/(app)/e/[empresa]/saldo";
+import { FaixaDoSaldo, SaldoDaFolha } from "@/app/(app)/e/[empresa]/saldo";
 import { useMovimentoReduzido } from "@/app/reveal";
 import type { SaldoDoExtrato } from "@/lib/adaptadores";
 import { formatarMoeda, type Decisao, type LinhaComparacao, type StatusLinha } from "@/lib/mock-data";
@@ -236,6 +236,9 @@ export function JanelaDaConciliacao({
                 </button>
               </div>
             </div>
+
+            {/* nos cartões o thead e o tfoot somem, e o saldo vem nesta faixa, que o CSS só mostra ali (#474) */}
+            <FaixaDoSaldo saldo={saldo} />
 
             <div className="dash-tabela-rolagem tabela-cartoes">
               <table className="table tabela-folhas folhas-com-eixo" role="table">
