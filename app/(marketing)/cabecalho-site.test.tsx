@@ -36,8 +36,9 @@ describe("CabecalhoSite", () => {
 
     const botao = screen.getByRole("button", { name: "Fechar menu" });
     expect(botao).toHaveAttribute("aria-expanded", "true");
-    // o ícone do botão são as barras do logo, que viram um X quando o menu abre
-    expect(botao.querySelectorAll("rect")).toHaveLength(3);
+    // o ícone do botão são as barras do logo (as pintadas, com o grão; o adesivo branco por baixo repete
+    // as mesmas três), que viram um X quando o menu abre
+    expect(botao.querySelectorAll("g[filter] rect")).toHaveLength(3);
     const opcoes = within(menu()!);
     expect(opcoes.getByRole("link", { name: /O problema/ })).toHaveAttribute("href", "#problema");
     expect(opcoes.getByRole("link", { name: /Como funciona/ })).toHaveAttribute("href", "#como");

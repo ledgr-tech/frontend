@@ -14,6 +14,7 @@ import { Fragment, useRef, type CSSProperties, type ReactNode } from "react";
 import { useMovimentoReduzido } from "@/app/reveal";
 import { Cena } from "./cena";
 import type { LinhaExtrato } from "./comparacao";
+import { DicaDeArrastar, LARGURA_DO_CELULAR, usePasseioNoCelular } from "./rolagem-lateral";
 import { Vitrine } from "./vitrine";
 
 const LINHA_1 = "Pare de conciliar";
@@ -134,6 +135,7 @@ export function Hero({ banco, sistema }: { banco: LinhaExtrato[]; sistema: Linha
   const topo = useRef<HTMLDivElement>(null);
   const palco = useRef<HTMLDivElement>(null);
   const mouse = useMotionValue(0);
+  usePasseioNoCelular(palco, ".vitrine", { reduzido, largura: LARGURA_DO_CELULAR });
 
   const { scrollYProgress: rolagem } = useScroll({ target: topo, offset: ["start start", "end start"] });
   const abreLinha1 = useTransform(rolagem, [0, 0.45], ["0%", "-6%"]);
@@ -228,6 +230,8 @@ export function Hero({ banco, sistema }: { banco: LinhaExtrato[]; sistema: Linha
             style={reduzido ? undefined : { transform: janela, opacity: surgeJanela }}
           >
             <Vitrine banco={banco} sistema={sistema} destaque="Pagamento fornecedor #1082" compacta />
+            {/* só no celular (CSS), onde a janela rola para o lado */}
+            <DicaDeArrastar />
           </m.div>
         </Cena>
       </div>
