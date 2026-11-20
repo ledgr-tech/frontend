@@ -133,9 +133,9 @@ export function PainelDaEquipe({
       return;
     }
     setErroDeAcao(resposta.erro);
-    if (resposta.status === 403) {
+    if (resposta.status === 403 || resposta.status === 404) {
       recarregar();
-      router.refresh();
+      if (resposta.status === 403) router.refresh();
     }
   }
 
@@ -226,6 +226,10 @@ export function PainelDaEquipe({
             }}
             aoFechar={aoFecharConvite}
             aoSairDaSessao={() => router.push("/login")}
+            aoRecusar={() => {
+              recarregar();
+              router.refresh();
+            }}
           />
         </ModalDaTela>
       )}
@@ -440,20 +444,22 @@ export function PainelDaEquipe({
               <dd>{atual.valeAte}</dd>
             </dl>
             <div className="conc-previa-acoes">
-              <button
-                type="button"
-                className="btn btn-secondary"
-                disabled={emCurso !== null}
-                onClick={() =>
-                  void agir(
-                    atual.id,
-                    () => cancelarConvite(atual.id),
-                    (equipe) => ({ ...equipe, convites: (equipe.convites ?? []).filter((c) => c.id !== atual.id) }),
-                  )
-                }
-              >
-                Cancelar convite
-              </button>
+              {(papel === "admin" || atual.papel === "analista") && (
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  disabled={emCurso !== null}
+                  onClick={() =>
+                    void agir(
+                      atual.id,
+                      () => cancelarConvite(atual.id),
+                      (equipe) => ({ ...equipe, convites: (equipe.convites ?? []).filter((c) => c.id !== atual.id) }),
+                    )
+                  }
+                >
+                  Cancelar convite
+                </button>
+              )}
             </div>
           </aside>
         ) : null}
@@ -559,12 +565,14 @@ function ConvidarPessoa({
   aoConvidar,
   aoFechar,
   aoSairDaSessao,
+  aoRecusar,
 }: {
   /** Os papéis que quem convida pode dar. */
   papeis: Papel[];
   aoConvidar: (convite: Convite) => void;
   aoFechar: () => void;
   aoSairDaSessao: () => void;
+  aoRecusar: () => void;
 }) {
   const [email, setEmail] = useState("");
   // o padrão é o papel de menos poder: o último da lista (analista)
@@ -598,6 +606,9 @@ function ConvidarPessoa({
       return;
     }
     setRetorno({ ok: false, texto: resposta.erro });
+    if (resposta.status === 403) {
+      aoRecusar();
+    }
   }
 
   return (
