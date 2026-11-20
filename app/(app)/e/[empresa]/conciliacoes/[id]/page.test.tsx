@@ -2279,6 +2279,18 @@ describe("ConciliacaoPage", () => {
 
       await waitFor(() => expect(screen.queryByRole("region", { name: "Linhas selecionadas" })).not.toBeInTheDocument());
       expect(caixa("04/09 Boleto Aço Norte Bobinas")).not.toBeChecked();
+
+      // de volta à rodada 2 sem mexer em nada: a seleção de antes foi apagada, não só escondida
+      doBackend({ ...comChave, rodada: 2 });
+      rota.busca = "";
+      rerender(<ConciliacaoPage />);
+
+      await waitFor(() => expect(screen.getByRole("button", { name: /^Todos/ })).toBeInTheDocument());
+      await waitFor(() => expect(caixa("04/09 Boleto Aço Norte Bobinas")).toBeInTheDocument());
+      // a rodada 2 já voltou à tela (a mesma linha, sem a marca), e a faixa da seleção não aparece
+      await act(() => new Promise((pronto) => setTimeout(pronto, 50)));
+      expect(caixa("04/09 Boleto Aço Norte Bobinas")).not.toBeChecked();
+      expect(screen.queryByRole("region", { name: "Linhas selecionadas" })).not.toBeInTheDocument();
     });
   });
 });

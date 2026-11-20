@@ -296,6 +296,10 @@ export default function ConciliacaoPage() {
   // aberto: no fechado, o backend recusa (409) até reabrir
   const podeDecidir = ligadas && (!rodada || rodada.numero === rodada.total) && !fechamento;
   const rodadaAberta = `${conciliacao.id}:${rodadaDasLinhas}`;
+  // trocar de rodada ou de conciliação apaga a seleção, e voltar começa vazio (ajuste no render, o
+  // padrão do React para estado que segue outro valor). Uma releitura mantém a rodada na tela até a
+  // resposta chegar (useConciliacao não volta a "carregando"), então não apaga nada
+  if (selecao.de !== rodadaAberta) setSelecao({ de: rodadaAberta, chaves: new Set() });
   const selecionadas = selecao.de === rodadaAberta ? selecao.chaves : new Set<string>();
   // de todas as linhas, não só as do filtro (F3); a que sumiu num recarregar ou foi conciliada sai
   const chavesSelecionadas = limparSelecao(selecionadas, conciliacao.linhas);
