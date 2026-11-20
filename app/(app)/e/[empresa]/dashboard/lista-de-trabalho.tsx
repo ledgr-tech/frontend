@@ -129,7 +129,7 @@ export function ListaDeTrabalho({
           <div className="conc-meses" data-tutorial="lista">
             {visiveis.map(({ mes, linhas }) => (
               <section key={mes.chave} aria-labelledby={`conc-mes-${mes.chave}`}>
-                <CabecalhoDoMes mes={mes} />
+                <CabecalhoDoMes mes={mes} indisponivel={fechamentos === null} />
                 <ul className="conc-folhas">
                   {linhas.map((conciliacao) => (
                     <li key={conciliacao.extratoBancoId}>
@@ -163,13 +163,16 @@ export function ListaDeTrabalho({
   );
 }
 
-function CabecalhoDoMes({ mes }: { mes: MesNaLista }) {
+// sem /fechamentos, nenhum mês é dito aberto: não se sabe (#457)
+const MES_INDISPONIVEL = "Situação do mês indisponível";
+
+function CabecalhoDoMes({ mes, indisponivel }: { mes: MesNaLista; indisponivel: boolean }) {
   const { fechamento } = mes;
   const quantas = plural(mes.conciliacoes.length, "conciliação", "conciliações");
   const meta = fechamento
     ? `Fechado em ${formatarDataHora(fechamento.fechadoEm).slice(0, 10)} por ${fechamento.fechadoPor} · ${quantas}`
     : [
-        "Aberto",
+        indisponivel ? MES_INDISPONIVEL : "Aberto",
         quantas,
         mes.pedemDecisao > 0 && plural(mes.pedemDecisao, "pendência", "pendências"),
       ]
@@ -329,7 +332,9 @@ function Previa({
         <dd>{`${textoDaRodada(conciliacao)} · ${formatarDataHora(execucao.executadaEm)}`}</dd>
         <dt>Mês</dt>
         <dd>
-          {fechamento ? `Fechado em ${formatarDataHora(fechamento.fechadoEm).slice(0, 10)} por ${fechamento.fechadoPor} · ` : "Aberto · "}
+          {fechamento
+            ? `Fechado em ${formatarDataHora(fechamento.fechadoEm).slice(0, 10)} por ${fechamento.fechadoPor} · `
+            : `${fechamentosIndisponiveis ? MES_INDISPONIVEL : "Aberto"} · `}
           <Link href={caminhoDoFechamento(mes.chave)} className="conc-mes-link">
             {fechamento ? "Ver o fechamento" : `Fechamento de ${nomeDoMes}`}
           </Link>
