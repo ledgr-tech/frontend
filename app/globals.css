@@ -1551,7 +1551,7 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
 .janela-conciliacao .dash-tabela-rolagem { container: tabela-comparacao / inline-size; }
 .janela-conciliacao .comparacao-lateral { position: static; padding-top: 0; }
 /* "Voltar ao topo do extrato" sobe a página do app; a janela tem dez linhas e já está toda à vista */
-.janela-conciliacao .comp-saldos .btn { display: none; }
+.janela-conciliacao .comp-saldos { display: none; }
 /* o painel ao lado só a partir de 1280px (LADO_A_LADO, comparacao.tsx). A largura dele deixa a tabela abaixo
    dos 900px do @container tabela-comparacao, como a do app ao lado do menu: as colunas de data e valor apertam
    e as descrições aparecem */
@@ -2659,15 +2659,22 @@ html[data-tema="escuro"] .app-shell {
 .tabela-folhas tbody tr:last-child > td { border-bottom: none; }
 /* Os cantos de baixo de cada folha, pela classe e não pela posição: o lado que falta é uma
    célula só, e o status fica no meio. */
-.tabela-folhas tbody tr:last-child > td:is(
+.tabela-folhas:not(:has(tfoot)) tbody tr:last-child > td:is(
   .folha-banco:first-child,
   :not(.folha-sistema) + .folha-sistema
 ) { border-bottom-left-radius: var(--radius-md); }
-.tabela-folhas tbody tr:last-child > td:is(
+.tabela-folhas:not(:has(tfoot)) tbody tr:last-child > td:is(
   .folha-banco:has(+ :not(.folha-banco)),
   .folha-sistema:has(+ :not(.folha-sistema)),
   .folha-sistema:last-child
 ) { border-bottom-right-radius: var(--radius-md); }
+/* com o saldo final (#474), o pé fecha cada folha: uma célula por folha, com os dois cantos */
+.tabela-folhas tfoot td:is(.folha-banco, .folha-sistema) {
+  border-top: 1px solid var(--color-divider); border-bottom: none;
+  border-radius: 0 0 var(--radius-md) var(--radius-md); text-align: right;
+}
+/* sem nenhuma linha no filtro, o cabeçalho já traz o filete de baixo: o pé não repete */
+.tabela-folhas tbody:empty + tfoot td { border-top: none; }
 /* a estrutura é das folhas; o que fica fora delas (o status, o vão) não tem filete próprio */
 .tabela-folhas :is(th, td):not(.folha-banco, .folha-sistema) { border-bottom: none; }
 
@@ -2949,7 +2956,10 @@ html[data-tema="escuro"] .app-shell {
 .comp-acoes { display: flex; flex: none; flex-wrap: wrap; gap: 8px; min-height: 38px; }
 .comp-acoes .btn { flex: 1 1 0; justify-content: center; white-space: nowrap; padding-inline: 10px; }
 
-/* embaixo do painel: os dois saldos do extrato, em destaque, e o caminho de volta ao topo */
+/* embaixo do painel: o caminho de volta ao topo.
+   ponytail: o dl, o dt/dd e a .comp-saldo-data (e a .saldo-fim, abaixo) só servem às gravações da Central
+   (public/ajuda/comparacao*.json, detalhe-da-linha*.json) e às cenas da landing, que ainda têm o saldo no
+   painel (#474); apagar quando regravar */
 .comp-saldos { display: flex; flex: none; flex-direction: column; gap: 10px; padding: 4px 4px 0; }
 .comp-saldos dl { display: grid; grid-template-columns: 1fr 1fr; margin: 0; border-top: 1px solid var(--color-divider); }
 .comp-saldos dl > div { display: flex; flex-direction: column; gap: 2px; padding: 10px 0 2px; min-width: 0; }
@@ -3091,8 +3101,9 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
   width: 16px; min-width: 16px; padding: 0; border: none; background: var(--color-bg);
 }
 .table .folha-fora { border: none; }
+/* no topo: quando o saldo inicial desce para baixo do título do banco, o do sistema não desce para o meio */
 .table .folha-titulo {
-  padding: 12px var(--space-2) 10px; border-bottom: none;
+  padding: 12px var(--space-2) 10px; border-bottom: none; vertical-align: top;
   text-transform: none; letter-spacing: 0; font-size: var(--texto-corpo); color: var(--color-text);
 }
 .folha-titulo-conteudo { display: flex; align-items: center; gap: 8px; }
@@ -3106,6 +3117,17 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
   border: 1px solid var(--color-divider); font-size: var(--texto-legenda); font-weight: 400;
   color: var(--texto-apagado);
 }
+/* o saldo do extrato na folha (#474): o inicial à direita do título, o final no pé, em qualquer
+   densidade. O rótulo e o valor nunca quebram por dentro; numa folha estreita (o painel aberto
+   abaixo de ~1400px) o valor desce sob o rótulo e o inicial sob o título, à direita, em vez de vazar */
+.saldo-folha {
+  display: inline-flex; flex-wrap: wrap; justify-content: flex-end; align-items: baseline; gap: 0 6px;
+  white-space: nowrap;
+  font-size: var(--texto-legenda); font-weight: 400; font-variant-numeric: tabular-nums; color: var(--texto-apagado);
+}
+.saldo-folha strong { color: var(--color-text); font-weight: 600; }
+.folha-titulo-conteudo:has(> .saldo-folha) { flex-wrap: wrap; row-gap: 2px; }
+.folha-titulo-conteudo .saldo-folha { margin-left: auto; }
 .det-cartao-titulo .icone-origem { flex: none; color: var(--texto-apagado); }
 
 /* "Extrato do banco" no diálogo e a coluna Origem da dashboard */
@@ -4608,6 +4630,8 @@ html:not([data-densidade="padrao"]) .app-shell .selo { padding-block: 1px; }
 
 /* Os controles da comparação em cartões só aparecem no celular. */
 .comparacao-controles-cartoes { display: none; }
+/* o saldo do extrato fica no topo e no pé da coluna do banco (#474); a faixa, só nos cartões, sem thead e tfoot */
+.saldo-faixa-celular { display: none; }
 
 /* Tabela em cartões no celular.
    `display: block` apaga o papel implícito de tabela, então as linhas e células
@@ -4620,7 +4644,8 @@ html:not([data-densidade="padrao"]) .app-shell .selo { padding-block: 1px; }
   .tabela-cartoes .table tr,
   .tabela-cartoes .table td { display: block; width: auto; }
 
-  .tabela-cartoes .table thead { display: none; }
+  .tabela-cartoes .table :is(thead, tfoot) { display: none; }
+  .saldo-faixa-celular { display: block; }
 
   .comparacao-controles-cartoes {
     display: flex; flex-wrap: wrap; align-items: end; gap: var(--space-2);
