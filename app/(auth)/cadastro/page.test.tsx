@@ -500,6 +500,27 @@ describe("CadastroPage", () => {
       expect(screen.getByLabelText("CNPJ")).toBeInTheDocument();
     });
 
+    it("editar o CNPJ durante a conferência descarta o resultado antigo", async () => {
+      let resolver!: (valor: typeof LIVRES) => void;
+      verificarCadastro.mockReturnValue(new Promise((resolve) => { resolver = resolve; }));
+      const user = userEvent.setup();
+      render(<CadastroPage />);
+
+      await preencher(user, ACESSO);
+      await continuar(user);
+      await preencher(user, EMPRESA);
+      await continuar(user);
+
+      const cnpj = screen.getByLabelText("CNPJ");
+      await user.clear(cnpj);
+      await user.type(cnpj, "98.765.432/0001-10");
+      await act(async () => {
+        resolver({ ...LIVRES, cnpjDisponivel: false });
+      });
+
+      expect(cnpj).not.toHaveAccessibleDescription("Esta empresa já tem cadastro no Ledgr.");
+    });
+
     it("goes back to the access step when the e-mail already has an account", async () => {
       verificarCadastro.mockResolvedValue({ ...LIVRES, emailDisponivel: false });
       const user = userEvent.setup();
@@ -822,7 +843,7 @@ describe("CadastroPage", () => {
           cnpj: "12.345.678/0001-95",
           cidade: "Campinas",
           uf: "SP",
-        }),
+        }, "ana@gmail.com"),
       );
       expect(cadastrar).not.toHaveBeenCalled();
       await waitFor(() => expect(push).toHaveBeenCalledWith("/visao-geral"));
