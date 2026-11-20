@@ -414,7 +414,7 @@ function ParaAssinar({
   );
 }
 
-// os dias que sobraram só existem no teste em andamento (com menos de 48 horas)
+// os dias que sobraram só existem no teste em andamento (com menos de 48 h 1 min e a folga, `cobrancaImediata`)
 const avisoImediato = (assinatura: Assinatura) =>
   assinatura.situacao === "teste"
     ? "A cobrança é feita agora. Os dias de teste que sobraram não ficam para depois."
