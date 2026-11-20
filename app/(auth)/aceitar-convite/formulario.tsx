@@ -121,6 +121,12 @@ export function AceitarConvite({ conectadoComo, google }: { conectadoComo: strin
     if (window.location.hash) {
       window.history.replaceState(null, "", window.location.pathname + window.location.search);
     }
+    if (!token.current && google.convite && !conectadoComo) {
+      // recarregar a volta do Google: o fragmento se perdeu, mas o cookie mantém o convite
+      setConvite(google.convite);
+      setEtapa("formulario");
+      return;
+    }
     if (token.current && !conectadoComo) {
       void consultar();
       return;

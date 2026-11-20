@@ -23,7 +23,7 @@ export default async function AceitarConvitePage({
   return (
     <AceitarConvite
       conectadoComo={erro ? null : (sessao?.user?.email ?? null)}
-      google={{ ligado: googleLigado(), erro, convite: erro ? await conviteDoCookie() : null }}
+      google={{ ligado: googleLigado(), erro, convite: await conviteDoCookie() }}
     />
   );
 }

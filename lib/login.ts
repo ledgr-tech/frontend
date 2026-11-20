@@ -115,7 +115,9 @@ export async function aceitarConviteNoBackendComGoogle(token: string, idToken: s
     if (!(erro instanceof ErroBackend)) return { ok: false, erro: "falha" };
     if (erro.status === 400) return { ok: false, erro: "convite_invalido" };
     if (erro.status === 409) {
-      return { ok: false, erro: erro.detalhe.includes("diferente") ? "email_diferente" : "email_cadastrado" };
+      if (erro.detalhe.includes("diferente")) return { ok: false, erro: "email_diferente" };
+      if (erro.detalhe.includes("conta Google")) return { ok: false, erro: "google_de_outra_conta" };
+      return { ok: false, erro: "email_cadastrado" };
     }
     // a conta de quem convidou está inativa (backend #156); o cookie do convite fica, para depois da reativação
     if (ehContaInativa(erro)) return { ok: false, erro: "conta_inativa" };
