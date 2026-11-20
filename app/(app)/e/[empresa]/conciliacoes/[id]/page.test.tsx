@@ -1578,7 +1578,7 @@ describe("ConciliacaoPage", () => {
         expect(within(janela).getByRole("button", { name: "Desfazer justificativa" })).toBeInTheDocument();
       });
 
-      describe("deciding the marked ones at once (#208)", () => {
+      describe("aprovar e rejeitar as selecionadas (#208, #473)", () => {
         // duas esperando aprovação: o boleto e a tarifa
         const comDuas: Conciliacao = {
           ...comCampo,
@@ -1591,12 +1591,112 @@ describe("ConciliacaoPage", () => {
           decidirLinhas.mockReset();
         });
 
-        it.todo("o filtro Aguardando aprovação mostra só elas, com uma caixa de marcar em cada");
-        it.todo("ordena e marca todas pelos controles dos cartões");
-        it.todo("aprova as marcadas pelas chaves do backend, e a tela é lida de novo");
-        it.todo("marcar todas e rejeitar com o motivo");
-        it.todo("mostra o motivo de o lote não ter gravado");
-        it.todo("o analista filtra as aguardando, mas sem marcar");
+        const faixa = () => screen.getByRole("region", { name: "Linhas selecionadas" });
+        const todas = () => screen.getByRole("checkbox", { name: "Selecionar todas as linhas que pedem revisão à vista" });
+
+        it("no filtro Aguardando aprovação, selecionar todas e aprovar manda as chaves do backend e lê a tela de novo", async () => {
+          doBackend(comDuas);
+          decidirLinhas.mockResolvedValue({ ok: true, dados: { processadas: 2, ignoradas: 0 } });
+          const user = userEvent.setup();
+          render(<ConciliacaoPage />);
+
+          await user.click(await screen.findByRole("button", { name: "Aguardando aprovação (2)" }));
+          expect(screen.queryByRole("button", { name: "Pagamento batido" })).not.toBeInTheDocument();
+          await user.click(todas());
+          carregarConciliacao.mockClear();
+          await user.click(within(faixa()).getByRole("button", { name: "Aprovar as 2 justificativas selecionadas" }));
+
+          expect(decidirLinhas).toHaveBeenCalledWith(BANCO, ["b:lc-2", "b:lc-3"], "aprovar", undefined);
+          await waitFor(() => expect(carregarConciliacao).toHaveBeenCalled());
+          // gravou: a seleção some
+          expect(screen.queryByRole("region", { name: "Linhas selecionadas" })).not.toBeInTheDocument();
+        });
+
+        it("com três selecionadas e uma aguardando, diz quantas vão e aprova só aquela", async () => {
+          doBackend(comPendente);
+          decidirLinhas.mockResolvedValue({ ok: true, dados: { processadas: 1, ignoradas: 0 } });
+          const user = userEvent.setup();
+          render(<ConciliacaoPage />);
+
+          await user.click(await screen.findByRole("checkbox", { name: "Selecionar: 04/09 Boleto Aço Norte Bobinas" }));
+          await user.click(screen.getByRole("checkbox", { name: "Selecionar: 05/09 Tarifa pacote de serviços" }));
+          await user.click(screen.getByRole("checkbox", { name: "Selecionar: 06/09 Tarifa TED" }));
+          expect(faixa()).toHaveTextContent("1 das 3 selecionadas aguarda aprovação");
+          await user.click(within(faixa()).getByRole("button", { name: "Aprovar a justificativa selecionada" }));
+
+          expect(decidirLinhas).toHaveBeenCalledWith(BANCO, ["b:lc-2"], "aprovar", undefined);
+        });
+
+        it("ordena e seleciona todas pelos controles dos cartões", async () => {
+          doBackend(comDuas);
+          const user = userEvent.setup();
+          render(<ConciliacaoPage />);
+
+          await user.click(await screen.findByRole("button", { name: "Aguardando aprovação (2)" }));
+          await user.selectOptions(screen.getByRole("combobox", { name: "Ordenar lançamentos por" }), "descricao");
+          await user.click(screen.getByRole("button", { name: "Ordem crescente" }));
+          expect(screen.getAllByRole("columnheader", { name: "Descrição" })[0]).toHaveAttribute("aria-sort", "descending");
+
+          await user.click(screen.getByRole("checkbox", { name: "Selecionar todas" }));
+          expect(within(faixa()).getByRole("button", { name: "Aprovar as 2 justificativas selecionadas" })).toBeInTheDocument();
+          await user.click(screen.getByRole("checkbox", { name: "Selecionar todas" }));
+          expect(screen.getByRole("checkbox", { name: "Selecionar: 04/09 Boleto Aço Norte Bobinas" })).not.toBeChecked();
+        });
+
+        it("rejeitar as selecionadas manda o motivo", async () => {
+          doBackend(comDuas);
+          decidirLinhas.mockResolvedValue({ ok: true, dados: { processadas: 2, ignoradas: 0 } });
+          const user = userEvent.setup();
+          render(<ConciliacaoPage />);
+
+          await user.click(await screen.findByRole("button", { name: "Aguardando aprovação (2)" }));
+          await user.click(todas());
+          await user.click(within(faixa()).getByRole("button", { name: "Rejeitar…" }));
+          await user.type(screen.getByLabelText("Motivo da rejeição (opcional)"), "Sem comprovante.");
+          await user.click(screen.getByRole("button", { name: "Rejeitar as 2 justificativas selecionadas" }));
+
+          expect(decidirLinhas).toHaveBeenCalledWith(BANCO, ["b:lc-2", "b:lc-3"], "rejeitar", "Sem comprovante.");
+        });
+
+        it("um 409 mostra o motivo de o lote não ter gravado e lê a tela de novo", async () => {
+          doBackend(comDuas);
+          decidirLinhas.mockResolvedValue({ ok: false, status: 409, erro: "O mês de setembro de 2026 está fechado." });
+          const user = userEvent.setup();
+          render(<ConciliacaoPage />);
+
+          await user.click(await screen.findByRole("checkbox", { name: "Selecionar: 04/09 Boleto Aço Norte Bobinas" }));
+          carregarConciliacao.mockClear();
+          await user.click(within(faixa()).getByRole("button", { name: "Aprovar a justificativa selecionada" }));
+
+          expect(await screen.findByRole("alert")).toHaveTextContent("O mês de setembro de 2026 está fechado.");
+          await waitFor(() => expect(carregarConciliacao).toHaveBeenCalled());
+        });
+
+        it("o analista seleciona e soma as que aguardam, mas não aprova nem rejeita", async () => {
+          podeFechar.valor = false;
+          doBackend(comDuas);
+          const user = userEvent.setup();
+          render(<ConciliacaoPage />);
+
+          await user.click(await screen.findByRole("button", { name: "Aguardando aprovação (2)" }));
+          await user.click(todas());
+          expect(faixa()).toHaveTextContent("2 linhas selecionadas");
+          expect(within(faixa()).queryByRole("button", { name: /^Aprovar/ })).not.toBeInTheDocument();
+          expect(within(faixa()).queryByRole("button", { name: "Rejeitar…" })).not.toBeInTheDocument();
+        });
+
+        it("na demo, sem backend, soma a que aguarda mas não aprova: o lote não tem mock", async () => {
+          buscarConciliacao.mockReturnValue({
+            ...conciliacaoMista,
+            linhas: [conciliacaoMista.linhas[0], { ...conciliacaoMista.linhas[1], decisao: pendente }],
+          });
+          const user = userEvent.setup();
+          render(<ConciliacaoPage />);
+
+          await user.click(await screen.findByRole("checkbox", { name: "Selecionar: 04/09 Boleto Aço Norte Bobinas" }));
+          expect(faixa()).toHaveTextContent("1 linha selecionada");
+          expect(within(faixa()).queryByRole("button", { name: /^Aprovar/ })).not.toBeInTheDocument();
+        });
       });
     });
 

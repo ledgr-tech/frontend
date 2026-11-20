@@ -49,6 +49,8 @@ import { FaixaDoSaldo, SaldoNoFim } from "../../saldo";
 import { SeloIa } from "../../selo-ia";
 import { useNome, usePodeFechar } from "../../conta";
 import { aprovadaDepois, podeDesfazerAprovacao } from "@/lib/aprovacao";
+import { decidirLinhas } from "../acoes";
+import { DecisaoEmLote } from "../decisao-em-lote";
 import { SEM_SERVIDOR } from "@/lib/sem-servidor";
 import { limparSelecao, podeSelecionar, somarLinhas } from "./selecao";
 import { anuncioDaSoma, SomaDasSelecionadas } from "./soma-das-selecionadas";
@@ -318,6 +320,28 @@ export default function ConciliacaoPage() {
     });
   }
 
+  // aprovar ou rejeitar de uma vez (#208): só quem aprova, só com o backend (o lote não tem mock) e, das
+  // selecionadas, só as que aguardam aprovação; em qualquer filtro
+  const aguardandoSelecionadas =
+    podeDecidir && podeAprovar && real
+      ? conciliacao.linhas
+          .filter((linha) => valendo.has(chaveDaLinha(linha)) && situacaoDaLinha(linha, rodadaDasLinhas) === "aguardando")
+          .map(chaveDaLinha)
+      : [];
+
+  /** O lote das selecionadas que aguardam; deu certo, a seleção some e a tela é lida de novo. */
+  async function decidirSelecionadas(acao: "aprovar" | "rejeitar", motivo?: string): Promise<string | null> {
+    const resposta = await decidirLinhas(conciliacao.id, aguardandoSelecionadas, acao, motivo);
+    if (resposta.ok) {
+      mudarSelecao((chaves) => chaves.clear());
+      recarregar();
+      return null;
+    }
+    if (resposta.status === 401) router.push("/login");
+    if (resposta.status === 409) recarregar();
+    return resposta.erro;
+  }
+
   const linhaEmFoco = foco === null ? null : (conciliacao.linhas.find((linha) => chaveDaLinha(linha) === foco) ?? null);
   const linhaAberta = chaveAberta === null ? null : (conciliacao.linhas.find((linha) => chaveDaLinha(linha) === chaveAberta) ?? null);
 
@@ -579,6 +603,19 @@ export default function ConciliacaoPage() {
               </span>
             ) : (
               <SomaDasSelecionadas soma={soma} />
+            )}
+            {/* quando nem todas aguardam, diz quantas vão no lote; o botão já diz o resto */}
+            {aguardandoSelecionadas.length > 0 && aguardandoSelecionadas.length < chavesSelecionadas.length && (
+              <span className="tabela-progresso">
+                {`${formatarInteiro(aguardandoSelecionadas.length)} das ${formatarInteiro(chavesSelecionadas.length)} selecionadas ${aguardandoSelecionadas.length === 1 ? "aguarda" : "aguardam"} aprovação`}
+              </span>
+            )}
+            {aguardandoSelecionadas.length > 0 && (
+              <DecisaoEmLote
+                quantidade={aguardandoSelecionadas.length}
+                objeto={{ um: "justificativa selecionada", varios: "justificativas selecionadas" }}
+                onDecidir={decidirSelecionadas}
+              />
             )}
             <button type="button" className="btn btn-secondary" onClick={() => mudarSelecao((chaves) => chaves.clear())}>
               Limpar seleção
