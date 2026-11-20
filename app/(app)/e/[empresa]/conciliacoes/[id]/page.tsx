@@ -49,9 +49,9 @@ import { FaixaDoSaldo, SaldoNoFim } from "../../saldo";
 import { SeloIa } from "../../selo-ia";
 import { useNome, usePodeFechar } from "../../conta";
 import { aprovadaDepois, podeDesfazerAprovacao } from "@/lib/aprovacao";
-import { decidirLinhas } from "../acoes";
-import { DecisaoEmLote } from "../decisao-em-lote";
 import { SEM_SERVIDOR } from "@/lib/sem-servidor";
+import { limparSelecao, podeSelecionar, somarLinhas } from "./selecao";
+import { anuncioDaSoma, SomaDasSelecionadas } from "./soma-das-selecionadas";
 
 /**
  * "Desde a rodada 1: 4 passaram a bater · 2 continuam divergindo · 1 nova divergência".
@@ -166,8 +166,9 @@ export default function ConciliacaoPage() {
   const [erroDecisao, setErroDecisao] = useState<string | null>(null);
   // as linhas com uma decisão a caminho: o segundo clique não manda o contrário por cima
   const gravando = useRef(new Set<string>());
-  // as linhas marcadas para aprovar ou rejeitar de uma vez, no filtro "Aguardando aprovação" (#208)
-  const [marcadas, setMarcadas] = useState<ReadonlySet<string>>(() => new Set());
+  // as linhas selecionadas para somar (#475) e aprovar de uma vez (#208), com a rodada em que foram marcadas:
+  // não grava nada, sobrevive ao filtro e começa vazia em outra rodada ou conciliação
+  const [selecao, setSelecao] = useState<{ de: string; chaves: ReadonlySet<string> }>({ de: "", chaves: new Set() });
   // sair da linha só fecha o cartão depois de um instante: dá tempo de o ponteiro chegar nele
   const fechandoCartao = useRef<ReturnType<typeof setTimeout>>(undefined);
   // quando o ponteiro desceu pela última vez, em qualquer lugar da tela: o foco que chega logo depois vem de
@@ -265,7 +266,6 @@ export default function ConciliacaoPage() {
 
   function escolherFiltro(proximo: Filtro) {
     setFiltro(proximo);
-    setMarcadas(new Set());
     // replaceState, não navegação: o Next sincroniza o useSearchParams sem remontar
     // a página nem buscar as linhas de novo, e o histórico não ganha um passo por clique
     const url = new URLSearchParams(window.location.search);
@@ -284,36 +284,38 @@ export default function ConciliacaoPage() {
   // decidir só onde há onde gravar, só na rodada que vale (a passada é para ler) e só com o mês
   // aberto: no fechado, o backend recusa (409) até reabrir
   const podeDecidir = ligadas && (!rodada || rodada.numero === rodada.total) && !fechamento;
-  // marcar várias para decidir de uma vez: só quem aprova, só com o backend (o lote não tem mock) e só
-  // no filtro delas, onde a última coluna fica livre da conferência
-  const marcando = podeDecidir && podeAprovar && real && filtro === "aguardando";
-  // marcada que saiu do filtro (decidida na janela da linha) não conta mais
-  const chavesMarcadas = marcando ? ordenadas.map(chaveDaLinha).filter((chave) => marcadas.has(chave)) : [];
-  const todasMarcadas = ordenadas.length > 0 && chavesMarcadas.length === ordenadas.length;
+  const rodadaAberta = `${conciliacao.id}:${rodadaDasLinhas}`;
+  const selecionadas = selecao.de === rodadaAberta ? selecao.chaves : new Set<string>();
+  // de todas as linhas, não só as do filtro (F3); a que sumiu num recarregar ou foi conciliada sai
+  const chavesSelecionadas = limparSelecao(selecionadas, conciliacao.linhas);
+  const valendo = new Set(chavesSelecionadas);
+  const soma = somarLinhas(conciliacao.linhas.filter((linha) => valendo.has(chaveDaLinha(linha))));
+  // a caixa do cabeçalho pega as selecionáveis à vista, no filtro de agora
+  const selecionaveisAVista = ordenadas.filter(podeSelecionar).map(chaveDaLinha);
+  const todasSelecionadas = selecionaveisAVista.length > 0 && selecionaveisAVista.every((chave) => valendo.has(chave));
 
-  function alternarTodas() {
-    setMarcadas(todasMarcadas ? new Set() : new Set(ordenadas.map(chaveDaLinha)));
-  }
-
-  function alternarMarca(chave: string) {
-    setMarcadas((atual) => {
-      const proximas = new Set(atual);
-      if (!proximas.delete(chave)) proximas.add(chave);
-      return proximas;
+  function mudarSelecao(mudar: (chaves: Set<string>) => void) {
+    setSelecao((atual) => {
+      const chaves = new Set(atual.de === rodadaAberta ? atual.chaves : []);
+      mudar(chaves);
+      return { de: rodadaAberta, chaves };
     });
   }
 
-  /** O lote das marcadas; deu certo, a tela é lida de novo com as decisões que ficaram. */
-  async function decidirMarcadas(acao: "aprovar" | "rejeitar", motivo?: string): Promise<string | null> {
-    const resposta = await decidirLinhas(conciliacao.id, chavesMarcadas, acao, motivo);
-    if (resposta.ok) {
-      setMarcadas(new Set());
-      recarregar();
-      return null;
-    }
-    if (resposta.status === 401) router.push("/login");
-    if (resposta.status === 409) recarregar();
-    return resposta.erro;
+  function alternarSelecao(chave: string) {
+    mudarSelecao((chaves) => {
+      if (!chaves.delete(chave)) chaves.add(chave);
+    });
+  }
+
+  // marcada, tira as à vista; desmarcada, põe todas elas. As de fora do filtro ficam como estão
+  function alternarTodasSelecao() {
+    mudarSelecao((chaves) => {
+      for (const chave of selecionaveisAVista) {
+        if (todasSelecionadas) chaves.delete(chave);
+        else chaves.add(chave);
+      }
+    });
   }
 
   const linhaEmFoco = foco === null ? null : (conciliacao.linhas.find((linha) => chaveDaLinha(linha) === foco) ?? null);
@@ -553,23 +555,34 @@ export default function ConciliacaoPage() {
             <button type="button" className="btn btn-secondary" onClick={() => alternarOrdem(ordem.coluna)}>
               {ordem.crescente ? "Ordem crescente" : "Ordem decrescente"}
             </button>
+            {/* nos cartões o cabeçalho some, e com ele a caixa de selecionar todas */}
+            {selecionaveisAVista.length > 0 && (
+              <label className="selecionar-todas">
+                <input type="checkbox" checked={todasSelecionadas} onChange={alternarTodasSelecao} />
+                Selecionar todas
+              </label>
+            )}
           </div>
         )}
 
-        {marcando && ordenadas.length > 0 && (
-          <div className="lote-faixa" role="region" aria-label="Decidir as marcadas">
-            <label className="comparacao-controles-cartoes">
-              <input type="checkbox" className="lote-marca" checked={todasMarcadas} onChange={alternarTodas} />
-              Marcar todas
-            </label>
-            <span className="tabela-progresso">
-              {chavesMarcadas.length === 0
-                ? "Marque as justificativas para aprovar ou rejeitar de uma vez."
-                : `${formatarInteiro(chavesMarcadas.length)} de ${formatarInteiro(ordenadas.length)} ${ordenadas.length === 1 ? "marcada" : "marcadas"}`}
-            </span>
-            {chavesMarcadas.length > 0 && (
-              <DecisaoEmLote quantidade={chavesMarcadas.length} objeto={{ um: "marcada", varios: "marcadas" }} onDecidir={decidirMarcadas} />
+        {/* sempre montado: a região que já nasce com o texto não é anunciada, e a primeira marcação passaria calada */}
+        <p role="status" className="sr-only">
+          {anuncioDaSoma(soma)}
+        </p>
+
+        {chavesSelecionadas.length > 0 && (
+          <div className="lote-faixa" role="region" aria-label="Linhas selecionadas">
+            {/* com o painel, a soma vai nele; sem ele, aqui, e ela já diz quantas são */}
+            {painel ? (
+              <span className="tabela-progresso">
+                {`${formatarInteiro(chavesSelecionadas.length)} ${chavesSelecionadas.length === 1 ? "selecionada" : "selecionadas"}`}
+              </span>
+            ) : (
+              <SomaDasSelecionadas soma={soma} />
             )}
+            <button type="button" className="btn btn-secondary" onClick={() => mudarSelecao((chaves) => chaves.clear())}>
+              Limpar seleção
+            </button>
           </div>
         )}
 
@@ -590,6 +603,7 @@ export default function ConciliacaoPage() {
               {/* larguras fixas (globals.css): as folhas saem iguais dos dois lados do eixo,
                   e as colunas não mudam de largura ao trocar de página ou de filtro */}
               <colgroup>
+                <col className="col-selecao" />
                 <col className="col-data" />
                 <col />
                 <col className="col-valor" />
@@ -605,6 +619,7 @@ export default function ConciliacaoPage() {
                     fica no eixo entre as duas, como no design: é o veredito sobre o par,
                     e o olho passa por ele no caminho de um lado ao outro. */}
                 <tr role="row" className="folhas-titulos">
+                  <td className="folha-fora" aria-hidden="true" />
                   <th colSpan={3} scope="colgroup" className="folha-banco folha-titulo">
                     <span className="folha-titulo-conteudo">
                       <IconeOrigem origem="banco" />
@@ -621,6 +636,15 @@ export default function ConciliacaoPage() {
                   {podeDecidir && <td className="folha-fora" aria-hidden="true" />}
                 </tr>
                 <tr role="row">
+                  <th className="th-selecao">
+                    <input
+                      type="checkbox"
+                      aria-label="Selecionar todas as linhas que pedem revisão à vista"
+                      checked={todasSelecionadas}
+                      disabled={selecionaveisAVista.length === 0}
+                      onChange={alternarTodasSelecao}
+                    />
+                  </th>
                   <CabecalhoOrdenavel coluna="data" ordem={ordem} onOrdenar={alternarOrdem} folha="banco">
                     Data
                   </CabecalhoOrdenavel>
@@ -653,23 +677,11 @@ export default function ConciliacaoPage() {
                     Sistema
                   </CabecalhoOrdenavel>
                   {/* a conferência no fim da linha, com nome: depois de ler o par, "já conferi" */}
-                  {podeDecidir &&
-                    (marcando ? (
-                      <th className="th-conferir">
-                        <input
-                          type="checkbox"
-                          className="lote-marca"
-                          aria-label="Marcar todas as justificativas aguardando aprovação"
-                          checked={todasMarcadas}
-                          disabled={ordenadas.length === 0}
-                          onChange={alternarTodas}
-                        />
-                      </th>
-                    ) : (
-                      <th className="th-conferir" data-tutorial="conferida" title="Marque as divergências que você já olhou. As que bateram não precisam.">
-                        Visto
-                      </th>
-                    ))}
+                  {podeDecidir && (
+                    <th className="th-conferir" data-tutorial="conferida" title="Marque as divergências que você já olhou. As que bateram não precisam.">
+                      Visto
+                    </th>
+                  )}
                 </tr>
               </thead>
               {/* contínua, sem páginas: num extrato grande, folhear de 25 em 25 escondia o resto do mês.
@@ -815,6 +827,7 @@ export default function ConciliacaoPage() {
                     {lote && !ehPonta ? (
                       loteAberto && (
                         <tr role="row" data-tom={tom} data-situacao={situacao} data-lote-membro="">
+                          <td role="cell" className="celula-selecao" />
                           {pontaNoBanco ? <td role="cell" colSpan={3} className="folha-banco" /> : celulasDe(linha, "banco")}
                           <td role="cell" data-rotulo="Status" className="celula-status" />
                           {pontaNoBanco ? celulasDe(linha, "sistema") : <td role="cell" colSpan={3} className="folha-sistema" />}
@@ -856,6 +869,16 @@ export default function ConciliacaoPage() {
                         router.push(caminhoDaConciliacao(conciliacao.id, conciliacao.extratoSistemaId, linha.id));
                       }}
                     >
+                      <td role="cell" className="celula-selecao">
+                        {podeSelecionar(linha) && (
+                          <input
+                            type="checkbox"
+                            aria-label={`Selecionar: ${linha.data} ${linha.descricao}`}
+                            checked={selecionadas.has(chaveDaLinha(linha))}
+                            onChange={() => alternarSelecao(chaveDaLinha(linha))}
+                          />
+                        )}
+                      </td>
                       {banco ? (
                         <>
                           <td
@@ -942,17 +965,8 @@ export default function ConciliacaoPage() {
                         </td>
                       )}
                       {podeDecidir && (
-                        <td role="cell" data-rotulo={marcando ? "Marcar" : "Visto"} className="celula-conferir">
-                          {marcando && situacao === "aguardando" && (
-                            <input
-                              type="checkbox"
-                              className="lote-marca"
-                              aria-label={`Marcar ${linha.descricao}`}
-                              checked={marcadas.has(chaveDaLinha(linha))}
-                              onChange={() => alternarMarca(chaveDaLinha(linha))}
-                            />
-                          )}
-                          {!marcando && (situacao === "a_conferir" || situacao === "conferida") && (
+                        <td role="cell" data-rotulo="Visto" className="celula-conferir">
+                          {(situacao === "a_conferir" || situacao === "conferida") && (
                             <CirculoDeConferir
                               linha={linha}
                               conferida={situacao === "conferida"}
@@ -1032,6 +1046,7 @@ export default function ConciliacaoPage() {
             rodada={rodadaDasLinhas}
             linhas={conciliacao.linhas}
             saldo={conciliacao.saldo}
+            soma={soma}
             real={real}
             podeDecidir={podeDecidir}
             podeAprovar={podeAprovar}
