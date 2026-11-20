@@ -134,10 +134,9 @@ export function PainelDeEmpresas({ empresas: daPagina }: { empresas: EmpresaClie
     );
     // um clique mais novo já decidiu a estrela: a resposta deste não desfaz nem avisa
     const volta = favoritaOtimista.terminar(empresa.id, versao, favorita, resposta.ok);
-    if (volta !== null && !resposta.ok) {
-      marcar(volta);
-      setErroDaFavorita(resposta.erro);
-    }
+    if (volta === null) return;
+    marcar(volta);
+    if (!resposta.ok) setErroDaFavorita(resposta.erro);
   }
 
   const acao =

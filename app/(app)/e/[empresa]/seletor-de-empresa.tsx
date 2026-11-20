@@ -67,6 +67,8 @@ export function combina(empresa: { razaoSocial: string; cnpj: string }, termo: s
 export function useFavoritaOtimista() {
   const versoes = useRef(new Map<string, number>());
   const confirmadas = useRef(new Map<string, boolean>());
+  // a versão do último clique que já voltou com falha: depois dela, um ok mais antigo é o que ficou gravado
+  const falhou = useRef(new Map<string, number>());
 
   /** Antes de mudar a estrela: `antes` é o que ela mostrava, confirmado se nada estava a caminho. */
   function comecar(id: string, antes: boolean): number {
@@ -76,10 +78,16 @@ export function useFavoritaOtimista() {
     return versao;
   }
 
-  /** Depois da resposta. Devolve o valor para onde a estrela volta, ou null quando não volta. */
+  /** Depois da resposta. Devolve o valor para onde a estrela vai, ou null quando fica como está. */
   function terminar(id: string, versao: number, favorita: boolean, ok: boolean): boolean | null {
-    if (ok) confirmadas.current.set(id, favorita);
-    if (ok || versoes.current.get(id) !== versao) return null;
+    const ultima = versoes.current.get(id);
+    if (ok) {
+      confirmadas.current.set(id, favorita);
+      // um ok antigo que chega depois da falha do último clique: o backend ficou com este valor
+      return versao !== ultima && falhou.current.get(id) === ultima ? favorita : null;
+    }
+    if (versao !== ultima) return null;
+    falhou.current.set(id, versao);
     return confirmadas.current.get(id) ?? !favorita;
   }
 
@@ -188,10 +196,9 @@ function JanelaDeEmpresas({ ativa, aoFechar }: { ativa: EmpresaDaConta; aoFechar
     );
     // um clique mais novo já decidiu a estrela: a resposta deste não desfaz nem avisa
     const volta = favoritaOtimista.terminar(empresa.id, versao, favorita, resposta.ok);
-    if (volta !== null && !resposta.ok) {
-      marcar(volta);
-      setErroDaFavorita(resposta.erro);
-    }
+    if (volta === null) return;
+    marcar(volta);
+    if (!resposta.ok) setErroDaFavorita(resposta.erro);
   }
 
   function ordenar(coluna: Coluna) {
