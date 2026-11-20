@@ -18,6 +18,7 @@ import {
 } from "@/lib/assinatura";
 import { textoDoLimite, type Limite, type LimitesDaConta } from "@/lib/limites";
 import { useRoteador } from "@/lib/roteador";
+import { SEM_SERVIDOR } from "@/lib/sem-servidor";
 import { CURVA_DE_SAIDA, useTrocaSuave } from "@/lib/troca-suave";
 import { iniciarCheckout } from "./acoes";
 
@@ -455,7 +456,7 @@ function AssinarPlano({
     travado.current = true;
     setAbrindo(true);
     setErro(null);
-    const resposta = await iniciarCheckout(plano, periodo);
+    const resposta = await iniciarCheckout(plano, periodo).catch(() => ({ ok: false as const, status: 0, erro: SEM_SERVIDOR }));
     // a trava fica: a página está saindo para a Stripe
     if (resposta.ok) return window.location.assign(resposta.dados.url);
     travado.current = false;
