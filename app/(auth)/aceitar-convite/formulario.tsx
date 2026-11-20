@@ -105,8 +105,8 @@ export function AceitarConvite({ conectadoComo, google }: { conectadoComo: strin
     tokenLido.current = true;
     if (google.erro) {
       // a volta do Google com recusa: o token ficou no cookie e o convite veio consultado pelo servidor.
-      // O motivo vale para esta volta: recarregar a página não mostra de novo
-      window.history.replaceState(null, "", window.location.pathname);
+      // O motivo vale para esta volta: recarregar a página não mostra de novo, mas o "volta" mantém o convite
+      window.history.replaceState(null, "", `${window.location.pathname}?google=volta`);
       if (google.convite && google.erro !== "convite_invalido") {
         // eslint-disable-next-line react-hooks/set-state-in-effect
         setConvite(google.convite);
