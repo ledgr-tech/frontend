@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach, onTestFinished } from "vitest";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { Conciliacao, Decisao } from "@/lib/mock-data";
@@ -217,9 +217,9 @@ describe("ConciliacaoPage", () => {
     const celulas = within(linha).getAllByRole("cell");
     // o Intl separa "R$" do valor com espaço não separável
     const textos = celulas.map((celula) => celula.textContent?.replace(/\s/g, " "));
-    expect(textos.slice(0, 3)).toEqual(["04/09", "Boleto Aço Norte Bobinas", "R$ 12.640,00"]);
+    expect(textos.slice(0, 4)).toEqual(["", "04/09", "Boleto Aço Norte Bobinas", "R$ 12.640,00"]);
     // depois da folha do sistema, só a coluna da conferência
-    expect(textos.slice(4, 7)).toEqual(["05/09", "Pagamento fornecedor Aço Norte", "R$ 12.604,00"]);
+    expect(textos.slice(5, 8)).toEqual(["05/09", "Pagamento fornecedor Aço Norte", "R$ 12.604,00"]);
   });
 
   it("puts the status between the two sheets, as the verdict on the pair", async () => {
@@ -230,6 +230,7 @@ describe("ConciliacaoPage", () => {
     const [, colunas, linha] = screen.getAllByRole("row");
     // a seta diz quem ordena: a data, de saída
     expect(within(colunas).getAllByRole("columnheader").map((coluna) => coluna.textContent)).toEqual([
+      "",
       "Data▲",
       "Descrição↕",
       "Banco↕",
@@ -240,7 +241,7 @@ describe("ConciliacaoPage", () => {
       // a conferência, no fim da linha
       "Visto",
     ]);
-    expect(within(linha).getAllByRole("cell")[3]).toHaveAttribute("data-rotulo", "Status");
+    expect(within(linha).getAllByRole("cell")[4]).toHaveAttribute("data-rotulo", "Status");
   });
 
   it("names the status in a few words, and keeps the full name for screen readers", async () => {
@@ -248,7 +249,7 @@ describe("ConciliacaoPage", () => {
     render(<ConciliacaoPage />);
 
     const divergente = (await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" })).closest("tr")!;
-    const status = within(divergente).getAllByRole("cell")[3];
+    const status = within(divergente).getAllByRole("cell")[4];
     const curto = within(status).getByText("Valor diverge");
     expect(curto).toHaveClass("selo", "selo-risco");
     expect(curto).toHaveAttribute("aria-hidden", "true");
@@ -283,11 +284,11 @@ describe("ConciliacaoPage", () => {
     const valor = (await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" })).closest("tr")!;
     // data, descrição, valor | status | data, descrição, valor | conferida
     expect(within(valor).getAllByRole("cell").map(diverge)).toEqual([
-      false, false, true, false, false, false, true, false,
+      false, false, false, true, false, false, false, true, false,
     ]);
     const data = screen.getByRole("button", { name: "DAS Simples Nacional" }).closest("tr")!;
     expect(within(data).getAllByRole("cell").map(diverge)).toEqual([
-      true, false, false, false, true, false, false, false,
+      false, true, false, false, false, true, false, false, false,
     ]);
     // o texto do campo vai numa marca, que acende de leve quando o ponteiro está na linha
     expect(within(valor).getByText(/12\.640,00/)).toHaveClass("marca-diverge");
@@ -327,10 +328,10 @@ describe("ConciliacaoPage", () => {
       within(linha).getAllByRole("cell").map((celula) => celula.hasAttribute("data-diverge"));
     // data, descrição, valor | status | o lado do sistema numa célula só | conferida
     const falta = (await screen.findByRole("button", { name: "PIX sem par" })).closest("tr")!;
-    expect(diverge(falta)).toEqual([false, false, true, false, false, false]);
+    expect(diverge(falta)).toEqual([false, false, false, true, false, false, false]);
     expect(within(falta).getByText(/4\.180,00/)).toHaveClass("marca-diverge");
     const tarifa = screen.getByRole("button", { name: "Tarifa TED" }).closest("tr")!;
-    expect(diverge(tarifa)).toEqual([false, false, true, false, false, false]);
+    expect(diverge(tarifa)).toEqual([false, false, false, true, false, false, false]);
     const justificada = screen.getByRole("button", { name: "Boleto Aço Norte Bobinas" }).closest("tr")!;
     expect(diverge(justificada).some(Boolean)).toBe(false);
   });
@@ -350,7 +351,7 @@ describe("ConciliacaoPage", () => {
     render(<ConciliacaoPage />);
 
     const batida = (await screen.findByRole("button", { name: /^PIX RECEBIDO/ })).closest("tr")!;
-    const [, banco, , , , sistema] = within(batida).getAllByRole("cell");
+    const [, , banco, , , , sistema] = within(batida).getAllByRole("cell");
     expect(banco).toHaveAttribute("title", "PIX RECEBIDO - CONSTRUTORA ALVO EMPREENDIMENTOS IMOBILIARIOS LTDA");
     expect(sistema).toHaveAttribute(
       "title",
@@ -358,7 +359,7 @@ describe("ConciliacaoPage", () => {
     );
     // a linha em revisão abre o cartão, que mostra as duas descrições inteiras: sem dica dupla
     const divergente = screen.getByRole("button", { name: "Boleto Aço Norte Bobinas" }).closest("tr")!;
-    expect(within(divergente).getAllByRole("cell")[1]).not.toHaveAttribute("title");
+    expect(within(divergente).getAllByRole("cell")[2]).not.toHaveAttribute("title");
   });
 
   it("widens the value column for a conciliação with values past the millions", async () => {
@@ -391,7 +392,7 @@ describe("ConciliacaoPage", () => {
 
     const linha = (await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" })).closest("tr")!;
     // uma célula só no lugar de três traços: a folha diz que falta, não que está em branco
-    const [vazia, status] = within(linha).getAllByRole("cell");
+    const [, vazia, status] = within(linha).getAllByRole("cell");
     expect(vazia).toHaveTextContent("sem lançamento no banco");
     expect(vazia).toHaveAttribute("colspan", "3");
     expect(status).toHaveTextContent("Falta no banco");
@@ -428,6 +429,27 @@ describe("ConciliacaoPage", () => {
 
       await user.unhover(linha);
       await waitFor(() => expect(screen.queryByRole("tooltip")).not.toBeInTheDocument());
+    });
+
+    it("não abre com o mouse quando a linha vira cartão: cobriria a caixa de seleção, a descrição e o Visto", async () => {
+      // o modo cartão é do CSS (@container tela, até 680px): a linha deixa de ser table-row
+      const cartoes = document.createElement("style");
+      cartoes.textContent = "tbody tr { display: flex; }";
+      document.head.append(cartoes);
+      try {
+        buscarConciliacao.mockReturnValue(conciliacaoMista);
+        const user = userEvent.setup();
+        render(<ConciliacaoPage />);
+
+        const linha = (await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" })).closest("tr")!;
+        await user.hover(linha);
+        expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+
+        await user.click(within(linha).getByRole("checkbox", { name: /^Selecionar: .*Boleto Aço Norte Bobinas/ }));
+        expect(within(linha).getByRole("checkbox", { name: /^Selecionar: .*Boleto Aço Norte Bobinas/ })).toBeChecked();
+      } finally {
+        cartoes.remove();
+      }
     });
 
     it("stays open while the pointer travels from the line to the card, and closes when it leaves the card", async () => {
@@ -1354,7 +1376,7 @@ describe("ConciliacaoPage", () => {
       render(<ConciliacaoPage />);
 
       const linha = (await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" })).closest("tr")!;
-      const status = within(linha).getAllByRole("cell")[3];
+      const status = within(linha).getAllByRole("cell")[4];
       expect(within(status).getByText("Justificada")).not.toHaveClass("selo-risco");
       expect(within(status).getByText("Valor diverge na mesma data · justificada")).toHaveClass("sr-only");
       expect(within(status).queryByRole("button")).not.toBeInTheDocument();
@@ -1488,7 +1510,7 @@ describe("ConciliacaoPage", () => {
         render(<ConciliacaoPage />);
 
         const linha = (await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" })).closest("tr")!;
-        const status = within(linha).getAllByRole("cell")[3];
+        const status = within(linha).getAllByRole("cell")[4];
         expect(within(status).getByText("Aguardando")).toHaveClass("selo-atencao");
         expect(within(status).getByText("Valor diverge na mesma data · justificada, aguardando aprovação")).toHaveClass("sr-only");
         // fica em revisão e fora das justificadas: o mês não fecha com ela
@@ -1513,7 +1535,7 @@ describe("ConciliacaoPage", () => {
         expect(janela).toHaveTextContent("Aprovada por Gil Gestor em");
         expect(within(janela).queryByRole("button", { name: "Aprovar" })).not.toBeInTheDocument();
         const linha = screen.getByRole("button", { name: "Boleto Aço Norte Bobinas" }).closest("tr")!;
-        expect(within(linha).getAllByRole("cell")[3]).toHaveTextContent("Justificada");
+        expect(within(linha).getAllByRole("cell")[4]).toHaveTextContent("Justificada");
         expect(screen.getByRole("button", { name: "Justificadas (1)" })).toBeInTheDocument();
       });
 
@@ -1532,7 +1554,7 @@ describe("ConciliacaoPage", () => {
         expect(registrarDecisao).toHaveBeenCalledWith(BANCO, "b:lc-2", "justificativa_rejeitada", "Falta o comprovante.");
         expect(within(janela).getByLabelText("Justificativa")).toBeInTheDocument();
         const linha = screen.getByRole("button", { name: "Boleto Aço Norte Bobinas" }).closest("tr")!;
-        expect(within(linha).getAllByRole("cell")[3]).not.toHaveTextContent(/Aguardando|Justificada/);
+        expect(within(linha).getAllByRole("cell")[4]).not.toHaveTextContent(/Aguardando|Justificada/);
       });
 
       it("rejeitar sem motivo vai sem texto", async () => {
@@ -1577,7 +1599,7 @@ describe("ConciliacaoPage", () => {
         expect(within(janela).getByRole("button", { name: "Desfazer justificativa" })).toBeInTheDocument();
       });
 
-      describe("deciding the marked ones at once (#208)", () => {
+      describe("aprovar e rejeitar as selecionadas (#208, #473)", () => {
         // duas esperando aprovação: o boleto e a tarifa
         const comDuas: Conciliacao = {
           ...comCampo,
@@ -1590,20 +1612,72 @@ describe("ConciliacaoPage", () => {
           decidirLinhas.mockReset();
         });
 
-        it("o filtro Aguardando aprovação mostra só elas, com uma caixa de marcar em cada", async () => {
+        const faixa = () => screen.getByRole("region", { name: "Linhas selecionadas" });
+        const todas = () => screen.getByRole("checkbox", { name: "Selecionar todas as divergências à vista" });
+
+        it("no filtro Aguardando aprovação, selecionar todas e aprovar manda as chaves do backend e lê a tela de novo", async () => {
           doBackend(comDuas);
+          decidirLinhas.mockResolvedValue({ ok: true, dados: { processadas: 2, ignoradas: 0 } });
           const user = userEvent.setup();
           render(<ConciliacaoPage />);
 
           await user.click(await screen.findByRole("button", { name: "Aguardando aprovação (2)" }));
-
-          expect(screen.getByRole("checkbox", { name: "Marcar Boleto Aço Norte Bobinas" })).not.toBeChecked();
-          expect(screen.getByRole("checkbox", { name: "Marcar Tarifa pacote de serviços" })).toBeInTheDocument();
           expect(screen.queryByRole("button", { name: "Pagamento batido" })).not.toBeInTheDocument();
-          expect(screen.getByText("Marque as justificativas para aprovar ou rejeitar de uma vez.")).toBeInTheDocument();
+          await user.click(todas());
+          carregarConciliacao.mockClear();
+          await user.click(within(faixa()).getByRole("button", { name: "Aprovar as 2 justificativas selecionadas" }));
+
+          expect(decidirLinhas).toHaveBeenCalledWith(BANCO, ["b:lc-2", "b:lc-3"], "aprovar", undefined);
+          await waitFor(() => expect(carregarConciliacao).toHaveBeenCalled());
+          // gravou: a seleção some; pelo mouse, o foco não salta para a caixa do topo (o teclado vem abaixo)
+          expect(screen.queryByRole("region", { name: "Linhas selecionadas" })).not.toBeInTheDocument();
+          expect(todas()).not.toHaveFocus();
         });
 
-        it("ordena e marca todas pelos controles dos cartões", async () => {
+        // o lote grava devagar, pelo teclado: o que a pessoa fez com o foco nesse meio tempo decide para onde ele vai
+        async function aprovarDevagar(enquantoGrava: () => void) {
+          doBackend(comDuas);
+          let responder: (resposta: unknown) => void = () => {};
+          decidirLinhas.mockReturnValue(new Promise((pronto) => (responder = pronto)));
+          const user = userEvent.setup();
+          render(<ConciliacaoPage />);
+          await user.click(await screen.findByRole("button", { name: "Aguardando aprovação (2)" }));
+          await user.click(todas());
+          within(faixa()).getByRole("button", { name: "Aprovar as 2 justificativas selecionadas" }).focus();
+          await user.keyboard("{Enter}");
+          enquantoGrava();
+          await act(async () => responder({ ok: true, dados: { processadas: 2, ignoradas: 0 } }));
+          await waitFor(() => expect(screen.queryByRole("region", { name: "Linhas selecionadas" })).not.toBeInTheDocument());
+        }
+
+        it("pelo teclado, o foco que caiu no body enquanto o lote gravava vai para o filtro aberto", async () => {
+          // o botão desliga enquanto grava, e o Chrome tira o foco dele. O destino é o filtro, não a caixa de
+          // selecionar todas: a releitura pode esvaziar a lista e desligar a caixa, e o foco cairia no body de novo
+          await aprovarDevagar(() => (document.activeElement as HTMLElement).blur());
+          expect(screen.getByRole("button", { name: "Aguardando aprovação (2)" })).toHaveFocus();
+        });
+
+        it("não tira o foco de quem foi para outro lugar enquanto o lote gravava", async () => {
+          await aprovarDevagar(() => screen.getByRole("button", { name: /^Todos/ }).focus());
+          expect(screen.getByRole("button", { name: /^Todos/ })).toHaveFocus();
+        });
+
+        it("com três selecionadas e uma aguardando, diz quantas vão e aprova só aquela", async () => {
+          doBackend(comPendente);
+          decidirLinhas.mockResolvedValue({ ok: true, dados: { processadas: 1, ignoradas: 0 } });
+          const user = userEvent.setup();
+          render(<ConciliacaoPage />);
+
+          await user.click(await screen.findByRole("checkbox", { name: "Selecionar: 04/09 Boleto Aço Norte Bobinas" }));
+          await user.click(screen.getByRole("checkbox", { name: "Selecionar: 05/09 Tarifa pacote de serviços" }));
+          await user.click(screen.getByRole("checkbox", { name: "Selecionar: 06/09 Tarifa TED" }));
+          expect(faixa()).toHaveTextContent("1 das 3 selecionadas aguarda aprovação");
+          await user.click(within(faixa()).getByRole("button", { name: "Aprovar a justificativa selecionada" }));
+
+          expect(decidirLinhas).toHaveBeenCalledWith(BANCO, ["b:lc-2"], "aprovar", undefined);
+        });
+
+        it("ordena e seleciona todas pelos controles dos cartões", async () => {
           doBackend(comDuas);
           const user = userEvent.setup();
           render(<ConciliacaoPage />);
@@ -1613,66 +1687,65 @@ describe("ConciliacaoPage", () => {
           await user.click(screen.getByRole("button", { name: "Ordem crescente" }));
           expect(screen.getAllByRole("columnheader", { name: "Descrição" })[0]).toHaveAttribute("aria-sort", "descending");
 
-          await user.click(screen.getByRole("checkbox", { name: "Marcar todas" }));
-          expect(screen.getByText("2 de 2 marcadas")).toBeInTheDocument();
-          await user.click(screen.getByRole("checkbox", { name: "Marcar todas" }));
-          expect(screen.getByRole("checkbox", { name: "Marcar Boleto Aço Norte Bobinas" })).not.toBeChecked();
+          await user.click(screen.getByRole("checkbox", { name: "Selecionar todas" }));
+          expect(within(faixa()).getByRole("button", { name: "Aprovar as 2 justificativas selecionadas" })).toBeInTheDocument();
+          await user.click(screen.getByRole("checkbox", { name: "Selecionar todas" }));
+          expect(screen.getByRole("checkbox", { name: "Selecionar: 04/09 Boleto Aço Norte Bobinas" })).not.toBeChecked();
         });
 
-        it("aprova as marcadas pelas chaves do backend, e a tela é lida de novo", async () => {
-          doBackend(comDuas);
-          decidirLinhas.mockResolvedValue({ ok: true, dados: { processadas: 1, ignoradas: 0 } });
-          const user = userEvent.setup();
-          render(<ConciliacaoPage />);
-
-          await user.click(await screen.findByRole("button", { name: "Aguardando aprovação (2)" }));
-          await user.click(screen.getByRole("checkbox", { name: "Marcar Boleto Aço Norte Bobinas" }));
-          expect(screen.getByText("1 de 2 marcadas")).toBeInTheDocument();
-          carregarConciliacao.mockClear();
-          await user.click(screen.getByRole("button", { name: "Aprovar a marcada" }));
-
-          expect(decidirLinhas).toHaveBeenCalledWith(BANCO, ["b:lc-2"], "aprovar", undefined);
-          await waitFor(() => expect(carregarConciliacao).toHaveBeenCalled());
-        });
-
-        it("marcar todas e rejeitar com o motivo", async () => {
+        it("rejeitar as selecionadas manda o motivo", async () => {
           doBackend(comDuas);
           decidirLinhas.mockResolvedValue({ ok: true, dados: { processadas: 2, ignoradas: 0 } });
           const user = userEvent.setup();
           render(<ConciliacaoPage />);
 
           await user.click(await screen.findByRole("button", { name: "Aguardando aprovação (2)" }));
-          await user.click(screen.getByRole("checkbox", { name: "Marcar todas as justificativas aguardando aprovação" }));
-          await user.click(screen.getByRole("button", { name: "Rejeitar…" }));
+          await user.click(todas());
+          await user.click(within(faixa()).getByRole("button", { name: "Rejeitar…" }));
           await user.type(screen.getByLabelText("Motivo da rejeição (opcional)"), "Sem comprovante.");
-          await user.click(screen.getByRole("button", { name: "Rejeitar as 2 marcadas" }));
+          await user.click(screen.getByRole("button", { name: "Rejeitar as 2 justificativas selecionadas" }));
 
           expect(decidirLinhas).toHaveBeenCalledWith(BANCO, ["b:lc-2", "b:lc-3"], "rejeitar", "Sem comprovante.");
         });
 
-        it("mostra o motivo de o lote não ter gravado", async () => {
+        it("um 409 mostra o motivo de o lote não ter gravado e lê a tela de novo", async () => {
           doBackend(comDuas);
-          decidirLinhas.mockResolvedValue({ ok: false, status: 403, erro: "Só o admin ou o gestor do escritório podem fazer isso." });
+          decidirLinhas.mockResolvedValue({ ok: false, status: 409, erro: "O mês de setembro de 2026 está fechado." });
           const user = userEvent.setup();
           render(<ConciliacaoPage />);
 
-          await user.click(await screen.findByRole("button", { name: "Aguardando aprovação (2)" }));
-          await user.click(screen.getByRole("checkbox", { name: "Marcar Boleto Aço Norte Bobinas" }));
-          await user.click(screen.getByRole("button", { name: "Aprovar a marcada" }));
+          await user.click(await screen.findByRole("checkbox", { name: "Selecionar: 04/09 Boleto Aço Norte Bobinas" }));
+          carregarConciliacao.mockClear();
+          await user.click(within(faixa()).getByRole("button", { name: "Aprovar a justificativa selecionada" }));
 
-          expect(await screen.findByRole("alert")).toHaveTextContent("Só o admin ou o gestor do escritório podem fazer isso.");
+          expect(await screen.findByRole("alert")).toHaveTextContent("O mês de setembro de 2026 está fechado.");
+          await waitFor(() => expect(carregarConciliacao).toHaveBeenCalled());
         });
 
-        it("o analista filtra as aguardando, mas sem marcar", async () => {
+        it("o analista seleciona e soma as que aguardam, mas não aprova nem rejeita", async () => {
           podeFechar.valor = false;
           doBackend(comDuas);
           const user = userEvent.setup();
           render(<ConciliacaoPage />);
 
           await user.click(await screen.findByRole("button", { name: "Aguardando aprovação (2)" }));
+          await user.click(todas());
+          expect(faixa()).toHaveTextContent("2 linhas selecionadas");
+          expect(within(faixa()).queryByRole("button", { name: /^Aprovar/ })).not.toBeInTheDocument();
+          expect(within(faixa()).queryByRole("button", { name: "Rejeitar…" })).not.toBeInTheDocument();
+        });
 
-          expect(screen.getByRole("button", { name: "Boleto Aço Norte Bobinas" })).toBeInTheDocument();
-          expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+        it("na demo, sem backend, soma a que aguarda mas não aprova: o lote não tem mock", async () => {
+          buscarConciliacao.mockReturnValue({
+            ...conciliacaoMista,
+            linhas: [conciliacaoMista.linhas[0], { ...conciliacaoMista.linhas[1], decisao: pendente }],
+          });
+          const user = userEvent.setup();
+          render(<ConciliacaoPage />);
+
+          await user.click(await screen.findByRole("checkbox", { name: "Selecionar: 04/09 Boleto Aço Norte Bobinas" }));
+          expect(faixa()).toHaveTextContent("1 linha selecionada");
+          expect(within(faixa()).queryByRole("button", { name: /^Aprovar/ })).not.toBeInTheDocument();
         });
       });
     });
@@ -1699,7 +1772,7 @@ describe("ConciliacaoPage", () => {
         await user.click(within(janela).getByRole("button", { name: "Justificar" }));
 
         const linha = screen.getByRole("button", { name: "Boleto Aço Norte Bobinas" }).closest("tr")!;
-        expect(within(linha).getAllByRole("cell")[3]).toHaveTextContent("Justificada");
+        expect(within(linha).getAllByRole("cell")[4]).toHaveTextContent("Justificada");
         // a janela passa a mostrar a justificativa feita, e o caminho de volta
         expect(janela).toHaveTextContent("Justificada por Você em");
         expect(janela).toHaveTextContent("Juros de dois dias de atraso, lançados como despesa financeira.");
@@ -1941,7 +2014,7 @@ describe("ConciliacaoPage", () => {
         await user.click(within(painel()).getByRole("button", { name: "Justificar" }));
 
         expect(registrarDecisao).toHaveBeenCalledWith(BANCO, "b:lc-2", "justificada", "Juros de dois dias de atraso.");
-        expect(within(tr).getAllByRole("cell")[3]).toHaveTextContent("Aguardando");
+        expect(within(tr).getAllByRole("cell")[4]).toHaveTextContent("Aguardando");
         expect(painel()).toHaveTextContent("aguardando aprovação");
         // solto o campo, o ponteiro volta a trocar a linha
         await user.hover(screen.getByRole("button", { name: "Tarifa TED" }).closest("tr")!);
@@ -1958,7 +2031,7 @@ describe("ConciliacaoPage", () => {
         await user.hover(tr);
         await user.click(within(painel()).getByRole("button", { name: "Aprovar" }));
         expect(registrarDecisao).toHaveBeenCalledWith(BANCO, "b:lc-2", "justificativa_aprovada", undefined);
-        expect(within(tr).getAllByRole("cell")[3]).toHaveTextContent("Justificada");
+        expect(within(tr).getAllByRole("cell")[4]).toHaveTextContent("Justificada");
         expect(painel()).toHaveTextContent("Aprovada por Gil Gestor em");
       });
 
@@ -2081,5 +2154,246 @@ describe("ConciliacaoPage", () => {
     expect(screen.queryByText("Fornecedor B")).not.toBeInTheDocument();
     await user.click(resumo);
     expect(screen.getByText("Fornecedor A")).toBeInTheDocument();
+  });
+
+  describe("a seleção e a soma (#475, #473)", () => {
+    // do backend, com o campo das decisões: as mesmas quatro linhas, com a chave que o backend manda
+    const comChave: Conciliacao = {
+      ...conciliacaoDoRelatorio,
+      linhas: conciliacaoDoRelatorio.linhas.map((linha) => ({ ...linha, chave: `b:${linha.id}`, decisao: null })),
+    };
+
+    function doBackend(conciliacao: Conciliacao, extra: Record<string, unknown> = {}) {
+      rota.id = BANCO;
+      carregarConciliacao.mockResolvedValue({ ok: true, dados: { conciliacao, truncada: false, ...extra } });
+    }
+
+    const caixa = (nome: string) => screen.getByRole("checkbox", { name: `Selecionar: ${nome}` });
+    const faixa = () => screen.getByRole("region", { name: "Linhas selecionadas" });
+
+    afterEach(() => {
+      vi.unstubAllGlobals();
+      podeFechar.valor = true;
+    });
+
+    it("põe a caixa na primeira coluna, só nas linhas que pedem revisão", async () => {
+      buscarConciliacao.mockReturnValue(conciliacaoDoRelatorio);
+      render(<ConciliacaoPage />);
+
+      const divergente = (await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" })).closest("tr")!;
+      expect(within(divergente).getAllByRole("cell")[0]).toContainElement(caixa("04/09 Boleto Aço Norte Bobinas"));
+      expect(caixa("04/09 Boleto Aço Norte Bobinas")).not.toBeChecked();
+      const batida = screen.getByRole("button", { name: "Pagamento batido" }).closest("tr")!;
+      expect(within(batida).queryByRole("checkbox")).not.toBeInTheDocument();
+    });
+
+    it("soma as marcadas na faixa, anuncia cada marcação e limpa", async () => {
+      buscarConciliacao.mockReturnValue(conciliacaoDoRelatorio);
+      const user = userEvent.setup();
+      render(<ConciliacaoPage />);
+
+      await screen.findByRole("button", { name: "Tarifa TED" });
+      // o anúncio já está montado, vazio: a primeira marcação também é lida
+      const anuncio = screen.getByRole("status");
+      expect(anuncio).toBeEmptyDOMElement();
+      await user.click(caixa("05/09 Tarifa pacote de serviços"));
+      expect(anuncio).toHaveTextContent(/^1 linha selecionada\. Falta R\$\s89,90 para zerar\.$/);
+      await user.click(caixa("06/09 Tarifa TED"));
+
+      const soma = within(faixa()).getByRole("region", { name: "Soma das selecionadas" });
+      expect(soma).toHaveTextContent("2 linhas selecionadas");
+      expect(within(soma).getByText("Banco").nextElementSibling).toHaveTextContent(/^-R\$\s102,40$/);
+      expect(within(soma).getByText("Sistema").nextElementSibling).toHaveTextContent(/^R\$\s0,00$/);
+      expect(anuncio).toHaveTextContent(/^2 linhas selecionadas\. Falta R\$\s102,40 para zerar\.$/);
+
+      await user.click(within(faixa()).getByRole("button", { name: "Limpar seleção" }));
+      expect(screen.queryByRole("region", { name: "Linhas selecionadas" })).not.toBeInTheDocument();
+      expect(caixa("06/09 Tarifa TED")).not.toBeChecked();
+      expect(anuncio).toBeEmptyDOMElement();
+      // pelo mouse, o foco não vai para a caixa do topo: ela pode estar a telas dali, e a página pularia até ela
+      expect(screen.getByRole("checkbox", { name: "Selecionar todas as divergências à vista" })).not.toHaveFocus();
+    });
+
+    it("pelo teclado, Limpar seleção leva o foco para a caixa de selecionar todas, já desmarcada", async () => {
+      buscarConciliacao.mockReturnValue(conciliacaoDoRelatorio);
+      const user = userEvent.setup();
+      render(<ConciliacaoPage />);
+
+      await screen.findByRole("button", { name: "Tarifa TED" });
+      const todas = screen.getByRole<HTMLInputElement>("checkbox", { name: "Selecionar todas as divergências à vista" });
+      await user.click(todas);
+      // o leitor de tela lê a caixa no instante em que ela ganha o foco: tem de chegar já "não marcada"
+      let marcadaNoFoco: boolean | undefined;
+      todas.addEventListener("focus", () => (marcadaNoFoco = todas.checked));
+      within(faixa()).getByRole("button", { name: "Limpar seleção" }).focus();
+      await user.keyboard("{Enter}");
+
+      expect(screen.queryByRole("region", { name: "Linhas selecionadas" })).not.toBeInTheDocument();
+      expect(todas).toHaveFocus();
+      expect(marcadaNoFoco).toBe(false);
+    });
+
+    it("pelo teclado, num filtro sem linhas, Limpar seleção leva o foco para o filtro aberto", async () => {
+      doBackend(comChave);
+      const user = userEvent.setup();
+      render(<ConciliacaoPage />);
+
+      await screen.findByRole("button", { name: "Justificadas (0)" });
+      await user.click(caixa("06/09 Tarifa TED"));
+      await user.click(screen.getByRole("button", { name: "Justificadas (0)" }));
+      // sem linhas à vista, a caixa de selecionar todas desliga: o foco vai para o filtro, que fica
+      within(faixa()).getByRole("button", { name: "Limpar seleção" }).focus();
+      await user.keyboard("{Enter}");
+
+      expect(screen.queryByRole("region", { name: "Linhas selecionadas" })).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Justificadas (0)" })).toHaveFocus();
+    });
+
+    it("a altura medida da faixa vira a margem de rolagem da comparação, só enquanto ela existe", async () => {
+      // o jsdom não tem ResizeObserver nem layout: a medição avisa na hora, e a faixa mede 132px
+      vi.stubGlobal(
+        "ResizeObserver",
+        class {
+          avisar: () => void;
+          constructor(avisar: () => void) {
+            this.avisar = avisar;
+          }
+          observe() {
+            this.avisar();
+          }
+          disconnect() {}
+        },
+      );
+      const altura = vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockImplementation(function (this: HTMLElement) {
+        return this.classList.contains("lote-faixa") ? 132 : 0;
+      });
+      onTestFinished(() => altura.mockRestore());
+      buscarConciliacao.mockReturnValue(conciliacaoDoRelatorio);
+      const user = userEvent.setup();
+      render(<ConciliacaoPage />);
+
+      await screen.findByRole("button", { name: "Tarifa TED" });
+      // na comparação, que o CSS passa aos focáveis dela como scroll-margin-bottom (a página não muda)
+      const corpo = document.querySelector<HTMLElement>(".comparacao-corpo")!;
+      const reserva = () => corpo.style.getPropertyValue("--reserva-da-faixa");
+      expect(reserva()).toBe("");
+      await user.click(caixa("06/09 Tarifa TED"));
+      expect(faixa().parentElement).toBe(corpo);
+      // a altura e mais 12px de ar (a folga do sticky até o pé vem do CSS, que o jsdom não carrega)
+      expect(reserva()).toBe("144px");
+      expect(document.documentElement.style.getPropertyValue("scroll-padding-bottom")).toBe("");
+      await user.click(within(faixa()).getByRole("button", { name: "Limpar seleção" }));
+      expect(reserva()).toBe("");
+    });
+
+    it("a seleção sobrevive à troca de filtro, até para um filtro sem linhas", async () => {
+      doBackend(comChave);
+      const user = userEvent.setup();
+      render(<ConciliacaoPage />);
+
+      await user.click(await screen.findByRole("button", { name: "Só revisão (3)" }));
+      await user.click(caixa("04/09 Boleto Aço Norte Bobinas"));
+      await user.click(caixa("06/09 Tarifa TED"));
+      expect(faixa()).toHaveTextContent("2 linhas selecionadas");
+
+      await user.click(screen.getByRole("button", { name: "Todos (4)" }));
+      expect(faixa()).toHaveTextContent("2 linhas selecionadas");
+      expect(caixa("06/09 Tarifa TED")).toBeChecked();
+      await user.click(screen.getByRole("button", { name: "Justificadas (0)" }));
+      expect(faixa()).toHaveTextContent("2 linhas selecionadas");
+    });
+
+    it("o analista também seleciona e soma, com o mês fechado, sem gravar nada", async () => {
+      podeFechar.valor = false;
+      doBackend(comChave, {
+        fechamento: {
+          competencia: "2026-09",
+          estado: "fechado",
+          ressalva: null,
+          fechadoPor: "Maria Financeiro",
+          fechadoEm: "2026-10-06T15:20:00Z",
+          reabertoPor: null,
+          reabertoEm: null,
+        },
+      });
+      const user = userEvent.setup();
+      render(<ConciliacaoPage />);
+
+      await screen.findByRole("status", { name: "Mês fechado" });
+      expect(screen.getByRole("checkbox", { name: "Selecionar todas as divergências à vista" })).toBeInTheDocument();
+      await user.click(caixa("04/09 Boleto Aço Norte Bobinas"));
+      expect(within(faixa()).getByRole("region", { name: "Soma das selecionadas" })).toHaveTextContent("1 linha selecionada");
+      expect(registrarDecisao).not.toHaveBeenCalled();
+    });
+
+    it("no filtro Aguardando aprovação, o Visto continua no fim e a linha que aguarda se seleciona", async () => {
+      const pendente: Decisao = { ...decisao("justificada"), situacao: "pendente" };
+      doBackend({ ...comChave, linhas: comChave.linhas.map((linha) => (linha.id === "lc-2" ? { ...linha, decisao: pendente } : linha)) });
+      const user = userEvent.setup();
+      render(<ConciliacaoPage />);
+
+      await user.click(await screen.findByRole("button", { name: "Aguardando aprovação (1)" }));
+      expect(screen.getByRole("columnheader", { name: "Visto" })).toBeInTheDocument();
+      expect(caixa("04/09 Boleto Aço Norte Bobinas")).not.toBeChecked();
+    });
+
+    it("selecionar todas pega as do filtro e, de novo, tira só elas", async () => {
+      buscarConciliacao.mockReturnValue(conciliacaoDoRelatorio);
+      const user = userEvent.setup();
+      render(<ConciliacaoPage />);
+
+      await user.click(await screen.findByRole("checkbox", { name: "Selecionar: 04/09 Boleto Aço Norte Bobinas" }));
+      await user.click(screen.getByRole("button", { name: /Tarifa bancária/ }));
+      const todas = screen.getByRole("checkbox", { name: "Selecionar todas as divergências à vista" });
+      await user.click(todas);
+      expect(faixa()).toHaveTextContent("3 linhas selecionadas");
+      // a mesma caixa nos controles dos cartões, onde o cabeçalho some
+      expect(screen.getByRole("checkbox", { name: "Selecionar todas" })).toBeChecked();
+      await user.click(screen.getByRole("checkbox", { name: "Selecionar todas" }));
+      expect(todas).not.toBeChecked();
+      expect(faixa()).toHaveTextContent("1 linha selecionada");
+    });
+
+    it("com o painel, a soma vai para ele e a faixa só conta; marcar não fixa a linha", async () => {
+      vi.stubGlobal("matchMedia", () => ({ matches: true }));
+      doBackend(comChave);
+      const user = userEvent.setup();
+      render(<ConciliacaoPage />);
+
+      await user.click(await screen.findByRole("checkbox", { name: "Selecionar: 05/09 Tarifa pacote de serviços" }));
+      const painel = screen.getByRole("complementary", { name: "Detalhe da linha e saldo do extrato" });
+      expect(within(painel).getByRole("region", { name: "Soma das selecionadas" })).toHaveTextContent("1 linha selecionada");
+      expect(within(faixa()).queryByRole("region", { name: "Soma das selecionadas" })).not.toBeInTheDocument();
+      expect(within(faixa()).getByText("1 selecionada")).toBeInTheDocument();
+      expect(caixa("05/09 Tarifa pacote de serviços").closest("tr")).not.toHaveAttribute("data-fixo");
+    });
+
+    it("trocar de rodada começa sem nenhuma selecionada", async () => {
+      doBackend({ ...comChave, rodada: 2 });
+      const user = userEvent.setup();
+      const { rerender } = render(<ConciliacaoPage />);
+      await user.click(await screen.findByRole("checkbox", { name: "Selecionar: 04/09 Boleto Aço Norte Bobinas" }));
+      expect(faixa()).toBeInTheDocument();
+
+      // a rodada anterior: as linhas do banco têm a mesma chave, mas a seleção era da outra rodada
+      doBackend({ ...comChave, rodada: 1 });
+      rota.busca = `sistema=${SISTEMA}`;
+      rerender(<ConciliacaoPage />);
+
+      await waitFor(() => expect(screen.queryByRole("region", { name: "Linhas selecionadas" })).not.toBeInTheDocument());
+      expect(caixa("04/09 Boleto Aço Norte Bobinas")).not.toBeChecked();
+
+      // de volta à rodada 2 sem mexer em nada: a seleção de antes foi apagada, não só escondida
+      doBackend({ ...comChave, rodada: 2 });
+      rota.busca = "";
+      rerender(<ConciliacaoPage />);
+
+      await waitFor(() => expect(screen.getByRole("button", { name: /^Todos/ })).toBeInTheDocument());
+      await waitFor(() => expect(caixa("04/09 Boleto Aço Norte Bobinas")).toBeInTheDocument());
+      // a rodada 2 já voltou à tela (a mesma linha, sem a marca), e a faixa da seleção não aparece
+      await act(() => new Promise((pronto) => setTimeout(pronto, 50)));
+      expect(caixa("04/09 Boleto Aço Norte Bobinas")).not.toBeChecked();
+      expect(screen.queryByRole("region", { name: "Linhas selecionadas" })).not.toBeInTheDocument();
+    });
   });
 });

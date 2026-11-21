@@ -5,7 +5,7 @@ import { SEM_SERVIDOR } from "@/lib/sem-servidor";
 
 /**
  * Aprovar ou rejeitar várias justificativas de uma vez (backend #132, front #208): na mesa de
- * fechamento, as do mês; na comparação, as linhas marcadas. Rejeitar pede o motivo, opcional como
+ * fechamento, as do mês; na comparação, as selecionadas que aguardam. Rejeitar pede o motivo, opcional como
  * na janela da linha. `onDecidir` devolve o motivo de não ter gravado, ou null.
  */
 export function DecisaoEmLote({
@@ -14,7 +14,7 @@ export function DecisaoEmLote({
   onDecidir,
 }: {
   quantidade: number;
-  /** "justificativa"/"justificativas" na mesa; "marcada"/"marcadas" na comparação. */
+  /** "justificativa"/"justificativas" na mesa; "justificativa selecionada"/"justificativas selecionadas" na comparação. */
   objeto: { um: string; varios: string };
   onDecidir: (acao: "aprovar" | "rejeitar", motivo?: string) => Promise<string | null>;
 }) {
