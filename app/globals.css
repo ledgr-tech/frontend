@@ -5291,11 +5291,11 @@ html[data-tema="escuro"] .app-shell {
   order: 1; position: sticky; bottom: max(12px, env(safe-area-inset-bottom)); z-index: 6;
   box-shadow: var(--shadow-lg);
 }
-/* com ela no pé, o Tab que desce pelas linhas não deixa o foco escondido atrás dela (WCAG 2.4.11) */
-html:has(.comparacao-corpo > .lote-faixa) { scroll-padding-bottom: 220px; }
-@media (min-width: 1100px) {
-  /* com o painel (a mesma consulta de painel-ativo.ts), a soma vai nele e a faixa tem uma linha só */
-  html:has(.comparacao-corpo > .lote-faixa) { scroll-padding-bottom: 96px; }
+/* a altura dela, medida em prenderFaixa (muda com o lote), é a margem de rolagem dos focáveis da comparação: o Tab
+   que desce pelas linhas não deixa o foco atrás dela (WCAG 2.4.11). Os da própria faixa ficam de fora: com um
+   scroll-padding na página, eles contavam como escondidos, e o Tab que entra nela rolava a tabela meia tela */
+.comparacao-corpo > :not(.lote-faixa) :is(a, button, input, select, textarea, [tabindex]) {
+  scroll-margin-bottom: var(--reserva-da-faixa, 0px);
 }
 :is(.th-selecao, .celula-selecao, .selecionar-todas) input { width: 18px; height: 18px; margin: 0; accent-color: var(--color-accent); cursor: pointer; vertical-align: middle; }
 .th-selecao input:disabled { cursor: default; }

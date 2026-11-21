@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach, onTestFinished } from "vitest";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { Conciliacao, Decisao } from "@/lib/mock-data";
@@ -1629,12 +1629,12 @@ describe("ConciliacaoPage", () => {
 
           expect(decidirLinhas).toHaveBeenCalledWith(BANCO, ["b:lc-2", "b:lc-3"], "aprovar", undefined);
           await waitFor(() => expect(carregarConciliacao).toHaveBeenCalled());
-          // gravou: a seleção some, e o foco que estava em Aprovar vai para a caixa de selecionar todas
+          // gravou: a seleção some; pelo mouse, o foco não salta para a caixa do topo (o teclado vem abaixo)
           expect(screen.queryByRole("region", { name: "Linhas selecionadas" })).not.toBeInTheDocument();
-          expect(todas()).toHaveFocus();
+          expect(todas()).not.toHaveFocus();
         });
 
-        // o lote grava devagar: o que a pessoa fez com o foco nesse meio tempo decide para onde ele vai
+        // o lote grava devagar, pelo teclado: o que a pessoa fez com o foco nesse meio tempo decide para onde ele vai
         async function aprovarDevagar(enquantoGrava: () => void) {
           doBackend(comDuas);
           let responder: (resposta: unknown) => void = () => {};
@@ -1643,16 +1643,18 @@ describe("ConciliacaoPage", () => {
           render(<ConciliacaoPage />);
           await user.click(await screen.findByRole("button", { name: "Aguardando aprovação (2)" }));
           await user.click(todas());
-          await user.click(within(faixa()).getByRole("button", { name: "Aprovar as 2 justificativas selecionadas" }));
+          within(faixa()).getByRole("button", { name: "Aprovar as 2 justificativas selecionadas" }).focus();
+          await user.keyboard("{Enter}");
           enquantoGrava();
           await act(async () => responder({ ok: true, dados: { processadas: 2, ignoradas: 0 } }));
           await waitFor(() => expect(screen.queryByRole("region", { name: "Linhas selecionadas" })).not.toBeInTheDocument());
         }
 
-        it("o foco que caiu no body enquanto o lote gravava também vai para a caixa de selecionar todas", async () => {
-          // o botão desliga enquanto grava, e o Chrome tira o foco dele
+        it("pelo teclado, o foco que caiu no body enquanto o lote gravava vai para o filtro aberto", async () => {
+          // o botão desliga enquanto grava, e o Chrome tira o foco dele. O destino é o filtro, não a caixa de
+          // selecionar todas: a releitura pode esvaziar a lista e desligar a caixa, e o foco cairia no body de novo
           await aprovarDevagar(() => (document.activeElement as HTMLElement).blur());
-          expect(todas()).toHaveFocus();
+          expect(screen.getByRole("button", { name: "Aguardando aprovação (2)" })).toHaveFocus();
         });
 
         it("não tira o foco de quem foi para outro lugar enquanto o lote gravava", async () => {
@@ -2208,8 +2210,80 @@ describe("ConciliacaoPage", () => {
       expect(screen.queryByRole("region", { name: "Linhas selecionadas" })).not.toBeInTheDocument();
       expect(caixa("06/09 Tarifa TED")).not.toBeChecked();
       expect(anuncio).toBeEmptyDOMElement();
-      // a faixa sumiu com o botão: o foco vai para a caixa de selecionar todas, não para o body
-      expect(screen.getByRole("checkbox", { name: "Selecionar todas as divergências à vista" })).toHaveFocus();
+      // pelo mouse, o foco não vai para a caixa do topo: ela pode estar a telas dali, e a página pularia até ela
+      expect(screen.getByRole("checkbox", { name: "Selecionar todas as divergências à vista" })).not.toHaveFocus();
+    });
+
+    it("pelo teclado, Limpar seleção leva o foco para a caixa de selecionar todas, já desmarcada", async () => {
+      buscarConciliacao.mockReturnValue(conciliacaoDoRelatorio);
+      const user = userEvent.setup();
+      render(<ConciliacaoPage />);
+
+      await screen.findByRole("button", { name: "Tarifa TED" });
+      const todas = screen.getByRole<HTMLInputElement>("checkbox", { name: "Selecionar todas as divergências à vista" });
+      await user.click(todas);
+      // o leitor de tela lê a caixa no instante em que ela ganha o foco: tem de chegar já "não marcada"
+      let marcadaNoFoco: boolean | undefined;
+      todas.addEventListener("focus", () => (marcadaNoFoco = todas.checked));
+      within(faixa()).getByRole("button", { name: "Limpar seleção" }).focus();
+      await user.keyboard("{Enter}");
+
+      expect(screen.queryByRole("region", { name: "Linhas selecionadas" })).not.toBeInTheDocument();
+      expect(todas).toHaveFocus();
+      expect(marcadaNoFoco).toBe(false);
+    });
+
+    it("pelo teclado, num filtro sem linhas, Limpar seleção leva o foco para o filtro aberto", async () => {
+      doBackend(comChave);
+      const user = userEvent.setup();
+      render(<ConciliacaoPage />);
+
+      await screen.findByRole("button", { name: "Justificadas (0)" });
+      await user.click(caixa("06/09 Tarifa TED"));
+      await user.click(screen.getByRole("button", { name: "Justificadas (0)" }));
+      // sem linhas à vista, a caixa de selecionar todas desliga: o foco vai para o filtro, que fica
+      within(faixa()).getByRole("button", { name: "Limpar seleção" }).focus();
+      await user.keyboard("{Enter}");
+
+      expect(screen.queryByRole("region", { name: "Linhas selecionadas" })).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Justificadas (0)" })).toHaveFocus();
+    });
+
+    it("a altura medida da faixa vira a margem de rolagem da comparação, só enquanto ela existe", async () => {
+      // o jsdom não tem ResizeObserver nem layout: a medição avisa na hora, e a faixa mede 132px
+      vi.stubGlobal(
+        "ResizeObserver",
+        class {
+          avisar: () => void;
+          constructor(avisar: () => void) {
+            this.avisar = avisar;
+          }
+          observe() {
+            this.avisar();
+          }
+          disconnect() {}
+        },
+      );
+      const altura = vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockImplementation(function (this: HTMLElement) {
+        return this.classList.contains("lote-faixa") ? 132 : 0;
+      });
+      onTestFinished(() => altura.mockRestore());
+      buscarConciliacao.mockReturnValue(conciliacaoDoRelatorio);
+      const user = userEvent.setup();
+      render(<ConciliacaoPage />);
+
+      await screen.findByRole("button", { name: "Tarifa TED" });
+      // na comparação, que o CSS passa aos focáveis dela como scroll-margin-bottom (a página não muda)
+      const corpo = document.querySelector<HTMLElement>(".comparacao-corpo")!;
+      const reserva = () => corpo.style.getPropertyValue("--reserva-da-faixa");
+      expect(reserva()).toBe("");
+      await user.click(caixa("06/09 Tarifa TED"));
+      expect(faixa().parentElement).toBe(corpo);
+      // a altura e mais 12px de ar (a folga do sticky até o pé vem do CSS, que o jsdom não carrega)
+      expect(reserva()).toBe("144px");
+      expect(document.documentElement.style.getPropertyValue("scroll-padding-bottom")).toBe("");
+      await user.click(within(faixa()).getByRole("button", { name: "Limpar seleção" }));
+      expect(reserva()).toBe("");
     });
 
     it("a seleção sobrevive à troca de filtro, até para um filtro sem linhas", async () => {

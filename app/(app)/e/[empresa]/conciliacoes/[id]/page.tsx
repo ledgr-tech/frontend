@@ -1,6 +1,7 @@
 "use client";
 
-import { Fragment, useEffect, useId, useRef, useState, type CSSProperties, type FormEvent } from "react";
+import { Fragment, useCallback, useEffect, useId, useRef, useState, type CSSProperties, type FormEvent } from "react";
+import { flushSync } from "react-dom";
 import { useParams, useSearchParams } from "next/navigation";
 import { useRoteador } from "@/lib/roteador";
 import Link from "@/lib/link-do-app";
@@ -183,18 +184,52 @@ export default function ConciliacaoPage() {
   // as duas caixas de selecionar todas: a do cabeçalho (tabela) e a dos controles (cartões)
   const caixaDoCabecalho = useRef<HTMLInputElement>(null);
   const caixaDosCartoes = useRef<HTMLInputElement>(null);
-  const faixaDaSelecao = useRef<HTMLDivElement>(null);
+  const faixaDaSelecao = useRef<HTMLDivElement | null>(null);
+  // o grupo dos filtros: o aberto fica na tela mesmo quando a lista dele zera
+  const grupoDosFiltros = useRef<HTMLDivElement>(null);
+  /**
+   * A faixa presa no pé cobre o fim da tela: a altura dela vira a margem de rolagem (scroll-margin, no CSS) dos
+   * focáveis da comparação, para o Tab que desce pelas linhas não deixar o foco escondido atrás (WCAG 2.4.11).
+   * Medida, e não fixa no CSS: o lote quebra em linhas na coluna estreita, e a rejeição abre um campo. Não é um
+   * scroll-padding da página: com ele, os botões da própria faixa contavam como escondidos, e o Tab que entra
+   * nela rolava a tabela meia tela.
+   */
+  const prenderFaixa = useCallback((faixa: HTMLDivElement | null) => {
+    faixaDaSelecao.current = faixa;
+    const corpo = faixa?.parentElement;
+    if (!faixa || !corpo || typeof ResizeObserver === "undefined") return;
+    const observador = new ResizeObserver(() => {
+      // a folga da faixa até o pé (o bottom do sticky, maior que 12px com a barra do iPhone) e mais 12px de ar
+      const folga = parseFloat(getComputedStyle(faixa).bottom) || 0;
+      corpo.style.setProperty("--reserva-da-faixa", `${faixa.offsetHeight + folga + 12}px`);
+    });
+    observador.observe(faixa);
+    return () => {
+      observador.disconnect();
+      corpo.style.removeProperty("--reserva-da-faixa");
+      faixaDaSelecao.current = null;
+    };
+  }, []);
   // sair da linha só fecha o cartão depois de um instante: dá tempo de o ponteiro chegar nele
   const fechandoCartao = useRef<ReturnType<typeof setTimeout>>(undefined);
   // quando o ponteiro desceu pela última vez, em qualquer lugar da tela: o foco que chega logo depois vem de
   // um toque ou clique (na descrição, ou no Fechar da janela, que devolve o foco a ela), e não do teclado (#369)
   const ponteiroEm = useRef(-Infinity);
+  // e quando uma tecla desceu: o que veio por último diz se a seleção foi limpa pelo mouse ou pelo teclado
+  const tecladoEm = useRef(-Infinity);
   useEffect(() => {
-    const marcar = () => {
+    const doPonteiro = () => {
       ponteiroEm.current = performance.now();
     };
-    window.addEventListener("pointerdown", marcar, { capture: true, passive: true });
-    return () => window.removeEventListener("pointerdown", marcar, { capture: true });
+    const doTeclado = () => {
+      tecladoEm.current = performance.now();
+    };
+    window.addEventListener("pointerdown", doPonteiro, { capture: true, passive: true });
+    window.addEventListener("keydown", doTeclado, { capture: true, passive: true });
+    return () => {
+      window.removeEventListener("pointerdown", doPonteiro, { capture: true });
+      window.removeEventListener("keydown", doTeclado, { capture: true });
+    };
   }, []);
 
   useEffect(() => {
@@ -328,22 +363,26 @@ export default function ConciliacaoPage() {
   }
 
   /**
-   * Zerar a seleção some com a faixa, e o foco que estava nela (Limpar, Aprovar) cairia no body: vai para a
-   * caixa de selecionar todas que estiver à vista. focus() não pega em caixa escondida ou desligada.
+   * Zerar a seleção some com a faixa, e o foco que estava nela (Limpar, Aprovar) cairia no body. Do Limpar, ele
+   * vai para a caixa de selecionar todas à vista, ou para o filtro aberto quando não há caixa ligada (um filtro
+   * sem linhas). Do lote, direto para o filtro: a releitura pode esvaziar a lista e desligar a caixa.
    */
-  function focarSelecionarTodas() {
-    for (const caixa of [caixaDoCabecalho.current, caixaDosCartoes.current]) {
-      caixa?.focus();
-      if (caixa && document.activeElement === caixa) return;
-    }
-  }
-
-  function esvaziarSelecao() {
-    // só com o foco na faixa, ou já no body (o botão do lote desliga enquanto grava, e o Chrome tira o foco
-    // dele): quando a resposta chega, a pessoa pode ter ido para outro lugar, e ali o foco fica
+  function esvaziarSelecao(depoisDoLote = false) {
+    // o foco volta só para quem usa o teclado: com o mouse, o destino pode estar a telas dali, a página pularia
+    // até ele e o Espaço que rola a página marcaria todas. E só com o foco na faixa, ou já no body (o botão do
+    // lote desliga enquanto grava, e o Chrome tira o foco dele): quem foi para outro lugar fica lá
     const ativo = document.activeElement;
-    if (ativo === document.body || faixaDaSelecao.current?.contains(ativo)) focarSelecionarTodas();
-    mudarSelecao((chaves) => chaves.clear());
+    const devolver =
+      tecladoEm.current >= ponteiroEm.current && (ativo === document.body || faixaDaSelecao.current?.contains(ativo));
+    // desmarca antes de focar: o leitor de tela anuncia a caixa já "não marcada"
+    flushSync(() => mudarSelecao((chaves) => chaves.clear()));
+    if (!devolver) return;
+    const filtro = grupoDosFiltros.current?.querySelector<HTMLElement>('[aria-pressed="true"]');
+    // o primeiro que aceitar: focus() não pega em caixa escondida ou desligada
+    for (const alvo of depoisDoLote ? [filtro] : [caixaDoCabecalho.current, caixaDosCartoes.current, filtro]) {
+      alvo?.focus();
+      if (alvo && document.activeElement === alvo) return;
+    }
   }
 
   // marcada, tira as à vista; desmarcada, põe todas elas. As de fora do filtro ficam como estão
@@ -369,7 +408,7 @@ export default function ConciliacaoPage() {
   async function decidirSelecionadas(acao: "aprovar" | "rejeitar", motivo?: string): Promise<string | null> {
     const resposta = await decidirLinhas(conciliacao.id, aguardandoSelecionadas, acao, motivo);
     if (resposta.ok) {
-      esvaziarSelecao();
+      esvaziarSelecao(true);
       recarregar();
       return null;
     }
@@ -526,7 +565,7 @@ export default function ConciliacaoPage() {
         {/* uma faixa só de controles, colada na tabela: o filtro à esquerda, a densidade à direita */}
         <Reveal delay={0.08} className="tabela-ferramentas comparacao-bloco">
           <div className="tabela-filtros" data-tutorial="filtros">
-            <div className="pills segmentado" role="group" aria-label="Filtrar lançamentos">
+            <div ref={grupoDosFiltros} className="pills segmentado" role="group" aria-label="Filtrar lançamentos">
               <button
                 type="button"
                 className="pill"
@@ -633,7 +672,7 @@ export default function ConciliacaoPage() {
         {/* presa no pé da tela pelo CSS, depois da tabela (decisão de 21/11: acima dela, empurrava as linhas no
             primeiro clique), mas antes dela no DOM: o teclado chega nas ações antes de percorrer as linhas */}
         {chavesSelecionadas.length > 0 && (
-          <div ref={faixaDaSelecao} className="lote-faixa" role="region" aria-label="Linhas selecionadas">
+          <div ref={prenderFaixa} className="lote-faixa" role="region" aria-label="Linhas selecionadas">
             {/* com o painel, a soma vai nele; sem ele, aqui, e ela já diz quantas são */}
             {painel ? (
               <span className="tabela-progresso">
@@ -655,7 +694,7 @@ export default function ConciliacaoPage() {
                 onDecidir={decidirSelecionadas}
               />
             )}
-            <button type="button" className="btn btn-secondary" onClick={esvaziarSelecao}>
+            <button type="button" className="btn btn-secondary" onClick={() => esvaziarSelecao()}>
               Limpar seleção
             </button>
           </div>
