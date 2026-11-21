@@ -2687,7 +2687,8 @@ html[data-tema="escuro"] .app-shell {
 .folhas-com-eixo col.col-conferir { width: 4rem; }
 /* a seleção (#475), numa coluna dela antes da folha do banco e fora das folhas: só a caixa */
 .folhas-com-eixo col.col-selecao { width: 2.75rem; }
-.th-selecao, .celula-selecao { text-align: center; }
+/* com a tabela na frente: sozinho, o .table th { text-align: left } ganhava, e a caixa do topo saía do eixo */
+.folhas-com-eixo :is(.th-selecao, .celula-selecao) { text-align: center; }
 .dash-tabela-rolagem .folhas-com-eixo { min-width: 900px; }
 /* com a largura fixa, uma palavra mais longa que a coluna (um código de PIX) vazaria da folha */
 .folhas-com-eixo td { overflow-wrap: break-word; }
@@ -2808,8 +2809,10 @@ html[data-tema="escuro"] .app-shell {
 .comparacao-grade > .comparacao-corpo { min-width: 0; }
 .comparacao-grade[data-painel] .dash-tabela-rolagem { container: tabela-comparacao / inline-size; }
 @container tabela-comparacao (width < 900px) {
-  /* Seleção, data, valor, veredito e Visto têm espaço próprio; as descrições repartem o restante. */
-  .dash-tabela-rolagem .folhas-com-eixo { min-width: calc(22.5rem + 2 * var(--valor-largura, 8rem)); }
+  /* Seleção, data, valor, veredito e Visto têm espaço próprio; as descrições repartem o restante. A seleção
+     só conta onde existe: a landing e as gravações da Central não têm a coluna. */
+  .dash-tabela-rolagem .folhas-com-eixo { min-width: calc(20.25rem + 2 * var(--valor-largura, 8rem)); }
+  .dash-tabela-rolagem .folhas-com-eixo:has(col.col-selecao) { min-width: calc(22.5rem + 2 * var(--valor-largura, 8rem)); }
   .folhas-com-eixo col.col-selecao { width: 2.25rem; }
   .folhas-com-eixo col.col-data { width: 3.5rem; }
   .folhas-com-eixo col.col-valor { width: var(--valor-largura, 8rem); }
@@ -4635,7 +4638,6 @@ html:not([data-densidade="padrao"]) .app-shell .selo { padding-block: 1px; }
     display: flex; flex-wrap: wrap; align-items: end; gap: var(--space-2);
   }
   .comparacao-controles-cartoes .field { display: grid; gap: var(--space-1); }
-  .lote-faixa .comparacao-controles-cartoes { align-items: center; }
 
   .tabela-cartoes .table tr {
     border: 1px solid var(--color-divider); border-radius: var(--radius-md);
@@ -5283,6 +5285,18 @@ html[data-tema="escuro"] .app-shell {
   padding: 10px 14px; border: 1px solid var(--color-divider); border-radius: var(--radius-md);
   background: var(--color-surface);
 }
+/* Na comparação, antes da tabela no DOM (o teclado chega nela primeiro), mas presa no pé da tela, depois
+   dela (decisão de 21/11): acima, ela empurrava as linhas no primeiro clique e a soma ficava fora de vista. */
+.comparacao-corpo > .lote-faixa {
+  order: 1; position: sticky; bottom: max(12px, env(safe-area-inset-bottom)); z-index: 6;
+  box-shadow: var(--shadow-lg);
+}
+/* com ela no pé, o Tab que desce pelas linhas não deixa o foco escondido atrás dela (WCAG 2.4.11) */
+html:has(.comparacao-corpo > .lote-faixa) { scroll-padding-bottom: 220px; }
+@media (min-width: 1100px) {
+  /* com o painel (a mesma consulta de painel-ativo.ts), a soma vai nele e a faixa tem uma linha só */
+  html:has(.comparacao-corpo > .lote-faixa) { scroll-padding-bottom: 96px; }
+}
 :is(.th-selecao, .celula-selecao, .selecionar-todas) input { width: 18px; height: 18px; margin: 0; accent-color: var(--color-accent); cursor: pointer; vertical-align: middle; }
 .th-selecao input:disabled { cursor: default; }
 /* "Selecionar todas" nos controles dos cartões, onde o cabeçalho some: alvo de 44px para o dedo */
@@ -5300,8 +5314,10 @@ html[data-tema="escuro"] .app-shell {
   flex: none; flex-direction: column; align-items: stretch; gap: 8px;
   padding: 10px 4px 0; border-top: 1px solid var(--color-divider);
 }
-.comp-painel .soma-das-selecionadas dl { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+/* duas colunas, como os saldos; a diferença, que decide, na linha toda: em três, um boleto quebrava no meio */
+.comp-painel .soma-das-selecionadas dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .comp-painel .soma-das-selecionadas dl > div { flex-direction: column; gap: 2px; min-width: 0; }
+.comp-painel .soma-das-selecionadas dl > div:last-child { grid-column: 1 / -1; }
 .comp-painel .soma-das-selecionadas dd { white-space: normal; overflow-wrap: anywhere; }
 .comp-painel .soma-das-selecionadas .selo { align-self: flex-start; }
 .fech-campo { display: flex; flex-direction: column; gap: 6px; font-size: var(--texto-corpo); }

@@ -91,4 +91,10 @@ describe("anuncioDaSoma", () => {
   it("sem seleção, fica em silêncio", () => {
     expect(anuncioDaSoma({ quantidade: 0, banco: 0, sistema: 0, diferenca: 0 })).toBe("");
   });
+
+  it("conta com separador de milhar, como a faixa", () => {
+    expect(anuncioDaSoma({ quantidade: 1234, banco: 0, sistema: 0, diferenca: 0 })).toBe(
+      "1.234 linhas selecionadas. Fecha: a diferença zera.",
+    );
+  });
 });

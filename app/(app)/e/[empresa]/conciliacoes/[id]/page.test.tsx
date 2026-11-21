@@ -1613,7 +1613,7 @@ describe("ConciliacaoPage", () => {
         });
 
         const faixa = () => screen.getByRole("region", { name: "Linhas selecionadas" });
-        const todas = () => screen.getByRole("checkbox", { name: "Selecionar todas as linhas que pedem revisão à vista" });
+        const todas = () => screen.getByRole("checkbox", { name: "Selecionar todas as divergências à vista" });
 
         it("no filtro Aguardando aprovação, selecionar todas e aprovar manda as chaves do backend e lê a tela de novo", async () => {
           doBackend(comDuas);
@@ -1629,8 +1629,35 @@ describe("ConciliacaoPage", () => {
 
           expect(decidirLinhas).toHaveBeenCalledWith(BANCO, ["b:lc-2", "b:lc-3"], "aprovar", undefined);
           await waitFor(() => expect(carregarConciliacao).toHaveBeenCalled());
-          // gravou: a seleção some
+          // gravou: a seleção some, e o foco que estava em Aprovar vai para a caixa de selecionar todas
           expect(screen.queryByRole("region", { name: "Linhas selecionadas" })).not.toBeInTheDocument();
+          expect(todas()).toHaveFocus();
+        });
+
+        // o lote grava devagar: o que a pessoa fez com o foco nesse meio tempo decide para onde ele vai
+        async function aprovarDevagar(enquantoGrava: () => void) {
+          doBackend(comDuas);
+          let responder: (resposta: unknown) => void = () => {};
+          decidirLinhas.mockReturnValue(new Promise((pronto) => (responder = pronto)));
+          const user = userEvent.setup();
+          render(<ConciliacaoPage />);
+          await user.click(await screen.findByRole("button", { name: "Aguardando aprovação (2)" }));
+          await user.click(todas());
+          await user.click(within(faixa()).getByRole("button", { name: "Aprovar as 2 justificativas selecionadas" }));
+          enquantoGrava();
+          await act(async () => responder({ ok: true, dados: { processadas: 2, ignoradas: 0 } }));
+          await waitFor(() => expect(screen.queryByRole("region", { name: "Linhas selecionadas" })).not.toBeInTheDocument());
+        }
+
+        it("o foco que caiu no body enquanto o lote gravava também vai para a caixa de selecionar todas", async () => {
+          // o botão desliga enquanto grava, e o Chrome tira o foco dele
+          await aprovarDevagar(() => (document.activeElement as HTMLElement).blur());
+          expect(todas()).toHaveFocus();
+        });
+
+        it("não tira o foco de quem foi para outro lugar enquanto o lote gravava", async () => {
+          await aprovarDevagar(() => screen.getByRole("button", { name: /^Todos/ }).focus());
+          expect(screen.getByRole("button", { name: /^Todos/ })).toHaveFocus();
         });
 
         it("com três selecionadas e uma aguardando, diz quantas vão e aprova só aquela", async () => {
@@ -2181,6 +2208,8 @@ describe("ConciliacaoPage", () => {
       expect(screen.queryByRole("region", { name: "Linhas selecionadas" })).not.toBeInTheDocument();
       expect(caixa("06/09 Tarifa TED")).not.toBeChecked();
       expect(anuncio).toBeEmptyDOMElement();
+      // a faixa sumiu com o botão: o foco vai para a caixa de selecionar todas, não para o body
+      expect(screen.getByRole("checkbox", { name: "Selecionar todas as divergências à vista" })).toHaveFocus();
     });
 
     it("a seleção sobrevive à troca de filtro, até para um filtro sem linhas", async () => {
@@ -2217,7 +2246,7 @@ describe("ConciliacaoPage", () => {
       render(<ConciliacaoPage />);
 
       await screen.findByRole("status", { name: "Mês fechado" });
-      expect(screen.getByRole("checkbox", { name: "Selecionar todas as linhas que pedem revisão à vista" })).toBeInTheDocument();
+      expect(screen.getByRole("checkbox", { name: "Selecionar todas as divergências à vista" })).toBeInTheDocument();
       await user.click(caixa("04/09 Boleto Aço Norte Bobinas"));
       expect(within(faixa()).getByRole("region", { name: "Soma das selecionadas" })).toHaveTextContent("1 linha selecionada");
       expect(registrarDecisao).not.toHaveBeenCalled();
@@ -2241,7 +2270,7 @@ describe("ConciliacaoPage", () => {
 
       await user.click(await screen.findByRole("checkbox", { name: "Selecionar: 04/09 Boleto Aço Norte Bobinas" }));
       await user.click(screen.getByRole("button", { name: /Tarifa bancária/ }));
-      const todas = screen.getByRole("checkbox", { name: "Selecionar todas as linhas que pedem revisão à vista" });
+      const todas = screen.getByRole("checkbox", { name: "Selecionar todas as divergências à vista" });
       await user.click(todas);
       expect(faixa()).toHaveTextContent("3 linhas selecionadas");
       // a mesma caixa nos controles dos cartões, onde o cabeçalho some

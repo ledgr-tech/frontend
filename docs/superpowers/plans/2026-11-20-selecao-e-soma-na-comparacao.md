@@ -130,12 +130,12 @@
 
 **Comportamento:**
 - **Coluna nova:** a primeira, `col-selecao`, em todo papel e sempre, inclusive com o mês fechado e numa rodada antiga. Selecionar não grava nada.
-  - No `thead`, na linha das colunas, uma caixa "Selecionar todas as linhas que pedem revisão à vista", que pega as selecionáveis do filtro atual.
+  - No `thead`, na linha das colunas, uma caixa "Selecionar todas as divergências à vista", que pega as selecionáveis do filtro atual. (Decisão de 21/11: era "as linhas que pedem revisão", mas as justificadas, fora de "Só revisão", também entram.)
   - Na linha `folhas-titulos`, uma célula vazia.
   - Em cada linha selecionável, `<input type="checkbox" aria-label="Selecionar: <data> <descrição>">`.
   - Nas outras linhas, a célula fica vazia.
 - **Visto:** volta a ser sempre o círculo de conferir. Sai a troca de papel por filtro (`marcando`) e o checkbox da #208 na última coluna.
-- **Faixa da seleção:** aparece com 1 ou mais selecionadas, em qualquer filtro, e tem:
+- **Faixa da seleção:** aparece com 1 ou mais selecionadas, em qualquer filtro, presa no pé da tela depois da tabela e antes dela no DOM (decisão de 21/11, achado do revisor: acima da tabela, ela empurrava as linhas no primeiro clique), e tem:
   - o contador ("3 selecionadas"), sem `aria-live`: quem anuncia é o `role="status"` abaixo;
   - o botão "Limpar seleção";
   - sem o painel (<1100px), o `<SomaDasSelecionadas>` no lugar do contador, que ele já traz ("3 linhas selecionadas"), para o número não aparecer duas vezes;

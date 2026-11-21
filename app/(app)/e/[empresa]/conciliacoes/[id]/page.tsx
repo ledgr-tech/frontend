@@ -180,6 +180,10 @@ export default function ConciliacaoPage() {
   // as linhas selecionadas para somar (#475) e aprovar de uma vez (#208), com a rodada em que foram marcadas:
   // não grava nada, sobrevive ao filtro e começa vazia em outra rodada ou conciliação
   const [selecao, setSelecao] = useState<{ de: string; chaves: ReadonlySet<string> }>({ de: "", chaves: new Set() });
+  // as duas caixas de selecionar todas: a do cabeçalho (tabela) e a dos controles (cartões)
+  const caixaDoCabecalho = useRef<HTMLInputElement>(null);
+  const caixaDosCartoes = useRef<HTMLInputElement>(null);
+  const faixaDaSelecao = useRef<HTMLDivElement>(null);
   // sair da linha só fecha o cartão depois de um instante: dá tempo de o ponteiro chegar nele
   const fechandoCartao = useRef<ReturnType<typeof setTimeout>>(undefined);
   // quando o ponteiro desceu pela última vez, em qualquer lugar da tela: o foco que chega logo depois vem de
@@ -323,6 +327,25 @@ export default function ConciliacaoPage() {
     });
   }
 
+  /**
+   * Zerar a seleção some com a faixa, e o foco que estava nela (Limpar, Aprovar) cairia no body: vai para a
+   * caixa de selecionar todas que estiver à vista. focus() não pega em caixa escondida ou desligada.
+   */
+  function focarSelecionarTodas() {
+    for (const caixa of [caixaDoCabecalho.current, caixaDosCartoes.current]) {
+      caixa?.focus();
+      if (caixa && document.activeElement === caixa) return;
+    }
+  }
+
+  function esvaziarSelecao() {
+    // só com o foco na faixa, ou já no body (o botão do lote desliga enquanto grava, e o Chrome tira o foco
+    // dele): quando a resposta chega, a pessoa pode ter ido para outro lugar, e ali o foco fica
+    const ativo = document.activeElement;
+    if (ativo === document.body || faixaDaSelecao.current?.contains(ativo)) focarSelecionarTodas();
+    mudarSelecao((chaves) => chaves.clear());
+  }
+
   // marcada, tira as à vista; desmarcada, põe todas elas. As de fora do filtro ficam como estão
   function alternarTodasSelecao() {
     mudarSelecao((chaves) => {
@@ -346,7 +369,7 @@ export default function ConciliacaoPage() {
   async function decidirSelecionadas(acao: "aprovar" | "rejeitar", motivo?: string): Promise<string | null> {
     const resposta = await decidirLinhas(conciliacao.id, aguardandoSelecionadas, acao, motivo);
     if (resposta.ok) {
-      mudarSelecao((chaves) => chaves.clear());
+      esvaziarSelecao();
       recarregar();
       return null;
     }
@@ -595,7 +618,7 @@ export default function ConciliacaoPage() {
             {/* nos cartões o cabeçalho some, e com ele a caixa de selecionar todas */}
             {selecionaveisAVista.length > 0 && (
               <label className="selecionar-todas">
-                <input type="checkbox" checked={todasSelecionadas} onChange={alternarTodasSelecao} />
+                <input ref={caixaDosCartoes} type="checkbox" checked={todasSelecionadas} onChange={alternarTodasSelecao} />
                 Selecionar todas
               </label>
             )}
@@ -607,8 +630,10 @@ export default function ConciliacaoPage() {
           {anuncioDaSoma(soma)}
         </p>
 
+        {/* presa no pé da tela pelo CSS, depois da tabela (decisão de 21/11: acima dela, empurrava as linhas no
+            primeiro clique), mas antes dela no DOM: o teclado chega nas ações antes de percorrer as linhas */}
         {chavesSelecionadas.length > 0 && (
-          <div className="lote-faixa" role="region" aria-label="Linhas selecionadas">
+          <div ref={faixaDaSelecao} className="lote-faixa" role="region" aria-label="Linhas selecionadas">
             {/* com o painel, a soma vai nele; sem ele, aqui, e ela já diz quantas são */}
             {painel ? (
               <span className="tabela-progresso">
@@ -630,7 +655,7 @@ export default function ConciliacaoPage() {
                 onDecidir={decidirSelecionadas}
               />
             )}
-            <button type="button" className="btn btn-secondary" onClick={() => mudarSelecao((chaves) => chaves.clear())}>
+            <button type="button" className="btn btn-secondary" onClick={esvaziarSelecao}>
               Limpar seleção
             </button>
           </div>
@@ -688,8 +713,9 @@ export default function ConciliacaoPage() {
                 <tr role="row">
                   <th className="th-selecao">
                     <input
+                      ref={caixaDoCabecalho}
                       type="checkbox"
-                      aria-label="Selecionar todas as linhas que pedem revisão à vista"
+                      aria-label="Selecionar todas as divergências à vista"
                       checked={todasSelecionadas}
                       disabled={selecionaveisAVista.length === 0}
                       onChange={alternarTodasSelecao}

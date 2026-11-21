@@ -1,8 +1,10 @@
 import { formatarMoeda } from "@/lib/mock-data";
+import { formatarInteiro } from "../../dashboard/resumo";
 import type { SomaDasLinhas } from "./selecao";
 
 const reais = (centavos: number) => formatarMoeda(centavos / 100);
-const contagem = (quantidade: number) => (quantidade === 1 ? "1 linha selecionada" : `${quantidade} linhas selecionadas`);
+const contagem = (quantidade: number) =>
+  quantidade === 1 ? "1 linha selecionada" : `${formatarInteiro(quantidade)} linhas selecionadas`;
 // a falta vai sem sinal: o sinal fica só no valor da diferença
 const desfecho = (soma: SomaDasLinhas) =>
   soma.diferenca === 0 ? "Fecha: a diferença zera" : `Falta ${reais(Math.abs(soma.diferenca))} para zerar`;

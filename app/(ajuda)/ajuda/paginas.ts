@@ -349,14 +349,14 @@ export const PAGINAS: PaginaDeAjuda[] = [
       {
         id: "selecionar",
         titulo: "Selecionar linhas e somar",
-        faz: "Selecione linhas que pedem revisão para ver a soma do banco, a do sistema e a diferença entre elas. Serve, por exemplo, para ver se várias tarifas do banco fecham com um lançamento só do sistema.",
+        faz: "Selecione divergências para ver a soma do banco, a do sistema e a diferença entre elas. Serve, por exemplo, para ver se várias tarifas do banco fecham com um lançamento só do sistema.",
         passos: [
-          "Marque a caixa à esquerda de cada linha. A caixa do topo seleciona todas as que estão à vista.",
-          "Veja a soma no painel da direita. Em telas estreitas, ela aparece na faixa acima da tabela.",
+          "Marque a caixa de cada linha: à esquerda na tabela, no canto do cartão em telas estreitas. A caixa do topo, ou **Selecionar todas** nos cartões, seleciona todas as que estão à vista.",
+          "Veja a soma no painel da direita. Em telas estreitas, ela aparece na faixa presa ao pé da tela.",
           "Quando os dois lados batem, aparece **Fecha: a diferença zera**.",
-          "Clique em **Limpar seleção** para recomeçar.",
+          "Clique em **Limpar seleção**, na faixa, para recomeçar.",
         ],
-        nota: "Só as linhas que pedem revisão aceitam seleção. Ela continua ao trocar de filtro, some ao trocar de rodada e não grava nada.",
+        nota: "Só as divergências aceitam seleção, justificadas ou não; as que bateram ficam de fora. A seleção continua ao trocar de filtro, some ao trocar de rodada e não grava nada.",
       },
       {
         id: "conferir",
