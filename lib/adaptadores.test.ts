@@ -207,6 +207,19 @@ describe("adaptarLinha", () => {
     expect(semCampo.decisao && "podeDesfazerAprovacao" in semCampo.decisao).toBe(false);
   });
 
+  it("lê o lote da justificativa (backend #237), e não inventa os campos sem lote ou no backend antigo", () => {
+    const base = { tipo: "justificada" as const, texto: "Juros.", autor: "Bia", em: "2026-10-20T10:00:00Z", rodada: 1 };
+    const lote = "5b1c0b4e-7a7e-4c39-9a51-0c4f1d2e3a4b";
+    const comLote = adaptarLinha(item({ status: "divergente_valor", decisao: { ...base, lote_id: lote, lote_tamanho: 3 } }));
+    expect(comLote.decisao).toEqual({ ...base, loteId: lote, loteTamanho: 3 });
+
+    const semLote = adaptarLinha(item({ status: "divergente_valor", decisao: { ...base, lote_id: null, lote_tamanho: null } }));
+    expect(semLote.decisao).toEqual(base);
+
+    const antigo = adaptarLinha(item({ status: "divergente_valor", decisao: base }));
+    expect(antigo.decisao).toEqual(base);
+  });
+
   it("sem o campo, a linha não tem decisão (undefined, não null)", () => {
     const linha = adaptarLinha(item());
     expect(linha.decisao).toBeUndefined();
