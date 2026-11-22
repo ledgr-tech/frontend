@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import userEvent from "@testing-library/user-event";
 import { Revisao } from "./revisao";
 import type { Rascunho } from "../acoes";
+import { SEM_SERVIDOR } from "@/lib/sem-servidor";
 
 const acoes = vi.hoisted(() => ({
   acrescentar: vi.fn(),
@@ -114,6 +115,39 @@ describe("Revisao da importação via IA", () => {
 
     await waitFor(() => expect(acoes.recuperar).toHaveBeenCalledWith(INICIAL.id));
     expect(acoes.push).toHaveBeenCalledWith("/conciliacoes/nova?sistema=e1");
+  });
+
+  it.each([
+    { origem: "rede", recuperacao: "resposta", erro: SEM_SERVIDOR },
+    { origem: "409", recuperacao: "resposta", erro: "A importação já foi confirmada." },
+    { origem: "rede", recuperacao: "rede", erro: SEM_SERVIDOR },
+    { origem: "409", recuperacao: "rede", erro: "A importação já foi confirmada." },
+  ])("preserva o erro de $origem se a recuperação por $recuperacao não acha o extrato", async ({ origem, recuperacao, erro }) => {
+    if (origem === "rede") acoes.confirmar.mockRejectedValue(new Error("rede"));
+    else acoes.confirmar.mockResolvedValue({ ok: false, status: 409, erro });
+    if (recuperacao === "rede") acoes.recuperar.mockRejectedValue(new Error("rede na recuperação"));
+    else acoes.recuperar.mockResolvedValue({ ok: false, status: 409, erro: "Confirme a importação antes de conciliar." });
+    const user = userEvent.setup();
+    render(<Revisao inicial={INICIAL} />);
+
+    await user.click(confirmar());
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(erro);
+    expect(acoes.recuperar).toHaveBeenCalledExactlyOnceWith(INICIAL.id);
+    expect(acoes.push).not.toHaveBeenCalled();
+    expect(confirmar()).toBeEnabled();
+  });
+
+  it("sessão expirada na recuperação vai ao login", async () => {
+    acoes.confirmar.mockRejectedValue(new Error("rede"));
+    acoes.recuperar.mockResolvedValue({ ok: false, status: 401, erro: "Sua sessão expirou." });
+    const user = userEvent.setup();
+    render(<Revisao inicial={INICIAL} />);
+
+    await user.click(confirmar());
+
+    expect(acoes.push).toHaveBeenCalledExactlyOnceWith("/login");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
   it("impede confirmar uma linha nova não salva e libera ao cancelar", async () => {

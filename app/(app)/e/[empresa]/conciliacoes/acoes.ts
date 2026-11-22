@@ -395,6 +395,9 @@ async function lerFechamentoAtivo(periodoInicio: string | null): Promise<Fechame
   return maisRecente?.estado === "fechado" ? adaptarFechamento(maisRecente) : null;
 }
 
+// o reenvio só substitui a rodada vigente: a mesma frase no contexto e na hora do envio
+const RODADA_VENCIDA = "A comparação já tem uma rodada mais recente. Volte à comparação para continuar.";
+
 export async function verificarNovaVersao(
   banco: string,
   sistemaAnterior?: string,
@@ -413,7 +416,7 @@ export async function verificarNovaVersao(
     return { ok: true, dados: { arquivoBanco, jaConciliada: true } };
   }
   if (sistemaAnterior && sistemaAnterior !== vigente.extratoSistemaId) {
-    return { ok: false, status: 409, erro: "A comparação já tem uma rodada mais recente. Volte à comparação para continuar." };
+    return { ok: false, status: 409, erro: RODADA_VENCIDA };
   }
   try {
     if (await lerFechamentoAtivo(periodoInicio)) {
@@ -451,6 +454,9 @@ export async function carregarContextoDoReenvio(
   const anterior = rodadas.find((rodada) => rodada.extratoSistemaId === sistemaAnterior);
   const vigente = rodadas.at(-1);
   if (!anterior || !vigente) return naoAchou;
+  if (anterior.extratoSistemaId !== vigente.extratoSistemaId) {
+    return { ok: false, status: 409, erro: RODADA_VENCIDA };
+  }
   const { arquivoBanco, periodoInicio, executadaEm } = vigente.execucao;
   return {
     ok: true,
