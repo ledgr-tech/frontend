@@ -933,21 +933,54 @@ describe("ConciliacaoPage", () => {
     expect(screen.queryByRole("combobox", { name: "Ordenar lançamentos por" })).not.toBeInTheDocument();
   });
 
-  it("ends the comparison with the bank's final balance, whatever the filter shows (#239)", async () => {
+  it("shows the bank's initial balance in the bank column header", async () => {
     buscarConciliacao.mockReturnValue({
       ...conciliacaoMista,
-      linhas: conciliacaoMista.linhas.filter((linha) => linha.status === "match_exato"),
+      saldo: { inicial: 100, final: 7467.15, data: "2026-10-01" },
+    });
+    render(<ConciliacaoPage />);
+
+    const banco = await screen.findByRole("columnheader", { name: /Extrato do banco/ });
+    expect(within(banco).getByText("Saldo inicial")).toBeInTheDocument();
+    expect(banco).toHaveTextContent(/R\$\s*100,00/);
+  });
+
+  it("mostra o saldo final no pé da coluna do banco, mesmo com filtro vazio", async () => {
+    buscarConciliacao.mockReturnValue({
+      ...conciliacaoMista,
       saldo: { inicial: 100, final: 7467.15, data: "2026-10-01" },
     });
     const user = userEvent.setup();
     render(<ConciliacaoPage />);
 
-    const fim = (await screen.findByText(/^Saldo final em/)).closest("p")!;
-    // o Intl separa o "R$" do número com um espaço que não quebra
-    expect(fim.textContent?.replace(/ /g, " ")).toBe("Saldo final em 01/10/2026: R$ 7.467,15");
+    const tabela = await screen.findByRole("table");
+    const pe = tabela.querySelector<HTMLElement>("tfoot[role='rowgroup']")!;
+    expect(pe).toBeInTheDocument();
+    expect(within(pe).getByRole("cell", { name: /Saldo final em 01\/10\/2026/ })).toHaveClass("folha-banco");
+
+    await user.click(screen.getByRole("button", { name: "Justificadas (0)" }));
     // um filtro sem nenhuma linha não tira o saldo: ele é do extrato, não das linhas à vista
-    await user.click(screen.getByRole("button", { name: "Só revisão (0)" }));
-    expect(screen.getByText(/^Saldo final em/)).toBeInTheDocument();
+    // (o tbody fica vazio de verdade: o CSS tira o filete duplo do pé por tbody:empty)
+    expect(tabela.querySelector("tbody")).toBeEmptyDOMElement();
+    expect(within(tabela.querySelector("tfoot[role='rowgroup']")!).getByText(/Saldo final em/)).toBeInTheDocument();
+    expect(within(screen.getByRole("columnheader", { name: /Extrato do banco/ })).getByText("Saldo inicial")).toBeInTheDocument();
+  });
+
+  it("mostra saldo não informado no topo e no pé quando o arquivo não traz saldo", async () => {
+    buscarConciliacao.mockReturnValue({ ...conciliacaoMista, saldo: null });
+    render(<ConciliacaoPage />);
+
+    const tabela = await screen.findByRole("table");
+    expect(within(await screen.findByRole("columnheader", { name: /Extrato do banco/ })).getByText("Saldo não informado no arquivo")).toBeInTheDocument();
+    expect(within(tabela.querySelector("tfoot[role='rowgroup']")!).getByText("Saldo não informado no arquivo")).toBeInTheDocument();
+  });
+
+  it("não menciona saldo quando o backend ainda não envia o campo", async () => {
+    buscarConciliacao.mockReturnValue({ ...conciliacaoMista, saldo: undefined });
+    render(<ConciliacaoPage />);
+
+    await screen.findByRole("table");
+    expect(screen.queryByText(/Saldo inicial|Saldo final|Saldo não informado no arquivo/)).not.toBeInTheDocument();
   });
 
   describe("the report grouped by category", () => {
@@ -1147,6 +1180,24 @@ describe("ConciliacaoPage", () => {
       expect(screen.getByRole("button", { name: "Justificadas (0)" })).toBeInTheDocument();
       expect(screen.queryByRole("button", { name: /como conferida$/ })).not.toBeInTheDocument();
       expect(screen.queryByRole("button", { name: "Enviar nova versão do extrato do sistema" })).not.toBeInTheDocument();
+    });
+
+    // o pé do saldo (#474) segue a coluna Visto, que some no mês fechado: uma célula a mais ou a menos
+    // empurraria a folha do sistema para fora do lugar
+    it.each([
+      ["aberto", {}],
+      ["fechado", { fechamento: { competencia: "2026-09", estado: "fechado", ressalva: null, fechadoPor: "Maria Financeiro", fechadoEm: "2026-10-06T15:20:00Z", reabertoPor: null, reabertoEm: null } }],
+    ])("com o mês %s, o pé do saldo ocupa as mesmas colunas da tabela", async (_mes, extra) => {
+      doBackend({ ...comCampo, saldo: { inicial: 100, final: 7467.15, data: "2026-10-01" } }, extra);
+      render(<ConciliacaoPage />);
+
+      await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" });
+      const tabela = screen.getByRole("table");
+      const colunas = (tr: Element) =>
+        [...tr.children].reduce((total, celula) => total + ((celula as HTMLTableCellElement).colSpan || 1), 0);
+      const doCabecalho = colunas(tabela.querySelector("thead tr:last-child")!);
+      expect(colunas(tabela.querySelector("tfoot tr")!)).toBe(doCabecalho);
+      for (const tr of tabela.querySelectorAll("tbody tr")) expect(colunas(tr)).toBe(doCabecalho);
     });
 
     it("sem o fechamento, a comparação esconde conferir, justificar e nova versão e mostra o aviso", async () => {
@@ -1901,7 +1952,7 @@ describe("ConciliacaoPage", () => {
         linhas: comCampo.linhas.map((linha) => (linha.id === "lc-2" ? { ...linha, decisao: pendente } : linha)),
       };
       const comSaldo: Conciliacao = { ...comCampo, saldo: SALDO };
-      const painel = () => screen.getByRole("complementary", { name: "Detalhe da linha e saldo do extrato" });
+      const painel = () => screen.getByRole("complementary", { name: "Detalhe da linha" });
 
       beforeEach(() => {
         // tela larga, com mouse: onde o painel existe
@@ -1912,7 +1963,7 @@ describe("ConciliacaoPage", () => {
         podeFechar.valor = true;
       });
 
-      it.each([1099, 1100])("a %ipx, mostra o saldo em um só lugar", async (largura) => {
+      it.each([1099, 1100])("a %ipx, mostra o saldo nas colunas e não no painel", async (largura) => {
         vi.stubGlobal("matchMedia", (consulta: string) => ({
           matches: consulta === "(hover: hover)" || largura >= Number(consulta.match(/min-width: (\d+)/)?.[1]),
         }));
@@ -1920,12 +1971,14 @@ describe("ConciliacaoPage", () => {
         render(<ConciliacaoPage />);
         await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" });
         const faixa = screen.queryByRole("region", { name: "Saldo do extrato do banco" });
+        expect(within(screen.getByRole("columnheader", { name: /Extrato do banco/ })).getByText("Saldo inicial")).toBeInTheDocument();
+        expect(within(screen.getByRole("table").querySelector("tfoot")!).getByText(/Saldo final em/)).toBeInTheDocument();
         if (largura === 1100) {
-          expect(painel()).toHaveTextContent("Saldo final");
+          expect(painel()).not.toHaveTextContent("Saldo final");
           expect(painel()).toHaveAttribute("data-tutorial", "painel");
-          expect(faixa).not.toBeInTheDocument();
+          expect(faixa).toBeInTheDocument();
         } else {
-          expect(screen.queryByRole("complementary", { name: "Detalhe da linha e saldo do extrato" })).not.toBeInTheDocument();
+          expect(screen.queryByRole("complementary", { name: "Detalhe da linha" })).not.toBeInTheDocument();
           expect(faixa).toHaveTextContent("Saldo final");
         }
       });

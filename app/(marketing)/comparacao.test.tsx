@@ -54,7 +54,7 @@ function montar() {
   );
 }
 
-const painel = () => within(screen.getByRole("complementary", { name: "Detalhe da linha e saldo do extrato" }));
+const painel = () => within(screen.getByRole("complementary", { name: "Detalhe da linha" }));
 const linha = (desc: string) =>
   [...document.querySelectorAll<HTMLElement>("tbody tr")].find((tr) => tr.textContent?.includes(desc))!;
 const descricoes = () => [...document.querySelectorAll("tbody tr")].map((tr) => tr.querySelector("td:nth-child(2)")!.textContent);
@@ -80,8 +80,17 @@ describe("JanelaDaConciliacao", () => {
     ]);
     // ordenada pela data, como a comparação abre
     expect(descricoes()).toEqual(["Recebimento cliente Alfa Comércio", "Pagamento fornecedor #1082", "Tarifa de manutenção da conta", "Aluguel sede agosto"]);
-    // o saldo do arquivo, embaixo do painel
-    expect(painel().getByText("R$ 61.904,12")).toBeInTheDocument();
+    const banco = screen.getByRole("columnheader", { name: /Extrato do banco/ });
+    expect(within(banco).getByText("Saldo inicial")).toBeInTheDocument();
+    expect(within(banco).getByText("R$ 52.380,47")).toBeInTheDocument();
+    const pe = document.querySelector<HTMLElement>("tfoot[role='rowgroup']")!;
+    expect(within(pe).getByText(/Saldo final em 31\/08\/2026/)).toBeInTheDocument();
+    const celulaBanco = pe.querySelector<HTMLElement>(".folha-banco")!;
+    expect(within(celulaBanco).getByText("R$ 61.904,12")).toBeInTheDocument();
+    expect(painel().queryByText("R$ 61.904,12")).not.toBeInTheDocument();
+    // na landing a tabela não vira cartões no celular (rola para o lado, #471): o topo e o pé seguem à vista,
+    // então não há a faixa do saldo do app, que repetiria os dois valores
+    expect(screen.queryByRole("region", { name: "Saldo do extrato do banco" })).not.toBeInTheDocument();
   });
 
   it("marks the diverging field, the missing side and the other day as the app does", () => {

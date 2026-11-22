@@ -45,7 +45,7 @@ import { larguraDoValor } from "./largura";
 import { Reveal } from "@/app/reveal";
 import { MensagemErro } from "@/app/(auth)/_compartilhado/mensagem-erro";
 import { Cabecalho } from "../../cabecalho";
-import { FaixaDoSaldo, SaldoNoFim } from "../../saldo";
+import { FaixaDoSaldo, SaldoDaFolha } from "../../saldo";
 import { SeloIa } from "../../selo-ia";
 import { useNome, usePodeFechar } from "../../conta";
 import { aprovadaDepois, podeDesfazerAprovacao } from "@/lib/aprovacao";
@@ -482,9 +482,9 @@ export default function ConciliacaoPage() {
             )}
           </div>
         )}
-        {/* o saldo do extrato do banco (#118), o primeiro número que o contador procura: o mesmo em
-            todas as rodadas, junto do resumo do par */}
-        {!painel && <FaixaDoSaldo saldo={conciliacao.saldo} />}
+        {/* o saldo do extrato do banco (#118), o mesmo em todas as rodadas: esta faixa só aparece nos
+            cartões (até 680px), onde o thead e o tfoot somem; nas outras larguras ele fica na coluna do banco (#474) */}
+        <FaixaDoSaldo saldo={conciliacao.saldo} />
         {/* desligar uma categoria volta ao "Só revisão": as cinco são o que ele junta.
             As justificadas saem das categorias e são contadas à parte. */}
         <Reveal className="comparacao-bloco">
@@ -645,6 +645,7 @@ export default function ConciliacaoPage() {
                     <span className="folha-titulo-conteudo">
                       <IconeOrigem origem="banco" />
                       <span className="folha-nome">Extrato do banco</span>
+                      <SaldoDaFolha saldo={conciliacao.saldo} momento="inicial" />
                     </span>
                   </th>
                   <td className="folha-fora" aria-hidden="true" />
@@ -1004,6 +1005,18 @@ export default function ConciliacaoPage() {
                   );
                 })}
               </tbody>
+              {conciliacao.saldo !== undefined && (
+                <tfoot role="rowgroup">
+                  <tr role="row">
+                    <td role="cell" colSpan={3} className="folha-banco">
+                      <SaldoDaFolha saldo={conciliacao.saldo} momento="final" />
+                    </td>
+                    <td role="cell" className="folha-fora" aria-hidden="true" />
+                    <td role="cell" colSpan={3} className="folha-sistema" />
+                    {podeDecidir && <td role="cell" className="celula-conferir" />}
+                  </tr>
+                </tfoot>
+              )}
             </table>
           </div>
 
@@ -1023,8 +1036,6 @@ export default function ConciliacaoPage() {
             <p className="tabela-vazia">{textoDoVazio(filtro, justificadas.length)}</p>
           )}
 
-          {/* como no extrato do banco: o saldo inicial em cima, o final no fim */}
-          <SaldoNoFim saldo={conciliacao.saldo} />
         </Reveal>
 
         {/* Fechar o mês grava no mock. Com dado do backend não há endpoint que
@@ -1067,7 +1078,6 @@ export default function ConciliacaoPage() {
             fixada={fixada}
             rodada={rodadaDasLinhas}
             linhas={conciliacao.linhas}
-            saldo={conciliacao.saldo}
             real={real}
             podeDecidir={podeDecidir}
             podeAprovar={podeAprovar}
