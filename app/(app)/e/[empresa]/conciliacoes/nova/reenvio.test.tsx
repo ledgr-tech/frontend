@@ -124,6 +124,7 @@ describe("Nova conciliação em modo reenvio", () => {
     render(<NovaConciliacaoPage />);
 
     expect(await screen.findByText(/Não foi possível carregar a comparação de origem/)).toBeVisible();
+    expect(screen.getByText("A comparação já tem uma rodada mais recente. Volte à comparação para continuar.")).toBeVisible();
     expect(screen.getByRole("button", { name: "Tentar de novo" })).toBeVisible();
     expect(carregarContextoDoReenvio).toHaveBeenCalledExactlyOnceWith(BANCO, ANTERIOR);
     expect(screen.queryByLabelText(CAMPO)).not.toBeInTheDocument();
