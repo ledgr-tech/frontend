@@ -154,6 +154,29 @@ describe("DashboardPage", () => {
     // sem saber do mês, nem o cabeçalho nem a prévia dizem que ele está aberto
     expect(screen.queryByText(/Aberto/)).not.toBeInTheDocument();
     expect(screen.getAllByText(/Situação do mês indisponível/).length).toBeGreaterThan(0);
+    expect(screen.queryByRole("group", { name: "Filtrar conciliações" })).not.toBeInTheDocument();
+    expect(folhas()).toHaveLength(2);
+  });
+
+  it("sem os fechamentos após uma releitura, mostra todas mesmo com Mês fechado escolhido antes", async () => {
+    com({
+      fechamentos: [{
+        competencia: "2026-08", estado: "fechado", ressalva: null,
+        fechadoPor: "Maria Financeiro", fechadoEm: "2026-10-09T16:33:00Z", reabertoPor: null, reabertoEm: null,
+      }],
+    });
+    const user = userEvent.setup();
+    const tela = render(await DashboardPage());
+    await user.click(screen.getByRole("button", { name: "Mês fechado (1)" }));
+    expect(folhas()).toHaveLength(1);
+
+    com({ fechamentos: null });
+    tela.rerender(await DashboardPage());
+
+    expect(screen.queryByRole("group", { name: "Filtrar conciliações" })).not.toBeInTheDocument();
+    expect(folhas()).toHaveLength(2);
+    expect(screen.queryByText("Nenhum mês fechado ainda.")).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Ver o histórico" })).toBeInTheDocument();
   });
 
   it("opens the first in the queue in the preview, in place of the old continue strip", async () => {
