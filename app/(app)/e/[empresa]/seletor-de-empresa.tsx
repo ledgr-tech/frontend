@@ -53,9 +53,13 @@ export function combina(empresa: { razaoSocial: string; cnpj: string }, termo: s
   if (!procurado) return true;
   // o CNPJ pode ter letras (o alfanumérico), mas só um termo com dígito procura nele: "Ana" é nome
   const cnpjProcurado = caracteresCnpj(termo);
+  const digitos = termo.replace(/\D/g, "");
+  const cnpj = caracteresCnpj(empresa.cnpj);
   return (
     empresa.razaoSocial.toLowerCase().includes(procurado) ||
-    (/\d/.test(cnpjProcurado) && caracteresCnpj(empresa.cnpj).includes(cnpjProcurado))
+    (/\d/.test(cnpjProcurado) && cnpj.includes(cnpjProcurado)) ||
+    // "cnpj 12345", "Loja 12.345": o trecho numérico procura no CNPJ; "Empresa 4" e "AB12" seguem só nome
+    (digitos.length >= 5 && cnpj.includes(digitos))
   );
 }
 
@@ -66,13 +70,13 @@ export function combina(empresa: { razaoSocial: string; cnpj: string }, termo: s
  */
 export function useFavoritaOtimista() {
   const versoes = useRef(new Map<string, number>());
-  const confirmadas = useRef(new Map<string, boolean>());
+  const confirmadas = useRef(new Map<string, { versao: number; favorita: boolean }>());
   // a versão do último clique que já voltou com falha: depois dela, um ok mais antigo é o que ficou gravado
   const falhou = useRef(new Map<string, number>());
 
   /** Antes de mudar a estrela: `antes` é o que ela mostrava, confirmado se nada estava a caminho. */
   function comecar(id: string, antes: boolean): number {
-    if (!confirmadas.current.has(id)) confirmadas.current.set(id, antes);
+    if (!confirmadas.current.has(id)) confirmadas.current.set(id, { versao: 0, favorita: antes });
     const versao = (versoes.current.get(id) ?? 0) + 1;
     versoes.current.set(id, versao);
     return versao;
@@ -82,16 +86,37 @@ export function useFavoritaOtimista() {
   function terminar(id: string, versao: number, favorita: boolean, ok: boolean): boolean | null {
     const ultima = versoes.current.get(id);
     if (ok) {
-      confirmadas.current.set(id, favorita);
+      // a ordem é a dos cliques, não a da chegada: um ok antigo não apaga a confirmação mais nova
+      if (versao <= (confirmadas.current.get(id)?.versao ?? 0)) return null;
+      confirmadas.current.set(id, { versao, favorita });
       // um ok antigo que chega depois da falha do último clique: o backend ficou com este valor
       return versao !== ultima && falhou.current.get(id) === ultima ? favorita : null;
     }
     if (versao !== ultima) return null;
     falhou.current.set(id, versao);
-    return confirmadas.current.get(id) ?? !favorita;
+    return confirmadas.current.get(id)?.favorita ?? !favorita;
   }
 
-  return { comecar, terminar };
+  async function alternar(
+    empresa: { id: string; favorita?: boolean },
+    marcar: (favorita: boolean) => void,
+    avisar: (erro: string | null) => void,
+  ) {
+    const favorita = !empresa.favorita;
+    const versao = comecar(empresa.id, !favorita);
+    marcar(favorita);
+    avisar(null);
+    const resposta = await marcarFavorita(empresa.id, favorita).catch(
+      (): Awaited<ReturnType<typeof marcarFavorita>> => ({ ok: false, status: 0, erro: SEM_SERVIDOR }),
+    );
+    // um clique mais novo já decidiu a estrela: a resposta deste não desfaz nem avisa
+    const volta = terminar(empresa.id, versao, favorita, resposta.ok);
+    if (volta === null) return;
+    marcar(volta);
+    if (!resposta.ok) avisar(resposta.erro);
+  }
+
+  return { comecar, terminar, alternar };
 }
 
 /**
@@ -183,22 +208,12 @@ function JanelaDeEmpresas({ ativa, aoFechar }: { ativa: EmpresaDaConta; aoFechar
     roteador.push(destinoDaTroca(caminho, empresa.id));
   }
 
-  async function alternarFavorita(empresa: Linha) {
-    const favorita = !empresa.favorita;
-    const versao = favoritaOtimista.comecar(empresa.id, !favorita);
-    const marcar = (valor: boolean) =>
-      setCarregadas((atuais) => atuais && atuais.map((outra) => (outra.id === empresa.id ? { ...outra, favorita: valor } : outra)));
-    // muda na hora e desfaz se o backend recusar, para a estrela responder ao clique
-    marcar(favorita);
-    setErroDaFavorita(null);
-    const resposta = await marcarFavorita(empresa.id, favorita).catch(
-      (): Awaited<ReturnType<typeof marcarFavorita>> => ({ ok: false, status: 0, erro: SEM_SERVIDOR }),
+  function alternarFavorita(empresa: Linha) {
+    return favoritaOtimista.alternar(
+      empresa,
+      (valor) => setCarregadas((atuais) => atuais && atuais.map((outra) => (outra.id === empresa.id ? { ...outra, favorita: valor } : outra))),
+      setErroDaFavorita,
     );
-    // um clique mais novo já decidiu a estrela: a resposta deste não desfaz nem avisa
-    const volta = favoritaOtimista.terminar(empresa.id, versao, favorita, resposta.ok);
-    if (volta === null) return;
-    marcar(volta);
-    if (!resposta.ok) setErroDaFavorita(resposta.erro);
   }
 
   function ordenar(coluna: Coluna) {
