@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { startTransition, useEffect, useMemo, useRef, useState } from "react";
 import Link from "@/lib/link-do-app";
 import { useRoteador } from "@/lib/roteador";
-import { caminhoDaConciliacao } from "@/lib/caminhos";
 import { SeletorDeEmpresa } from "./seletor-de-empresa";
 import { MenuDeAjuda } from "./ajuda/menu-de-ajuda";
 import { diasRestantes, fraseCurtaDoTeste, fraseDoTeste } from "@/lib/assinatura";
@@ -11,25 +10,34 @@ import { useAssinatura } from "./conta";
 import { useEmpresaAtiva } from "@/lib/empresa-ativa";
 import { useTeclaDeAtalho } from "@/lib/plataforma";
 import { usePresenca } from "@/lib/troca-suave";
-import { formatarMoeda, type LinhaComparacao } from "@/lib/mock-data";
+import { formatarMoeda } from "@/lib/mock-data";
+import { SEM_SERVIDOR } from "@/lib/sem-servidor";
 import { avisosDoMes, idsLidos, marcarLidos } from "./avisos";
 import { carregarVisaoGeral, type VisaoGeral } from "./conciliacoes/acoes";
+import { buscarLancamentos, type AchadoDaBusca, type PaginaDaBusca } from "./busca/acoes";
+import { mesDaLista } from "./dashboard/lista";
+import { data as formatarData } from "./saldo";
 
-type Achado = {
-  href: string;
-  linha: LinhaComparacao;
+type LeituraDaBusca = {
+  termo: string;
+  empresaId: string | undefined;
+  itens: AchadoDaBusca[];
+  total: number;
+  proximoOffset: number;
+  lendoMais: boolean;
+  erro: string | null;
 };
 
-/** O que a busca varre em cada lançamento: descrição, data e os dois valores. */
-function combina(linha: LinhaComparacao, termo: string): boolean {
-  const campos = [
-    linha.descricao,
-    linha.data,
-    linha.valorBanco === null ? "" : formatarMoeda(linha.valorBanco),
-    linha.valorSistema === null ? "" : formatarMoeda(linha.valorSistema),
-  ];
-  return campos.some((campo) => campo.toLowerCase().includes(termo));
+function consultarBusca(termo: string, offset = 0) {
+  return buscarLancamentos(termo, offset).catch(() => ({ ok: false as const, status: 0, erro: SEM_SERVIDOR }));
 }
+
+function proximoOffset(pagina: PaginaDaBusca): number {
+  // a página conta também os itens malformados descartados pela action; não volta a buscá-los
+  return pagina.offset + pagina.limit;
+}
+
+const BUSCA_VAZIA = "Nada encontrado. Tente o valor sem centavos, a data (13/10) ou parte do nome do fornecedor.";
 
 type Leitura = { situacao: "lendo" } | { situacao: "falhou" } | { situacao: "pronta"; visao: VisaoGeral };
 
@@ -40,6 +48,9 @@ export function BarraSuperior({ contaInativa = false }: { contaInativa?: boolean
   const diasDeTeste =
     assinatura?.situacao === "teste" && assinatura.testeTerminaEm ? diasRestantes(assinatura.testeTerminaEm, new Date()) : null;
   const [termo, setTermo] = useState("");
+  const [busca, setBusca] = useState<LeituraDaBusca | null>(null);
+  const pedidoDaBusca = useRef(0);
+  const pedidoDeMais = useRef<number | null>(null);
   const [buscaAberta, setBuscaAberta] = useState(false);
   const [avisosAbertos, setAvisosAbertos] = useState(false);
   const presencaDosAvisos = usePresenca(avisosAbertos);
@@ -54,10 +65,10 @@ export function BarraSuperior({ contaInativa = false }: { contaInativa?: boolean
   const caixaAvisos = useRef<HTMLDivElement>(null);
   const botaoAvisos = useRef<HTMLButtonElement>(null);
 
-  // A busca e os avisos leem a conciliação mais recente, a mesma da visão geral.
+  // Os avisos leem a conciliação mais recente, a mesma da visão geral.
   // ponytail: uma leitura por carga da página — a barra vive no layout e não
   // remonta ao trocar de tela, então uma conciliação nova só aparece aqui ao
-  // recarregar. Buscar em todas pede uma rota de busca no backend.
+  // recarregar. A busca é independente, pelo GET /busca em todas as conciliações.
   useEffect(() => {
     let vivo = true;
     carregarVisaoGeral()
@@ -74,14 +85,30 @@ export function BarraSuperior({ contaInativa = false }: { contaInativa?: boolean
 
   const visao = leitura.situacao === "pronta" ? leitura.visao : null;
   const avisos = useMemo(() => (visao ? avisosDoMes(visao) : []), [visao]);
-  const lancamentos = useMemo<Achado[]>(() => {
-    const conciliacao = visao?.recente?.conciliacao;
-    if (!conciliacao) return [];
-    return conciliacao.linhas.map((linha) => ({
-      linha,
-      href: caminhoDaConciliacao(conciliacao.id, conciliacao.extratoSistemaId, linha.id),
-    }));
-  }, [visao]);
+  useEffect(() => {
+    const pedido = pedidoDaBusca.current + 1;
+    pedidoDaBusca.current = pedido;
+    if (!termo.trim()) return;
+    const timer = setTimeout(() => {
+      setAtivo(-1);
+      startTransition(async () => {
+        const resposta = await consultarBusca(termo.trim());
+        if (pedido !== pedidoDaBusca.current) return;
+        setBusca({
+          termo, empresaId, lendoMais: false,
+          itens: resposta.ok ? resposta.dados.itens : [],
+          total: resposta.ok ? resposta.dados.total : 0,
+          proximoOffset: resposta.ok ? proximoOffset(resposta.dados) : 0,
+          erro: resposta.ok ? null : resposta.erro,
+        });
+      });
+    }, 250);
+    return () => {
+      clearTimeout(timer);
+      // a Server Action não se cancela: uma resposta de outra empresa/termo não pode entrar
+      ++pedidoDaBusca.current;
+    };
+  }, [termo, empresaId]);
 
   // ⌘K / Ctrl+K põe o foco na busca, como o atalho que a caixa anuncia.
   useEffect(() => {
@@ -111,11 +138,29 @@ export function BarraSuperior({ contaInativa = false }: { contaInativa?: boolean
     return () => document.removeEventListener("mousedown", aoClicarFora);
   }, []);
 
-  const achados = useMemo(() => {
-    const limpo = termo.trim().toLowerCase();
-    if (limpo === "") return [];
-    return lancamentos.filter(({ linha }) => combina(linha, limpo)).slice(0, 8);
-  }, [termo, lancamentos]);
+  const atual = busca?.termo === termo && busca.empresaId === empresaId ? busca : null;
+  const achados = atual?.itens ?? [];
+
+  function verMais() {
+    if (!atual || atual.lendoMais || atual.proximoOffset >= atual.total || pedidoDeMais.current === pedidoDaBusca.current) return;
+    const pedido = ++pedidoDaBusca.current;
+    pedidoDeMais.current = pedido;
+    setBusca({ ...atual, lendoMais: true, erro: null });
+    startTransition(async () => {
+      const resposta = await consultarBusca(termo.trim(), atual.proximoOffset);
+      if (pedidoDeMais.current === pedido) pedidoDeMais.current = null;
+      if (pedido !== pedidoDaBusca.current) return;
+      setBusca(resposta.ok ? {
+        ...atual,
+        // uma inserção entre páginas pode repetir uma linha; ela não aparece duas vezes
+        itens: [...new Map([...atual.itens, ...resposta.dados.itens].map((item) => [item.id, item])).values()],
+        total: resposta.dados.total,
+        proximoOffset: proximoOffset(resposta.dados),
+        lendoMais: false,
+        erro: null,
+      } : { ...atual, lendoMais: false, erro: resposta.erro });
+    });
+  }
 
   const naoLidos = avisos.filter((aviso) => !lidos.includes(aviso.id)).length;
 
@@ -126,6 +171,9 @@ export function BarraSuperior({ contaInativa = false }: { contaInativa?: boolean
   }
 
   const painelAberto = buscaAberta && termo.trim() !== "";
+  const lendoBusca = painelAberto && atual === null;
+  const anuncioDaBusca = !painelAberto ? "" : lendoBusca ? "Buscando…" : atual?.lendoMais ? "Buscando mais…"
+    : atual?.erro ?? (achados.length > 0 ? `${achados.length} ${achados.length === 1 ? "resultado" : "resultados"}` : "Nada encontrado");
 
   function aoTeclarNaBusca(evento: React.KeyboardEvent<HTMLInputElement>) {
     if (!painelAberto || achados.length === 0) return;
@@ -135,7 +183,7 @@ export function BarraSuperior({ contaInativa = false }: { contaInativa?: boolean
     } else if (evento.key === "ArrowUp") {
       evento.preventDefault();
       setAtivo((i) => (i <= 0 ? achados.length - 1 : i - 1));
-    } else if (evento.key === "Enter" && ativo >= 0) {
+    } else if (evento.key === "Enter" && ativo >= 0 && achados[ativo]) {
       evento.preventDefault();
       const alvo = achados[ativo];
       setBuscaAberta(false);
@@ -160,13 +208,15 @@ export function BarraSuperior({ contaInativa = false }: { contaInativa?: boolean
             aria-controls="busca-resultados"
             aria-autocomplete="list"
             aria-activedescendant={
-              painelAberto && ativo >= 0 ? `busca-opcao-${ativo}` : undefined
+              painelAberto && ativo >= 0 && achados[ativo] ? `busca-opcao-${ativo}` : undefined
             }
             onKeyDown={aoTeclarNaBusca}
             placeholder="Buscar valor, fornecedor ou data…"
             value={termo}
             onChange={(evento) => {
+              ++pedidoDaBusca.current;
               setTermo(evento.target.value);
+              setBusca(null);
               setBuscaAberta(true);
               setAtivo(-1);
             }}
@@ -177,36 +227,40 @@ export function BarraSuperior({ contaInativa = false }: { contaInativa?: boolean
           </span>
         </div>
 
+        {/* já montado antes da primeira tecla: o leitor de tela ouve também o primeiro resultado */}
+        <p role="status" className="sr-only">{anuncioDaBusca}</p>
+
         {painelAberto && (
           <div className="app-painel app-busca-painel">
-            {achados.length === 0 ? (
-              <p className="app-busca-vazio" role="status">
-                {visao && !visao.recente
-                  ? "Ainda não há conciliação para buscar."
-                  : "Nada encontrado na conciliação mais recente. Tente o valor sem centavos ou parte do nome do fornecedor."}
-              </p>
-            ) : null}
-            <div id="busca-resultados" role="listbox" aria-label="Resultados da busca">
-              {achados.map(({ href, linha }, i) => (
+            {lendoBusca && <p className="app-busca-vazio">Buscando…</p>}
+            {atual?.erro && <p className="app-busca-vazio">{atual.erro}</p>}
+            {atual && !atual.erro && achados.length === 0 && <p className="app-busca-vazio">{BUSCA_VAZIA}</p>}
+            <div id="busca-resultados" role="listbox" aria-label="Resultados da busca" aria-busy={lendoBusca || atual?.lendoMais || undefined}>
+              {achados.map((achado, i) => (
                 <Link
-                  key={linha.id}
+                  key={achado.id}
                   id={`busca-opcao-${i}`}
                   role="option"
                   aria-selected={i === ativo}
                   data-ativo={i === ativo ? "true" : undefined}
-                  href={href}
+                  href={achado.href}
                   className="app-busca-achado"
                   onMouseEnter={() => setAtivo(i)}
                   onClick={() => setBuscaAberta(false)}
                 >
-                  <span className="app-busca-achado-titulo">{linha.descricao}</span>
+                  <span className="app-busca-achado-titulo">{achado.descricao}</span>
                   <span className="app-busca-achado-detalhe">
-                    {linha.data} ·{" "}
-                    {formatarMoeda(linha.valorBanco ?? linha.valorSistema ?? 0)}
+                    {formatarData(achado.data)} · {formatarMoeda(achado.valor)}
+                    {achado.competencia && <> · <span className="tag tag-outline">{mesDaLista(achado.competencia)}</span></>}
                   </span>
                 </Link>
               ))}
             </div>
+            {atual && atual.proximoOffset < atual.total && (
+              <button type="button" className="btn btn-ghost app-busca-mais" style={{ margin: "8px 16px" }} disabled={atual.lendoMais} onClick={verMais}>
+                {atual.lendoMais ? "Buscando mais…" : "Ver mais"}
+              </button>
+            )}
           </div>
         )}
       </div>

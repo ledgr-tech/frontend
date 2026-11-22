@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { Execucao } from "@/lib/adaptadores";
 import type { Resultado, VisaoGeral } from "./conciliacoes/acoes";
@@ -7,6 +7,8 @@ import { BarraSuperior } from "./barra-superior";
 import { ProvedorDaConta } from "./conta";
 import { ProvedorDaEmpresa } from "@/lib/empresa-ativa";
 import type { Assinatura } from "@/lib/assinatura";
+import type { AchadoDaBusca, PaginaDaBusca } from "./busca/acoes";
+import { SEM_SERVIDOR } from "@/lib/sem-servidor";
 
 const push = vi.fn();
 vi.mock("next/navigation", () => ({
@@ -14,11 +16,19 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/conciliacoes/nova",
 }));
 
-// a busca e os avisos leem a conciliação mais recente, como a visão geral
+// os avisos leem a conciliação mais recente; a busca tem sua própria action
 const carregarVisaoGeral = vi.fn<() => Promise<Resultado<VisaoGeral>>>();
 vi.mock("./conciliacoes/acoes", () => ({
   carregarVisaoGeral: () => carregarVisaoGeral(),
 }));
+const buscarLancamentos = vi.fn<(termo: string, offset?: number) => Promise<Resultado<PaginaDaBusca>>>();
+vi.mock("./busca/acoes", () => ({ buscarLancamentos: (termo: string, offset: number) => buscarLancamentos(termo, offset) }));
+
+const ACHADOS: AchadoDaBusca[] = [
+  { id: "lc-1", href: "/conciliacoes/b/lc-1?sistema=s", descricao: "Boleto Aço Norte Bobinas", data: "2026-09-04", valor: 12640, competencia: "2026-09" },
+  { id: "lc-2", href: "/conciliacoes/outro/lc-2?sistema=anterior", descricao: "Folha de pagamento agosto", data: "2026-08-05", valor: 48200, competencia: "2026-08" },
+];
+const paginaDaBusca = (itens = ACHADOS, total = itens.length, offset = 0) => ({ ok: true as const, dados: { itens, total, offset, limit: 10 } });
 
 const EXECUCAO = { id: "e7", executadaEm: "2026-09-26T13:28:00Z" } as Execucao;
 
@@ -59,7 +69,7 @@ const VISAO: VisaoGeral = {
   arquivosComLinhasNaoLidas: [],
 };
 
-/** Monta e espera a leitura: antes dela a busca não tem onde procurar. */
+/** Espera a leitura dos avisos; a busca não depende dela. */
 async function montar() {
   const tela = render(<BarraSuperior />);
   await screen.findByRole("button", { name: /Avisos \d/ });
@@ -70,6 +80,7 @@ describe("BarraSuperior", () => {
   beforeEach(() => {
     carregarVisaoGeral.mockReset();
     carregarVisaoGeral.mockResolvedValue({ ok: true, dados: VISAO });
+    buscarLancamentos.mockReset().mockResolvedValue(paginaDaBusca());
     push.mockReset();
     window.localStorage.clear();
   });
@@ -86,6 +97,7 @@ describe("BarraSuperior", () => {
 
 
   afterEach(() => {
+    vi.useRealTimers();
     delete (window.navigator as unknown as Record<string, unknown>).platform;
   });
 
@@ -117,45 +129,56 @@ describe("BarraSuperior", () => {
     expect(screen.queryByText("Boleto Aço Norte Bobinas")).not.toBeInTheDocument();
   });
 
-  it("finds a lançamento of the latest conciliation by description, and opens it in its pair", async () => {
+  it("busca a descrição pelo backend e abre a linha no par que veio dele", async () => {
+    buscarLancamentos.mockResolvedValue(paginaDaBusca([ACHADOS[0]]));
     const user = userEvent.setup();
     await montar();
 
     await user.type(screen.getByLabelText("Buscar lançamento"), "aço norte");
 
-    const achado = screen.getByRole("option", { name: /Boleto Aço Norte Bobinas/ });
+    const achado = await screen.findByRole("option", { name: /Boleto Aço Norte Bobinas/ });
     expect(achado).toHaveAttribute("href", "/conciliacoes/b/lc-1?sistema=s");
-    expect(screen.queryByText("Folha de pagamento setembro")).not.toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: /Folha de pagamento agosto/ })).not.toBeInTheDocument();
+    expect(buscarLancamentos).toHaveBeenCalledExactlyOnceWith("aço norte", 0);
   });
 
   it("finds a lançamento by its value", async () => {
+    buscarLancamentos.mockResolvedValue(paginaDaBusca([ACHADOS[1]]));
     const user = userEvent.setup();
     await montar();
 
     await user.type(screen.getByLabelText("Buscar lançamento"), "48.200");
 
-    expect(screen.getByRole("option", { name: /Folha de pagamento setembro/ })).toBeInTheDocument();
+    expect(await screen.findByRole("option", { name: /Folha de pagamento agosto/ })).toBeInTheDocument();
+    expect(buscarLancamentos).toHaveBeenCalledExactlyOnceWith("48.200", 0);
   });
 
   it("finds a lançamento by date", async () => {
+    buscarLancamentos.mockResolvedValue(paginaDaBusca([ACHADOS[0]]));
     const user = userEvent.setup();
     await montar();
 
     await user.type(screen.getByLabelText("Buscar lançamento"), "04/09");
 
-    expect(screen.getByRole("option", { name: /Boleto Aço Norte Bobinas/ })).toBeInTheDocument();
+    expect(await screen.findByRole("option", { name: /Boleto Aço Norte Bobinas/ })).toBeInTheDocument();
+    expect(buscarLancamentos).toHaveBeenCalledExactlyOnceWith("04/09", 0);
   });
 
-  it("explains an empty result, saying where it looked", async () => {
+  it("explica uma busca vazia e a anuncia na região já montada", async () => {
+    buscarLancamentos.mockResolvedValue(paginaDaBusca([]));
     const user = userEvent.setup();
     await montar();
+    const anuncio = screen.getByRole("status");
+    expect(anuncio).toBeEmptyDOMElement();
 
     await user.type(screen.getByLabelText("Buscar lançamento"), "xpto");
 
-    expect(screen.getByText(/Nada encontrado na conciliação mais recente/)).toBeInTheDocument();
+    expect(await screen.findByText("Nada encontrado. Tente o valor sem centavos, a data (13/10) ou parte do nome do fornecedor.")).toBeInTheDocument();
+    expect(screen.getByRole("status")).toBe(anuncio);
+    expect(anuncio).toHaveTextContent("Nada encontrado");
   });
 
-  it("says there is nothing to search before the first conciliation", async () => {
+  it("a busca funciona sem a conciliação recente dos avisos", async () => {
     carregarVisaoGeral.mockResolvedValue({
       ok: true,
       dados: { execucoes: [], total: 0, recente: null, arquivosComLinhasNaoLidas: [] },
@@ -165,7 +188,7 @@ describe("BarraSuperior", () => {
 
     await user.type(screen.getByLabelText("Buscar lançamento"), "aço");
 
-    expect(screen.getByText("Ainda não há conciliação para buscar.")).toBeInTheDocument();
+    expect(await screen.findByRole("option", { name: /Boleto Aço Norte/ })).toBeInTheDocument();
   });
 
   it("closes the search panel on Escape", async () => {
@@ -173,7 +196,7 @@ describe("BarraSuperior", () => {
     await montar();
 
     await user.type(screen.getByLabelText("Buscar lançamento"), "aço");
-    expect(screen.getByRole("option", { name: /Boleto Aço Norte/ })).toBeInTheDocument();
+    expect(await screen.findByRole("option", { name: /Boleto Aço Norte/ })).toBeInTheDocument();
 
     await user.keyboard("{Escape}");
     expect(screen.queryByRole("option", { name: /Boleto Aço Norte/ })).not.toBeInTheDocument();
@@ -232,7 +255,7 @@ describe("BarraSuperior", () => {
     const campo = screen.getByLabelText("Buscar lançamento");
 
     await user.type(campo, "o");
-    const opcoes = screen.getAllByRole("option");
+    const opcoes = await screen.findAllByRole("option");
     expect(opcoes).toHaveLength(2);
     expect(campo).not.toHaveAttribute("aria-activedescendant");
 
@@ -255,6 +278,7 @@ describe("BarraSuperior", () => {
     await montar();
 
     await user.type(screen.getByLabelText("Buscar lançamento"), "aço norte");
+    await screen.findByRole("option", { name: /Boleto Aço Norte/ });
     await user.keyboard("{ArrowDown}");
     await user.keyboard("{Enter}");
 
@@ -266,6 +290,7 @@ describe("BarraSuperior", () => {
     await montar();
 
     await user.type(screen.getByLabelText("Buscar lançamento"), "aço norte");
+    await screen.findByRole("option", { name: /Boleto Aço Norte/ });
     await user.keyboard("{Enter}");
 
     expect(push).not.toHaveBeenCalled();
@@ -277,11 +302,181 @@ describe("BarraSuperior", () => {
     const campo = screen.getByLabelText("Buscar lançamento");
 
     await user.type(campo, "o");
+    await screen.findAllByRole("option");
     await user.keyboard("{ArrowDown}");
     expect(campo).toHaveAttribute("aria-activedescendant", "busca-opcao-0");
 
     await user.type(campo, "l");
     expect(campo).not.toHaveAttribute("aria-activedescendant");
+  });
+
+  describe("busca em todas as conciliações", () => {
+    it("repetir o termo depois de limpar espera uma nova leitura, sem reapresentar os resultados antigos", async () => {
+      let nova!: (resposta: Resultado<PaginaDaBusca>) => void;
+      buscarLancamentos.mockResolvedValueOnce(paginaDaBusca([ACHADOS[0]]))
+        .mockReturnValueOnce(new Promise((resolve) => { nova = resolve; }));
+      const user = userEvent.setup();
+      await montar();
+      const campo = screen.getByRole("combobox");
+      await user.type(campo, "fornecedor");
+      await screen.findByRole("option", { name: /Boleto Aço Norte/ });
+
+      await user.clear(campo);
+      await user.type(campo, "fornecedor");
+      await waitFor(() => expect(buscarLancamentos).toHaveBeenCalledTimes(2));
+      expect(screen.queryByRole("option")).not.toBeInTheDocument();
+      expect(screen.getByRole("status")).toHaveTextContent("Buscando…");
+
+      await act(async () => nova(paginaDaBusca([ACHADOS[1]])));
+      expect(screen.getByRole("option", { name: /Folha de pagamento agosto/ })).toBeInTheDocument();
+    });
+
+    it("espera 250 ms desde a última tecla e não chama a action com espaços", async () => {
+      vi.useFakeTimers();
+      render(<BarraSuperior />);
+      const campo = screen.getByRole("combobox", { name: "Buscar lançamento" });
+      fireEvent.change(campo, { target: { value: "aço" } });
+      await act(async () => vi.advanceTimersByTimeAsync(249));
+      expect(buscarLancamentos).not.toHaveBeenCalled();
+
+      fireEvent.change(campo, { target: { value: " Aço Norte " } });
+      await act(async () => vi.advanceTimersByTimeAsync(249));
+      expect(buscarLancamentos).not.toHaveBeenCalled();
+      await act(async () => vi.advanceTimersByTimeAsync(1));
+      expect(buscarLancamentos).toHaveBeenCalledExactlyOnceWith("Aço Norte", 0);
+      expect(screen.getAllByRole("option")).toHaveLength(2);
+
+      fireEvent.change(campo, { target: { value: "   " } });
+      await act(async () => vi.advanceTimersByTimeAsync(250));
+      expect(buscarLancamentos).toHaveBeenCalledTimes(1);
+      expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+      expect(screen.getByRole("status")).toBeEmptyDOMElement();
+    });
+
+    it("uma resposta antiga não substitui a busca nova", async () => {
+      let antiga!: (resposta: Resultado<PaginaDaBusca>) => void;
+      buscarLancamentos
+        .mockReturnValueOnce(new Promise((resolve) => { antiga = resolve; }))
+        .mockResolvedValueOnce(paginaDaBusca([ACHADOS[1]]));
+      const user = userEvent.setup();
+      await montar();
+      const campo = screen.getByRole("combobox");
+      await user.type(campo, "antigo");
+      await waitFor(() => expect(buscarLancamentos).toHaveBeenCalledTimes(1));
+      await user.clear(campo);
+      await user.type(campo, "novo");
+      expect(await screen.findByRole("option", { name: /Folha de pagamento agosto/ })).toBeInTheDocument();
+
+      await act(async () => antiga(paginaDaBusca([ACHADOS[0]])));
+      expect(screen.getAllByRole("option")).toHaveLength(1);
+      expect(screen.getByRole("option", { name: /Folha de pagamento agosto/ })).toBeInTheDocument();
+      expect(screen.queryByRole("option", { name: /Boleto Aço Norte/ })).not.toBeInTheDocument();
+      expect(screen.getByRole("status")).toHaveTextContent("1 resultado");
+    });
+
+    it("trocar de empresa refaz a busca e descarta a resposta da empresa anterior", async () => {
+      const A = { id: "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20", razaoSocial: "Alfa", cnpj: "11222333000181" };
+      const B = { ...A, id: "7a2b9c4d-1e3f-4a5b-8c6d-9e0f1a2b3c4d", razaoSocial: "Beta" };
+      let antiga!: (resposta: Resultado<PaginaDaBusca>) => void;
+      buscarLancamentos
+        .mockReturnValueOnce(new Promise((resolve) => { antiga = resolve; }))
+        .mockResolvedValueOnce(paginaDaBusca([ACHADOS[1]]));
+      const user = userEvent.setup();
+      const tela = render(<ProvedorDaEmpresa ativa={A} empresas={[A, B]}><BarraSuperior /></ProvedorDaEmpresa>);
+      await user.type(screen.getByRole("combobox"), "fornecedor");
+      await waitFor(() => expect(buscarLancamentos).toHaveBeenCalledTimes(1));
+      tela.rerender(<ProvedorDaEmpresa ativa={B} empresas={[A, B]}><BarraSuperior /></ProvedorDaEmpresa>);
+      expect(await screen.findByRole("option", { name: /Folha de pagamento agosto/ })).toHaveAttribute("href", `/e/${B.id}${ACHADOS[1].href}`);
+
+      await act(async () => antiga(paginaDaBusca([ACHADOS[0]])));
+      expect(screen.queryByRole("option", { name: /Boleto Aço Norte/ })).not.toBeInTheDocument();
+      expect(screen.getByRole("option", { name: /Folha de pagamento agosto/ })).toBeInTheDocument();
+    });
+
+    it("mostra data, moeda e mês; sem competência, não inventa mês", async () => {
+      buscarLancamentos.mockResolvedValue(paginaDaBusca([ACHADOS[0], { ...ACHADOS[1], competencia: null }]));
+      const user = userEvent.setup();
+      await montar();
+      await user.type(screen.getByRole("combobox"), "fornecedor");
+      const banco = await screen.findByRole("option", { name: /Boleto Aço Norte/ });
+      expect(banco).toHaveTextContent(/04\/09\/2026 · R\$\s12\.640,00/);
+      expect(within(banco).getByText("set/2026")).toHaveClass("tag");
+      const outro = screen.getByRole("option", { name: /Folha de pagamento agosto/ });
+      expect(outro).toHaveTextContent("05/08/2026");
+      expect(outro.querySelector(".tag")).toBeNull();
+    });
+
+    it("Ver mais fica fora do listbox, acrescenta a página e anuncia a nova contagem", async () => {
+      const primeira = Array.from({ length: 10 }, (_, i) => ({ ...ACHADOS[0], id: `linha-${i}`, descricao: `Lançamento ${i}`, href: `/conciliacoes/b/linha-${i}?sistema=s` }));
+      buscarLancamentos.mockResolvedValueOnce(paginaDaBusca(primeira, 12))
+        .mockResolvedValueOnce(paginaDaBusca(ACHADOS, 12, 10));
+      const user = userEvent.setup();
+      await montar();
+      await user.type(screen.getByRole("combobox"), "fornecedor");
+      const mais = await screen.findByRole("button", { name: "Ver mais" });
+      expect(screen.getAllByRole("option")).toHaveLength(10);
+      expect(screen.getByRole("listbox")).not.toContainElement(mais);
+      await user.click(mais);
+
+      expect(await screen.findByRole("option", { name: /Boleto Aço Norte/ })).toBeInTheDocument();
+      expect(screen.getAllByRole("option")).toHaveLength(12);
+      expect(buscarLancamentos).toHaveBeenLastCalledWith("fornecedor", 10);
+      expect(screen.queryByRole("button", { name: "Ver mais" })).not.toBeInTheDocument();
+      expect(screen.getByRole("status")).toHaveTextContent("12 resultados");
+    });
+
+    it("Ver mais avança a página mesmo se a action descartou itens malformados", async () => {
+      buscarLancamentos.mockResolvedValueOnce(paginaDaBusca([ACHADOS[0]], 11))
+        .mockResolvedValueOnce(paginaDaBusca([ACHADOS[1]], 11, 10));
+      const user = userEvent.setup();
+      await montar();
+      await user.type(screen.getByRole("combobox"), "fornecedor");
+      await user.click(await screen.findByRole("button", { name: "Ver mais" }));
+
+      expect(await screen.findByRole("option", { name: /Folha de pagamento agosto/ })).toBeInTheDocument();
+      expect(buscarLancamentos).toHaveBeenLastCalledWith("fornecedor", 10);
+      expect(screen.getAllByRole("option")).toHaveLength(2);
+      expect(screen.queryByRole("button", { name: "Ver mais" })).not.toBeInTheDocument();
+    });
+
+    it("uma falha no Ver mais conserva os resultados e permite tentar a mesma página", async () => {
+      buscarLancamentos.mockResolvedValueOnce(paginaDaBusca([ACHADOS[0]], 11))
+        .mockResolvedValueOnce({ ok: false, status: 429, erro: "Muitas buscas seguidas. Espere um pouco." })
+        .mockResolvedValueOnce(paginaDaBusca([ACHADOS[1]], 11, 10));
+      const user = userEvent.setup();
+      await montar();
+      await user.type(screen.getByRole("combobox"), "fornecedor");
+      await user.click(await screen.findByRole("button", { name: "Ver mais" }));
+      await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("Muitas buscas seguidas. Espere um pouco."));
+      expect(screen.getByRole("option", { name: /Boleto Aço Norte/ })).toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: "Ver mais" }));
+
+      expect(await screen.findByRole("option", { name: /Folha de pagamento agosto/ })).toBeInTheDocument();
+      expect(buscarLancamentos.mock.calls.map(([, offset]) => offset)).toEqual([0, 10, 10]);
+    });
+
+    it("rejeição da Server Action anuncia SEM_SERVIDOR sem virar resultado vazio", async () => {
+      buscarLancamentos.mockRejectedValue(new Error("rede"));
+      const user = userEvent.setup();
+      await montar();
+      const anuncio = screen.getByRole("status");
+      await user.type(screen.getByRole("combobox"), "fornecedor");
+
+      await waitFor(() => expect(anuncio).toHaveTextContent(SEM_SERVIDOR));
+      expect(screen.queryByRole("option")).not.toBeInTheDocument();
+      expect(screen.queryByText("Nada encontrado")).not.toBeInTheDocument();
+    });
+
+    it("o clique fora fecha a busca e esvazia o anúncio", async () => {
+      const user = userEvent.setup();
+      await montar();
+      await user.type(screen.getByRole("combobox"), "fornecedor");
+      await screen.findAllByRole("option");
+      await user.click(document.body);
+
+      expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+      expect(screen.getByRole("status")).toBeEmptyDOMElement();
+    });
   });
 
   it("counts real notices, and leads each one to where it can be solved", async () => {
