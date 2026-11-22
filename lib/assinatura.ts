@@ -15,7 +15,7 @@ export type Assinatura = {
   plano: PlanoId | null;
   /** O último dia do teste em São Paulo (`AAAA-MM-DD`), para contar os dias. */
   testeTerminaEm: string | null;
-  /** O instante em que o teste acaba, para a regra das 48 h 1 min da Stripe. */
+  /** O instante em que o teste acaba: 48 h da Stripe mais 1 min de margem do backend. */
   fimDoTeste: string | null;
   cobranca: Cobranca | null;
 };
@@ -82,14 +82,14 @@ export function bloqueiaConciliacao(situacao: SituacaoDaConta): boolean {
   return situacao === "teste_encerrado" || situacao === "assinatura_encerrada";
 }
 
-// A Stripe só aceita o fim do teste no checkout com antecedência mínima de 48 h 1 min: é a
-// ANTECEDENCIA_MINIMA_DO_TRIAL de api/assinatura.py no backend (#180). A tela soma 5 min de folga, porque
+// A Stripe exige 48 h de antecedência para o fim do teste no checkout; o backend soma 1 min de margem
+// em ANTECEDENCIA_MINIMA_DO_TRIAL de api/assinatura.py (#180). A tela soma 5 min de folga, porque
 // decide pelo relógio do navegador e o backend pelo do servidor: avisar a mais não custa nada, cobrar na
 // hora sem o aviso custa.
 const ANTECEDENCIA_DO_TESTE_MS = (48 * 60 + 1) * 60 * 1000;
 const FOLGA_DO_RELOGIO_MS = 5 * 60 * 1000;
 
-/** Assinar agora cobra na hora: fora do teste, ou com menos de 48 h 1 min dele, mais a folga (o resto do teste se perde). */
+/** Assinar agora cobra na hora: fora do teste, ou abaixo das 48 h da Stripe mais 1 min de margem do backend e a folga (o resto do teste se perde). */
 export function cobrancaImediata(assinatura: Assinatura, agora: Date): boolean {
   if (assinatura.situacao !== "teste" || assinatura.fimDoTeste === null) return true;
   return new Date(assinatura.fimDoTeste).getTime() - agora.getTime() < ANTECEDENCIA_DO_TESTE_MS + FOLGA_DO_RELOGIO_MS;
