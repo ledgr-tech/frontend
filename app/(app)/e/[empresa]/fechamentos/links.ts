@@ -37,6 +37,10 @@ type LinkAPI = {
   ativo: boolean;
 };
 
+export type ResultadoCriacaoLink =
+  | { ok: true; dados: { link: LinkDoRelatorio; endereco: string } }
+  | { ok: false; status: number; erro: string; motivo?: "sem-rota" | "mes-reaberto" };
+
 const SO_ADMIN_OU_GESTOR = "Só o admin ou o gestor criam e revogam o link do relatório.";
 const COMPETENCIA = /^\d{4}-(0[1-9]|1[0-2])$/;
 
@@ -89,8 +93,8 @@ export async function criarLinkDoRelatorio(
   competencia: string,
   validadeDias: number,
   origem: string,
-): Promise<Resultado<{ link: LinkDoRelatorio; endereco: string }>> {
-  if (!COMPETENCIA.test(competencia)) return { ok: false, status: 404, erro: "Mês não encontrado." };
+): Promise<ResultadoCriacaoLink> {
+  if (!COMPETENCIA.test(competencia)) return { ok: false, status: 404, erro: "Mês não encontrado.", motivo: "sem-rota" };
   if (!Number.isInteger(validadeDias) || validadeDias < 1 || validadeDias > 90) {
     return { ok: false, status: 422, erro: "A validade vai de 1 a 90 dias." };
   }
@@ -104,7 +108,11 @@ export async function criarLinkDoRelatorio(
     // a origem é a do navegador (window.location.origin); só o fragmento é segredo
     return { ok: true, dados: { link: adaptar(criado), endereco: `${origem.replace(/\/+$/, "")}/relatorio#${criado.token}` } };
   } catch (erro) {
-    return traduzir(erro);
+    const traduzida = traduzir(erro);
+    if (traduzida.ok || traduzida.status !== 404) return traduzida;
+    // a rota usa o 404 para a flag desligada e para o mês reaberto: só o texto separa (backend links_relatorio.py)
+    const mesReaberto = erro instanceof ErroBackend && erro.detalhe.toLowerCase().includes("fechamento ativo");
+    return { ...traduzida, motivo: mesReaberto ? "mes-reaberto" : "sem-rota" };
   }
 }
 

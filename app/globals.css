@@ -1277,6 +1277,8 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
 }
 /* ícone do menu = as barras do logo: a do meio some e as outras duas se cruzam em X */
 .site-menu-barras { display: block; width: 30px; height: auto; overflow: visible; }
+/* o adesivo branco precisa de uma sombra leve para se ver sobre o papel, como o logo-barras.png */
+.site-menu-barras { filter: drop-shadow(0 1px 1.2px rgb(40 30 15 / 0.22)); }
 .site-menu-barras rect {
   transform-box: fill-box; transform-origin: center;
   transition: transform var(--dur-painel) var(--ease-out), opacity var(--dur-padrao) ease;
@@ -1573,9 +1575,6 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
 }
 @media (max-width: 680px) {
   .janela-tela { padding: 14px 12px 16px; }
-  /* em cartões, o filete da linha em foco cairia só no rótulo "Data", como um cursor: fica a tinta da fixada */
-  .janela-conciliacao .tabela-folhas tbody tr[data-foco] td:first-child { box-shadow: none; }
-  .janela-conciliacao .tabela-folhas tbody tr[data-foco][data-fixo] > td:first-child:is(.folha-banco, .folha-sistema) { box-shadow: inset 0 0 0 999px var(--tinta-ativa); }
 }
 /* a densidade da janela é dela: a do app mora no <html> e no localStorage, que a landing não toca */
 .janela-conciliacao[data-densidade="compacta"] .table td { padding-block: 4px; }
@@ -6395,11 +6394,74 @@ html[data-tema="escuro"] .app-shell {
 .kin-texto { margin: 0; max-width: 56ch; font-size: clamp(16px, 1.2vw, 19px); line-height: 1.7; }
 .kin-palco { margin-top: clamp(56px, 8vw, 110px); perspective: 1800px; }
 .kin-palco .vitrine { max-width: 1100px; margin: 0 auto; transform-origin: 50% 0; }
-/* no celular a janela inteira encolhia a ~280px e o texto dela sumia (L-03): ela é medida com 220% da
-   largura e cortada na borda direita, que fica como "a tela continua"; o começo da tabela se lê */
-@media (max-width: 600px) {
-  .kin-palco .vitrine { overflow: hidden; border-radius: 12px 0 0 12px; }
+/* rolagem lateral (rolagem-lateral.tsx): as janelas do app que no celular ficam mais largas que a tela e rolam
+   para o lado com o dedo, com um degradê na borda que ainda tem tela e a dica de arrastar embaixo.
+   - o hero: a janela inteira encolhia a ~280px e o texto sumia (L-03); ela é medida com 220% da largura. A
+     janela é `inert`, então o toque cai na .vitrine, que é quem rola.
+   - "Na prática": no app a tabela vira cartões no celular, mas um embaixo do outro eles faziam a janela passar
+     de 3.900px; aqui ela fica no desenho do computador (900px, .folhas-com-eixo) e rola na .dash-tabela-rolagem */
+@property --fade-esq { syntax: "<length>"; inherits: false; initial-value: 0px; }
+@property --fade-dir { syntax: "<length>"; inherits: false; initial-value: 36px; }
+@keyframes kin-arraste-cutuca { 0%, 60%, 100% { transform: none; } 30% { transform: translateX(5px); } }
+@keyframes kin-fade-lateral {
+  0% { --fade-esq: 0px; --fade-dir: 36px; }
+  12%, 88% { --fade-esq: 36px; --fade-dir: 36px; }
+  100% { --fade-esq: 36px; --fade-dir: 0px; }
+}
+/* o desenho do rótulo "Cap. I" do hero (p.eyebrow + .kin-olho), sem a classe: .eyebrow fica só para os
+   capítulos (page.test.tsx), e sem a entrada animada. Escondida até o celular de cada janela, abaixo */
+.kin-arraste {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin: 14px 0 0;
+  font-family: var(--font-mono);
+  font-weight: var(--font-heading-weight);
+  font-size: var(--texto-legenda);
+  line-height: 1.12;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-accent-700);
+}
+.kin-arraste-seta { display: inline-flex; align-items: center; color: var(--color-accent); }
+.kin-arraste-seta svg { width: 10px; height: 16px; margin-left: -3px; }
+.kin-arraste-fio {
+  width: 51px;
+  height: 8px;
+  background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='17' height='8'%3E%3Cpath d='M0 4Q4.25 1 8.5 4T17 4' fill='none' stroke='%23000' stroke-width='1.7'/%3E%3C/svg%3E") 0 50% / 17px 8px repeat-x;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='17' height='8'%3E%3Cpath d='M0 4Q4.25 1 8.5 4T17 4' fill='none' stroke='%23000' stroke-width='1.7'/%3E%3C/svg%3E") 0 50% / 17px 8px repeat-x;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .kin-arraste-seta { animation: kin-arraste-cutuca 2.4s var(--ease-out) infinite; }
+}
+/* a mesma largura nas duas (LARGURA_DO_CELULAR em rolagem-lateral.tsx): abaixo dela a tabela do app viraria cartões */
+@media (max-width: 680px) {
+  :is(.kin-palco .vitrine, .janela-conciliacao .dash-tabela-rolagem) {
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    /* um degradê suave na borda que ainda tem tela para rolar: à direita no começo, à esquerda no fim */
+    --fade-esq: 0px;
+    --fade-dir: 36px;
+    mask-image: linear-gradient(to right, transparent, #000 var(--fade-esq), #000 calc(100% - var(--fade-dir)), transparent);
+  }
+  :is(.kin-palco .vitrine, .janela-conciliacao .dash-tabela-rolagem)::-webkit-scrollbar { display: none; }
+  @supports (animation-timeline: scroll()) {
+    :is(.kin-palco .vitrine, .janela-conciliacao .dash-tabela-rolagem) {
+      animation: kin-fade-lateral linear both;
+      animation-timeline: scroll(self inline);
+    }
+  }
+  .kin-palco .vitrine { border-radius: 12px; }
   .kin-palco .vitrine-janela { width: 220%; }
+  .kin-arraste { display: flex; }
+  .janela-conciliacao .kin-arraste { margin-top: 0; }
+  /* sem o container, o @container tabela-comparacao (width < 900px) não aperta as colunas para caber nos
+     ~300px da tela, o que deixava a descrição com uma letra: a tabela fica nos 900px do computador e rola */
+  .janela-conciliacao .dash-tabela-rolagem { container: none; }
 }
 .kin-adesivo-solto { rotate: var(--inclinacao); }
 @media (prefers-reduced-motion: reduce) {
