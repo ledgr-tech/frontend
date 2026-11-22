@@ -9,7 +9,6 @@ import { gravarEmpresaRecente } from "@/lib/empresa-recente";
 import { situacaoDoLimite, textoDoLimite } from "@/lib/limites";
 import { podeConvidar } from "@/lib/papel";
 import { comEmpresa } from "@/lib/rotas";
-import { SEM_SERVIDOR } from "@/lib/sem-servidor";
 import { useRoteador } from "@/lib/roteador";
 import { formatarCnpj } from "../../../../(auth)/cadastro/passos";
 import { Cabecalho } from "../cabecalho";
@@ -18,7 +17,6 @@ import { formatarDataHora } from "../dashboard/resumo";
 import { FaixaFiltros } from "../faixa-filtros";
 import { mostrarPreviaDoEscolhido } from "../grupo";
 import { SITUACAO, combina, useFavoritaOtimista } from "../seletor-de-empresa";
-import { marcarFavorita } from "./acoes";
 import { CadastrarEmpresa } from "./cadastrar-empresa";
 import { ModalDaTela } from "./modal-da-tela";
 import { FaixaDoPlano } from "./faixa-do-plano";
@@ -122,21 +120,12 @@ export function PainelDeEmpresas({ empresas: daPagina }: { empresas: EmpresaClie
     router.push(comEmpresa(empresa.id, "/visao-geral"));
   }
 
-  async function alternarFavorita(empresa: EmpresaCliente) {
-    const favorita = !empresa.favorita;
-    const versao = favoritaOtimista.comecar(empresa.id, !favorita);
-    const marcar = (valor: boolean) =>
-      setEmpresas((atuais) => atuais.map((outra) => (outra.id === empresa.id ? { ...outra, favorita: valor } : outra)));
-    marcar(favorita);
-    setErroDaFavorita(null);
-    const resposta = await marcarFavorita(empresa.id, favorita).catch(
-      (): Awaited<ReturnType<typeof marcarFavorita>> => ({ ok: false, status: 0, erro: SEM_SERVIDOR }),
+  function alternarFavorita(empresa: EmpresaCliente) {
+    return favoritaOtimista.alternar(
+      empresa,
+      (valor) => setEmpresas((atuais) => atuais.map((outra) => (outra.id === empresa.id ? { ...outra, favorita: valor } : outra))),
+      setErroDaFavorita,
     );
-    // um clique mais novo já decidiu a estrela: a resposta deste não desfaz nem avisa
-    const volta = favoritaOtimista.terminar(empresa.id, versao, favorita, resposta.ok);
-    if (volta === null) return;
-    marcar(volta);
-    if (!resposta.ok) setErroDaFavorita(resposta.erro);
   }
 
   const acao =
