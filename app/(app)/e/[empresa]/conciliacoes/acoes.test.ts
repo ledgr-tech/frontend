@@ -774,11 +774,17 @@ describe("carregarVisaoGeral", () => {
     linhas: (banco: string) => { total: number; itens: ItemConciliacaoAPI[] },
     lista = { total: 2, itens: [execucao("e-2", BANCO_RECENTE), execucao("e-1", BANCO_ANTERIOR)] },
     historicoDoBanco?: (id: string) => typeof lista,
+    doMes?: (offset: number) => typeof lista,
   ) {
     chamarBackend.mockImplementation(async (caminho: string) => {
       const [rota, query] = caminho.split("?");
       if (rota === "/execucoes") {
-        const banco = new URLSearchParams(query).get("extrato_banco_id");
+        const parametros = new URLSearchParams(query);
+        if (parametros.get("competencia")) {
+          if (!doMes) throw new ErroBackend(503, "Filtro indisponível.");
+          return { limit: 100, ...doMes(Number(parametros.get("offset"))) };
+        }
+        const banco = parametros.get("extrato_banco_id");
         if (banco) {
           if (!historicoDoBanco) throw new ErroBackend(503, "Histórico indisponível.");
           return { limit: 100, offset: 0, ...historicoDoBanco(banco) };
@@ -811,12 +817,13 @@ describe("carregarVisaoGeral", () => {
       ...execucao("outra-" + i, BANCO_ANTERIOR, false),
       executada_em: "2026-10-03T12:00:00Z",
     }));
-    const historico = `/execucoes?extrato_banco_id=${BANCO_RECENTE}&limit=100&offset=0`;
     backendDoMes(
       () => ({ total: 1, itens: [itemConciliacao] }),
       { total: 51, itens: [refeita, v2, ...outras] },
+      undefined,
       () => {
         if (historicoFalha) throw new ErroBackend(503, "Serviço indisponível.");
+        // o filtro traz todas as rodadas do extrato do banco, a v1 fora da primeira página inclusive
         return { total: 3, itens: [refeita, v2, v1] };
       },
     );
@@ -825,10 +832,15 @@ describe("carregarVisaoGeral", () => {
 
     expect(resultado).toMatchObject({
       ok: true,
-      dados: { recente: { execucao: { extratoSistemaId: sistemaVigente } }, mes: { competencia: "2026-10" } },
+      dados: {
+        recente: { execucao: { extratoSistemaId: sistemaVigente } },
+        // sem o mês inteiro, a home não soma
+        mes: { competencia: "2026-10", conciliacoes: historicoFalha ? null : [expect.anything()] },
+      },
     });
-    expect(chamarBackend.mock.calls.map(([caminho]) => caminho).filter((caminho) => caminho.startsWith("/execucoes?extrato_banco_id=")))
-      .toEqual([historico]);
+    const lidas = chamarBackend.mock.calls.map(([caminho]) => caminho).filter((caminho) => caminho.startsWith("/execucoes?"));
+    expect(lidas.filter((caminho) => caminho.includes("extrato_banco_id="))).toEqual([]);
+    expect(lidas).toContain("/execucoes?competencia=2026-10&limit=100&offset=0");
     expect(chamarBackend).toHaveBeenCalledWith(
       `/conciliacoes/${BANCO_RECENTE}?limit=1000&offset=0&extrato_sistema_id=${sistemaVigente}`,
     );
@@ -863,34 +875,56 @@ describe("carregarVisaoGeral", () => {
     expect(resultado.dados.mes).toMatchObject({ competencia: "2026-09", conciliacoes: null });
   });
 
-  it("não soma o mês quando ele pode seguir na segunda página de /execucoes", async () => {
-    // 51 execuções e a mais antiga da primeira página ainda rodou em setembro: a 51ª pode ser de setembro
-    backendDoMes(() => ({ total: 1, itens: [itemConciliacao] }), {
-      total: 51,
-      itens: [execucao("e-2", BANCO_RECENTE), execucao("e-1", BANCO_ANTERIOR)],
-    });
+  /** Execuções de setembro de extratos do banco distintos, com ids no formato que as actions aceitam. */
+  const deSetembro = (de: number, ate: number) =>
+    Array.from({ length: ate - de }, (_, i) =>
+      execucao(`m-${de + i}`, `00000000-0000-4000-8000-${String(de + i).padStart(12, "0")}`),
+    );
+
+  it("soma o mês em foco inteiro, paginando /execucoes?competencia= até o total (#309)", async () => {
+    // 51 execuções na conta, 120 em setembro: a primeira página não alcança o mês todo
+    backendDoMes(
+      () => ({ total: 1, itens: [itemConciliacao] }),
+      { total: 51, itens: deSetembro(0, 50) },
+      undefined,
+      (offset) => ({ total: 120, offset, itens: deSetembro(offset, Math.min(offset + 100, 120)) }),
+    );
 
     const resultado = await carregarVisaoGeral();
 
     if (!resultado.ok) throw new Error(resultado.erro);
-    expect(resultado.dados.mes).toMatchObject({ competencia: "2026-09", conciliacoes: null });
+    expect(resultado.dados.mes).toMatchObject({ competencia: "2026-09" });
+    expect(resultado.dados.mes?.conciliacoes).toHaveLength(120);
+    const doFiltro = chamarBackend.mock.calls.map(([caminho]) => caminho).filter((caminho) => caminho.includes("competencia="));
+    expect(doFiltro).toEqual([
+      "/execucoes?competencia=2026-09&limit=100&offset=0",
+      "/execucoes?competencia=2026-09&limit=100&offset=100",
+    ]);
   });
 
-  it("soma o mês quando a primeira página já chega a uma execução de antes dele", async () => {
-    const agosto = {
-      ...execucao("e-0", "5c6d7e8f-9a0b-4c1d-8e2f-3a4b5c6d7e8f"),
-      periodo_inicio: "2026-08-01",
-      executada_em: "2026-08-31T12:00:00Z",
-    };
-    backendDoMes(() => ({ total: 1, itens: [itemConciliacao] }), {
-      total: 51,
-      itens: [execucao("e-2", BANCO_RECENTE), execucao("e-1", BANCO_ANTERIOR), agosto],
-    });
+  it("não lê o filtro quando a primeira página já traz todas as execuções", async () => {
+    backendDoMes(() => ({ total: 1, itens: [itemConciliacao] }));
 
     const resultado = await carregarVisaoGeral();
 
     if (!resultado.ok) throw new Error(resultado.erro);
     expect(resultado.dados.mes?.conciliacoes).toHaveLength(2);
+    expect(chamarBackend.mock.calls.some(([caminho]) => caminho.includes("competencia="))).toBe(false);
+  });
+
+  it("não soma o mês que passa do teto de páginas do filtro, e a home segue", async () => {
+    backendDoMes(
+      () => ({ total: 1, itens: [itemConciliacao] }),
+      { total: 51, itens: deSetembro(0, 50) },
+      undefined,
+      (offset) => ({ total: 1001, offset, itens: deSetembro(offset, offset + 100) }),
+    );
+
+    const resultado = await carregarVisaoGeral();
+
+    if (!resultado.ok) throw new Error(resultado.erro);
+    expect(resultado.dados.recente).not.toBeNull();
+    expect(resultado.dados.mes).toMatchObject({ competencia: "2026-09", conciliacoes: null });
   });
 });
 

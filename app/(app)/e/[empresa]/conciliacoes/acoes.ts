@@ -290,6 +290,21 @@ async function execucoesDoBanco(extratoBancoId: string, exigirHistoricoCompleto 
 }
 
 /**
+ * Todas as execuções de um mês, pelo filtro `?competencia=` (backend #186): as do extrato do banco com
+ * `periodo_inicio` nesse mês, todas as rodadas dele juntas. `completas` é false além do teto de páginas.
+ */
+async function execucoesDaCompetencia(mes: string): Promise<Resultado<{ execucoes: Execucao[]; completas: boolean }>> {
+  const pagina = (numero: number) =>
+    `/execucoes?competencia=${encodeURIComponent(mes)}&limit=${RODADAS_POR_PAGINA}&offset=${numero * RODADAS_POR_PAGINA}`;
+  try {
+    const { itens, total } = await todasAsPaginas<ExecucaoAPI>(pagina);
+    return { ok: true, dados: { execucoes: itens.map(adaptarExecucao), completas: itens.length >= total } };
+  } catch (erro) {
+    return traduzir(erro);
+  }
+}
+
+/**
  * A conciliação de um extrato do banco numa rodada: a pedida em `extratoSistemaId`,
  * ou a mais recente. Na mais recente, a partir da segunda, também o que mudou desde
  * a anterior (spec 2026-10-02-conciliacao-em-rodadas). Sem as execuções do extrato,
@@ -819,7 +834,7 @@ export type VisaoGeral = {
    * fechados, com as linhas de todas as conciliações dele. O número do topo, "Pede sua atenção" e
    * o atalho de Fechamentos olham o mês inteiro, não só a última conciliação. `conciliacoes` é null
    * quando as linhas do mês não vieram inteiras (um par não carregou, passou do teto de páginas de
-   * `carregarConciliacao`, ou o mês pode seguir depois da primeira página de `/execucoes`): a home não
+   * `carregarConciliacao`, ou o mês não veio inteiro de `/execucoes?competencia=`): a home não
    * soma um mês pela metade.
    */
   mes?: { competencia: string; fechado: boolean; conciliacoes: Conciliacao[] | null };
@@ -829,7 +844,7 @@ export type VisaoGeral = {
  * O que a visão geral precisa: a lista de execuções (tendência e atividade), as
  * linhas da mais recente (o estado do mês e o que está em aberto) e a situação
  * dos dois arquivos dela. Se a primeira página de execuções vier cortada,
- * também lê o histórico de cada extrato do banco do mês em foco.
+ * também lê o mês em foco inteiro, pelo filtro por competência (backend #186).
  */
 export async function carregarVisaoGeral(): Promise<Resultado<VisaoGeral>> {
   const [lista, fechamentos] = await Promise.all([listarExecucoes(), listarFechamentos()]);
@@ -864,16 +879,25 @@ export async function carregarVisaoGeral(): Promise<Resultado<VisaoGeral>> {
   const meses = [...new Set(vigentes.map(mesDe))].sort((a, b) => b.localeCompare(a));
   const foco = meses.find((mes) => !fechados.has(mes)) ?? meses[0];
   const doMesNaPagina = vigentes.filter((execucao) => mesDe(execucao) === foco);
-  const paginaCortada = total > execucoes.length;
-  // A primeira execução de uma versão pode ter ficado fora da página.
-  const doMes = paginaCortada
-    ? await Promise.all(doMesNaPagina.map(async (execucao) => {
-        const historico = await execucoesDoBanco(execucao.extratoBancoId, true);
-        if (!historico.ok) return execucao;
-        const vigente = rodadasDoBanco(historico.dados, execucao.extratoBancoId).at(-1)?.execucao;
-        return vigente?.atual ? vigente : execucao;
-      }))
-    : doMesNaPagina;
+  // Com a página cortada, o mês pode seguir na próxima e a rodada que vale pode ter ficado fora dela:
+  // o mês vem inteiro do filtro por competência, com todas as rodadas de cada extrato do banco.
+  // Se ele falha ou passa do teto de páginas, a home segue com a página, sem somar o mês.
+  let doMes = doMesNaPagina;
+  let mesInteiro = true;
+  if (total > execucoes.length) {
+    const doMesTodo = await execucoesDaCompetencia(foco);
+    mesInteiro = doMesTodo.ok && doMesTodo.dados.completas;
+    if (doMesTodo.ok) {
+      // ponytail: o filtro deixa fora o extrato do banco sem `periodo_inicio`, que `competencia()` ainda
+      // põe no mês em que rodou; esses voltam da página. Alinhar `competencia()` muda Histórico e Fechamentos
+      const semPeriodo = doMesNaPagina.filter((execucao) => execucao.periodoInicio === null);
+      // filtra de novo: um backend de antes da #186 ignora o parâmetro e manda todos os meses
+      const doFiltro = execucoesVigentes(doMesTodo.dados.execucoes.filter((execucao) => mesDe(execucao) === foco));
+      if (doFiltro.length > 0 || semPeriodo.length > 0) {
+        doMes = [...doFiltro, ...semPeriodo].sort((a, b) => b.executadaEm.localeCompare(a.executadaEm));
+      }
+    }
+  }
   const [maisRecente] = doMes;
 
   // os arquivos de todos os pares do mês: uma linha não lida em qualquer um segura o fechamento
@@ -904,11 +928,6 @@ export async function carregarVisaoGeral(): Promise<Resultado<VisaoGeral>> {
   const inteiras = conciliacoes.flatMap((resultado) =>
     resultado.ok && !resultado.dados.truncada ? [resultado.dados.conciliacao] : [],
   );
-  // ponytail: /execucoes não filtra por mês, então a primeira página só traz o mês em foco inteiro quando
-  // chega a uma execução que rodou antes dele (nenhuma do mês roda antes de ele começar); com um filtro
-  // por competência no backend, o mês viria direto e somaria mesmo com muitas execuções
-  const ultima = execucoes[execucoes.length - 1];
-  const mesPodeSeguir = paginaCortada && competencia(null, ultima.executadaEm) >= foco;
 
   return {
     ok: true,
@@ -922,7 +941,7 @@ export async function carregarVisaoGeral(): Promise<Resultado<VisaoGeral>> {
       mes: {
         competencia: foco,
         fechado: fechados.has(foco),
-        conciliacoes: !mesPodeSeguir && inteiras.length === conciliacoes.length ? inteiras : null,
+        conciliacoes: mesInteiro && inteiras.length === conciliacoes.length ? inteiras : null,
       },
     },
   };
