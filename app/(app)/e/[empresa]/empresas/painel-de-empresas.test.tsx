@@ -220,6 +220,43 @@ describe("a situação do mês e as favoritas", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("A conta de demonstração não muda as favoritas.");
     expect(within(painel()).getByRole("button", { name: "Tirar das favoritas" })).toHaveAttribute("aria-pressed", "true");
   });
+
+  it("falha antiga não desfaz a estrela mais nova", async () => {
+    let resolverPrimeira!: (valor: { ok: boolean; status: number; erro: string }) => void;
+    const primeira = new Promise<{ ok: boolean; status: number; erro: string }>((resolve) => {
+      resolverPrimeira = resolve;
+    });
+    marcarFavorita
+      .mockReturnValueOnce(primeira)
+      .mockResolvedValueOnce({ ok: true, dados: null })
+      .mockResolvedValueOnce({ ok: true, dados: null });
+    const user = userEvent.setup();
+    montar({ empresas: COM_157 });
+
+    await user.click(screen.getByRole("button", { name: "Marcar Padaria Ltda como favorita" }));
+    await user.click(screen.getByRole("button", { name: "Tirar Padaria Ltda das favoritas" }));
+    await user.click(screen.getByRole("button", { name: "Marcar Padaria Ltda como favorita" }));
+
+    await act(async () => resolverPrimeira({ ok: false, status: 403, erro: "Falha antiga" }));
+    expect(screen.getByRole("button", { name: "Tirar Padaria Ltda das favoritas" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.queryByText("Falha antiga")).not.toBeInTheDocument();
+  });
+
+  it("dois cliques que falham voltam a estrela ao que o backend tinha", async () => {
+    let resolverPrimeira!: (valor: { ok: boolean; status: number; erro: string }) => void;
+    marcarFavorita
+      .mockReturnValueOnce(new Promise((resolve) => (resolverPrimeira = resolve)))
+      .mockResolvedValueOnce({ ok: false, status: 503, erro: "Falha nova" });
+    const user = userEvent.setup();
+    montar({ empresas: COM_157 });
+
+    await user.click(screen.getByRole("button", { name: "Marcar Padaria Ltda como favorita" }));
+    await user.click(screen.getByRole("button", { name: "Tirar Padaria Ltda das favoritas" }));
+    await act(async () => resolverPrimeira({ ok: false, status: 503, erro: "Falha antiga" }));
+
+    expect(screen.getByRole("button", { name: "Marcar Padaria Ltda como favorita" })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("alert")).toHaveTextContent("Falha nova");
+  });
 });
 
 describe("a faixa do plano", () => {
