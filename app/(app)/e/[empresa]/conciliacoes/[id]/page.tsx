@@ -83,6 +83,10 @@ function textoDoVazio(filtro: Filtro, justificadas: number): string {
 
 /** Quantas linhas por página. 4.218 lançamentos não cabem numa tela. */
 /** Do ponteiro sair da linha ao cartão fechar: o tempo de atravessar o vão até ele. */
+// aqui e não em ../acoes: um arquivo "use server" só exporta funções async, e o build recusa o resto
+const FECHAMENTO_NAO_CARREGOU =
+  "Não deu para saber se este mês está fechado. Conferir, justificar e enviar nova versão voltam quando carregar.";
+
 const ESPERA_PARA_FECHAR_MS = 150;
 
 /** Do ponteiro descer ao foco chegar: dentro disso, o foco veio do toque ou do clique, não do teclado. */
@@ -279,7 +283,16 @@ export default function ConciliacaoPage() {
     );
   }
 
-  const { conciliacao, real, truncada, rodada, rodadas, mudancas, fechamento } = estado;
+  const {
+    conciliacao,
+    real,
+    truncada,
+    rodada,
+    rodadas,
+    mudancas,
+    fechamento,
+    fechamentoIndisponivel,
+  } = estado;
 
   function fechar() {
     const atualizada = fecharConciliacao(conciliacao.id);
@@ -333,7 +346,11 @@ export default function ConciliacaoPage() {
 
   // decidir só onde há onde gravar, só na rodada que vale (a passada é para ler) e só com o mês
   // aberto: no fechado, o backend recusa (409) até reabrir
-  const podeDecidir = ligadas && (!rodada || rodada.numero === rodada.total) && !fechamento;
+  const podeDecidir =
+    ligadas &&
+    (!rodada || rodada.numero === rodada.total) &&
+    !fechamento &&
+    !fechamentoIndisponivel;
   const rodadaAberta = `${conciliacao.id}:${rodadaDasLinhas}`;
   // trocar de rodada ou de conciliação apaga a seleção, e voltar começa vazio (ajuste no render, o
   // padrão do React para estado que segue outro valor). Uma releitura mantém a rodada na tela até a
@@ -489,6 +506,7 @@ export default function ConciliacaoPage() {
           // só conciliação de verdade, só na rodada que vale (a passada é para ler) e com o mês aberto
           real &&
           !fechamento &&
+          !fechamentoIndisponivel &&
           (!rodada || rodada.numero === rodada.total) && (
             <NovaVersao
               extratoBancoId={conciliacao.id}
@@ -515,6 +533,14 @@ export default function ConciliacaoPage() {
           <p role="status" aria-label="Mês fechado" className="mes-fechado-aviso">
             {`${tituloDaCompetencia(fechamento.competencia)} está fechado. Para conferir, justificar ou conciliar de novo, reabra o fechamento. `}
             <Link href={`/fechamentos?mes=${fechamento.competencia}`}>Ver o fechamento</Link>
+          </p>
+        )}
+        {fechamentoIndisponivel && (
+          <p role="status" className="mes-fechado-aviso">
+            {FECHAMENTO_NAO_CARREGOU}{" "}
+            <button type="button" className="btn btn-secondary" onClick={recarregar}>
+              Tentar de novo
+            </button>
           </p>
         )}
         {/* a faixa da rodada: o aviso da rodada passada (só para ler, leva à que vale) ou o que

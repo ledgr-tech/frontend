@@ -144,6 +144,18 @@ describe("DashboardPage", () => {
     await waitFor(() => expect(within(previa()).getByRole("heading", { name: "Sem pendência" })).toHaveFocus());
   });
 
+  it("sem /fechamentos, Conciliações não oferece nova versão e avisa", async () => {
+    com({ fechamentos: null });
+    await renderizar();
+
+    expect(screen.getByText(/^Não deu para saber quais meses estão fechados\./).closest("[role=status]")).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Tentar de novo" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Enviar nova versão do extrato do sistema" })).not.toBeInTheDocument();
+    // sem saber do mês, nem o cabeçalho nem a prévia dizem que ele está aberto
+    expect(screen.queryByText(/Aberto/)).not.toBeInTheDocument();
+    expect(screen.getAllByText(/Situação do mês indisponível/).length).toBeGreaterThan(0);
+  });
+
   it("opens the first in the queue in the preview, in place of the old continue strip", async () => {
     com();
     await renderizar();
