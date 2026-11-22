@@ -1185,6 +1185,39 @@ const servidor = createServer(async (req, res) => {
     });
   }
 
+  // GET /busca (backend #220): os lançamentos das rodadas em vigor da empresa ativa, por descrição, data ou valor
+  if (rota("GET", "/busca")) {
+    const termo = semAcento(String(q.get("q") ?? "").trim()).slice(0, 100);
+    if (!termo) return json(res, 422, { detail: "Informe o termo da busca." });
+    const limit = Math.min(Math.max(Number(q.get("limit") ?? 20) || 20, 1), 100);
+    const offset = Math.max(Number(q.get("offset") ?? 0) || 0, 0);
+    // ponytail: valor "1.234,56" vira "1234.56", e "13/10" casa com a data; sem ranking, da data mais recente à mais antiga
+    const comoValor = termo.replace(/r\$\s*/, "").replace(/\./g, "").replace(",", ".");
+    // como pares_em_vigor do backend: só a rodada mais recente de cada extrato do banco (execucoes vem da mais nova)
+    const vigentes = b.execucoes.filter((e, i, todas) => todas.findIndex((x) => x.extrato_banco_id === e.extrato_banco_id) === i);
+    const achados = vigentes.flatMap((e) =>
+      (b.itens.get(`${e.extrato_banco_id}|${e.extrato_sistema_id}`) ?? []).filter((item) => {
+        const lado = item.lancamento_banco ?? item.lancamento_sistema;
+        if (!lado) return false;
+        const [ano, mes, dia] = lado.data.split("-");
+        const campos = [semAcento(lado.descricao), lado.data, `${dia}/${mes}`, `${dia}/${mes}/${ano}`, lado.valor.replace("-", "")];
+        return campos.some((c) => c.includes(termo)) || (/^\d+(\.\d+)?$/.test(comoValor) && lado.valor.replace("-", "").startsWith(comoValor));
+      }).map((item) => ({
+        conciliacao_id: item.id,
+        extrato_banco_id: e.extrato_banco_id,
+        extrato_sistema_id: e.extrato_sistema_id,
+        chave: item.chave,
+        status: item.status,
+        competencia: e.periodo_inicio?.slice(0, 7) ?? null,
+        lancamento_banco: item.lancamento_banco,
+        lancamento_sistema: item.lancamento_sistema,
+      })),
+    );
+    const dataDe = (i) => (i.lancamento_banco ?? i.lancamento_sistema).data;
+    achados.sort((x, y) => dataDe(y).localeCompare(dataDe(x)));
+    return json(res, 200, { total: achados.length, limit, offset, itens: achados.slice(offset, offset + limit) });
+  }
+
   if (rota("GET", "/execucoes")) {
     const banco = q.get("extrato_banco_id");
     return json(res, 200, pagina(b.execucoes.filter((e) => !banco || e.extrato_banco_id === banco).map((e) => comDecisoes(b, e))));
