@@ -536,9 +536,11 @@ const semAcento = (t) => t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase(
 
 /** Backend #223: a pergunta sobre os números responde com a conciliação mais recente e um link de tela. */
 function responderComDados(b, pergunta) {
-  if (!/quant|diverg|pend|saldo|fech|concilia|numero|valor|lancamento/.test(semAcento(pergunta))) return null;
+  // pergunta de uso ("como concilio…") fica com a Central
+  const texto = semAcento(pergunta);
+  if (/^s*como (eu )?(fac|faz|concili|envi|fech|cri|us|abr|justific|convid|troc)/.test(texto) || !/quant|diverg|pendenc|saldo|sobr|numero|valor|ficou/.test(texto)) return null;
   // ponytail: "sem dados" força o respondida:false, para testar a reserva do roteiro no front
-  const execucao = /sem dados/.test(semAcento(pergunta)) ? null : b.execucoes.find((e) => e.atual);
+  const execucao = /sem dados/.test(texto) ? null : b.execucoes.find((e) => e.atual);
   if (!execucao) return { resposta: "(backend fake) Não achei números para essa pergunta.", respondida: false, links: [] };
   const c = execucao.contagens;
   const divergentes = c.divergente_valor + c.divergente_data + c.sem_correspondencia + c.duplicado;
@@ -546,7 +548,7 @@ function responderComDados(b, pergunta) {
     resposta: `(backend fake) Na conciliação mais recente, de ${c.total} lançamentos, ${c.match_exato + c.match_tolerancia + c.match_agrupado} estão conciliados e ${divergentes} pedem revisão.`,
     respondida: true,
     links: [
-      { titulo: "Abrir a comparação", caminho: `/conciliacoes/${execucao.extrato_banco_id}?sistema=${execucao.extrato_sistema_id}`, tipo: "tela" },
+      { titulo: "Abrir a comparação", caminho: `/conciliacoes/${execucao.extrato_banco_id}`, tipo: "tela" },
       { titulo: "Fechamentos", caminho: "/fechamentos", tipo: "tela" },
     ],
   };
