@@ -12,14 +12,9 @@ import {
 import { pendencias, type Pendencia } from "../visao-geral/pendencias";
 
 /**
- * O que o assistente sabe: a conciliação mais recente, lida do backend. Ele não
- * inventa número nenhum — o design responde com um roteiro por palavra-chave
- * sobre dados de mentira; aqui o roteiro é o mesmo, com os números reais. A
- * única resposta que não sai daqui é a explicação de uma divergência, que vai à
- * IA do backend (`POST /explicacoes`) e só roda quando a pessoa pede.
- *
- * O que o roteiro não reconhece (`responder` devolve null) vai ao assistente da
- * Central de ajuda (backend #137), que responde sobre o uso do Ledgr.
+ * Roteiro de reserva: a conciliação mais recente, lida do backend. Responde quando
+ * o assistente não cobre a pergunta ou está indisponível, inclusive na demonstração.
+ * O pedido de explicação continua neste roteiro, pela IA de `POST /explicacoes`.
  */
 
 export type Contexto = {
@@ -148,6 +143,7 @@ export function perguntaSoDoMes(pergunta: string): boolean {
 /**
  * A pergunta sobre os números cita um mês que não é o da conciliação lida: o roteiro só tem a mais
  * recente, então diz isso e aponta onde procurar, em vez de responder sobre o mês errado.
+ * Esta proteção continua necessária quando o backend não responde à consulta de outro mês.
  */
 function respostaDeOutroMes(pergunta: string, contexto: Contexto): Resposta | null {
   const citado = mesCitado(pergunta);

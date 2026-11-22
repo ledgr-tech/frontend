@@ -1,10 +1,20 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ComponentProps } from "react";
 import type { Explicacao, Resultado } from "../conciliacoes/acoes";
 import { Conversa as ConversaDoLedgr } from "./conversa";
 import type { Contexto } from "./respostas";
+import { ProvedorDaEmpresa } from "@/lib/empresa-ativa";
+
+// No teste da demonstração a action também roda, com a rede como fronteira.
+const chamarBackend = vi.fn();
+const emailDaSessao = vi.fn();
+vi.mock("@/lib/backend", async (original) => ({
+  ...(await original<typeof import("@/lib/backend")>()),
+  chamarBackend: (...args: unknown[]) => chamarBackend(...args),
+  emailDaSessao: () => emailDaSessao(),
+}));
 
 // a explicação é a IA do backend; aqui a action devolve o que ele responderia
 const explicarDivergencia = vi.fn<(id: string) => Promise<Resultado<Explicacao>>>();
@@ -12,7 +22,7 @@ vi.mock("../conciliacoes/acoes", () => ({
   explicarDivergencia: (id: string) => explicarDivergencia(id),
 }));
 
-// o que o roteiro do mês não responde vai ao assistente da Central (backend #137)
+// o backend responde dúvidas de uso e consultas sobre os números (#137/#223)
 const perguntarAoAssistente = vi.fn();
 const atualizarContexto = vi.fn<(contexto: Contexto | null) => Promise<Resultado<Contexto | null>>>();
 vi.mock("./acoes", () => ({
@@ -57,9 +67,79 @@ function Conversa(props: Omit<ComponentProps<typeof ConversaDoLedgr>, "atualizar
 describe("Conversa", () => {
   beforeEach(() => {
     explicarDivergencia.mockReset();
-    perguntarAoAssistente.mockReset();
+    perguntarAoAssistente.mockReset().mockResolvedValue({ ok: false, status: 503, erro: "Indisponível" });
     atualizarContexto.mockReset().mockImplementation(async (dados) => ({ ok: true, dados }));
+    chamarBackend.mockReset();
+    emailDaSessao.mockReset().mockResolvedValue("ana@x.com");
     push.mockReset();
+  });
+
+  afterEach(() => vi.unstubAllEnvs());
+
+  it("responde outro mês pelo backend, mostra o selo e abre o link na empresa ativa", async () => {
+    const resposta = "Agosto/2026 tem 7 pendências, somando R$ 123,45.";
+    perguntarAoAssistente.mockResolvedValue({ ok: true, dados: {
+      resposta, respondida: true, links: [{ titulo: "Ver agosto", caminho: "/historico", tipo: "tela" }],
+    } });
+    const empresa = { id: "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20", razaoSocial: "Empresa", cnpj: "" };
+    const onFechar = vi.fn();
+    const user = userEvent.setup();
+    render(<ProvedorDaEmpresa ativa={empresa} empresas={[empresa]}><Conversa contexto={CONTEXTO} onFechar={onFechar} /></ProvedorDaEmpresa>);
+
+    await user.type(screen.getByLabelText("Sua pergunta"), "e agosto?{Enter}");
+    const bolha = (await within(conversa()).findByText(resposta)).closest(".asst-bolha")!;
+    expect(bolha).toHaveTextContent("Gerada por IA · confira antes de decidir");
+    expect(conversa()).not.toHaveTextContent("Por enquanto eu leio só");
+    expect(atualizarContexto).not.toHaveBeenCalled();
+    const link = within(conversa()).getByRole("link", { name: "Ver agosto" });
+    expect(link).toHaveAttribute("href", `/e/${empresa.id}/historico`);
+
+    await user.click(link);
+    expect(onFechar).toHaveBeenCalledOnce();
+    await user.type(screen.getByLabelText("Sua pergunta"), "e julho?{Enter}");
+    expect(perguntarAoAssistente).toHaveBeenLastCalledWith("e julho?", "fechamentos", [
+      { papel: "usuario", texto: "e agosto?" }, { papel: "assistente", texto: resposta },
+    ]);
+  });
+
+  it.each([
+    { ok: false, status: 503, erro: "Indisponível" },
+    { ok: false, status: 404, erro: "Rota ausente" },
+    { ok: true, dados: { resposta: "Não sei responder.", respondida: false, links: [] } },
+  ])("volta ao roteiro do mês quando o backend não responde: %j", async (resposta) => {
+    perguntarAoAssistente.mockResolvedValue(resposta);
+    const user = userEvent.setup();
+    render(<Conversa contexto={CONTEXTO} onFechar={vi.fn()} />);
+    await user.click(screen.getByRole("button", { name: "Resumo de setembro" }));
+
+    expect(await within(conversa()).findByText(/^Setembro: 140 lançamentos/)).toBeInTheDocument();
+    expect(atualizarContexto).toHaveBeenCalledOnce();
+    expect(conversa()).not.toHaveTextContent("Não sei responder.");
+    expect(within(conversa()).queryByText("Gerada por IA · confira antes de decidir")).not.toBeInTheDocument();
+  });
+
+  it("a demonstração usa o roteiro sem fazer uma requisição ao backend", async () => {
+    vi.stubEnv("LEDGR_CONTA_TESTE_EMAIL", "ana@x.com");
+    const action = await vi.importActual<typeof import("./acoes")>("./acoes");
+    perguntarAoAssistente.mockImplementationOnce(action.perguntarAoAssistente);
+    const user = userEvent.setup();
+    render(<Conversa contexto={CONTEXTO} onFechar={vi.fn()} />);
+    await user.click(screen.getByRole("button", { name: "Resumo de setembro" }));
+
+    expect(await within(conversa()).findByText(/^Setembro: 140 lançamentos/)).toBeInTheDocument();
+    expect(chamarBackend).not.toHaveBeenCalled();
+    expect(atualizarContexto).toHaveBeenCalledOnce();
+  });
+
+  it.each([401, 429])("uma consulta dos números com %s mantém o tratamento do erro", async (status) => {
+    perguntarAoAssistente.mockResolvedValue({ ok: false, status, erro: "Limite de perguntas de hoje." });
+    const user = userEvent.setup();
+    render(<Conversa contexto={CONTEXTO} onFechar={vi.fn()} />);
+    await user.click(screen.getByRole("button", { name: "Resumo de setembro" }));
+
+    if (status === 401) await vi.waitFor(() => expect(push).toHaveBeenCalledWith("/login"));
+    else expect(await within(conversa()).findByText("Limite de perguntas de hoje.")).toBeInTheDocument();
+    expect(atualizarContexto).not.toHaveBeenCalled();
   });
 
   it("opens with the month in one sentence, from the real numbers", () => {
@@ -116,7 +196,7 @@ describe("Conversa", () => {
 
     expect(await within(conversa()).findByRole("link", { name: "Abrir o Histórico" })).toHaveAttribute("href", "/historico");
     expect(conversa()).toHaveTextContent("Por enquanto eu leio só a conciliação mais recente, a de setembro.");
-    expect(perguntarAoAssistente).not.toHaveBeenCalled();
+    expect(perguntarAoAssistente).toHaveBeenCalledWith("e agosto?", "fechamentos", []);
   });
 
   it("compara o mês citado com o mês recém-lido, não com o da abertura", async () => {
@@ -148,6 +228,9 @@ describe("Conversa", () => {
       fireEvent.click(sugestao);
 
       expect(within(conversa()).getAllByText("O que falta para fechar?")).toHaveLength(1);
+      expect(within(conversa()).getByRole("status", { name: "O Ledgr está olhando os números" })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { level: 6 })).toHaveTextContent("Assistente · olhando os números…");
+      await act(async () => {});
       expect(within(conversa()).getByRole("status", { name: "O Ledgr está preparando a resposta" })).toBeInTheDocument();
       expect(conversa()).not.toHaveTextContent("Faltam 42 decisões suas.");
 
@@ -181,7 +264,7 @@ describe("Conversa", () => {
     fireEvent.click(screen.getByRole("button", { name: "O que falta para fechar?" }));
     expect(await within(conversa()).findByText(/^Faltam 41 decisões suas/)).toBeInTheDocument();
     expect(atualizarContexto).toHaveBeenCalledOnce();
-    expect(perguntarAoAssistente).not.toHaveBeenCalled();
+    expect(perguntarAoAssistente).toHaveBeenCalledOnce();
   });
 
   it("avisa quando não consegue atualizar o mês", async () => {
@@ -225,6 +308,7 @@ describe("Conversa", () => {
     await user.click(screen.getByRole("button", { name: "Explique a maior divergência" }));
 
     expect(explicarDivergencia).toHaveBeenCalledWith("l1");
+    expect(perguntarAoAssistente).not.toHaveBeenCalled();
     expect(
       await within(conversa()).findByText(/O crédito não tem par no sistema na mesma data\./),
     ).toHaveTextContent("Sobre “PIX RECEBIDO CLIENTE” (Sem correspondência no banco,");
@@ -305,8 +389,8 @@ describe("Conversa", () => {
       expect(within(bolha as HTMLElement).getByRole("link", { name: "Convidar alguém" })).toHaveAttribute("href", "/ajuda/empresas#convidar");
     });
 
-    it("o histórico leva só a conversa com a Central, nunca os números do mês nem as explicações", async () => {
-      perguntarAoAssistente.mockResolvedValue(RESPOSTA);
+    it("o histórico leva as perguntas ao backend, mas deixa fora as respostas locais e as explicações", async () => {
+      perguntarAoAssistente.mockResolvedValue(RESPOSTA).mockResolvedValueOnce({ ok: false, status: 503, erro: "Indisponível" });
       explicarDivergencia.mockResolvedValue({
         ok: true,
         dados: { texto: "Juros de atraso.", geradaPorIa: true, indisponibilidade: null },
@@ -323,19 +407,20 @@ describe("Conversa", () => {
       await user.type(screen.getByLabelText("Sua pergunta"), "e depois?{Enter}");
 
       expect(perguntarAoAssistente).toHaveBeenLastCalledWith("e depois?", "fechamentos", [
+        { papel: "usuario", texto: "Resumo de setembro" },
         { papel: "usuario", texto: "como convido alguém?" },
         { papel: "assistente", texto: RESPOSTA.dados.resposta },
       ]);
     });
 
-    it("o que o roteiro do mês responde não vai ao backend", async () => {
+    it("o que o roteiro do mês responde tenta o backend primeiro", async () => {
       const user = userEvent.setup();
       render(<Conversa contexto={CONTEXTO} onFechar={vi.fn()} />);
 
       await user.type(screen.getByLabelText("Sua pergunta"), "Como estão as pendências de R$ 500?{Enter}");
 
       expect(await within(conversa()).findByText(/^Os R\$.*em aberto/)).toBeInTheDocument();
-      expect(perguntarAoAssistente).not.toHaveBeenCalled();
+      expect(perguntarAoAssistente).toHaveBeenCalledWith("Como estão as pendências de R$ 500?", "fechamentos", []);
     });
 
     it.each(["Como justifico uma divergência?", "Posso fechar o mês com pendências?"])(
@@ -352,7 +437,7 @@ describe("Conversa", () => {
     );
 
     it.each(["Como ficou o mês?", "Posso fechar o mês?", "O que ficou em aberto?"])(
-      "com conciliação, %s segue no roteiro do mês, sem ir à Central",
+      "com conciliação, %s tenta o backend e usa o roteiro quando indisponível",
       async (pergunta) => {
         const user = userEvent.setup();
         render(<Conversa contexto={CONTEXTO} onFechar={vi.fn()} />);
@@ -360,7 +445,7 @@ describe("Conversa", () => {
         await user.type(screen.getByLabelText("Sua pergunta"), `${pergunta}{Enter}`);
 
         await vi.waitFor(() => expect(atualizarContexto).toHaveBeenCalled());
-        expect(perguntarAoAssistente).not.toHaveBeenCalled();
+        expect(perguntarAoAssistente).toHaveBeenCalledWith(pergunta, "fechamentos", []);
       },
     );
 
