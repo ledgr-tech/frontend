@@ -900,7 +900,9 @@ export async function carregarVisaoGeral(): Promise<Resultado<VisaoGeral>> {
     // regra do backend muda Histórico e Fechamentos, e é decisão à parte
     const semPeriodo = doMesNaPagina.filter((execucao) => execucao.periodoInicio === null);
     const ultima = execucoes[execucoes.length - 1];
-    const semPeriodoPodeSeguir = semPeriodo.length > 0 && competencia(null, ultima.executadaEm) >= foco;
+    // na página crua: uma rodada antiga sem período, que não vale mais, também diz que a empresa as tem
+    const temSemPeriodo = execucoes.some((execucao) => execucao.periodoInicio === null && mesDe(execucao) === foco);
+    const semPeriodoPodeSeguir = temSemPeriodo && competencia(null, ultima.executadaEm) >= foco;
     // um filtro vazio com execuções datadas do mês na página não é o mês inteiro
     mesInteiro =
       doMesTodo.ok &&

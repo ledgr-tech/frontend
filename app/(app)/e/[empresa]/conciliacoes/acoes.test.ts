@@ -977,14 +977,15 @@ describe("carregarVisaoGeral", () => {
     backendDoMes(() => ({ total: 1, itens: [itemConciliacao] }), { total: 51, itens: pagina }, (offset) => ({
       total: 51,
       offset,
-      itens: offset === 0 ? [...pagina, { ...execucao("julho", BANCO_ANTERIOR), periodo_inicio: "2026-07-01" }] : [],
+      // a 51ª é de setembro pelo período (extrato que começa no mês) e só existe no filtro
+      itens: offset === 0 ? [...pagina, ...deSetembro(48, 49), { ...execucao("julho", BANCO_ANTERIOR), periodo_inicio: "2026-07-01" }] : [],
     }));
 
     const resultado = await carregarVisaoGeral();
 
     if (!resultado.ok) throw new Error(resultado.erro);
-    // 48 de setembro com período e a sem período, uma vez só; agosto e julho ficam de fora
-    expect(resultado.dados.mes?.conciliacoes).toHaveLength(49);
+    // 49 de setembro com período (uma só do filtro) e a sem período, uma vez só; agosto e julho ficam de fora
+    expect(resultado.dados.mes?.conciliacoes).toHaveLength(50);
     expect(chamarBackend.mock.calls.filter(([caminho]) => caminho.startsWith(`/conciliacoes/${BANCO_RECENTE}`))).toHaveLength(1);
   });
 });
