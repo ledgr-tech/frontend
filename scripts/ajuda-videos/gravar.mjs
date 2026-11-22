@@ -159,7 +159,7 @@ const ROTEIROS = {
       await t.clicar(justificar);
       await t.passo(painel.getByLabel("Justificativa", { exact: true }), "8", "Justificativa", "Fica no registro com o seu nome e o horário.", 2600);
       await t.clicar(painel.getByRole("button", { name: "Voltar", exact: true }));
-      await t.passo(painel.locator(".comp-saldos"), "9", "O saldo do extrato", "Confira o saldo final com o do internet banking. Use **Voltar ao topo do extrato** para voltar ao início.", 3600);
+      await t.passo(page.locator("table.tabela-folhas tfoot .saldo-folha").first(), "9", "O saldo do extrato", "O inicial fica no topo da coluna do banco e o final, com a data, no pé. Confira o final com o do internet banking.", 3600);
       const detalhe = painel.getByRole("button", { name: "Abrir detalhe" });
       await t.passo(detalhe, "10", "Abrir detalhe", "Clique no botão ou dê um duplo clique na linha. O detalhe abre ao lado, sem sair da comparação.", 3200);
       await t.clicar(detalhe);
@@ -741,7 +741,7 @@ async function capturar(page, t, roteiro, tela) {
 // data-mockup. Como a Nova conciliação, envia os dois extratos e justifica uma linha: grave com o backend-fake recém-subido.
 const MOCKUP = { largura: 1280, altura: 860 };
 // a linha do PIX do Cliente Delta: 8.750,00 no banco, 8.570,00 no sistema. O banco vai em OFX (banco-dezembro-2025.ofx, os
-// lançamentos do CSV da Central e o saldo do fim do mês), para o painel mostrar o saldo do extrato
+// lançamentos do CSV da Central e o saldo do fim do mês), para a coluna do banco mostrar o saldo do extrato
 const JUSTIFICATIVA_DA_LANDING = "Valor digitado com o 7 e o 5 trocados. Corrigido na NF 4415 do sistema.";
 // a explicação como o cliente a verá no lançamento, com a IA ligada (a de produção ainda está desligada, e a do
 // backend-fake é um texto de teste): o selo do app e o motivo, no lugar dos fatos e do "Explicar esta divergência"

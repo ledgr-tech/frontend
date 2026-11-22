@@ -331,7 +331,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
       {
         id: "saldo",
         titulo: "O saldo do extrato",
-        faz: "O saldo inicial e o final do extrato do banco aparecem no pé do painel da direita, quando o arquivo traz. Em telas estreitas, ficam acima do resumo.",
+        faz: "O saldo inicial do extrato do banco aparece no topo da coluna do banco e o final, com a data, no pé dela, quando o arquivo traz. No celular, os dois ficam numa faixa acima do resumo.",
         passos: ["Confira o saldo final com o do internet banking."],
         nota: "Se há linhas não lidas, o saldo inicial depende delas.",
       },

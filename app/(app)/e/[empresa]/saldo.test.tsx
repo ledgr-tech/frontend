@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
-import { FaixaDoSaldo, SaldoNoFim, fraseDoSaldoFinal } from "./saldo";
+import { FaixaDoSaldo, SaldoDaFolha, fraseDoSaldoFinal } from "./saldo";
 
 // o Intl separa o "R$" do número com um espaço que não quebra
 const semEspacoFixo = (texto: string | null) => texto?.replace(/ /g, " ");
@@ -34,30 +34,51 @@ describe("FaixaDoSaldo", () => {
   });
 });
 
-describe("SaldoNoFim", () => {
-  it("fecha a comparação com o saldo final e a data", () => {
-    const { container } = render(<SaldoNoFim saldo={{ inicial: 750.25, final: 7467.15, data: "2026-10-01" }} />);
-    expect(semEspacoFixo(container.textContent)).toBe("Saldo final em 01/10/2026: R$ 7.467,15");
+describe("SaldoDaFolha", () => {
+  it("mostra o saldo inicial e o valor", () => {
+    const { container } = render(
+      <SaldoDaFolha saldo={{ inicial: 1000, final: -250.75, data: "2026-09-30" }} momento="inicial" />,
+    );
+    expect(container).toHaveTextContent("Saldo inicial");
+    expect(container.querySelector("strong")).toHaveTextContent("R$ 1.000,00");
   });
 
-  it("com o saldo negativo, mostra o sinal", () => {
-    const { container } = render(<SaldoNoFim saldo={{ inicial: 100, final: -250.75, data: "2026-09-30" }} />);
-    expect(semEspacoFixo(container.textContent)).toBe("Saldo final em 30/09/2026: -R$ 250,75");
+  it("mostra o saldo final com a data e o sinal", () => {
+    const { container } = render(
+      <SaldoDaFolha saldo={{ inicial: 1000, final: -250.75, data: "2026-09-30" }} momento="final" />,
+    );
+    expect(container).toHaveTextContent("Saldo final em 30/09/2026");
+    expect(container.querySelector("strong")).toHaveTextContent("-R$ 250,75");
   });
 
-  it("com linhas não lidas, o saldo final aparece normalmente", () => {
-    const { container } = render(<SaldoNoFim saldo={{ inicial: null, final: 1249.25, data: "2026-09-10" }} />);
-    expect(semEspacoFixo(container.textContent)).toBe("Saldo final em 10/09/2026: R$ 1.249,25");
+  it("avisa que o saldo inicial depende das linhas não lidas", () => {
+    const { container } = render(
+      <SaldoDaFolha saldo={{ inicial: null, final: 1249.25, data: "2026-09-10" }} momento="inicial" />,
+    );
+    expect(container).toHaveTextContent("depende das linhas não lidas");
   });
 
-  it("sem saldo no arquivo, avisa em vez de mostrar R$ 0,00", () => {
-    const { container } = render(<SaldoNoFim saldo={null} />);
-    expect(container).toHaveTextContent("Saldo não informado no arquivo");
-    expect(container.textContent).not.toMatch(/R\$/);
+  it("com linhas não lidas, o saldo final aparece normalmente no pé", () => {
+    const { container } = render(
+      <SaldoDaFolha saldo={{ inicial: null, final: 1249.25, data: "2026-09-10" }} momento="final" />,
+    );
+    expect(container).toHaveTextContent("Saldo final em 10/09/2026");
+    expect(container.querySelector("strong")).toHaveTextContent("R$ 1.249,25");
+    expect(container).not.toHaveTextContent("depende das linhas não lidas");
+  });
+
+  it("sem saldo no arquivo, avisa nos dois momentos", () => {
+    const inicial = render(<SaldoDaFolha saldo={null} momento="inicial" />);
+    expect(inicial.container).toHaveTextContent("Saldo não informado no arquivo");
+    expect(inicial.container.textContent).not.toMatch(/R\$/);
+
+    const final = render(<SaldoDaFolha saldo={null} momento="final" />);
+    expect(final.container).toHaveTextContent("Saldo não informado no arquivo");
+    expect(final.container.textContent).not.toMatch(/R\$/);
   });
 
   it("sem os campos no backend, não mostra nada", () => {
-    const { container } = render(<SaldoNoFim saldo={undefined} />);
+    const { container } = render(<SaldoDaFolha saldo={undefined} momento="inicial" />);
     expect(container).toBeEmptyDOMElement();
   });
 });

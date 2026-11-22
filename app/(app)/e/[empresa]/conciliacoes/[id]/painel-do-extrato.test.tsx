@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { SaldoDoExtrato } from "@/lib/adaptadores";
 import type { Decisao, LinhaComparacao } from "@/lib/mock-data";
 import type { DetalhesDaDivergencia, Explicacao, Resultado } from "../acoes";
 import { PainelDoExtrato } from "./painel-do-extrato";
@@ -17,8 +16,6 @@ vi.mock("../acoes", () => ({
   explicarDivergencia: (id: string) => explicarDivergencia(id),
   carregarDetalhesDaDivergencia: (id: string) => carregarDetalhes(id),
 }));
-
-const SALDO: SaldoDoExtrato = { inicial: 441555.86, final: 46147.12, data: "2026-10-29" };
 
 const DIVERGENTE: LinhaComparacao = {
   id: "6f55ff77-7794-4079-8186-ba17414abbe6",
@@ -54,7 +51,6 @@ function montar(props: Props = {}) {
       fixada={false}
       rodada={1}
       linhas={[DIVERGENTE]}
-      saldo={SALDO}
       real
       podeDecidir
       podeAprovar
@@ -89,36 +85,20 @@ describe("PainelDoExtrato", () => {
       expect(screen.getByText("Passe o mouse sobre uma linha")).toBeInTheDocument();
       expect(screen.getByText(/Clique numa linha para fixar/)).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Abrir detalhe" })).toBeDisabled();
-      // o saldo e o caminho de volta ao topo ficam à vista do mesmo jeito
-      expect(screen.getByText("Saldo final")).toBeInTheDocument();
+      // o caminho de volta ao topo continua no pé do painel, mas o saldo saiu dele
+      expect(screen.queryByText("Saldo final")).not.toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Voltar ao topo do extrato" })).toBeEnabled();
     });
   });
 
-  describe("os saldos", () => {
-    it("mostra o inicial, o final e a data do extrato do banco", () => {
+  describe("o pé do painel", () => {
+    it("mantém o botão de voltar ao topo sem repetir o saldo", () => {
       montar({ linha: null });
-      expect(screen.getByText("Saldo inicial").nextElementSibling).toHaveTextContent(/441\.555,86/);
-      expect(screen.getByText("Saldo final").nextElementSibling).toHaveTextContent(/46\.147,12/);
-      expect(screen.getByText(/29\/10\/2026/)).toBeInTheDocument();
-    });
-
-    it("o arquivo sem saldo diz isso, em vez de mostrar R$ 0,00", () => {
-      montar({ linha: null, saldo: null });
-      expect(screen.getByText("Saldo não informado no arquivo")).toBeInTheDocument();
-      expect(screen.queryByText("Saldo final")).not.toBeInTheDocument();
-    });
-
-    it("com linhas não lidas o inicial depende delas, e o painel não o calcula", () => {
-      montar({ linha: null, saldo: { ...SALDO, inicial: null } });
-      expect(screen.getByText("depende das linhas não lidas")).toBeInTheDocument();
-    });
-
-    it("o backend sem saldo (antes da #118) não ganha bloco de saldo, só o botão de topo", () => {
-      montar({ linha: null, saldo: undefined });
+      expect(screen.queryByText("Saldo inicial")).not.toBeInTheDocument();
       expect(screen.queryByText("Saldo final")).not.toBeInTheDocument();
       expect(screen.queryByText("Saldo não informado no arquivo")).not.toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "Voltar ao topo do extrato" })).toBeInTheDocument();
+      expect(screen.queryByText(/29\/10\/2026/)).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Voltar ao topo do extrato" })).toBeEnabled();
     });
 
     it("Voltar ao topo leva a página ao começo", async () => {

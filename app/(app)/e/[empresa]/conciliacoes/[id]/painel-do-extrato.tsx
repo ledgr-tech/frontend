@@ -2,15 +2,13 @@
 
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { ArrowRight, ChevronDown } from "lucide-react";
-import type { SaldoDoExtrato } from "@/lib/adaptadores";
-import { formatarMoeda, type LinhaComparacao } from "@/lib/mock-data";
+import type { LinhaComparacao } from "@/lib/mock-data";
 import { useRoteador } from "@/lib/roteador";
 import { aprovadaDepois } from "@/lib/aprovacao";
 import { MensagemErro } from "@/app/(auth)/_compartilhado/mensagem-erro";
 import { estaResolvida, formatarDataHora } from "../../dashboard/resumo";
 import { SeloIa } from "../../selo-ia";
 import { useNome } from "../../conta";
-import { SEM_SALDO, data as dataDoSaldo } from "../../saldo";
 import { explicarDivergencia, type Explicacao, type Indisponibilidade } from "../acoes";
 import { dadosDoLancamento, type ValorDoLado } from "./cartao-lancamento";
 import { acoesDoPainel, ofereceExplicacao } from "./painel-da-comparacao";
@@ -23,8 +21,8 @@ import { SomaDasSelecionadas } from "./soma-das-selecionadas";
 import type { SomaDasLinhas } from "./selecao";
 
 /**
- * O painel da direita da comparação (issue #338): o lançamento em que o mouse está, grande, e embaixo os
- * dois saldos do extrato e o caminho de volta ao topo. Substitui o balão do hover onde há margem para ele
+ * O painel da direita da comparação (issue #338): o lançamento em que o mouse está, grande, e embaixo o caminho
+ * de volta ao topo (o saldo do extrato fica nas colunas da tabela, #474). Substitui o balão do hover onde há margem para ele
  * (a partir de 1100px, ver `.comparacao-grade` em globals.css). A altura do quadro acompanha a
  * janela; dentro da mesma janela só o conteúdo muda quando o ponteiro troca de linha.
  */
@@ -47,9 +45,7 @@ export type PropsDoPainel = {
   rodada: number;
   /** Todas as linhas: o lado que falta numa divergência está numa delas. */
   linhas: LinhaComparacao[];
-  /** `undefined` é o backend sem o saldo (#118): o painel não fala de saldo. */
-  saldo: SaldoDoExtrato | null | undefined;
-  /** A soma das linhas selecionadas (#475), acima do saldo; sem nenhuma selecionada, nada. */
+  /** A soma das linhas selecionadas (#475), acima do caminho de volta ao topo; sem nenhuma selecionada, nada. */
   soma?: SomaDasLinhas;
   /** Com dado do backend: só ele tem a explicação sob pedido. */
   real: boolean;
@@ -73,15 +69,15 @@ export type PropsDoPainel = {
 };
 
 export function PainelDoExtrato(props: PropsDoPainel) {
-  const { linha, fixada, saldo, soma } = props;
+  const { linha, fixada, soma } = props;
   return (
-    <aside className="comp-painel conc-previa" aria-label="Detalhe da linha e saldo do extrato" data-tutorial="painel">
+    <aside className="comp-painel conc-previa" aria-label="Detalhe da linha" data-tutorial="painel">
       {/* só avisa leitor de tela quando a linha está fixada: o ponteiro passando mudaria o texto a cada linha */}
       <div aria-live={fixada ? "polite" : "off"}>
         <QuadroDoLancamento key={linha?.id ?? "vazio"} {...props} />
       </div>
       {soma && <SomaDasSelecionadas soma={soma} />}
-      <Saldos saldo={saldo} />
+      <VoltarAoTopo />
     </aside>
   );
 }
@@ -513,36 +509,13 @@ function Lado({
   );
 }
 
-function Saldos({ saldo }: { saldo: SaldoDoExtrato | null | undefined }) {
+function VoltarAoTopo() {
   function voltarAoTopo() {
     const reduzido = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
     window.scrollTo({ top: 0, behavior: reduzido ? "auto" : "smooth" });
   }
   return (
-    <section className="comp-saldos" aria-label="Saldo do extrato">
-      {saldo !== undefined &&
-        (saldo === null ? (
-          <p className="comp-saldo-data">{SEM_SALDO}</p>
-        ) : (
-          <>
-            <dl>
-              <div>
-                <dt>Saldo inicial</dt>
-                {/* com linhas não lidas a soma sairia incompleta: o backend não calcula, e o front também não */}
-                <dd data-sem-inicial={saldo.inicial === null || undefined}>
-                  {saldo.inicial === null ? "depende das linhas não lidas" : formatarMoeda(saldo.inicial)}
-                </dd>
-              </div>
-              <div data-final="">
-                <dt>Saldo final</dt>
-                <dd>{formatarMoeda(saldo.final)}</dd>
-              </div>
-            </dl>
-            <p className="comp-saldo-data">
-              Data do saldo <strong>{dataDoSaldo(saldo.data)}</strong>
-            </p>
-          </>
-        ))}
+    <section className="comp-saldos">
       <button type="button" className="btn btn-secondary" onClick={voltarAoTopo}>
         Voltar ao topo do extrato
       </button>

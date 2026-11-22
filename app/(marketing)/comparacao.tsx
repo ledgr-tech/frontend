@@ -8,6 +8,7 @@ import { PainelDoExtrato } from "@/app/(app)/e/[empresa]/conciliacoes/[id]/paine
 import { rotuloComDecisao, seloDaLinha, situacaoDaLinha, tomDaLinha } from "@/app/(app)/e/[empresa]/conciliacoes/[id]/situacao";
 import { formatarInteiro, statusDaLinha } from "@/app/(app)/e/[empresa]/dashboard/resumo";
 import { IconeOrigem } from "@/app/(app)/e/[empresa]/icone-origem";
+import { FaixaDoSaldo, SaldoDaFolha } from "@/app/(app)/e/[empresa]/saldo";
 import { useMovimentoReduzido } from "@/app/reveal";
 import type { SaldoDoExtrato } from "@/lib/adaptadores";
 import { formatarMoeda, type Decisao, type LinhaComparacao, type StatusLinha } from "@/lib/mock-data";
@@ -236,6 +237,9 @@ export function JanelaDaConciliacao({
               </div>
             </div>
 
+            {/* nos cartões o thead e o tfoot somem, e o saldo vem nesta faixa, que o CSS só mostra ali (#474) */}
+            <FaixaDoSaldo saldo={saldo} />
+
             <div className="dash-tabela-rolagem tabela-cartoes">
               <table className="table tabela-folhas folhas-com-eixo" role="table">
                 {/* as larguras do app (globals.css): as folhas saem iguais dos dois lados do eixo */}
@@ -255,6 +259,7 @@ export function JanelaDaConciliacao({
                       <span className="folha-titulo-conteudo">
                         <IconeOrigem origem="banco" />
                         <span className="folha-nome">Extrato do banco</span>
+                        <SaldoDaFolha saldo={saldo} momento="inicial" />
                       </span>
                     </th>
                     <td className="folha-fora" aria-hidden="true" />
@@ -386,6 +391,16 @@ export function JanelaDaConciliacao({
                     );
                   })}
                 </tbody>
+                <tfoot role="rowgroup">
+                  <tr role="row">
+                    <td role="cell" colSpan={3} className="folha-banco">
+                      <SaldoDaFolha saldo={saldo} momento="final" />
+                    </td>
+                    <td role="cell" className="folha-fora" aria-hidden="true" />
+                    <td role="cell" colSpan={3} className="folha-sistema" />
+                    <td role="cell" className="celula-conferir" />
+                  </tr>
+                </tfoot>
               </table>
             </div>
             {/* os textos da tabela vazia do app (textoDoVazio, na comparação) */}
@@ -404,7 +419,6 @@ export function JanelaDaConciliacao({
               fixada={fixada}
               rodada={RODADA}
               linhas={linhas}
-              saldo={saldo}
               real={false}
               podeDecidir
               podeAprovar={false}
@@ -430,8 +444,8 @@ export function JanelaDaConciliacao({
       </div>
       <figcaption className="sr-only">
         Uma conciliação de agosto aberta na Comparação direta, só a tela, sem o resto do app: o extrato do banco ao
-        lado do sistema de gestão, cada linha com o status, e o painel da direita com o lançamento em foco e o saldo do extrato. Dá para
-        filtrar, ordenar, marcar as divergências conferidas e justificar.
+        lado do sistema de gestão, cada linha com o status, o saldo inicial no topo e o final no pé da coluna do banco,
+        e o painel da direita com o lançamento em foco. Dá para filtrar, ordenar, marcar as divergências conferidas e justificar.
       </figcaption>
     </figure>
   );
