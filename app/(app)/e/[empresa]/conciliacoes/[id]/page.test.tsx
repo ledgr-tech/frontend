@@ -1180,6 +1180,25 @@ describe("ConciliacaoPage", () => {
       for (const tr of tabela.querySelectorAll("tbody tr")) expect(colunas(tr)).toBe(doCabecalho);
     });
 
+    it("sem o fechamento, a comparação esconde conferir, justificar e nova versão e mostra o aviso", async () => {
+      doBackend(comCampo, {
+        fechamento: null,
+        fechamentoIndisponivel: true,
+      });
+      render(<ConciliacaoPage />);
+
+      const aviso = (await screen.findByText(/^Não deu para saber se este mês está fechado/)).closest<HTMLElement>("[role=status]");
+      expect(aviso).not.toBeNull();
+      if (!aviso) return;
+      expect(aviso).toHaveTextContent(
+        "Não deu para saber se este mês está fechado. Conferir, justificar e enviar nova versão voltam quando carregar.",
+      );
+      expect(within(aviso).getByRole("button", { name: "Tentar de novo" })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /como conferida$/ })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Justificar" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Enviar nova versão do extrato do sistema" })).not.toBeInTheDocument();
+    });
+
     it("keeps the check in its own column at the end of the row, so the axis holds only the verdict", async () => {
       doBackend(comCampo);
       render(<ConciliacaoPage />);

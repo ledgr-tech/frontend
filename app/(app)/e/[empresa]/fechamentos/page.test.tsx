@@ -358,6 +358,17 @@ describe("FechamentosPage", () => {
       expect(within(pronto).queryByRole("button", { name: /Fechar/ })).not.toBeInTheDocument();
       expect(within(pronto).getByRole("link", { name: "Começar setembro" })).toBeInTheDocument();
     });
+
+    it("never calls a month ready or open when the closures could not be read", async () => {
+      await renderizar(undefined, { mes: "2026-08" }, null);
+
+      expect(screen.getByRole("status")).toHaveTextContent("Não deu para saber quais meses estão fechados.");
+      expect(screen.getByRole("button", { name: "Tentar de novo" })).toBeInTheDocument();
+      expect(screen.queryByText("Pronto para fechar")).not.toBeInTheDocument();
+      expect(screen.getAllByText("Situação do mês indisponível").length).toBeGreaterThan(0);
+      expect(within(painel()).getByText("Fechamento · situação do mês indisponível")).toBeInTheDocument();
+      expect(screen.queryByRole("group", { name: "Filtrar meses" })).not.toBeInTheDocument();
+    });
   });
 
   describe("justified divergences", () => {
