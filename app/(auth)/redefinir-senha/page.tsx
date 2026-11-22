@@ -34,6 +34,9 @@ const ERROS_BACKEND: Record<Exclude<ErroRedefinicao, "link_invalido">, Erros> = 
   falha: { geral: "Não foi possível salvar agora. Tente de novo em instantes." },
 };
 
+// a action nem chegou ao servidor: recarregar não adianta, o token já saiu do endereço
+const SEM_RESPOSTA = "Não foi possível salvar agora. Tente de novo em instantes. Se não der, abra de novo o link do e-mail.";
+
 const estiloTitulo: CSSProperties = {
   margin: "0 0 clamp(8px, 1.5vh, 14px)",
   fontSize: "clamp(28px, 3.4vw, 38px)",
@@ -81,9 +84,12 @@ export default function RedefinirSenhaPage() {
     if (Object.keys(invalidos).length > 0) return;
 
     setEtapa("enviando");
-    const resultado = await redefinirSenha(token.current, senha).catch(
-      (): ResultadoRedefinicao => ({ ok: false, erro: "falha" }),
-    );
+    const resultado = await redefinirSenha(token.current, senha).catch(() => null);
+    if (!resultado) {
+      setErros({ geral: SEM_RESPOSTA });
+      setEtapa("formulario");
+      return;
+    }
     if (resultado.ok) {
       setEtapa("concluido");
       return;

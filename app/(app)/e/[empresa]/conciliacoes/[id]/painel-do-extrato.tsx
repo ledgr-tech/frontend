@@ -27,7 +27,8 @@ import type { SomaDasLinhas } from "./selecao";
  * janela; dentro da mesma janela só o conteúdo muda quando o ponteiro troca de linha.
  */
 
-const FALHA = "Não foi possível pedir a explicação agora. Tente de novo em instantes.";
+// só no catch: a action nem chegou ao servidor (rede, ou deploy novo, que só recarregar resolve)
+const FALHA = "Não foi possível pedir a explicação agora. Tente de novo em instantes ou recarregue a página.";
 
 // "desabilitado" fica de fora de propósito: recurso desligado não é falha (como no detalhe da linha)
 const AVISO: Partial<Record<Indisponibilidade, string>> = {

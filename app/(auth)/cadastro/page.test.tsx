@@ -444,6 +444,16 @@ describe("CadastroPage", () => {
     expect(push).not.toHaveBeenCalled();
   });
 
+  it("keeps the backend's failure text without asking for a reload", async () => {
+    cadastrar.mockResolvedValue({ ok: false, erro: "falha" });
+    const user = userEvent.setup();
+    render(<CadastroPage />);
+
+    await concluirCadastro(user);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/^Não foi possível concluir o cadastro\. Tente de novo em instantes\.$/);
+  });
+
   it("recovers the form when the server can't be reached", async () => {
     cadastrar.mockRejectedValue(new Error("Failed to fetch"));
     const user = userEvent.setup();
@@ -452,7 +462,7 @@ describe("CadastroPage", () => {
     await concluirCadastro(user);
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Não foi possível concluir o cadastro. Tente de novo em instantes.",
+      "Não foi possível concluir o cadastro. Tente de novo em instantes. Se não der, recarregue a página e preencha de novo.",
     );
     expect(screen.getByRole("button", { name: "Concluir cadastro" })).toBeEnabled();
     // o formulário foi recriado: o foco volta ao botão, e não ao <body> (num efeito: waitFor, como os vizinhos)

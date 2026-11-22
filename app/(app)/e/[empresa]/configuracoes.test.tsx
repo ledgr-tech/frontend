@@ -346,6 +346,24 @@ describe("Configuracoes", () => {
     expect(screen.queryByRole("form", { name: "Trocar senha" })).not.toBeInTheDocument();
   });
 
+  it("asks for a reload when the account action never reaches the server", async () => {
+    trocarSenha.mockRejectedValueOnce(new Error("Failed to fetch"));
+    const user = userEvent.setup();
+    abrir();
+    await user.click(secao("Conta"));
+    await user.click(screen.getByRole("button", { name: "Trocar senha" }));
+
+    const formulario = screen.getByRole("form", { name: "Trocar senha" });
+    await user.type(within(formulario).getByLabelText("Senha atual"), "s3nha-velha");
+    await user.type(within(formulario).getByLabelText("Senha nova"), "s3nha-nova");
+    await user.type(within(formulario).getByLabelText("Repita a senha nova"), "s3nha-nova");
+    await user.click(within(formulario).getByRole("button", { name: "Trocar senha" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Não foi possível salvar agora. Tente de novo em instantes ou recarregue a página.",
+    );
+  });
+
   it("has no password to change on an account that signs in only with Google", async () => {
     const user = userEvent.setup();
     abrir({ temSenha: false });
