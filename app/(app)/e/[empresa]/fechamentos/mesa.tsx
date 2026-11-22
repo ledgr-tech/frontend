@@ -133,7 +133,14 @@ export function MesaDeFechamento({
   // meses até recarregar (fica aqui, e não no cartão, que monta de novo a cada mês)
   const [linkSemCriacao, setLinkSemCriacao] = useState(false);
   // o cartão do link desmonta quando a releitura mostra o mês reaberto; o aviso fica com o mês
-  const [avisoDoLink, setAvisoDoLink] = useState<{ competencia: string; texto: string } | null>(null);
+  const [avisoDoLink, setAvisoDoLink] = useState<{ competencia: string; texto: string; reabertoVisto?: boolean } | null>(null);
+  // depois de a releitura mostrar o mês reaberto, fechá-lo de novo tira o aviso: ele falava daquele intervalo
+  if (avisoDoLink) {
+    const mesDoAviso = meses.find((mes) => mes.chave === avisoDoLink.competencia);
+    const fechadoAgora = mesDoAviso !== undefined && estaFechado(mesDoAviso);
+    if (!fechadoAgora && !avisoDoLink.reabertoVisto) setAvisoDoLink({ ...avisoDoLink, reabertoVisto: true });
+    else if (fechadoAgora && avisoDoLink.reabertoVisto) setAvisoDoLink(null);
+  }
   const [selecionado, setSelecionado] = useState<string | null>(
     () => meses.find((mes) => mes.chave === inicial)?.chave ?? meses[0]?.chave ?? null,
   );
@@ -609,11 +616,12 @@ function AcoesDoFechamento({ mes, revisar }: { mes: MesDeFechamento; revisar: st
   // o backend recusou por pendência (409): a ressalva é o que falta para fechar
   const [pedeRessalva, setPedeRessalva] = useState(false);
   const [ressalva, setRessalva] = useState("");
-  // aprovadas as pendentes (a contagem chega a zero), o 409 que falava delas venceu
+  // aprovadas pendentes (a contagem cai), o 409 que falava do número antigo venceu
   const [aguardandoAntes, setAguardandoAntes] = useState(mes.aguardandoAprovacao);
   if (mes.aguardandoAprovacao !== aguardandoAntes) {
     setAguardandoAntes(mes.aguardandoAprovacao);
-    if (mes.aguardandoAprovacao === 0) {
+    // só quando cai: subir (0 → 2) é justamente a releitura que confirma o 409 e não pode apagá-lo
+    if (mes.aguardandoAprovacao < aguardandoAntes) {
       setErro(null);
       setPedeRessalva(false);
     }

@@ -965,6 +965,8 @@ describe("ConciliacaoPage", () => {
     const banco = await screen.findByRole("columnheader", { name: "Extrato do banco" });
     expect(within(banco).getByText("Saldo inicial")).toBeInTheDocument();
     expect(banco).toHaveTextContent(/R\$\s*100,00/);
+    // o nome é só "Extrato do banco"; o leitor de tela ouve o saldo inicial como descrição
+    expect(banco).toHaveAccessibleDescription(/Saldo inicial\s*R\$\s*100,00/);
   });
 
   it("mostra o saldo final no pé da coluna do banco, mesmo com filtro vazio", async () => {

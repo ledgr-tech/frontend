@@ -770,11 +770,12 @@ export default function ConciliacaoPage() {
                     e o olho passa por ele no caminho de um lado ao outro. */}
                 <tr role="row" className="folhas-titulos">
                   <td className="folha-fora" aria-hidden="true" />
-                  <th colSpan={3} scope="colgroup" className="folha-banco folha-titulo" aria-label="Extrato do banco">
+                  <th colSpan={3} scope="colgroup" className="folha-banco folha-titulo" aria-label="Extrato do banco" aria-describedby="saldo-inicial-do-banco">
                     <span className="folha-titulo-conteudo">
                       <IconeOrigem origem="banco" />
                       <span className="folha-nome">Extrato do banco</span>
-                      <SaldoDaFolha saldo={conciliacao.saldo} momento="inicial" />
+                      {/* o nome é só "Extrato do banco"; o saldo inicial chega ao leitor de tela como descrição */}
+                      <SaldoDaFolha saldo={conciliacao.saldo} momento="inicial" id="saldo-inicial-do-banco" />
                     </span>
                   </th>
                   <td className="folha-fora" aria-hidden="true" />

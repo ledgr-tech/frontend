@@ -311,6 +311,15 @@ describe("FechamentosPage", () => {
       expect(screen.queryByRole("button", { name: "Gerar link" })).not.toBeInTheDocument();
       await user.click(screen.getByRole("button", { name: /Setembro de 2026/ }));
       expect(within(painel()).queryByText(erro)).not.toBeInTheDocument();
+
+      // fechado de novo, o aviso daquele intervalo sai
+      carregarFechamentos.mockResolvedValue({
+        ok: true,
+        dados: { pares: [SETEMBRO_EM_ABERTO, AGOSTO_PRONTO], fechamentos: [fechamento("2026-08")] },
+      });
+      tela.rerender(await FechamentosPage({ searchParams: Promise.resolve({ mes: "2026-08" }) }));
+      await user.click(screen.getByRole("button", { name: /Agosto de 2026/ }));
+      expect(screen.queryByText(erro)).not.toBeInTheDocument();
     });
 
     it("only the manager closes and reopens: the others see who can, and keep the way to review", async () => {

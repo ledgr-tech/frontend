@@ -53,7 +53,10 @@ export function combina(empresa: { razaoSocial: string; cnpj: string }, termo: s
   if (!procurado) return true;
   // o CNPJ pode ter letras (o alfanumérico), mas só um termo com dígito procura nele: "Ana" é nome
   const cnpjProcurado = caracteresCnpj(termo);
-  const digitos = termo.replace(/\D/g, "");
+  // o maior trecho de dígitos seguidos (a máscara . / - pode ficar no meio): "Posto 12 Rua 345" não vira 12345
+  const digitos = (termo.match(/\d[\d./-]*\d|\d/g) ?? [])
+    .map((trecho) => trecho.replace(/\D/g, ""))
+    .reduce((maior, atual) => (atual.length > maior.length ? atual : maior), "");
   const cnpj = caracteresCnpj(empresa.cnpj);
   return (
     empresa.razaoSocial.toLowerCase().includes(procurado) ||

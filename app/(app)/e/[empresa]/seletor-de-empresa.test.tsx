@@ -111,6 +111,10 @@ describe("combina", () => {
     expect(combina({ razaoSocial: "X", cnpj: "11222333000144" }, "AB12")).toBe(false);
   });
 
+  it("não junta números de palavras diferentes num trecho de CNPJ", () => {
+    expect(combina({ razaoSocial: "Mercado", cnpj: "12345000000144" }, "Posto 12 Rua 345")).toBe(false);
+  });
+
   it.each(["cnpj 12345", "Loja 12.345"])("acha o trecho numérico do CNPJ em %s", (termo) => {
     expect(combina({ razaoSocial: "Mercado", cnpj: "12345000000144" }, termo)).toBe(true);
     expect(combina({ razaoSocial: "Mercado", cnpj: "99888777000166" }, termo)).toBe(false);
