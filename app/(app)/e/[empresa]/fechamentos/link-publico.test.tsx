@@ -92,14 +92,31 @@ describe("LinkPublico", () => {
     expect(refresh).toHaveBeenCalledTimes(1);
   });
 
-  it("404 da flag esconde o cartão", async () => {
+  it("404 da flag mostra o texto do backend e avisa a mesa", async () => {
     criar.mockResolvedValue({ ok: false, status: 404, erro: "Link público não disponível.", motivo: "sem-rota" });
+    const aoFicarSemCriacao = vi.fn();
     const user = userEvent.setup();
-    const { container } = render(<LinkPublico competencia="2026-08" />);
+    render(<LinkPublico competencia="2026-08" aoFicarSemCriacao={aoFicarSemCriacao} />);
 
     await user.click(await screen.findByRole("button", { name: "Gerar link" }));
 
+    expect(await screen.findByRole("alert")).toHaveTextContent("Link público não disponível.");
+    expect(aoFicarSemCriacao).toHaveBeenCalledTimes(1);
+    expect(refresh).not.toHaveBeenCalled();
+  });
+
+  it("sem criação, outro mês sem links não mostra o cartão", async () => {
+    listar.mockResolvedValue({ ok: true, dados: [] });
+    const { container } = render(<LinkPublico competencia="2026-09" semCriacao />);
+    await vi.waitFor(() => expect(listar).toHaveBeenCalled());
     expect(container).toBeEmptyDOMElement();
+  });
+
+  it("sem criação, os links ativos ficam para revogar, sem Gerar link", async () => {
+    render(<LinkPublico competencia="2026-09" semCriacao />);
+
+    expect(await screen.findByRole("button", { name: "Revogar o link k3Fq9aZx" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Gerar link" })).not.toBeInTheDocument();
   });
 
   it("some quando o backend não tem a rota", async () => {

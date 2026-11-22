@@ -124,6 +124,9 @@ export function MesaDeFechamento({
   podeFechar: boolean;
 }) {
   const [filtro, setFiltro] = useState<Filtro>("todos");
+  // o backend não diz se o link público está ligado: o 404 do primeiro "Gerar link" vale para todos os
+  // meses até recarregar (fica aqui, e não no cartão, que monta de novo a cada mês)
+  const [linkSemCriacao, setLinkSemCriacao] = useState(false);
   const [selecionado, setSelecionado] = useState<string | null>(
     () => meses.find((mes) => mes.chave === inicial)?.chave ?? meses[0]?.chave ?? null,
   );
@@ -247,7 +250,13 @@ export function MesaDeFechamento({
               );
             })}
           </div>
-          <Painel mes={aberto} podeFechar={podeFechar} naoLidasIndisponivel={naoLidasIndisponivel} />
+          <Painel
+            mes={aberto}
+            podeFechar={podeFechar}
+            naoLidasIndisponivel={naoLidasIndisponivel}
+            linkSemCriacao={linkSemCriacao}
+            aoFicarSemCriacao={() => setLinkSemCriacao(true)}
+          />
         </div>
       )}
     </div>
@@ -287,10 +296,12 @@ function Passo({ feito, icone, titulo, children }: { feito?: boolean; icone?: Re
   );
 }
 
-function Painel({ mes, podeFechar, naoLidasIndisponivel }: {
+function Painel({ mes, podeFechar, naoLidasIndisponivel, linkSemCriacao, aoFicarSemCriacao }: {
   mes: MesDeFechamento;
   podeFechar: boolean;
   naoLidasIndisponivel: boolean;
+  linkSemCriacao: boolean;
+  aoFicarSemCriacao: () => void;
 }) {
   // o podeFechar daqui diz só que os fechamentos carregaram; o papel vem da conta
   const gestor = usePodeFechar();
@@ -480,7 +491,9 @@ function Painel({ mes, podeFechar, naoLidasIndisponivel }: {
             )}
           </div>
           {/* a chave zera o link ao trocar de mês: o endereço com o token só vale para o mês em que foi gerado */}
-          {fechado && podeFechar && gestor && <LinkPublico key={mes.chave} competencia={mes.chave} />}
+          {fechado && podeFechar && gestor && (
+            <LinkPublico key={mes.chave} competencia={mes.chave} semCriacao={linkSemCriacao} aoFicarSemCriacao={aoFicarSemCriacao} />
+          )}
           {conciliadas.map((par) => (
             <div key={par.execucao.id} className="fech-relatorio">
               {conciliadas.length > 1 && <span className="fech-passo-texto">{par.execucao.arquivoBanco}</span>}

@@ -19,9 +19,19 @@ const dia = (iso: string) => formatarDataHora(iso).slice(0, 10);
  * relatório no navegador, sem conta. Escolhe-se a validade (7, 30 ou 90 dias; o backend aceita de 1 a 90) e
  * gera-se o link. O endereço completo só existe na criação (o backend guarda o hash do token), então fica em
  * destaque até ser copiado; depois, a tabela mostra só o prefixo, a validade e os acessos. Só para quem fecha
- * o mês, e some se o backend ainda não tem a rota (ou a flag está desligada).
+ * o mês, e some se o backend ainda não tem a rota. Com a flag desligada a listagem responde (para revogar o que
+ * já existia) e só a criação dá 404: o primeiro "Gerar link" mostra o texto do backend e avisa a mesa
+ * (`aoFicarSemCriacao`); daí em diante (`semCriacao`) o cartão some, ou fica só com os links ativos para revogar.
  */
-export function LinkPublico({ competencia }: { competencia: string }) {
+export function LinkPublico({
+  competencia,
+  semCriacao = false,
+  aoFicarSemCriacao,
+}: {
+  competencia: string;
+  semCriacao?: boolean;
+  aoFicarSemCriacao?: () => void;
+}) {
   const router = useRoteador();
   const [estado, setEstado] = useState<Estado>({ situacao: "carregando" });
   const [validade, setValidade] = useState(30);
@@ -44,6 +54,7 @@ export function LinkPublico({ competencia }: { competencia: string }) {
 
   if (estado.situacao !== "pronto") return null;
   const ativos = estado.links.filter((link) => link.ativo);
+  if (semCriacao && ativos.length === 0 && !erro) return null;
   const noLimite = ativos.length >= MAXIMO_ATIVOS;
 
   /** Uma chamada por vez: a trava fecha antes do primeiro await. */
@@ -67,14 +78,9 @@ export function LinkPublico({ competencia }: { competencia: string }) {
     executar(async () => {
       const r = await criarLinkDoRelatorio(competencia, validade, window.location.origin);
       if (!r.ok) {
-        if (r.status === 404) {
-          if (r.motivo === "mes-reaberto") {
-            router.refresh();
-            return r.erro;
-          }
-          setEstado({ situacao: "sem-rota" });
-        }
-        return r.status === 404 ? null : r.erro;
+        if (r.status === 404 && r.motivo === "mes-reaberto") router.refresh();
+        else if (r.status === 404) aoFicarSemCriacao?.();
+        return r.erro;
       }
       setEndereco({ id: r.dados.link.id, url: r.dados.endereco });
       setCopiado(false);
@@ -113,6 +119,7 @@ export function LinkPublico({ competencia }: { competencia: string }) {
         <div className="fech-passo-texto">O cliente abre o relatório no navegador, sem conta. Você revoga quando quiser.</div>
       </div>
 
+      {!semCriacao && (
       <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
         <span className="fech-passo-texto">Validade</span>
         <div className="pills segmentado" role="group" aria-label="Validade do link">
@@ -127,6 +134,7 @@ export function LinkPublico({ competencia }: { competencia: string }) {
         </button>
         {noLimite && <span className="fech-passo-texto">{`O limite é de ${MAXIMO_ATIVOS} links ativos: revogue um para gerar outro.`}</span>}
       </div>
+      )}
 
       {endereco && (
         <div role="status" style={{ display: "grid", gap: 6, padding: 12, borderRadius: 10, background: "color-mix(in srgb, var(--color-accent) 10%, transparent)" }}>
