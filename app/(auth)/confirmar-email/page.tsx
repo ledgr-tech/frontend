@@ -28,6 +28,9 @@ const ERROS_GERAIS: Record<Exclude<ErroConfirmacao, "link_invalido" | "email_em_
   falha: "Não foi possível confirmar agora. Tente de novo em instantes.",
 };
 
+// a action nem chegou ao servidor: recarregar não adianta, o token já saiu do endereço
+const SEM_RESPOSTA = "Não foi possível confirmar agora. Tente de novo em instantes. Se não der, abra de novo o link do e-mail.";
+
 const estiloTitulo: CSSProperties = {
   margin: "0 0 clamp(8px, 1.5vh, 14px)",
   fontSize: "clamp(28px, 3.4vw, 38px)",
@@ -82,9 +85,12 @@ export default function ConfirmarEmailPage() {
     if (etapa !== "pronto") return;
     setEtapa("enviando");
     setErro("");
-    const resultado = await confirmarEmail(token.current).catch(
-      (): ResultadoConfirmacaoEmail => ({ ok: false, erro: "falha" }),
-    );
+    const resultado = await confirmarEmail(token.current).catch(() => null);
+    if (!resultado) {
+      setErro(SEM_RESPOSTA);
+      setEtapa("pronto");
+      return;
+    }
     if (resultado.ok) {
       setEmailNovo(resultado.email);
       setEtapa("concluido");

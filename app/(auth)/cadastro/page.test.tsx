@@ -452,7 +452,7 @@ describe("CadastroPage", () => {
     await concluirCadastro(user);
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Não foi possível concluir o cadastro. Tente de novo em instantes.",
+      "Não foi possível concluir o cadastro. Tente de novo em instantes. Se não der, recarregue a página e preencha de novo.",
     );
     expect(screen.getByRole("button", { name: "Concluir cadastro" })).toBeEnabled();
     // o formulário foi recriado: o foco volta ao botão, e não ao <body> (num efeito: waitFor, como os vizinhos)

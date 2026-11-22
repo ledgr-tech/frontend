@@ -19,6 +19,9 @@ const ERROS_PEDIDO: Record<Extract<ResultadoRecuperacao, { ok: false }>["erro"],
   falha: "Não foi possível enviar agora. Tente de novo em instantes.",
 };
 
+// a action nem chegou ao servidor (rede, ou deploy novo, que só recarregar resolve)
+const SEM_RESPOSTA = "Não foi possível enviar agora. Tente de novo em instantes ou recarregue a página.";
+
 // a curva da casa (--ease-out) e o --dur-padrao de 200ms (MV-01, MV-02)
 const CURVA = PONTOS_DA_CURVA;
 const DURACAO = 0.2;
@@ -133,16 +136,16 @@ function Cartao({ emailInicial, onFechar }: { emailInicial: string; onFechar: ()
       timer.current = setTimeout(resolver, ENVIO_MINIMO_MS);
     });
     const [resultado] = await Promise.all([
-      pedirRecuperacaoSenha(emailLimpo).catch((): ResultadoRecuperacao => ({ ok: false, erro: "falha" })),
+      pedirRecuperacaoSenha(emailLimpo).catch(() => null),
       pausa,
     ]);
     // o card pode ter fechado durante o envio
     if (!montado.current) return;
-    if (resultado.ok) {
+    if (resultado?.ok) {
       setEtapa("enviado");
       return;
     }
-    setErro(ERROS_PEDIDO[resultado.erro]);
+    setErro(resultado ? ERROS_PEDIDO[resultado.erro] : SEM_RESPOSTA);
     setTremor((atual) => atual + 1);
     setEtapa("formulario");
   }

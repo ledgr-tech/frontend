@@ -174,6 +174,35 @@ describe("AceitarConvite", () => {
     expect(document.querySelector('img[src*="mascote-relogio"]')).toBeNull();
   });
 
+  it("sem resposta da action ao abrir, manda abrir o link de novo", async () => {
+    consultarConvite.mockRejectedValue(new Error("Failed to fetch"));
+    render(<AceitarConvite conectadoComo={null} google={SEM_GOOGLE} />);
+
+    expect(await screen.findByText("Não foi possível abrir o convite agora. Abra de novo o link do e-mail.")).toBeInTheDocument();
+  });
+
+  it("sem resposta da action ao aceitar, manda abrir o link de novo (recarregar perde o token)", async () => {
+    aceitarConvite.mockRejectedValue(new Error("Failed to fetch"));
+    render(<AceitarConvite conectadoComo={null} google={SEM_GOOGLE} />);
+
+    await preencher("Ana", "senha-boa-1");
+
+    expect(
+      await screen.findByText(
+        "Não foi possível agora. Tente de novo em instantes. Se não der, abra de novo o link do e-mail e preencha outra vez.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("o falha do backend não manda abrir o link de novo", async () => {
+    aceitarConvite.mockResolvedValue({ ok: false, erro: "falha" });
+    render(<AceitarConvite conectadoComo={null} google={SEM_GOOGLE} />);
+
+    await preencher("Ana", "senha-boa-1");
+
+    expect(await screen.findByText("Não foi possível agora. Tente de novo em instantes.")).toBeInTheDocument();
+  });
+
   it("muitas tentativas pede para esperar", async () => {
     aceitarConvite.mockResolvedValue({ ok: false, erro: "muitas_tentativas" });
     render(<AceitarConvite conectadoComo={null} google={SEM_GOOGLE} />);

@@ -74,6 +74,8 @@ const ERRO_GERAL = {
   google_expirado: "A confirmação do Google venceu. Entre com o Google de novo para concluir.",
   google_ja_cadastrado: "Já existe uma conta no Ledgr para esta conta Google. Entre pelo login.",
   google_indisponivel: "O cadastro pelo Google está indisponível agora. Tente de novo em instantes.",
+  // a action nem chegou ao servidor (rede, ou deploy novo, que só recarregar resolve): recarregar apaga o preenchido
+  sem_resposta: "Não foi possível concluir o cadastro. Tente de novo em instantes. Se não der, recarregue a página e preencha de novo.",
 };
 
 function validarCampo(campo: CampoCadastro, valor: string): string | undefined {
@@ -291,7 +293,7 @@ export function FormularioCadastro({ google }: PropsCadastro) {
   }
 
   async function concluir() {
-    let resultado: ResultadoCadastro;
+    let resultado: ResultadoCadastro | { ok: false; erro: "sem_resposta" };
     const empresa = {
       nome: (valores.nome ?? "").trim(),
       razaoSocial: (valores.razaoSocial ?? "").trim(),
@@ -305,7 +307,7 @@ export function FormularioCadastro({ google }: PropsCadastro) {
         : await cadastrar({ ...empresa, email: (valores.email ?? "").trim(), senha: valores.senha ?? "" });
     } catch {
       // a action nem respondeu (rede, deploy novo no meio)
-      resultado = { ok: false, erro: "falha" };
+      resultado = { ok: false, erro: "sem_resposta" };
     }
     if (resultado.ok) {
       setFase(resultado.entrou ? "abrindo" : "login");

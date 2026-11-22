@@ -188,7 +188,7 @@ describe("ExplicacaoDaDivergencia", () => {
     await pedir();
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Não foi possível pedir a explicação agora. Tente de novo em instantes.",
+      "Não foi possível pedir a explicação agora. Tente de novo em instantes ou recarregue a página.",
     );
     expect(screen.getByRole("button", { name: "Tentar de novo" })).toBeEnabled();
   });
