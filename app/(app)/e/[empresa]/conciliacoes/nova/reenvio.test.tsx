@@ -17,7 +17,7 @@ vi.mock("next/navigation", () => ({
 const enviarExtrato = vi.fn();
 const situacaoDoExtrato = vi.fn();
 const conciliar = vi.fn();
-const descartarExtrato = vi.fn(async (_id: string) => ({ ok: true, dados: null }));
+const descartarExtrato = vi.fn<(id: string) => Promise<unknown>>().mockResolvedValue({ ok: true, dados: null });
 const carregarRegras = vi.fn();
 const carregarContextoDoReenvio = vi.fn();
 const verificarNovaVersao = vi.fn();

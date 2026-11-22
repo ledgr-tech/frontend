@@ -22,7 +22,7 @@ vi.mock("next/navigation", () => ({
 const enviarExtrato = vi.fn();
 const situacaoDoExtrato = vi.fn();
 const conciliar = vi.fn();
-const descartarExtrato = vi.fn(async (_id: string) => ({ ok: true, dados: null }));
+const descartarExtrato = vi.fn<(id: string) => Promise<unknown>>().mockResolvedValue({ ok: true, dados: null });
 const carregarRegras = vi.fn();
 vi.mock("../acoes", () => ({
   enviarExtrato: (dados: FormData) => enviarExtrato(dados),
@@ -913,6 +913,19 @@ describe("depois da importação via IA, só falta o banco", () => {
     // o extrato do sistema já está lido: não há o que esperar por ele
     expect(situacaoDoExtrato).toHaveBeenCalledTimes(1);
     await waitFor(() => expect(push).toHaveBeenCalledWith(`/conciliacoes/extrato-banco?sistema=${SISTEMA_DA_IA}`));
+  });
+
+  it("ao voltar para corrigir o banco, descarta só ele: o extrato da IA fica (#308)", async () => {
+    situacaoDoExtrato.mockResolvedValue(concluido("banco", [{ identificador: "12", motivo: "Data inválida" }]));
+    const user = userEvent.setup();
+    render(<NovaConciliacaoPage />);
+    await user.upload(screen.getByLabelText("Extrato do banco"), arquivo("banco.ofx"));
+    await user.click(screen.getByRole("button", { name: "Conciliar extratos" }));
+
+    await user.click(await screen.findByRole("button", { name: "Voltar para corrigir" }));
+
+    expect(descartarExtrato.mock.calls.map(([id]) => id)).toEqual(["extrato-banco"]);
+    expect(conciliar).not.toHaveBeenCalled();
   });
 
   it("ignora um ?sistema= que não é um id", () => {
