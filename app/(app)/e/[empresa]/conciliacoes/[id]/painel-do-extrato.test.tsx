@@ -69,6 +69,16 @@ describe("PainelDoExtrato", () => {
     explicarDivergencia.mockReset();
   });
 
+  it("mostra a soma das selecionadas quando recebida", () => {
+    montar({ soma: { quantidade: 2, banco: 100, sistema: 80, diferenca: 20 } });
+    expect(screen.getByRole("region", { name: "Soma das selecionadas" })).toBeInTheDocument();
+  });
+
+  it("não mostra a soma sem a prop", () => {
+    montar();
+    expect(screen.queryByRole("region", { name: "Soma das selecionadas" })).not.toBeInTheDocument();
+  });
+
   describe("sem linha em foco", () => {
     it("é um molde na tela: os campos vazios, a dica e o Abrir detalhe desligado", () => {
       montar({ linha: null });

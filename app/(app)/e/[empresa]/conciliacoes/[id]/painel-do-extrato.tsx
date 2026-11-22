@@ -17,6 +17,8 @@ import { seloDaLinha, situacaoDaLinha } from "./situacao";
 import { semMovimento, useAvisoDeRolagem } from "../aviso-de-rolagem";
 import { BotaoDeExplicar } from "./botao-de-explicar";
 import { TextoDigitado } from "./texto-digitado";
+import { SomaDasSelecionadas } from "./soma-das-selecionadas";
+import type { SomaDasLinhas } from "./selecao";
 
 /**
  * O painel da direita da comparação (issue #338): o lançamento em que o mouse está, grande, e embaixo o caminho
@@ -43,6 +45,8 @@ export type PropsDoPainel = {
   rodada: number;
   /** Todas as linhas: o lado que falta numa divergência está numa delas. */
   linhas: LinhaComparacao[];
+  /** A soma das linhas selecionadas (#475), acima do caminho de volta ao topo; sem nenhuma selecionada, nada. */
+  soma?: SomaDasLinhas;
   /** Com dado do backend: só ele tem a explicação sob pedido. */
   real: boolean;
   /** Há onde gravar a decisão, a rodada é a que vale e o mês está aberto. */
@@ -65,13 +69,14 @@ export type PropsDoPainel = {
 };
 
 export function PainelDoExtrato(props: PropsDoPainel) {
-  const { linha, fixada } = props;
+  const { linha, fixada, soma } = props;
   return (
     <aside className="comp-painel conc-previa" aria-label="Detalhe da linha" data-tutorial="painel">
       {/* só avisa leitor de tela quando a linha está fixada: o ponteiro passando mudaria o texto a cada linha */}
       <div aria-live={fixada ? "polite" : "off"}>
         <QuadroDoLancamento key={linha?.id ?? "vazio"} {...props} />
       </div>
+      {soma && <SomaDasSelecionadas soma={soma} />}
       <VoltarAoTopo />
     </aside>
   );
