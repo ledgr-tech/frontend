@@ -17,6 +17,7 @@ vi.mock("next/navigation", () => ({
 const enviarExtrato = vi.fn();
 const situacaoDoExtrato = vi.fn();
 const conciliar = vi.fn();
+const descartarExtrato = vi.fn(async (_id: string) => ({ ok: true, dados: null }));
 const carregarRegras = vi.fn();
 const carregarContextoDoReenvio = vi.fn();
 const verificarNovaVersao = vi.fn();
@@ -24,6 +25,7 @@ vi.mock("../acoes", () => ({
   enviarExtrato: (dados: FormData) => enviarExtrato(dados),
   situacaoDoExtrato: (id: string) => situacaoDoExtrato(id),
   conciliar: (banco: string, sistema: string) => conciliar(banco, sistema),
+  descartarExtrato: (id: string) => descartarExtrato(id),
   carregarRegras: () => carregarRegras(),
   carregarContextoDoReenvio: (banco: string, anterior: string) => carregarContextoDoReenvio(banco, anterior),
   verificarNovaVersao: (banco: string, anterior: string) => verificarNovaVersao(banco, anterior),
@@ -75,6 +77,7 @@ async function enviar(arquivo = csv()) {
 
 describe("Nova conciliação em modo reenvio", () => {
   beforeEach(() => {
+    descartarExtrato.mockClear();
     consulta = `banco=${BANCO}&sistemaAnterior=${ANTERIOR}`;
     push.mockClear();
     for (const mock of [enviarExtrato, situacaoDoExtrato, conciliar, carregarRegras, carregarContextoDoReenvio, verificarNovaVersao, carregarPromptIa, importarViaIa]) {
@@ -225,6 +228,8 @@ describe("Nova conciliação em modo reenvio", () => {
     await user.click(await screen.findByRole("button", { name: "Voltar para corrigir" }));
 
     expect(conciliar).not.toHaveBeenCalled();
+    // só o sistema subiu: o banco mantido já está conciliado e nunca é descartado (#308)
+    expect(descartarExtrato.mock.calls.map(([id]) => id)).toEqual(["extrato-novo"]);
     expect(screen.getByText("Banco: mantido")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Conciliar de novo" })).toBeDisabled();
     await user.upload(screen.getByLabelText(CAMPO), csv());

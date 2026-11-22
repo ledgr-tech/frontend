@@ -22,11 +22,13 @@ vi.mock("next/navigation", () => ({
 const enviarExtrato = vi.fn();
 const situacaoDoExtrato = vi.fn();
 const conciliar = vi.fn();
+const descartarExtrato = vi.fn(async (_id: string) => ({ ok: true, dados: null }));
 const carregarRegras = vi.fn();
 vi.mock("../acoes", () => ({
   enviarExtrato: (dados: FormData) => enviarExtrato(dados),
   situacaoDoExtrato: (id: string) => situacaoDoExtrato(id),
   conciliar: (banco: string, sistema: string) => conciliar(banco, sistema),
+  descartarExtrato: (id: string) => descartarExtrato(id),
   carregarRegras: () => carregarRegras(),
 }));
 
@@ -92,6 +94,7 @@ async function enviarOsDois(sistema = arquivo("sistema.csv"), { cobranca = false
 describe("NovaConciliacaoPage", () => {
   beforeEach(() => {
     push.mockClear();
+    descartarExtrato.mockClear();
     enviarExtrato.mockReset();
     situacaoDoExtrato.mockReset();
     conciliar.mockReset();
@@ -317,6 +320,7 @@ describe("NovaConciliacaoPage", () => {
       expect(conciliar).toHaveBeenCalledWith("extrato-banco", "extrato-sistema");
       expect(enviarExtrato).toHaveBeenCalledTimes(2);
       await waitFor(() => expect(push).toHaveBeenCalledWith("/conciliacoes/extrato-banco?sistema=extrato-sistema"));
+      expect(descartarExtrato).not.toHaveBeenCalled();
     });
 
     it("volta para corrigir sem conciliar: o arquivo lido em parte sai da folha e o outro fica", async () => {
@@ -326,11 +330,24 @@ describe("NovaConciliacaoPage", () => {
       await user.click(await screen.findByRole("button", { name: "Voltar para corrigir" }));
 
       expect(conciliar).not.toHaveBeenCalled();
+      // os dois subiram nesta tentativa e a próxima sobe os dois de novo: nenhum fica em Extratos (#308)
+      expect(descartarExtrato.mock.calls.map(([id]) => id)).toEqual(["extrato-banco", "extrato-sistema"]);
       expect(screen.getByLabelText("Extrato do banco").closest("label")).not.toHaveAttribute("data-pronto");
       expect(screen.getByLabelText("Extrato do sistema").closest("label")).toHaveAttribute("data-pronto");
       expect(screen.getByRole("button", { name: "Conciliar extratos" })).toHaveAccessibleDescription(
         "Falta o extrato do banco.",
       );
+    });
+
+    it("volta para corrigir mesmo quando o descarte falha", async () => {
+      descartarExtrato.mockRejectedValueOnce(new Error("Failed to fetch"));
+      lidoEmParte([L12]);
+      const user = await enviarOsDois();
+
+      await user.click(await screen.findByRole("button", { name: "Voltar para corrigir" }));
+
+      expect(screen.getByLabelText("Extrato do sistema").closest("label")).toHaveAttribute("data-pronto");
+      expect(screen.queryByRole("button", { name: "Voltar para corrigir" })).not.toBeInTheDocument();
     });
 
     it("se a conciliação falha depois da decisão, volta a ela com o motivo e tenta de novo sem reenviar", async () => {
@@ -850,6 +867,7 @@ describe("depois da importação via IA, só falta o banco", () => {
 
   beforeEach(() => {
     push.mockClear();
+    descartarExtrato.mockClear();
     enviarExtrato.mockReset();
     situacaoDoExtrato.mockReset();
     conciliar.mockReset();
