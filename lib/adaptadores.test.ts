@@ -320,6 +320,40 @@ describe("adaptarConciliacao", () => {
     expect(adaptarConciliacao(lista)).not.toHaveProperty("saldo");
   });
 
+  describe("o saldo do sistema e a diferença (#238)", () => {
+    const nulos = { saldo_inicial: null, saldo_final: null, saldo_data: null };
+    const com = (extra: object) => adaptarConciliacao({ ...lista, ...extra } as typeof lista);
+
+    it("backend sem as chaves: nenhum dos dois campos", () => {
+      expect(adaptarConciliacao(lista)).not.toHaveProperty("saldoSistema");
+      expect(adaptarConciliacao(lista)).not.toHaveProperty("diferencaSaldo");
+    });
+
+    it("saldo_sistema com os três nulos: null", () => {
+      expect(com({ saldo_sistema: nulos }).saldoSistema).toBeNull();
+    });
+
+    it("saldo completo", () => {
+      const saldo_sistema = { saldo_inicial: "10.00", saldo_final: "20.50", saldo_data: "2026-09-30" };
+      expect(com({ saldo_sistema }).saldoSistema).toEqual({ inicial: 10, final: 20.5, data: "2026-09-30" });
+    });
+
+    it('diferença "0.00": valor 0', () => {
+      const conc = com({ diferenca_saldo_final: "0.00", diferenca_saldo_motivo: null });
+      expect(conc.diferencaSaldo).toEqual({ valor: 0, motivo: null });
+    });
+
+    it("diferença null com datas_diferentes", () => {
+      const conc = com({ diferenca_saldo_final: null, diferenca_saldo_motivo: "datas_diferentes" });
+      expect(conc.diferencaSaldo).toEqual({ valor: null, motivo: "datas_diferentes" });
+    });
+
+    it("motivo desconhecido: null", () => {
+      const conc = com({ diferenca_saldo_final: null, diferenca_saldo_motivo: "outro" });
+      expect(conc.diferencaSaldo).toEqual({ valor: null, motivo: null });
+    });
+  });
+
   describe("a chave de cada linha, a mesma em todas as rodadas", () => {
     const soDoSistema = (id: string, descricao = "  Estorno  Maquininha ") =>
       item({

@@ -1,4 +1,4 @@
-import type { SaldoDoExtrato } from "./adaptadores";
+import type { DiferencaDoSaldo, SaldoDoExtrato } from "./adaptadores";
 import { chaveDaLinha } from "./rodadas";
 
 /**
@@ -160,6 +160,10 @@ export type Conciliacao = {
   rodada?: number;
   /** O saldo do extrato do banco (backend #118); ausente quando o backend não manda. */
   saldo?: SaldoDoExtrato | null;
+  /** O saldo do extrato do sistema do par (backend #238); ausente quando o backend não manda. */
+  saldoSistema?: SaldoDoExtrato | null;
+  /** Saldo final do banco menos o do sistema, pronto do backend (#238); ausente sem a chave. */
+  diferencaSaldo?: DiferencaDoSaldo;
   /** Justificativas esperando aprovação (backend #132); ausente no mock e antes dele. */
   aguardandoAprovacao?: number;
 };

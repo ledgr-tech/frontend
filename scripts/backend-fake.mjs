@@ -89,6 +89,33 @@ function lerOfx(texto) {
   return { lancamentos, erros: [] };
 }
 
+// Saldo do sistema e diferença (backend #238). SALDO_SISTEMA=0 é o backend antigo, sem as chaves;
+// "batem" iguala os finais e "datas" põe o do sistema um dia antes. Sem nada, o sistema fica R$ 150,00 abaixo.
+function saldoDoSistema(b, bancoId, sistemaId) {
+  const modo = process.env.SALDO_SISTEMA;
+  if (modo === "0") return {};
+  const nulos = { saldo_inicial: null, saldo_final: null, saldo_data: null };
+  const temPar = [...b.itens.keys()].some((k) => k.startsWith(`${bancoId}|`) && (!sistemaId || k.endsWith(`|${sistemaId}`)));
+  const banco = b.extratos.get(bancoId)?.saldo;
+  if (!temPar) return { saldo_sistema: nulos, diferenca_saldo_final: null, diferenca_saldo_motivo: "sem_saldo_sistema" };
+  if (!banco?.saldo_final) return { saldo_sistema: nulos, diferenca_saldo_final: null, diferenca_saldo_motivo: "sem_saldo_banco" };
+  const finalBanco = Math.round(Number(banco.saldo_final) * 100);
+  const finalSistema = modo === "batem" ? finalBanco : finalBanco - 15000;
+  const dia = new Date(`${banco.saldo_data}T12:00:00Z`);
+  if (modo === "datas") dia.setUTCDate(dia.getUTCDate() - 1);
+  const saldo_sistema = {
+    saldo_inicial: banco.saldo_inicial === null ? null : ((Math.round(Number(banco.saldo_inicial) * 100) - 15000) / 100).toFixed(2),
+    saldo_final: (finalSistema / 100).toFixed(2),
+    saldo_data: dia.toISOString().slice(0, 10),
+  };
+  if (modo === "datas") return { saldo_sistema, diferenca_saldo_final: null, diferenca_saldo_motivo: "datas_diferentes" };
+  return { saldo_sistema, diferenca_saldo_final: ((finalBanco - finalSistema) / 100).toFixed(2), diferenca_saldo_motivo: null };
+}
+
+// O saldo final que o arquivo da importação via IA trouxe (backend #238); sem as chaves com SALDO_SISTEMA=0.
+const saldoDaImportacao = (itens) =>
+  process.env.SALDO_SISTEMA === "0" ? {} : { saldo_final: "18450.32", saldo_data: itens.map((l) => l.data).sort().at(-1) ?? null };
+
 // As capturas da comparação usam o saldo do próprio OFX de exemplo.
 function saldoDoOfx(texto, lancamentos, erros, fator) {
   const bloco = texto.match(/<LEDGERBAL>([\s\S]*?)<\/LEDGERBAL>/i)?.[1] ?? "";
@@ -883,7 +910,8 @@ const servidor = createServer(async (req, res) => {
       ["2026-10-02", "Moinho Sul · NF 4821", -3480], ["2026-10-03", "Cielo · recebíveis", 6212.45],
       ["2026-10-05", "Folha de outubro", -12400], ["2026-10-08", "iFood · repasse", 2845.3]]
       .map(([data, descricao, valor], i) => ({ id: randomUUID(), numero: i + 1, data, descricao, valor })));
-    return json(res, 201, { importacao_id: id, quantidade_lancamentos: importacoesIa.get(id).length });
+    return json(res, 201, { importacao_id: id, quantidade_lancamentos: importacoesIa.get(id).length,
+      ...saldoDaImportacao(importacoesIa.get(id)) });
   }
   const umaImportacao = caminho.match(/^\/importacoes-ia\/([^/]+)$/);
   if (umaImportacao && metodo === "GET") {
@@ -895,13 +923,14 @@ const servidor = createServer(async (req, res) => {
     const soma = (f) => itens.filter(f).reduce((t, l) => t + l.valor, 0).toFixed(2);
     return json(res, 200, { importacao_id: umaImportacao[1], total: itens.length, itens, resumo: { quantidade: itens.length,
       total_entradas: soma((l) => l.valor > 0), total_saidas: soma((l) => l.valor < 0), periodo_inicio: itens[0]?.data ?? null,
-      periodo_fim: itens.at(-1)?.data ?? null, expira_em: new Date(Date.now() + 7 * 864e5).toISOString() } });
+      periodo_fim: itens.at(-1)?.data ?? null, expira_em: new Date(Date.now() + 7 * 864e5).toISOString(),
+      ...saldoDaImportacao(itens) } });
   }
   const resumoIa = (itens) => {
     const soma = (f) => itens.filter(f).reduce((t, l) => t + l.valor, 0).toFixed(2);
     return { quantidade: itens.length, total_entradas: soma((l) => l.valor > 0), total_saidas: soma((l) => l.valor < 0),
       periodo_inicio: itens.map((l) => l.data).sort()[0] ?? null, periodo_fim: itens.map((l) => l.data).sort().at(-1) ?? null,
-      expira_em: new Date(Date.now() + 7 * 864e5).toISOString() };
+      expira_em: new Date(Date.now() + 7 * 864e5).toISOString(), ...saldoDaImportacao(itens) };
   };
   const linhasIa = rota("POST", /^\/importacoes-ia\/([^/]+)\/lancamentos$/);
   if (linhasIa) {
@@ -1149,6 +1178,7 @@ const servidor = createServer(async (req, res) => {
     }
     const lim = Number(q.get("limit") ?? 100);
     return json(res, 200, { extrato_id: bancoId, total: encontradas.length, limit: lim, offset, ...b.extratos.get(bancoId)?.saldo,
+      ...saldoDoSistema(b, bancoId, sistemaId),
       aguardando_aprovacao: encontradas.filter((i) => i.decisao?.situacao === "pendente").length,
       itens: encontradas.slice(offset, offset + lim) });
   }
