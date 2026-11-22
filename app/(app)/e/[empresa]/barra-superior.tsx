@@ -257,7 +257,7 @@ export function BarraSuperior({ contaInativa = false }: { contaInativa?: boolean
               ))}
             </div>
             {atual && atual.proximoOffset < atual.total && (
-              <button type="button" className="btn btn-ghost app-busca-mais" style={{ margin: "8px 16px" }} disabled={atual.lendoMais} onClick={verMais}>
+              <button type="button" className="btn btn-ghost app-busca-mais" disabled={atual.lendoMais} onClick={verMais}>
                 {atual.lendoMais ? "Buscando mais…" : "Ver mais"}
               </button>
             )}
