@@ -1,12 +1,14 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ErroBackend } from "@/lib/backend";
 import { SEM_SERVIDOR } from "@/lib/sem-servidor";
 import { buscarLancamentos } from "./acoes";
 
 const chamarBackend = vi.fn();
+const emailDaSessao = vi.fn();
 vi.mock("@/lib/backend", async (original) => ({
   ...(await original<typeof import("@/lib/backend")>()),
   chamarBackend: (...args: unknown[]) => chamarBackend(...args),
+  emailDaSessao: () => emailDaSessao(),
 }));
 
 const BANCO = "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20";
@@ -23,9 +25,25 @@ const pagina = (itens: unknown[], total = itens.length, offset = 0) => ({ itens,
 
 beforeEach(() => {
   chamarBackend.mockReset().mockResolvedValue(pagina([ITEM]));
+  emailDaSessao.mockReset().mockResolvedValue("cliente@example.test");
+  vi.stubEnv("LEDGR_CONTA_TESTE_EMAIL", "demo@example.test");
 });
 
+afterEach(() => vi.unstubAllEnvs());
+
 describe("buscarLancamentos", () => {
+  it.each([0, 10])("a demonstração não chama o backend, inclusive no offset %i", async (offset) => {
+    emailDaSessao.mockResolvedValue("DEMO@example.test");
+    expect(await buscarLancamentos("aço norte", offset)).toEqual({ ok: false, status: "demonstracao" });
+    expect(chamarBackend).not.toHaveBeenCalled();
+  });
+
+  it("se não consegue ler a sessão, não chama o backend nem assume demonstração", async () => {
+    emailDaSessao.mockRejectedValue(new Error("sessão indisponível"));
+    expect(await buscarLancamentos("tarifa")).toEqual({ ok: false, status: 0, erro: SEM_SERVIDOR });
+    expect(chamarBackend).not.toHaveBeenCalled();
+  });
+
   it.each(["", " \n\t ", null, 42, {}])("recusa termo vazio ou que não é texto (%j) sem backend", async (termo) => {
     expect(await buscarLancamentos(termo as string)).toMatchObject({ ok: false, status: 422 });
     expect(chamarBackend).not.toHaveBeenCalled();

@@ -1,7 +1,8 @@
 "use server";
 
-import { chamarBackend, ehContaInativa, ErroBackend } from "@/lib/backend";
+import { chamarBackend, ehContaInativa, emailDaSessao, ErroBackend } from "@/lib/backend";
 import { caminhoDaConciliacao } from "@/lib/caminhos";
+import { ehContaDeDemonstracao } from "@/lib/demo";
 import { ehUuid } from "@/lib/rotas";
 import { SEM_SERVIDOR } from "@/lib/sem-servidor";
 import type { Falha, Resultado } from "../conciliacoes/acoes";
@@ -22,6 +23,8 @@ export type PaginaDaBusca = {
   offset: number;
   itens: AchadoDaBusca[];
 };
+
+export type ResultadoDaBusca = Resultado<PaginaDaBusca> | { ok: false; status: "demonstracao" };
 
 // GET /busca, backend #220: os ids abrem a linha na rodada do par, não pela chave da decisão.
 type LancamentoAPI = { id: string; data: string; valor: string; descricao: string; tipo: string };
@@ -87,14 +90,16 @@ function traduzir(erro: unknown): Falha {
   return { ok: false, status, erro: INDISPONIVEL };
 }
 
-/** Todas as conciliações da empresa da aba; o backend interpreta valor, data e palavras. */
-export async function buscarLancamentos(termo: string, offset = 0): Promise<Resultado<PaginaDaBusca>> {
+/** Todas as conciliações da empresa da aba; a demonstração pede o filtro local da barra. */
+export async function buscarLancamentos(termo: string, offset = 0): Promise<ResultadoDaBusca> {
   // A action é pública: não transforma o termo e corta por caractere, sem partir um emoji.
   const q = typeof termo === "string" ? Array.from(termo.trim()).slice(0, 100).join("") : "";
   if (!q) return { ok: false, status: 422, erro: "Digite algo para buscar." };
   if (!Number.isSafeInteger(offset) || offset < 0) return { ok: false, status: 422, erro: "A página da busca é inválida." };
   const parametros = new URLSearchParams({ q, limit: String(LIMITE), offset: String(offset) });
   try {
+    // Os visitantes da demonstração dividem um usuário e suas 120 buscas por minuto.
+    if (ehContaDeDemonstracao(await emailDaSessao())) return { ok: false, status: "demonstracao" };
     const pagina = await chamarBackend<unknown>(`/busca?${parametros}`);
     if (!objeto(pagina) || !Array.isArray(pagina.itens) || typeof pagina.total !== "number" || !Number.isSafeInteger(pagina.total) || pagina.total < 0
       || pagina.limit !== LIMITE || pagina.offset !== offset) {

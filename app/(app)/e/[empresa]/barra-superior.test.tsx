@@ -7,7 +7,7 @@ import { BarraSuperior } from "./barra-superior";
 import { ProvedorDaConta } from "./conta";
 import { ProvedorDaEmpresa } from "@/lib/empresa-ativa";
 import type { Assinatura } from "@/lib/assinatura";
-import type { AchadoDaBusca, PaginaDaBusca } from "./busca/acoes";
+import type { AchadoDaBusca, PaginaDaBusca, ResultadoDaBusca } from "./busca/acoes";
 import { SEM_SERVIDOR } from "@/lib/sem-servidor";
 
 const push = vi.fn();
@@ -21,7 +21,7 @@ const carregarVisaoGeral = vi.fn<() => Promise<Resultado<VisaoGeral>>>();
 vi.mock("./conciliacoes/acoes", () => ({
   carregarVisaoGeral: () => carregarVisaoGeral(),
 }));
-const buscarLancamentos = vi.fn<(termo: string, offset?: number) => Promise<Resultado<PaginaDaBusca>>>();
+const buscarLancamentos = vi.fn<(termo: string, offset?: number) => Promise<ResultadoDaBusca>>();
 vi.mock("./busca/acoes", () => ({ buscarLancamentos: (termo: string, offset: number) => buscarLancamentos(termo, offset) }));
 
 const ACHADOS: AchadoDaBusca[] = [
@@ -308,6 +308,139 @@ describe("BarraSuperior", () => {
 
     await user.type(campo, "l");
     expect(campo).not.toHaveAttribute("aria-activedescendant");
+  });
+
+  describe("busca na conta de demonstração", () => {
+    beforeEach(() => buscarLancamentos.mockResolvedValue({ ok: false, status: "demonstracao" }));
+
+    it.each([" AÇO NORTE ", "04/09", "12.640", "12.604"])("filtra localmente por descrição, data e ambos os valores (%s)", async (termo) => {
+      const user = userEvent.setup();
+      await montar();
+      await user.type(screen.getByRole("combobox"), termo);
+
+      const resultado = await screen.findByRole("option", { name: /Boleto Aço Norte/ });
+      expect(resultado).toHaveAttribute("href", "/conciliacoes/b/lc-1?sistema=s");
+      expect(resultado).toHaveTextContent(/04\/09 · R\$\s12\.640,00/);
+      expect(screen.getAllByRole("option")).toHaveLength(1);
+      expect(screen.getByRole("status")).toHaveTextContent("1 resultado");
+      expect(screen.queryByRole("button", { name: "Ver mais" })).not.toBeInTheDocument();
+    });
+
+    it("lembra o modo local ao digitar, limpar e procurar outro termo", async () => {
+      vi.useFakeTimers();
+      render(<BarraSuperior />);
+      const campo = screen.getByRole("combobox");
+      fireEvent.change(campo, { target: { value: "aço" } });
+      await act(async () => vi.advanceTimersByTimeAsync(250));
+      expect(screen.getByRole("option", { name: /Boleto Aço Norte/ })).toBeInTheDocument();
+
+      fireEvent.change(campo, { target: { value: "" } });
+      await act(async () => vi.advanceTimersByTimeAsync(500));
+      expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+      fireEvent.change(campo, { target: { value: "folha" } });
+      await act(async () => vi.advanceTimersByTimeAsync(500));
+
+      expect(screen.getByRole("option", { name: /Folha de pagamento setembro/ })).toBeInTheDocument();
+      expect(buscarLancamentos).toHaveBeenCalledExactlyOnceWith("aço", 0);
+    });
+
+    it("lembra o aviso de demonstração mesmo se o termo já foi limpo quando ele chega", async () => {
+      vi.useFakeTimers();
+      let concluir!: (resposta: ResultadoDaBusca) => void;
+      buscarLancamentos.mockReturnValueOnce(new Promise((resolve) => { concluir = resolve; }));
+      render(<BarraSuperior />);
+      const campo = screen.getByRole("combobox");
+      fireEvent.change(campo, { target: { value: "aço" } });
+      await act(async () => vi.advanceTimersByTimeAsync(250));
+      fireEvent.change(campo, { target: { value: "" } });
+
+      await act(async () => concluir({ ok: false, status: "demonstracao" }));
+      fireEvent.change(campo, { target: { value: "folha" } });
+      await act(async () => vi.advanceTimersByTimeAsync(250));
+
+      expect(screen.getByRole("option", { name: /Folha de pagamento setembro/ })).toBeInTheDocument();
+      expect(buscarLancamentos).toHaveBeenCalledExactlyOnceWith("aço", 0);
+    });
+
+    it("mostra até oito linhas da conciliação recente, sem paginação", async () => {
+      carregarVisaoGeral.mockResolvedValue({ ok: true, dados: {
+        ...VISAO,
+        recente: { ...VISAO.recente!, conciliacao: {
+          ...VISAO.recente!.conciliacao,
+          linhas: Array.from({ length: 10 }, (_, i) => ({ ...VISAO.recente!.conciliacao.linhas[0], id: `local-${i}`, descricao: `Fornecedor local ${i}` })),
+        } },
+      } });
+      const user = userEvent.setup();
+      await montar();
+      await user.type(screen.getByRole("combobox"), "fornecedor");
+
+      expect(await screen.findAllByRole("option")).toHaveLength(8);
+      expect(screen.getByRole("status")).toHaveTextContent("8 resultados");
+      expect(screen.queryByRole("option", { name: /Fornecedor local 8/ })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Ver mais" })).not.toBeInTheDocument();
+    });
+
+    it.each([false, true])("mantém os textos de vazio da busca local (sem conciliação: %s)", async (semConciliacao) => {
+      if (semConciliacao) carregarVisaoGeral.mockResolvedValue({ ok: true, dados: { ...VISAO, execucoes: [], total: 0, recente: null } });
+      const user = userEvent.setup();
+      await montar();
+      const anuncio = screen.getByRole("status");
+      await user.type(screen.getByRole("combobox"), "xpto");
+
+      expect(await screen.findByText(semConciliacao
+        ? "Ainda não há conciliação para buscar."
+        : "Nada encontrado na conciliação mais recente. Tente o valor sem centavos ou parte do nome do fornecedor.")).toBeInTheDocument();
+      expect(screen.getByRole("status")).toBe(anuncio);
+      expect(anuncio).toHaveTextContent("Nada encontrado");
+      expect(screen.queryByRole("button", { name: "Ver mais" })).not.toBeInTheDocument();
+    });
+
+    it("aguarda a leitura dos avisos e usa os dados quando chegam, sem chamar outra busca", async () => {
+      let concluir!: (resposta: Resultado<VisaoGeral>) => void;
+      carregarVisaoGeral.mockReturnValue(new Promise((resolve) => { concluir = resolve; }));
+      const user = userEvent.setup();
+      render(<BarraSuperior />);
+      await user.type(screen.getByRole("combobox"), "aço");
+      await waitFor(() => expect(buscarLancamentos).toHaveBeenCalledTimes(1));
+      expect(screen.getByRole("status")).toHaveTextContent("Buscando…");
+      expect(screen.queryByText(/Nada encontrado/)).not.toBeInTheDocument();
+
+      await act(async () => concluir({ ok: true, dados: VISAO }));
+
+      expect(screen.getByRole("option", { name: /Boleto Aço Norte/ })).toBeInTheDocument();
+      expect(buscarLancamentos).toHaveBeenCalledTimes(1);
+    });
+
+    it("falha ao ler a conciliação local não vira um resultado vazio", async () => {
+      carregarVisaoGeral.mockResolvedValue({ ok: false, status: 0, erro: SEM_SERVIDOR });
+      const user = userEvent.setup();
+      render(<BarraSuperior />);
+      await user.type(screen.getByRole("combobox"), "aço");
+
+      await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent(SEM_SERVIDOR));
+      expect(screen.queryByText(/Nada encontrado/)).not.toBeInTheDocument();
+    });
+
+    it("mantém setas, Enter, aria e a devolução de foco no Esc", async () => {
+      const user = userEvent.setup();
+      await montar();
+      const campo = screen.getByRole("combobox");
+      await user.type(campo, "o");
+      const opcoes = await screen.findAllByRole("option");
+      expect(opcoes).toHaveLength(2);
+      await user.keyboard("{ArrowDown}");
+      expect(campo).toHaveAttribute("aria-activedescendant", "busca-opcao-0");
+      expect(opcoes[0]).toHaveAttribute("aria-selected", "true");
+      await user.keyboard("{Enter}");
+      expect(push).toHaveBeenCalledWith("/conciliacoes/b/lc-1?sistema=s");
+
+      await user.type(campo, " ");
+      screen.getByRole("option", { name: /Boleto Aço Norte/ }).focus();
+      await user.keyboard("{Escape}");
+      expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+      expect(campo).toHaveFocus();
+      expect(screen.getByRole("status")).toBeEmptyDOMElement();
+    });
   });
 
   describe("busca em todas as conciliações", () => {
