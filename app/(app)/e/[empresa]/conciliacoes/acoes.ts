@@ -436,8 +436,8 @@ export type ContextoDoReenvio = {
 };
 
 /**
- * Só lê: mês fechado ou rodada que já passou não são checados aqui. A regra é do backend, e a tela mostra o
- * texto dele quando o conciliar recusa (409).
+ * Só lê. A rodada vigente e o mês fechado a tela confere com `verificarNovaVersao` antes de subir o
+ * arquivo (CSV ou JSON): o backend não confere a rodada numa nova versão.
  */
 export async function carregarContextoDoReenvio(
   banco: string,
