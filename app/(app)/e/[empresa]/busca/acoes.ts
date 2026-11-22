@@ -71,7 +71,7 @@ function adaptar(item: unknown): AchadoDaBusca | null {
   return {
     id: item.conciliacao_id,
     href: caminhoDaConciliacao(item.extrato_banco_id, item.extrato_sistema_id, item.conciliacao_id),
-    descricao: lado.descricao,
+    descricao: lado.descricao.trim() || "Sem descrição",
     data: lado.data,
     valor: Number(lado.valor),
     competencia: item.competencia,

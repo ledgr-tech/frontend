@@ -311,6 +311,95 @@ describe("BarraSuperior", () => {
   });
 
   describe("busca em todas as conciliações", () => {
+    it.each(["resultado", "Ver mais"])("Esc com foco em %s fecha o painel e devolve o foco ao campo", async (alvo) => {
+      buscarLancamentos.mockResolvedValue(paginaDaBusca([ACHADOS[0]], 11));
+      const user = userEvent.setup();
+      await montar();
+      const campo = screen.getByRole("combobox");
+      await user.type(campo, "fornecedor");
+      const resultado = await screen.findByRole("option", { name: /Boleto Aço Norte/ });
+      const elemento = alvo === "resultado" ? resultado : screen.getByRole("button", { name: "Ver mais" });
+      elemento.focus();
+      expect(elemento).toHaveFocus();
+
+      await user.keyboard("{Escape}");
+
+      expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+      expect(campo).toHaveFocus();
+    });
+
+    it("Esc com o foco fora da busca não o move para o campo", async () => {
+      const user = userEvent.setup();
+      await montar();
+      await user.type(screen.getByRole("combobox"), "fornecedor");
+      await screen.findAllByRole("option");
+      const outro = screen.getByRole("button", { name: "Ajuda" });
+      outro.focus();
+      expect(screen.getByRole("listbox")).toBeInTheDocument();
+
+      await user.keyboard("{Escape}");
+
+      expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+      expect(outro).toHaveFocus();
+    });
+
+    it("Ver mais devolve o foco ao campo antes de desabilitar e conserva-o na última página", async () => {
+      let concluir!: (resposta: Resultado<PaginaDaBusca>) => void;
+      buscarLancamentos.mockResolvedValueOnce(paginaDaBusca([ACHADOS[0]], 11))
+        .mockReturnValueOnce(new Promise((resolve) => { concluir = resolve; }));
+      const user = userEvent.setup();
+      await montar();
+      const campo = screen.getByRole("combobox");
+      await user.type(campo, "fornecedor");
+      const mais = await screen.findByRole("button", { name: "Ver mais" });
+
+      await user.click(mais);
+      expect(mais).toBeDisabled();
+      expect(campo).toHaveFocus();
+
+      await act(async () => concluir(paginaDaBusca([ACHADOS[1]], 11, 10)));
+      expect(mais).not.toBeInTheDocument();
+      expect(campo).toHaveFocus();
+    });
+
+    it("Ver mais não rouba o foco que já estava fora do botão", async () => {
+      let concluir!: (resposta: Resultado<PaginaDaBusca>) => void;
+      buscarLancamentos.mockResolvedValueOnce(paginaDaBusca([ACHADOS[0]], 11))
+        .mockReturnValueOnce(new Promise((resolve) => { concluir = resolve; }));
+      const user = userEvent.setup();
+      await montar();
+      await user.type(screen.getByRole("combobox"), "fornecedor");
+      const mais = await screen.findByRole("button", { name: "Ver mais" });
+      const outro = screen.getByRole("button", { name: "Ajuda" });
+      outro.focus();
+
+      // Acionamento sem mover o foco, como um clique virtual de tecnologia assistiva.
+      fireEvent.click(mais);
+      expect(mais).toBeDisabled();
+      expect(outro).toHaveFocus();
+
+      await act(async () => concluir(paginaDaBusca([ACHADOS[1]], 11, 10)));
+      expect(mais).not.toBeInTheDocument();
+      expect(outro).toHaveFocus();
+    });
+
+    it("a resposta de Ver mais não recupera o foco que saiu da busca durante a leitura", async () => {
+      let concluir!: (resposta: Resultado<PaginaDaBusca>) => void;
+      buscarLancamentos.mockResolvedValueOnce(paginaDaBusca([ACHADOS[0]], 11))
+        .mockReturnValueOnce(new Promise((resolve) => { concluir = resolve; }));
+      const user = userEvent.setup();
+      await montar();
+      await user.type(screen.getByRole("combobox"), "fornecedor");
+      await user.click(await screen.findByRole("button", { name: "Ver mais" }));
+      const outro = screen.getByRole("button", { name: "Ajuda" });
+      await user.click(outro);
+
+      await act(async () => concluir(paginaDaBusca([ACHADOS[1]], 11, 10)));
+
+      expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+      expect(outro).toHaveFocus();
+    });
+
     it("repetir o termo depois de limpar espera uma nova leitura, sem reapresentar os resultados antigos", async () => {
       let nova!: (resposta: Resultado<PaginaDaBusca>) => void;
       buscarLancamentos.mockResolvedValueOnce(paginaDaBusca([ACHADOS[0]]))

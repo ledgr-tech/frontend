@@ -118,6 +118,8 @@ export function BarraSuperior({ contaInativa = false }: { contaInativa?: boolean
         buscaRef.current?.focus();
       }
       if (evento.key === "Escape") {
+        // O onFocus abre a busca: devolve primeiro e fecha depois, sem reabrir o painel.
+        if (caixaBusca.current?.contains(document.activeElement)) buscaRef.current?.focus();
         setBuscaAberta(false);
         setAvisosAbertos(false);
         // fechado de dentro, o foco volta ao botão em vez de cair no <body> (AC-02)
@@ -141,8 +143,10 @@ export function BarraSuperior({ contaInativa = false }: { contaInativa?: boolean
   const atual = busca?.termo === termo && busca.empresaId === empresaId ? busca : null;
   const achados = atual?.itens ?? [];
 
-  function verMais() {
+  function verMais(evento: React.MouseEvent<HTMLButtonElement>) {
     if (!atual || atual.lendoMais || atual.proximoOffset >= atual.total || pedidoDeMais.current === pedidoDaBusca.current) return;
+    // Antes de desabilitar (e possivelmente remover na última página), preserva o foco.
+    if (document.activeElement === evento.currentTarget) buscaRef.current?.focus();
     const pedido = ++pedidoDaBusca.current;
     pedidoDeMais.current = pedido;
     setBusca({ ...atual, lendoMais: true, erro: null });

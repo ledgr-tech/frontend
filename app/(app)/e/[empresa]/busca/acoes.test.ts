@@ -61,6 +61,19 @@ describe("buscarLancamentos", () => {
     expect(resposta.ok && resposta.dados.itens[0]).toMatchObject({ descricao: LANCAMENTO.descricao, valor: 0, competencia: null });
   });
 
+  it.each([
+    { descricao: "", esperado: "Sem descrição" },
+    { descricao: " \n\t ", esperado: "Sem descrição" },
+    { descricao: "  Fornecedor Aço Norte  ", esperado: "Fornecedor Aço Norte" },
+  ])("normaliza a descrição do banco e do sistema como semVazio (%j)", async ({ descricao, esperado }) => {
+    chamarBackend.mockResolvedValue(pagina([
+      { ...ITEM, lancamento_banco: { ...LANCAMENTO, descricao } },
+      { ...ITEM, conciliacao_id: SISTEMA, lancamento_banco: null, lancamento_sistema: { ...LANCAMENTO, descricao } },
+    ]));
+    const resposta = await buscarLancamentos("1250");
+    expect(resposta.ok && resposta.dados.itens.map((item) => item.descricao)).toEqual([esperado, esperado]);
+  });
+
   it("descarta linha sem os dois lados ou com id, data, valor e competência malformados", async () => {
     chamarBackend.mockResolvedValue(pagina([
       ITEM, null, {}, { ...ITEM, conciliacao_id: "../admin" },
