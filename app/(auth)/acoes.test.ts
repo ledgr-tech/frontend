@@ -837,14 +837,14 @@ describe("contaDaSessao", () => {
         ...EU,
         empresas: [
           { id: "e1", razao_social: " Padaria Ltda ", cnpj: "11222333000181" },
-          { id: "e2", razao_social: "Mercado Ltda", cnpj: "11444777000161" },
+          { id: "e2", razao_social: "Mercado Ltda", nome_exibicao: " Mercadinho ", cnpj: "11444777000161" },
         ],
       }),
     );
 
     expect((await contaDaSessao()).empresas).toEqual([
-      { id: "e1", razaoSocial: "Padaria Ltda", cnpj: "11222333000181" },
-      { id: "e2", razaoSocial: "Mercado Ltda", cnpj: "11444777000161" },
+      { id: "e1", razaoSocial: "Padaria Ltda", nome: "Padaria Ltda", cnpj: "11222333000181" },
+      { id: "e2", razaoSocial: "Mercado Ltda", nome: "Mercadinho", cnpj: "11444777000161" },
     ]);
   });
 
@@ -853,7 +853,7 @@ describe("contaDaSessao", () => {
     expect((await contaDaSessao()).empresas).toEqual([]);
 
     fetch.mockResolvedValue(Response.json({ ...EU, empresas: [{ razao_social: "Sem id" }, { id: "e1", razao_social: "Ok", cnpj: "1" }] }));
-    expect((await contaDaSessao()).empresas).toEqual([{ id: "e1", razaoSocial: "Ok", cnpj: "1" }]);
+    expect((await contaDaSessao()).empresas).toEqual([{ id: "e1", razaoSocial: "Ok", nome: "Ok", cnpj: "1" }]);
   });
 
   it("lê o papel da pessoa, que o backend manda em papel (#133)", async () => {

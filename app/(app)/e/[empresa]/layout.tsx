@@ -42,6 +42,7 @@ export default async function AppLayout({
   const ativa = conta.empresas.find((candidata) => candidata.id === empresa) ?? {
     id: empresa,
     razaoSocial: conta.empresa,
+    nome: conta.empresa,
     cnpj: "",
   };
   return (

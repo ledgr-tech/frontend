@@ -15,7 +15,7 @@ import { ehTela, type Preferencias } from "@/lib/preferencias";
 import { adaptarAssinatura, cobrancaLigada, type Assinatura, type PlanoId } from "@/lib/assinatura";
 import { adaptarLimites, type LimitesDaConta } from "@/lib/limites";
 import { ehUf } from "@/lib/uf";
-import { adaptarConsultaConvite, type ConsultaConvite, type ConsultaConviteAPI } from "@/lib/adaptadores";
+import { adaptarConsultaConvite, nomeDaEmpresa, type ConsultaConvite, type ConsultaConviteAPI } from "@/lib/adaptadores";
 
 /**
  * Abrir e fechar sessão, e criar conta. Vive numa Server Action porque o
@@ -593,7 +593,7 @@ function adaptarPreferencias(bruto: PreferenciasAPI | null | undefined): Prefere
 }
 
 /** As empresas do `GET /me`; o item sem `id` de texto não serve para a URL e é ignorado. */
-function adaptarEmpresas(bruto: { id?: unknown; razao_social?: unknown; cnpj?: unknown }[] | undefined): EmpresaDaConta[] {
+function adaptarEmpresas(bruto: { id?: unknown; razao_social?: unknown; nome_exibicao?: unknown; cnpj?: unknown }[] | undefined): EmpresaDaConta[] {
   if (!Array.isArray(bruto)) return [];
   return bruto.flatMap((empresa) =>
     typeof empresa?.id === "string" && empresa.id
@@ -601,6 +601,7 @@ function adaptarEmpresas(bruto: { id?: unknown; razao_social?: unknown; cnpj?: u
           {
             id: empresa.id,
             razaoSocial: typeof empresa.razao_social === "string" ? empresa.razao_social.trim() : "",
+            nome: nomeDaEmpresa(empresa.razao_social, empresa.nome_exibicao).nome,
             cnpj: typeof empresa.cnpj === "string" ? empresa.cnpj : "",
           },
         ]
@@ -625,7 +626,7 @@ export async function contaDaSessao(aoExpirar = "/login"): Promise<ContaDaSessao
         razao_social: string;
         metodos_login: string[];
         papel?: unknown;
-        empresas?: { id?: unknown; razao_social?: unknown; cnpj?: unknown }[];
+        empresas?: { id?: unknown; razao_social?: unknown; nome_exibicao?: unknown; cnpj?: unknown }[];
         administrador?: boolean;
         preferencias?: PreferenciasAPI;
         situacao?: unknown;

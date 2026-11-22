@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
   adaptarConsultaConvite,
+  adaptarEmpresaCliente,
+  nomeDaEmpresa,
   adaptarConvite,
   adaptarPessoa,
   formatarDia,
@@ -662,5 +664,26 @@ describe("o agrupamento por soma (backend #131)", () => {
     });
     expect(resumo.contagens.match_agrupado).toBe(0);
     expect(resumo.agrupamentos).toBe(0);
+  });
+});
+
+describe("nome de exibição da empresa (backend #236)", () => {
+  const api = { id: "e1", razao_social: " Padaria Pão Quente Ltda ", cnpj: "12345678000190", cnpj_verificado_em: null, criado_em: "2026-10-20T10:00:00Z" };
+
+  it("sem a chave (backend antigo), mostra a razão social e não traz nomeExibicao", () => {
+    const empresa = adaptarEmpresaCliente(api);
+    expect(empresa.nome).toBe("Padaria Pão Quente Ltda");
+    expect("nomeExibicao" in empresa).toBe(false);
+  });
+
+  it("com nome, mostra o nome aparado e guarda os dois", () => {
+    const empresa = adaptarEmpresaCliente({ ...api, nome_exibicao: "  Pão Quente " });
+    expect(empresa).toMatchObject({ nome: "Pão Quente", nomeExibicao: "Pão Quente", razaoSocial: "Padaria Pão Quente Ltda" });
+  });
+
+  it("null ou só espaços voltam à razão social, com nomeExibicao null", () => {
+    expect(nomeDaEmpresa("Razão Ltda", null)).toEqual({ nome: "Razão Ltda", nomeExibicao: null });
+    expect(nomeDaEmpresa("Razão Ltda", "   ")).toEqual({ nome: "Razão Ltda", nomeExibicao: null });
+    expect(nomeDaEmpresa("Razão Ltda", 7)).toEqual({ nome: "Razão Ltda", nomeExibicao: null });
   });
 });
