@@ -4,28 +4,54 @@ import { ErroBackend, chamarBackend, ehContaInativa, emailDaSessao } from "@/lib
 import { ehContaDeDemonstracao } from "@/lib/demo";
 import type { Falha, Resultado } from "../conciliacoes/acoes";
 import { SEM_SERVIDOR } from "@/lib/sem-servidor";
+import { ehUuid } from "@/lib/rotas";
 
 /**
- * O assistente da Central de ajuda (backend #137, front #172): responde "como faço tal coisa no Ledgr"
- * com o texto da Central (`/ajuda/conteudo.json`) e devolve os links das seções que citou. A pergunta não
- * leva dado da empresa. O backend não guarda conversa: o histórico vai daqui a cada pergunta.
+ * O assistente responde dúvidas de uso e consultas sobre a empresa (backend #137/#223).
+ * O backend consulta os números e protege a conversa antes de enviá-la ao provedor.
+ * Ele não guarda conversa: o histórico vai daqui a cada pergunta.
  */
 
 export type TurnoDaConversa = { papel: "usuario" | "assistente"; texto: string };
 
 export type RespostaDoAssistente = {
   resposta: string;
-  /** false quando a Central não cobre a pergunta: a tela oferece a Central inteira. */
+  /** false quando o assistente não cobre a pergunta: a tela tenta o roteiro ou oferece a Central. */
   respondida: boolean;
-  links: { titulo: string; caminho: string }[];
+  links: { titulo: string; caminho: string; tipo: "ajuda" | "tela" }[];
 };
 
 const TAMANHO_MAXIMO_PERGUNTA = 500;
 const TAMANHO_MAXIMO_TURNO = 1000;
 const MAXIMO_TURNOS = 6;
 const TELA = /^[a-z0-9][a-z0-9-]{0,63}$/;
-// só seções da Central: o link sai da resposta do modelo e vira um <a> na tela
+// O link vem do backend e vira um <a>: só seções da Central ou estas telas.
 const CAMINHO_DA_AJUDA = /^\/ajuda\/[a-z0-9][a-z0-9-]*(#[a-z0-9][a-z0-9-]*)?$/;
+const CAMINHOS_DE_TELA = new Set([
+  "/fechamentos",
+  "/historico",
+  "/extratos",
+  "/empresas",
+  "/empresas?aba=equipe",
+  "/conciliacoes/nova",
+]);
+
+function ehCaminhoDeTela(caminho: string): boolean {
+  if (CAMINHOS_DE_TELA.has(caminho)) return true;
+  const conciliacao = /^\/conciliacoes\/([^/?#]+)\?sistema=([^&#]+)$/.exec(caminho);
+  return conciliacao !== null && ehUuid(conciliacao[1]) && ehUuid(conciliacao[2]);
+}
+
+function adaptarLink(link: unknown): RespostaDoAssistente["links"] {
+  if (typeof link !== "object" || link === null) return [];
+  const { titulo, caminho, tipo } = link as Record<string, unknown>;
+  if (typeof titulo !== "string" || typeof caminho !== "string") return [];
+  if ((tipo === undefined || tipo === "ajuda") && CAMINHO_DA_AJUDA.test(caminho)) {
+    return [{ titulo, caminho, tipo: "ajuda" }];
+  }
+  if (tipo === "tela" && ehCaminhoDeTela(caminho)) return [{ titulo, caminho, tipo }];
+  return [];
+}
 
 function traduzir(erro: unknown): Falha {
   if (!(erro instanceof ErroBackend)) return { ok: false, status: 0, erro: SEM_SERVIDOR };
@@ -74,7 +100,7 @@ export async function perguntarAoAssistente(
       dados: {
         resposta: resposta.resposta,
         respondida: resposta.respondida,
-        links: (resposta.links ?? []).filter((link) => typeof link?.titulo === "string" && CAMINHO_DA_AJUDA.test(link.caminho)),
+        links: Array.isArray(resposta.links) ? resposta.links.flatMap(adaptarLink) : [],
       },
     };
   } catch (erro) {

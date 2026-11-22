@@ -35,7 +35,7 @@ describe("perguntarAoAssistente", () => {
       dados: {
         resposta: "1. Abra Fechamentos.",
         respondida: true,
-        links: [{ titulo: "Fechar o mês", caminho: "/ajuda/fechamentos#fechar" }],
+        links: [{ titulo: "Fechar o mês", caminho: "/ajuda/fechamentos#fechar", tipo: "ajuda" }],
       },
     });
     expect(chamarBackend).toHaveBeenCalledWith("/assistente/perguntas", {
@@ -74,7 +74,47 @@ describe("perguntarAoAssistente", () => {
 
     const resposta = await perguntarAoAssistente("pergunta", "visao-geral", []);
 
-    expect(resposta.ok && resposta.dados.links).toEqual([{ titulo: "Boa", caminho: "/ajuda/extratos#enviar" }]);
+    expect(resposta.ok && resposta.dados.links).toEqual([{ titulo: "Boa", caminho: "/ajuda/extratos#enviar", tipo: "ajuda" }]);
+  });
+
+  it.each([
+    "/fechamentos", "/historico", "/extratos", "/empresas", "/empresas?aba=equipe", "/conciliacoes/nova",
+    "/conciliacoes/018ba200-1111-2222-3333-444444444444?sistema=018ba200-aaaa-bbbb-cccc-dddddddddddd",
+  ])("aceita o link de tela %s sem acrescentar empresa", async (caminho) => {
+    const link = { titulo: "Abrir tela", caminho, tipo: "tela" };
+    chamarBackend.mockResolvedValueOnce({ resposta: "Veja os números.", respondida: true, links: [link] });
+    const resposta = await perguntarAoAssistente("e agosto?", null, []);
+    expect(resposta.ok && resposta.dados.links).toEqual([link]);
+  });
+
+  it.each([
+    "/admin", "//evil.com", "javascript:alert(1)", "/conciliacoes/nao-uuid?sistema=x",
+    "/conciliacoes/018ba200-1111-2222-3333-444444444444?sistema=x",
+    "/conciliacoes/x?sistema=018ba200-aaaa-bbbb-cccc-dddddddddddd",
+    "/fechamentos?fora=1", "/empresas?aba=equipe&fora=1", "/historico#fora", "/regras", "/equipe",
+    "/conciliacoes/018ba200-1111-2222-3333-444444444444?sistema=018ba200-aaaa-bbbb-cccc-dddddddddddd&fora=1",
+    "/e/018ba200-1111-2222-3333-444444444444/fechamentos",
+  ])("descarta o link de tela fora da lista: %s", async (caminho) => {
+    chamarBackend.mockResolvedValueOnce({ resposta: "Veja.", respondida: true, links: [{ titulo: "Tela", caminho, tipo: "tela" }] });
+    const resposta = await perguntarAoAssistente("pergunta", null, []);
+    expect(resposta.ok && resposta.dados.links).toEqual([]);
+  });
+
+  it("confere o tipo do link, trata o ausente como ajuda e descarta formatos inválidos", async () => {
+    chamarBackend.mockResolvedValueOnce({ resposta: "Veja.", respondida: true, links: [
+      { titulo: "Antigo", caminho: "/ajuda/extratos" },
+      { titulo: "Ajuda", caminho: "/ajuda/extratos#enviar", tipo: "ajuda" },
+      { titulo: "Sem tipo", caminho: "/historico" },
+      { titulo: "Tipo errado", caminho: "/historico", tipo: "ajuda" },
+      { titulo: "Tipo errado", caminho: "/ajuda/extratos", tipo: "tela" },
+      { titulo: "Desconhecido", caminho: "/ajuda/extratos", tipo: "externo" },
+      { titulo: 1, caminho: "/historico", tipo: "tela" }, null, {},
+    ] });
+    const resposta = await perguntarAoAssistente("pergunta", null, []);
+    expect(resposta.ok && resposta.dados.links).toEqual([
+      { titulo: "Antigo", caminho: "/ajuda/extratos", tipo: "ajuda" },
+      { titulo: "Ajuda", caminho: "/ajuda/extratos#enviar", tipo: "ajuda" },
+    ]);
   });
 
   it("não manda pergunta vazia nem longa demais, e uma tela fora do formato vai sem tela", async () => {
