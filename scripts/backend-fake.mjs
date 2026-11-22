@@ -15,6 +15,8 @@ const PORTA = Number(process.env.PORT ?? 8000);
 // as flags do backend de verdade, ligadas por padrão; =0 deixa como em produção (as capturas da Central)
 const APROVACAO = process.env.APROVACAO_JUSTIFICATIVAS_HABILITADA !== "0";
 const MCP = process.env.MCP_HABILITADO !== "0";
+// o assistente com os números da empresa (backend #223): desligado como em produção, liga com =1
+const ASSISTENTE_DADOS = process.env.ASSISTENTE_DADOS_HABILITADO === "1";
 // a cobrança (backend #202): COBRANCA_HABILITADA=0 é a produção de hoje, sem planos nem assinatura na tela
 const COBRANCA = process.env.COBRANCA_HABILITADA !== "0";
 // o painel interno (#333): ninguém é operador, como na conta de qualquer cliente; OPERADORES=<e-mail>[,<e-mail>]
@@ -532,6 +534,24 @@ function fechar(b, competencia, ressalva, autor, em = agora()) {
 let ajuda = null;
 const semAcento = (t) => t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
+/** Backend #223: a pergunta sobre os números responde com a conciliação mais recente e um link de tela. */
+function responderComDados(b, pergunta) {
+  if (!/quant|diverg|pend|saldo|fech|concilia|numero|valor|lancamento/.test(semAcento(pergunta))) return null;
+  // ponytail: "sem dados" força o respondida:false, para testar a reserva do roteiro no front
+  const execucao = /sem dados/.test(semAcento(pergunta)) ? null : b.execucoes.find((e) => e.atual);
+  if (!execucao) return { resposta: "(backend fake) Não achei números para essa pergunta.", respondida: false, links: [] };
+  const c = execucao.contagens;
+  const divergentes = c.divergente_valor + c.divergente_data + c.sem_correspondencia + c.duplicado;
+  return {
+    resposta: `(backend fake) Na conciliação mais recente, de ${c.total} lançamentos, ${c.match_exato + c.match_tolerancia + c.match_agrupado} estão conciliados e ${divergentes} pedem revisão.`,
+    respondida: true,
+    links: [
+      { titulo: "Abrir a comparação", caminho: `/conciliacoes/${execucao.extrato_banco_id}?sistema=${execucao.extrato_sistema_id}`, tipo: "tela" },
+      { titulo: "Fechamentos", caminho: "/fechamentos", tipo: "tela" },
+    ],
+  };
+}
+
 async function responderPergunta(pergunta) {
   ajuda ??= await fetch(`${FRONT}/ajuda/conteudo.json`).then((r) => r.json()).catch(() => null);
   if (!ajuda) return null;
@@ -548,7 +568,7 @@ async function responderPergunta(pergunta) {
   return {
     resposta: `(backend fake) ${funcao.faz.replace(/\*\*/g, "")}${passos ? `\n${passos}` : ""}`,
     respondida: true,
-    links: candidatas.map(({ pagina, funcao: f }) => ({ titulo: `${pagina.titulo} › ${f.titulo}`, caminho: `/ajuda/${pagina.id}#${f.id}` })),
+    links: candidatas.map(({ pagina, funcao: f }) => ({ titulo: `${pagina.titulo} › ${f.titulo}`, caminho: `/ajuda/${pagina.id}#${f.id}`, tipo: "ajuda" })),
   };
 }
 
@@ -1010,7 +1030,7 @@ const servidor = createServer(async (req, res) => {
   if (rota("POST", "/assistente/perguntas")) {
     const { pergunta } = await corpoJson(req);
     if (!pergunta || String(pergunta).length > 500) return json(res, 422, { detail: "Pergunta vazia ou longa demais." });
-    const resposta = await responderPergunta(String(pergunta));
+    const resposta = (ASSISTENTE_DADOS && responderComDados(b, String(pergunta))) || (await responderPergunta(String(pergunta)));
     return resposta ? json(res, 200, resposta) : json(res, 503, { detail: "Assistente indisponível." });
   }
 
