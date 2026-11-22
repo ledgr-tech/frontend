@@ -23,6 +23,9 @@ export function opcoesDoSentry(ambiente: string | undefined) {
       genAI: { inputs: false, outputs: false },
       mcp: { inputs: false, outputs: false },
     },
+    // o Chrome cancela só a animação da ViewTransition quando não consegue a foto da tela antiga; a troca
+    // de tela acontece mesmo assim, mas o React canary não trata a recusa (LEDGR-FRONTEND-3)
+    ignoreErrors: [/Transition was aborted because of invalid state/],
     integrations: semSessao,
     beforeBreadcrumb: semTokenNaTrilha,
     beforeSend: semTokenNoEvento,

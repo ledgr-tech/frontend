@@ -68,7 +68,11 @@ function pendentes(mes: MesDeFechamento): number {
   return Math.max(0, mes.divergentes - mes.justificadas);
 }
 
-function seloDoMes(mes: MesDeFechamento, naoLidasIndisponivel: boolean): { rotulo: string; tom: Tom } {
+/** Sem a lista de fechamentos, nenhum mês pode ser dito aberto, pronto ou fechado. */
+const MES_INDISPONIVEL = "Situação do mês indisponível";
+
+function seloDoMes(mes: MesDeFechamento, naoLidasIndisponivel: boolean, situacaoConhecida: boolean): { rotulo: string; tom: Tom } {
+  if (!situacaoConhecida) return { rotulo: MES_INDISPONIVEL, tom: "atencao" };
   if (estaFechado(mes)) {
     return mes.fechamento?.ressalva ? { rotulo: "Fechado com ressalva", tom: "atencao" } : { rotulo: "Fechado", tom: "ok" };
   }
@@ -123,6 +127,7 @@ export function MesaDeFechamento({
   /** Falso quando os fechamentos não carregaram: sem saber o que está fechado, a mesa só mostra. */
   podeFechar: boolean;
 }) {
+  const router = useRoteador();
   const [filtro, setFiltro] = useState<Filtro>("todos");
   // o backend não diz se o link público está ligado: o 404 do primeiro "Gerar link" vale para todos os
   // meses até recarregar (fica aqui, e não no cartão, que monta de novo a cada mês)
@@ -155,7 +160,17 @@ export function MesaDeFechamento({
       {naoLidasIndisponivel && (
         <p className="vg-nota">Não foi possível conferir as linhas não lidas dos extratos. Tente de novo antes de fechar o mês.</p>
       )}
-      {/* a faixa dos filtros fica presa sob a barra do topo enquanto os meses rolam */}
+      {!podeFechar && (
+        <p role="status" className="vg-nota">
+          Não deu para saber quais meses estão fechados.{" "}
+          <button type="button" className="btn btn-secondary" onClick={() => router.refresh()}>
+            Tentar de novo
+          </button>
+        </p>
+      )}
+      {/* a faixa dos filtros fica presa sob a barra do topo enquanto os meses rolam; sem a situação
+          dos meses, os filtros por situação contariam errado e saem */}
+      {podeFechar && (
       <FaixaFiltros>
         <div className="pills segmentado" role="group" aria-label="Filtrar meses">
           {FILTROS.map((item) => (
@@ -171,6 +186,7 @@ export function MesaDeFechamento({
           ))}
         </div>
       </FaixaFiltros>
+      )}
 
       {aberto === null ? (
         <p className="extratos-vazio">{FILTROS.find((item) => item.id === filtro)?.vazio}</p>
@@ -189,7 +205,7 @@ export function MesaDeFechamento({
                 <>
                   <div id={`${id}-meses`} className="extratos-grade" hidden={mostrados.length === 0}>
                     {mostrados.map((mes) => {
-                      const selo = seloDoMes(mes, naoLidasIndisponivel);
+                      const selo = seloDoMes(mes, naoLidasIndisponivel, podeFechar);
                       return (
                         <button
                           key={mes.chave}
@@ -327,11 +343,13 @@ function Painel({ mes, podeFechar, naoLidasIndisponivel, linkSemCriacao, aoFicar
         data-abaixo={abaixo || undefined}
       >
       <div ref={conteudo} className="fech-conteudo">
-      <h6 style={{ margin: 0 }}>Fechamento · {fechado ? "fechado" : mes.pronto ? "pronto para fechar" : "em aberto"}</h6>
+      <h6 style={{ margin: 0 }}>
+        Fechamento · {!podeFechar ? MES_INDISPONIVEL.toLowerCase() : fechado ? "fechado" : mes.pronto ? "pronto para fechar" : "em aberto"}
+      </h6>
       <div className="extrato-painel-topo">
         <h3 className="extrato-painel-nome" tabIndex={-1}>{mes.titulo}</h3>
         {/* fechado, o mês tem cadeado; pronto para fechar, um joinha */}
-        {resolvido(mes) && (
+        {podeFechar && resolvido(mes) && (
           <Image
             src={fechado ? "/mascotes/mascote-cadeado.png" : "/mascotes/mao-joinha.webp"}
             alt=""

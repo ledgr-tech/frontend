@@ -324,6 +324,30 @@ describe("VisaoGeralPage", () => {
     ).toHaveTextContent("Pronto para fechar");
   });
 
+  it("com leituraIncompleta, a Visão geral mostra 'Leitura não conferida' e não 'Pronto para fechar' nem 'Nenhuma pendência agora.'", async () => {
+    com({ leituraIncompleta: true });
+    await renderizar();
+
+    const atalhos = screen.getByRole("navigation", { name: "Atalhos" });
+    expect(within(atalhos).getByRole("link", { name: /Fechamentos/ })).toHaveTextContent("Leitura não conferida");
+    expect(within(atalhos).getByRole("link", { name: /Fechamentos/ })).not.toHaveTextContent("Pronto para fechar");
+    expect(screen.queryByText("Nenhuma pendência agora.")).not.toBeInTheDocument();
+    // as pendências que carregaram continuam; a leitura que falhou vira mais um item
+    expect(screen.getByRole("link", { name: /Leitura não conferida.*Ver extratos/ })).toBeInTheDocument();
+  });
+
+  it("com fechamentosIndisponiveis, a Visão geral avisa que o estado do mês não carregou", async () => {
+    // um mês sem pendências: sem /fechamentos ele pode já estar fechado, então nada de "Pronto"
+    com({ fechamentosIndisponiveis: true });
+    await renderizar();
+
+    const fechamentos = within(screen.getByRole("navigation", { name: "Atalhos" })).getByRole("link", {
+      name: /Fechamentos/,
+    });
+    expect(fechamentos).toHaveTextContent("Não deu para saber se o mês está fechado");
+    expect(fechamentos).not.toHaveTextContent("Pronto para fechar");
+  });
+
   it("looks at the whole open month, not only the latest conciliação", async () => {
     // a mais recente bateu tudo; a outra do mesmo mês ainda tem três pendências
     const limpa = { id: "banco-e7", extratoSistemaId: "sistema-e7", mes: "Setembro/2026", status: "em_andamento" as const, linhas: [linha("l0", "match_exato", 100, 100)] };
