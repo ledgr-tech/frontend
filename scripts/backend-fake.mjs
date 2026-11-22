@@ -538,9 +538,13 @@ const semAcento = (t) => t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase(
 function responderComDados(b, pergunta) {
   // pergunta de uso ("como concilio…") fica com a Central
   const texto = semAcento(pergunta);
-  if (/^s*como (eu )?(fac|faz|concili|envi|fech|cri|us|abr|justific|convid|troc)/.test(texto) || !/quant|diverg|pendenc|saldo|sobr|numero|valor|ficou/.test(texto)) return null;
-  // ponytail: "sem dados" força o respondida:false, para testar a reserva do roteiro no front
-  const execucao = /sem dados/.test(texto) ? null : b.execucoes.find((e) => e.atual);
+  const MESES = ["janeiro", "fevereiro", "marco", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+  const citado = MESES.findIndex((m) => new RegExp(`\\b${m}\\b`).test(texto));
+  if (/^\s*como (eu )?(fac|faz|concili|envi|fech|cri|us|abr|justific|convid|troc)/.test(texto) || (citado < 0 && !/quant|diverg|pendenc|saldo|sobr|numero|valor|ficou/.test(texto))) return null;
+  const atual = b.execucoes.find((e) => e.atual);
+  // ponytail: o fake só conhece a conciliação mais recente; outro mês ou "sem dados" dão respondida:false, para testar a reserva do roteiro no front
+  const outroMes = atual && citado >= 0 && Number(competenciaDe(atual).slice(5, 7)) !== citado + 1;
+  const execucao = /sem dados/.test(texto) || outroMes ? null : atual;
   if (!execucao) return { resposta: "(backend fake) Não achei números para essa pergunta.", respondida: false, links: [] };
   const c = execucao.contagens;
   const divergentes = c.divergente_valor + c.divergente_data + c.sem_correspondencia + c.duplicado;
