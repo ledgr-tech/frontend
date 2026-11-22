@@ -935,21 +935,56 @@ describe("carregarVisaoGeral", () => {
     expect(resultado.dados.mes).toMatchObject({ competencia: "2026-09", conciliacoes: null });
   });
 
+  it("não soma o mês quando execuções sem período podem seguir depois da página (revisão do Codex)", async () => {
+    // 51 conciliações sem período em setembro: o filtro não traz nenhuma, e a 51ª está fora da página
+    const semPeriodo = (i: number) => ({
+      ...execucao(`s-${i}`, `00000000-0000-4000-8000-${String(i).padStart(12, "0")}`),
+      periodo_inicio: null,
+      periodo_fim: null,
+    });
+    backendDoMes(
+      () => ({ total: 1, itens: [itemConciliacao] }),
+      { total: 51, itens: Array.from({ length: 50 }, (_, i) => semPeriodo(i)) },
+      (offset) => ({ total: 0, offset, itens: [] }),
+    );
+
+    const resultado = await carregarVisaoGeral();
+
+    if (!resultado.ok) throw new Error(resultado.erro);
+    expect(resultado.dados.mes).toMatchObject({ competencia: "2026-09", conciliacoes: null });
+  });
+
+  it("soma o mês com execução sem período quando a página já chega a uma de antes do mês", async () => {
+    const semPeriodo = { ...execucao("sem-periodo", BANCO_RECENTE), periodo_inicio: null, periodo_fim: null };
+    const agosto = { ...execucao("agosto", BANCO_ANTERIOR), periodo_inicio: "2026-08-01", executada_em: "2026-08-31T12:00:00Z" };
+    backendDoMes(
+      () => ({ total: 1, itens: [itemConciliacao] }),
+      { total: 51, itens: [semPeriodo, ...deSetembro(0, 48), agosto] },
+      (offset) => ({ total: 48, offset, itens: offset === 0 ? deSetembro(0, 48) : [] }),
+    );
+
+    const resultado = await carregarVisaoGeral();
+
+    if (!resultado.ok) throw new Error(resultado.erro);
+    expect(resultado.dados.mes?.conciliacoes).toHaveLength(49);
+  });
+
   it("com um backend que ignora ?competencia=, não conta duas vezes a execução sem período", async () => {
     const semPeriodo = { ...execucao("sem-periodo", BANCO_RECENTE), periodo_inicio: null, periodo_fim: null };
-    const pagina = [semPeriodo, ...deSetembro(0, 49)];
-    // o backend antigo devolve a lista toda, sem filtrar
+    const agosto = { ...execucao("agosto", BANCO_ANTERIOR), periodo_inicio: "2026-08-01", executada_em: "2026-08-31T12:00:00Z" };
+    const pagina = [semPeriodo, ...deSetembro(0, 48), agosto];
+    // o backend antigo devolve a lista toda, de todos os meses, sem filtrar
     backendDoMes(() => ({ total: 1, itens: [itemConciliacao] }), { total: 51, itens: pagina }, (offset) => ({
       total: 51,
       offset,
-      // um de agosto também, como manda um backend que não filtra por mês
-      itens: offset === 0 ? [...pagina, ...deSetembro(49, 50), { ...execucao("agosto", BANCO_ANTERIOR), periodo_inicio: "2026-08-01" }] : [],
+      itens: offset === 0 ? [...pagina, { ...execucao("julho", BANCO_ANTERIOR), periodo_inicio: "2026-07-01" }] : [],
     }));
 
     const resultado = await carregarVisaoGeral();
 
     if (!resultado.ok) throw new Error(resultado.erro);
-    expect(resultado.dados.mes?.conciliacoes).toHaveLength(51);
+    // 48 de setembro com período e a sem período, uma vez só; agosto e julho ficam de fora
+    expect(resultado.dados.mes?.conciliacoes).toHaveLength(49);
     expect(chamarBackend.mock.calls.filter(([caminho]) => caminho.startsWith(`/conciliacoes/${BANCO_RECENTE}`))).toHaveLength(1);
   });
 });

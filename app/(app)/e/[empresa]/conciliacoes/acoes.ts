@@ -893,12 +893,20 @@ export async function carregarVisaoGeral(): Promise<Resultado<VisaoGeral>> {
     const doFiltro = doMesTodo.ok
       ? execucoesVigentes(doMesTodo.dados.execucoes.filter((execucao) => execucao.periodoInicio !== null && mesDe(execucao) === foco))
       : [];
-    // ponytail: as sem período, que `competencia()` ainda põe no mês em que rodaram, voltam só da
-    // página (as de depois dela ficam de fora). Alinhar `competencia()` à regra do backend muda
-    // Histórico e Fechamentos, e é decisão à parte
+    // As sem período, que `competencia()` ainda põe no mês em que rodaram, o filtro não traz: vêm só
+    // da página. Se a página tem alguma e a mais antiga dela ainda rodou no mês, outras podem seguir na
+    // próxima, e o mês não é inteiro (a regra de antes da #186, só para quem tem execução sem período).
+    // ponytail: a sem período que só aparece depois da página fica de fora. Alinhar `competencia()` à
+    // regra do backend muda Histórico e Fechamentos, e é decisão à parte
     const semPeriodo = doMesNaPagina.filter((execucao) => execucao.periodoInicio === null);
+    const ultima = execucoes[execucoes.length - 1];
+    const semPeriodoPodeSeguir = semPeriodo.length > 0 && competencia(null, ultima.executadaEm) >= foco;
     // um filtro vazio com execuções datadas do mês na página não é o mês inteiro
-    mesInteiro = doMesTodo.ok && doMesTodo.dados.completas && (doFiltro.length > 0 || semPeriodo.length === doMesNaPagina.length);
+    mesInteiro =
+      doMesTodo.ok &&
+      doMesTodo.dados.completas &&
+      !semPeriodoPodeSeguir &&
+      (doFiltro.length > 0 || semPeriodo.length === doMesNaPagina.length);
     if (mesInteiro) doMes = [...doFiltro, ...semPeriodo].sort((a, b) => b.executadaEm.localeCompare(a.executadaEm));
   }
   const [maisRecente] = doMes;
