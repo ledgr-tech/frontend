@@ -921,6 +921,20 @@ describe("carregarVisaoGeral", () => {
     expect(chamarBackend.mock.calls.filter(([caminho]) => caminho.startsWith("/conciliacoes/"))).toHaveLength(50);
   });
 
+  it("um filtro vazio com execuções datadas do mês na página não soma o mês, e a home segue", async () => {
+    backendDoMes(
+      () => ({ total: 1, itens: [itemConciliacao] }),
+      { total: 51, itens: deSetembro(0, 50) },
+      (offset) => ({ total: 0, offset, itens: [] }),
+    );
+
+    const resultado = await carregarVisaoGeral();
+
+    if (!resultado.ok) throw new Error(resultado.erro);
+    expect(resultado.dados.recente).not.toBeNull();
+    expect(resultado.dados.mes).toMatchObject({ competencia: "2026-09", conciliacoes: null });
+  });
+
   it("com um backend que ignora ?competencia=, não conta duas vezes a execução sem período", async () => {
     const semPeriodo = { ...execucao("sem-periodo", BANCO_RECENTE), periodo_inicio: null, periodo_fim: null };
     const pagina = [semPeriodo, ...deSetembro(0, 49)];
@@ -928,7 +942,8 @@ describe("carregarVisaoGeral", () => {
     backendDoMes(() => ({ total: 1, itens: [itemConciliacao] }), { total: 51, itens: pagina }, (offset) => ({
       total: 51,
       offset,
-      itens: offset === 0 ? [...pagina, ...deSetembro(49, 50)] : [],
+      // um de agosto também, como manda um backend que não filtra por mês
+      itens: offset === 0 ? [...pagina, ...deSetembro(49, 50), { ...execucao("agosto", BANCO_ANTERIOR), periodo_inicio: "2026-08-01" }] : [],
     }));
 
     const resultado = await carregarVisaoGeral();
