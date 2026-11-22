@@ -14,7 +14,9 @@ const desfecho = (soma: SomaDasLinhas) =>
  * montado: uma região que já nasce com o texto não é anunciada, e a primeira marcação passaria em silêncio.
  */
 export function anuncioDaSoma(soma: SomaDasLinhas): string {
-  return soma.quantidade === 0 ? "" : `${contagem(soma.quantidade)}. ${desfecho(soma)}.`;
+  if (soma.quantidade === 0) return "";
+  const lado = soma.diferenca === 0 ? "" : ` Sobra no ${soma.diferenca > 0 ? "banco" : "sistema"}.`;
+  return `${contagem(soma.quantidade)}. ${desfecho(soma)}.${lado}`;
 }
 
 /** Banco, sistema e diferença das linhas selecionadas (#475), no painel ou na faixa da seleção. */

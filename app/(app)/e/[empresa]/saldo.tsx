@@ -29,7 +29,7 @@ export function SaldoDaFolha({
   momento: "inicial" | "final";
 }) {
   if (saldo === undefined) return null;
-  if (saldo === null) return <span className="saldo-folha">{SEM_SALDO}</span>;
+  if (saldo === null) return momento === "final" ? <span className="saldo-folha">{SEM_SALDO}</span> : null;
 
   if (momento === "inicial") {
     return (
