@@ -413,7 +413,8 @@ function NovaConciliacao() {
           <FalhaAoCarregar
             oQue="a comparação de origem"
             status={contexto.status}
-            texto={contexto.status === 404 ? contexto.erro : undefined}
+            // 404 e 409 (rodada vencida) têm causa própria: tentar de novo não muda nada
+            texto={contexto.status === 404 || contexto.status === 409 ? contexto.erro : undefined}
             voltar={voltar}
             tentar={() => {
               setContexto(null);
