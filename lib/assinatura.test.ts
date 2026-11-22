@@ -112,6 +112,17 @@ describe("assinatura", () => {
       expect(cobrancaImediata({ ...teste("2026-12-01T00:00:00Z"), situacao: "teste_encerrado" }, agora)).toBe(true);
     });
 
+    it("usa a margem do backend, 48 h 1 min, com 5 min de folga para o relógio do navegador", () => {
+      const agora = new Date("2026-11-01T12:00:00Z");
+      const teste = (fim: string): Assinatura => ({ situacao: "teste", plano: null, testeTerminaEm: null, fimDoTeste: fim, cobranca: null });
+      expect(cobrancaImediata(teste("2026-11-03T12:00:30Z"), agora)).toBe(true);
+      // passou da margem do backend, mas está na folga: avisa
+      expect(cobrancaImediata(teste("2026-11-03T12:02:00Z"), agora)).toBe(true);
+      // o limite exato (48 h 6 min) já não avisa; um segundo antes, avisa
+      expect(cobrancaImediata(teste("2026-11-03T12:06:00Z"), agora)).toBe(false);
+      expect(cobrancaImediata(teste("2026-11-03T12:05:59Z"), agora)).toBe(true);
+    });
+
     it("escreve o dia curto, com o ano só fora do ano corrente em São Paulo", () => {
       const agora = new Date("2026-11-03T12:00:00-03:00");
       expect(formatarDiaCurto("2026-12-14", agora)).toBe("14/12");

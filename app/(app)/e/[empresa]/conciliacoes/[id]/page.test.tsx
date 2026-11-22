@@ -1103,7 +1103,13 @@ describe("ConciliacaoPage", () => {
       rota.id = BANCO;
       carregarConciliacao.mockResolvedValue({
         ok: true,
-        dados: { conciliacao: { ...conciliacao, id: BANCO, extratoSistemaId: SISTEMA }, truncada: false, ...extra },
+        dados: {
+          conciliacao: { ...conciliacao, id: BANCO, extratoSistemaId: SISTEMA },
+          truncada: false,
+          ...extra,
+          rodada: extra.rodada === undefined ? RODADA_2 : extra.rodada,
+          rodadas: extra.rodadas === undefined ? [RODADA_2] : extra.rodadas,
+        },
       });
     }
 
@@ -1154,6 +1160,21 @@ describe("ConciliacaoPage", () => {
       expect(await screen.findByRole("button", { name: "Justificadas (0)" })).toBeInTheDocument();
       expect(screen.getByText("0 de 1 conferida")).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Marcar Boleto Aço Norte Bobinas como conferida" })).toBeInTheDocument();
+    });
+
+    it("sem rodadas carregadas, a comparação não oferece decidir", async () => {
+      doBackend({ ...comCampo, linhas: comCampo.linhas.map((linha) => ({ ...linha, decisao: null })) }, {
+        rodada: null,
+        rodadas: [],
+        mudancas: null,
+        fechamento: null,
+      });
+      render(<ConciliacaoPage />);
+
+      expect(await screen.findByText("Comparação direta")).toBeInTheDocument();
+      // a caixa de seleção (#475) só soma e fica; o que decide (o Visto e o lote) não
+      expect(screen.queryByRole("columnheader", { name: "Visto" })).not.toBeInTheDocument();
+      expect(screen.queryAllByRole("button", { name: /como conferida$/ })).toHaveLength(0);
     });
 
     it("locks checking, justifying and a new round in a closed month, and says how to open it again", async () => {
@@ -1377,13 +1398,15 @@ describe("ConciliacaoPage", () => {
       doBackend(comCampo);
       carregarConciliacao.mockResolvedValueOnce({
         ok: true,
-        dados: { conciliacao: { ...comCampo, id: BANCO, extratoSistemaId: SISTEMA }, truncada: false },
+        dados: { conciliacao: { ...comCampo, id: BANCO, extratoSistemaId: SISTEMA }, truncada: false, rodada: RODADA_2, rodadas: [RODADA_2] },
       });
       carregarConciliacao.mockResolvedValue({
         ok: true,
         dados: {
           conciliacao: { ...comCampo, id: BANCO, extratoSistemaId: SISTEMA },
           truncada: false,
+          rodada: RODADA_2,
+          rodadas: [RODADA_2],
           fechamento: {
             competencia: "2026-09",
             estado: "fechado",
@@ -1408,6 +1431,46 @@ describe("ConciliacaoPage", () => {
       expect(screen.getByRole("alert")).toHaveTextContent("A competência 2026-09 está fechada.");
       expect(carregarConciliacao).toHaveBeenCalledTimes(2);
       expect(screen.queryByRole("button", { name: /como conferida$/ })).not.toBeInTheDocument();
+    });
+
+    it("resposta de decisão que chega depois de trocar de rodada não altera a rodada aberta", async () => {
+      const sistema1 = "1a2b9c4d-1e3f-4a5b-8c6d-9e0f1a2b3c4d";
+      const rodada1 = {
+        numero: 1,
+        total: 2,
+        extratoSistemaId: sistema1,
+        arquivoSistema: "erp-setembro-v1.csv",
+        executadaEm: "2026-09-10T17:02:00Z",
+      };
+      doBackend(comCampo, { rodada: RODADA_2, rodadas: [rodada1, RODADA_2] });
+      let responder: (resposta: unknown) => void = () => {};
+      registrarDecisao.mockReturnValue(new Promise((resolve) => (responder = resolve)));
+      const view = render(<ConciliacaoPage />);
+
+      const caixaRodada2 = await screen.findByRole("button", { name: "Marcar Boleto Aço Norte Bobinas como conferida" });
+      await userEvent.setup().click(caixaRodada2);
+      expect(caixaRodada2).toHaveAttribute("aria-pressed", "true");
+
+      rota.busca = `sistema=${sistema1}`;
+      doBackend(
+        { ...comCampo, linhas: comCampo.linhas.map((linha) => ({ ...linha, decisao: null })) },
+        {
+          conciliacao: {
+            ...comCampo,
+            id: BANCO,
+            extratoSistemaId: sistema1,
+            linhas: comCampo.linhas.map((linha) => ({ ...linha, decisao: null })),
+          },
+          rodada: rodada1,
+          rodadas: [rodada1, RODADA_2],
+        },
+      );
+      view.rerender(<ConciliacaoPage />);
+
+      expect(await screen.findByRole("button", { name: "Justificadas (0)" })).toBeInTheDocument();
+      // a resposta traz a linha justificada: se caísse na rodada 1, o filtro contaria uma
+      await act(async () => responder({ ok: true, dados: decisao("justificada", 2) }));
+      expect(screen.getByRole("button", { name: "Justificadas (0)" })).toBeInTheDocument();
     });
 
     it("keeps a line checked meanwhile when an earlier answer arrives, and does not send twice", async () => {
@@ -2237,7 +2300,9 @@ describe("ConciliacaoPage", () => {
 
     function doBackend(conciliacao: Conciliacao, extra: Record<string, unknown> = {}) {
       rota.id = BANCO;
-      carregarConciliacao.mockResolvedValue({ ok: true, dados: { conciliacao, truncada: false, ...extra } });
+      // com o backend, decidir pede a rodada que vale (#460): uma rodada só, que é a que vale
+      const rodada = { numero: 1, total: 1, extratoSistemaId: conciliacao.extratoSistemaId, arquivoSistema: "erp-setembro.csv", executadaEm: "2026-09-24T17:02:00Z" };
+      carregarConciliacao.mockResolvedValue({ ok: true, dados: { conciliacao, truncada: false, rodada, rodadas: [rodada], ...extra } });
     }
 
     const caixa = (nome: string) => screen.getByRole("checkbox", { name: `Selecionar: ${nome}` });

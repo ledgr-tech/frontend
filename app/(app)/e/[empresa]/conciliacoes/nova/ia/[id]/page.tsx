@@ -55,6 +55,14 @@ export default async function RevisaoPage({
           : <FalhaAoCarregar oQue="o extrato confirmado" status={confirmado.status} texto={confirmado.erro} voltar={voltar} />;
       }
     }
+  } else if (!origem && !r.ok && r.status === 409) {
+    const confirmado = await recuperarExtratoConfirmado(id);
+    if (confirmado.ok) {
+      await redirecionarNoApp(`/conciliacoes/nova?sistema=${confirmado.dados.extratoId}`);
+    } else {
+      if (confirmado.status === 401) await redirecionarNoApp("/login");
+      conteudo = <FalhaAoCarregar oQue="o extrato confirmado" status={confirmado.status} texto={confirmado.erro} voltar={voltar} />;
+    }
   } else {
     conteudo = r.ok
       ? <Revisao inicial={r.dados} />

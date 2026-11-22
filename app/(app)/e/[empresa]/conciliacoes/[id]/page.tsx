@@ -345,12 +345,14 @@ export default function ConciliacaoPage() {
   }
 
   // decidir só onde há onde gravar, só na rodada que vale (a passada é para ler) e só com o mês
-  // aberto: no fechado, o backend recusa (409) até reabrir
+  // aberto: no fechado, o backend recusa (409) até reabrir, e sem saber se está fechado não decide. Com o
+  // backend, sem rodada não se sabe qual vale, então não decide; o mock não tem rodadas
   const podeDecidir =
     ligadas &&
-    (!rodada || rodada.numero === rodada.total) &&
+    (rodada ? rodada.numero === rodada.total : !real) &&
     !fechamento &&
     !fechamentoIndisponivel;
+  const parDaTela = { extratoBancoId: conciliacao.id, extratoSistemaId: conciliacao.extratoSistemaId };
   const rodadaAberta = `${conciliacao.id}:${rodadaDasLinhas}`;
   // trocar de rodada ou de conciliação apaga a seleção, e voltar começa vazio (ajuste no render, o
   // padrão do React para estado que segue outro valor). Uma releitura mantém a rodada na tela até a
@@ -438,11 +440,18 @@ export default function ConciliacaoPage() {
   const linhaAberta = chaveAberta === null ? null : (conciliacao.linhas.find((linha) => chaveDaLinha(linha) === chaveAberta) ?? null);
 
   /** Troca uma linha na conciliação que estiver na tela quando a resposta chegar. */
-  function trocarLinha(chave: string, troca: (linha: LinhaComparacao) => LinhaComparacao) {
-    substituir((atual) => ({
-      ...atual,
-      linhas: atual.linhas.map((linha) => (chaveDaLinha(linha) === chave ? troca(linha) : linha)),
-    }));
+  function trocarLinha(
+    par: { extratoBancoId: string; extratoSistemaId: string | undefined },
+    chave: string,
+    troca: (linha: LinhaComparacao) => LinhaComparacao,
+  ) {
+    substituir((atual) => {
+      if (atual.id !== par.extratoBancoId || atual.extratoSistemaId !== par.extratoSistemaId) return atual;
+      return {
+        ...atual,
+        linhas: atual.linhas.map((linha) => (chaveDaLinha(linha) === chave ? troca(linha) : linha)),
+      };
+    });
   }
 
   /**
@@ -451,6 +460,7 @@ export default function ConciliacaoPage() {
    */
   async function gravarDecisao(linha: LinhaComparacao, tipo: TipoEvento, texto?: string): Promise<string | null> {
     const chave = chaveDaLinha(linha);
+    const par = { extratoBancoId: conciliacao.id, extratoSistemaId: conciliacao.extratoSistemaId };
     let resposta: ResultadoDaDecisao;
     try {
       resposta = await decidir({ conciliacao, real, linha, tipo, texto });
@@ -460,7 +470,7 @@ export default function ConciliacaoPage() {
     }
     if (resposta.ok) {
       const gravada = resposta.conciliacao.linhas.find((atual) => chaveDaLinha(atual) === chave);
-      if (gravada) trocarLinha(chave, () => gravada);
+      if (gravada) trocarLinha(par, chave, () => gravada);
       return null;
     }
     if (resposta.status === 401) router.push("/login");
@@ -480,12 +490,12 @@ export default function ConciliacaoPage() {
       ? null
       : { tipo: "conferida", texto: null, autor: "Você", em: new Date().toISOString(), rodada: rodadaDasLinhas };
     setErroDecisao(null);
-    trocarLinha(chave, (atual) => ({ ...atual, decisao: otimista }));
+    trocarLinha(parDaTela, chave, (atual) => ({ ...atual, decisao: otimista }));
 
     const erro = await gravarDecisao(linha, marcada ? "conferencia_desfeita" : "conferida");
     gravando.current.delete(chave);
     if (erro === null) return;
-    trocarLinha(chave, (atual) => ({ ...atual, decisao: linha.decisao }));
+    trocarLinha(parDaTela, chave, (atual) => ({ ...atual, decisao: linha.decisao }));
     setErroDecisao(erro);
   }
 
@@ -1211,7 +1221,7 @@ export default function ConciliacaoPage() {
             onDesfazer={() => (linhaEmFoco ? gravarDecisao(linhaEmFoco, "justificativa_desfeita") : Promise.resolve(null))}
             onDesfazerAprovacao={() => (linhaEmFoco ? gravarDecisao(linhaEmFoco, "aprovacao_desfeita") : Promise.resolve(null))}
             onExplicada={(linha, explicacao) =>
-              trocarLinha(chaveDaLinha(linha), (atual) => ({
+              trocarLinha(parDaTela, chaveDaLinha(linha), (atual) => ({
                 ...atual,
                 explicacao: explicacao.texto,
                 explicacaoPorIa: explicacao.geradaPorIa,

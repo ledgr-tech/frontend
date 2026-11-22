@@ -5,6 +5,7 @@ import { MensagemErro } from "../../../../(auth)/_compartilhado/mensagem-erro";
 import { formatarDataHora } from "../dashboard/resumo";
 import { criarLinkDoRelatorio, listarLinksDoRelatorio, revogarLinkDoRelatorio, type LinkDoRelatorio } from "./links";
 import { SEM_SERVIDOR } from "@/lib/sem-servidor";
+import { useRoteador } from "@/lib/roteador";
 
 type Estado = { situacao: "carregando" } | { situacao: "sem-rota" } | { situacao: "pronto"; links: LinkDoRelatorio[] };
 
@@ -18,12 +19,23 @@ const dia = (iso: string) => formatarDataHora(iso).slice(0, 10);
  * relatório no navegador, sem conta. Escolhe-se a validade (7, 30 ou 90 dias; o backend aceita de 1 a 90) e
  * gera-se o link. O endereço completo só existe na criação (o backend guarda o hash do token), então fica em
  * destaque até ser copiado; depois, a tabela mostra só o prefixo, a validade e os acessos. Só para quem fecha
- * o mês, e some se o backend ainda não tem a rota (ou a flag está desligada).
+ * o mês, e some se o backend ainda não tem a rota. Com a flag desligada a listagem responde (para revogar o que
+ * já existia) e só a criação dá 404: o primeiro "Gerar link" mostra o texto do backend e avisa a mesa
+ * (`aoFicarSemCriacao`); daí em diante (`semCriacao`) o cartão some, ou fica só com os links ativos para revogar.
  */
-export function LinkPublico({ competencia }: { competencia: string }) {
+export function LinkPublico({
+  competencia,
+  semCriacao = false,
+  aoFicarSemCriacao,
+}: {
+  competencia: string;
+  semCriacao?: boolean;
+  aoFicarSemCriacao?: () => void;
+}) {
+  const router = useRoteador();
   const [estado, setEstado] = useState<Estado>({ situacao: "carregando" });
   const [validade, setValidade] = useState(30);
-  const [endereco, setEndereco] = useState<string | null>(null);
+  const [endereco, setEndereco] = useState<{ id: string; url: string } | null>(null);
   const [copiado, setCopiado] = useState(false);
   const [ocupado, setOcupado] = useState(false);
   const [confirmando, setConfirmando] = useState<string | null>(null);
@@ -42,6 +54,7 @@ export function LinkPublico({ competencia }: { competencia: string }) {
 
   if (estado.situacao !== "pronto") return null;
   const ativos = estado.links.filter((link) => link.ativo);
+  if (semCriacao && ativos.length === 0 && !erro) return null;
   const noLimite = ativos.length >= MAXIMO_ATIVOS;
 
   /** Uma chamada por vez: a trava fecha antes do primeiro await. */
@@ -65,11 +78,11 @@ export function LinkPublico({ competencia }: { competencia: string }) {
     executar(async () => {
       const r = await criarLinkDoRelatorio(competencia, validade, window.location.origin);
       if (!r.ok) {
-        // 404 na criação: a flag do backend está desligada, a ação ainda não existe
-        if (r.status === 404) setEstado({ situacao: "sem-rota" });
-        return r.status === 404 ? null : r.erro;
+        if (r.status === 404 && r.motivo === "mes-reaberto") router.refresh();
+        else if (r.status === 404) aoFicarSemCriacao?.();
+        return r.erro;
       }
-      setEndereco(r.dados.endereco);
+      setEndereco({ id: r.dados.link.id, url: r.dados.endereco });
       setCopiado(false);
       setEstado((atual) => (atual.situacao === "pronto" ? { situacao: "pronto", links: [r.dados.link, ...atual.links] } : atual));
       return null;
@@ -78,7 +91,7 @@ export function LinkPublico({ competencia }: { competencia: string }) {
   async function copiar() {
     if (!endereco) return;
     try {
-      await navigator.clipboard.writeText(endereco);
+      await navigator.clipboard.writeText(endereco.url);
       setCopiado(true);
     } catch {
       setErro("Não foi possível copiar. Selecione o endereço e copie à mão.");
@@ -90,7 +103,7 @@ export function LinkPublico({ competencia }: { competencia: string }) {
       const r = await revogarLinkDoRelatorio(competencia, id);
       if (!r.ok) return r.erro;
       setConfirmando(null);
-      setEndereco(null);
+      setEndereco((atual) => (atual?.id === id ? null : atual));
       setEstado((atual) =>
         atual.situacao === "pronto"
           ? { situacao: "pronto", links: atual.links.map((link) => (link.id === id ? { ...link, ativo: false } : link)) }
@@ -106,6 +119,7 @@ export function LinkPublico({ competencia }: { competencia: string }) {
         <div className="fech-passo-texto">O cliente abre o relatório no navegador, sem conta. Você revoga quando quiser.</div>
       </div>
 
+      {!semCriacao && (
       <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
         <span className="fech-passo-texto">Validade</span>
         <div className="pills segmentado" role="group" aria-label="Validade do link">
@@ -120,11 +134,12 @@ export function LinkPublico({ competencia }: { competencia: string }) {
         </button>
         {noLimite && <span className="fech-passo-texto">{`O limite é de ${MAXIMO_ATIVOS} links ativos: revogue um para gerar outro.`}</span>}
       </div>
+      )}
 
       {endereco && (
         <div role="status" style={{ display: "grid", gap: 6, padding: 12, borderRadius: 10, background: "color-mix(in srgb, var(--color-accent) 10%, transparent)" }}>
           <div style={{ display: "flex", gap: 8 }}>
-            <input className="input" readOnly value={endereco} aria-label="Link público do relatório" style={{ flex: 1 }} onFocus={(e) => e.currentTarget.select()} />
+            <input className="input" readOnly value={endereco.url} aria-label="Link público do relatório" style={{ flex: 1 }} onFocus={(e) => e.currentTarget.select()} />
             <button type="button" className="btn btn-primary" onClick={copiar}>
               {copiado ? "Link copiado" : "Copiar link"}
             </button>

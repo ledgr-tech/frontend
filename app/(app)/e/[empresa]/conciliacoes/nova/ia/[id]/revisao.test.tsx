@@ -8,6 +8,7 @@ const acoes = vi.hoisted(() => ({
   acrescentar: vi.fn(),
   carregar: vi.fn(),
   confirmar: vi.fn(),
+  recuperar: vi.fn(),
   corrigir: vi.fn(),
   descartar: vi.fn(),
   remover: vi.fn(),
@@ -21,6 +22,7 @@ vi.mock("../acoes", () => ({
   acrescentarLinhaAoRascunho: acoes.acrescentar,
   carregarRascunho: acoes.carregar,
   confirmarImportacao: acoes.confirmar,
+  recuperarExtratoConfirmado: acoes.recuperar,
   concluirNovaVersaoIa: acoes.concluir,
   corrigirLinhaDoRascunho: acoes.corrigir,
   descartarImportacao: acoes.descartar,
@@ -68,6 +70,7 @@ describe("Revisao da importação via IA", () => {
     acoes.carregar.mockResolvedValue({ ok: true, dados: ATUALIZADO });
     acoes.remover.mockResolvedValue({ ok: true, dados: null });
     acoes.confirmar.mockResolvedValue({ ok: true, dados: { extratoId: "extrato-1" } });
+    acoes.recuperar.mockResolvedValue({ ok: true, dados: { extratoId: "e1" } });
   });
 
   it("impede confirmar enquanto uma correção está aberta e libera depois de salvar", async () => {
@@ -96,6 +99,21 @@ describe("Revisao da importação via IA", () => {
     await user.click(confirmar());
 
     await waitFor(() => expect(acoes.push).toHaveBeenCalledWith("/conciliacoes/nova?sistema=extrato-1"));
+  });
+
+  it.each([
+    ["uma falha de rede", "erro"],
+    ["o 409 de outra aba", "409"],
+  ])("confirmar que lança e depois acha o extrato confirmado segue para a nova conciliação após %s", async (_nome, tipo) => {
+    const user = userEvent.setup();
+    if (tipo === "erro") acoes.confirmar.mockRejectedValue(new Error("rede"));
+    else acoes.confirmar.mockResolvedValue({ ok: false, status: 409, erro: "A importação já foi confirmada." });
+    render(<Revisao inicial={INICIAL} />);
+
+    await user.click(confirmar());
+
+    await waitFor(() => expect(acoes.recuperar).toHaveBeenCalledWith(INICIAL.id));
+    expect(acoes.push).toHaveBeenCalledWith("/conciliacoes/nova?sistema=e1");
   });
 
   it("impede confirmar uma linha nova não salva e libera ao cancelar", async () => {
