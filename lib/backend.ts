@@ -153,6 +153,8 @@ function segundosDoRetryAfter(resposta: Response): number | undefined {
   return Number.isInteger(valor) && valor > 0 ? valor : undefined;
 }
 
+export const MUITAS_TENTATIVAS = "Muitas tentativas seguidas. Espere um pouco e tente de novo.";
+
 async function erroDaResposta(resposta: Response): Promise<ErroBackend> {
   const segundos = segundosDoRetryAfter(resposta);
   try {
@@ -182,7 +184,9 @@ async function erroDaResposta(resposta: Response): Promise<ErroBackend> {
   } catch {
     // resposta sem corpo JSON (502 do proxy, timeout do Railway)
   }
-  return new ErroBackend(resposta.status, `O servidor respondeu ${resposta.status}.`, [], {}, segundos);
+  const detalhe =
+    resposta.status === 429 ? MUITAS_TENTATIVAS : `O servidor respondeu ${resposta.status}.`;
+  return new ErroBackend(resposta.status, detalhe, [], {}, segundos);
 }
 
 type Opcoes = RequestInit & {

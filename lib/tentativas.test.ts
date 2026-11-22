@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   BLOQUEIO_MS,
   LIMITE_TENTATIVAS,
@@ -47,5 +47,18 @@ describe("tentativas de login", () => {
       expect(registrarSenhaErrada({ agora })).toBe(false);
     }
     expect(estaBloqueado({ agora })).toBe(false);
+  });
+
+  it("registrarSenhaErrada e limparTentativas não lançam quando o localStorage recusa a escrita", () => {
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new DOMException("cheio", "QuotaExceededError");
+    });
+    vi.spyOn(Storage.prototype, "removeItem").mockImplementation(() => {
+      throw new DOMException("cheio", "QuotaExceededError");
+    });
+
+    expect(() => registrarSenhaErrada({ agora })).not.toThrow();
+    expect(() => limparTentativas()).not.toThrow();
+    vi.restoreAllMocks();
   });
 });

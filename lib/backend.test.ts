@@ -2,7 +2,16 @@
 //
 // node, e não jsdom: o `emailDaSessao` confere o token com o jose, que no jsdom recusa a chave (ver lib/token.test.ts).
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { baixarDoBackend, chamarBackend, contaRecusouPorInativa, ehContaInativa, esquecerContaInativa, emailDaSessao, ErroBackend } from "./backend";
+import {
+  baixarDoBackend,
+  chamarBackend,
+  contaRecusouPorInativa,
+  ehContaInativa,
+  esquecerContaInativa,
+  emailDaSessao,
+  ErroBackend,
+  MUITAS_TENTATIVAS,
+} from "./backend";
 import { assinarToken } from "./token";
 
 // o cookie da sessão é o JWT; aqui ele é só uma string conhecida
@@ -106,6 +115,25 @@ describe("chamarBackend", () => {
       status: 429,
       segundosParaTentar: 120,
     });
+  });
+
+  it("429 sem detail vira MUITAS_TENTATIVAS e mantém o Retry-After", async () => {
+    fetch.mockResolvedValue(
+      Response.json({ error: "Rate limit exceeded: 5 per 1 minute" }, { status: 429, headers: { "Retry-After": "42" } }),
+    );
+
+    const erro = await chamarBackend("/login", { publica: true }).catch((e: unknown) => e);
+
+    expect(erro).toMatchObject({
+      detalhe: MUITAS_TENTATIVAS,
+      segundosParaTentar: 42,
+    });
+
+    fetch.mockResolvedValue(Response.json({ detail: "Limite de requisições excedido." }, { status: 429 }));
+
+    const erroComDetalhe = await chamarBackend("/login", { publica: true }).catch((e: unknown) => e);
+
+    expect(erroComDetalhe).toMatchObject({ detalhe: "Limite de requisições excedido." });
   });
 
   it("do 422 do FastAPI, guarda quais campos do corpo foram recusados", async () => {
