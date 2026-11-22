@@ -194,6 +194,18 @@ describe("AceitarConvite", () => {
     ).toBeInTheDocument();
   });
 
+  it("sem resposta da action do Google, não diz que o Google está desligado", async () => {
+    aceitarConviteComGoogle.mockRejectedValue(new Error("Failed to fetch"));
+    const user = userEvent.setup();
+    render(<AceitarConvite conectadoComo={null} google={{ ligado: true, erro: null, convite: null }} />);
+
+    await user.click(await screen.findByRole("button", { name: "Aceitar com Google" }));
+
+    expect(
+      await screen.findByText("Não foi possível agora. Tente de novo em instantes. Se não der, abra de novo o link do e-mail."),
+    ).toBeInTheDocument();
+  });
+
   it("o falha do backend não manda abrir o link de novo", async () => {
     aceitarConvite.mockResolvedValue({ ok: false, erro: "falha" });
     render(<AceitarConvite conectadoComo={null} google={SEM_GOOGLE} />);

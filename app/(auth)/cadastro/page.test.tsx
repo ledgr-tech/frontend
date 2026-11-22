@@ -444,6 +444,16 @@ describe("CadastroPage", () => {
     expect(push).not.toHaveBeenCalled();
   });
 
+  it("keeps the backend's failure text without asking for a reload", async () => {
+    cadastrar.mockResolvedValue({ ok: false, erro: "falha" });
+    const user = userEvent.setup();
+    render(<CadastroPage />);
+
+    await concluirCadastro(user);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/^Não foi possível concluir o cadastro\. Tente de novo em instantes\.$/);
+  });
+
   it("recovers the form when the server can't be reached", async () => {
     cadastrar.mockRejectedValue(new Error("Failed to fetch"));
     const user = userEvent.setup();
