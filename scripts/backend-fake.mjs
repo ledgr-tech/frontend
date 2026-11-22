@@ -1063,6 +1063,18 @@ const servidor = createServer(async (req, res) => {
     return json(res, 200, pagina(lista));
   }
 
+  // DELETE /extratos/{id} (backend #185): só o que nunca entrou em conciliação
+  const descarte = rota("DELETE", /^\/extratos\/([0-9a-f-]{36})$/i);
+  if (descarte) {
+    if (!b.extratos.has(descarte[1])) return json(res, 404, { detail: "Extrato não encontrado." });
+    if (b.execucoes.some((e) => e.extrato_banco_id === descarte[1] || e.extrato_sistema_id === descarte[1])) {
+      return json(res, 409, { detail: "Este extrato já foi usado em uma conciliação e não pode ser descartado." });
+    }
+    b.extratos.delete(descarte[1]);
+    res.writeHead(204);
+    return res.end();
+  }
+
   const extrato = rota("GET", /^\/extratos\/([0-9a-f-]{36})$/i);
   if (extrato) {
     const dados = b.extratos.get(extrato[1]);

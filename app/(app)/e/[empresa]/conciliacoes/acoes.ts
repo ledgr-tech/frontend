@@ -151,6 +151,20 @@ export async function enviarExtrato(dados: FormData): Promise<Resultado<{ extrat
   }
 }
 
+/**
+ * Descarta um extrato que nunca entrou em conciliação (`DELETE /extratos/{id}`, backend #185): 204;
+ * 409 com o texto do backend se já foi conciliado ou ainda está sendo importado; 404 se não é da empresa.
+ */
+export async function descartarExtrato(extratoId: string): Promise<Resultado<null>> {
+  if (!pareceUuid(extratoId)) return { ok: false, status: 404, erro: "Extrato não encontrado." };
+  try {
+    await chamarBackend<null>(`/extratos/${extratoId}`, { method: "DELETE" });
+    return { ok: true, dados: null };
+  } catch (erro) {
+    return traduzir(erro);
+  }
+}
+
 export async function situacaoDoExtrato(
   extratoId: string,
 ): Promise<Resultado<SituacaoExtrato>> {
