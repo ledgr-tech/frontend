@@ -24,16 +24,19 @@ export function fraseDoSaldoFinal(saldo: SaldoDoExtrato | null): string {
 export function SaldoDaFolha({
   saldo,
   momento,
+  id,
 }: {
   saldo: SaldoDoExtrato | null | undefined;
   momento: "inicial" | "final";
+  /** Para o cabeçalho da folha apontar o saldo inicial como descrição (aria-describedby). */
+  id?: string;
 }) {
   if (saldo === undefined) return null;
-  if (saldo === null) return <span className="saldo-folha">{SEM_SALDO}</span>;
+  if (saldo === null) return momento === "final" ? <span className="saldo-folha">{SEM_SALDO}</span> : null;
 
   if (momento === "inicial") {
     return (
-      <span className="saldo-folha">
+      <span className="saldo-folha" id={id}>
         <span>Saldo inicial</span>{" "}
         {/* com linhas não lidas a soma sairia incompleta: o backend não calcula, e o front também não */}
         {saldo.inicial === null ? (

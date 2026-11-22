@@ -189,7 +189,7 @@ describe("ConciliacaoPage", () => {
     buscarConciliacao.mockReturnValue(conciliacaoEmAndamento);
     render(<ConciliacaoPage />);
 
-    const banco = await screen.findByRole("columnheader", { name: /Extrato do banco/ });
+    const banco = await screen.findByRole("columnheader", { name: "Extrato do banco" });
     // data, descrição e valor do banco ficam na mesma folha
     expect(banco).toHaveAttribute("colspan", "3");
     expect(banco.querySelector('[data-origem="banco"]')).not.toBeNull();
@@ -962,9 +962,11 @@ describe("ConciliacaoPage", () => {
     });
     render(<ConciliacaoPage />);
 
-    const banco = await screen.findByRole("columnheader", { name: /Extrato do banco/ });
+    const banco = await screen.findByRole("columnheader", { name: "Extrato do banco" });
     expect(within(banco).getByText("Saldo inicial")).toBeInTheDocument();
     expect(banco).toHaveTextContent(/R\$\s*100,00/);
+    // o nome é só "Extrato do banco"; o leitor de tela ouve o saldo inicial como descrição
+    expect(banco).toHaveAccessibleDescription(/Saldo inicial\s*R\$\s*100,00/);
   });
 
   it("mostra o saldo final no pé da coluna do banco, mesmo com filtro vazio", async () => {
@@ -988,12 +990,13 @@ describe("ConciliacaoPage", () => {
     expect(within(screen.getByRole("columnheader", { name: /Extrato do banco/ })).getByText("Saldo inicial")).toBeInTheDocument();
   });
 
-  it("mostra saldo não informado no topo e no pé quando o arquivo não traz saldo", async () => {
+  it("mostra saldo não informado uma vez, no pé da folha do banco", async () => {
     buscarConciliacao.mockReturnValue({ ...conciliacaoMista, saldo: null });
     render(<ConciliacaoPage />);
 
     const tabela = await screen.findByRole("table");
-    expect(within(await screen.findByRole("columnheader", { name: /Extrato do banco/ })).getByText("Saldo não informado no arquivo")).toBeInTheDocument();
+    expect(within(screen.getByRole("columnheader", { name: "Extrato do banco" })).queryByText("Saldo não informado no arquivo")).not.toBeInTheDocument();
+    expect(within(tabela).getAllByText("Saldo não informado no arquivo")).toHaveLength(1);
     expect(within(tabela.querySelector("tfoot[role='rowgroup']")!).getByText("Saldo não informado no arquivo")).toBeInTheDocument();
   });
 
@@ -1748,6 +1751,29 @@ describe("ConciliacaoPage", () => {
         const faixa = () => screen.getByRole("region", { name: "Linhas selecionadas" });
         const todas = () => screen.getByRole("checkbox", { name: "Selecionar todas as divergências à vista" });
 
+        it("com 501 aguardando selecionadas, bloqueia o lote e informa o limite de 500", async () => {
+          doBackend({
+            ...comCampo,
+            linhas: Array.from({ length: 501 }, (_, indice) => ({
+              ...comCampo.linhas[1],
+              id: `pendente-${indice}`,
+              chave: `b:pendente-${indice}`,
+              descricao: `Pendente ${indice}`,
+              decisao: pendente,
+            })),
+          });
+          const user = userEvent.setup();
+          render(<ConciliacaoPage />);
+
+          await user.click(await screen.findByRole("checkbox", { name: "Selecionar todas as divergências à vista" }));
+          const aprovar = within(faixa()).getByRole("button", { name: "Aprovar as 501 justificativas selecionadas" });
+          const rejeitar = within(faixa()).getByRole("button", { name: "Rejeitar…" });
+          expect(aprovar).toBeDisabled();
+          expect(rejeitar).toBeDisabled();
+          expect(faixa()).toHaveTextContent("Selecione no máximo 500 justificativas para aprovar ou rejeitar de uma vez.");
+          // ponytail: 501 linhas na página inteira pesam; os cliques e a volta a 500 ficam em decisao-em-lote.test.tsx
+        }, 30000);
+
         it("no filtro Aguardando aprovação, selecionar todas e aprovar manda as chaves do backend e lê a tela de novo", async () => {
           doBackend(comDuas);
           decidirLinhas.mockResolvedValue({ ok: true, dados: { processadas: 2, ignoradas: 0 } });
@@ -2334,14 +2360,14 @@ describe("ConciliacaoPage", () => {
       const anuncio = screen.getByRole("status");
       expect(anuncio).toBeEmptyDOMElement();
       await user.click(caixa("05/09 Tarifa pacote de serviços"));
-      expect(anuncio).toHaveTextContent(/^1 linha selecionada\. Falta R\$\s89,90 para zerar\.$/);
+      expect(anuncio).toHaveTextContent(/^1 linha selecionada\. Falta R\$\s89,90 para zerar\. Sobra no sistema\.$/);
       await user.click(caixa("06/09 Tarifa TED"));
 
       const soma = within(faixa()).getByRole("region", { name: "Soma das selecionadas" });
       expect(soma).toHaveTextContent("2 linhas selecionadas");
       expect(within(soma).getByText("Banco").nextElementSibling).toHaveTextContent(/^-R\$\s102,40$/);
       expect(within(soma).getByText("Sistema").nextElementSibling).toHaveTextContent(/^R\$\s0,00$/);
-      expect(anuncio).toHaveTextContent(/^2 linhas selecionadas\. Falta R\$\s102,40 para zerar\.$/);
+      expect(anuncio).toHaveTextContent(/^2 linhas selecionadas\. Falta R\$\s102,40 para zerar\. Sobra no sistema\.$/);
 
       await user.click(within(faixa()).getByRole("button", { name: "Limpar seleção" }));
       expect(screen.queryByRole("region", { name: "Linhas selecionadas" })).not.toBeInTheDocument();

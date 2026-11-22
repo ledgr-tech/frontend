@@ -36,7 +36,6 @@ export const COOKIE_VOLTAR_GOOGLE = "ledgr-voltar-google";
 export type ErroGoogle =
   | "email_com_senha"
   | "email_com_outro_google"
-  | "google_de_outra_conta"
   | "nao_confirmado"
   | "indisponivel"
   | "muitas_tentativas"
@@ -46,7 +45,6 @@ export const MENSAGEM_GOOGLE: Record<ErroGoogle, string> = {
   // o backend não liga o Google sozinho a uma conta com senha (ADR-004, 13/10): a senha liga, pelo /login/google/vincular (#218)
   email_com_senha: "Este e-mail já tem conta com senha. Digite a senha para conectar o Google a ela e entrar.",
   email_com_outro_google: "Esta conta já está conectada a outra conta Google. Entre com a senha ou com aquele Google.",
-  google_de_outra_conta: "Este Google já entra no Ledgr por outra conta. Aceite com senha ou com outro Google.",
   nao_confirmado: "Não foi possível confirmar a conta Google. Tente de novo.",
   indisponivel: "O login pelo Google está indisponível agora. Entre com e-mail e senha.",
   muitas_tentativas: "Muitas tentativas seguidas agora. Espere um minuto e tente de novo.",

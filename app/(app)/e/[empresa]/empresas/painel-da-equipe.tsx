@@ -226,8 +226,12 @@ export function PainelDaEquipe({
             }}
             aoFechar={aoFecharConvite}
             aoSairDaSessao={() => router.push("/login")}
-            // só o /me: recarregar a equipe desmontaria o modal, e o texto do 403 sumiria com ele
-            aoRecusar={() => router.refresh()}
+            aoRecusar={(texto) => {
+              aoFecharConvite();
+              setErroDeAcao(texto);
+              recarregar();
+              router.refresh();
+            }}
           />
         </ModalDaTela>
       )}
@@ -570,7 +574,7 @@ function ConvidarPessoa({
   aoConvidar: (convite: Convite) => void;
   aoFechar: () => void;
   aoSairDaSessao: () => void;
-  aoRecusar: () => void;
+  aoRecusar: (texto: string) => void;
 }) {
   const [email, setEmail] = useState("");
   // o padrão é o papel de menos poder: o último da lista (analista)
@@ -603,10 +607,11 @@ function ConvidarPessoa({
       aoSairDaSessao();
       return;
     }
-    setRetorno({ ok: false, texto: resposta.erro });
     if (resposta.status === 403) {
-      aoRecusar();
+      aoRecusar(resposta.erro);
+      return;
     }
+    setRetorno({ ok: false, texto: resposta.erro });
   }
 
   return (

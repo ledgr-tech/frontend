@@ -67,10 +67,9 @@ describe("SaldoDaFolha", () => {
     expect(container).not.toHaveTextContent("depende das linhas não lidas");
   });
 
-  it("sem saldo no arquivo, avisa nos dois momentos", () => {
+  it("sem saldo no arquivo, avisa só no momento final", () => {
     const inicial = render(<SaldoDaFolha saldo={null} momento="inicial" />);
-    expect(inicial.container).toHaveTextContent("Saldo não informado no arquivo");
-    expect(inicial.container.textContent).not.toMatch(/R\$/);
+    expect(inicial.container).toBeEmptyDOMElement();
 
     const final = render(<SaldoDaFolha saldo={null} momento="final" />);
     expect(final.container).toHaveTextContent("Saldo não informado no arquivo");

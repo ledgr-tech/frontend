@@ -81,12 +81,11 @@ function textoDoVazio(filtro: Filtro, justificadas: number): string {
   return "Nada em revisão nesta competência: todos os lançamentos bateram.";
 }
 
-/** Quantas linhas por página. 4.218 lançamentos não cabem numa tela. */
-/** Do ponteiro sair da linha ao cartão fechar: o tempo de atravessar o vão até ele. */
 // aqui e não em ../acoes: um arquivo "use server" só exporta funções async, e o build recusa o resto
 const FECHAMENTO_NAO_CARREGOU =
   "Não deu para saber se este mês está fechado. Conferir, justificar e enviar nova versão voltam quando carregar.";
 
+/** Do ponteiro sair da linha ao cartão fechar: o tempo de atravessar o vão até ele. */
 const ESPERA_PARA_FECHAR_MS = 150;
 
 /** Do ponteiro descer ao foco chegar: dentro disso, o foco veio do toque ou do clique, não do teclado. */
@@ -726,6 +725,7 @@ export default function ConciliacaoPage() {
             {aguardandoSelecionadas.length > 0 && (
               <DecisaoEmLote
                 quantidade={aguardandoSelecionadas.length}
+                limite={500}
                 objeto={{ um: "justificativa selecionada", varios: "justificativas selecionadas" }}
                 onDecidir={decidirSelecionadas}
               />
@@ -770,11 +770,12 @@ export default function ConciliacaoPage() {
                     e o olho passa por ele no caminho de um lado ao outro. */}
                 <tr role="row" className="folhas-titulos">
                   <td className="folha-fora" aria-hidden="true" />
-                  <th colSpan={3} scope="colgroup" className="folha-banco folha-titulo">
+                  <th colSpan={3} scope="colgroup" className="folha-banco folha-titulo" aria-label="Extrato do banco" aria-describedby="saldo-inicial-do-banco">
                     <span className="folha-titulo-conteudo">
                       <IconeOrigem origem="banco" />
                       <span className="folha-nome">Extrato do banco</span>
-                      <SaldoDaFolha saldo={conciliacao.saldo} momento="inicial" />
+                      {/* o nome é só "Extrato do banco"; o saldo inicial chega ao leitor de tela como descrição */}
+                      <SaldoDaFolha saldo={conciliacao.saldo} momento="inicial" id="saldo-inicial-do-banco" />
                     </span>
                   </th>
                   <td className="folha-fora" aria-hidden="true" />

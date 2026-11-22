@@ -207,15 +207,7 @@ function NovaConciliacao() {
       if (reenvio && sistema) {
         const alvo = await verificarNovaVersao(reenvio.banco, reenvio.sistemaAnterior);
         if (!vivo.current) return;
-        if (!alvo.ok) {
-          setEtapa("ocioso");
-          if (alvo.status === 401) {
-            router.push("/login");
-          } else {
-            setErro(alvo.erro);
-          }
-          return;
-        }
+        if (!alvo.ok) return falhar(alvo);
       }
       // o JSON do sistema vira rascunho para conferir antes de entrar (#347); só o reenvio o aceita
       if (reenvio && sistema && /\.json$/i.test(sistema.name)) {
@@ -432,7 +424,8 @@ function NovaConciliacao() {
           <FalhaAoCarregar
             oQue="a comparação de origem"
             status={contexto.status}
-            texto={contexto.status === 404 ? contexto.erro : undefined}
+            // 404 e 409 (rodada vencida) têm causa própria: tentar de novo não muda nada
+            texto={contexto.status === 404 || contexto.status === 409 ? contexto.erro : undefined}
             voltar={voltar}
             tentar={() => {
               setContexto(null);

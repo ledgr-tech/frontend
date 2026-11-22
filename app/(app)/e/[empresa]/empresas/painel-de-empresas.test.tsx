@@ -242,6 +242,27 @@ describe("a situação do mês e as favoritas", () => {
     expect(screen.queryByText("Falha antiga")).not.toBeInTheDocument();
   });
 
+  it("depois de dois oks fora de ordem, a falha volta ao último ok", async () => {
+    let primeira!: (resposta: { ok: true; dados: null }) => void;
+    let segunda!: (resposta: { ok: true; dados: null }) => void;
+    marcarFavorita
+      .mockReturnValueOnce(new Promise((resolve) => { primeira = resolve; }))
+      .mockReturnValueOnce(new Promise((resolve) => { segunda = resolve; }))
+      .mockResolvedValueOnce({ ok: false, status: 503, erro: "Não foi possível favoritar." });
+    const user = userEvent.setup();
+    montar({ empresas: COM_157 });
+
+    await user.click(screen.getByRole("button", { name: "Marcar Padaria Ltda como favorita" }));
+    await user.click(screen.getByRole("button", { name: "Tirar Padaria Ltda das favoritas" }));
+    await act(async () => segunda({ ok: true, dados: null }));
+    await act(async () => primeira({ ok: true, dados: null }));
+    await user.click(screen.getByRole("button", { name: "Marcar Padaria Ltda como favorita" }));
+
+    expect(screen.getByRole("button", { name: "Marcar Padaria Ltda como favorita" })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("alert")).toHaveTextContent("Não foi possível favoritar.");
+    expect(marcarFavorita.mock.calls).toEqual([[A.id, true], [A.id, false], [A.id, true]]);
+  });
+
   it("dois cliques que falham voltam a estrela ao que o backend tinha", async () => {
     let resolverPrimeira!: (valor: { ok: boolean; status: number; erro: string }) => void;
     marcarFavorita

@@ -148,18 +148,19 @@ export function Revisao({
         r = { ok: false, status: 0, erro: SEM_SERVIDOR } as const;
       }
       if (!r.ok && (r.status === 409 || r.status === 0)) {
-        const confirmado = await recuperarExtratoConfirmado(inicial.id);
-        if (confirmado.ok) {
+        const confirmado = await recuperarExtratoConfirmado(inicial.id).catch(() => null);
+        if (confirmado?.ok) {
           setSaindo(true);
           roteador.push(`/conciliacoes/nova?sistema=${confirmado.dados.extratoId}`);
           return null;
         }
-        if (confirmado.status === 401) {
+        if (confirmado?.status === 401) {
           setSaindo(true);
           roteador.push("/login");
           return null;
         }
-        return confirmado.erro;
+        // sem um extrato confirmado, vale a falha da confirmação, não a tentativa de recuperação
+        return r.erro;
       }
       if (!r.ok) return r.erro;
       // segue para a Nova conciliação com o sistema já pronto: só falta enviar o extrato do banco

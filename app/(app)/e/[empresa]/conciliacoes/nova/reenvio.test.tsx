@@ -118,6 +118,25 @@ describe("Nova conciliação em modo reenvio", () => {
     expect(importarViaIa).not.toHaveBeenCalled();
   });
 
+  it("recusa o endereço de rodada antiga ao carregar o contexto, antes de escolher o arquivo", async () => {
+    carregarContextoDoReenvio.mockResolvedValue({
+      ok: false,
+      status: 409,
+      erro: "A comparação já tem uma rodada mais recente. Volte à comparação para continuar.",
+    });
+    render(<NovaConciliacaoPage />);
+
+    expect(await screen.findByText(/Não foi possível carregar a comparação de origem/)).toBeVisible();
+    expect(screen.getByText("A comparação já tem uma rodada mais recente. Volte à comparação para continuar.")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Tentar de novo" })).toBeVisible();
+    expect(carregarContextoDoReenvio).toHaveBeenCalledExactlyOnceWith(BANCO, ANTERIOR);
+    expect(screen.queryByLabelText(CAMPO)).not.toBeInTheDocument();
+    expect(verificarNovaVersao).not.toHaveBeenCalled();
+    expect(enviarExtrato).not.toHaveBeenCalled();
+    expect(importarViaIa).not.toHaveBeenCalled();
+    expect(conciliar).not.toHaveBeenCalled();
+  });
+
   it("lê o contexto pelos ids e mostra o banco travado, a rodada e o caminho de volta", async () => {
     await abrir();
 

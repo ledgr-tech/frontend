@@ -2263,10 +2263,23 @@ describe("carregarContextoDoReenvio", () => {
     });
   });
 
-  it("não checa mês fechado nem rodada passada: isso é do backend, no conciliar", async () => {
-    backendComRodadas(duasRodadas(), [fechamento("2026-09")]);
+  it("recusa o sistema anterior da rodada 1 quando já existe a rodada 2", async () => {
+    backendComRodadas();
 
     const resultado = await carregarContextoDoReenvio(BANCO_RECENTE, SISTEMA_V1);
+
+    expect(resultado).toEqual({
+      ok: false,
+      status: 409,
+      erro: "A comparação já tem uma rodada mais recente. Volte à comparação para continuar.",
+    });
+    expect(chamarBackend.mock.calls.every(([caminho]) => String(caminho).startsWith("/execucoes"))).toBe(true);
+  });
+
+  it("deixa a conferência do mês fechado para verificarNovaVersao antes do envio", async () => {
+    backendComRodadas(duasRodadas(), [fechamento("2026-09")]);
+
+    const resultado = await carregarContextoDoReenvio(BANCO_RECENTE, SISTEMA_V2);
 
     expect(resultado.ok).toBe(true);
     expect(chamarBackend.mock.calls.some(([caminho]) => String(caminho).startsWith("/fechamentos"))).toBe(false);

@@ -207,8 +207,8 @@ export function FormularioCadastro({ google }: PropsCadastro) {
    * resposta, segue: o `/register` confere tudo de novo no fim.
    */
   async function livres(): Promise<boolean> {
-    const email = (valores.email ?? "").trim();
-    const cnpj = valores.cnpj ?? "";
+    const email = (valoresAtuais.current.email ?? "").trim();
+    const cnpj = valoresAtuais.current.cnpj ?? "";
     const chave = `${email}|${cnpj}`;
     chaveAtual.current = chave;
     if (sugestaoOferecida.current === chave) return cobrarAposVerificar({}, chave);
@@ -220,7 +220,15 @@ export function FormularioCadastro({ google }: PropsCadastro) {
       resultado = { ok: false, erro: "indisponivel" };
     }
     setVerificando(false);
-    if (chaveAtual.current !== chave) return false;
+    if (chaveAtual.current !== chave) {
+      // o CNPJ mudou durante a espera: só o atual pode avançar, com os campos ainda válidos
+      const novos = errosDoPasso();
+      if (Object.keys(novos).length > 0) {
+        voltarAoCampo(novos);
+        return false;
+      }
+      return livres();
+    }
     if (resultado.ok) {
       const novos: Erros = {};
       if (!resultado.emailDisponivel) novos.email = JA_CADASTRADO.email_cadastrado.mensagem;
@@ -234,7 +242,7 @@ export function FormularioCadastro({ google }: PropsCadastro) {
       }
       const preenchidos = preencherPelaReceita(resultado.cidadeReceita, resultado.ufReceita);
       const daReceita = resultado.cnpjSituacao === "ativa" ? resultado.razaoSocialReceita : null;
-      if (daReceita && normalizarRazao(daReceita) !== normalizarRazao(valores.razaoSocial ?? "")) {
+      if (daReceita && normalizarRazao(daReceita) !== normalizarRazao(valoresAtuais.current.razaoSocial ?? "")) {
         // para uma vez no passo para mostrar a sugestão; seguir com a razão digitada continua valendo
         sugestaoOferecida.current = chave;
         setSugestaoRazao(daReceita);
@@ -341,16 +349,21 @@ export function FormularioCadastro({ google }: PropsCadastro) {
     return resto;
   }
 
-  async function avancar() {
-    if (concluindo || verificando) return;
+  function errosDoPasso(): Erros {
     const novos: Erros = {};
     for (const campo of passo.campos) {
-      const valor = valores[campo.id] ?? "";
+      const valor = valoresAtuais.current[campo.id] ?? "";
       // o vazio destes espera a conferência, que pode trazê-los
       if (campo.aposVerificar && !valor.trim()) continue;
       const mensagem = validarCampo(campo, valor);
       if (mensagem) novos[campo.id] = mensagem;
     }
+    return novos;
+  }
+
+  async function avancar() {
+    if (concluindo || verificando) return;
+    const novos = errosDoPasso();
     const invalidos = passo.campos.filter((campo) => novos[campo.id]);
     if (invalidos.length > 0) {
       setErros((atual) => ({ ...errosForaDoPasso(atual), ...novos }));

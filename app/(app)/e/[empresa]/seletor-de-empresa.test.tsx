@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { render, renderHook, screen, waitFor, within } from "@testing-library/react";
+import { act, render, renderHook, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ProvedorDaEmpresa, type EmpresaDaConta } from "@/lib/empresa-ativa";
 import { combina, SeletorDeEmpresa, useFavoritaOtimista } from "./seletor-de-empresa";
@@ -81,6 +81,20 @@ describe("useFavoritaOtimista", () => {
     const v2 = comecar("a", true);
     expect(terminar("a", v2, false, true)).toBeNull();
     expect(terminar("a", v1, true, true)).toBeNull();
+    const v3 = comecar("a", false);
+    expect(terminar("a", v3, true, false)).toBe(false);
+  });
+
+  it("um ok antigo não muda a confirmação nem a estrela depois da falha do último clique", () => {
+    const { result } = renderHook(() => useFavoritaOtimista());
+    const { comecar, terminar } = result.current;
+    const v1 = comecar("a", false);
+    const v2 = comecar("a", true);
+    const v3 = comecar("a", false);
+
+    expect(terminar("a", v3, true, false)).toBe(false);
+    expect(terminar("a", v2, false, true)).toBe(false);
+    expect(terminar("a", v1, true, true)).toBeNull();
   });
 });
 
@@ -93,8 +107,17 @@ describe("combina", () => {
     expect(combina({ razaoSocial: "Mercado", cnpj: "AB12CD34000155" }, "cd")).toBe(false);
   });
 
-  it("não considera letras de um termo como dígitos do CNPJ numérico", () => {
+  it("poucos dígitos entre letras não procuram no CNPJ", () => {
     expect(combina({ razaoSocial: "X", cnpj: "11222333000144" }, "AB12")).toBe(false);
+  });
+
+  it("não junta números de palavras diferentes num trecho de CNPJ", () => {
+    expect(combina({ razaoSocial: "Mercado", cnpj: "12345000000144" }, "Posto 12 Rua 345")).toBe(false);
+  });
+
+  it.each(["cnpj 12345", "Loja 12.345"])("acha o trecho numérico do CNPJ em %s", (termo) => {
+    expect(combina({ razaoSocial: "Mercado", cnpj: "12345000000144" }, termo)).toBe(true);
+    expect(combina({ razaoSocial: "Mercado", cnpj: "99888777000166" }, termo)).toBe(false);
   });
 
   it("acha CNPJ numérico com máscara", () => {
@@ -214,7 +237,7 @@ describe("SeletorDeEmpresa (no topo, #223)", () => {
     await user.click(janela().getByRole("button", { name: "Próxima" }));
     await user.click(janela().getByRole("button", { name: "Próxima" }));
     expect(nomesNaTabela()).toEqual(["Empresa 41", "Empresa 42", "Empresa 43", "Empresa 44", "Empresa 45"]);
-    // com letras no termo, a busca não transforma os dígitos em busca de CNPJ
+    // um dígito só no meio de palavras é nome: o trecho de CNPJ começa em 5 dígitos
     await user.type(janela().getByRole("searchbox"), "Empresa 4");
     expect(janela().queryByRole("button", { name: "Próxima" })).not.toBeInTheDocument();
     expect(nomesNaTabela()).toHaveLength(6);
@@ -273,6 +296,30 @@ describe("SeletorDeEmpresa (no topo, #223)", () => {
       await user.click(await janela().findByRole("button", { name: "Favorita: Mercado Ltda" }));
       expect(await janela().findByRole("alert")).toHaveTextContent("Empresa não encontrada.");
       expect(janela().getByRole("button", { name: "Favorita: Mercado Ltda" })).toHaveAttribute("aria-pressed", "false");
+    });
+
+    it("depois de dois oks fora de ordem, a falha volta ao último ok", async () => {
+      let primeira!: (resposta: { ok: true; dados: null }) => void;
+      let segunda!: (resposta: { ok: true; dados: null }) => void;
+      acoes.carregarEmpresas.mockResolvedValue({ ok: true, dados: carregadas(false) });
+      acoes.marcarFavorita
+        .mockReturnValueOnce(new Promise((resolve) => { primeira = resolve; }))
+        .mockReturnValueOnce(new Promise((resolve) => { segunda = resolve; }))
+        .mockResolvedValueOnce({ ok: false, status: 503, erro: "Não foi possível favoritar." });
+      const user = userEvent.setup();
+      montar([A, B]);
+      await user.click(screen.getByRole("button", { name: /Padaria Ltda/ }));
+      const estrela = await janela().findByRole("button", { name: "Favorita: Padaria Ltda" });
+
+      await user.click(estrela);
+      await user.click(estrela);
+      await act(async () => segunda({ ok: true, dados: null }));
+      await act(async () => primeira({ ok: true, dados: null }));
+      await user.click(estrela);
+
+      expect(estrela).toHaveAttribute("aria-pressed", "false");
+      expect(janela().getByRole("alert")).toHaveTextContent("Não foi possível favoritar.");
+      expect(acoes.marcarFavorita.mock.calls).toEqual([[A.id, true], [A.id, false], [A.id, true]]);
     });
 
     it("sem o backend #157 não há estrela", async () => {

@@ -105,6 +105,21 @@ describe("LinkPublico", () => {
     expect(refresh).not.toHaveBeenCalled();
   });
 
+  it("entrega à mesa o texto do mês reaberto antes de reler a tela", async () => {
+    const erro = "Não há fechamento ativo nesta competência.";
+    criar.mockResolvedValue({ ok: false, status: 404, erro, motivo: "mes-reaberto" });
+    const aoMesReaberto = vi.fn();
+    refresh.mockImplementation(() => expect(aoMesReaberto).toHaveBeenCalledExactlyOnceWith(erro));
+    const user = userEvent.setup();
+    render(<LinkPublico competencia="2026-08" aoMesReaberto={aoMesReaberto} />);
+
+    await user.click(await screen.findByRole("button", { name: "Gerar link" }));
+
+    expect(aoMesReaberto).toHaveBeenCalledExactlyOnceWith(erro);
+    expect(refresh).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
   it("sem criação, outro mês sem links não mostra o cartão", async () => {
     listar.mockResolvedValue({ ok: true, dados: [] });
     const { container } = render(<LinkPublico competencia="2026-09" semCriacao />);

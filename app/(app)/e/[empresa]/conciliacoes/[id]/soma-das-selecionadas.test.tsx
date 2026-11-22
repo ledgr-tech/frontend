@@ -82,9 +82,12 @@ describe("anuncioDaSoma", () => {
     );
   });
 
-  it("diz quanto falta, sem sinal", () => {
-    expect(semEspacoFixo(anuncioDaSoma({ quantidade: 1, banco: 0, sistema: 200, diferenca: -200 }))).toBe(
-      "1 linha selecionada. Falta R$ 2,00 para zerar.",
+  it.each([
+    { banco: 200, sistema: 0, diferenca: 200, lado: "banco" },
+    { banco: 0, sistema: 200, diferenca: -200, lado: "sistema" },
+  ])("diz quanto falta e que sobra no $lado", ({ banco, sistema, diferenca, lado }) => {
+    expect(semEspacoFixo(anuncioDaSoma({ quantidade: 1, banco, sistema, diferenca }))).toBe(
+      `1 linha selecionada. Falta R$ 2,00 para zerar. Sobra no ${lado}.`,
     );
   });
 

@@ -73,7 +73,7 @@ export type MesNaLista = {
   chave: string;
   /** "Julho de 2026". */
   titulo: string;
-  /** O fechamento em vigor do mês; null quando está aberto (nunca fechado ou reaberto). */
+  /** O fechamento em vigor do mês; null sem fechamento ativo conhecido. */
   fechamento: Fechamento | null;
   /** Na ordem de trabalho: o que pede decisão primeiro. */
   conciliacoes: ConciliacaoNaLista[];
@@ -110,9 +110,10 @@ export function agruparPorMes(lista: ConciliacaoNaLista[], fechamentos: Fechamen
 
 export type FiltroDaLista = "pendentes" | "prontas" | "fechadas" | "todas";
 
-/** Num mês fechado nada mais se decide: a conciliação conta só em "Mês fechado" (e em "Todas"). */
-export function passaNoFiltro(conciliacao: ConciliacaoNaLista, mesFechado: boolean, filtro: FiltroDaLista): boolean {
+/** Sem a situação, só "Todas"; num mês fechado, só "Mês fechado" e "Todas". */
+export function passaNoFiltro(conciliacao: ConciliacaoNaLista, mesFechado: boolean | null, filtro: FiltroDaLista): boolean {
   if (filtro === "todas") return true;
+  if (mesFechado === null) return false;
   if (filtro === "fechadas") return mesFechado;
   if (mesFechado) return false;
   return filtro === "pendentes" ? pedemDecisao(conciliacao) > 0 : pedemDecisao(conciliacao) <= 0;

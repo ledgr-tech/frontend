@@ -76,6 +76,7 @@ const estiloBotao: CSSProperties = { fontSize: 15.5, padding: "clamp(10px, 1.6vh
 /** O que a página diz na volta do Google com recusa, com o convite já na tela. */
 function errosDaVolta(erro: Exclude<ErroConviteGoogle, "convite_invalido">, convite: ConsultaConvite): Erros {
   if (erro === "email_diferente") return { geral: `Entre no Google com ${convite.email} para aceitar.` };
+  if (erro === "google_de_outra_conta") return { geral: "Este Google já entra no Ledgr por outra conta. Aceite com senha ou com outro Google." };
   if (erro === "email_cadastrado" || erro === "conta_inativa") return ERROS_DO_ACEITE[erro];
   return { geral: MENSAGEM_GOOGLE[erro] };
 }
