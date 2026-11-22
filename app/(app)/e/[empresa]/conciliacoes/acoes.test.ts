@@ -773,7 +773,6 @@ describe("carregarVisaoGeral", () => {
   function backendDoMes(
     linhas: (banco: string) => { total: number; itens: ItemConciliacaoAPI[] },
     lista = { total: 2, itens: [execucao("e-2", BANCO_RECENTE), execucao("e-1", BANCO_ANTERIOR)] },
-    historicoDoBanco?: (id: string) => typeof lista,
     doMes?: (offset: number) => typeof lista,
   ) {
     chamarBackend.mockImplementation(async (caminho: string) => {
@@ -784,11 +783,7 @@ describe("carregarVisaoGeral", () => {
           if (!doMes) throw new ErroBackend(503, "Filtro indisponível.");
           return { limit: 100, ...doMes(Number(parametros.get("offset"))) };
         }
-        const banco = parametros.get("extrato_banco_id");
-        if (banco) {
-          if (!historicoDoBanco) throw new ErroBackend(503, "Histórico indisponível.");
-          return { limit: 100, offset: 0, ...historicoDoBanco(banco) };
-        }
+        if (parametros.get("extrato_banco_id")) throw new Error("a home não relê o histórico de cada banco");
         return { limit: 50, offset: 0, ...lista };
       }
       if (rota === "/fechamentos") return { itens: [] };
@@ -802,9 +797,9 @@ describe("carregarVisaoGeral", () => {
   }
 
   it.each([
-    { historicoFalha: false, sistemaVigente: SISTEMA_V2 },
-    { historicoFalha: true, sistemaVigente: SISTEMA_V1 },
-  ])("recalcula a rodada com a página cortada (falha do histórico: $historicoFalha)", async ({ historicoFalha, sistemaVigente }) => {
+    { filtroFalha: false, sistemaVigente: SISTEMA_V2 },
+    { filtroFalha: true, sistemaVigente: SISTEMA_V1 },
+  ])("recalcula a rodada com a página cortada (falha do filtro: $filtroFalha)", async ({ filtroFalha, sistemaVigente }) => {
     const v1 = {
       ...execucao("v1", BANCO_RECENTE, false),
       extrato_sistema_id: SISTEMA_V1,
@@ -820,9 +815,8 @@ describe("carregarVisaoGeral", () => {
     backendDoMes(
       () => ({ total: 1, itens: [itemConciliacao] }),
       { total: 51, itens: [refeita, v2, ...outras] },
-      undefined,
       () => {
-        if (historicoFalha) throw new ErroBackend(503, "Serviço indisponível.");
+        if (filtroFalha) throw new ErroBackend(503, "Serviço indisponível.");
         // o filtro traz todas as rodadas do extrato do banco, a v1 fora da primeira página inclusive
         return { total: 3, itens: [refeita, v2, v1] };
       },
@@ -835,7 +829,7 @@ describe("carregarVisaoGeral", () => {
       dados: {
         recente: { execucao: { extratoSistemaId: sistemaVigente } },
         // sem o mês inteiro, a home não soma
-        mes: { competencia: "2026-10", conciliacoes: historicoFalha ? null : [expect.anything()] },
+        mes: { competencia: "2026-10", conciliacoes: filtroFalha ? null : [expect.anything()] },
       },
     });
     const lidas = chamarBackend.mock.calls.map(([caminho]) => caminho).filter((caminho) => caminho.startsWith("/execucoes?"));
@@ -886,7 +880,6 @@ describe("carregarVisaoGeral", () => {
     backendDoMes(
       () => ({ total: 1, itens: [itemConciliacao] }),
       { total: 51, itens: deSetembro(0, 50) },
-      undefined,
       (offset) => ({ total: 120, offset, itens: deSetembro(offset, Math.min(offset + 100, 120)) }),
     );
 
@@ -916,7 +909,6 @@ describe("carregarVisaoGeral", () => {
     backendDoMes(
       () => ({ total: 1, itens: [itemConciliacao] }),
       { total: 51, itens: deSetembro(0, 50) },
-      undefined,
       (offset) => ({ total: 1001, offset, itens: deSetembro(offset, offset + 100) }),
     );
 
@@ -925,6 +917,25 @@ describe("carregarVisaoGeral", () => {
     if (!resultado.ok) throw new Error(resultado.erro);
     expect(resultado.dados.recente).not.toBeNull();
     expect(resultado.dados.mes).toMatchObject({ competencia: "2026-09", conciliacoes: null });
+    // sem o mês inteiro, só os pares da página são lidos, não os mil do filtro
+    expect(chamarBackend.mock.calls.filter(([caminho]) => caminho.startsWith("/conciliacoes/"))).toHaveLength(50);
+  });
+
+  it("com um backend que ignora ?competencia=, não conta duas vezes a execução sem período", async () => {
+    const semPeriodo = { ...execucao("sem-periodo", BANCO_RECENTE), periodo_inicio: null, periodo_fim: null };
+    const pagina = [semPeriodo, ...deSetembro(0, 49)];
+    // o backend antigo devolve a lista toda, sem filtrar
+    backendDoMes(() => ({ total: 1, itens: [itemConciliacao] }), { total: 51, itens: pagina }, (offset) => ({
+      total: 51,
+      offset,
+      itens: offset === 0 ? [...pagina, ...deSetembro(49, 50)] : [],
+    }));
+
+    const resultado = await carregarVisaoGeral();
+
+    if (!resultado.ok) throw new Error(resultado.erro);
+    expect(resultado.dados.mes?.conciliacoes).toHaveLength(51);
+    expect(chamarBackend.mock.calls.filter(([caminho]) => caminho.startsWith(`/conciliacoes/${BANCO_RECENTE}`))).toHaveLength(1);
   });
 });
 
