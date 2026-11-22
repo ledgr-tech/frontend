@@ -14,6 +14,7 @@ vi.mock("@/lib/backend", async (original) => ({
 beforeEach(() => {
   chamarBackend.mockReset();
   emailDaSessao.mockResolvedValue("ana@x.com");
+  vi.stubEnv("LEDGR_ASSISTENTE_DADOS", undefined);
 });
 
 afterEach(() => {
@@ -79,6 +80,7 @@ describe("perguntarAoAssistente", () => {
 
   it.each([
     "/fechamentos", "/historico", "/extratos", "/empresas", "/empresas?aba=equipe", "/conciliacoes/nova",
+    "/conciliacoes/018ba200-1111-2222-3333-444444444444",
     "/conciliacoes/018ba200-1111-2222-3333-444444444444?sistema=018ba200-aaaa-bbbb-cccc-dddddddddddd",
   ])("aceita o link de tela %s sem acrescentar empresa", async (caminho) => {
     const link = { titulo: "Abrir tela", caminho, tipo: "tela" };
@@ -89,6 +91,10 @@ describe("perguntarAoAssistente", () => {
 
   it.each([
     "/admin", "//evil.com", "javascript:alert(1)", "/conciliacoes/nao-uuid?sistema=x",
+    "/conciliacoes/nao-uuid", "/conciliacoes/018ba200-1111-2222-3333-444444444444/",
+    "/conciliacoes/018ba200-1111-2222-3333-444444444444?sistema=",
+    "/conciliacoes/018ba200-1111-2222-3333-444444444444?fora=1",
+    "/conciliacoes/018ba200-1111-2222-3333-444444444444#fora",
     "/conciliacoes/018ba200-1111-2222-3333-444444444444?sistema=x",
     "/conciliacoes/x?sistema=018ba200-aaaa-bbbb-cccc-dddddddddddd",
     "/fechamentos?fora=1", "/empresas?aba=equipe&fora=1", "/historico#fora", "/regras", "/equipe",
@@ -132,6 +138,29 @@ describe("perguntarAoAssistente", () => {
 
     expect(await perguntarAoAssistente("Como fecho o mês?", null, [])).toMatchObject({ ok: false, status: 503 });
     expect(chamarBackend).not.toHaveBeenCalled();
+  });
+
+  it.each([undefined, "0", "true"])("sem a flag privada em 1 (%s), só as perguntas de uso vão ao backend", async (flag) => {
+    vi.stubEnv("LEDGR_ASSISTENTE_DADOS", flag);
+    expect(await perguntarAoAssistente("Por que sobrou R$ 500?", "fechamentos", [], true)).toMatchObject({ ok: false, status: 404 });
+    expect(chamarBackend).not.toHaveBeenCalled();
+
+    chamarBackend.mockResolvedValueOnce({ resposta: "Abra Extratos.", respondida: true, links: [] });
+    expect(await perguntarAoAssistente("Como envio o extrato?", "extratos", [], false)).toMatchObject({ ok: true });
+    expect(chamarBackend).toHaveBeenCalledExactlyOnceWith("/assistente/perguntas", {
+      method: "POST", corpo: { pergunta: "Como envio o extrato?", tela: "extratos", historico: [] },
+    });
+  });
+
+  it("com a flag privada em 1, consulta os números no backend com o mesmo contrato", async () => {
+    vi.stubEnv("LEDGR_ASSISTENTE_DADOS", "1");
+    chamarBackend.mockResolvedValueOnce({ resposta: "Setembro tem 42 pendências.", respondida: true, links: [] });
+    expect(await perguntarAoAssistente("  Por que sobrou R$ 500?  ", "fechamentos", [], true)).toMatchObject({
+      ok: true, dados: { resposta: "Setembro tem 42 pendências." },
+    });
+    expect(chamarBackend).toHaveBeenCalledExactlyOnceWith("/assistente/perguntas", {
+      method: "POST", corpo: { pergunta: "Por que sobrou R$ 500?", tela: "fechamentos", historico: [] },
+    });
   });
 
   it("o limite (429) chega com o texto do backend; desligado (503) ou sem a rota (404), indisponível", async () => {

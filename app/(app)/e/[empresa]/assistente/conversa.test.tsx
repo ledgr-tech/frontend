@@ -99,15 +99,21 @@ describe("Conversa", () => {
     await user.type(screen.getByLabelText("Sua pergunta"), "e julho?{Enter}");
     expect(perguntarAoAssistente).toHaveBeenLastCalledWith("e julho?", "fechamentos", [
       { papel: "usuario", texto: "e agosto?" }, { papel: "assistente", texto: resposta },
-    ]);
+    ], true);
   });
 
   it.each([
     { ok: false, status: 503, erro: "Indisponível" },
     { ok: false, status: 404, erro: "Rota ausente" },
+    { ok: false, status: 403, erro: "Conta inativa." },
+    { ok: false, status: 429, erro: "Limite de perguntas de hoje." },
+    { ok: false, status: 500, erro: "Falha no servidor." },
+    { ok: false, status: 0, erro: "Sem conexão." },
+    new Error("Falha na rede"),
     { ok: true, dados: { resposta: "Não sei responder.", respondida: false, links: [] } },
-  ])("volta ao roteiro do mês quando o backend não responde: %j", async (resposta) => {
-    perguntarAoAssistente.mockResolvedValue(resposta);
+  ])("usa o roteiro e tira a pergunta do histórico quando o backend não responde: %j", async (resposta) => {
+    if (resposta instanceof Error) perguntarAoAssistente.mockRejectedValueOnce(resposta);
+    else perguntarAoAssistente.mockResolvedValueOnce(resposta);
     const user = userEvent.setup();
     render(<Conversa contexto={CONTEXTO} onFechar={vi.fn()} />);
     await user.click(screen.getByRole("button", { name: "Resumo de setembro" }));
@@ -116,10 +122,15 @@ describe("Conversa", () => {
     expect(atualizarContexto).toHaveBeenCalledOnce();
     expect(conversa()).not.toHaveTextContent("Não sei responder.");
     expect(within(conversa()).queryByText("Gerada por IA · confira antes de decidir")).not.toBeInTheDocument();
+
+    perguntarAoAssistente.mockResolvedValueOnce({ ok: true, dados: { resposta: "Abra Empresas.", respondida: true, links: [] } });
+    await user.type(screen.getByLabelText("Sua pergunta"), "Como convido alguém?{Enter}");
+    expect(perguntarAoAssistente).toHaveBeenLastCalledWith("Como convido alguém?", "fechamentos", [], false);
   });
 
   it("a demonstração usa o roteiro sem fazer uma requisição ao backend", async () => {
     vi.stubEnv("LEDGR_CONTA_TESTE_EMAIL", "ana@x.com");
+    vi.stubEnv("LEDGR_ASSISTENTE_DADOS", "1");
     const action = await vi.importActual<typeof import("./acoes")>("./acoes");
     perguntarAoAssistente.mockImplementationOnce(action.perguntarAoAssistente);
     const user = userEvent.setup();
@@ -131,15 +142,41 @@ describe("Conversa", () => {
     expect(atualizarContexto).toHaveBeenCalledOnce();
   });
 
+  it.each(["0", "1"])("a consulta dos números respeita a flag privada %s na action real", async (flag) => {
+    vi.stubEnv("LEDGR_ASSISTENTE_DADOS", flag);
+    const action = await vi.importActual<typeof import("./acoes")>("./acoes");
+    perguntarAoAssistente.mockImplementationOnce(action.perguntarAoAssistente);
+    chamarBackend.mockResolvedValueOnce({ resposta: "Os números vieram do backend.", respondida: true, links: [] });
+    const user = userEvent.setup();
+    render(<Conversa contexto={CONTEXTO} onFechar={vi.fn()} />);
+    await user.click(screen.getByRole("button", { name: "Resumo de setembro" }));
+
+    if (flag === "1") {
+      expect(await within(conversa()).findByText("Os números vieram do backend.")).toBeInTheDocument();
+      expect(chamarBackend).toHaveBeenCalledOnce();
+      expect(atualizarContexto).not.toHaveBeenCalled();
+    } else {
+      expect(await within(conversa()).findByText(/^Setembro: 140 lançamentos/)).toBeInTheDocument();
+      expect(chamarBackend).not.toHaveBeenCalled();
+      expect(atualizarContexto).toHaveBeenCalledOnce();
+    }
+  });
+
   it.each([401, 429])("uma consulta dos números com %s mantém o tratamento do erro", async (status) => {
     perguntarAoAssistente.mockResolvedValue({ ok: false, status, erro: "Limite de perguntas de hoje." });
     const user = userEvent.setup();
     render(<Conversa contexto={CONTEXTO} onFechar={vi.fn()} />);
     await user.click(screen.getByRole("button", { name: "Resumo de setembro" }));
 
-    if (status === 401) await vi.waitFor(() => expect(push).toHaveBeenCalledWith("/login"));
-    else expect(await within(conversa()).findByText("Limite de perguntas de hoje.")).toBeInTheDocument();
-    expect(atualizarContexto).not.toHaveBeenCalled();
+    if (status === 401) {
+      await vi.waitFor(() => expect(push).toHaveBeenCalledWith("/login"));
+      expect(atualizarContexto).not.toHaveBeenCalled();
+    } else {
+      expect(await within(conversa()).findByText(/^Setembro: 140 lançamentos/)).toBeInTheDocument();
+      expect(conversa()).not.toHaveTextContent("Limite de perguntas de hoje.");
+      expect(atualizarContexto).toHaveBeenCalledOnce();
+      expect(push).not.toHaveBeenCalled();
+    }
   });
 
   it("opens with the month in one sentence, from the real numbers", () => {
@@ -196,7 +233,7 @@ describe("Conversa", () => {
 
     expect(await within(conversa()).findByRole("link", { name: "Abrir o Histórico" })).toHaveAttribute("href", "/historico");
     expect(conversa()).toHaveTextContent("Por enquanto eu leio só a conciliação mais recente, a de setembro.");
-    expect(perguntarAoAssistente).toHaveBeenCalledWith("e agosto?", "fechamentos", []);
+    expect(perguntarAoAssistente).toHaveBeenCalledWith("e agosto?", "fechamentos", [], true);
   });
 
   it("compara o mês citado com o mês recém-lido, não com o da abertura", async () => {
@@ -382,14 +419,14 @@ describe("Conversa", () => {
       await user.type(screen.getByLabelText("Sua pergunta"), "como convido alguém da equipe?{Enter}");
 
       // a saudação traz os números do mês: não vai ao provedor
-      expect(perguntarAoAssistente).toHaveBeenCalledWith("como convido alguém da equipe?", "fechamentos", []);
+      expect(perguntarAoAssistente).toHaveBeenCalledWith("como convido alguém da equipe?", "fechamentos", [], false);
       const resposta = await within(conversa()).findByText(/Na aba Equipe, clique em Convidar pessoa/);
       const bolha = resposta.closest(".asst-bolha")!;
       expect(bolha).toHaveTextContent("Gerada por IA");
       expect(within(bolha as HTMLElement).getByRole("link", { name: "Convidar alguém" })).toHaveAttribute("href", "/ajuda/empresas#convidar");
     });
 
-    it("o histórico leva as perguntas ao backend, mas deixa fora as respostas locais e as explicações", async () => {
+    it("o histórico deixa fora o roteiro, sua pergunta e as explicações", async () => {
       perguntarAoAssistente.mockResolvedValue(RESPOSTA).mockResolvedValueOnce({ ok: false, status: 503, erro: "Indisponível" });
       explicarDivergencia.mockResolvedValue({
         ok: true,
@@ -407,10 +444,9 @@ describe("Conversa", () => {
       await user.type(screen.getByLabelText("Sua pergunta"), "e depois?{Enter}");
 
       expect(perguntarAoAssistente).toHaveBeenLastCalledWith("e depois?", "fechamentos", [
-        { papel: "usuario", texto: "Resumo de setembro" },
         { papel: "usuario", texto: "como convido alguém?" },
         { papel: "assistente", texto: RESPOSTA.dados.resposta },
-      ]);
+      ], false);
     });
 
     it("o que o roteiro do mês responde tenta o backend primeiro", async () => {
@@ -420,7 +456,7 @@ describe("Conversa", () => {
       await user.type(screen.getByLabelText("Sua pergunta"), "Como estão as pendências de R$ 500?{Enter}");
 
       expect(await within(conversa()).findByText(/^Os R\$.*em aberto/)).toBeInTheDocument();
-      expect(perguntarAoAssistente).toHaveBeenCalledWith("Como estão as pendências de R$ 500?", "fechamentos", []);
+      expect(perguntarAoAssistente).toHaveBeenCalledWith("Como estão as pendências de R$ 500?", "fechamentos", [], true);
     });
 
     it.each(["Como justifico uma divergência?", "Posso fechar o mês com pendências?"])(
@@ -432,7 +468,7 @@ describe("Conversa", () => {
 
         await user.type(screen.getByLabelText("Sua pergunta"), `${pergunta}{Enter}`);
 
-        expect(perguntarAoAssistente).toHaveBeenCalledWith(pergunta, "fechamentos", expect.any(Array));
+        expect(perguntarAoAssistente).toHaveBeenCalledWith(pergunta, "fechamentos", expect.any(Array), false);
       },
     );
 
@@ -445,7 +481,7 @@ describe("Conversa", () => {
         await user.type(screen.getByLabelText("Sua pergunta"), `${pergunta}{Enter}`);
 
         await vi.waitFor(() => expect(atualizarContexto).toHaveBeenCalled());
-        expect(perguntarAoAssistente).toHaveBeenCalledWith(pergunta, "fechamentos", []);
+        expect(perguntarAoAssistente).toHaveBeenCalledWith(pergunta, "fechamentos", [], true);
       },
     );
 
@@ -496,7 +532,7 @@ describe("Conversa", () => {
       expect(screen.getByRole("heading", { level: 6 })).toHaveTextContent(/^Assistente$/);
       await user.click(screen.getByRole("button", { name: "Como convido alguém da equipe?" }));
 
-      expect(perguntarAoAssistente).toHaveBeenCalledWith("Como convido alguém da equipe?", "fechamentos", expect.any(Array));
+      expect(perguntarAoAssistente).toHaveBeenCalledWith("Como convido alguém da equipe?", "fechamentos", expect.any(Array), false);
     });
 
     it("sessão vencida vai ao login", async () => {

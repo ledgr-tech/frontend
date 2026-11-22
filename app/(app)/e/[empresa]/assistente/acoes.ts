@@ -38,8 +38,8 @@ const CAMINHOS_DE_TELA = new Set([
 
 function ehCaminhoDeTela(caminho: string): boolean {
   if (CAMINHOS_DE_TELA.has(caminho)) return true;
-  const conciliacao = /^\/conciliacoes\/([^/?#]+)\?sistema=([^&#]+)$/.exec(caminho);
-  return conciliacao !== null && ehUuid(conciliacao[1]) && ehUuid(conciliacao[2]);
+  const conciliacao = /^\/conciliacoes\/([^/?#]+)(?:\?sistema=([^&#]+))?$/.exec(caminho);
+  return conciliacao !== null && ehUuid(conciliacao[1]) && (conciliacao[2] === undefined || ehUuid(conciliacao[2]));
 }
 
 function adaptarLink(link: unknown): RespostaDoAssistente["links"] {
@@ -68,11 +68,17 @@ export async function perguntarAoAssistente(
   pergunta: string,
   tela: string | null,
   historico: TurnoDaConversa[],
+  sobreNumeros = false,
 ): Promise<Resultado<RespostaDoAssistente>> {
   // Server Action é endpoint público: ao backend vai só o formato que ele aceita
   const limpa = typeof pergunta === "string" ? pergunta.trim() : "";
   if (!limpa || limpa.length > TAMANHO_MAXIMO_PERGUNTA) {
     return { ok: false, status: 422, erro: `A pergunta pode ter até ${TAMANHO_MAXIMO_PERGUNTA} caracteres.` };
+  }
+  // Só habilitar junto da flag de dados do backend: sem ela, valores da pergunta
+  // não recebem a proteção de marcadores antes de seguir ao provedor.
+  if (sobreNumeros && process.env.LEDGR_ASSISTENTE_DADOS !== "1") {
+    return { ok: false, status: 404, erro: "A consulta dos números pelo assistente está indisponível no momento." };
   }
   // a demonstração é de qualquer visitante: cada pergunta dela gastaria o limite diário global do
   // backend, que é o dos clientes também. Lá, a conversa fica com o roteiro do mês e a Central

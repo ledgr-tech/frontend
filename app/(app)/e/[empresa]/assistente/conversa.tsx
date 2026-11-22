@@ -177,6 +177,7 @@ export function Conversa({
   function acrescentar(mensagem: Omit<Mensagem, "id">) {
     const id = proximoId.current++;
     setMensagens((atuais) => [...atuais, { ...mensagem, id }]);
+    return id;
   }
 
   async function explicar(maior: NonNullable<Contexto["maior"]>) {
@@ -209,7 +210,7 @@ export function Conversa({
   async function perguntarAoBackend(
     pergunta: string,
     anteriores: Mensagem[],
-    sobreOMes?: { assunto: NonNullable<ReturnType<typeof assuntoDoMes>>; inicio: number },
+    sobreOMes?: { assunto: NonNullable<ReturnType<typeof assuntoDoMes>>; inicio: number; idDaPergunta: number },
   ) {
     setLendo(sobreOMes ? "numeros" : "central");
     let usarRoteiro = false;
@@ -218,8 +219,11 @@ export function Conversa({
       .slice(-MAXIMO_TURNOS)
       .map((mensagem) => ({ papel: mensagem.de === "voce" ? "usuario" : "assistente", texto: mensagem.texto }));
     try {
-      const resposta = await perguntarAoAssistente(pergunta, tela, historico);
-      if (sobreOMes && (resposta.ok ? !resposta.dados.respondida : resposta.status === 503 || resposta.status === 404)) {
+      const resposta = await perguntarAoAssistente(pergunta, tela, historico, sobreOMes !== undefined);
+      if (!resposta.ok && resposta.status === 401) {
+        router.push("/login");
+        return;
+      } else if (sobreOMes && (!resposta.ok || !resposta.dados.respondida)) {
         usarRoteiro = true;
       } else if (resposta.ok) {
         const { dados } = resposta;
@@ -232,9 +236,6 @@ export function Conversa({
           daCentral: true,
           links: dados.respondida && links.length > 0 ? links : [...links, CENTRAL],
         });
-        return;
-      } else if (resposta.status === 401) {
-        router.push("/login");
         return;
       } else {
         // o limite do dia tem o texto do backend; fora do ar, o que o roteiro sabe, e a Central
@@ -250,11 +251,19 @@ export function Conversa({
         });
       }
     } catch {
-      acrescentar({ de: "ledgr", texto: FALHA_DE_REDE, links: [CENTRAL] });
+      if (sobreOMes) usarRoteiro = true;
+      else acrescentar({ de: "ledgr", texto: FALHA_DE_REDE, links: [CENTRAL] });
     } finally {
       setLendo(null);
     }
-    if (usarRoteiro && sobreOMes) await responderSobreOMes(pergunta, sobreOMes.assunto, sobreOMes.inicio);
+    if (usarRoteiro && sobreOMes) {
+      // O roteiro não entra no histórico: a pergunta também sai, para não deixar
+      // um turno sem resposta nem levar seus valores ao assistente de uso.
+      setMensagens((atuais) => atuais.map((mensagem) =>
+        mensagem.id === sobreOMes.idDaPergunta ? { ...mensagem, daCentral: false } : mensagem,
+      ));
+      await responderSobreOMes(pergunta, sobreOMes.assunto, sobreOMes.inicio);
+    }
   }
 
   function mostrarResposta(mensagem: Omit<Mensagem, "id">, inicio: number) {
@@ -312,7 +321,7 @@ export function Conversa({
     const assunto = !passos && contexto ? assuntoDoMes(limpa, contexto.mes) : null;
     const inicio = agora();
     acompanhar.current = true;
-    acrescentar({ de: "voce", texto: limpa, daCentral: !passos && assunto !== "explicar" });
+    const idDaPergunta = acrescentar({ de: "voce", texto: limpa, daCentral: !passos && assunto !== "explicar" });
     setTexto("");
     if (passos) {
       mostrarResposta({
@@ -323,7 +332,7 @@ export function Conversa({
     } else if (assunto === "explicar") {
       void responderSobreOMes(limpa, assunto, inicio);
     } else {
-      void perguntarAoBackend(limpa, mensagens, assunto ? { assunto, inicio } : undefined);
+      void perguntarAoBackend(limpa, mensagens, assunto ? { assunto, inicio, idDaPergunta } : undefined);
     }
   }
 
