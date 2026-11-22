@@ -27,10 +27,12 @@ export function LinkPublico({
   competencia,
   semCriacao = false,
   aoFicarSemCriacao,
+  aoMesReaberto,
 }: {
   competencia: string;
   semCriacao?: boolean;
   aoFicarSemCriacao?: () => void;
+  aoMesReaberto?: (mensagem: string) => void;
 }) {
   const router = useRoteador();
   const [estado, setEstado] = useState<Estado>({ situacao: "carregando" });
@@ -78,8 +80,13 @@ export function LinkPublico({
     executar(async () => {
       const r = await criarLinkDoRelatorio(competencia, validade, window.location.origin);
       if (!r.ok) {
-        if (r.status === 404 && r.motivo === "mes-reaberto") router.refresh();
-        else if (r.status === 404) aoFicarSemCriacao?.();
+        if (r.status === 404 && r.motivo === "mes-reaberto") {
+          // o cartão sai após a releitura: a mesa conserva o aviso no painel do mês
+          aoMesReaberto?.(r.erro);
+          router.refresh();
+          return aoMesReaberto ? null : r.erro;
+        }
+        if (r.status === 404) aoFicarSemCriacao?.();
         return r.erro;
       }
       setEndereco({ id: r.dados.link.id, url: r.dados.endereco });

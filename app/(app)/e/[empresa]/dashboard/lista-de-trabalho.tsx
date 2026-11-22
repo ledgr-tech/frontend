@@ -67,18 +67,20 @@ export function ListaDeTrabalho({
   emAndamento: Contagem | null;
 }) {
   const router = useRoteador();
+  const situacaoConhecida = fechamentos !== null;
   const meses = agruparPorMes(conciliacoes, fechamentos);
   const contar = (filtro: FiltroDaLista) =>
     meses.reduce(
-      (soma, mes) => soma + mes.conciliacoes.filter((item) => passaNoFiltro(item, mes.fechamento !== null, filtro)).length,
+      (soma, mes) => soma + mes.conciliacoes.filter((item) => passaNoFiltro(item, situacaoConhecida ? mes.fechamento !== null : null, filtro)).length,
       0,
     );
   // abre no que pede trabalho; sem nada pendente, em todas
-  const [filtro, setFiltro] = useState<FiltroDaLista>(() => (contar("pendentes") > 0 ? "pendentes" : "todas"));
+  const [filtroEscolhido, setFiltro] = useState<FiltroDaLista>(() => (contar("pendentes") > 0 ? "pendentes" : "todas"));
+  const filtro = situacaoConhecida ? filtroEscolhido : "todas";
   const [escolhida, setEscolhida] = useState<string | null>(emAndamento?.extratoBancoId ?? null);
   const previa = useRef<HTMLElement>(null);
   const visiveis = meses
-    .map((mes) => ({ mes, linhas: mes.conciliacoes.filter((item) => passaNoFiltro(item, mes.fechamento !== null, filtro)) }))
+    .map((mes) => ({ mes, linhas: mes.conciliacoes.filter((item) => passaNoFiltro(item, situacaoConhecida ? mes.fechamento !== null : null, filtro)) }))
     .filter(({ linhas }) => linhas.length > 0);
   // a escolhida que o filtro escondeu dá lugar à primeira à vista
   const emVista = visiveis.flatMap(({ mes, linhas }) => linhas.map((conciliacao) => ({ conciliacao, mes })));
@@ -94,6 +96,7 @@ export function ListaDeTrabalho({
   return (
     <div className="extratos-corpo">
       <FaixaFiltros tutorial="filtros">
+        {situacaoConhecida && (
         <div className="pills segmentado" role="group" aria-label="Filtrar conciliações">
           {FILTROS.map((item) => (
             <button
@@ -107,6 +110,7 @@ export function ListaDeTrabalho({
             </button>
           ))}
         </div>
+        )}
         {/* as rodadas anteriores e o que já aconteceu ficam no histórico */}
         <Link href="/historico" className="btn btn-ghost conc-historico">
           Ver o histórico
