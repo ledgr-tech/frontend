@@ -1275,10 +1275,12 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
   from { opacity: 0; transform: translateY(-8px); }
   to { opacity: 1; transform: none; }
 }
-/* ícone do menu = as barras do logo: a do meio some e as outras duas se cruzam em X */
-.site-menu-barras { display: block; width: 30px; height: auto; overflow: visible; }
-/* o adesivo branco precisa de uma sombra leve para se ver sobre o papel, como o logo-barras.png */
-.site-menu-barras { filter: drop-shadow(0 1px 1.2px rgb(40 30 15 / 0.22)); }
+/* ícone do menu = as barras do logo: a do meio some e as outras duas se cruzam em X; o adesivo branco
+   precisa de uma sombra leve para se ver sobre o papel, como o logo-barras.png */
+.site-menu-barras {
+  display: block; width: 30px; height: auto; overflow: visible;
+  filter: drop-shadow(0 1px 1.2px rgb(40 30 15 / 0.22));
+}
 .site-menu-barras rect {
   transform-box: fill-box; transform-origin: center;
   transition: transform var(--dur-painel) var(--ease-out), opacity var(--dur-padrao) ease;
