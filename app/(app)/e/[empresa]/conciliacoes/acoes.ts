@@ -1351,7 +1351,8 @@ async function decidirEmLote(corpo: Record<string, unknown>): Promise<Resultado<
 }
 
 /** O backend antes do #237 responde o 404 genérico do FastAPI ("Not Found") à rota do lote. */
-export const LOTE_INDISPONIVEL = "Justificar várias linhas de uma vez ainda não está disponível.";
+// não exportada: um arquivo "use server" só exporta funções async (o teste repete o texto)
+const LOTE_INDISPONIVEL = "Justificar várias linhas de uma vez ainda não está disponível.";
 
 export type JustificadasEmLote = {
   processadas: number;

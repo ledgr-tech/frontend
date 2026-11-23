@@ -8,7 +8,6 @@ import {
   aprovarPendentes,
   decidirLinhas,
   justificarLinhas,
-  LOTE_INDISPONIVEL,
   rejeitarPendentes,
   carregarConciliacao,
   carregarConciliacaoEmRodadas,
@@ -2291,7 +2290,7 @@ describe("justificar em lote (#473)", () => {
 
   it("o 404 genérico é a rota que ainda não existe; o outro, a conciliação que mudou", async () => {
     chamarBackend.mockRejectedValueOnce(new ErroBackend(404, "Not Found"));
-    expect(await justificarLinhas(BANCO_RECENTE, ["a"], "Motivo.")).toEqual({ ok: false, status: 404, erro: LOTE_INDISPONIVEL, indisponivel: true });
+    expect(await justificarLinhas(BANCO_RECENTE, ["a"], "Motivo.")).toEqual({ ok: false, status: 404, erro: "Justificar várias linhas de uma vez ainda não está disponível.", indisponivel: true });
 
     chamarBackend.mockRejectedValueOnce(new ErroBackend(404, "Conciliação não encontrada."));
     expect(await justificarLinhas(BANCO_RECENTE, ["a"], "Motivo.")).toEqual({
