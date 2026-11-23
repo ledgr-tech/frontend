@@ -186,7 +186,7 @@ describe("ExportarCsv", () => {
   });
 
   it("dentro de uma empresa, pede o CSV dela (#169)", async () => {
-    const EMPRESA = { id: "9b8a7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d", razaoSocial: "Mercado Ltda", cnpj: "11444777000161" };
+    const EMPRESA = { id: "9b8a7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d", razaoSocial: "Mercado Ltda", nome: "Mercado Ltda", cnpj: "11444777000161" };
     fetch.mockResolvedValue(new Response(CSV, { headers: { "Content-Type": "text/csv; charset=utf-8" } }));
     const user = userEvent.setup();
     render(

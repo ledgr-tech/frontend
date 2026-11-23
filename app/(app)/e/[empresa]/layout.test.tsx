@@ -5,8 +5,8 @@ const A = "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20";
 const B = "9b8a7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d";
 const params = Promise.resolve({ empresa: A });
 const EMPRESAS = [
-  { id: A, razaoSocial: "Padaria Ltda", cnpj: "11222333000181" },
-  { id: B, razaoSocial: "Mercado Ltda", cnpj: "11444777000161" },
+  { id: A, razaoSocial: "Padaria Ltda", nome: "Padaria Ltda", cnpj: "11222333000181" },
+  { id: B, razaoSocial: "Mercado Ltda", nome: "Mercadinho", cnpj: "11444777000161" },
 ];
 /** O Shell dentro do provedor da empresa: o que o layout devolve. */
 const shell = (elemento: { props: { children: { props: Record<string, unknown> } } }) => elemento.props.children.props;
@@ -175,7 +175,7 @@ describe("AppLayout", () => {
       contaDaSessao.mockResolvedValue(conta([]));
       const elemento = await AppLayout({ children: "x", params });
       expect(notFound).not.toHaveBeenCalled();
-      expect(elemento.props.ativa).toEqual({ id: A, razaoSocial: "Escritório Contábil Ltda", cnpj: "" });
+      expect(elemento.props.ativa).toEqual({ id: A, razaoSocial: "Escritório Contábil Ltda", nome: "Escritório Contábil Ltda", cnpj: "" });
       expect(elemento.props.empresas).toEqual([elemento.props.ativa]);
     });
 
@@ -185,8 +185,8 @@ describe("AppLayout", () => {
       const elemento = await AppLayout({ children: "x", params: Promise.resolve({ empresa: B }) });
       expect(elemento.props.ativa).toEqual(EMPRESAS[1]);
       expect(elemento.props.empresas).toEqual(EMPRESAS);
-      // o cabeçalho das telas mostra a empresa ativa; o cartão do usuário, a conta (o escritório)
-      expect(shell(elemento).empresa).toBe("Mercado Ltda");
+      // o cabeçalho das telas mostra o nome da empresa ativa (de exibição, quando há); o cartão do usuário, a conta (o escritório)
+      expect(shell(elemento).empresa).toBe("Mercadinho");
       expect(shell(elemento).nomeDaConta).toBe("Escritório Contábil Ltda");
     });
 

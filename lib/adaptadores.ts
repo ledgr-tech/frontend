@@ -693,6 +693,7 @@ const SITUACOES_DA_EMPRESA: readonly string[] = ["em_aberto", "fechado", "sem_co
 export type EmpresaClienteAPI = {
   id: string;
   razao_social: string;
+  nome_exibicao?: string | null;
   cnpj: string;
   cnpj_verificado_em: string | null;
   criado_em: string;
@@ -703,6 +704,10 @@ export type EmpresaClienteAPI = {
 export type EmpresaCliente = {
   id: string;
   razaoSocial: string;
+  /** O nome mostrado nas telas: o de exibição (backend #236), senão a razão social. */
+  nome: string;
+  /** Só com o backend #236: o nome de exibição, ou null quando a empresa mostra a razão social. Ausente, a tela não oferece editar. */
+  nomeExibicao?: string | null;
   cnpj: string;
   cnpjVerificado: boolean;
   criadaEm: string;
@@ -710,10 +715,22 @@ export type EmpresaCliente = {
   situacao?: SituacaoDaEmpresa;
 };
 
+/**
+ * O nome que a tela mostra e o de exibição (backend #236). Sem a chave (backend antigo), `nomeExibicao` fica
+ * ausente e o nome é a razão social; um nome só de espaços conta como null, como o backend o grava.
+ */
+export function nomeDaEmpresa(razaoSocial: unknown, nomeExibicao: unknown): { nome: string; nomeExibicao?: string | null } {
+  const razao = typeof razaoSocial === "string" ? razaoSocial.trim() : "";
+  if (nomeExibicao === undefined) return { nome: razao };
+  const proprio = typeof nomeExibicao === "string" && nomeExibicao.trim() ? nomeExibicao.trim() : null;
+  return { nome: proprio ?? razao, nomeExibicao: proprio };
+}
+
 export function adaptarEmpresaCliente(api: EmpresaClienteAPI): EmpresaCliente {
   return {
     id: api.id,
     razaoSocial: api.razao_social.trim(),
+    ...nomeDaEmpresa(api.razao_social, api.nome_exibicao),
     cnpj: api.cnpj,
     cnpjVerificado: Boolean(api.cnpj_verificado_em),
     criadaEm: api.criado_em,

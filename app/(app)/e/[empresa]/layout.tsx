@@ -42,6 +42,7 @@ export default async function AppLayout({
   const ativa = conta.empresas.find((candidata) => candidata.id === empresa) ?? {
     id: empresa,
     razaoSocial: conta.empresa,
+    nome: conta.empresa,
     cnpj: "",
   };
   return (
@@ -49,7 +50,7 @@ export default async function AppLayout({
       <Shell
         email={sessao.user.email}
         nome={conta.nome}
-        empresa={ativa.razaoSocial}
+        empresa={ativa.nome}
         nomeDaConta={conta.empresa}
         temSenha={conta.temSenha}
         papel={conta.papel}

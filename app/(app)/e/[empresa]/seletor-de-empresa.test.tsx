@@ -15,8 +15,8 @@ vi.mock("next/navigation", () => ({
 const acoes = vi.hoisted(() => ({ carregarEmpresas: vi.fn(), marcarFavorita: vi.fn() }));
 vi.mock("./empresas/acoes", () => acoes);
 
-const A: EmpresaDaConta = { id: "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20", razaoSocial: "Padaria Ltda", cnpj: "11222333000181" };
-const B: EmpresaDaConta = { id: "9b8a7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d", razaoSocial: "Mercado Ltda", cnpj: "11444777000161" };
+const A: EmpresaDaConta = { id: "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20", razaoSocial: "Padaria Ltda", nome: "Padaria Ltda", cnpj: "11222333000181" };
+const B: EmpresaDaConta = { id: "9b8a7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d", razaoSocial: "Mercado Ltda", nome: "Mercado Ltda", cnpj: "11444777000161" };
 
 function montar(empresas: EmpresaDaConta[] = [A, B], ativa: EmpresaDaConta = empresas[0]) {
   return render(
@@ -30,7 +30,7 @@ function montar(empresas: EmpresaDaConta[] = [A, B], ativa: EmpresaDaConta = emp
 function muitas(n: number): EmpresaDaConta[] {
   return Array.from({ length: n }, (_, i) => {
     const numero = String(i + 1).padStart(2, "0");
-    return { id: `00000000-0000-4000-8000-0000000000${numero}`, razaoSocial: `Empresa ${numero}`, cnpj: `${numero}222333000181` };
+    return { id: `00000000-0000-4000-8000-0000000000${numero}`, razaoSocial: `Empresa ${numero}`, nome: `Empresa ${numero}`, cnpj: `${numero}222333000181` };
   });
 }
 
@@ -127,6 +127,13 @@ describe("combina", () => {
   it("continua achando razão social com dígitos", () => {
     expect(combina({ razaoSocial: "Loja 12", cnpj: "99888777000166" }, "loja 12")).toBe(true);
   });
+
+  it("acha pelo nome de exibição e também pela razão social (#472)", () => {
+    const empresa = { nome: "Pão Quente", razaoSocial: "Padaria Central Ltda", cnpj: "11222333000181" };
+    expect(combina(empresa, "pão")).toBe(true);
+    expect(combina(empresa, "central")).toBe(true);
+    expect(combina(empresa, "mercado")).toBe(false);
+  });
 });
 
 describe("SeletorDeEmpresa (no topo, #223)", () => {
@@ -137,8 +144,26 @@ describe("SeletorDeEmpresa (no topo, #223)", () => {
     expect(botao).toHaveAttribute("aria-expanded", "false");
   });
 
+  it("mostra o nome de exibição no botão e na tabela, ordena por ele e busca por nome e razão social (#472)", async () => {
+    const user = userEvent.setup();
+    const comApelido: EmpresaDaConta = { ...A, nome: "Aconchego" };
+    const outra: EmpresaDaConta = { ...B, nome: "Zelo" };
+    montar([outra, comApelido], comApelido);
+
+    expect(screen.getByRole("button", { name: "Empresa: Aconchego" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Aconchego/ }));
+    expect(nomesNaTabela()).toEqual(["Aconchego", "Zelo"]);
+
+    const busca = janela().getByRole("searchbox", { name: "Buscar por razão social ou CNPJ" });
+    await user.type(busca, "Padaria");
+    expect(nomesNaTabela()).toEqual(["Aconchego"]);
+    await user.clear(busca);
+    await user.type(busca, "Zelo");
+    expect(nomesNaTabela()).toEqual(["Zelo"]);
+  });
+
   it("sem o GET /me (empresa sem nome), o botão ainda diz o que faz (#388)", () => {
-    montar([{ ...A, razaoSocial: "", cnpj: "" }]);
+    montar([{ ...A, razaoSocial: "", nome: "", cnpj: "" }]);
     expect(screen.getByRole("button", { name: "Trocar de empresa" })).toBeInTheDocument();
   });
 

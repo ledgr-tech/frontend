@@ -17,7 +17,7 @@ import { ModalDaTela } from "./empresas/modal-da-tela";
 /** Quantas empresas cabem numa página da janela (mentoria de 26/10, #223). */
 export const POR_PAGINA = 20;
 
-type Coluna = "razaoSocial" | "cnpj" | "situacao";
+type Coluna = "nome" | "cnpj" | "situacao";
 
 /** A linha da janela: a empresa do `GET /me` e, depois que o `GET /empresas` responde, a favorita e a situação (backend #157). */
 type Linha = EmpresaDaConta & { favorita?: boolean; situacao?: SituacaoDaEmpresa };
@@ -47,8 +47,8 @@ function Cabeca({ coluna, ordem, onOrdenar, children }: { coluna: Coluna; ordem:
   );
 }
 
-/** A busca da janela e da tela Empresas: pela razão social ou pelo CNPJ, com ou sem a máscara. */
-export function combina(empresa: { razaoSocial: string; cnpj: string }, termo: string): boolean {
+/** A busca da janela e da tela Empresas: pelo nome, pela razão social ou pelo CNPJ, com ou sem a máscara. */
+export function combina(empresa: { nome?: string; razaoSocial: string; cnpj: string }, termo: string): boolean {
   const procurado = termo.trim().toLowerCase();
   if (!procurado) return true;
   // o CNPJ pode ter letras (o alfanumérico), mas só um termo com dígito procura nele: "Ana" é nome
@@ -59,6 +59,7 @@ export function combina(empresa: { razaoSocial: string; cnpj: string }, termo: s
     .reduce((maior, atual) => (atual.length > maior.length ? atual : maior), "");
   const cnpj = caracteresCnpj(empresa.cnpj);
   return (
+    (empresa.nome ?? "").toLowerCase().includes(procurado) ||
     empresa.razaoSocial.toLowerCase().includes(procurado) ||
     (/\d/.test(cnpjProcurado) && cnpj.includes(cnpjProcurado)) ||
     // "cnpj 12345", "Loja 12.345": o trecho numérico procura no CNPJ; "Empresa 4" e "AB12" seguem só nome
@@ -143,15 +144,15 @@ export function SeletorDeEmpresa() {
         className="seletor-topo-botao"
         aria-haspopup="dialog"
         aria-expanded={aberto}
-        title={ativa.razaoSocial || undefined}
+        title={ativa.nome || undefined}
         onClick={() => setAberto(true)}
       >
         <Building2 size={16} aria-hidden="true" className="seletor-topo-icone" />
         <span className="seletor-topo-nome">
           {/* sem o GET /me não há nome: o botão diz o que faz, em vez de ficar só com o ícone (#388) */}
-          {ativa.razaoSocial ? (
+          {ativa.nome ? (
             <>
-              <span className="sr-only">Empresa:</span> {ativa.razaoSocial}
+              <span className="sr-only">Empresa:</span> {ativa.nome}
             </>
           ) : (
             "Trocar de empresa"
@@ -176,7 +177,7 @@ function JanelaDeEmpresas({ ativa, aoFechar }: { ativa: EmpresaDaConta; aoFechar
   const roteador = useRoteador();
   const caminho = usePathname();
   const [busca, setBusca] = useState("");
-  const [ordem, setOrdem] = useState<Ordem>({ coluna: "razaoSocial", crescente: true });
+  const [ordem, setOrdem] = useState<Ordem>({ coluna: "nome", crescente: true });
   const [pagina, setPagina] = useState(0);
 
   useEffect(() => {
@@ -251,7 +252,7 @@ function JanelaDeEmpresas({ ativa, aoFechar }: { ativa: EmpresaDaConta; aoFechar
             <table className="table seletor-janela-tabela">
               <thead>
                 <tr>
-                  <Cabeca coluna="razaoSocial" ordem={ordem} onOrdenar={ordenar}>
+                  <Cabeca coluna="nome" ordem={ordem} onOrdenar={ordenar}>
                     Empresa
                   </Cabeca>
                   <Cabeca coluna="cnpj" ordem={ordem} onOrdenar={ordenar}>
@@ -274,7 +275,7 @@ function JanelaDeEmpresas({ ativa, aoFechar }: { ativa: EmpresaDaConta; aoFechar
                   <tr key={empresa.id} aria-current={empresa.id === ativa.id || undefined}>
                     <td>
                       <button type="button" className="seletor-janela-escolher" onClick={() => escolher(empresa)}>
-                        {empresa.razaoSocial}
+                        {empresa.nome}
                       </button>
                       {!temSituacao && empresa.id === ativa.id && (
                         <>
@@ -300,7 +301,7 @@ function JanelaDeEmpresas({ ativa, aoFechar }: { ativa: EmpresaDaConta; aoFechar
                           type="button"
                           className="seletor-janela-estrela"
                           aria-pressed={Boolean(empresa.favorita)}
-                          aria-label={`Favorita: ${empresa.razaoSocial}`}
+                          aria-label={`Favorita: ${empresa.nome}`}
                           title={empresa.favorita ? "Tirar das favoritas" : "Favoritar"}
                           onClick={() => alternarFavorita(empresa)}
                         >

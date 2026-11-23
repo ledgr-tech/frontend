@@ -43,7 +43,7 @@ function novaConta(id, nome, situacao, plano, teste_termina_em = null) {
 
 function novaEmpresa(conta, id, razao_social, cnpj) {
   const empresa = {
-    id, conta_id: conta.id, razao_social, cnpj, cnpj_verificado_em: null, criado_em: agora(),
+    id, conta_id: conta.id, razao_social, nome_exibicao: null, cnpj, cnpj_verificado_em: null, criado_em: agora(),
     /** id -> { origem, nome, formato, lancamentos, erros, periodoInicio, periodoFim, enviadoEm } */
     extratos: new Map(),
     /** da mais recente para a mais antiga */
@@ -484,7 +484,13 @@ function respostaDeLogin(u) {
 }
 
 const pessoa = ({ id, nome, email, papel, criado_em }) => ({ id, nome, email, papel, criado_em });
-const empresaCliente = ({ id, razao_social, cnpj, cnpj_verificado_em, criado_em }) => ({ id, razao_social, cnpj, cnpj_verificado_em, criado_em });
+// O nome de exibição (backend #236). NOME_DE_EXIBICAO=0 é o backend de antes: a chave não sai e o PATCH não existe.
+const NOME_DE_EXIBICAO = process.env.NOME_DE_EXIBICAO !== "0";
+const comNome = (e) => (NOME_DE_EXIBICAO ? { nome_exibicao: e.nome_exibicao } : {});
+const nomeMostrado = (e) => (NOME_DE_EXIBICAO && e.nome_exibicao) || e.razao_social;
+const porNome = (a, b) => nomeMostrado(a).localeCompare(nomeMostrado(b), "pt-BR", { sensitivity: "base" });
+const empresaCliente = (e) => ({ id: e.id, razao_social: e.razao_social, ...comNome(e), cnpj: e.cnpj, cnpj_verificado_em: e.cnpj_verificado_em, criado_em: e.criado_em });
+const empresaDoMe = (e) => ({ id: e.id, razao_social: e.razao_social, ...comNome(e), cnpj: e.cnpj });
 const pessoasDaConta = (contaId) => [...usuarios.values()].filter((u) => u.conta_id === contaId);
 const MAXIMOS = { essencial: { empresas: 1, usuarios: 2 }, padrao: { empresas: 5, usuarios: 5 }, avancado: { empresas: null, usuarios: null } };
 
@@ -764,7 +770,7 @@ const servidor = createServer(async (req, res) => {
       razao_social: b.razao_social, cnpj: b.cnpj,
       metodos_login: ["senha"],
       papel: eu.papel,
-      empresas: conta.empresas.map((id) => empresas.get(id)).map(({ id, razao_social, cnpj }) => ({ id, razao_social, cnpj })),
+      empresas: conta.empresas.map((id) => empresaDoMe(empresas.get(id))),
       preferencias: eu.preferencias,
       situacao: conta.situacao,
       plano: conta.plano,
@@ -823,7 +829,30 @@ const servidor = createServer(async (req, res) => {
 
   // ----- empresas da conta -----
 
-  if (rota("GET", "/empresas")) return json(res, 200, { itens: conta.empresas.map((id) => empresaCliente(empresas.get(id))) });
+  if (rota("GET", "/empresas")) return json(res, 200, { itens: conta.empresas.map((id) => empresas.get(id)).sort(porNome).map(empresaCliente) });
+
+  const editarEmpresa = NOME_DE_EXIBICAO && rota("PATCH", /^\/empresas\/([0-9a-f-]{36})$/i);
+  if (editarEmpresa) {
+    if (!gestao) return proibido();
+    const alvo = conta.empresas.includes(editarEmpresa[1]) ? empresas.get(editarEmpresa[1]) : null;
+    if (!alvo) return json(res, 404, { detail: "Empresa não encontrada." });
+    const corpo = await corpoJson(req);
+    const chaves = Object.keys(corpo ?? {});
+    if (!chaves.length || chaves.some((c) => c !== "nome_exibicao" && c !== "razao_social")) return json(res, 422, { detail: "Campo inválido." });
+    if ("nome_exibicao" in corpo) {
+      const nome = corpo.nome_exibicao;
+      if (nome !== null && typeof nome !== "string") return json(res, 422, { detail: "Nome inválido." });
+      const aparado = (nome ?? "").trim();
+      if (aparado.length > 120) return json(res, 422, { detail: "O nome pode ter até 120 caracteres." });
+      alvo.nome_exibicao = aparado || null;
+    }
+    if ("razao_social" in corpo) {
+      const razao = typeof corpo.razao_social === "string" ? corpo.razao_social.trim() : "";
+      if (!razao) return json(res, 422, { detail: "Informe a razão social." });
+      alvo.razao_social = razao;
+    }
+    return json(res, 200, empresaCliente(alvo));
+  }
 
   if (rota("POST", "/empresas")) {
     if (!gestao) return proibido();
@@ -1021,7 +1050,7 @@ const servidor = createServer(async (req, res) => {
     if (metodo === "GET") {
       return json(res, 200, { cliente: p.cliente, origem: { host: p.host, loopback: p.loopback }, escopo: "leitura",
         descricao_escopo: "Ler extratos, conciliações e fechamentos da empresa escolhida. Não altera nada.", expira_em: p.expira_em,
-        empresas: conta.empresas.map((id) => empresas.get(id)).map(({ id, razao_social, cnpj }) => ({ id, razao_social, cnpj })) });
+        empresas: conta.empresas.map((id) => empresaDoMe(empresas.get(id))) });
     }
     pedidosMcp.delete(pedido[1]);
     if (pedido[2] === "/recusar") return json(res, 200, { redirecionar_para: `${p.redirect}?error=access_denied&state=${p.state}` });
