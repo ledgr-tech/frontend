@@ -19,10 +19,10 @@ import { SEM_SERVIDOR } from "@/lib/sem-servidor";
 /**
  * A conversa com o Ledgr ("chatbot" do APP em Ledgr.dc.html), dentro do painel
  * que abre do cartão do menu.
- * O que é sobre o mês sai de `responder`, com os números da última conciliação; a
- * explicação de uma divergência é a IA do backend. O resto ("como faço…") vai ao
- * assistente da Central de ajuda (backend #137, front #172), com a tela aberta e as
- * últimas mensagens. As respostas locais dão uma pausa curta entre os balões.
+ * As perguntas sobre os números vão primeiro ao backend (#223); o roteiro da última
+ * conciliação fica de reserva. Os passos para fechar e o pedido de explicação de uma
+ * divergência seguem locais (a explicação usa sua própria action).
+ * As respostas locais dão uma pausa curta entre os balões.
  */
 
 type LinkDaMensagem = { href: string; rotulo: string };
@@ -32,11 +32,11 @@ type Mensagem = {
   de: "ledgr" | "voce";
   texto: string;
   links?: LinkDaMensagem[];
-  /** Só o texto que veio do modelo leva o selo de IA. */
+  /** Resposta do assistente do backend ou explicação gerada por IA leva o selo. */
   ia?: boolean;
   /**
-   * Da conversa com o assistente da Central: só estas vão no histórico. As do roteiro do mês têm valores
-   * e as explicações têm descrição de lançamento, que não podem ir ao provedor de IA.
+   * Da conversa com o backend: só estas vão no histórico, protegido por ele antes de ir à IA.
+   * As respostas do roteiro e as explicações podem trazer descrições de lançamento e ficam fora.
    */
   daCentral?: boolean;
 };
@@ -154,7 +154,7 @@ export function Conversa({
         },
   ]);
   const [texto, setTexto] = useState("");
-  const [lendo, setLendo] = useState<"resposta" | "extrato" | "central" | null>(null);
+  const [lendo, setLendo] = useState<"resposta" | "extrato" | "central" | "numeros" | null>(null);
   const proximoId = useRef(1);
   const historico = useRef<HTMLDivElement>(null);
   const campo = useRef<HTMLInputElement>(null);
@@ -177,6 +177,7 @@ export function Conversa({
   function acrescentar(mensagem: Omit<Mensagem, "id">) {
     const id = proximoId.current++;
     setMensagens((atuais) => [...atuais, { ...mensagem, id }]);
+    return id;
   }
 
   async function explicar(maior: NonNullable<Contexto["maior"]>) {
@@ -205,16 +206,26 @@ export function Conversa({
     }
   }
 
-  /** A pergunta que o roteiro do mês não responde vai ao assistente da Central, com as últimas mensagens. */
-  async function perguntarACentral(pergunta: string, anteriores: Mensagem[]) {
-    setLendo("central");
+  /** Pergunta ao backend, com o roteiro de reserva apenas nas consultas sobre o mês. */
+  async function perguntarAoBackend(
+    pergunta: string,
+    anteriores: Mensagem[],
+    sobreOMes?: { assunto: NonNullable<ReturnType<typeof assuntoDoMes>>; inicio: number; idDaPergunta: number },
+  ) {
+    setLendo(sobreOMes ? "numeros" : "central");
+    let usarRoteiro = false;
     const historico: TurnoDaConversa[] = anteriores
       .filter((mensagem) => mensagem.daCentral)
       .slice(-MAXIMO_TURNOS)
       .map((mensagem) => ({ papel: mensagem.de === "voce" ? "usuario" : "assistente", texto: mensagem.texto }));
     try {
-      const resposta = await perguntarAoAssistente(pergunta, tela, historico);
-      if (resposta.ok) {
+      const resposta = await perguntarAoAssistente(pergunta, tela, historico, sobreOMes !== undefined);
+      if (!resposta.ok && resposta.status === 401) {
+        router.push("/login");
+        return;
+      } else if (sobreOMes && (!resposta.ok || !resposta.dados.respondida)) {
+        usarRoteiro = true;
+      } else if (resposta.ok) {
         const { dados } = resposta;
         const links = dados.links.map((link) => ({ href: link.caminho, rotulo: link.titulo }));
         // sem resposta na Central, ou sem seção citada, a Central inteira é o caminho
@@ -226,26 +237,32 @@ export function Conversa({
           links: dados.respondida && links.length > 0 ? links : [...links, CENTRAL],
         });
         return;
+      } else {
+        // o limite do dia tem o texto do backend; fora do ar, o que o roteiro sabe, e a Central
+        acrescentar({
+          de: "ledgr",
+          texto:
+            resposta.status === 429
+              ? resposta.erro
+              : contexto
+                ? foraDoRoteiro(contexto)
+                : "O assistente está indisponível agora. A Central de ajuda tem o passo a passo de cada tela.",
+          links: [CENTRAL],
+        });
       }
-      if (resposta.status === 401) {
-        router.push("/login");
-        return;
-      }
-      // o limite do dia tem o texto do backend; fora do ar, o que o roteiro sabe, e a Central
-      acrescentar({
-        de: "ledgr",
-        texto:
-          resposta.status === 429
-            ? resposta.erro
-            : contexto
-              ? foraDoRoteiro(contexto)
-              : "O assistente está indisponível agora. A Central de ajuda tem o passo a passo de cada tela.",
-        links: [CENTRAL],
-      });
     } catch {
-      acrescentar({ de: "ledgr", texto: FALHA_DE_REDE, links: [CENTRAL] });
+      if (sobreOMes) usarRoteiro = true;
+      else acrescentar({ de: "ledgr", texto: FALHA_DE_REDE, links: [CENTRAL] });
     } finally {
       setLendo(null);
+    }
+    if (usarRoteiro && sobreOMes) {
+      // O roteiro não entra no histórico: a pergunta também sai, para não deixar
+      // um turno sem resposta nem levar seus valores ao assistente de uso.
+      setMensagens((atuais) => atuais.map((mensagem) =>
+        mensagem.id === sobreOMes.idDaPergunta ? { ...mensagem, daCentral: false } : mensagem,
+      ));
+      await responderSobreOMes(pergunta, sobreOMes.assunto, sobreOMes.inicio);
     }
   }
 
@@ -304,7 +321,7 @@ export function Conversa({
     const assunto = !passos && contexto ? assuntoDoMes(limpa, contexto.mes) : null;
     const inicio = agora();
     acompanhar.current = true;
-    acrescentar({ de: "voce", texto: limpa, daCentral: !passos && assunto === null });
+    const idDaPergunta = acrescentar({ de: "voce", texto: limpa, daCentral: !passos && assunto !== "explicar" });
     setTexto("");
     if (passos) {
       mostrarResposta({
@@ -312,10 +329,10 @@ export function Conversa({
         texto: [...(passos.passos ?? []), passos.nota].filter(Boolean).join("\n").replaceAll("**", ""),
         links: [{ href: "/ajuda/fechamentos#fechar", rotulo: passos.titulo }],
       }, inicio);
-    } else if (assunto) {
+    } else if (assunto === "explicar") {
       void responderSobreOMes(limpa, assunto, inicio);
     } else {
-      void perguntarACentral(limpa, mensagens);
+      void perguntarAoBackend(limpa, mensagens, assunto ? { assunto, inicio, idDaPergunta } : undefined);
     }
   }
 
@@ -330,11 +347,13 @@ export function Conversa({
         status={
           lendo === "extrato"
             ? "lendo o extrato…"
-            : lendo === "central"
-              ? "procurando na Central…"
-              : contexto
-                ? `olhando ${contexto.mes}`
-                : undefined
+            : lendo === "numeros"
+              ? "olhando os números…"
+              : lendo === "central"
+                ? "procurando na Central…"
+                : contexto
+                  ? `olhando ${contexto.mes}`
+                  : undefined
         }
         onFechar={onFechar}
       />
@@ -395,11 +414,13 @@ export function Conversa({
             data-nova
             role="status"
             aria-label={
-              lendo === "central"
-                ? "O Ledgr está procurando na Central de ajuda"
-                : lendo === "extrato"
-                  ? "O Ledgr está lendo o extrato"
-                  : "O Ledgr está preparando a resposta"
+              lendo === "numeros"
+                ? "O Ledgr está olhando os números"
+                : lendo === "central"
+                  ? "O Ledgr está procurando na Central de ajuda"
+                  : lendo === "extrato"
+                    ? "O Ledgr está lendo o extrato"
+                    : "O Ledgr está preparando a resposta"
             }
           >
             <Mascote tamanho={28} rosto />
