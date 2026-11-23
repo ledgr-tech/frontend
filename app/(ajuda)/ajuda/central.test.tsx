@@ -127,7 +127,7 @@ describe("o conteúdo da ajuda", () => {
     expect(empresas.titulo).toBe("Empresas");
     expect(empresas.onde).toBe("Menu lateral › Empresas");
     expect(existsSync(join("public", empresas.capa.src)), empresas.capa.src).toBe(true);
-    expect(empresas.funcoes.map((funcao) => funcao.id)).toEqual(["lista", "abrir", "cadastrar", "nome", "limite", "equipe"]);
+    expect(empresas.funcoes.map((funcao) => funcao.id)).toEqual(["lista", "abrir", "cadastrar", "nome", "remover", "restaurar", "limite", "equipe"]);
     const cadastrar = empresas.funcoes.find((funcao) => funcao.id === "cadastrar")!;
     for (const botao of ["**Adicionar empresa**", "**Cadastrar empresa**"]) {
       expect(cadastrar.passos?.join(" "), botao).toContain(botao);

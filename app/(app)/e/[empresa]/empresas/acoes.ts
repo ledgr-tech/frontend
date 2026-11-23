@@ -42,7 +42,11 @@ function traduzir(erro: unknown, contexto: "geral" | "cadastro" | "edicao" = "ge
   if (status === 401) return { ok: false, status, erro: SESSAO_EXPIRADA };
   if (status === 403 && !ehContaInativa(erro)) return { ok: false, status, erro: PAPEL_NEGADO };
   const aoCadastrar = contexto === "cadastro";
-  if (aoCadastrar && status === 409) return { ok: false, status, erro: "Esta empresa já está cadastrada no escritório." };
+  if (aoCadastrar && status === 409) {
+    if (erro.codigo === "empresa_removida") return { ok: false, status, erro: "Esta empresa foi removida. Feche esta janela e abra Empresas removidas para restaurá-la." };
+    if (erro.codigo === "empresa_sendo_apagada") return { ok: false, status, erro: erro.detalhe };
+    return { ok: false, status, erro: "Esta empresa já está cadastrada no escritório." };
+  }
   if (aoCadastrar && status === 429) return { ok: false, status, erro: limiteDeCadastros(erro.segundosParaTentar) };
   if (contexto === "edicao" && status === 429) return { ok: false, status, erro: limiteDeTentativas(erro.segundosParaTentar) };
   if (aoCadastrar && status === 422 && erro.mensagens.cnpj) {

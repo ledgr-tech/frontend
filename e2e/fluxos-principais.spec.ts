@@ -38,7 +38,14 @@ function extratoDoSistema() {
 
 async function pularTutorial(page: Page) {
   const pular = page.getByRole("button", { name: "Pular", exact: true });
-  if (await pular.isVisible().catch(() => false)) await pular.click();
+  // O roteiro pode abrir depois da navegação/hidratação. Checar só isVisible aqui
+  // deixava o tutorial aparecer sobre a próxima ação, sobretudo no build de produção.
+  await pular.waitFor({ state: "visible", timeout: 5000 }).catch(() => {});
+  if (await pular.isVisible().catch(() => false)) {
+    await page.getByRole("checkbox", { name: "Não mostrar mais tutoriais" }).check();
+    await pular.click();
+    await expect(pular).not.toBeVisible();
+  }
 }
 
 async function entrar(page: Page) {

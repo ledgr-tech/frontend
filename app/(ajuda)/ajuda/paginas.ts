@@ -712,6 +712,28 @@ export const PAGINAS: PaginaDeAjuda[] = [
         nota: "Só o administrador e o gestor editam o nome. A razão social continua no painel da empresa, e a busca acha a empresa pelos dois.",
       },
       {
+        id: "remover",
+        titulo: "Remover uma empresa",
+        faz: "O administrador e o gestor podem remover uma empresa cliente. Ela sai do seletor e das consultas na hora, mas os dados podem ser restaurados por 30 dias.",
+        passos: [
+          "Escolha a empresa na lista e clique em **Remover empresa**, no painel ao lado.",
+          "Confira o nome, o CNPJ e as consequências. Para desistir, clique em **Cancelar**.",
+          "Clique em **Confirmar remoção**. Se ela era a empresa aberta, o Ledgr abre outra empresa do escritório.",
+        ],
+        nota: "A empresa principal e a última empresa ativa não podem ser removidas. A remoção revoga as chaves de API e as conexões MCP da empresa e não devolve a franquia já usada no mês. Depois de 30 dias, os dados serão apagados.",
+      },
+      {
+        id: "restaurar",
+        titulo: "Restaurar uma empresa removida",
+        faz: "Recupere a empresa e seus dados antes do prazo de apagamento. Só o administrador e o gestor têm acesso às empresas removidas.",
+        passos: [
+          "Clique em **Empresas removidas**, no alto da tela.",
+          "Confira o nome, quem removeu e a data limite para restaurar.",
+          "Clique em **Restaurar empresa**. Ela volta à lista e ao seletor.",
+        ],
+        nota: "A restauração precisa caber no limite de empresas do plano. Chaves de API e conexões MCP revogadas precisam ser criadas novamente. Se tentar cadastrar um CNPJ removido, o Ledgr orienta a restaurar a empresa existente.",
+      },
+      {
         id: "limite",
         titulo: "O limite do plano",
         faz: "Cada plano tem um número máximo de empresas, e a faixa embaixo da lista mostra quanto o escritório já usa.",

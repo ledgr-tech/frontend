@@ -3914,6 +3914,8 @@ html:not([data-menu="recolhido"]) .app-assistente-figura {
 .empresas-nota { margin: 16px 0 0; font-size: var(--texto-corpo); color: color-mix(in srgb, var(--color-text) 70%, transparent); }
 .empresas-form { display: flex; flex-direction: column; gap: 12px; }
 .empresas-form-botoes { display: flex; flex-wrap: wrap; gap: 8px; }
+.empresas-removidas-lista { display: grid; gap: var(--space-4); list-style: none; padding: 0; margin: var(--space-4) 0; }
+.empresas-removidas-lista .card { padding: var(--space-4); }
 .empresas-tabela { margin: 24px 0 0; overflow-x: auto; overflow-y: hidden; }
 .empresas-celula { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
 .empresas-nome { font-family: var(--font-heading); font-weight: 600; }
