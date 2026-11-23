@@ -27,7 +27,7 @@ function Nota({ nota }: { nota: number }) {
 }
 
 function CartaoDepoimento({ depoimento }: { depoimento: Depoimento }) {
-  const assinatura = depoimento.empresa ? `${depoimento.cargo}, ${depoimento.empresa}` : depoimento.cargo;
+  const assinatura = [depoimento.cargo, depoimento.empresa].filter(Boolean).join(", ");
   return (
     <figure className="depoimento">
       <span className="depoimento-aspas" aria-hidden="true">
@@ -44,7 +44,7 @@ function CartaoDepoimento({ depoimento }: { depoimento: Depoimento }) {
         </span>
         <span className="depoimento-quem">
           <span className="depoimento-nome">{depoimento.nome}</span>
-          <span className="depoimento-cargo">{assinatura}</span>
+          {assinatura && <span className="depoimento-cargo">{assinatura}</span>}
         </span>
       </figcaption>
     </figure>

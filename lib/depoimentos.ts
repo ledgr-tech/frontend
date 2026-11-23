@@ -9,14 +9,20 @@ export type Depoimento = {
   /** A frase, como a pessoa disse (sem as aspas: o card desenha as dele). */
   citacao: string;
   nome: string;
-  cargo: string;
+  cargo?: string;
   /** Sem empresa (um contador autônomo, por exemplo), a assinatura fica só com o cargo. */
   empresa?: string;
   /** A nota que a pessoa deu, de 1 a 5. Sem nota, o card fica sem estrelas: estrela só de nota real. */
   nota?: number;
 };
 
-export const DEPOIMENTOS: Depoimento[] = [];
+export const DEPOIMENTOS: Depoimento[] = [
+  {
+    citacao:
+      "De modo geral, consideramos o Ledgr Finance uma ferramenta com uma proposta muito boa, principalmente para empresas que buscam mais agilidade e eficiência no controle financeiro.",
+    nome: "Diane Cauton Mattei",
+  },
+];
 
 /**
  * Exemplos para ver a seção montada enquanto os reais não chegam. Pessoas e empresas fictícias: o

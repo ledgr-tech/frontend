@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 
-// ponytail: os perfis ainda não existem (href null), e rede sem endereço não aparece (#388). Quando
-// existirem, é só pôr o href aqui: o link de fora abre em outra aba sozinho.
+// Rede sem endereço não aparece (#388). Os perfis oficiais abrem em outra aba.
 const REDES: { nome: string; href: string | null; icone: ReactNode }[] = [
   {
     nome: "LinkedIn",
@@ -15,7 +14,7 @@ const REDES: { nome: string; href: string | null; icone: ReactNode }[] = [
   },
   {
     nome: "Instagram",
-    href: null,
+    href: "https://www.instagram.com/ledgrtech/",
     // no traço dos ícones do app (lucide), e não a marca cheia: no círculo pequeno ela vira um borrão
     icone: (
       <g fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
@@ -27,7 +26,7 @@ const REDES: { nome: string; href: string | null; icone: ReactNode }[] = [
   },
   {
     nome: "X (Twitter)",
-    href: null,
+    href: "https://x.com/ledgrtech",
     icone: (
       <path
         fill="currentColor"

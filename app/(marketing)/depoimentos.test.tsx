@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { render, screen, within } from "@testing-library/react";
-import type { Depoimento } from "@/lib/depoimentos";
+import { depoimentosDaLanding, type Depoimento } from "@/lib/depoimentos";
 import { MotionRoot } from "../reveal";
 import { Depoimentos } from "./depoimentos";
 
@@ -29,6 +29,17 @@ function renderDepoimentos(depoimentos: Depoimento[]) {
 const cards = () => screen.getAllByRole("figure");
 
 describe("Depoimentos", () => {
+  it("shows Diane's real testimonial in production with only her supplied attribution and no rating", () => {
+    renderDepoimentos(depoimentosDaLanding(undefined, { VERCEL_ENV: "production" }));
+    expect(cards()).toHaveLength(1);
+    const card = cards()[0];
+    expect(within(card).getByText("Diane Cauton Mattei")).toBeInTheDocument();
+    expect(within(card).getByText(/De modo geral, consideramos o Ledgr Finance/)).toBeInTheDocument();
+    expect(card.querySelector(".depoimento-cargo")).toBeNull();
+    expect(card.querySelector(".depoimento-estrela")).toBeNull();
+    expect(card.textContent).not.toContain("undefined");
+  });
+
   it("shows each testimonial as a quote signed with the person's name, role and company", () => {
     renderDepoimentos([COM_NOTA, SEM_NOTA_NEM_EMPRESA]);
     expect(cards()).toHaveLength(2);
