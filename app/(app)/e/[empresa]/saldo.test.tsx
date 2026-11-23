@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
-import { DiferencaDosSaldos, FaixaDoSaldo, SaldoDaFolha, fraseDoSaldoFinal } from "./saldo";
+import { DiferencaDosSaldos, FaixaDoSaldo, SaldoDaFolha, fraseDoSaldoFinal, temTextoDaDiferenca } from "./saldo";
 
 // o Intl separa o "R$" do número com um espaço que não quebra
 const semEspacoFixo = (texto: string | null) => texto?.replace(/ /g, " ");
@@ -153,5 +153,26 @@ describe("o saldo final numa frase", () => {
       "Saldo final de R$ 1.120,00 em 07/09/2026",
     );
     expect(fraseDoSaldoFinal(null)).toBe("Saldo não informado no arquivo");
+  });
+});
+
+describe("ajustes da revisão (#474)", () => {
+  it("temTextoDaDiferenca: só com valor ou datas diferentes", () => {
+    expect(temTextoDaDiferenca(undefined)).toBe(false);
+    expect(temTextoDaDiferenca({ valor: null, motivo: "sem_saldo_banco" })).toBe(false);
+    expect(temTextoDaDiferenca({ valor: null, motivo: "datas_diferentes" })).toBe(true);
+    expect(temTextoDaDiferenca({ valor: 0, motivo: null })).toBe(true);
+  });
+
+  it("a faixa dupla ainda diz que o inicial do banco depende das linhas não lidas", () => {
+    render(
+      <FaixaDoSaldo
+        banco={{ inicial: null, final: 100, data: "2026-09-30" }}
+        sistema={{ inicial: 0, final: 100, data: "2026-09-30" }}
+        diferenca={{ valor: 0, motivo: null }}
+      />,
+    );
+    expect(screen.getByText("Saldo inicial do banco")).toBeInTheDocument();
+    expect(screen.getByText("depende das linhas não lidas")).toBeInTheDocument();
   });
 });

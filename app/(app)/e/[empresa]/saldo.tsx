@@ -55,12 +55,15 @@ export function SaldoDaFolha({
   );
 }
 
+/** Se `DiferencaDosSaldos` mostra algo: a célula do eixo só sai do aria-hidden nesse caso. */
+export function temTextoDaDiferenca(diferenca: DiferencaDoSaldo | undefined): diferenca is DiferencaDoSaldo {
+  return diferenca !== undefined && (diferenca.valor !== null || diferenca.motivo === "datas_diferentes");
+}
+
 /** A diferença já calculada pelo backend; a falta de saldo é explicada na própria folha. */
 export function DiferencaDosSaldos({ diferenca }: { diferenca?: DiferencaDoSaldo }) {
-  if (diferenca === undefined) return null;
-  if (diferenca.valor === null) {
-    return diferenca.motivo === "datas_diferentes" ? <span className="saldo-diferenca">Saldos em datas diferentes</span> : null;
-  }
+  if (!temTextoDaDiferenca(diferenca)) return null;
+  if (diferenca.valor === null) return <span className="saldo-diferenca">Saldos em datas diferentes</span>;
   return (
     <span className="saldo-diferenca">
       {diferenca.valor === 0 ? "Saldos finais batem" : <>Diferença <strong>{formatarMoeda(diferenca.valor)}</strong></>}
@@ -79,6 +82,8 @@ export function FaixaDoSaldo({ banco, sistema, diferenca }: {
       <section className="saldo-faixa saldo-faixa-celular saldo-faixa-dupla" aria-label="Saldos dos extratos">
         <dl>
           {banco !== undefined && <div><dt>Banco</dt><dd><SaldoDaFolha saldo={banco} momento="final" /></dd></div>}
+          {/* sem o thead no celular, o inicial do banco que depende das linhas não lidas só é dito aqui */}
+          {banco?.inicial === null && <div><dt>Saldo inicial do banco</dt><dd>depende das linhas não lidas</dd></div>}
           <div><dt>Sistema</dt><dd><SaldoDaFolha saldo={sistema} momento="final" /></dd></div>
         </dl>
         <DiferencaDosSaldos diferenca={diferenca} />

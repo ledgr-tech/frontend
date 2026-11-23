@@ -1057,6 +1057,8 @@ describe("ConciliacaoPage", () => {
       render(<ConciliacaoPage />);
       const sistema = await screen.findByRole("columnheader", { name: "Sistema de gestão" });
       expect(sistema).not.toHaveTextContent(/Saldo/);
+      // sem o saldo, o cabeçalho não aponta para um id que não existe
+      expect(sistema).not.toHaveAttribute("aria-describedby");
       const pe = screen.getByRole("table").querySelector("tfoot")!;
       expect(pe.querySelector(".folha-sistema")).toBeEmptyDOMElement();
       expect(pe.children[0].children[2]).toHaveAttribute("aria-hidden", "true");

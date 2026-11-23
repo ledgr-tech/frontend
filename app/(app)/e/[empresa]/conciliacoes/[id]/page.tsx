@@ -46,7 +46,7 @@ import { larguraDoValor } from "./largura";
 import { Reveal } from "@/app/reveal";
 import { MensagemErro } from "@/app/(auth)/_compartilhado/mensagem-erro";
 import { Cabecalho } from "../../cabecalho";
-import { DiferencaDosSaldos, FaixaDoSaldo, SaldoDaFolha } from "../../saldo";
+import { DiferencaDosSaldos, FaixaDoSaldo, SaldoDaFolha, temTextoDaDiferenca } from "../../saldo";
 import { SeloIa } from "../../selo-ia";
 import { useNome, usePodeFechar } from "../../conta";
 import { aprovadaDepois, podeDesfazerAprovacao } from "@/lib/aprovacao";
@@ -770,7 +770,7 @@ export default function ConciliacaoPage() {
                     e o olho passa por ele no caminho de um lado ao outro. */}
                 <tr role="row" className="folhas-titulos">
                   <td className="folha-fora" aria-hidden="true" />
-                  <th colSpan={3} scope="colgroup" className="folha-banco folha-titulo" aria-label="Extrato do banco" aria-describedby="saldo-inicial-do-banco">
+                  <th colSpan={3} scope="colgroup" className="folha-banco folha-titulo" aria-label="Extrato do banco" aria-describedby={conciliacao.saldo ? "saldo-inicial-do-banco" : undefined}>
                     <span className="folha-titulo-conteudo">
                       <IconeOrigem origem="banco" />
                       <span className="folha-nome">Extrato do banco</span>
@@ -779,7 +779,7 @@ export default function ConciliacaoPage() {
                     </span>
                   </th>
                   <td className="folha-fora" aria-hidden="true" />
-                  <th colSpan={3} scope="colgroup" className="folha-sistema folha-titulo" aria-label="Sistema de gestão" aria-describedby="saldo-inicial-do-sistema">
+                  <th colSpan={3} scope="colgroup" className="folha-sistema folha-titulo" aria-label="Sistema de gestão" aria-describedby={conciliacao.saldoSistema ? "saldo-inicial-do-sistema" : undefined}>
                     <span className="folha-titulo-conteudo">
                       <IconeOrigem origem="sistema" />
                       <span className="folha-nome">Sistema de gestão</span>
@@ -1144,7 +1144,7 @@ export default function ConciliacaoPage() {
                     <td role="cell" colSpan={3} className="folha-banco">
                       <SaldoDaFolha saldo={conciliacao.saldo} momento="final" />
                     </td>
-                    <td role="cell" className="folha-fora" aria-hidden={conciliacao.diferencaSaldo?.valor != null || conciliacao.diferencaSaldo?.motivo === "datas_diferentes" ? undefined : true}>
+                    <td role="cell" className="folha-fora" aria-hidden={temTextoDaDiferenca(conciliacao.diferencaSaldo) ? undefined : true}>
                       <DiferencaDosSaldos diferenca={conciliacao.diferencaSaldo} />
                     </td>
                     <td role="cell" colSpan={3} className="folha-sistema">
