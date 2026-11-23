@@ -11,9 +11,11 @@ import { PainelDeEmpresas } from "./painel-de-empresas";
 // a ação é a fronteira com o backend; aqui devolve o que ele responderia
 const cadastrarEmpresa = vi.fn();
 const marcarFavorita = vi.fn();
+const editarNomeDeExibicao = vi.fn();
 vi.mock("./acoes", () => ({
   cadastrarEmpresa: (...args: unknown[]) => cadastrarEmpresa(...args),
   marcarFavorita: (...args: unknown[]) => marcarFavorita(...args),
+  editarNomeDeExibicao: (...args: unknown[]) => editarNomeDeExibicao(...args),
 }));
 vi.mock("../../../../(auth)/acoes", () => ({ salvarPreferencias: async () => true }));
 // a equipe carrega junto com a tela; aqui o backend responde com três pessoas e um convite
@@ -40,9 +42,9 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(window.location.search),
 }));
 
-const A: EmpresaCliente = { id: "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20", razaoSocial: "Padaria Ltda", cnpj: "11222333000181", cnpjVerificado: true, criadaEm: "2026-10-08T17:59:02Z" };
-const B: EmpresaCliente = { id: "9b8a7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d", razaoSocial: "Mercado Ltda", cnpj: "11444777000161", cnpjVerificado: false, criadaEm: "2026-10-21T19:48:16Z" };
-const NOVA: EmpresaCliente = { id: "c0ffee00-0000-4000-8000-000000000001", razaoSocial: "Cliente Dois Ltda", cnpj: "11444777000161", cnpjVerificado: false, criadaEm: "2026-10-22T10:00:00Z" };
+const A: EmpresaCliente = { id: "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20", razaoSocial: "Padaria Ltda", nome: "Padaria Ltda", cnpj: "11222333000181", cnpjVerificado: true, criadaEm: "2026-10-08T17:59:02Z" };
+const B: EmpresaCliente = { id: "9b8a7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d", razaoSocial: "Mercado Ltda", nome: "Mercado Ltda", cnpj: "11444777000161", cnpjVerificado: false, criadaEm: "2026-10-21T19:48:16Z" };
+const NOVA: EmpresaCliente = { id: "c0ffee00-0000-4000-8000-000000000001", razaoSocial: "Cliente Dois Ltda", nome: "Cliente Dois Ltda", cnpj: "11444777000161", cnpjVerificado: false, criadaEm: "2026-10-22T10:00:00Z" };
 
 // a aba escolhida vem da URL (`?aba=equipe`): é o que o voltar do navegador devolve depois de uma troca
 function montar({
@@ -54,7 +56,7 @@ function montar({
 }: { papel?: Papel; limites?: LimitesDaConta | null; aba?: "equipe"; empresas?: EmpresaCliente[]; cobranca?: boolean } = {}) {
   if (aba) window.history.replaceState(null, "", "/e/x/empresas?aba=equipe");
   render(
-    <ProvedorDaEmpresa ativa={{ id: A.id, razaoSocial: A.razaoSocial, cnpj: A.cnpj }} empresas={[A, B]}>
+    <ProvedorDaEmpresa ativa={{ id: A.id, razaoSocial: A.razaoSocial, nome: A.nome, cnpj: A.cnpj }} empresas={[A, B]}>
       <ProvedorDaConta cobrancaHabilitada={cobranca} preferencias={null} limites={limites} papel={papel}>
         <PainelDeEmpresas empresas={empresas} />
       </ProvedorDaConta>
@@ -441,7 +443,7 @@ describe("o cadastro de empresa", () => {
     cadastrarEmpresa.mockResolvedValue({ ok: false, status: 402, erro: "O plano permite até 3 empresas." });
     const user = userEvent.setup();
     const arvore = (limites: LimitesDaConta) => (
-      <ProvedorDaEmpresa ativa={{ id: A.id, razaoSocial: A.razaoSocial, cnpj: A.cnpj }} empresas={[A, B]}>
+      <ProvedorDaEmpresa ativa={{ id: A.id, razaoSocial: A.razaoSocial, nome: A.nome, cnpj: A.cnpj }} empresas={[A, B]}>
         <ProvedorDaConta cobrancaHabilitada preferencias={null} limites={limites} papel="admin">
           <PainelDeEmpresas empresas={[A, B]} />
         </ProvedorDaConta>
@@ -658,5 +660,148 @@ describe("os modais de cadastrar e de convidar", () => {
     await abrirJanela();
     await user.click(screen.getByRole("dialog"));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+});
+
+describe("nome de exibição (#472)", () => {
+  const painel = () => screen.getByRole("complementary", { name: "Empresa escolhida" });
+  const COM_NOME: EmpresaCliente[] = [
+    { ...A, nome: "Aconchego", nomeExibicao: "Aconchego", favorita: false, situacao: "fechado" },
+    { ...B, nome: "Mercado Ltda", nomeExibicao: null, favorita: false, situacao: "em_aberto" },
+  ];
+
+  it("mostra o nome na tabela e no título do painel, ordena por ele, busca pelos dois e sempre mostra a razão social no painel", async () => {
+    const user = userEvent.setup();
+    montar({ empresas: COM_NOME });
+
+    // Aconchego (razão social Padaria Ltda) vem antes de Mercado Ltda pelo nome mostrado
+    const linhas = screen.getAllByRole("row").slice(1);
+    expect(linhas.map((linha) => linha.textContent)).toEqual([
+      expect.stringContaining("Aconchego"),
+      expect.stringContaining("Mercado Ltda"),
+    ]);
+    expect(within(painel()).getByRole("heading", { level: 2, name: "Aconchego" })).toBeInTheDocument();
+    expect(within(painel()).getByText("Razão social")).toBeInTheDocument();
+    expect(within(painel()).getByText("Padaria Ltda")).toBeInTheDocument();
+
+    // também quando o nome é igual à razão social, a linha Razão social aparece no painel
+    await user.click(screen.getByRole("button", { name: "Mercado Ltda" }));
+    expect(within(painel()).getByRole("heading", { level: 2, name: "Mercado Ltda" })).toBeInTheDocument();
+    expect(within(painel()).getByText("Razão social").nextElementSibling).toHaveTextContent("Mercado Ltda");
+
+    // busca acha pela razão social e pelo nome de exibição
+    const busca = screen.getByRole("searchbox", { name: "Buscar por razão social ou CNPJ" });
+    await user.type(busca, "Padaria");
+    expect(screen.getAllByRole("row")).toHaveLength(2);
+    expect(screen.getByRole("button", { name: "Aconchego" })).toBeInTheDocument();
+    await user.clear(busca);
+    await user.type(busca, "aconch");
+    expect(screen.getAllByRole("row")).toHaveLength(2);
+    expect(screen.getByRole("button", { name: "Aconchego" })).toBeInTheDocument();
+  });
+
+  it.each<Papel>(["admin", "gestor"])("%s vê Editar nome quando o backend manda nomeExibicao", (papel) => {
+    montar({ papel, empresas: COM_NOME });
+
+    expect(within(painel()).getByRole("button", { name: "Editar nome" })).toBeInTheDocument();
+  });
+
+  it("o analista não vê Editar nome", () => {
+    montar({ papel: "analista", empresas: COM_NOME });
+
+    expect(within(painel()).queryByRole("button", { name: "Editar nome" })).not.toBeInTheDocument();
+  });
+
+  it("sem a chave nomeExibicao (backend antigo), ninguém vê Editar nome", () => {
+    montar({ papel: "admin", empresas: [A, B] });
+
+    expect(within(painel()).queryByRole("button", { name: "Editar nome" })).not.toBeInTheDocument();
+  });
+
+  it("salvar manda o nome, atualiza na tabela e no painel (mantendo favorita e mês), fecha o formulário e chama router.refresh()", async () => {
+    editarNomeDeExibicao.mockResolvedValue({
+      ok: true,
+      dados: { ...B, nome: "Mercadão", nomeExibicao: "Mercadão" },
+    });
+    const user = userEvent.setup();
+    montar({ papel: "gestor", empresas: COM_NOME });
+
+    await user.click(screen.getByRole("button", { name: "Mercado Ltda" }));
+    await user.click(within(painel()).getByRole("button", { name: "Editar nome" }));
+
+    const campo = within(painel()).getByLabelText("Nome de exibição");
+    expect(campo).toHaveValue("Mercado Ltda");
+    expect(campo).toHaveAttribute("maxLength", "120");
+    // nomeExibicao é null: não oferece Voltar à razão social
+    expect(within(painel()).queryByRole("button", { name: "Voltar à razão social" })).not.toBeInTheDocument();
+
+    await user.clear(campo);
+    await user.type(campo, "Mercadão");
+    await user.click(within(painel()).getByRole("button", { name: "Salvar" }));
+
+    await waitFor(() => expect(within(painel()).queryByRole("form", { name: "Editar nome de exibição" })).not.toBeInTheDocument());
+    expect(editarNomeDeExibicao).toHaveBeenCalledWith(B.id, "Mercadão");
+    expect(router.refresh).toHaveBeenCalledTimes(1);
+    expect(within(painel()).getByRole("heading", { level: 2, name: "Mercadão" })).toBeInTheDocument();
+    expect(within(linhaDe(/Mercadão/)).getByText("Mês em aberto")).toBeInTheDocument();
+  });
+
+  it("Voltar à razão social só aparece com nomeExibicao não nulo, manda null e atualiza a tela", async () => {
+    editarNomeDeExibicao.mockResolvedValue({
+      ok: true,
+      dados: { ...A, nome: "Padaria Ltda", nomeExibicao: null },
+    });
+    const user = userEvent.setup();
+    montar({ empresas: COM_NOME });
+
+    await user.click(within(painel()).getByRole("button", { name: "Editar nome" }));
+    expect(within(painel()).getByLabelText("Nome de exibição")).toHaveValue("Aconchego");
+    await user.click(within(painel()).getByRole("button", { name: "Voltar à razão social" }));
+
+    await waitFor(() => expect(within(painel()).queryByRole("form", { name: "Editar nome de exibição" })).not.toBeInTheDocument());
+    expect(editarNomeDeExibicao).toHaveBeenCalledWith(A.id, null);
+    expect(router.refresh).toHaveBeenCalledTimes(1);
+    expect(within(painel()).getByRole("heading", { level: 2, name: "Padaria Ltda" })).toBeInTheDocument();
+  });
+
+  it("dois envios no mesmo instante chamam a ação uma vez só, e um erro aparece na linha do formulário", async () => {
+    let concluir!: (resposta: unknown) => void;
+    editarNomeDeExibicao.mockReturnValueOnce(new Promise((resolve) => (concluir = resolve)));
+    const user = userEvent.setup();
+    montar({ empresas: COM_NOME });
+
+    await user.click(within(painel()).getByRole("button", { name: "Editar nome" }));
+    const form = within(painel()).getByRole("form", { name: "Editar nome de exibição" }) as HTMLFormElement;
+
+    act(() => {
+      form.requestSubmit();
+      form.requestSubmit();
+    });
+
+    expect(editarNomeDeExibicao).toHaveBeenCalledTimes(1);
+    expect(within(form).getByRole("button", { name: "Salvando…" })).toBeDisabled();
+
+    await act(async () => concluir({ ok: false, status: 422, erro: "O nome pode ter até 120 caracteres." }));
+    expect(within(form).getByRole("alert")).toHaveTextContent("O nome pode ter até 120 caracteres.");
+    expect(router.refresh).not.toHaveBeenCalled();
+
+    await user.click(within(form).getByRole("button", { name: "Cancelar" }));
+    expect(within(painel()).queryByRole("form", { name: "Editar nome de exibição" })).not.toBeInTheDocument();
+    // o foco volta ao botão que abriu o formulário, não cai no body
+    expect(within(painel()).getByRole("button", { name: "Editar nome" })).toHaveFocus();
+  });
+
+  it("sessão vencida (401) ao editar manda para o login; trocar de empresa fecha o formulário", async () => {
+    editarNomeDeExibicao.mockResolvedValue({ ok: false, status: 401, erro: "Sua sessão expirou." });
+    const user = userEvent.setup();
+    montar({ empresas: COM_NOME });
+
+    await user.click(within(painel()).getByRole("button", { name: "Editar nome" }));
+    await user.click(screen.getByRole("button", { name: "Mercado Ltda" }));
+    expect(within(painel()).queryByRole("form", { name: "Editar nome de exibição" })).not.toBeInTheDocument();
+
+    await user.click(within(painel()).getByRole("button", { name: "Editar nome" }));
+    await user.click(within(painel()).getByRole("button", { name: "Salvar" }));
+    await waitFor(() => expect(router.push).toHaveBeenCalledWith("/login"));
   });
 });

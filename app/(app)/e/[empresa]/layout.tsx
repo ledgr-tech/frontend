@@ -50,7 +50,7 @@ export default async function AppLayout({
       <Shell
         email={sessao.user.email}
         nome={conta.nome}
-        empresa={ativa.razaoSocial}
+        empresa={ativa.nome}
         nomeDaConta={conta.empresa}
         temSenha={conta.temSenha}
         papel={conta.papel}

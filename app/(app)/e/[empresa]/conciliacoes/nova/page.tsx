@@ -512,7 +512,7 @@ function NovaConciliacao() {
             {/* num escritório com várias empresas, quem concilia confere para qual está enviando */}
             {empresas.length > 1 && empresaAtiva && (
               <p className="nova-empresa">
-                Conciliando para <strong>{empresaAtiva.razaoSocial}</strong>
+                Conciliando para <strong>{empresaAtiva.nome}</strong>
               </p>
             )}
             {/* as folhas de Conciliações, em pé, são as áreas de soltar: o banco na frente, o sistema

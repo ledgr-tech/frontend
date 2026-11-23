@@ -234,7 +234,7 @@ function CriarChave({
         >
           {empresas.map((empresa) => (
             <option key={empresa.id} value={empresa.id}>
-              {empresa.razaoSocial}
+              {empresa.nome}
             </option>
           ))}
           <option value="conta">Todas as empresas do escritório</option>

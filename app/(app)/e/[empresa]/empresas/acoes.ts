@@ -3,18 +3,23 @@
 import { adaptarEmpresaCliente, type EmpresaCliente, type EmpresaClienteAPI } from "@/lib/adaptadores";
 import { ErroBackend, chamarBackend, ehContaInativa, emailDaSessao } from "@/lib/backend";
 import { RECUSA_DEMONSTRACAO, ehContaDeDemonstracao } from "@/lib/demo";
+import { podeFecharMes, recusaPorPapel } from "@/lib/papel";
 import { ehUuid } from "@/lib/rotas";
+import { contaDaSessao } from "../../../../(auth)/acoes";
 import { caracteresCnpj, validarCnpj } from "../../../../(auth)/cadastro/passos";
 import type { Falha, Resultado } from "../conciliacoes/acoes";
 import { SEM_SERVIDOR } from "@/lib/sem-servidor";
 
 /**
  * As empresas clientes da conta (backend #133, parte 2; spec 2026-10-22-empresas-na-configuracao): todo
- * mundo vê a lista, admin e gestor cadastram. As rotas são da conta e ignoram a empresa ativa. O backend
- * garante cada regra (403, 409, 402, 429, a Receita no 422); a tela só mostra o que ele responde.
+ * mundo vê a lista, admin e gestor cadastram e editam o nome de exibição (backend #236). As rotas são da
+ * conta e ignoram a empresa ativa. O backend garante cada regra (403, 409, 402, 429, a Receita no 422);
+ * a tela só mostra o que ele responde.
  */
 
 const SESSAO_EXPIRADA = "Sua sessão expirou. Entre de novo para continuar.";
+const PAPEL_NEGADO = "Seu papel no escritório não permite fazer isso.";
+const LIMITE_NOME_EXIBICAO = 120;
 
 function limiteDeCadastros(segundos: number | undefined): string {
   if (!segundos) return "Muitos cadastros seguidos. Tente de novo mais tarde.";
@@ -22,16 +27,24 @@ function limiteDeCadastros(segundos: number | undefined): string {
   return `Muitos cadastros seguidos. Tente de novo em ${minutos} ${minutos === 1 ? "minuto" : "minutos"}.`;
 }
 
+function limiteDeTentativas(segundos: number | undefined): string {
+  if (!segundos) return "Muitas tentativas. Tente de novo mais tarde.";
+  const minutos = Math.ceil(segundos / 60);
+  return `Muitas tentativas. Tente de novo em ${minutos} ${minutos === 1 ? "minuto" : "minutos"}.`;
+}
+
 /** Os textos que o backend não dá prontos; o resto vai com o `detail` dele, que já explica bem. */
-function traduzir(erro: unknown, aoCadastrar = false): Falha {
+function traduzir(erro: unknown, contexto: "geral" | "cadastro" | "edicao" = "geral"): Falha {
   if (!(erro instanceof ErroBackend)) {
     return { ok: false, status: 0, erro: SEM_SERVIDOR };
   }
   const { status } = erro;
   if (status === 401) return { ok: false, status, erro: SESSAO_EXPIRADA };
-  if (status === 403 && !ehContaInativa(erro)) return { ok: false, status, erro: "Seu papel no escritório não permite fazer isso." };
+  if (status === 403 && !ehContaInativa(erro)) return { ok: false, status, erro: PAPEL_NEGADO };
+  const aoCadastrar = contexto === "cadastro";
   if (aoCadastrar && status === 409) return { ok: false, status, erro: "Esta empresa já está cadastrada no escritório." };
   if (aoCadastrar && status === 429) return { ok: false, status, erro: limiteDeCadastros(erro.segundosParaTentar) };
+  if (contexto === "edicao" && status === 429) return { ok: false, status, erro: limiteDeTentativas(erro.segundosParaTentar) };
   if (aoCadastrar && status === 422 && erro.mensagens.cnpj) {
     // a recusa de formato vem como "Value error, CNPJ inválido"; a da Receita já vem sem o prefixo
     return { ok: false, status, erro: erro.mensagens.cnpj.replace(/^Value error, /, "") };
@@ -103,6 +116,40 @@ export async function cadastrarEmpresa(cnpj: string, razaoSocial: string): Promi
     });
     return { ok: true, dados: adaptarEmpresaCliente(criada) };
   } catch (erro) {
-    return traduzir(erro, true);
+    return traduzir(erro, "cadastro");
+  }
+}
+
+/**
+ * Muda ou apaga o nome de exibição de uma empresa (`PATCH /empresas/{id}`, backend #236): só admin e gestor.
+ * Vazio, só espaços ou null voltam a mostrar a razão social. O analista e a conta de demonstração são
+ * recusados antes do backend.
+ */
+export async function editarNomeDeExibicao(
+  empresaId: string,
+  nome: string | null,
+): Promise<Resultado<EmpresaCliente>> {
+  if (typeof empresaId !== "string" || !ehUuid(empresaId)) {
+    return { ok: false, status: 422, erro: "Empresa inválida." };
+  }
+  if (nome !== null && typeof nome !== "string") {
+    return { ok: false, status: 422, erro: "O nome pode ter até 120 caracteres." };
+  }
+  const aparado = nome === null ? "" : nome.trim();
+  if (aparado.length > LIMITE_NOME_EXIBICAO) {
+    return { ok: false, status: 422, erro: "O nome pode ter até 120 caracteres." };
+  }
+  const porPapel = recusaPorPapel(await contaDaSessao(), podeFecharMes, PAPEL_NEGADO);
+  if (porPapel) return porPapel;
+  const recusa = await recusaNaDemonstracao();
+  if (recusa) return recusa;
+  try {
+    const atualizada = await chamarBackend<EmpresaClienteAPI>(`/empresas/${encodeURIComponent(empresaId)}`, {
+      method: "PATCH",
+      corpo: { nome_exibicao: aparado || null },
+    });
+    return { ok: true, dados: adaptarEmpresaCliente(atualizada) };
+  } catch (erro) {
+    return traduzir(erro, "edicao");
   }
 }

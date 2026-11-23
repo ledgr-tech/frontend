@@ -597,8 +597,8 @@ describe("BarraSuperior", () => {
     });
 
     it("trocar de empresa refaz a busca e descarta a resposta da empresa anterior", async () => {
-      const A = { id: "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20", razaoSocial: "Alfa", cnpj: "11222333000181" };
-      const B = { ...A, id: "7a2b9c4d-1e3f-4a5b-8c6d-9e0f1a2b3c4d", razaoSocial: "Beta" };
+      const A = { id: "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20", razaoSocial: "Alfa", nome: "Alfa", cnpj: "11222333000181" };
+      const B = { ...A, id: "7a2b9c4d-1e3f-4a5b-8c6d-9e0f1a2b3c4d", razaoSocial: "Beta", nome: "Beta" };
       let antiga!: (resposta: Resultado<PaginaDaBusca>) => void;
       buscarLancamentos
         .mockReturnValueOnce(new Promise((resolve) => { antiga = resolve; }))
@@ -736,8 +736,8 @@ describe("BarraSuperior", () => {
   });
 
   it("guarda os avisos lidos de cada empresa sem apagar os das outras", async () => {
-    const A = { id: "emp-a", razaoSocial: "Alfa Ltda", cnpj: "11222333000181" };
-    const B = { id: "emp-b", razaoSocial: "Beta Ltda", cnpj: "11444777000161" };
+    const A = { id: "emp-a", razaoSocial: "Alfa Ltda", nome: "Alfa Ltda", cnpj: "11222333000181" };
+    const B = { id: "emp-b", razaoSocial: "Beta Ltda", nome: "Beta Ltda", cnpj: "11444777000161" };
     const visaoDe = (idExecucao: string): VisaoGeral => ({
       ...VISAO,
       execucoes: [{ ...EXECUCAO, id: idExecucao }],

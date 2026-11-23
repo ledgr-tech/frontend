@@ -15,8 +15,8 @@ vi.mock("./acoes", () => ({
   revogarChaveApi: (id: string) => revogarChaveApi(id),
 }));
 
-const TELHA = { id: "e-telha", razaoSocial: "Telha Certa Ltda", cnpj: "11222333000181" };
-const OBRA = { id: "e-obra", razaoSocial: "Obra Firme Ltda", cnpj: "11444777000161" };
+const TELHA = { id: "e-telha", razaoSocial: "Telha Certa Ltda", nome: "Telha Certa", cnpj: "11222333000181" };
+const OBRA = { id: "e-obra", razaoSocial: "Obra Firme Ltda", nome: "Obra Firme Ltda", cnpj: "11444777000161" };
 
 const chave: ChaveApi = {
   id: "k1",
@@ -66,7 +66,9 @@ describe("PainelDeChavesApi", () => {
     abrir();
 
     await user.click(await screen.findByRole("button", { name: "Criar chave" }));
-    expect(screen.getByLabelText("Empresas que a chave lê")).toHaveValue(TELHA.id);
+    const escopo = screen.getByLabelText("Empresas que a chave lê");
+    expect(escopo).toHaveValue(TELHA.id);
+    expect(within(escopo).getByRole("option", { name: "Telha Certa" })).toBeInTheDocument();
     await user.type(screen.getByLabelText("Nome"), "Power BI");
     await user.click(screen.getByRole("button", { name: "Criar chave" }));
 

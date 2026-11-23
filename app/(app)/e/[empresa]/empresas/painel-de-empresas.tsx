@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useRef, useState } from "react";
+import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { Star } from "lucide-react";
 import type { EmpresaCliente, SituacaoDaEmpresa } from "@/lib/adaptadores";
 import { useEmpresaAtiva } from "@/lib/empresa-ativa";
@@ -10,13 +10,17 @@ import { situacaoDoLimite, textoDoLimite } from "@/lib/limites";
 import { podeConvidar } from "@/lib/papel";
 import { comEmpresa } from "@/lib/rotas";
 import { useRoteador } from "@/lib/roteador";
+import { SEM_SERVIDOR } from "@/lib/sem-servidor";
+import { MensagemErro } from "../../../../(auth)/_compartilhado/mensagem-erro";
 import { formatarCnpj } from "../../../../(auth)/cadastro/passos";
 import { Cabecalho } from "../cabecalho";
-import { useCobranca, useLimites, usePapel } from "../conta";
+import type { Resultado } from "../conciliacoes/acoes";
+import { useCobranca, useLimites, usePapel, usePodeFechar } from "../conta";
 import { formatarDataHora } from "../dashboard/resumo";
 import { FaixaFiltros } from "../faixa-filtros";
 import { mostrarPreviaDoEscolhido } from "../grupo";
 import { SITUACAO, combina, useFavoritaOtimista } from "../seletor-de-empresa";
+import { editarNomeDeExibicao } from "./acoes";
 import { CadastrarEmpresa } from "./cadastrar-empresa";
 import { ModalDaTela } from "./modal-da-tela";
 import { FaixaDoPlano } from "./faixa-do-plano";
@@ -55,12 +59,12 @@ function contagem(usadas: number, maximo: number | null): string {
   return maximo === null ? `${usadas} ${empresas}` : `${usadas} de ${maximo} ${empresas}`;
 }
 
-/** As favoritas primeiro; dentro de cada grupo, pela razão social. */
+/** As favoritas primeiro; dentro de cada grupo, pelo nome mostrado. */
 function emOrdem(empresas: EmpresaCliente[]): EmpresaCliente[] {
   return [...empresas].sort(
     (a, b) =>
       Number(Boolean(b.favorita)) - Number(Boolean(a.favorita)) ||
-      a.razaoSocial.localeCompare(b.razaoSocial, "pt-BR", { sensitivity: "base" }),
+      a.nome.localeCompare(b.nome, "pt-BR", { sensitivity: "base" }),
   );
 }
 
@@ -126,6 +130,13 @@ export function PainelDeEmpresas({ empresas: daPagina }: { empresas: EmpresaClie
       (valor) => setEmpresas((atuais) => atuais.map((outra) => (outra.id === empresa.id ? { ...outra, favorita: valor } : outra))),
       setErroDaFavorita,
     );
+  }
+
+  function atualizarEmpresa(atualizada: EmpresaCliente) {
+    // fixa a escolhida: se o novo nome a tirou do primeiro lugar da ordem, o painel continua nela
+    setEscolhida(atualizada.id);
+    // o PATCH devolve o cadastro sem `favorita` nem `situacao`; mesclar mantém os campos da lista
+    setEmpresas((atuais) => atuais.map((outra) => (outra.id === atualizada.id ? { ...outra, ...atualizada } : outra)));
   }
 
   const acao =
@@ -260,7 +271,7 @@ export function PainelDeEmpresas({ empresas: daPagina }: { empresas: EmpresaClie
                                   escolher(empresa.id, evento.detail === 0);
                                 }}
                               >
-                                {empresa.razaoSocial}
+                                {empresa.nome}
                               </button>
                               {empresa.id === ativa?.id && <span className="tag tag-accent">Ativa</span>}
                             </span>
@@ -292,6 +303,7 @@ export function PainelDeEmpresas({ empresas: daPagina }: { empresas: EmpresaClie
                 ativa={atual.id === ativa?.id}
                 aoAbrir={() => abrir(atual)}
                 aoAlternarFavorita={() => void alternarFavorita(atual)}
+                aoAtualizar={atualizarEmpresa}
               />
             </div>
           )}
@@ -317,7 +329,7 @@ function Estrela({ empresa, aoAlternar }: { empresa: EmpresaCliente; aoAlternar:
       type="button"
       className="empresas-estrela"
       aria-pressed={favorita}
-      aria-label={favorita ? `Tirar ${empresa.razaoSocial} das favoritas` : `Marcar ${empresa.razaoSocial} como favorita`}
+      aria-label={favorita ? `Tirar ${empresa.nome} das favoritas` : `Marcar ${empresa.nome} como favorita`}
       onClick={(evento) => {
         // a estrela não escolhe a linha por baixo dela
         evento.stopPropagation();
@@ -336,18 +348,22 @@ function PreviaDaEmpresa({
   ativa,
   aoAbrir,
   aoAlternarFavorita,
+  aoAtualizar,
 }: {
   ref: React.Ref<HTMLElement>;
   empresa: EmpresaCliente;
   ativa: boolean;
   aoAbrir: () => void;
   aoAlternarFavorita: () => void;
+  aoAtualizar: (empresa: EmpresaCliente) => void;
 }) {
   return (
     <aside ref={ref} className="conc-previa" aria-label="Empresa escolhida" aria-live="polite" data-tutorial="previa">
       <span className="rotulo">{ativa ? "Empresa cliente · aberta agora" : "Empresa cliente"}</span>
-      <h2 className="conc-previa-titulo" tabIndex={-1}>{empresa.razaoSocial}</h2>
+      <h2 className="conc-previa-titulo" tabIndex={-1}>{empresa.nome}</h2>
       <dl className="conc-previa-dados">
+        <dt>Razão social</dt>
+        <dd>{empresa.razaoSocial}</dd>
         <dt>CNPJ</dt>
         <dd>{formatarCnpj(empresa.cnpj)}</dd>
         <dt>Na Receita</dt>
@@ -364,16 +380,147 @@ function PreviaDaEmpresa({
           </>
         )}
       </dl>
+      <AcoesDaPrevia
+        key={empresa.id}
+        empresa={empresa}
+        ativa={ativa}
+        aoAbrir={aoAbrir}
+        aoAlternarFavorita={aoAlternarFavorita}
+        aoAtualizar={aoAtualizar}
+      />
+    </aside>
+  );
+}
+
+function AcoesDaPrevia({
+  empresa,
+  ativa,
+  aoAbrir,
+  aoAlternarFavorita,
+  aoAtualizar,
+}: {
+  empresa: EmpresaCliente;
+  ativa: boolean;
+  aoAbrir: () => void;
+  aoAlternarFavorita: () => void;
+  aoAtualizar: (empresa: EmpresaCliente) => void;
+}) {
+  const router = useRoteador();
+  // só com o backend #236 (`nomeExibicao` presente) e só para admin e gestor
+  const podeEditarNome = usePodeFechar() && empresa.nomeExibicao !== undefined;
+  const [editando, setEditando] = useState(false);
+  const [valor, setValor] = useState(empresa.nome);
+  const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+  const emCurso = useRef(false);
+  // o formulário some ao salvar ou cancelar, com o foco dentro: ele volta ao "Editar nome"
+  const botaoEditar = useRef<HTMLButtonElement>(null);
+  const devolverFoco = useRef(false);
+  useEffect(() => {
+    if (!editando && devolverFoco.current) {
+      devolverFoco.current = false;
+      botaoEditar.current?.focus();
+    }
+  }, [editando]);
+  const campoId = useId();
+  const erroId = useId();
+
+  function abrirEdicao() {
+    setValor(empresa.nome);
+    setErro(null);
+    setEditando(true);
+  }
+
+  function cancelar() {
+    devolverFoco.current = true;
+    setEditando(false);
+    setErro(null);
+  }
+
+  async function gravar(novoNome: string | null) {
+    if (emCurso.current) return;
+    if (novoNome !== null && novoNome.trim().length > 120) {
+      setErro("O nome pode ter até 120 caracteres.");
+      return;
+    }
+    emCurso.current = true;
+    setEnviando(true);
+    setErro(null);
+    const resposta = await editarNomeDeExibicao(empresa.id, novoNome).catch(
+      (): Resultado<EmpresaCliente> => ({ ok: false, status: 0, erro: SEM_SERVIDOR }),
+    );
+    emCurso.current = false;
+    setEnviando(false);
+    if (resposta.ok) {
+      aoAtualizar(resposta.dados);
+      devolverFoco.current = true;
+      setEditando(false);
+      router.refresh();
+      return;
+    }
+    if (resposta.status === 401) {
+      router.push("/login");
+      return;
+    }
+    setErro(resposta.erro);
+    if (resposta.status === 403) router.refresh();
+  }
+
+  function enviar(evento: FormEvent) {
+    evento.preventDefault();
+    void gravar(valor);
+  }
+
+  return (
+    <>
+      {editando && podeEditarNome && (
+        <form className="empresas-form" onSubmit={enviar} noValidate aria-label="Editar nome de exibição">
+          <div className="field">
+            <label htmlFor={campoId}>Nome de exibição</label>
+            <input
+              id={campoId}
+              className="input"
+              autoComplete="off"
+              maxLength={120}
+              autoFocus
+              value={valor}
+              disabled={enviando}
+              aria-invalid={erro ? true : undefined}
+              aria-describedby={erro ? erroId : undefined}
+              onChange={(evento) => setValor(evento.target.value)}
+            />
+            {erro && <MensagemErro id={erroId}>{erro}</MensagemErro>}
+          </div>
+          <div className="empresas-form-botoes">
+            <button type="submit" className="btn btn-primary" disabled={enviando}>
+              {enviando ? "Salvando…" : "Salvar"}
+            </button>
+            <button type="button" className="btn btn-secondary" disabled={enviando} onClick={cancelar}>
+              Cancelar
+            </button>
+            {empresa.nomeExibicao !== null && (
+              <button type="button" className="btn btn-ghost" disabled={enviando} onClick={() => void gravar(null)}>
+                Voltar à razão social
+              </button>
+            )}
+          </div>
+        </form>
+      )}
       <div className="conc-previa-acoes">
         <button type="button" className="btn btn-primary" onClick={aoAbrir}>
           {ativa ? "Ir para a Visão geral" : "Abrir esta empresa"}
         </button>
+        {podeEditarNome && !editando && (
+          <button ref={botaoEditar} type="button" className="btn btn-secondary" onClick={abrirEdicao}>
+            Editar nome
+          </button>
+        )}
         {empresa.favorita !== undefined && (
           <button type="button" className="btn btn-secondary" aria-pressed={empresa.favorita} onClick={aoAlternarFavorita}>
             {empresa.favorita ? "Tirar das favoritas" : "Marcar como favorita"}
           </button>
         )}
       </div>
-    </aside>
+    </>
   );
 }
