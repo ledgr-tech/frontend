@@ -25,6 +25,7 @@ import { ExplicacaoDaDivergencia } from "./explicacao";
 import { DetalhesDaLinha } from "./detalhes-da-divergencia";
 import { historicoDaLinha, rotuloComDecisao, situacaoDaLinha } from "../situacao";
 import { aguardaAprovacao, estaJustificada } from "@/lib/aprovacao";
+import { juntoComOutras } from "../cartao-lancamento";
 import { parDoOutroLado } from "../par";
 import { cabecalhoDoGrupo } from "../grupos";
 import { Cabecalho } from "../../../cabecalho";
@@ -284,6 +285,8 @@ export function DetalheDivergencia({ painel = false }: { painel?: boolean }) {
             diverge={!estaResolvida(linha.status)}
           />
         </Reveal>
+        {/* justificada num lote (backend #237): a linha diz que não foi sozinha */}
+        {(justificada || aguardando) && juntoComOutras(linha.decisao) && <p className="vg-nota">{juntoComOutras(linha.decisao)}</p>}
 
         {/* Com dado do backend, a linha chega com o porquê: a regra que casou ou,
             quando o backend gerar na conciliação (backend#28), a explicação da

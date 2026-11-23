@@ -124,7 +124,7 @@ const OUTRAS_BATIDAS: LinhaExtrato[] = [
   { data: "10/08", desc: "Honorários contábeis", valorBanco: "R$ 2.400,00", valorSistema: "R$ 2.400,00", ...BATIDA },
   { data: "12/08", desc: "Simples Nacional", valorBanco: "R$ 3.862,17", valorSistema: "R$ 3.862,17", ...BATIDA },
 ];
-// o saldo do extrato de agosto inteiro (o painel da comparação mostra o do arquivo, não o do trecho)
+// o saldo do extrato de agosto inteiro (a coluna do banco mostra o do arquivo, não o do trecho)
 const SALDO_DE_AGOSTO = { inicial: 52380.47, final: 61904.12, data: "2026-08-31" };
 
 // As três dores do Cap. II, uma por número nas telas, com os números dos próprios lançamentos: a

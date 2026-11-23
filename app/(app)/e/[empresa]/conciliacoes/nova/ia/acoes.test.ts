@@ -3,6 +3,7 @@ import { ErroBackend } from "@/lib/backend";
 import {
   acrescentarLinhaAoRascunho,
   carregarPromptIa,
+  carregarRascunho,
   concluirNovaVersaoIa,
   corrigirLinhaDoRascunho,
   importarViaIa,
@@ -191,6 +192,36 @@ describe("nova versão da importação por IA", () => {
 
     expect(await concluirNovaVersaoIa(contexto, novo, true)).toMatchObject({ ok: false, status: 503 });
     expect(chamarBackend.mock.calls.map(([rota]) => rota)).toEqual([listar, listar.replace("offset=0", "offset=100")]);
+  });
+});
+
+describe("saldo opcional no resumo do rascunho", () => {
+  const id = "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20";
+  const linhaId = "ea0a9f44-d4d2-4d65-93bf-8494eb235a94";
+  const lancamento = { id: linhaId, numero: 1, data: "2026-10-01", valor: "10.00", descricao: "Recebimento" };
+  const resumoApi = { quantidade: 1, total_entradas: "10.00", total_saidas: "0.00", periodo_inicio: "2026-10-01", periodo_fim: "2026-10-01", expira_em: "2026-11-10T12:00:00Z" };
+  const resumoEsperado = { quantidade: 1, totalEntradas: "10.00", totalSaidas: "0.00", periodoInicio: "2026-10-01", periodoFim: "2026-10-01", expiraEm: "2026-11-10T12:00:00Z" };
+
+  beforeEach(() => chamarBackend.mockReset());
+
+  it.each([
+    { nome: "backend antigo", campos: {}, esperado: {} },
+    { nome: "arquivo sem saldo", campos: { saldo_final: null, saldo_data: null }, esperado: { saldoFinal: null, saldoData: null } },
+    { nome: "saldo zero", campos: { saldo_final: "0.00", saldo_data: "2026-10-01" }, esperado: { saldoFinal: "0.00", saldoData: "2026-10-01" } },
+    { nome: "saldo negativo", campos: { saldo_final: "-250.75", saldo_data: "2026-10-01" }, esperado: { saldoFinal: "-250.75", saldoData: "2026-10-01" } },
+  ])("preserva presença e valor dos campos: $nome", async ({ campos, esperado }) => {
+    chamarBackend.mockResolvedValue({ importacao_id: id, resumo: { ...resumoApi, ...campos }, total: 1, itens: [lancamento] });
+    const resultado = await carregarRascunho(id);
+    expect(resultado.ok && resultado.dados.resumo).toEqual({ ...resumoEsperado, ...esperado });
+  });
+
+  it("mantém o saldo recebido também ao corrigir e acrescentar linhas", async () => {
+    chamarBackend.mockResolvedValue({ lancamento, resumo: { ...resumoApi, saldo_final: "1234.56", saldo_data: "2026-10-01" } });
+    const campos = { data: "2026-10-01", valor: "10.00", descricao: "Recebimento" };
+    const resultados = [await corrigirLinhaDoRascunho(id, linhaId, campos), await acrescentarLinhaAoRascunho(id, campos)];
+    for (const resultado of resultados) {
+      expect(resultado.ok && resultado.dados.resumo).toMatchObject({ saldoFinal: "1234.56", saldoData: "2026-10-01" });
+    }
   });
 });
 

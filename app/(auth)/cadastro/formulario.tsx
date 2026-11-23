@@ -74,6 +74,8 @@ const ERRO_GERAL = {
   google_expirado: "A confirmação do Google venceu. Entre com o Google de novo para concluir.",
   google_ja_cadastrado: "Já existe uma conta no Ledgr para esta conta Google. Entre pelo login.",
   google_indisponivel: "O cadastro pelo Google está indisponível agora. Tente de novo em instantes.",
+  // a action nem chegou ao servidor (rede, ou deploy novo, que só recarregar resolve): recarregar apaga o preenchido
+  sem_resposta: "Não foi possível concluir o cadastro. Tente de novo em instantes. Se não der, recarregue a página e preencha de novo.",
 };
 
 function validarCampo(campo: CampoCadastro, valor: string): string | undefined {
@@ -96,6 +98,7 @@ export function FormularioCadastro({ google }: PropsCadastro) {
   const passos = google ? PASSOS_GOOGLE : PASSOS;
   const [indicePasso, setIndicePasso] = useState(0);
   const [valores, setValores] = useState<Valores>(() => (google ? { nome: google.nome, email: google.email } : ({} as Valores)));
+  const valoresAtuais = useRef(valores);
   // o id_token do Google venceu: o erro geral oferece passar pelo Google de novo
   const [googleVenceu, setGoogleVenceu] = useState(false);
   const [erros, setErros] = useState<Erros>({});
@@ -118,6 +121,7 @@ export function FormularioCadastro({ google }: PropsCadastro) {
   const botaoSugestao = useRef<HTMLButtonElement>(null);
   // e-mail e CNPJ cuja conferência só parou para mostrar a sugestão: o próximo "Continuar" segue sem conferir de novo
   const sugestaoOferecida = useRef<string | null>(null);
+  const chaveAtual = useRef("");
   // a cidade e o estado que a Receita preencheu: o passo para uma vez com este aviso
   const [avisoReceita, setAvisoReceita] = useState<string | null>(null);
 
@@ -153,7 +157,14 @@ export function FormularioCadastro({ google }: PropsCadastro) {
   }, [sugestaoRazao]);
 
   function alterar(id: string, valor: string) {
-    setValores((atual) => ({ ...atual, [id]: valor }));
+    const atualizados = { ...valoresAtuais.current, [id]: valor };
+    valoresAtuais.current = atualizados;
+    setValores(atualizados);
+    if (id === "email" || id === "cnpj") {
+      const email = (valoresAtuais.current.email ?? "").trim();
+      const cnpj = valoresAtuais.current.cnpj ?? "";
+      chaveAtual.current = `${email}|${cnpj}`;
+    }
     // a sugestão vale para o CNPJ conferido e some quando a pessoa digita a mesma razão social
     if (sugestaoRazao && (id === "cnpj" || (id === "razaoSocial" && normalizarRazao(valor) === normalizarRazao(sugestaoRazao)))) {
       setSugestaoRazao(null);
@@ -196,9 +207,10 @@ export function FormularioCadastro({ google }: PropsCadastro) {
    * resposta, segue: o `/register` confere tudo de novo no fim.
    */
   async function livres(): Promise<boolean> {
-    const email = (valores.email ?? "").trim();
-    const cnpj = valores.cnpj ?? "";
+    const email = (valoresAtuais.current.email ?? "").trim();
+    const cnpj = valoresAtuais.current.cnpj ?? "";
     const chave = `${email}|${cnpj}`;
+    chaveAtual.current = chave;
     if (sugestaoOferecida.current === chave) return cobrarAposVerificar({}, chave);
     setVerificando(true);
     let resultado: ResultadoVerificacao;
@@ -208,6 +220,15 @@ export function FormularioCadastro({ google }: PropsCadastro) {
       resultado = { ok: false, erro: "indisponivel" };
     }
     setVerificando(false);
+    if (chaveAtual.current !== chave) {
+      // o CNPJ mudou durante a espera: só o atual pode avançar, com os campos ainda válidos
+      const novos = errosDoPasso();
+      if (Object.keys(novos).length > 0) {
+        voltarAoCampo(novos);
+        return false;
+      }
+      return livres();
+    }
     if (resultado.ok) {
       const novos: Erros = {};
       if (!resultado.emailDisponivel) novos.email = JA_CADASTRADO.email_cadastrado.mensagem;
@@ -221,7 +242,7 @@ export function FormularioCadastro({ google }: PropsCadastro) {
       }
       const preenchidos = preencherPelaReceita(resultado.cidadeReceita, resultado.ufReceita);
       const daReceita = resultado.cnpjSituacao === "ativa" ? resultado.razaoSocialReceita : null;
-      if (daReceita && normalizarRazao(daReceita) !== normalizarRazao(valores.razaoSocial ?? "")) {
+      if (daReceita && normalizarRazao(daReceita) !== normalizarRazao(valoresAtuais.current.razaoSocial ?? "")) {
         // para uma vez no passo para mostrar a sugestão; seguir com a razão digitada continua valendo
         sugestaoOferecida.current = chave;
         setSugestaoRazao(daReceita);
@@ -239,10 +260,12 @@ export function FormularioCadastro({ google }: PropsCadastro) {
   /** Põe a cidade e a UF da Receita (backend #184) só onde a pessoa não escreveu nada; devolve o que pôs. */
   function preencherPelaReceita(cidade: string | null | undefined, uf: string | null | undefined): Valores {
     const preenchidos: Valores = {};
-    if (cidade && !(valores.cidade ?? "").trim()) preenchidos.cidade = cidade;
-    if (uf && !valores.uf) preenchidos.uf = uf;
+    if (cidade && !(valoresAtuais.current.cidade ?? "").trim()) preenchidos.cidade = cidade;
+    if (uf && !valoresAtuais.current.uf) preenchidos.uf = uf;
     if (Object.keys(preenchidos).length > 0) {
-      setValores((atual) => ({ ...atual, ...preenchidos }));
+      const atualizados = { ...valoresAtuais.current, ...preenchidos };
+      valoresAtuais.current = atualizados;
+      setValores(atualizados);
       setAvisoReceita(avisoDaReceita(preenchidos));
     }
     return preenchidos;
@@ -254,7 +277,7 @@ export function FormularioCadastro({ google }: PropsCadastro) {
    * vindo da Receita, o passo para uma vez para a pessoa conferir.
    */
   function cobrarAposVerificar(preenchidos: Valores, chave: string): boolean {
-    const atuais = { ...valores, ...preenchidos };
+    const atuais = { ...valoresAtuais.current, ...preenchidos };
     const novos: Erros = {};
     for (const campo of passo.campos) {
       if (!campo.aposVerificar) continue;
@@ -278,7 +301,7 @@ export function FormularioCadastro({ google }: PropsCadastro) {
   }
 
   async function concluir() {
-    let resultado: ResultadoCadastro;
+    let resultado: ResultadoCadastro | { ok: false; erro: "sem_resposta" };
     const empresa = {
       nome: (valores.nome ?? "").trim(),
       razaoSocial: (valores.razaoSocial ?? "").trim(),
@@ -288,11 +311,11 @@ export function FormularioCadastro({ google }: PropsCadastro) {
     };
     try {
       resultado = google
-        ? await cadastrarComGoogle(empresa)
+        ? await cadastrarComGoogle(empresa, google.email)
         : await cadastrar({ ...empresa, email: (valores.email ?? "").trim(), senha: valores.senha ?? "" });
     } catch {
       // a action nem respondeu (rede, deploy novo no meio)
-      resultado = { ok: false, erro: "falha" };
+      resultado = { ok: false, erro: "sem_resposta" };
     }
     if (resultado.ok) {
       setFase(resultado.entrou ? "abrindo" : "login");
@@ -326,16 +349,21 @@ export function FormularioCadastro({ google }: PropsCadastro) {
     return resto;
   }
 
-  async function avancar() {
-    if (concluindo || verificando) return;
+  function errosDoPasso(): Erros {
     const novos: Erros = {};
     for (const campo of passo.campos) {
-      const valor = valores[campo.id] ?? "";
+      const valor = valoresAtuais.current[campo.id] ?? "";
       // o vazio destes espera a conferência, que pode trazê-los
       if (campo.aposVerificar && !valor.trim()) continue;
       const mensagem = validarCampo(campo, valor);
       if (mensagem) novos[campo.id] = mensagem;
     }
+    return novos;
+  }
+
+  async function avancar() {
+    if (concluindo || verificando) return;
+    const novos = errosDoPasso();
     const invalidos = passo.campos.filter((campo) => novos[campo.id]);
     if (invalidos.length > 0) {
       setErros((atual) => ({ ...errosForaDoPasso(atual), ...novos }));
@@ -359,7 +387,11 @@ export function FormularioCadastro({ google }: PropsCadastro) {
     const proximoPasso = passos[indicePasso + 1];
     // o e-mail do responsável começa igual ao e-mail de acesso
     if (proximoPasso.id === "sistema" && !valores.emailResponsavel) {
-      setValores((atual) => ({ ...atual, emailResponsavel: (atual.email ?? "").trim() }));
+      setValores((atual) => {
+        const atualizados = { ...atual, emailResponsavel: (atual.email ?? "").trim() };
+        valoresAtuais.current = atualizados;
+        return atualizados;
+      });
     }
     setIndicePasso(indicePasso + 1);
   }

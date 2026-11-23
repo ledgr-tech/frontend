@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import CadastroPage from "./page";
 import { FormularioCadastro } from "./formulario";
 import { PASSOS } from "./passos";
+import type { ResultadoVerificacao } from "../acoes";
 
 const push = vi.fn();
 vi.mock("next/navigation", () => ({
@@ -25,7 +26,7 @@ vi.mock("../acoes", () => ({
   verificarCadastro: (...args: unknown[]) => verificarCadastro(...args),
 }));
 
-const LIVRES = {
+const LIVRES: Extract<ResultadoVerificacao, { ok: true }> = {
   ok: true,
   emailDisponivel: true,
   cnpjDisponivel: true,
@@ -444,6 +445,16 @@ describe("CadastroPage", () => {
     expect(push).not.toHaveBeenCalled();
   });
 
+  it("keeps the backend's failure text without asking for a reload", async () => {
+    cadastrar.mockResolvedValue({ ok: false, erro: "falha" });
+    const user = userEvent.setup();
+    render(<CadastroPage />);
+
+    await concluirCadastro(user);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/^Não foi possível concluir o cadastro\. Tente de novo em instantes\.$/);
+  });
+
   it("recovers the form when the server can't be reached", async () => {
     cadastrar.mockRejectedValue(new Error("Failed to fetch"));
     const user = userEvent.setup();
@@ -452,7 +463,7 @@ describe("CadastroPage", () => {
     await concluirCadastro(user);
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Não foi possível concluir o cadastro. Tente de novo em instantes.",
+      "Não foi possível concluir o cadastro. Tente de novo em instantes. Se não der, recarregue a página e preencha de novo.",
     );
     expect(screen.getByRole("button", { name: "Concluir cadastro" })).toBeEnabled();
     // o formulário foi recriado: o foco volta ao botão, e não ao <body> (num efeito: waitFor, como os vizinhos)
@@ -498,6 +509,78 @@ describe("CadastroPage", () => {
       expect(screen.getByRole("button", { name: "Conferindo…" })).toBeDisabled();
       expect(screen.getByRole("button", { name: "Voltar" })).toBeDisabled();
       expect(screen.getByLabelText("CNPJ")).toBeInTheDocument();
+    });
+
+    it("editar o CNPJ durante a conferência descarta o resultado antigo e confere o novo sozinho", async () => {
+      let resolver!: (valor: typeof LIVRES) => void;
+      let resolverNova!: (valor: typeof LIVRES) => void;
+      verificarCadastro
+        .mockReturnValueOnce(new Promise((resolve) => { resolver = resolve; }))
+        .mockReturnValueOnce(new Promise((resolve) => { resolverNova = resolve; }));
+      const user = userEvent.setup();
+      render(<CadastroPage />);
+
+      await preencher(user, ACESSO);
+      await continuar(user);
+      await preencher(user, EMPRESA);
+      await continuar(user);
+
+      const cnpj = screen.getByLabelText("CNPJ");
+      await user.clear(cnpj);
+      await user.type(cnpj, "11.444.777/0001-61");
+      await act(async () => {
+        resolver({ ...LIVRES, cnpjDisponivel: false });
+      });
+
+      expect(cnpj).not.toHaveAccessibleDescription("Esta empresa já tem cadastro no Ledgr.");
+      expect(verificarCadastro).toHaveBeenCalledTimes(2);
+      expect(verificarCadastro).toHaveBeenLastCalledWith({ email: ACESSO["E-mail"], cnpj: "11.444.777/0001-61" });
+      expect(screen.getByRole("button", { name: "Conferindo…" })).toBeDisabled();
+      await act(async () => resolverNova(LIVRES));
+      expect(await screen.findByLabelText("Sistema de gestão")).toBeInTheDocument();
+    });
+
+    it("não confere nem avança com o CNPJ que ficou inválido durante a espera", async () => {
+      let resolver!: (valor: typeof LIVRES) => void;
+      verificarCadastro.mockReturnValueOnce(new Promise((resolve) => { resolver = resolve; }));
+      const user = userEvent.setup();
+      render(<CadastroPage />);
+      await ateAEmpresa(user);
+
+      const cnpj = screen.getByLabelText("CNPJ");
+      await user.clear(cnpj);
+      await user.type(cnpj, "123");
+      await act(async () => resolver(LIVRES));
+
+      expect(cnpj).toHaveAccessibleDescription("O CNPJ tem 14 caracteres. Confira o número.");
+      expect(verificarCadastro).toHaveBeenCalledTimes(1);
+      expect(screen.getByRole("button", { name: "Continuar" })).toBeEnabled();
+      expect(screen.queryByLabelText("Sistema de gestão")).not.toBeInTheDocument();
+    });
+
+    it.each([
+      { digitada: "Telha Certa Comércio Ltda", receita: "TELHA CERTA COMÉRCIO LTDA", oferece: false },
+      { digitada: "Outro nome Ltda", receita: "TELHA CERTA LTDA", oferece: true },
+    ])("compara a Receita com a razão social editada durante a conferência ($oferece)", async ({ digitada, receita, oferece }) => {
+      let resolver!: (valor: typeof LIVRES) => void;
+      verificarCadastro.mockReturnValueOnce(new Promise((resolve) => { resolver = resolve; }));
+      const user = userEvent.setup();
+      render(<CadastroPage />);
+      await ateAEmpresa(user);
+
+      const razao = screen.getByLabelText("Razão social");
+      await user.clear(razao);
+      await user.type(razao, digitada);
+      await act(async () => resolver({ ...LIVRES, cnpjSituacao: "ativa", razaoSocialReceita: receita }));
+
+      if (oferece) {
+        expect(screen.getByRole("button", { name: `Usar a razão social da Receita: ${receita}` })).toBeVisible();
+        expect(razao).toHaveValue(digitada);
+      } else {
+        expect(await screen.findByLabelText("Sistema de gestão")).toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: /Usar a razão social da Receita/ })).not.toBeInTheDocument();
+      }
+      expect(verificarCadastro).toHaveBeenCalledTimes(1);
     });
 
     it("goes back to the access step when the e-mail already has an account", async () => {
@@ -822,7 +905,7 @@ describe("CadastroPage", () => {
           cnpj: "12.345.678/0001-95",
           cidade: "Campinas",
           uf: "SP",
-        }),
+        }, "ana@gmail.com"),
       );
       expect(cadastrar).not.toHaveBeenCalled();
       await waitFor(() => expect(push).toHaveBeenCalledWith("/visao-geral"));

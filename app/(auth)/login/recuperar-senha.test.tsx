@@ -76,6 +76,18 @@ describe("RecuperarSenha", () => {
     expect(screen.queryByRole("heading", { name: "Confira seu e-mail." })).not.toBeInTheDocument();
   });
 
+  it("asks for a reload when the action never reaches the server", async () => {
+    pedirRecuperacaoSenha.mockRejectedValue(new Error("Failed to fetch"));
+    const user = userEvent.setup();
+    render(<RecuperarSenha aberto emailInicial="financeiro@telhacerta.com.br" onFechar={() => {}} />);
+
+    await user.click(screen.getByRole("button", { name: "Enviar link" }));
+
+    expect(await screen.findByRole("alert", {}, { timeout: 3000 })).toHaveTextContent(
+      "Não foi possível enviar agora. Tente de novo em instantes ou recarregue a página.",
+    );
+  });
+
   it("closes on Escape, on a click outside the card and on 'Voltar ao login', but not on a click inside", async () => {
     const user = userEvent.setup();
     const onFechar = vi.fn();

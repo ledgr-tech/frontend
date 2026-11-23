@@ -131,6 +131,14 @@ describe("agruparPorMes", () => {
 });
 
 describe("passaNoFiltro", () => {
+  it("sem conhecer o fechamento, só inclui a conciliação em Todas", () => {
+    const item = conciliacao("a", "2026-07", "2026-10-09T14:38:00Z", { divergente_valor: 9 });
+    expect(passaNoFiltro(item, null, "todas")).toBe(true);
+    expect(passaNoFiltro(item, null, "pendentes")).toBe(false);
+    expect(passaNoFiltro(item, null, "prontas")).toBe(false);
+    expect(passaNoFiltro(item, null, "fechadas")).toBe(false);
+  });
+
   it("separa o que pede decisão, o que não pede e o que está em mês fechado", () => {
     const aberta = conciliacao("a", "2026-07", "2026-10-09T14:38:00Z", { divergente_valor: 9 });
     const pronta = conciliacao("p", "2026-07", "2026-10-09T16:29:00Z");

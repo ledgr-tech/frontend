@@ -50,8 +50,12 @@ export function PainelDeChavesApi() {
   const { itens, endereco } = estado.dados;
   const ativas = itens.filter((chave) => !chave.revogadaEm).length;
 
-  function trocar(itensNovos: ChaveApi[]) {
-    setEstado({ situacao: "pronto", dados: { endereco, itens: itensNovos } });
+  function trocar(alterar: (itensAtuais: ChaveApi[]) => ChaveApi[]) {
+    setEstado((atual) =>
+      atual.situacao === "pronto"
+        ? { situacao: "pronto", dados: { ...atual.dados, itens: alterar(atual.dados.itens) } }
+        : atual,
+    );
   }
 
   return (
@@ -71,13 +75,13 @@ export function PainelDeChavesApi() {
         </p>
       )}
 
-      {tokenNovo && <TokenNovo {...tokenNovo} onFechar={() => setTokenNovo(null)} />}
+      {tokenNovo && <TokenNovo key={tokenNovo.token} {...tokenNovo} onFechar={() => setTokenNovo(null)} />}
 
       <CriarChave
         // o backend aceita no máximo 10 ativas por conta (409); a tela já avisa antes
         limiteAtingido={ativas >= 10}
         onCriada={(chave, token) => {
-          trocar([chave, ...itens]);
+          trocar((itensAtuais) => [chave, ...itensAtuais]);
           setTokenNovo({ nome: chave.nome, token });
         }}
       />
@@ -91,7 +95,9 @@ export function PainelDeChavesApi() {
               key={chave.id}
               chave={chave}
               onRevogada={(revogadaEm) =>
-                trocar(itens.map((item) => (item.id === chave.id ? { ...item, revogadaEm } : item)))
+                trocar((itensAtuais) =>
+                  itensAtuais.map((item) => (item.id === chave.id ? { ...item, revogadaEm } : item)),
+                )
               }
             />
           ))}
@@ -228,7 +234,7 @@ function CriarChave({
         >
           {empresas.map((empresa) => (
             <option key={empresa.id} value={empresa.id}>
-              {empresa.razaoSocial}
+              {empresa.nome}
             </option>
           ))}
           <option value="conta">Todas as empresas do escritório</option>

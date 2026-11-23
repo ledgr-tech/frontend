@@ -115,7 +115,9 @@ export async function aceitarConviteNoBackendComGoogle(token: string, idToken: s
     if (!(erro instanceof ErroBackend)) return { ok: false, erro: "falha" };
     if (erro.status === 400) return { ok: false, erro: "convite_invalido" };
     if (erro.status === 409) {
-      return { ok: false, erro: erro.detalhe.includes("diferente") ? "email_diferente" : "email_cadastrado" };
+      if (erro.detalhe.includes("diferente")) return { ok: false, erro: "email_diferente" };
+      if (erro.detalhe.includes("conta Google")) return { ok: false, erro: "google_de_outra_conta" };
+      return { ok: false, erro: "email_cadastrado" };
     }
     // a conta de quem convidou está inativa (backend #156); o cookie do convite fica, para depois da reativação
     if (ehContaInativa(erro)) return { ok: false, erro: "conta_inativa" };
@@ -207,10 +209,11 @@ export async function vincularGoogle(senha: string): Promise<User | null> {
   } catch (erro) {
     if (erro instanceof ErroBackend && erro.status === 401) return null;
     if (erro instanceof ErroBackend && erro.status === 429) throw new MuitasEntradas();
-    if (erro instanceof ErroBackend && erro.status === 409) {
-      pote.delete(COOKIE_VINCULO_GOOGLE);
-      throw new GoogleEmOutraConta();
-    }
+    // 409 (outro Google) ou um erro que a tela não sabe tratar (404 de um backend antes do #218, 422,
+    // 5xx, rede): o vínculo não sai por aqui, então o cookie sai e a próxima tentativa é o login comum.
+    // Com o cookie, cada tentativa voltava ao vínculo e falhava por até 1 hora, mesmo com a senha certa.
+    pote.delete(COOKIE_VINCULO_GOOGLE);
+    if (erro instanceof ErroBackend && erro.status === 409) throw new GoogleEmOutraConta();
     throw erro;
   }
 }

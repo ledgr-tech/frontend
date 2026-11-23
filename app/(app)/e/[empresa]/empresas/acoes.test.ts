@@ -1,16 +1,19 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ErroBackend } from "@/lib/backend";
-import { cadastrarEmpresa, carregarEmpresas, marcarFavorita } from "./acoes";
+import { PAPEL_INDISPONIVEL } from "@/lib/papel";
+import { cadastrarEmpresa, carregarEmpresas, editarNomeDeExibicao, marcarFavorita } from "./acoes";
 import { SEM_SERVIDOR } from "@/lib/sem-servidor";
 
 // a rede é a fronteira; ErroBackend e a tradução dos erros rodam de verdade
 const chamarBackend = vi.fn();
 const emailDaSessao = vi.fn();
+const contaDaSessao = vi.fn();
 vi.mock("@/lib/backend", async (original) => ({
   ...(await original<typeof import("@/lib/backend")>()),
   chamarBackend: (...args: unknown[]) => chamarBackend(...args),
   emailDaSessao: () => emailDaSessao(),
 }));
+vi.mock("../../../../(auth)/acoes", () => ({ contaDaSessao: () => contaDaSessao() }));
 
 const CNPJ = "11444777000161";
 const CNPJ_ALFA = "AB12CD34EF5602";
@@ -21,11 +24,19 @@ const empresaApi = {
   cnpj_verificado_em: null,
   criado_em: "2026-10-21T19:48:16.773752Z",
 };
-const empresa = { id: empresaApi.id, razaoSocial: "Cliente Dois Ltda", cnpj: CNPJ, cnpjVerificado: false, criadaEm: "2026-10-21T19:48:16.773752Z" };
+const empresa = {
+  id: empresaApi.id,
+  razaoSocial: "Cliente Dois Ltda",
+  nome: "Cliente Dois Ltda",
+  cnpj: CNPJ,
+  cnpjVerificado: false,
+  criadaEm: "2026-10-21T19:48:16.773752Z",
+};
 
 beforeEach(() => {
   chamarBackend.mockReset();
   emailDaSessao.mockResolvedValue("ana@x.com");
+  contaDaSessao.mockResolvedValue({ papel: "admin" });
 });
 
 afterEach(() => {
@@ -84,6 +95,12 @@ describe("carregarEmpresas", () => {
 });
 
 describe("cadastrarEmpresa", () => {
+  it("CNPJ removido orienta a restaurar; CNPJ em apagamento conserva a explicação do backend", async () => {
+    chamarBackend.mockRejectedValueOnce(new ErroBackend(409, "Empresa removida.", [], {}, undefined, [], "empresa_removida"));
+    expect(await cadastrarEmpresa(CNPJ, "Cliente")).toMatchObject({ ok: false, status: 409, erro: expect.stringContaining("Empresas removidas") });
+    chamarBackend.mockRejectedValueOnce(new ErroBackend(409, "Esta empresa está sendo apagada. Tente novamente mais tarde.", [], {}, undefined, [], "empresa_sendo_apagada"));
+    expect(await cadastrarEmpresa(CNPJ, "Cliente")).toMatchObject({ ok: false, status: 409, erro: "Esta empresa está sendo apagada. Tente novamente mais tarde." });
+  });
   it("argumento que não é texto (ação chamada à mão) responde 422 em vez de lançar (S1-04)", async () => {
     expect(await cadastrarEmpresa("11.444.777/0001-61", ["x"] as unknown as string)).toMatchObject({ ok: false, status: 422 });
     expect(await cadastrarEmpresa({} as unknown as string, "Cliente")).toMatchObject({ ok: false, status: 422 });
@@ -198,5 +215,119 @@ describe("marcarFavorita", () => {
 
     expect(await marcarFavorita(empresaApi.id, true)).toMatchObject({ ok: false, status: 403 });
     expect(chamarBackend).not.toHaveBeenCalled();
+  });
+});
+
+describe("editarNomeDeExibicao", () => {
+  it("id que não é UUID responde 422 sem chamar o backend", async () => {
+    for (const id of ["..", "x/../../me", "", "nao-uuid", 42 as unknown as string]) {
+      expect(await editarNomeDeExibicao(id, "Nome")).toEqual({ ok: false, status: 422, erro: "Empresa inválida." });
+    }
+    expect(chamarBackend).not.toHaveBeenCalled();
+  });
+
+  it("nome que não é string nem null, ou passa de 120 caracteres depois de aparar, responde 422 sem chamar o backend", async () => {
+    expect(await editarNomeDeExibicao(empresaApi.id, 123 as unknown as string)).toEqual({
+      ok: false,
+      status: 422,
+      erro: "O nome pode ter até 120 caracteres.",
+    });
+    expect(await editarNomeDeExibicao(empresaApi.id, "a".repeat(121))).toEqual({
+      ok: false,
+      status: 422,
+      erro: "O nome pode ter até 120 caracteres.",
+    });
+    expect(chamarBackend).not.toHaveBeenCalled();
+  });
+
+  it("recusa o analista antes de chamar o backend", async () => {
+    contaDaSessao.mockResolvedValue({ papel: "analista" });
+
+    expect(await editarNomeDeExibicao(empresaApi.id, "Loja Centro")).toEqual({
+      ok: false,
+      status: 403,
+      erro: "Seu papel no escritório não permite fazer isso.",
+    });
+    expect(chamarBackend).not.toHaveBeenCalled();
+  });
+
+  it("sem confirmar o papel (/me indisponível) responde 503 sem chamar o backend", async () => {
+    contaDaSessao.mockResolvedValue({ papel: "analista", indisponivel: true });
+
+    expect(await editarNomeDeExibicao(empresaApi.id, "Loja Centro")).toEqual({
+      ok: false,
+      status: 503,
+      erro: PAPEL_INDISPONIVEL,
+    });
+    expect(chamarBackend).not.toHaveBeenCalled();
+  });
+
+  it("recusa a conta de demonstração antes de chamar o backend", async () => {
+    vi.stubEnv("LEDGR_CONTA_TESTE_EMAIL", "demo@ledgr.com.br");
+    emailDaSessao.mockResolvedValue("demo@ledgr.com.br");
+
+    expect(await editarNomeDeExibicao(empresaApi.id, "Loja Centro")).toEqual({
+      ok: false,
+      status: 403,
+      erro: "A conta de demonstração não pode ser alterada.",
+    });
+    expect(chamarBackend).not.toHaveBeenCalled();
+  });
+
+  it("manda o nome aparado no PATCH e devolve a empresa adaptada (admin e gestor)", async () => {
+    contaDaSessao.mockResolvedValue({ papel: "gestor" });
+    const nome = "a".repeat(120);
+    chamarBackend.mockResolvedValue({ ...empresaApi, nome_exibicao: nome });
+
+    const resposta = await editarNomeDeExibicao(empresaApi.id, `  ${nome}  `);
+
+    expect(chamarBackend).toHaveBeenCalledWith(`/empresas/${empresaApi.id}`, {
+      method: "PATCH",
+      corpo: { nome_exibicao: nome },
+    });
+    expect(resposta).toEqual({
+      ok: true,
+      dados: { ...empresa, nome, nomeExibicao: nome },
+    });
+  });
+
+  it.each(["", "   ", null])("vazio, só espaços ou null (%j) manda nome_exibicao null", async (valor) => {
+    chamarBackend.mockResolvedValue({ ...empresaApi, nome_exibicao: null });
+
+    const resposta = await editarNomeDeExibicao(empresaApi.id, valor);
+
+    expect(chamarBackend).toHaveBeenCalledWith(`/empresas/${empresaApi.id}`, {
+      method: "PATCH",
+      corpo: { nome_exibicao: null },
+    });
+    expect(resposta).toEqual({
+      ok: true,
+      dados: { ...empresa, nome: "Cliente Dois Ltda", nomeExibicao: null },
+    });
+  });
+
+  it.each([
+    [new ErroBackend(404, "Empresa não encontrada."), 404, "Empresa não encontrada."],
+    [new ErroBackend(403, "Só o admin ou o gestor."), 403, "Seu papel no escritório não permite fazer isso."],
+    [new ErroBackend(403, "Conta inativa.", [], {}, undefined, [], "conta_inativa"), 403, "Conta inativa."],
+    [new ErroBackend(422, "O nome pode ter até 120 caracteres."), 422, "O nome pode ter até 120 caracteres."],
+    [new ErroBackend(429, "Limite", [], {}, 120), 429, "Muitas tentativas. Tente de novo em 2 minutos."],
+    [new ErroBackend(429, "Limite", [], {}, 30), 429, "Muitas tentativas. Tente de novo em 1 minuto."],
+    [new ErroBackend(429, "Limite"), 429, "Muitas tentativas. Tente de novo mais tarde."],
+    [new ErroBackend(401, "x"), 401, "Sua sessão expirou. Entre de novo para continuar."],
+  ])("traduz o erro do backend (%#)", async (erro, status, texto) => {
+    chamarBackend.mockRejectedValue(erro);
+
+    expect(await editarNomeDeExibicao(empresaApi.id, "Loja Centro")).toEqual({ ok: false, status, erro: texto });
+  });
+
+  it("rede fora do ar vira status 0", async () => {
+    chamarBackend.mockRejectedValue(new TypeError("fetch failed"));
+
+    expect(await editarNomeDeExibicao(empresaApi.id, "Loja Centro")).toEqual({
+      ok: false,
+      status: 0,
+      erro: SEM_SERVIDOR,
+    });
   });
 });

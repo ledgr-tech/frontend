@@ -298,6 +298,7 @@ describe("aceite do convite pelo Google (backend #69/#73)", () => {
   it.each([
     [409, "O e-mail da conta Google é diferente do e-mail convidado.", "/aceitar-convite?google=email_diferente", false],
     [409, "E-mail já cadastrado.", "/aceitar-convite?google=email_cadastrado", true],
+    [409, "Já existe uma conta no Ledgr para esta conta Google.", "/aceitar-convite?google=google_de_outra_conta", false],
     [400, "Convite inválido ou expirado. Peça um novo convite.", "/aceitar-convite?google=convite_invalido", true],
     [429, "Rate limit exceeded", "/aceitar-convite?google=muitas_tentativas", false],
     [500, "x", "/aceitar-convite?google=falha", false],
@@ -369,13 +370,24 @@ describe("vínculo do Google pela senha (backend #218)", () => {
     await expect(vincularGoogle("s3nha")).rejects.toBeInstanceOf(GoogleEmOutraConta);
     expect(cookiesApagados).toHaveBeenCalledWith("ledgr-vinculo-google");
 
+    // muitas tentativas é passageiro: o cookie fica para tentar de novo
+    cookiesApagados.mockReset();
     fetch.mockResolvedValue(Response.json({ detail: "x" }, { status: 429 }));
     await expect(vincularGoogle("s3nha")).rejects.toBeInstanceOf(MuitasEntradas);
+    expect(cookiesApagados).not.toHaveBeenCalled();
 
     cookiesExistentes.clear();
     fetch.mockReset();
     expect(await vincularGoogle("s3nha")).toBeNull();
     expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it.each([404, 422, 500])("um %i (ex.: backend antes do #218) apaga o cookie, e a próxima tentativa é o login comum", async (status) => {
+    cookiesExistentes.set("ledgr-vinculo-google", ID_TOKEN);
+    fetch.mockResolvedValue(Response.json({ detail: "x" }, { status }));
+
+    await expect(vincularGoogle("s3nha")).rejects.toThrow();
+    expect(cookiesApagados).toHaveBeenCalledWith("ledgr-vinculo-google");
   });
 
   it("lê do cookie o e-mail do Google que espera o vínculo", async () => {

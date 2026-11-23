@@ -8,9 +8,11 @@ import { PainelDoExtrato } from "@/app/(app)/e/[empresa]/conciliacoes/[id]/paine
 import { rotuloComDecisao, seloDaLinha, situacaoDaLinha, tomDaLinha } from "@/app/(app)/e/[empresa]/conciliacoes/[id]/situacao";
 import { formatarInteiro, statusDaLinha } from "@/app/(app)/e/[empresa]/dashboard/resumo";
 import { IconeOrigem } from "@/app/(app)/e/[empresa]/icone-origem";
+import { SaldoDaFolha } from "@/app/(app)/e/[empresa]/saldo";
 import { useMovimentoReduzido } from "@/app/reveal";
 import type { SaldoDoExtrato } from "@/lib/adaptadores";
 import { formatarMoeda, type Decisao, type LinhaComparacao, type StatusLinha } from "@/lib/mock-data";
+import { DicaDeArrastar, LARGURA_DO_CELULAR, usePasseioNoCelular } from "./rolagem-lateral";
 
 export type LinhaExtrato = {
   data: string;
@@ -33,20 +35,21 @@ const nada = () => Promise.resolve(null);
 // o painel ao lado da tabela só a partir daqui (o CSS usa o mesmo limite, .janela-conciliacao em globals.css):
 // com menos, a tabela ao lado dele apertaria as descrições a poucas letras, e o painel desce para baixo dela
 const LADO_A_LADO = "(min-width: 1280px)";
-// onde a tabela do app vira cartões (.tabela-cartoes): um embaixo do outro, as dez linhas seriam uma página inteira
-const CARTOES = "(max-width: 680px)";
+// no celular a tabela fica no desenho do computador e rola para o lado (globals.css, "rolagem lateral"), em
+// vez de virar cartões como no app: um embaixo do outro, os cartões faziam a janela passar de 3.900px
+const NO_CELULAR = `(max-width: ${LARGURA_DO_CELULAR}px)`;
 
 function inscrever(avisar: () => void): () => void {
-  const consulta = window.matchMedia?.(CARTOES);
+  const consulta = window.matchMedia?.(NO_CELULAR);
   consulta?.addEventListener?.("change", avisar);
   return () => consulta?.removeEventListener?.("change", avisar);
 }
 
-/** Se a tabela está em cartões. No servidor e no primeiro desenho, não: a janela abre como no computador. */
-function useCartoes(): boolean {
+/** Se a tela é de celular. No servidor e no primeiro desenho, não: a janela abre como no computador. */
+function useCelular(): boolean {
   return useSyncExternalStore(
     inscrever,
-    () => window.matchMedia?.(CARTOES).matches ?? false,
+    () => window.matchMedia?.(NO_CELULAR).matches ?? false,
     () => false,
   );
 }
@@ -116,8 +119,9 @@ function ColunaOrdenavel({
  * barra de cima. É a tela de verdade com o agosto da landing: os filtros, a ordenação, a densidade, a
  * coluna Visto e o painel da direita (`PainelDoExtrato`, o mesmo componente do app) funcionam como
  * lá, só que em memória. O ponteiro leva a linha ao painel, o clique a fixa, e justificar tira a linha
- * da revisão. Abaixo de 1280px o painel desce para baixo da tabela; no celular a tabela vira cartões,
- * como no app (.tabela-cartoes), e a janela abre em "Só revisão" enquanto a pessoa não escolhe outro filtro.
+ * da revisão. Abaixo de 1280px o painel desce para baixo da tabela; no celular a tabela continua
+ * no desenho do computador e rola para o lado, e a janela abre em "Só revisão" enquanto a pessoa não escolhe
+ * outro filtro.
  */
 export function JanelaDaConciliacao({
   banco,
@@ -132,12 +136,15 @@ export function JanelaDaConciliacao({
   destaque: string;
 }) {
   const reduzido = useMovimentoReduzido();
-  const cartoes = useCartoes();
+  const celular = useCelular();
   const lateral = useRef<HTMLDivElement>(null);
+  const janela = useRef<HTMLElement>(null);
+  // o passeio inteiro já passou no hero: aqui só uma espiada, para lembrar que o sistema está do lado
+  usePasseioNoCelular(janela, ".dash-tabela-rolagem", { reduzido, largura: LARGURA_DO_CELULAR, espera: 900, espiada: 80 });
   const [linhas, setLinhas] = useState(() => paraLinhas(banco, sistema));
-  // null até a pessoa escolher: no celular a janela abre no que pede revisão, não em dez cartões
+  // null até a pessoa escolher: no celular a janela abre no que pede revisão, não nas dez linhas
   const [escolhido, setFiltro] = useState<Filtro | null>(null);
-  const filtro: Filtro = escolhido ?? (cartoes ? "revisao" : "todos");
+  const filtro: Filtro = escolhido ?? (celular ? "revisao" : "todos");
   const [ordem, setOrdem] = useState<Ordem>({ coluna: "data", crescente: true });
   const [densidade, setDensidade] = useState<"padrao" | "compacta">("padrao");
   const [foco, setFoco] = useState<string | null>(destaque);
@@ -187,6 +194,7 @@ export function JanelaDaConciliacao({
 
   return (
     <figure
+      ref={janela}
       className="janela-conciliacao"
       data-densidade={densidade}
       data-explorado={explorada || undefined}
@@ -236,7 +244,7 @@ export function JanelaDaConciliacao({
               </div>
             </div>
 
-            <div className="dash-tabela-rolagem tabela-cartoes">
+            <div className="dash-tabela-rolagem">
               <table className="table tabela-folhas folhas-com-eixo" role="table">
                 {/* as larguras do app (globals.css): as folhas saem iguais dos dois lados do eixo */}
                 <colgroup>
@@ -255,6 +263,7 @@ export function JanelaDaConciliacao({
                       <span className="folha-titulo-conteudo">
                         <IconeOrigem origem="banco" />
                         <span className="folha-nome">Extrato do banco</span>
+                        <SaldoDaFolha saldo={saldo} momento="inicial" />
                       </span>
                     </th>
                     <td className="folha-fora" aria-hidden="true" />
@@ -386,8 +395,20 @@ export function JanelaDaConciliacao({
                     );
                   })}
                 </tbody>
+                <tfoot role="rowgroup">
+                  <tr role="row">
+                    <td role="cell" colSpan={3} className="folha-banco">
+                      <SaldoDaFolha saldo={saldo} momento="final" />
+                    </td>
+                    <td role="cell" className="folha-fora" aria-hidden="true" />
+                    <td role="cell" colSpan={3} className="folha-sistema" />
+                    <td role="cell" className="celula-conferir" />
+                  </tr>
+                </tfoot>
               </table>
             </div>
+            {/* só no celular (CSS), onde a tabela rola para o lado */}
+            {visiveis.length > 0 && <DicaDeArrastar texto="Arraste para ver o sistema" />}
             {/* os textos da tabela vazia do app (textoDoVazio, na comparação) */}
             {visiveis.length === 0 && (
               <p className="tabela-vazia">
@@ -404,7 +425,6 @@ export function JanelaDaConciliacao({
               fixada={fixada}
               rodada={RODADA}
               linhas={linhas}
-              saldo={saldo}
               real={false}
               podeDecidir
               podeAprovar={false}
@@ -430,8 +450,8 @@ export function JanelaDaConciliacao({
       </div>
       <figcaption className="sr-only">
         Uma conciliação de agosto aberta na Comparação direta, só a tela, sem o resto do app: o extrato do banco ao
-        lado do sistema de gestão, cada linha com o status, e o painel da direita com o lançamento em foco e o saldo do extrato. Dá para
-        filtrar, ordenar, marcar as divergências conferidas e justificar.
+        lado do sistema de gestão, cada linha com o status, o saldo inicial no topo e o final no pé da coluna do banco,
+        e o painel da direita com o lançamento em foco. Dá para filtrar, ordenar, marcar as divergências conferidas e justificar.
       </figcaption>
     </figure>
   );

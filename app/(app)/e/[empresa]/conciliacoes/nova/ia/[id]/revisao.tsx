@@ -9,6 +9,7 @@ import { RetomarNovaVersao } from "./retomar-nova-versao";
 import { formatarMoeda } from "@/lib/mock-data";
 import { MensagemErro } from "../../../../../../../(auth)/_compartilhado/mensagem-erro";
 import { formatarDataHora } from "../../../../dashboard/resumo";
+import { SEM_SALDO } from "../../../../saldo";
 import { IconeOrigem } from "../../../../icone-origem";
 import {
   acrescentarLinhaAoRascunho,
@@ -18,6 +19,7 @@ import {
   type ContextoNovaVersaoIa,
   corrigirLinhaDoRascunho,
   descartarImportacao,
+  recuperarExtratoConfirmado,
   removerLinhaDoRascunho,
   type LinhaDoRascunho,
   type Rascunho,
@@ -140,9 +142,30 @@ export function Revisao({
         }
         return r.erro;
       }
-      const r = await confirmarImportacao(inicial.id);
+      let r;
+      try {
+        r = await confirmarImportacao(inicial.id);
+      } catch {
+        r = { ok: false, status: 0, erro: SEM_SERVIDOR } as const;
+      }
+      if (!r.ok && (r.status === 409 || r.status === 0)) {
+        const confirmado = await recuperarExtratoConfirmado(inicial.id).catch(() => null);
+        if (confirmado?.ok) {
+          setSaindo(true);
+          roteador.push(`/conciliacoes/nova?sistema=${confirmado.dados.extratoId}`);
+          return null;
+        }
+        if (confirmado?.status === 401) {
+          setSaindo(true);
+          roteador.push("/login");
+          return null;
+        }
+        // sem um extrato confirmado, vale a falha da confirmação, não a tentativa de recuperação
+        return r.erro;
+      }
       if (!r.ok) return r.erro;
       // segue para a Nova conciliação com o sistema já pronto: só falta enviar o extrato do banco
+      setSaindo(true);
       roteador.push(`/conciliacoes/nova?sistema=${r.dados.extratoId}`);
       return null;
     });
@@ -327,6 +350,13 @@ export function Revisao({
               </>
             )}
           </dl>
+        )}
+        {!resumoDesatualizado && resumo.saldoFinal !== undefined && (
+          <p className="ia-rev-nota">
+            {resumo.saldoFinal === null
+              ? SEM_SALDO
+              : `Saldo final do arquivo: ${formatarMoeda(Number(resumo.saldoFinal))}${resumo.saldoData ? ` em ${dataBr(resumo.saldoData)}` : ""}`}
+          </p>
         )}
         <div className="conc-previa-acoes">
           {resumoDesatualizado && (

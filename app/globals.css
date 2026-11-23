@@ -1275,8 +1275,12 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
   from { opacity: 0; transform: translateY(-8px); }
   to { opacity: 1; transform: none; }
 }
-/* ícone do menu = as barras do logo: a do meio some e as outras duas se cruzam em X */
-.site-menu-barras { display: block; width: 30px; height: auto; overflow: visible; }
+/* ícone do menu = as barras do logo: a do meio some e as outras duas se cruzam em X; o adesivo branco
+   precisa de uma sombra leve para se ver sobre o papel, como o logo-barras.png */
+.site-menu-barras {
+  display: block; width: 30px; height: auto; overflow: visible;
+  filter: drop-shadow(0 1px 1.2px rgb(40 30 15 / 0.22));
+}
 .site-menu-barras rect {
   transform-box: fill-box; transform-origin: center;
   transition: transform var(--dur-painel) var(--ease-out), opacity var(--dur-padrao) ease;
@@ -1551,7 +1555,7 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
 .janela-conciliacao .dash-tabela-rolagem { container: tabela-comparacao / inline-size; }
 .janela-conciliacao .comparacao-lateral { position: static; padding-top: 0; }
 /* "Voltar ao topo do extrato" sobe a página do app; a janela tem dez linhas e já está toda à vista */
-.janela-conciliacao .comp-saldos .btn { display: none; }
+.janela-conciliacao .comp-saldos { display: none; }
 /* o painel ao lado só a partir de 1280px (LADO_A_LADO, comparacao.tsx). A largura dele deixa a tabela abaixo
    dos 900px do @container tabela-comparacao, como a do app ao lado do menu: as colunas de data e valor apertam
    e as descrições aparecem */
@@ -1573,9 +1577,6 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
 }
 @media (max-width: 680px) {
   .janela-tela { padding: 14px 12px 16px; }
-  /* em cartões, o filete da linha em foco cairia só no rótulo "Data", como um cursor: fica a tinta da fixada */
-  .janela-conciliacao .tabela-folhas tbody tr[data-foco] td:first-child { box-shadow: none; }
-  .janela-conciliacao .tabela-folhas tbody tr[data-foco][data-fixo] > td:first-child:is(.folha-banco, .folha-sistema) { box-shadow: inset 0 0 0 999px var(--tinta-ativa); }
 }
 /* a densidade da janela é dela: a do app mora no <html> e no localStorage, que a landing não toca */
 .janela-conciliacao[data-densidade="compacta"] .table td { padding-block: 4px; }
@@ -2658,16 +2659,24 @@ html[data-tema="escuro"] .app-shell {
 .tabela-folhas .folha-titulo { border-radius: var(--radius-md) var(--radius-md) 0 0; }
 .tabela-folhas tbody tr:last-child > td { border-bottom: none; }
 /* Os cantos de baixo de cada folha, pela classe e não pela posição: o lado que falta é uma
-   célula só, e o status fica no meio. */
-.tabela-folhas tbody tr:last-child > td:is(
+   célula só, o status fica no meio e, na comparação do app, a seleção (#475) vem antes do banco. */
+.tabela-folhas:not(:has(tfoot)) tbody tr:last-child > td:is(
   .folha-banco:first-child,
+  :not(.folha-banco) + .folha-banco,
   :not(.folha-sistema) + .folha-sistema
 ) { border-bottom-left-radius: var(--radius-md); }
-.tabela-folhas tbody tr:last-child > td:is(
+.tabela-folhas:not(:has(tfoot)) tbody tr:last-child > td:is(
   .folha-banco:has(+ :not(.folha-banco)),
   .folha-sistema:has(+ :not(.folha-sistema)),
   .folha-sistema:last-child
 ) { border-bottom-right-radius: var(--radius-md); }
+/* com o saldo final (#474), o pé fecha cada folha: uma célula por folha, com os dois cantos */
+.tabela-folhas tfoot td:is(.folha-banco, .folha-sistema) {
+  border-top: 1px solid var(--color-divider); border-bottom: none;
+  border-radius: 0 0 var(--radius-md) var(--radius-md); text-align: right;
+}
+/* sem nenhuma linha no filtro, o cabeçalho já traz o filete de baixo: o pé não repete */
+.tabela-folhas tbody:empty + tfoot td { border-top: none; }
 /* a estrutura é das folhas; o que fica fora delas (o status, o vão) não tem filete próprio */
 .tabela-folhas :is(th, td):not(.folha-banco, .folha-sistema) { border-bottom: none; }
 
@@ -2684,6 +2693,10 @@ html[data-tema="escuro"] .app-shell {
 /* a conferência fica numa coluna dela, depois da folha do sistema: o eixo leva só o veredito */
 /* nome curto no cabeçalho ("Visto", não "Conferida"): a coluna estreita devolve espaço à descrição */
 .folhas-com-eixo col.col-conferir { width: 4rem; }
+/* a seleção (#475), numa coluna dela antes da folha do banco e fora das folhas: só a caixa */
+.folhas-com-eixo col.col-selecao { width: 2.75rem; }
+/* com a tabela na frente: sozinho, o .table th { text-align: left } ganhava, e a caixa do topo saía do eixo */
+.folhas-com-eixo :is(.th-selecao, .celula-selecao) { text-align: center; }
 .dash-tabela-rolagem .folhas-com-eixo { min-width: 900px; }
 /* com a largura fixa, uma palavra mais longa que a coluna (um código de PIX) vazaria da folha */
 .folhas-com-eixo td { overflow-wrap: break-word; }
@@ -2804,8 +2817,11 @@ html[data-tema="escuro"] .app-shell {
 .comparacao-grade > .comparacao-corpo { min-width: 0; }
 .comparacao-grade[data-painel] .dash-tabela-rolagem { container: tabela-comparacao / inline-size; }
 @container tabela-comparacao (width < 900px) {
-  /* Data, valor, veredito e Visto têm espaço próprio; as descrições repartem o restante. */
+  /* Seleção, data, valor, veredito e Visto têm espaço próprio; as descrições repartem o restante. A seleção
+     só conta onde existe: a landing e as gravações da Central não têm a coluna. */
   .dash-tabela-rolagem .folhas-com-eixo { min-width: calc(20.25rem + 2 * var(--valor-largura, 8rem)); }
+  .dash-tabela-rolagem .folhas-com-eixo:has(col.col-selecao) { min-width: calc(22.5rem + 2 * var(--valor-largura, 8rem)); }
+  .folhas-com-eixo col.col-selecao { width: 2.25rem; }
   .folhas-com-eixo col.col-data { width: 3.5rem; }
   .folhas-com-eixo col.col-valor { width: var(--valor-largura, 8rem); }
   .folhas-com-eixo col.col-eixo { width: 6.75rem; }
@@ -2949,7 +2965,10 @@ html[data-tema="escuro"] .app-shell {
 .comp-acoes { display: flex; flex: none; flex-wrap: wrap; gap: 8px; min-height: 38px; }
 .comp-acoes .btn { flex: 1 1 0; justify-content: center; white-space: nowrap; padding-inline: 10px; }
 
-/* embaixo do painel: os dois saldos do extrato, em destaque, e o caminho de volta ao topo */
+/* embaixo do painel: o caminho de volta ao topo.
+   ponytail: o dl, o dt/dd e a .comp-saldo-data (e a .saldo-fim, abaixo) só servem às gravações da Central
+   (public/ajuda/comparacao*.json, detalhe-da-linha*.json) e às cenas da landing, que ainda têm o saldo no
+   painel (#474); apagar quando regravar */
 .comp-saldos { display: flex; flex: none; flex-direction: column; gap: 10px; padding: 4px 4px 0; }
 .comp-saldos dl { display: grid; grid-template-columns: 1fr 1fr; margin: 0; border-top: 1px solid var(--color-divider); }
 .comp-saldos dl > div { display: flex; flex-direction: column; gap: 2px; padding: 10px 0 2px; min-width: 0; }
@@ -2968,6 +2987,10 @@ html[data-tema="escuro"] .app-shell {
 .tabela-folhas tbody tr[data-foco] td:first-child { box-shadow: inset 2px 0 0 var(--color-text); }
 .tabela-folhas tbody tr[data-foco][data-fixo] > td:is(.folha-banco, .folha-sistema) { box-shadow: inset 0 0 0 999px var(--tinta-ativa); }
 .tabela-folhas tbody tr[data-foco][data-fixo] > td:first-child:is(.folha-banco, .folha-sistema) { box-shadow: inset 2px 0 0 var(--color-text), inset 0 0 0 999px var(--tinta-ativa); }
+/* na comparação do app a seleção (#475) vem antes da folha: o filete fica na primeira célula dela */
+.tabela-folhas tbody tr[data-foco] > td.celula-selecao { box-shadow: none; }
+.tabela-folhas tbody tr[data-foco] > .celula-selecao + td { box-shadow: inset 2px 0 0 var(--color-text); }
+.tabela-folhas tbody tr[data-foco][data-fixo] > .celula-selecao + td:is(.folha-banco, .folha-sistema) { box-shadow: inset 2px 0 0 var(--color-text), inset 0 0 0 999px var(--tinta-ativa); }
 @media (prefers-reduced-motion: reduce) {
   .comp-foco, .comp-explicacao[data-nova], .comp-esqueleto i, .comp-mais[data-visivel] svg { animation: none; }
   .comp-mais, .comp-lados, .comp-diferenca { transition: none; }
@@ -3091,8 +3114,9 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
   width: 16px; min-width: 16px; padding: 0; border: none; background: var(--color-bg);
 }
 .table .folha-fora { border: none; }
+/* no topo: quando o saldo inicial desce para baixo do título do banco, o do sistema não desce para o meio */
 .table .folha-titulo {
-  padding: 12px var(--space-2) 10px; border-bottom: none;
+  padding: 12px var(--space-2) 10px; border-bottom: none; vertical-align: top;
   text-transform: none; letter-spacing: 0; font-size: var(--texto-corpo); color: var(--color-text);
 }
 .folha-titulo-conteudo { display: flex; align-items: center; gap: 8px; }
@@ -3106,6 +3130,30 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
   border: 1px solid var(--color-divider); font-size: var(--texto-legenda); font-weight: 400;
   color: var(--texto-apagado);
 }
+/* o saldo do extrato na folha (#474): o inicial à direita do título, o final no pé, em qualquer
+   densidade. O rótulo e o valor nunca quebram por dentro; numa folha estreita (o painel aberto
+   abaixo de ~1400px) o valor desce sob o rótulo e o inicial sob o título, à direita, em vez de vazar */
+.saldo-folha {
+  display: inline-flex; flex-wrap: wrap; justify-content: flex-end; align-items: baseline; gap: 0 6px;
+  white-space: nowrap;
+  font-size: var(--texto-legenda); font-weight: 400; font-variant-numeric: tabular-nums; color: var(--texto-apagado);
+}
+.saldo-folha strong { color: var(--color-text); font-weight: 600; }
+/* a diferença dos saldos finais (#474) no eixo entre as folhas: centrada, na largura do col-eixo; um valor de
+   milhões quebra no meio em vez de invadir a folha vizinha */
+.tabela-folhas tfoot td.folha-fora { text-align: center; vertical-align: middle; padding-inline: var(--space-1); }
+.saldo-diferenca {
+  display: block; font-size: var(--texto-legenda); line-height: 1.3; font-variant-numeric: tabular-nums;
+  color: var(--texto-apagado); text-align: center;
+}
+.saldo-diferenca strong { display: block; color: var(--color-text); font-weight: 600; overflow-wrap: anywhere; }
+/* no celular, a faixa com os dois finais: um par por linha, a diferença embaixo */
+.saldo-faixa-dupla dl { flex-direction: column; gap: 2px; }
+.saldo-faixa-dupla dd .saldo-folha { font-size: inherit; justify-content: flex-start; }
+.saldo-faixa-dupla .saldo-diferenca { margin-top: var(--space-1); text-align: left; }
+.saldo-faixa-dupla .saldo-diferenca strong { display: inline; }
+.folha-titulo-conteudo:has(> .saldo-folha) { flex-wrap: wrap; row-gap: 2px; }
+.folha-titulo-conteudo .saldo-folha { margin-left: auto; }
 .det-cartao-titulo .icone-origem { flex: none; color: var(--texto-apagado); }
 
 /* "Extrato do banco" no diálogo e a coluna Origem da dashboard */
@@ -3866,6 +3914,8 @@ html:not([data-menu="recolhido"]) .app-assistente-figura {
 .empresas-nota { margin: 16px 0 0; font-size: var(--texto-corpo); color: color-mix(in srgb, var(--color-text) 70%, transparent); }
 .empresas-form { display: flex; flex-direction: column; gap: 12px; }
 .empresas-form-botoes { display: flex; flex-wrap: wrap; gap: 8px; }
+.empresas-removidas-lista { display: grid; gap: var(--space-4); list-style: none; padding: 0; margin: var(--space-4) 0; }
+.empresas-removidas-lista .card { padding: var(--space-4); }
 .empresas-tabela { margin: 24px 0 0; overflow-x: auto; overflow-y: hidden; }
 .empresas-celula { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
 .empresas-nome { font-family: var(--font-heading); font-weight: 600; }
@@ -4528,6 +4578,7 @@ html:has(.app-shell) { scrollbar-gutter: stable; }
   border-bottom: 1px solid var(--color-divider);
 }
 .app-busca-achado:last-child { border-bottom: none; }
+.app-busca-mais { margin: 8px 16px; }
 .app-busca-achado:hover,
 .app-busca-achado[data-ativo="true"] { background: var(--tinta-hover); }
 .app-busca-achado-titulo {
@@ -4608,6 +4659,8 @@ html:not([data-densidade="padrao"]) .app-shell .selo { padding-block: 1px; }
 
 /* Os controles da comparação em cartões só aparecem no celular. */
 .comparacao-controles-cartoes { display: none; }
+/* o saldo do extrato fica no topo e no pé da coluna do banco (#474); a faixa, só nos cartões, sem thead e tfoot */
+.saldo-faixa-celular { display: none; }
 
 /* Tabela em cartões no celular.
    `display: block` apaga o papel implícito de tabela, então as linhas e células
@@ -4620,13 +4673,13 @@ html:not([data-densidade="padrao"]) .app-shell .selo { padding-block: 1px; }
   .tabela-cartoes .table tr,
   .tabela-cartoes .table td { display: block; width: auto; }
 
-  .tabela-cartoes .table thead { display: none; }
+  .tabela-cartoes .table :is(thead, tfoot) { display: none; }
+  .saldo-faixa-celular { display: block; }
 
   .comparacao-controles-cartoes {
     display: flex; flex-wrap: wrap; align-items: end; gap: var(--space-2);
   }
   .comparacao-controles-cartoes .field { display: grid; gap: var(--space-1); }
-  .lote-faixa .comparacao-controles-cartoes { align-items: center; }
 
   .tabela-cartoes .table tr {
     border: 1px solid var(--color-divider); border-radius: var(--radius-md);
@@ -4666,6 +4719,13 @@ html:not([data-densidade="padrao"]) .app-shell .selo { padding-block: 1px; }
   .tabela-cartoes .folhas-com-eixo .celula-conferir { order: 2; text-align: left; }
   /* a linha conciliada não tem o que conferir: sem o círculo, o rótulo "Conferida" ficava sozinho (M-04) */
   .tabela-cartoes .folhas-com-eixo .celula-conferir:empty { display: none; }
+  /* a caixa de selecionar (#475) no canto do cartão, ao lado do título; o título abre espaço para ela */
+  .tabela-cartoes .folhas-com-eixo tr { position: relative; }
+  .tabela-cartoes .folhas-com-eixo .celula-selecao { position: absolute; top: 12px; right: 14px; padding: 0; }
+  .tabela-cartoes .folhas-com-eixo .celula-selecao::before { content: none; }
+  .tabela-cartoes .folhas-com-eixo .celula-selecao:empty { display: none; }
+  .tabela-cartoes .folhas-com-eixo .celula-selecao input { width: 24px; height: 24px; }
+  .tabela-cartoes .folhas-com-eixo tr:has(> .celula-selecao input) > td[data-destaque="true"] { padding-right: 36px; }
   /* no cartão há espaço: a descrição volta a quebrar, e um código de barras quebra em qualquer
      ponto em vez de vazar do cartão */
   .tabela-cartoes .folhas-com-eixo .celula-descricao,
@@ -5258,16 +5318,51 @@ html[data-tema="escuro"] .app-shell {
 .fech-acoes { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .fech-erro { flex-basis: 100%; margin: 0; }
 .fech-ressalva-form { flex-basis: 100%; display: flex; flex-direction: column; gap: 8px; max-width: 520px; }
-/* aprovar ou rejeitar várias de uma vez (#208): o motivo da rejeição, e a faixa das marcadas na comparação */
-.lote-rejeicao { flex-basis: 100%; display: flex; flex-direction: column; gap: 8px; max-width: 520px; }
-.lote-rejeicao textarea { resize: vertical; }
-.lote-rejeicao .vg-nota { margin: 0; }
+/* aprovar ou rejeitar várias de uma vez (#208): o motivo da rejeição; na comparação, a faixa e as caixas da seleção (#475) */
+/* justificar as selecionadas (#473) é o mesmo formulário em linha, que quebra para baixo na faixa */
+:is(.lote-rejeicao, .lote-justificativa) { flex-basis: 100%; display: flex; flex-direction: column; gap: 8px; max-width: 520px; }
+:is(.lote-rejeicao, .lote-justificativa) textarea { resize: vertical; }
+:is(.lote-rejeicao, .lote-justificativa) .vg-nota { margin: 0; }
 .lote-faixa {
   display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px;
   padding: 10px 14px; border: 1px solid var(--color-divider); border-radius: var(--radius-md);
   background: var(--color-surface);
 }
-.lote-marca { width: 18px; height: 18px; margin: 0; accent-color: var(--color-accent); cursor: pointer; vertical-align: middle; }
+/* Na comparação, antes da tabela no DOM (o teclado chega nela primeiro), mas presa no pé da tela, depois
+   dela (decisão de 21/11): acima, ela empurrava as linhas no primeiro clique e a soma ficava fora de vista. */
+.comparacao-corpo > .lote-faixa {
+  order: 1; position: sticky; bottom: max(12px, env(safe-area-inset-bottom)); z-index: 6;
+  box-shadow: var(--shadow-lg);
+}
+/* a altura dela, medida em prenderFaixa (muda com o lote), é a margem de rolagem dos focáveis da comparação: o Tab
+   que desce pelas linhas não deixa o foco atrás dela (WCAG 2.4.11). Os da própria faixa ficam de fora: com um
+   scroll-padding na página, eles contavam como escondidos, e o Tab que entra nela rolava a tabela meia tela */
+.comparacao-corpo > :not(.lote-faixa) :is(a, button, input, select, textarea, [tabindex]) {
+  scroll-margin-bottom: var(--reserva-da-faixa, 0px);
+}
+:is(.th-selecao, .celula-selecao, .selecionar-todas) input { width: 18px; height: 18px; margin: 0; accent-color: var(--color-accent); cursor: pointer; vertical-align: middle; }
+.th-selecao input:disabled { cursor: default; }
+/* "Selecionar todas" nos controles dos cartões, onde o cabeçalho some: alvo de 44px para o dedo */
+.selecionar-todas { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; cursor: pointer; }
+/* a soma das selecionadas (#475): na faixa, numa linha que quebra; no painel, embaixo da linha em foco */
+.soma-das-selecionadas { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; }
+.soma-das-selecionadas p { margin: 0; }
+.soma-das-selecionadas > p:first-child { font-weight: 600; }
+.soma-das-selecionadas > p:last-child { color: var(--texto-apagado); }
+.soma-das-selecionadas dl { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 0; }
+.soma-das-selecionadas dl > div { display: flex; align-items: baseline; gap: 6px; }
+.soma-das-selecionadas dt { font-size: var(--texto-legenda); color: var(--texto-apagado); }
+.soma-das-selecionadas dd { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.comp-painel .soma-das-selecionadas {
+  flex: none; flex-direction: column; align-items: stretch; gap: 8px;
+  padding: 10px 4px 0; border-top: 1px solid var(--color-divider);
+}
+/* duas colunas, como os saldos; a diferença, que decide, na linha toda: em três, um boleto quebrava no meio */
+.comp-painel .soma-das-selecionadas dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.comp-painel .soma-das-selecionadas dl > div { flex-direction: column; gap: 2px; min-width: 0; }
+.comp-painel .soma-das-selecionadas dl > div:last-child { grid-column: 1 / -1; }
+.comp-painel .soma-das-selecionadas dd { white-space: normal; overflow-wrap: anywhere; }
+.comp-painel .soma-das-selecionadas .selo { align-self: flex-start; }
 .fech-campo { display: flex; flex-direction: column; gap: 6px; font-size: var(--texto-corpo); }
 .fech-campo textarea { resize: vertical; min-height: 72px; }
 .fech-encerrado { display: flex; flex-direction: column; gap: 8px; }
@@ -6370,11 +6465,74 @@ html[data-tema="escuro"] .app-shell {
 .kin-texto { margin: 0; max-width: 56ch; font-size: clamp(16px, 1.2vw, 19px); line-height: 1.7; }
 .kin-palco { margin-top: clamp(56px, 8vw, 110px); perspective: 1800px; }
 .kin-palco .vitrine { max-width: 1100px; margin: 0 auto; transform-origin: 50% 0; }
-/* no celular a janela inteira encolhia a ~280px e o texto dela sumia (L-03): ela é medida com 220% da
-   largura e cortada na borda direita, que fica como "a tela continua"; o começo da tabela se lê */
-@media (max-width: 600px) {
-  .kin-palco .vitrine { overflow: hidden; border-radius: 12px 0 0 12px; }
+/* rolagem lateral (rolagem-lateral.tsx): as janelas do app que no celular ficam mais largas que a tela e rolam
+   para o lado com o dedo, com um degradê na borda que ainda tem tela e a dica de arrastar embaixo.
+   - o hero: a janela inteira encolhia a ~280px e o texto sumia (L-03); ela é medida com 220% da largura. A
+     janela é `inert`, então o toque cai na .vitrine, que é quem rola.
+   - "Na prática": no app a tabela vira cartões no celular, mas um embaixo do outro eles faziam a janela passar
+     de 3.900px; aqui ela fica no desenho do computador (900px, .folhas-com-eixo) e rola na .dash-tabela-rolagem */
+@property --fade-esq { syntax: "<length>"; inherits: false; initial-value: 0px; }
+@property --fade-dir { syntax: "<length>"; inherits: false; initial-value: 36px; }
+@keyframes kin-arraste-cutuca { 0%, 60%, 100% { transform: none; } 30% { transform: translateX(5px); } }
+@keyframes kin-fade-lateral {
+  0% { --fade-esq: 0px; --fade-dir: 36px; }
+  12%, 88% { --fade-esq: 36px; --fade-dir: 36px; }
+  100% { --fade-esq: 36px; --fade-dir: 0px; }
+}
+/* o desenho do rótulo "Cap. I" do hero (p.eyebrow + .kin-olho), sem a classe: .eyebrow fica só para os
+   capítulos (page.test.tsx), e sem a entrada animada. Escondida até o celular de cada janela, abaixo */
+.kin-arraste {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin: 14px 0 0;
+  font-family: var(--font-mono);
+  font-weight: var(--font-heading-weight);
+  font-size: var(--texto-legenda);
+  line-height: 1.12;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-accent-700);
+}
+.kin-arraste-seta { display: inline-flex; align-items: center; color: var(--color-accent); }
+.kin-arraste-seta svg { width: 10px; height: 16px; margin-left: -3px; }
+.kin-arraste-fio {
+  width: 51px;
+  height: 8px;
+  background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='17' height='8'%3E%3Cpath d='M0 4Q4.25 1 8.5 4T17 4' fill='none' stroke='%23000' stroke-width='1.7'/%3E%3C/svg%3E") 0 50% / 17px 8px repeat-x;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='17' height='8'%3E%3Cpath d='M0 4Q4.25 1 8.5 4T17 4' fill='none' stroke='%23000' stroke-width='1.7'/%3E%3C/svg%3E") 0 50% / 17px 8px repeat-x;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .kin-arraste-seta { animation: kin-arraste-cutuca 2.4s var(--ease-out) infinite; }
+}
+/* a mesma largura nas duas (LARGURA_DO_CELULAR em rolagem-lateral.tsx): abaixo dela a tabela do app viraria cartões */
+@media (max-width: 680px) {
+  :is(.kin-palco .vitrine, .janela-conciliacao .dash-tabela-rolagem) {
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    /* um degradê suave na borda que ainda tem tela para rolar: à direita no começo, à esquerda no fim */
+    --fade-esq: 0px;
+    --fade-dir: 36px;
+    mask-image: linear-gradient(to right, transparent, #000 var(--fade-esq), #000 calc(100% - var(--fade-dir)), transparent);
+  }
+  :is(.kin-palco .vitrine, .janela-conciliacao .dash-tabela-rolagem)::-webkit-scrollbar { display: none; }
+  @supports (animation-timeline: scroll()) {
+    :is(.kin-palco .vitrine, .janela-conciliacao .dash-tabela-rolagem) {
+      animation: kin-fade-lateral linear both;
+      animation-timeline: scroll(self inline);
+    }
+  }
+  .kin-palco .vitrine { border-radius: 12px; }
   .kin-palco .vitrine-janela { width: 220%; }
+  .kin-arraste { display: flex; }
+  .janela-conciliacao .kin-arraste { margin-top: 0; }
+  /* sem o container, o @container tabela-comparacao (width < 900px) não aperta as colunas para caber nos
+     ~300px da tela, o que deixava a descrição com uma letra: a tabela fica nos 900px do computador e rola */
+  .janela-conciliacao .dash-tabela-rolagem { container: none; }
 }
 .kin-adesivo-solto { rotate: var(--inclinacao); }
 @media (prefers-reduced-motion: reduce) {

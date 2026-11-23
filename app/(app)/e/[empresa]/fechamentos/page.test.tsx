@@ -6,6 +6,7 @@ import type { DadosDoFechamento, ParDoFechamento, Resultado } from "../conciliac
 import { SO_O_GESTOR_APROVA } from "@/lib/gestor";
 import FechamentosPage from "./page";
 import { SEM_SERVIDOR } from "@/lib/sem-servidor";
+import type { LinkDoRelatorio } from "./links";
 
 // quem fala com o backend é a action; aqui ela só devolve o que ele responderia
 const carregarFechamentos = vi.fn<() => Promise<Resultado<DadosDoFechamento>>>();
@@ -19,6 +20,15 @@ vi.mock("../conciliacoes/acoes", () => ({
   carregarFechamentos: () => carregarFechamentos(),
   fecharMes: (competencia: string, ressalva?: string) => fecharMes(competencia, ressalva),
   reabrirMes: (competencia: string) => reabrirMes(competencia),
+}));
+
+// o cartão do link público lê a lista ao montar e pode aprender que o mês foi reaberto
+const listarLinksDoRelatorio = vi.fn<() => Promise<Resultado<LinkDoRelatorio[]>>>();
+const criarLinkDoRelatorio = vi.fn();
+vi.mock("./links", () => ({
+  listarLinksDoRelatorio: () => listarLinksDoRelatorio(),
+  criarLinkDoRelatorio: (...args: unknown[]) => criarLinkDoRelatorio(...args),
+  revogarLinkDoRelatorio: vi.fn(),
 }));
 
 const redirect = vi.fn();
@@ -96,7 +106,7 @@ async function renderizar(
   fechamentos: Fechamento[] | null = [],
 ) {
   carregarFechamentos.mockResolvedValue({ ok: true, dados: { pares, fechamentos } });
-  render(await FechamentosPage({ searchParams: Promise.resolve(busca) }));
+  return render(await FechamentosPage({ searchParams: Promise.resolve(busca) }));
 }
 
 function painel() {
@@ -106,6 +116,8 @@ function painel() {
 describe("FechamentosPage", () => {
   beforeEach(() => {
     carregarFechamentos.mockReset();
+    listarLinksDoRelatorio.mockReset().mockResolvedValue({ ok: false, status: 404, erro: "" });
+    criarLinkDoRelatorio.mockReset();
     redirect.mockReset();
     fecharMes.mockReset();
     reabrirMes.mockReset();
@@ -259,6 +271,57 @@ describe("FechamentosPage", () => {
       expect(within(fechado).queryByRole("button", { name: "Fechar agosto" })).not.toBeInTheDocument();
     });
 
+    it("o analista não monta o link público de um mês fechado", async () => {
+      gestor.valor = false;
+      try {
+        await renderizar(undefined, { mes: "2026-08" }, [fechamento("2026-08")]);
+        expect(within(painel()).getByText("Fechamento · fechado")).toBeInTheDocument();
+        expect(listarLinksDoRelatorio).not.toHaveBeenCalled();
+      } finally {
+        gestor.valor = true;
+      }
+    });
+
+    it("o admin monta o link público de um mês fechado", async () => {
+      await renderizar(undefined, { mes: "2026-08" }, [fechamento("2026-08")]);
+      await waitFor(() => expect(listarLinksDoRelatorio).toHaveBeenCalled());
+    });
+
+    it("o texto do link de mês reaberto continua no painel depois da releitura", async () => {
+      listarLinksDoRelatorio.mockResolvedValue({ ok: true, dados: [] });
+      const erro = "Não há fechamento ativo nesta competência.";
+      criarLinkDoRelatorio.mockResolvedValue({ ok: false, status: 404, erro, motivo: "mes-reaberto" });
+      const user = userEvent.setup();
+      const tela = await renderizar(undefined, { mes: "2026-08" }, [fechamento("2026-08")]);
+
+      await user.click(await screen.findByRole("button", { name: "Gerar link" }));
+      expect(refresh).toHaveBeenCalledTimes(1);
+      expect(within(painel()).getByRole("alert")).toHaveTextContent(erro);
+      carregarFechamentos.mockResolvedValue({
+        ok: true,
+        dados: {
+          pares: [SETEMBRO_EM_ABERTO, AGOSTO_PRONTO],
+          fechamentos: [fechamento("2026-08", { estado: "reaberto", reabertoPor: "Ana", reabertoEm: "2026-10-07T10:00:00Z" })],
+        },
+      });
+      tela.rerender(await FechamentosPage({ searchParams: Promise.resolve({ mes: "2026-08" }) }));
+
+      expect(within(painel()).getByText("Fechamento · pronto para fechar")).toBeInTheDocument();
+      expect(within(painel()).getByRole("alert")).toHaveTextContent(erro);
+      expect(screen.queryByRole("button", { name: "Gerar link" })).not.toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: /Setembro de 2026/ }));
+      expect(within(painel()).queryByText(erro)).not.toBeInTheDocument();
+
+      // fechado de novo, o aviso daquele intervalo sai
+      carregarFechamentos.mockResolvedValue({
+        ok: true,
+        dados: { pares: [SETEMBRO_EM_ABERTO, AGOSTO_PRONTO], fechamentos: [fechamento("2026-08")] },
+      });
+      tela.rerender(await FechamentosPage({ searchParams: Promise.resolve({ mes: "2026-08" }) }));
+      await user.click(screen.getByRole("button", { name: /Agosto de 2026/ }));
+      expect(screen.queryByText(erro)).not.toBeInTheDocument();
+    });
+
     it("only the manager closes and reopens: the others see who can, and keep the way to review", async () => {
       gestor.valor = false;
       try {
@@ -291,6 +354,16 @@ describe("FechamentosPage", () => {
       expect(refresh).toHaveBeenCalled();
     });
 
+    it("404 do Reabrir relê a tela", async () => {
+      const user = userEvent.setup();
+      reabrirMes.mockResolvedValue({ ok: false, status: 404, erro: "Não há fechamento ativo nesta competência." });
+      await renderizar(undefined, { mes: "2026-08" }, [fechamento("2026-08")]);
+
+      await user.click(within(painel()).getByRole("button", { name: "Reabrir agosto" }));
+
+      expect(refresh).toHaveBeenCalledTimes(1);
+    });
+
     it("asks for a ressalva when the backend says what still holds the month, and closes with it", async () => {
       const user = userEvent.setup();
       const falta = "Há 42 divergências sem justificativa nesta competência. Justifique, corrija ou feche com ressalva.";
@@ -320,6 +393,41 @@ describe("FechamentosPage", () => {
       await user.click(within(painel()).getByRole("button", { name: "Fechar mesmo assim" }));
 
       expect(within(painel()).getByRole("button", { name: "Fechar com ressalva" })).toBeDisabled();
+    });
+
+    it("409 com justificativa aguardando mantém o texto após reler a contagem e não abre a ressalva", async () => {
+      const user = userEvent.setup();
+      // o texto do backend (_aguardando_aprovacao em api/fechamentos.py), com a tela ainda contando zero
+      fecharMes.mockResolvedValue({
+        ok: false,
+        status: 409,
+        erro: "Há 2 justificativas aguardando aprovação nesta competência. Aprove ou rejeite antes de fechar.",
+      });
+      carregarFechamentos.mockResolvedValue({ ok: true, dados: { pares: [SETEMBRO_EM_ABERTO], fechamentos: [] } });
+      const renderizado = render(await FechamentosPage({ searchParams: Promise.resolve({}) }));
+
+      await user.click(within(painel()).getByRole("button", { name: "Fechar mesmo assim" }));
+      // a contagem da tela está vencida (outra aba justificou), mas o texto do 409 já diz: nem por um instante
+      expect(within(painel()).queryByLabelText("Ressalva")).not.toBeInTheDocument();
+
+      const aguardando = par("set", { acerto: 98.6, divergencias: { divergente_valor: 2 }, justificadas: 0, aguardandoAprovacao: 2 });
+      carregarFechamentos.mockResolvedValue({ ok: true, dados: { pares: [aguardando, AGOSTO_PRONTO], fechamentos: [] } });
+      renderizado.rerender(await FechamentosPage({ searchParams: Promise.resolve({}) }));
+
+      expect(within(painel()).queryByLabelText("Ressalva")).not.toBeInTheDocument();
+      expect(within(painel()).queryByRole("button", { name: "Fechar mesmo assim" })).not.toBeInTheDocument();
+      expect(within(painel()).getByRole("alert")).toHaveTextContent("Há 2 justificativas aguardando aprovação nesta competência.");
+
+      // aprovadas as duas, a contagem volta a zero e o 409 que falava delas sai
+      carregarFechamentos.mockResolvedValue({ ok: true, dados: { pares: [SETEMBRO_EM_ABERTO, AGOSTO_PRONTO], fechamentos: [] } });
+      renderizado.rerender(await FechamentosPage({ searchParams: Promise.resolve({}) }));
+      expect(within(painel()).queryByRole("alert")).not.toBeInTheDocument();
+      expect(within(painel()).getByRole("button", { name: "Fechar mesmo assim" })).toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: /Agosto de 2026/ }));
+      expect(within(painel()).queryByRole("alert")).not.toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: /Setembro de 2026/ }));
+      expect(within(painel()).queryByRole("alert")).not.toBeInTheDocument();
     });
 
     it("shows the ressalva of a month closed with one", async () => {
@@ -357,6 +465,17 @@ describe("FechamentosPage", () => {
       const pronto = painel();
       expect(within(pronto).queryByRole("button", { name: /Fechar/ })).not.toBeInTheDocument();
       expect(within(pronto).getByRole("link", { name: "Começar setembro" })).toBeInTheDocument();
+    });
+
+    it("never calls a month ready or open when the closures could not be read", async () => {
+      await renderizar(undefined, { mes: "2026-08" }, null);
+
+      expect(screen.getByRole("status")).toHaveTextContent("Não deu para saber quais meses estão fechados.");
+      expect(screen.getByRole("button", { name: "Tentar de novo" })).toBeInTheDocument();
+      expect(screen.queryByText("Pronto para fechar")).not.toBeInTheDocument();
+      expect(screen.getAllByText("Situação do mês indisponível").length).toBeGreaterThan(0);
+      expect(within(painel()).getByText("Fechamento · situação do mês indisponível")).toBeInTheDocument();
+      expect(screen.queryByRole("group", { name: "Filtrar meses" })).not.toBeInTheDocument();
     });
   });
 
@@ -457,7 +576,7 @@ describe("FechamentosPage", () => {
       await user.click(within(painel()).getByRole("button", { name: "Aprovar as 2 justificativas" }));
 
       expect(await within(painel()).findByRole("alert")).toHaveTextContent("O mês 2026-09 está fechado.");
-      expect(refresh).not.toHaveBeenCalled();
+      expect(refresh).toHaveBeenCalledTimes(1);
     });
 
     it("a ressalva não libera o mês: sem Fechar mesmo assim enquanto houver justificativa esperando", async () => {

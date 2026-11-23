@@ -4,8 +4,10 @@ import type { Papel } from "@/lib/papel";
 import type { ExecucaoAPI, ItemConciliacaoAPI, ItemExtratoAPI } from "@/lib/adaptadores";
 import { ErroBackend } from "@/lib/backend";
 import {
+  aprovarLote,
   aprovarPendentes,
   decidirLinhas,
+  justificarLinhas,
   rejeitarPendentes,
   carregarConciliacao,
   carregarConciliacaoEmRodadas,
@@ -661,7 +663,13 @@ describe("carregarVisaoGeral", () => {
   });
 
   it("sem execução nenhuma, não tem o que abrir", async () => {
-    backendCom([]);
+    chamarBackend.mockImplementation(async (caminho: string) => {
+      if (caminho.startsWith("/fechamentos")) return { itens: [] };
+      if (caminho.startsWith("/execucoes")) {
+        return { total: 0, limit: 50, offset: 0, itens: [] };
+      }
+      throw new Error(`caminho inesperado: ${caminho}`);
+    });
 
     expect(await carregarVisaoGeral()).toEqual({
       ok: true,
@@ -720,6 +728,37 @@ describe("carregarVisaoGeral", () => {
     expect(resultado.dados.arquivosComLinhasNaoLidas).toEqual([]);
   });
 
+  it("carregarVisaoGeral marca leituraIncompleta quando GET /extratos/{id} falha", async () => {
+    backendComVisao([execucao("e-1", BANCO_RECENTE)], {
+      [BANCO_RECENTE]: new ErroBackend(503, "Serviço indisponível."),
+      [SISTEMA]: situacao(SISTEMA),
+    });
+
+    const resultado = await carregarVisaoGeral();
+
+    if (!resultado.ok) throw new Error(resultado.erro);
+    expect(resultado.dados.leituraIncompleta).toBe(true);
+  });
+
+  it("carregarVisaoGeral marca fechamentosIndisponiveis quando listarFechamentos falha", async () => {
+    chamarBackend.mockImplementation(async (caminho: string) => {
+      if (caminho === "/fechamentos") throw new ErroBackend(503, "Serviço indisponível.");
+      if (caminho.startsWith("/execucoes")) {
+        return { total: 1, limit: 50, offset: 0, itens: [execucao("e-1", BANCO_RECENTE)] };
+      }
+      if (caminho.startsWith("/conciliacoes/")) {
+        return { extrato_id: BANCO_RECENTE, total: 1, limit: 1000, offset: 0, itens: [itemConciliacao] };
+      }
+      if (caminho.startsWith("/extratos/")) return situacao(BANCO_RECENTE);
+      throw new Error(`caminho inesperado: ${caminho}`);
+    });
+
+    const resultado = await carregarVisaoGeral();
+
+    if (!resultado.ok) throw new Error(resultado.erro);
+    expect(resultado.dados.fechamentosIndisponiveis).toBe(true);
+  });
+
   it("devolve a falha quando as linhas da mais recente não carregam", async () => {
     backendComVisao([execucao("e-1", BANCO_ANTERIOR)], {});
 
@@ -736,16 +775,17 @@ describe("carregarVisaoGeral", () => {
   function backendDoMes(
     linhas: (banco: string) => { total: number; itens: ItemConciliacaoAPI[] },
     lista = { total: 2, itens: [execucao("e-2", BANCO_RECENTE), execucao("e-1", BANCO_ANTERIOR)] },
-    historicoDoBanco?: (id: string) => typeof lista,
+    doMes?: (offset: number) => typeof lista,
   ) {
     chamarBackend.mockImplementation(async (caminho: string) => {
       const [rota, query] = caminho.split("?");
       if (rota === "/execucoes") {
-        const banco = new URLSearchParams(query).get("extrato_banco_id");
-        if (banco) {
-          if (!historicoDoBanco) throw new ErroBackend(503, "Histórico indisponível.");
-          return { limit: 100, offset: 0, ...historicoDoBanco(banco) };
+        const parametros = new URLSearchParams(query);
+        if (parametros.get("competencia")) {
+          if (!doMes) throw new ErroBackend(503, "Filtro indisponível.");
+          return { limit: 100, ...doMes(Number(parametros.get("offset"))) };
         }
+        if (parametros.get("extrato_banco_id")) throw new Error("a home não relê o histórico de cada banco");
         return { limit: 50, offset: 0, ...lista };
       }
       if (rota === "/fechamentos") return { itens: [] };
@@ -759,9 +799,9 @@ describe("carregarVisaoGeral", () => {
   }
 
   it.each([
-    { historicoFalha: false, sistemaVigente: SISTEMA_V2 },
-    { historicoFalha: true, sistemaVigente: SISTEMA_V1 },
-  ])("recalcula a rodada com a página cortada (falha do histórico: $historicoFalha)", async ({ historicoFalha, sistemaVigente }) => {
+    { filtroFalha: false, sistemaVigente: SISTEMA_V2 },
+    { filtroFalha: true, sistemaVigente: SISTEMA_V1 },
+  ])("recalcula a rodada com a página cortada (falha do filtro: $filtroFalha)", async ({ filtroFalha, sistemaVigente }) => {
     const v1 = {
       ...execucao("v1", BANCO_RECENTE, false),
       extrato_sistema_id: SISTEMA_V1,
@@ -774,12 +814,12 @@ describe("carregarVisaoGeral", () => {
       ...execucao("outra-" + i, BANCO_ANTERIOR, false),
       executada_em: "2026-10-03T12:00:00Z",
     }));
-    const historico = `/execucoes?extrato_banco_id=${BANCO_RECENTE}&limit=100&offset=0`;
     backendDoMes(
       () => ({ total: 1, itens: [itemConciliacao] }),
       { total: 51, itens: [refeita, v2, ...outras] },
       () => {
-        if (historicoFalha) throw new ErroBackend(503, "Serviço indisponível.");
+        if (filtroFalha) throw new ErroBackend(503, "Serviço indisponível.");
+        // o filtro traz todas as rodadas do extrato do banco, a v1 fora da primeira página inclusive
         return { total: 3, itens: [refeita, v2, v1] };
       },
     );
@@ -788,10 +828,15 @@ describe("carregarVisaoGeral", () => {
 
     expect(resultado).toMatchObject({
       ok: true,
-      dados: { recente: { execucao: { extratoSistemaId: sistemaVigente } }, mes: { competencia: "2026-10" } },
+      dados: {
+        recente: { execucao: { extratoSistemaId: sistemaVigente } },
+        // sem o mês inteiro, a home não soma
+        mes: { competencia: "2026-10", conciliacoes: filtroFalha ? null : [expect.anything()] },
+      },
     });
-    expect(chamarBackend.mock.calls.map(([caminho]) => caminho).filter((caminho) => caminho.startsWith("/execucoes?extrato_banco_id=")))
-      .toEqual([historico]);
+    const lidas = chamarBackend.mock.calls.map(([caminho]) => caminho).filter((caminho) => caminho.startsWith("/execucoes?"));
+    expect(lidas.filter((caminho) => caminho.includes("extrato_banco_id="))).toEqual([]);
+    expect(lidas).toContain("/execucoes?competencia=2026-10&limit=100&offset=0");
     expect(chamarBackend).toHaveBeenCalledWith(
       `/conciliacoes/${BANCO_RECENTE}?limit=1000&offset=0&extrato_sistema_id=${sistemaVigente}`,
     );
@@ -826,12 +871,84 @@ describe("carregarVisaoGeral", () => {
     expect(resultado.dados.mes).toMatchObject({ competencia: "2026-09", conciliacoes: null });
   });
 
-  it("não soma o mês quando ele pode seguir na segunda página de /execucoes", async () => {
-    // 51 execuções e a mais antiga da primeira página ainda rodou em setembro: a 51ª pode ser de setembro
-    backendDoMes(() => ({ total: 1, itens: [itemConciliacao] }), {
-      total: 51,
-      itens: [execucao("e-2", BANCO_RECENTE), execucao("e-1", BANCO_ANTERIOR)],
+  /** Execuções de setembro de extratos do banco distintos, com ids no formato que as actions aceitam. */
+  const deSetembro = (de: number, ate: number) =>
+    Array.from({ length: ate - de }, (_, i) =>
+      execucao(`m-${de + i}`, `00000000-0000-4000-8000-${String(de + i).padStart(12, "0")}`),
+    );
+
+  it("soma o mês em foco inteiro, paginando /execucoes?competencia= até o total (#309)", async () => {
+    // 51 execuções na conta, 120 em setembro: a primeira página não alcança o mês todo
+    backendDoMes(
+      () => ({ total: 1, itens: [itemConciliacao] }),
+      { total: 51, itens: deSetembro(0, 50) },
+      (offset) => ({ total: 120, offset, itens: deSetembro(offset, Math.min(offset + 100, 120)) }),
+    );
+
+    const resultado = await carregarVisaoGeral();
+
+    if (!resultado.ok) throw new Error(resultado.erro);
+    expect(resultado.dados.mes).toMatchObject({ competencia: "2026-09" });
+    expect(resultado.dados.mes?.conciliacoes).toHaveLength(120);
+    const doFiltro = chamarBackend.mock.calls.map(([caminho]) => caminho).filter((caminho) => caminho.includes("competencia="));
+    expect(doFiltro).toEqual([
+      "/execucoes?competencia=2026-09&limit=100&offset=0",
+      "/execucoes?competencia=2026-09&limit=100&offset=100",
+    ]);
+  });
+
+  it("não lê o filtro quando a primeira página já traz todas as execuções", async () => {
+    backendDoMes(() => ({ total: 1, itens: [itemConciliacao] }));
+
+    const resultado = await carregarVisaoGeral();
+
+    if (!resultado.ok) throw new Error(resultado.erro);
+    expect(resultado.dados.mes?.conciliacoes).toHaveLength(2);
+    expect(chamarBackend.mock.calls.some(([caminho]) => caminho.includes("competencia="))).toBe(false);
+  });
+
+  it("não soma o mês que passa do teto de páginas do filtro, e a home segue", async () => {
+    backendDoMes(
+      () => ({ total: 1, itens: [itemConciliacao] }),
+      { total: 51, itens: deSetembro(0, 50) },
+      (offset) => ({ total: 1001, offset, itens: deSetembro(offset, offset + 100) }),
+    );
+
+    const resultado = await carregarVisaoGeral();
+
+    if (!resultado.ok) throw new Error(resultado.erro);
+    expect(resultado.dados.recente).not.toBeNull();
+    expect(resultado.dados.mes).toMatchObject({ competencia: "2026-09", conciliacoes: null });
+    // sem o mês inteiro, só os pares da página são lidos, não os mil do filtro
+    expect(chamarBackend.mock.calls.filter(([caminho]) => caminho.startsWith("/conciliacoes/"))).toHaveLength(50);
+  });
+
+  it("um filtro vazio com execuções datadas do mês na página não soma o mês, e a home segue", async () => {
+    backendDoMes(
+      () => ({ total: 1, itens: [itemConciliacao] }),
+      { total: 51, itens: deSetembro(0, 50) },
+      (offset) => ({ total: 0, offset, itens: [] }),
+    );
+
+    const resultado = await carregarVisaoGeral();
+
+    if (!resultado.ok) throw new Error(resultado.erro);
+    expect(resultado.dados.recente).not.toBeNull();
+    expect(resultado.dados.mes).toMatchObject({ competencia: "2026-09", conciliacoes: null });
+  });
+
+  it("não soma o mês quando execuções sem período podem seguir depois da página (revisão do Codex)", async () => {
+    // 51 conciliações sem período em setembro: o filtro não traz nenhuma, e a 51ª está fora da página
+    const semPeriodo = (i: number) => ({
+      ...execucao(`s-${i}`, `00000000-0000-4000-8000-${String(i).padStart(12, "0")}`),
+      periodo_inicio: null,
+      periodo_fim: null,
     });
+    backendDoMes(
+      () => ({ total: 1, itens: [itemConciliacao] }),
+      { total: 51, itens: Array.from({ length: 50 }, (_, i) => semPeriodo(i)) },
+      (offset) => ({ total: 0, offset, itens: [] }),
+    );
 
     const resultado = await carregarVisaoGeral();
 
@@ -839,21 +956,39 @@ describe("carregarVisaoGeral", () => {
     expect(resultado.dados.mes).toMatchObject({ competencia: "2026-09", conciliacoes: null });
   });
 
-  it("soma o mês quando a primeira página já chega a uma execução de antes dele", async () => {
-    const agosto = {
-      ...execucao("e-0", "5c6d7e8f-9a0b-4c1d-8e2f-3a4b5c6d7e8f"),
-      periodo_inicio: "2026-08-01",
-      executada_em: "2026-08-31T12:00:00Z",
-    };
-    backendDoMes(() => ({ total: 1, itens: [itemConciliacao] }), {
-      total: 51,
-      itens: [execucao("e-2", BANCO_RECENTE), execucao("e-1", BANCO_ANTERIOR), agosto],
-    });
+  it("soma o mês com execução sem período quando a página já chega a uma de antes do mês", async () => {
+    const semPeriodo = { ...execucao("sem-periodo", BANCO_RECENTE), periodo_inicio: null, periodo_fim: null };
+    const agosto = { ...execucao("agosto", BANCO_ANTERIOR), periodo_inicio: "2026-08-01", executada_em: "2026-08-31T12:00:00Z" };
+    backendDoMes(
+      () => ({ total: 1, itens: [itemConciliacao] }),
+      { total: 51, itens: [semPeriodo, ...deSetembro(0, 48), agosto] },
+      (offset) => ({ total: 48, offset, itens: offset === 0 ? deSetembro(0, 48) : [] }),
+    );
 
     const resultado = await carregarVisaoGeral();
 
     if (!resultado.ok) throw new Error(resultado.erro);
-    expect(resultado.dados.mes?.conciliacoes).toHaveLength(2);
+    expect(resultado.dados.mes?.conciliacoes).toHaveLength(49);
+  });
+
+  it("com um backend que ignora ?competencia=, não conta duas vezes a execução sem período", async () => {
+    const semPeriodo = { ...execucao("sem-periodo", BANCO_RECENTE), periodo_inicio: null, periodo_fim: null };
+    const agosto = { ...execucao("agosto", BANCO_ANTERIOR), periodo_inicio: "2026-08-01", executada_em: "2026-08-31T12:00:00Z" };
+    const pagina = [semPeriodo, ...deSetembro(0, 48), agosto];
+    // o backend antigo devolve a lista toda, de todos os meses, sem filtrar
+    backendDoMes(() => ({ total: 1, itens: [itemConciliacao] }), { total: 51, itens: pagina }, (offset) => ({
+      total: 51,
+      offset,
+      // a 51ª é de setembro pelo período (extrato que começa no mês) e só existe no filtro
+      itens: offset === 0 ? [...pagina, ...deSetembro(48, 49), { ...execucao("julho", BANCO_ANTERIOR), periodo_inicio: "2026-07-01" }] : [],
+    }));
+
+    const resultado = await carregarVisaoGeral();
+
+    if (!resultado.ok) throw new Error(resultado.erro);
+    // 49 de setembro com período (uma só do filtro) e a sem período, uma vez só; agosto e julho ficam de fora
+    expect(resultado.dados.mes?.conciliacoes).toHaveLength(50);
+    expect(chamarBackend.mock.calls.filter(([caminho]) => caminho.startsWith(`/conciliacoes/${BANCO_RECENTE}`))).toHaveLength(1);
   });
 });
 
@@ -1649,6 +1784,17 @@ describe("carregarConciliacaoEmRodadas", () => {
 
     if (!resultado.ok) throw new Error(resultado.erro);
     expect(resultado.dados.fechamento).toBeNull();
+    expect(resultado.dados.fechamentoIndisponivel).toBe(true);
+  });
+
+  it("marca o fechamento disponível quando /fechamentos responde uma lista vazia", async () => {
+    backendComRodadas(duasRodadas(), []);
+
+    const resultado = await carregarConciliacaoEmRodadas(BANCO_RECENTE);
+
+    if (!resultado.ok) throw new Error(resultado.erro);
+    expect(resultado.dados.fechamento).toBeNull();
+    expect(resultado.dados.fechamentoIndisponivel).toBe(false);
   });
 
   it("recusa um id que não é de extrato sem chamar o backend", async () => {
@@ -2098,6 +2244,83 @@ describe("aprovar e rejeitar justificativas (backend #132)", () => {
   });
 });
 
+describe("justificar em lote (#473)", () => {
+  const LOTE = "7d2e9b1a-4c3f-4e8a-9b0d-1f2e3a4b5c6d";
+  beforeEach(() => {
+    chamarBackend.mockReset();
+    conta.papel = "admin";
+  });
+
+  it("manda as chaves e o texto aparado e adapta a resposta", async () => {
+    chamarBackend.mockResolvedValue({
+      processadas: 3,
+      ignoradas: 2,
+      ignoradas_por_motivo: { nao_encontrada: 1, nao_diverge: 0, repetida: 0, aprovada: 1 },
+      lote_id: LOTE,
+    });
+
+    expect(await justificarLinhas(BANCO_RECENTE, ["a", "b", "c", "d", "e"], "  Juros do mês.  ")).toEqual({
+      ok: true,
+      dados: { processadas: 3, ignoradas: 2, porMotivo: { naoEncontrada: 1, naoDiverge: 0, repetida: 0, aprovada: 1 }, loteId: LOTE },
+    });
+    expect(chamarBackend).toHaveBeenLastCalledWith(`/conciliacoes/${BANCO_RECENTE}/decisoes/lote`, {
+      method: "POST",
+      corpo: { tipo: "justificada", texto: "Juros do mês.", chaves: ["a", "b", "c", "d", "e"] },
+    });
+  });
+
+  it("o analista também justifica em lote", async () => {
+    conta.papel = "analista";
+    chamarBackend.mockResolvedValue({ processadas: 0, ignoradas: 1, ignoradas_por_motivo: { nao_encontrada: 1, nao_diverge: 0, repetida: 0, aprovada: 0 }, lote_id: null });
+    expect(await justificarLinhas(BANCO_RECENTE, ["a"], "Motivo.")).toMatchObject({ ok: true, dados: { processadas: 0, loteId: null } });
+  });
+
+  it("não manda ao backend chave fora do formato, lote grande, texto vazio ou longo", async () => {
+    expect(await justificarLinhas(BANCO_RECENTE, [7 as unknown as string], "Motivo.")).toMatchObject({ status: 422 });
+    expect(await justificarLinhas(BANCO_RECENTE, Array.from({ length: 501 }, (_, i) => `c${i}`), "Motivo.")).toMatchObject({ status: 422 });
+    expect(await justificarLinhas(BANCO_RECENTE, ["a"], "   ")).toEqual({ ok: false, status: 422, erro: "Escreva o motivo da justificativa." });
+    expect(await justificarLinhas(BANCO_RECENTE, ["a"], "x".repeat(1001))).toEqual({
+      ok: false,
+      status: 422,
+      erro: "A justificativa pode ter até 1.000 caracteres.",
+    });
+    expect(await justificarLinhas("../fechamentos", ["a"], "Motivo.")).toMatchObject({ status: 404 });
+    expect(chamarBackend).not.toHaveBeenCalled();
+  });
+
+  it("o 404 genérico é a rota que ainda não existe; o outro, a conciliação que mudou", async () => {
+    chamarBackend.mockRejectedValueOnce(new ErroBackend(404, "Not Found"));
+    expect(await justificarLinhas(BANCO_RECENTE, ["a"], "Motivo.")).toEqual({ ok: false, status: 404, erro: "Justificar várias linhas de uma vez ainda não está disponível.", indisponivel: true });
+
+    chamarBackend.mockRejectedValueOnce(new ErroBackend(404, "Conciliação não encontrada."));
+    expect(await justificarLinhas(BANCO_RECENTE, ["a"], "Motivo.")).toEqual({
+      ok: false,
+      status: 404,
+      erro: "Esta linha mudou: a conciliação foi refeita depois que a tela abriu.",
+    });
+  });
+
+  it("o 409 do mês fechado chega com o texto do backend", async () => {
+    chamarBackend.mockRejectedValue(new ErroBackend(409, "Este mês está fechado."));
+    expect(await justificarLinhas(BANCO_RECENTE, ["a"], "Motivo.")).toEqual({ ok: false, status: 409, erro: "Este mês está fechado." });
+  });
+
+  it("aprovar o lote manda lote_id e extrato_banco_id, e recusa o analista antes do backend", async () => {
+    chamarBackend.mockResolvedValue({ processadas: 4, ignoradas: 1 });
+    expect(await aprovarLote(BANCO_RECENTE, LOTE)).toEqual({ ok: true, dados: { processadas: 4, ignoradas: 1 } });
+    expect(chamarBackend).toHaveBeenLastCalledWith("/justificativas/lote", {
+      method: "POST",
+      corpo: { acao: "aprovar", lote_id: LOTE, extrato_banco_id: BANCO_RECENTE },
+    });
+
+    chamarBackend.mockReset();
+    expect(await aprovarLote(BANCO_RECENTE, "lote-x")).toMatchObject({ status: 404 });
+    conta.papel = "analista";
+    expect(await aprovarLote(BANCO_RECENTE, LOTE)).toEqual({ ok: false, status: 403, erro: SO_O_GESTOR_APROVA });
+    expect(chamarBackend).not.toHaveBeenCalled();
+  });
+});
+
 describe("carregarContextoDoReenvio", () => {
   beforeEach(() => {
     chamarBackend.mockReset();
@@ -2119,10 +2342,23 @@ describe("carregarContextoDoReenvio", () => {
     });
   });
 
-  it("não checa mês fechado nem rodada passada: isso é do backend, no conciliar", async () => {
-    backendComRodadas(duasRodadas(), [fechamento("2026-09")]);
+  it("recusa o sistema anterior da rodada 1 quando já existe a rodada 2", async () => {
+    backendComRodadas();
 
     const resultado = await carregarContextoDoReenvio(BANCO_RECENTE, SISTEMA_V1);
+
+    expect(resultado).toEqual({
+      ok: false,
+      status: 409,
+      erro: "A comparação já tem uma rodada mais recente. Volte à comparação para continuar.",
+    });
+    expect(chamarBackend.mock.calls.every(([caminho]) => String(caminho).startsWith("/execucoes"))).toBe(true);
+  });
+
+  it("deixa a conferência do mês fechado para verificarNovaVersao antes do envio", async () => {
+    backendComRodadas(duasRodadas(), [fechamento("2026-09")]);
+
+    const resultado = await carregarContextoDoReenvio(BANCO_RECENTE, SISTEMA_V2);
 
     expect(resultado.ok).toBe(true);
     expect(chamarBackend.mock.calls.some(([caminho]) => String(caminho).startsWith("/fechamentos"))).toBe(false);

@@ -1,4 +1,4 @@
-import type { SaldoDoExtrato } from "./adaptadores";
+import type { DiferencaDoSaldo, SaldoDoExtrato } from "./adaptadores";
 import { chaveDaLinha } from "./rodadas";
 
 /**
@@ -68,6 +68,9 @@ export type Decisao = {
   aprovadaEm?: string;
   /** Do backend #174: se quem está logado pode desfazer a aprovação agora. Sem o campo, a tela decide pelo nome. */
   podeDesfazerAprovacao?: boolean;
+  /** Do backend #237: a justificativa em lote e quantas linhas o lote tinha; ausentes fora de um lote. */
+  loteId?: string;
+  loteTamanho?: number;
 };
 
 export type EventoDecisao = {
@@ -160,6 +163,10 @@ export type Conciliacao = {
   rodada?: number;
   /** O saldo do extrato do banco (backend #118); ausente quando o backend não manda. */
   saldo?: SaldoDoExtrato | null;
+  /** O saldo do extrato do sistema do par (backend #238); ausente quando o backend não manda. */
+  saldoSistema?: SaldoDoExtrato | null;
+  /** Saldo final do banco menos o do sistema, pronto do backend (#238); ausente sem a chave. */
+  diferencaSaldo?: DiferencaDoSaldo;
   /** Justificativas esperando aprovação (backend #132); ausente no mock e antes dele. */
   aguardandoAprovacao?: number;
 };

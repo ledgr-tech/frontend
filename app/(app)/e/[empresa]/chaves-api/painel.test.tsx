@@ -15,8 +15,8 @@ vi.mock("./acoes", () => ({
   revogarChaveApi: (id: string) => revogarChaveApi(id),
 }));
 
-const TELHA = { id: "e-telha", razaoSocial: "Telha Certa Ltda", cnpj: "11222333000181" };
-const OBRA = { id: "e-obra", razaoSocial: "Obra Firme Ltda", cnpj: "11444777000161" };
+const TELHA = { id: "e-telha", razaoSocial: "Telha Certa Ltda", nome: "Telha Certa", cnpj: "11222333000181" };
+const OBRA = { id: "e-obra", razaoSocial: "Obra Firme Ltda", nome: "Obra Firme Ltda", cnpj: "11444777000161" };
 
 const chave: ChaveApi = {
   id: "k1",
@@ -66,7 +66,9 @@ describe("PainelDeChavesApi", () => {
     abrir();
 
     await user.click(await screen.findByRole("button", { name: "Criar chave" }));
-    expect(screen.getByLabelText("Empresas que a chave lê")).toHaveValue(TELHA.id);
+    const escopo = screen.getByLabelText("Empresas que a chave lê");
+    expect(escopo).toHaveValue(TELHA.id);
+    expect(within(escopo).getByRole("option", { name: "Telha Certa" })).toBeInTheDocument();
     await user.type(screen.getByLabelText("Nome"), "Power BI");
     await user.click(screen.getByRole("button", { name: "Criar chave" }));
 
@@ -157,5 +159,62 @@ describe("PainelDeChavesApi", () => {
     abrir();
 
     expect(await screen.findByText("A API pública ainda não está disponível nesta conta.")).toBeInTheDocument();
+  });
+
+  it("a segunda chave criada começa sem 'Copiada'", async () => {
+    criarChaveApi
+      .mockResolvedValueOnce({ ok: true, dados: { chave: { ...chave, id: "k2", nome: "Chave A" }, token: "ledgr_a" } })
+      .mockResolvedValueOnce({ ok: true, dados: { chave: { ...chave, id: "k3", nome: "Chave B" }, token: "ledgr_b" } });
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText: () => Promise.resolve() },
+    });
+    const user = userEvent.setup();
+    abrir();
+
+    await user.click(await screen.findByRole("button", { name: "Criar chave" }));
+    await user.type(screen.getByLabelText("Nome"), "Chave A");
+    await user.click(screen.getByRole("button", { name: "Criar chave" }));
+    await user.click(screen.getByRole("button", { name: "Copiar chave" }));
+    expect(await screen.findByRole("button", { name: "Copiada" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Criar chave" }));
+    await user.type(screen.getByLabelText("Nome"), "Chave B");
+    await user.click(screen.getByRole("button", { name: "Criar chave" }));
+
+    expect(screen.getByRole("button", { name: "Copiar chave" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Copiada" })).not.toBeInTheDocument();
+  });
+
+  it("revogar duas chaves seguidas deixa as duas revogadas", async () => {
+    let resolverPrimeira!: (valor: Resultado<null>) => void;
+    let resolverSegunda!: (valor: Resultado<null>) => void;
+    const primeira = new Promise<Resultado<null>>((resolve) => { resolverPrimeira = resolve; });
+    const segunda = new Promise<Resultado<null>>((resolve) => { resolverSegunda = resolve; });
+    carregarChavesApi.mockResolvedValue({
+      ok: true,
+      dados: {
+        itens: [
+          { ...chave, id: "k1", nome: "Chave 1" },
+          { ...chave, id: "k2", nome: "Chave 2" },
+        ],
+        endereco: null,
+      },
+    });
+    revogarChaveApi.mockReturnValueOnce(primeira).mockReturnValueOnce(segunda);
+    const user = userEvent.setup();
+    abrir();
+
+    const linhas = await screen.findAllByRole("listitem");
+    await user.click(within(linhas[0]).getByRole("button", { name: "Revogar" }));
+    await user.click(within(linhas[0]).getByRole("button", { name: "Revogar" }));
+    await user.click(within(linhas[1]).getByRole("button", { name: "Revogar" }));
+    await user.click(within(linhas[1]).getByRole("button", { name: "Revogar" }));
+
+    resolverSegunda({ ok: true, dados: null });
+    await Promise.resolve();
+    resolverPrimeira({ ok: true, dados: null });
+
+    expect((await screen.findAllByText("Revogada"))).toHaveLength(2);
   });
 });

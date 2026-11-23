@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
   adaptarConsultaConvite,
+  adaptarEmpresaCliente,
+  nomeDaEmpresa,
   adaptarConvite,
   adaptarPessoa,
   formatarDia,
@@ -207,6 +209,19 @@ describe("adaptarLinha", () => {
     expect(semCampo.decisao && "podeDesfazerAprovacao" in semCampo.decisao).toBe(false);
   });
 
+  it("lê o lote da justificativa (backend #237), e não inventa os campos sem lote ou no backend antigo", () => {
+    const base = { tipo: "justificada" as const, texto: "Juros.", autor: "Bia", em: "2026-10-20T10:00:00Z", rodada: 1 };
+    const lote = "5b1c0b4e-7a7e-4c39-9a51-0c4f1d2e3a4b";
+    const comLote = adaptarLinha(item({ status: "divergente_valor", decisao: { ...base, lote_id: lote, lote_tamanho: 3 } }));
+    expect(comLote.decisao).toEqual({ ...base, loteId: lote, loteTamanho: 3 });
+
+    const semLote = adaptarLinha(item({ status: "divergente_valor", decisao: { ...base, lote_id: null, lote_tamanho: null } }));
+    expect(semLote.decisao).toEqual(base);
+
+    const antigo = adaptarLinha(item({ status: "divergente_valor", decisao: base }));
+    expect(antigo.decisao).toEqual(base);
+  });
+
   it("sem o campo, a linha não tem decisão (undefined, não null)", () => {
     const linha = adaptarLinha(item());
     expect(linha.decisao).toBeUndefined();
@@ -318,6 +333,40 @@ describe("adaptarConciliacao", () => {
     const comSaldo = { ...lista, saldo_inicial: "750.25", saldo_final: "1000.00", saldo_data: "2026-09-10" };
     expect(adaptarConciliacao(comSaldo).saldo).toEqual({ inicial: 750.25, final: 1000, data: "2026-09-10" });
     expect(adaptarConciliacao(lista)).not.toHaveProperty("saldo");
+  });
+
+  describe("o saldo do sistema e a diferença (#238)", () => {
+    const nulos = { saldo_inicial: null, saldo_final: null, saldo_data: null };
+    const com = (extra: object) => adaptarConciliacao({ ...lista, ...extra } as typeof lista);
+
+    it("backend sem as chaves: nenhum dos dois campos", () => {
+      expect(adaptarConciliacao(lista)).not.toHaveProperty("saldoSistema");
+      expect(adaptarConciliacao(lista)).not.toHaveProperty("diferencaSaldo");
+    });
+
+    it("saldo_sistema com os três nulos: null", () => {
+      expect(com({ saldo_sistema: nulos }).saldoSistema).toBeNull();
+    });
+
+    it("saldo completo", () => {
+      const saldo_sistema = { saldo_inicial: "10.00", saldo_final: "20.50", saldo_data: "2026-09-30" };
+      expect(com({ saldo_sistema }).saldoSistema).toEqual({ inicial: 10, final: 20.5, data: "2026-09-30" });
+    });
+
+    it('diferença "0.00": valor 0', () => {
+      const conc = com({ diferenca_saldo_final: "0.00", diferenca_saldo_motivo: null });
+      expect(conc.diferencaSaldo).toEqual({ valor: 0, motivo: null });
+    });
+
+    it("diferença null com datas_diferentes", () => {
+      const conc = com({ diferenca_saldo_final: null, diferenca_saldo_motivo: "datas_diferentes" });
+      expect(conc.diferencaSaldo).toEqual({ valor: null, motivo: "datas_diferentes" });
+    });
+
+    it("motivo desconhecido: null", () => {
+      const conc = com({ diferenca_saldo_final: null, diferenca_saldo_motivo: "outro" });
+      expect(conc.diferencaSaldo).toEqual({ valor: null, motivo: null });
+    });
   });
 
   describe("a chave de cada linha, a mesma em todas as rodadas", () => {
@@ -662,5 +711,26 @@ describe("o agrupamento por soma (backend #131)", () => {
     });
     expect(resumo.contagens.match_agrupado).toBe(0);
     expect(resumo.agrupamentos).toBe(0);
+  });
+});
+
+describe("nome de exibição da empresa (backend #236)", () => {
+  const api = { id: "e1", razao_social: " Padaria Pão Quente Ltda ", cnpj: "12345678000190", cnpj_verificado_em: null, criado_em: "2026-10-20T10:00:00Z" };
+
+  it("sem a chave (backend antigo), mostra a razão social e não traz nomeExibicao", () => {
+    const empresa = adaptarEmpresaCliente(api);
+    expect(empresa.nome).toBe("Padaria Pão Quente Ltda");
+    expect("nomeExibicao" in empresa).toBe(false);
+  });
+
+  it("com nome, mostra o nome aparado e guarda os dois", () => {
+    const empresa = adaptarEmpresaCliente({ ...api, nome_exibicao: "  Pão Quente " });
+    expect(empresa).toMatchObject({ nome: "Pão Quente", nomeExibicao: "Pão Quente", razaoSocial: "Padaria Pão Quente Ltda" });
+  });
+
+  it("null ou só espaços voltam à razão social, com nomeExibicao null", () => {
+    expect(nomeDaEmpresa("Razão Ltda", null)).toEqual({ nome: "Razão Ltda", nomeExibicao: null });
+    expect(nomeDaEmpresa("Razão Ltda", "   ")).toEqual({ nome: "Razão Ltda", nomeExibicao: null });
+    expect(nomeDaEmpresa("Razão Ltda", 7)).toEqual({ nome: "Razão Ltda", nomeExibicao: null });
   });
 });

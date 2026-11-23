@@ -11,7 +11,8 @@ import { ListaDeDetalhes, useDetalhesDaDivergencia } from "./detalhes-da-diverge
 import { BotaoDeExplicar } from "../botao-de-explicar";
 import { TextoDigitado } from "../texto-digitado";
 
-const FALHA = "Não foi possível pedir a explicação agora. Tente de novo em instantes.";
+// só no catch: a action nem chegou ao servidor (rede, ou deploy novo, que só recarregar resolve)
+const FALHA = "Não foi possível pedir a explicação agora. Tente de novo em instantes ou recarregue a página.";
 
 // "desabilitado" fica de fora de propósito: recurso desligado não é falha, e o
 // texto do motor é a explicação daquele momento. O limite zera à meia-noite UTC.

@@ -72,6 +72,7 @@ export type ErroConviteGoogle =
   | "email_diferente"
   | "convite_invalido"
   | "email_cadastrado"
+  | "google_de_outra_conta"
   | "conta_inativa"
   | "muitas_tentativas"
   | "falha";
@@ -80,6 +81,7 @@ const ERROS_CONVITE_GOOGLE: readonly string[] = [
   "email_diferente",
   "convite_invalido",
   "email_cadastrado",
+  "google_de_outra_conta",
   "conta_inativa",
   "muitas_tentativas",
   "falha",

@@ -7,7 +7,7 @@ import { useRoteador } from "./roteador";
 const roteador = { push: vi.fn(), replace: vi.fn(), refresh: vi.fn(), back: vi.fn(), prefetch: vi.fn() };
 vi.mock("next/navigation", () => ({ useRouter: () => roteador }));
 
-const A: EmpresaDaConta = { id: "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20", razaoSocial: "Padaria Ltda", cnpj: "11222333000181" };
+const A: EmpresaDaConta = { id: "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20", razaoSocial: "Padaria Ltda", nome: "Padaria Ltda", cnpj: "11222333000181" };
 const B_ID = "9b8a7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d";
 
 function Botoes() {

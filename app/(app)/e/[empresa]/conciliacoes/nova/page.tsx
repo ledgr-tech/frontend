@@ -16,10 +16,12 @@ import {
   carregarContextoDoReenvio,
   carregarRegras,
   conciliar,
+  descartarExtrato,
   type ContextoDoReenvio,
   type Falha,
   type Resultado,
   type SituacaoExtrato,
+  verificarNovaVersao,
 } from "../acoes";
 import {
   aguardarProcessamento,
@@ -87,10 +89,14 @@ function NovaConciliacao() {
   const [recusa, setRecusa] = useState<string | null>(null);
   const [precos, setPrecos] = useState<PrecoDoPlano[] | null>(null);
   const [pendente, setPendente] = useState<Pendente | null>(null);
-  // os dois extratos subiram, mas algum veio lido em parte: a conciliação espera a pessoa decidir
-  const [parcial, setParcial] = useState<{ banco: string; sistema: string; lidosEmParte: SituacaoExtrato[] } | null>(
-    null,
-  );
+  // os dois extratos subiram, mas algum veio lido em parte: a conciliação espera a pessoa decidir.
+  // `enviados` são os que esta tentativa subiu (nunca o banco mantido da nova versão nem o sistema da IA)
+  const [parcial, setParcial] = useState<{
+    banco: string;
+    sistema: string;
+    enviados: string[];
+    lidosEmParte: SituacaoExtrato[];
+  } | null>(null);
   // a tolerância que esta conciliação vai usar; sem resposta (404, erro), a linha não aparece
   const [toleranciaDias, setToleranciaDias] = useState<number | null>(null);
   // depois do primeiro envio, as folhas só voltam quando o envio falha: aí elas sobem com fade, em vez
@@ -197,6 +203,12 @@ function NovaConciliacao() {
     setEtapa("conferindo");
 
     try {
+      // rodada que já passou ou mês fechado: recusa antes de subir qualquer arquivo, CSV ou JSON
+      if (reenvio && sistema) {
+        const alvo = await verificarNovaVersao(reenvio.banco, reenvio.sistemaAnterior);
+        if (!vivo.current) return;
+        if (!alvo.ok) return falhar(alvo);
+      }
       // o JSON do sistema vira rascunho para conferir antes de entrar (#347); só o reenvio o aceita
       if (reenvio && sistema && /\.json$/i.test(sistema.name)) {
         await revisarJson(sistema, reenvio);
@@ -292,7 +304,12 @@ function NovaConciliacao() {
     if (lidosEmParte.length > 0) {
       // conciliar com linhas de fora não tem volta do lado do banco (não há nova versão dele nem rota
       // para apagar a conciliação): a conciliação só nasce depois da decisão, e continuar reaproveita os uploads
-      setParcial({ banco: banco.dados.extratoId, sistema: sistema.dados.extratoId, lidosEmParte });
+      setParcial({
+        banco: banco.dados.extratoId,
+        sistema: sistema.dados.extratoId,
+        enviados: [...(arquivoBanco ? [banco.dados.extratoId] : []), ...(arquivoSistema ? [sistema.dados.extratoId] : [])],
+        lidosEmParte,
+      });
       setEtapa("ocioso");
       return;
     }
@@ -334,9 +351,10 @@ function NovaConciliacao() {
 
   function voltarParaCorrigir() {
     if (!parcial) return;
-    // o arquivo lido em parte sai da folha, à espera do corrigido; o outro fica.
-    // ponytail: a próxima tentativa sobe os dois de novo, e o que veio inteiro vira uma cópia em Extratos;
-    // o #308 descarta os dois ao voltar quando o backend tiver a rota (backend#185)
+    // o arquivo lido em parte sai da folha, à espera do corrigido; o outro fica, e a próxima tentativa
+    // sobe os dois de novo: os desta tentativa saem de Extratos (backend #185). Sem esperar e sem erro na
+    // tela: se o descarte falha, o extrato só fica em Extratos, como antes
+    for (const id of parcial.enviados) void descartarExtrato(id).catch(() => undefined);
     for (const { origem } of parcial.lidosEmParte) {
       if (origem === "banco") setArquivoBanco(null);
       else setArquivoSistema(null);
@@ -406,7 +424,8 @@ function NovaConciliacao() {
           <FalhaAoCarregar
             oQue="a comparação de origem"
             status={contexto.status}
-            texto={contexto.status === 404 ? contexto.erro : undefined}
+            // 404 e 409 (rodada vencida) têm causa própria: tentar de novo não muda nada
+            texto={contexto.status === 404 || contexto.status === 409 ? contexto.erro : undefined}
             voltar={voltar}
             tentar={() => {
               setContexto(null);
@@ -431,8 +450,8 @@ function NovaConciliacao() {
             <h1 className="importacao-titulo">Nem todas as linhas foram lidas</h1>
             <p className="importacao-texto">
               {reenvio
-                ? "A nova rodada usará somente as linhas válidas. Volte para corrigir o arquivo ou confirme que deseja continuar sem as linhas rejeitadas. Se voltar ou sair desta tela, o arquivo enviado fica em Extratos, sem conciliação."
-                : "A conciliação usará somente as linhas válidas. Volte para corrigir o arquivo ou confirme que deseja continuar sem as linhas rejeitadas. Se voltar ou sair desta tela, os dois arquivos enviados ficam em Extratos, sem conciliação."}
+                ? "A nova rodada usará somente as linhas válidas. Volte para corrigir o arquivo ou confirme que deseja continuar sem as linhas rejeitadas. Se sair desta tela sem escolher, o arquivo enviado fica em Extratos, sem conciliação."
+                : "A conciliação usará somente as linhas válidas. Volte para corrigir o arquivo ou confirme que deseja continuar sem as linhas rejeitadas. Se sair desta tela sem escolher, os dois arquivos enviados ficam em Extratos, sem conciliação."}
             </p>
           </div>
           {parcial.lidosEmParte.map(({ origem, erros }) => (
@@ -493,7 +512,7 @@ function NovaConciliacao() {
             {/* num escritório com várias empresas, quem concilia confere para qual está enviando */}
             {empresas.length > 1 && empresaAtiva && (
               <p className="nova-empresa">
-                Conciliando para <strong>{empresaAtiva.razaoSocial}</strong>
+                Conciliando para <strong>{empresaAtiva.nome}</strong>
               </p>
             )}
             {/* as folhas de Conciliações, em pé, são as áreas de soltar: o banco na frente, o sistema

@@ -15,6 +15,8 @@ const PORTA = Number(process.env.PORT ?? 8000);
 // as flags do backend de verdade, ligadas por padrão; =0 deixa como em produção (as capturas da Central)
 const APROVACAO = process.env.APROVACAO_JUSTIFICATIVAS_HABILITADA !== "0";
 const MCP = process.env.MCP_HABILITADO !== "0";
+// o assistente com os números da empresa (backend #223): desligado como em produção, liga com =1
+const ASSISTENTE_DADOS = process.env.ASSISTENTE_DADOS_HABILITADO === "1";
 // a cobrança (backend #202): COBRANCA_HABILITADA=0 é a produção de hoje, sem planos nem assinatura na tela
 const COBRANCA = process.env.COBRANCA_HABILITADA !== "0";
 // o painel interno (#333): ninguém é operador, como na conta de qualquer cliente; OPERADORES=<e-mail>[,<e-mail>]
@@ -43,7 +45,7 @@ function novaConta(id, nome, situacao, plano, teste_termina_em = null) {
 
 function novaEmpresa(conta, id, razao_social, cnpj) {
   const empresa = {
-    id, conta_id: conta.id, razao_social, cnpj, cnpj_verificado_em: null, criado_em: agora(),
+    id, conta_id: conta.id, razao_social, nome_exibicao: null, cnpj, cnpj_verificado_em: null, criado_em: agora(),
     /** id -> { origem, nome, formato, lancamentos, erros, periodoInicio, periodoFim, enviadoEm } */
     extratos: new Map(),
     /** da mais recente para a mais antiga */
@@ -58,6 +60,7 @@ function novaEmpresa(conta, id, razao_social, cnpj) {
   };
   empresas.set(id, empresa);
   conta.empresas.push(id);
+  conta.principal_id ??= id;
   return empresa;
 }
 
@@ -88,6 +91,33 @@ function lerOfx(texto) {
   }
   return { lancamentos, erros: [] };
 }
+
+// Saldo do sistema e diferença (backend #238). SALDO_SISTEMA=0 é o backend antigo, sem as chaves;
+// "batem" iguala os finais e "datas" põe o do sistema um dia antes. Sem nada, o sistema fica R$ 150,00 abaixo.
+function saldoDoSistema(b, bancoId, sistemaId) {
+  const modo = process.env.SALDO_SISTEMA;
+  if (modo === "0") return {};
+  const nulos = { saldo_inicial: null, saldo_final: null, saldo_data: null };
+  const temPar = [...b.itens.keys()].some((k) => k.startsWith(`${bancoId}|`) && (!sistemaId || k.endsWith(`|${sistemaId}`)));
+  const banco = b.extratos.get(bancoId)?.saldo;
+  if (!temPar) return { saldo_sistema: nulos, diferenca_saldo_final: null, diferenca_saldo_motivo: "sem_saldo_sistema" };
+  if (!banco?.saldo_final) return { saldo_sistema: nulos, diferenca_saldo_final: null, diferenca_saldo_motivo: "sem_saldo_banco" };
+  const finalBanco = Math.round(Number(banco.saldo_final) * 100);
+  const finalSistema = modo === "batem" ? finalBanco : finalBanco - 15000;
+  const dia = new Date(`${banco.saldo_data}T12:00:00Z`);
+  if (modo === "datas") dia.setUTCDate(dia.getUTCDate() - 1);
+  const saldo_sistema = {
+    saldo_inicial: banco.saldo_inicial === null ? null : ((Math.round(Number(banco.saldo_inicial) * 100) - 15000) / 100).toFixed(2),
+    saldo_final: (finalSistema / 100).toFixed(2),
+    saldo_data: dia.toISOString().slice(0, 10),
+  };
+  if (modo === "datas") return { saldo_sistema, diferenca_saldo_final: null, diferenca_saldo_motivo: "datas_diferentes" };
+  return { saldo_sistema, diferenca_saldo_final: ((finalBanco - finalSistema) / 100).toFixed(2), diferenca_saldo_motivo: null };
+}
+
+// O saldo final que o arquivo da importação via IA trouxe (backend #238); sem as chaves com SALDO_SISTEMA=0.
+const saldoDaImportacao = (itens) =>
+  process.env.SALDO_SISTEMA === "0" ? {} : { saldo_final: "18450.32", saldo_data: itens.map((l) => l.data).sort().at(-1) ?? null };
 
 // As capturas da comparação usam o saldo do próprio OFX de exemplo.
 function saldoDoOfx(texto, lancamentos, erros, fator) {
@@ -457,7 +487,13 @@ function respostaDeLogin(u) {
 }
 
 const pessoa = ({ id, nome, email, papel, criado_em }) => ({ id, nome, email, papel, criado_em });
-const empresaCliente = ({ id, razao_social, cnpj, cnpj_verificado_em, criado_em }) => ({ id, razao_social, cnpj, cnpj_verificado_em, criado_em });
+// O nome de exibição (backend #236). NOME_DE_EXIBICAO=0 é o backend de antes: a chave não sai e o PATCH não existe.
+const NOME_DE_EXIBICAO = process.env.NOME_DE_EXIBICAO !== "0";
+const comNome = (e) => (NOME_DE_EXIBICAO ? { nome_exibicao: e.nome_exibicao } : {});
+const nomeMostrado = (e) => (NOME_DE_EXIBICAO && e.nome_exibicao) || e.razao_social;
+const porNome = (a, b) => nomeMostrado(a).localeCompare(nomeMostrado(b), "pt-BR", { sensitivity: "base" });
+const empresaCliente = (e) => ({ id: e.id, razao_social: e.razao_social, ...comNome(e), cnpj: e.cnpj, cnpj_verificado_em: e.cnpj_verificado_em, criado_em: e.criado_em });
+const empresaDoMe = (e) => ({ id: e.id, razao_social: e.razao_social, ...comNome(e), cnpj: e.cnpj });
 const pessoasDaConta = (contaId) => [...usuarios.values()].filter((u) => u.conta_id === contaId);
 const MAXIMOS = { essencial: { empresas: 1, usuarios: 2 }, padrao: { empresas: 5, usuarios: 5 }, avancado: { empresas: null, usuarios: null } };
 
@@ -479,8 +515,13 @@ function linhasDoBanco(b, bancoId) {
 
 const rodadaDe = (b, bancoId) => b.execucoes.filter((e) => e.extrato_banco_id === bancoId).length;
 
+// O lote de justificativas (backend #237). LOTE_DE_JUSTIFICATIVAS=0 é a produção de antes: a rota responde o
+// 404 genérico do FastAPI e a decisão não traz lote_id/lote_tamanho.
+const LOTE = process.env.LOTE_DE_JUSTIFICATIVAS !== "0";
+const camposDoLote = (lote) => (LOTE ? { lote_id: lote?.id ?? null, lote_tamanho: lote?.tamanho ?? null } : {});
+
 /** Aplica uma decisao; devolve { status, corpo }. */
-function decidir(b, eu, bancoId, chave, tipo, texto, em = agora()) {
+function decidir(b, eu, bancoId, chave, tipo, texto, em = agora(), lote = null) {
   const banco = b.extratos.get(bancoId);
   if (!banco) return { status: 404, corpo: { detail: "Conciliação não encontrada." } };
   if (!linhasDoBanco(b, bancoId).some((i) => i.chave === chave)) return { status: 404, corpo: { detail: "Linha não encontrada." } };
@@ -505,17 +546,18 @@ function decidir(b, eu, bancoId, chave, tipo, texto, em = agora()) {
   } else if (tipo === "justificada") {
     if (!texto_) return { status: 422, corpo: { detail: "Escreva a justificativa." } };
     // sem a aprovação (produção), a justificativa nasce valendo, sem situação: como antes do backend #132
+    const base = { tipo, texto: texto_, autor: eu.nome, em, rodada, ...camposDoLote(lote) };
     registro.decisao = !APROVACAO
-      ? { tipo, texto: texto_, autor: eu.nome, em, rodada }
+      ? base
       : gestao
-      ? { tipo, texto: texto_, autor: eu.nome, em, rodada, situacao: "aprovada", aprovada_por: eu.nome, aprovada_em: em }
-      : { tipo, texto: texto_, autor: eu.nome, em, rodada, situacao: "pendente" };
+      ? { ...base, situacao: "aprovada", aprovada_por: eu.nome, aprovada_em: em }
+      : { ...base, situacao: "pendente" };
   } else if (tipo === "conferencia_desfeita" || tipo === "justificativa_desfeita") {
     registro.decisao = null;
   } else {
     return { status: 422, corpo: { detail: "Tipo de decisão desconhecido." } };
   }
-  registro.eventos.push({ tipo, texto: texto_, autor: eu.nome, em, rodada });
+  registro.eventos.push({ tipo, texto: texto_, autor: eu.nome, em, rodada, ...(LOTE ? { lote_id: lote?.id ?? null } : {}) });
   b.decisoes.set(k, registro);
   return { status: 200, corpo: registro.decisao };
 }
@@ -531,6 +573,30 @@ function fechar(b, competencia, ressalva, autor, em = agora()) {
 
 let ajuda = null;
 const semAcento = (t) => t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+
+/** Backend #223: a pergunta sobre os números responde com a conciliação mais recente e um link de tela. */
+function responderComDados(b, pergunta) {
+  // pergunta de uso ("como concilio…") fica com a Central
+  const texto = semAcento(pergunta);
+  const MESES = ["janeiro", "fevereiro", "marco", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+  const citado = MESES.findIndex((m) => new RegExp(`\\b${m}\\b`).test(texto));
+  if (/^\s*como (eu )?(fac|faz|concili|envi|fech|cri|us|abr|justific|convid|troc)/.test(texto) || (citado < 0 && !/quant|diverg|pendenc|saldo|sobr|numero|valor|ficou/.test(texto))) return null;
+  const atual = b.execucoes.find((e) => e.atual);
+  // ponytail: o fake só conhece a conciliação mais recente; outro mês ou "sem dados" dão respondida:false, para testar a reserva do roteiro no front
+  const outroMes = atual && citado >= 0 && Number(competenciaDe(atual).slice(5, 7)) !== citado + 1;
+  const execucao = /sem dados/.test(texto) || outroMes ? null : atual;
+  if (!execucao) return { resposta: "(backend fake) Não achei números para essa pergunta.", respondida: false, links: [] };
+  const c = execucao.contagens;
+  const divergentes = c.divergente_valor + c.divergente_data + c.sem_correspondencia + c.duplicado;
+  return {
+    resposta: `(backend fake) Na conciliação mais recente, de ${c.total} lançamentos, ${c.match_exato + c.match_tolerancia + c.match_agrupado} estão conciliados e ${divergentes} pedem revisão.`,
+    respondida: true,
+    links: [
+      { titulo: "Abrir a comparação", caminho: `/conciliacoes/${execucao.extrato_banco_id}`, tipo: "tela" },
+      { titulo: "Fechamentos", caminho: "/fechamentos", tipo: "tela" },
+    ],
+  };
+}
 
 async function responderPergunta(pergunta) {
   ajuda ??= await fetch(`${FRONT}/ajuda/conteudo.json`).then((r) => r.json()).catch(() => null);
@@ -548,7 +614,7 @@ async function responderPergunta(pergunta) {
   return {
     resposta: `(backend fake) ${funcao.faz.replace(/\*\*/g, "")}${passos ? `\n${passos}` : ""}`,
     respondida: true,
-    links: candidatas.map(({ pagina, funcao: f }) => ({ titulo: `${pagina.titulo} › ${f.titulo}`, caminho: `/ajuda/${pagina.id}#${f.id}` })),
+    links: candidatas.map(({ pagina, funcao: f }) => ({ titulo: `${pagina.titulo} › ${f.titulo}`, caminho: `/ajuda/${pagina.id}#${f.id}`, tipo: "ajuda" })),
   };
 }
 
@@ -698,7 +764,8 @@ const servidor = createServer(async (req, res) => {
   const gestao = eu.papel !== "analista";
   const proibido = (detail = "Seu papel na conta não permite fazer isso.") => json(res, 403, { detail });
   const pedida = req.headers["x-ledgr-empresa"];
-  if (pedida && !conta.empresas.includes(pedida)) return json(res, 403, { detail: "Esta empresa não é da sua conta." });
+  const rotaDaConta = caminho === "/me" || caminho === "/empresas" || caminho.startsWith("/empresas/");
+  if (pedida && !conta.empresas.includes(pedida) && !rotaDaConta) return json(res, 404, { detail: "Empresa não encontrada." });
   // a conta inativa do backend #156, para todas as contas com CONTA_INATIVA=1: escrita dá 403 com o código,
   // menos as da própria pessoa, o checkout e as revogações (app/core/conta_inativa.py, LIBERADAS)
   const liberadas = [
@@ -716,7 +783,7 @@ const servidor = createServer(async (req, res) => {
       codigo: "conta_inativa",
     });
   }
-  const b = empresas.get(pedida ?? conta.empresas[0]);
+  const b = empresas.get(pedida && conta.empresas.includes(pedida) ? pedida : conta.empresas[0]);
   const semCorpo = () => (res.writeHead(204), res.end());
 
   // o fake não guarda sessão: o logout (backend #200) só responde
@@ -731,7 +798,7 @@ const servidor = createServer(async (req, res) => {
       razao_social: b.razao_social, cnpj: b.cnpj,
       metodos_login: ["senha"],
       papel: eu.papel,
-      empresas: conta.empresas.map((id) => empresas.get(id)).map(({ id, razao_social, cnpj }) => ({ id, razao_social, cnpj })),
+      empresas: conta.empresas.map((id) => empresaDoMe(empresas.get(id))),
       preferencias: eu.preferencias,
       situacao: conta.situacao,
       plano: conta.plano,
@@ -790,13 +857,74 @@ const servidor = createServer(async (req, res) => {
 
   // ----- empresas da conta -----
 
-  if (rota("GET", "/empresas")) return json(res, 200, { itens: conta.empresas.map((id) => empresaCliente(empresas.get(id))) });
+  const respostaRemovida = (e) => ({ id: e.id, razao_social: e.razao_social, ...comNome(e), cnpj: e.cnpj,
+    removida_em: e.removida_em, removida_por_nome: e.removida_por_nome, apagar_em: e.apagar_em });
+  if (rota("GET", "/empresas/removidas")) {
+    if (!gestao) return proibido();
+    return json(res, 200, { itens: [...empresas.values()]
+      .filter((e) => e.conta_id === conta.id && e.removida_em && Date.parse(e.apagar_em) > Date.now())
+      .sort((a, b) => b.removida_em.localeCompare(a.removida_em)).map(respostaRemovida) });
+  }
+  const removerEmpresa = rota("DELETE", /^\/empresas\/([0-9a-f-]{36})$/i);
+  if (removerEmpresa) {
+    if (!gestao) return proibido();
+    const alvo = conta.empresas.includes(removerEmpresa[1]) ? empresas.get(removerEmpresa[1]) : null;
+    if (!alvo) return json(res, 404, { detail: "Empresa não encontrada." });
+    if (alvo.id === conta.principal_id) return json(res, 409, { codigo: "empresa_principal", detail: "A empresa principal da conta não pode ser removida." });
+    if (conta.empresas.length <= 1) return json(res, 409, { codigo: "ultima_empresa", detail: "A última empresa ativa não pode ser removida." });
+    Object.assign(alvo, { removida_em: agora(), removida_por_nome: eu.nome, apagar_em: emDias(30) });
+    conta.empresas = conta.empresas.filter((id) => id !== alvo.id);
+    for (const credencial of [...conta.chaves, ...conta.conexoes]) {
+      if (credencial.empresa_id === alvo.id) credencial.revogada_em ??= agora();
+    }
+    return json(res, 200, respostaRemovida(alvo));
+  }
+  const restaurarEmpresa = rota("POST", /^\/empresas\/([0-9a-f-]{36})\/restaurar$/i);
+  if (restaurarEmpresa) {
+    if (!gestao) return proibido();
+    const alvo = empresas.get(restaurarEmpresa[1]);
+    if (!alvo || alvo.conta_id !== conta.id || !alvo.removida_em || Date.parse(alvo.apagar_em) <= Date.now()) return json(res, 404, { detail: "Empresa não encontrada." });
+    const maximo = (MAXIMOS[conta.plano] ?? MAXIMOS.padrao).empresas;
+    if (maximo !== null && conta.empresas.length >= maximo) return json(res, 402, { detail: `O plano permite ${maximo} empresas.` });
+    Object.assign(alvo, { removida_em: null, removida_por_nome: null, apagar_em: null });
+    conta.empresas.push(alvo.id);
+    return json(res, 200, empresaCliente(alvo));
+  }
+
+  if (rota("GET", "/empresas")) return json(res, 200, { itens: conta.empresas.map((id) => empresas.get(id)).sort(porNome).map(empresaCliente) });
+
+  const editarEmpresa = NOME_DE_EXIBICAO && rota("PATCH", /^\/empresas\/([0-9a-f-]{36})$/i);
+  if (editarEmpresa) {
+    if (!gestao) return proibido();
+    const alvo = conta.empresas.includes(editarEmpresa[1]) ? empresas.get(editarEmpresa[1]) : null;
+    if (!alvo) return json(res, 404, { detail: "Empresa não encontrada." });
+    const corpo = await corpoJson(req);
+    const chaves = Object.keys(corpo ?? {});
+    if (!chaves.length || chaves.some((c) => c !== "nome_exibicao" && c !== "razao_social")) return json(res, 422, { detail: "Campo inválido." });
+    if ("nome_exibicao" in corpo) {
+      const nome = corpo.nome_exibicao;
+      if (nome !== null && typeof nome !== "string") return json(res, 422, { detail: "Nome inválido." });
+      const aparado = (nome ?? "").trim();
+      if (aparado.length > 120) return json(res, 422, { detail: "O nome pode ter até 120 caracteres." });
+      alvo.nome_exibicao = aparado || null;
+    }
+    if ("razao_social" in corpo) {
+      const razao = typeof corpo.razao_social === "string" ? corpo.razao_social.trim() : "";
+      if (!razao) return json(res, 422, { detail: "Informe a razão social." });
+      alvo.razao_social = razao;
+    }
+    return json(res, 200, empresaCliente(alvo));
+  }
 
   if (rota("POST", "/empresas")) {
     if (!gestao) return proibido();
     const { cnpj, razao_social } = await corpoJson(req);
     const limpo = String(cnpj ?? "").toUpperCase();
     if (conta.empresas.some((id) => empresas.get(id).cnpj === limpo)) return json(res, 409, { detail: "Esta empresa já está cadastrada." });
+    const removida = [...empresas.values()].find((e) => e.conta_id === conta.id && e.cnpj === limpo && e.removida_em);
+    if (removida) return json(res, 409, Date.parse(removida.apagar_em) > Date.now()
+      ? { codigo: "empresa_removida", empresa_id: removida.id, apagar_em: removida.apagar_em, detail: "Esta empresa foi removida da conta e ainda pode ser restaurada." }
+      : { codigo: "empresa_sendo_apagada", detail: "Esta empresa foi removida e está sendo apagada. Tente cadastrá-la de novo mais tarde." });
     const maximo = (MAXIMOS[conta.plano] ?? MAXIMOS.padrao).empresas;
     if (maximo !== null && conta.empresas.length >= maximo) return json(res, 402, { detail: `O plano permite ${maximo} empresas.` });
     return json(res, 201, empresaCliente(novaEmpresa(conta, randomUUID(), String(razao_social).trim(), limpo)));
@@ -883,7 +1011,8 @@ const servidor = createServer(async (req, res) => {
       ["2026-10-02", "Moinho Sul · NF 4821", -3480], ["2026-10-03", "Cielo · recebíveis", 6212.45],
       ["2026-10-05", "Folha de outubro", -12400], ["2026-10-08", "iFood · repasse", 2845.3]]
       .map(([data, descricao, valor], i) => ({ id: randomUUID(), numero: i + 1, data, descricao, valor })));
-    return json(res, 201, { importacao_id: id, quantidade_lancamentos: importacoesIa.get(id).length });
+    return json(res, 201, { importacao_id: id, quantidade_lancamentos: importacoesIa.get(id).length,
+      ...saldoDaImportacao(importacoesIa.get(id)) });
   }
   const umaImportacao = caminho.match(/^\/importacoes-ia\/([^/]+)$/);
   if (umaImportacao && metodo === "GET") {
@@ -895,13 +1024,14 @@ const servidor = createServer(async (req, res) => {
     const soma = (f) => itens.filter(f).reduce((t, l) => t + l.valor, 0).toFixed(2);
     return json(res, 200, { importacao_id: umaImportacao[1], total: itens.length, itens, resumo: { quantidade: itens.length,
       total_entradas: soma((l) => l.valor > 0), total_saidas: soma((l) => l.valor < 0), periodo_inicio: itens[0]?.data ?? null,
-      periodo_fim: itens.at(-1)?.data ?? null, expira_em: new Date(Date.now() + 7 * 864e5).toISOString() } });
+      periodo_fim: itens.at(-1)?.data ?? null, expira_em: new Date(Date.now() + 7 * 864e5).toISOString(),
+      ...saldoDaImportacao(itens) } });
   }
   const resumoIa = (itens) => {
     const soma = (f) => itens.filter(f).reduce((t, l) => t + l.valor, 0).toFixed(2);
     return { quantidade: itens.length, total_entradas: soma((l) => l.valor > 0), total_saidas: soma((l) => l.valor < 0),
       periodo_inicio: itens.map((l) => l.data).sort()[0] ?? null, periodo_fim: itens.map((l) => l.data).sort().at(-1) ?? null,
-      expira_em: new Date(Date.now() + 7 * 864e5).toISOString() };
+      expira_em: new Date(Date.now() + 7 * 864e5).toISOString(), ...saldoDaImportacao(itens) };
   };
   const linhasIa = rota("POST", /^\/importacoes-ia\/([^/]+)\/lancamentos$/);
   if (linhasIa) {
@@ -986,7 +1116,7 @@ const servidor = createServer(async (req, res) => {
     if (metodo === "GET") {
       return json(res, 200, { cliente: p.cliente, origem: { host: p.host, loopback: p.loopback }, escopo: "leitura",
         descricao_escopo: "Ler extratos, conciliações e fechamentos da empresa escolhida. Não altera nada.", expira_em: p.expira_em,
-        empresas: conta.empresas.map((id) => empresas.get(id)).map(({ id, razao_social, cnpj }) => ({ id, razao_social, cnpj })) });
+        empresas: conta.empresas.map((id) => empresaDoMe(empresas.get(id))) });
     }
     pedidosMcp.delete(pedido[1]);
     if (pedido[2] === "/recusar") return json(res, 200, { redirecionar_para: `${p.redirect}?error=access_denied&state=${p.state}` });
@@ -1010,7 +1140,7 @@ const servidor = createServer(async (req, res) => {
   if (rota("POST", "/assistente/perguntas")) {
     const { pergunta } = await corpoJson(req);
     if (!pergunta || String(pergunta).length > 500) return json(res, 422, { detail: "Pergunta vazia ou longa demais." });
-    const resposta = await responderPergunta(String(pergunta));
+    const resposta = (ASSISTENTE_DADOS && responderComDados(b, String(pergunta))) || (await responderPergunta(String(pergunta)));
     return resposta ? json(res, 200, resposta) : json(res, 503, { detail: "Assistente indisponível." });
   }
 
@@ -1063,6 +1193,18 @@ const servidor = createServer(async (req, res) => {
     return json(res, 200, pagina(lista));
   }
 
+  // DELETE /extratos/{id} (backend #185): só o que nunca entrou em conciliação
+  const descarte = rota("DELETE", /^\/extratos\/([0-9a-f-]{36})$/i);
+  if (descarte) {
+    if (!b.extratos.has(descarte[1])) return json(res, 404, { detail: "Extrato não encontrado." });
+    if (b.execucoes.some((e) => e.extrato_banco_id === descarte[1] || e.extrato_sistema_id === descarte[1])) {
+      return json(res, 409, { detail: "Este extrato já foi usado em uma conciliação e não pode ser descartado." });
+    }
+    b.extratos.delete(descarte[1]);
+    res.writeHead(204);
+    return res.end();
+  }
+
   const extrato = rota("GET", /^\/extratos\/([0-9a-f-]{36})$/i);
   if (extrato) {
     const dados = b.extratos.get(extrato[1]);
@@ -1096,11 +1238,51 @@ const servidor = createServer(async (req, res) => {
     return json(res, r.status, r.corpo);
   }
 
+  const loteDeDecisoes = rota("POST", /^\/conciliacoes\/([0-9a-f-]{36})\/decisoes\/lote$/i);
+  if (loteDeDecisoes) {
+    if (!LOTE) return json(res, 404, { detail: "Not Found" });
+    const bancoId = loteDeDecisoes[1];
+    const { tipo, texto, chaves } = await corpoJson(req);
+    const texto_ = typeof texto === "string" ? texto.trim() : "";
+    if (tipo !== "justificada") return json(res, 422, { detail: "Tipo de decisão inválido." });
+    if (!texto_) return json(res, 422, { detail: "Escreva a justificativa." });
+    if (texto_.length > 1000) return json(res, 422, { detail: "A justificativa pode ter até 1.000 caracteres." });
+    if (!Array.isArray(chaves) || chaves.length < 1 || chaves.length > 500) return json(res, 422, { detail: "Envie de 1 a 500 chaves." });
+    const banco = b.extratos.get(bancoId);
+    if (!banco) return json(res, 404, { detail: "Conciliação não encontrada." });
+    if (banco.periodoInicio && fechamentoAtivo(b, banco.periodoInicio.slice(0, 7))) {
+      return json(res, 409, { detail: "Este mês está fechado. Reabra o mês para mudar as decisões." });
+    }
+    const linhas = new Map(linhasDoBanco(b, bancoId).map((i) => [i.chave, i]));
+    const motivos = { nao_encontrada: 0, nao_diverge: 0, repetida: 0, aprovada: 0 };
+    const vistas = new Set();
+    const validas = [];
+    for (const chave of chaves) {
+      if (vistas.has(chave)) { motivos.repetida++; continue; }
+      vistas.add(chave);
+      const linha = linhas.get(chave);
+      if (!linha) { motivos.nao_encontrada++; continue; }
+      if (linha.status.startsWith("match_")) { motivos.nao_diverge++; continue; }
+      if (APROVACAO && b.decisoes.get(`${bancoId}|${chave}`)?.decisao?.situacao === "aprovada") { motivos.aprovada++; continue; }
+      validas.push(chave);
+    }
+    const lote = validas.length ? { id: randomUUID(), tamanho: validas.length } : null;
+    const em = agora();
+    for (const chave of validas) decidir(b, eu, bancoId, chave, "justificada", texto_, em, lote);
+    return json(res, 200, { processadas: validas.length, ignoradas: chaves.length - validas.length,
+      ignoradas_por_motivo: motivos, lote_id: lote?.id ?? null });
+  }
+
   if (rota("POST", "/justificativas/lote")) {
     if (!gestao) return proibido("Só o admin ou o gestor aprovam justificativas.");
-    const { acao, competencia, itens: alvos, motivo } = await corpoJson(req);
+    const { acao, competencia, itens: alvos, motivo, lote_id, extrato_banco_id } = await corpoJson(req);
     if (acao !== "aprovar" && acao !== "rejeitar") return json(res, 422, { detail: "Ação inválida." });
-    const chaves = alvos
+    if (!lote_id !== !extrato_banco_id) return json(res, 422, { detail: "lote_id e extrato_banco_id vão juntos." });
+    const chaves = lote_id
+      ? [...b.decisoes.entries()]
+          .filter(([k, r]) => k.startsWith(`${extrato_banco_id}|`) && r.decisao?.lote_id === lote_id && r.decisao.situacao === "pendente")
+          .map(([k]) => k)
+      : alvos
       ? alvos.map((i) => `${i.extrato_banco_id}|${i.chave}`)
       : [...b.decisoes.keys()].filter((k) => b.extratos.get(k.split("|")[0])?.periodoInicio?.startsWith(competencia));
     let processadas = 0;
@@ -1137,6 +1319,7 @@ const servidor = createServer(async (req, res) => {
     }
     const lim = Number(q.get("limit") ?? 100);
     return json(res, 200, { extrato_id: bancoId, total: encontradas.length, limit: lim, offset, ...b.extratos.get(bancoId)?.saldo,
+      ...saldoDoSistema(b, bancoId, sistemaId),
       aguardando_aprovacao: encontradas.filter((i) => i.decisao?.situacao === "pendente").length,
       itens: encontradas.slice(offset, offset + lim) });
   }
@@ -1171,6 +1354,39 @@ const servidor = createServer(async (req, res) => {
       texto: TEXTO_DA_DIVERGENCIA[item.status] ?? "Este lançamento não achou par no outro extrato.",
       detalhes: detalhesDaDivergencia(item),
     });
+  }
+
+  // GET /busca (backend #220): os lançamentos das rodadas em vigor da empresa ativa, por descrição, data ou valor
+  if (rota("GET", "/busca")) {
+    const termo = semAcento(String(q.get("q") ?? "").trim()).slice(0, 100);
+    if (!termo) return json(res, 422, { detail: "Informe o termo da busca." });
+    const limit = Math.min(Math.max(Number(q.get("limit") ?? 20) || 20, 1), 100);
+    const offset = Math.max(Number(q.get("offset") ?? 0) || 0, 0);
+    // ponytail: valor "1.234,56" vira "1234.56", e "13/10" casa com a data; sem ranking, da data mais recente à mais antiga
+    const comoValor = termo.replace(/r\$\s*/, "").replace(/\./g, "").replace(",", ".");
+    // como pares_em_vigor do backend: só a rodada mais recente de cada extrato do banco (execucoes vem da mais nova)
+    const vigentes = b.execucoes.filter((e, i, todas) => todas.findIndex((x) => x.extrato_banco_id === e.extrato_banco_id) === i);
+    const achados = vigentes.flatMap((e) =>
+      (b.itens.get(`${e.extrato_banco_id}|${e.extrato_sistema_id}`) ?? []).filter((item) => {
+        const lado = item.lancamento_banco ?? item.lancamento_sistema;
+        if (!lado) return false;
+        const [ano, mes, dia] = lado.data.split("-");
+        const campos = [semAcento(lado.descricao), lado.data, `${dia}/${mes}`, `${dia}/${mes}/${ano}`, lado.valor.replace("-", "")];
+        return campos.some((c) => c.includes(termo)) || (/^\d+(\.\d+)?$/.test(comoValor) && lado.valor.replace("-", "").startsWith(comoValor));
+      }).map((item) => ({
+        conciliacao_id: item.id,
+        extrato_banco_id: e.extrato_banco_id,
+        extrato_sistema_id: e.extrato_sistema_id,
+        chave: item.chave,
+        status: item.status,
+        competencia: e.periodo_inicio?.slice(0, 7) ?? null,
+        lancamento_banco: item.lancamento_banco,
+        lancamento_sistema: item.lancamento_sistema,
+      })),
+    );
+    const dataDe = (i) => (i.lancamento_banco ?? i.lancamento_sistema).data;
+    achados.sort((x, y) => dataDe(y).localeCompare(dataDe(x)));
+    return json(res, 200, { total: achados.length, limit, offset, itens: achados.slice(offset, offset + limit) });
   }
 
   if (rota("GET", "/execucoes")) {

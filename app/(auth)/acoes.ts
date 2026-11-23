@@ -6,7 +6,7 @@ import { CredentialsSignin } from "next-auth";
 import { signIn, signOut } from "@/auth";
 import { ErroBackend, chamarBackend, ehContaInativa, emailDaSessao } from "@/lib/backend";
 import { RECUSA_DEMONSTRACAO, demoAberta, ehContaDeDemonstracao } from "@/lib/demo";
-import { COOKIE_CADASTRO_GOOGLE, COOKIE_CONVITE_GOOGLE, COOKIE_VOLTAR_GOOGLE, VALIDADE_ID_TOKEN_SEGUNDOS } from "@/lib/google";
+import { COOKIE_CADASTRO_GOOGLE, COOKIE_CONVITE_GOOGLE, COOKIE_VOLTAR_GOOGLE, VALIDADE_ID_TOKEN_SEGUNDOS, identidadeDoIdToken } from "@/lib/google";
 import { GoogleEmOutraConta, MuitasEntradas, emailDoVinculoGoogle, esquecerGoogleIncompleto, type UsuarioAPI } from "@/lib/login";
 import type { EmpresaDaConta } from "@/lib/empresa-ativa";
 import { lerPapel, type Papel } from "@/lib/papel";
@@ -15,7 +15,7 @@ import { ehTela, type Preferencias } from "@/lib/preferencias";
 import { adaptarAssinatura, cobrancaLigada, type Assinatura, type PlanoId } from "@/lib/assinatura";
 import { adaptarLimites, type LimitesDaConta } from "@/lib/limites";
 import { ehUf } from "@/lib/uf";
-import { adaptarConsultaConvite, type ConsultaConvite, type ConsultaConviteAPI } from "@/lib/adaptadores";
+import { adaptarConsultaConvite, nomeDaEmpresa, type ConsultaConvite, type ConsultaConviteAPI } from "@/lib/adaptadores";
 
 /**
  * Abrir e fechar sessão, e criar conta. Vive numa Server Action porque o
@@ -274,10 +274,16 @@ const SITUACOES_CNPJ: readonly SituacaoCnpj[] = ["ativa", "inativa", "nao_encont
  */
 export async function cadastrarComGoogle(
   dados: Pick<DadosCadastro, "nome" | "razaoSocial" | "cnpj" | "cidade" | "uf">,
+  /** O e-mail do Google que esta aba mostrou: outra aba pode ter trocado o cookie por outra identidade. */
+  emailEsperado: string,
 ): Promise<ResultadoCadastro> {
   const pote = await cookies();
   const idToken = pote.get(COOKIE_CADASTRO_GOOGLE)?.value;
   if (!idToken) return { ok: false, erro: "google_expirado" };
+  const identidade = identidadeDoIdToken(idToken);
+  if (!identidade || identidade.email.trim().toLowerCase() !== emailEsperado.trim().toLowerCase()) {
+    return { ok: false, erro: "google_expirado" };
+  }
   try {
     await chamarBackend<UsuarioAPI>("/register/google", {
       method: "POST",
@@ -307,7 +313,9 @@ export async function cadastrarComGoogle(
     }
     if (erro.status === 409 && erro.detalhe.startsWith("E-mail já")) return { ok: false, erro: "email_cadastrado" };
     if (erro.status === 409 && erro.detalhe.startsWith("CNPJ já")) return { ok: false, erro: "cnpj_cadastrado" };
-    if (erro.status === 409) return { ok: false, erro: "google_ja_cadastrado" };
+    if (erro.status === 409 && erro.detalhe.includes("Já existe uma conta no Ledgr para esta conta Google.")) {
+      return { ok: false, erro: "google_ja_cadastrado" };
+    }
     return { ok: false, erro: "falha" };
   }
   try {
@@ -585,7 +593,7 @@ function adaptarPreferencias(bruto: PreferenciasAPI | null | undefined): Prefere
 }
 
 /** As empresas do `GET /me`; o item sem `id` de texto não serve para a URL e é ignorado. */
-function adaptarEmpresas(bruto: { id?: unknown; razao_social?: unknown; cnpj?: unknown }[] | undefined): EmpresaDaConta[] {
+function adaptarEmpresas(bruto: { id?: unknown; razao_social?: unknown; nome_exibicao?: unknown; cnpj?: unknown }[] | undefined): EmpresaDaConta[] {
   if (!Array.isArray(bruto)) return [];
   return bruto.flatMap((empresa) =>
     typeof empresa?.id === "string" && empresa.id
@@ -593,6 +601,7 @@ function adaptarEmpresas(bruto: { id?: unknown; razao_social?: unknown; cnpj?: u
           {
             id: empresa.id,
             razaoSocial: typeof empresa.razao_social === "string" ? empresa.razao_social.trim() : "",
+            nome: nomeDaEmpresa(empresa.razao_social, empresa.nome_exibicao).nome,
             cnpj: typeof empresa.cnpj === "string" ? empresa.cnpj : "",
           },
         ]
@@ -617,7 +626,7 @@ export async function contaDaSessao(aoExpirar = "/login"): Promise<ContaDaSessao
         razao_social: string;
         metodos_login: string[];
         papel?: unknown;
-        empresas?: { id?: unknown; razao_social?: unknown; cnpj?: unknown }[];
+        empresas?: { id?: unknown; razao_social?: unknown; nome_exibicao?: unknown; cnpj?: unknown }[];
         administrador?: boolean;
         preferencias?: PreferenciasAPI;
         situacao?: unknown;

@@ -2,8 +2,11 @@
 
 import { createContext, useContext, useMemo, type ReactNode } from "react";
 
-/** Uma empresa da conta, como o seletor a mostra: o `razao_social` e o `cnpj` vêm do `GET /me`. */
-export type EmpresaDaConta = { id: string; razaoSocial: string; cnpj: string };
+/**
+ * Uma empresa da conta, como o seletor a mostra: o `razao_social` e o `cnpj` vêm do `GET /me`; `nome` é o
+ * mostrado, o `nome_exibicao` (backend #236) ou, sem ele, a razão social.
+ */
+export type EmpresaDaConta = { id: string; razaoSocial: string; nome: string; cnpj: string };
 
 type Valor = { ativa: EmpresaDaConta; empresas: EmpresaDaConta[] };
 

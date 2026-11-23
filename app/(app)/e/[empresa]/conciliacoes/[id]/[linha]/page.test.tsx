@@ -245,6 +245,18 @@ describe("DetalheDivergenciaPage", () => {
       expect(evento.closest("tr")).toHaveTextContent("30/09/2026 10:12");
     });
 
+    it("diz quando a justificativa veio num lote com outras linhas (#473)", async () => {
+      buscarConciliacao.mockReturnValue({
+        ...conciliacao,
+        linhas: conciliacao.linhas.map((linha) =>
+          linha.id === "lc-2" ? { ...linha, decisao: { ...justificada, loteId: "l1", loteTamanho: 4 } } : linha,
+        ),
+      });
+      render(<DetalheDivergenciaPage />);
+
+      expect(await screen.findByText("Justificada junto com outras 3 linhas")).toBeInTheDocument();
+    });
+
     it("treats a justified lançamento as decided: neutral seal and out of the open count", async () => {
       buscarConciliacao.mockReturnValue({
         ...conciliacao,

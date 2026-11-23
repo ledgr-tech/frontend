@@ -101,7 +101,7 @@ export function origemDaLinha(linha: LinhaComparacao): "Banco" | "Sistema" {
 // Dinheiro some em centavos, não em reais: somar 1234.56 algumas centenas de
 // vezes em float acumula resíduo (o backend manda valor como string pelo mesmo
 // motivo). Inteiro de centavos não tem esse problema até a casa dos trilhões.
-function centavos(reais: number): number {
+export function centavos(reais: number): number {
   return Math.round(reais * 100);
 }
 

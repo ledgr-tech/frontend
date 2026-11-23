@@ -3,11 +3,13 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import userEvent from "@testing-library/user-event";
 import { Revisao } from "./revisao";
 import type { Rascunho } from "../acoes";
+import { SEM_SERVIDOR } from "@/lib/sem-servidor";
 
 const acoes = vi.hoisted(() => ({
   acrescentar: vi.fn(),
   carregar: vi.fn(),
   confirmar: vi.fn(),
+  recuperar: vi.fn(),
   corrigir: vi.fn(),
   descartar: vi.fn(),
   remover: vi.fn(),
@@ -21,6 +23,7 @@ vi.mock("../acoes", () => ({
   acrescentarLinhaAoRascunho: acoes.acrescentar,
   carregarRascunho: acoes.carregar,
   confirmarImportacao: acoes.confirmar,
+  recuperarExtratoConfirmado: acoes.recuperar,
   concluirNovaVersaoIa: acoes.concluir,
   corrigirLinhaDoRascunho: acoes.corrigir,
   descartarImportacao: acoes.descartar,
@@ -68,6 +71,43 @@ describe("Revisao da importação via IA", () => {
     acoes.carregar.mockResolvedValue({ ok: true, dados: ATUALIZADO });
     acoes.remover.mockResolvedValue({ ok: true, dados: null });
     acoes.confirmar.mockResolvedValue({ ok: true, dados: { extratoId: "extrato-1" } });
+    acoes.recuperar.mockResolvedValue({ ok: true, dados: { extratoId: "e1" } });
+  });
+
+  it.each([
+    { saldoFinal: "1234.56", valor: /R\$\s*1\.234,56/ },
+    { saldoFinal: "0.00", valor: /R\$\s*0,00/ },
+    { saldoFinal: "-250.75", valor: /-R\$\s*250,75/ },
+  ])("mostra o saldo final $saldoFinal e a data do arquivo no resumo", ({ saldoFinal, valor }) => {
+    render(<Revisao inicial={{ ...INICIAL, resumo: { ...INICIAL.resumo, saldoFinal, saldoData: "2026-10-15" } }} />);
+    const saldo = resumo().getByText(/Saldo final do arquivo:/);
+    expect(saldo).toHaveTextContent(valor);
+    expect(saldo).toHaveTextContent("em 15/10/2026");
+  });
+
+  it("com saldo final null, avisa que o arquivo não informou saldo", () => {
+    render(<Revisao inicial={{ ...INICIAL, resumo: { ...INICIAL.resumo, saldoFinal: null, saldoData: null } }} />);
+    expect(resumo().getByText("Saldo não informado no arquivo")).toBeVisible();
+    expect(resumo().queryByText(/Saldo final do arquivo:/)).not.toBeInTheDocument();
+  });
+
+  it("sem a chave do saldo no backend, não acrescenta uma linha de saldo", () => {
+    render(<Revisao inicial={INICIAL} />);
+    expect(resumo().queryByText(/Saldo final do arquivo:|Saldo não informado/)).not.toBeInTheDocument();
+  });
+
+  it("relê o resumo ao remover uma linha e mantém o saldo final que veio do backend", async () => {
+    const user = userEvent.setup();
+    const saldo = { saldoFinal: "1234.56", saldoData: "2026-10-15" };
+    acoes.carregar.mockResolvedValue({ ok: true, dados: { ...ATUALIZADO, resumo: { ...ATUALIZADO.resumo, ...saldo } } });
+    render(<Revisao inicial={{ ...INICIAL, resumo: { ...INICIAL.resumo, ...saldo } }} />);
+
+    await removerLinha1(user);
+
+    expect(acoes.carregar).toHaveBeenCalledWith(INICIAL.id);
+    expect(confirmar()).toHaveAccessibleName("Confirmar 1 lançamento");
+    expect(resumo().getByText(/Saldo final do arquivo:/)).toHaveTextContent(/R\$\s*1\.234,56 em 15\/10\/2026/);
+    expect(resumo().getByText(/R\$\s*100,00/)).toBeVisible();
   });
 
   it("impede confirmar enquanto uma correção está aberta e libera depois de salvar", async () => {
@@ -96,6 +136,54 @@ describe("Revisao da importação via IA", () => {
     await user.click(confirmar());
 
     await waitFor(() => expect(acoes.push).toHaveBeenCalledWith("/conciliacoes/nova?sistema=extrato-1"));
+  });
+
+  it.each([
+    ["uma falha de rede", "erro"],
+    ["o 409 de outra aba", "409"],
+  ])("confirmar que lança e depois acha o extrato confirmado segue para a nova conciliação após %s", async (_nome, tipo) => {
+    const user = userEvent.setup();
+    if (tipo === "erro") acoes.confirmar.mockRejectedValue(new Error("rede"));
+    else acoes.confirmar.mockResolvedValue({ ok: false, status: 409, erro: "A importação já foi confirmada." });
+    render(<Revisao inicial={INICIAL} />);
+
+    await user.click(confirmar());
+
+    await waitFor(() => expect(acoes.recuperar).toHaveBeenCalledWith(INICIAL.id));
+    expect(acoes.push).toHaveBeenCalledWith("/conciliacoes/nova?sistema=e1");
+  });
+
+  it.each([
+    { origem: "rede", recuperacao: "resposta", erro: SEM_SERVIDOR },
+    { origem: "409", recuperacao: "resposta", erro: "A importação já foi confirmada." },
+    { origem: "rede", recuperacao: "rede", erro: SEM_SERVIDOR },
+    { origem: "409", recuperacao: "rede", erro: "A importação já foi confirmada." },
+  ])("preserva o erro de $origem se a recuperação por $recuperacao não acha o extrato", async ({ origem, recuperacao, erro }) => {
+    if (origem === "rede") acoes.confirmar.mockRejectedValue(new Error("rede"));
+    else acoes.confirmar.mockResolvedValue({ ok: false, status: 409, erro });
+    if (recuperacao === "rede") acoes.recuperar.mockRejectedValue(new Error("rede na recuperação"));
+    else acoes.recuperar.mockResolvedValue({ ok: false, status: 409, erro: "Confirme a importação antes de conciliar." });
+    const user = userEvent.setup();
+    render(<Revisao inicial={INICIAL} />);
+
+    await user.click(confirmar());
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(erro);
+    expect(acoes.recuperar).toHaveBeenCalledExactlyOnceWith(INICIAL.id);
+    expect(acoes.push).not.toHaveBeenCalled();
+    expect(confirmar()).toBeEnabled();
+  });
+
+  it("sessão expirada na recuperação vai ao login", async () => {
+    acoes.confirmar.mockRejectedValue(new Error("rede"));
+    acoes.recuperar.mockResolvedValue({ ok: false, status: 401, erro: "Sua sessão expirou." });
+    const user = userEvent.setup();
+    render(<Revisao inicial={INICIAL} />);
+
+    await user.click(confirmar());
+
+    expect(acoes.push).toHaveBeenCalledExactlyOnceWith("/login");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
   it("impede confirmar uma linha nova não salva e libera ao cancelar", async () => {

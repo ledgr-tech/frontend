@@ -5,16 +5,19 @@ import { SEM_SERVIDOR } from "@/lib/sem-servidor";
 
 /**
  * Aprovar ou rejeitar várias justificativas de uma vez (backend #132, front #208): na mesa de
- * fechamento, as do mês; na comparação, as linhas marcadas. Rejeitar pede o motivo, opcional como
+ * fechamento, as do mês; na comparação, as selecionadas que aguardam. Rejeitar pede o motivo, opcional como
  * na janela da linha. `onDecidir` devolve o motivo de não ter gravado, ou null.
  */
 export function DecisaoEmLote({
   quantidade,
+  limite,
   objeto,
   onDecidir,
 }: {
   quantidade: number;
-  /** "justificativa"/"justificativas" na mesa; "marcada"/"marcadas" na comparação. */
+  /** A seleção de linhas aceita até 500; o lote por competência não tem esse limite. */
+  limite?: number;
+  /** "justificativa"/"justificativas" na mesa; "justificativa selecionada"/"justificativas selecionadas" na comparação. */
   objeto: { um: string; varios: string };
   onDecidir: (acao: "aprovar" | "rejeitar", motivo?: string) => Promise<string | null>;
 }) {
@@ -26,9 +29,10 @@ export function DecisaoEmLote({
   const travado = useRef(false);
   const idMotivo = useId();
   const quais = quantidade === 1 ? `a ${objeto.um}` : `as ${quantidade.toLocaleString("pt-BR")} ${objeto.varios}`;
+  const acimaDoLimite = limite !== undefined && quantidade > limite;
 
   async function decidir(acao: "aprovar" | "rejeitar") {
-    if (travado.current) return;
+    if (travado.current || acimaDoLimite) return;
     travado.current = true;
     setEnviando(true);
     setErro(null);
@@ -50,6 +54,9 @@ export function DecisaoEmLote({
 
   return (
     <>
+      {acimaDoLimite && (
+        <p className="vg-nota">{`Selecione no máximo ${limite.toLocaleString("pt-BR")} justificativas para aprovar ou rejeitar de uma vez.`}</p>
+      )}
       {rejeitando ? (
         <form
           className="lote-rejeicao"
@@ -73,7 +80,7 @@ export function DecisaoEmLote({
           </div>
           <p className="vg-nota">As linhas voltam a divergentes, e quem justificou vê o motivo no histórico.</p>
           <div className="fech-acoes">
-            <button type="submit" className="btn btn-secondary" disabled={enviando} aria-busy={enviando || undefined}>
+            <button type="submit" className="btn btn-secondary" disabled={enviando || acimaDoLimite} aria-busy={enviando || undefined}>
               {`Rejeitar ${quais}`}
             </button>
             <button type="button" className="btn btn-secondary" disabled={enviando} onClick={() => setRejeitando(false)}>
@@ -86,13 +93,13 @@ export function DecisaoEmLote({
           <button
             type="button"
             className="btn btn-secondary"
-            disabled={enviando}
+            disabled={enviando || acimaDoLimite}
             aria-busy={enviando || undefined}
             onClick={() => void decidir("aprovar")}
           >
             {`Aprovar ${quais}`}
           </button>
-          <button type="button" className="btn btn-secondary" disabled={enviando} onClick={() => setRejeitando(true)}>
+          <button type="button" className="btn btn-secondary" disabled={enviando || acimaDoLimite} onClick={() => setRejeitando(true)}>
             Rejeitar…
           </button>
         </div>

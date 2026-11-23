@@ -17,14 +17,18 @@ vi.mock("next/navigation", () => ({
 const enviarExtrato = vi.fn();
 const situacaoDoExtrato = vi.fn();
 const conciliar = vi.fn();
+const descartarExtrato = vi.fn<(id: string) => Promise<unknown>>().mockResolvedValue({ ok: true, dados: null });
 const carregarRegras = vi.fn();
 const carregarContextoDoReenvio = vi.fn();
+const verificarNovaVersao = vi.fn();
 vi.mock("../acoes", () => ({
   enviarExtrato: (dados: FormData) => enviarExtrato(dados),
   situacaoDoExtrato: (id: string) => situacaoDoExtrato(id),
   conciliar: (banco: string, sistema: string) => conciliar(banco, sistema),
+  descartarExtrato: (id: string) => descartarExtrato(id),
   carregarRegras: () => carregarRegras(),
   carregarContextoDoReenvio: (banco: string, anterior: string) => carregarContextoDoReenvio(banco, anterior),
+  verificarNovaVersao: (banco: string, anterior: string) => verificarNovaVersao(banco, anterior),
 }));
 
 const carregarPromptIa = vi.fn();
@@ -73,9 +77,10 @@ async function enviar(arquivo = csv()) {
 
 describe("Nova conciliação em modo reenvio", () => {
   beforeEach(() => {
+    descartarExtrato.mockClear();
     consulta = `banco=${BANCO}&sistemaAnterior=${ANTERIOR}`;
     push.mockClear();
-    for (const mock of [enviarExtrato, situacaoDoExtrato, conciliar, carregarRegras, carregarContextoDoReenvio, carregarPromptIa, importarViaIa]) {
+    for (const mock of [enviarExtrato, situacaoDoExtrato, conciliar, carregarRegras, carregarContextoDoReenvio, verificarNovaVersao, carregarPromptIa, importarViaIa]) {
       mock.mockReset();
     }
     carregarRegras.mockResolvedValue({
@@ -89,6 +94,47 @@ describe("Nova conciliação em modo reenvio", () => {
     enviarExtrato.mockResolvedValue({ ok: true, dados: { extratoId: "extrato-novo" } });
     situacaoDoExtrato.mockResolvedValue(situacao("concluido"));
     conciliar.mockResolvedValue({ ok: true, dados: { total: 3 } });
+    verificarNovaVersao.mockResolvedValue({ ok: true, dados: { arquivoBanco: "banco-setembro.ofx", jaConciliada: false } });
+  });
+
+  it.each([
+    ["CSV", () => csv()],
+    ["JSON", () => new File(["{}"], "corrigido.json", { type: "application/json" })],
+  ])("%s com sistemaAnterior antigo mostra o 409 e não sobe o arquivo", async (_tipo, arquivo) => {
+    verificarNovaVersao.mockResolvedValue({
+      ok: false,
+      status: 409,
+      erro: "A comparação já tem uma rodada mais recente. Volte à comparação para continuar.",
+    });
+    const user = await abrir();
+    await user.upload(screen.getByLabelText(CAMPO), arquivo());
+    await user.click(screen.getByRole("button", { name: "Conciliar de novo" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "A comparação já tem uma rodada mais recente. Volte à comparação para continuar.",
+    );
+    expect(verificarNovaVersao).toHaveBeenCalledWith(BANCO, ANTERIOR);
+    expect(enviarExtrato).not.toHaveBeenCalled();
+    expect(importarViaIa).not.toHaveBeenCalled();
+  });
+
+  it("recusa o endereço de rodada antiga ao carregar o contexto, antes de escolher o arquivo", async () => {
+    carregarContextoDoReenvio.mockResolvedValue({
+      ok: false,
+      status: 409,
+      erro: "A comparação já tem uma rodada mais recente. Volte à comparação para continuar.",
+    });
+    render(<NovaConciliacaoPage />);
+
+    expect(await screen.findByText(/Não foi possível carregar a comparação de origem/)).toBeVisible();
+    expect(screen.getByText("A comparação já tem uma rodada mais recente. Volte à comparação para continuar.")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Tentar de novo" })).toBeVisible();
+    expect(carregarContextoDoReenvio).toHaveBeenCalledExactlyOnceWith(BANCO, ANTERIOR);
+    expect(screen.queryByLabelText(CAMPO)).not.toBeInTheDocument();
+    expect(verificarNovaVersao).not.toHaveBeenCalled();
+    expect(enviarExtrato).not.toHaveBeenCalled();
+    expect(importarViaIa).not.toHaveBeenCalled();
+    expect(conciliar).not.toHaveBeenCalled();
   });
 
   it("lê o contexto pelos ids e mostra o banco travado, a rodada e o caminho de volta", async () => {
@@ -201,6 +247,8 @@ describe("Nova conciliação em modo reenvio", () => {
     await user.click(await screen.findByRole("button", { name: "Voltar para corrigir" }));
 
     expect(conciliar).not.toHaveBeenCalled();
+    // só o sistema subiu: o banco mantido já está conciliado e nunca é descartado (#308)
+    expect(descartarExtrato.mock.calls.map(([id]) => id)).toEqual(["extrato-novo"]);
     expect(screen.getByText("Banco: mantido")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Conciliar de novo" })).toBeDisabled();
     await user.upload(screen.getByLabelText(CAMPO), csv());

@@ -31,8 +31,12 @@ function lerTentativas(): Tentativas {
 
 function salvarTentativas(tentativas: Tentativas | null): void {
   if (typeof window === "undefined") return;
-  if (tentativas) window.localStorage.setItem(TENTATIVAS_KEY, JSON.stringify(tentativas));
-  else window.localStorage.removeItem(TENTATIVAS_KEY);
+  try {
+    if (tentativas) window.localStorage.setItem(TENTATIVAS_KEY, JSON.stringify(tentativas));
+    else window.localStorage.removeItem(TENTATIVAS_KEY);
+  } catch {
+    // sem localStorage: só não guarda a pausa
+  }
 }
 
 export function estaBloqueado({ agora = Date.now() }: Relogio = {}): boolean {

@@ -27,12 +27,14 @@ export function ModalDaTela({
   aoFechar,
   classe,
   fundo,
+  ocupado = false,
   children,
 }: {
   titulo: string;
   aoFechar: () => void;
   classe?: string;
   fundo?: ReactNode;
+  ocupado?: boolean;
   children: ReactNode;
 }) {
   const dialogo = useRef<HTMLDialogElement>(null);
@@ -42,7 +44,7 @@ export function ModalDaTela({
 
   // a saída (140ms, mais curta e discreta que a entrada) toca antes de a janela desmontar; uma vez só
   function fechar() {
-    if (saindo.current) return;
+    if (ocupado || saindo.current) return;
     saindo.current = true;
     const elemento = dialogo.current;
     void Promise.all([
@@ -86,7 +88,7 @@ export function ModalDaTela({
         evento.preventDefault();
         fechar();
       }}
-      onClose={aoFechar}
+      onClose={() => { if (!ocupado) aoFechar(); }}
       // o fundo escurecido é o próprio <dialog> (a caixa de dentro cobre a largura toda): clicar nele é clicar fora
       onClick={(evento) => {
         if (evento.target === evento.currentTarget) fechar();

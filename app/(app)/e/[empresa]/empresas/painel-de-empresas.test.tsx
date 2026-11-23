@@ -11,9 +11,19 @@ import { PainelDeEmpresas } from "./painel-de-empresas";
 // a ação é a fronteira com o backend; aqui devolve o que ele responderia
 const cadastrarEmpresa = vi.fn();
 const marcarFavorita = vi.fn();
+const editarNomeDeExibicao = vi.fn();
+const removerEmpresa = vi.fn();
+const carregarEmpresasRemovidas = vi.fn();
+const restaurarEmpresa = vi.fn();
+vi.mock("./remocao-acoes", () => ({
+  removerEmpresa: (...args: unknown[]) => removerEmpresa(...args),
+  carregarEmpresasRemovidas: (...args: unknown[]) => carregarEmpresasRemovidas(...args),
+  restaurarEmpresa: (...args: unknown[]) => restaurarEmpresa(...args),
+}));
 vi.mock("./acoes", () => ({
   cadastrarEmpresa: (...args: unknown[]) => cadastrarEmpresa(...args),
   marcarFavorita: (...args: unknown[]) => marcarFavorita(...args),
+  editarNomeDeExibicao: (...args: unknown[]) => editarNomeDeExibicao(...args),
 }));
 vi.mock("../../../../(auth)/acoes", () => ({ salvarPreferencias: async () => true }));
 // a equipe carrega junto com a tela; aqui o backend responde com três pessoas e um convite
@@ -40,9 +50,9 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(window.location.search),
 }));
 
-const A: EmpresaCliente = { id: "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20", razaoSocial: "Padaria Ltda", cnpj: "11222333000181", cnpjVerificado: true, criadaEm: "2026-10-08T17:59:02Z" };
-const B: EmpresaCliente = { id: "9b8a7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d", razaoSocial: "Mercado Ltda", cnpj: "11444777000161", cnpjVerificado: false, criadaEm: "2026-10-21T19:48:16Z" };
-const NOVA: EmpresaCliente = { id: "c0ffee00-0000-4000-8000-000000000001", razaoSocial: "Cliente Dois Ltda", cnpj: "11444777000161", cnpjVerificado: false, criadaEm: "2026-10-22T10:00:00Z" };
+const A: EmpresaCliente = { id: "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20", razaoSocial: "Padaria Ltda", nome: "Padaria Ltda", cnpj: "11222333000181", cnpjVerificado: true, criadaEm: "2026-10-08T17:59:02Z" };
+const B: EmpresaCliente = { id: "9b8a7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d", razaoSocial: "Mercado Ltda", nome: "Mercado Ltda", cnpj: "11444777000161", cnpjVerificado: false, criadaEm: "2026-10-21T19:48:16Z" };
+const NOVA: EmpresaCliente = { id: "c0ffee00-0000-4000-8000-000000000001", razaoSocial: "Cliente Dois Ltda", nome: "Cliente Dois Ltda", cnpj: "11444777000161", cnpjVerificado: false, criadaEm: "2026-10-22T10:00:00Z" };
 
 // a aba escolhida vem da URL (`?aba=equipe`): é o que o voltar do navegador devolve depois de uma troca
 function montar({
@@ -54,7 +64,7 @@ function montar({
 }: { papel?: Papel; limites?: LimitesDaConta | null; aba?: "equipe"; empresas?: EmpresaCliente[]; cobranca?: boolean } = {}) {
   if (aba) window.history.replaceState(null, "", "/e/x/empresas?aba=equipe");
   render(
-    <ProvedorDaEmpresa ativa={{ id: A.id, razaoSocial: A.razaoSocial, cnpj: A.cnpj }} empresas={[A, B]}>
+    <ProvedorDaEmpresa ativa={{ id: A.id, razaoSocial: A.razaoSocial, nome: A.nome, cnpj: A.cnpj }} empresas={[A, B]}>
       <ProvedorDaConta cobrancaHabilitada={cobranca} preferencias={null} limites={limites} papel={papel}>
         <PainelDeEmpresas empresas={empresas} />
       </ProvedorDaConta>
@@ -64,8 +74,125 @@ function montar({
 
 const linhaDe = (nome: RegExp) => screen.getByRole("row", { name: nome });
 
+const REMOVIDA = { id: B.id, nome: B.nome, razaoSocial: B.razaoSocial, cnpj: B.cnpj,
+  removidaEm: "2026-11-23T01:00:00Z", removidaPor: "Ana", apagarEm: "2026-12-23T01:00:00Z" };
+
+describe("remoção e restauração", () => {
+  it.each(["admin", "gestor"] as const)("%s tem as ações de remover e ver removidas", (papel) => {
+    montar({ papel });
+    expect(screen.getByRole("button", { name: "Remover empresa" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Empresas removidas" })).toBeInTheDocument();
+  });
+
+  it("analista não recebe controles nem consulta empresas removidas", () => {
+    montar({ papel: "analista" });
+    expect(screen.queryByRole("button", { name: "Remover empresa" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Empresas removidas" })).not.toBeInTheDocument();
+    expect(carregarEmpresasRemovidas).not.toHaveBeenCalled();
+  });
+
+  it("confirma a empresa e as consequências; cancelar não envia e devolve o foco", async () => {
+    const user = userEvent.setup();
+    montar();
+    const abrir = screen.getByRole("button", { name: "Remover empresa" });
+    await user.click(abrir);
+    const dialogo = screen.getByRole("dialog", { name: "Remover empresa" });
+    expect(dialogo).toHaveTextContent("Mercado Ltda");
+    expect(dialogo).toHaveTextContent("30 dias");
+    expect(dialogo).toHaveTextContent("chaves de API");
+    expect(within(dialogo).getByRole("button", { name: "Cancelar" })).toHaveFocus();
+    await user.click(within(dialogo).getByRole("button", { name: "Cancelar" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(removerEmpresa).not.toHaveBeenCalled();
+    expect(abrir).toHaveFocus();
+  });
+
+  it("envia uma vez, impede fechar em voo e tira a empresa da lista só após confirmação do backend", async () => {
+    let concluir!: (resposta: unknown) => void;
+    removerEmpresa.mockReturnValue(new Promise((resolve) => { concluir = resolve; }));
+    const user = userEvent.setup();
+    montar();
+    await user.click(screen.getByRole("button", { name: "Remover empresa" }));
+    const dialogo = screen.getByRole("dialog");
+    const confirmar = within(dialogo).getByRole("button", { name: "Confirmar remoção" });
+    act(() => { confirmar.click(); confirmar.click(); });
+    expect(removerEmpresa).toHaveBeenCalledExactlyOnceWith(B.id);
+    expect(within(dialogo).getByRole("button", { name: "Cancelar" })).toBeDisabled();
+    await user.keyboard("{Escape}");
+    expect(dialogo).toBeInTheDocument();
+    expect(linhaDe(/Mercado/)).toBeInTheDocument();
+    await act(async () => concluir({ ok: true, dados: REMOVIDA }));
+    expect(screen.queryByRole("row", { name: /Mercado/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("Mercado Ltda foi removida");
+    expect(router.refresh).toHaveBeenCalled();
+    expect(screen.getByRole("heading", { name: A.nome })).toHaveFocus();
+  });
+
+  it.each(["A empresa principal não pode ser removida.", "A última empresa não pode ser removida."])("exibe 409 e preserva a empresa: %s", async (erro) => {
+    removerEmpresa.mockResolvedValue({ ok: false, status: 409, erro });
+    const user = userEvent.setup();
+    montar();
+    await user.click(screen.getByRole("button", { name: "Remover empresa" }));
+    await user.click(screen.getByRole("button", { name: "Confirmar remoção" }));
+    expect(screen.getByRole("alert")).toHaveTextContent(erro);
+    expect(linhaDe(/Mercado/)).toBeInTheDocument();
+    expect(router.refresh).not.toHaveBeenCalled();
+  });
+
+  it("lista o prazo e o autor da remoção e restaura sem perder o nome da empresa", async () => {
+    carregarEmpresasRemovidas.mockResolvedValue({ ok: true, dados: [REMOVIDA] });
+    restaurarEmpresa.mockResolvedValue({ ok: true, dados: B });
+    const user = userEvent.setup();
+    montar({ empresas: [A] });
+    await user.click(screen.getByRole("button", { name: "Empresas removidas" }));
+    const dialogo = screen.getByRole("dialog", { name: "Empresas removidas" });
+    await within(dialogo).findByRole("button", { name: `Restaurar ${B.nome}` });
+    expect(dialogo).toHaveTextContent("por Ana");
+    expect(dialogo).toHaveTextContent("Restaurar até");
+    await user.click(within(dialogo).getByRole("button", { name: `Restaurar ${B.nome}` }));
+    expect(restaurarEmpresa).toHaveBeenCalledExactlyOnceWith(B.id);
+    expect(within(dialogo).getByRole("status")).toHaveTextContent("Mercado Ltda foi restaurada");
+    expect(within(dialogo).getByRole("button", { name: "Fechar" })).toHaveFocus();
+    expect(within(dialogo).queryByRole("button", { name: `Restaurar ${B.nome}` })).not.toBeInTheDocument();
+    await user.click(within(dialogo).getByRole("button", { name: "Fechar" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(linhaDe(/Mercado Ltda/)).toBeInTheDocument();
+    expect(router.refresh).toHaveBeenCalled();
+  });
+
+  it("limite do plano impede restaurar e conserva a empresa entre as removidas", async () => {
+    carregarEmpresasRemovidas.mockResolvedValue({ ok: true, dados: [REMOVIDA] });
+    restaurarEmpresa.mockResolvedValue({ ok: false, status: 402, erro: "O plano permite 5 empresas." });
+    const user = userEvent.setup();
+    montar({ empresas: [A] });
+    await user.click(screen.getByRole("button", { name: "Empresas removidas" }));
+    await user.click(await screen.findByRole("button", { name: `Restaurar ${B.nome}` }));
+    expect(screen.getByRole("alert")).toHaveTextContent("O plano permite 5 empresas.");
+    expect(screen.getByRole("button", { name: `Restaurar ${B.nome}` })).toBeEnabled();
+    expect(screen.queryByRole("row", { name: /Mercado/ })).not.toBeInTheDocument();
+    expect(router.refresh).toHaveBeenCalled();
+  });
+
+  it("lista que falha tem nova tentativa; 401 na restauração vai ao login", async () => {
+    carregarEmpresasRemovidas.mockResolvedValueOnce({ ok: false, status: 0, erro: "Sem conexão." })
+      .mockResolvedValue({ ok: true, dados: [REMOVIDA] });
+    restaurarEmpresa.mockResolvedValue({ ok: false, status: 401, erro: "Sessão expirada." });
+    const user = userEvent.setup();
+    montar({ empresas: [A] });
+    await user.click(screen.getByRole("button", { name: "Empresas removidas" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Sem conexão.");
+    await user.click(screen.getByRole("button", { name: "Atualizar lista" }));
+    await user.click(await screen.findByRole("button", { name: `Restaurar ${B.nome}` }));
+    expect(router.push).toHaveBeenCalledWith("/login");
+  });
+});
+
 beforeEach(() => {
   vi.clearAllMocks();
+  removerEmpresa.mockReset();
+  restaurarEmpresa.mockReset();
+  carregarEmpresasRemovidas.mockReset().mockResolvedValue({ ok: true, dados: [] });
   window.history.replaceState(null, "", "/e/x/empresas");
   carregarEquipe.mockResolvedValue({ ok: true, dados: EQUIPE });
 });
@@ -219,6 +346,64 @@ describe("a situação do mês e as favoritas", () => {
     await user.click(within(painel()).getByRole("button", { name: "Tirar das favoritas" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("A conta de demonstração não muda as favoritas.");
     expect(within(painel()).getByRole("button", { name: "Tirar das favoritas" })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("falha antiga não desfaz a estrela mais nova", async () => {
+    let resolverPrimeira!: (valor: { ok: boolean; status: number; erro: string }) => void;
+    const primeira = new Promise<{ ok: boolean; status: number; erro: string }>((resolve) => {
+      resolverPrimeira = resolve;
+    });
+    marcarFavorita
+      .mockReturnValueOnce(primeira)
+      .mockResolvedValueOnce({ ok: true, dados: null })
+      .mockResolvedValueOnce({ ok: true, dados: null });
+    const user = userEvent.setup();
+    montar({ empresas: COM_157 });
+
+    await user.click(screen.getByRole("button", { name: "Marcar Padaria Ltda como favorita" }));
+    await user.click(screen.getByRole("button", { name: "Tirar Padaria Ltda das favoritas" }));
+    await user.click(screen.getByRole("button", { name: "Marcar Padaria Ltda como favorita" }));
+
+    await act(async () => resolverPrimeira({ ok: false, status: 403, erro: "Falha antiga" }));
+    expect(screen.getByRole("button", { name: "Tirar Padaria Ltda das favoritas" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.queryByText("Falha antiga")).not.toBeInTheDocument();
+  });
+
+  it("depois de dois oks fora de ordem, a falha volta ao último ok", async () => {
+    let primeira!: (resposta: { ok: true; dados: null }) => void;
+    let segunda!: (resposta: { ok: true; dados: null }) => void;
+    marcarFavorita
+      .mockReturnValueOnce(new Promise((resolve) => { primeira = resolve; }))
+      .mockReturnValueOnce(new Promise((resolve) => { segunda = resolve; }))
+      .mockResolvedValueOnce({ ok: false, status: 503, erro: "Não foi possível favoritar." });
+    const user = userEvent.setup();
+    montar({ empresas: COM_157 });
+
+    await user.click(screen.getByRole("button", { name: "Marcar Padaria Ltda como favorita" }));
+    await user.click(screen.getByRole("button", { name: "Tirar Padaria Ltda das favoritas" }));
+    await act(async () => segunda({ ok: true, dados: null }));
+    await act(async () => primeira({ ok: true, dados: null }));
+    await user.click(screen.getByRole("button", { name: "Marcar Padaria Ltda como favorita" }));
+
+    expect(screen.getByRole("button", { name: "Marcar Padaria Ltda como favorita" })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("alert")).toHaveTextContent("Não foi possível favoritar.");
+    expect(marcarFavorita.mock.calls).toEqual([[A.id, true], [A.id, false], [A.id, true]]);
+  });
+
+  it("dois cliques que falham voltam a estrela ao que o backend tinha", async () => {
+    let resolverPrimeira!: (valor: { ok: boolean; status: number; erro: string }) => void;
+    marcarFavorita
+      .mockReturnValueOnce(new Promise((resolve) => (resolverPrimeira = resolve)))
+      .mockResolvedValueOnce({ ok: false, status: 503, erro: "Falha nova" });
+    const user = userEvent.setup();
+    montar({ empresas: COM_157 });
+
+    await user.click(screen.getByRole("button", { name: "Marcar Padaria Ltda como favorita" }));
+    await user.click(screen.getByRole("button", { name: "Tirar Padaria Ltda das favoritas" }));
+    await act(async () => resolverPrimeira({ ok: false, status: 503, erro: "Falha antiga" }));
+
+    expect(screen.getByRole("button", { name: "Marcar Padaria Ltda como favorita" })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("alert")).toHaveTextContent("Falha nova");
   });
 });
 
@@ -383,7 +568,7 @@ describe("o cadastro de empresa", () => {
     cadastrarEmpresa.mockResolvedValue({ ok: false, status: 402, erro: "O plano permite até 3 empresas." });
     const user = userEvent.setup();
     const arvore = (limites: LimitesDaConta) => (
-      <ProvedorDaEmpresa ativa={{ id: A.id, razaoSocial: A.razaoSocial, cnpj: A.cnpj }} empresas={[A, B]}>
+      <ProvedorDaEmpresa ativa={{ id: A.id, razaoSocial: A.razaoSocial, nome: A.nome, cnpj: A.cnpj }} empresas={[A, B]}>
         <ProvedorDaConta cobrancaHabilitada preferencias={null} limites={limites} papel="admin">
           <PainelDeEmpresas empresas={[A, B]} />
         </ProvedorDaConta>
@@ -600,5 +785,148 @@ describe("os modais de cadastrar e de convidar", () => {
     await abrirJanela();
     await user.click(screen.getByRole("dialog"));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+});
+
+describe("nome de exibição (#472)", () => {
+  const painel = () => screen.getByRole("complementary", { name: "Empresa escolhida" });
+  const COM_NOME: EmpresaCliente[] = [
+    { ...A, nome: "Aconchego", nomeExibicao: "Aconchego", favorita: false, situacao: "fechado" },
+    { ...B, nome: "Mercado Ltda", nomeExibicao: null, favorita: false, situacao: "em_aberto" },
+  ];
+
+  it("mostra o nome na tabela e no título do painel, ordena por ele, busca pelos dois e sempre mostra a razão social no painel", async () => {
+    const user = userEvent.setup();
+    montar({ empresas: COM_NOME });
+
+    // Aconchego (razão social Padaria Ltda) vem antes de Mercado Ltda pelo nome mostrado
+    const linhas = screen.getAllByRole("row").slice(1);
+    expect(linhas.map((linha) => linha.textContent)).toEqual([
+      expect.stringContaining("Aconchego"),
+      expect.stringContaining("Mercado Ltda"),
+    ]);
+    expect(within(painel()).getByRole("heading", { level: 2, name: "Aconchego" })).toBeInTheDocument();
+    expect(within(painel()).getByText("Razão social")).toBeInTheDocument();
+    expect(within(painel()).getByText("Padaria Ltda")).toBeInTheDocument();
+
+    // também quando o nome é igual à razão social, a linha Razão social aparece no painel
+    await user.click(screen.getByRole("button", { name: "Mercado Ltda" }));
+    expect(within(painel()).getByRole("heading", { level: 2, name: "Mercado Ltda" })).toBeInTheDocument();
+    expect(within(painel()).getByText("Razão social").nextElementSibling).toHaveTextContent("Mercado Ltda");
+
+    // busca acha pela razão social e pelo nome de exibição
+    const busca = screen.getByRole("searchbox", { name: "Buscar por razão social ou CNPJ" });
+    await user.type(busca, "Padaria");
+    expect(screen.getAllByRole("row")).toHaveLength(2);
+    expect(screen.getByRole("button", { name: "Aconchego" })).toBeInTheDocument();
+    await user.clear(busca);
+    await user.type(busca, "aconch");
+    expect(screen.getAllByRole("row")).toHaveLength(2);
+    expect(screen.getByRole("button", { name: "Aconchego" })).toBeInTheDocument();
+  });
+
+  it.each<Papel>(["admin", "gestor"])("%s vê Editar nome quando o backend manda nomeExibicao", (papel) => {
+    montar({ papel, empresas: COM_NOME });
+
+    expect(within(painel()).getByRole("button", { name: "Editar nome" })).toBeInTheDocument();
+  });
+
+  it("o analista não vê Editar nome", () => {
+    montar({ papel: "analista", empresas: COM_NOME });
+
+    expect(within(painel()).queryByRole("button", { name: "Editar nome" })).not.toBeInTheDocument();
+  });
+
+  it("sem a chave nomeExibicao (backend antigo), ninguém vê Editar nome", () => {
+    montar({ papel: "admin", empresas: [A, B] });
+
+    expect(within(painel()).queryByRole("button", { name: "Editar nome" })).not.toBeInTheDocument();
+  });
+
+  it("salvar manda o nome, atualiza na tabela e no painel (mantendo favorita e mês), fecha o formulário e chama router.refresh()", async () => {
+    editarNomeDeExibicao.mockResolvedValue({
+      ok: true,
+      dados: { ...B, nome: "Mercadão", nomeExibicao: "Mercadão" },
+    });
+    const user = userEvent.setup();
+    montar({ papel: "gestor", empresas: COM_NOME });
+
+    await user.click(screen.getByRole("button", { name: "Mercado Ltda" }));
+    await user.click(within(painel()).getByRole("button", { name: "Editar nome" }));
+
+    const campo = within(painel()).getByLabelText("Nome de exibição");
+    expect(campo).toHaveValue("Mercado Ltda");
+    expect(campo).toHaveAttribute("maxLength", "120");
+    // nomeExibicao é null: não oferece Voltar à razão social
+    expect(within(painel()).queryByRole("button", { name: "Voltar à razão social" })).not.toBeInTheDocument();
+
+    await user.clear(campo);
+    await user.type(campo, "Mercadão");
+    await user.click(within(painel()).getByRole("button", { name: "Salvar" }));
+
+    await waitFor(() => expect(within(painel()).queryByRole("form", { name: "Editar nome de exibição" })).not.toBeInTheDocument());
+    expect(editarNomeDeExibicao).toHaveBeenCalledWith(B.id, "Mercadão");
+    expect(router.refresh).toHaveBeenCalledTimes(1);
+    expect(within(painel()).getByRole("heading", { level: 2, name: "Mercadão" })).toBeInTheDocument();
+    expect(within(linhaDe(/Mercadão/)).getByText("Mês em aberto")).toBeInTheDocument();
+  });
+
+  it("Voltar à razão social só aparece com nomeExibicao não nulo, manda null e atualiza a tela", async () => {
+    editarNomeDeExibicao.mockResolvedValue({
+      ok: true,
+      dados: { ...A, nome: "Padaria Ltda", nomeExibicao: null },
+    });
+    const user = userEvent.setup();
+    montar({ empresas: COM_NOME });
+
+    await user.click(within(painel()).getByRole("button", { name: "Editar nome" }));
+    expect(within(painel()).getByLabelText("Nome de exibição")).toHaveValue("Aconchego");
+    await user.click(within(painel()).getByRole("button", { name: "Voltar à razão social" }));
+
+    await waitFor(() => expect(within(painel()).queryByRole("form", { name: "Editar nome de exibição" })).not.toBeInTheDocument());
+    expect(editarNomeDeExibicao).toHaveBeenCalledWith(A.id, null);
+    expect(router.refresh).toHaveBeenCalledTimes(1);
+    expect(within(painel()).getByRole("heading", { level: 2, name: "Padaria Ltda" })).toBeInTheDocument();
+  });
+
+  it("dois envios no mesmo instante chamam a ação uma vez só, e um erro aparece na linha do formulário", async () => {
+    let concluir!: (resposta: unknown) => void;
+    editarNomeDeExibicao.mockReturnValueOnce(new Promise((resolve) => (concluir = resolve)));
+    const user = userEvent.setup();
+    montar({ empresas: COM_NOME });
+
+    await user.click(within(painel()).getByRole("button", { name: "Editar nome" }));
+    const form = within(painel()).getByRole("form", { name: "Editar nome de exibição" }) as HTMLFormElement;
+
+    act(() => {
+      form.requestSubmit();
+      form.requestSubmit();
+    });
+
+    expect(editarNomeDeExibicao).toHaveBeenCalledTimes(1);
+    expect(within(form).getByRole("button", { name: "Salvando…" })).toBeDisabled();
+
+    await act(async () => concluir({ ok: false, status: 422, erro: "O nome pode ter até 120 caracteres." }));
+    expect(within(form).getByRole("alert")).toHaveTextContent("O nome pode ter até 120 caracteres.");
+    expect(router.refresh).not.toHaveBeenCalled();
+
+    await user.click(within(form).getByRole("button", { name: "Cancelar" }));
+    expect(within(painel()).queryByRole("form", { name: "Editar nome de exibição" })).not.toBeInTheDocument();
+    // o foco volta ao botão que abriu o formulário, não cai no body
+    expect(within(painel()).getByRole("button", { name: "Editar nome" })).toHaveFocus();
+  });
+
+  it("sessão vencida (401) ao editar manda para o login; trocar de empresa fecha o formulário", async () => {
+    editarNomeDeExibicao.mockResolvedValue({ ok: false, status: 401, erro: "Sua sessão expirou." });
+    const user = userEvent.setup();
+    montar({ empresas: COM_NOME });
+
+    await user.click(within(painel()).getByRole("button", { name: "Editar nome" }));
+    await user.click(screen.getByRole("button", { name: "Mercado Ltda" }));
+    expect(within(painel()).queryByRole("form", { name: "Editar nome de exibição" })).not.toBeInTheDocument();
+
+    await user.click(within(painel()).getByRole("button", { name: "Editar nome" }));
+    await user.click(within(painel()).getByRole("button", { name: "Salvar" }));
+    await waitFor(() => expect(router.push).toHaveBeenCalledWith("/login"));
   });
 });

@@ -73,19 +73,23 @@ export type GrupoAPI = {
  * A decisão como o backend manda: igual a `Decisao`, menos os campos da aprovação (backend #132 e #174),
  * que vêm em snake_case. `situacao` é `pendente` ou `aprovada`; a rejeitada não existe aqui.
  */
-export type DecisaoAPI = Omit<Decisao, "aprovadaPor" | "aprovadaEm" | "podeDesfazerAprovacao"> & {
+export type DecisaoAPI = Omit<Decisao, "aprovadaPor" | "aprovadaEm" | "podeDesfazerAprovacao" | "loteId" | "loteTamanho"> & {
   aprovada_por?: string | null;
+  lote_id?: string | null;
+  lote_tamanho?: number | null;
   aprovada_em?: string | null;
   pode_desfazer_aprovacao?: boolean;
 };
 
 export function adaptarDecisao(api: DecisaoAPI): Decisao {
-  const { aprovada_por, aprovada_em, pode_desfazer_aprovacao, ...decisao } = api;
+  const { aprovada_por, aprovada_em, pode_desfazer_aprovacao, lote_id, lote_tamanho, ...decisao } = api;
   return {
     ...decisao,
     ...(aprovada_por ? { aprovadaPor: aprovada_por } : {}),
     ...(aprovada_em ? { aprovadaEm: aprovada_em } : {}),
     ...(typeof pode_desfazer_aprovacao === "boolean" ? { podeDesfazerAprovacao: pode_desfazer_aprovacao } : {}),
+    ...(lote_id ? { loteId: lote_id } : {}),
+    ...(typeof lote_tamanho === "number" ? { loteTamanho: lote_tamanho } : {}),
   };
 }
 
@@ -123,8 +127,21 @@ export function adaptarSaldo(api: CamposDeSaldoAPI): SaldoDoExtrato | null | und
   return { inicial: paraNumero(api.saldo_inicial), final, data: api.saldo_data };
 }
 
+/** Por que não há diferença entre os saldos finais (backend #238); null quando há. */
+export type MotivoSemDiferenca = "sem_saldo_banco" | "sem_saldo_sistema" | "datas_diferentes";
+
+/** Saldo final do banco menos o do sistema. O valor vem pronto do backend; o front não recalcula. */
+export type DiferencaDoSaldo = { valor: number | null; motivo: MotivoSemDiferenca | null };
+
+const MOTIVOS_SEM_DIFERENCA: readonly string[] = ["sem_saldo_banco", "sem_saldo_sistema", "datas_diferentes"];
+
 export type ListaConciliacaoAPI = CamposDeSaldoAPI & {
   extrato_id: string;
+  /** O saldo do extrato do sistema do par (backend #238); ausente antes dele. */
+  saldo_sistema?: CamposDeSaldoAPI | null;
+  /** Decimal em texto: saldo final do banco menos o do sistema, ou null (backend #238). */
+  diferenca_saldo_final?: string | null;
+  diferenca_saldo_motivo?: string | null;
   /** Justificativas esperando aprovação nesta conciliação (backend #132); ausente antes dele. */
   aguardando_aprovacao?: number;
   total: number;
@@ -284,6 +301,18 @@ export function adaptarConciliacao(
     return data && (menor === null || data < menor) ? data : menor;
   }, null);
   const saldo = adaptarSaldo(lista);
+  // o objeto vem sempre com o backend #238; null por garantia vira "não informado"
+  const saldoSistema =
+    "saldo_sistema" in lista ? (lista.saldo_sistema ? adaptarSaldo(lista.saldo_sistema) ?? null : null) : undefined;
+  const diferencaSaldo: DiferencaDoSaldo | undefined =
+    "diferenca_saldo_final" in lista
+      ? {
+          valor: paraNumero(lista.diferenca_saldo_final),
+          motivo: MOTIVOS_SEM_DIFERENCA.includes(lista.diferenca_saldo_motivo ?? "")
+            ? (lista.diferenca_saldo_motivo as MotivoSemDiferenca)
+            : null,
+        }
+      : undefined;
   return {
     id: lista.extrato_id,
     extratoSistemaId,
@@ -291,6 +320,8 @@ export function adaptarConciliacao(
     status: "em_andamento",
     linhas,
     ...(saldo !== undefined && { saldo }),
+    ...(saldoSistema !== undefined && { saldoSistema }),
+    ...(diferencaSaldo !== undefined && { diferencaSaldo }),
     // a contagem do backend vale mais que as linhas da tela: ela conta a conciliação inteira
     aguardandoAprovacao: lista.aguardando_aprovacao ?? linhas.filter((linha) => aguardaAprovacao(linha.decisao)).length,
   };
@@ -662,6 +693,7 @@ const SITUACOES_DA_EMPRESA: readonly string[] = ["em_aberto", "fechado", "sem_co
 export type EmpresaClienteAPI = {
   id: string;
   razao_social: string;
+  nome_exibicao?: string | null;
   cnpj: string;
   cnpj_verificado_em: string | null;
   criado_em: string;
@@ -672,6 +704,10 @@ export type EmpresaClienteAPI = {
 export type EmpresaCliente = {
   id: string;
   razaoSocial: string;
+  /** O nome mostrado nas telas: o de exibição (backend #236), senão a razão social. */
+  nome: string;
+  /** Só com o backend #236: o nome de exibição, ou null quando a empresa mostra a razão social. Ausente, a tela não oferece editar. */
+  nomeExibicao?: string | null;
   cnpj: string;
   cnpjVerificado: boolean;
   criadaEm: string;
@@ -679,10 +715,22 @@ export type EmpresaCliente = {
   situacao?: SituacaoDaEmpresa;
 };
 
+/**
+ * O nome que a tela mostra e o de exibição (backend #236). Sem a chave (backend antigo), `nomeExibicao` fica
+ * ausente e o nome é a razão social; um nome só de espaços conta como null, como o backend o grava.
+ */
+export function nomeDaEmpresa(razaoSocial: unknown, nomeExibicao: unknown): { nome: string; nomeExibicao?: string | null } {
+  const razao = typeof razaoSocial === "string" ? razaoSocial.trim() : "";
+  if (nomeExibicao === undefined) return { nome: razao };
+  const proprio = typeof nomeExibicao === "string" && nomeExibicao.trim() ? nomeExibicao.trim() : null;
+  return { nome: proprio ?? razao, nomeExibicao: proprio };
+}
+
 export function adaptarEmpresaCliente(api: EmpresaClienteAPI): EmpresaCliente {
   return {
     id: api.id,
     razaoSocial: api.razao_social.trim(),
+    ...nomeDaEmpresa(api.razao_social, api.nome_exibicao),
     cnpj: api.cnpj,
     cnpjVerificado: Boolean(api.cnpj_verificado_em),
     criadaEm: api.criado_em,

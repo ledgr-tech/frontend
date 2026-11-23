@@ -330,10 +330,10 @@ export const PAGINAS: PaginaDeAjuda[] = [
       },
       {
         id: "saldo",
-        titulo: "O saldo do extrato",
-        faz: "O saldo inicial e o final do extrato do banco aparecem no pé do painel da direita, quando o arquivo traz. Em telas estreitas, ficam acima do resumo.",
-        passos: ["Confira o saldo final com o do internet banking."],
-        nota: "Se há linhas não lidas, o saldo inicial depende delas.",
+        titulo: "Os saldos dos extratos",
+        faz: "Cada coluna mostra o saldo do seu extrato, quando o arquivo traz: o inicial no topo e o final, com a data, no pé. Entre as duas colunas, no pé, aparece a diferença entre os saldos finais do banco e do sistema, ou “Saldos finais batem” quando ela é zero. No celular, os saldos finais e a diferença ficam numa faixa acima do resumo.",
+        passos: ["Confira o saldo final do banco com o do internet banking.", "Se os saldos finais não batem, a diferença mostra quanto falta explicar."],
+        nota: "Se há linhas não lidas, o saldo inicial depende delas. Quando os dois saldos são de datas diferentes, a tela avisa em vez de comparar.",
       },
       {
         id: "filtros",
@@ -345,6 +345,29 @@ export const PAGINAS: PaginaDeAjuda[] = [
           "Em **Padrão** ou **Compacta**, deixe as linhas mais espaçadas ou mais juntas.",
         ],
         figura: { largura: 498, altura: 62 },
+      },
+      {
+        id: "selecionar",
+        titulo: "Selecionar linhas e somar",
+        faz: "Selecione divergências para ver a soma do banco, a do sistema e a diferença entre elas. Serve, por exemplo, para ver se várias tarifas do banco fecham com um lançamento só do sistema.",
+        passos: [
+          "Marque a caixa de cada linha: à esquerda na tabela, no canto do cartão em telas estreitas. A caixa do topo, ou **Selecionar todas** nos cartões, seleciona todas as que estão à vista.",
+          "Veja a soma no painel da direita. Em telas estreitas, ela aparece na faixa presa ao pé da tela.",
+          "Quando os dois lados batem, aparece **Fecha: a diferença zera**.",
+          "Clique em **Limpar seleção**, na faixa, para recomeçar.",
+        ],
+        nota: "Só as divergências aceitam seleção, justificadas ou não; as que bateram ficam de fora. A seleção continua ao trocar de filtro, some ao trocar de rodada e não grava nada.",
+      },
+      {
+        id: "justificar-em-lote",
+        titulo: "Justificar várias linhas de uma vez",
+        faz: "Justifique de uma vez as linhas selecionadas, com um texto só. Serve quando várias divergências têm o mesmo motivo, como as tarifas de um mês.",
+        passos: [
+          "Selecione as linhas, como em **Selecionar linhas e somar**.",
+          "Na faixa da seleção, clique em **Justificar as N linhas selecionadas** e escreva o motivo.",
+          "Clique em **Justificar**. A tela diz quantas foram justificadas e, se alguma ficou de fora, por quê.",
+        ],
+        nota: "Cada linha guarda a justificativa com o seu nome e o horário, e diz que foi justificada junto com outras. Uma linha que já tinha justificativa recebe a nova, menos a que já foi aprovada por quem aprova. Com o mês fechado ou numa rodada passada, o botão não aparece. Até 500 linhas por vez.",
       },
       {
         id: "conferir",
@@ -363,7 +386,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
           "Passe o mouse sobre uma linha. O detalhe da linha aparece no painel.",
           "Clique numa linha para fixar. Clique nela de novo para soltar.",
         ],
-        nota: "Em telas estreitas, passe o mouse sobre uma divergência para ver o balão ou clique na descrição para abrir a janela.",
+        nota: "Em telas estreitas, passe o mouse sobre uma divergência para ver o balão ou clique na descrição para abrir a janela. Quando a tabela vira cartões, use o clique.",
         figura: { largura: 331, altura: 682 },
       },
       {
@@ -439,10 +462,10 @@ export const PAGINAS: PaginaDeAjuda[] = [
       //   titulo: "Aprovar ou rejeitar várias justificativas",
       //   faz: "O administrador e o gestor decidem várias justificativas aguardando aprovação de uma vez, sem abrir linha por linha.",
       //   passos: [
-      //     "No filtro, escolha **Aguardando aprovação**. A última coluna vira caixas de marcar.",
-      //     "Marque as linhas, ou a caixa do topo para marcar todas, e use os botões de aprovar ou rejeitar as marcadas. Rejeitar pede um motivo, opcional.",
+      //     "Selecione as linhas na caixa à esquerda, em qualquer filtro. **Aguardando aprovação** junta as que esperam, e a caixa do topo seleciona todas à vista.",
+      //     "Na faixa da seleção, use os botões de aprovar ou rejeitar as selecionadas. Só vão as que aguardam aprovação. Rejeitar pede um motivo, opcional.",
       //   ],
-      //   nota: "Vale até 500 linhas por vez. Trocar de filtro limpa a seleção.",
+      //   nota: "Vale até 500 linhas por vez.",
       // },
     ],
   },
@@ -664,7 +687,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
           "Clique na empresa e depois em **Abrir esta empresa**, ou dê dois cliques na linha dela.",
           "Você vai para a Visão geral dela. Outra aba do navegador continua na empresa em que estava.",
         ],
-        nota: "Pelo botão do alto da tela, a troca leva você à mesma tela na outra empresa. A janela dele busca por razão social ou CNPJ e mostra 20 empresas por página.",
+        nota: "Pelo botão do alto da tela, a troca leva você à mesma tela na outra empresa. A janela dele busca pelo nome, pela razão social ou pelo CNPJ e mostra 20 empresas por página.",
       },
       {
         id: "cadastrar",
@@ -676,6 +699,39 @@ export const PAGINAS: PaginaDeAjuda[] = [
           "Clique em **Cadastrar empresa**. A empresa nova abre na Visão geral.",
         ],
         nota: "Se o CNPJ já está no escritório, o Ledgr avisa. Com a consulta à Receita ligada, ele também recusa CNPJ que não existe ou não está ativo.",
+      },
+      {
+        id: "nome",
+        titulo: "Editar o nome de exibição",
+        faz: "Dê à empresa um nome mais curto ou mais conhecido que a razão social. É esse nome que aparece no seletor do alto da tela, na lista e no cabeçalho das telas.",
+        passos: [
+          "Clique na empresa e depois em **Editar nome**, no painel ao lado.",
+          "Escreva o nome, com até 120 caracteres, e clique em **Salvar**.",
+          "Para voltar a mostrar a razão social, clique em **Voltar à razão social**, ou salve o campo vazio.",
+        ],
+        nota: "Só o administrador e o gestor editam o nome. A razão social continua no painel da empresa, e a busca acha a empresa pelos dois.",
+      },
+      {
+        id: "remover",
+        titulo: "Remover uma empresa",
+        faz: "O administrador e o gestor podem remover uma empresa cliente. Ela sai do seletor e das consultas na hora, mas os dados podem ser restaurados por 30 dias.",
+        passos: [
+          "Escolha a empresa na lista e clique em **Remover empresa**, no painel ao lado.",
+          "Confira o nome, o CNPJ e as consequências. Para desistir, clique em **Cancelar**.",
+          "Clique em **Confirmar remoção**. Se ela era a empresa aberta, o Ledgr abre outra empresa do escritório.",
+        ],
+        nota: "A empresa principal e a última empresa ativa não podem ser removidas. A remoção revoga as chaves de API e as conexões MCP da empresa e não devolve a franquia já usada no mês. Depois de 30 dias, os dados serão apagados.",
+      },
+      {
+        id: "restaurar",
+        titulo: "Restaurar uma empresa removida",
+        faz: "Recupere a empresa e seus dados antes do prazo de apagamento. Só o administrador e o gestor têm acesso às empresas removidas.",
+        passos: [
+          "Clique em **Empresas removidas**, no alto da tela.",
+          "Confira o nome, quem removeu e a data limite para restaurar.",
+          "Clique em **Restaurar empresa**. Ela volta à lista e ao seletor.",
+        ],
+        nota: "A restauração precisa caber no limite de empresas do plano. Chaves de API e conexões MCP revogadas precisam ser criadas novamente. Se tentar cadastrar um CNPJ removido, o Ledgr orienta a restaurar a empresa existente.",
       },
       {
         id: "limite",

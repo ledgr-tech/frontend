@@ -22,11 +22,13 @@ vi.mock("next/navigation", () => ({
 const enviarExtrato = vi.fn();
 const situacaoDoExtrato = vi.fn();
 const conciliar = vi.fn();
+const descartarExtrato = vi.fn<(id: string) => Promise<unknown>>().mockResolvedValue({ ok: true, dados: null });
 const carregarRegras = vi.fn();
 vi.mock("../acoes", () => ({
   enviarExtrato: (dados: FormData) => enviarExtrato(dados),
   situacaoDoExtrato: (id: string) => situacaoDoExtrato(id),
   conciliar: (banco: string, sistema: string) => conciliar(banco, sistema),
+  descartarExtrato: (id: string) => descartarExtrato(id),
   carregarRegras: () => carregarRegras(),
 }));
 
@@ -92,6 +94,7 @@ async function enviarOsDois(sistema = arquivo("sistema.csv"), { cobranca = false
 describe("NovaConciliacaoPage", () => {
   beforeEach(() => {
     push.mockClear();
+    descartarExtrato.mockClear();
     enviarExtrato.mockReset();
     situacaoDoExtrato.mockReset();
     conciliar.mockReset();
@@ -317,6 +320,7 @@ describe("NovaConciliacaoPage", () => {
       expect(conciliar).toHaveBeenCalledWith("extrato-banco", "extrato-sistema");
       expect(enviarExtrato).toHaveBeenCalledTimes(2);
       await waitFor(() => expect(push).toHaveBeenCalledWith("/conciliacoes/extrato-banco?sistema=extrato-sistema"));
+      expect(descartarExtrato).not.toHaveBeenCalled();
     });
 
     it("volta para corrigir sem conciliar: o arquivo lido em parte sai da folha e o outro fica", async () => {
@@ -326,11 +330,24 @@ describe("NovaConciliacaoPage", () => {
       await user.click(await screen.findByRole("button", { name: "Voltar para corrigir" }));
 
       expect(conciliar).not.toHaveBeenCalled();
+      // os dois subiram nesta tentativa e a próxima sobe os dois de novo: nenhum fica em Extratos (#308)
+      expect(descartarExtrato.mock.calls.map(([id]) => id)).toEqual(["extrato-banco", "extrato-sistema"]);
       expect(screen.getByLabelText("Extrato do banco").closest("label")).not.toHaveAttribute("data-pronto");
       expect(screen.getByLabelText("Extrato do sistema").closest("label")).toHaveAttribute("data-pronto");
       expect(screen.getByRole("button", { name: "Conciliar extratos" })).toHaveAccessibleDescription(
         "Falta o extrato do banco.",
       );
+    });
+
+    it("volta para corrigir mesmo quando o descarte falha", async () => {
+      descartarExtrato.mockRejectedValueOnce(new Error("Failed to fetch"));
+      lidoEmParte([L12]);
+      const user = await enviarOsDois();
+
+      await user.click(await screen.findByRole("button", { name: "Voltar para corrigir" }));
+
+      expect(screen.getByLabelText("Extrato do sistema").closest("label")).toHaveAttribute("data-pronto");
+      expect(screen.queryByRole("button", { name: "Voltar para corrigir" })).not.toBeInTheDocument();
     });
 
     it("se a conciliação falha depois da decisão, volta a ela com o motivo e tenta de novo sem reenviar", async () => {
@@ -806,8 +823,8 @@ describe("NovaConciliacaoPage", () => {
 });
 
 describe("a empresa para a qual se concilia (#169)", () => {
-  const A = { id: "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20", razaoSocial: "Padaria Ltda", cnpj: "11222333000181" };
-  const B = { id: "9b8a7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d", razaoSocial: "Mercado Ltda", cnpj: "11444777000161" };
+  const A = { id: "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20", razaoSocial: "Padaria Ltda", nome: "Padaria Ltda", cnpj: "11222333000181" };
+  const B = { id: "9b8a7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d", razaoSocial: "Mercado Ltda", nome: "Mercadinho", cnpj: "11444777000161" };
 
   function montarComEmpresas(empresas: (typeof A)[], ativa = empresas[0]) {
     return render(
@@ -819,10 +836,10 @@ describe("a empresa para a qual se concilia (#169)", () => {
     );
   }
 
-  it("com mais de uma empresa, diz em destaque para qual delas o envio vai", () => {
+  it("com mais de uma empresa, diz em destaque para qual delas o envio vai (pelo nome de exibição)", () => {
     montarComEmpresas([A, B], B);
 
-    expect(screen.getByText(/Conciliando para/)).toHaveTextContent("Conciliando para Mercado Ltda");
+    expect(screen.getByText(/Conciliando para/)).toHaveTextContent("Conciliando para Mercadinho");
   });
 
   it("com uma empresa só, não diz nada", () => {
@@ -850,6 +867,7 @@ describe("depois da importação via IA, só falta o banco", () => {
 
   beforeEach(() => {
     push.mockClear();
+    descartarExtrato.mockClear();
     enviarExtrato.mockReset();
     situacaoDoExtrato.mockReset();
     conciliar.mockReset();
@@ -895,6 +913,19 @@ describe("depois da importação via IA, só falta o banco", () => {
     // o extrato do sistema já está lido: não há o que esperar por ele
     expect(situacaoDoExtrato).toHaveBeenCalledTimes(1);
     await waitFor(() => expect(push).toHaveBeenCalledWith(`/conciliacoes/extrato-banco?sistema=${SISTEMA_DA_IA}`));
+  });
+
+  it("ao voltar para corrigir o banco, descarta só ele: o extrato da IA fica (#308)", async () => {
+    situacaoDoExtrato.mockResolvedValue(concluido("banco", [{ identificador: "12", motivo: "Data inválida" }]));
+    const user = userEvent.setup();
+    render(<NovaConciliacaoPage />);
+    await user.upload(screen.getByLabelText("Extrato do banco"), arquivo("banco.ofx"));
+    await user.click(screen.getByRole("button", { name: "Conciliar extratos" }));
+
+    await user.click(await screen.findByRole("button", { name: "Voltar para corrigir" }));
+
+    expect(descartarExtrato.mock.calls.map(([id]) => id)).toEqual(["extrato-banco"]);
+    expect(conciliar).not.toHaveBeenCalled();
   });
 
   it("ignora um ?sistema= que não é um id", () => {

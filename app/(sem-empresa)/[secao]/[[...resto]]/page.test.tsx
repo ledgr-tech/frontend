@@ -5,8 +5,8 @@ import UrlSemEmpresa from "./page";
 const A = "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20";
 const B = "9b8a7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d";
 const EMPRESAS = [
-  { id: A, razaoSocial: "Padaria Ltda", cnpj: "1" },
-  { id: B, razaoSocial: "Mercado Ltda", cnpj: "2" },
+  { id: A, razaoSocial: "Padaria Ltda", nome: "Padaria Ltda", cnpj: "1" },
+  { id: B, razaoSocial: "Mercado Ltda", nome: "Mercado Ltda", cnpj: "2" },
 ];
 
 const auth = vi.hoisted(() => vi.fn());

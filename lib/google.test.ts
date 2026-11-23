@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ehErroGoogle, identidadeDoIdToken } from "./google";
+import { ehErroConviteGoogle, ehErroGoogle, identidadeDoIdToken } from "./google";
 
 /** Um id_token com o corpo dado; a assinatura não importa aqui, quem confere é o backend. */
 function idToken(claims: object): string {
@@ -27,6 +27,11 @@ describe("identidadeDoIdToken", () => {
 });
 
 describe("ehErroGoogle", () => {
+  it("google_de_outra_conta pertence só ao aceite de convite", () => {
+    expect(ehErroGoogle("google_de_outra_conta")).toBe(false);
+    expect(ehErroConviteGoogle("google_de_outra_conta")).toBe(true);
+  });
+
   it("aceita só os motivos conhecidos, que vêm da URL", () => {
     expect(ehErroGoogle("email_com_senha")).toBe(true);
     expect(ehErroGoogle("toString")).toBe(false);

@@ -42,7 +42,7 @@ function Equipe({ aberto = true }: { aberto?: boolean }) {
 }
 
 function montar(papel: Papel = "admin", email = ADMIN.email, limites: LimitesDaConta | null = null, aberto = true, temSenha = true) {
-  render(
+  return render(
     <ProvedorDaConta cobrancaHabilitada preferencias={null} limites={limites} papel={papel} email={email} temSenha={temSenha}>
       <Equipe aberto={aberto} />
     </ProvedorDaConta>,
@@ -112,6 +112,15 @@ describe("a equipe", () => {
     expect(within(painelDe("caio@x.com")).getByRole("button", { name: "Cancelar convite" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^Gestor/ })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^Analista/ })).toBeDisabled();
+  });
+
+  it("gestor não vê Cancelar convite num convite de gestor", async () => {
+    const conviteGestor = { ...CONVITE, id: "c-gestor", papel: "gestor" as const };
+    carregarEquipe.mockResolvedValue({ ok: true, dados: { pessoas: [ADMIN, GESTOR, BIA], convites: [conviteGestor] } });
+    montar("gestor", GESTOR.email);
+
+    expect(await screen.findByText("caio@x.com", { selector: ".equipe-nome" })).toBeInTheDocument();
+    expect(within(painelDe("caio@x.com")).queryByRole("button", { name: "Cancelar convite" })).not.toBeInTheDocument();
   });
 
   it("o convite explica cada papel; o admin escolhe entre gestor e analista, e o padrão é o de menos poder", async () => {
@@ -300,6 +309,44 @@ describe("a equipe", () => {
     await waitFor(() => expect(carregarEquipe).toHaveBeenCalledTimes(2));
   });
 
+  it("403 no convite mostra o texto no painel, fecha o modal e relê a equipe e o papel", async () => {
+    const user = userEvent.setup();
+    convidar.mockResolvedValue({ ok: false, status: 403, erro: "Seu papel no escritório não permite convidar." });
+    montar("gestor", GESTOR.email);
+
+    await user.type(await screen.findByLabelText("E-mail da pessoa"), "eva@x.com");
+    await user.click(screen.getByRole("button", { name: "Enviar convite" }));
+
+    await waitFor(() => expect(refresh).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(carregarEquipe).toHaveBeenCalledTimes(2));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Seu papel no escritório não permite convidar.");
+    expect(screen.queryByRole("dialog", { name: "Convidar pessoa" })).not.toBeInTheDocument();
+  });
+
+  it("o texto do 403 no convite continua à vista depois de o gestor virar analista", async () => {
+    const erro = "Seu papel no escritório não permite convidar.";
+    convidar.mockResolvedValue({ ok: false, status: 403, erro });
+    carregarEquipe
+      .mockResolvedValueOnce({ ok: true, dados: { pessoas: [ADMIN, GESTOR, BIA], convites: [CONVITE] } })
+      .mockResolvedValue({ ok: true, dados: { pessoas: [ADMIN, { ...GESTOR, papel: "analista" }, BIA], convites: null } });
+    const user = userEvent.setup();
+    const tela = montar("gestor", GESTOR.email);
+    await user.type(await screen.findByLabelText("E-mail da pessoa"), "eva@x.com");
+    await user.click(screen.getByRole("button", { name: "Enviar convite" }));
+    await waitFor(() => expect(carregarEquipe).toHaveBeenCalledTimes(2));
+
+    tela.rerender(
+      <ProvedorDaConta cobrancaHabilitada preferencias={null} limites={null} papel="analista" email={GESTOR.email} temSenha>
+        <Equipe />
+      </ProvedorDaConta>,
+    );
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(erro);
+    expect(screen.queryByRole("dialog", { name: "Convidar pessoa" })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("E-mail da pessoa")).not.toBeInTheDocument();
+    expect(refresh).toHaveBeenCalledTimes(1);
+  });
+
   it("401 em qualquer ação vai para o login, sem erro preso na tela", async () => {
     const user = userEvent.setup();
     removerPessoa.mockResolvedValue({ ok: false, status: 401, erro: "Sua sessão expirou. Entre de novo para continuar." });
@@ -310,7 +357,18 @@ describe("a equipe", () => {
     await user.click(within(painelDe("Bia")).getByRole("button", { name: "Remover" }));
 
     await waitFor(() => expect(push).toHaveBeenCalledWith("/login"));
-    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("404 ao remover relê a equipe", async () => {
+    const user = userEvent.setup();
+    removerPessoa.mockResolvedValue({ ok: false, status: 404, erro: "Essa pessoa não está mais no escritório." });
+    montar();
+
+    await screen.findByText("Bia", { selector: ".equipe-nome" });
+    await user.click(within(painelDe("Bia")).getByRole("button", { name: "Remover" }));
+    await user.click(within(painelDe("Bia")).getByRole("button", { name: "Remover" }));
+
+    await waitFor(() => expect(carregarEquipe).toHaveBeenCalledTimes(2));
   });
 });
 

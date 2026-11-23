@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, renderHook, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ProvedorDaEmpresa, type EmpresaDaConta } from "@/lib/empresa-ativa";
-import { SeletorDeEmpresa } from "./seletor-de-empresa";
+import { combina, SeletorDeEmpresa, useFavoritaOtimista } from "./seletor-de-empresa";
 
 const caminho = vi.hoisted(() => ({ atual: "/e/x/fechamentos" }));
 const roteador = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn(), back: vi.fn(), prefetch: vi.fn() }));
@@ -15,8 +15,8 @@ vi.mock("next/navigation", () => ({
 const acoes = vi.hoisted(() => ({ carregarEmpresas: vi.fn(), marcarFavorita: vi.fn() }));
 vi.mock("./empresas/acoes", () => acoes);
 
-const A: EmpresaDaConta = { id: "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20", razaoSocial: "Padaria Ltda", cnpj: "11222333000181" };
-const B: EmpresaDaConta = { id: "9b8a7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d", razaoSocial: "Mercado Ltda", cnpj: "11444777000161" };
+const A: EmpresaDaConta = { id: "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20", razaoSocial: "Padaria Ltda", nome: "Padaria Ltda", cnpj: "11222333000181" };
+const B: EmpresaDaConta = { id: "9b8a7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d", razaoSocial: "Mercado Ltda", nome: "Mercado Ltda", cnpj: "11444777000161" };
 
 function montar(empresas: EmpresaDaConta[] = [A, B], ativa: EmpresaDaConta = empresas[0]) {
   return render(
@@ -30,7 +30,7 @@ function montar(empresas: EmpresaDaConta[] = [A, B], ativa: EmpresaDaConta = emp
 function muitas(n: number): EmpresaDaConta[] {
   return Array.from({ length: n }, (_, i) => {
     const numero = String(i + 1).padStart(2, "0");
-    return { id: `00000000-0000-4000-8000-0000000000${numero}`, razaoSocial: `Empresa ${numero}`, cnpj: `${numero}222333000181` };
+    return { id: `00000000-0000-4000-8000-0000000000${numero}`, razaoSocial: `Empresa ${numero}`, nome: `Empresa ${numero}`, cnpj: `${numero}222333000181` };
   });
 }
 
@@ -55,6 +55,87 @@ afterEach(() => {
   document.cookie = "ledgr-empresa-recente=; Path=/; Max-Age=0";
 });
 
+describe("useFavoritaOtimista", () => {
+  it("o clique mais novo falha e o mais antigo responde ok depois: a estrela vai ao que o backend gravou", () => {
+    const { result } = renderHook(() => useFavoritaOtimista());
+    const { comecar, terminar } = result.current;
+    const v1 = comecar("a", false); // marca
+    const v2 = comecar("a", true); // desmarca
+    expect(terminar("a", v2, false, false)).toBe(false); // a desmarcação falha: volta ao confirmado
+    expect(terminar("a", v1, true, true)).toBe(true); // a marcação gravou: a estrela acende
+  });
+
+  it("o mais antigo responde ok com o mais novo ainda a caminho: não mexe, e a falha do novo volta ao gravado", () => {
+    const { result } = renderHook(() => useFavoritaOtimista());
+    const { comecar, terminar } = result.current;
+    const v1 = comecar("a", false);
+    const v2 = comecar("a", true);
+    expect(terminar("a", v1, true, true)).toBeNull();
+    expect(terminar("a", v2, false, false)).toBe(true);
+  });
+
+  it("os dois respondem ok fora de ordem: fica o último clique", () => {
+    const { result } = renderHook(() => useFavoritaOtimista());
+    const { comecar, terminar } = result.current;
+    const v1 = comecar("a", false);
+    const v2 = comecar("a", true);
+    expect(terminar("a", v2, false, true)).toBeNull();
+    expect(terminar("a", v1, true, true)).toBeNull();
+    const v3 = comecar("a", false);
+    expect(terminar("a", v3, true, false)).toBe(false);
+  });
+
+  it("um ok antigo não muda a confirmação nem a estrela depois da falha do último clique", () => {
+    const { result } = renderHook(() => useFavoritaOtimista());
+    const { comecar, terminar } = result.current;
+    const v1 = comecar("a", false);
+    const v2 = comecar("a", true);
+    const v3 = comecar("a", false);
+
+    expect(terminar("a", v3, true, false)).toBe(false);
+    expect(terminar("a", v2, false, true)).toBe(false);
+    expect(terminar("a", v1, true, true)).toBeNull();
+  });
+});
+
+describe("combina", () => {
+  it("acha CNPJ alfanumérico pelas letras e números", () => {
+    expect(combina({ razaoSocial: "X", cnpj: "AB12CD34000155" }, "ab12")).toBe(true);
+  });
+
+  it("um termo só de letras procura no nome, não nas letras do CNPJ", () => {
+    expect(combina({ razaoSocial: "Mercado", cnpj: "AB12CD34000155" }, "cd")).toBe(false);
+  });
+
+  it("poucos dígitos entre letras não procuram no CNPJ", () => {
+    expect(combina({ razaoSocial: "X", cnpj: "11222333000144" }, "AB12")).toBe(false);
+  });
+
+  it("não junta números de palavras diferentes num trecho de CNPJ", () => {
+    expect(combina({ razaoSocial: "Mercado", cnpj: "12345000000144" }, "Posto 12 Rua 345")).toBe(false);
+  });
+
+  it.each(["cnpj 12345", "Loja 12.345"])("acha o trecho numérico do CNPJ em %s", (termo) => {
+    expect(combina({ razaoSocial: "Mercado", cnpj: "12345000000144" }, termo)).toBe(true);
+    expect(combina({ razaoSocial: "Mercado", cnpj: "99888777000166" }, termo)).toBe(false);
+  });
+
+  it("acha CNPJ numérico com máscara", () => {
+    expect(combina({ razaoSocial: "X", cnpj: "11222333000144" }, "11.222.333")).toBe(true);
+  });
+
+  it("continua achando razão social com dígitos", () => {
+    expect(combina({ razaoSocial: "Loja 12", cnpj: "99888777000166" }, "loja 12")).toBe(true);
+  });
+
+  it("acha pelo nome de exibição e também pela razão social (#472)", () => {
+    const empresa = { nome: "Pão Quente", razaoSocial: "Padaria Central Ltda", cnpj: "11222333000181" };
+    expect(combina(empresa, "pão")).toBe(true);
+    expect(combina(empresa, "central")).toBe(true);
+    expect(combina(empresa, "mercado")).toBe(false);
+  });
+});
+
 describe("SeletorDeEmpresa (no topo, #223)", () => {
   it("mostra a empresa ativa mesmo com uma só, num botão que abre uma janela", () => {
     montar([A]);
@@ -63,8 +144,26 @@ describe("SeletorDeEmpresa (no topo, #223)", () => {
     expect(botao).toHaveAttribute("aria-expanded", "false");
   });
 
+  it("mostra o nome de exibição no botão e na tabela, ordena por ele e busca por nome e razão social (#472)", async () => {
+    const user = userEvent.setup();
+    const comApelido: EmpresaDaConta = { ...A, nome: "Aconchego" };
+    const outra: EmpresaDaConta = { ...B, nome: "Zelo" };
+    montar([outra, comApelido], comApelido);
+
+    expect(screen.getByRole("button", { name: "Empresa: Aconchego" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Aconchego/ }));
+    expect(nomesNaTabela()).toEqual(["Aconchego", "Zelo"]);
+
+    const busca = janela().getByRole("searchbox", { name: "Buscar por razão social ou CNPJ" });
+    await user.type(busca, "Padaria");
+    expect(nomesNaTabela()).toEqual(["Aconchego"]);
+    await user.clear(busca);
+    await user.type(busca, "Zelo");
+    expect(nomesNaTabela()).toEqual(["Zelo"]);
+  });
+
   it("sem o GET /me (empresa sem nome), o botão ainda diz o que faz (#388)", () => {
-    montar([{ ...A, razaoSocial: "", cnpj: "" }]);
+    montar([{ ...A, razaoSocial: "", nome: "", cnpj: "" }]);
     expect(screen.getByRole("button", { name: "Trocar de empresa" })).toBeInTheDocument();
   });
 
@@ -163,10 +262,10 @@ describe("SeletorDeEmpresa (no topo, #223)", () => {
     await user.click(janela().getByRole("button", { name: "Próxima" }));
     await user.click(janela().getByRole("button", { name: "Próxima" }));
     expect(nomesNaTabela()).toEqual(["Empresa 41", "Empresa 42", "Empresa 43", "Empresa 44", "Empresa 45"]);
-    // "4" casa com a razão social e com o CNPJ que tem o dígito: 04, 14, 24, 34 e 40 a 45
+    // um dígito só no meio de palavras é nome: o trecho de CNPJ começa em 5 dígitos
     await user.type(janela().getByRole("searchbox"), "Empresa 4");
     expect(janela().queryByRole("button", { name: "Próxima" })).not.toBeInTheDocument();
-    expect(nomesNaTabela()).toHaveLength(10);
+    expect(nomesNaTabela()).toHaveLength(6);
   });
 
   it("leva à tela Empresas pelo botão de gerenciar, e a janela fecha", async () => {
@@ -222,6 +321,30 @@ describe("SeletorDeEmpresa (no topo, #223)", () => {
       await user.click(await janela().findByRole("button", { name: "Favorita: Mercado Ltda" }));
       expect(await janela().findByRole("alert")).toHaveTextContent("Empresa não encontrada.");
       expect(janela().getByRole("button", { name: "Favorita: Mercado Ltda" })).toHaveAttribute("aria-pressed", "false");
+    });
+
+    it("depois de dois oks fora de ordem, a falha volta ao último ok", async () => {
+      let primeira!: (resposta: { ok: true; dados: null }) => void;
+      let segunda!: (resposta: { ok: true; dados: null }) => void;
+      acoes.carregarEmpresas.mockResolvedValue({ ok: true, dados: carregadas(false) });
+      acoes.marcarFavorita
+        .mockReturnValueOnce(new Promise((resolve) => { primeira = resolve; }))
+        .mockReturnValueOnce(new Promise((resolve) => { segunda = resolve; }))
+        .mockResolvedValueOnce({ ok: false, status: 503, erro: "Não foi possível favoritar." });
+      const user = userEvent.setup();
+      montar([A, B]);
+      await user.click(screen.getByRole("button", { name: /Padaria Ltda/ }));
+      const estrela = await janela().findByRole("button", { name: "Favorita: Padaria Ltda" });
+
+      await user.click(estrela);
+      await user.click(estrela);
+      await act(async () => segunda({ ok: true, dados: null }));
+      await act(async () => primeira({ ok: true, dados: null }));
+      await user.click(estrela);
+
+      expect(estrela).toHaveAttribute("aria-pressed", "false");
+      expect(janela().getByRole("alert")).toHaveTextContent("Não foi possível favoritar.");
+      expect(acoes.marcarFavorita.mock.calls).toEqual([[A.id, true], [A.id, false], [A.id, true]]);
     });
 
     it("sem o backend #157 não há estrela", async () => {

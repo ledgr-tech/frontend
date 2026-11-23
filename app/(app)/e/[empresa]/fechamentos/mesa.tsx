@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode, type CSSProperties } from "react";
+import { useRef, useState, type ReactNode, type CSSProperties } from "react";
 import Image from "next/image";
 import Link from "@/lib/link-do-app";
 import { useRoteador } from "@/lib/roteador";
@@ -68,7 +68,11 @@ function pendentes(mes: MesDeFechamento): number {
   return Math.max(0, mes.divergentes - mes.justificadas);
 }
 
-function seloDoMes(mes: MesDeFechamento, naoLidasIndisponivel: boolean): { rotulo: string; tom: Tom } {
+/** Sem a lista de fechamentos, nenhum mês pode ser dito aberto, pronto ou fechado. */
+const MES_INDISPONIVEL = "Situação do mês indisponível";
+
+function seloDoMes(mes: MesDeFechamento, naoLidasIndisponivel: boolean, situacaoConhecida: boolean): { rotulo: string; tom: Tom } {
+  if (!situacaoConhecida) return { rotulo: MES_INDISPONIVEL, tom: "atencao" };
   if (estaFechado(mes)) {
     return mes.fechamento?.ressalva ? { rotulo: "Fechado com ressalva", tom: "atencao" } : { rotulo: "Fechado", tom: "ok" };
   }
@@ -123,7 +127,20 @@ export function MesaDeFechamento({
   /** Falso quando os fechamentos não carregaram: sem saber o que está fechado, a mesa só mostra. */
   podeFechar: boolean;
 }) {
+  const router = useRoteador();
   const [filtro, setFiltro] = useState<Filtro>("todos");
+  // o backend não diz se o link público está ligado: o 404 do primeiro "Gerar link" vale para todos os
+  // meses até recarregar (fica aqui, e não no cartão, que monta de novo a cada mês)
+  const [linkSemCriacao, setLinkSemCriacao] = useState(false);
+  // o cartão do link desmonta quando a releitura mostra o mês reaberto; o aviso fica com o mês
+  const [avisoDoLink, setAvisoDoLink] = useState<{ competencia: string; texto: string; reabertoVisto?: boolean } | null>(null);
+  // depois de a releitura mostrar o mês reaberto, fechá-lo de novo tira o aviso: ele falava daquele intervalo
+  if (avisoDoLink) {
+    const mesDoAviso = meses.find((mes) => mes.chave === avisoDoLink.competencia);
+    const fechadoAgora = mesDoAviso !== undefined && estaFechado(mesDoAviso);
+    if (!fechadoAgora && !avisoDoLink.reabertoVisto) setAvisoDoLink({ ...avisoDoLink, reabertoVisto: true });
+    else if (fechadoAgora && avisoDoLink.reabertoVisto) setAvisoDoLink(null);
+  }
   const [selecionado, setSelecionado] = useState<string | null>(
     () => meses.find((mes) => mes.chave === inicial)?.chave ?? meses[0]?.chave ?? null,
   );
@@ -152,7 +169,17 @@ export function MesaDeFechamento({
       {naoLidasIndisponivel && (
         <p className="vg-nota">Não foi possível conferir as linhas não lidas dos extratos. Tente de novo antes de fechar o mês.</p>
       )}
-      {/* a faixa dos filtros fica presa sob a barra do topo enquanto os meses rolam */}
+      {!podeFechar && (
+        <p role="status" className="vg-nota">
+          Não deu para saber quais meses estão fechados.{" "}
+          <button type="button" className="btn btn-secondary" onClick={() => router.refresh()}>
+            Tentar de novo
+          </button>
+        </p>
+      )}
+      {/* a faixa dos filtros fica presa sob a barra do topo enquanto os meses rolam; sem a situação
+          dos meses, os filtros por situação contariam errado e saem */}
+      {podeFechar && (
       <FaixaFiltros>
         <div className="pills segmentado" role="group" aria-label="Filtrar meses">
           {FILTROS.map((item) => (
@@ -168,6 +195,7 @@ export function MesaDeFechamento({
           ))}
         </div>
       </FaixaFiltros>
+      )}
 
       {aberto === null ? (
         <p className="extratos-vazio">{FILTROS.find((item) => item.id === filtro)?.vazio}</p>
@@ -186,7 +214,7 @@ export function MesaDeFechamento({
                 <>
                   <div id={`${id}-meses`} className="extratos-grade" hidden={mostrados.length === 0}>
                     {mostrados.map((mes) => {
-                      const selo = seloDoMes(mes, naoLidasIndisponivel);
+                      const selo = seloDoMes(mes, naoLidasIndisponivel, podeFechar);
                       return (
                         <button
                           key={mes.chave}
@@ -247,7 +275,15 @@ export function MesaDeFechamento({
               );
             })}
           </div>
-          <Painel mes={aberto} podeFechar={podeFechar} naoLidasIndisponivel={naoLidasIndisponivel} />
+          <Painel
+            mes={aberto}
+            podeFechar={podeFechar}
+            naoLidasIndisponivel={naoLidasIndisponivel}
+            linkSemCriacao={linkSemCriacao}
+            aoFicarSemCriacao={() => setLinkSemCriacao(true)}
+            avisoDoLink={avisoDoLink?.competencia === aberto.chave ? avisoDoLink.texto : null}
+            aoMesReaberto={(texto) => setAvisoDoLink({ competencia: aberto.chave, texto })}
+          />
         </div>
       )}
     </div>
@@ -287,11 +323,17 @@ function Passo({ feito, icone, titulo, children }: { feito?: boolean; icone?: Re
   );
 }
 
-function Painel({ mes, podeFechar, naoLidasIndisponivel }: {
+function Painel({ mes, podeFechar, naoLidasIndisponivel, linkSemCriacao, aoFicarSemCriacao, avisoDoLink, aoMesReaberto }: {
   mes: MesDeFechamento;
   podeFechar: boolean;
   naoLidasIndisponivel: boolean;
+  linkSemCriacao: boolean;
+  aoFicarSemCriacao: () => void;
+  avisoDoLink: string | null;
+  aoMesReaberto: (mensagem: string) => void;
 }) {
+  // o podeFechar daqui diz só que os fechamentos carregaram; o papel vem da conta
+  const gestor = usePodeFechar();
   const conciliadas = mes.pares.map((par) => ({
     ...par,
     caminho: caminhoDaConciliacao(par.execucao.extratoBancoId, par.execucao.extratoSistemaId),
@@ -314,11 +356,13 @@ function Painel({ mes, podeFechar, naoLidasIndisponivel }: {
         data-abaixo={abaixo || undefined}
       >
       <div ref={conteudo} className="fech-conteudo">
-      <h6 style={{ margin: 0 }}>Fechamento · {fechado ? "fechado" : mes.pronto ? "pronto para fechar" : "em aberto"}</h6>
+      <h6 style={{ margin: 0 }}>
+        Fechamento · {!podeFechar ? MES_INDISPONIVEL.toLowerCase() : fechado ? "fechado" : mes.pronto ? "pronto para fechar" : "em aberto"}
+      </h6>
       <div className="extrato-painel-topo">
         <h3 className="extrato-painel-nome" tabIndex={-1}>{mes.titulo}</h3>
         {/* fechado, o mês tem cadeado; pronto para fechar, um joinha */}
-        {resolvido(mes) && (
+        {podeFechar && resolvido(mes) && (
           <Image
             src={fechado ? "/mascotes/mascote-cadeado.png" : "/mascotes/mao-joinha.webp"}
             alt=""
@@ -349,6 +393,8 @@ function Painel({ mes, podeFechar, naoLidasIndisponivel }: {
           {`Reaberto em ${formatarDataHora(mes.fechamento.reabertoEm)} por ${mes.fechamento.reabertoPor}.`}
         </p>
       )}
+
+      {avisoDoLink && <p role="alert" className="fech-passo-texto">{avisoDoLink}</p>}
 
       <div className="fech-progresso extrato-resultado">
         <p className="extrato-resultado-numero">
@@ -478,7 +524,9 @@ function Painel({ mes, podeFechar, naoLidasIndisponivel }: {
             )}
           </div>
           {/* a chave zera o link ao trocar de mês: o endereço com o token só vale para o mês em que foi gerado */}
-          {fechado && podeFechar && <LinkPublico key={mes.chave} competencia={mes.chave} />}
+          {fechado && podeFechar && gestor && (
+            <LinkPublico key={mes.chave} competencia={mes.chave} semCriacao={linkSemCriacao} aoFicarSemCriacao={aoFicarSemCriacao} aoMesReaberto={aoMesReaberto} />
+          )}
           {conciliadas.map((par) => (
             <div key={par.execucao.id} className="fech-relatorio">
               {conciliadas.length > 1 && <span className="fech-passo-texto">{par.execucao.arquivoBanco}</span>}
@@ -494,7 +542,7 @@ function Painel({ mes, podeFechar, naoLidasIndisponivel }: {
       </ol>
 
       {podeFechar ? (
-        // a chave: a ressalva e o erro do 409 são do mês em que aconteceram
+        // a ressalva e o erro são do mês: atualizar a contagem não deve apagar o texto do 409
         <AcoesDoFechamento key={mes.chave} mes={mes} revisar={comPendencia.caminho} />
       ) : (
         // sem a lista de fechamentos, o caminho de antes: começar o próximo, revisar ou ver os extratos
@@ -547,6 +595,7 @@ function AprovarPendentes({ mes }: { mes: MesDeFechamento }) {
       return null;
     }
     if (resposta.status === 401) router.push("/login");
+    if (resposta.status === 404 || resposta.status === 409) router.refresh();
     return resposta.erro;
   }
 
@@ -562,16 +611,29 @@ function AprovarPendentes({ mes }: { mes: MesDeFechamento }) {
 function AcoesDoFechamento({ mes, revisar }: { mes: MesDeFechamento; revisar: string }) {
   const router = useRoteador();
   const [enviando, setEnviando] = useState(false);
+  const trava = useRef(false);
   const [erro, setErro] = useState<string | null>(null);
   // o backend recusou por pendência (409): a ressalva é o que falta para fechar
   const [pedeRessalva, setPedeRessalva] = useState(false);
   const [ressalva, setRessalva] = useState("");
+  // aprovadas pendentes (a contagem cai), o 409 que falava do número antigo venceu
+  const [aguardandoAntes, setAguardandoAntes] = useState(mes.aguardandoAprovacao);
+  if (mes.aguardandoAprovacao !== aguardandoAntes) {
+    setAguardandoAntes(mes.aguardandoAprovacao);
+    // só quando cai: subir (0 → 2) é justamente a releitura que confirma o 409 e não pode apagá-lo
+    if (mes.aguardandoAprovacao < aguardandoAntes) {
+      setErro(null);
+      setPedeRessalva(false);
+    }
+  }
   const mesSozinho = mes.nome.toLowerCase();
   // fechar e reabrir são do admin e do gestor (#168, #133); o analista vê o caminho de revisar
   const gestor = usePodeFechar();
   const avisoDoGestor = !gestor && <p className="vg-nota">{SO_O_GESTOR_FECHA}</p>;
 
   async function executar(acao: () => Promise<Resultado<unknown>>) {
+    if (trava.current) return;
+    trava.current = true;
     setEnviando(true);
     setErro(null);
     let resposta: Resultado<unknown>;
@@ -581,6 +643,7 @@ function AcoesDoFechamento({ mes, revisar }: { mes: MesDeFechamento; revisar: st
       // a Server Action lançou (rede caída, deploy novo no meio) em vez de devolver um Resultado
       resposta = { ok: false, status: 0, erro: SEM_SERVIDOR };
     }
+    trava.current = false;
     setEnviando(false);
     if (resposta.ok) {
       setPedeRessalva(false);
@@ -590,8 +653,12 @@ function AcoesDoFechamento({ mes, revisar }: { mes: MesDeFechamento; revisar: st
     }
     if (resposta.status === 401) router.push("/login");
     setErro(resposta.erro);
+    if (resposta.status === 404) router.refresh();
     if (resposta.status === 409) {
-      setPedeRessalva(true);
+      // com justificativa aguardando, nem a ressalva libera (backend #132): o passo de aprovar é o caminho. A
+      // contagem da tela pode estar vencida (outra aba justificou), então vale também o texto do 409, que só
+      // traz o número na frase (_aguardando_aprovacao em api/fechamentos.py)
+      setPedeRessalva(mes.aguardandoAprovacao === 0 && !/aguardando aprovação/.test(resposta.erro));
       // se o 409 for de um mês que outra aba já fechou, a tela relida o mostra fechado
       router.refresh();
     }
@@ -645,7 +712,7 @@ function AcoesDoFechamento({ mes, revisar }: { mes: MesDeFechamento; revisar: st
           {erro}
         </p>
       )}
-      {pedeRessalva && (
+      {pedeRessalva && mes.aguardandoAprovacao === 0 && (
         <form
           className="fech-ressalva-form"
           onSubmit={(evento) => {

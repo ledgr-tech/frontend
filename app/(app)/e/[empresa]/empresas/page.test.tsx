@@ -9,6 +9,7 @@ const carregarEmpresas = vi.fn<() => Promise<Resultado<EmpresaCliente[]>>>();
 vi.mock("./acoes", () => ({
   carregarEmpresas: () => carregarEmpresas(),
   cadastrarEmpresa: vi.fn(),
+  editarNomeDeExibicao: vi.fn(),
 }));
 vi.mock("../../../../(auth)/acoes", () => ({ salvarPreferencias: async () => true }));
 vi.mock("../equipe/acoes", () => ({
@@ -32,8 +33,8 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(window.location.search),
 }));
 
-const A: EmpresaCliente = { id: "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20", razaoSocial: "Padaria Ltda", cnpj: "11222333000181", cnpjVerificado: true, criadaEm: "2026-10-08T17:59:02Z" };
-const B: EmpresaCliente = { id: "9b8a7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d", razaoSocial: "Mercado Ltda", cnpj: "11444777000161", cnpjVerificado: false, criadaEm: "2026-10-21T19:48:16Z" };
+const A: EmpresaCliente = { id: "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20", razaoSocial: "Padaria Ltda", nome: "Padaria Ltda", cnpj: "11222333000181", cnpjVerificado: true, criadaEm: "2026-10-08T17:59:02Z" };
+const B: EmpresaCliente = { id: "9b8a7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d", razaoSocial: "Mercado Ltda", nome: "Mercado Ltda", cnpj: "11444777000161", cnpjVerificado: false, criadaEm: "2026-10-21T19:48:16Z" };
 
 async function abrir() {
   render(await EmpresasPage());

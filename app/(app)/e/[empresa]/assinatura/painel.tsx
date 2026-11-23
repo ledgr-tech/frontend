@@ -84,7 +84,7 @@ export function PainelDaAssinatura({ precos }: { precos: PrecoDoPlano[] | null }
   const motivo = !precos ? "A assinatura pelo cartão ainda não está no ar." : papel !== "admin" ? "Só o administrador do escritório assina." : null;
   const doPeriodo = (plano: PlanoId) => precos?.find((p) => p.plano === plano && p.periodo === periodo);
   const volume = PLANOS.find((p) => p.contato)!;
-  // "Grátis até": só no teste que ainda não cobra na hora (a Stripe exige 48 horas de antecedência)
+  // "Grátis até": só no teste que ainda não cobra na hora (48 h da Stripe mais 1 min de margem do backend; `cobrancaImediata`)
   const gratisAte = situacao === "teste" && testeTerminaEm && !cobrancaImediata(assinatura, new Date()) ? formatarDiaCurto(testeTerminaEm, new Date()) : null;
 
   function abrir(plano: PlanoId) {

@@ -66,18 +66,21 @@ export function ListaDeTrabalho({
   /** A primeira da fila que pede decisão, com as conferidas (que só ela traz). */
   emAndamento: Contagem | null;
 }) {
+  const router = useRoteador();
+  const situacaoConhecida = fechamentos !== null;
   const meses = agruparPorMes(conciliacoes, fechamentos);
   const contar = (filtro: FiltroDaLista) =>
     meses.reduce(
-      (soma, mes) => soma + mes.conciliacoes.filter((item) => passaNoFiltro(item, mes.fechamento !== null, filtro)).length,
+      (soma, mes) => soma + mes.conciliacoes.filter((item) => passaNoFiltro(item, situacaoConhecida ? mes.fechamento !== null : null, filtro)).length,
       0,
     );
   // abre no que pede trabalho; sem nada pendente, em todas
-  const [filtro, setFiltro] = useState<FiltroDaLista>(() => (contar("pendentes") > 0 ? "pendentes" : "todas"));
+  const [filtroEscolhido, setFiltro] = useState<FiltroDaLista>(() => (contar("pendentes") > 0 ? "pendentes" : "todas"));
+  const filtro = situacaoConhecida ? filtroEscolhido : "todas";
   const [escolhida, setEscolhida] = useState<string | null>(emAndamento?.extratoBancoId ?? null);
   const previa = useRef<HTMLElement>(null);
   const visiveis = meses
-    .map((mes) => ({ mes, linhas: mes.conciliacoes.filter((item) => passaNoFiltro(item, mes.fechamento !== null, filtro)) }))
+    .map((mes) => ({ mes, linhas: mes.conciliacoes.filter((item) => passaNoFiltro(item, situacaoConhecida ? mes.fechamento !== null : null, filtro)) }))
     .filter(({ linhas }) => linhas.length > 0);
   // a escolhida que o filtro escondeu dá lugar à primeira à vista
   const emVista = visiveis.flatMap(({ mes, linhas }) => linhas.map((conciliacao) => ({ conciliacao, mes })));
@@ -93,6 +96,7 @@ export function ListaDeTrabalho({
   return (
     <div className="extratos-corpo">
       <FaixaFiltros tutorial="filtros">
+        {situacaoConhecida && (
         <div className="pills segmentado" role="group" aria-label="Filtrar conciliações">
           {FILTROS.map((item) => (
             <button
@@ -106,11 +110,21 @@ export function ListaDeTrabalho({
             </button>
           ))}
         </div>
+        )}
         {/* as rodadas anteriores e o que já aconteceu ficam no histórico */}
         <Link href="/historico" className="btn btn-ghost conc-historico">
           Ver o histórico
         </Link>
       </FaixaFiltros>
+
+      {fechamentos === null && (
+        <p role="status" className="vg-nota">
+          Não deu para saber quais meses estão fechados.{" "}
+          <button type="button" className="btn btn-secondary" onClick={() => router.refresh()}>
+            Tentar de novo
+          </button>
+        </p>
+      )}
 
       {!atual ? (
         <p className="extratos-vazio">{FILTROS.find((item) => item.id === filtro)?.vazio}</p>
@@ -119,7 +133,7 @@ export function ListaDeTrabalho({
           <div className="conc-meses" data-tutorial="lista">
             {visiveis.map(({ mes, linhas }) => (
               <section key={mes.chave} aria-labelledby={`conc-mes-${mes.chave}`}>
-                <CabecalhoDoMes mes={mes} />
+                <CabecalhoDoMes mes={mes} indisponivel={fechamentos === null} />
                 <ul className="conc-folhas">
                   {linhas.map((conciliacao) => (
                     <li key={conciliacao.extratoBancoId}>
@@ -140,6 +154,7 @@ export function ListaDeTrabalho({
             conciliacao={atual.conciliacao}
             mes={atual.mes}
             conferidas={emAndamento?.extratoBancoId === atual.conciliacao.extratoBancoId ? emAndamento.conferidas : null}
+            fechamentosIndisponiveis={fechamentos === null}
           />
         </div>
       )}
@@ -152,13 +167,16 @@ export function ListaDeTrabalho({
   );
 }
 
-function CabecalhoDoMes({ mes }: { mes: MesNaLista }) {
+// sem /fechamentos, nenhum mês é dito aberto: não se sabe (#457)
+const MES_INDISPONIVEL = "Situação do mês indisponível";
+
+function CabecalhoDoMes({ mes, indisponivel }: { mes: MesNaLista; indisponivel: boolean }) {
   const { fechamento } = mes;
   const quantas = plural(mes.conciliacoes.length, "conciliação", "conciliações");
   const meta = fechamento
     ? `Fechado em ${formatarDataHora(fechamento.fechadoEm).slice(0, 10)} por ${fechamento.fechadoPor} · ${quantas}`
     : [
-        "Aberto",
+        indisponivel ? MES_INDISPONIVEL : "Aberto",
         quantas,
         mes.pedemDecisao > 0 && plural(mes.pedemDecisao, "pendência", "pendências"),
       ]
@@ -246,12 +264,14 @@ function Previa({
   conciliacao,
   mes,
   conferidas,
+  fechamentosIndisponiveis,
 }: {
   ref: React.Ref<HTMLElement>;
   conciliacao: ConciliacaoNaLista;
   mes: MesNaLista;
   /** Só a primeira da fila traz as conferidas; das outras, a linha não aparece. */
   conferidas: number | null;
+  fechamentosIndisponiveis: boolean;
 }) {
   const { extratoBancoId, arquivoBanco, arquivoSistema, execucao, competencia } = conciliacao;
   const { fechamento } = mes;
@@ -316,7 +336,9 @@ function Previa({
         <dd>{`${textoDaRodada(conciliacao)} · ${formatarDataHora(execucao.executadaEm)}`}</dd>
         <dt>Mês</dt>
         <dd>
-          {fechamento ? `Fechado em ${formatarDataHora(fechamento.fechadoEm).slice(0, 10)} por ${fechamento.fechadoPor} · ` : "Aberto · "}
+          {fechamento
+            ? `Fechado em ${formatarDataHora(fechamento.fechadoEm).slice(0, 10)} por ${fechamento.fechadoPor} · `
+            : `${fechamentosIndisponiveis ? MES_INDISPONIVEL : "Aberto"} · `}
           <Link href={caminhoDoFechamento(mes.chave)} className="conc-mes-link">
             {fechamento ? "Ver o fechamento" : `Fechamento de ${nomeDoMes}`}
           </Link>
@@ -328,7 +350,7 @@ function Previa({
           Abrir a comparação
         </Link>
         {/* como na comparação: com o mês fechado, nada se concilia de novo */}
-        {!fechamento && (
+        {!fechamento && !fechamentosIndisponiveis && (
           <NovaVersao extratoBancoId={extratoBancoId} extratoSistemaId={execucao.extratoSistemaId} />
         )}
       </div>

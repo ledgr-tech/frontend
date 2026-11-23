@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Building2, ChevronsUpDown, Star } from "lucide-react";
 import LinkDoApp from "@/lib/link-do-app";
@@ -9,14 +9,15 @@ import { gravarEmpresaRecente } from "@/lib/empresa-recente";
 import { useRoteador } from "@/lib/roteador";
 import { destinoDaTroca } from "@/lib/rotas";
 import type { SituacaoDaEmpresa } from "@/lib/adaptadores";
-import { formatarCnpj } from "../../../(auth)/cadastro/passos";
+import { SEM_SERVIDOR } from "@/lib/sem-servidor";
+import { caracteresCnpj, formatarCnpj } from "../../../(auth)/cadastro/passos";
 import { carregarEmpresas, marcarFavorita } from "./empresas/acoes";
 import { ModalDaTela } from "./empresas/modal-da-tela";
 
 /** Quantas empresas cabem numa página da janela (mentoria de 26/10, #223). */
 export const POR_PAGINA = 20;
 
-type Coluna = "razaoSocial" | "cnpj" | "situacao";
+type Coluna = "nome" | "cnpj" | "situacao";
 
 /** A linha da janela: a empresa do `GET /me` e, depois que o `GET /empresas` responde, a favorita e a situação (backend #157). */
 type Linha = EmpresaDaConta & { favorita?: boolean; situacao?: SituacaoDaEmpresa };
@@ -46,16 +47,80 @@ function Cabeca({ coluna, ordem, onOrdenar, children }: { coluna: Coluna; ordem:
   );
 }
 
-/** A busca da janela e da tela Empresas: pela razão social ou pelo CNPJ, com ou sem a máscara. */
-export function combina(empresa: { razaoSocial: string; cnpj: string }, termo: string): boolean {
+/** A busca da janela e da tela Empresas: pelo nome, pela razão social ou pelo CNPJ, com ou sem a máscara. */
+export function combina(empresa: { nome?: string; razaoSocial: string; cnpj: string }, termo: string): boolean {
   const procurado = termo.trim().toLowerCase();
   if (!procurado) return true;
-  const digitos = procurado.replace(/\D/g, "");
+  // o CNPJ pode ter letras (o alfanumérico), mas só um termo com dígito procura nele: "Ana" é nome
+  const cnpjProcurado = caracteresCnpj(termo);
+  // o maior trecho de dígitos seguidos (a máscara . / - pode ficar no meio): "Posto 12 Rua 345" não vira 12345
+  const digitos = (termo.match(/\d[\d./-]*\d|\d/g) ?? [])
+    .map((trecho) => trecho.replace(/\D/g, ""))
+    .reduce((maior, atual) => (atual.length > maior.length ? atual : maior), "");
+  const cnpj = caracteresCnpj(empresa.cnpj);
   return (
+    (empresa.nome ?? "").toLowerCase().includes(procurado) ||
     empresa.razaoSocial.toLowerCase().includes(procurado) ||
-    formatarCnpj(empresa.cnpj).includes(procurado) ||
-    (digitos !== "" && empresa.cnpj.replace(/\D/g, "").includes(digitos))
+    (/\d/.test(cnpjProcurado) && cnpj.includes(cnpjProcurado)) ||
+    // "cnpj 12345", "Loja 12.345": o trecho numérico procura no CNPJ; "Empresa 4" e "AB12" seguem só nome
+    (digitos.length >= 5 && cnpj.includes(digitos))
   );
+}
+
+/**
+ * A estrela muda na hora e só a resposta do último clique decide. Uma falha volta ao último valor que o
+ * backend confirmou, não ao contrário do clique: com dois cliques que falham, isso seria um valor que
+ * nunca foi gravado.
+ */
+export function useFavoritaOtimista() {
+  const versoes = useRef(new Map<string, number>());
+  const confirmadas = useRef(new Map<string, { versao: number; favorita: boolean }>());
+  // a versão do último clique que já voltou com falha: depois dela, um ok mais antigo é o que ficou gravado
+  const falhou = useRef(new Map<string, number>());
+
+  /** Antes de mudar a estrela: `antes` é o que ela mostrava, confirmado se nada estava a caminho. */
+  function comecar(id: string, antes: boolean): number {
+    if (!confirmadas.current.has(id)) confirmadas.current.set(id, { versao: 0, favorita: antes });
+    const versao = (versoes.current.get(id) ?? 0) + 1;
+    versoes.current.set(id, versao);
+    return versao;
+  }
+
+  /** Depois da resposta. Devolve o valor para onde a estrela vai, ou null quando fica como está. */
+  function terminar(id: string, versao: number, favorita: boolean, ok: boolean): boolean | null {
+    const ultima = versoes.current.get(id);
+    if (ok) {
+      // a ordem é a dos cliques, não a da chegada: um ok antigo não apaga a confirmação mais nova
+      if (versao <= (confirmadas.current.get(id)?.versao ?? 0)) return null;
+      confirmadas.current.set(id, { versao, favorita });
+      // um ok antigo que chega depois da falha do último clique: o backend ficou com este valor
+      return versao !== ultima && falhou.current.get(id) === ultima ? favorita : null;
+    }
+    if (versao !== ultima) return null;
+    falhou.current.set(id, versao);
+    return confirmadas.current.get(id)?.favorita ?? !favorita;
+  }
+
+  async function alternar(
+    empresa: { id: string; favorita?: boolean },
+    marcar: (favorita: boolean) => void,
+    avisar: (erro: string | null) => void,
+  ) {
+    const favorita = !empresa.favorita;
+    const versao = comecar(empresa.id, !favorita);
+    marcar(favorita);
+    avisar(null);
+    const resposta = await marcarFavorita(empresa.id, favorita).catch(
+      (): Awaited<ReturnType<typeof marcarFavorita>> => ({ ok: false, status: 0, erro: SEM_SERVIDOR }),
+    );
+    // um clique mais novo já decidiu a estrela: a resposta deste não desfaz nem avisa
+    const volta = terminar(empresa.id, versao, favorita, resposta.ok);
+    if (volta === null) return;
+    marcar(volta);
+    if (!resposta.ok) avisar(resposta.erro);
+  }
+
+  return { comecar, terminar, alternar };
 }
 
 /**
@@ -79,15 +144,15 @@ export function SeletorDeEmpresa() {
         className="seletor-topo-botao"
         aria-haspopup="dialog"
         aria-expanded={aberto}
-        title={ativa.razaoSocial || undefined}
+        title={ativa.nome || undefined}
         onClick={() => setAberto(true)}
       >
         <Building2 size={16} aria-hidden="true" className="seletor-topo-icone" />
         <span className="seletor-topo-nome">
           {/* sem o GET /me não há nome: o botão diz o que faz, em vez de ficar só com o ícone (#388) */}
-          {ativa.razaoSocial ? (
+          {ativa.nome ? (
             <>
-              <span className="sr-only">Empresa:</span> {ativa.razaoSocial}
+              <span className="sr-only">Empresa:</span> {ativa.nome}
             </>
           ) : (
             "Trocar de empresa"
@@ -104,6 +169,7 @@ function JanelaDeEmpresas({ ativa, aoFechar }: { ativa: EmpresaDaConta; aoFechar
   const daConta = useEmpresasDaConta();
   const [carregadas, setCarregadas] = useState<Linha[] | null>(null);
   const [erroDaFavorita, setErroDaFavorita] = useState<string | null>(null);
+  const favoritaOtimista = useFavoritaOtimista();
   const empresas: Linha[] = carregadas ?? daConta;
   const temFavoritas = empresas.some((empresa) => empresa.favorita !== undefined);
   // sem a situação do mês (backend antes do #157, ou o GET /empresas falhou) a coluna ficaria vazia (#388)
@@ -111,7 +177,7 @@ function JanelaDeEmpresas({ ativa, aoFechar }: { ativa: EmpresaDaConta; aoFechar
   const roteador = useRoteador();
   const caminho = usePathname();
   const [busca, setBusca] = useState("");
-  const [ordem, setOrdem] = useState<Ordem>({ coluna: "razaoSocial", crescente: true });
+  const [ordem, setOrdem] = useState<Ordem>({ coluna: "nome", crescente: true });
   const [pagina, setPagina] = useState(0);
 
   useEffect(() => {
@@ -146,18 +212,12 @@ function JanelaDeEmpresas({ ativa, aoFechar }: { ativa: EmpresaDaConta; aoFechar
     roteador.push(destinoDaTroca(caminho, empresa.id));
   }
 
-  async function alternarFavorita(empresa: Linha) {
-    const favorita = !empresa.favorita;
-    const marcar = (valor: boolean) =>
-      setCarregadas((atuais) => atuais && atuais.map((outra) => (outra.id === empresa.id ? { ...outra, favorita: valor } : outra)));
-    // muda na hora e desfaz se o backend recusar, para a estrela responder ao clique
-    marcar(favorita);
-    setErroDaFavorita(null);
-    const resposta = await marcarFavorita(empresa.id, favorita);
-    if (!resposta.ok) {
-      marcar(!favorita);
-      setErroDaFavorita(resposta.erro);
-    }
+  function alternarFavorita(empresa: Linha) {
+    return favoritaOtimista.alternar(
+      empresa,
+      (valor) => setCarregadas((atuais) => atuais && atuais.map((outra) => (outra.id === empresa.id ? { ...outra, favorita: valor } : outra))),
+      setErroDaFavorita,
+    );
   }
 
   function ordenar(coluna: Coluna) {
@@ -192,7 +252,7 @@ function JanelaDeEmpresas({ ativa, aoFechar }: { ativa: EmpresaDaConta; aoFechar
             <table className="table seletor-janela-tabela">
               <thead>
                 <tr>
-                  <Cabeca coluna="razaoSocial" ordem={ordem} onOrdenar={ordenar}>
+                  <Cabeca coluna="nome" ordem={ordem} onOrdenar={ordenar}>
                     Empresa
                   </Cabeca>
                   <Cabeca coluna="cnpj" ordem={ordem} onOrdenar={ordenar}>
@@ -215,7 +275,7 @@ function JanelaDeEmpresas({ ativa, aoFechar }: { ativa: EmpresaDaConta; aoFechar
                   <tr key={empresa.id} aria-current={empresa.id === ativa.id || undefined}>
                     <td>
                       <button type="button" className="seletor-janela-escolher" onClick={() => escolher(empresa)}>
-                        {empresa.razaoSocial}
+                        {empresa.nome}
                       </button>
                       {!temSituacao && empresa.id === ativa.id && (
                         <>
@@ -241,7 +301,7 @@ function JanelaDeEmpresas({ ativa, aoFechar }: { ativa: EmpresaDaConta; aoFechar
                           type="button"
                           className="seletor-janela-estrela"
                           aria-pressed={Boolean(empresa.favorita)}
-                          aria-label={`Favorita: ${empresa.razaoSocial}`}
+                          aria-label={`Favorita: ${empresa.nome}`}
                           title={empresa.favorita ? "Tirar das favoritas" : "Favoritar"}
                           onClick={() => alternarFavorita(empresa)}
                         >

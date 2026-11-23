@@ -166,7 +166,7 @@ function AcaoDaConta({
     setErro("");
     const resultado = await enviar(valores).catch(
       // a action nem chegou ao servidor (rede caiu, deploy novo no meio)
-      (): ResultadoConta => ({ ok: false, erro: "Não foi possível salvar agora. Tente de novo em instantes." }),
+      (): ResultadoConta => ({ ok: false, erro: "Não foi possível salvar agora. Tente de novo em instantes ou recarregue a página." }),
     );
     setEnviando(false);
     if (!resultado.ok) {

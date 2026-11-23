@@ -151,6 +151,20 @@ export async function enviarExtrato(dados: FormData): Promise<Resultado<{ extrat
   }
 }
 
+/**
+ * Descarta um extrato que nunca entrou em conciliação (`DELETE /extratos/{id}`, backend #185): 204;
+ * 409 com o texto do backend se já foi conciliado ou ainda está sendo importado; 404 se não é da empresa.
+ */
+export async function descartarExtrato(extratoId: string): Promise<Resultado<null>> {
+  if (!pareceUuid(extratoId)) return { ok: false, status: 404, erro: "Extrato não encontrado." };
+  try {
+    await chamarBackend<null>(`/extratos/${extratoId}`, { method: "DELETE" });
+    return { ok: true, dados: null };
+  } catch (erro) {
+    return traduzir(erro);
+  }
+}
+
 export async function situacaoDoExtrato(
   extratoId: string,
 ): Promise<Resultado<SituacaoExtrato>> {
@@ -266,6 +280,8 @@ export type ConciliacaoEmRodadas = {
    * conciliar e decidir (409) até reabrir. Null com o mês aberto, sem período ou sem resposta.
    */
   fechamento: Fechamento | null;
+  /** True só quando GET /fechamentos?competencia= falhou; uma lista vazia é mês aberto. */
+  fechamentoIndisponivel: boolean;
 };
 
 // O teto do backend por página de /execucoes. Um extrato do banco com mais de 100 rodadas
@@ -282,6 +298,21 @@ async function execucoesDoBanco(extratoBancoId: string, exigirHistoricoCompleto 
       return { ok: false, status: 503, erro: "Não foi possível verificar todas as rodadas. Tente de novo em instantes." };
     }
     return { ok: true, dados: itens.map(adaptarExecucao) };
+  } catch (erro) {
+    return traduzir(erro);
+  }
+}
+
+/**
+ * Todas as execuções de um mês, pelo filtro `?competencia=` (backend #186): as do extrato do banco com
+ * `periodo_inicio` nesse mês, todas as rodadas dele juntas. `completas` é false além do teto de páginas.
+ */
+async function execucoesDaCompetencia(mes: string): Promise<Resultado<{ execucoes: Execucao[]; completas: boolean }>> {
+  const pagina = (numero: number) =>
+    `/execucoes?competencia=${encodeURIComponent(mes)}&limit=${RODADAS_POR_PAGINA}&offset=${numero * RODADAS_POR_PAGINA}`;
+  try {
+    const { itens, total } = await todasAsPaginas<ExecucaoAPI>(pagina);
+    return { ok: true, dados: { execucoes: itens.map(adaptarExecucao), completas: itens.length >= total } };
   } catch (erro) {
     return traduzir(erro);
   }
@@ -311,11 +342,21 @@ export async function carregarConciliacaoEmRodadas(
   if (!alvo) {
     const simples = await carregarConciliacao(extratoBancoId, extratoSistemaId);
     return simples.ok
-      ? { ok: true, dados: { ...simples.dados, rodada: null, rodadas: [], mudancas: null, fechamento: null } }
+      ? {
+          ok: true,
+          dados: {
+            ...simples.dados,
+            rodada: null,
+            rodadas: [],
+            mudancas: null,
+            fechamento: null,
+            fechamentoIndisponivel: false,
+          },
+        }
       : simples;
   }
 
-  const [atual, fechamento] = await Promise.all([
+  const [atual, estadoDoFechamento] = await Promise.all([
     carregarConciliacao(extratoBancoId, alvo.extratoSistemaId),
     fechamentoAtivo(alvo.execucao.periodoInicio),
   ]);
@@ -348,21 +389,30 @@ export async function carregarConciliacaoEmRodadas(
       rodada,
       rodadas: vistas,
       mudancas,
-      fechamento,
+      fechamento: estadoDoFechamento.fechamento,
+      fechamentoIndisponivel: estadoDoFechamento.indisponivel,
     },
   };
 }
 
 /**
  * O fechamento em vigor no mês que começa em `periodoInicio`: o mais recente da competência, se
- * ainda está fechado. Sem período não há competência; sem resposta, a tela abre como aberta e o
- * backend ainda recusa a escrita com o 409, que ela mostra.
+ * ainda está fechado. Sem período não há competência. Sem resposta, `indisponivel` deixa a tela só
+ * leitura, em vez de supor o mês aberto.
  */
-async function fechamentoAtivo(periodoInicio: string | null): Promise<Fechamento | null> {
+async function fechamentoAtivo(
+  periodoInicio: string | null,
+): Promise<{ fechamento: Fechamento | null; indisponivel: boolean }> {
   try {
-    return await lerFechamentoAtivo(periodoInicio);
+    return {
+      fechamento: await lerFechamentoAtivo(periodoInicio),
+      indisponivel: false,
+    };
   } catch {
-    return null;
+    return {
+      fechamento: null,
+      indisponivel: periodoInicio !== null && COMPETENCIA.test(periodoInicio.slice(0, 7)),
+    };
   }
 }
 
@@ -373,6 +423,9 @@ async function lerFechamentoAtivo(periodoInicio: string | null): Promise<Fechame
   const [maisRecente] = lista.itens;
   return maisRecente?.estado === "fechado" ? adaptarFechamento(maisRecente) : null;
 }
+
+// o reenvio só substitui a rodada vigente: a mesma frase no contexto e na hora do envio
+const RODADA_VENCIDA = "A comparação já tem uma rodada mais recente. Volte à comparação para continuar.";
 
 export async function verificarNovaVersao(
   banco: string,
@@ -392,7 +445,7 @@ export async function verificarNovaVersao(
     return { ok: true, dados: { arquivoBanco, jaConciliada: true } };
   }
   if (sistemaAnterior && sistemaAnterior !== vigente.extratoSistemaId) {
-    return { ok: false, status: 409, erro: "A comparação já tem uma rodada mais recente. Volte à comparação para continuar." };
+    return { ok: false, status: 409, erro: RODADA_VENCIDA };
   }
   try {
     if (await lerFechamentoAtivo(periodoInicio)) {
@@ -415,8 +468,8 @@ export type ContextoDoReenvio = {
 };
 
 /**
- * Só lê: mês fechado ou rodada que já passou não são checados aqui. A regra é do backend, e a tela mostra o
- * texto dele quando o conciliar recusa (409).
+ * Só lê. A rodada vigente e o mês fechado a tela confere com `verificarNovaVersao` antes de subir o
+ * arquivo (CSV ou JSON): o backend não confere a rodada numa nova versão.
  */
 export async function carregarContextoDoReenvio(
   banco: string,
@@ -430,6 +483,9 @@ export async function carregarContextoDoReenvio(
   const anterior = rodadas.find((rodada) => rodada.extratoSistemaId === sistemaAnterior);
   const vigente = rodadas.at(-1);
   if (!anterior || !vigente) return naoAchou;
+  if (anterior.extratoSistemaId !== vigente.extratoSistemaId) {
+    return { ok: false, status: 409, erro: RODADA_VENCIDA };
+  }
   const { arquivoBanco, periodoInicio, executadaEm } = vigente.execucao;
   return {
     ok: true,
@@ -789,12 +845,16 @@ export type VisaoGeral = {
   recente: { execucao: Execucao; conciliacao: Conciliacao } | null;
   /** Os arquivos da mais recente com linhas que o parser não conseguiu ler. */
   arquivosComLinhasNaoLidas: { nome: string; linhas: number }[];
+  /** Alguma situação de extrato falhou ao carregar em /extratos/{id}. */
+  leituraIncompleta?: true;
+  /** listarFechamentos não conseguiu carregar o estado dos meses. */
+  fechamentosIndisponiveis?: true;
   /**
    * O mês em foco (revisão de 15/10): o aberto mais recente, ou o mais recente se todos estão
    * fechados, com as linhas de todas as conciliações dele. O número do topo, "Pede sua atenção" e
    * o atalho de Fechamentos olham o mês inteiro, não só a última conciliação. `conciliacoes` é null
    * quando as linhas do mês não vieram inteiras (um par não carregou, passou do teto de páginas de
-   * `carregarConciliacao`, ou o mês pode seguir depois da primeira página de `/execucoes`): a home não
+   * `carregarConciliacao`, ou o mês não veio inteiro de `/execucoes?competencia=`): a home não
    * soma um mês pela metade.
    */
   mes?: { competencia: string; fechado: boolean; conciliacoes: Conciliacao[] | null };
@@ -804,7 +864,7 @@ export type VisaoGeral = {
  * O que a visão geral precisa: a lista de execuções (tendência e atividade), as
  * linhas da mais recente (o estado do mês e o que está em aberto) e a situação
  * dos dois arquivos dela. Se a primeira página de execuções vier cortada,
- * também lê o histórico de cada extrato do banco do mês em foco.
+ * também lê o mês em foco inteiro, pelo filtro por competência (backend #186).
  */
 export async function carregarVisaoGeral(): Promise<Resultado<VisaoGeral>> {
   const [lista, fechamentos] = await Promise.all([listarExecucoes(), listarFechamentos()]);
@@ -815,7 +875,16 @@ export async function carregarVisaoGeral(): Promise<Resultado<VisaoGeral>> {
   // nova, mas não a rodada de agora
   const vigentes = execucoesVigentes(execucoes);
   if (vigentes.length === 0) {
-    return { ok: true, dados: { execucoes, total, recente: null, arquivosComLinhasNaoLidas: [] } };
+    return {
+      ok: true,
+      dados: {
+        execucoes,
+        total,
+        recente: null,
+        arquivosComLinhasNaoLidas: [],
+        ...(fechamentos === null && { fechamentosIndisponiveis: true }),
+      },
+    };
   }
 
   // o mês em foco: o aberto mais recente (é onde está o trabalho); todos fechados, o mais recente
@@ -830,16 +899,38 @@ export async function carregarVisaoGeral(): Promise<Resultado<VisaoGeral>> {
   const meses = [...new Set(vigentes.map(mesDe))].sort((a, b) => b.localeCompare(a));
   const foco = meses.find((mes) => !fechados.has(mes)) ?? meses[0];
   const doMesNaPagina = vigentes.filter((execucao) => mesDe(execucao) === foco);
-  const paginaCortada = total > execucoes.length;
-  // A primeira execução de uma versão pode ter ficado fora da página.
-  const doMes = paginaCortada
-    ? await Promise.all(doMesNaPagina.map(async (execucao) => {
-        const historico = await execucoesDoBanco(execucao.extratoBancoId, true);
-        if (!historico.ok) return execucao;
-        const vigente = rodadasDoBanco(historico.dados, execucao.extratoBancoId).at(-1)?.execucao;
-        return vigente?.atual ? vigente : execucao;
-      }))
-    : doMesNaPagina;
+  // Com a página cortada, o mês pode seguir na próxima e a rodada que vale pode ter ficado fora dela:
+  // o mês vem inteiro do filtro por competência, com todas as rodadas de cada extrato do banco.
+  // Se ele falha ou não vem inteiro (teto de páginas), a home segue com a página, sem somar o mês.
+  // ponytail: um mês inteiro são N leituras de linhas por carga da home (uma por par); limitar a
+  // concorrência se um mês de centenas de pares pesar no backend
+  let doMes = doMesNaPagina;
+  let mesInteiro = true;
+  if (total > execucoes.length) {
+    const doMesTodo = await execucoesDaCompetencia(foco);
+    // o filtro deixa fora o extrato do banco sem `periodo_inicio`; filtrar pelo período e pelo mês de
+    // novo também cobre um backend de antes da #186, que ignora o parâmetro e manda todos os meses
+    const doFiltro = doMesTodo.ok
+      ? execucoesVigentes(doMesTodo.dados.execucoes.filter((execucao) => execucao.periodoInicio !== null && mesDe(execucao) === foco))
+      : [];
+    // As sem período, que `competencia()` ainda põe no mês em que rodaram, o filtro não traz: vêm só
+    // da página. Se a página tem alguma e a mais antiga dela ainda rodou no mês, outras podem seguir na
+    // próxima, e o mês não é inteiro (a regra de antes da #186, só para quem tem execução sem período).
+    // ponytail: a sem período que só aparece depois da página fica de fora. Alinhar `competencia()` à
+    // regra do backend muda Histórico e Fechamentos, e é decisão à parte
+    const semPeriodo = doMesNaPagina.filter((execucao) => execucao.periodoInicio === null);
+    const ultima = execucoes[execucoes.length - 1];
+    // na página crua: uma rodada antiga sem período, que não vale mais, também diz que a empresa as tem
+    const temSemPeriodo = execucoes.some((execucao) => execucao.periodoInicio === null && mesDe(execucao) === foco);
+    const semPeriodoPodeSeguir = temSemPeriodo && competencia(null, ultima.executadaEm) >= foco;
+    // um filtro vazio com execuções datadas do mês na página não é o mês inteiro
+    mesInteiro =
+      doMesTodo.ok &&
+      doMesTodo.dados.completas &&
+      !semPeriodoPodeSeguir &&
+      (doFiltro.length > 0 || semPeriodo.length === doMesNaPagina.length);
+    if (mesInteiro) doMes = [...doFiltro, ...semPeriodo].sort((a, b) => b.executadaEm.localeCompare(a.executadaEm));
+  }
   const [maisRecente] = doMes;
 
   // os arquivos de todos os pares do mês: uma linha não lida em qualquer um segura o fechamento
@@ -859,6 +950,7 @@ export async function carregarVisaoGeral(): Promise<Resultado<VisaoGeral>> {
   // o detalhe do arquivo é aviso a mais, não o dado principal: se não carregar,
   // a home abre sem ele
   const arquivos = [...doMesPorArquivo.values()].map((nome, indice) => ({ nome, situacao: situacoes[indice] }));
+  const leituraIncompleta = situacoes.some((situacao) => !situacao.ok);
   const arquivosComLinhasNaoLidas = arquivos.flatMap(({ nome, situacao }) =>
     situacao.ok && situacao.dados.erros.length > 0
       ? [{ nome, linhas: situacao.dados.erros.length }]
@@ -869,11 +961,6 @@ export async function carregarVisaoGeral(): Promise<Resultado<VisaoGeral>> {
   const inteiras = conciliacoes.flatMap((resultado) =>
     resultado.ok && !resultado.dados.truncada ? [resultado.dados.conciliacao] : [],
   );
-  // ponytail: /execucoes não filtra por mês, então a primeira página só traz o mês em foco inteiro quando
-  // chega a uma execução que rodou antes dele (nenhuma do mês roda antes de ele começar); com um filtro
-  // por competência no backend, o mês viria direto e somaria mesmo com muitas execuções
-  const ultima = execucoes[execucoes.length - 1];
-  const mesPodeSeguir = paginaCortada && competencia(null, ultima.executadaEm) >= foco;
 
   return {
     ok: true,
@@ -882,10 +969,12 @@ export async function carregarVisaoGeral(): Promise<Resultado<VisaoGeral>> {
       total,
       recente: { execucao: maisRecente, conciliacao: conciliacao.dados.conciliacao },
       arquivosComLinhasNaoLidas,
+      ...(leituraIncompleta && { leituraIncompleta: true }),
+      ...(fechamentos === null && { fechamentosIndisponiveis: true }),
       mes: {
         competencia: foco,
         fechado: fechados.has(foco),
-        conciliacoes: !mesPodeSeguir && inteiras.length === conciliacoes.length ? inteiras : null,
+        conciliacoes: mesInteiro && inteiras.length === conciliacoes.length ? inteiras : null,
       },
     },
   };
@@ -1259,6 +1348,86 @@ async function decidirEmLote(corpo: Record<string, unknown>): Promise<Resultado<
   } catch (erro) {
     return traduzirDoFechamento(erro, SO_O_GESTOR_APROVA);
   }
+}
+
+/** O backend antes do #237 responde o 404 genérico do FastAPI ("Not Found") à rota do lote. */
+// não exportada: um arquivo "use server" só exporta funções async (o teste repete o texto)
+const LOTE_INDISPONIVEL = "Justificar várias linhas de uma vez ainda não está disponível.";
+
+export type JustificadasEmLote = {
+  processadas: number;
+  ignoradas: number;
+  porMotivo: { naoEncontrada: number; naoDiverge: number; repetida: number; aprovada: number };
+  loteId: string | null;
+};
+
+type JustificadasEmLoteAPI = {
+  processadas: number;
+  ignoradas: number;
+  ignoradas_por_motivo?: { nao_encontrada?: number; nao_diverge?: number; repetida?: number; aprovada?: number };
+  lote_id: string | null;
+};
+
+/**
+ * Justifica de uma vez as linhas marcadas na comparação, com um texto só (`POST
+ * /conciliacoes/{id}/decisoes/lote`, backend #237). Todos os papéis justificam (decisão de 21/10). As
+ * linhas que não servem o backend conta em `ignoradas`, por motivo, e responde 200 mesmo sem nenhuma válida.
+ */
+export async function justificarLinhas(
+  extratoBancoId: string,
+  chaves: string[],
+  texto: string,
+): Promise<Resultado<JustificadasEmLote> | (Falha & { indisponivel: true })> {
+  if (!pareceUuid(extratoBancoId)) return { ok: false, status: 404, erro: "Conciliação não encontrada." };
+  // Server Action é endpoint público: o mesmo formato que o backend aceita
+  const chavesValidas =
+    Array.isArray(chaves) &&
+    chaves.length >= 1 &&
+    chaves.length <= MAXIMO_ITENS_DO_LOTE &&
+    chaves.every((chave) => typeof chave === "string" && chave.length >= 1 && chave.length <= 64);
+  if (!chavesValidas) return { ok: false, status: 422, erro: "Marque de 1 a 500 linhas." };
+  const motivo = typeof texto === "string" ? texto.trim() : "";
+  if (!motivo) return { ok: false, status: 422, erro: "Escreva o motivo da justificativa." };
+  if (motivo.length > TAMANHO_MAXIMO_DO_MOTIVO) {
+    return { ok: false, status: 422, erro: "A justificativa pode ter até 1.000 caracteres." };
+  }
+  try {
+    const resposta = await chamarBackend<JustificadasEmLoteAPI>(`/conciliacoes/${extratoBancoId}/decisoes/lote`, {
+      method: "POST",
+      corpo: { tipo: "justificada", texto: motivo, chaves },
+    });
+    const motivos = resposta.ignoradas_por_motivo ?? {};
+    return {
+      ok: true,
+      dados: {
+        processadas: resposta.processadas,
+        ignoradas: resposta.ignoradas,
+        porMotivo: {
+          naoEncontrada: motivos.nao_encontrada ?? 0,
+          naoDiverge: motivos.nao_diverge ?? 0,
+          repetida: motivos.repetida ?? 0,
+          aprovada: motivos.aprovada ?? 0,
+        },
+        loteId: resposta.lote_id ?? null,
+      },
+    };
+  } catch (erro) {
+    if (erro instanceof ErroBackend && erro.status === 404) {
+      return erro.detalhe === "Not Found"
+        ? { ok: false, status: 404, erro: LOTE_INDISPONIVEL, indisponivel: true }
+        : { ok: false, status: 404, erro: LINHA_MUDOU };
+    }
+    return traduzir(erro);
+  }
+}
+
+/**
+ * Aprova todas as justificativas de um lote que ainda esperam aprovação, mesmo as de outras páginas
+ * (`POST /justificativas/lote` com `lote_id` e `extrato_banco_id`, backend #237).
+ */
+export async function aprovarLote(extratoBancoId: string, loteId: string): Promise<Resultado<DecididasEmLote>> {
+  if (!pareceUuid(extratoBancoId) || !pareceUuid(loteId)) return { ok: false, status: 404, erro: "Conciliação não encontrada." };
+  return decidirEmLote({ acao: "aprovar", lote_id: loteId, extrato_banco_id: extratoBancoId });
 }
 
 export type DadosDoRelatorio =

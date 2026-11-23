@@ -71,6 +71,16 @@ describe("AceitarConvite", () => {
     expect(consultarConvite).not.toHaveBeenCalled();
   });
 
+  it("sem fragmento e com o convite do cookie, abre o formulário", async () => {
+    abrirLink("/aceitar-convite");
+    render(<AceitarConvite conectadoComo={null} google={{ ligado: true, erro: null, convite: CONVITE }} />);
+
+    expect(await screen.findByRole("heading", { name: "Entrar na Padaria Ltda" })).toBeInTheDocument();
+    expect(screen.getByText("ana@x.com")).toBeInTheDocument();
+    expect(screen.getByLabelText("Senha")).toBeInTheDocument();
+    expect(consultarConvite).not.toHaveBeenCalled();
+  });
+
   it("convite inválido não mostra formulário", async () => {
     consultarConvite.mockResolvedValue({ ok: false, erro: "convite_invalido" });
     render(<AceitarConvite conectadoComo={null} google={SEM_GOOGLE} />);
@@ -164,6 +174,47 @@ describe("AceitarConvite", () => {
     expect(document.querySelector('img[src*="mascote-relogio"]')).toBeNull();
   });
 
+  it("sem resposta da action ao abrir, manda abrir o link de novo", async () => {
+    consultarConvite.mockRejectedValue(new Error("Failed to fetch"));
+    render(<AceitarConvite conectadoComo={null} google={SEM_GOOGLE} />);
+
+    expect(await screen.findByText("Não foi possível abrir o convite agora. Abra de novo o link do e-mail.")).toBeInTheDocument();
+  });
+
+  it("sem resposta da action ao aceitar, manda abrir o link de novo (recarregar perde o token)", async () => {
+    aceitarConvite.mockRejectedValue(new Error("Failed to fetch"));
+    render(<AceitarConvite conectadoComo={null} google={SEM_GOOGLE} />);
+
+    await preencher("Ana", "senha-boa-1");
+
+    expect(
+      await screen.findByText(
+        "Não foi possível agora. Tente de novo em instantes. Se não der, abra de novo o link do e-mail e preencha outra vez.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("sem resposta da action do Google, não diz que o Google está desligado", async () => {
+    aceitarConviteComGoogle.mockRejectedValue(new Error("Failed to fetch"));
+    const user = userEvent.setup();
+    render(<AceitarConvite conectadoComo={null} google={{ ligado: true, erro: null, convite: null }} />);
+
+    await user.click(await screen.findByRole("button", { name: "Aceitar com Google" }));
+
+    expect(
+      await screen.findByText("Não foi possível agora. Tente de novo em instantes. Se não der, abra de novo o link do e-mail."),
+    ).toBeInTheDocument();
+  });
+
+  it("o falha do backend não manda abrir o link de novo", async () => {
+    aceitarConvite.mockResolvedValue({ ok: false, erro: "falha" });
+    render(<AceitarConvite conectadoComo={null} google={SEM_GOOGLE} />);
+
+    await preencher("Ana", "senha-boa-1");
+
+    expect(await screen.findByText("Não foi possível agora. Tente de novo em instantes.")).toBeInTheDocument();
+  });
+
   it("muitas tentativas pede para esperar", async () => {
     aceitarConvite.mockResolvedValue({ ok: false, erro: "muitas_tentativas" });
     render(<AceitarConvite conectadoComo={null} google={SEM_GOOGLE} />);
@@ -197,6 +248,13 @@ describe("AceitarConvite", () => {
 
     expect(await screen.findByText("Este e-mail já tem conta no Ledgr. Entre com ela.")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Entrar" })).toHaveAttribute("href", "/login");
+  });
+
+  it("com google_de_outra_conta, mostra o texto próprio e mantém o formulário de senha", async () => {
+    render(<AceitarConvite conectadoComo={null} google={{ ligado: true, erro: "google_de_outra_conta", convite: CONVITE }} />);
+
+    expect(await screen.findByText("Este Google já entra no Ledgr por outra conta. Aceite com senha ou com outro Google.")).toBeInTheDocument();
+    expect(screen.getByLabelText("Senha")).toBeInTheDocument();
   });
 
   it("muitas tentativas no Google usa o texto do login pelo Google", async () => {

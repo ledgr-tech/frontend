@@ -61,6 +61,16 @@ describe("ConfirmarEmailPage", () => {
     expect(await screen.findByRole("heading", { name: titulo })).toBeInTheDocument();
   });
 
+  it("sem resposta da action, manda abrir o link de novo (recarregar perde o token)", async () => {
+    confirmarEmail.mockRejectedValueOnce(new Error("Failed to fetch"));
+    render(<ConfirmarEmailPage />);
+
+    await confirmar();
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Não foi possível confirmar agora. Tente de novo em instantes. Se não der, abra de novo o link do e-mail.",
+    );
+  });
+
   it("deixa tentar de novo quando o servidor falha", async () => {
     confirmarEmail.mockResolvedValueOnce({ ok: false, erro: "falha" });
     render(<ConfirmarEmailPage />);

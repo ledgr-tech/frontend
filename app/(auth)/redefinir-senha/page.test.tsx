@@ -88,6 +88,18 @@ describe("RedefinirSenhaPage", () => {
     expect(screen.getByRole("button", { name: "Salvar senha nova" })).toBeEnabled();
   });
 
+  it("sem resposta da action, manda abrir o link de novo (recarregar perde o token)", async () => {
+    redefinirSenha.mockRejectedValue(new Error("Failed to fetch"));
+    render(<RedefinirSenhaPage />);
+
+    await preencher("s3nha-nova-forte");
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Não foi possível salvar agora. Tente de novo em instantes. Se não der, abra de novo o link do e-mail.",
+    );
+    expect(screen.getByRole("button", { name: "Salvar senha nova" })).toBeEnabled();
+  });
+
   it("sem token no endereço, não mostra o formulário", async () => {
     abrirLink("/redefinir-senha");
     render(<RedefinirSenhaPage />);

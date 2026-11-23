@@ -38,7 +38,14 @@ function extratoDoSistema() {
 
 async function pularTutorial(page: Page) {
   const pular = page.getByRole("button", { name: "Pular", exact: true });
-  if (await pular.isVisible().catch(() => false)) await pular.click();
+  // O roteiro pode abrir depois da navegação/hidratação. Checar só isVisible aqui
+  // deixava o tutorial aparecer sobre a próxima ação, sobretudo no build de produção.
+  await pular.waitFor({ state: "visible", timeout: 5000 }).catch(() => {});
+  if (await pular.isVisible().catch(() => false)) {
+    await page.getByRole("checkbox", { name: "Não mostrar mais tutoriais" }).check();
+    await pular.click();
+    await expect(pular).not.toBeVisible();
+  }
 }
 
 async function entrar(page: Page) {
@@ -64,7 +71,7 @@ test("entrar, conciliar, justificar e fechar o mês", async ({ page }) => {
   // a tarifa que só o banco tem: a única em "Só revisão", aberta pela descrição
   await expect(page.getByRole("button", { name: "Só revisão (1)" })).toBeVisible();
   await page.getByRole("button", { name: "TARIFA BANCARIA", exact: true }).click();
-  const previa = page.getByRole("complementary", { name: "Detalhe da linha e saldo do extrato" });
+  const previa = page.getByRole("complementary", { name: "Detalhe da linha", exact: true });
   await previa.getByRole("button", { name: "Justificar", exact: true }).click();
   await previa.getByLabel("Justificativa").fill("Tarifa do banco, lançada no sistema no mês seguinte.");
   await previa.getByRole("button", { name: "Justificar", exact: true }).click();
@@ -111,7 +118,7 @@ test("reenviar JSON na comparação mantém o banco e abre a nova rodada", async
   // a Nova conciliação em modo reenvio; /conciliacoes/nova não pode abrir o painel da linha "nova" (#260)
   await page.waitForURL((url) => url.pathname === `${caminho}/nova` && url.searchParams.has("sistemaAnterior"));
   await expect(page.getByRole("heading", { name: "Nova versão do extrato do sistema" })).toBeVisible();
-  await expect(page.getByRole("complementary", { name: "Detalhe da linha e saldo do extrato" })).toHaveCount(0);
+  await expect(page.getByRole("complementary", { name: "Detalhe da linha", exact: true })).toHaveCount(0);
   await expect(page.getByText("Mantido", { exact: true })).toBeVisible();
   await expect(page.getByText("banco.ofx")).toBeVisible();
   await page.getByRole("button", { name: "Gerar JSON com IA" }).click();

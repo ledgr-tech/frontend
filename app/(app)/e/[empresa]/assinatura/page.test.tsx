@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { adaptarPrecos, type Assinatura, type PrecoDoPlano } from "@/lib/assinatura";
 import type { LimitesDaConta } from "@/lib/limites";
 import type { Papel } from "@/lib/papel";
+import { SEM_SERVIDOR } from "@/lib/sem-servidor";
 import { ProvedorDaConta } from "../conta";
 import AssinaturaPage from "./page";
 
@@ -559,6 +560,16 @@ describe("AssinaturaPage", () => {
       await user.click(within(painel()).getByRole("button", { name: "Assinar o Padrão" }));
       expect(within(painel()).getByRole("alert")).toHaveTextContent("A assinatura não está disponível agora.");
       expect(router.refresh).not.toHaveBeenCalled();
+    });
+
+    it("Assinar que rejeita mostra o erro e libera o botão", async () => {
+      const user = userEvent.setup();
+      iniciarCheckout.mockRejectedValueOnce(new Error("Failed to fetch"));
+      await montar(conta({ situacao: "teste", ...fimEm(9 * 24) }));
+      await user.click(within(painel()).getByRole("button", { name: "Assinar o Padrão" }));
+
+      expect(await within(painel()).findByRole("alert")).toHaveTextContent(SEM_SERVIDOR);
+      expect(within(painel()).getByRole("button", { name: "Assinar o Padrão" })).toBeEnabled();
     });
   });
 

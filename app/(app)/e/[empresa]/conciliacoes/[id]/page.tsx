@@ -1,6 +1,7 @@
 "use client";
 
-import { Fragment, useEffect, useId, useRef, useState, type CSSProperties, type FormEvent } from "react";
+import { Fragment, useCallback, useEffect, useId, useRef, useState, type CSSProperties, type FormEvent } from "react";
+import { flushSync } from "react-dom";
 import { useParams, useSearchParams } from "next/navigation";
 import { useRoteador } from "@/lib/roteador";
 import Link from "@/lib/link-do-app";
@@ -33,7 +34,7 @@ import { parDoOutroLado } from "./par";
 import { decidir, type ResultadoDaDecisao } from "./decidir";
 import { aplicarDensidade, densidadeAtual, type Densidade } from "../../densidade";
 import { IconeOrigem, type Origem } from "../../icone-origem";
-import { CartaoLancamento, ladosDaLinha, type CartaoAberto } from "./cartao-lancamento";
+import { CartaoLancamento, juntoComOutras, ladosDaLinha, type CartaoAberto } from "./cartao-lancamento";
 import { Relatorio } from "./relatorio";
 import { NovaVersao } from "./nova-versao";
 import { LinhaDasRodadas } from "./linha-das-rodadas";
@@ -45,13 +46,16 @@ import { larguraDoValor } from "./largura";
 import { Reveal } from "@/app/reveal";
 import { MensagemErro } from "@/app/(auth)/_compartilhado/mensagem-erro";
 import { Cabecalho } from "../../cabecalho";
-import { FaixaDoSaldo, SaldoNoFim } from "../../saldo";
+import { DiferencaDosSaldos, FaixaDoSaldo, SaldoDaFolha, temTextoDaDiferenca } from "../../saldo";
 import { SeloIa } from "../../selo-ia";
 import { useNome, usePodeFechar } from "../../conta";
 import { aprovadaDepois, podeDesfazerAprovacao } from "@/lib/aprovacao";
-import { decidirLinhas } from "../acoes";
+import { aprovarLote, decidirLinhas, justificarLinhas } from "../acoes";
+import { JustificarEmLote, textoDoLote } from "./justificar-em-lote";
 import { DecisaoEmLote } from "../decisao-em-lote";
 import { SEM_SERVIDOR } from "@/lib/sem-servidor";
+import { limparSelecao, podeSelecionar, somarLinhas } from "./selecao";
+import { anuncioDaSoma, SomaDasSelecionadas } from "./soma-das-selecionadas";
 
 /**
  * "Desde a rodada 1: 4 passaram a bater · 2 continuam divergindo · 1 nova divergência".
@@ -78,7 +82,10 @@ function textoDoVazio(filtro: Filtro, justificadas: number): string {
   return "Nada em revisão nesta competência: todos os lançamentos bateram.";
 }
 
-/** Quantas linhas por página. 4.218 lançamentos não cabem numa tela. */
+// aqui e não em ../acoes: um arquivo "use server" só exporta funções async, e o build recusa o resto
+const FECHAMENTO_NAO_CARREGOU =
+  "Não deu para saber se este mês está fechado. Conferir, justificar e enviar nova versão voltam quando carregar.";
+
 /** Do ponteiro sair da linha ao cartão fechar: o tempo de atravessar o vão até ele. */
 const ESPERA_PARA_FECHAR_MS = 150;
 
@@ -88,6 +95,15 @@ const FOCO_DO_PONTEIRO_MS = 1000;
 /** Toque não tem hover: lá o toque na descrição já abre o diálogo da linha. */
 function temHover(): boolean {
   return window.matchMedia?.("(hover: hover)").matches ?? false;
+}
+
+/**
+ * A linha virou cartão (o modo cartão do CSS, até 680px, quem decide é o @container). O cartão já mostra
+ * as duas folhas inteiras, e o balão aberto pelo mouse subia do selo por cima da caixa de seleção (#475),
+ * da descrição e do Visto do próprio cartão, e o clique ia para ele: com o mouse, o balão não abre ali.
+ */
+function emCartao(linha: Element): boolean {
+  return getComputedStyle(linha).display !== "table-row";
 }
 
 /**
@@ -166,19 +182,63 @@ export default function ConciliacaoPage() {
   const [erroDecisao, setErroDecisao] = useState<string | null>(null);
   // as linhas com uma decisão a caminho: o segundo clique não manda o contrário por cima
   const gravando = useRef(new Set<string>());
-  // as linhas marcadas para aprovar ou rejeitar de uma vez, no filtro "Aguardando aprovação" (#208)
-  const [marcadas, setMarcadas] = useState<ReadonlySet<string>>(() => new Set());
+  // as linhas selecionadas para somar (#475) e aprovar de uma vez (#208), com a rodada em que foram marcadas:
+  // não grava nada, sobrevive ao filtro e começa vazia em outra rodada ou conciliação
+  // o resultado do último lote (justificar ou aprovar o lote), num role="status" sempre montado
+  const [avisoDoLote, setAvisoDoLote] = useState<string | null>(null);
+  const botaoLimpar = useRef<HTMLButtonElement>(null);
+  // a rota do lote respondeu o 404 genérico (backend antes do #237): o botão some até recarregar a página
+  const [loteIndisponivel, setLoteIndisponivel] = useState(false);
+  const [selecao, setSelecao] = useState<{ de: string; chaves: ReadonlySet<string> }>({ de: "", chaves: new Set() });
+  // as duas caixas de selecionar todas: a do cabeçalho (tabela) e a dos controles (cartões)
+  const caixaDoCabecalho = useRef<HTMLInputElement>(null);
+  const caixaDosCartoes = useRef<HTMLInputElement>(null);
+  const faixaDaSelecao = useRef<HTMLDivElement | null>(null);
+  // o grupo dos filtros: o aberto fica na tela mesmo quando a lista dele zera
+  const grupoDosFiltros = useRef<HTMLDivElement>(null);
+  /**
+   * A faixa presa no pé cobre o fim da tela: a altura dela vira a margem de rolagem (scroll-margin, no CSS) dos
+   * focáveis da comparação, para o Tab que desce pelas linhas não deixar o foco escondido atrás (WCAG 2.4.11).
+   * Medida, e não fixa no CSS: o lote quebra em linhas na coluna estreita, e a rejeição abre um campo. Não é um
+   * scroll-padding da página: com ele, os botões da própria faixa contavam como escondidos, e o Tab que entra
+   * nela rolava a tabela meia tela.
+   */
+  const prenderFaixa = useCallback((faixa: HTMLDivElement | null) => {
+    faixaDaSelecao.current = faixa;
+    const corpo = faixa?.parentElement;
+    if (!faixa || !corpo || typeof ResizeObserver === "undefined") return;
+    const observador = new ResizeObserver(() => {
+      // a folga da faixa até o pé (o bottom do sticky, maior que 12px com a barra do iPhone) e mais 12px de ar
+      const folga = parseFloat(getComputedStyle(faixa).bottom) || 0;
+      corpo.style.setProperty("--reserva-da-faixa", `${faixa.offsetHeight + folga + 12}px`);
+    });
+    observador.observe(faixa);
+    return () => {
+      observador.disconnect();
+      corpo.style.removeProperty("--reserva-da-faixa");
+      faixaDaSelecao.current = null;
+    };
+  }, []);
   // sair da linha só fecha o cartão depois de um instante: dá tempo de o ponteiro chegar nele
   const fechandoCartao = useRef<ReturnType<typeof setTimeout>>(undefined);
   // quando o ponteiro desceu pela última vez, em qualquer lugar da tela: o foco que chega logo depois vem de
   // um toque ou clique (na descrição, ou no Fechar da janela, que devolve o foco a ela), e não do teclado (#369)
   const ponteiroEm = useRef(-Infinity);
+  // e quando uma tecla desceu: o que veio por último diz se a seleção foi limpa pelo mouse ou pelo teclado
+  const tecladoEm = useRef(-Infinity);
   useEffect(() => {
-    const marcar = () => {
+    const doPonteiro = () => {
       ponteiroEm.current = performance.now();
     };
-    window.addEventListener("pointerdown", marcar, { capture: true, passive: true });
-    return () => window.removeEventListener("pointerdown", marcar, { capture: true });
+    const doTeclado = () => {
+      tecladoEm.current = performance.now();
+    };
+    window.addEventListener("pointerdown", doPonteiro, { capture: true, passive: true });
+    window.addEventListener("keydown", doTeclado, { capture: true, passive: true });
+    return () => {
+      window.removeEventListener("pointerdown", doPonteiro, { capture: true });
+      window.removeEventListener("keydown", doTeclado, { capture: true });
+    };
   }, []);
 
   useEffect(() => {
@@ -228,7 +288,16 @@ export default function ConciliacaoPage() {
     );
   }
 
-  const { conciliacao, real, truncada, rodada, rodadas, mudancas, fechamento } = estado;
+  const {
+    conciliacao,
+    real,
+    truncada,
+    rodada,
+    rodadas,
+    mudancas,
+    fechamento,
+    fechamentoIndisponivel,
+  } = estado;
 
   function fechar() {
     const atualizada = fecharConciliacao(conciliacao.id);
@@ -265,7 +334,6 @@ export default function ConciliacaoPage() {
 
   function escolherFiltro(proximo: Filtro) {
     setFiltro(proximo);
-    setMarcadas(new Set());
     // replaceState, não navegação: o Next sincroniza o useSearchParams sem remontar
     // a página nem buscar as linhas de novo, e o histórico não ganha um passo por clique
     const url = new URLSearchParams(window.location.search);
@@ -282,32 +350,93 @@ export default function ConciliacaoPage() {
   }
 
   // decidir só onde há onde gravar, só na rodada que vale (a passada é para ler) e só com o mês
-  // aberto: no fechado, o backend recusa (409) até reabrir
-  const podeDecidir = ligadas && (!rodada || rodada.numero === rodada.total) && !fechamento;
-  // marcar várias para decidir de uma vez: só quem aprova, só com o backend (o lote não tem mock) e só
-  // no filtro delas, onde a última coluna fica livre da conferência
-  const marcando = podeDecidir && podeAprovar && real && filtro === "aguardando";
-  // marcada que saiu do filtro (decidida na janela da linha) não conta mais
-  const chavesMarcadas = marcando ? ordenadas.map(chaveDaLinha).filter((chave) => marcadas.has(chave)) : [];
-  const todasMarcadas = ordenadas.length > 0 && chavesMarcadas.length === ordenadas.length;
-
-  function alternarTodas() {
-    setMarcadas(todasMarcadas ? new Set() : new Set(ordenadas.map(chaveDaLinha)));
+  // aberto: no fechado, o backend recusa (409) até reabrir, e sem saber se está fechado não decide. Com o
+  // backend, sem rodada não se sabe qual vale, então não decide; o mock não tem rodadas
+  const podeDecidir =
+    ligadas &&
+    (rodada ? rodada.numero === rodada.total : !real) &&
+    !fechamento &&
+    !fechamentoIndisponivel;
+  const parDaTela = { extratoBancoId: conciliacao.id, extratoSistemaId: conciliacao.extratoSistemaId };
+  const rodadaAberta = `${conciliacao.id}:${rodadaDasLinhas}`;
+  // trocar de rodada ou de conciliação apaga a seleção, e voltar começa vazio (ajuste no render, o
+  // padrão do React para estado que segue outro valor). Uma releitura mantém a rodada na tela até a
+  // resposta chegar (useConciliacao não volta a "carregando"), então não apaga nada
+  if (selecao.de !== rodadaAberta) {
+    setSelecao({ de: rodadaAberta, chaves: new Set() });
+    // o resultado do lote é da rodada em que foi feito
+    setAvisoDoLote(null);
   }
+  const selecionadas = selecao.de === rodadaAberta ? selecao.chaves : new Set<string>();
+  // de todas as linhas, não só as do filtro (F3); a que sumiu num recarregar ou foi conciliada sai
+  const chavesSelecionadas = limparSelecao(selecionadas, conciliacao.linhas);
+  const valendo = new Set(chavesSelecionadas);
+  const soma = somarLinhas(conciliacao.linhas.filter((linha) => valendo.has(chaveDaLinha(linha))));
+  // a caixa do cabeçalho pega as selecionáveis à vista, no filtro de agora
+  const selecionaveisAVista = ordenadas.filter(podeSelecionar).map(chaveDaLinha);
+  const todasSelecionadas = selecionaveisAVista.length > 0 && selecionaveisAVista.every((chave) => valendo.has(chave));
 
-  function alternarMarca(chave: string) {
-    setMarcadas((atual) => {
-      const proximas = new Set(atual);
-      if (!proximas.delete(chave)) proximas.add(chave);
-      return proximas;
+  function mudarSelecao(mudar: (chaves: Set<string>) => void) {
+    setSelecao((atual) => {
+      const chaves = new Set(atual.de === rodadaAberta ? atual.chaves : []);
+      mudar(chaves);
+      return { de: rodadaAberta, chaves };
     });
   }
 
-  /** O lote das marcadas; deu certo, a tela é lida de novo com as decisões que ficaram. */
-  async function decidirMarcadas(acao: "aprovar" | "rejeitar", motivo?: string): Promise<string | null> {
-    const resposta = await decidirLinhas(conciliacao.id, chavesMarcadas, acao, motivo);
+  function alternarSelecao(chave: string) {
+    mudarSelecao((chaves) => {
+      if (!chaves.delete(chave)) chaves.add(chave);
+    });
+  }
+
+  /**
+   * Zerar a seleção some com a faixa, e o foco que estava nela (Limpar, Aprovar) cairia no body. Do Limpar, ele
+   * vai para a caixa de selecionar todas à vista, ou para o filtro aberto quando não há caixa ligada (um filtro
+   * sem linhas). Do lote, direto para o filtro: a releitura pode esvaziar a lista e desligar a caixa.
+   */
+  function esvaziarSelecao(depoisDoLote = false) {
+    // o foco volta só para quem usa o teclado: com o mouse, o destino pode estar a telas dali, a página pularia
+    // até ele e o Espaço que rola a página marcaria todas. E só com o foco na faixa, ou já no body (o botão do
+    // lote desliga enquanto grava, e o Chrome tira o foco dele): quem foi para outro lugar fica lá
+    const ativo = document.activeElement;
+    const devolver =
+      tecladoEm.current >= ponteiroEm.current && (ativo === document.body || faixaDaSelecao.current?.contains(ativo));
+    // desmarca antes de focar: o leitor de tela anuncia a caixa já "não marcada"
+    flushSync(() => mudarSelecao((chaves) => chaves.clear()));
+    if (!devolver) return;
+    const filtro = grupoDosFiltros.current?.querySelector<HTMLElement>('[aria-pressed="true"]');
+    // o primeiro que aceitar: focus() não pega em caixa escondida ou desligada
+    for (const alvo of depoisDoLote ? [filtro] : [caixaDoCabecalho.current, caixaDosCartoes.current, filtro]) {
+      alvo?.focus();
+      if (alvo && document.activeElement === alvo) return;
+    }
+  }
+
+  // marcada, tira as à vista; desmarcada, põe todas elas. As de fora do filtro ficam como estão
+  function alternarTodasSelecao() {
+    mudarSelecao((chaves) => {
+      for (const chave of selecionaveisAVista) {
+        if (todasSelecionadas) chaves.delete(chave);
+        else chaves.add(chave);
+      }
+    });
+  }
+
+  // aprovar ou rejeitar de uma vez (#208): só quem aprova, só com o backend (o lote não tem mock) e, das
+  // selecionadas, só as que aguardam aprovação; em qualquer filtro
+  const aguardandoSelecionadas =
+    podeDecidir && podeAprovar && real
+      ? conciliacao.linhas
+          .filter((linha) => valendo.has(chaveDaLinha(linha)) && situacaoDaLinha(linha, rodadaDasLinhas) === "aguardando")
+          .map(chaveDaLinha)
+      : [];
+
+  /** O lote das selecionadas que aguardam; deu certo, a seleção some e a tela é lida de novo. */
+  async function decidirSelecionadas(acao: "aprovar" | "rejeitar", motivo?: string): Promise<string | null> {
+    const resposta = await decidirLinhas(conciliacao.id, aguardandoSelecionadas, acao, motivo);
     if (resposta.ok) {
-      setMarcadas(new Set());
+      esvaziarSelecao(true);
       recarregar();
       return null;
     }
@@ -316,15 +445,81 @@ export default function ConciliacaoPage() {
     return resposta.erro;
   }
 
+  // justificar em lote (#473): todos os papéis, só com o backend (a demo não tem lote) e nos mesmos portões do
+  // "Justificar" da linha (rodada que vale, mês aberto e conhecido). Vão todas as selecionadas: a seleção só
+  // aceita linhas que pedem revisão, e o que não serve o backend conta em ignoradas
+  const podeJustificarEmLote = podeDecidir && real && !loteIndisponivel;
+  const jaJustificadas = podeJustificarEmLote
+    ? conciliacao.linhas.filter((linha) => {
+        if (!valendo.has(chaveDaLinha(linha))) return false;
+        const situacao = situacaoDaLinha(linha, rodadaDasLinhas);
+        return situacao === "justificada" || situacao === "aguardando";
+      }).length
+    : 0;
+
+  async function justificarSelecionadas(texto: string): Promise<string | null> {
+    setAvisoDoLote(null);
+    const resposta = await justificarLinhas(conciliacao.id, chavesSelecionadas, texto);
+    if (resposta.ok) {
+      esvaziarSelecao(true);
+      recarregar();
+      setAvisoDoLote(textoDoLote(resposta.dados.processadas, resposta.dados.porMotivo));
+      return null;
+    }
+    if ("indisponivel" in resposta) {
+      // o formulário some junto com o botão: o texto fica no aviso do lote, uma vez. O foco estava nele (ou já
+      // caiu no body, com o campo desligado no envio): vai ao "Limpar seleção", que fica, só para o teclado
+      const doTeclado = tecladoEm.current >= ponteiroEm.current;
+      flushSync(() => {
+        setLoteIndisponivel(true);
+        setAvisoDoLote(resposta.erro);
+      });
+      if (doTeclado && (document.activeElement === document.body || document.activeElement === null)) botaoLimpar.current?.focus();
+      return null;
+    }
+    if (resposta.status === 401) router.push("/login");
+    if (resposta.status === 404 || resposta.status === 409) recarregar();
+    return resposta.erro;
+  }
+
+  /** "Aprovar as N do lote" (#473): todas as do lote que ainda aguardam, mesmo fora da tela; depois relê. */
+  async function aprovarOLote(linha: LinhaComparacao | null): Promise<string | null> {
+    const loteId = linha?.decisao?.loteId;
+    if (!loteId) return null;
+    setAvisoDoLote(null);
+    let resposta: Awaited<ReturnType<typeof aprovarLote>>;
+    try {
+      resposta = await aprovarLote(conciliacao.id, loteId);
+    } catch {
+      return SEM_SERVIDOR;
+    }
+    if (resposta.ok) {
+      recarregar();
+      const n = resposta.dados.processadas;
+      setAvisoDoLote(`${n.toLocaleString("pt-BR")} ${n === 1 ? "justificativa aprovada" : "justificativas aprovadas"}.`);
+      return null;
+    }
+    if (resposta.status === 401) router.push("/login");
+    if (resposta.status === 404 || resposta.status === 409) recarregar();
+    return resposta.erro;
+  }
+
   const linhaEmFoco = foco === null ? null : (conciliacao.linhas.find((linha) => chaveDaLinha(linha) === foco) ?? null);
   const linhaAberta = chaveAberta === null ? null : (conciliacao.linhas.find((linha) => chaveDaLinha(linha) === chaveAberta) ?? null);
 
   /** Troca uma linha na conciliação que estiver na tela quando a resposta chegar. */
-  function trocarLinha(chave: string, troca: (linha: LinhaComparacao) => LinhaComparacao) {
-    substituir((atual) => ({
-      ...atual,
-      linhas: atual.linhas.map((linha) => (chaveDaLinha(linha) === chave ? troca(linha) : linha)),
-    }));
+  function trocarLinha(
+    par: { extratoBancoId: string; extratoSistemaId: string | undefined },
+    chave: string,
+    troca: (linha: LinhaComparacao) => LinhaComparacao,
+  ) {
+    substituir((atual) => {
+      if (atual.id !== par.extratoBancoId || atual.extratoSistemaId !== par.extratoSistemaId) return atual;
+      return {
+        ...atual,
+        linhas: atual.linhas.map((linha) => (chaveDaLinha(linha) === chave ? troca(linha) : linha)),
+      };
+    });
   }
 
   /**
@@ -333,6 +528,7 @@ export default function ConciliacaoPage() {
    */
   async function gravarDecisao(linha: LinhaComparacao, tipo: TipoEvento, texto?: string): Promise<string | null> {
     const chave = chaveDaLinha(linha);
+    const par = { extratoBancoId: conciliacao.id, extratoSistemaId: conciliacao.extratoSistemaId };
     let resposta: ResultadoDaDecisao;
     try {
       resposta = await decidir({ conciliacao, real, linha, tipo, texto });
@@ -342,7 +538,7 @@ export default function ConciliacaoPage() {
     }
     if (resposta.ok) {
       const gravada = resposta.conciliacao.linhas.find((atual) => chaveDaLinha(atual) === chave);
-      if (gravada) trocarLinha(chave, () => gravada);
+      if (gravada) trocarLinha(par, chave, () => gravada);
       return null;
     }
     if (resposta.status === 401) router.push("/login");
@@ -362,12 +558,12 @@ export default function ConciliacaoPage() {
       ? null
       : { tipo: "conferida", texto: null, autor: "Você", em: new Date().toISOString(), rodada: rodadaDasLinhas };
     setErroDecisao(null);
-    trocarLinha(chave, (atual) => ({ ...atual, decisao: otimista }));
+    trocarLinha(parDaTela, chave, (atual) => ({ ...atual, decisao: otimista }));
 
     const erro = await gravarDecisao(linha, marcada ? "conferencia_desfeita" : "conferida");
     gravando.current.delete(chave);
     if (erro === null) return;
-    trocarLinha(chave, (atual) => ({ ...atual, decisao: linha.decisao }));
+    trocarLinha(parDaTela, chave, (atual) => ({ ...atual, decisao: linha.decisao }));
     setErroDecisao(erro);
   }
 
@@ -388,6 +584,7 @@ export default function ConciliacaoPage() {
           // só conciliação de verdade, só na rodada que vale (a passada é para ler) e com o mês aberto
           real &&
           !fechamento &&
+          !fechamentoIndisponivel &&
           (!rodada || rodada.numero === rodada.total) && (
             <NovaVersao
               extratoBancoId={conciliacao.id}
@@ -414,6 +611,14 @@ export default function ConciliacaoPage() {
           <p role="status" aria-label="Mês fechado" className="mes-fechado-aviso">
             {`${tituloDaCompetencia(fechamento.competencia)} está fechado. Para conferir, justificar ou conciliar de novo, reabra o fechamento. `}
             <Link href={`/fechamentos?mes=${fechamento.competencia}`}>Ver o fechamento</Link>
+          </p>
+        )}
+        {fechamentoIndisponivel && (
+          <p role="status" className="mes-fechado-aviso">
+            {FECHAMENTO_NAO_CARREGOU}{" "}
+            <button type="button" className="btn btn-secondary" onClick={recarregar}>
+              Tentar de novo
+            </button>
           </p>
         )}
         {/* a faixa da rodada: o aviso da rodada passada (só para ler, leva à que vale) ou o que
@@ -446,9 +651,9 @@ export default function ConciliacaoPage() {
             )}
           </div>
         )}
-        {/* o saldo do extrato do banco (#118), o primeiro número que o contador procura: o mesmo em
-            todas as rodadas, junto do resumo do par */}
-        {!painel && <FaixaDoSaldo saldo={conciliacao.saldo} />}
+        {/* o saldo do extrato do banco (#118), o mesmo em todas as rodadas: esta faixa só aparece nos
+            cartões (até 680px), onde o thead e o tfoot somem; nas outras larguras ele fica na coluna do banco (#474) */}
+        <FaixaDoSaldo banco={conciliacao.saldo} sistema={conciliacao.saldoSistema} diferenca={conciliacao.diferencaSaldo} />
         {/* desligar uma categoria volta ao "Só revisão": as cinco são o que ele junta.
             As justificadas saem das categorias e são contadas à parte. */}
         <Reveal className="comparacao-bloco">
@@ -464,7 +669,7 @@ export default function ConciliacaoPage() {
         {/* uma faixa só de controles, colada na tabela: o filtro à esquerda, a densidade à direita */}
         <Reveal delay={0.08} className="tabela-ferramentas comparacao-bloco">
           <div className="tabela-filtros" data-tutorial="filtros">
-            <div className="pills segmentado" role="group" aria-label="Filtrar lançamentos">
+            <div ref={grupoDosFiltros} className="pills segmentado" role="group" aria-label="Filtrar lançamentos">
               <button
                 type="button"
                 className="pill"
@@ -553,25 +758,60 @@ export default function ConciliacaoPage() {
             <button type="button" className="btn btn-secondary" onClick={() => alternarOrdem(ordem.coluna)}>
               {ordem.crescente ? "Ordem crescente" : "Ordem decrescente"}
             </button>
-          </div>
-        )}
-
-        {marcando && ordenadas.length > 0 && (
-          <div className="lote-faixa" role="region" aria-label="Decidir as marcadas">
-            <label className="comparacao-controles-cartoes">
-              <input type="checkbox" className="lote-marca" checked={todasMarcadas} onChange={alternarTodas} />
-              Marcar todas
-            </label>
-            <span className="tabela-progresso">
-              {chavesMarcadas.length === 0
-                ? "Marque as justificativas para aprovar ou rejeitar de uma vez."
-                : `${formatarInteiro(chavesMarcadas.length)} de ${formatarInteiro(ordenadas.length)} ${ordenadas.length === 1 ? "marcada" : "marcadas"}`}
-            </span>
-            {chavesMarcadas.length > 0 && (
-              <DecisaoEmLote quantidade={chavesMarcadas.length} objeto={{ um: "marcada", varios: "marcadas" }} onDecidir={decidirMarcadas} />
+            {/* nos cartões o cabeçalho some, e com ele a caixa de selecionar todas */}
+            {selecionaveisAVista.length > 0 && (
+              <label className="selecionar-todas">
+                <input ref={caixaDosCartoes} type="checkbox" checked={todasSelecionadas} onChange={alternarTodasSelecao} />
+                Selecionar todas
+              </label>
             )}
           </div>
         )}
+
+        {/* sempre montado: a região que já nasce com o texto não é anunciada, e a primeira marcação passaria calada */}
+        <p role="status" className="sr-only">
+          {anuncioDaSoma(soma)}
+        </p>
+
+        {/* presa no pé da tela pelo CSS, depois da tabela (decisão de 21/11: acima dela, empurrava as linhas no
+            primeiro clique), mas antes dela no DOM: o teclado chega nas ações antes de percorrer as linhas */}
+        {chavesSelecionadas.length > 0 && (
+          <div ref={prenderFaixa} className="lote-faixa" role="region" aria-label="Linhas selecionadas">
+            {/* com o painel, a soma vai nele; sem ele, aqui, e ela já diz quantas são */}
+            {painel ? (
+              <span className="tabela-progresso">
+                {`${formatarInteiro(chavesSelecionadas.length)} ${chavesSelecionadas.length === 1 ? "selecionada" : "selecionadas"}`}
+              </span>
+            ) : (
+              <SomaDasSelecionadas soma={soma} />
+            )}
+            {podeJustificarEmLote && (
+              <JustificarEmLote quantidade={chavesSelecionadas.length} jaJustificadas={jaJustificadas} onJustificar={justificarSelecionadas} />
+            )}
+            {/* quando nem todas aguardam, diz quantas vão no lote; o botão já diz o resto */}
+            {aguardandoSelecionadas.length > 0 && aguardandoSelecionadas.length < chavesSelecionadas.length && (
+              <span className="tabela-progresso">
+                {`${formatarInteiro(aguardandoSelecionadas.length)} das ${formatarInteiro(chavesSelecionadas.length)} selecionadas ${aguardandoSelecionadas.length === 1 ? "aguarda" : "aguardam"} aprovação`}
+              </span>
+            )}
+            {aguardandoSelecionadas.length > 0 && (
+              <DecisaoEmLote
+                quantidade={aguardandoSelecionadas.length}
+                limite={500}
+                objeto={{ um: "justificativa selecionada", varios: "justificativas selecionadas" }}
+                onDecidir={decidirSelecionadas}
+              />
+            )}
+            <button ref={botaoLimpar} type="button" className="btn btn-secondary" onClick={() => esvaziarSelecao()}>
+              Limpar seleção
+            </button>
+          </div>
+        )}
+
+        {/* sempre montado, como o anúncio da soma: o resultado do lote é dito mesmo com a faixa já fechada */}
+        <p role="status" className={avisoDoLote ? "espia-aviso" : "sr-only"}>
+          {avisoDoLote}
+        </p>
 
         {erroDecisao && (
           <p role="alert" className="selo selo-risco decisao-erro">
@@ -590,6 +830,7 @@ export default function ConciliacaoPage() {
               {/* larguras fixas (globals.css): as folhas saem iguais dos dois lados do eixo,
                   e as colunas não mudam de largura ao trocar de página ou de filtro */}
               <colgroup>
+                <col className="col-selecao" />
                 <col className="col-data" />
                 <col />
                 <col className="col-valor" />
@@ -605,22 +846,36 @@ export default function ConciliacaoPage() {
                     fica no eixo entre as duas, como no design: é o veredito sobre o par,
                     e o olho passa por ele no caminho de um lado ao outro. */}
                 <tr role="row" className="folhas-titulos">
-                  <th colSpan={3} scope="colgroup" className="folha-banco folha-titulo">
+                  <td className="folha-fora" aria-hidden="true" />
+                  <th colSpan={3} scope="colgroup" className="folha-banco folha-titulo" aria-label="Extrato do banco" aria-describedby={conciliacao.saldo ? "saldo-inicial-do-banco" : undefined}>
                     <span className="folha-titulo-conteudo">
                       <IconeOrigem origem="banco" />
                       <span className="folha-nome">Extrato do banco</span>
+                      {/* o nome é só "Extrato do banco"; o saldo inicial chega ao leitor de tela como descrição */}
+                      <SaldoDaFolha saldo={conciliacao.saldo} momento="inicial" id="saldo-inicial-do-banco" />
                     </span>
                   </th>
                   <td className="folha-fora" aria-hidden="true" />
-                  <th colSpan={3} scope="colgroup" className="folha-sistema folha-titulo">
+                  <th colSpan={3} scope="colgroup" className="folha-sistema folha-titulo" aria-label="Sistema de gestão" aria-describedby={conciliacao.saldoSistema ? "saldo-inicial-do-sistema" : undefined}>
                     <span className="folha-titulo-conteudo">
                       <IconeOrigem origem="sistema" />
                       <span className="folha-nome">Sistema de gestão</span>
+                      <SaldoDaFolha saldo={conciliacao.saldoSistema} momento="inicial" id="saldo-inicial-do-sistema" />
                     </span>
                   </th>
                   {podeDecidir && <td className="folha-fora" aria-hidden="true" />}
                 </tr>
                 <tr role="row">
+                  <th className="th-selecao">
+                    <input
+                      ref={caixaDoCabecalho}
+                      type="checkbox"
+                      aria-label="Selecionar todas as divergências à vista"
+                      checked={todasSelecionadas}
+                      disabled={selecionaveisAVista.length === 0}
+                      onChange={alternarTodasSelecao}
+                    />
+                  </th>
                   <CabecalhoOrdenavel coluna="data" ordem={ordem} onOrdenar={alternarOrdem} folha="banco">
                     Data
                   </CabecalhoOrdenavel>
@@ -653,23 +908,11 @@ export default function ConciliacaoPage() {
                     Sistema
                   </CabecalhoOrdenavel>
                   {/* a conferência no fim da linha, com nome: depois de ler o par, "já conferi" */}
-                  {podeDecidir &&
-                    (marcando ? (
-                      <th className="th-conferir">
-                        <input
-                          type="checkbox"
-                          className="lote-marca"
-                          aria-label="Marcar todas as justificativas aguardando aprovação"
-                          checked={todasMarcadas}
-                          disabled={ordenadas.length === 0}
-                          onChange={alternarTodas}
-                        />
-                      </th>
-                    ) : (
-                      <th className="th-conferir" data-tutorial="conferida" title="Marque as divergências que você já olhou. As que bateram não precisam.">
-                        Visto
-                      </th>
-                    ))}
+                  {podeDecidir && (
+                    <th className="th-conferir" data-tutorial="conferida" title="Marque as divergências que você já olhou. As que bateram não precisam.">
+                      Visto
+                    </th>
+                  )}
                 </tr>
               </thead>
               {/* contínua, sem páginas: num extrato grande, folhear de 25 em 25 escondia o resto do mês.
@@ -815,6 +1058,7 @@ export default function ConciliacaoPage() {
                     {lote && !ehPonta ? (
                       loteAberto && (
                         <tr role="row" data-tom={tom} data-situacao={situacao} data-lote-membro="">
+                          <td role="cell" className="celula-selecao" />
                           {pontaNoBanco ? <td role="cell" colSpan={3} className="folha-banco" /> : celulasDe(linha, "banco")}
                           <td role="cell" data-rotulo="Status" className="celula-status" />
                           {pontaNoBanco ? celulasDe(linha, "sistema") : <td role="cell" colSpan={3} className="folha-sistema" />}
@@ -833,7 +1077,7 @@ export default function ConciliacaoPage() {
                         painel
                           ? () => focar(linha)
                           : comCartao
-                            ? (evento) => temHover() && abrirCartao(evento.currentTarget)
+                            ? (evento) => temHover() && !emCartao(evento.currentTarget) && abrirCartao(evento.currentTarget)
                             : undefined
                       }
                       onMouseLeave={painel ? undefined : comCartao ? fecharCartaoDepois : undefined}
@@ -856,6 +1100,16 @@ export default function ConciliacaoPage() {
                         router.push(caminhoDaConciliacao(conciliacao.id, conciliacao.extratoSistemaId, linha.id));
                       }}
                     >
+                      <td role="cell" className="celula-selecao">
+                        {podeSelecionar(linha) && (
+                          <input
+                            type="checkbox"
+                            aria-label={`Selecionar: ${linha.data} ${linha.descricao}`}
+                            checked={selecionadas.has(chaveDaLinha(linha))}
+                            onChange={() => alternarSelecao(chaveDaLinha(linha))}
+                          />
+                        )}
+                      </td>
                       {banco ? (
                         <>
                           <td
@@ -942,17 +1196,8 @@ export default function ConciliacaoPage() {
                         </td>
                       )}
                       {podeDecidir && (
-                        <td role="cell" data-rotulo={marcando ? "Marcar" : "Visto"} className="celula-conferir">
-                          {marcando && situacao === "aguardando" && (
-                            <input
-                              type="checkbox"
-                              className="lote-marca"
-                              aria-label={`Marcar ${linha.descricao}`}
-                              checked={marcadas.has(chaveDaLinha(linha))}
-                              onChange={() => alternarMarca(chaveDaLinha(linha))}
-                            />
-                          )}
-                          {!marcando && (situacao === "a_conferir" || situacao === "conferida") && (
+                        <td role="cell" data-rotulo="Visto" className="celula-conferir">
+                          {(situacao === "a_conferir" || situacao === "conferida") && (
                             <CirculoDeConferir
                               linha={linha}
                               conferida={situacao === "conferida"}
@@ -968,6 +1213,24 @@ export default function ConciliacaoPage() {
                   );
                 })}
               </tbody>
+              {(conciliacao.saldo !== undefined || conciliacao.saldoSistema !== undefined) && (
+                <tfoot role="rowgroup">
+                  <tr role="row">
+                    {/* a coluna da seleção (#475) vem antes do banco, como no título */}
+                    <td role="cell" className="folha-fora" aria-hidden="true" />
+                    <td role="cell" colSpan={3} className="folha-banco">
+                      <SaldoDaFolha saldo={conciliacao.saldo} momento="final" />
+                    </td>
+                    <td role="cell" className="folha-fora" aria-hidden={temTextoDaDiferenca(conciliacao.diferencaSaldo) ? undefined : true}>
+                      <DiferencaDosSaldos diferenca={conciliacao.diferencaSaldo} />
+                    </td>
+                    <td role="cell" colSpan={3} className="folha-sistema">
+                      <SaldoDaFolha saldo={conciliacao.saldoSistema} momento="final" />
+                    </td>
+                    {podeDecidir && <td role="cell" className="celula-conferir" />}
+                  </tr>
+                </tfoot>
+              )}
             </table>
           </div>
 
@@ -987,8 +1250,6 @@ export default function ConciliacaoPage() {
             <p className="tabela-vazia">{textoDoVazio(filtro, justificadas.length)}</p>
           )}
 
-          {/* como no extrato do banco: o saldo inicial em cima, o final no fim */}
-          <SaldoNoFim saldo={conciliacao.saldo} />
         </Reveal>
 
         {/* Fechar o mês grava no mock. Com dado do backend não há endpoint que
@@ -1014,6 +1275,12 @@ export default function ConciliacaoPage() {
             onJustificar={(texto) => gravarDecisao(linhaAberta, "justificada", texto)}
             onDesfazer={() => gravarDecisao(linhaAberta, "justificativa_desfeita")}
             onAprovar={() => gravarDecisao(linhaAberta, "justificativa_aprovada")}
+            onAprovarLote={async () => {
+              // fecha a janela: com ela aberta (showModal) o resto da página é inerte, e o aviso do lote não seria lido
+              const erro = await aprovarOLote(linhaAberta);
+              if (erro === null) setChaveAberta(null);
+              return erro;
+            }}
             onRejeitar={(motivo) => gravarDecisao(linhaAberta, "justificativa_rejeitada", motivo || undefined)}
             onDesfazerAprovacao={() => gravarDecisao(linhaAberta, "aprovacao_desfeita")}
             onFechar={() => setChaveAberta(null)}
@@ -1031,19 +1298,20 @@ export default function ConciliacaoPage() {
             fixada={fixada}
             rodada={rodadaDasLinhas}
             linhas={conciliacao.linhas}
-            saldo={conciliacao.saldo}
+            soma={soma}
             real={real}
             podeDecidir={podeDecidir}
             podeAprovar={podeAprovar}
             onJustificar={(texto) => (linhaEmFoco ? gravarDecisao(linhaEmFoco, "justificada", texto) : Promise.resolve(null))}
             onAprovar={() => (linhaEmFoco ? gravarDecisao(linhaEmFoco, "justificativa_aprovada") : Promise.resolve(null))}
+            onAprovarLote={() => aprovarOLote(linhaEmFoco)}
             onRejeitar={(motivo) =>
               linhaEmFoco ? gravarDecisao(linhaEmFoco, "justificativa_rejeitada", motivo || undefined) : Promise.resolve(null)
             }
             onDesfazer={() => (linhaEmFoco ? gravarDecisao(linhaEmFoco, "justificativa_desfeita") : Promise.resolve(null))}
             onDesfazerAprovacao={() => (linhaEmFoco ? gravarDecisao(linhaEmFoco, "aprovacao_desfeita") : Promise.resolve(null))}
             onExplicada={(linha, explicacao) =>
-              trocarLinha(chaveDaLinha(linha), (atual) => ({
+              trocarLinha(parDaTela, chaveDaLinha(linha), (atual) => ({
                 ...atual,
                 explicacao: explicacao.texto,
                 explicacaoPorIa: explicacao.geradaPorIa,
@@ -1082,6 +1350,7 @@ function EspiaDaLinha({
   onJustificar,
   onDesfazer,
   onAprovar,
+  onAprovarLote,
   onRejeitar,
   onDesfazerAprovacao,
   onFechar,
@@ -1100,6 +1369,8 @@ function EspiaDaLinha({
   onJustificar: (texto: string) => Promise<string | null>;
   onDesfazer: () => Promise<string | null>;
   onAprovar: () => Promise<string | null>;
+  /** Aprova todas as do lote desta linha que ainda aguardam (backend #237). */
+  onAprovarLote: () => Promise<string | null>;
   /** O motivo é opcional: vazio vai sem texto. */
   onRejeitar: (motivo: string) => Promise<string | null>;
   /** Volta a justificativa aprovada para aguardando; só quem aprovou (backend #164). */
@@ -1239,6 +1510,7 @@ function EspiaDaLinha({
         {situacao === "aguardando" && linha.decisao && (
           <div className="espia-decisao">
             <strong>{`Justificada por ${linha.decisao.autor} em ${formatarDataHora(linha.decisao.em)} · aguardando aprovação`}</strong>
+            {juntoComOutras(linha.decisao) && <p className="espia-aviso">{juntoComOutras(linha.decisao)}</p>}
             {linha.decisao.texto && <p className="dialog-body">{linha.decisao.texto}</p>}
             {podeDecidir && podeAprovar && !rejeitando && (
               <div className="cfg-form-botoes">
@@ -1251,6 +1523,18 @@ function EspiaDaLinha({
                 >
                   Aprovar
                 </button>
+                {/* a mesma regra de acoesDoPainel (painel-da-comparacao.ts): mude as duas */}
+                {linha.decisao.loteId && (linha.decisao.loteTamanho ?? 0) > 1 && (
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    disabled={enviando}
+                    aria-busy={enviando || undefined}
+                    onClick={() => enviar(onAprovarLote)}
+                  >
+                    {`Aprovar as ${(linha.decisao.loteTamanho ?? 0).toLocaleString("pt-BR")} do lote`}
+                  </button>
+                )}
                 <button type="button" className="btn btn-secondary" disabled={enviando} onClick={() => setRejeitando(true)}>
                   Rejeitar
                 </button>
@@ -1305,6 +1589,7 @@ function EspiaDaLinha({
         {situacao === "justificada" && linha.decisao && (
           <div className="espia-decisao">
             <strong>{`Justificada por ${linha.decisao.autor} em ${formatarDataHora(linha.decisao.em)}`}</strong>
+            {juntoComOutras(linha.decisao) && <p className="espia-aviso">{juntoComOutras(linha.decisao)}</p>}
             {/* a que nasce aprovada (aprovação desligada) também traz aprovada_por: só a aprovada depois diz quem */}
             {aprovada && linha.decisao.aprovadaPor && (
               <p className="espia-aviso">

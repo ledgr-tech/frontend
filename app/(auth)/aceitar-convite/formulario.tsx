@@ -50,6 +50,11 @@ const ERROS_DO_ACEITE: Record<Exclude<Extract<ResultadoAceite, { ok: false }>["e
   falha: { geral: "Não foi possível agora. Tente de novo em instantes." },
 };
 
+// a action nem chegou ao servidor: recarregar não adianta, o token já saiu do endereço (e o digitado se perde)
+const SEM_RESPOSTA = "Não foi possível agora. Tente de novo em instantes. Se não der, abra de novo o link do e-mail e preencha outra vez.";
+const SEM_RESPOSTA_AO_ABRIR = "Não foi possível abrir o convite agora. Abra de novo o link do e-mail.";
+const SEM_RESPOSTA_DO_GOOGLE = "Não foi possível agora. Tente de novo em instantes. Se não der, abra de novo o link do e-mail.";
+
 const estiloTitulo: CSSProperties = {
   margin: "0 0 clamp(8px, 1.5vh, 14px)",
   fontSize: "clamp(28px, 3.4vw, 38px)",
@@ -71,6 +76,7 @@ const estiloBotao: CSSProperties = { fontSize: 15.5, padding: "clamp(10px, 1.6vh
 /** O que a página diz na volta do Google com recusa, com o convite já na tela. */
 function errosDaVolta(erro: Exclude<ErroConviteGoogle, "convite_invalido">, convite: ConsultaConvite): Erros {
   if (erro === "email_diferente") return { geral: `Entre no Google com ${convite.email} para aceitar.` };
+  if (erro === "google_de_outra_conta") return { geral: "Este Google já entra no Ledgr por outra conta. Aceite com senha ou com outro Google." };
   if (erro === "email_cadastrado" || erro === "conta_inativa") return ERROS_DO_ACEITE[erro];
   return { geral: MENSAGEM_GOOGLE[erro] };
 }
@@ -94,9 +100,8 @@ export function AceitarConvite({ conectadoComo, google }: { conectadoComo: strin
       setEtapa("formulario");
       return;
     }
-    if (resposta && resposta.erro !== "convite_invalido") {
-      setErros({ geral: ERROS_DO_ACEITE[resposta.erro].geral });
-    }
+    if (!resposta) setErros({ geral: SEM_RESPOSTA_AO_ABRIR });
+    else if (resposta.erro !== "convite_invalido") setErros({ geral: ERROS_DO_ACEITE[resposta.erro].geral });
     setEtapa("invalido");
   }
 
@@ -105,8 +110,8 @@ export function AceitarConvite({ conectadoComo, google }: { conectadoComo: strin
     tokenLido.current = true;
     if (google.erro) {
       // a volta do Google com recusa: o token ficou no cookie e o convite veio consultado pelo servidor.
-      // O motivo vale para esta volta: recarregar a página não mostra de novo
-      window.history.replaceState(null, "", window.location.pathname);
+      // O motivo vale para esta volta: recarregar a página não mostra de novo, mas o "volta" mantém o convite
+      window.history.replaceState(null, "", `${window.location.pathname}?google=volta`);
       if (google.convite && google.erro !== "convite_invalido") {
         // eslint-disable-next-line react-hooks/set-state-in-effect
         setConvite(google.convite);
@@ -121,6 +126,12 @@ export function AceitarConvite({ conectadoComo, google }: { conectadoComo: strin
     if (window.location.hash) {
       window.history.replaceState(null, "", window.location.pathname + window.location.search);
     }
+    if (!token.current && google.convite && !conectadoComo) {
+      // recarregar a volta do Google: o fragmento se perdeu, mas o cookie mantém o convite
+      setConvite(google.convite);
+      setEtapa("formulario");
+      return;
+    }
     if (token.current && !conectadoComo) {
       void consultar();
       return;
@@ -134,8 +145,9 @@ export function AceitarConvite({ conectadoComo, google }: { conectadoComo: strin
   async function irAoGoogle() {
     setErros({});
     // a action sai redirecionando para o Google; só volta quando não há como ir
-    const foi = await aceitarConviteComGoogle(token.current).catch(() => false);
-    if (!foi) setErros({ geral: MENSAGEM_GOOGLE.indisponivel });
+    // false é o Google desligado no servidor; null, a action que nem chegou lá
+    const foi = await aceitarConviteComGoogle(token.current).catch(() => null);
+    setErros({ geral: foi === null ? SEM_RESPOSTA_DO_GOOGLE : MENSAGEM_GOOGLE.indisponivel });
   }
 
   async function sairEContinuar() {
@@ -152,9 +164,12 @@ export function AceitarConvite({ conectadoComo, google }: { conectadoComo: strin
     if (Object.keys(invalidos).length > 0) return;
 
     setEtapa("enviando");
-    const resultado = await aceitarConvite(token.current, convite.email, nome.trim(), senha).catch(
-      (): ResultadoAceite => ({ ok: false, erro: "falha" }),
-    );
+    const resultado = await aceitarConvite(token.current, convite.email, nome.trim(), senha).catch(() => null);
+    if (!resultado) {
+      setErros({ geral: SEM_RESPOSTA });
+      setEtapa("formulario");
+      return;
+    }
     if (resultado.ok) {
       router.push(resultado.entrou ? "/visao-geral" : "/login");
       return;

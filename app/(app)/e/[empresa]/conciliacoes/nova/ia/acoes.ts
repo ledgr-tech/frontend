@@ -24,6 +24,8 @@ export type ResumoDoRascunho = {
   periodoInicio: string | null;
   periodoFim: string | null;
   expiraEm: string;
+  saldoFinal?: string | null;
+  saldoData?: string | null;
 };
 
 export type LinhaDoRascunho = { id: string; numero: number; data: string; valor: string; descricao: string };
@@ -40,6 +42,8 @@ type ResumoAPI = {
   periodo_inicio: string | null;
   periodo_fim: string | null;
   expira_em: string;
+  saldo_final?: string | null;
+  saldo_data?: string | null;
 };
 type LinhaAPI = { id: string; numero: number; data: string; valor: string | number; descricao: string };
 
@@ -53,6 +57,8 @@ function resumo(r: ResumoAPI): ResumoDoRascunho {
     periodoInicio: r.periodo_inicio,
     periodoFim: r.periodo_fim,
     expiraEm: r.expira_em,
+    ...(r.saldo_final !== undefined && { saldoFinal: r.saldo_final }),
+    ...(r.saldo_data !== undefined && { saldoData: r.saldo_data }),
   };
 }
 
