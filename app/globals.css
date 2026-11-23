@@ -2534,7 +2534,8 @@ html:has(.app-shell):has(.painel-lateral) { overflow: hidden; scrollbar-gutter: 
 @container tela (max-width: 1099px) { .conc-previa { order: -1; } }
 @media (min-width: 1100px) {
   .conc-mesa { grid-template-columns: minmax(0, 7fr) minmax(320px, 5fr); }
-  .conc-previa { position: sticky; z-index: 11; top: calc(var(--app-topo-altura, 0px) + var(--extratos-filtros-altura, 58px) + 12px); }
+  /* no fim da coluna, a prévia passa por baixo dos filtros (z 10); os 28px deixam o degradê livre */
+  .conc-previa { position: sticky; z-index: 9; top: calc(var(--app-topo-altura, 0px) + var(--extratos-filtros-altura, 58px) + 28px); }
 }
 .conc-meses { display: flex; flex-direction: column; gap: 26px; min-width: 0; }
 /* o cabeçalho do mês: título na Newsreader e o estado ao lado */
@@ -3623,11 +3624,12 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
   color: color-mix(in srgb, var(--color-text) 68%, transparent);
 }
 .extrato-painel {
-  /* acima da faixa dos filtros, para o degradê dela não apagar a borda de cima do painel */
-  position: sticky; z-index: 11; display: flex; flex-direction: column; gap: 14px;
-  top: calc(var(--app-topo-altura, 0px) + var(--extratos-filtros-altura, 0px) + 6px);
+  /* abaixo dos filtros (z 10), como em Fechamentos: ao subir no fim da coluna, não cobre as opções.
+     Os 28px de folga deixam a borda fora do degradê da faixa enquanto o painel está preso. */
+  position: sticky; z-index: 9; display: flex; flex-direction: column; gap: 14px;
+  top: calc(var(--app-topo-altura, 0px) + var(--extratos-filtros-altura, 0px) + 28px);
   /* mais alto que a janela, rola por dentro: preso, o pé dele ficaria fora de alcance */
-  max-height: calc(100vh - var(--app-topo-altura, 0px) - var(--extratos-filtros-altura, 0px) - 24px);
+  max-height: calc(100vh - var(--app-topo-altura, 0px) - var(--extratos-filtros-altura, 0px) - 46px);
   overflow-y: auto; overscroll-behavior: contain;
   padding: 22px; border: 1px solid var(--color-divider); border-radius: var(--radius-md);
 }
