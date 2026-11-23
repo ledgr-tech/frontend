@@ -9,6 +9,7 @@ import { RetomarNovaVersao } from "./retomar-nova-versao";
 import { formatarMoeda } from "@/lib/mock-data";
 import { MensagemErro } from "../../../../../../../(auth)/_compartilhado/mensagem-erro";
 import { formatarDataHora } from "../../../../dashboard/resumo";
+import { SEM_SALDO } from "../../../../saldo";
 import { IconeOrigem } from "../../../../icone-origem";
 import {
   acrescentarLinhaAoRascunho,
@@ -349,6 +350,13 @@ export function Revisao({
               </>
             )}
           </dl>
+        )}
+        {!resumoDesatualizado && resumo.saldoFinal !== undefined && (
+          <p className="ia-rev-nota">
+            {resumo.saldoFinal === null
+              ? SEM_SALDO
+              : `Saldo final do arquivo: ${formatarMoeda(Number(resumo.saldoFinal))}${resumo.saldoData ? ` em ${dataBr(resumo.saldoData)}` : ""}`}
+          </p>
         )}
         <div className="conc-previa-acoes">
           {resumoDesatualizado && (

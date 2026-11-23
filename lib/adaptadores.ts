@@ -123,8 +123,21 @@ export function adaptarSaldo(api: CamposDeSaldoAPI): SaldoDoExtrato | null | und
   return { inicial: paraNumero(api.saldo_inicial), final, data: api.saldo_data };
 }
 
+/** Por que não há diferença entre os saldos finais (backend #238); null quando há. */
+export type MotivoSemDiferenca = "sem_saldo_banco" | "sem_saldo_sistema" | "datas_diferentes";
+
+/** Saldo final do banco menos o do sistema. O valor vem pronto do backend; o front não recalcula. */
+export type DiferencaDoSaldo = { valor: number | null; motivo: MotivoSemDiferenca | null };
+
+const MOTIVOS_SEM_DIFERENCA: readonly string[] = ["sem_saldo_banco", "sem_saldo_sistema", "datas_diferentes"];
+
 export type ListaConciliacaoAPI = CamposDeSaldoAPI & {
   extrato_id: string;
+  /** O saldo do extrato do sistema do par (backend #238); ausente antes dele. */
+  saldo_sistema?: CamposDeSaldoAPI | null;
+  /** Decimal em texto: saldo final do banco menos o do sistema, ou null (backend #238). */
+  diferenca_saldo_final?: string | null;
+  diferenca_saldo_motivo?: string | null;
   /** Justificativas esperando aprovação nesta conciliação (backend #132); ausente antes dele. */
   aguardando_aprovacao?: number;
   total: number;
@@ -284,6 +297,18 @@ export function adaptarConciliacao(
     return data && (menor === null || data < menor) ? data : menor;
   }, null);
   const saldo = adaptarSaldo(lista);
+  // o objeto vem sempre com o backend #238; null por garantia vira "não informado"
+  const saldoSistema =
+    "saldo_sistema" in lista ? (lista.saldo_sistema ? adaptarSaldo(lista.saldo_sistema) ?? null : null) : undefined;
+  const diferencaSaldo: DiferencaDoSaldo | undefined =
+    "diferenca_saldo_final" in lista
+      ? {
+          valor: paraNumero(lista.diferenca_saldo_final),
+          motivo: MOTIVOS_SEM_DIFERENCA.includes(lista.diferenca_saldo_motivo ?? "")
+            ? (lista.diferenca_saldo_motivo as MotivoSemDiferenca)
+            : null,
+        }
+      : undefined;
   return {
     id: lista.extrato_id,
     extratoSistemaId,
@@ -291,6 +316,8 @@ export function adaptarConciliacao(
     status: "em_andamento",
     linhas,
     ...(saldo !== undefined && { saldo }),
+    ...(saldoSistema !== undefined && { saldoSistema }),
+    ...(diferencaSaldo !== undefined && { diferencaSaldo }),
     // a contagem do backend vale mais que as linhas da tela: ela conta a conciliação inteira
     aguardandoAprovacao: lista.aguardando_aprovacao ?? linhas.filter((linha) => aguardaAprovacao(linha.decisao)).length,
   };

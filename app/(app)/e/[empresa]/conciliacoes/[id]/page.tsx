@@ -46,7 +46,7 @@ import { larguraDoValor } from "./largura";
 import { Reveal } from "@/app/reveal";
 import { MensagemErro } from "@/app/(auth)/_compartilhado/mensagem-erro";
 import { Cabecalho } from "../../cabecalho";
-import { FaixaDoSaldo, SaldoDaFolha } from "../../saldo";
+import { DiferencaDosSaldos, FaixaDoSaldo, SaldoDaFolha, temTextoDaDiferenca } from "../../saldo";
 import { SeloIa } from "../../selo-ia";
 import { useNome, usePodeFechar } from "../../conta";
 import { aprovadaDepois, podeDesfazerAprovacao } from "@/lib/aprovacao";
@@ -584,7 +584,7 @@ export default function ConciliacaoPage() {
         )}
         {/* o saldo do extrato do banco (#118), o mesmo em todas as rodadas: esta faixa só aparece nos
             cartões (até 680px), onde o thead e o tfoot somem; nas outras larguras ele fica na coluna do banco (#474) */}
-        <FaixaDoSaldo saldo={conciliacao.saldo} />
+        <FaixaDoSaldo banco={conciliacao.saldo} sistema={conciliacao.saldoSistema} diferenca={conciliacao.diferencaSaldo} />
         {/* desligar uma categoria volta ao "Só revisão": as cinco são o que ele junta.
             As justificadas saem das categorias e são contadas à parte. */}
         <Reveal className="comparacao-bloco">
@@ -770,7 +770,7 @@ export default function ConciliacaoPage() {
                     e o olho passa por ele no caminho de um lado ao outro. */}
                 <tr role="row" className="folhas-titulos">
                   <td className="folha-fora" aria-hidden="true" />
-                  <th colSpan={3} scope="colgroup" className="folha-banco folha-titulo" aria-label="Extrato do banco" aria-describedby="saldo-inicial-do-banco">
+                  <th colSpan={3} scope="colgroup" className="folha-banco folha-titulo" aria-label="Extrato do banco" aria-describedby={conciliacao.saldo ? "saldo-inicial-do-banco" : undefined}>
                     <span className="folha-titulo-conteudo">
                       <IconeOrigem origem="banco" />
                       <span className="folha-nome">Extrato do banco</span>
@@ -779,10 +779,11 @@ export default function ConciliacaoPage() {
                     </span>
                   </th>
                   <td className="folha-fora" aria-hidden="true" />
-                  <th colSpan={3} scope="colgroup" className="folha-sistema folha-titulo">
+                  <th colSpan={3} scope="colgroup" className="folha-sistema folha-titulo" aria-label="Sistema de gestão" aria-describedby={conciliacao.saldoSistema ? "saldo-inicial-do-sistema" : undefined}>
                     <span className="folha-titulo-conteudo">
                       <IconeOrigem origem="sistema" />
                       <span className="folha-nome">Sistema de gestão</span>
+                      <SaldoDaFolha saldo={conciliacao.saldoSistema} momento="inicial" id="saldo-inicial-do-sistema" />
                     </span>
                   </th>
                   {podeDecidir && <td className="folha-fora" aria-hidden="true" />}
@@ -1135,7 +1136,7 @@ export default function ConciliacaoPage() {
                   );
                 })}
               </tbody>
-              {conciliacao.saldo !== undefined && (
+              {(conciliacao.saldo !== undefined || conciliacao.saldoSistema !== undefined) && (
                 <tfoot role="rowgroup">
                   <tr role="row">
                     {/* a coluna da seleção (#475) vem antes do banco, como no título */}
@@ -1143,8 +1144,12 @@ export default function ConciliacaoPage() {
                     <td role="cell" colSpan={3} className="folha-banco">
                       <SaldoDaFolha saldo={conciliacao.saldo} momento="final" />
                     </td>
-                    <td role="cell" className="folha-fora" aria-hidden="true" />
-                    <td role="cell" colSpan={3} className="folha-sistema" />
+                    <td role="cell" className="folha-fora" aria-hidden={temTextoDaDiferenca(conciliacao.diferencaSaldo) ? undefined : true}>
+                      <DiferencaDosSaldos diferenca={conciliacao.diferencaSaldo} />
+                    </td>
+                    <td role="cell" colSpan={3} className="folha-sistema">
+                      <SaldoDaFolha saldo={conciliacao.saldoSistema} momento="final" />
+                    </td>
                     {podeDecidir && <td role="cell" className="celula-conferir" />}
                   </tr>
                 </tfoot>
