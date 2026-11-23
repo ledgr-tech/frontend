@@ -34,7 +34,7 @@ import { parDoOutroLado } from "./par";
 import { decidir, type ResultadoDaDecisao } from "./decidir";
 import { aplicarDensidade, densidadeAtual, type Densidade } from "../../densidade";
 import { IconeOrigem, type Origem } from "../../icone-origem";
-import { CartaoLancamento, ladosDaLinha, type CartaoAberto } from "./cartao-lancamento";
+import { CartaoLancamento, juntoComOutras, ladosDaLinha, type CartaoAberto } from "./cartao-lancamento";
 import { Relatorio } from "./relatorio";
 import { NovaVersao } from "./nova-versao";
 import { LinhaDasRodadas } from "./linha-das-rodadas";
@@ -50,7 +50,7 @@ import { FaixaDoSaldo, SaldoDaFolha } from "../../saldo";
 import { SeloIa } from "../../selo-ia";
 import { useNome, usePodeFechar } from "../../conta";
 import { aprovadaDepois, podeDesfazerAprovacao } from "@/lib/aprovacao";
-import { decidirLinhas, justificarLinhas } from "../acoes";
+import { aprovarLote, decidirLinhas, justificarLinhas } from "../acoes";
 import { JustificarEmLote, textoDoLote } from "./justificar-em-lote";
 import { DecisaoEmLote } from "../decisao-em-lote";
 import { SEM_SERVIDOR } from "@/lib/sem-servidor";
@@ -465,6 +465,28 @@ export default function ConciliacaoPage() {
       // o formulário some junto com o botão: o texto fica no aviso do lote, uma vez
       setLoteIndisponivel(true);
       setAvisoDoLote(resposta.erro);
+      return null;
+    }
+    if (resposta.status === 401) router.push("/login");
+    if (resposta.status === 404 || resposta.status === 409) recarregar();
+    return resposta.erro;
+  }
+
+  /** "Aprovar as N do lote" (#473): todas as do lote que ainda aguardam, mesmo fora da tela; depois relê. */
+  async function aprovarOLote(linha: LinhaComparacao | null): Promise<string | null> {
+    const loteId = linha?.decisao?.loteId;
+    if (!loteId) return null;
+    setAvisoDoLote(null);
+    let resposta: Awaited<ReturnType<typeof aprovarLote>>;
+    try {
+      resposta = await aprovarLote(conciliacao.id, loteId);
+    } catch {
+      return SEM_SERVIDOR;
+    }
+    if (resposta.ok) {
+      recarregar();
+      const n = resposta.dados.processadas;
+      setAvisoDoLote(`${n.toLocaleString("pt-BR")} ${n === 1 ? "justificativa aprovada" : "justificativas aprovadas"}.`);
       return null;
     }
     if (resposta.status === 401) router.push("/login");
@@ -1238,6 +1260,7 @@ export default function ConciliacaoPage() {
             onJustificar={(texto) => gravarDecisao(linhaAberta, "justificada", texto)}
             onDesfazer={() => gravarDecisao(linhaAberta, "justificativa_desfeita")}
             onAprovar={() => gravarDecisao(linhaAberta, "justificativa_aprovada")}
+            onAprovarLote={() => aprovarOLote(linhaAberta)}
             onRejeitar={(motivo) => gravarDecisao(linhaAberta, "justificativa_rejeitada", motivo || undefined)}
             onDesfazerAprovacao={() => gravarDecisao(linhaAberta, "aprovacao_desfeita")}
             onFechar={() => setChaveAberta(null)}
@@ -1261,6 +1284,7 @@ export default function ConciliacaoPage() {
             podeAprovar={podeAprovar}
             onJustificar={(texto) => (linhaEmFoco ? gravarDecisao(linhaEmFoco, "justificada", texto) : Promise.resolve(null))}
             onAprovar={() => (linhaEmFoco ? gravarDecisao(linhaEmFoco, "justificativa_aprovada") : Promise.resolve(null))}
+            onAprovarLote={() => aprovarOLote(linhaEmFoco)}
             onRejeitar={(motivo) =>
               linhaEmFoco ? gravarDecisao(linhaEmFoco, "justificativa_rejeitada", motivo || undefined) : Promise.resolve(null)
             }
@@ -1306,6 +1330,7 @@ function EspiaDaLinha({
   onJustificar,
   onDesfazer,
   onAprovar,
+  onAprovarLote,
   onRejeitar,
   onDesfazerAprovacao,
   onFechar,
@@ -1324,6 +1349,8 @@ function EspiaDaLinha({
   onJustificar: (texto: string) => Promise<string | null>;
   onDesfazer: () => Promise<string | null>;
   onAprovar: () => Promise<string | null>;
+  /** Aprova todas as do lote desta linha que ainda aguardam (backend #237). */
+  onAprovarLote: () => Promise<string | null>;
   /** O motivo é opcional: vazio vai sem texto. */
   onRejeitar: (motivo: string) => Promise<string | null>;
   /** Volta a justificativa aprovada para aguardando; só quem aprovou (backend #164). */
@@ -1463,6 +1490,7 @@ function EspiaDaLinha({
         {situacao === "aguardando" && linha.decisao && (
           <div className="espia-decisao">
             <strong>{`Justificada por ${linha.decisao.autor} em ${formatarDataHora(linha.decisao.em)} · aguardando aprovação`}</strong>
+            {juntoComOutras(linha.decisao) && <p className="espia-aviso">{juntoComOutras(linha.decisao)}</p>}
             {linha.decisao.texto && <p className="dialog-body">{linha.decisao.texto}</p>}
             {podeDecidir && podeAprovar && !rejeitando && (
               <div className="cfg-form-botoes">
@@ -1475,6 +1503,18 @@ function EspiaDaLinha({
                 >
                   Aprovar
                 </button>
+                {/* a mesma regra de acoesDoPainel (painel-da-comparacao.ts): mude as duas */}
+                {linha.decisao.loteId && (linha.decisao.loteTamanho ?? 0) > 1 && (
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    disabled={enviando}
+                    aria-busy={enviando || undefined}
+                    onClick={() => enviar(onAprovarLote)}
+                  >
+                    {`Aprovar as ${(linha.decisao.loteTamanho ?? 0).toLocaleString("pt-BR")} do lote`}
+                  </button>
+                )}
                 <button type="button" className="btn btn-secondary" disabled={enviando} onClick={() => setRejeitando(true)}>
                   Rejeitar
                 </button>
@@ -1529,6 +1569,7 @@ function EspiaDaLinha({
         {situacao === "justificada" && linha.decisao && (
           <div className="espia-decisao">
             <strong>{`Justificada por ${linha.decisao.autor} em ${formatarDataHora(linha.decisao.em)}`}</strong>
+            {juntoComOutras(linha.decisao) && <p className="espia-aviso">{juntoComOutras(linha.decisao)}</p>}
             {/* a que nasce aprovada (aprovação desligada) também traz aprovada_por: só a aprovada depois diz quem */}
             {aprovada && linha.decisao.aprovadaPor && (
               <p className="espia-aviso">

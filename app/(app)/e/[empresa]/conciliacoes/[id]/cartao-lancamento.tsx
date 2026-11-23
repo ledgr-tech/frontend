@@ -40,8 +40,15 @@ const MARGEM = 16;
 /** Entre o cartão e a linha: o espaço da seta que aponta para o status. */
 const VAO = 10;
 
-/** A decisão sobre a linha, quando há o que dizer dela no cartão. */
-export type NotaDoCartao = { titulo: string; texto: string | null };
+/** A decisão sobre a linha, quando há o que dizer dela no cartão; `lote` diz que veio junto com outras (#473). */
+export type NotaDoCartao = { titulo: string; texto: string | null; lote?: string };
+
+/** "Justificada junto com outras 4 linhas" (backend #237): só quando o lote tinha mais de uma linha. */
+export function juntoComOutras(decisao: { loteTamanho?: number } | null | undefined): string | null {
+  const tamanho = decisao?.loteTamanho;
+  if (tamanho === undefined || tamanho <= 1) return null;
+  return tamanho === 2 ? "Justificada junto com outra linha" : `Justificada junto com outras ${(tamanho - 1).toLocaleString("pt-BR")} linhas`;
+}
 
 export function notaDaLinha(linha: LinhaComparacao, rodada: number): NotaDoCartao | null {
   const decisao = linha.decisao;
@@ -50,7 +57,12 @@ export function notaDaLinha(linha: LinhaComparacao, rodada: number): NotaDoCarta
   if (situacao === "justificada" || situacao === "aguardando") {
     const quando = `Justificada por ${decisao.autor} em ${formatarDataHora(decisao.em)}`;
     // a que espera aprovação ainda segura o fechamento do mês (backend #132)
-    return { titulo: situacao === "aguardando" ? `${quando} · aguardando aprovação` : quando, texto: decisao.texto };
+    const lote = juntoComOutras(decisao);
+    return {
+      titulo: situacao === "aguardando" ? `${quando} · aguardando aprovação` : quando,
+      texto: decisao.texto,
+      ...(lote && { lote }),
+    };
   }
   if (continuaDivergindo(linha, rodada)) {
     return {
@@ -176,6 +188,7 @@ export function ConteudoCartao({
       {nota && (
         <div className="cartao-lancamento-nota">
           <strong>{nota.titulo}</strong>
+          {nota.lote && <span className="espia-aviso">{nota.lote}</span>}
           {nota.texto && <p className="dialog-body">{nota.texto}</p>}
         </div>
       )}
