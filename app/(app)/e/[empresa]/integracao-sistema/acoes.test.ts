@@ -120,6 +120,15 @@ describe("salvarIntegracaoSistema", () => {
     const rPydantic = await salvarIntegracaoSistema("https://erp.exemplo.com.br", "abc");
     expect(rPydantic).toMatchObject({ ok: false, status: 422, campo: "chave" });
     expect(!rPydantic.ok && rPydantic.erro).not.toContain("abc");
+
+    // chave de 1 caractere ("a") não corrompe palavras comuns em erro de URL
+    chamarBackend.mockRejectedValueOnce(new ErroBackend(422, "Confira a URL informada."));
+    expect(await salvarIntegracaoSistema("http://erp.local", "a")).toEqual({
+      ok: false,
+      status: 422,
+      campo: "url",
+      erro: "Confira a URL informada.",
+    });
   });
 
   it("recusa URL vazia, URL longa demais ou chave vazia sem chamar o backend", async () => {
@@ -205,13 +214,20 @@ describe("salvarIntegracaoSistema", () => {
 });
 
 describe("removerIntegracaoSistema", () => {
-  it("chama DELETE e trata 404 da configuração como já removida, mas 404 cru Not Found como integração indisponível", async () => {
+  it("chama DELETE e trata só o 404 exato de sem integração como sucesso; outros 404 viram erro", async () => {
     chamarBackend.mockResolvedValueOnce(undefined);
     expect(await removerIntegracaoSistema()).toEqual({ ok: true, dados: null });
     expect(chamarBackend).toHaveBeenCalledWith("/empresa/integracao-sistema", { method: "DELETE" });
 
-    chamarBackend.mockRejectedValueOnce(new ErroBackend(404, "Integração não configurada."));
+    chamarBackend.mockRejectedValueOnce(new ErroBackend(404, "Esta empresa não tem integração configurada."));
     expect(await removerIntegracaoSistema()).toEqual({ ok: true, dados: null });
+
+    chamarBackend.mockRejectedValueOnce(new ErroBackend(404, "Empresa não encontrada."));
+    expect(await removerIntegracaoSistema()).toEqual({
+      ok: false,
+      status: 404,
+      erro: "Empresa não encontrada.",
+    });
 
     chamarBackend.mockRejectedValueOnce(new ErroBackend(404, "Not Found"));
     expect(await removerIntegracaoSistema()).toEqual({

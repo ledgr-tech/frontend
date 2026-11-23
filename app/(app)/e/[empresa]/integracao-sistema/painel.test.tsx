@@ -146,7 +146,7 @@ describe("PainelDeIntegracao", () => {
 
     expect(removerIntegracaoSistema).toHaveBeenCalledTimes(1);
     expect(await screen.findByRole("status")).toHaveTextContent("Integração removida.");
-    expect(screen.queryByText("Integração configurada")).not.toBeInTheDocument();
+    expect(screen.queryByText("Configurada")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Remover integração" })).not.toBeInTheDocument();
     expect(screen.getByLabelText("URL do sistema")).toHaveValue("");
     expect(refresh).toHaveBeenCalledTimes(1);

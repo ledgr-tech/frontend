@@ -196,28 +196,36 @@ describe("ImportarDoSistema", () => {
   });
 
   it.each([
-    [502, "sistema_nao_respondeu", "O sistema não respondeu. Tente de novo ou envie o arquivo.", true],
-    [502, "sistema_indisponivel", "O sistema está com problemas agora. Tente de novo ou envie o arquivo.", true],
-    [502, "sistema_redirecionou", "O endereço do sistema redirecionou. Confira a URL da integração.", true],
-    [502, "sistema_endereco_nao_permitido", "O endereço do sistema não é permitido. Confira a configuração da integração.", true],
-    [422, "sistema_sem_lancamentos", "O sistema não tem lançamentos nesse período.", false],
-    [409, "integracao_nao_configurada", "Esta empresa ainda não configurou a integração com o sistema.", false],
-    [503, "integracao_indisponivel", "Integração com o sistema indisponível no momento.", false],
-  ])("trata %i / %s com detail do backend e caminho manual", async (status, codigo, detalhe, temTentarDeNovo) => {
-    const user = userEvent.setup();
-    importarDoSistema.mockResolvedValueOnce({ ok: false, status, codigo, erro: detalhe, erros: [], totalErros: 0 });
-    montar();
+    [502, "sistema_nao_respondeu", "O sistema não respondeu. Tente de novo ou envie o arquivo.", true, false],
+    [502, "sistema_indisponivel", "O sistema está com problemas agora. Tente de novo ou envie o arquivo.", true, false],
+    [502, "sistema_redirecionou", "O endereço do sistema redirecionou. Confira a URL da integração.", false, true],
+    [502, "sistema_endereco_nao_permitido", "O endereço do sistema não é permitido. Confira a configuração da integração.", false, true],
+    [422, "sistema_sem_lancamentos", "O sistema não tem lançamentos nesse período.", false, false],
+    [409, "integracao_nao_configurada", "Esta empresa ainda não configurou a integração com o sistema.", false, false],
+    [503, "integracao_indisponivel", "Integração com o sistema indisponível no momento.", false, false],
+  ])(
+    "trata %i / %s com detail do backend e caminho manual",
+    async (status, codigo, detalhe, temTentarDeNovo, temConferirUrl) => {
+      const user = userEvent.setup();
+      importarDoSistema.mockResolvedValueOnce({ ok: false, status, codigo, erro: detalhe, erros: [], totalErros: 0 });
+      montar();
 
-    await user.click(screen.getByRole("button", { name: "Importar de um sistema" }));
-    await user.click(screen.getByRole("button", { name: "Buscar no sistema" }));
+      await user.click(screen.getByRole("button", { name: "Importar de um sistema" }));
+      await user.click(screen.getByRole("button", { name: "Buscar no sistema" }));
 
-    const alerta = await screen.findByRole("alert");
-    expect(alerta).toHaveTextContent(detalhe);
-    expect(alerta).toHaveTextContent("Ou envie o arquivo CSV manualmente na folha acima.");
-    if (temTentarDeNovo) {
-      expect(screen.getByRole("button", { name: "Tentar de novo" })).toBeInTheDocument();
-    }
-  });
+      const alerta = await screen.findByRole("alert");
+      expect(alerta).toHaveTextContent(detalhe);
+      expect(alerta).toHaveTextContent("Ou envie o arquivo CSV manualmente na folha acima.");
+      if (temTentarDeNovo) {
+        expect(screen.getByRole("button", { name: "Tentar de novo" })).toBeInTheDocument();
+      } else {
+        expect(screen.queryByRole("button", { name: "Tentar de novo" })).not.toBeInTheDocument();
+      }
+      if (temConferirUrl) {
+        expect(screen.getByRole("button", { name: "Conferir em Configurações › Integração" })).toBeInTheDocument();
+      }
+    },
+  );
 
   it("sistema_resposta_grande_demais abre o período menor sincronizado com o mês buscado para a pessoa ajustar", async () => {
     const user = userEvent.setup();

@@ -1288,7 +1288,7 @@ const servidor = createServer(async (req, res) => {
       return json(res, 200, estado());
     }
     if (metodo === "DELETE") {
-      if (!b.integracao) return json(res, 404, { detail: "Integração não configurada." });
+      if (!b.integracao) return json(res, 404, { detail: "Esta empresa não tem integração configurada." });
       b.integracao = null;
       return semCorpo();
     }

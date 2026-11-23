@@ -229,8 +229,8 @@ export function PainelDeIntegracao() {
       {dados.configurada ? (
         <div className="integracao-resumo" aria-label="Integração atual">
           <div className="integracao-resumo-topo">
-            <span className="cfg-linha-titulo">Integração configurada</span>
-            <span className="tag">Ativa</span>
+            <span className="cfg-linha-titulo">Integração com o sistema</span>
+            <span className="tag">Configurada</span>
           </div>
           {dados.url && (
             <p className="api-endereco">

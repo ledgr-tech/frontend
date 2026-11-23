@@ -46,9 +46,11 @@ function ocultarChave(mensagem: string, chave?: string, campo?: CampoIntegracao)
   if (chave.length >= 4 && mensagem.includes(chave)) {
     return mensagem.split(chave).join("•••");
   }
-  const isolada = new RegExp(`(?<![A-Za-z0-9])${escaparRegex(chave)}(?![A-Za-z0-9])`, "g");
-  if (isolada.test(mensagem)) {
-    return campo === "chave" ? "Confira a chave de acesso informada." : mensagem.replace(isolada, "•••");
+  // chaves de 1 a 3 caracteres (ex.: "a", "de") só são mascaradas em erros do próprio campo chave,
+  // para não corromper palavras comuns em mensagens sobre a URL
+  if (campo === "chave") {
+    const isolada = new RegExp(`(?<![A-Za-z0-9])${escaparRegex(chave)}(?![A-Za-z0-9])`, "g");
+    if (isolada.test(mensagem)) return "Confira a chave de acesso informada.";
   }
   return mensagem;
 }
@@ -142,7 +144,9 @@ export async function salvarIntegracaoSistema(
   }
 }
 
-/** Remove a integração da empresa ativa (`DELETE /empresa/integracao-sistema`). 404 da configuração conta como já removida. */
+const SEM_INTEGRACAO_CONFIGURADA = "Esta empresa não tem integração configurada.";
+
+/** Remove a integração da empresa ativa (`DELETE /empresa/integracao-sistema`). Só o 404 exato de já removida conta como sucesso. */
 export async function removerIntegracaoSistema(): Promise<Resultado<null>> {
   const recusada = await recusa();
   if (recusada) return recusada;
@@ -150,8 +154,8 @@ export async function removerIntegracaoSistema(): Promise<Resultado<null>> {
     await chamarBackend<null>("/empresa/integracao-sistema", { method: "DELETE" });
     return { ok: true, dados: null };
   } catch (erro) {
-    // 404 cru ("Not Found") é rota desligada pela flag; qualquer outro 404 é configuração já removida
-    if (erro instanceof ErroBackend && erro.status === 404 && erro.detalhe !== "Not Found") {
+    // outros 404 ("Empresa não encontrada.", "Not Found" da flag desligada) continuam sendo erro
+    if (erro instanceof ErroBackend && erro.status === 404 && erro.detalhe === SEM_INTEGRACAO_CONFIGURADA) {
       return { ok: true, dados: null };
     }
     return traduzir(erro);

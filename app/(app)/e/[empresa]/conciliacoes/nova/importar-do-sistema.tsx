@@ -37,12 +37,7 @@ function dataBr(iso: string): string {
   return iso.slice(0, 10).split("-").reverse().join("/");
 }
 
-const CODIGOS_TENTAR_DE_NOVO = new Set([
-  "sistema_nao_respondeu",
-  "sistema_indisponivel",
-  "sistema_redirecionou",
-  "sistema_endereco_nao_permitido",
-]);
+const CODIGOS_TENTAR_DE_NOVO = new Set(["sistema_nao_respondeu", "sistema_indisponivel"]);
 
 const CODIGOS_CONFERIR_URL = new Set(["sistema_redirecionou", "sistema_endereco_nao_permitido"]);
 
@@ -375,16 +370,26 @@ export function ImportarDoSistema({
                     >
                       Tentar de novo
                     </button>
-                    {gerencia && CODIGOS_CONFERIR_URL.has(codigo) && (
+                  </div>
+                </>
+              )}
+
+              {codigo && CODIGOS_CONFERIR_URL.has(codigo) && (
+                <>
+                  <p>{falha.erro}</p>
+                  {gerencia ? (
+                    <div className="cfg-form-botoes">
                       <button
                         type="button"
-                        className="btn btn-ghost"
+                        className="btn btn-secondary"
                         onClick={() => abrirConfiguracoes("integracao")}
                       >
                         Conferir em Configurações › Integração
                       </button>
-                    )}
-                  </div>
+                    </div>
+                  ) : (
+                    <p>Avise quem administra o Ledgr para conferir o endereço da integração.</p>
+                  )}
                 </>
               )}
 
@@ -436,6 +441,7 @@ export function ImportarDoSistema({
               {(!codigo ||
                 (codigo !== "sistema_recusou_a_chave" &&
                   !CODIGOS_TENTAR_DE_NOVO.has(codigo) &&
+                  !CODIGOS_CONFERIR_URL.has(codigo) &&
                   codigo !== "sistema_resposta_grande_demais" &&
                   codigo !== "sistema_resposta_invalida" &&
                   codigo !== "integracao_nao_configurada")) && <p>{falha.erro}</p>}
