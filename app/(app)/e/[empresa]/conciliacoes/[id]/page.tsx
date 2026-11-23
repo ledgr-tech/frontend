@@ -50,7 +50,8 @@ import { FaixaDoSaldo, SaldoDaFolha } from "../../saldo";
 import { SeloIa } from "../../selo-ia";
 import { useNome, usePodeFechar } from "../../conta";
 import { aprovadaDepois, podeDesfazerAprovacao } from "@/lib/aprovacao";
-import { decidirLinhas } from "../acoes";
+import { decidirLinhas, justificarLinhas } from "../acoes";
+import { JustificarEmLote, textoDoLote } from "./justificar-em-lote";
 import { DecisaoEmLote } from "../decisao-em-lote";
 import { SEM_SERVIDOR } from "@/lib/sem-servidor";
 import { limparSelecao, podeSelecionar, somarLinhas } from "./selecao";
@@ -183,6 +184,10 @@ export default function ConciliacaoPage() {
   const gravando = useRef(new Set<string>());
   // as linhas selecionadas para somar (#475) e aprovar de uma vez (#208), com a rodada em que foram marcadas:
   // não grava nada, sobrevive ao filtro e começa vazia em outra rodada ou conciliação
+  // o resultado do último lote (justificar ou aprovar o lote), num role="status" sempre montado
+  const [avisoDoLote, setAvisoDoLote] = useState<string | null>(null);
+  // a rota do lote respondeu o 404 genérico (backend antes do #237): o botão some até recarregar a página
+  const [loteIndisponivel, setLoteIndisponivel] = useState(false);
   const [selecao, setSelecao] = useState<{ de: string; chaves: ReadonlySet<string> }>({ de: "", chaves: new Set() });
   // as duas caixas de selecionar todas: a do cabeçalho (tabela) e a dos controles (cartões)
   const caixaDoCabecalho = useRef<HTMLInputElement>(null);
@@ -432,6 +437,38 @@ export default function ConciliacaoPage() {
     }
     if (resposta.status === 401) router.push("/login");
     if (resposta.status === 409) recarregar();
+    return resposta.erro;
+  }
+
+  // justificar em lote (#473): todos os papéis, só com o backend (a demo não tem lote) e nos mesmos portões do
+  // "Justificar" da linha (rodada que vale, mês aberto e conhecido). Vão todas as selecionadas: a seleção só
+  // aceita linhas que pedem revisão, e o que não serve o backend conta em ignoradas
+  const podeJustificarEmLote = podeDecidir && real && !loteIndisponivel;
+  const jaJustificadas = podeJustificarEmLote
+    ? conciliacao.linhas.filter((linha) => {
+        if (!valendo.has(chaveDaLinha(linha))) return false;
+        const situacao = situacaoDaLinha(linha, rodadaDasLinhas);
+        return situacao === "justificada" || situacao === "aguardando";
+      }).length
+    : 0;
+
+  async function justificarSelecionadas(texto: string): Promise<string | null> {
+    setAvisoDoLote(null);
+    const resposta = await justificarLinhas(conciliacao.id, chavesSelecionadas, texto);
+    if (resposta.ok) {
+      esvaziarSelecao(true);
+      recarregar();
+      setAvisoDoLote(textoDoLote(resposta.dados.processadas, resposta.dados.porMotivo));
+      return null;
+    }
+    if ("indisponivel" in resposta) {
+      // o formulário some junto com o botão: o texto fica no aviso do lote, uma vez
+      setLoteIndisponivel(true);
+      setAvisoDoLote(resposta.erro);
+      return null;
+    }
+    if (resposta.status === 401) router.push("/login");
+    if (resposta.status === 404 || resposta.status === 409) recarregar();
     return resposta.erro;
   }
 
@@ -716,6 +753,9 @@ export default function ConciliacaoPage() {
             ) : (
               <SomaDasSelecionadas soma={soma} />
             )}
+            {podeJustificarEmLote && (
+              <JustificarEmLote quantidade={chavesSelecionadas.length} jaJustificadas={jaJustificadas} onJustificar={justificarSelecionadas} />
+            )}
             {/* quando nem todas aguardam, diz quantas vão no lote; o botão já diz o resto */}
             {aguardandoSelecionadas.length > 0 && aguardandoSelecionadas.length < chavesSelecionadas.length && (
               <span className="tabela-progresso">
@@ -735,6 +775,11 @@ export default function ConciliacaoPage() {
             </button>
           </div>
         )}
+
+        {/* sempre montado, como o anúncio da soma: o resultado do lote é dito mesmo com a faixa já fechada */}
+        <p role="status" className={avisoDoLote ? "lote-aviso" : "sr-only"}>
+          {avisoDoLote}
+        </p>
 
         {erroDecisao && (
           <p role="alert" className="selo selo-risco decisao-erro">
