@@ -676,7 +676,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
           "Clique na empresa e depois em **Abrir esta empresa**, ou dê dois cliques na linha dela.",
           "Você vai para a Visão geral dela. Outra aba do navegador continua na empresa em que estava.",
         ],
-        nota: "Pelo botão do alto da tela, a troca leva você à mesma tela na outra empresa. A janela dele busca por razão social ou CNPJ e mostra 20 empresas por página.",
+        nota: "Pelo botão do alto da tela, a troca leva você à mesma tela na outra empresa. A janela dele busca pelo nome, pela razão social ou pelo CNPJ e mostra 20 empresas por página.",
       },
       {
         id: "cadastrar",
@@ -688,6 +688,17 @@ export const PAGINAS: PaginaDeAjuda[] = [
           "Clique em **Cadastrar empresa**. A empresa nova abre na Visão geral.",
         ],
         nota: "Se o CNPJ já está no escritório, o Ledgr avisa. Com a consulta à Receita ligada, ele também recusa CNPJ que não existe ou não está ativo.",
+      },
+      {
+        id: "nome",
+        titulo: "Editar o nome de exibição",
+        faz: "Dê à empresa um nome mais curto ou mais conhecido que a razão social. É esse nome que aparece no seletor do alto da tela, na lista e no cabeçalho das telas.",
+        passos: [
+          "Clique na empresa e depois em **Editar nome**, no painel ao lado.",
+          "Escreva o nome, com até 120 caracteres, e clique em **Salvar**.",
+          "Para voltar a mostrar a razão social, clique em **Voltar à razão social**, ou salve o campo vazio.",
+        ],
+        nota: "Só o administrador e o gestor editam o nome. A razão social continua no painel da empresa, e a busca acha a empresa pelos dois.",
       },
       {
         id: "limite",
