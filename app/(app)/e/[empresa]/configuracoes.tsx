@@ -9,6 +9,7 @@ import {
   Info,
   KeyRound,
   Keyboard,
+  Link2,
   PlugZap,
   Palette,
   Search,
@@ -32,11 +33,14 @@ import { formatarDataHora } from "./dashboard/resumo";
 import { aplicarDensidade, densidadeAtual, type Densidade } from "./densidade";
 import { alternarMenu, menuRecolhido } from "./menu";
 import { aplicarTema, escolhaDeTema, seguirSistema, temaDoSistema, type EscolhaDeTema, type Tema } from "./tema";
+import { useEmpresaAtiva } from "@/lib/empresa-ativa";
 import { useTeclaDeAtalho } from "@/lib/plataforma";
 import { podeFecharMes, type Papel } from "@/lib/papel";
+import { useIntegracaoSistemaHabilitada } from "./conta";
 import { PainelDeChavesApi } from "./chaves-api/painel";
 import { carregarConexoesMcp, type ConexaoMcp } from "./conexoes-mcp/acoes";
 import { PainelDeConexoes } from "./conexoes-mcp/painel";
+import { PainelDeIntegracao } from "./integracao-sistema/painel";
 import { Tutorial } from "./tutorial/tutorial";
 import { SEM_SERVIDOR } from "@/lib/sem-servidor";
 
@@ -57,6 +61,8 @@ type Linha = { chave?: string; titulo: string; descricao?: string; controle?: Re
 type Secao = {
   id: string;
   nome: string;
+  /** Título exibido no cabeçalho da seção quando difere do item curto do menu (ex.: com o nome da empresa ativa). */
+  titulo?: string;
   icone: LucideIcon;
   grupo: "Configurações" | "Ledgr";
   linhas: Linha[];
@@ -452,6 +458,8 @@ export function Configuracoes({
   const [conexoes, setConexoes] = useState<{ itens: ConexaoMcp[]; endereco: string | null } | null>(null);
   const [conexoesLidas, setConexoesLidas] = useState(false);
   const gerencia = podeFecharMes(papel);
+  const integracaoHabilitada = useIntegracaoSistemaHabilitada();
+  const empresaAtiva = useEmpresaAtiva();
   const ctrl = useTeclaDeAtalho();
 
   useEffect(() => {
@@ -748,6 +756,26 @@ export function Configuracoes({
           },
         ]
       : []),
+    ...(gerencia && integracaoHabilitada
+      ? [
+          {
+            id: "integracao",
+            nome: "Integração",
+            titulo: empresaAtiva ? `Integração · ${empresaAtiva.nome}` : "Integração",
+            icone: Link2,
+            grupo: "Configurações" as const,
+            linhas: [
+              {
+                titulo: "Sistema de gestão",
+                // ponytail: conferir a redação exata com o ADR-029 em ledgr-docs antes de ligar a flag
+                descricao:
+                  "O Ledgr busca o extrato do sistema apenas para o período que você escolher, usando a chave emitida pelo próprio sistema de gestão. Ele só lê os lançamentos e não altera nada no seu sistema.",
+              },
+            ],
+            conteudo: <PainelDeIntegracao key={empresaAtiva?.id ?? ""} />,
+          },
+        ]
+      : []),
     ...(gerencia && conexoes
       ? [
           {
@@ -919,7 +947,7 @@ export function Configuracoes({
                     hidden={!visivel}
                   >
                     <h2 id={`cfg-secao-${item.id}`} className="cfg-titulo">
-                      {item.nome}
+                      {item.titulo ?? item.nome}
                     </h2>
                     <Linhas linhas={item.linhas} visiveis={achado?.linhas} />
                     {item.conteudo}

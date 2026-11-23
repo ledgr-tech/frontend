@@ -1,6 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { act, render, screen, waitFor } from "@testing-library/react";
-import { ProvedorDaConta, useEmail, useLimites, usePreferencias, useTemSenha } from "./conta";
+import {
+  ProvedorDaConta,
+  useEmail,
+  useIntegracaoSistema,
+  useIntegracaoSistemaConfigurada,
+  useIntegracaoSistemaHabilitada,
+  useLimites,
+  usePreferencias,
+  useTemSenha,
+} from "./conta";
 
 const salvarPreferencias = vi.fn<(p: unknown) => Promise<boolean>>(async () => true);
 vi.mock("../../../(auth)/acoes", () => ({ salvarPreferencias: (p: unknown) => salvarPreferencias(p) }));
@@ -84,6 +93,37 @@ describe("limites do plano", () => {
     expect(screen.getByText("sem limites")).toBeInTheDocument();
     render(<SondaDosLimites />);
     expect(screen.getAllByText("sem limites")).toHaveLength(2);
+  });
+});
+
+describe("integração com o sistema de gestão (#253)", () => {
+  it("o provedor entrega a flag e o estado da empresa ativa; sem eles ou fora do provedor, ambos são falsos", () => {
+    function SondaIntegracao() {
+      const habilitada = useIntegracaoSistemaHabilitada();
+      const configurada = useIntegracaoSistemaConfigurada();
+      const ambos = useIntegracaoSistema();
+      return (
+        <span>
+          {`h=${habilitada};c=${configurada};j=${ambos.habilitada}/${ambos.configurada}`}
+        </span>
+      );
+    }
+    const { unmount } = render(
+      <ProvedorDaConta preferencias={null} integracaoSistemaHabilitada integracaoSistemaConfigurada>
+        <SondaIntegracao />
+      </ProvedorDaConta>,
+    );
+    expect(screen.getByText("h=true;c=true;j=true/true")).toBeInTheDocument();
+    unmount();
+
+    render(
+      <ProvedorDaConta preferencias={null}>
+        <SondaIntegracao />
+      </ProvedorDaConta>,
+    );
+    expect(screen.getByText("h=false;c=false;j=false/false")).toBeInTheDocument();
+    render(<SondaIntegracao />);
+    expect(screen.getAllByText("h=false;c=false;j=false/false")).toHaveLength(2);
   });
 });
 

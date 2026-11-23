@@ -327,7 +327,7 @@ export function adaptarConciliacao(
   };
 }
 
-const MESES = [
+export const MESES = [
   "Janeiro",
   "Fevereiro",
   "Março",
@@ -340,12 +340,20 @@ const MESES = [
   "Outubro",
   "Novembro",
   "Dezembro",
-];
+] as const;
 
 export function mesPorExtenso(iso: string): string {
   const [ano, mes] = iso.split("-");
   const nome = MESES[Number(mes) - 1];
   return nome ? `${nome}/${ano}` : iso;
+}
+
+/** Confere formato `AAAA-MM-DD` e data real no calendário (rejeita 2026-02-30, mês 13 etc.). */
+export function ehDataIso(valor: unknown): valor is string {
+  if (typeof valor !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(valor)) return false;
+  const [ano, mes, dia] = valor.split("-").map(Number);
+  const data = new Date(Date.UTC(ano, mes - 1, dia));
+  return data.getUTCFullYear() === ano && data.getUTCMonth() === mes - 1 && data.getUTCDate() === dia;
 }
 
 /** Uma rodada de `POST /conciliacoes`, como `GET /execucoes` devolve. */
@@ -759,4 +767,46 @@ export type ConsultaConvite = { email: string; razaoSocial: string; valeAte: str
 
 export function adaptarConsultaConvite(api: ConsultaConviteAPI): ConsultaConvite {
   return { email: api.email, razaoSocial: api.razao_social, valeAte: formatarDia(api.expira_em) };
+}
+
+/**
+ * Integração com o sistema de gestão da empresa ativa (backend #253, ADR-029).
+ * Só `true` liga a flag ou marca a empresa como configurada: ausente (backend antigo) ou outro valor é falso.
+ */
+export function integracaoSistemaLigada(bruto: { integracao_sistema_habilitada?: unknown }): boolean {
+  return bruto.integracao_sistema_habilitada === true;
+}
+
+export function integracaoSistemaConfigurada(bruto: { integracao_sistema_configurada?: unknown }): boolean {
+  return bruto.integracao_sistema_configurada === true;
+}
+
+export type IntegracaoSistemaAPI = {
+  configurada: boolean;
+  adaptador: string | null;
+  url: string | null;
+  chave_prefixo: string | null;
+  atualizada_em: string | null;
+  atualizada_por: string | null;
+};
+
+/** Estado da integração da empresa ativa (`GET`/`PUT /empresa/integracao-sistema`). Nunca carrega a chave. */
+export type IntegracaoSistema = {
+  configurada: boolean;
+  adaptador: string | null;
+  url: string | null;
+  chavePrefixo: string | null;
+  atualizadaEm: string | null;
+  atualizadaPor: string | null;
+};
+
+export function adaptarIntegracaoSistema(api: IntegracaoSistemaAPI): IntegracaoSistema {
+  return {
+    configurada: api.configurada === true,
+    adaptador: typeof api.adaptador === "string" ? api.adaptador : null,
+    url: typeof api.url === "string" ? api.url : null,
+    chavePrefixo: typeof api.chave_prefixo === "string" ? api.chave_prefixo : null,
+    atualizadaEm: typeof api.atualizada_em === "string" ? api.atualizada_em : null,
+    atualizadaPor: typeof api.atualizada_por === "string" ? api.atualizada_por : null,
+  };
 }

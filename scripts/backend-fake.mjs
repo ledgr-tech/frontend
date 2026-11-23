@@ -19,6 +19,8 @@ const MCP = process.env.MCP_HABILITADO !== "0";
 const ASSISTENTE_DADOS = process.env.ASSISTENTE_DADOS_HABILITADO === "1";
 // a cobrança (backend #202): COBRANCA_HABILITADA=0 é a produção de hoje, sem planos nem assinatura na tela
 const COBRANCA = process.env.COBRANCA_HABILITADA !== "0";
+// a integração com sistema de gestão (backend #253): INTEGRACAO_SISTEMA_HABILITADA=0 desliga a flag
+const INTEGRACAO_SISTEMA = process.env.INTEGRACAO_SISTEMA_HABILITADA !== "0";
 // o painel interno (#333): ninguém é operador, como na conta de qualquer cliente; OPERADORES=<e-mail>[,<e-mail>]
 // torna essas pessoas operadoras, para testar a busca e a paginação do /admin
 const OPERADORES = new Set((process.env.OPERADORES ?? "").split(",").map((e) => e.trim().toLowerCase()).filter(Boolean));
@@ -55,6 +57,8 @@ function novaEmpresa(conta, id, razao_social, cnpj) {
     /** competencia -> registros de fechamento, do mais antigo pro mais recente */
     fechamentos: new Map(),
     configuracoes: { tolerancia_dias: 2, atualizado_por: null, atualizado_em: null },
+    /** backend #253: { adaptador, url, chave_prefixo, atualizada_em, atualizada_por } ou null */
+    integracao: null,
     /** `${banco}|${chave}` -> { decisao, eventos } */
     decisoes: new Map(),
   };
@@ -493,7 +497,13 @@ const comNome = (e) => (NOME_DE_EXIBICAO ? { nome_exibicao: e.nome_exibicao } : 
 const nomeMostrado = (e) => (NOME_DE_EXIBICAO && e.nome_exibicao) || e.razao_social;
 const porNome = (a, b) => nomeMostrado(a).localeCompare(nomeMostrado(b), "pt-BR", { sensitivity: "base" });
 const empresaCliente = (e) => ({ id: e.id, razao_social: e.razao_social, ...comNome(e), cnpj: e.cnpj, cnpj_verificado_em: e.cnpj_verificado_em, criado_em: e.criado_em });
-const empresaDoMe = (e) => ({ id: e.id, razao_social: e.razao_social, ...comNome(e), cnpj: e.cnpj });
+const empresaDoMe = (e) => ({
+  id: e.id,
+  razao_social: e.razao_social,
+  ...comNome(e),
+  cnpj: e.cnpj,
+  integracao_sistema_configurada: INTEGRACAO_SISTEMA && Boolean(e.integracao),
+});
 const pessoasDaConta = (contaId) => [...usuarios.values()].filter((u) => u.conta_id === contaId);
 const MAXIMOS = { essencial: { empresas: 1, usuarios: 2 }, padrao: { empresas: 5, usuarios: 5 }, avancado: { empresas: null, usuarios: null } };
 
@@ -804,6 +814,7 @@ const servidor = createServer(async (req, res) => {
       plano: conta.plano,
       teste_termina_em: conta.teste_termina_em,
       cobranca_habilitada: COBRANCA,
+      integracao_sistema_habilitada: INTEGRACAO_SISTEMA,
       limites: {
         empresas: { usadas: conta.empresas.length, maximo: plano.empresas },
         usuarios: { usados: pessoasDaConta(conta.id).length, maximo: plano.usuarios },
@@ -1014,6 +1025,97 @@ const servidor = createServer(async (req, res) => {
     return json(res, 201, { importacao_id: id, quantidade_lancamentos: importacoesIa.get(id).length,
       ...saldoDaImportacao(importacoesIa.get(id)) });
   }
+  if (rota("POST", "/importacoes-ia/do-sistema")) {
+    if (!INTEGRACAO_SISTEMA) return json(res, 404, { detail: "Not Found" });
+    const { de, ate } = await corpoJson(req);
+    const dataOk = (v) => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(`${v}T00:00:00Z`));
+    if (!dataOk(de) || !dataOk(ate) || de > ate) {
+      return json(res, 422, { detail: "Período inválido. Informe datas válidas no formato AAAA-MM-DD." });
+    }
+    if (dias(de, ate) > 92) {
+      return json(res, 422, { detail: "O período máximo por busca é de 92 dias." });
+    }
+    if (!b.integracao) {
+      return json(res, 409, {
+        codigo: "integracao_nao_configurada",
+        detail: "Esta empresa ainda não configurou a integração com o sistema.",
+      });
+    }
+    // gatilho opcional na URL configurada (`/simular/<codigo>`) ou env `INTEGRACAO_SISTEMA_ERRO` para testar cada erro
+    const simulacao = process.env.INTEGRACAO_SISTEMA_ERRO || b.integracao.url.match(/\/simular\/([a-z0-9_]+)/)?.[1] || "";
+    const ERROS_SIMULADOS = {
+      integracao_indisponivel: [503, { codigo: "integracao_indisponivel", detail: "Integração com o sistema indisponível no momento." }],
+      sistema_sem_lancamentos: [422, { codigo: "sistema_sem_lancamentos", detail: "O sistema não tem lançamentos nesse período." }],
+      sistema_recusou_a_chave: [502, { codigo: "sistema_recusou_a_chave", detail: "O sistema recusou a chave. Confira a chave da integração em Configurações." }],
+      sistema_nao_respondeu: [502, { codigo: "sistema_nao_respondeu", detail: "O sistema não respondeu. Tente de novo ou envie o arquivo." }],
+      sistema_indisponivel: [502, { codigo: "sistema_indisponivel", detail: "O sistema está com problemas agora. Tente de novo ou envie o arquivo." }],
+      sistema_redirecionou: [502, { codigo: "sistema_redirecionou", detail: "O endereço do sistema redirecionou. Confira a URL da integração." }],
+      sistema_resposta_grande_demais: [502, { codigo: "sistema_resposta_grande_demais", detail: "O sistema devolveu um arquivo maior que 5 MB. Escolha um período menor." }],
+      sistema_resposta_invalida: [502, { codigo: "sistema_resposta_invalida", detail: "O arquivo devolvido pelo sistema não é um JSON válido." }],
+      sistema_resposta_invalida_erros: [502, {
+        codigo: "sistema_resposta_invalida",
+        detail: "O arquivo do sistema não passou na conferência",
+        total_erros: 2,
+        erros: [
+          { lancamento: 2, caminho: "lancamentos[1].valor", mensagem: "O valor precisa ser um número, com ponto nos centavos." },
+          { lancamento: 5, caminho: "lancamentos[4].data", mensagem: "A data precisa estar no formato AAAA-MM-DD." },
+        ],
+      }],
+      sistema_endereco_nao_permitido: [502, { codigo: "sistema_endereco_nao_permitido", detail: "O endereço do sistema não é permitido. Confira a configuração da integração." }],
+      limite_429: [429, { detail: "Muitas buscas seguidas. Espere um minuto e tente de novo." }],
+    };
+    if (simulacao && ERROS_SIMULADOS[simulacao]) {
+      // para simular a recuperação de "resposta grande demais", falha acima de 15 dias e passa no período menor
+      if (simulacao !== "sistema_resposta_grande_demais" || dias(de, ate) > 15) {
+        const [statusErro, corpoErro] = ERROS_SIMULADOS[simulacao];
+        return json(res, statusErro, corpoErro);
+      }
+    }
+    const id = randomUUID();
+    // gera lançamentos mensais (dias 05, 10 e 18) de cada mês coberto e filtra estritamente por [de, ate]
+    const candidatos = [];
+    let [anoCur, mesCur] = de.slice(0, 7).split("-").map(Number);
+    const [anoFim, mesFim] = ate.slice(0, 7).split("-").map(Number);
+    while (anoCur < anoFim || (anoCur === anoFim && mesCur <= mesFim)) {
+      const ym = `${anoCur}-${String(mesCur).padStart(2, "0")}`;
+      candidatos.push(
+        [`${ym}-05`, "Recebimento Construtora Alicerce", 1250.4],
+        [`${ym}-10`, "Fornecedor Cimento Forte", -830.0],
+        [`${ym}-18`, "Serviço de entrega · ERP", -195.5],
+      );
+      mesCur += 1;
+      if (mesCur > 12) {
+        mesCur = 1;
+        anoCur += 1;
+      }
+    }
+    let selecionados = candidatos.filter(([data]) => data >= de && data <= ate);
+    // se a janela escolhida não cair nos dias 05/10/18 (ex.: 20 a 25), cria linhas dentro de [de, ate]
+    if (selecionados.length === 0) {
+      selecionados = [[de, "Recebimento no período · ERP", 740.0]];
+      if (ate > de) selecionados.push([ate, "Pagamento no período · ERP", -310.25]);
+    }
+    const itens = selecionados.map(([data, descricao, valor], i) => ({
+      id: randomUUID(),
+      numero: i + 1,
+      data,
+      descricao,
+      valor,
+    }));
+    importacoesIa.set(id, itens);
+    const soma = (f) => itens.filter(f).reduce((t, l) => t + l.valor, 0).toFixed(2);
+    return json(res, 201, {
+      importacao_id: id,
+      status: "rascunho",
+      quantidade_lancamentos: itens.length,
+      periodo_inicio: itens[0].data,
+      periodo_fim: itens.at(-1).data,
+      total_entradas: soma((l) => l.valor > 0),
+      total_saidas: soma((l) => l.valor < 0),
+      expira_em: new Date(Date.now() + 7 * 864e5).toISOString(),
+      ...saldoDaImportacao(itens),
+    });
+  }
   const umaImportacao = caminho.match(/^\/importacoes-ia\/([^/]+)$/);
   if (umaImportacao && metodo === "GET") {
     const itens = importacoesIa.get(umaImportacao[1]);
@@ -1155,6 +1257,41 @@ const servidor = createServer(async (req, res) => {
       Object.assign(b.configuracoes, { tolerancia_dias, atualizado_por: eu.nome, atualizado_em: agora() });
     }
     return json(res, 200, { ...b.configuracoes, tolerancia_dias_maximo: TOLERANCIA_MAXIMA });
+  }
+
+  // Integração com sistema de gestão (backend #253): por empresa ativa, só admin e gestor
+  if (caminho === "/empresa/integracao-sistema") {
+    if (!INTEGRACAO_SISTEMA) return json(res, 404, { detail: "Not Found" });
+    if (!gestao) return proibido("Só o admin ou o gestor configuram a integração com o sistema.");
+    const estado = () =>
+      b.integracao
+        ? { configurada: true, ...b.integracao }
+        : { configurada: false, adaptador: null, url: null, chave_prefixo: null, atualizada_em: null, atualizada_por: null };
+    if (metodo === "GET") return json(res, 200, estado());
+    if (metodo === "PUT") {
+      const { url, chave } = await corpoJson(req);
+      const urlLimpa = typeof url === "string" ? url.trim() : "";
+      const chaveLimpa = typeof chave === "string" ? chave.trim() : "";
+      if (!urlLimpa || !/^https:\/\/[^/\s]+/i.test(urlLimpa) || /\/\/(localhost|127\.|10\.|192\.168\.|169\.254\.)/i.test(urlLimpa)) {
+        return json(res, 422, { detail: "Informe um endereço HTTPS público permitido." });
+      }
+      if (!chaveLimpa) return json(res, 422, { detail: "Informe a chave de acesso." });
+      // nunca expõe a chave inteira como prefixo: mostra no máximo metade (até 8 chars) e omite chaves muito curtas
+      const tamanhoPrefixo = chaveLimpa.length >= 6 ? Math.min(8, Math.floor(chaveLimpa.length / 2)) : 0;
+      b.integracao = {
+        adaptador: "ledgr_v1",
+        url: urlLimpa,
+        chave_prefixo: tamanhoPrefixo > 0 ? chaveLimpa.slice(0, tamanhoPrefixo) : null,
+        atualizada_em: agora(),
+        atualizada_por: eu.nome,
+      };
+      return json(res, 200, estado());
+    }
+    if (metodo === "DELETE") {
+      if (!b.integracao) return json(res, 404, { detail: "Integração não configurada." });
+      b.integracao = null;
+      return semCorpo();
+    }
   }
 
   // POST /extratos/upload — multipart com `arquivo` e `origem`

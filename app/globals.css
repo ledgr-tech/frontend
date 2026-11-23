@@ -401,17 +401,32 @@ p.eyebrow {
 .nova-elo-no svg { width: 18px; height: 18px; }
 .nova-folhas[data-ligado] .nova-elo-no { border-color: var(--color-accent); color: var(--color-accent-700); background: var(--nova-tom); }
 
-/* a importação via IA, um card com o mascote da lupa ao fundo */
-.nova-ia-card {
+/* a importação via IA e a integração com sistema de gestão (#253), cartões neutros na Nova conciliação */
+.nova-ia-card, .nova-sistema-card {
   position: relative; overflow: hidden; display: flex; flex-direction: column; align-items: flex-start; gap: 8px;
-  max-width: none; padding: 16px 200px 16px 24px;
+  max-width: none; padding: 16px 24px;
   border: 1px solid var(--color-divider); border-radius: var(--radius-md); background: var(--color-surface);
 }
-.nova-ia-card h3 { margin: 0; font-size: 21px; font-weight: 600; }
-.nova-ia-card p { margin: 0; max-width: 72ch; font-size: var(--texto-corpo); line-height: 1.55; color: color-mix(in srgb, var(--color-text) 76%, transparent); }
+.nova-ia-card { padding-right: 200px; }
+.nova-ia-card h3, .nova-sistema-card h3 { margin: 0; font-size: 21px; font-weight: 600; }
+.nova-ia-card p, .nova-sistema-card > p { margin: 0; max-width: 72ch; font-size: var(--texto-corpo); line-height: 1.55; color: color-mix(in srgb, var(--color-text) 76%, transparent); }
 .nova-ia-card .btn { margin-top: 6px; }
-.nova-ia-card .btn svg { width: 16px; height: 16px; }
+.nova-ia-card .btn svg, .nova-sistema-card .btn svg { width: 16px; height: 16px; }
 .nova-ia-mascote { position: absolute; right: -8px; bottom: -34px; width: 170px; height: auto; opacity: 0.9; transform: rotate(-6deg); pointer-events: none; }
+
+.nova-sistema-quadro { display: flex; flex-direction: column; gap: 12px; width: 100%; margin-top: 6px; padding-top: 12px; border-top: 1px solid var(--color-divider); }
+.nova-sistema-periodo { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 14px; }
+.nova-sistema-periodo .field { min-width: 150px; }
+.nova-sistema-dica { margin: 0; width: 100%; font-size: var(--texto-nota); line-height: 1.5; color: var(--texto-apagado); }
+.nova-sistema-erro {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 8px; width: 100%;
+  padding: 12px 14px; border-radius: var(--radius-md);
+  border: 1px solid color-mix(in srgb, var(--color-erro) 40%, transparent);
+  background: color-mix(in srgb, var(--color-erro) 6%, transparent);
+}
+.nova-sistema-erro p:not(.nova-sistema-dica) { margin: 0; font-size: var(--texto-corpo); line-height: 1.55; }
+.nova-sistema-erro-lista { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; width: 100%; }
+.nova-sistema-erro-titulo { font-size: var(--texto-corpo); font-weight: 600; color: var(--color-erro); }
 
 /* o painel: o que já entrou, os passos, os dados e o Conciliar */
 .nova-checklist { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 0; padding: 0; list-style: none; font-size: var(--texto-corpo); }
@@ -4330,6 +4345,16 @@ html:not([data-menu="recolhido"]) .app-assistente-figura {
   border: 1px solid var(--color-divider); user-select: all; overflow-wrap: anywhere;
 }
 .api-lista { list-style: none; margin: 0; padding: 0; }
+/* Configurações › Integração (#253): resumo da configuração ativa da empresa e ação de remover */
+.integracao-resumo {
+  display: flex; flex-direction: column; gap: 6px; padding: 14px 16px;
+  border: 1px solid var(--color-divider); border-radius: var(--radius-md); background: var(--color-surface);
+}
+.integracao-resumo p { margin: 0; }
+.integracao-resumo-topo { display: flex; align-items: center; gap: 8px; }
+.integracao-resumo .tag { border: 1px solid var(--color-divider); }
+.integracao-dica { margin: 6px 0 0; font-size: var(--texto-nota); line-height: 1.5; color: var(--texto-apagado); }
+.integracao-remover { padding-top: 14px; border-top: 1px solid var(--color-divider); }
 /* Configurações › Conexões: o guia em três partes (como funciona, como conectar, suas conexões) */
 .conexao-guia { gap: 24px; }
 .conexao-parte { display: flex; flex-direction: column; gap: 12px; }

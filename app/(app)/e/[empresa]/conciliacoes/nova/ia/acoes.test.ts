@@ -1,19 +1,23 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ErroBackend } from "@/lib/backend";
+import { SEM_SERVIDOR } from "@/lib/sem-servidor";
 import {
   acrescentarLinhaAoRascunho,
   carregarPromptIa,
   carregarRascunho,
   concluirNovaVersaoIa,
   corrigirLinhaDoRascunho,
+  importarDoSistema,
   importarViaIa,
   recuperarExtratoConfirmado,
 } from "./acoes";
 
 const chamarBackend = vi.fn();
+const emailDaSessao = vi.fn();
 vi.mock("@/lib/backend", async (original) => ({
   ...(await original<typeof import("@/lib/backend")>()),
   chamarBackend: (...args: unknown[]) => chamarBackend(...args),
+  emailDaSessao: () => emailDaSessao(),
 }));
 
 function dadosDoArquivo(tamanho: number): FormData {
@@ -251,5 +255,145 @@ describe("linhas do rascunho: só os três campos chegam ao backend (S1-04)", ()
     expect(await corrigirLinhaDoRascunho(id, linhaId, campos)).toMatchObject({ ok: false, status: 422 });
     expect(await acrescentarLinhaAoRascunho(id, campos)).toMatchObject({ ok: false, status: 422 });
     expect(chamarBackend).not.toHaveBeenCalled();
+  });
+});
+
+describe("importarDoSistema (backend #253)", () => {
+  beforeEach(() => {
+    chamarBackend.mockReset();
+    emailDaSessao.mockReset().mockResolvedValue("ana@telhacerta.com.br");
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("valida formato, data real de calendário e ordem de <= ate antes de chamar o backend", async () => {
+    expect(await importarDoSistema("2026-10-31", "2026-10-01")).toMatchObject({ ok: false, status: 422 });
+    expect(await importarDoSistema("2026-02-30", "2026-03-01")).toMatchObject({ ok: false, status: 422 });
+    expect(await importarDoSistema("01/10/2026", "31/10/2026")).toMatchObject({ ok: false, status: 422 });
+    expect(await importarDoSistema("", "2026-10-31")).toMatchObject({ ok: false, status: 422 });
+    expect(chamarBackend).not.toHaveBeenCalled();
+  });
+
+  it("conta de demonstração nunca chama POST /importacoes-ia/do-sistema", async () => {
+    vi.stubEnv("LEDGR_CONTA_TESTE_EMAIL", "ana@telhacerta.com.br");
+
+    expect(await importarDoSistema("2026-10-01", "2026-10-31")).toEqual({
+      ok: false,
+      status: 403,
+      erro: "A conta de demonstração não pode ser alterada.",
+      erros: [],
+      totalErros: 0,
+    });
+    expect(chamarBackend).not.toHaveBeenCalled();
+  });
+
+  it("sucesso (201) manda { de, ate } e devolve importacaoId e quantidade no formato do importarViaIa", async () => {
+    chamarBackend.mockResolvedValueOnce({
+      importacao_id: "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20",
+      status: "rascunho",
+      quantidade_lancamentos: 29,
+      saldo_final: "40591.70",
+      saldo_data: "2026-10-31",
+    });
+
+    expect(await importarDoSistema("2026-10-01", "2026-10-31")).toEqual({
+      ok: true,
+      dados: { importacaoId: "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20", quantidade: 29 },
+    });
+    expect(chamarBackend).toHaveBeenCalledWith("/importacoes-ia/do-sistema", {
+      method: "POST",
+      corpo: { de: "2026-10-01", ate: "2026-10-31" },
+    });
+  });
+
+  it.each([
+    [409, "integracao_nao_configurada", "Esta empresa ainda não configurou a integração com o sistema."],
+    [503, "integracao_indisponivel", "Integração com o sistema indisponível no momento."],
+    [422, "sistema_sem_lancamentos", "O sistema não tem lançamentos nesse período."],
+    [502, "sistema_recusou_a_chave", "O sistema recusou a chave. Confira a chave da integração em Configurações."],
+    [502, "sistema_nao_respondeu", "O sistema não respondeu. Tente de novo ou envie o arquivo."],
+    [502, "sistema_indisponivel", "O sistema está com problemas agora. Tente de novo ou envie o arquivo."],
+    [502, "sistema_redirecionou", "O endereço do sistema redirecionou. Confira a URL da integração."],
+    [502, "sistema_resposta_grande_demais", "O sistema devolveu um arquivo maior que 5 MB. Escolha um período menor."],
+    [502, "sistema_resposta_invalida", "O arquivo devolvido não é um JSON válido."],
+    [502, "sistema_endereco_nao_permitido", "O endereço do sistema não é permitido. Confira a configuração da integração."],
+  ])("preserva codigo=%s e detail do backend no status %i", async (status, codigo, detalhe) => {
+    chamarBackend.mockRejectedValueOnce(new ErroBackend(status, detalhe, [], {}, undefined, [], codigo));
+
+    expect(await importarDoSistema("2026-10-01", "2026-10-31")).toEqual({
+      ok: false,
+      status,
+      codigo,
+      erro: detalhe,
+      erros: [],
+      totalErros: 0,
+    });
+  });
+
+  it("sistema_resposta_invalida fora do schema preserva erros e totalErros", async () => {
+    const erros = [{ caminho: "lancamentos[0].valor", lancamento: 1, mensagem: "Valor inválido." }];
+    chamarBackend.mockRejectedValueOnce(
+      new ErroBackend(502, "O arquivo não passou na conferência", [], {}, undefined, erros, "sistema_resposta_invalida", 62),
+    );
+
+    expect(await importarDoSistema("2026-10-01", "2026-10-31")).toEqual({
+      ok: false,
+      status: 502,
+      codigo: "sistema_resposta_invalida",
+      erro: "O arquivo não passou na conferência",
+      erros,
+      totalErros: 62,
+    });
+  });
+
+  it("401 sem codigo é sessão expirada; 403 conta_inativa e 422 sem codigo preservam detail; 429 e 5xx/rede são traduzidos", async () => {
+    chamarBackend.mockRejectedValueOnce(new ErroBackend(401, "Unauthorized"));
+    expect(await importarDoSistema("2026-10-01", "2026-10-31")).toEqual({
+      ok: false,
+      status: 401,
+      erro: "Sua sessão expirou. Entre de novo para continuar.",
+      erros: [],
+      totalErros: 0,
+    });
+
+    chamarBackend.mockRejectedValueOnce(
+      new ErroBackend(403, "Conta inativa.", [], {}, undefined, [], "conta_inativa"),
+    );
+    expect(await importarDoSistema("2026-10-01", "2026-10-31")).toMatchObject({
+      ok: false,
+      status: 403,
+      codigo: "conta_inativa",
+      erro: "Conta inativa.",
+    });
+
+    chamarBackend.mockRejectedValueOnce(new ErroBackend(422, "O período máximo é de 90 dias."));
+    expect(await importarDoSistema("2026-01-01", "2026-10-31")).toMatchObject({
+      ok: false,
+      status: 422,
+      erro: "O período máximo é de 90 dias.",
+    });
+
+    chamarBackend.mockRejectedValueOnce(new ErroBackend(429, "Rate limit"));
+    expect(await importarDoSistema("2026-10-01", "2026-10-31")).toMatchObject({
+      ok: false,
+      status: 429,
+      erro: expect.stringMatching(/Muitas tentativas/),
+    });
+
+    chamarBackend.mockRejectedValueOnce(new ErroBackend(500, "Internal Server Error"));
+    expect(await importarDoSistema("2026-10-01", "2026-10-31")).toMatchObject({
+      ok: false,
+      status: 500,
+      erro: SEM_SERVIDOR,
+    });
+
+    chamarBackend.mockRejectedValueOnce(new TypeError("fetch failed"));
+    expect(await importarDoSistema("2026-10-01", "2026-10-31")).toMatchObject({
+      ok: false,
+      status: 0,
+      erro: SEM_SERVIDOR,
+    });
   });
 });
