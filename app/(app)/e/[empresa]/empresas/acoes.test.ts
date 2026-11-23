@@ -95,6 +95,12 @@ describe("carregarEmpresas", () => {
 });
 
 describe("cadastrarEmpresa", () => {
+  it("CNPJ removido orienta a restaurar; CNPJ em apagamento conserva a explicação do backend", async () => {
+    chamarBackend.mockRejectedValueOnce(new ErroBackend(409, "Empresa removida.", [], {}, undefined, [], "empresa_removida"));
+    expect(await cadastrarEmpresa(CNPJ, "Cliente")).toMatchObject({ ok: false, status: 409, erro: expect.stringContaining("Empresas removidas") });
+    chamarBackend.mockRejectedValueOnce(new ErroBackend(409, "Esta empresa está sendo apagada. Tente novamente mais tarde.", [], {}, undefined, [], "empresa_sendo_apagada"));
+    expect(await cadastrarEmpresa(CNPJ, "Cliente")).toMatchObject({ ok: false, status: 409, erro: "Esta empresa está sendo apagada. Tente novamente mais tarde." });
+  });
   it("argumento que não é texto (ação chamada à mão) responde 422 em vez de lançar (S1-04)", async () => {
     expect(await cadastrarEmpresa("11.444.777/0001-61", ["x"] as unknown as string)).toMatchObject({ ok: false, status: 422 });
     expect(await cadastrarEmpresa({} as unknown as string, "Cliente")).toMatchObject({ ok: false, status: 422 });

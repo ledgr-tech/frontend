@@ -20,7 +20,9 @@ import { formatarDataHora } from "../dashboard/resumo";
 import { FaixaFiltros } from "../faixa-filtros";
 import { mostrarPreviaDoEscolhido } from "../grupo";
 import { SITUACAO, combina, useFavoritaOtimista } from "../seletor-de-empresa";
-import { editarNomeDeExibicao } from "./acoes";
+import { carregarEmpresas, editarNomeDeExibicao } from "./acoes";
+import { ConfirmarRemocao, EmpresasRemovidas } from "./empresas-removidas";
+import type { EmpresaRemovida } from "./remocao-acoes";
 import { CadastrarEmpresa } from "./cadastrar-empresa";
 import { ModalDaTela } from "./modal-da-tela";
 import { FaixaDoPlano } from "./faixa-do-plano";
@@ -81,14 +83,23 @@ export function PainelDeEmpresas({ empresas: daPagina }: { empresas: EmpresaClie
   const [aba, setAba] = useState<AbaDaTela>(busca.get("aba") === "equipe" ? "equipe" : "empresas");
   const [cadastroAberto, setCadastroAberto] = useState(false);
   const [conviteAberto, setConviteAberto] = useState(false);
+  const [removendo, setRemovendo] = useState<EmpresaCliente | null>(null);
+  const [removidasAbertas, setRemovidasAbertas] = useState(false);
+  const [aviso, setAviso] = useState<string | null>(null);
   // as favoritas mudam na hora e desfazem se o backend recusar, como no seletor
   const [empresas, setEmpresas] = useState(daPagina);
+  const [paginaAnterior, setPaginaAnterior] = useState(daPagina);
+  if (paginaAnterior !== daPagina) {
+    setPaginaAnterior(daPagina);
+    setEmpresas(daPagina);
+  }
   const [erroDaFavorita, setErroDaFavorita] = useState<string | null>(null);
   const favoritaOtimista = useFavoritaOtimista();
   const [filtro, setFiltro] = useState<FiltroDeSituacao>("todas");
   const [termo, setTermo] = useState("");
   const [escolhida, setEscolhida] = useState<string | null>(null);
   const previa = useRef<HTMLElement>(null);
+  const focarAposRemocao = useRef(false);
 
   const gerencia = podeConvidar(papel);
   const limite = limites?.empresas ?? null;
@@ -105,6 +116,12 @@ export function PainelDeEmpresas({ empresas: daPagina }: { empresas: EmpresaClie
   // a escolhida que o filtro ou a busca escondeu dá lugar à primeira à vista
   const atual = visiveis.find((empresa) => empresa.id === escolhida) ?? visiveis[0] ?? null;
   useTrocaSuave(previa, atual?.id);
+  useEffect(() => {
+    if (focarAposRemocao.current) {
+      focarAposRemocao.current = false;
+      previa.current?.querySelector<HTMLElement>("h2")?.focus();
+    }
+  }, [atual?.id]);
 
   function trocarDeAba(nova: AbaDaTela) {
     setAba(nova);
@@ -139,9 +156,35 @@ export function PainelDeEmpresas({ empresas: daPagina }: { empresas: EmpresaClie
     setEmpresas((atuais) => atuais.map((outra) => (outra.id === atualizada.id ? { ...outra, ...atualizada } : outra)));
   }
 
+  async function aposRemover(removida: EmpresaRemovida) {
+    const restantes = empresas.filter((empresa) => empresa.id !== removida.id);
+    setRemovendo(null);
+    focarAposRemocao.current = true;
+    setEmpresas(restantes);
+    setEscolhida(null);
+    setAviso(`${removida.nome} foi removida. Você pode restaurá-la em Empresas removidas até ${formatarDataHora(removida.apagarEm)}.`);
+    if (removida.id === ativa?.id) {
+      // A URL antiga deixa de ser válida. Navegação completa descarta o shell e o seletor
+      // em cache, sem tentar atualizar o layout da empresa que acabou de sair.
+      const resposta = await carregarEmpresas().catch(() => null);
+      const proxima = (resposta?.ok ? resposta.dados : restantes)[0];
+      if (proxima) gravarEmpresaRecente(proxima.id);
+      window.location.replace(proxima ? comEmpresa(proxima.id, "/empresas") : "/empresas");
+      return;
+    }
+    router.refresh();
+  }
+
+  function aposRestaurar(empresa: EmpresaCliente) {
+    setEmpresas((atuais) => atuais.some((outra) => outra.id === empresa.id) ? atuais : [...atuais, empresa]);
+    setEscolhida(empresa.id);
+    router.refresh();
+  }
+
   const acao =
     aba === "empresas" ? (
       gerencia ? (
+        <>
         <button
           type="button"
           className="btn btn-primary"
@@ -151,6 +194,10 @@ export function PainelDeEmpresas({ empresas: daPagina }: { empresas: EmpresaClie
         >
           Adicionar empresa
         </button>
+        <button type="button" className="btn btn-secondary" aria-haspopup="dialog" onClick={() => setRemovidasAbertas(true)}>
+          Empresas removidas
+        </button>
+        </>
       ) : undefined
     ) : gerencia ? (
       <button type="button" className="btn btn-primary" aria-haspopup="dialog" onClick={() => setConviteAberto(true)}>
@@ -212,6 +259,9 @@ export function PainelDeEmpresas({ empresas: daPagina }: { empresas: EmpresaClie
 
         {/* as duas visões ficam no DOM e a inativa fica escondida: o que foi digitado numa sobrevive à troca */}
         <div hidden={aba !== "empresas"}>
+          <p role="status" className={aviso ? "empresas-nota" : "sr-only"}>{aviso}</p>
+          {removendo && gerencia && <ConfirmarRemocao empresa={removendo} aoFechar={() => setRemovendo(null)} aoRemover={(empresa) => void aposRemover(empresa)} />}
+          {removidasAbertas && gerencia && <EmpresasRemovidas aoFechar={() => setRemovidasAbertas(false)} aoRestaurar={aposRestaurar} />}
           {!gerencia && <p className="empresas-nota">Só o admin e o gestor cadastram empresas.</p>}
           {erroDaFavorita && (
             <p role="alert" className="empresas-nota">
@@ -304,6 +354,7 @@ export function PainelDeEmpresas({ empresas: daPagina }: { empresas: EmpresaClie
                 aoAbrir={() => abrir(atual)}
                 aoAlternarFavorita={() => void alternarFavorita(atual)}
                 aoAtualizar={atualizarEmpresa}
+                aoRemover={() => setRemovendo(atual)}
               />
             </div>
           )}
@@ -349,6 +400,7 @@ function PreviaDaEmpresa({
   aoAbrir,
   aoAlternarFavorita,
   aoAtualizar,
+  aoRemover,
 }: {
   ref: React.Ref<HTMLElement>;
   empresa: EmpresaCliente;
@@ -356,6 +408,7 @@ function PreviaDaEmpresa({
   aoAbrir: () => void;
   aoAlternarFavorita: () => void;
   aoAtualizar: (empresa: EmpresaCliente) => void;
+  aoRemover: () => void;
 }) {
   return (
     <aside ref={ref} className="conc-previa" aria-label="Empresa escolhida" aria-live="polite" data-tutorial="previa">
@@ -387,6 +440,7 @@ function PreviaDaEmpresa({
         aoAbrir={aoAbrir}
         aoAlternarFavorita={aoAlternarFavorita}
         aoAtualizar={aoAtualizar}
+        aoRemover={aoRemover}
       />
     </aside>
   );
@@ -398,16 +452,19 @@ function AcoesDaPrevia({
   aoAbrir,
   aoAlternarFavorita,
   aoAtualizar,
+  aoRemover,
 }: {
   empresa: EmpresaCliente;
   ativa: boolean;
   aoAbrir: () => void;
   aoAlternarFavorita: () => void;
   aoAtualizar: (empresa: EmpresaCliente) => void;
+  aoRemover: () => void;
 }) {
   const router = useRoteador();
   // só com o backend #236 (`nomeExibicao` presente) e só para admin e gestor
   const podeEditarNome = usePodeFechar() && empresa.nomeExibicao !== undefined;
+  const podeRemover = usePodeFechar();
   const [editando, setEditando] = useState(false);
   const [valor, setValor] = useState(empresa.nome);
   const [enviando, setEnviando] = useState(false);
@@ -518,6 +575,11 @@ function AcoesDaPrevia({
         {empresa.favorita !== undefined && (
           <button type="button" className="btn btn-secondary" aria-pressed={empresa.favorita} onClick={aoAlternarFavorita}>
             {empresa.favorita ? "Tirar das favoritas" : "Marcar como favorita"}
+          </button>
+        )}
+        {podeRemover && !editando && (
+          <button type="button" className="btn btn-ghost" aria-haspopup="dialog" onClick={aoRemover}>
+            Remover empresa
           </button>
         )}
       </div>

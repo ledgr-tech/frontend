@@ -12,6 +12,14 @@ import { PainelDeEmpresas } from "./painel-de-empresas";
 const cadastrarEmpresa = vi.fn();
 const marcarFavorita = vi.fn();
 const editarNomeDeExibicao = vi.fn();
+const removerEmpresa = vi.fn();
+const carregarEmpresasRemovidas = vi.fn();
+const restaurarEmpresa = vi.fn();
+vi.mock("./remocao-acoes", () => ({
+  removerEmpresa: (...args: unknown[]) => removerEmpresa(...args),
+  carregarEmpresasRemovidas: (...args: unknown[]) => carregarEmpresasRemovidas(...args),
+  restaurarEmpresa: (...args: unknown[]) => restaurarEmpresa(...args),
+}));
 vi.mock("./acoes", () => ({
   cadastrarEmpresa: (...args: unknown[]) => cadastrarEmpresa(...args),
   marcarFavorita: (...args: unknown[]) => marcarFavorita(...args),
@@ -66,8 +74,125 @@ function montar({
 
 const linhaDe = (nome: RegExp) => screen.getByRole("row", { name: nome });
 
+const REMOVIDA = { id: B.id, nome: B.nome, razaoSocial: B.razaoSocial, cnpj: B.cnpj,
+  removidaEm: "2026-11-23T01:00:00Z", removidaPor: "Ana", apagarEm: "2026-12-23T01:00:00Z" };
+
+describe("remoção e restauração", () => {
+  it.each(["admin", "gestor"] as const)("%s tem as ações de remover e ver removidas", (papel) => {
+    montar({ papel });
+    expect(screen.getByRole("button", { name: "Remover empresa" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Empresas removidas" })).toBeInTheDocument();
+  });
+
+  it("analista não recebe controles nem consulta empresas removidas", () => {
+    montar({ papel: "analista" });
+    expect(screen.queryByRole("button", { name: "Remover empresa" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Empresas removidas" })).not.toBeInTheDocument();
+    expect(carregarEmpresasRemovidas).not.toHaveBeenCalled();
+  });
+
+  it("confirma a empresa e as consequências; cancelar não envia e devolve o foco", async () => {
+    const user = userEvent.setup();
+    montar();
+    const abrir = screen.getByRole("button", { name: "Remover empresa" });
+    await user.click(abrir);
+    const dialogo = screen.getByRole("dialog", { name: "Remover empresa" });
+    expect(dialogo).toHaveTextContent("Mercado Ltda");
+    expect(dialogo).toHaveTextContent("30 dias");
+    expect(dialogo).toHaveTextContent("chaves de API");
+    expect(within(dialogo).getByRole("button", { name: "Cancelar" })).toHaveFocus();
+    await user.click(within(dialogo).getByRole("button", { name: "Cancelar" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(removerEmpresa).not.toHaveBeenCalled();
+    expect(abrir).toHaveFocus();
+  });
+
+  it("envia uma vez, impede fechar em voo e tira a empresa da lista só após confirmação do backend", async () => {
+    let concluir!: (resposta: unknown) => void;
+    removerEmpresa.mockReturnValue(new Promise((resolve) => { concluir = resolve; }));
+    const user = userEvent.setup();
+    montar();
+    await user.click(screen.getByRole("button", { name: "Remover empresa" }));
+    const dialogo = screen.getByRole("dialog");
+    const confirmar = within(dialogo).getByRole("button", { name: "Confirmar remoção" });
+    act(() => { confirmar.click(); confirmar.click(); });
+    expect(removerEmpresa).toHaveBeenCalledExactlyOnceWith(B.id);
+    expect(within(dialogo).getByRole("button", { name: "Cancelar" })).toBeDisabled();
+    await user.keyboard("{Escape}");
+    expect(dialogo).toBeInTheDocument();
+    expect(linhaDe(/Mercado/)).toBeInTheDocument();
+    await act(async () => concluir({ ok: true, dados: REMOVIDA }));
+    expect(screen.queryByRole("row", { name: /Mercado/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("Mercado Ltda foi removida");
+    expect(router.refresh).toHaveBeenCalled();
+    expect(screen.getByRole("heading", { name: A.nome })).toHaveFocus();
+  });
+
+  it.each(["A empresa principal não pode ser removida.", "A última empresa não pode ser removida."])("exibe 409 e preserva a empresa: %s", async (erro) => {
+    removerEmpresa.mockResolvedValue({ ok: false, status: 409, erro });
+    const user = userEvent.setup();
+    montar();
+    await user.click(screen.getByRole("button", { name: "Remover empresa" }));
+    await user.click(screen.getByRole("button", { name: "Confirmar remoção" }));
+    expect(screen.getByRole("alert")).toHaveTextContent(erro);
+    expect(linhaDe(/Mercado/)).toBeInTheDocument();
+    expect(router.refresh).not.toHaveBeenCalled();
+  });
+
+  it("lista o prazo e o autor da remoção e restaura sem perder o nome da empresa", async () => {
+    carregarEmpresasRemovidas.mockResolvedValue({ ok: true, dados: [REMOVIDA] });
+    restaurarEmpresa.mockResolvedValue({ ok: true, dados: B });
+    const user = userEvent.setup();
+    montar({ empresas: [A] });
+    await user.click(screen.getByRole("button", { name: "Empresas removidas" }));
+    const dialogo = screen.getByRole("dialog", { name: "Empresas removidas" });
+    await within(dialogo).findByRole("button", { name: `Restaurar ${B.nome}` });
+    expect(dialogo).toHaveTextContent("por Ana");
+    expect(dialogo).toHaveTextContent("Restaurar até");
+    await user.click(within(dialogo).getByRole("button", { name: `Restaurar ${B.nome}` }));
+    expect(restaurarEmpresa).toHaveBeenCalledExactlyOnceWith(B.id);
+    expect(within(dialogo).getByRole("status")).toHaveTextContent("Mercado Ltda foi restaurada");
+    expect(within(dialogo).getByRole("button", { name: "Fechar" })).toHaveFocus();
+    expect(within(dialogo).queryByRole("button", { name: `Restaurar ${B.nome}` })).not.toBeInTheDocument();
+    await user.click(within(dialogo).getByRole("button", { name: "Fechar" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(linhaDe(/Mercado Ltda/)).toBeInTheDocument();
+    expect(router.refresh).toHaveBeenCalled();
+  });
+
+  it("limite do plano impede restaurar e conserva a empresa entre as removidas", async () => {
+    carregarEmpresasRemovidas.mockResolvedValue({ ok: true, dados: [REMOVIDA] });
+    restaurarEmpresa.mockResolvedValue({ ok: false, status: 402, erro: "O plano permite 5 empresas." });
+    const user = userEvent.setup();
+    montar({ empresas: [A] });
+    await user.click(screen.getByRole("button", { name: "Empresas removidas" }));
+    await user.click(await screen.findByRole("button", { name: `Restaurar ${B.nome}` }));
+    expect(screen.getByRole("alert")).toHaveTextContent("O plano permite 5 empresas.");
+    expect(screen.getByRole("button", { name: `Restaurar ${B.nome}` })).toBeEnabled();
+    expect(screen.queryByRole("row", { name: /Mercado/ })).not.toBeInTheDocument();
+    expect(router.refresh).toHaveBeenCalled();
+  });
+
+  it("lista que falha tem nova tentativa; 401 na restauração vai ao login", async () => {
+    carregarEmpresasRemovidas.mockResolvedValueOnce({ ok: false, status: 0, erro: "Sem conexão." })
+      .mockResolvedValue({ ok: true, dados: [REMOVIDA] });
+    restaurarEmpresa.mockResolvedValue({ ok: false, status: 401, erro: "Sessão expirada." });
+    const user = userEvent.setup();
+    montar({ empresas: [A] });
+    await user.click(screen.getByRole("button", { name: "Empresas removidas" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Sem conexão.");
+    await user.click(screen.getByRole("button", { name: "Atualizar lista" }));
+    await user.click(await screen.findByRole("button", { name: `Restaurar ${B.nome}` }));
+    expect(router.push).toHaveBeenCalledWith("/login");
+  });
+});
+
 beforeEach(() => {
   vi.clearAllMocks();
+  removerEmpresa.mockReset();
+  restaurarEmpresa.mockReset();
+  carregarEmpresasRemovidas.mockReset().mockResolvedValue({ ok: true, dados: [] });
   window.history.replaceState(null, "", "/e/x/empresas");
   carregarEquipe.mockResolvedValue({ ok: true, dados: EQUIPE });
 });

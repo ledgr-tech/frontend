@@ -60,6 +60,7 @@ function novaEmpresa(conta, id, razao_social, cnpj) {
   };
   empresas.set(id, empresa);
   conta.empresas.push(id);
+  conta.principal_id ??= id;
   return empresa;
 }
 
@@ -763,7 +764,8 @@ const servidor = createServer(async (req, res) => {
   const gestao = eu.papel !== "analista";
   const proibido = (detail = "Seu papel na conta não permite fazer isso.") => json(res, 403, { detail });
   const pedida = req.headers["x-ledgr-empresa"];
-  if (pedida && !conta.empresas.includes(pedida)) return json(res, 403, { detail: "Esta empresa não é da sua conta." });
+  const rotaDaConta = caminho === "/me" || caminho === "/empresas" || caminho.startsWith("/empresas/");
+  if (pedida && !conta.empresas.includes(pedida) && !rotaDaConta) return json(res, 404, { detail: "Empresa não encontrada." });
   // a conta inativa do backend #156, para todas as contas com CONTA_INATIVA=1: escrita dá 403 com o código,
   // menos as da própria pessoa, o checkout e as revogações (app/core/conta_inativa.py, LIBERADAS)
   const liberadas = [
@@ -781,7 +783,7 @@ const servidor = createServer(async (req, res) => {
       codigo: "conta_inativa",
     });
   }
-  const b = empresas.get(pedida ?? conta.empresas[0]);
+  const b = empresas.get(pedida && conta.empresas.includes(pedida) ? pedida : conta.empresas[0]);
   const semCorpo = () => (res.writeHead(204), res.end());
 
   // o fake não guarda sessão: o logout (backend #200) só responde
@@ -855,6 +857,40 @@ const servidor = createServer(async (req, res) => {
 
   // ----- empresas da conta -----
 
+  const respostaRemovida = (e) => ({ id: e.id, razao_social: e.razao_social, ...comNome(e), cnpj: e.cnpj,
+    removida_em: e.removida_em, removida_por_nome: e.removida_por_nome, apagar_em: e.apagar_em });
+  if (rota("GET", "/empresas/removidas")) {
+    if (!gestao) return proibido();
+    return json(res, 200, { itens: [...empresas.values()]
+      .filter((e) => e.conta_id === conta.id && e.removida_em && Date.parse(e.apagar_em) > Date.now())
+      .sort((a, b) => b.removida_em.localeCompare(a.removida_em)).map(respostaRemovida) });
+  }
+  const removerEmpresa = rota("DELETE", /^\/empresas\/([0-9a-f-]{36})$/i);
+  if (removerEmpresa) {
+    if (!gestao) return proibido();
+    const alvo = conta.empresas.includes(removerEmpresa[1]) ? empresas.get(removerEmpresa[1]) : null;
+    if (!alvo) return json(res, 404, { detail: "Empresa não encontrada." });
+    if (alvo.id === conta.principal_id) return json(res, 409, { codigo: "empresa_principal", detail: "A empresa principal da conta não pode ser removida." });
+    if (conta.empresas.length <= 1) return json(res, 409, { codigo: "ultima_empresa", detail: "A última empresa ativa não pode ser removida." });
+    Object.assign(alvo, { removida_em: agora(), removida_por_nome: eu.nome, apagar_em: emDias(30) });
+    conta.empresas = conta.empresas.filter((id) => id !== alvo.id);
+    for (const credencial of [...conta.chaves, ...conta.conexoes]) {
+      if (credencial.empresa_id === alvo.id) credencial.revogada_em ??= agora();
+    }
+    return json(res, 200, respostaRemovida(alvo));
+  }
+  const restaurarEmpresa = rota("POST", /^\/empresas\/([0-9a-f-]{36})\/restaurar$/i);
+  if (restaurarEmpresa) {
+    if (!gestao) return proibido();
+    const alvo = empresas.get(restaurarEmpresa[1]);
+    if (!alvo || alvo.conta_id !== conta.id || !alvo.removida_em || Date.parse(alvo.apagar_em) <= Date.now()) return json(res, 404, { detail: "Empresa não encontrada." });
+    const maximo = (MAXIMOS[conta.plano] ?? MAXIMOS.padrao).empresas;
+    if (maximo !== null && conta.empresas.length >= maximo) return json(res, 402, { detail: `O plano permite ${maximo} empresas.` });
+    Object.assign(alvo, { removida_em: null, removida_por_nome: null, apagar_em: null });
+    conta.empresas.push(alvo.id);
+    return json(res, 200, empresaCliente(alvo));
+  }
+
   if (rota("GET", "/empresas")) return json(res, 200, { itens: conta.empresas.map((id) => empresas.get(id)).sort(porNome).map(empresaCliente) });
 
   const editarEmpresa = NOME_DE_EXIBICAO && rota("PATCH", /^\/empresas\/([0-9a-f-]{36})$/i);
@@ -885,6 +921,10 @@ const servidor = createServer(async (req, res) => {
     const { cnpj, razao_social } = await corpoJson(req);
     const limpo = String(cnpj ?? "").toUpperCase();
     if (conta.empresas.some((id) => empresas.get(id).cnpj === limpo)) return json(res, 409, { detail: "Esta empresa já está cadastrada." });
+    const removida = [...empresas.values()].find((e) => e.conta_id === conta.id && e.cnpj === limpo && e.removida_em);
+    if (removida) return json(res, 409, Date.parse(removida.apagar_em) > Date.now()
+      ? { codigo: "empresa_removida", empresa_id: removida.id, apagar_em: removida.apagar_em, detail: "Esta empresa foi removida da conta e ainda pode ser restaurada." }
+      : { codigo: "empresa_sendo_apagada", detail: "Esta empresa foi removida e está sendo apagada. Tente cadastrá-la de novo mais tarde." });
     const maximo = (MAXIMOS[conta.plano] ?? MAXIMOS.padrao).empresas;
     if (maximo !== null && conta.empresas.length >= maximo) return json(res, 402, { detail: `O plano permite ${maximo} empresas.` });
     return json(res, 201, empresaCliente(novaEmpresa(conta, randomUUID(), String(razao_social).trim(), limpo)));

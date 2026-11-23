@@ -81,7 +81,7 @@ describe("Conversa", () => {
     perguntarAoAssistente.mockResolvedValue({ ok: true, dados: {
       resposta, respondida: true, links: [{ titulo: "Ver agosto", caminho: "/historico", tipo: "tela" }],
     } });
-    const empresa = { id: "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20", razaoSocial: "Empresa", cnpj: "" };
+    const empresa = { id: "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20", razaoSocial: "Empresa", nome: "Empresa", cnpj: "" };
     const onFechar = vi.fn();
     const user = userEvent.setup();
     render(<ProvedorDaEmpresa ativa={empresa} empresas={[empresa]}><Conversa contexto={CONTEXTO} onFechar={onFechar} /></ProvedorDaEmpresa>);
