@@ -359,6 +359,17 @@ export const PAGINAS: PaginaDeAjuda[] = [
         nota: "Só as divergências aceitam seleção, justificadas ou não; as que bateram ficam de fora. A seleção continua ao trocar de filtro, some ao trocar de rodada e não grava nada.",
       },
       {
+        id: "justificar-em-lote",
+        titulo: "Justificar várias linhas de uma vez",
+        faz: "Justifique de uma vez as linhas selecionadas, com um texto só. Serve quando várias divergências têm o mesmo motivo, como as tarifas de um mês.",
+        passos: [
+          "Selecione as linhas, como em **Selecionar linhas e somar**.",
+          "Na faixa da seleção, clique em **Justificar as N linhas selecionadas** e escreva o motivo.",
+          "Clique em **Justificar**. A tela diz quantas foram justificadas e, se alguma ficou de fora, por quê.",
+        ],
+        nota: "Cada linha guarda a justificativa com o seu nome e o horário, e diz que foi justificada junto com outras. Uma linha que já tinha justificativa recebe a nova, menos a que já foi aprovada por quem aprova. Com o mês fechado ou numa rodada passada, o botão não aparece. Até 500 linhas por vez.",
+      },
+      {
         id: "conferir",
         titulo: "Marcar como conferida",
         faz: "A coluna Visto é sua: marque as divergências que já olhou. As que bateram não precisam.",

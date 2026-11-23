@@ -399,3 +399,27 @@ describe("PainelDoExtrato", () => {
     });
   });
 });
+
+describe("PainelDoExtrato: o lote (#473)", () => {
+  beforeEach(() => {
+    carregarDetalhes.mockReset();
+    carregarDetalhes.mockResolvedValue({ ok: false, status: 404, erro: "Não encontrada." });
+  });
+
+  const DO_LOTE = { ...DIVERGENTE, decisao: { ...justificada("pendente"), loteId: "l1", loteTamanho: 3 } };
+
+  it("diz com quantas outras veio, e quem aprova aprova o lote todo", async () => {
+    const onAprovarLote = vi.fn(async () => null as string | null);
+    const { user } = montar({ linha: DO_LOTE, onAprovarLote });
+
+    expect(screen.getByText("Justificada junto com outras 2 linhas")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Aprovar as 3 do lote" }));
+    expect(onAprovarLote).toHaveBeenCalledTimes(1);
+  });
+
+  it("o analista lê o texto, sem o botão", () => {
+    montar({ linha: DO_LOTE, podeAprovar: false, onAprovarLote: vi.fn() });
+    expect(screen.getByText("Justificada junto com outras 2 linhas")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /do lote/ })).not.toBeInTheDocument();
+  });
+});

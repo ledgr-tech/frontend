@@ -19,7 +19,15 @@ function decisao(tipo: Decisao["tipo"], situacao?: "pendente" | "aprovada"): Dec
 
 const ADMIN = { podeDecidir: true, podeAprovar: true };
 const ANALISTA = { podeDecidir: true, podeAprovar: false };
-const NADA = { justificar: false, aprovar: false, avisoDeAprovacao: false, desfazer: false, desfazerAprovacao: false, avisoDeQuemAprovou: false };
+const NADA = {
+  justificar: false,
+  aprovar: false,
+  aprovarLote: false,
+  avisoDeAprovacao: false,
+  desfazer: false,
+  desfazerAprovacao: false,
+  avisoDeQuemAprovou: false,
+};
 
 describe("acoesDoPainel", () => {
   it("a divergência sem decisão pode ser justificada, por qualquer papel", () => {
@@ -79,5 +87,17 @@ describe("ofereceExplicacao", () => {
     expect(ofereceExplicacao(DIVERGENTE, false)).toBe(false);
     expect(ofereceExplicacao({ ...DIVERGENTE, explicacao: "O banco cobrou juros." }, true)).toBe(false);
     expect(ofereceExplicacao({ ...DIVERGENTE, status: "match_exato" }, true)).toBe(false);
+  });
+});
+
+describe("aprovar o lote pelo painel (#473)", () => {
+  it("só para quem aprova, só aguardando e só com lote de mais de uma linha", () => {
+    const doLote = { ...DIVERGENTE, decisao: { ...decisao("justificada", "pendente"), loteId: "l1", loteTamanho: 3 } };
+    expect(acoesDoPainel({ linha: doLote, rodada: 1, ...ADMIN }).aprovarLote).toBe(true);
+    expect(acoesDoPainel({ linha: doLote, rodada: 1, ...ANALISTA }).aprovarLote).toBe(false);
+    const sozinha = { ...DIVERGENTE, decisao: { ...decisao("justificada", "pendente"), loteId: "l1", loteTamanho: 1 } };
+    expect(acoesDoPainel({ linha: sozinha, rodada: 1, ...ADMIN }).aprovarLote).toBe(false);
+    const aprovada = { ...DIVERGENTE, decisao: { ...decisao("justificada", "aprovada"), loteId: "l1", loteTamanho: 3 } };
+    expect(acoesDoPainel({ linha: aprovada, rodada: 1, ...ADMIN }).aprovarLote).toBe(false);
   });
 });

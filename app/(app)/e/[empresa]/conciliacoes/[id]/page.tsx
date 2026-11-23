@@ -34,7 +34,7 @@ import { parDoOutroLado } from "./par";
 import { decidir, type ResultadoDaDecisao } from "./decidir";
 import { aplicarDensidade, densidadeAtual, type Densidade } from "../../densidade";
 import { IconeOrigem, type Origem } from "../../icone-origem";
-import { CartaoLancamento, ladosDaLinha, type CartaoAberto } from "./cartao-lancamento";
+import { CartaoLancamento, juntoComOutras, ladosDaLinha, type CartaoAberto } from "./cartao-lancamento";
 import { Relatorio } from "./relatorio";
 import { NovaVersao } from "./nova-versao";
 import { LinhaDasRodadas } from "./linha-das-rodadas";
@@ -50,7 +50,8 @@ import { DiferencaDosSaldos, FaixaDoSaldo, SaldoDaFolha, temTextoDaDiferenca } f
 import { SeloIa } from "../../selo-ia";
 import { useNome, usePodeFechar } from "../../conta";
 import { aprovadaDepois, podeDesfazerAprovacao } from "@/lib/aprovacao";
-import { decidirLinhas } from "../acoes";
+import { aprovarLote, decidirLinhas, justificarLinhas } from "../acoes";
+import { JustificarEmLote, textoDoLote } from "./justificar-em-lote";
 import { DecisaoEmLote } from "../decisao-em-lote";
 import { SEM_SERVIDOR } from "@/lib/sem-servidor";
 import { limparSelecao, podeSelecionar, somarLinhas } from "./selecao";
@@ -183,6 +184,11 @@ export default function ConciliacaoPage() {
   const gravando = useRef(new Set<string>());
   // as linhas selecionadas para somar (#475) e aprovar de uma vez (#208), com a rodada em que foram marcadas:
   // não grava nada, sobrevive ao filtro e começa vazia em outra rodada ou conciliação
+  // o resultado do último lote (justificar ou aprovar o lote), num role="status" sempre montado
+  const [avisoDoLote, setAvisoDoLote] = useState<string | null>(null);
+  const botaoLimpar = useRef<HTMLButtonElement>(null);
+  // a rota do lote respondeu o 404 genérico (backend antes do #237): o botão some até recarregar a página
+  const [loteIndisponivel, setLoteIndisponivel] = useState(false);
   const [selecao, setSelecao] = useState<{ de: string; chaves: ReadonlySet<string> }>({ de: "", chaves: new Set() });
   // as duas caixas de selecionar todas: a do cabeçalho (tabela) e a dos controles (cartões)
   const caixaDoCabecalho = useRef<HTMLInputElement>(null);
@@ -356,7 +362,11 @@ export default function ConciliacaoPage() {
   // trocar de rodada ou de conciliação apaga a seleção, e voltar começa vazio (ajuste no render, o
   // padrão do React para estado que segue outro valor). Uma releitura mantém a rodada na tela até a
   // resposta chegar (useConciliacao não volta a "carregando"), então não apaga nada
-  if (selecao.de !== rodadaAberta) setSelecao({ de: rodadaAberta, chaves: new Set() });
+  if (selecao.de !== rodadaAberta) {
+    setSelecao({ de: rodadaAberta, chaves: new Set() });
+    // o resultado do lote é da rodada em que foi feito
+    setAvisoDoLote(null);
+  }
   const selecionadas = selecao.de === rodadaAberta ? selecao.chaves : new Set<string>();
   // de todas as linhas, não só as do filtro (F3); a que sumiu num recarregar ou foi conciliada sai
   const chavesSelecionadas = limparSelecao(selecionadas, conciliacao.linhas);
@@ -432,6 +442,65 @@ export default function ConciliacaoPage() {
     }
     if (resposta.status === 401) router.push("/login");
     if (resposta.status === 409) recarregar();
+    return resposta.erro;
+  }
+
+  // justificar em lote (#473): todos os papéis, só com o backend (a demo não tem lote) e nos mesmos portões do
+  // "Justificar" da linha (rodada que vale, mês aberto e conhecido). Vão todas as selecionadas: a seleção só
+  // aceita linhas que pedem revisão, e o que não serve o backend conta em ignoradas
+  const podeJustificarEmLote = podeDecidir && real && !loteIndisponivel;
+  const jaJustificadas = podeJustificarEmLote
+    ? conciliacao.linhas.filter((linha) => {
+        if (!valendo.has(chaveDaLinha(linha))) return false;
+        const situacao = situacaoDaLinha(linha, rodadaDasLinhas);
+        return situacao === "justificada" || situacao === "aguardando";
+      }).length
+    : 0;
+
+  async function justificarSelecionadas(texto: string): Promise<string | null> {
+    setAvisoDoLote(null);
+    const resposta = await justificarLinhas(conciliacao.id, chavesSelecionadas, texto);
+    if (resposta.ok) {
+      esvaziarSelecao(true);
+      recarregar();
+      setAvisoDoLote(textoDoLote(resposta.dados.processadas, resposta.dados.porMotivo));
+      return null;
+    }
+    if ("indisponivel" in resposta) {
+      // o formulário some junto com o botão: o texto fica no aviso do lote, uma vez. O foco estava nele (ou já
+      // caiu no body, com o campo desligado no envio): vai ao "Limpar seleção", que fica, só para o teclado
+      const doTeclado = tecladoEm.current >= ponteiroEm.current;
+      flushSync(() => {
+        setLoteIndisponivel(true);
+        setAvisoDoLote(resposta.erro);
+      });
+      if (doTeclado && (document.activeElement === document.body || document.activeElement === null)) botaoLimpar.current?.focus();
+      return null;
+    }
+    if (resposta.status === 401) router.push("/login");
+    if (resposta.status === 404 || resposta.status === 409) recarregar();
+    return resposta.erro;
+  }
+
+  /** "Aprovar as N do lote" (#473): todas as do lote que ainda aguardam, mesmo fora da tela; depois relê. */
+  async function aprovarOLote(linha: LinhaComparacao | null): Promise<string | null> {
+    const loteId = linha?.decisao?.loteId;
+    if (!loteId) return null;
+    setAvisoDoLote(null);
+    let resposta: Awaited<ReturnType<typeof aprovarLote>>;
+    try {
+      resposta = await aprovarLote(conciliacao.id, loteId);
+    } catch {
+      return SEM_SERVIDOR;
+    }
+    if (resposta.ok) {
+      recarregar();
+      const n = resposta.dados.processadas;
+      setAvisoDoLote(`${n.toLocaleString("pt-BR")} ${n === 1 ? "justificativa aprovada" : "justificativas aprovadas"}.`);
+      return null;
+    }
+    if (resposta.status === 401) router.push("/login");
+    if (resposta.status === 404 || resposta.status === 409) recarregar();
     return resposta.erro;
   }
 
@@ -716,6 +785,9 @@ export default function ConciliacaoPage() {
             ) : (
               <SomaDasSelecionadas soma={soma} />
             )}
+            {podeJustificarEmLote && (
+              <JustificarEmLote quantidade={chavesSelecionadas.length} jaJustificadas={jaJustificadas} onJustificar={justificarSelecionadas} />
+            )}
             {/* quando nem todas aguardam, diz quantas vão no lote; o botão já diz o resto */}
             {aguardandoSelecionadas.length > 0 && aguardandoSelecionadas.length < chavesSelecionadas.length && (
               <span className="tabela-progresso">
@@ -730,11 +802,16 @@ export default function ConciliacaoPage() {
                 onDecidir={decidirSelecionadas}
               />
             )}
-            <button type="button" className="btn btn-secondary" onClick={() => esvaziarSelecao()}>
+            <button ref={botaoLimpar} type="button" className="btn btn-secondary" onClick={() => esvaziarSelecao()}>
               Limpar seleção
             </button>
           </div>
         )}
+
+        {/* sempre montado, como o anúncio da soma: o resultado do lote é dito mesmo com a faixa já fechada */}
+        <p role="status" className={avisoDoLote ? "espia-aviso" : "sr-only"}>
+          {avisoDoLote}
+        </p>
 
         {erroDecisao && (
           <p role="alert" className="selo selo-risco decisao-erro">
@@ -1198,6 +1275,12 @@ export default function ConciliacaoPage() {
             onJustificar={(texto) => gravarDecisao(linhaAberta, "justificada", texto)}
             onDesfazer={() => gravarDecisao(linhaAberta, "justificativa_desfeita")}
             onAprovar={() => gravarDecisao(linhaAberta, "justificativa_aprovada")}
+            onAprovarLote={async () => {
+              // fecha a janela: com ela aberta (showModal) o resto da página é inerte, e o aviso do lote não seria lido
+              const erro = await aprovarOLote(linhaAberta);
+              if (erro === null) setChaveAberta(null);
+              return erro;
+            }}
             onRejeitar={(motivo) => gravarDecisao(linhaAberta, "justificativa_rejeitada", motivo || undefined)}
             onDesfazerAprovacao={() => gravarDecisao(linhaAberta, "aprovacao_desfeita")}
             onFechar={() => setChaveAberta(null)}
@@ -1221,6 +1304,7 @@ export default function ConciliacaoPage() {
             podeAprovar={podeAprovar}
             onJustificar={(texto) => (linhaEmFoco ? gravarDecisao(linhaEmFoco, "justificada", texto) : Promise.resolve(null))}
             onAprovar={() => (linhaEmFoco ? gravarDecisao(linhaEmFoco, "justificativa_aprovada") : Promise.resolve(null))}
+            onAprovarLote={() => aprovarOLote(linhaEmFoco)}
             onRejeitar={(motivo) =>
               linhaEmFoco ? gravarDecisao(linhaEmFoco, "justificativa_rejeitada", motivo || undefined) : Promise.resolve(null)
             }
@@ -1266,6 +1350,7 @@ function EspiaDaLinha({
   onJustificar,
   onDesfazer,
   onAprovar,
+  onAprovarLote,
   onRejeitar,
   onDesfazerAprovacao,
   onFechar,
@@ -1284,6 +1369,8 @@ function EspiaDaLinha({
   onJustificar: (texto: string) => Promise<string | null>;
   onDesfazer: () => Promise<string | null>;
   onAprovar: () => Promise<string | null>;
+  /** Aprova todas as do lote desta linha que ainda aguardam (backend #237). */
+  onAprovarLote: () => Promise<string | null>;
   /** O motivo é opcional: vazio vai sem texto. */
   onRejeitar: (motivo: string) => Promise<string | null>;
   /** Volta a justificativa aprovada para aguardando; só quem aprovou (backend #164). */
@@ -1423,6 +1510,7 @@ function EspiaDaLinha({
         {situacao === "aguardando" && linha.decisao && (
           <div className="espia-decisao">
             <strong>{`Justificada por ${linha.decisao.autor} em ${formatarDataHora(linha.decisao.em)} · aguardando aprovação`}</strong>
+            {juntoComOutras(linha.decisao) && <p className="espia-aviso">{juntoComOutras(linha.decisao)}</p>}
             {linha.decisao.texto && <p className="dialog-body">{linha.decisao.texto}</p>}
             {podeDecidir && podeAprovar && !rejeitando && (
               <div className="cfg-form-botoes">
@@ -1435,6 +1523,18 @@ function EspiaDaLinha({
                 >
                   Aprovar
                 </button>
+                {/* a mesma regra de acoesDoPainel (painel-da-comparacao.ts): mude as duas */}
+                {linha.decisao.loteId && (linha.decisao.loteTamanho ?? 0) > 1 && (
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    disabled={enviando}
+                    aria-busy={enviando || undefined}
+                    onClick={() => enviar(onAprovarLote)}
+                  >
+                    {`Aprovar as ${(linha.decisao.loteTamanho ?? 0).toLocaleString("pt-BR")} do lote`}
+                  </button>
+                )}
                 <button type="button" className="btn btn-secondary" disabled={enviando} onClick={() => setRejeitando(true)}>
                   Rejeitar
                 </button>
@@ -1489,6 +1589,7 @@ function EspiaDaLinha({
         {situacao === "justificada" && linha.decisao && (
           <div className="espia-decisao">
             <strong>{`Justificada por ${linha.decisao.autor} em ${formatarDataHora(linha.decisao.em)}`}</strong>
+            {juntoComOutras(linha.decisao) && <p className="espia-aviso">{juntoComOutras(linha.decisao)}</p>}
             {/* a que nasce aprovada (aprovação desligada) também traz aprovada_por: só a aprovada depois diz quem */}
             {aprovada && linha.decisao.aprovadaPor && (
               <p className="espia-aviso">

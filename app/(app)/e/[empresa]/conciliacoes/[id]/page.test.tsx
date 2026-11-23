@@ -38,10 +38,14 @@ vi.mock("../acoes", () => ({
   },
   registrarDecisao: (...args: unknown[]) => registrarDecisao(...args),
   decidirLinhas: (...args: unknown[]) => decidirLinhas(...args),
+  justificarLinhas: (...args: unknown[]) => justificarLinhas(...args),
+  aprovarLote: (...args: unknown[]) => aprovarLote(...args),
   explicarDivergencia: (...args: unknown[]) => explicarDivergencia(...args),
 }));
 const explicarDivergencia = vi.fn();
 const decidirLinhas = vi.fn();
+const justificarLinhas = vi.fn();
+const aprovarLote = vi.fn();
 
 const BANCO = "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20";
 const SISTEMA = "7a2b9c4d-1e3f-4a5b-8c6d-9e0f1a2b3c4d";
@@ -1762,6 +1766,62 @@ describe("ConciliacaoPage", () => {
         expect(screen.getByRole("button", { name: "Justificadas (1)" })).toBeInTheDocument();
       });
 
+      describe("o lote na janela da linha (#473)", () => {
+        const LOTE = "9b8a7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d";
+        const doLote = (tamanho: number): Conciliacao => ({
+          ...comCampo,
+          linhas: comCampo.linhas.map((linha) =>
+            linha.id === "lc-2" ? { ...linha, decisao: { ...pendente, loteId: LOTE, loteTamanho: tamanho } } : linha,
+          ),
+        });
+
+        beforeEach(() => {
+          aprovarLote.mockReset();
+        });
+
+        it("diz com quantas outras veio e o admin aprova o lote todo, com o aviso", async () => {
+          doBackend(doLote(5));
+          aprovarLote.mockResolvedValue({ ok: true, dados: { processadas: 5, ignoradas: 0 } });
+          const user = userEvent.setup();
+          render(<ConciliacaoPage />);
+
+          await user.click(await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" }));
+          const janela = screen.getByRole("dialog", { name: "Boleto Aço Norte Bobinas" });
+          expect(janela).toHaveTextContent("Justificada junto com outras 4 linhas");
+          carregarConciliacao.mockClear();
+          await user.click(within(janela).getByRole("button", { name: "Aprovar as 5 do lote" }));
+
+          expect(aprovarLote).toHaveBeenCalledWith(BANCO, LOTE);
+          await waitFor(() => expect(carregarConciliacao).toHaveBeenCalled());
+          expect(await screen.findByText("5 justificativas aprovadas.")).toBeInTheDocument();
+          // a janela fecha: aberta, o resto da página é inerte e o aviso não seria lido
+          expect(screen.queryByRole("dialog", { name: "Boleto Aço Norte Bobinas" })).not.toBeInTheDocument();
+        });
+
+        it("com duas, diz 'outra linha'; o analista vê o texto, mas não o botão", async () => {
+          podeFechar.valor = false;
+          doBackend(doLote(2));
+          const user = userEvent.setup();
+          render(<ConciliacaoPage />);
+
+          await user.click(await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" }));
+          const janela = screen.getByRole("dialog", { name: "Boleto Aço Norte Bobinas" });
+          expect(janela).toHaveTextContent("Justificada junto com outra linha");
+          expect(within(janela).queryByRole("button", { name: /do lote/ })).not.toBeInTheDocument();
+        });
+
+        it("sozinha no lote, nem texto nem botão", async () => {
+          doBackend(doLote(1));
+          const user = userEvent.setup();
+          render(<ConciliacaoPage />);
+
+          await user.click(await screen.findByRole("button", { name: "Boleto Aço Norte Bobinas" }));
+          const janela = screen.getByRole("dialog", { name: "Boleto Aço Norte Bobinas" });
+          expect(janela).not.toHaveTextContent("junto com");
+          expect(within(janela).queryByRole("button", { name: /do lote/ })).not.toBeInTheDocument();
+        });
+      });
+
       it("rejeita com o motivo, e a linha volta a divergente, pronta para justificar de novo", async () => {
         doBackend(comPendente);
         registrarDecisao.mockResolvedValue({ ok: true, dados: null });
@@ -1993,6 +2053,118 @@ describe("ConciliacaoPage", () => {
           expect(faixa()).toHaveTextContent("1 linha selecionada");
           expect(within(faixa()).queryByRole("button", { name: /^Aprovar/ })).not.toBeInTheDocument();
         });
+      });
+    });
+
+    describe("justificar as selecionadas (#473)", () => {
+      const faixa = () => screen.getByRole("region", { name: "Linhas selecionadas" });
+      const caixas = async () => screen.findAllByRole("checkbox", { name: /^Selecionar: / });
+
+      beforeEach(() => {
+        justificarLinhas.mockReset();
+      });
+      afterEach(() => {
+        podeFechar.valor = true;
+      });
+
+      it("o analista seleciona três e justifica: manda as chaves e o texto, a seleção some e o aviso aparece", async () => {
+        podeFechar.valor = false;
+        doBackend(comCampo);
+        justificarLinhas.mockResolvedValue({
+          ok: true,
+          dados: { processadas: 3, ignoradas: 0, porMotivo: { naoEncontrada: 0, naoDiverge: 0, repetida: 0, aprovada: 0 }, loteId: "l1" },
+        });
+        const user = userEvent.setup();
+        render(<ConciliacaoPage />);
+
+        const [a, b, c] = await caixas();
+        await user.click(a);
+        await user.click(b);
+        await user.click(c);
+        await user.click(within(faixa()).getByRole("button", { name: "Justificar as 3 linhas selecionadas" }));
+        await user.type(within(faixa()).getByRole("textbox", { name: "Motivo da justificativa" }), "Juros do mês.");
+        carregarConciliacao.mockClear();
+        await user.click(within(faixa()).getByRole("button", { name: "Justificar" }));
+
+        expect(justificarLinhas).toHaveBeenCalledWith(BANCO, expect.arrayContaining([expect.stringMatching(/^b:/)]), "Juros do mês.");
+        expect(justificarLinhas.mock.calls[0][1]).toHaveLength(3);
+        await waitFor(() => expect(carregarConciliacao).toHaveBeenCalled());
+        expect(screen.queryByRole("region", { name: "Linhas selecionadas" })).not.toBeInTheDocument();
+        expect(screen.getByText("3 linhas justificadas.")).toHaveAttribute("role", "status");
+      });
+
+      it("diz quais ficaram de fora e por quê", async () => {
+        doBackend(comCampo);
+        justificarLinhas.mockResolvedValue({
+          ok: true,
+          dados: { processadas: 1, ignoradas: 2, porMotivo: { naoEncontrada: 0, naoDiverge: 1, repetida: 0, aprovada: 1 }, loteId: "l1" },
+        });
+        const user = userEvent.setup();
+        render(<ConciliacaoPage />);
+
+        await user.click((await caixas())[0]);
+        await user.click(within(faixa()).getByRole("button", { name: "Justificar a linha selecionada" }));
+        await user.type(within(faixa()).getByRole("textbox", { name: "Motivo da justificativa" }), "Motivo.");
+        await user.click(within(faixa()).getByRole("button", { name: "Justificar" }));
+
+        expect(await screen.findByText("1 linha justificada. 2 ficaram de fora: 1 já aprovada, 1 não diverge mais.")).toBeInTheDocument();
+      });
+
+      it("o 404 da rota que ainda não existe esconde o botão e diz por quê", async () => {
+        doBackend(comCampo);
+        justificarLinhas.mockResolvedValue({ ok: false, status: 404, erro: "Justificar várias linhas de uma vez ainda não está disponível.", indisponivel: true });
+        const user = userEvent.setup();
+        render(<ConciliacaoPage />);
+
+        await user.click((await caixas())[0]);
+        await user.click(within(faixa()).getByRole("button", { name: "Justificar a linha selecionada" }));
+        await user.type(within(faixa()).getByRole("textbox", { name: "Motivo da justificativa" }), "Motivo.");
+        await user.click(within(faixa()).getByRole("button", { name: "Justificar" }));
+
+        expect(await screen.findByText("Justificar várias linhas de uma vez ainda não está disponível.")).toBeInTheDocument();
+        expect(within(faixa()).queryByRole("button", { name: /^Justificar/ })).not.toBeInTheDocument();
+      });
+
+      it("a demonstração (mock) não tem o botão", async () => {
+        buscarConciliacao.mockReturnValue({ ...comCampo, linhas: comCampo.linhas.map((linha) => ({ ...linha, chave: undefined })) });
+        const user = userEvent.setup();
+        render(<ConciliacaoPage />);
+
+        await user.click((await caixas())[0]);
+        expect(within(faixa()).queryByRole("button", { name: /^Justificar/ })).not.toBeInTheDocument();
+      });
+
+      it("na rodada antiga, não tem o botão", async () => {
+        doBackend(comCampo, { rodada: { ...RODADA_2, numero: 1 } });
+        const user = userEvent.setup();
+        render(<ConciliacaoPage />);
+
+        await user.click((await caixas())[0]);
+        expect(within(faixa()).queryByRole("button", { name: /^Justificar/ })).not.toBeInTheDocument();
+      });
+
+      it("com o mês fechado, não tem o botão", async () => {
+        doBackend(comCampo, {
+          fechamento: { competencia: "2026-09", estado: "fechado", ressalva: null, fechadoPor: "Maria Financeiro", fechadoEm: "2026-10-06T15:20:00Z", reabertoPor: null, reabertoEm: null },
+        });
+        const user = userEvent.setup();
+        render(<ConciliacaoPage />);
+
+        await user.click((await caixas())[0]);
+        expect(within(faixa()).queryByRole("button", { name: /^Justificar/ })).not.toBeInTheDocument();
+      });
+
+      it("o admin com aguardando selecionadas vê justificar e aprovar", async () => {
+        const pendente: Decisao = { ...decisao("justificada"), situacao: "pendente" };
+        doBackend({ ...comCampo, linhas: comCampo.linhas.map((linha) => (linha.id === "lc-2" ? { ...linha, decisao: pendente } : linha)) });
+        const user = userEvent.setup();
+        render(<ConciliacaoPage />);
+
+        await user.click(await screen.findByRole("checkbox", { name: "Selecionar: 04/09 Boleto Aço Norte Bobinas" }));
+        expect(within(faixa()).getByRole("button", { name: "Justificar a linha selecionada" })).toBeInTheDocument();
+        expect(within(faixa()).getByRole("button", { name: "Aprovar a justificativa selecionada" })).toBeInTheDocument();
+        await user.click(within(faixa()).getByRole("button", { name: "Justificar a linha selecionada" }));
+        expect(within(faixa()).getByText(/1 das selecionadas já tem justificativa; a nova substitui a de antes, menos onde/)).toBeInTheDocument();
       });
     });
 
@@ -2443,8 +2615,9 @@ describe("ConciliacaoPage", () => {
       render(<ConciliacaoPage />);
 
       await screen.findByRole("button", { name: "Tarifa TED" });
-      // o anúncio já está montado, vazio: a primeira marcação também é lida
-      const anuncio = screen.getByRole("status");
+      // o anúncio já está montado, vazio: a primeira marcação também é lida (o primeiro status; o segundo é o do lote, #473)
+      const [anuncio, avisoDoLote] = screen.getAllByRole("status");
+      expect(avisoDoLote).toBeEmptyDOMElement();
       expect(anuncio).toBeEmptyDOMElement();
       await user.click(caixa("05/09 Tarifa pacote de serviços"));
       expect(anuncio).toHaveTextContent(/^1 linha selecionada\. Falta R\$\s89,90 para zerar\. Sobra no sistema\.$/);

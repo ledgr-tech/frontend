@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import type { LinhaComparacao } from "@/lib/mock-data";
-import { CartaoLancamento, dadosDoLancamento } from "./cartao-lancamento";
+import { CartaoLancamento, dadosDoLancamento, juntoComOutras } from "./cartao-lancamento";
 
 const LINHA: LinhaComparacao = {
   id: "lc-1",
@@ -190,5 +190,15 @@ describe("dadosDoLancamento", () => {
 
   it("marca a explicação que veio da IA", () => {
     expect(dadosDoLancamento({ ...LINHA, explicacaoPorIa: true }, 1, [LINHA]).geradaPorIa).toBe(true);
+  });
+});
+
+describe("juntoComOutras (#473)", () => {
+  it("diz quantas outras vieram no lote; sozinha ou sem lote, nada", () => {
+    expect(juntoComOutras({ loteTamanho: 2 })).toBe("Justificada junto com outra linha");
+    expect(juntoComOutras({ loteTamanho: 5 })).toBe("Justificada junto com outras 4 linhas");
+    expect(juntoComOutras({ loteTamanho: 1 })).toBeNull();
+    expect(juntoComOutras({})).toBeNull();
+    expect(juntoComOutras(null)).toBeNull();
   });
 });

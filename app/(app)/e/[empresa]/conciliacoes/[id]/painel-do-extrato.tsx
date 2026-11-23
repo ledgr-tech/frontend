@@ -57,6 +57,8 @@ export type PropsDoPainel = {
   /** Devolvem o motivo de não ter gravado, ou null. */
   onJustificar: (texto: string) => Promise<string | null>;
   onAprovar: () => Promise<string | null>;
+  /** Aprova todas as do lote da linha que ainda aguardam (backend #237); sem ela (a vitrine da landing), sem o botão. */
+  onAprovarLote?: () => Promise<string | null>;
   /** O motivo é opcional: vazio vai sem texto. */
   onRejeitar: (motivo: string) => Promise<string | null>;
   onDesfazer: () => Promise<string | null>;
@@ -93,6 +95,7 @@ function QuadroDoLancamento({
   podeAprovar,
   onJustificar,
   onAprovar,
+  onAprovarLote,
   onRejeitar,
   onDesfazer,
   onDesfazerAprovacao,
@@ -309,6 +312,7 @@ function QuadroDoLancamento({
               {dados.nota && (
                 <div className="comp-nota">
                   <strong>{dados.nota.titulo}</strong>
+                  {dados.nota.lote && <span className="espia-aviso">{dados.nota.lote}</span>}
                   {aprovada && (
                     <span className="espia-aviso">
                       {`Aprovada por ${aprovada.aprovadaPor}${aprovada.aprovadaEm ? ` em ${formatarDataHora(aprovada.aprovadaEm)}` : ""}`}
@@ -440,6 +444,17 @@ function QuadroDoLancamento({
             >
               Aprovar
             </button>
+            {acoes.aprovarLote && onAprovarLote && (
+              <button
+                type="button"
+                className="btn btn-secondary"
+                disabled={enviando}
+                aria-busy={enviando || undefined}
+                onClick={() => void enviar(onAprovarLote)}
+              >
+                {`Aprovar as ${(linha?.decisao?.loteTamanho ?? 0).toLocaleString("pt-BR")} do lote`}
+              </button>
+            )}
             <button type="button" className="btn btn-secondary" disabled={enviando} onClick={() => abrirCampo("rejeitar")}>
               Rejeitar
             </button>

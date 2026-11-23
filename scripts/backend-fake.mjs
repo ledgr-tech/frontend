@@ -506,8 +506,13 @@ function linhasDoBanco(b, bancoId) {
 
 const rodadaDe = (b, bancoId) => b.execucoes.filter((e) => e.extrato_banco_id === bancoId).length;
 
+// O lote de justificativas (backend #237). LOTE_DE_JUSTIFICATIVAS=0 é a produção de antes: a rota responde o
+// 404 genérico do FastAPI e a decisão não traz lote_id/lote_tamanho.
+const LOTE = process.env.LOTE_DE_JUSTIFICATIVAS !== "0";
+const camposDoLote = (lote) => (LOTE ? { lote_id: lote?.id ?? null, lote_tamanho: lote?.tamanho ?? null } : {});
+
 /** Aplica uma decisao; devolve { status, corpo }. */
-function decidir(b, eu, bancoId, chave, tipo, texto, em = agora()) {
+function decidir(b, eu, bancoId, chave, tipo, texto, em = agora(), lote = null) {
   const banco = b.extratos.get(bancoId);
   if (!banco) return { status: 404, corpo: { detail: "Conciliação não encontrada." } };
   if (!linhasDoBanco(b, bancoId).some((i) => i.chave === chave)) return { status: 404, corpo: { detail: "Linha não encontrada." } };
@@ -532,17 +537,18 @@ function decidir(b, eu, bancoId, chave, tipo, texto, em = agora()) {
   } else if (tipo === "justificada") {
     if (!texto_) return { status: 422, corpo: { detail: "Escreva a justificativa." } };
     // sem a aprovação (produção), a justificativa nasce valendo, sem situação: como antes do backend #132
+    const base = { tipo, texto: texto_, autor: eu.nome, em, rodada, ...camposDoLote(lote) };
     registro.decisao = !APROVACAO
-      ? { tipo, texto: texto_, autor: eu.nome, em, rodada }
+      ? base
       : gestao
-      ? { tipo, texto: texto_, autor: eu.nome, em, rodada, situacao: "aprovada", aprovada_por: eu.nome, aprovada_em: em }
-      : { tipo, texto: texto_, autor: eu.nome, em, rodada, situacao: "pendente" };
+      ? { ...base, situacao: "aprovada", aprovada_por: eu.nome, aprovada_em: em }
+      : { ...base, situacao: "pendente" };
   } else if (tipo === "conferencia_desfeita" || tipo === "justificativa_desfeita") {
     registro.decisao = null;
   } else {
     return { status: 422, corpo: { detail: "Tipo de decisão desconhecido." } };
   }
-  registro.eventos.push({ tipo, texto: texto_, autor: eu.nome, em, rodada });
+  registro.eventos.push({ tipo, texto: texto_, autor: eu.nome, em, rodada, ...(LOTE ? { lote_id: lote?.id ?? null } : {}) });
   b.decisoes.set(k, registro);
   return { status: 200, corpo: registro.decisao };
 }
@@ -1137,11 +1143,51 @@ const servidor = createServer(async (req, res) => {
     return json(res, r.status, r.corpo);
   }
 
+  const loteDeDecisoes = rota("POST", /^\/conciliacoes\/([0-9a-f-]{36})\/decisoes\/lote$/i);
+  if (loteDeDecisoes) {
+    if (!LOTE) return json(res, 404, { detail: "Not Found" });
+    const bancoId = loteDeDecisoes[1];
+    const { tipo, texto, chaves } = await corpoJson(req);
+    const texto_ = typeof texto === "string" ? texto.trim() : "";
+    if (tipo !== "justificada") return json(res, 422, { detail: "Tipo de decisão inválido." });
+    if (!texto_) return json(res, 422, { detail: "Escreva a justificativa." });
+    if (texto_.length > 1000) return json(res, 422, { detail: "A justificativa pode ter até 1.000 caracteres." });
+    if (!Array.isArray(chaves) || chaves.length < 1 || chaves.length > 500) return json(res, 422, { detail: "Envie de 1 a 500 chaves." });
+    const banco = b.extratos.get(bancoId);
+    if (!banco) return json(res, 404, { detail: "Conciliação não encontrada." });
+    if (banco.periodoInicio && fechamentoAtivo(b, banco.periodoInicio.slice(0, 7))) {
+      return json(res, 409, { detail: "Este mês está fechado. Reabra o mês para mudar as decisões." });
+    }
+    const linhas = new Map(linhasDoBanco(b, bancoId).map((i) => [i.chave, i]));
+    const motivos = { nao_encontrada: 0, nao_diverge: 0, repetida: 0, aprovada: 0 };
+    const vistas = new Set();
+    const validas = [];
+    for (const chave of chaves) {
+      if (vistas.has(chave)) { motivos.repetida++; continue; }
+      vistas.add(chave);
+      const linha = linhas.get(chave);
+      if (!linha) { motivos.nao_encontrada++; continue; }
+      if (linha.status.startsWith("match_")) { motivos.nao_diverge++; continue; }
+      if (APROVACAO && b.decisoes.get(`${bancoId}|${chave}`)?.decisao?.situacao === "aprovada") { motivos.aprovada++; continue; }
+      validas.push(chave);
+    }
+    const lote = validas.length ? { id: randomUUID(), tamanho: validas.length } : null;
+    const em = agora();
+    for (const chave of validas) decidir(b, eu, bancoId, chave, "justificada", texto_, em, lote);
+    return json(res, 200, { processadas: validas.length, ignoradas: chaves.length - validas.length,
+      ignoradas_por_motivo: motivos, lote_id: lote?.id ?? null });
+  }
+
   if (rota("POST", "/justificativas/lote")) {
     if (!gestao) return proibido("Só o admin ou o gestor aprovam justificativas.");
-    const { acao, competencia, itens: alvos, motivo } = await corpoJson(req);
+    const { acao, competencia, itens: alvos, motivo, lote_id, extrato_banco_id } = await corpoJson(req);
     if (acao !== "aprovar" && acao !== "rejeitar") return json(res, 422, { detail: "Ação inválida." });
-    const chaves = alvos
+    if (!lote_id !== !extrato_banco_id) return json(res, 422, { detail: "lote_id e extrato_banco_id vão juntos." });
+    const chaves = lote_id
+      ? [...b.decisoes.entries()]
+          .filter(([k, r]) => k.startsWith(`${extrato_banco_id}|`) && r.decisao?.lote_id === lote_id && r.decisao.situacao === "pendente")
+          .map(([k]) => k)
+      : alvos
       ? alvos.map((i) => `${i.extrato_banco_id}|${i.chave}`)
       : [...b.decisoes.keys()].filter((k) => b.extratos.get(k.split("|")[0])?.periodoInicio?.startsWith(competencia));
     let processadas = 0;

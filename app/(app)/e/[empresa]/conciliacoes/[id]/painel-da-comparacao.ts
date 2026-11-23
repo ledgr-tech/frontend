@@ -9,6 +9,8 @@ export type AcoesDoPainel = {
   justificar: boolean;
   /** "Aprovar" e "Rejeitar" a justificativa que espera: só o admin e o gestor. */
   aprovar: boolean;
+  /** "Aprovar as N do lote": a que espera e veio num lote de mais de uma linha (backend #237). */
+  aprovarLote: boolean;
   /** O analista vê que a justificativa espera, e não ganha botão. */
   avisoDeAprovacao: boolean;
   /** "Desfazer justificativa": a que espera aprovação, ou a que vale sem ter sido aprovada por alguém. */
@@ -42,6 +44,7 @@ export function acoesDoPainel({
   return {
     justificar: podeDecidir && (situacao === "a_conferir" || situacao === "conferida"),
     aprovar: podeDecidir && podeAprovar && aguardando,
+    aprovarLote: podeDecidir && podeAprovar && aguardando && Boolean(linha.decisao?.loteId) && (linha.decisao?.loteTamanho ?? 0) > 1,
     avisoDeAprovacao: aguardando && !podeAprovar,
     desfazer: podeDecidir && (aguardando || (situacao === "justificada" && !aprovada)),
     desfazerAprovacao: aprovada && souQuemAprovou,

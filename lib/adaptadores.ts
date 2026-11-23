@@ -73,19 +73,23 @@ export type GrupoAPI = {
  * A decisão como o backend manda: igual a `Decisao`, menos os campos da aprovação (backend #132 e #174),
  * que vêm em snake_case. `situacao` é `pendente` ou `aprovada`; a rejeitada não existe aqui.
  */
-export type DecisaoAPI = Omit<Decisao, "aprovadaPor" | "aprovadaEm" | "podeDesfazerAprovacao"> & {
+export type DecisaoAPI = Omit<Decisao, "aprovadaPor" | "aprovadaEm" | "podeDesfazerAprovacao" | "loteId" | "loteTamanho"> & {
   aprovada_por?: string | null;
+  lote_id?: string | null;
+  lote_tamanho?: number | null;
   aprovada_em?: string | null;
   pode_desfazer_aprovacao?: boolean;
 };
 
 export function adaptarDecisao(api: DecisaoAPI): Decisao {
-  const { aprovada_por, aprovada_em, pode_desfazer_aprovacao, ...decisao } = api;
+  const { aprovada_por, aprovada_em, pode_desfazer_aprovacao, lote_id, lote_tamanho, ...decisao } = api;
   return {
     ...decisao,
     ...(aprovada_por ? { aprovadaPor: aprovada_por } : {}),
     ...(aprovada_em ? { aprovadaEm: aprovada_em } : {}),
     ...(typeof pode_desfazer_aprovacao === "boolean" ? { podeDesfazerAprovacao: pode_desfazer_aprovacao } : {}),
+    ...(lote_id ? { loteId: lote_id } : {}),
+    ...(typeof lote_tamanho === "number" ? { loteTamanho: lote_tamanho } : {}),
   };
 }
 

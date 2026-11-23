@@ -4,8 +4,10 @@ import type { Papel } from "@/lib/papel";
 import type { ExecucaoAPI, ItemConciliacaoAPI, ItemExtratoAPI } from "@/lib/adaptadores";
 import { ErroBackend } from "@/lib/backend";
 import {
+  aprovarLote,
   aprovarPendentes,
   decidirLinhas,
+  justificarLinhas,
   rejeitarPendentes,
   carregarConciliacao,
   carregarConciliacaoEmRodadas,
@@ -2238,6 +2240,83 @@ describe("aprovar e rejeitar justificativas (backend #132)", () => {
 
     expect(await rejeitarPendentes("2026-09")).toEqual({ ok: false, status: 403, erro: SO_O_GESTOR_APROVA });
     expect(await decidirLinhas(BANCO_RECENTE, ["lb-1"], "aprovar")).toEqual({ ok: false, status: 403, erro: SO_O_GESTOR_APROVA });
+    expect(chamarBackend).not.toHaveBeenCalled();
+  });
+});
+
+describe("justificar em lote (#473)", () => {
+  const LOTE = "7d2e9b1a-4c3f-4e8a-9b0d-1f2e3a4b5c6d";
+  beforeEach(() => {
+    chamarBackend.mockReset();
+    conta.papel = "admin";
+  });
+
+  it("manda as chaves e o texto aparado e adapta a resposta", async () => {
+    chamarBackend.mockResolvedValue({
+      processadas: 3,
+      ignoradas: 2,
+      ignoradas_por_motivo: { nao_encontrada: 1, nao_diverge: 0, repetida: 0, aprovada: 1 },
+      lote_id: LOTE,
+    });
+
+    expect(await justificarLinhas(BANCO_RECENTE, ["a", "b", "c", "d", "e"], "  Juros do mês.  ")).toEqual({
+      ok: true,
+      dados: { processadas: 3, ignoradas: 2, porMotivo: { naoEncontrada: 1, naoDiverge: 0, repetida: 0, aprovada: 1 }, loteId: LOTE },
+    });
+    expect(chamarBackend).toHaveBeenLastCalledWith(`/conciliacoes/${BANCO_RECENTE}/decisoes/lote`, {
+      method: "POST",
+      corpo: { tipo: "justificada", texto: "Juros do mês.", chaves: ["a", "b", "c", "d", "e"] },
+    });
+  });
+
+  it("o analista também justifica em lote", async () => {
+    conta.papel = "analista";
+    chamarBackend.mockResolvedValue({ processadas: 0, ignoradas: 1, ignoradas_por_motivo: { nao_encontrada: 1, nao_diverge: 0, repetida: 0, aprovada: 0 }, lote_id: null });
+    expect(await justificarLinhas(BANCO_RECENTE, ["a"], "Motivo.")).toMatchObject({ ok: true, dados: { processadas: 0, loteId: null } });
+  });
+
+  it("não manda ao backend chave fora do formato, lote grande, texto vazio ou longo", async () => {
+    expect(await justificarLinhas(BANCO_RECENTE, [7 as unknown as string], "Motivo.")).toMatchObject({ status: 422 });
+    expect(await justificarLinhas(BANCO_RECENTE, Array.from({ length: 501 }, (_, i) => `c${i}`), "Motivo.")).toMatchObject({ status: 422 });
+    expect(await justificarLinhas(BANCO_RECENTE, ["a"], "   ")).toEqual({ ok: false, status: 422, erro: "Escreva o motivo da justificativa." });
+    expect(await justificarLinhas(BANCO_RECENTE, ["a"], "x".repeat(1001))).toEqual({
+      ok: false,
+      status: 422,
+      erro: "A justificativa pode ter até 1.000 caracteres.",
+    });
+    expect(await justificarLinhas("../fechamentos", ["a"], "Motivo.")).toMatchObject({ status: 404 });
+    expect(chamarBackend).not.toHaveBeenCalled();
+  });
+
+  it("o 404 genérico é a rota que ainda não existe; o outro, a conciliação que mudou", async () => {
+    chamarBackend.mockRejectedValueOnce(new ErroBackend(404, "Not Found"));
+    expect(await justificarLinhas(BANCO_RECENTE, ["a"], "Motivo.")).toEqual({ ok: false, status: 404, erro: "Justificar várias linhas de uma vez ainda não está disponível.", indisponivel: true });
+
+    chamarBackend.mockRejectedValueOnce(new ErroBackend(404, "Conciliação não encontrada."));
+    expect(await justificarLinhas(BANCO_RECENTE, ["a"], "Motivo.")).toEqual({
+      ok: false,
+      status: 404,
+      erro: "Esta linha mudou: a conciliação foi refeita depois que a tela abriu.",
+    });
+  });
+
+  it("o 409 do mês fechado chega com o texto do backend", async () => {
+    chamarBackend.mockRejectedValue(new ErroBackend(409, "Este mês está fechado."));
+    expect(await justificarLinhas(BANCO_RECENTE, ["a"], "Motivo.")).toEqual({ ok: false, status: 409, erro: "Este mês está fechado." });
+  });
+
+  it("aprovar o lote manda lote_id e extrato_banco_id, e recusa o analista antes do backend", async () => {
+    chamarBackend.mockResolvedValue({ processadas: 4, ignoradas: 1 });
+    expect(await aprovarLote(BANCO_RECENTE, LOTE)).toEqual({ ok: true, dados: { processadas: 4, ignoradas: 1 } });
+    expect(chamarBackend).toHaveBeenLastCalledWith("/justificativas/lote", {
+      method: "POST",
+      corpo: { acao: "aprovar", lote_id: LOTE, extrato_banco_id: BANCO_RECENTE },
+    });
+
+    chamarBackend.mockReset();
+    expect(await aprovarLote(BANCO_RECENTE, "lote-x")).toMatchObject({ status: 404 });
+    conta.papel = "analista";
+    expect(await aprovarLote(BANCO_RECENTE, LOTE)).toEqual({ ok: false, status: 403, erro: SO_O_GESTOR_APROVA });
     expect(chamarBackend).not.toHaveBeenCalled();
   });
 });

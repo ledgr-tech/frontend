@@ -68,6 +68,9 @@ export type Decisao = {
   aprovadaEm?: string;
   /** Do backend #174: se quem está logado pode desfazer a aprovação agora. Sem o campo, a tela decide pelo nome. */
   podeDesfazerAprovacao?: boolean;
+  /** Do backend #237: a justificativa em lote e quantas linhas o lote tinha; ausentes fora de um lote. */
+  loteId?: string;
+  loteTamanho?: number;
 };
 
 export type EventoDecisao = {
