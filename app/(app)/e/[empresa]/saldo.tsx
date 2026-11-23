@@ -1,4 +1,4 @@
-import type { SaldoDoExtrato } from "@/lib/adaptadores";
+import type { DiferencaDoSaldo, SaldoDoExtrato } from "@/lib/adaptadores";
 import { formatarMoeda } from "@/lib/mock-data";
 
 /**
@@ -55,27 +55,55 @@ export function SaldoDaFolha({
   );
 }
 
-/** A faixa do saldo no topo da comparação: inicial, final e a data, do extrato do banco. */
-export function FaixaDoSaldo({ saldo }: { saldo: SaldoDoExtrato | null | undefined }) {
-  if (saldo === undefined) return null;
+/** A diferença já calculada pelo backend; a falta de saldo é explicada na própria folha. */
+export function DiferencaDosSaldos({ diferenca }: { diferenca?: DiferencaDoSaldo }) {
+  if (diferenca === undefined) return null;
+  if (diferenca.valor === null) {
+    return diferenca.motivo === "datas_diferentes" ? <span className="saldo-diferenca">Saldos em datas diferentes</span> : null;
+  }
+  return (
+    <span className="saldo-diferenca">
+      {diferenca.valor === 0 ? "Saldos finais batem" : <>Diferença <strong>{formatarMoeda(diferenca.valor)}</strong></>}
+    </span>
+  );
+}
+
+/** Os finais dos dois extratos no celular; sem o campo do sistema, mantém a faixa do banco. */
+export function FaixaDoSaldo({ banco, sistema, diferenca }: {
+  banco: SaldoDoExtrato | null | undefined;
+  sistema?: SaldoDoExtrato | null;
+  diferenca?: DiferencaDoSaldo;
+}) {
+  if (sistema !== undefined) {
+    return (
+      <section className="saldo-faixa saldo-faixa-celular saldo-faixa-dupla" aria-label="Saldos dos extratos">
+        <dl>
+          {banco !== undefined && <div><dt>Banco</dt><dd><SaldoDaFolha saldo={banco} momento="final" /></dd></div>}
+          <div><dt>Sistema</dt><dd><SaldoDaFolha saldo={sistema} momento="final" /></dd></div>
+        </dl>
+        <DiferencaDosSaldos diferenca={diferenca} />
+      </section>
+    );
+  }
+  if (banco === undefined) return null;
   return (
     <section className="saldo-faixa saldo-faixa-celular" aria-label="Saldo do extrato do banco">
-      {saldo === null ? (
+      {banco === null ? (
         <p>{SEM_SALDO}</p>
       ) : (
         <dl>
           <div>
             <dt>Saldo inicial</dt>
             {/* com linhas não lidas a soma sairia incompleta: o backend não calcula, e o front também não */}
-            <dd>{saldo.inicial === null ? "depende das linhas não lidas" : formatarMoeda(saldo.inicial)}</dd>
+            <dd>{banco.inicial === null ? "depende das linhas não lidas" : formatarMoeda(banco.inicial)}</dd>
           </div>
           <div>
             <dt>Saldo final</dt>
-            <dd>{formatarMoeda(saldo.final)}</dd>
+            <dd>{formatarMoeda(banco.final)}</dd>
           </div>
           <div>
             <dt>Data do saldo</dt>
-            <dd>{data(saldo.data)}</dd>
+            <dd>{data(banco.data)}</dd>
           </div>
         </dl>
       )}

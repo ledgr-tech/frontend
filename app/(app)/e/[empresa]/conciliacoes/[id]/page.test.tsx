@@ -1008,6 +1008,91 @@ describe("ConciliacaoPage", () => {
     expect(screen.queryByText(/Saldo inicial|Saldo final|Saldo não informado no arquivo/)).not.toBeInTheDocument();
   });
 
+  describe("o saldo do sistema e a diferença entre as folhas", () => {
+    beforeEach(() => buscarConciliacao.mockReturnValue({
+      ...conciliacaoMista,
+      saldo: { inicial: 100, final: 7467.15, data: "2026-10-01" },
+      saldoSistema: { inicial: 1250.75, final: 7454.81, data: "2026-10-01" },
+      diferencaSaldo: { valor: 12.34, motivo: null },
+    }));
+
+    it("passa os dois saldos e a diferença para a faixa do celular", async () => {
+      render(<ConciliacaoPage />);
+      const faixa = await screen.findByRole("region", { name: "Saldos dos extratos" });
+      expect(faixa).toHaveClass("saldo-faixa-celular");
+      expect(faixa).toHaveTextContent(/BancoSaldo final em 01\/10\/2026\s*R\$\s*7\.467,15/);
+      expect(faixa).toHaveTextContent(/SistemaSaldo final em 01\/10\/2026\s*R\$\s*7\.454,81/);
+      expect(faixa).toHaveTextContent(/Diferença\s*R\$\s*12,34/);
+    });
+
+    it("mostra o saldo inicial no cabeçalho do sistema como descrição acessível", async () => {
+      render(<ConciliacaoPage />);
+      const sistema = await screen.findByRole("columnheader", { name: "Sistema de gestão" });
+      expect(within(sistema).getByText("Saldo inicial")).toBeInTheDocument();
+      expect(sistema).toHaveTextContent(/R\$\s*1\.250,75/);
+      expect(sistema).toHaveAttribute("aria-describedby", "saldo-inicial-do-sistema");
+      expect(sistema).toHaveAccessibleDescription(/Saldo inicial\s*R\$\s*1\.250,75/);
+    });
+
+    it("mostra o saldo final do sistema e a diferença no eixo, mesmo sem linhas no filtro", async () => {
+      const user = userEvent.setup();
+      render(<ConciliacaoPage />);
+      const tabela = await screen.findByRole("table");
+      const pe = tabela.querySelector("tfoot")!;
+      const sistema = pe.querySelector(".folha-sistema")!;
+      expect(sistema).toHaveTextContent(/Saldo final em 01\/10\/2026\s*R\$\s*7\.454,81/);
+      const eixo = within(pe).getByRole("cell", { name: /Diferença/ });
+      expect(eixo).toHaveClass("folha-fora");
+      expect(eixo).not.toHaveAttribute("aria-hidden");
+      expect(eixo.querySelector("strong")).toHaveTextContent(/R\$\s*12,34/);
+
+      await user.click(screen.getByRole("button", { name: "Justificadas (0)" }));
+      expect(tabela.querySelector("tbody")).toBeEmptyDOMElement();
+      expect(sistema).toBeInTheDocument();
+      expect(eixo).toBeInTheDocument();
+    });
+
+    it("sem saldoSistema, deixa a coluna como no backend antigo", async () => {
+      buscarConciliacao.mockReturnValue({ ...conciliacaoMista, saldo: { inicial: 100, final: 7467.15, data: "2026-10-01" } });
+      render(<ConciliacaoPage />);
+      const sistema = await screen.findByRole("columnheader", { name: "Sistema de gestão" });
+      expect(sistema).not.toHaveTextContent(/Saldo/);
+      const pe = screen.getByRole("table").querySelector("tfoot")!;
+      expect(pe.querySelector(".folha-sistema")).toBeEmptyDOMElement();
+      expect(pe.children[0].children[2]).toHaveAttribute("aria-hidden", "true");
+    });
+
+    it("com saldoSistema null, avisa só no pé do sistema e deixa o eixo vazio", async () => {
+      buscarConciliacao.mockReturnValue({ ...conciliacaoMista, saldoSistema: null, diferencaSaldo: { valor: null, motivo: "sem_saldo_sistema" } });
+      render(<ConciliacaoPage />);
+      const sistema = await screen.findByRole("columnheader", { name: "Sistema de gestão" });
+      expect(sistema).not.toHaveTextContent(/Saldo/);
+      const pe = screen.getByRole("table").querySelector("tfoot")!;
+      expect(pe.querySelector(".folha-sistema")).toHaveTextContent("Saldo não informado no arquivo");
+      expect(pe.children[0].children[2]).toBeEmptyDOMElement();
+      expect(pe.children[0].children[2]).toHaveAttribute("aria-hidden", "true");
+    });
+
+    it("mantém o rodapé quando só o sistema tem o campo de saldo", async () => {
+      buscarConciliacao.mockReturnValue({ ...conciliacaoMista, saldoSistema: { inicial: null, final: 0, data: "2026-10-01" } });
+      render(<ConciliacaoPage />);
+      const pe = (await screen.findByRole("table")).querySelector("tfoot")!;
+      expect(pe).toBeInTheDocument();
+      expect(pe.querySelector(".folha-banco")).toBeEmptyDOMElement();
+      expect(pe.querySelector(".folha-sistema")).toHaveTextContent(/Saldo final em 01\/10\/2026\s*R\$\s*0,00/);
+    });
+
+    it.each([
+      { diferenca: { valor: 0, motivo: null }, texto: "Saldos finais batem" },
+      { diferenca: { valor: null, motivo: "datas_diferentes" as const }, texto: "Saldos em datas diferentes" },
+    ])("torna o eixo acessível quando mostra $texto", async ({ diferenca, texto }) => {
+      buscarConciliacao.mockReturnValue({ ...conciliacaoMista, saldoSistema: { inicial: 0, final: 100, data: "2026-10-01" }, diferencaSaldo: diferenca });
+      render(<ConciliacaoPage />);
+      const pe = (await screen.findByRole("table")).querySelector("tfoot")!;
+      expect(within(pe).getByRole("cell", { name: texto })).not.toHaveAttribute("aria-hidden");
+    });
+  });
+
   describe("the report grouped by category", () => {
     it("counts the five categories, with the money each leaves open", async () => {
       buscarConciliacao.mockReturnValue(conciliacaoMista);
