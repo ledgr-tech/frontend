@@ -1350,6 +1350,85 @@ async function decidirEmLote(corpo: Record<string, unknown>): Promise<Resultado<
   }
 }
 
+/** O backend antes do #237 responde o 404 genérico do FastAPI ("Not Found") à rota do lote. */
+export const LOTE_INDISPONIVEL = "Justificar várias linhas de uma vez ainda não está disponível.";
+
+export type JustificadasEmLote = {
+  processadas: number;
+  ignoradas: number;
+  porMotivo: { naoEncontrada: number; naoDiverge: number; repetida: number; aprovada: number };
+  loteId: string | null;
+};
+
+type JustificadasEmLoteAPI = {
+  processadas: number;
+  ignoradas: number;
+  ignoradas_por_motivo?: { nao_encontrada?: number; nao_diverge?: number; repetida?: number; aprovada?: number };
+  lote_id: string | null;
+};
+
+/**
+ * Justifica de uma vez as linhas marcadas na comparação, com um texto só (`POST
+ * /conciliacoes/{id}/decisoes/lote`, backend #237). Todos os papéis justificam (decisão de 21/10). As
+ * linhas que não servem o backend conta em `ignoradas`, por motivo, e responde 200 mesmo sem nenhuma válida.
+ */
+export async function justificarLinhas(
+  extratoBancoId: string,
+  chaves: string[],
+  texto: string,
+): Promise<Resultado<JustificadasEmLote> | (Falha & { indisponivel: true })> {
+  if (!pareceUuid(extratoBancoId)) return { ok: false, status: 404, erro: "Conciliação não encontrada." };
+  // Server Action é endpoint público: o mesmo formato que o backend aceita
+  const chavesValidas =
+    Array.isArray(chaves) &&
+    chaves.length >= 1 &&
+    chaves.length <= MAXIMO_ITENS_DO_LOTE &&
+    chaves.every((chave) => typeof chave === "string" && chave.length >= 1 && chave.length <= 64);
+  if (!chavesValidas) return { ok: false, status: 422, erro: "Marque de 1 a 500 linhas." };
+  const motivo = typeof texto === "string" ? texto.trim() : "";
+  if (!motivo) return { ok: false, status: 422, erro: "Escreva o motivo da justificativa." };
+  if (motivo.length > TAMANHO_MAXIMO_DO_MOTIVO) {
+    return { ok: false, status: 422, erro: "A justificativa pode ter até 1.000 caracteres." };
+  }
+  try {
+    const resposta = await chamarBackend<JustificadasEmLoteAPI>(`/conciliacoes/${extratoBancoId}/decisoes/lote`, {
+      method: "POST",
+      corpo: { tipo: "justificada", texto: motivo, chaves },
+    });
+    const motivos = resposta.ignoradas_por_motivo ?? {};
+    return {
+      ok: true,
+      dados: {
+        processadas: resposta.processadas,
+        ignoradas: resposta.ignoradas,
+        porMotivo: {
+          naoEncontrada: motivos.nao_encontrada ?? 0,
+          naoDiverge: motivos.nao_diverge ?? 0,
+          repetida: motivos.repetida ?? 0,
+          aprovada: motivos.aprovada ?? 0,
+        },
+        loteId: resposta.lote_id ?? null,
+      },
+    };
+  } catch (erro) {
+    if (erro instanceof ErroBackend && erro.status === 404) {
+      return erro.detalhe === "Not Found"
+        ? { ok: false, status: 404, erro: LOTE_INDISPONIVEL, indisponivel: true }
+        : { ok: false, status: 404, erro: LINHA_MUDOU };
+    }
+    return traduzir(erro);
+  }
+}
+
+/**
+ * Aprova todas as justificativas de um lote que ainda esperam aprovação, mesmo as de outras páginas
+ * (`POST /justificativas/lote` com `lote_id` e `extrato_banco_id`, backend #237).
+ */
+export async function aprovarLote(extratoBancoId: string, loteId: string): Promise<Resultado<DecididasEmLote>> {
+  if (!pareceUuid(extratoBancoId) || !pareceUuid(loteId)) return { ok: false, status: 404, erro: "Conciliação não encontrada." };
+  return decidirEmLote({ acao: "aprovar", lote_id: loteId, extrato_banco_id: extratoBancoId });
+}
+
 export type DadosDoRelatorio =
   /** O mês não está fechado agora: nunca foi, ou foi reaberto. */
   | { fechamento: null }
