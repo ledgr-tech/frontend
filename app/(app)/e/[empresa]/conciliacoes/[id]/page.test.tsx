@@ -2526,8 +2526,9 @@ describe("ConciliacaoPage", () => {
       render(<ConciliacaoPage />);
 
       await screen.findByRole("button", { name: "Tarifa TED" });
-      // o anúncio já está montado, vazio: a primeira marcação também é lida
-      const anuncio = screen.getByRole("status");
+      // o anúncio já está montado, vazio: a primeira marcação também é lida (o primeiro status; o segundo é o do lote, #473)
+      const [anuncio, avisoDoLote] = screen.getAllByRole("status");
+      expect(avisoDoLote).toBeEmptyDOMElement();
       expect(anuncio).toBeEmptyDOMElement();
       await user.click(caixa("05/09 Tarifa pacote de serviços"));
       expect(anuncio).toHaveTextContent(/^1 linha selecionada\. Falta R\$\s89,90 para zerar\. Sobra no sistema\.$/);
