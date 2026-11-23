@@ -367,7 +367,7 @@ export const PAGINAS: PaginaDeAjuda[] = [
           "Na faixa da seleção, clique em **Justificar as N linhas selecionadas** e escreva o motivo.",
           "Clique em **Justificar**. A tela diz quantas foram justificadas e, se alguma ficou de fora, por quê.",
         ],
-        nota: "Cada linha guarda a justificativa com o seu nome e o horário, e diz que foi justificada junto com outras. Uma linha que já tinha justificativa recebe a nova. Com o mês fechado ou numa rodada passada, o botão não aparece. Até 500 linhas por vez.",
+        nota: "Cada linha guarda a justificativa com o seu nome e o horário, e diz que foi justificada junto com outras. Uma linha que já tinha justificativa recebe a nova, menos a que já foi aprovada por quem aprova. Com o mês fechado ou numa rodada passada, o botão não aparece. Até 500 linhas por vez.",
       },
       {
         id: "conferir",

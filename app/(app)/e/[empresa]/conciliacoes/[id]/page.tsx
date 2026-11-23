@@ -186,6 +186,7 @@ export default function ConciliacaoPage() {
   // não grava nada, sobrevive ao filtro e começa vazia em outra rodada ou conciliação
   // o resultado do último lote (justificar ou aprovar o lote), num role="status" sempre montado
   const [avisoDoLote, setAvisoDoLote] = useState<string | null>(null);
+  const botaoLimpar = useRef<HTMLButtonElement>(null);
   // a rota do lote respondeu o 404 genérico (backend antes do #237): o botão some até recarregar a página
   const [loteIndisponivel, setLoteIndisponivel] = useState(false);
   const [selecao, setSelecao] = useState<{ de: string; chaves: ReadonlySet<string> }>({ de: "", chaves: new Set() });
@@ -361,7 +362,11 @@ export default function ConciliacaoPage() {
   // trocar de rodada ou de conciliação apaga a seleção, e voltar começa vazio (ajuste no render, o
   // padrão do React para estado que segue outro valor). Uma releitura mantém a rodada na tela até a
   // resposta chegar (useConciliacao não volta a "carregando"), então não apaga nada
-  if (selecao.de !== rodadaAberta) setSelecao({ de: rodadaAberta, chaves: new Set() });
+  if (selecao.de !== rodadaAberta) {
+    setSelecao({ de: rodadaAberta, chaves: new Set() });
+    // o resultado do lote é da rodada em que foi feito
+    setAvisoDoLote(null);
+  }
   const selecionadas = selecao.de === rodadaAberta ? selecao.chaves : new Set<string>();
   // de todas as linhas, não só as do filtro (F3); a que sumiu num recarregar ou foi conciliada sai
   const chavesSelecionadas = limparSelecao(selecionadas, conciliacao.linhas);
@@ -462,9 +467,14 @@ export default function ConciliacaoPage() {
       return null;
     }
     if ("indisponivel" in resposta) {
-      // o formulário some junto com o botão: o texto fica no aviso do lote, uma vez
-      setLoteIndisponivel(true);
-      setAvisoDoLote(resposta.erro);
+      // o formulário some junto com o botão: o texto fica no aviso do lote, uma vez. O foco estava nele (ou já
+      // caiu no body, com o campo desligado no envio): vai ao "Limpar seleção", que fica, só para o teclado
+      const doTeclado = tecladoEm.current >= ponteiroEm.current;
+      flushSync(() => {
+        setLoteIndisponivel(true);
+        setAvisoDoLote(resposta.erro);
+      });
+      if (doTeclado && (document.activeElement === document.body || document.activeElement === null)) botaoLimpar.current?.focus();
       return null;
     }
     if (resposta.status === 401) router.push("/login");
@@ -792,14 +802,14 @@ export default function ConciliacaoPage() {
                 onDecidir={decidirSelecionadas}
               />
             )}
-            <button type="button" className="btn btn-secondary" onClick={() => esvaziarSelecao()}>
+            <button ref={botaoLimpar} type="button" className="btn btn-secondary" onClick={() => esvaziarSelecao()}>
               Limpar seleção
             </button>
           </div>
         )}
 
         {/* sempre montado, como o anúncio da soma: o resultado do lote é dito mesmo com a faixa já fechada */}
-        <p role="status" className={avisoDoLote ? "lote-aviso" : "sr-only"}>
+        <p role="status" className={avisoDoLote ? "espia-aviso" : "sr-only"}>
           {avisoDoLote}
         </p>
 
@@ -1260,7 +1270,12 @@ export default function ConciliacaoPage() {
             onJustificar={(texto) => gravarDecisao(linhaAberta, "justificada", texto)}
             onDesfazer={() => gravarDecisao(linhaAberta, "justificativa_desfeita")}
             onAprovar={() => gravarDecisao(linhaAberta, "justificativa_aprovada")}
-            onAprovarLote={() => aprovarOLote(linhaAberta)}
+            onAprovarLote={async () => {
+              // fecha a janela: com ela aberta (showModal) o resto da página é inerte, e o aviso do lote não seria lido
+              const erro = await aprovarOLote(linhaAberta);
+              if (erro === null) setChaveAberta(null);
+              return erro;
+            }}
             onRejeitar={(motivo) => gravarDecisao(linhaAberta, "justificativa_rejeitada", motivo || undefined)}
             onDesfazerAprovacao={() => gravarDecisao(linhaAberta, "aprovacao_desfeita")}
             onFechar={() => setChaveAberta(null)}

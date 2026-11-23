@@ -43,7 +43,7 @@ describe("JustificarEmLote", () => {
     const user = userEvent.setup();
     render(<JustificarEmLote quantidade={4} jaJustificadas={2} onJustificar={vi.fn()} />);
     await user.click(screen.getByRole("button", { name: "Justificar as 4 linhas selecionadas" }));
-    expect(screen.getByText(/2 das selecionadas já têm justificativa; a nova substitui a de antes\./)).toBeInTheDocument();
+    expect(screen.getByText(/2 das selecionadas já têm justificativa; a nova substitui a de antes, menos onde/)).toBeInTheDocument();
   });
 
   it("o duplo clique manda uma vez só", async () => {

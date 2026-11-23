@@ -102,7 +102,7 @@ export function JustificarEmLote({
           <p id={idNota} className="vg-nota">
             Fica no registro com o seu nome e o horário. Desfazer depois gera um novo registro.
             {jaJustificadas > 0 &&
-              ` ${jaJustificadas === 1 ? "1 das selecionadas já tem" : `${jaJustificadas.toLocaleString("pt-BR")} das selecionadas já têm`} justificativa; a nova substitui a de antes.`}
+              ` ${jaJustificadas === 1 ? "1 das selecionadas já tem" : `${jaJustificadas.toLocaleString("pt-BR")} das selecionadas já têm`} justificativa; a nova substitui a de antes, menos onde a justificativa já foi aprovada por quem aprova.`}
           </p>
           <div className="fech-acoes">
             <button type="submit" className="btn btn-primary" disabled={enviando || acimaDoLimite} aria-busy={enviando || undefined}>

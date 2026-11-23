@@ -1707,6 +1707,8 @@ describe("ConciliacaoPage", () => {
           expect(aprovarLote).toHaveBeenCalledWith(BANCO, LOTE);
           await waitFor(() => expect(carregarConciliacao).toHaveBeenCalled());
           expect(await screen.findByText("5 justificativas aprovadas.")).toBeInTheDocument();
+          // a janela fecha: aberta, o resto da página é inerte e o aviso não seria lido
+          expect(screen.queryByRole("dialog", { name: "Boleto Aço Norte Bobinas" })).not.toBeInTheDocument();
         });
 
         it("com duas, diz 'outra linha'; o analista vê o texto, mas não o botão", async () => {
@@ -2075,7 +2077,7 @@ describe("ConciliacaoPage", () => {
         expect(within(faixa()).getByRole("button", { name: "Justificar a linha selecionada" })).toBeInTheDocument();
         expect(within(faixa()).getByRole("button", { name: "Aprovar a justificativa selecionada" })).toBeInTheDocument();
         await user.click(within(faixa()).getByRole("button", { name: "Justificar a linha selecionada" }));
-        expect(within(faixa()).getByText(/1 das selecionadas já tem justificativa; a nova substitui a de antes./)).toBeInTheDocument();
+        expect(within(faixa()).getByText(/1 das selecionadas já tem justificativa; a nova substitui a de antes, menos onde/)).toBeInTheDocument();
       });
     });
 

@@ -5304,16 +5304,10 @@ html[data-tema="escuro"] .app-shell {
 .fech-erro { flex-basis: 100%; margin: 0; }
 .fech-ressalva-form { flex-basis: 100%; display: flex; flex-direction: column; gap: 8px; max-width: 520px; }
 /* aprovar ou rejeitar várias de uma vez (#208): o motivo da rejeição; na comparação, a faixa e as caixas da seleção (#475) */
-.lote-rejeicao { flex-basis: 100%; display: flex; flex-direction: column; gap: 8px; max-width: 520px; }
-.lote-rejeicao textarea { resize: vertical; }
-.lote-rejeicao .vg-nota { margin: 0; }
-/* justificar as selecionadas (#473): o mesmo formulário em linha, que quebra para a linha de baixo na faixa;
-   a altura nova entra na --reserva-da-faixa pelo ResizeObserver de prenderFaixa */
-.lote-justificativa { flex-basis: 100%; display: flex; flex-direction: column; gap: 8px; max-width: 520px; }
-.lote-justificativa textarea { resize: vertical; }
-.lote-justificativa .vg-nota { margin: 0; }
-/* o resultado do lote, que fica depois que a faixa some */
-.lote-aviso { margin: 0; font-size: var(--texto-nota); color: color-mix(in srgb, var(--color-text) 78%, transparent); }
+/* justificar as selecionadas (#473) é o mesmo formulário em linha, que quebra para baixo na faixa */
+:is(.lote-rejeicao, .lote-justificativa) { flex-basis: 100%; display: flex; flex-direction: column; gap: 8px; max-width: 520px; }
+:is(.lote-rejeicao, .lote-justificativa) textarea { resize: vertical; }
+:is(.lote-rejeicao, .lote-justificativa) .vg-nota { margin: 0; }
 .lote-faixa {
   display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px;
   padding: 10px 14px; border: 1px solid var(--color-divider); border-radius: var(--radius-md);
