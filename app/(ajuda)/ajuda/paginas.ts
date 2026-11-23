@@ -330,10 +330,10 @@ export const PAGINAS: PaginaDeAjuda[] = [
       },
       {
         id: "saldo",
-        titulo: "O saldo do extrato",
-        faz: "O saldo inicial do extrato do banco aparece no topo da coluna do banco e o final, com a data, no pé dela, quando o arquivo traz. No celular, os dois ficam numa faixa acima do resumo.",
-        passos: ["Confira o saldo final com o do internet banking."],
-        nota: "Se há linhas não lidas, o saldo inicial depende delas.",
+        titulo: "Os saldos dos extratos",
+        faz: "Cada coluna mostra o saldo do seu extrato, quando o arquivo traz: o inicial no topo e o final, com a data, no pé. Entre as duas colunas, no pé, aparece a diferença entre os saldos finais do banco e do sistema, ou “Saldos finais batem” quando ela é zero. No celular, os saldos finais e a diferença ficam numa faixa acima do resumo.",
+        passos: ["Confira o saldo final do banco com o do internet banking.", "Se os saldos finais não batem, a diferença mostra quanto falta explicar."],
+        nota: "Se há linhas não lidas, o saldo inicial depende delas. Quando os dois saldos são de datas diferentes, a tela avisa em vez de comparar.",
       },
       {
         id: "filtros",
