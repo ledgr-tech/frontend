@@ -74,6 +74,42 @@ describe("Revisao da importação via IA", () => {
     acoes.recuperar.mockResolvedValue({ ok: true, dados: { extratoId: "e1" } });
   });
 
+  it.each([
+    { saldoFinal: "1234.56", valor: /R\$\s*1\.234,56/ },
+    { saldoFinal: "0.00", valor: /R\$\s*0,00/ },
+    { saldoFinal: "-250.75", valor: /-R\$\s*250,75/ },
+  ])("mostra o saldo final $saldoFinal e a data do arquivo no resumo", ({ saldoFinal, valor }) => {
+    render(<Revisao inicial={{ ...INICIAL, resumo: { ...INICIAL.resumo, saldoFinal, saldoData: "2026-10-15" } }} />);
+    const saldo = resumo().getByText(/Saldo final do arquivo:/);
+    expect(saldo).toHaveTextContent(valor);
+    expect(saldo).toHaveTextContent("em 15/10/2026");
+  });
+
+  it("com saldo final null, avisa que o arquivo não informou saldo", () => {
+    render(<Revisao inicial={{ ...INICIAL, resumo: { ...INICIAL.resumo, saldoFinal: null, saldoData: null } }} />);
+    expect(resumo().getByText("Saldo não informado no arquivo")).toBeVisible();
+    expect(resumo().queryByText(/Saldo final do arquivo:/)).not.toBeInTheDocument();
+  });
+
+  it("sem a chave do saldo no backend, não acrescenta uma linha de saldo", () => {
+    render(<Revisao inicial={INICIAL} />);
+    expect(resumo().queryByText(/Saldo final do arquivo:|Saldo não informado/)).not.toBeInTheDocument();
+  });
+
+  it("relê o resumo ao remover uma linha e mantém o saldo final que veio do backend", async () => {
+    const user = userEvent.setup();
+    const saldo = { saldoFinal: "1234.56", saldoData: "2026-10-15" };
+    acoes.carregar.mockResolvedValue({ ok: true, dados: { ...ATUALIZADO, resumo: { ...ATUALIZADO.resumo, ...saldo } } });
+    render(<Revisao inicial={{ ...INICIAL, resumo: { ...INICIAL.resumo, ...saldo } }} />);
+
+    await removerLinha1(user);
+
+    expect(acoes.carregar).toHaveBeenCalledWith(INICIAL.id);
+    expect(confirmar()).toHaveAccessibleName("Confirmar 1 lançamento");
+    expect(resumo().getByText(/Saldo final do arquivo:/)).toHaveTextContent(/R\$\s*1\.234,56 em 15\/10\/2026/);
+    expect(resumo().getByText(/R\$\s*100,00/)).toBeVisible();
+  });
+
   it("impede confirmar enquanto uma correção está aberta e libera depois de salvar", async () => {
     const user = userEvent.setup();
     acoes.corrigir.mockResolvedValue({ ok: true, dados: { linha: { ...LINHA, valor: "150" }, resumo: { ...INICIAL.resumo, totalEntradas: "250" } } });
