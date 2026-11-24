@@ -215,12 +215,12 @@ const PERGUNTAS = [
   {
     pergunta: "O contador consegue acessar?",
     resposta:
-      "Sim. Convide o contador para a equipe da empresa: como analista, ele vê as conciliações e justifica as diferenças; como gestor, também fecha o mês. E o relatório de cada mês fechado sai em PDF, pronto para mandar.",
+      "Sim, no plano Avançado, que tem convites para a equipe: como analista, o contador vê as conciliações e justifica as diferenças; como gestor, também fecha o mês. Em qualquer plano, o relatório de cada mês fechado sai em PDF, pronto para mandar.",
   },
   {
     pergunta: "Consigo achar um lançamento de meses atrás?",
     resposta:
-      "Sim. A busca do topo (Ctrl K) procura por valor, data ou palavras da descrição em todas as conciliações da empresa, e abre a linha na comparação.",
+      "Sim. A busca do topo (Ctrl K, ou ⌘K no Mac) procura por valor, data ou palavras da descrição em todas as conciliações da empresa, e abre a linha na comparação.",
   },
   {
     pergunta: "Consigo conciliar mais de um banco ao mesmo tempo?",

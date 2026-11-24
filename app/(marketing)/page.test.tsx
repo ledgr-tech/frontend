@@ -211,9 +211,9 @@ describe("LandingPage", () => {
 
   it("promises only what production does: the accountant joins the team, the search exists, and nobody approves yet", () => {
     render(<LandingPage />);
-    expect(screen.getByText(/^Sim\. Convide o contador para a equipe da empresa: como analista/)).toBeInTheDocument();
+    expect(screen.getByText(/^Sim, no plano Avançado, que tem convites para a equipe: como analista, o contador/)).toBeInTheDocument();
     expect(screen.queryByText(/login só/)).not.toBeInTheDocument();
-    expect(screen.getByText(/A busca do topo \(Ctrl K\) procura por valor, data ou palavras da descrição/)).toBeInTheDocument();
+    expect(screen.getByText(/A busca do topo \(Ctrl K, ou ⌘K no Mac\) procura por valor, data ou palavras da descrição/)).toBeInTheDocument();
     // a aprovação de justificativas está desligada em produção: o gestor fecha o mês, não aprova
     expect(screen.getByText("O analista justifica; o gestor fecha o mês")).toBeInTheDocument();
     expect(screen.queryByText(/gestor aprova/)).not.toBeInTheDocument();
