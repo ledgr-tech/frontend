@@ -126,6 +126,10 @@ const OUTRAS_BATIDAS: LinhaExtrato[] = [
 ];
 // o saldo do extrato de agosto inteiro (a coluna do banco mostra o do arquivo, não o do trecho)
 const SALDO_DE_AGOSTO = { inicial: 52380.47, final: 61904.12, data: "2026-08-31" };
+// o do sistema começa igual e termina 80,95 acima: os 36,00 de juros e os 45,00 da tarifa que só o banco tem,
+// menos os 0,05 que o banco creditou a mais no cartão. A diferença é banco menos sistema, como o backend manda (#474)
+const SALDO_DO_SISTEMA = { inicial: 52380.47, final: 61985.07, data: "2026-08-31" };
+const DIFERENCA_DOS_SALDOS = { valor: -80.95, motivo: null };
 
 // As três dores do Cap. II, uma por número nas telas, com os números dos próprios lançamentos: a
 // escala do mês (a mesma de Preços), os cinco centavos do cartão e a tarifa que só o banco tem
@@ -345,8 +349,9 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* como funciona */}
-      <section id="como" className="onda onda-papel" style={{ position: "relative", overflow: "hidden", background: "var(--color-surface)" }}>
+      {/* como funciona. overflow: clip, e não hidden: hidden faria da seção o contêiner do sticky, e a faixa da
+          seleção da janela não grudaria no pé da tela */}
+      <section id="como" className="onda onda-papel" style={{ position: "relative", overflow: "clip", background: "var(--color-surface)" }}>
         {/* marca d'água no canto de baixo à esquerda, oposto ao mascote visível (como na FAQ),
             saindo pelas bordas: atrás do título ela competia com ele */}
         <Image
@@ -460,6 +465,8 @@ export default function LandingPage() {
               banco={[...EXTRATO_BANCO, ...OUTRAS_BATIDAS]}
               sistema={[...EXTRATO_SISTEMA, ...OUTRAS_BATIDAS]}
               saldo={SALDO_DE_AGOSTO}
+              saldoSistema={SALDO_DO_SISTEMA}
+              diferencaSaldo={DIFERENCA_DOS_SALDOS}
               destaque="Pagamento fornecedor #1082"
             />
           </Reveal>

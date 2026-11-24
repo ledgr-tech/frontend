@@ -1566,6 +1566,9 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
 }
 .janela-tela { padding: 18px 20px 20px; }
 .janela-conciliacao .comparacao-corpo { gap: 14px; padding: 0; }
+/* clip, e não hidden: hidden faz da janela o contêiner de rolagem do sticky, e a faixa da seleção
+   (.lote-faixa, presa no pé da tela como no app) não grudaria */
+.janela-conciliacao .vitrine-janela { overflow: clip; }
 /* a tabela aperta as colunas quando estreita, como a do app ao lado do painel (@container tabela-comparacao) */
 .janela-conciliacao .dash-tabela-rolagem { container: tabela-comparacao / inline-size; }
 .janela-conciliacao .comparacao-lateral { position: static; padding-top: 0; }
@@ -6569,12 +6572,13 @@ html[data-tema="escuro"] .app-shell {
   .kin-arraste-fio { width: 34px; }
   .janela-conciliacao .kin-arraste { margin-top: 0; }
   /* sem o container, o @container tabela-comparacao (width < 900px) não aperta as colunas para caber nos
-     ~300px da tela, o que deixava a descrição com uma letra: a tabela rola. Em 800px, com data e valor mais
-     estreitos, cada folha (≈300px) cabe inteira nos ~324px da janela, sem cortar os centavos (#496) */
+     ~300px da tela, o que deixava a descrição com uma letra: a tabela rola. Em 804px, com seleção, data e valor
+     mais estreitos (a data com 3.75rem, que com menos quebrava em "01/0 8"), a seleção e a folha do banco (≈316px) cabem nos ~324px da janela, sem cortar os centavos (#496) */
   .janela-conciliacao .dash-tabela-rolagem { container: none; }
-  .janela-conciliacao .dash-tabela-rolagem .folhas-com-eixo { min-width: 800px; }
+  .janela-conciliacao .dash-tabela-rolagem .folhas-com-eixo { min-width: 804px; }
+  .janela-conciliacao .folhas-com-eixo col.col-selecao { width: 2.25rem; }
   .janela-conciliacao .folhas-com-eixo col.col-data { width: 3.75rem; }
-  .janela-conciliacao .folhas-com-eixo col.col-valor { width: 8.25rem; }
+  .janela-conciliacao .folhas-com-eixo col.col-valor { width: 8rem; }
   /* os três filtros numa linha só */
   .janela-conciliacao .pills.segmentado { flex-wrap: nowrap; }
   .janela-conciliacao .segmentado .pill { padding-inline: 9px; white-space: nowrap; }
