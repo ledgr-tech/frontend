@@ -777,7 +777,7 @@ describe("contaDaSessao", () => {
   it("lê a razão social de GET /me, e que a conta tem senha para trocar", async () => {
     fetch.mockResolvedValue(Response.json(EU));
 
-    expect(await contaDaSessao()).toEqual({ empresa: "Telha Certa Ltda", nome: "Ana", temSenha: true, papel: "admin", empresas: [], preferencias: null, assinatura: null, cobrancaHabilitada: false, limites: null, guardaArquivoOriginal: false });
+    expect(await contaDaSessao()).toEqual({ empresa: "Telha Certa Ltda", nome: "Ana", temSenha: true, papel: "admin", empresas: [], preferencias: null, assinatura: null, cobrancaHabilitada: false, limites: null, guardaArquivoOriginal: false, integracaoSistemaHabilitada: false });
     expect(fetch).toHaveBeenCalledTimes(1);
     expect(fetch.mock.calls[0][0]).toBe("http://localhost:8000/me");
   });
@@ -822,13 +822,13 @@ describe("contaDaSessao", () => {
     // para ela, POST /me/senha responde 409
     fetch.mockResolvedValue(Response.json({ ...EU, metodos_login: ["google"] }));
 
-    expect(await contaDaSessao()).toEqual({ empresa: "Telha Certa Ltda", nome: "Ana", temSenha: false, papel: "admin", empresas: [], preferencias: null, assinatura: null, cobrancaHabilitada: false, limites: null, guardaArquivoOriginal: false });
+    expect(await contaDaSessao()).toEqual({ empresa: "Telha Certa Ltda", nome: "Ana", temSenha: false, papel: "admin", empresas: [], preferencias: null, assinatura: null, cobrancaHabilitada: false, limites: null, guardaArquivoOriginal: false, integracaoSistemaHabilitada: false });
   });
 
   it("sem resposta, esconde a empresa, deixa a troca de senha à mostra e dá o papel menor (D2)", async () => {
     fetch.mockResolvedValue(Response.json({ detail: "Not Found" }, { status: 404 }));
 
-    expect(await contaDaSessao()).toEqual({ empresa: "", temSenha: true, papel: "analista", empresas: [], preferencias: null, assinatura: null, cobrancaHabilitada: false, limites: null, indisponivel: true });
+    expect(await contaDaSessao()).toEqual({ empresa: "", temSenha: true, papel: "analista", empresas: [], preferencias: null, assinatura: null, cobrancaHabilitada: false, limites: null, integracaoSistemaHabilitada: false, indisponivel: true });
   });
 
   it("lê as empresas do escritório do /me, na ordem em que o backend manda (#133)", async () => {
@@ -913,6 +913,44 @@ describe("contaDaSessao", () => {
     );
 
     expect((await contaDaSessao()).preferencias).toEqual({ tutoriaisDispensados: ["extratos"], roteiroDispensado: true });
+  });
+
+  it("lê integracao_sistema_habilitada e integracao_sistema_configurada do /me, tratando ausente ou não-true como falso", async () => {
+    fetch.mockResolvedValue(
+      Response.json({
+        ...EU,
+        integracao_sistema_habilitada: true,
+        empresas: [
+          { id: "e1", razao_social: "Padaria Ltda", cnpj: "1", integracao_sistema_configurada: true },
+          { id: "e2", razao_social: "Mercado Ltda", cnpj: "2", integracao_sistema_configurada: "true" },
+          { id: "e3", razao_social: "Oficina Ltda", cnpj: "3" },
+        ],
+      }),
+    );
+
+    const conta = await contaDaSessao();
+    expect(conta.integracaoSistemaHabilitada).toBe(true);
+    expect(conta.empresas[0].integracaoSistemaConfigurada).toBe(true);
+    expect(conta.empresas[1].integracaoSistemaConfigurada).toBe(false);
+    expect(conta.empresas[2].integracaoSistemaConfigurada).toBeUndefined();
+
+    fetch.mockResolvedValue(Response.json({ ...EU, integracao_sistema_habilitada: "true" }));
+    expect((await contaDaSessao()).integracaoSistemaHabilitada).toBe(false);
+  });
+
+  it("na conta de demonstração, a integração com o sistema nunca fica habilitada nem configurada", async () => {
+    vi.stubEnv("LEDGR_CONTA_TESTE_EMAIL", EU.email);
+    fetch.mockResolvedValue(
+      Response.json({
+        ...EU,
+        integracao_sistema_habilitada: true,
+        empresas: [{ id: "e1", razao_social: "Demo Ltda", cnpj: "1", integracao_sistema_configurada: true }],
+      }),
+    );
+
+    const conta = await contaDaSessao();
+    expect(conta.integracaoSistemaHabilitada).toBe(false);
+    expect(conta.empresas[0].integracaoSistemaConfigurada).toBe(false);
   });
 });
 

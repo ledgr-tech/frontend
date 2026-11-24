@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import NovaConciliacaoPage from "./page";
+import { ProvedorDaConta } from "../../conta";
 
 // O reenvio do extrato do sistema é a Nova conciliação com ?banco=&sistemaAnterior= (era uma janela da comparação).
 const BANCO = "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20";
@@ -441,5 +442,17 @@ describe("Nova conciliação em modo reenvio", () => {
     await enviar();
 
     await waitFor(() => expect(push).toHaveBeenCalledWith("/login"));
+  });
+
+  it("no modo reenvio não mostra o botão Importar de um sistema mesmo com a flag ligada", async () => {
+    render(
+      <ProvedorDaConta preferencias={null} integracaoSistemaHabilitada integracaoSistemaConfigurada>
+        <NovaConciliacaoPage />
+      </ProvedorDaConta>,
+    );
+    await screen.findByLabelText(CAMPO);
+
+    expect(screen.queryByRole("button", { name: "Importar de um sistema" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Configurar a integração" })).not.toBeInTheDocument();
   });
 });
