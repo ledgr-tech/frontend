@@ -5015,6 +5015,9 @@ a.pill { text-decoration: none; }
   .pills.segmentado::-webkit-scrollbar { display: none; }
   .segmentado .pill { flex: none; white-space: nowrap; }
   .segmentado .pill:focus-visible { outline-offset: -2px; }
+  /* o trilho só rola se o pai não crescer junto: um filho de flex mede o próprio conteúdo, e os
+     filtros de situação de Empresas, dentro de .empresas-filtros, alargavam a página (24/11) */
+  .extratos-filtros > *, .empresas-filtros > * { min-width: 0; max-width: 100%; }
 }
 
 /* cabecalho ordenavel: o botao ocupa a celula toda para o alvo ser generoso */
