@@ -49,7 +49,7 @@ export const MOTIVOS: Motivo[] = [
   },
   {
     pergunta: "O que custa",
-    ledgr: ["Pelo volume de lançamentos do mês.", "Sem fidelidade nem taxa de implantação."],
+    ledgr: ["Um plano mensal, pelo tamanho do mês.", "Sem fidelidade nem taxa de implantação."],
     hoje: ["As horas de quem confere, em todo fechamento.", "A mensalidade do sistema novo, mais o trabalho da migração."],
     mascote: { src: "/mascotes/mascote-maleta.png", width: 778, height: 720 },
   },

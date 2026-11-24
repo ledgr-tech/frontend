@@ -96,7 +96,7 @@ describe("LandingPage", () => {
       ["O extrato do banco é sempre a fonte da verdade.", ["a fonte da verdade."]],
       ["Perguntas que sempre aparecem", ["sempre aparecem"]],
       ["Para quem fecha o mês, sozinho ou com equipe.", ["sozinho ou com equipe."]],
-      ["Preço fechado, por volume.", ["por volume."]],
+      ["Preço fechado, pelo tamanho do mês.", ["pelo tamanho do mês."]],
     ]);
   });
 
@@ -205,14 +205,26 @@ describe("LandingPage", () => {
       screen.getByText("Não. O Ledgr lê o arquivo que o internet banking já exporta, em OFX ou CSV, e não pede nenhuma credencial bancária."),
     ).toBeInTheDocument();
     expect(
-      screen.getByText("Exporte os lançamentos do seu sistema de gestão no mesmo período, em CSV."),
+      screen.getByText(/^Exporte os lançamentos do seu sistema de gestão no mesmo período, em CSV\. Só tem o PDF do relatório\?/),
     ).toBeInTheDocument();
+  });
+
+  it("promises only what production does: the accountant joins the team, the search exists, and nobody approves yet", () => {
+    render(<LandingPage />);
+    expect(screen.getByText(/^Sim\. Convide o contador para a equipe da empresa: como analista/)).toBeInTheDocument();
+    expect(screen.queryByText(/login só/)).not.toBeInTheDocument();
+    expect(screen.getByText(/A busca do topo \(Ctrl K\) procura por valor, data ou palavras da descrição/)).toBeInTheDocument();
+    // a aprovação de justificativas está desligada em produção: o gestor fecha o mês, não aprova
+    expect(screen.getByText("O analista justifica; o gestor fecha o mês")).toBeInTheDocument();
+    expect(screen.queryByText(/gestor aprova/)).not.toBeInTheDocument();
+    // a unidade da cobrança ainda não foi definida: a página não promete "por lançamentos"
+    expect(document.body.textContent).not.toMatch(/volume de lançamentos|pelo número de lançamentos/);
   });
 
   it("states the golden rule and the pricing model", () => {
     render(<LandingPage />);
     expect(screen.getByRole("heading", { name: "O extrato do banco é sempre a fonte da verdade." })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Preço fechado, por volume." })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Preço fechado, pelo tamanho do mês." })).toBeInTheDocument();
   });
 
   it("has a header with nav links into the product and to the page sections", () => {
@@ -476,7 +488,7 @@ describe("LandingPage", () => {
     ]);
     // o formato de cada arquivo, na etiqueta dos dois primeiros passos
     const formatos = [...document.querySelectorAll('#como ul[aria-label="Formatos aceitos"]')];
-    expect(formatos.map((lista) => [...lista.querySelectorAll("li")].map((item) => item.textContent))).toEqual([["OFX", "CSV"], ["CSV"]]);
+    expect(formatos.map((lista) => [...lista.querySelectorAll("li")].map((item) => item.textContent))).toEqual([["OFX", "CSV"], ["CSV", "PDF via IA"]]);
     // o convite que repetia a lista (e o resto da página) saiu
     expect(screen.queryByText(/Cada divergência vem com o nome da categoria/)).not.toBeInTheDocument();
   });
@@ -586,7 +598,7 @@ describe("LandingPage", () => {
         "Não precisa.",
         "O Ledgr, linha por linha.",
         "Subir dois arquivos.",
-        "Pelo volume de lançamentos do mês.",
+        "Um plano mensal, pelo tamanho do mês.",
       ]);
       // cada palavra anima num inline-block, e o espaço no começo de um deles some na tela: o espaço
       // fica entre as palavras, nunca dentro delas ("Nãoprecisa." no navegador, embora o texto tivesse o espaço)
