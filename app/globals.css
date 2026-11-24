@@ -1699,7 +1699,8 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
 }
 /* no celular cada tela tem uns 175px: data e valor em cima, a descrição embaixo, menor */
 @media (max-width: 599px) {
-  .mao-folha-nome { padding: 10px; font-size: var(--texto-corpo); }
+  /* duas linhas nas duas folhas: "Sistema de gestão" quebra, e sem isso as datas saíam desalinhadas (#496) */
+  .mao-folha-nome { padding: 10px; font-size: var(--texto-corpo); min-height: calc(2lh + 20px); }
   .mao-linha {
     grid-template-columns: auto minmax(0, 1fr) 22px; grid-template-areas: "data valor valor" "desc desc marca";
     column-gap: 8px; row-gap: 2px; padding: 9px 10px; font-size: var(--texto-nota);
@@ -1877,9 +1878,10 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
 .amostra-valores { display: grid; grid-template-columns: 1fr 1fr; border-block: 1px solid var(--color-divider); }
 .amostra-valores > div { display: flex; flex-direction: column; gap: 1px; padding: 8px 0; }
 .amostra-valores > div + div { padding-left: 12px; border-left: 1px solid var(--color-divider); }
-.amostra-valor { font-size: var(--texto-corpo); font-weight: 500; font-variant-numeric: tabular-nums; }
+.amostra-valor { font-size: var(--texto-corpo); font-weight: 500; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .amostra-explicacao { margin-top: 10px; }
-.amostra-explicacao .explicacao-selo { margin-bottom: 6px; font-size: var(--texto-micro); }
+/* o selo quebra a linha em vez de cortar "confira antes de decidir" no celular (#496) */
+.amostra-explicacao .explicacao-selo { margin-bottom: 6px; font-size: var(--texto-micro); white-space: normal; text-overflow: clip; }
 .amostra-explicacao p { margin: 0; font-size: var(--texto-nota); line-height: 1.55; }
 /* III: as duas folhas, uma sobre a outra; no card aberto elas se afastam. A altura deixa o título da
    folha do sistema logo abaixo da do banco, à vista mesmo em repouso */
@@ -6497,12 +6499,13 @@ html[data-tema="escuro"] .app-shell {
    - "Na prática": no app a tabela vira cartões no celular, mas um embaixo do outro eles faziam a janela passar
      de 3.900px; aqui ela fica no desenho do computador (900px, .folhas-com-eixo) e rola na .dash-tabela-rolagem */
 @property --fade-esq { syntax: "<length>"; inherits: false; initial-value: 0px; }
-@property --fade-dir { syntax: "<length>"; inherits: false; initial-value: 36px; }
+@property --fade-dir { syntax: "<length>"; inherits: false; initial-value: 16px; }
 @keyframes kin-arraste-cutuca { 0%, 60%, 100% { transform: none; } 30% { transform: translateX(5px); } }
+/* 16px e não 36: com 36 o degradê comia os centavos da folha e o começo do cartão do hero (#496) */
 @keyframes kin-fade-lateral {
-  0% { --fade-esq: 0px; --fade-dir: 36px; }
-  12%, 88% { --fade-esq: 36px; --fade-dir: 36px; }
-  100% { --fade-esq: 36px; --fade-dir: 0px; }
+  0% { --fade-esq: 0px; --fade-dir: 16px; }
+  12%, 88% { --fade-esq: 16px; --fade-dir: 16px; }
+  100% { --fade-esq: 16px; --fade-dir: 0px; }
 }
 /* o desenho do rótulo "Cap. I" do hero (p.eyebrow + .kin-olho), sem a classe: .eyebrow fica só para os
    capítulos (page.test.tsx), e sem a entrada animada. Escondida até o celular de cada janela, abaixo */
@@ -6532,32 +6535,53 @@ html[data-tema="escuro"] .app-shell {
 @media (prefers-reduced-motion: no-preference) {
   .kin-arraste-seta { animation: kin-arraste-cutuca 2.4s var(--ease-out) infinite; }
 }
-/* a mesma largura nas duas (LARGURA_DO_CELULAR em rolagem-lateral.tsx): abaixo dela a tabela do app viraria cartões */
+/* no fim da rolagem (data-no-fim, posto por usePasseioNoCelular) a seta aponta de volta */
+[data-no-fim] ~ .kin-arraste .kin-arraste-seta { scale: -1 1; }
+/* a mesma largura em todas (LARGURA_DO_CELULAR em rolagem-lateral.tsx): abaixo dela a tabela do app viraria cartões */
 @media (max-width: 680px) {
-  :is(.kin-palco .vitrine, .janela-conciliacao .dash-tabela-rolagem) {
+  :is(.kin-palco .vitrine, .janela-conciliacao .dash-tabela-rolagem, .mockup-demo) {
     overflow-x: auto;
     overflow-y: hidden;
     overscroll-behavior-x: contain;
     scrollbar-width: none;
     /* um degradê suave na borda que ainda tem tela para rolar: à direita no começo, à esquerda no fim */
     --fade-esq: 0px;
-    --fade-dir: 36px;
+    --fade-dir: 16px;
     mask-image: linear-gradient(to right, transparent, #000 var(--fade-esq), #000 calc(100% - var(--fade-dir)), transparent);
   }
-  :is(.kin-palco .vitrine, .janela-conciliacao .dash-tabela-rolagem)::-webkit-scrollbar { display: none; }
+  :is(.kin-palco .vitrine, .janela-conciliacao .dash-tabela-rolagem, .mockup-demo)::-webkit-scrollbar { display: none; }
   @supports (animation-timeline: scroll()) {
-    :is(.kin-palco .vitrine, .janela-conciliacao .dash-tabela-rolagem) {
+    :is(.kin-palco .vitrine, .janela-conciliacao .dash-tabela-rolagem, .mockup-demo) {
       animation: kin-fade-lateral linear both;
       animation-timeline: scroll(self inline);
     }
   }
-  .kin-palco .vitrine { border-radius: 12px; }
-  .kin-palco .vitrine-janela { width: 220%; }
-  .kin-arraste { display: flex; }
+  :is(.kin-palco .vitrine, .mockup-demo) { border-radius: 12px; }
+  :is(.kin-palco, .mockup-demo) .vitrine-janela { width: 220%; }
+  /* "Por dentro": a abertura, o encerramento e a legenda acompanham a rolagem (--rolado) e cobrem só o pedaço à vista */
+  .mockup-demo :is(.mockup-intro, .janela-titulo, .video-demo-legenda) { transform: translateX(var(--rolado, 0px)); }
+  .mockup-demo :is(.mockup-intro, .janela-titulo) { right: auto; width: calc(100% / 2.2); }
+  .mockup-demo .mockup-intro { padding: 0 6%; }
+  .mockup-demo .video-demo-legenda { padding-inline: 16px; }
+  .kin-arraste { display: flex; gap: 8px; letter-spacing: 0.1em; white-space: nowrap; }
+  .kin-arraste-fio { width: 34px; }
   .janela-conciliacao .kin-arraste { margin-top: 0; }
   /* sem o container, o @container tabela-comparacao (width < 900px) não aperta as colunas para caber nos
-     ~300px da tela, o que deixava a descrição com uma letra: a tabela fica nos 900px do computador e rola */
+     ~300px da tela, o que deixava a descrição com uma letra: a tabela rola. Em 800px, com data e valor mais
+     estreitos, cada folha (≈300px) cabe inteira nos ~324px da janela, sem cortar os centavos (#496) */
   .janela-conciliacao .dash-tabela-rolagem { container: none; }
+  .janela-conciliacao .dash-tabela-rolagem .folhas-com-eixo { min-width: 800px; }
+  .janela-conciliacao .folhas-com-eixo col.col-data { width: 3.75rem; }
+  .janela-conciliacao .folhas-com-eixo col.col-valor { width: 8.25rem; }
+  /* os três filtros numa linha só */
+  .janela-conciliacao .pills.segmentado { flex-wrap: nowrap; }
+  .janela-conciliacao .segmentado .pill { padding-inline: 9px; white-space: nowrap; }
+  /* menu aberto: "Começar agora →" não quebra */
+  .site-menu-acoes .btn { padding-inline: 12px; white-space: nowrap; }
+}
+@media (max-width: 360px) {
+  .kin-arraste { font-size: 10.5px; letter-spacing: 0.06em; }
+  .site-menu-acoes { grid-template-columns: 1fr; }
 }
 .kin-adesivo-solto { rotate: var(--inclinacao); }
 @media (prefers-reduced-motion: reduce) {

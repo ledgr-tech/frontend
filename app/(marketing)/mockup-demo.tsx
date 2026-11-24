@@ -5,6 +5,7 @@ import { m, useInView, useScroll, useTransform } from "motion/react";
 import { LogoBarras } from "@/app/(app)/e/[empresa]/logo-barras";
 import { useMovimentoReduzido } from "@/app/reveal";
 import { cobrancaNoSite } from "@/lib/assinatura";
+import { DicaDeArrastar, LARGURA_DO_CELULAR, usePasseioNoCelular } from "./rolagem-lateral";
 
 /**
  * O vídeo do produto refeito em HTML: a Nova conciliação, a comparação com o painel da direita, a justificativa
@@ -83,6 +84,10 @@ export function MockupDemo({ descricao }: { descricao: string }) {
   useEffect(() => {
     if (perto) void import("./cenas").then(setCenas);
   }, [perto]);
+
+  // no celular a janela fica com 220% da largura e rola para o lado, como a do hero (#496): encolhida inteira
+  // nos ~350px da tela, os textos não se liam
+  usePasseioNoCelular(palco, ".mockup-demo", { reduzido, largura: LARGURA_DO_CELULAR, espera: 900, espiada: 80 });
 
   // a janela de 1280 px encolhe inteira para caber (transform, e não zoom: a posição do cursor se mede)
   useLayoutEffect(() => {
@@ -212,6 +217,7 @@ export function MockupDemo({ descricao }: { descricao: string }) {
   }, [digitado]);
 
   return (
+    <>
     <figure className="vitrine video-demo mockup-demo" ref={palco} data-medida={escala ? "" : undefined}>
       <m.div data-reveal style={reduzido ? undefined : { transform: inclinada }}>
         <div className="vitrine-janela">
@@ -286,5 +292,8 @@ export function MockupDemo({ descricao }: { descricao: string }) {
       </m.div>
       <figcaption className="video-demo-legenda">As telas do Ledgr, com dados de teste · animação de cerca de 40 segundos</figcaption>
     </figure>
+    {/* só no celular (CSS), onde a janela rola para o lado */}
+    <DicaDeArrastar />
+    </>
   );
 }

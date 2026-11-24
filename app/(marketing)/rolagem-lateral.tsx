@@ -13,6 +13,10 @@ export const LARGURA_DO_CELULAR = 680;
 
 const suave = (t: number) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
 
+/** o elemento que rola: dentro da `caixa`, ou a própria caixa (a janela de "Por dentro") */
+const acharRolagem = (caixa: HTMLElement | null, seletor: string) =>
+  caixa?.matches(seletor) ? caixa : (caixa?.querySelector<HTMLElement>(seletor) ?? null);
+
 /**
  * Na primeira vez que o elemento que rola (`seletor`, dentro de `caixa`) aparece quase inteiro numa tela de até
  * `largura`, ele passeia sozinho até o fim e volta, para mostrar que tem mais. Uma vez só; um toque nele para o
@@ -30,8 +34,22 @@ export function usePasseioNoCelular(
     espiada,
   }: { reduzido: boolean; largura: number; espera?: number; espiada?: number },
 ) {
+  // a posição da rolagem, para o CSS: data-no-fim vira a seta da dica e --rolado leva junto o que deve ficar à vista
   useEffect(() => {
-    const rolagem = caixa.current?.querySelector<HTMLElement>(seletor);
+    const rolagem = acharRolagem(caixa.current, seletor);
+    if (!rolagem) return;
+    const marcar = () => {
+      const fim = rolagem.scrollWidth - rolagem.clientWidth;
+      rolagem.style.setProperty("--rolado", `${rolagem.scrollLeft}px`);
+      rolagem.toggleAttribute("data-no-fim", fim > 0 && rolagem.scrollLeft >= fim - 2);
+    };
+    marcar();
+    rolagem.addEventListener("scroll", marcar, { passive: true });
+    return () => rolagem.removeEventListener("scroll", marcar);
+  }, [caixa, seletor]);
+
+  useEffect(() => {
+    const rolagem = acharRolagem(caixa.current, seletor);
     if (reduzido || !rolagem || typeof IntersectionObserver === "undefined") return;
     if (!window.matchMedia?.(`(max-width: ${largura}px)`).matches) return;
     let quadro = 0;
