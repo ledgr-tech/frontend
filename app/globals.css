@@ -6563,6 +6563,8 @@ html[data-tema="escuro"] .app-shell {
   .mockup-demo :is(.mockup-intro, .janela-titulo) { right: auto; width: calc(100% / 2.2); }
   .mockup-demo .mockup-intro { padding: 0 6%; }
   .mockup-demo .video-demo-legenda { padding-inline: 16px; }
+  /* a janela entra reta: inclinada, dentro da caixa que rola (e corta), saía sem o pé ao subir na tela */
+  .mockup-demo > [data-reveal] { transform: none !important; }
   .kin-arraste { display: flex; gap: 8px; letter-spacing: 0.1em; white-space: nowrap; }
   .kin-arraste-fio { width: 34px; }
   .janela-conciliacao .kin-arraste { margin-top: 0; }

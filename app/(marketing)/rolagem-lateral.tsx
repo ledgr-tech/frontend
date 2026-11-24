@@ -45,7 +45,12 @@ export function usePasseioNoCelular(
     };
     marcar();
     rolagem.addEventListener("scroll", marcar, { passive: true });
-    return () => rolagem.removeEventListener("scroll", marcar);
+    // girar o celular muda o fim sem rolar
+    window.addEventListener("resize", marcar);
+    return () => {
+      rolagem.removeEventListener("scroll", marcar);
+      window.removeEventListener("resize", marcar);
+    };
   }, [caixa, seletor]);
 
   useEffect(() => {
