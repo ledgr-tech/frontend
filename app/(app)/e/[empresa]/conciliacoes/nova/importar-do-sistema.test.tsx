@@ -253,7 +253,7 @@ describe("ImportarDoSistema", () => {
     expect(screen.getByText("Ou envie o arquivo CSV manualmente na folha acima.")).toBeInTheDocument();
   });
 
-  it("sistema_resposta_invalida mostra JSON inválido sem mencionar IA, com e sem lista de erros", async () => {
+  it("sistema_resposta_invalida mostra o título de resposta não reconhecida sem mencionar IA, com e sem lista de erros", async () => {
     const user = userEvent.setup();
     importarDoSistema
       .mockResolvedValueOnce({
@@ -277,7 +277,7 @@ describe("ImportarDoSistema", () => {
     await user.click(screen.getByRole("button", { name: "Importar de um sistema" }));
     await user.click(screen.getByRole("button", { name: "Buscar no sistema" }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("JSON inválido");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Resposta do sistema não reconhecida");
     expect(screen.getByRole("alert")).toHaveTextContent("O arquivo veio cortado.");
     expect(screen.getByText("Ou envie o arquivo CSV manualmente na folha acima.")).toBeInTheDocument();
 

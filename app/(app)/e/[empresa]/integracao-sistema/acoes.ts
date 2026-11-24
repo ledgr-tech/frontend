@@ -15,8 +15,8 @@ import type { Falha, Resultado } from "../conciliacoes/acoes";
 /**
  * Configuração da integração com o sistema de gestão da empresa ativa (backend #253, ADR-029).
  * Só admin e gestor configuram ou removem; a empresa ativa vai no `X-Ledgr-Empresa` pelo
- * `chamarBackend`. A chave de acesso entra só no `PUT`, nunca volta na resposta e nunca vai para
- * mensagens de erro nem logs. Na conta de demonstração, nenhuma rota nova é chamada.
+ * `chamarBackend`. A chave de acesso entra só no `PUT` e não volta na resposta
+ * (o backend devolve só um prefixo curto). Na conta de demonstração, nenhuma rota nova é chamada.
  */
 
 export type CampoIntegracao = "url" | "chave";
@@ -36,62 +36,29 @@ function limparPydantic(mensagem: string): string {
   return mensagem.replace(/^Value error,\s*/i, "").trim();
 }
 
-function escaparRegex(texto: string): string {
-  return texto.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-/** Nunca devolve ao cliente a chave que acabou de ser enviada, mesmo que o backend a ecoe num erro. */
-function ocultarChave(mensagem: string, chave?: string, campo?: CampoIntegracao): string {
-  if (!chave) return mensagem;
-  if (chave.length >= 4 && mensagem.includes(chave)) {
-    return mensagem.split(chave).join("•••");
-  }
-  // chaves de 1 a 3 caracteres (ex.: "a", "de") só são mascaradas em erros do próprio campo chave,
-  // para não corromper palavras comuns em mensagens sobre a URL
-  if (campo === "chave") {
-    const isolada = new RegExp(`(?<![A-Za-z0-9])${escaparRegex(chave)}(?![A-Za-z0-9])`, "g");
-    if (isolada.test(mensagem)) return "Confira a chave de acesso informada.";
-  }
-  return mensagem;
-}
-
-/** Se o prefixo devolvido pelo backend expuser a chave inteira (chave curta), reduz ou omite o prefixo. */
-function protegerPrefixo(dados: IntegracaoSistema, chave: string): IntegracaoSistema {
-  if (!dados.chavePrefixo) return dados;
-  const prefixoLimpo = dados.chavePrefixo.replace(/(?:…|\.\.\.)+$/, "");
-  if (prefixoLimpo.includes(chave) || chave === prefixoLimpo) {
-    return {
-      ...dados,
-      chavePrefixo: chave.length >= 6 ? chave.slice(0, Math.min(4, Math.floor(chave.length / 2))) : null,
-    };
-  }
-  return dados;
-}
-
-function traduzir(erro: unknown, aoSalvar = false, chave?: string): FalhaDaIntegracao {
+function traduzir(erro: unknown, aoSalvar = false): FalhaDaIntegracao {
   if (!(erro instanceof ErroBackend)) return { ok: false, status: 0, erro: SEM_SERVIDOR };
   const { status, codigo } = erro;
-  const seguro = (texto: string, campo?: CampoIntegracao) => ocultarChave(texto, chave, campo);
   // a decisão considera o codigo antes do status: conta_inativa e integracao_indisponivel trazem texto próprio
-  if (ehContaInativa(erro)) return { ok: false, status, codigo, erro: seguro(erro.detalhe) };
-  if (codigo === "integracao_indisponivel") return { ok: false, status, codigo, erro: seguro(erro.detalhe) };
+  if (ehContaInativa(erro)) return { ok: false, status, codigo, erro: erro.detalhe };
+  if (codigo === "integracao_indisponivel") return { ok: false, status, codigo, erro: erro.detalhe };
   if (status === 401) return { ok: false, status, erro: "Sua sessão expirou. Entre de novo para continuar." };
   if (status === 403) return { ok: false, status, erro: SO_ADMIN_OU_GESTOR };
   if (status === 404 && erro.detalhe === "Not Found") return { ok: false, status, erro: INTEGRACAO_DESLIGADA };
   if (status === 429) return { ok: false, status, erro: "Muitas tentativas seguidas. Espere um minuto e tente de novo." };
   if (status === 422) {
     if (erro.mensagens.chave) {
-      return { ok: false, status, campo: "chave", erro: seguro(limparPydantic(erro.mensagens.chave), "chave") };
+      return { ok: false, status, campo: "chave", erro: limparPydantic(erro.mensagens.chave) };
     }
     if (erro.mensagens.url) {
-      return { ok: false, status, campo: "url", erro: seguro(limparPydantic(erro.mensagens.url), "url") };
+      return { ok: false, status, campo: "url", erro: limparPydantic(erro.mensagens.url) };
     }
     // 422 do PUT com `detail` em texto (HTTPS obrigatório, endereço não permitido): fica ao lado do campo certo
     const campo: CampoIntegracao | undefined = aoSalvar ? (/chave/i.test(erro.detalhe) ? "chave" : "url") : undefined;
-    return { ok: false, status, ...(campo && { campo }), erro: seguro(erro.detalhe, campo) };
+    return { ok: false, status, ...(campo && { campo }), erro: erro.detalhe };
   }
   if (status >= 500) return { ok: false, status, erro: SEM_SERVIDOR };
-  return { ok: false, status, ...(codigo && { codigo }), erro: seguro(erro.detalhe) };
+  return { ok: false, status, ...(codigo && { codigo }), erro: erro.detalhe };
 }
 
 /** Admin e gestor apenas; conta de demonstração nunca chama as rotas da integração. */
@@ -138,9 +105,9 @@ export async function salvarIntegracaoSistema(
       method: "PUT",
       corpo: { url: urlLimpa, chave: chaveLimpa },
     });
-    return { ok: true, dados: protegerPrefixo(adaptarIntegracaoSistema(resposta), chaveLimpa) };
+    return { ok: true, dados: adaptarIntegracaoSistema(resposta) };
   } catch (erro) {
-    return traduzir(erro, true, chaveLimpa);
+    return traduzir(erro, true);
   }
 }
 

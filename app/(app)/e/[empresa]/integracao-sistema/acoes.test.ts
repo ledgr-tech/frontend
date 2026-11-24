@@ -94,43 +94,6 @@ describe("salvarIntegracaoSistema", () => {
     expect(JSON.stringify(resultado)).not.toContain("segredo-super-privado");
   });
 
-  it("nunca devolve chave curta inteira mesmo se o backend retornar a chave inteira em chave_prefixo", async () => {
-    chamarBackend.mockResolvedValueOnce({ ...CONFIGURADA_API, chave_prefixo: "12345678" });
-    const oito = await salvarIntegracaoSistema("https://erp.exemplo.com.br", "12345678");
-    expect(oito.ok && oito.dados.chavePrefixo).toBe("1234");
-    expect(JSON.stringify(oito)).not.toContain("12345678");
-
-    chamarBackend.mockResolvedValueOnce({ ...CONFIGURADA_API, chave_prefixo: "abc" });
-    const tres = await salvarIntegracaoSistema("https://erp.exemplo.com.br", "abc");
-    expect(tres.ok && tres.dados.chavePrefixo).toBeNull();
-    expect(JSON.stringify(tres)).not.toContain("abc");
-  });
-
-  it("remove a chave enviada caso o backend a inclua numa mensagem de erro de validação", async () => {
-    chamarBackend.mockRejectedValueOnce(
-      new ErroBackend(422, "Chave inválida: segredo-curto-8", [], {}),
-    );
-    const rTexto = await salvarIntegracaoSistema("https://erp.exemplo.com.br", "segredo-curto-8");
-    expect(rTexto).toMatchObject({ ok: false, status: 422, campo: "chave" });
-    expect(!rTexto.ok && rTexto.erro).not.toContain("segredo-curto-8");
-
-    chamarBackend.mockRejectedValueOnce(
-      new ErroBackend(422, "O servidor respondeu 422.", ["chave"], { chave: "Value error, chave 'abc' curta demais" }),
-    );
-    const rPydantic = await salvarIntegracaoSistema("https://erp.exemplo.com.br", "abc");
-    expect(rPydantic).toMatchObject({ ok: false, status: 422, campo: "chave" });
-    expect(!rPydantic.ok && rPydantic.erro).not.toContain("abc");
-
-    // chave de 1 caractere ("a") não corrompe palavras comuns em erro de URL
-    chamarBackend.mockRejectedValueOnce(new ErroBackend(422, "Confira a URL informada."));
-    expect(await salvarIntegracaoSistema("http://erp.local", "a")).toEqual({
-      ok: false,
-      status: 422,
-      campo: "url",
-      erro: "Confira a URL informada.",
-    });
-  });
-
   it("recusa URL vazia, URL longa demais ou chave vazia sem chamar o backend", async () => {
     expect(await salvarIntegracaoSistema("   ", "chave")).toMatchObject({ ok: false, status: 422, campo: "url" });
     expect(await salvarIntegracaoSistema(`https://a.com/${"x".repeat(2050)}`, "chave")).toMatchObject({

@@ -403,7 +403,7 @@ export function ImportarDoSistema({
               {codigo === "sistema_resposta_invalida" &&
                 (respostaInvalidaComErros ? (
                   <>
-                    <strong className="nova-sistema-erro-titulo">JSON inválido</strong>
+                    <strong className="nova-sistema-erro-titulo">Resposta do sistema não reconhecida</strong>
                     <ErrosImportacaoIa
                       erro={falha.erro}
                       erros={falha.erros}
@@ -414,7 +414,7 @@ export function ImportarDoSistema({
                   </>
                 ) : (
                   <>
-                    <strong className="nova-sistema-erro-titulo">JSON inválido</strong>
+                    <strong className="nova-sistema-erro-titulo">Resposta do sistema não reconhecida</strong>
                     <p>{falha.erro}</p>
                   </>
                 ))}
