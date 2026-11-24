@@ -29,6 +29,7 @@ import {
   Plus,
   Settings,
   Sun,
+  X,
   type LucideIcon,
 } from "lucide-react";
 import { PainelAssistente } from "./assistente/painel";
@@ -372,7 +373,8 @@ export function MenuLateral({
             setSecoesAbertas((abertas) => !abertas);
           }}
         >
-          <Menu {...ICONE} />
+          {/* aberto, o mesmo botão fecha: o X dos menus de celular */}
+          {secoesAbertas ? <X {...ICONE} /> : <Menu {...ICONE} />}
         </button>
       </div>
 
