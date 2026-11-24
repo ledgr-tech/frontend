@@ -42,6 +42,7 @@ const ALUGUEL_BANCO: LinhaExtrato = {
 const ALUGUEL_SISTEMA: LinhaExtrato = { ...ALUGUEL_BANCO, data: "12/08" };
 
 const SALDO = { inicial: 52380.47, final: 61904.12, data: "2026-08-31" };
+const SALDO_SISTEMA = { inicial: 52380.47, final: 61985.07, data: "2026-08-31" };
 
 function montar() {
   render(
@@ -49,6 +50,8 @@ function montar() {
       banco={[TARIFA, PAGAMENTO, ALUGUEL_BANCO, ALFA]}
       sistema={[PAGAMENTO, ALUGUEL_SISTEMA, ALFA]}
       saldo={SALDO}
+      saldoSistema={SALDO_SISTEMA}
+      diferencaSaldo={{ valor: -80.95, motivo: null }}
       destaque="Pagamento fornecedor #1082"
     />,
   );
@@ -57,7 +60,7 @@ function montar() {
 const painel = () => within(screen.getByRole("complementary", { name: "Detalhe da linha" }));
 const linha = (desc: string) =>
   [...document.querySelectorAll<HTMLElement>("tbody tr")].find((tr) => tr.textContent?.includes(desc))!;
-const descricoes = () => [...document.querySelectorAll("tbody tr")].map((tr) => tr.querySelector("td:nth-child(2)")!.textContent);
+const descricoes = () => [...document.querySelectorAll("tbody tr")].map((tr) => tr.querySelector("td.celula-descricao")!.textContent);
 
 describe("JanelaDaConciliacao", () => {
   it("draws the app's comparison in a Mac window: the filters, the two sheets with Conferida and the panel", () => {
@@ -69,6 +72,8 @@ describe("JanelaDaConciliacao", () => {
     expect(screen.getByRole("button", { name: "Justificadas (0)" })).toBeInTheDocument();
     expect(screen.getByText("0 de 3 conferidas")).toBeInTheDocument();
     expect([...document.querySelectorAll("thead tr:last-child th")].map((th) => th.textContent?.replace(/[▲▼↕]/g, ""))).toEqual([
+      // a caixa de selecionar todas (#475), sem texto
+      "",
       "Data",
       "Descrição",
       "Banco",
@@ -84,13 +89,43 @@ describe("JanelaDaConciliacao", () => {
     expect(within(banco).getByText("Saldo inicial")).toBeInTheDocument();
     expect(within(banco).getByText("R$ 52.380,47")).toBeInTheDocument();
     const pe = document.querySelector<HTMLElement>("tfoot[role='rowgroup']")!;
-    expect(within(pe).getByText(/Saldo final em 31\/08\/2026/)).toBeInTheDocument();
     const celulaBanco = pe.querySelector<HTMLElement>(".folha-banco")!;
+    expect(within(celulaBanco).getByText(/Saldo final em 31\/08\/2026/)).toBeInTheDocument();
     expect(within(celulaBanco).getByText("R$ 61.904,12")).toBeInTheDocument();
     expect(painel().queryByText("R$ 61.904,12")).not.toBeInTheDocument();
     // na landing a tabela não vira cartões no celular (rola para o lado, #471): o topo e o pé seguem à vista,
     // então não há a faixa do saldo do app, que repetiria os dois valores
     expect(screen.queryByRole("region", { name: "Saldo do extrato do banco" })).not.toBeInTheDocument();
+  });
+
+  it("shows the system balance and the difference of the final balances, as the app does (#474)", () => {
+    montar();
+    const sistema = screen.getByRole("columnheader", { name: /Sistema de gestão/ });
+    expect(within(sistema).getByText("R$ 52.380,47")).toBeInTheDocument();
+    const pe = document.querySelector<HTMLElement>("tfoot[role='rowgroup']")!;
+    expect(within(pe.querySelector<HTMLElement>(".folha-sistema")!).getByText("R$ 61.985,07")).toBeInTheDocument();
+    expect(within(pe).getByText(/Diferença/)).toHaveTextContent("Diferença -R$ 80,95");
+  });
+
+  it("selects divergences only, sums them and justifies the selected ones at once (#475, #473)", async () => {
+    const user = userEvent.setup();
+    montar();
+    // a que bateu não tem caixa
+    expect(within(linha("Recebimento cliente Alfa Comércio")).queryByRole("checkbox")).not.toBeInTheDocument();
+    await user.click(within(linha("Pagamento fornecedor #1082")).getByRole("checkbox"));
+    await user.click(within(linha("Tarifa de manutenção da conta")).getByRole("checkbox"));
+    // sem o painel ao lado (jsdom não casa com a mídia), a soma vai na faixa
+    const faixa = within(screen.getByRole("region", { name: "Linhas selecionadas" }));
+    expect(faixa.getByText("2 linhas selecionadas")).toBeInTheDocument();
+    expect(faixa.getByText("Falta R$ 81,00 para zerar")).toBeInTheDocument();
+    // clicar na caixa não fixa a linha no painel
+    expect(linha("Tarifa de manutenção da conta")).not.toHaveAttribute("data-fixo");
+
+    await user.click(faixa.getByRole("button", { name: "Justificar as 2 linhas selecionadas" }));
+    await user.type(faixa.getByRole("textbox", { name: "Motivo da justificativa" }), "Acertado com o financeiro");
+    await user.click(faixa.getByRole("button", { name: "Justificar" }));
+    expect(screen.queryByRole("region", { name: "Linhas selecionadas" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Justificadas (2)" })).toBeInTheDocument();
   });
 
   it("marks the diverging field, the missing side and the other day as the app does", () => {

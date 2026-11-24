@@ -457,7 +457,7 @@ describe("LandingPage", () => {
     expect(janela.querySelector(".comp-painel")).not.toBeNull();
     expect(janela.querySelector(".vitrine-menu, .vitrine-topo")).toBeNull();
     const descricoes = (raiz: Element) =>
-      [...raiz.querySelectorAll(".tabela-folhas tbody tr")].map((linha) => linha.querySelector("td:nth-child(2)")!.textContent);
+      [...raiz.querySelectorAll(".tabela-folhas tbody tr")].map((linha) => linha.querySelector("td.celula-descricao")!.textContent);
     const vitrine = document.querySelector(".kin-palco .vitrine-app")!;
     expect(descricoes(janela)).toHaveLength(10);
     expect(descricoes(janela)).toEqual(expect.arrayContaining(descricoes(vitrine)));

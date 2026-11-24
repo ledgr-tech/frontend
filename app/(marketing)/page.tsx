@@ -126,6 +126,10 @@ const OUTRAS_BATIDAS: LinhaExtrato[] = [
 ];
 // o saldo do extrato de agosto inteiro (a coluna do banco mostra o do arquivo, não o do trecho)
 const SALDO_DE_AGOSTO = { inicial: 52380.47, final: 61904.12, data: "2026-08-31" };
+// o do sistema começa igual e termina 80,95 acima: os 36,00 de juros e os 45,00 da tarifa que só o banco tem,
+// menos os 0,05 a mais no crédito do cartão. A diferença é banco menos sistema, como o backend manda (#474)
+const SALDO_DO_SISTEMA = { inicial: 52380.47, final: 61985.07, data: "2026-08-31" };
+const DIFERENCA_DOS_SALDOS = { valor: -80.95, motivo: null };
 
 // As três dores do Cap. II, uma por número nas telas, com os números dos próprios lançamentos: a
 // escala do mês (a mesma de Preços), os cinco centavos do cartão e a tarifa que só o banco tem
@@ -460,6 +464,8 @@ export default function LandingPage() {
               banco={[...EXTRATO_BANCO, ...OUTRAS_BATIDAS]}
               sistema={[...EXTRATO_SISTEMA, ...OUTRAS_BATIDAS]}
               saldo={SALDO_DE_AGOSTO}
+              saldoSistema={SALDO_DO_SISTEMA}
+              diferencaSaldo={DIFERENCA_DOS_SALDOS}
               destaque="Pagamento fornecedor #1082"
             />
           </Reveal>
