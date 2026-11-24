@@ -4,9 +4,16 @@ import { createContext, useContext, useMemo, type ReactNode } from "react";
 
 /**
  * Uma empresa da conta, como o seletor a mostra: o `razao_social` e o `cnpj` vêm do `GET /me`; `nome` é o
- * mostrado, o `nome_exibicao` (backend #236) ou, sem ele, a razão social.
+ * mostrado, o `nome_exibicao` (backend #236) ou, sem ele, a razão social. `integracaoSistemaConfigurada`
+ * vem de `integracao_sistema_configurada` (backend #253); ausente ou diferente de `true` é falso.
  */
-export type EmpresaDaConta = { id: string; razaoSocial: string; nome: string; cnpj: string };
+export type EmpresaDaConta = {
+  id: string;
+  razaoSocial: string;
+  nome: string;
+  cnpj: string;
+  integracaoSistemaConfigurada?: boolean;
+};
 
 type Valor = { ativa: EmpresaDaConta; empresas: EmpresaDaConta[] };
 

@@ -888,7 +888,7 @@ describe("depois da importação via IA, só falta o banco", () => {
     const user = userEvent.setup();
     render(<NovaConciliacaoPage />);
 
-    expect(screen.getByText("Importação via IA")).toBeInTheDocument();
+    expect(screen.getByText("Importado e confirmado")).toBeInTheDocument();
     expect(screen.queryByLabelText("Extrato do sistema")).not.toBeInTheDocument();
     expect(screen.queryByText("Só tem o PDF do relatório?")).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Falta um extrato" })).toBeInTheDocument();
@@ -933,5 +933,37 @@ describe("depois da importação via IA, só falta o banco", () => {
     render(<NovaConciliacaoPage />);
 
     expect(screen.getByLabelText("Extrato do sistema")).toBeInTheDocument();
+  });
+});
+
+describe("botão Importar de um sistema na Nova conciliação (#253)", () => {
+  afterEach(() => {
+    consulta = "";
+    cleanup();
+  });
+
+  it("não aparece com a flag desligada, nem no modo ?sistema=, nem no reenvio", () => {
+    render(<NovaConciliacaoPage />);
+    expect(screen.queryByRole("button", { name: "Importar de um sistema" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Configurar a integração" })).not.toBeInTheDocument();
+    cleanup();
+
+    // com flag ligada no modo normal, aparece
+    render(
+      <ProvedorDaConta preferencias={null} integracaoSistemaHabilitada integracaoSistemaConfigurada>
+        <NovaConciliacaoPage />
+      </ProvedorDaConta>,
+    );
+    expect(screen.getByRole("button", { name: "Importar de um sistema" })).toBeInTheDocument();
+    cleanup();
+
+    // quando a folha já veio pronta de ?sistema=, não aparece
+    consulta = "sistema=11111111-1111-4111-8111-111111111111";
+    render(
+      <ProvedorDaConta preferencias={null} integracaoSistemaHabilitada integracaoSistemaConfigurada>
+        <NovaConciliacaoPage />
+      </ProvedorDaConta>,
+    );
+    expect(screen.queryByRole("button", { name: "Importar de um sistema" })).not.toBeInTheDocument();
   });
 });

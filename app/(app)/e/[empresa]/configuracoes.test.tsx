@@ -3,6 +3,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Configuracoes } from "./configuracoes";
 import { ProvedorDaConta } from "./conta";
+import { ProvedorDaEmpresa } from "@/lib/empresa-ativa";
 import type { RegrasDaEmpresa, Resultado } from "./conciliacoes/acoes";
 import { SEM_SERVIDOR } from "@/lib/sem-servidor";
 
@@ -51,8 +52,19 @@ vi.mock("./chaves-api/painel", async () => {
 const carregarConexoesMcp = vi.fn();
 vi.mock("./conexoes-mcp/acoes", () => ({ carregarConexoesMcp: () => carregarConexoesMcp() }));
 vi.mock("./conexoes-mcp/painel", () => ({ PainelDeConexoes: () => <p>painel das conexões</p> }));
+let montagensDaIntegracao = 0;
+vi.mock("./integracao-sistema/painel", async () => {
+  const { useEffect } = await import("react");
+  return {
+    PainelDeIntegracao: () => {
+      useEffect(() => { montagensDaIntegracao += 1; }, []);
+      return <p>painel da integração</p>;
+    },
+  };
+});
 beforeEach(() => {
   montagensDasChaves = 0;
+  montagensDaIntegracao = 0;
   carregarConexoesMcp.mockReset();
   carregarConexoesMcp.mockResolvedValue({ ok: false, status: 404, erro: "Not Found" });
 });
@@ -637,5 +649,40 @@ describe("Configuracoes", () => {
 
     expect(carregarConexoesMcp).not.toHaveBeenCalled();
     expect(screen.queryByRole("button", { name: "Conexões" })).not.toBeInTheDocument();
+  });
+
+  it("com a flag de integração desligada, a seção Integração não aparece nem monta o painel", () => {
+    abrir({ papel: "admin" });
+
+    expect(screen.queryByRole("button", { name: "Integração" })).not.toBeInTheDocument();
+    expect(montagensDaIntegracao).toBe(0);
+  });
+
+  it.each(["admin", "gestor"] as const)("com a flag ligada, o %s vê a seção Integração com o nome da empresa ativa no título", async (papel) => {
+    const user = userEvent.setup();
+    const empresa = { id: "e1", razaoSocial: "Telha Certa Ltda", nome: "Telha Certa", cnpj: "12345678000195" };
+    render(
+      <ProvedorDaEmpresa ativa={empresa} empresas={[empresa]}>
+        <ProvedorDaConta preferencias={TUTORIAL_JA_VISTO} integracaoSistemaHabilitada>
+          <Configuracoes aberta email={EMAIL} temSenha papel={papel} onFechar={vi.fn()} onSair={vi.fn()} onTema={vi.fn()} />
+        </ProvedorDaConta>
+      </ProvedorDaEmpresa>,
+    );
+
+    await user.click(secao("Integração"));
+    expect(screen.getByRole("heading", { name: "Integração · Telha Certa" })).toBeInTheDocument();
+    expect(screen.getByText(/busca o extrato do sistema apenas para o período/i)).toBeInTheDocument();
+    expect(screen.getByText("painel da integração")).toBeInTheDocument();
+  });
+
+  it("mesmo com a flag ligada, o analista não vê a seção Integração", () => {
+    render(
+      <ProvedorDaConta preferencias={TUTORIAL_JA_VISTO} integracaoSistemaHabilitada>
+        <Configuracoes aberta email={EMAIL} temSenha papel="analista" onFechar={vi.fn()} onSair={vi.fn()} onTema={vi.fn()} />
+      </ProvedorDaConta>,
+    );
+
+    expect(screen.queryByRole("button", { name: "Integração" })).not.toBeInTheDocument();
+    expect(montagensDaIntegracao).toBe(0);
   });
 });

@@ -24,7 +24,7 @@ export const PERFIS: Perfil[] = [
     quem: "Uma pessoa, um extrato e o mês em dia.",
     pontos: [
       "Dois arquivos e a comparação abre sozinha",
-      "Preço pelo volume de lançamentos, sem cobrança por usuário",
+      "Plano mensal pelo tamanho do mês, sem cobrança por usuário",
       "Sem fidelidade nem taxa de implantação",
     ],
     mascote: { src: "/mascotes/mascote-laptop.png", width: 824, height: 720 },
@@ -60,7 +60,7 @@ export const PERFIS: Perfil[] = [
     quem: "Atende várias empresas e fecha o mês de todas.",
     pontos: [
       "Cada empresa cliente no seu CNPJ, a um clique da outra",
-      "O analista justifica; o gestor aprova e fecha o mês",
+      "O analista justifica; o gestor fecha o mês",
       "O relatório do fechamento pronto para mandar ao cliente",
     ],
     mascote: { src: "/mascotes/mascote-arquivo.png", width: 758, height: 720 },

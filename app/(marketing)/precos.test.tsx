@@ -58,7 +58,7 @@ function renderPrecos() {
   return render(
     <MotionRoot>
       <Precos banco={BANCO} destaque="Pagamento fornecedor #1082" resumo={RESUMO}>
-        <h2>Preço fechado, por volume.</h2>
+        <h2>Preço fechado, pelo tamanho do mês.</h2>
       </Precos>
     </MotionRoot>,
   );
@@ -222,7 +222,7 @@ describe("Precos", () => {
     it("keeps the sticky title in a box that ends with the cards, so it stops before the plan ruler", () => {
       renderPrecos();
       // o sticky anda dentro do pai: se o pai tiver a régua, o título desce por cima dela
-      const topo = screen.getByRole("heading", { name: "Preço fechado, por volume." }).closest(".preco-topo")!;
+      const topo = screen.getByRole("heading", { name: "Preço fechado, pelo tamanho do mês." }).closest(".preco-topo")!;
       expect(topo.parentElement!.contains(regua())).toBe(false);
     });
   });

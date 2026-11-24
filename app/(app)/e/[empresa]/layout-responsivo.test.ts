@@ -45,6 +45,17 @@ describe("layout responsivo", () => {
     expect(declaracoes(".app-shell", "(max-width: 900px)")["grid-template-rows"]).toBe("auto 1fr");
   });
 
+  // no celular o painel de Fechamentos descia ~135px por cima dos meses (24/11): relativo, ele herdava
+  // o top do painel grudado
+  it("o painel de Fechamentos não herda o top de grudar quando fica relativo", () => {
+    expect(declaracoes(".fech-painel:has(> .fech-rolagem)")).toMatchObject({ position: "relative", top: "auto" });
+  });
+
+  // os filtros quebravam em duas linhas e viravam um bloco cinza (24/11): no celular correm para o lado
+  it("no celular, o controle segmentado fica numa linha e rola para o lado", () => {
+    expect(declaracoes(".pills.segmentado", "(max-width: 680px)")).toMatchObject({ "flex-wrap": "nowrap", "overflow-x": "auto" });
+  });
+
   // entre ~800 e 1000px o "-R$ 12.640,00" quebrava depois do hífen e vazava do cartão
   it("o valor do detalhe da divergência fica numa linha e mede o cartão, não a janela", () => {
     expect(declaracoes(".det-cartao")["container-type"]).toBe("inline-size");

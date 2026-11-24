@@ -7,6 +7,7 @@ import { Fragment, useLayoutEffect, useRef, useState } from "react";
 import { LogoBarras } from "@/app/(app)/e/[empresa]/logo-barras";
 import { useMovimentoReduzido } from "@/app/reveal";
 import { Cena } from "./cena";
+import { LARGURA_DO_CELULAR } from "./rolagem-lateral";
 
 // "Por que o Ledgr": as duas saídas que a empresa tem hoje e o Ledgr, cada uma respondendo às
 // mesmas perguntas. Por tipo de solução, sem nome de concorrente: a página não tem como sustentar o
@@ -48,7 +49,7 @@ export const MOTIVOS: Motivo[] = [
   },
   {
     pergunta: "O que custa",
-    ledgr: ["Pelo volume de lançamentos do mês.", "Sem fidelidade nem taxa de implantação."],
+    ledgr: ["Um plano mensal, pelo tamanho do mês.", "Sem fidelidade nem taxa de implantação."],
     hoje: ["As horas de quem confere, em todo fechamento.", "A mensalidade do sistema novo, mais o trabalho da migração."],
     mascote: { src: "/mascotes/mascote-maleta.png", width: 778, height: 720 },
   },
@@ -76,6 +77,12 @@ export function PorQueOLedgr() {
       const caixa = fixo.current;
       const faixa = trilho.current;
       if (!caixa || !faixa) return;
+      // no celular a faixa não prende: os cartões paravam cortados no meio das palavras; vira a tira que se
+      // arrasta de lado, um cartão por vez (scroll-snap no CSS) (#496)
+      if (window.matchMedia?.(`(max-width: ${LARGURA_DO_CELULAR}px)`).matches) {
+        setMedidas(null);
+        return;
+      }
       const distancia = Math.max(0, faixa.scrollWidth - caixa.clientWidth);
       const altura = window.innerHeight;
       // Mesmo respiro da faixa fixa no CSS. Se os cartões não couberem, deixa a tira rolar.
@@ -126,7 +133,7 @@ export function PorQueOLedgr() {
               Sem trocar de sistema, <em>e sem voltar para o manual.</em>
             </h2>
             <p className="kin-lat-dica" aria-hidden="true">
-              Role para ver os motivos <span>→</span>
+              {presa ? "Role" : "Arraste"} para ver os motivos <span>→</span>
             </p>
           </div>
           {MOTIVOS.map((motivo, i) => (

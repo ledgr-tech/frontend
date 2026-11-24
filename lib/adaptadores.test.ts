@@ -2,6 +2,9 @@ import { describe, it, expect } from "vitest";
 import {
   adaptarConsultaConvite,
   adaptarEmpresaCliente,
+  adaptarIntegracaoSistema,
+  integracaoSistemaConfigurada,
+  integracaoSistemaLigada,
   nomeDaEmpresa,
   adaptarConvite,
   adaptarPessoa,
@@ -732,5 +735,58 @@ describe("nome de exibição da empresa (backend #236)", () => {
     expect(nomeDaEmpresa("Razão Ltda", null)).toEqual({ nome: "Razão Ltda", nomeExibicao: null });
     expect(nomeDaEmpresa("Razão Ltda", "   ")).toEqual({ nome: "Razão Ltda", nomeExibicao: null });
     expect(nomeDaEmpresa("Razão Ltda", 7)).toEqual({ nome: "Razão Ltda", nomeExibicao: null });
+  });
+});
+
+describe("integração com o sistema de gestão (backend #253)", () => {
+  it("só true liga a flag ou marca a empresa como configurada", () => {
+    expect(integracaoSistemaLigada({ integracao_sistema_habilitada: true })).toBe(true);
+    expect(integracaoSistemaLigada({ integracao_sistema_habilitada: false })).toBe(false);
+    expect(integracaoSistemaLigada({ integracao_sistema_habilitada: "true" })).toBe(false);
+    expect(integracaoSistemaLigada({})).toBe(false);
+
+    expect(integracaoSistemaConfigurada({ integracao_sistema_configurada: true })).toBe(true);
+    expect(integracaoSistemaConfigurada({ integracao_sistema_configurada: false })).toBe(false);
+    expect(integracaoSistemaConfigurada({ integracao_sistema_configurada: 1 })).toBe(false);
+    expect(integracaoSistemaConfigurada({})).toBe(false);
+  });
+
+  it("adapta a configuração sem jamais repassar chave extra do corpo", () => {
+    const configurada = adaptarIntegracaoSistema({
+      configurada: true,
+      adaptador: "ledgr_v1",
+      url: "https://erp.exemplo.com.br/ledgr",
+      chave_prefixo: "sk_live_12",
+      atualizada_em: "2026-11-22T14:30:00Z",
+      atualizada_por: "Ana",
+      ...({ chave: "segredo-que-nao-deve-passar" } as Record<string, unknown>),
+    });
+    expect(configurada).toEqual({
+      configurada: true,
+      adaptador: "ledgr_v1",
+      url: "https://erp.exemplo.com.br/ledgr",
+      chavePrefixo: "sk_live_12",
+      atualizadaEm: "2026-11-22T14:30:00Z",
+      atualizadaPor: "Ana",
+    });
+    expect("chave" in configurada).toBe(false);
+
+    expect(
+      adaptarIntegracaoSistema({
+        configurada: false,
+        adaptador: null,
+        url: null,
+        chave_prefixo: null,
+        atualizada_em: null,
+        atualizada_por: null,
+      }),
+    ).toEqual({
+      configurada: false,
+      adaptador: null,
+      url: null,
+      chavePrefixo: null,
+      atualizadaEm: null,
+      atualizadaPor: null,
+    });
   });
 });
