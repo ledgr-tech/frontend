@@ -1566,6 +1566,9 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
 }
 .janela-tela { padding: 18px 20px 20px; }
 .janela-conciliacao .comparacao-corpo { gap: 14px; padding: 0; }
+/* clip, e não hidden: hidden faz da janela o contêiner de rolagem do sticky, e a faixa da seleção
+   (.lote-faixa, presa no pé da tela como no app) não grudaria */
+.janela-conciliacao .vitrine-janela { overflow: clip; }
 /* a tabela aperta as colunas quando estreita, como a do app ao lado do painel (@container tabela-comparacao) */
 .janela-conciliacao .dash-tabela-rolagem { container: tabela-comparacao / inline-size; }
 .janela-conciliacao .comparacao-lateral { position: static; padding-top: 0; }

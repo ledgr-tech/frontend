@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { useCallback, useRef, useState, useSyncExternalStore, type MouseEvent, type ReactNode } from "react";
+import { flushSync } from "react-dom";
 import { ladosDaLinha } from "@/app/(app)/e/[empresa]/conciliacoes/[id]/cartao-lancamento";
 import { CirculoDeConferir } from "@/app/(app)/e/[empresa]/conciliacoes/[id]/circulo-de-conferir";
 import { JustificarEmLote } from "@/app/(app)/e/[empresa]/conciliacoes/[id]/justificar-em-lote";
@@ -168,6 +169,11 @@ export function JanelaDaConciliacao({
   const [explorada, setExplorada] = useState(false);
   // as divergências marcadas na coluna da esquerda, para somar e justificar de uma vez (#475, #473)
   const [selecao, setSelecao] = useState<ReadonlySet<string>>(() => new Set());
+  // o resultado do lote, num role="status" sempre montado: é dito mesmo com a faixa já fechada
+  const [avisoDoLote, setAvisoDoLote] = useState<string | null>(null);
+  const faixa = useRef<HTMLDivElement>(null);
+  const caixaDeTodas = useRef<HTMLInputElement>(null);
+  const filtros = useRef<HTMLDivElement>(null);
 
   const emRevisao = filtrarLinhas(linhas, "revisao", RODADA);
   const justificadas = filtrarLinhas(linhas, "justificadas", RODADA).length;
@@ -182,12 +188,30 @@ export function JanelaDaConciliacao({
   const selecionaveisAVista = visiveis.filter(podeSelecionar).map(chaveDaLinha);
   const todasSelecionadas = selecionaveisAVista.length > 0 && selecionaveisAVista.every((chave) => valendo.has(chave));
   const jaJustificadas = linhas.filter((linha) => valendo.has(chaveDaLinha(linha)) && linha.decisao?.tipo === "justificada").length;
-  const alternarSelecao = (chave: string) =>
+  const alternarSelecao = (chave: string) => {
+    setAvisoDoLote(null);
     setSelecao((atual) => {
       const proxima = new Set(atual);
       if (!proxima.delete(chave)) proxima.add(chave);
       return proxima;
     });
+  };
+  /**
+   * Esvazia a seleção e, se o foco estava na faixa (que some), leva-o adiante como o app: do Limpar à caixa de
+   * selecionar todas, do lote ao filtro aberto. As caixas desmarcam antes (flushSync), para o leitor de tela
+   * ouvir "não marcada". Sem rolar a página: depois de um clique, o destino pode estar longe.
+   */
+  const esvaziarSelecao = (destino: "caixa" | "filtro") => {
+    const tinhaFoco = faixa.current?.contains(document.activeElement) ?? false;
+    flushSync(() => setSelecao(new Set()));
+    if (!tinhaFoco) return;
+    const caixa = caixaDeTodas.current;
+    const alvo =
+      destino === "caixa" && caixa && !caixa.disabled
+        ? caixa
+        : filtros.current?.querySelector<HTMLElement>('[aria-pressed="true"]');
+    alvo?.focus({ preventScroll: true });
+  };
   const alternarTodas = () =>
     setSelecao((atual) => {
       const proxima = new Set(atual);
@@ -228,10 +252,12 @@ export function JanelaDaConciliacao({
   };
   // em memória, como a justificativa de uma linha: as selecionadas saem da revisão e a seleção some
   const justificarSelecionadas = async (texto: string) => {
+    const quantas = valendo.size;
     setLinhas((atual) =>
       atual.map((linha) => (valendo.has(chaveDaLinha(linha)) ? { ...linha, decisao: decisao("justificada", texto) } : linha)),
     );
-    setSelecao(new Set());
+    setAvisoDoLote(quantas === 1 ? "1 linha justificada." : `${formatarInteiro(quantas)} linhas justificadas.`);
+    esvaziarSelecao("filtro");
     return null;
   };
   const ordenar = (coluna: Coluna) =>
@@ -256,7 +282,7 @@ export function JanelaDaConciliacao({
             {/* a faixa da tabela do app: o filtro à esquerda, a densidade à direita */}
             <div className="tabela-ferramentas">
               <div className="tabela-filtros">
-                <div className="pills segmentado" role="group" aria-label="Filtrar lançamentos">
+                <div ref={filtros} className="pills segmentado" role="group" aria-label="Filtrar lançamentos">
                   <button type="button" className="pill" aria-pressed={filtro === "todos"} onClick={() => setFiltro("todos")}>
                     Todos ({linhas.length})
                   </button>
@@ -295,7 +321,7 @@ export function JanelaDaConciliacao({
             </p>
             {/* como no app: antes da tabela no DOM, presa no pé da tela depois dela pelo CSS (.lote-faixa) */}
             {selecionadas.length > 0 && (
-              <div className="lote-faixa" role="region" aria-label="Linhas selecionadas">
+              <div ref={faixa} className="lote-faixa" role="region" aria-label="Linhas selecionadas">
                 {painelAoLado ? (
                   <span className="tabela-progresso">
                     {`${formatarInteiro(selecionadas.length)} ${selecionadas.length === 1 ? "selecionada" : "selecionadas"}`}
@@ -304,11 +330,18 @@ export function JanelaDaConciliacao({
                   <SomaDasSelecionadas soma={soma} />
                 )}
                 <JustificarEmLote quantidade={selecionadas.length} jaJustificadas={jaJustificadas} onJustificar={justificarSelecionadas} />
-                <button type="button" className="btn btn-secondary" onClick={() => setSelecao(new Set())}>
+                <button type="button" className="btn btn-secondary" onClick={(evento: MouseEvent) => {
+                  // só pelo teclado (detail 0) o foco segue para a caixa; depois de um clique, fica onde o ponteiro está
+                  if (evento.detail === 0) esvaziarSelecao("caixa");
+                  else setSelecao(new Set());
+                }}>
                   Limpar seleção
                 </button>
               </div>
             )}
+            <p role="status" className={avisoDoLote ? "espia-aviso" : "sr-only"}>
+              {avisoDoLote}
+            </p>
 
             <div className="dash-tabela-rolagem">
               <table className="table tabela-folhas folhas-com-eixo" role="table">
@@ -347,6 +380,7 @@ export function JanelaDaConciliacao({
                   <tr role="row">
                     <th className="th-selecao">
                       <input
+                        ref={caixaDeTodas}
                         type="checkbox"
                         aria-label="Selecionar todas as divergências à vista"
                         checked={todasSelecionadas}
