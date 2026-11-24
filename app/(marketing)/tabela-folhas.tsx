@@ -1,7 +1,9 @@
 import { ConteudoCartao } from "@/app/(app)/e/[empresa]/conciliacoes/[id]/cartao-lancamento";
 import { estaResolvida, rotuloCurto, seloDoStatus } from "@/app/(app)/e/[empresa]/dashboard/resumo";
 import { IconeOrigem } from "@/app/(app)/e/[empresa]/icone-origem";
+import { DiferencaDosSaldos, SaldoDaFolha } from "@/app/(app)/e/[empresa]/saldo";
 import type { LinhaExtrato } from "./comparacao";
+import { DIFERENCA_DOS_SALDOS, SALDO_DO_BANCO, SALDO_DO_SISTEMA } from "./saldos-de-agosto";
 
 function Coluna({
   folha,
@@ -40,7 +42,9 @@ function Coluna({
  *
  * As classes e os campos são os do app (app/(app)/e/[empresa]/conciliacoes/[id]/page.tsx): o status no
  * eixo entre as duas folhas, em nome curto, o que bateu sem selo, e o campo que diverge marcado dos dois
- * lados. O par é casado pela descrição, e a data de cada lado vem do extrato dele.
+ * lados. O par é casado pela descrição, e a data de cada lado vem do extrato dele. Como no app de hoje, a
+ * coluna de seleção nas divergências (#475) e os saldos de cada folha, com a diferença dos finais no eixo (#474).
+ * A réplica é `inert`: as caixas só aparecem, não se marcam.
  */
 export function TabelaFolhas({
   banco,
@@ -59,6 +63,7 @@ export function TabelaFolhas({
     <table className="table tabela-folhas folhas-com-eixo" role="table">
       {/* as larguras do app (globals.css): as folhas saem iguais dos dois lados do eixo */}
       <colgroup>
+        <col className="col-selecao" />
         <col className="col-data" />
         <col />
         <col className="col-valor" />
@@ -69,11 +74,12 @@ export function TabelaFolhas({
       </colgroup>
       <thead role="rowgroup">
         <tr role="row" className="folhas-titulos">
+          <td className="folha-fora" aria-hidden="true" />
           <th colSpan={3} scope="colgroup" className="folha-banco folha-titulo">
             <span className="folha-titulo-conteudo">
               <IconeOrigem origem="banco" />
               <span className="folha-nome">Extrato do banco</span>
-              <span className="folha-etiqueta">Fonte da verdade</span>
+              <SaldoDaFolha saldo={SALDO_DO_BANCO} momento="inicial" />
             </span>
           </th>
           <td className="folha-fora" aria-hidden="true" />
@@ -81,10 +87,14 @@ export function TabelaFolhas({
             <span className="folha-titulo-conteudo">
               <IconeOrigem origem="sistema" />
               <span className="folha-nome">Sistema de gestão</span>
+              <SaldoDaFolha saldo={SALDO_DO_SISTEMA} momento="inicial" />
             </span>
           </th>
         </tr>
         <tr role="row">
+          <th className="th-selecao">
+            <input type="checkbox" aria-label="Selecionar todas as divergências à vista" readOnly />
+          </th>
           <Coluna folha="banco" setas={setas}>
             Data
           </Coluna>
@@ -123,6 +133,9 @@ export function TabelaFolhas({
           return (
             // o tom do status pinta o hover: a linha acende na cor do veredito dela
             <tr key={b.desc} role="row" data-tom={selo.tom} data-destacada={b.desc === destacada || undefined}>
+              <td role="cell" className="celula-selecao">
+                {revisar && <input type="checkbox" aria-label={`Selecionar: ${b.data} ${b.desc}`} readOnly />}
+              </td>
               <td role="cell" data-rotulo="Data" data-diverge={diverge("data")} className="dash-celula-fraca folha-banco">
                 {marcar("data", b.data)}
               </td>
@@ -177,6 +190,20 @@ export function TabelaFolhas({
           );
         })}
       </tbody>
+      <tfoot role="rowgroup">
+        <tr role="row">
+          <td role="cell" className="folha-fora" aria-hidden="true" />
+          <td role="cell" colSpan={3} className="folha-banco">
+            <SaldoDaFolha saldo={SALDO_DO_BANCO} momento="final" />
+          </td>
+          <td role="cell" className="folha-fora">
+            <DiferencaDosSaldos diferenca={DIFERENCA_DOS_SALDOS} />
+          </td>
+          <td role="cell" colSpan={3} className="folha-sistema">
+            <SaldoDaFolha saldo={SALDO_DO_SISTEMA} momento="final" />
+          </td>
+        </tr>
+      </tfoot>
     </table>
   );
 }

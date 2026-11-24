@@ -134,7 +134,7 @@ export function ReguaQueMede() {
       <div className="regua-mede-pergunta">
         <div className="preco-regua-topo">
           <p className="preco-rotulo">Os planos</p>
-          <span className="preco-regua-nota">pelo volume de lançamentos do mês</span>
+          <span className="preco-regua-nota">pelo tamanho do seu mês</span>
         </div>
         <p className="titulo-misto regua-mede-titulo">
           Quantos lançamentos você <em>confere por mês?</em>

@@ -10,6 +10,7 @@ import { QUANTAS_CATEGORIAS } from "./categorias";
 import { Cena } from "./cena";
 import { ConexaoIa } from "./conexao-ia";
 import { JanelaDaConciliacao, type LinhaExtrato } from "./comparacao";
+import { DIFERENCA_DOS_SALDOS, SALDO_DO_BANCO, SALDO_DO_SISTEMA } from "./saldos-de-agosto";
 import { ConferenciaAMao, type Dor } from "./conferencia-a-mao";
 import { Depoimentos } from "./depoimentos";
 import { DicaDoMouse } from "./dica-do-mouse";
@@ -124,12 +125,6 @@ const OUTRAS_BATIDAS: LinhaExtrato[] = [
   { data: "10/08", desc: "Honorários contábeis", valorBanco: "R$ 2.400,00", valorSistema: "R$ 2.400,00", ...BATIDA },
   { data: "12/08", desc: "Simples Nacional", valorBanco: "R$ 3.862,17", valorSistema: "R$ 3.862,17", ...BATIDA },
 ];
-// o saldo do extrato de agosto inteiro (a coluna do banco mostra o do arquivo, não o do trecho)
-const SALDO_DE_AGOSTO = { inicial: 52380.47, final: 61904.12, data: "2026-08-31" };
-// o do sistema começa igual e termina 80,95 acima: os 36,00 de juros e os 45,00 da tarifa que só o banco tem,
-// menos os 0,05 que o banco creditou a mais no cartão. A diferença é banco menos sistema, como o backend manda (#474)
-const SALDO_DO_SISTEMA = { inicial: 52380.47, final: 61985.07, data: "2026-08-31" };
-const DIFERENCA_DOS_SALDOS = { valor: -80.95, motivo: null };
 
 // As três dores do Cap. II, uma por número nas telas, com os números dos próprios lançamentos: a
 // escala do mês (a mesma de Preços), os cinco centavos do cartão e a tarifa que só o banco tem
@@ -177,8 +172,9 @@ const PASSOS: { num: string; titulo: string; texto: string; formatos?: string[];
   {
     num: "II",
     titulo: "Suba o extrato do sistema",
-    texto: "Exporte os lançamentos do seu sistema de gestão no mesmo período, em CSV.",
-    formatos: ["CSV"],
+    texto:
+      "Exporte os lançamentos do seu sistema de gestão no mesmo período, em CSV. Só tem o PDF do relatório? A IA que você já usa, como o ChatGPT ou o Claude, o transforma no arquivo do Ledgr, e você confere as linhas antes de confirmar.",
+    formatos: ["CSV", "PDF via IA"],
   },
   {
     num: "III",
@@ -219,7 +215,12 @@ const PERGUNTAS = [
   {
     pergunta: "O contador consegue acessar?",
     resposta:
-      "Ainda não tem acesso próprio: hoje cada empresa tem um login só. Mas o relatório de cada conciliação sai em CSV, pronto para mandar ao contador.",
+      "Sim, no plano Avançado, que tem convites para a equipe: como analista, o contador vê as conciliações e justifica as diferenças; como gestor, também fecha o mês. Em qualquer plano, o relatório de cada mês fechado sai em PDF, pronto para mandar.",
+  },
+  {
+    pergunta: "Consigo achar um lançamento de meses atrás?",
+    resposta:
+      "Sim. A busca do topo (Ctrl K, ou ⌘K no Mac) procura por valor, data ou palavras da descrição em todas as conciliações da empresa, e abre a linha na comparação.",
   },
   {
     pergunta: "Consigo conciliar mais de um banco ao mesmo tempo?",
@@ -229,7 +230,7 @@ const PERGUNTAS = [
   {
     pergunta: "Existe fidelidade ou taxa de implantação?",
     resposta:
-      "Não. Você paga só pelo volume de lançamentos conferidos no mês, sem contrato de fidelidade, taxa de implantação ou cobrança por usuário adicional.",
+      "Não. Você paga um plano mensal pelo tamanho do seu mês, sem contrato de fidelidade, taxa de implantação ou cobrança por usuário adicional.",
   },
   {
     pergunta: "Posso cancelar quando quiser?",
@@ -464,7 +465,7 @@ export default function LandingPage() {
             <JanelaDaConciliacao
               banco={[...EXTRATO_BANCO, ...OUTRAS_BATIDAS]}
               sistema={[...EXTRATO_SISTEMA, ...OUTRAS_BATIDAS]}
-              saldo={SALDO_DE_AGOSTO}
+              saldo={SALDO_DO_BANCO}
               saldoSistema={SALDO_DO_SISTEMA}
               diferencaSaldo={DIFERENCA_DOS_SALDOS}
               destaque="Pagamento fornecedor #1082"
@@ -665,12 +666,12 @@ export default function LandingPage() {
           <Precos banco={EXTRATO_BANCO} destaque="Pagamento fornecedor #1082" resumo={AGOSTO}>
             <span className="eyebrow preco-capitulo">Cap. V · Começar</span>
             <h2 className="titulo-misto preco-titulo">
-              Preço fechado, <em>por volume.</em>
+              Preço fechado, <em>pelo tamanho do mês.</em>
             </h2>
             <div className="preco-filete" aria-hidden="true" />
             <p className="preco-texto">
-              Você paga pelo número de lançamentos que conferir no mês. Não tem fidelidade, taxa de
-              implantação nem cobrança por usuário.
+              Um plano mensal pelo tamanho do seu mês. Não tem fidelidade, taxa de implantação nem
+              cobrança por usuário.
             </p>
           </Precos>
           <div className="preco-acoes">
