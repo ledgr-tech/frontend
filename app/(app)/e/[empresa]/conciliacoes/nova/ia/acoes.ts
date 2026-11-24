@@ -1,7 +1,8 @@
 "use server";
 
-import { pareceUuid } from "@/lib/adaptadores";
-import { ErroBackend, chamarBackend } from "@/lib/backend";
+import { ehDataIso, pareceUuid } from "@/lib/adaptadores";
+import { ErroBackend, chamarBackend, ehContaInativa, emailDaSessao } from "@/lib/backend";
+import { RECUSA_DEMONSTRACAO, ehContaDeDemonstracao } from "@/lib/demo";
 import { ARQUIVO_GRANDE_DEMAIS, TAMANHO_MAXIMO_UPLOAD_BYTES } from "@/lib/limite-de-upload";
 import { conciliar, situacaoDoExtrato, verificarNovaVersao, type Falha, type Resultado } from "../../acoes";
 import { SEM_SERVIDOR } from "@/lib/sem-servidor";
@@ -34,6 +35,9 @@ export type Rascunho = { id: string; resumo: ResumoDoRascunho; total: number; it
 
 /** O que falhou na leitura do arquivo: o texto e, quando o backend lista, cada campo errado. */
 export type FalhaDaImportacao = Falha & { erros: ErroDeCampo[]; totalErros: number };
+
+/** O que falhou na busca no sistema de gestão: decide pelo `codigo`, nunca pelo status HTTP. */
+export type FalhaDaImportacaoDoSistema = FalhaDaImportacao & { codigo?: string };
 
 type ResumoAPI = {
   quantidade: number;
@@ -124,6 +128,92 @@ export async function importarViaIa(
       erros: erro instanceof ErroBackend ? erro.erros : [],
       totalErros: erro instanceof ErroBackend ? (erro.totalErros ?? erro.erros.length) : 0,
     };
+  }
+}
+
+/** Códigos estáveis devolvidos por `POST /importacoes-ia/do-sistema` (backend #253). */
+const CODIGOS_DO_SISTEMA = new Set([
+  "integracao_nao_configurada",
+  "integracao_indisponivel",
+  "sistema_sem_lancamentos",
+  "sistema_recusou_a_chave",
+  "sistema_nao_respondeu",
+  "sistema_indisponivel",
+  "sistema_redirecionou",
+  "sistema_resposta_grande_demais",
+  "sistema_resposta_invalida",
+  "sistema_endereco_nao_permitido",
+]);
+
+function traduzirDoSistema(erro: unknown): FalhaDaImportacaoDoSistema {
+  if (!(erro instanceof ErroBackend)) {
+    return { ok: false, status: 0, erro: SEM_SERVIDOR, erros: [], totalErros: 0 };
+  }
+  const { status, codigo, erros } = erro;
+  const totalErros = erro.totalErros ?? erros.length;
+  // a decisão é sempre pelo codigo antes do status: um 502 com sistema_recusou_a_chave não desloga
+  if (ehContaInativa(erro)) {
+    return { ok: false, status, codigo, erro: erro.detalhe, erros: [], totalErros: 0 };
+  }
+  if (codigo && CODIGOS_DO_SISTEMA.has(codigo)) {
+    return { ok: false, status, codigo, erro: erro.detalhe, erros, totalErros };
+  }
+  if (status === 401) {
+    return { ok: false, status, erro: "Sua sessão expirou. Entre de novo para continuar.", erros: [], totalErros: 0 };
+  }
+  if (status === 404 && erro.detalhe === "Not Found") {
+    return {
+      ok: false,
+      status,
+      erro: "A integração com o sistema não está disponível no momento.",
+      erros: [],
+      totalErros: 0,
+    };
+  }
+  if (status === 429) {
+    return {
+      ok: false,
+      status,
+      erro: "Muitas tentativas seguidas. Espere um minuto e tente de novo.",
+      erros: [],
+      totalErros: 0,
+    };
+  }
+  if (status >= 500) {
+    return { ok: false, status, erro: SEM_SERVIDOR, erros: [], totalErros: 0 };
+  }
+  return { ok: false, status, ...(codigo && { codigo }), erro: erro.detalhe, erros, totalErros };
+}
+
+/**
+ * Busca o extrato direto no sistema de gestão configurado para a empresa ativa (`POST /importacoes-ia/do-sistema`,
+ * backend #253) e cria o mesmo rascunho de revisão da importação via IA. Qualquer papel pode importar; a conta
+ * de demonstração nunca chama a rota. O prazo padrão do `chamarBackend` (30 s) cobre o corte de 15 s do backend.
+ */
+export async function importarDoSistema(
+  de: string,
+  ate: string,
+): Promise<{ ok: true; dados: { importacaoId: string; quantidade: number } } | FalhaDaImportacaoDoSistema> {
+  if (!ehDataIso(de) || !ehDataIso(ate) || de > ate) {
+    return {
+      ok: false,
+      status: 422,
+      erro: "Escolha um período válido, com a data inicial igual ou anterior à data final.",
+      erros: [],
+      totalErros: 0,
+    };
+  }
+  if (process.env.LEDGR_CONTA_TESTE_EMAIL && ehContaDeDemonstracao(await emailDaSessao())) {
+    return { ok: false, status: 403, erro: RECUSA_DEMONSTRACAO, erros: [], totalErros: 0 };
+  }
+  try {
+    const r = await chamarBackend<{ importacao_id: string; quantidade_lancamentos: number }>("/importacoes-ia/do-sistema", {
+      method: "POST",
+      corpo: { de, ate },
+    });
+    return { ok: true, dados: { importacaoId: r.importacao_id, quantidade: r.quantidade_lancamentos } };
+  } catch (erro) {
+    return traduzirDoSistema(erro);
   }
 }
 

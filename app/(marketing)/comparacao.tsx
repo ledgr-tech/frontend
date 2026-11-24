@@ -1,17 +1,22 @@
 "use client";
 
-import { useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { useCallback, useRef, useState, useSyncExternalStore, type MouseEvent, type ReactNode } from "react";
+import { flushSync } from "react-dom";
 import { ladosDaLinha } from "@/app/(app)/e/[empresa]/conciliacoes/[id]/cartao-lancamento";
 import { CirculoDeConferir } from "@/app/(app)/e/[empresa]/conciliacoes/[id]/circulo-de-conferir";
+import { JustificarEmLote } from "@/app/(app)/e/[empresa]/conciliacoes/[id]/justificar-em-lote";
 import { filtrarLinhas, ordenarLinhas, type Coluna, type Filtro, type Ordem } from "@/app/(app)/e/[empresa]/conciliacoes/[id]/ordenar";
 import { PainelDoExtrato } from "@/app/(app)/e/[empresa]/conciliacoes/[id]/painel-do-extrato";
+import { limparSelecao, podeSelecionar, somarLinhas } from "@/app/(app)/e/[empresa]/conciliacoes/[id]/selecao";
 import { rotuloComDecisao, seloDaLinha, situacaoDaLinha, tomDaLinha } from "@/app/(app)/e/[empresa]/conciliacoes/[id]/situacao";
+import { anuncioDaSoma, SomaDasSelecionadas } from "@/app/(app)/e/[empresa]/conciliacoes/[id]/soma-das-selecionadas";
 import { formatarInteiro, statusDaLinha } from "@/app/(app)/e/[empresa]/dashboard/resumo";
 import { IconeOrigem } from "@/app/(app)/e/[empresa]/icone-origem";
-import { SaldoDaFolha } from "@/app/(app)/e/[empresa]/saldo";
+import { DiferencaDosSaldos, SaldoDaFolha, temTextoDaDiferenca } from "@/app/(app)/e/[empresa]/saldo";
 import { useMovimentoReduzido } from "@/app/reveal";
-import type { SaldoDoExtrato } from "@/lib/adaptadores";
+import type { DiferencaDoSaldo, SaldoDoExtrato } from "@/lib/adaptadores";
 import { formatarMoeda, type Decisao, type LinhaComparacao, type StatusLinha } from "@/lib/mock-data";
+import { chaveDaLinha } from "@/lib/rodadas";
 import { DicaDeArrastar, LARGURA_DO_CELULAR, usePasseioNoCelular } from "./rolagem-lateral";
 
 export type LinhaExtrato = {
@@ -39,17 +44,19 @@ const LADO_A_LADO = "(min-width: 1280px)";
 // vez de virar cartões como no app: um embaixo do outro, os cartões faziam a janela passar de 3.900px
 const NO_CELULAR = `(max-width: ${LARGURA_DO_CELULAR}px)`;
 
-function inscrever(avisar: () => void): () => void {
-  const consulta = window.matchMedia?.(NO_CELULAR);
-  consulta?.addEventListener?.("change", avisar);
-  return () => consulta?.removeEventListener?.("change", avisar);
-}
-
-/** Se a tela é de celular. No servidor e no primeiro desenho, não: a janela abre como no computador. */
-function useCelular(): boolean {
+/** Se a tela casa com `midia`. No servidor e no primeiro desenho, não: a janela abre como no computador. */
+function useMidia(midia: string): boolean {
+  const inscrever = useCallback(
+    (avisar: () => void) => {
+      const consulta = window.matchMedia?.(midia);
+      consulta?.addEventListener?.("change", avisar);
+      return () => consulta?.removeEventListener?.("change", avisar);
+    },
+    [midia],
+  );
   return useSyncExternalStore(
     inscrever,
-    () => window.matchMedia?.(NO_CELULAR).matches ?? false,
+    () => window.matchMedia?.(midia).matches ?? false,
     () => false,
   );
 }
@@ -127,16 +134,23 @@ export function JanelaDaConciliacao({
   banco,
   sistema,
   saldo,
+  saldoSistema,
+  diferencaSaldo,
   destaque,
 }: {
   banco: LinhaExtrato[];
   sistema: LinhaExtrato[];
   saldo: SaldoDoExtrato;
+  /** o saldo do extrato do sistema e a diferença dos finais (banco menos sistema), como o backend manda (#474) */
+  saldoSistema: SaldoDoExtrato;
+  diferencaSaldo: DiferencaDoSaldo;
   /** a linha que abre no painel */
   destaque: string;
 }) {
   const reduzido = useMovimentoReduzido();
-  const celular = useCelular();
+  const celular = useMidia(NO_CELULAR);
+  // com o painel ao lado, a soma das selecionadas vai nele; sem ele, na faixa da seleção, como no app (#475)
+  const painelAoLado = useMidia(LADO_A_LADO);
   const lateral = useRef<HTMLDivElement>(null);
   const janela = useRef<HTMLElement>(null);
   // o passeio inteiro já passou no hero: aqui só uma espiada, para lembrar que o sistema está do lado
@@ -153,6 +167,13 @@ export function JanelaDaConciliacao({
   const [ocupada, setOcupada] = useState(false);
   // quem já mexeu entendeu o hover: a dica embaixo da janela para de animar (globals.css)
   const [explorada, setExplorada] = useState(false);
+  // as divergências marcadas na coluna da esquerda, para somar e justificar de uma vez (#475, #473)
+  const [selecao, setSelecao] = useState<ReadonlySet<string>>(() => new Set());
+  // o resultado do lote, num role="status" sempre montado: é dito mesmo com a faixa já fechada
+  const [avisoDoLote, setAvisoDoLote] = useState<string | null>(null);
+  const faixa = useRef<HTMLDivElement>(null);
+  const caixaDeTodas = useRef<HTMLInputElement>(null);
+  const filtros = useRef<HTMLDivElement>(null);
 
   const emRevisao = filtrarLinhas(linhas, "revisao", RODADA);
   const justificadas = filtrarLinhas(linhas, "justificadas", RODADA).length;
@@ -160,6 +181,46 @@ export function JanelaDaConciliacao({
   const visiveis = ordenarLinhas(filtrarLinhas(linhas, filtro, RODADA), ordem);
   const linhaEmFoco = linhas.find((linha) => linha.id === foco) ?? null;
   const rolar = reduzido ? "auto" : "smooth";
+  // a regra do app: só divergência entra na seleção, e a que deixou de divergir sai dela
+  const selecionadas = limparSelecao(selecao, linhas);
+  const valendo = new Set(selecionadas);
+  const soma = somarLinhas(linhas.filter((linha) => valendo.has(chaveDaLinha(linha))));
+  const selecionaveisAVista = visiveis.filter(podeSelecionar).map(chaveDaLinha);
+  const todasSelecionadas = selecionaveisAVista.length > 0 && selecionaveisAVista.every((chave) => valendo.has(chave));
+  const jaJustificadas = linhas.filter((linha) => valendo.has(chaveDaLinha(linha)) && linha.decisao?.tipo === "justificada").length;
+  const alternarSelecao = (chave: string) => {
+    setAvisoDoLote(null);
+    setSelecao((atual) => {
+      const proxima = new Set(atual);
+      if (!proxima.delete(chave)) proxima.add(chave);
+      return proxima;
+    });
+  };
+  /**
+   * Esvazia a seleção e, se o foco estava na faixa (que some), leva-o adiante como o app: do Limpar à caixa de
+   * selecionar todas, do lote ao filtro aberto. As caixas desmarcam antes (flushSync), para o leitor de tela
+   * ouvir "não marcada". Sem rolar a página: depois de um clique, o destino pode estar longe.
+   */
+  const esvaziarSelecao = (destino: "caixa" | "filtro") => {
+    const tinhaFoco = faixa.current?.contains(document.activeElement) ?? false;
+    flushSync(() => setSelecao(new Set()));
+    if (!tinhaFoco) return;
+    const caixa = caixaDeTodas.current;
+    const alvo =
+      destino === "caixa" && caixa && !caixa.disabled
+        ? caixa
+        : filtros.current?.querySelector<HTMLElement>('[aria-pressed="true"]');
+    alvo?.focus({ preventScroll: true });
+  };
+  const alternarTodas = () =>
+    setSelecao((atual) => {
+      const proxima = new Set(atual);
+      for (const chave of selecionaveisAVista) {
+        if (todasSelecionadas) proxima.delete(chave);
+        else proxima.add(chave);
+      }
+      return proxima;
+    });
 
   const decidir = (id: string, decisao: Decisao | null) =>
     setLinhas((atual) => atual.map((linha) => (linha.id === id ? { ...linha, decisao } : linha)));
@@ -189,6 +250,16 @@ export function JanelaDaConciliacao({
       lateral.current?.scrollIntoView?.({ behavior: rolar, block: "nearest" });
     }
   };
+  // em memória, como a justificativa de uma linha: as selecionadas saem da revisão e a seleção some
+  const justificarSelecionadas = async (texto: string) => {
+    const quantas = valendo.size;
+    setLinhas((atual) =>
+      atual.map((linha) => (valendo.has(chaveDaLinha(linha)) ? { ...linha, decisao: decisao("justificada", texto) } : linha)),
+    );
+    setAvisoDoLote(quantas === 1 ? "1 linha justificada." : `${formatarInteiro(quantas)} linhas justificadas.`);
+    esvaziarSelecao("filtro");
+    return null;
+  };
   const ordenar = (coluna: Coluna) =>
     setOrdem((atual) => ({ coluna, crescente: atual.coluna === coluna ? !atual.crescente : true }));
 
@@ -211,7 +282,7 @@ export function JanelaDaConciliacao({
             {/* a faixa da tabela do app: o filtro à esquerda, a densidade à direita */}
             <div className="tabela-ferramentas">
               <div className="tabela-filtros">
-                <div className="pills segmentado" role="group" aria-label="Filtrar lançamentos">
+                <div ref={filtros} className="pills segmentado" role="group" aria-label="Filtrar lançamentos">
                   <button type="button" className="pill" aria-pressed={filtro === "todos"} onClick={() => setFiltro("todos")}>
                     Todos ({linhas.length})
                   </button>
@@ -244,10 +315,39 @@ export function JanelaDaConciliacao({
               </div>
             </div>
 
+            {/* sempre montado: a região que já nasce com o texto não é anunciada */}
+            <p role="status" className="sr-only">
+              {anuncioDaSoma(soma)}
+            </p>
+            {/* como no app: antes da tabela no DOM, presa no pé da tela depois dela pelo CSS (.lote-faixa) */}
+            {selecionadas.length > 0 && (
+              <div ref={faixa} className="lote-faixa" role="region" aria-label="Linhas selecionadas">
+                {painelAoLado ? (
+                  <span className="tabela-progresso">
+                    {`${formatarInteiro(selecionadas.length)} ${selecionadas.length === 1 ? "selecionada" : "selecionadas"}`}
+                  </span>
+                ) : (
+                  <SomaDasSelecionadas soma={soma} />
+                )}
+                <JustificarEmLote quantidade={selecionadas.length} jaJustificadas={jaJustificadas} onJustificar={justificarSelecionadas} />
+                <button type="button" className="btn btn-secondary" onClick={(evento: MouseEvent) => {
+                  // só pelo teclado (detail 0) o foco segue para a caixa; depois de um clique, fica onde o ponteiro está
+                  if (evento.detail === 0) esvaziarSelecao("caixa");
+                  else setSelecao(new Set());
+                }}>
+                  Limpar seleção
+                </button>
+              </div>
+            )}
+            <p role="status" className={avisoDoLote ? "espia-aviso" : "sr-only"}>
+              {avisoDoLote}
+            </p>
+
             <div className="dash-tabela-rolagem">
               <table className="table tabela-folhas folhas-com-eixo" role="table">
                 {/* as larguras do app (globals.css): as folhas saem iguais dos dois lados do eixo */}
                 <colgroup>
+                  <col className="col-selecao" />
                   <col className="col-data" />
                   <col />
                   <col className="col-valor" />
@@ -259,6 +359,7 @@ export function JanelaDaConciliacao({
                 </colgroup>
                 <thead role="rowgroup">
                   <tr role="row" className="folhas-titulos">
+                    <td className="folha-fora" aria-hidden="true" />
                     <th colSpan={3} scope="colgroup" className="folha-banco folha-titulo">
                       <span className="folha-titulo-conteudo">
                         <IconeOrigem origem="banco" />
@@ -271,11 +372,22 @@ export function JanelaDaConciliacao({
                       <span className="folha-titulo-conteudo">
                         <IconeOrigem origem="sistema" />
                         <span className="folha-nome">Sistema de gestão</span>
+                        <SaldoDaFolha saldo={saldoSistema} momento="inicial" />
                       </span>
                     </th>
                     <td className="folha-fora" aria-hidden="true" />
                   </tr>
                   <tr role="row">
+                    <th className="th-selecao">
+                      <input
+                        ref={caixaDeTodas}
+                        type="checkbox"
+                        aria-label="Selecionar todas as divergências à vista"
+                        checked={todasSelecionadas}
+                        disabled={selecionaveisAVista.length === 0}
+                        onChange={alternarTodas}
+                      />
+                    </th>
                     <ColunaOrdenavel coluna="data" ordem={ordem} onOrdenar={ordenar} folha="banco">
                       Data
                     </ColunaOrdenavel>
@@ -322,9 +434,19 @@ export function JanelaDaConciliacao({
                         data-fixo={emFoco && fixada ? "" : undefined}
                         onMouseEnter={() => focar(linha)}
                         onClick={(evento) => {
-                          if (!(evento.target as Element).closest("button")) fixar(linha);
+                          if (!(evento.target as Element).closest("button, input")) fixar(linha);
                         }}
                       >
+                        <td role="cell" className="celula-selecao">
+                          {podeSelecionar(linha) && (
+                            <input
+                              type="checkbox"
+                              aria-label={`Selecionar: ${linha.data} ${linha.descricao}`}
+                              checked={valendo.has(chaveDaLinha(linha))}
+                              onChange={() => alternarSelecao(chaveDaLinha(linha))}
+                            />
+                          )}
+                        </td>
                         {ladoBanco ? (
                           <>
                             <td role="cell" data-rotulo="Data" data-diverge={diverge("data")} className="dash-celula-fraca folha-banco">
@@ -397,11 +519,16 @@ export function JanelaDaConciliacao({
                 </tbody>
                 <tfoot role="rowgroup">
                   <tr role="row">
+                    <td role="cell" className="folha-fora" aria-hidden="true" />
                     <td role="cell" colSpan={3} className="folha-banco">
                       <SaldoDaFolha saldo={saldo} momento="final" />
                     </td>
-                    <td role="cell" className="folha-fora" aria-hidden="true" />
-                    <td role="cell" colSpan={3} className="folha-sistema" />
+                    <td role="cell" className="folha-fora" aria-hidden={temTextoDaDiferenca(diferencaSaldo) ? undefined : true}>
+                      <DiferencaDosSaldos diferenca={diferencaSaldo} />
+                    </td>
+                    <td role="cell" colSpan={3} className="folha-sistema">
+                      <SaldoDaFolha saldo={saldoSistema} momento="final" />
+                    </td>
                     <td role="cell" className="celula-conferir" />
                   </tr>
                 </tfoot>
@@ -444,14 +571,16 @@ export function JanelaDaConciliacao({
               // o detalhe inteiro de uma linha é o que "Por dentro", logo abaixo, conta
               onAbrirDetalhe={() => document.getElementById("por-dentro")?.scrollIntoView({ behavior: rolar, block: "start" })}
               onOcupar={setOcupada}
+              soma={painelAoLado && soma.quantidade > 0 ? soma : undefined}
             />
           </div>
         </div>
       </div>
       <figcaption className="sr-only">
         Uma conciliação de agosto aberta na Comparação direta, só a tela, sem o resto do app: o extrato do banco ao
-        lado do sistema de gestão, cada linha com o status, o saldo inicial no topo e o final no pé da coluna do banco,
-        e o painel da direita com o lançamento em foco. Dá para filtrar, ordenar, marcar as divergências conferidas e justificar.
+        lado do sistema de gestão, cada linha com o status, o saldo inicial no topo e o final no pé de cada coluna,
+        com a diferença dos saldos finais entre elas, e o painel da direita com o lançamento em foco. Dá para filtrar,
+        ordenar, marcar as divergências conferidas, selecionar divergências para ver a soma e justificar uma ou várias de uma vez.
       </figcaption>
     </figure>
   );

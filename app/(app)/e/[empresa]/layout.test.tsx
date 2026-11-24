@@ -1,10 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { EmpresaDaConta } from "@/lib/empresa-ativa";
 import AppLayout from "./layout";
 
 const A = "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20";
 const B = "9b8a7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d";
 const params = Promise.resolve({ empresa: A });
-const EMPRESAS = [
+const EMPRESAS: EmpresaDaConta[] = [
   { id: A, razaoSocial: "Padaria Ltda", nome: "Padaria Ltda", cnpj: "11222333000181" },
   { id: B, razaoSocial: "Mercado Ltda", nome: "Mercadinho", cnpj: "11444777000161" },
 ];
@@ -194,6 +195,34 @@ describe("AppLayout", () => {
       auth.mockResolvedValue(null);
       await expect(AppLayout({ children: "x", params: Promise.resolve({ empresa: "abc" }) })).rejects.toThrow("NEXT_REDIRECT");
       expect(notFound).not.toHaveBeenCalled();
+    });
+
+    it("entrega a flag e o estado da integração com o sistema da empresa ativa ao shell", async () => {
+      auth.mockResolvedValue(sessao);
+      contaDaSessao.mockResolvedValue({
+        ...conta([
+          { ...EMPRESAS[0], integracaoSistemaConfigurada: true },
+          { ...EMPRESAS[1], integracaoSistemaConfigurada: false },
+        ]),
+        integracaoSistemaHabilitada: true,
+      });
+
+      const elA = await AppLayout({ children: "x", params: Promise.resolve({ empresa: A }) });
+      expect(shell(elA).integracaoSistemaHabilitada).toBe(true);
+      expect(shell(elA).integracaoSistemaConfigurada).toBe(true);
+
+      const elB = await AppLayout({ children: "x", params: Promise.resolve({ empresa: B }) });
+      expect(shell(elB).integracaoSistemaHabilitada).toBe(true);
+      expect(shell(elB).integracaoSistemaConfigurada).toBe(false);
+
+      // flag desligada força configurada para false mesmo se a empresa vier true
+      contaDaSessao.mockResolvedValue({
+        ...conta([{ ...EMPRESAS[0], integracaoSistemaConfigurada: true }]),
+        integracaoSistemaHabilitada: false,
+      });
+      const elOff = await AppLayout({ children: "x", params: Promise.resolve({ empresa: A }) });
+      expect(shell(elOff).integracaoSistemaHabilitada).toBe(false);
+      expect(shell(elOff).integracaoSistemaConfigurada).toBe(false);
     });
   });
 });

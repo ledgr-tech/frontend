@@ -401,17 +401,32 @@ p.eyebrow {
 .nova-elo-no svg { width: 18px; height: 18px; }
 .nova-folhas[data-ligado] .nova-elo-no { border-color: var(--color-accent); color: var(--color-accent-700); background: var(--nova-tom); }
 
-/* a importação via IA, um card com o mascote da lupa ao fundo */
-.nova-ia-card {
+/* a importação via IA e a integração com sistema de gestão (#253), cartões neutros na Nova conciliação */
+.nova-ia-card, .nova-sistema-card {
   position: relative; overflow: hidden; display: flex; flex-direction: column; align-items: flex-start; gap: 8px;
-  max-width: none; padding: 16px 200px 16px 24px;
+  max-width: none; padding: 16px 24px;
   border: 1px solid var(--color-divider); border-radius: var(--radius-md); background: var(--color-surface);
 }
-.nova-ia-card h3 { margin: 0; font-size: 21px; font-weight: 600; }
-.nova-ia-card p { margin: 0; max-width: 72ch; font-size: var(--texto-corpo); line-height: 1.55; color: color-mix(in srgb, var(--color-text) 76%, transparent); }
+.nova-ia-card { padding-right: 200px; }
+.nova-ia-card h3, .nova-sistema-card h3 { margin: 0; font-size: 21px; font-weight: 600; }
+.nova-ia-card p, .nova-sistema-card > p { margin: 0; max-width: 72ch; font-size: var(--texto-corpo); line-height: 1.55; color: color-mix(in srgb, var(--color-text) 76%, transparent); }
 .nova-ia-card .btn { margin-top: 6px; }
-.nova-ia-card .btn svg { width: 16px; height: 16px; }
+.nova-ia-card .btn svg, .nova-sistema-card .btn svg { width: 16px; height: 16px; }
 .nova-ia-mascote { position: absolute; right: -8px; bottom: -34px; width: 170px; height: auto; opacity: 0.9; transform: rotate(-6deg); pointer-events: none; }
+
+.nova-sistema-quadro { display: flex; flex-direction: column; gap: 12px; width: 100%; margin-top: 6px; padding-top: 12px; border-top: 1px solid var(--color-divider); }
+.nova-sistema-periodo { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 14px; }
+.nova-sistema-periodo .field { min-width: 150px; }
+.nova-sistema-dica { margin: 0; width: 100%; font-size: var(--texto-nota); line-height: 1.5; color: var(--texto-apagado); }
+.nova-sistema-erro {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 8px; width: 100%;
+  padding: 12px 14px; border-radius: var(--radius-md);
+  border: 1px solid color-mix(in srgb, var(--color-erro) 40%, transparent);
+  background: color-mix(in srgb, var(--color-erro) 6%, transparent);
+}
+.nova-sistema-erro p:not(.nova-sistema-dica) { margin: 0; font-size: var(--texto-corpo); line-height: 1.55; }
+.nova-sistema-erro-lista { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; width: 100%; }
+.nova-sistema-erro-titulo { font-size: var(--texto-corpo); font-weight: 600; color: var(--color-erro); }
 
 /* o painel: o que já entrou, os passos, os dados e o Conciliar */
 .nova-checklist { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 0; padding: 0; list-style: none; font-size: var(--texto-corpo); }
@@ -1551,6 +1566,9 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
 }
 .janela-tela { padding: 18px 20px 20px; }
 .janela-conciliacao .comparacao-corpo { gap: 14px; padding: 0; }
+/* clip, e não hidden: hidden faz da janela o contêiner de rolagem do sticky, e a faixa da seleção
+   (.lote-faixa, presa no pé da tela como no app) não grudaria */
+.janela-conciliacao .vitrine-janela { overflow: clip; }
 /* a tabela aperta as colunas quando estreita, como a do app ao lado do painel (@container tabela-comparacao) */
 .janela-conciliacao .dash-tabela-rolagem { container: tabela-comparacao / inline-size; }
 .janela-conciliacao .comparacao-lateral { position: static; padding-top: 0; }
@@ -1684,7 +1702,8 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
 }
 /* no celular cada tela tem uns 175px: data e valor em cima, a descrição embaixo, menor */
 @media (max-width: 599px) {
-  .mao-folha-nome { padding: 10px; font-size: var(--texto-corpo); }
+  /* duas linhas nas duas folhas: "Sistema de gestão" quebra, e sem isso as datas saíam desalinhadas (#496) */
+  .mao-folha-nome { padding: 10px; font-size: var(--texto-corpo); min-height: calc(2lh + 20px); }
   .mao-linha {
     grid-template-columns: auto minmax(0, 1fr) 22px; grid-template-areas: "data valor valor" "desc desc marca";
     column-gap: 8px; row-gap: 2px; padding: 9px 10px; font-size: var(--texto-nota);
@@ -1862,9 +1881,10 @@ button.link-animado { border: 0; background-color: transparent; font: inherit; p
 .amostra-valores { display: grid; grid-template-columns: 1fr 1fr; border-block: 1px solid var(--color-divider); }
 .amostra-valores > div { display: flex; flex-direction: column; gap: 1px; padding: 8px 0; }
 .amostra-valores > div + div { padding-left: 12px; border-left: 1px solid var(--color-divider); }
-.amostra-valor { font-size: var(--texto-corpo); font-weight: 500; font-variant-numeric: tabular-nums; }
+.amostra-valor { font-size: var(--texto-corpo); font-weight: 500; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .amostra-explicacao { margin-top: 10px; }
-.amostra-explicacao .explicacao-selo { margin-bottom: 6px; font-size: var(--texto-micro); }
+/* o selo quebra a linha em vez de cortar "confira antes de decidir" no celular (#496) */
+.amostra-explicacao .explicacao-selo { margin-bottom: 6px; font-size: var(--texto-micro); white-space: normal; text-overflow: clip; }
 .amostra-explicacao p { margin: 0; font-size: var(--texto-nota); line-height: 1.55; }
 /* III: as duas folhas, uma sobre a outra; no card aberto elas se afastam. A altura deixa o título da
    folha do sistema logo abaixo da do banco, à vista mesmo em repouso */
@@ -3929,6 +3949,9 @@ html:not([data-menu="recolhido"]) .app-assistente-figura {
 .empresas-lista .empresas-tabela { margin: 0; }
 .empresas-lista .conc-mes + .empresas-tabela { margin-top: 6px; }
 .empresas-col-estrela { width: 44px; }
+/* no celular o CNPJ sai da tabela (ele está no painel da escolhida e a busca ainda o acha): com ele, a
+   coluna Mês ficava cortada fora da tela */
+@media (max-width: 560px) { .empresas-col-cnpj { display: none; } }
 .empresas-cnpj { font-variant-numeric: tabular-nums; color: var(--texto-apagado); white-space: nowrap; }
 .empresas-estrela {
   display: inline-grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: var(--radius-sm);
@@ -4330,6 +4353,16 @@ html:not([data-menu="recolhido"]) .app-assistente-figura {
   border: 1px solid var(--color-divider); user-select: all; overflow-wrap: anywhere;
 }
 .api-lista { list-style: none; margin: 0; padding: 0; }
+/* Configurações › Integração (#253): resumo da configuração ativa da empresa e ação de remover */
+.integracao-resumo {
+  display: flex; flex-direction: column; gap: 6px; padding: 14px 16px;
+  border: 1px solid var(--color-divider); border-radius: var(--radius-md); background: var(--color-surface);
+}
+.integracao-resumo p { margin: 0; }
+.integracao-resumo-topo { display: flex; align-items: center; gap: 8px; }
+.integracao-resumo .tag { border: 1px solid var(--color-divider); }
+.integracao-dica { margin: 6px 0 0; font-size: var(--texto-nota); line-height: 1.5; color: var(--texto-apagado); }
+.integracao-remover { padding-top: 14px; border-top: 1px solid var(--color-divider); }
 /* Configurações › Conexões: o guia em três partes (como funciona, como conectar, suas conexões) */
 .conexao-guia { gap: 24px; }
 .conexao-parte { display: flex; flex-direction: column; gap: 12px; }
@@ -4801,12 +4834,15 @@ html:not([data-densidade="padrao"]) .app-shell .selo { padding-block: 1px; }
     left: var(--recuo-lateral); right: var(--recuo-lateral); width: auto; max-width: none;
     top: calc(100% - 4px); transform-origin: top center;
   }
-  .app-nav-nova { grid-area: nova; justify-self: start; width: auto; }
-  .app-nav {
-    grid-area: nav; flex: none; flex-direction: row; flex-wrap: wrap; overflow: visible; gap: 4px;
-  }
-  /* sem o width: 100% do menu em pe, os itens medem o proprio texto e embrulham */
-  .app-nav-item { width: auto; }
+  /* aberto, o menu é uma folha da tela inteira, como o menu de celular do Linear, do Stripe e do
+     Vercel: uma lista em pé com alvos de 44px. Em pílulas soltas, duas por linha, ele parecia um
+     filtro e não um menu (24/11) */
+  .app-nav-nova { grid-area: nova; width: 100%; min-height: 44px; justify-content: center; }
+  .app-nav { grid-area: nav; flex: none; overflow: visible; gap: 2px; }
+  .app-nav-item { min-height: 44px; }
+  /* o conteúdo sai de baixo enquanto o menu está aberto: o menu já rolou ao topo, e a tela por baixo
+     só alongava a página e confundia onde o menu acabava */
+  .app-shell:has(.app-aside[data-secoes="abertas"]) .app-conteudo { display: none; }
   .app-assistente-envelope { grid-area: assistente; }
   .app-aside:not([data-secoes="abertas"]) .app-assistente-envelope { display: contents; }
   .app-aside:not([data-secoes="abertas"]) .app-assistente { display: none; }
@@ -4968,6 +5004,15 @@ a.pill { text-decoration: none; }
 .segmentado .pill:hover { background: var(--tinta-hover); }
 .segmentado .pill[aria-pressed="true"], .segmentado .pill[aria-current="page"] {
   background: var(--superficie-elevada); box-shadow: var(--shadow-sm); font-weight: 500;
+}
+/* No celular o trilho fica numa linha só e corre para o lado, como os chips do Gmail e do Mercado
+   Pago: quebrado em duas linhas ele virava um bloco cinza, com a opção escolhida solta no canto
+   (24/11). O contorno do foco vai para dentro, porque a rolagem o cortaria */
+@media (max-width: 680px) {
+  .pills.segmentado { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; overscroll-behavior-x: contain; }
+  .pills.segmentado::-webkit-scrollbar { display: none; }
+  .segmentado .pill { flex: none; white-space: nowrap; }
+  .segmentado .pill:focus-visible { outline-offset: -2px; }
 }
 
 /* cabecalho ordenavel: o botao ocupa a celula toda para o alvo ser generoso */
@@ -5239,7 +5284,9 @@ html[data-tema="escuro"] .app-shell {
 /* o de Fechamentos põe o conteúdo numa caixa interna: a moldura (borda, canto) segura o "Mais abaixo"
    parado no pé. Só com a caixa: o painel da Assinatura e as cenas gravadas (landing, Central) usam a
    mesma classe sem ela, e seguem como eram */
-.fech-painel:has(> .fech-rolagem) { position: relative; padding: 0; }
+/* top: auto, porque relativo o top do painel grudado (o da faixa dos filtros, ~135px no celular)
+   empurrava o painel para baixo, por cima dos meses (24/11); a regra de 1001px+ o devolve */
+.fech-painel:has(> .fech-rolagem) { position: relative; padding: 0; top: auto; }
 .fech-rolagem { display: flex; flex-direction: column; min-height: 0; padding: 22px; border-radius: inherit; }
 .fech-conteudo { display: flex; flex-direction: column; gap: 14px; }
 /* o de Fechamentos volta a ficar preso (15/11), agora sem cobrir a faixa nem esconder o pé: cabe na
@@ -6472,12 +6519,13 @@ html[data-tema="escuro"] .app-shell {
    - "Na prática": no app a tabela vira cartões no celular, mas um embaixo do outro eles faziam a janela passar
      de 3.900px; aqui ela fica no desenho do computador (900px, .folhas-com-eixo) e rola na .dash-tabela-rolagem */
 @property --fade-esq { syntax: "<length>"; inherits: false; initial-value: 0px; }
-@property --fade-dir { syntax: "<length>"; inherits: false; initial-value: 36px; }
+@property --fade-dir { syntax: "<length>"; inherits: false; initial-value: 16px; }
 @keyframes kin-arraste-cutuca { 0%, 60%, 100% { transform: none; } 30% { transform: translateX(5px); } }
+/* 16px e não 36: com 36 o degradê comia os centavos da folha e o começo do cartão do hero (#496) */
 @keyframes kin-fade-lateral {
-  0% { --fade-esq: 0px; --fade-dir: 36px; }
-  12%, 88% { --fade-esq: 36px; --fade-dir: 36px; }
-  100% { --fade-esq: 36px; --fade-dir: 0px; }
+  0% { --fade-esq: 0px; --fade-dir: 16px; }
+  12%, 88% { --fade-esq: 16px; --fade-dir: 16px; }
+  100% { --fade-esq: 16px; --fade-dir: 0px; }
 }
 /* o desenho do rótulo "Cap. I" do hero (p.eyebrow + .kin-olho), sem a classe: .eyebrow fica só para os
    capítulos (page.test.tsx), e sem a entrada animada. Escondida até o celular de cada janela, abaixo */
@@ -6507,32 +6555,56 @@ html[data-tema="escuro"] .app-shell {
 @media (prefers-reduced-motion: no-preference) {
   .kin-arraste-seta { animation: kin-arraste-cutuca 2.4s var(--ease-out) infinite; }
 }
-/* a mesma largura nas duas (LARGURA_DO_CELULAR em rolagem-lateral.tsx): abaixo dela a tabela do app viraria cartões */
+/* no fim da rolagem (data-no-fim, posto por usePasseioNoCelular) a seta aponta de volta */
+[data-no-fim] ~ .kin-arraste .kin-arraste-seta { scale: -1 1; }
+/* a mesma largura em todas (LARGURA_DO_CELULAR em rolagem-lateral.tsx): abaixo dela a tabela do app viraria cartões */
 @media (max-width: 680px) {
-  :is(.kin-palco .vitrine, .janela-conciliacao .dash-tabela-rolagem) {
+  :is(.kin-palco .vitrine, .janela-conciliacao .dash-tabela-rolagem, .mockup-demo) {
     overflow-x: auto;
     overflow-y: hidden;
     overscroll-behavior-x: contain;
     scrollbar-width: none;
     /* um degradê suave na borda que ainda tem tela para rolar: à direita no começo, à esquerda no fim */
     --fade-esq: 0px;
-    --fade-dir: 36px;
+    --fade-dir: 16px;
     mask-image: linear-gradient(to right, transparent, #000 var(--fade-esq), #000 calc(100% - var(--fade-dir)), transparent);
   }
-  :is(.kin-palco .vitrine, .janela-conciliacao .dash-tabela-rolagem)::-webkit-scrollbar { display: none; }
+  :is(.kin-palco .vitrine, .janela-conciliacao .dash-tabela-rolagem, .mockup-demo)::-webkit-scrollbar { display: none; }
   @supports (animation-timeline: scroll()) {
-    :is(.kin-palco .vitrine, .janela-conciliacao .dash-tabela-rolagem) {
+    :is(.kin-palco .vitrine, .janela-conciliacao .dash-tabela-rolagem, .mockup-demo) {
       animation: kin-fade-lateral linear both;
       animation-timeline: scroll(self inline);
     }
   }
-  .kin-palco .vitrine { border-radius: 12px; }
-  .kin-palco .vitrine-janela { width: 220%; }
-  .kin-arraste { display: flex; }
+  :is(.kin-palco .vitrine, .mockup-demo) { border-radius: 12px; }
+  :is(.kin-palco, .mockup-demo) .vitrine-janela { width: 220%; }
+  /* "Por dentro": a abertura, o encerramento e a legenda acompanham a rolagem (--rolado) e cobrem só o pedaço à vista */
+  .mockup-demo :is(.mockup-intro, .janela-titulo, .video-demo-legenda) { transform: translateX(var(--rolado, 0px)); }
+  .mockup-demo :is(.mockup-intro, .janela-titulo) { right: auto; width: calc(100% / 2.2); }
+  .mockup-demo .mockup-intro { padding: 0 6%; }
+  .mockup-demo .video-demo-legenda { padding-inline: 16px; }
+  /* a janela entra reta: inclinada, dentro da caixa que rola (e corta), saía sem o pé ao subir na tela */
+  .mockup-demo > [data-reveal] { transform: none !important; }
+  .kin-arraste { display: flex; gap: 8px; letter-spacing: 0.1em; white-space: nowrap; }
+  .kin-arraste-fio { width: 34px; }
   .janela-conciliacao .kin-arraste { margin-top: 0; }
   /* sem o container, o @container tabela-comparacao (width < 900px) não aperta as colunas para caber nos
-     ~300px da tela, o que deixava a descrição com uma letra: a tabela fica nos 900px do computador e rola */
+     ~300px da tela, o que deixava a descrição com uma letra: a tabela rola. Em 804px, com seleção, data e valor
+     mais estreitos (a data com 3.75rem, que com menos quebrava em "01/0 8"), a seleção e a folha do banco (≈316px) cabem nos ~324px da janela, sem cortar os centavos (#496) */
   .janela-conciliacao .dash-tabela-rolagem { container: none; }
+  .janela-conciliacao .dash-tabela-rolagem .folhas-com-eixo { min-width: 804px; }
+  .janela-conciliacao .folhas-com-eixo col.col-selecao { width: 2.25rem; }
+  .janela-conciliacao .folhas-com-eixo col.col-data { width: 3.75rem; }
+  .janela-conciliacao .folhas-com-eixo col.col-valor { width: 8rem; }
+  /* os três filtros numa linha só */
+  .janela-conciliacao .pills.segmentado { flex-wrap: nowrap; }
+  .janela-conciliacao .segmentado .pill { padding-inline: 9px; white-space: nowrap; }
+  /* menu aberto: "Começar agora →" não quebra */
+  .site-menu-acoes .btn { padding-inline: 12px; white-space: nowrap; }
+}
+@media (max-width: 360px) {
+  .kin-arraste { font-size: 10.5px; letter-spacing: 0.06em; }
+  .site-menu-acoes { grid-template-columns: 1fr; }
 }
 .kin-adesivo-solto { rotate: var(--inclinacao); }
 @media (prefers-reduced-motion: reduce) {

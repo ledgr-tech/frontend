@@ -27,6 +27,8 @@ export function Shell({
   cobrancaHabilitada = false,
   limites = null,
   guardaArquivoOriginal = false,
+  integracaoSistemaHabilitada = false,
+  integracaoSistemaConfigurada = false,
   contaInativa = false,
   children,
 }: {
@@ -50,6 +52,10 @@ export function Shell({
   limites?: LimitesDaConta | null;
   /** Se a conta guarda o original de cada extrato, do `GET /me` (backend #139). */
   guardaArquivoOriginal?: boolean;
+  /** Se a integração com sistema de gestão está ligada no backend (`GET /me`, backend #253). */
+  integracaoSistemaHabilitada?: boolean;
+  /** Se a empresa ativa já configurou a integração com sistema (`GET /me`, backend #253). */
+  integracaoSistemaConfigurada?: boolean;
   /** Uma escrita foi recusada há pouco porque a conta está inativa (backend #156): a barra de cima avisa. */
   contaInativa?: boolean;
   children: ReactNode;
@@ -66,6 +72,8 @@ export function Shell({
         nome={nome}
         temSenha={temSenha}
         guardaArquivoOriginal={guardaArquivoOriginal}
+        integracaoSistemaHabilitada={integracaoSistemaHabilitada}
+        integracaoSistemaConfigurada={integracaoSistemaConfigurada}
       >
         <LucideProvider strokeWidth={TRACO_ICONE}>
           {/* o primeiro Tab da tela: quem usa só o teclado pula o menu e a barra de cima */}

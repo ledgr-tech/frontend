@@ -2,17 +2,30 @@ import { useId } from "react";
 import { formatarInteiro } from "../../../dashboard/resumo";
 import type { ErroDeCampo } from "./acoes";
 
-export function ErrosImportacaoIa({ erro, erros, totalErros }: { erro: string; erros: ErroDeCampo[]; totalErros: number }) {
+export function ErrosImportacaoIa({
+  erro,
+  erros,
+  totalErros,
+  orientacao = "Corrija os pontos abaixo no arquivo, ou peça à IA para refazer a resposta, e envie de novo.",
+  nivelTitulo = "h2",
+}: {
+  erro: string;
+  erros: ErroDeCampo[];
+  totalErros: number;
+  orientacao?: string;
+  nivelTitulo?: "h2" | "h4";
+}) {
   const titulo = useId();
+  const Titulo = nivelTitulo;
   return (
     <section className="ia-erros" aria-labelledby={titulo} role="alert">
       <div className="ia-erros-topo">
         <span className="selo selo-risco">{`${formatarInteiro(totalErros)} ${totalErros === 1 ? "erro" : "erros"}`}</span>
-        <h2 id={titulo} className="font-titulo">
+        <Titulo id={titulo} className="font-titulo">
           {erro}
-        </h2>
+        </Titulo>
       </div>
-      <p>Corrija os pontos abaixo no arquivo, ou peça à IA para refazer a resposta, e envie de novo.</p>
+      <p>{orientacao}</p>
       {totalErros > erros.length && (
         <p>{`Aparecem os ${formatarInteiro(erros.length)} primeiros de ${formatarInteiro(totalErros)}. Ao enviar de novo, os que restarem aparecem aqui.`}</p>
       )}

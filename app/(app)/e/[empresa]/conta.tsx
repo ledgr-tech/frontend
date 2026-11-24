@@ -46,6 +46,10 @@ const ContextoDoNome = createContext("");
 const ContextoDaSenha = createContext(true);
 /** Se a conta guarda o original de cada extrato (backend #139, plano avançado): o painel de Extratos avisa quando um não foi guardado. */
 const ContextoDoOriginal = createContext(false);
+/** Se a integração com o sistema de gestão está ligada no backend (`integracao_sistema_habilitada`, #253); falso quando falta. */
+const ContextoIntegracaoHabilitada = createContext(false);
+/** Se a empresa ativa já configurou a integração (`integracao_sistema_configurada`, #253); falso quando falta. */
+const ContextoIntegracaoConfigurada = createContext(false);
 
 /**
  * As preferências do primeiro uso (spec 2026-10-15-primeiro-uso): as da conta, do `GET /me`,
@@ -62,6 +66,8 @@ export function ProvedorDaConta({
   nome = "",
   temSenha = true,
   guardaArquivoOriginal = false,
+  integracaoSistemaHabilitada = false,
+  integracaoSistemaConfigurada = false,
   children,
 }: {
   preferencias: Preferencias | null;
@@ -79,6 +85,10 @@ export function ProvedorDaConta({
   papel?: Papel;
   /** Do `GET /me`: a conta guarda o original de cada extrato. */
   guardaArquivoOriginal?: boolean;
+  /** Do `GET /me`: a integração com sistema de gestão está habilitada no servidor (#253). */
+  integracaoSistemaHabilitada?: boolean;
+  /** Do `GET /me`: a empresa ativa já configurou a integração com o sistema (#253). */
+  integracaoSistemaConfigurada?: boolean;
   children: ReactNode;
 }) {
   const dono = email.toLowerCase();
@@ -134,7 +144,13 @@ export function ProvedorDaConta({
               <ContextoDoEmail.Provider value={email}>
                 <ContextoDoNome.Provider value={nome}>
                   <ContextoDaSenha.Provider value={temSenha}>
-                    <ContextoDoOriginal.Provider value={guardaArquivoOriginal}>{children}</ContextoDoOriginal.Provider>
+                    <ContextoDoOriginal.Provider value={guardaArquivoOriginal}>
+                      <ContextoIntegracaoHabilitada.Provider value={integracaoSistemaHabilitada}>
+                        <ContextoIntegracaoConfigurada.Provider value={integracaoSistemaConfigurada}>
+                          {children}
+                        </ContextoIntegracaoConfigurada.Provider>
+                      </ContextoIntegracaoHabilitada.Provider>
+                    </ContextoDoOriginal.Provider>
                   </ContextoDaSenha.Provider>
                 </ContextoDoNome.Provider>
               </ContextoDoEmail.Provider>
@@ -167,6 +183,24 @@ export function useTemSenha(): boolean {
 
 export function useGuardaArquivoOriginal(): boolean {
   return useContext(ContextoDoOriginal);
+}
+
+/** Se a integração com sistema de gestão está ligada no backend (`integracao_sistema_habilitada`, #253). */
+export function useIntegracaoSistemaHabilitada(): boolean {
+  return useContext(ContextoIntegracaoHabilitada);
+}
+
+/** Se a empresa ativa já configurou a integração com o sistema (`integracao_sistema_configurada`, #253). */
+export function useIntegracaoSistemaConfigurada(): boolean {
+  return useContext(ContextoIntegracaoConfigurada);
+}
+
+/** Os dois estados da integração com o sistema na empresa ativa; ambos falsos quando o campo falta. */
+export function useIntegracaoSistema(): { habilitada: boolean; configurada: boolean } {
+  return {
+    habilitada: useContext(ContextoIntegracaoHabilitada),
+    configurada: useContext(ContextoIntegracaoConfigurada),
+  };
 }
 
 export function useEmail(): string {

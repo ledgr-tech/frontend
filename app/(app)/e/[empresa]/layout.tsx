@@ -59,6 +59,8 @@ export default async function AppLayout({
         cobrancaHabilitada={conta.cobrancaHabilitada}
         limites={conta.limites}
         guardaArquivoOriginal={conta.guardaArquivoOriginal}
+        integracaoSistemaHabilitada={conta.integracaoSistemaHabilitada === true}
+        integracaoSistemaConfigurada={conta.integracaoSistemaHabilitada === true && ativa.integracaoSistemaConfigurada === true}
         contaInativa={await contaRecusouPorInativa()}
       >
         {children}

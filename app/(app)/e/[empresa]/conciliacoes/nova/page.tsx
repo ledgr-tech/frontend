@@ -47,6 +47,7 @@ import { tituloDaCompetencia } from "../../fechamentos/fechamento";
 import { FolhaDeExtrato } from "../folha-de-extrato";
 import { Palco } from "../palco";
 import { CartaoDaIaNoReenvio } from "./cartao-da-ia-no-reenvio";
+import { ImportarDoSistema } from "./importar-do-sistema";
 import { importarViaIa, type FalhaDaImportacao } from "./ia/acoes";
 import { ErrosImportacaoIa } from "./ia/erros-importacao-ia";
 import { Guia, type Passo } from "./guia";
@@ -503,7 +504,7 @@ function NovaConciliacao() {
       {ocupado && bancoPronto && sistemaPronto ? (
         <Palco
           banco={arquivoBanco?.name ?? reenvio?.arquivoBanco ?? ""}
-          sistema={arquivoSistema?.name ?? "Importação via IA"}
+          sistema={arquivoSistema?.name ?? "Importado e confirmado"}
           etapa={etapa}
         />
       ) : (
@@ -557,7 +558,7 @@ function NovaConciliacao() {
                   onRecusado={setErro}
                 />
               ) : sistemaDaIa ? (
-                // o rascunho da IA já virou extrato ao confirmar: a folha vem pronta e não se troca aqui
+                // o rascunho (da IA ou do sistema de gestão) já virou extrato ao confirmar: a folha vem pronta
                 <div className="nova-folha nova-folha-sistema" data-pronto="">
                   <span className="rotulo nova-folha-rotulo">
                     <span className="nova-folha-icone">
@@ -565,8 +566,8 @@ function NovaConciliacao() {
                     </span>
                     Extrato do sistema
                   </span>
-                  <strong className="nova-folha-titulo">Importação via IA</strong>
-                  <span className="nova-folha-dica">Já confirmado</span>
+                  <strong className="nova-folha-titulo">Importado e confirmado</strong>
+                  <span className="nova-folha-dica">Pronto para conciliar</span>
                 </div>
               ) : (
                 <FolhaDeExtrato
@@ -583,30 +584,33 @@ function NovaConciliacao() {
             </div>
             {reenvio && <CartaoDaIaNoReenvio desligado={ocupado} />}
             {!reenvio && !sistemaDaIa && (
-            <section className="nova-ia-card" aria-labelledby="nova-ia-titulo">
-              <h3 id="nova-ia-titulo" className="font-titulo">
-                Só tem o PDF do relatório?
-              </h3>
-              <p>
-                Use a IA que você já tem, como o ChatGPT ou o Claude, para transformar o PDF no arquivo do
-                Ledgr. Você confere as linhas antes de confirmar.
-              </p>
-              {/* página inteira de propósito: na navegação do cliente, o painel do detalhe da linha
-                  (conciliacoes/[id]/@painel/(.)[linha]) intercepta /conciliacoes/nova/ia como a linha "ia"
-                  da conciliação "nova" (#260). shortcut: sai quando a importação deixar /conciliacoes/ */}
-              <TransicaoEntrePaginas />
-              <a className="btn btn-secondary" href={comEmpresa(empresaAtiva?.id ?? "", "/conciliacoes/nova/ia")}>
-                Importar via IA <ArrowRight aria-hidden="true" />
-              </a>
-              <Image
-                className="nova-ia-mascote"
-                src="/mascotes/mascote-lupa.png"
-                alt=""
-                width={977}
-                height={1122}
-                sizes="170px"
-              />
-            </section>
+              <>
+                <ImportarDoSistema temArquivoBanco={arquivoBanco !== null} />
+                <section className="nova-ia-card" aria-labelledby="nova-ia-titulo">
+                  <h3 id="nova-ia-titulo" className="font-titulo">
+                    Só tem o PDF do relatório?
+                  </h3>
+                  <p>
+                    Use a IA que você já tem, como o ChatGPT ou o Claude, para transformar o PDF no arquivo do
+                    Ledgr. Você confere as linhas antes de confirmar.
+                  </p>
+                  {/* página inteira de propósito: na navegação do cliente, o painel do detalhe da linha
+                      (conciliacoes/[id]/@painel/(.)[linha]) intercepta /conciliacoes/nova/ia como a linha "ia"
+                      da conciliação "nova" (#260). shortcut: sai quando a importação deixar /conciliacoes/ */}
+                  <TransicaoEntrePaginas />
+                  <a className="btn btn-secondary" href={comEmpresa(empresaAtiva?.id ?? "", "/conciliacoes/nova/ia")}>
+                    Importar via IA <ArrowRight aria-hidden="true" />
+                  </a>
+                  <Image
+                    className="nova-ia-mascote"
+                    src="/mascotes/mascote-lupa.png"
+                    alt=""
+                    width={977}
+                    height={1122}
+                    sizes="170px"
+                  />
+                </section>
+              </>
             )}
           </div>
 

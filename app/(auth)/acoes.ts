@@ -15,7 +15,14 @@ import { ehTela, type Preferencias } from "@/lib/preferencias";
 import { adaptarAssinatura, cobrancaLigada, type Assinatura, type PlanoId } from "@/lib/assinatura";
 import { adaptarLimites, type LimitesDaConta } from "@/lib/limites";
 import { ehUf } from "@/lib/uf";
-import { adaptarConsultaConvite, nomeDaEmpresa, type ConsultaConvite, type ConsultaConviteAPI } from "@/lib/adaptadores";
+import {
+  adaptarConsultaConvite,
+  integracaoSistemaConfigurada,
+  integracaoSistemaLigada,
+  nomeDaEmpresa,
+  type ConsultaConvite,
+  type ConsultaConviteAPI,
+} from "@/lib/adaptadores";
 
 /**
  * Abrir e fechar sessão, e criar conta. Vive numa Server Action porque o
@@ -580,6 +587,8 @@ export type ContaDaSessao = {
   limites: LimitesDaConta | null;
   /** A conta guarda o original de cada extrato (backend #139, plano avançado); false com a flag desligada ou sem o campo. */
   guardaArquivoOriginal?: boolean;
+  /** `integracao_sistema_habilitada` do `GET /me` (backend #253); false com a flag desligada, sem o campo ou na conta demo. */
+  integracaoSistemaHabilitada?: boolean;
   /** Só quando o `GET /me` falhou: `empresas` vazia então não quer dizer "backend anterior", e ninguém deve adivinhar a empresa. */
   indisponivel?: true;
 };
@@ -593,7 +602,18 @@ function adaptarPreferencias(bruto: PreferenciasAPI | null | undefined): Prefere
 }
 
 /** As empresas do `GET /me`; o item sem `id` de texto não serve para a URL e é ignorado. */
-function adaptarEmpresas(bruto: { id?: unknown; razao_social?: unknown; nome_exibicao?: unknown; cnpj?: unknown }[] | undefined): EmpresaDaConta[] {
+function adaptarEmpresas(
+  bruto:
+    | {
+        id?: unknown;
+        razao_social?: unknown;
+        nome_exibicao?: unknown;
+        cnpj?: unknown;
+        integracao_sistema_configurada?: unknown;
+      }[]
+    | undefined,
+  demonstracao = false,
+): EmpresaDaConta[] {
   if (!Array.isArray(bruto)) return [];
   return bruto.flatMap((empresa) =>
     typeof empresa?.id === "string" && empresa.id
@@ -603,6 +623,9 @@ function adaptarEmpresas(bruto: { id?: unknown; razao_social?: unknown; nome_exi
             razaoSocial: typeof empresa.razao_social === "string" ? empresa.razao_social.trim() : "",
             nome: nomeDaEmpresa(empresa.razao_social, empresa.nome_exibicao).nome,
             cnpj: typeof empresa.cnpj === "string" ? empresa.cnpj : "",
+            ...("integracao_sistema_configurada" in empresa && {
+              integracaoSistemaConfigurada: !demonstracao && integracaoSistemaConfigurada(empresa),
+            }),
           },
         ]
       : [],
@@ -626,7 +649,13 @@ export async function contaDaSessao(aoExpirar = "/login"): Promise<ContaDaSessao
         razao_social: string;
         metodos_login: string[];
         papel?: unknown;
-        empresas?: { id?: unknown; razao_social?: unknown; nome_exibicao?: unknown; cnpj?: unknown }[];
+        empresas?: {
+          id?: unknown;
+          razao_social?: unknown;
+          nome_exibicao?: unknown;
+          cnpj?: unknown;
+          integracao_sistema_configurada?: unknown;
+        }[];
         administrador?: boolean;
         preferencias?: PreferenciasAPI;
         situacao?: unknown;
@@ -635,21 +664,27 @@ export async function contaDaSessao(aoExpirar = "/login"): Promise<ContaDaSessao
         cobranca_habilitada?: unknown;
         limites?: unknown;
         guarda_arquivo_original?: unknown;
+        integracao_sistema_habilitada?: unknown;
       }
     >("/me");
     const cobrancaHabilitada = cobrancaLigada(eu);
+    // na conta de demonstração a integração com sistema nunca aparece nem chama o backend
+    const demonstracao =
+      ehContaDeDemonstracao(eu.email ?? null) ||
+      (Boolean(process.env.LEDGR_CONTA_TESTE_EMAIL) && ehContaDeDemonstracao(await emailDaSessao().catch(() => null)));
     return {
       empresa: eu.razao_social?.trim() ?? "",
       nome: eu.nome?.trim() ?? "",
       temSenha: eu.metodos_login?.includes("senha") ?? true,
       papel: lerPapel(eu),
-      empresas: adaptarEmpresas(eu.empresas),
+      empresas: adaptarEmpresas(eu.empresas, demonstracao),
       preferencias: adaptarPreferencias(eu.preferencias),
       // com a cobrança desligada, a situação (sem_plano, teste_encerrado…) não vale nada na tela
       assinatura: cobrancaHabilitada ? adaptarAssinatura(eu) : null,
       cobrancaHabilitada,
       limites: adaptarLimites(eu.limites),
       guardaArquivoOriginal: eu.guarda_arquivo_original === true,
+      integracaoSistemaHabilitada: !demonstracao && integracaoSistemaLigada(eu),
     };
   } catch (erro) {
     // Server Action é endpoint público: só o próprio login, nunca um endereço vindo de fora
@@ -657,7 +692,7 @@ export async function contaDaSessao(aoExpirar = "/login"): Promise<ContaDaSessao
       redirect(typeof aoExpirar === "string" && /^\/login(\?|$)/.test(aoExpirar) ? aoExpirar : "/login");
     }
     // o papel menor (D2): as telas escondem o que o analista não faz, e as ações respondem 503 (recusaPorPapel)
-    return { empresa: "", temSenha: true, papel: "analista", empresas: [], preferencias: null, assinatura: null, cobrancaHabilitada: false, limites: null, indisponivel: true };
+    return { empresa: "", temSenha: true, papel: "analista", empresas: [], preferencias: null, assinatura: null, cobrancaHabilitada: false, limites: null, integracaoSistemaHabilitada: false, indisponivel: true };
   }
 }
 

@@ -292,7 +292,7 @@ export function PainelDeEmpresas({ empresas: daPagina }: { empresas: EmpresaClie
                           </th>
                         )}
                         <th scope="col">Empresa</th>
-                        <th scope="col">CNPJ</th>
+                        <th scope="col" className="empresas-col-cnpj">CNPJ</th>
                         {comSituacao && <th scope="col">Mês</th>}
                       </tr>
                     </thead>
@@ -326,7 +326,7 @@ export function PainelDeEmpresas({ empresas: daPagina }: { empresas: EmpresaClie
                               {empresa.id === ativa?.id && <span className="tag tag-accent">Ativa</span>}
                             </span>
                           </td>
-                          <td className="empresas-cnpj">{formatarCnpj(empresa.cnpj)}</td>
+                          <td className="empresas-cnpj empresas-col-cnpj">{formatarCnpj(empresa.cnpj)}</td>
                           {comSituacao && (
                             <td>
                               {empresa.situacao && <span className={TOM[empresa.situacao]}>{SITUACAO[empresa.situacao]}</span>}
