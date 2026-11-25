@@ -6,7 +6,7 @@ import { useRoteador } from "@/lib/roteador";
 import type { Execucao } from "@/lib/adaptadores";
 import { caminhoDaConciliacao } from "@/lib/caminhos";
 import { salvar } from "../conciliacoes/[id]/exportar-csv";
-import { formatarDataHora, formatarInteiro } from "../dashboard/resumo";
+import { formatarDataHora, formatarInteiro, plural } from "../dashboard/resumo";
 import { FaixaFiltros } from "../faixa-filtros";
 import { IconeOrigem } from "../icone-origem";
 import { useTrocaSuave } from "@/lib/troca-suave";
@@ -48,10 +48,6 @@ function comPendencia(conciliacao: ConciliacaoNoHistorico): boolean {
 
 function passaNoFiltro(conciliacao: ConciliacaoNoHistorico, filtro: Filtro): boolean {
   return filtro === "todas" || comPendencia(conciliacao);
-}
-
-function plural(quantidade: number, singular: string, plural: string): string {
-  return `${formatarInteiro(quantidade)} ${quantidade === 1 ? singular : plural}`;
 }
 
 /**

@@ -14,6 +14,7 @@ import {
   formatarInteiro,
   formatarMoedaCurta,
   formatarPercentual,
+  plural,
   resumir,
 } from "../dashboard/resumo";
 import { Reveal } from "@/app/reveal";
@@ -42,10 +43,6 @@ import { ehContaDeDemonstracao } from "@/lib/demo";
 
 /** Quantas conciliações a atividade recente mostra; o resto fica no histórico. */
 const NA_ATIVIDADE = 5;
-
-function plural(quantidade: number, singular: string, plural: string): string {
-  return `${formatarInteiro(quantidade)} ${quantidade === 1 ? singular : plural}`;
-}
 
 export default async function VisaoGeralPage() {
   const [resposta, roteiro, conexoes, email] = await Promise.all([

@@ -13,7 +13,7 @@ import { mostrarPreviaDoEscolhido } from "../grupo";
 import { IconeOrigem } from "../icone-origem";
 import { conciliados, segmentos } from "../historico/execucoes";
 import { BarraDoResultado } from "../historico/por-conciliacao";
-import { formatarDataHora, formatarInteiro } from "./resumo";
+import { formatarDataHora, formatarInteiro, plural } from "./resumo";
 import { useTrocaSuave } from "@/lib/troca-suave";
 import {
   agruparPorMes,
@@ -45,10 +45,6 @@ const FILTROS: { id: FiltroDaLista; rotulo: string; vazio: string }[] = [
 const PREVIA_AO_LADO = "(min-width: 1100px)";
 
 type Contagem = NonNullable<ListaDeConciliacoes["emAndamento"]>;
-
-function plural(quantidade: number, singular: string, varios: string): string {
-  return `${formatarInteiro(quantidade)} ${quantidade === 1 ? singular : varios}`;
-}
 
 function textoDaRodada({ rodada, rodadas }: ConciliacaoNaLista): string {
   return rodadas > 1 ? `Rodada ${rodada} de ${rodadas}` : `Rodada ${rodada}`;
