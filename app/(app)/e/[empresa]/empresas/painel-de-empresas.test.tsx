@@ -930,3 +930,26 @@ describe("nome de exibição (#472)", () => {
     await waitFor(() => expect(router.push).toHaveBeenCalledWith("/login"));
   });
 });
+
+describe("a contagem do plano concorda com o máximo (#512)", () => {
+  it.each<[number, number | null, string, string]>([
+    [1, 5, "1 de 5 empresas do plano", "1 de 5 empresas"],
+    [1, 1, "1 de 1 empresa do plano", "1 de 1 empresa"],
+    [2, 1, "2 de 1 empresa do plano", "2 de 1 empresa"],
+    [2, 5, "2 de 5 empresas do plano", "2 de 5 empresas"],
+    [1, null, "1 empresa", "1 empresa do plano"],
+    [2, null, "2 empresas", "2 empresas do plano"],
+  ])("%s usadas, máximo %s", (usadas, maximo, resumo, faixa) => {
+    montar({ empresas: [A, B].slice(0, usadas), limites: { empresas: { usadas, maximo }, usuarios: null } });
+
+    expect(document.querySelector(".tela-contexto")?.textContent).toBe(resumo);
+    expect(document.querySelector(".faixa-plano strong")?.textContent).toBe(faixa);
+  });
+
+  it("com 1 de 5, o singular não aparece", () => {
+    montar({ empresas: [A], limites: { empresas: { usadas: 1, maximo: 5 }, usuarios: null } });
+
+    expect(screen.queryByText("1 de 5 empresa")).not.toBeInTheDocument();
+    expect(screen.queryByText("1 de 5 empresa do plano")).not.toBeInTheDocument();
+  });
+});
