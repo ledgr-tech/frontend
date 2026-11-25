@@ -51,11 +51,9 @@ const BANCO = "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20";
 const SISTEMA = "7a2b9c4d-1e3f-4a5b-8c6d-9e0f1a2b3c4d";
 
 const buscarConciliacao = vi.fn();
-const fecharConciliacao = vi.fn();
 const registrarDecisaoNoMock = vi.fn();
 vi.mock("@/lib/mock-data", () => ({
   buscarConciliacao: (id: string) => buscarConciliacao(id),
-  fecharConciliacao: (id: string) => fecharConciliacao(id),
   registrarDecisaoNoMock: (...args: unknown[]) => registrarDecisaoNoMock(...args),
   formatarMoeda: (valor: number) =>
     valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }),
@@ -172,7 +170,6 @@ describe("ConciliacaoPage", () => {
     // a categoria escolhida vai para a URL de verdade; cada teste começa sem ela
     window.history.replaceState(null, "", "/");
     buscarConciliacao.mockReset();
-    fecharConciliacao.mockReset();
     carregarConciliacao.mockReset();
     registrarDecisao.mockReset();
     registrarDecisaoNoMock.mockReset();

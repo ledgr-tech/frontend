@@ -709,7 +709,7 @@ function AcoesDoFechamento({ mes, revisar }: { mes: MesDeFechamento; revisar: st
       )}
       {avisoDoGestor}
       {/* o próximo mês não espera este fechar: o backend só recusa conciliar no mês fechado (#505) */}
-      <p className="vg-nota" style={{ margin: 0, flexBasis: "100%" }}>
+      <p className="vg-nota fech-nota-linha">
         {`Não precisa fechar ${mesSozinho} para começar ${mes.proximo}. `}
         <Link href="/conciliacoes/nova" className="fech-link">
           Nova conciliação

@@ -612,8 +612,8 @@ export default function ConciliacaoPage() {
         {/* decidida a conciliação, o próximo passo é o fechamento do mês (#505). Só então: com pendência,
             o trabalho é aqui. Fechar é do mês inteiro, que só Fechamentos enxerga, então vai um link. Com mais de
             uma rodada, a bandeira da linha das rodadas já diz "pronto para fechar" e leva ao mesmo lugar */}
-        {real && rodada && rodada.numero === rodada.total && rodadas.length <= 1 && emRevisao.length === 0 && !fechamento && !fechamentoIndisponivel && (
-          <p className="mes-fechado-aviso">
+        {real && rodada && rodada.numero === rodada.total && rodadas.length <= 1 && !truncada && emRevisao.length === 0 && !fechamento && !fechamentoIndisponivel && (
+          <p className="mes-aviso">
             {`Tudo decidido nesta conciliação. ${tituloDaCompetencia(competencia(rodada.periodoInicio, rodada.executadaEm))} continua em aberto, e o fechamento vale para todas as conciliações do mês. `}
             <Link href={`/fechamentos?mes=${competencia(rodada.periodoInicio, rodada.executadaEm)}`}>Ir para o fechamento</Link>
           </p>
