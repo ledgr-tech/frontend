@@ -228,3 +228,75 @@ describe("responder", () => {
     expect(foraDoRoteiro(contexto())).toMatch(/^Por enquanto eu respondo sobre setembro.*Central de ajuda\.$/);
   });
 });
+
+describe("concordância", () => {
+  const casada = (id: string) => linha(id, "match_exato", 100, 100);
+  const semDinheiro = (id: string) => linha(id, "divergente_data", 100, 100);
+  const tarifa = (id: string) => linha(id, "tarifa_bancaria", -45, null);
+  const umaNaoLida = [{ nome: "erp.csv", linhas: 1 }];
+  const duasNaoLidas = [{ nome: "erp.csv", linhas: 2 }];
+
+  it("abre no singular com uma pendência, sem falar em maior parte", () => {
+    expect(saudacao(contexto([casada("l1"), semDinheiro("l2")]))).toBe(
+      "Setembro está 50,0% conciliado. Sobrou 1 pendência, em “Mesmo valor em outra data”.",
+    );
+  });
+
+  it("abre no plural com duas pendências", () => {
+    expect(saudacao(contexto([casada("l1"), casada("l2"), semDinheiro("l3"), semDinheiro("l4")]))).toBe(
+      "Setembro está 50,0% conciliado. Sobraram 2 pendências, a maior parte em “Mesmo valor em outra data”.",
+    );
+  });
+
+  it("diz o que sobrou sem dinheiro em aberto, com uma linha e com duas", () => {
+    expect(texto("O que sobrou?", contexto([casada("l1"), semDinheiro("l2")]))).toBe(
+      "Sobrou 1 linha, sem dinheiro em aberto. Mesmo valor em outra data: 1.",
+    );
+    expect(texto("O que sobrou?", contexto([semDinheiro("l1"), semDinheiro("l2")]))).toBe(
+      "Sobraram 2 linhas, sem dinheiro em aberto. Mesmo valor em outra data: 2.",
+    );
+  });
+
+  it("resume no singular uma linha casada, uma sobra sem dinheiro e uma linha não lida", () => {
+    expect(texto("Resumo de setembro", contexto([casada("l1"), semDinheiro("l2")], umaNaoLida))).toBe(
+      "Setembro: 2 lançamentos. 1 casou sozinho (50,0%). Sobrou 1 linha, sem dinheiro em aberto. Atenção: 1 linha de erp.csv não foi lida e ficou fora da conta.",
+    );
+  });
+
+  it("resume no plural com duas linhas de cada", () => {
+    const linhas = [casada("l1"), casada("l2"), semDinheiro("l3"), semDinheiro("l4")];
+    expect(texto("Resumo de setembro", contexto(linhas, duasNaoLidas))).toBe(
+      "Setembro: 4 lançamentos. 2 casaram sozinhos (50,0%). Sobraram 2 linhas, sem dinheiro em aberto. Atenção: 2 linhas de erp.csv não foram lidas e ficaram fora da conta.",
+    );
+  });
+
+  it("resume com zero linhas casadas no plural, sem aviso quando tudo foi lido", () => {
+    expect(texto("Resumo de setembro", contexto([semDinheiro("l1"), semDinheiro("l2")]))).toBe(
+      "Setembro: 2 lançamentos. 0 casaram sozinhos (0,0%). Sobraram 2 linhas, sem dinheiro em aberto.",
+    );
+  });
+
+  it("avisa de uma linha não lida no que falta para fechar", () => {
+    expect(texto("O que falta para fechar?", contexto([casada("l1")], umaNaoLida))).toBe(
+      "Nenhuma pendência. Atenção: 1 linha de erp.csv não foi lida e ficou fora da conta.",
+    );
+    expect(texto("O que falta para fechar?", contexto([casada("l1"), semDinheiro("l2")], umaNaoLida))).toBe(
+      "Falta 1 decisão sua. Comece por “Mesmo valor em outra data”: 1 linha. Atenção: 1 linha de erp.csv não foi lida e ficou fora da conta.",
+    );
+  });
+
+  it("avisa de duas linhas não lidas no que falta para fechar", () => {
+    expect(texto("O que falta para fechar?", contexto([casada("l1")], duasNaoLidas))).toBe(
+      "Nenhuma pendência. Atenção: 2 linhas de erp.csv não foram lidas e ficaram fora da conta.",
+    );
+  });
+
+  it("fala de uma tarifa no singular e de duas no plural", () => {
+    expect(texto("e as tarifas?", contexto([tarifa("l1")]))).toBe(
+      "1 tarifa bancária em setembro, somando R$ 45. Está no extrato do banco e não no sistema de gestão. É a sobra que o Ledgr já sabe explicar, por isso tem categoria própria.",
+    );
+    expect(texto("e as tarifas?", contexto([tarifa("l1"), tarifa("l2")]))).toBe(
+      "2 tarifas bancárias em setembro, somando R$ 90. Estão no extrato do banco e não no sistema de gestão. É a sobra que o Ledgr já sabe explicar, por isso tem categoria própria.",
+    );
+  });
+});
