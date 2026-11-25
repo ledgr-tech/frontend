@@ -81,6 +81,10 @@ function plural(quantidade: number, singular: string, plural: string): string {
   return `${formatarInteiro(quantidade)} ${quantidade === 1 ? singular : plural}`;
 }
 
+function sobraSemDinheiro(linhas: number): string {
+  return `${linhas === 1 ? "Sobrou" : "Sobraram"} ${plural(linhas, "linha", "linhas")}, sem dinheiro em aberto`;
+}
+
 /** "a; b e c": os itens já têm vírgula dentro, no valor em reais. */
 function lista(itens: string[]): string {
   return itens.length <= 1 ? (itens[0] ?? "") : `${itens.slice(0, -1).join("; ")} e ${itens.at(-1)}`;
@@ -88,7 +92,10 @@ function lista(itens: string[]): string {
 
 function naoLidas(contexto: Contexto): string {
   return contexto.naoLidas
-    .map((arquivo) => ` Atenção: ${plural(arquivo.linhas, "linha", "linhas")} de ${arquivo.nome} não foram lidas e ficaram fora da conta.`)
+    .map((arquivo) => {
+      const resto = arquivo.linhas === 1 ? "não foi lida e ficou" : "não foram lidas e ficaram";
+      return ` Atenção: ${plural(arquivo.linhas, "linha", "linhas")} de ${arquivo.nome} ${resto} fora da conta.`;
+    })
     .join("");
 }
 
@@ -161,7 +168,11 @@ export function saudacao(contexto: Contexto): string {
     return `${contexto.Mes} está ${formatarPercentual(contexto.taxa)} conciliado. Nenhuma pendência.`;
   }
   const maisComum = [...contexto.grupos].sort((a, b) => b.quantidade - a.quantidade)[0];
-  return `${contexto.Mes} está ${formatarPercentual(contexto.taxa)} conciliado. Sobraram ${plural(contexto.divergentes, "pendência", "pendências")}, a maior parte em “${maisComum.rotulo}”.`;
+  const sobra =
+    contexto.divergentes === 1
+      ? `Sobrou 1 pendência, em “${maisComum.rotulo}”`
+      : `Sobraram ${plural(contexto.divergentes, "pendência", "pendências")}, a maior parte em “${maisComum.rotulo}”`;
+  return `${contexto.Mes} está ${formatarPercentual(contexto.taxa)} conciliado. ${sobra}.`;
 }
 
 /** Os atalhos embaixo da conversa, os do design com os números de agora. */
@@ -193,7 +204,7 @@ export function responder(pergunta: string, contexto: Contexto, assunto = assunt
     const tarifas = grupo(contexto, "Tarifa bancária");
     if (!tarifas) return { texto: `Nenhuma tarifa bancária sobrou em ${mes}.` };
     return {
-      texto: `${plural(tarifas.quantidade, "tarifa bancária", "tarifas bancárias")} em ${mes}, somando ${formatarMoedaCurta(tarifas.valor)}. Estão no extrato do banco e não no sistema de gestão. É a sobra que o Ledgr já sabe explicar, por isso tem categoria própria.`,
+      texto: `${plural(tarifas.quantidade, "tarifa bancária", "tarifas bancárias")} em ${mes}, somando ${formatarMoedaCurta(tarifas.valor)}. ${tarifas.quantidade === 1 ? "Está" : "Estão"} no extrato do banco e não no sistema de gestão. É a sobra que o Ledgr já sabe explicar, por isso tem categoria própria.`,
       link: { href: tarifas.href, rotulo: "Ver as tarifas" },
     };
   }
@@ -235,7 +246,7 @@ export function responder(pergunta: string, contexto: Contexto, assunto = assunt
     const inicio =
       contexto.valorAberto > 0
         ? `Os ${formatarMoedaCurta(contexto.valorAberto)} em aberto saem de ${plural(contexto.divergentes, "linha", "linhas")}`
-        : `Sobraram ${plural(contexto.divergentes, "linha", "linhas")}, sem dinheiro em aberto`;
+        : sobraSemDinheiro(contexto.divergentes);
     return { texto: `${inicio}. ${lista(partes)}.`, link: { href: contexto.caminho, rotulo: "Abrir a lista" } };
   }
 
@@ -244,10 +255,10 @@ export function responder(pergunta: string, contexto: Contexto, assunto = assunt
       contexto.valorAberto > 0
         ? ` Ficaram ${formatarMoedaCurta(contexto.valorAberto)} em aberto, em ${plural(contexto.divergentes, "linha", "linhas")}.`
         : contexto.divergentes > 0
-          ? ` Sobraram ${plural(contexto.divergentes, "linha", "linhas")}, sem dinheiro em aberto.`
+          ? ` ${sobraSemDinheiro(contexto.divergentes)}.`
           : " Nada ficou em aberto.";
     return {
-      texto: `${Mes}: ${plural(contexto.processados, "lançamento", "lançamentos")}. ${formatarInteiro(contexto.batidos)} casaram sozinhos (${formatarPercentual(contexto.taxa)}).${aberto}${naoLidas(contexto)}`,
+      texto: `${Mes}: ${plural(contexto.processados, "lançamento", "lançamentos")}. ${plural(contexto.batidos, "casou sozinho", "casaram sozinhos")} (${formatarPercentual(contexto.taxa)}).${aberto}${naoLidas(contexto)}`,
       link: { href: contexto.caminho, rotulo: "Abrir a conciliação" },
     };
   }
