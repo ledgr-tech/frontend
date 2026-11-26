@@ -566,7 +566,7 @@ function AtividadeRecente({ execucoes, total }: { execucoes: Execucao[]; total: 
         <h2 id="vg-atividade-titulo" className="vg-bloco-rotulo">
           Atividade recente
         </h2>
-        <Link href="/historico" className="btn btn-secondary" style={{ fontSize: 13.5 }}>
+        <Link href="/historico" className="btn btn-secondary">
           Ver histórico
         </Link>
       </div>
