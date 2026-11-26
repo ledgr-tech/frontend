@@ -5354,16 +5354,18 @@ html[data-tema="escuro"] .app-shell {
 .fech-saldo { margin: 0; font-variant-numeric: tabular-nums; }
 /* o arquivo e o botão na mesma linha; quebra só se o nome não couber */
 .fech-relatorio { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; }
-/* o aviso da comparação de um mês fechado: informação, não alerta, num filete neutro */
-.mes-fechado-aviso {
+/* os avisos do mês na comparação (fechado, ou aberto e pronto, #505): informação, não alerta, num filete neutro */
+.mes-fechado-aviso, .mes-aviso {
   margin: 0; padding: 10px 14px; border-radius: var(--radius-md); border: 1px solid var(--color-divider);
   font-size: var(--texto-corpo); line-height: 1.6; color: var(--texto-apagado);
 }
-.mes-fechado-aviso a { color: var(--color-text); text-decoration: underline; text-underline-offset: 3px; }
+.mes-fechado-aviso a, .mes-aviso a { color: var(--color-text); text-decoration: underline; text-underline-offset: 3px; }
 
 /* fechar e reabrir (backend #86): os botões numa linha; o erro e a ressalva, embaixo deles */
 .fech-acoes { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .fech-erro { flex-basis: 100%; margin: 0; }
+/* uma nota numa linha só, embaixo dos botões do fechamento */
+.fech-nota-linha { flex-basis: 100%; margin: 0; }
 .fech-ressalva-form { flex-basis: 100%; display: flex; flex-direction: column; gap: 8px; max-width: 520px; }
 /* aprovar ou rejeitar várias de uma vez (#208): o motivo da rejeição; na comparação, a faixa e as caixas da seleção (#475) */
 /* justificar as selecionadas (#473) é o mesmo formulário em linha, que quebra para baixo na faixa */

@@ -91,9 +91,13 @@ export function tituloDaCompetencia(chave: string): string {
   return `${nomeDoMes(chave)} de ${chave.split("-")[0]}`;
 }
 
+/** "2026-09" → "outubro": o mês seguinte, em minúsculas, como o "Começar outubro" do fechamento. */
+export function proximoDaCompetencia(chave: string): string {
+  return MESES[Number(chave.split("-")[1]) % 12] ?? "próximo mês";
+}
+
 function montarMes(chave: string, pares: ParDoFechamento[], naoLidasIndisponivel: boolean): Omit<MesDeFechamento, "fechamento"> {
-  const [ano, mes] = chave.split("-");
-  const indice = Number(mes) - 1;
+  const [ano] = chave.split("-");
   const nome = nomeDoMes(chave);
 
   const quantidades = new Map<StatusLinha, number>();
@@ -118,7 +122,7 @@ function montarMes(chave: string, pares: ParDoFechamento[], naoLidasIndisponivel
     nome,
     ano,
     titulo: tituloDaCompetencia(chave),
-    proximo: MESES[(indice + 1) % 12] ?? "próximo mês",
+    proximo: proximoDaCompetencia(chave),
     pares,
     lancamentos,
     conciliados: lancamentos - divergentes,
