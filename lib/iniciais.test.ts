@@ -15,6 +15,9 @@ describe("iniciais", () => {
 
   it("never splits a character in half", () => {
     expect(iniciais("🦊 Fox")).toBe("🦊F");
+    expect(iniciais("🇧🇷 Brasil")).toBe("🇧🇷B");
+    expect(iniciais("👩🏽‍💻 Priya")).toBe("👩🏽‍💻P");
+    expect(iniciais("Érica Souza")).toBe("ÉS");
     expect(iniciais("dana")).toBe("D");
   });
 });

@@ -1697,12 +1697,12 @@ function semearPiorCaso() {
   const principal = novaEmpresa(grande, ids(1),
     "Companhia Brasileira de Distribuição de Materiais Elétricos, Hidráulicos e de Construção Civil do Vale do Paraíba e Litoral Norte Paulista S.A.",
     "12ABC34501DE35");
-  const exibida = novaEmpresa(grande, ids(2), "Indústria e Comércio de Embalagens Plásticas Flexíveis e Rígidas Nordeste Ltda — EPP", "11222333000181");
+  const exibida = novaEmpresa(grande, ids(2), "Indústria e Comércio de Embalagens Plásticas Flexíveis e Rígidas Nordeste Ltda — EPP", "81000000000193");
   exibida.nome_exibicao = "Embalagens Nordeste — unidade de Jaboatão dos Guararapes, centro de distribuição regional e escritório administrativo";
-  novaEmpresa(grande, ids(3), "Jo ME", "45997418000153").nome_exibicao = "J";
-  novaEmpresa(grande, ids(4), "Seán O'Brien-Ó Súilleabháin & Cia. Importação e Exportação <Ltda>", "33444555000172");
-  novaEmpresa(grande, ids(5), "Đặng Thị Ngọc Hân Comércio de Cosméticos e Produtos de Beleza Eireli", "22333444000106");
-  novaEmpresa(grande, ids(6), "Benachrichtigungseinstellungen Tecnologia da Informação Ltda", "55666777000190");
+  novaEmpresa(grande, ids(3), "Jo ME", "82000000000156").nome_exibicao = "J";
+  novaEmpresa(grande, ids(4), "Seán O'Brien-Ó Súilleabháin & Cia. Importação e Exportação <Ltda>", "83000000000119");
+  novaEmpresa(grande, ids(5), "Đặng Thị Ngọc Hân Comércio de Cosméticos e Produtos de Beleza Eireli", "84000000000181");
+  novaEmpresa(grande, ids(6), "Benachrichtigungseinstellungen Tecnologia da Informação Ltda", "85000000000144");
   const redes = ["Rede Bom Preço Supermercados Ltda", "Auto Peças e Serviços Automotivos Rota do Sol Ltda",
     "Clínica Odontológica Sorriso Perfeito Ltda", "Transportadora Rodoviária Expresso Sul-Mineiro Ltda"];
   for (let n = 7; n <= 47; n++) {
@@ -1776,7 +1776,7 @@ function semearPiorCaso() {
   if (divergentes[2]) decidir(principal, admin, bancoId, divergentes[2].chave, "conferida");
 
   const um = novaConta("c0000000-0000-4000-8000-0000000000b1", "J", "ativo", "essencial");
-  novaEmpresa(um, "e0000000-0000-4000-8000-0000000b0001", "J", "77888999000145");
+  novaEmpresa(um, "e0000000-0000-4000-8000-0000000b0001", "J", "86000000000107");
   novoUsuario(um, "d0000000-0000-4000-8000-0000000000b1", "J", "um@caso.test", "admin");
 }
 

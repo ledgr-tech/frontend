@@ -2502,8 +2502,9 @@ html:has(.app-shell):has(.painel-lateral) { overflow: hidden; scrollbar-gutter: 
 .hist-arquivo .icone-origem { flex: none; }
 /* cortado no meio (NomeDoArquivo): o começo encolhe com reticências, o fim do nome fica sempre à vista */
 .hist-arquivo-nome { display: flex; min-width: 0; white-space: nowrap; }
-.hist-arquivo-inicio { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.hist-arquivo-fim { flex: none; }
+/* pre: como itens de um flex, as partes perderiam o espaço da emenda ("novembro 2026" virava "novembro2026") */
+.hist-arquivo-inicio { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: pre; }
+.hist-arquivo-fim { flex: none; white-space: pre; }
 .hist-arquivo-sistema { font-size: var(--texto-nota); color: color-mix(in srgb, var(--color-text) 68%, transparent); }
 
 /* os quadrados das rodadas, como na faixa da comparação, menores e sem o fio se desenhando */
@@ -4006,9 +4007,9 @@ html:not([data-menu="recolhido"]) .app-assistente-figura {
 .equipe-quem { flex: 1 1 200px; min-width: 0; display: flex; flex-direction: column; }
 .equipe-nome-linha { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
 .equipe-nome { font-weight: 600; overflow-wrap: anywhere; }
-/* o e-mail quebra antes do "@" (o <wbr> de EmailQuebravel) e só parte uma palavra que não cabe nem sozinha
-   na linha (M-03). anywhere, e não break-word: numa tabela o break-word ainda conta a palavra inteira na
-   largura mínima, e um e-mail longo alargava a tabela e escondia a coluna Papel no celular */
+/* o e-mail quebra antes do "@" (o <wbr> de EmailQuebravel) quando o nome antes dele cabe na linha, e só parte
+   uma palavra que não cabe nem sozinha (M-03). anywhere, e não break-word: numa tabela o break-word ainda conta a
+   palavra inteira na largura mínima, e um e-mail longo alargava a tabela e escondia a coluna Papel no celular */
 .equipe-quem > span { font-size: var(--texto-nota); color: color-mix(in srgb, var(--color-text) 68%, transparent); overflow-wrap: anywhere; }
 .equipe-papel { border: 1px solid var(--color-divider); border-radius: 999px; padding: 4px 12px; font-size: var(--texto-nota); font-weight: 500; }
 .equipe-papel-envelope { position: relative; display: inline-flex; }
