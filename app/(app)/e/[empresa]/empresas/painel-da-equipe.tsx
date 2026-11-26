@@ -384,7 +384,7 @@ export function PainelDaEquipe({
               contagem={
                 limite.maximo === null
                   ? `${limite.usadas} ${limite.usadas === 1 ? "pessoa" : "pessoas"}`
-                  : `${limite.usadas} de ${limite.maximo} pessoas`
+                  : `${limite.usadas} de ${limite.maximo} ${limite.maximo === 1 ? "pessoa" : "pessoas"}`
               }
               usadas={limite.usadas}
               maximo={limite.maximo}

@@ -465,6 +465,27 @@ describe("a faixa do plano para pessoas", () => {
 
     expect(await screen.findByText("O plano permite até 3 pessoas.")).toBeInTheDocument();
   });
+
+  it.each<[number, number | null, string]>([
+    [1, 5, "1 de 5 pessoas"],
+    [1, 1, "1 de 1 pessoa"],
+    [2, 1, "2 de 1 pessoa"],
+    [2, 5, "2 de 5 pessoas"],
+    [1, null, "1 pessoa"],
+    [2, null, "2 pessoas"],
+  ])("%s usadas, máximo %s: a contagem concorda (#512)", async (usadas, maximo, texto) => {
+    montar("admin", ADMIN.email, COM(usadas, maximo));
+
+    await screen.findByText("Bia", { selector: ".equipe-nome" });
+    expect(document.querySelector(".faixa-plano strong")?.textContent).toBe(texto);
+  });
+
+  it("com máximo 1, o plural não aparece (#512)", async () => {
+    montar("admin", ADMIN.email, COM(1, 1));
+
+    await screen.findByText("Bia", { selector: ".equipe-nome" });
+    expect(screen.queryByText("1 de 1 pessoas")).not.toBeInTheDocument();
+  });
 });
 
 describe("o menu de papel", () => {
