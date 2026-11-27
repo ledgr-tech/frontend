@@ -249,6 +249,14 @@ describe("MenuLateral", () => {
     expect(within(conta).getByText("Telha Certa Ltda")).toBeInTheDocument();
   });
 
+  it("prefers the person's name from /me over the email, with initials like the team list", () => {
+    montar({ nome: "  Christopher Alexander   Montgomery III " });
+
+    const conta = screen.getByRole("button", { name: /Christopher Alexander Montgomery III/ });
+    expect(within(conta).getByText("CA")).toBeInTheDocument();
+    expect(within(conta).queryByText("Financeiro")).not.toBeInTheDocument();
+  });
+
   it("shows only the user when the backend has not told the empresa yet", () => {
     montar({ empresa: "" });
 

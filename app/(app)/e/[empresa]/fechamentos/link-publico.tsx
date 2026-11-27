@@ -144,7 +144,7 @@ export function LinkPublico({
       )}
 
       {endereco && (
-        <div role="status" style={{ display: "grid", gap: 6, padding: 12, borderRadius: 10, background: "color-mix(in srgb, var(--color-accent) 10%, transparent)" }}>
+        <div role="status" className="api-token">
           <div style={{ display: "flex", gap: 8 }}>
             <input className="input" readOnly value={endereco.url} aria-label="Link público do relatório" style={{ flex: 1 }} onFocus={(e) => e.currentTarget.select()} />
             <button type="button" className="btn btn-primary" onClick={copiar}>

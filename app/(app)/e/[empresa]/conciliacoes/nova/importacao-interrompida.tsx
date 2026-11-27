@@ -47,9 +47,6 @@ const NOME_DO_PAPEL = { data: "data", historico: "histórico", valor: "valor" } 
 const LINHAS_NA_PREVIA = 4;
 const PROBLEMAS_LISTADOS = 5;
 
-const cinza = (opacidade: number) =>
-  `color-mix(in srgb, var(--color-text) ${opacidade}%, transparent)`;
-
 function listar(itens: string[]): string {
   return itens.length <= 1 ? itens.join("") : `${itens.slice(0, -1).join(", ")} e ${itens.at(-1)}`;
 }
@@ -140,7 +137,7 @@ export function ImportacaoInterrompida({
   const cabecalho = (
     <>
       <h6 style={{ margin: "0 0 6px" }}>Importação interrompida</h6>
-      <span style={{ fontSize: 14, color: cinza(62), overflowWrap: "anywhere" }}>{subtitulo}</span>
+      <span style={{ fontSize: "var(--texto-corpo)", color: "var(--texto-apagado)", overflowWrap: "anywhere" }}>{subtitulo}</span>
     </>
   );
 
@@ -252,7 +249,7 @@ export function ImportacaoInterrompida({
               >
                 <div style={{ minWidth: 0 }}>
                   <div style={{ fontWeight: 600, overflowWrap: "anywhere" }}>{coluna}</div>
-                  <div style={{ fontSize: 13.5, color: cinza(62), overflowWrap: "anywhere" }}>
+                  <div style={{ fontSize: "var(--texto-nota)", color: "var(--texto-apagado)", overflowWrap: "anywhere" }}>
                     {tabela.linhas[0]?.[indice] ?? ""}
                   </div>
                 </div>
@@ -287,7 +284,7 @@ export function ImportacaoInterrompida({
               />
               <span>
                 <strong>Débito negativo, crédito positivo</strong>
-                <span style={{ display: "block", fontSize: 13.5, color: cinza(66) }}>
+                <span style={{ display: "block", fontSize: "var(--texto-nota)", color: "var(--texto-apagado)" }}>
                   Inverter o sinal dos lançamentos de débito ao unir as duas colunas.
                 </span>
               </span>

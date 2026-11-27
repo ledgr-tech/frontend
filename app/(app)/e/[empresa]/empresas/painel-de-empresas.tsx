@@ -57,7 +57,8 @@ const TOM: Record<SituacaoDaEmpresa, string> = { em_aberto: "selo selo-atencao",
 const PREVIA_AO_LADO = "(min-width: 1100px)";
 
 function contagem(usadas: number, maximo: number | null): string {
-  const empresas = usadas === 1 ? "empresa" : "empresas";
+  // com máximo, a palavra combina com ele ("1 de 5 empresas"); sem máximo, com o usado
+  const empresas = (maximo ?? usadas) === 1 ? "empresa" : "empresas";
   return maximo === null ? `${usadas} ${empresas}` : `${usadas} de ${maximo} ${empresas}`;
 }
 

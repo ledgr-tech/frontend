@@ -8,7 +8,6 @@ import Link from "@/lib/link-do-app";
 import { ehDivergencia } from "@/lib/adaptadores";
 import { caminhoDaConciliacao } from "@/lib/caminhos";
 import {
-  fecharConciliacao,
   formatarMoeda,
   type Conciliacao,
   type Decisao,
@@ -41,7 +40,7 @@ import { LinhaDasRodadas } from "./linha-das-rodadas";
 import { CirculoDeConferir } from "./circulo-de-conferir";
 import { PainelDoExtrato } from "./painel-do-extrato";
 import { usePainelAtivo } from "./painel-ativo";
-import { competencia, tituloDaCompetencia } from "../../fechamentos/fechamento";
+import { competencia, proximoDaCompetencia, tituloDaCompetencia } from "../../fechamentos/fechamento";
 import { larguraDoValor } from "./largura";
 import { Reveal } from "@/app/reveal";
 import { MensagemErro } from "@/app/(auth)/_compartilhado/mensagem-erro";
@@ -298,11 +297,6 @@ export default function ConciliacaoPage() {
     fechamento,
     fechamentoIndisponivel,
   } = estado;
-
-  function fechar() {
-    const atualizada = fecharConciliacao(conciliacao.id);
-    if (atualizada) substituir(atualizada);
-  }
 
   if (conciliacao.status === "fechada") {
     return (
@@ -611,6 +605,17 @@ export default function ConciliacaoPage() {
           <p role="status" aria-label="Mês fechado" className="mes-fechado-aviso">
             {`${tituloDaCompetencia(fechamento.competencia)} está fechado. Para conferir, justificar ou conciliar de novo, reabra o fechamento. `}
             <Link href={`/fechamentos?mes=${fechamento.competencia}`}>Ver o fechamento</Link>
+            {" · "}
+            <Link href="/conciliacoes/nova">{`Começar ${proximoDaCompetencia(fechamento.competencia)}`}</Link>
+          </p>
+        )}
+        {/* decidida a conciliação, o próximo passo é o fechamento do mês (#505). Só então: com pendência,
+            o trabalho é aqui. Fechar é do mês inteiro, que só Fechamentos enxerga, então vai um link. Com mais de
+            uma rodada, a bandeira da linha das rodadas já diz "pronto para fechar" e leva ao mesmo lugar */}
+        {real && rodada && rodada.numero === rodada.total && rodadas.length <= 1 && !truncada && emRevisao.length === 0 && !fechamento && !fechamentoIndisponivel && (
+          <p className="mes-aviso">
+            {`Tudo decidido nesta conciliação. ${tituloDaCompetencia(competencia(rodada.periodoInicio, rodada.executadaEm))} continua em aberto, e o fechamento vale para todas as conciliações do mês. `}
+            <Link href={`/fechamentos?mes=${competencia(rodada.periodoInicio, rodada.executadaEm)}`}>Ir para o fechamento</Link>
           </p>
         )}
         {fechamentoIndisponivel && (
@@ -1251,16 +1256,6 @@ export default function ConciliacaoPage() {
           )}
 
         </Reveal>
-
-        {/* Fechar o mês grava no mock. Com dado do backend não há endpoint que
-            persista isso, então o botão não aparece em vez de fingir que fechou. */}
-        {!real && (
-          <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
-            <button type="button" className="btn btn-primary" onClick={fechar}>
-              Fechar mês
-            </button>
-          </div>
-        )}
 
         {linhaAberta && (
           <EspiaDaLinha
