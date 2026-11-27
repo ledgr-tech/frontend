@@ -246,6 +246,7 @@ const RODAPE_COLUNAS = [
       { rotulo: "Por que o Ledgr", href: "#por-que" },
       { rotulo: "Como funciona", href: "#como" },
       { rotulo: "Regra de ouro", href: "#regra" },
+      { rotulo: "Avaliações", href: "#depoimentos" },
       { rotulo: "Perguntas", href: "#perguntas" },
     ],
   },
@@ -254,6 +255,7 @@ const RODAPE_COLUNAS = [
     itens: [
       { rotulo: "Assinatura", href: "#preco" },
       { rotulo: "Contato", href: "mailto:ledgrtech@gmail.com" },
+      { rotulo: "ledgrtech@gmail.com", href: "mailto:ledgrtech@gmail.com" },
       { rotulo: "Segurança", href: "/privacidade#seguranca" },
     ],
   },
@@ -723,7 +725,7 @@ export default function LandingPage() {
               <span style={{ fontSize: 12, letterSpacing: "0.12em", textTransform: "uppercase", color: "color-mix(in srgb, var(--color-text) 68%, transparent)" }}>
                 {coluna.titulo}
               </span>
-              {coluna.itens.map((link) => (
+              {coluna.itens.filter((link) => link.href !== "#depoimentos" || depoimentos.length > 0).map((link) => (
                 <a key={link.rotulo} href={link.href} style={{ fontSize: 14.5, paddingBlock: 3 }}>
                   {link.rotulo}
                 </a>

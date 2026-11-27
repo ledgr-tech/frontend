@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { render } from "@testing-library/react";
+import { render, within } from "@testing-library/react";
 import type { Depoimento } from "@/lib/depoimentos";
 import LandingPage from "./page";
 
@@ -31,6 +31,7 @@ describe("LandingPage with testimonials", () => {
     const { container } = render(<LandingPage />);
     const ids = idsDasSecoes(container);
     expect(ids.slice(ids.indexOf("regra"), ids.indexOf("regra") + 3)).toEqual(["regra", "depoimentos", "perguntas"]);
+    expect(within(container.querySelector("footer")!).getByRole("link", { name: "Avaliações" })).toHaveAttribute("href", "#depoimentos");
   });
 
   it("keeps the bands alternating: the dark band takes the golden rule's paper wave, and the FAQ takes its dark one", () => {
@@ -44,6 +45,7 @@ describe("LandingPage with testimonials", () => {
   it("leaves the page as before while there are no testimonials", () => {
     const { container } = render(<LandingPage />);
     expect(idsDasSecoes(container)).not.toContain("depoimentos");
+    expect(within(container.querySelector("footer")!).queryByRole("link", { name: "Avaliações" })).toBeNull();
     expect(document.getElementById("perguntas")).toHaveClass("onda", "onda-papel");
     expect(document.getElementById("perguntas")).not.toHaveClass("onda-escura");
   });

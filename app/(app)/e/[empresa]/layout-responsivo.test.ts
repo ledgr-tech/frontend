@@ -56,6 +56,11 @@ describe("layout responsivo", () => {
     expect(declaracoes(".pills.segmentado", "(max-width: 680px)")).toMatchObject({ "flex-wrap": "nowrap", "overflow-x": "auto" });
   });
 
+  // e o pai não cresce junto: os filtros de situação de Empresas alargavam a página a 552px (24/11)
+  it("no celular, os filhos da faixa de filtros não passam da largura dela", () => {
+    expect(declaracoes(".extratos-filtros > *, .empresas-filtros > *", "(max-width: 680px)")).toMatchObject({ "min-width": "0", "max-width": "100%" });
+  });
+
   // entre ~800 e 1000px o "-R$ 12.640,00" quebrava depois do hífen e vazava do cartão
   it("o valor do detalhe da divergência fica numa linha e mede o cartão, não a janela", () => {
     expect(declaracoes(".det-cartao")["container-type"]).toBe("inline-size");
