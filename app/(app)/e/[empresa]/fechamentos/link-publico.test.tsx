@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { LinkPublico } from "./link-publico";
 
@@ -43,6 +43,18 @@ describe("LinkPublico", () => {
     expect(criar).toHaveBeenCalledWith("2026-08", 90, window.location.origin);
     expect(await screen.findByLabelText("Link público do relatório")).toHaveValue("https://app.exemplo/relatorio#abc");
     expect(screen.getByRole("table", { name: "Links ativos" })).toHaveTextContent("Zp81LmQe…");
+  });
+
+  it("mostra o endereço na caixa da chave da API, sem estilo próprio", async () => {
+    criar.mockResolvedValue({ ok: true, dados: { link: { ...LINK, id: "22222222-2222-4222-8222-222222222222", prefixo: "Zp81LmQe", acessos: 0, ultimoAcessoEm: null }, endereco: "https://app.exemplo/relatorio#abc" } });
+    const user = userEvent.setup();
+    render(<LinkPublico competencia="2026-08" />);
+    await user.click(await screen.findByRole("button", { name: "Gerar link" }));
+    const caixa = (await screen.findByLabelText("Link público do relatório")).closest('[role="status"]') as HTMLElement;
+    expect(caixa).toHaveClass("api-token");
+    expect(caixa).not.toHaveAttribute("style");
+    expect(caixa).toHaveTextContent("Este endereço não aparece de novo: copie agora.");
+    expect(within(caixa).getByRole("button", { name: "Copiar link" })).toBeInTheDocument();
   });
 
   it("revoga só depois da confirmação", async () => {
