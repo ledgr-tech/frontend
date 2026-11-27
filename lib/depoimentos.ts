@@ -16,13 +16,11 @@ export type Depoimento = {
   nota?: number;
 };
 
-export const DEPOIMENTOS: Depoimento[] = [
-  {
-    citacao:
-      "De modo geral, consideramos o Ledgr Finance uma ferramenta com uma proposta muito boa, principalmente para empresas que buscam mais agilidade e eficiência no controle financeiro.",
-    nome: "Diane Cauton Mattei",
-  },
-];
+// Oculto até a autorização de aparecer no site (decisão de 27/11). Para publicar, devolva à lista:
+// { citacao: "De modo geral, consideramos o Ledgr Finance uma ferramenta com uma proposta muito boa,
+//   principalmente para empresas que buscam mais agilidade e eficiência no controle financeiro.",
+//   nome: "Diane Cauton Mattei" }
+export const DEPOIMENTOS: Depoimento[] = [];
 
 /**
  * Exemplos para ver a seção montada enquanto os reais não chegam. Pessoas e empresas fictícias: o
