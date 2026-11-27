@@ -6,9 +6,10 @@ import { useRoteador } from "@/lib/roteador";
 import type { Execucao } from "@/lib/adaptadores";
 import { caminhoDaConciliacao } from "@/lib/caminhos";
 import { salvar } from "../conciliacoes/[id]/exportar-csv";
-import { formatarDataHora, formatarInteiro } from "../dashboard/resumo";
+import { formatarDataHora, formatarInteiro, plural } from "../dashboard/resumo";
 import { FaixaFiltros } from "../faixa-filtros";
 import { IconeOrigem } from "../icone-origem";
+import { NomeDoArquivo } from "../nome-do-arquivo";
 import { useTrocaSuave } from "@/lib/troca-suave";
 import {
   LEGENDA_DOS_TONS,
@@ -48,10 +49,6 @@ function comPendencia(conciliacao: ConciliacaoNoHistorico): boolean {
 
 function passaNoFiltro(conciliacao: ConciliacaoNoHistorico, filtro: Filtro): boolean {
   return filtro === "todas" || comPendencia(conciliacao);
-}
-
-function plural(quantidade: number, singular: string, plural: string): string {
-  return `${formatarInteiro(quantidade)} ${quantidade === 1 ? singular : plural}`;
 }
 
 /**
@@ -199,7 +196,7 @@ function Folha({
         <span className="conc-folha-banco">
           <span className="hist-arquivo">
             <IconeOrigem origem="banco" tamanho={14} />
-            <span className="hist-arquivo-nome">{arquivoBanco}</span>
+            <NomeDoArquivo nome={arquivoBanco} />
           </span>
           <span className="conc-folha-linhas">
             <i />
@@ -210,7 +207,7 @@ function Folha({
         <span className="conc-folha-sistema">
           <span className="hist-arquivo hist-arquivo-sistema">
             <IconeOrigem origem="sistema" tamanho={13} />
-            <span className="hist-arquivo-nome">{execucao.arquivoSistema}</span>
+            <NomeDoArquivo nome={execucao.arquivoSistema} />
           </span>
         </span>
       </span>
@@ -254,11 +251,11 @@ function Previa({
       <div className="conc-previa-arquivos">
         <span className="hist-arquivo">
           <IconeOrigem origem="banco" tamanho={14} />
-          <span className="hist-arquivo-nome">{arquivoBanco}</span>
+          <NomeDoArquivo nome={arquivoBanco} />
         </span>
         <span className="hist-arquivo hist-arquivo-sistema">
           <IconeOrigem origem="sistema" tamanho={13} />
-          <span className="hist-arquivo-nome">{`× ${execucao.arquivoSistema}`}</span>
+          <NomeDoArquivo nome={execucao.arquivoSistema} prefixo="× " />
         </span>
       </div>
       <div className="extrato-resultado">

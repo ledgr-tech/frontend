@@ -51,11 +51,9 @@ const BANCO = "3f1c0d5e-8a42-4b77-9c31-0d9e4a6f1b20";
 const SISTEMA = "7a2b9c4d-1e3f-4a5b-8c6d-9e0f1a2b3c4d";
 
 const buscarConciliacao = vi.fn();
-const fecharConciliacao = vi.fn();
 const registrarDecisaoNoMock = vi.fn();
 vi.mock("@/lib/mock-data", () => ({
   buscarConciliacao: (id: string) => buscarConciliacao(id),
-  fecharConciliacao: (id: string) => fecharConciliacao(id),
   registrarDecisaoNoMock: (...args: unknown[]) => registrarDecisaoNoMock(...args),
   formatarMoeda: (valor: number) =>
     valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }),
@@ -172,7 +170,6 @@ describe("ConciliacaoPage", () => {
     // a categoria escolhida vai para a URL de verdade; cada teste começa sem ela
     window.history.replaceState(null, "", "/");
     buscarConciliacao.mockReset();
-    fecharConciliacao.mockReset();
     carregarConciliacao.mockReset();
     registrarDecisao.mockReset();
     registrarDecisaoNoMock.mockReset();
@@ -658,18 +655,12 @@ describe("ConciliacaoPage", () => {
     ).toBeInTheDocument();
   });
 
-  it("closes the month when Fechar mês is clicked", async () => {
+  it("não fecha o mês pela comparação: fechar é do mês inteiro, em Fechamentos (#505)", async () => {
     buscarConciliacao.mockReturnValue(conciliacaoEmAndamento);
-    fecharConciliacao.mockReturnValue({ ...conciliacaoEmAndamento, status: "fechada" });
-    const user = userEvent.setup();
     render(<ConciliacaoPage />);
 
-    await user.click(await screen.findByText("Fechar mês"));
-
-    expect(fecharConciliacao).toHaveBeenCalledWith("conc-1");
-    expect(
-      await screen.findByText("Setembro 2026 fechado com 1 item revisado.")
-    ).toBeInTheDocument();
+    expect(await screen.findByText("Comparação direta")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Fechar mês" })).not.toBeInTheDocument();
   });
 
   it("shows not found message when conciliação does not exist", async () => {
@@ -1271,6 +1262,38 @@ describe("ConciliacaoPage", () => {
       expect(screen.queryAllByRole("button", { name: /como conferida$/ })).toHaveLength(0);
     });
 
+    it("com o mês aberto e tudo decidido, leva ao fechamento do mês (#505)", async () => {
+      doBackend({ ...comCampo, linhas: comCampo.linhas.map((linha) => ({ ...linha, status: "match_exato" as const })) });
+      render(<ConciliacaoPage />);
+
+      const aviso = (await screen.findByText(/^Tudo decidido nesta conciliação/)).closest("p")!;
+      expect(aviso).toHaveTextContent(
+        "Tudo decidido nesta conciliação. Setembro de 2026 continua em aberto, e o fechamento vale para todas as conciliações do mês.",
+      );
+      expect(within(aviso).getByRole("link", { name: "Ir para o fechamento" })).toHaveAttribute("href", "/fechamentos?mes=2026-09");
+      expect(screen.queryByRole("button", { name: /^Fechar/ })).not.toBeInTheDocument();
+    });
+
+    it("com mais de uma rodada, a bandeira das rodadas já leva ao fechamento, sem o aviso repetido (#505)", async () => {
+      const RODADA_1 = { ...RODADA_2, numero: 1, extratoSistemaId: "00000000-0000-4000-8000-000000000001" };
+      doBackend(
+        { ...comCampo, linhas: comCampo.linhas.map((linha) => ({ ...linha, status: "match_exato" as const })) },
+        { rodadas: [RODADA_1, RODADA_2] },
+      );
+      render(<ConciliacaoPage />);
+
+      expect(await screen.findByRole("link", { name: /Fechamento: pronto para fechar/ })).toBeInTheDocument();
+      expect(screen.queryByText(/^Tudo decidido nesta conciliação/)).not.toBeInTheDocument();
+    });
+
+    it("com pendência, o aviso do fechamento não aparece: o trabalho é na conciliação (#505)", async () => {
+      doBackend(comCampo);
+      render(<ConciliacaoPage />);
+
+      expect(await screen.findByText("Comparação direta")).toBeInTheDocument();
+      expect(screen.queryByText(/^Tudo decidido nesta conciliação/)).not.toBeInTheDocument();
+    });
+
     it("locks checking, justifying and a new round in a closed month, and says how to open it again", async () => {
       doBackend(comCampo, {
         fechamento: {
@@ -1293,6 +1316,8 @@ describe("ConciliacaoPage", () => {
         "href",
         "/fechamentos?mes=2026-09",
       );
+      // fechado, o caminho para o mês seguinte fica ao lado do aviso (#505)
+      expect(within(aviso).getByRole("link", { name: "Começar outubro" })).toHaveAttribute("href", "/conciliacoes/nova");
       // o que já foi decidido continua à vista; o que gravaria, não
       expect(screen.getByRole("button", { name: "Justificadas (0)" })).toBeInTheDocument();
       expect(screen.queryByRole("button", { name: /como conferida$/ })).not.toBeInTheDocument();

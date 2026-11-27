@@ -12,6 +12,7 @@ import {
   pedeDecisao,
   estaResolvida,
   seloDoStatus,
+  plural,
 } from "./resumo";
 
 function linha(
@@ -250,5 +251,19 @@ describe("match_agrupado (backend #131)", () => {
     expect(pedeDecisao(linha("match_agrupado", -150000, null))).toBe(false);
     expect(seloDoStatus("match_agrupado")).toEqual({ rotulo: "Conciliado por agrupamento", tom: "ok" });
     expect(rotuloCurto(linha("match_agrupado", null, -5000))).toBe("Conciliado");
+  });
+});
+
+describe("plural", () => {
+  it("usa o singular só quando a contagem é 1", () => {
+    expect(plural(0, "linha", "linhas")).toBe("0 linhas");
+    expect(plural(1, "linha", "linhas")).toBe("1 linha");
+    expect(plural(1, "linha", "linhas")).not.toBe("1 linhas");
+    expect(plural(2, "linha", "linhas")).toBe("2 linhas");
+  });
+
+  it("separa o milhar como em pt-BR", () => {
+    expect(plural(1234, "linha", "linhas")).toBe("1.234 linhas");
+    expect(plural(1234, "linha", "linhas")).not.toBe("1234 linhas");
   });
 });

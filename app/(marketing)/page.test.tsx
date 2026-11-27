@@ -14,9 +14,17 @@ describe("LandingPage", () => {
   // o hero é a primeira seção; a faixa de números vem logo abaixo dele
   const secoes = (container: HTMLElement) => [...container.querySelectorAll<HTMLElement>("main > section")];
 
-  it("leaves out of the footer the social networks without a profile yet (#388)", () => {
+  it("shows the official Instagram and X profiles and leaves out networks without a profile (#388)", () => {
     const { container } = render(<LandingPage />);
-    expect(within(container.querySelector("footer")!).queryByRole("list", { name: "Ledgr nas redes sociais" })).toBeNull();
+    const redes = within(screen.getByRole("list", { name: "Ledgr nas redes sociais" }));
+    expect(redes.getAllByRole("link")).toHaveLength(2);
+    expect(redes.getByRole("link", { name: "Instagram" })).toHaveAttribute("href", "https://www.instagram.com/ledgrtech/");
+    expect(redes.getByRole("link", { name: "X (Twitter)" })).toHaveAttribute("href", "https://x.com/ledgrtech");
+    for (const link of redes.getAllByRole("link")) {
+      expect(link).toHaveAttribute("target", "_blank");
+      expect(link).toHaveAttribute("rel", "noopener noreferrer");
+    }
+    expect(redes.queryByRole("link", { name: "LinkedIn" })).toBeNull();
     expect(container.querySelector('footer a[href="#"]')).toBeNull();
   });
 
@@ -722,6 +730,7 @@ describe("LandingPage", () => {
     expect(footer.getByText("Empresa")).toBeInTheDocument();
     expect(footer.getByRole("link", { name: "Assinatura" })).toHaveAttribute("href", "#preco");
     expect(footer.getByRole("link", { name: "Contato" })).toHaveAttribute("href", "mailto:ledgrtech@gmail.com");
+    expect(footer.getByRole("link", { name: "ledgrtech@gmail.com" })).toHaveAttribute("href", "mailto:ledgrtech@gmail.com");
     expect(footer.getByText("Legal")).toBeInTheDocument();
     expect(footer.getByRole("link", { name: "Termos de uso" })).toHaveAttribute("href", "/termos");
     expect(footer.getByRole("link", { name: "Privacidade" })).toHaveAttribute("href", "/privacidade");

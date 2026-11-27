@@ -24,6 +24,8 @@ const INTEGRACAO_SISTEMA = process.env.INTEGRACAO_SISTEMA_HABILITADA !== "0";
 // o painel interno (#333): ninguém é operador, como na conta de qualquer cliente; OPERADORES=<e-mail>[,<e-mail>]
 // torna essas pessoas operadoras, para testar a busca e a paginação do /admin
 const OPERADORES = new Set((process.env.OPERADORES ?? "").split(",").map((e) => e.trim().toLowerCase()).filter(Boolean));
+// o pior caso (break-ui): PIOR_CASO=1 soma duas contas de dados extremos e realistas às de sempre
+const PIOR_CASO = process.env.PIOR_CASO === "1";
 const PASTA_EXEMPLOS = join(import.meta.dirname, "..", "exemplos-extratos");
 const TOLERANCIA_MAXIMA = 5;
 
@@ -1679,6 +1681,104 @@ novoUsuario(apertada, "d0000000-0000-4000-8000-000000000007", "Paulo", "paulo@au
 const semPlano = novaConta("c0000000-0000-4000-8000-000000000005", "Café Aroma", "sem_plano", null);
 novaEmpresa(semPlano, "e0000000-0000-4000-8000-000000000008", "Café Aroma Ltda", "77888999000145");
 novoUsuario(semPlano, "d0000000-0000-4000-8000-000000000008", "Lia", "semplano@cafearoma.com.br", "admin");
+
+if (PIOR_CASO) semearPiorCaso();
+
+/**
+ * Duas contas para testar a interface com dados extremos que acontecem de verdade (o backend não limita
+ * razão social, nome, e-mail, descrição nem nome de arquivo). `pior@caso.test` é um escritório grande; `um@caso.test`
+ * tem uma empresa e uma pessoa, vazia, para o singular e as telas sem nada. Senha: a de sempre.
+ */
+function semearPiorCaso() {
+  const grande = novaConta("c0000000-0000-4000-8000-0000000000a1",
+    "Escritório de Contabilidade Wiśniewska-Kowalczyk, Montgomery & Associados", "ativo", "avancado");
+  const ids = (n) => `e0000000-0000-4000-8000-0000000a${String(n).padStart(4, "0")}`;
+  // a primeira é a que abre: razão social de 150 caracteres, CNPJ alfanumérico (o novo formato da Receita)
+  const principal = novaEmpresa(grande, ids(1),
+    "Companhia Brasileira de Distribuição de Materiais Elétricos, Hidráulicos e de Construção Civil do Vale do Paraíba e Litoral Norte Paulista S.A.",
+    "12ABC34501DE35");
+  const exibida = novaEmpresa(grande, ids(2), "Indústria e Comércio de Embalagens Plásticas Flexíveis e Rígidas Nordeste Ltda — EPP", "81000000000193");
+  exibida.nome_exibicao = "Embalagens Nordeste — unidade de Jaboatão dos Guararapes, centro de distribuição regional e escritório administrativo";
+  novaEmpresa(grande, ids(3), "Jo ME", "82000000000156").nome_exibicao = "J";
+  novaEmpresa(grande, ids(4), "Seán O'Brien-Ó Súilleabháin & Cia. Importação e Exportação <Ltda>", "83000000000119");
+  novaEmpresa(grande, ids(5), "Đặng Thị Ngọc Hân Comércio de Cosméticos e Produtos de Beleza Eireli", "84000000000181");
+  novaEmpresa(grande, ids(6), "Benachrichtigungseinstellungen Tecnologia da Informação Ltda", "85000000000144");
+  const redes = ["Rede Bom Preço Supermercados Ltda", "Auto Peças e Serviços Automotivos Rota do Sol Ltda",
+    "Clínica Odontológica Sorriso Perfeito Ltda", "Transportadora Rodoviária Expresso Sul-Mineiro Ltda"];
+  for (let n = 7; n <= 47; n++) {
+    const rede = redes[n % redes.length];
+    novaEmpresa(grande, ids(n), `${rede} — Filial ${String(n).padStart(2, "0")}`, String(60000000000100 + n * 97).slice(0, 14));
+  }
+
+  const admin = novoUsuario(grande, "d0000000-0000-4000-8000-0000000000a1", "Aleksandra Wiśniewska-Kowalczyk",
+    "pior@caso.test", "admin");
+  const gestor = novoUsuario(grande, "d0000000-0000-4000-8000-0000000000a2", "Christopher Alexander Montgomery III",
+    "bartholomew.fitzgerald+conciliacao-bancaria@northwind-industries-holdings.example.com", "gestor");
+  const analista = novoUsuario(grande, "d0000000-0000-4000-8000-0000000000a3", "Jo", "jo@caso.test", "analista");
+  novoUsuario(grande, "d0000000-0000-4000-8000-0000000000a4", "María José de la Cruz y Fernández", "a@b.test", "analista");
+  novoUsuario(grande, "d0000000-0000-4000-8000-0000000000a5", "  Sam   Lee ", "sam.lee@caso.test", "analista");
+  grande.convites.push(
+    { id: randomUUID(), email: "konstantin.oberhauser-wettstein.financeiro@grupo-industrial-alpes.example.org", papel: "gestor",
+      criado_em: agora(), expira_em: new Date(Date.now() + 7 * 86400000).toISOString() },
+    { id: randomUUID(), email: "x@y.test", papel: "analista", criado_em: agora(), expira_em: new Date(Date.now() + 86400000).toISOString() },
+  );
+  grande.chaves.push(
+    { id: randomUUID(), nome: "Integração com o Power BI do financeiro consolidado — produção", prefixo: "f00dcafe",
+      empresa_id: principal.id, criada_por: gestor.nome, criado_em: "2026-10-05T14:00:00Z", ultimo_uso_em: agora(), revogada_em: null },
+    { id: randomUUID(), nome: "x", prefixo: "0badf00d", empresa_id: null, criada_por: analista.nome,
+      criado_em: "2026-09-02T10:00:00Z", ultimo_uso_em: null, revogada_em: "2026-09-20T18:30:00Z" },
+  );
+  grande.conexoes.push({ id: randomUUID(), cliente: "Claude", empresa_id: principal.id, criada_por: admin.nome,
+    criado_em: "2026-10-12T16:40:00Z", ultimo_uso_em: agora(), revogada_em: null });
+
+  // agosto e setembro em escala de milhões, a partir dos exemplos de sempre; agosto fechado
+  carregarExemplos(principal, [8, 9], 4817.3);
+  fecharMeses(principal, [8], admin.nome);
+  // novembro: 1.000 linhas geradas, com descrições longas, valores extremos e divergências de todo tipo
+  const descricoes = [
+    "PAGAMENTO PIX ENVIADO 12.345.678/0001-95 TRANSFERENCIA ENTRE CONTAS DE MESMA TITULARIDADE AG 0001 CC 12345-6 REF NF 000123456 PARCELA 03/12",
+    "TAR",
+    "Recebimento Seán O'Brien-Ó Súilleabháin & Cia <b>(boleto)</b> &amp; juros",
+    "Fornecedor Đặng Thị Ngọc Hân — compra de insumos",
+    "TED RECEBIDA bartholomew.fitzgerald@northwind-industries-holdings.example.com",
+    "Aluguel galpão",
+    "DEBITO AUTOMATICO SEGURO EMPRESARIAL PATRIMONIAL INCENDIO RAIO EXPLOSAO VENDAVAL DANOS ELETRICOS APOLICE 0098765432100",
+    "Folha de pagamento",
+  ];
+  const valorDe = (i) => {
+    if (i === 0) return "12345678.90";
+    if (i === 1) return "-9876543.21";
+    if (i === 2) return "0.01";
+    if (i === 3) return "-0.01";
+    return ((i % 2 ? -1 : 1) * (((i * 7919) % 2500000) / 100 + 1)).toFixed(2);
+  };
+  const dia = (i) => `${String(1 + (i % 25)).padStart(2, "0")}/11/2026`;
+  const banco = ["data;descricao;valor"];
+  const sistema = ["data;descricao;valor"];
+  for (let i = 0; i < 1000; i++) {
+    const d = descricoes[i % descricoes.length];
+    banco.push(`${dia(i)};${d};${valorDe(i)}`);
+    if (i % 50 === 7) continue; // só no banco
+    if (i % 50 === 13) { sistema.push(`${dia(i)};${d};${(Number(valorDe(i)) + 0.36).toFixed(2)}`); continue; } // valor diferente
+    if (i % 50 === 21) { sistema.push(`${dia(i + 9)};${d};${valorDe(i)}`); continue; } // data fora da tolerância
+    sistema.push(`${dia(i)};${d};${valorDe(i)}`);
+  }
+  for (let i = 0; i < 12; i++) sistema.push(`${dia(i)};Lançamento só no sistema número ${i + 1};${(-1500.5 - i).toFixed(2)}`);
+  const nomeBanco = "Extrato_Conta_Corrente_Banco_do_Brasil_Ag_1234-5_CC_98765-4_Novembro_2026_FINAL (revisado) v12.csv";
+  const bancoId = registrarExtrato(principal, nomeBanco, "banco", Buffer.from(banco.join("\n")));
+  const sistemaId = registrarExtrato(principal, "ERP-export-contas-a-pagar-e-receber-2026-11-consolidado-todas-as-filiais.csv",
+    "sistema", Buffer.from(sistema.join("\n")));
+  executar(principal, bancoId, sistemaId);
+  const divergentes = principal.itens.get(`${bancoId}|${sistemaId}`).filter((i) => !i.status.startsWith("match_"));
+  const longa = "Pagamento lançado no ERP com a data da nota fiscal e não com a data de compensação. ".repeat(12).trim();
+  if (divergentes[0]) decidir(principal, gestor, bancoId, divergentes[0].chave, "justificada", longa.slice(0, 1000));
+  if (divergentes[1]) decidir(principal, analista, bancoId, divergentes[1].chave, "justificada", "ok");
+  if (divergentes[2]) decidir(principal, admin, bancoId, divergentes[2].chave, "conferida");
+
+  const um = novaConta("c0000000-0000-4000-8000-0000000000b1", "J", "ativo", "essencial");
+  novaEmpresa(um, "e0000000-0000-4000-8000-0000000b0001", "J", "86000000000107");
+  novoUsuario(um, "d0000000-0000-4000-8000-0000000000b1", "J", "um@caso.test", "admin");
+}
 
 servidor.listen(PORTA, () => {
   console.log(`backend-fake em http://localhost:${PORTA} — senha de todas as contas: ${SENHA_PADRAO}`);

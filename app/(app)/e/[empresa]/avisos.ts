@@ -1,7 +1,7 @@
 import { caminhoDaConciliacao } from "@/lib/caminhos";
 import type { Tom } from "@/lib/mock-data";
 import type { VisaoGeral } from "./conciliacoes/acoes";
-import { formatarDataHora, formatarMoedaCurta, pedeDecisao, valorEmAberto } from "./dashboard/resumo";
+import { formatarDataHora, formatarMoedaCurta, pedeDecisao, plural, valorEmAberto } from "./dashboard/resumo";
 import { pendencias } from "./visao-geral/pendencias";
 
 export type Aviso = {
@@ -13,10 +13,6 @@ export type Aviso = {
   tom: Tom;
   href: string;
 };
-
-function plural(quantidade: number, um: string, varios: string): string {
-  return `${quantidade.toLocaleString("pt-BR")} ${quantidade === 1 ? um : varios}`;
-}
 
 /**
  * Os avisos saem da conciliação mais recente, como a visão geral: o que ainda

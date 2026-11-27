@@ -2500,7 +2500,11 @@ html:has(.app-shell):has(.painel-lateral) { overflow: hidden; scrollbar-gutter: 
 .hist-taxa { font-variant-numeric: tabular-nums; }
 .hist-arquivo { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .hist-arquivo .icone-origem { flex: none; }
-.hist-arquivo-nome { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* cortado no meio (NomeDoArquivo): o começo encolhe com reticências, o fim do nome fica sempre à vista */
+.hist-arquivo-nome { display: flex; min-width: 0; white-space: nowrap; }
+/* pre: como itens de um flex, as partes perderiam o espaço da emenda ("novembro 2026" virava "novembro2026") */
+.hist-arquivo-inicio { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: pre; }
+.hist-arquivo-fim { flex: none; white-space: pre; }
 .hist-arquivo-sistema { font-size: var(--texto-nota); color: color-mix(in srgb, var(--color-text) 68%, transparent); }
 
 /* os quadrados das rodadas, como na faixa da comparação, menores e sem o fio se desenhando */
@@ -2554,7 +2558,8 @@ html:has(.app-shell):has(.painel-lateral) { overflow: hidden; scrollbar-gutter: 
 @container tela (max-width: 1099px) { .conc-previa { order: -1; } }
 @media (min-width: 1100px) {
   .conc-mesa { grid-template-columns: minmax(0, 7fr) minmax(320px, 5fr); }
-  .conc-previa { position: sticky; z-index: 11; top: calc(var(--app-topo-altura, 0px) + var(--extratos-filtros-altura, 58px) + 12px); }
+  /* no fim da coluna, a prévia passa por baixo dos filtros (z 10); os 28px deixam o degradê livre */
+  .conc-previa { position: sticky; z-index: 9; top: calc(var(--app-topo-altura, 0px) + var(--extratos-filtros-altura, 58px) + 28px); }
 }
 .conc-meses { display: flex; flex-direction: column; gap: 26px; min-width: 0; }
 /* o cabeçalho do mês: título na Newsreader e o estado ao lado */
@@ -3643,11 +3648,12 @@ a.rodadas-quadrado:hover { border-color: var(--color-text); background: var(--ti
   color: color-mix(in srgb, var(--color-text) 68%, transparent);
 }
 .extrato-painel {
-  /* acima da faixa dos filtros, para o degradê dela não apagar a borda de cima do painel */
-  position: sticky; z-index: 11; display: flex; flex-direction: column; gap: 14px;
-  top: calc(var(--app-topo-altura, 0px) + var(--extratos-filtros-altura, 0px) + 6px);
+  /* abaixo dos filtros (z 10), como em Fechamentos: ao subir no fim da coluna, não cobre as opções.
+     Os 28px de folga deixam a borda fora do degradê da faixa enquanto o painel está preso. */
+  position: sticky; z-index: 9; display: flex; flex-direction: column; gap: 14px;
+  top: calc(var(--app-topo-altura, 0px) + var(--extratos-filtros-altura, 0px) + 28px);
   /* mais alto que a janela, rola por dentro: preso, o pé dele ficaria fora de alcance */
-  max-height: calc(100vh - var(--app-topo-altura, 0px) - var(--extratos-filtros-altura, 0px) - 24px);
+  max-height: calc(100vh - var(--app-topo-altura, 0px) - var(--extratos-filtros-altura, 0px) - 46px);
   overflow-y: auto; overscroll-behavior: contain;
   padding: 22px; border: 1px solid var(--color-divider); border-radius: var(--radius-md);
 }
@@ -3923,6 +3929,10 @@ html:not([data-menu="recolhido"]) .app-assistente-figura {
 @container tela (max-width: 600px) {
   .seletor-topo-botao { max-width: 150px; }
   .seletor-janela-tabela td:first-child { white-space: normal; }
+  /* com uma coluna só, os 680px de toda tabela rolável cortavam os nomes no mesmo ponto: "… Rota do" em todas as
+     filiais. Aqui o nome quebra linha, mesmo uma palavra longa sem espaço */
+  .dash-tabela-rolagem .seletor-janela-tabela { min-width: 0; }
+  .seletor-janela-escolher { overflow-wrap: anywhere; }
   .seletor-janela-cnpj-celular {
     display: block; margin-top: 2px; font-size: var(--texto-nota); font-variant-numeric: tabular-nums;
     color: color-mix(in srgb, var(--color-text) 66%, transparent);
@@ -3999,9 +4009,10 @@ html:not([data-menu="recolhido"]) .app-assistente-figura {
 .equipe-quem { flex: 1 1 200px; min-width: 0; display: flex; flex-direction: column; }
 .equipe-nome-linha { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
 .equipe-nome { font-weight: 600; overflow-wrap: anywhere; }
-/* break-word, e não anywhere: o e-mail quebra antes do "@" (o <wbr> de EmailQuebravel) e só parte uma
-   palavra que não cabe nem sozinha na linha (M-03) */
-.equipe-quem > span { font-size: var(--texto-nota); color: color-mix(in srgb, var(--color-text) 68%, transparent); overflow-wrap: break-word; }
+/* o e-mail quebra antes do "@" (o <wbr> de EmailQuebravel) quando o nome antes dele cabe na linha, e só parte
+   uma palavra que não cabe nem sozinha (M-03). anywhere, e não break-word: numa tabela o break-word ainda conta a
+   palavra inteira na largura mínima, e um e-mail longo alargava a tabela e escondia a coluna Papel no celular */
+.equipe-quem > span { font-size: var(--texto-nota); color: color-mix(in srgb, var(--color-text) 68%, transparent); overflow-wrap: anywhere; }
 .equipe-papel { border: 1px solid var(--color-divider); border-radius: 999px; padding: 4px 12px; font-size: var(--texto-nota); font-weight: 500; }
 .equipe-papel-envelope { position: relative; display: inline-flex; }
 .equipe-papel-botao {
@@ -4913,7 +4924,9 @@ html:not([data-densidade="padrao"]) .app-shell .selo { padding-block: 1px; }
   gap: 12px 20px;
 }
 /* os filtros e, logo ao lado, quantas das linhas em revisão já foram conferidas */
-.tabela-filtros { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+/* min-width 0: item de um flex, sem ele não encolhe abaixo do trilho e, no celular, alarga a página em vez de o trilho
+   correr para o lado */
+.tabela-filtros { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; min-width: 0; }
 /* 70%, como o texto apagado das linhas conferidas: os 62% davam 4,48:1 sobre a página, abaixo dos 4,5 */
 .tabela-progresso {
   font-size: var(--texto-corpo); font-variant-numeric: tabular-nums;
@@ -5013,6 +5026,9 @@ a.pill { text-decoration: none; }
   .pills.segmentado::-webkit-scrollbar { display: none; }
   .segmentado .pill { flex: none; white-space: nowrap; }
   .segmentado .pill:focus-visible { outline-offset: -2px; }
+  /* o trilho só rola se o pai não crescer junto: um filho de flex mede o próprio conteúdo, e os
+     filtros de situação de Empresas, dentro de .empresas-filtros, alargavam a página (24/11) */
+  .extratos-filtros > *, .empresas-filtros > * { min-width: 0; max-width: 100%; }
 }
 
 /* cabecalho ordenavel: o botao ocupa a celula toda para o alvo ser generoso */
@@ -5354,16 +5370,18 @@ html[data-tema="escuro"] .app-shell {
 .fech-saldo { margin: 0; font-variant-numeric: tabular-nums; }
 /* o arquivo e o botão na mesma linha; quebra só se o nome não couber */
 .fech-relatorio { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; }
-/* o aviso da comparação de um mês fechado: informação, não alerta, num filete neutro */
-.mes-fechado-aviso {
+/* os avisos do mês na comparação (fechado, ou aberto e pronto, #505): informação, não alerta, num filete neutro */
+.mes-fechado-aviso, .mes-aviso {
   margin: 0; padding: 10px 14px; border-radius: var(--radius-md); border: 1px solid var(--color-divider);
   font-size: var(--texto-corpo); line-height: 1.6; color: var(--texto-apagado);
 }
-.mes-fechado-aviso a { color: var(--color-text); text-decoration: underline; text-underline-offset: 3px; }
+.mes-fechado-aviso a, .mes-aviso a { color: var(--color-text); text-decoration: underline; text-underline-offset: 3px; }
 
 /* fechar e reabrir (backend #86): os botões numa linha; o erro e a ressalva, embaixo deles */
 .fech-acoes { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .fech-erro { flex-basis: 100%; margin: 0; }
+/* uma nota numa linha só, embaixo dos botões do fechamento */
+.fech-nota-linha { flex-basis: 100%; margin: 0; }
 .fech-ressalva-form { flex-basis: 100%; display: flex; flex-direction: column; gap: 8px; max-width: 520px; }
 /* aprovar ou rejeitar várias de uma vez (#208): o motivo da rejeição; na comparação, a faixa e as caixas da seleção (#475) */
 /* justificar as selecionadas (#473) é o mesmo formulário em linha, que quebra para baixo na faixa */

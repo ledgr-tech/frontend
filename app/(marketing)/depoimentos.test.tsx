@@ -29,6 +29,16 @@ function renderDepoimentos(depoimentos: Depoimento[]) {
 const cards = () => screen.getAllByRole("figure");
 
 describe("Depoimentos", () => {
+  it("signs with the name alone when the person gave no role, and without a rating", () => {
+    renderDepoimentos([{ citacao: "Ficou mais rápido fechar o mês.", nome: "Carla Dias" }]);
+    expect(cards()).toHaveLength(1);
+    const card = cards()[0];
+    expect(within(card).getByText("Carla Dias")).toBeInTheDocument();
+    expect(card.querySelector(".depoimento-cargo")).toBeNull();
+    expect(card.querySelector(".depoimento-estrela")).toBeNull();
+    expect(card.textContent).not.toContain("undefined");
+  });
+
   it("shows each testimonial as a quote signed with the person's name, role and company", () => {
     renderDepoimentos([COM_NOTA, SEM_NOTA_NEM_EMPRESA]);
     expect(cards()).toHaveLength(2);

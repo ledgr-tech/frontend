@@ -416,6 +416,25 @@ function Painel({ mes, podeFechar, naoLidasIndisponivel, linkSemCriacao, aoFicar
         </span>
       </div>
 
+      {/* as ações no topo, logo abaixo do progresso: no fim do painel ninguém as achava (#505) */}
+      {podeFechar ? (
+        // a ressalva e o erro são do mês: atualizar a contagem não deve apagar o texto do 409
+        <AcoesDoFechamento key={mes.chave} mes={mes} revisar={comPendencia.caminho} />
+      ) : (
+        // sem a lista de fechamentos, o caminho de antes: começar o próximo, revisar ou ver os extratos
+        <div className="fech-acoes">
+          {mes.pronto ? (
+            <Link href="/conciliacoes/nova" className="btn btn-primary">
+              {`Começar ${mes.proximo}`}
+            </Link>
+          ) : (
+            <Link href={pendentes(mes) > 0 ? comPendencia.caminho : "/extratos"} className="btn btn-primary">
+              {pendentes(mes) > 0 ? "Revisar pendências" : "Ver extratos"}
+            </Link>
+          )}
+        </div>
+      )}
+
       <ol className="fech-passos" aria-label="Para fechar o mês">
         <Passo feito titulo="Extratos conciliados">
           <ul className="fech-passo-lista">
@@ -540,24 +559,6 @@ function Painel({ mes, podeFechar, naoLidasIndisponivel, linkSemCriacao, aoFicar
           ))}
         </Passo>
       </ol>
-
-      {podeFechar ? (
-        // a ressalva e o erro são do mês: atualizar a contagem não deve apagar o texto do 409
-        <AcoesDoFechamento key={mes.chave} mes={mes} revisar={comPendencia.caminho} />
-      ) : (
-        // sem a lista de fechamentos, o caminho de antes: começar o próximo, revisar ou ver os extratos
-        <div className="fech-acoes">
-          {mes.pronto ? (
-            <Link href="/conciliacoes/nova" className="btn btn-primary">
-              {`Começar ${mes.proximo}`}
-            </Link>
-          ) : (
-            <Link href={pendentes(mes) > 0 ? comPendencia.caminho : "/extratos"} className="btn btn-primary">
-              {pendentes(mes) > 0 ? "Revisar pendências" : "Ver extratos"}
-            </Link>
-          )}
-        </div>
-      )}
 
       <p className="vg-nota" style={{ margin: 0, fontSize: 13 }}>
         {`Última conciliação em ${formatarDataHora(ultima)}.`}
@@ -707,6 +708,13 @@ function AcoesDoFechamento({ mes, revisar }: { mes: MesDeFechamento; revisar: st
         </>
       )}
       {avisoDoGestor}
+      {/* o próximo mês não espera este fechar: o backend só recusa conciliar no mês fechado (#505) */}
+      <p className="vg-nota fech-nota-linha">
+        {`Não precisa fechar ${mesSozinho} para começar ${mes.proximo}. `}
+        <Link href="/conciliacoes/nova" className="fech-link">
+          Nova conciliação
+        </Link>
+      </p>
       {erro && (
         <p role="alert" className="selo selo-risco fech-erro">
           {erro}
