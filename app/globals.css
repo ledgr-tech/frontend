@@ -2500,7 +2500,11 @@ html:has(.app-shell):has(.painel-lateral) { overflow: hidden; scrollbar-gutter: 
 .hist-taxa { font-variant-numeric: tabular-nums; }
 .hist-arquivo { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .hist-arquivo .icone-origem { flex: none; }
-.hist-arquivo-nome { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* cortado no meio (NomeDoArquivo): o começo encolhe com reticências, o fim do nome fica sempre à vista */
+.hist-arquivo-nome { display: flex; min-width: 0; white-space: nowrap; }
+/* pre: como itens de um flex, as partes perderiam o espaço da emenda ("novembro 2026" virava "novembro2026") */
+.hist-arquivo-inicio { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: pre; }
+.hist-arquivo-fim { flex: none; white-space: pre; }
 .hist-arquivo-sistema { font-size: var(--texto-nota); color: color-mix(in srgb, var(--color-text) 68%, transparent); }
 
 /* os quadrados das rodadas, como na faixa da comparação, menores e sem o fio se desenhando */
@@ -3923,6 +3927,10 @@ html:not([data-menu="recolhido"]) .app-assistente-figura {
 @container tela (max-width: 600px) {
   .seletor-topo-botao { max-width: 150px; }
   .seletor-janela-tabela td:first-child { white-space: normal; }
+  /* com uma coluna só, os 680px de toda tabela rolável cortavam os nomes no mesmo ponto: "… Rota do" em todas as
+     filiais. Aqui o nome quebra linha, mesmo uma palavra longa sem espaço */
+  .dash-tabela-rolagem .seletor-janela-tabela { min-width: 0; }
+  .seletor-janela-escolher { overflow-wrap: anywhere; }
   .seletor-janela-cnpj-celular {
     display: block; margin-top: 2px; font-size: var(--texto-nota); font-variant-numeric: tabular-nums;
     color: color-mix(in srgb, var(--color-text) 66%, transparent);
@@ -3999,9 +4007,10 @@ html:not([data-menu="recolhido"]) .app-assistente-figura {
 .equipe-quem { flex: 1 1 200px; min-width: 0; display: flex; flex-direction: column; }
 .equipe-nome-linha { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
 .equipe-nome { font-weight: 600; overflow-wrap: anywhere; }
-/* break-word, e não anywhere: o e-mail quebra antes do "@" (o <wbr> de EmailQuebravel) e só parte uma
-   palavra que não cabe nem sozinha na linha (M-03) */
-.equipe-quem > span { font-size: var(--texto-nota); color: color-mix(in srgb, var(--color-text) 68%, transparent); overflow-wrap: break-word; }
+/* o e-mail quebra antes do "@" (o <wbr> de EmailQuebravel) quando o nome antes dele cabe na linha, e só parte
+   uma palavra que não cabe nem sozinha (M-03). anywhere, e não break-word: numa tabela o break-word ainda conta a
+   palavra inteira na largura mínima, e um e-mail longo alargava a tabela e escondia a coluna Papel no celular */
+.equipe-quem > span { font-size: var(--texto-nota); color: color-mix(in srgb, var(--color-text) 68%, transparent); overflow-wrap: anywhere; }
 .equipe-papel { border: 1px solid var(--color-divider); border-radius: 999px; padding: 4px 12px; font-size: var(--texto-nota); font-weight: 500; }
 .equipe-papel-envelope { position: relative; display: inline-flex; }
 .equipe-papel-botao {
@@ -4913,7 +4922,9 @@ html:not([data-densidade="padrao"]) .app-shell .selo { padding-block: 1px; }
   gap: 12px 20px;
 }
 /* os filtros e, logo ao lado, quantas das linhas em revisão já foram conferidas */
-.tabela-filtros { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+/* min-width 0: item de um flex, sem ele não encolhe abaixo do trilho e, no celular, alarga a página em vez de o trilho
+   correr para o lado */
+.tabela-filtros { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; min-width: 0; }
 /* 70%, como o texto apagado das linhas conferidas: os 62% davam 4,48:1 sobre a página, abaixo dos 4,5 */
 .tabela-progresso {
   font-size: var(--texto-corpo); font-variant-numeric: tabular-nums;

@@ -83,6 +83,7 @@ export function Shell({
           <div className="app-shell">
             <MenuLateral
               email={email}
+              nome={nome}
               empresa={nomeDaConta ?? empresa}
               temSenha={temSenha}
               papel={papel}

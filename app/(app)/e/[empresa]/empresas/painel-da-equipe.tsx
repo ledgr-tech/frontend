@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from "react";
 import type { Convite, Pessoa } from "@/lib/adaptadores";
+import { iniciais } from "@/lib/iniciais";
 import { situacaoDoLimite, textoDoLimite } from "@/lib/limites";
 import { papeisQueConvida, podeConvidar, ROTULO_DO_PAPEL, type Papel } from "@/lib/papel";
 import { useRoteador } from "@/lib/roteador";
@@ -64,16 +65,6 @@ export function useEquipe(): {
     recarregar: () => setEstado(undefined),
     aplicar: (depois) => setEstado((atual) => (typeof atual === "object" ? depois(atual) : atual)),
   };
-}
-
-function iniciais(nome: string): string {
-  return nome
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((parte) => parte[0])
-    .join("")
-    .toUpperCase();
 }
 
 export function PainelDaEquipe({
