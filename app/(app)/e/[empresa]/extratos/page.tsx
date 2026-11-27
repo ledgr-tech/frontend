@@ -13,9 +13,6 @@ import { SemNada } from "../sem-nada";
  * linhas que o parser não conseguiu ler e, se já entrou numa, a conciliação.
  */
 
-const cinza = (opacidade: number) =>
-  `color-mix(in srgb, var(--color-text) ${opacidade}%, transparent)`;
-
 export default async function ExtratosPage() {
   const resposta = await listarExtratos();
   if (!resposta.ok && resposta.status === 401) await redirecionarNoApp("/login");
@@ -41,7 +38,7 @@ export default async function ExtratosPage() {
           </Reveal>
           {/* a lista para no teto de páginas da action: diz que há mais que os da tela */}
           {resposta.dados.arquivos.length < resposta.dados.total && (
-            <p style={{ margin: 0, fontSize: 13.5, color: cinza(62) }}>
+            <p style={{ margin: 0, fontSize: "var(--texto-nota)", color: "var(--texto-apagado)" }}>
               Aparecem os {formatarInteiro(resposta.dados.arquivos.length)} arquivos enviados por último, de{" "}
               {formatarInteiro(resposta.dados.total)}.
             </p>
