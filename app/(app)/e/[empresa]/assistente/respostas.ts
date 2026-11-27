@@ -5,6 +5,7 @@ import {
   formatarMoedaCurta,
   formatarPercentual,
   pedeDecisao,
+  plural,
   resumir,
   statusDaLinha,
   valorEmAberto,
@@ -76,10 +77,6 @@ export type Resposta = {
   /** Pede a explicação da maior divergência à IA, em vez de responder daqui. */
   explicar?: true;
 };
-
-function plural(quantidade: number, singular: string, plural: string): string {
-  return `${formatarInteiro(quantidade)} ${quantidade === 1 ? singular : plural}`;
-}
 
 function sobraSemDinheiro(linhas: number): string {
   return `${linhas === 1 ? "Sobrou" : "Sobraram"} ${plural(linhas, "linha", "linhas")}, sem dinheiro em aberto`;

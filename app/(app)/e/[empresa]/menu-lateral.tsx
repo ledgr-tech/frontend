@@ -12,6 +12,7 @@ import Image from "next/image";
 import Link from "@/lib/link-do-app";
 import { usePathname } from "next/navigation";
 import { caminhoSemEmpresa } from "@/lib/rotas";
+import { iniciais as iniciaisDoNome } from "@/lib/iniciais";
 import {
   ArrowLeftRight,
   Building2,
@@ -111,12 +112,15 @@ function deslizarConteudo(antes: number | undefined, duracao: number) {
 
 export function MenuLateral({
   email,
+  nome: nomeDaPessoa = "",
   empresa,
   temSenha,
   papel = "admin",
   onSair,
 }: {
   email: string;
+  /** O nome de quem está logado, do `GET /me`; vazio, o cartão usa o começo do e-mail. */
+  nome?: string;
   /** Vazia enquanto o backend não devolve a razão social: aí o cartão mostra só o nome. */
   empresa: string;
   /** Falso na conta que só entra pelo Google: as configurações não oferecem trocar a senha. */
@@ -313,10 +317,12 @@ export function MenuLateral({
   // aberto por cima, o mesmo botão deixa o menu aberto de vez
   const rotuloAbrir = espiar ? "Fixar menu" : "Abrir menu";
 
+  // o nome do /me ("Gabriela Gestora" → "GG", como na Equipe); sem ele, o e-mail:
   // "financeiro@telhacerta.com.br" → "Financeiro" e "FI"
   const apelido = email.split("@")[0] ?? "";
-  const nome = apelido.charAt(0).toUpperCase() + apelido.slice(1);
-  const iniciais = apelido.slice(0, 2).toUpperCase();
+  const nomeLimpo = nomeDaPessoa.trim().replace(/\s+/g, " ");
+  const nome = nomeLimpo || apelido.charAt(0).toUpperCase() + apelido.slice(1);
+  const iniciais = nomeLimpo ? iniciaisDoNome(nomeLimpo) : apelido.slice(0, 2).toUpperCase();
 
   return (
     <aside
