@@ -157,6 +157,11 @@ export function formatarInteiro(valor: number): string {
   return valor.toLocaleString("pt-BR");
 }
 
+/** "1 linha", "2 linhas": o número em pt-BR, com o singular só quando é 1. */
+export function plural(quantidade: number, um: string, varios: string): string {
+  return `${formatarInteiro(quantidade)} ${quantidade === 1 ? um : varios}`;
+}
+
 /** Valores de destaque no design aparecem sem centavos ("R$ 214.380"). */
 export function formatarMoedaCurta(valor: number): string {
   return valor.toLocaleString("pt-BR", {

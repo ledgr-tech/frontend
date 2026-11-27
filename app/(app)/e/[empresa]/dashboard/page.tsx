@@ -4,7 +4,7 @@ import { Reveal } from "@/app/reveal";
 import { Cabecalho } from "../cabecalho";
 import { FalhaAoCarregar } from "../falha-ao-carregar";
 import { SemNada } from "../sem-nada";
-import { formatarInteiro } from "./resumo";
+import { formatarInteiro, plural } from "./resumo";
 import { agruparPorMes, passaNoFiltro } from "./lista";
 import { ListaDeTrabalho } from "./lista-de-trabalho";
 
@@ -13,10 +13,6 @@ import { ListaDeTrabalho } from "./lista-de-trabalho";
  * pelo mês como folhas, com o que ainda falta decidir e a prévia da escolhida ao lado. O resumo do mês fica na visão geral,
  * o trabalho linha a linha na comparação e o que já aconteceu no histórico.
  */
-
-function plural(quantidade: number, singular: string, plural: string): string {
-  return `${formatarInteiro(quantidade)} ${quantidade === 1 ? singular : plural}`;
-}
 
 export default async function DashboardPage() {
   const resposta = await carregarConciliacoes();

@@ -1,6 +1,6 @@
 import { DIVERGENCIAS, type Divergencia } from "@/lib/adaptadores";
 import type { LinhaComparacao, Tom } from "@/lib/mock-data";
-import { formatarMoedaCurta, seloDoStatus, valorEmAberto } from "../../dashboard/resumo";
+import { formatarMoedaCurta, plural, seloDoStatus, valorEmAberto } from "../../dashboard/resumo";
 import { textoDosLotes } from "./grupos";
 
 export type Categoria = {
@@ -27,10 +27,6 @@ export function porCategoria(linhas: LinhaComparacao[]): Categoria[] {
       valor: valorEmAberto(daCategoria),
     };
   });
-}
-
-function plural(quantidade: number, um: string, varios: string): string {
-  return `${quantidade.toLocaleString("pt-BR")} ${quantidade === 1 ? um : varios}`;
 }
 
 /**
